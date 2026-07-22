@@ -2647,6 +2647,237 @@ impl<'a> CheckerState<'a> {
         self.get_constituent_type_for_key_type(union, prop_type)
     }
 
+    /// tsc-port: getBestMatchingType @6.0.3
+    /// tsc-hash: 55400b7c8e35bc7e68c2d9d3e1f0f86d37e1827c9458115a807aea677ebdc311
+    /// tsc-span: _tsc.js:67256-67258
+    ///
+    /// Every port caller passes tsc's default comparator
+    /// (compareTypesAssignable) — the discriminate leg's hardcoded
+    /// assignable probe matches it.
+    pub(crate) fn get_best_matching_type(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        if let Some(matched) = self.find_matching_discriminant_type(source, target)? {
+            return Ok(Some(matched));
+        }
+        if let Some(matched) =
+            self.find_matching_type_reference_or_type_alias_reference(source, target)?
+        {
+            return Ok(Some(matched));
+        }
+        if let Some(matched) = self.find_best_type_for_object_literal(source, target)? {
+            return Ok(Some(matched));
+        }
+        if let Some(matched) = self.find_best_type_for_invokable(source, target)? {
+            return Ok(Some(matched));
+        }
+        self.find_most_overlappy_type(source, target)
+    }
+
+    /// tsc-port: findMatchingDiscriminantType @6.0.3
+    /// tsc-hash: e07652728870af7f3805be6bccca52c6ee84e585ffe0f0357a2c25c15d97a973
+    /// tsc-span: _tsc.js:90518-90536
+    fn find_matching_discriminant_type(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        if !self.tables.flags_of(target).intersects(TypeFlags::UNION)
+            || !self
+                .tables
+                .flags_of(source)
+                .intersects(TypeFlags::from_bits(
+                    TypeFlags::INTERSECTION.bits() | TypeFlags::OBJECT.bits(),
+                ))
+        {
+            return Ok(None);
+        }
+        if let Some(matched) = self.get_matching_union_constituent_for_type(target, source)? {
+            return Ok(Some(matched));
+        }
+        let source_properties = self.get_properties_of_type(source)?;
+        if let Some(filtered) = self.find_discriminant_properties(&source_properties, target)? {
+            let discriminators: Vec<(crate::contextual::ContextualDiscriminator, String)> =
+                filtered
+                    .iter()
+                    .map(|&property| {
+                        (
+                            crate::contextual::ContextualDiscriminator::SymbolType(property),
+                            self.binder.symbol(property).escaped_name.clone(),
+                        )
+                    })
+                    .collect();
+            let discriminated =
+                self.discriminate_type_by_discriminable_items_contextual(target, &discriminators)?;
+            if discriminated != target {
+                return Ok(Some(discriminated));
+            }
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: findMatchingTypeReferenceOrTypeAliasReference @6.0.3
+    /// tsc-hash: 1847d71a6dfc31dc5290a33caa3de1f7c1f140a195650f4b69bccd692c40297a
+    /// tsc-span: _tsc.js:90459-90475
+    fn find_matching_type_reference_or_type_alias_reference(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let source_object_flags = self.tables.object_flags_of(source);
+        if !source_object_flags.intersects(ObjectFlags::from_bits(
+            ObjectFlags::REFERENCE.bits() | ObjectFlags::ANONYMOUS.bits(),
+        )) || !self.tables.flags_of(target).intersects(TypeFlags::UNION)
+        {
+            return Ok(None);
+        }
+        let members = match &self.tables.type_of(target).data {
+            TypeData::Union { types, .. } => types.to_vec(),
+            _ => return Ok(None),
+        };
+        for member in members {
+            if !self.tables.flags_of(member).intersects(TypeFlags::OBJECT) {
+                continue;
+            }
+            let overlap_bits =
+                source_object_flags.bits() & self.tables.object_flags_of(member).bits();
+            let overlap = ObjectFlags::from_bits(overlap_bits);
+            if overlap.intersects(ObjectFlags::REFERENCE) {
+                if self.tables.reference_target(source) == self.tables.reference_target(member) {
+                    return Ok(Some(member));
+                }
+                continue;
+            }
+            if overlap.intersects(ObjectFlags::ANONYMOUS) {
+                let source_alias = self.tables.type_of(source).alias_symbol;
+                if source_alias.is_some()
+                    && source_alias == self.tables.type_of(member).alias_symbol
+                {
+                    return Ok(Some(member));
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: findBestTypeForObjectLiteral @6.0.3
+    /// tsc-hash: 9db08832a3062521059e4b1caf8d1827d8c5a036f0e08c4716b2df0c1f13e2ee
+    /// tsc-span: _tsc.js:90476-90480
+    fn find_best_type_for_object_literal(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        if !self
+            .tables
+            .object_flags_of(source)
+            .intersects(ObjectFlags::OBJECT_LITERAL)
+        {
+            return Ok(None);
+        }
+        let some_array_like =
+            self.some_type_result(target, |state, t| state.is_array_like_type(t))?;
+        if !some_array_like {
+            return Ok(None);
+        }
+        let members = match &self.tables.type_of(target).data {
+            TypeData::Union { types, .. } => types.to_vec(),
+            _ => vec![target],
+        };
+        for member in members {
+            if !self.is_array_like_type(member)? {
+                return Ok(Some(member));
+            }
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: findBestTypeForInvokable @6.0.3
+    /// tsc-hash: b1d7905e38c6704a710b063e4d9481ef8f865537d9c2d8a9bdb89728e8453d9b
+    /// tsc-span: _tsc.js:90481-90487
+    fn find_best_type_for_invokable(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let mut kind = crate::state::SignatureKind::Call;
+        let has_signatures = !self.get_signatures_of_type(source, kind)?.is_empty() || {
+            kind = crate::state::SignatureKind::Construct;
+            !self.get_signatures_of_type(source, kind)?.is_empty()
+        };
+        if !has_signatures {
+            return Ok(None);
+        }
+        let members = match &self.tables.type_of(target).data {
+            TypeData::Union { types, .. } => types.to_vec(),
+            _ => vec![target],
+        };
+        for member in members {
+            if !self.get_signatures_of_type(member, kind)?.is_empty() {
+                return Ok(Some(member));
+            }
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: findMostOverlappyType @6.0.3
+    /// tsc-hash: aa5ef16a3808753183c878e4723aac30b027e09880f2ec84b43b1074a2581921
+    /// tsc-span: _tsc.js:90488-90508
+    ///
+    /// `>=` on the unit count keeps the LAST best match, as written.
+    fn find_most_overlappy_type(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let primitive_mask = TypeFlags::from_bits(
+            TypeFlags::PRIMITIVE.bits() | TypeFlags::INSTANTIABLE_PRIMITIVE.bits(),
+        );
+        if self.tables.flags_of(source).intersects(primitive_mask) {
+            return Ok(None);
+        }
+        let members = match &self.tables.type_of(target).data {
+            TypeData::Union { types, .. } => types.to_vec(),
+            _ => vec![target],
+        };
+        let mut best_match = None;
+        let mut matching_count = 0usize;
+        for member in members {
+            if self.tables.flags_of(member).intersects(primitive_mask) {
+                continue;
+            }
+            let source_index = self.get_index_type(source, tsrs2_types::IndexFlags::NONE)?;
+            let member_index = self.get_index_type(member, tsrs2_types::IndexFlags::NONE)?;
+            let overlap = self.get_intersection_type(
+                &[source_index, member_index],
+                tsrs2_types::IntersectionFlags::NONE,
+            )?;
+            let overlap_flags = self.tables.flags_of(overlap);
+            if overlap_flags.intersects(TypeFlags::INDEX) {
+                return Ok(Some(member));
+            }
+            if self.is_unit_type(overlap) || overlap_flags.intersects(TypeFlags::UNION) {
+                let len = if overlap_flags.intersects(TypeFlags::UNION) {
+                    match &self.tables.type_of(overlap).data {
+                        TypeData::Union { types, .. } => {
+                            types.iter().filter(|&&t| self.is_unit_type(t)).count()
+                        }
+                        _ => 0,
+                    }
+                } else {
+                    1
+                };
+                if len >= matching_count {
+                    best_match = Some(member);
+                    matching_count = len;
+                }
+            }
+        }
+        Ok(best_match)
+    }
+
     /// tsc-port: getConstituentTypeForKeyType @6.0.3 (shared tail)
     /// tsc-hash: 4359544adbcb805ecf85f0af3cfc44554a4fb7c49aa520d6af4971018d006671
     /// tsc-span: _tsc.js:69625-69629

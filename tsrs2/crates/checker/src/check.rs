@@ -28,10 +28,11 @@ use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
 use tsrs2_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    ElementFlags, ModifierFlags, NodeCheckFlags, ObjectFlags, TypeData, TypeFlags, TypeId,
+    ElementFlags, ModifierFlags, NodeCheckFlags, ObjectFlags, TypeData, TypeFacts, TypeFlags,
+    TypeId,
 };
 
-use crate::state::{CheckResult2, CheckerState, SignatureKind, Unsupported};
+use crate::state::{CheckResult2, CheckerState, SignatureId, SignatureKind, Unsupported};
 
 /// Debug-only unwind census (the unsupported-unwind invariant):
 /// every transient stack an element check may push must be back at
@@ -2653,6 +2654,55 @@ impl<'a> CheckerState<'a> {
 
     // ---- relation reporting (the 5.4 slice) ----
 
+    /// tsc-port: isRelatedTo @6.0.3 (the nullable-candidate substitution)
+    /// tsc-hash: e700526d3ad4ff20b24e5f5218b2fe969a0745358f190ce915314e8fbe2eac9f
+    /// tsc-span: _tsc.js:65185-65196
+    ///
+    /// A DefinitelyNonNullable source against a 2-member
+    /// [nullable, X] or 3-member [nullable, nullable, X] union
+    /// substitutes X for the WHOLE relation level — which is why
+    /// `let v: string | undefined = 1` reports `number ↛ string`
+    /// while two-real-member unions keep the union face
+    /// (oracle-probed U1-U5). Verdicts are unchanged (a definitely
+    /// non-nullable source relates to the union iff it relates to
+    /// X); the port applies the substitution at its report entries,
+    /// where tsc's in-engine reportRelationError sees the
+    /// substituted pair. Nullable members sort first in union lists,
+    /// matching tsc's positional probe.
+    fn nullable_stripped_report_target(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<TypeId> {
+        if !self
+            .tables
+            .flags_of(source)
+            .intersects(TypeFlags::DEFINITELY_NON_NULLABLE)
+            || !self.tables.flags_of(target).intersects(TypeFlags::UNION)
+        {
+            return Ok(target);
+        }
+        let types = match &self.tables.type_of(target).data {
+            TypeData::Union { types, .. } => types.to_vec(),
+            _ => return Ok(target),
+        };
+        let nullable =
+            |state: &Self, t: TypeId| state.tables.flags_of(t).intersects(TypeFlags::NULLABLE);
+        let candidate = if types.len() == 2 && nullable(self, types[0]) {
+            Some(types[1])
+        } else if types.len() == 3 && nullable(self, types[0]) && nullable(self, types[1]) {
+            Some(types[2])
+        } else {
+            None
+        };
+        match candidate {
+            Some(candidate) if !nullable(self, candidate) => {
+                self.get_normalized_type(candidate, /*writing*/ true)
+            }
+            _ => Ok(target),
+        }
+    }
+
     /// tsc-port: checkTypeAssignableTo @6.0.3 (5.4 slice)
     /// tsc-hash: c54f432c89f2f52677994a63f73b2d9e30dadfe890712c62749b4aab33e7f833
     /// tsc-span: _tsc.js:63931-63933
@@ -2680,6 +2730,12 @@ impl<'a> CheckerState<'a> {
         let related = self.is_type_assignable_to(source, target)?;
         if !related {
             if let Some(error_node) = error_node {
+                // The 65185 nullable-candidate substitution runs at
+                // the failing level's entry — every report arm below
+                // (excess/common-property heads, unmatched-property
+                // faces, the rendered pair) sees the substituted
+                // target, exactly like tsc's in-engine reporting.
+                let target = self.nullable_stripped_report_target(source, target)?;
                 // An EXPLICIT tsc headMessage chains OUTERMOST
                 // unconditionally (64860: errorInfo =
                 // chainDiagnosticMessages(errorInfo, headMessage)) —
@@ -2762,11 +2818,11 @@ impl<'a> CheckerState<'a> {
                         return Ok(related);
                     }
                 }
-                let mut source_text = self.type_to_string_slice(source)?;
-                let mut target_text = self.type_to_string_slice(target)?;
+                let mut source_text = self.type_to_string_slice_with_error_enclosing(source)?;
+                let mut target_text = self.type_to_string_slice_with_error_enclosing(target)?;
                 if source_text == target_text {
                     // getTypeNamesForErrorDisplay (50748-50756): equal
-                    // renders re-render fully qualified.
+                    // renders re-render fully qualified (no enclosing).
                     source_text = self.get_type_name_for_error_display(source)?;
                     target_text = self.get_type_name_for_error_display(target)?;
                 }
@@ -2934,8 +2990,11 @@ impl<'a> CheckerState<'a> {
         if self.has_common_properties(source, target)? {
             return Ok(false);
         }
-        let source_text = self.type_to_string_slice(source)?;
-        let target_text = self.type_to_string_slice(target)?;
+        // reportRelationError computes the display pair once at entry
+        // (65066) — the weak-type rows read the same
+        // getTypeNamesForErrorDisplay strings, enclosing included.
+        let source_text = self.type_to_string_slice_with_error_enclosing(source)?;
+        let target_text = self.type_to_string_slice_with_error_enclosing(target)?;
         let mut callable_face = false;
         for kind in [
             crate::state::SignatureKind::Call,
@@ -3094,6 +3153,35 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(false);
         }
+        // shouldReportUnmatchedPropertyError (67043-67054, gating the
+        // 66879 report): a signature-shaped property-less source keeps
+        // the plain relation head UNLESS the target is signature-
+        // shaped in the same kind (oracle-probed: `t = () => 1`
+        // against `{ f(): void }` is a headless 2322, not 2741 —
+        // masked pre-9.3b2 by the fn-display curtain).
+        {
+            let source_calls = self
+                .get_signatures_of_type(source, crate::state::SignatureKind::Call)?
+                .len();
+            let source_constructs = self
+                .get_signatures_of_type(source, crate::state::SignatureKind::Construct)?
+                .len();
+            if (source_calls > 0 || source_constructs > 0)
+                && self.get_properties_of_object_type_owned(source)?.is_empty()
+            {
+                let target_reports = (source_calls > 0
+                    && !self
+                        .get_signatures_of_type(target, crate::state::SignatureKind::Call)?
+                        .is_empty())
+                    || (source_constructs > 0
+                        && !self
+                            .get_signatures_of_type(target, crate::state::SignatureKind::Construct)?
+                            .is_empty());
+                if !target_reports {
+                    return Ok(false);
+                }
+            }
+        }
         let mut unmatched: Vec<SymbolId> = Vec::new();
         for target_prop in self.get_properties_of_type(target)? {
             let flags = self.binder.symbol(target_prop).flags;
@@ -3191,19 +3279,27 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(false);
         }
-        let source_text = self.type_to_string_slice(source)?;
-        let target_text = self.type_to_string_slice(target)?;
         // 66735: the single-property face renders through
-        // getTypeNamesForErrorDisplay — equal renders re-render fully
-        // qualified (the multi-property 2739/2740 faces use plain
-        // typeToString, 66752-66757).
-        let (source_text, target_text) = if unmatched.len() == 1 && source_text == target_text {
-            (
-                self.get_type_name_for_error_display(source)?,
-                self.get_type_name_for_error_display(target)?,
-            )
+        // getTypeNamesForErrorDisplay — the context-sensitive
+        // enclosing pass plus the equal→fully-qualified retry; the
+        // multi-property 2739/2740 faces use plain typeToString
+        // (66752-66757, no enclosing).
+        let (source_text, target_text) = if unmatched.len() == 1 {
+            let source_text = self.type_to_string_slice_with_error_enclosing(source)?;
+            let target_text = self.type_to_string_slice_with_error_enclosing(target)?;
+            if source_text == target_text {
+                (
+                    self.get_type_name_for_error_display(source)?,
+                    self.get_type_name_for_error_display(target)?,
+                )
+            } else {
+                (source_text, target_text)
+            }
         } else {
-            (source_text, target_text)
+            (
+                self.type_to_string_slice(source)?,
+                self.type_to_string_slice(target)?,
+            )
         };
         if unmatched.len() == 1 {
             let prop = unmatched[0];
@@ -3288,6 +3384,9 @@ impl<'a> CheckerState<'a> {
         let related = self.is_type_comparable_to(source, target)?;
         if !related {
             if let Some(error_node) = error_node {
+                // 65185 nullable-candidate substitution (see the
+                // assignable twin).
+                let target = self.nullable_stripped_report_target(source, target)?;
                 // isRelatedTo's excess-property arm runs under the
                 // comparable relation too (65353) — a fresh-literal
                 // case expression reports the parent-skipped
@@ -3300,11 +3399,11 @@ impl<'a> CheckerState<'a> {
                 )? {
                     return Ok(related);
                 }
-                let mut source_text = self.type_to_string_slice(source)?;
-                let mut target_text = self.type_to_string_slice(target)?;
+                let mut source_text = self.type_to_string_slice_with_error_enclosing(source)?;
+                let mut target_text = self.type_to_string_slice_with_error_enclosing(target)?;
                 if source_text == target_text {
                     // getTypeNamesForErrorDisplay (50748-50756): equal
-                    // renders re-render fully qualified.
+                    // renders re-render fully qualified (no enclosing).
                     source_text = self.get_type_name_for_error_display(source)?;
                     target_text = self.get_type_name_for_error_display(target)?;
                 }
@@ -3950,12 +4049,68 @@ impl<'a> CheckerState<'a> {
             ));
         }
         if let Some(symbol) = self.tables.type_of(ty).symbol {
-            if !self.binder.symbol(symbol).flags.intersects(
-                tsrs2_types::SymbolFlags::TYPE_LITERAL | tsrs2_types::SymbolFlags::OBJECT_LITERAL,
+            let symbol_flags = self.binder.symbol(symbol).flags;
+            // 51771-51786 symbol routing: class/enum/value-module
+            // symbols print symbol heads (the class/enum typeof split
+            // lives upstream; value-module faces are a later rung) —
+            // curtain. Function/method symbols fall THROUGH to the
+            // structural tail on the error path:
+            // shouldWriteTypeOfFunctionSymbol (51789-51795) requires
+            // UseTypeOfFunction or a revisit, and typeToString sets
+            // neither (oracle-probed: top-level, local, namespace-
+            // parented declarations and expressions all render
+            // structurally on first visit; the revisit face stays
+            // behind the slice_visited_types curtain below). The
+            // isJSConstructor head (51764) rides the checkJs band.
+            if symbol_flags.intersects(
+                tsrs2_types::SymbolFlags::CLASS
+                    | tsrs2_types::SymbolFlags::REGULAR_ENUM
+                    | tsrs2_types::SymbolFlags::CONST_ENUM
+                    | tsrs2_types::SymbolFlags::VALUE_MODULE,
             ) {
                 return Err(Unsupported::new(
                     "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
                 ));
+            }
+            if !symbol_flags.intersects(
+                tsrs2_types::SymbolFlags::TYPE_LITERAL
+                    | tsrs2_types::SymbolFlags::OBJECT_LITERAL
+                    | tsrs2_types::SymbolFlags::FUNCTION
+                    | tsrs2_types::SymbolFlags::METHOD,
+            ) {
+                return Err(Unsupported::new(
+                    "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+                ));
+            }
+            if symbol_flags
+                .intersects(tsrs2_types::SymbolFlags::FUNCTION | tsrs2_types::SymbolFlags::METHOD)
+                && self
+                    .binder
+                    .symbol(symbol)
+                    .value_declaration
+                    .is_some_and(|declaration| self.is_in_js_file(declaration))
+            {
+                return Err(Unsupported::new(
+                    "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+                ));
+            }
+            if symbol_flags.intersects(tsrs2_types::SymbolFlags::FUNCTION)
+                && self.binder.symbol_has_expando_assignment(symbol)
+            {
+                // tsc's expando binding gives the DECLARATION symbol a
+                // namespace face (bindPotentiallyMissingNamespaces),
+                // so the ValueModule disjunct (51779) prints it under
+                // the Value meaning — `typeof foo` (oracle-probed).
+                // The fn-EXPRESSION flavor flags the VARIABLE symbol
+                // instead, so its type renders structurally MINUS the
+                // unbound members (tsc prints them: recorded
+                // stage-3.4c T2 residue; the row keys are unaffected).
+                let name = if fully_qualified {
+                    self.get_fully_qualified_name(symbol)
+                } else {
+                    self.symbol_display_name(symbol)
+                };
+                return Ok((format!("typeof {name}"), SliceTypeNodeKind::TypeQuery));
             }
         }
         if self.slice_visited_types.contains(&ty) {
@@ -3975,10 +4130,14 @@ impl<'a> CheckerState<'a> {
     ///
     /// The mapped-type head (isGenericMappedType/containsError) cannot
     /// be reached — no Mapped TypeData is minted before 9.5/M8. The
-    /// single call/construct signature shorthands (`() => T`,
-    /// `new () => T`, 51907-51916) and the abstract-construct
-    /// intersection re-derivation (51918-51928) are signature faces —
-    /// out of slice until the signature rung.
+    /// abstract-construct intersection re-derivation (51918-51928)
+    /// needs an anonymous type mixing abstract construct signatures
+    /// with other members: `abstract new` is grammatical only on
+    /// ConstructorType nodes (single-signature shapes, which the
+    /// 51912-51916 shorthand takes first) and abstract CLASS statics
+    /// render behind the `typeof C` face, so the mix only arises from
+    /// M8-band synthesis (mapped/instantiation-expression shapes) and
+    /// stays behind the curtain with them.
     fn type_node_from_object_type_slice(
         &mut self,
         ty: TypeId,
@@ -4007,26 +4166,65 @@ impl<'a> CheckerState<'a> {
                     "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
                 ));
             }
+            // 51907-51916: the single call/construct signature
+            // shorthands (`(...) => R`, `new (...) => R`); the
+            // ConstructorType helper kind renders the abstract
+            // modifier from the signature flag (52530-52533).
+            if call_signatures.len() == 1 && construct_signatures.is_empty() {
+                let text = self.signature_to_string_slice(
+                    call_signatures[0],
+                    SliceSignatureKind::FunctionType,
+                    None,
+                    fully_qualified,
+                )?;
+                return Ok((text, SliceTypeNodeKind::FunctionType));
+            }
+            if construct_signatures.len() == 1 && call_signatures.is_empty() {
+                let text = self.signature_to_string_slice(
+                    construct_signatures[0],
+                    SliceSignatureKind::ConstructorType,
+                    None,
+                    fully_qualified,
+                )?;
+                return Ok((text, SliceTypeNodeKind::ConstructorType));
+            }
+        }
+        if construct_signatures.iter().any(|&signature| {
+            self.signature_of(signature)
+                .flags
+                .intersects(tsrs2_types::SignatureFlags::ABSTRACT)
+        }) {
+            // The 51918-51928 re-derivation (see the header note).
             return Err(Unsupported::new(
                 "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
             ));
         }
-        if !call_signatures.is_empty() || !construct_signatures.is_empty() {
-            // Call/construct members are signatureToSignatureDeclaration
-            // faces (52155-52161), and abstract construct signatures
-            // re-derive an intersection over getOrCreateTypeFromSignature
-            // (51918-51928) — the same signature rung, out of slice
-            // either way.
-            return Err(Unsupported::new(
-                "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
-            ));
-        }
-        // createTypeNodesFromResolvedType (52137-52240). The
-        // checkTruncationLength probes are approximateLength gates the
-        // slice does not model: an over-long literal prints whole
-        // where tsc elides `... N more ...` — text-only divergence
-        // (T2 tail), the row keys are position+code and unaffected.
+        // createTypeNodesFromResolvedType (52137-52240): call
+        // signatures, then construct signatures (the 52157 abstract
+        // `continue` is unreachable while the re-derivation above
+        // curtains every abstract-bearing shape), then index
+        // signatures, then properties. The checkTruncationLength
+        // probes are approximateLength gates the slice does not
+        // model: an over-long literal prints whole where tsc elides
+        // `... N more ...` — text-only divergence (T2 tail), the row
+        // keys are position+code and unaffected.
         let mut rendered = Vec::new();
+        for &signature in &call_signatures {
+            rendered.push(self.signature_to_string_slice(
+                signature,
+                SliceSignatureKind::CallSignature,
+                None,
+                fully_qualified,
+            )?);
+        }
+        for &signature in &construct_signatures {
+            rendered.push(self.signature_to_string_slice(
+                signature,
+                SliceSignatureKind::ConstructSignature,
+                None,
+                fully_qualified,
+            )?);
+        }
         for info in &index_infos {
             rendered.push(self.index_signature_slice(info, fully_qualified)?);
         }
@@ -4117,31 +4315,77 @@ impl<'a> CheckerState<'a> {
         let property_type = self.get_non_missing_type_of_symbol(property)?;
         let symbol_flags = self.binder.symbol(property).flags;
         // 52268-52343: accessor properties whose write type diverges
-        // (or whose class parent takes the getter/setter or
-        // accessor-modifier arms) print signature faces; the same-type
-        // non-class fall-through prints the plain property row
-        // (oracle-pinned: `{ get p(): string; set p(v: string) }`
-        // displays `{ p: string; }`).
+        // (or whose class parent takes the getter/setter arms) print
+        // signature faces; the same-type non-class fall-through
+        // prints the plain property row (oracle-pinned:
+        // `{ get p(): string; set p(v: string) }` displays
+        // `{ p: string; }`).
         if symbol_flags.intersects(tsrs2_types::SymbolFlags::ACCESSOR) {
             let write_type = self.get_write_type_of_symbol(property)?;
             let error = self.tables.intrinsics.error;
             if property_type != error && write_type != error {
-                if property_type != write_type {
+                let class_parent = self.binder.symbol(property).parent.is_some_and(|parent| {
+                    self.binder
+                        .symbol(parent)
+                        .flags
+                        .intersects(tsrs2_types::SymbolFlags::CLASS)
+                });
+                // 52273: the class-parent disjunct reads a
+                // PropertyDeclaration among the accessor's
+                // declarations (`accessor x` auto-accessor fields).
+                // Class-parented accessor symbols cannot reach an
+                // admitted anonymous display today — spreads drop
+                // prototype accessors (probed: `{ ...classInstance }`
+                // resolves member-less) and Pick/Omit shapes are
+                // mapped types (M8) — so both class arms (52274 and
+                // the 52298 accessor-modifier fake pair) stay behind
+                // the curtain with a class-parent test instead of a
+                // per-arm transcription.
+                if class_parent {
                     return Err(Unsupported::new(
                         "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
                     ));
                 }
-                if let Some(parent) = self.binder.symbol(property).parent {
-                    if self
-                        .binder
-                        .symbol(parent)
-                        .flags
-                        .intersects(tsrs2_types::SymbolFlags::CLASS)
-                    {
-                        return Err(Unsupported::new(
-                            "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
-                        ));
+                if property_type != write_type {
+                    // 52274-52297: the diverging pair prints one
+                    // signature face per present accessor declaration,
+                    // instantiated under the symbol links mapper.
+                    let name = self.property_name_slice(property)?;
+                    let symbol_mapper = self.links.symbol(property).mapper;
+                    let declarations = self.binder.symbol(property).declarations.clone();
+                    let getter = declarations
+                        .iter()
+                        .copied()
+                        .find(|&d| matches!(self.data_of(d), NodeData::GetAccessor(_)));
+                    let setter = declarations
+                        .iter()
+                        .copied()
+                        .find(|&d| matches!(self.data_of(d), NodeData::SetAccessor(_)));
+                    if let Some(getter) = getter {
+                        let mut signature = self.get_signature_from_declaration(getter)?;
+                        if let Some(mapper) = symbol_mapper {
+                            signature = self.instantiate_signature(signature, mapper, false)?;
+                        }
+                        rendered.push(self.signature_to_string_slice(
+                            signature,
+                            SliceSignatureKind::GetAccessor,
+                            Some((&name, false)),
+                            fully_qualified,
+                        )?);
                     }
+                    if let Some(setter) = setter {
+                        let mut signature = self.get_signature_from_declaration(setter)?;
+                        if let Some(mapper) = symbol_mapper {
+                            signature = self.instantiate_signature(signature, mapper, false)?;
+                        }
+                        rendered.push(self.signature_to_string_slice(
+                            signature,
+                            SliceSignatureKind::SetAccessor,
+                            Some((&name, false)),
+                            fully_qualified,
+                        )?);
+                    }
+                    return Ok(());
                 }
             }
         }
@@ -4161,10 +4405,20 @@ impl<'a> CheckerState<'a> {
             })?;
             let signatures = self.get_signatures_of_type(filtered, SignatureKind::Call)?;
             if !signatures.is_empty() {
-                // Method faces (52346-52349) — the signature rung.
-                return Err(Unsupported::new(
-                    "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
-                ));
+                // Method faces (52344-52350): one MethodSignature
+                // member per call signature, the optional token on
+                // each (`m?(...)`), the filtered type's undefined
+                // never printing.
+                let name = self.property_name_slice(property)?;
+                for &signature in &signatures {
+                    rendered.push(self.signature_to_string_slice(
+                        signature,
+                        SliceSignatureKind::MethodSignature,
+                        Some((&name, optional)),
+                        fully_qualified,
+                    )?);
+                }
+                return Ok(());
             }
             if !optional {
                 return Ok(());
@@ -4180,6 +4434,1502 @@ impl<'a> CheckerState<'a> {
         let question = if optional { "?" } else { "" };
         rendered.push(format!("{readonly}{name}{question}: {type_text}"));
         Ok(())
+    }
+
+    /// tsc-port: signatureToSignatureDeclarationHelper @6.0.3
+    /// tsc-hash: 648aa8da24269c33b616fec95aa4cf725df9b6ddc0bb254ac01e456791be71c7
+    /// tsc-span: _tsc.js:52504-52631
+    ///
+    /// Dead context legs under the error-display slice, all keyed on
+    /// state typeToString never carries: WriteTypeArgumentsOfSignature
+    /// (a signatureToString-band flag, 52515), enterNewScope's fake
+    /// scopes and GenerateNamesForShadowedTypeParams renaming (both
+    /// need an enclosingDeclaration/flag bit — typeToString passes
+    /// AllowUniqueESSymbolType|UseAliasDefinedOutsideCurrentScope
+    /// only, and the slice's enclosing field feeds nothing but the
+    /// annotation-reuse gates), OmitThisParameter,
+    /// SuppressAnyReturnType (52520 clears it around the parameter
+    /// walk regardless), the JSDoc thisTag arm (52805-52821, [JSDOC]
+    /// no-parse) and the JSDocSignature overload-comment tail
+    /// (52605-52620). options.modifiers is empty at every slice call
+    /// site; the ConstructorType abstract OR-in (52530-52533) reads
+    /// the signature flag. The returnTypeNode ?? empty-reference
+    /// fallbacks (52547) are dead — serializeReturnTypeForSignature
+    /// always yields under the never-set SuppressAnyReturnType.
+    fn signature_to_string_slice(
+        &mut self,
+        signature: SignatureId,
+        kind: SliceSignatureKind,
+        member_name: Option<(&str, bool)>,
+        fully_qualified: bool,
+    ) -> CheckResult2<String> {
+        let expanded = self.expanded_parameter_faces_slice(signature)?;
+        let sig = self.signature_of(signature);
+        let type_parameters = sig.type_parameters.clone();
+        let declared_parameters = sig.parameters.clone();
+        let this_parameter = sig.this_parameter;
+        let is_abstract = sig.flags.intersects(tsrs2_types::SignatureFlags::ABSTRACT);
+        // 52519-52523: a REST-flagged expanded face anywhere but last
+        // falls back to the declared parameter list.
+        let faces = match expanded {
+            Some(faces)
+                if !faces[..faces.len().saturating_sub(1)]
+                    .iter()
+                    .any(|face| face.rest) =>
+            {
+                faces
+            }
+            _ => {
+                let mut faces = Vec::with_capacity(declared_parameters.len());
+                for &parameter in &declared_parameters {
+                    faces.push(self.declared_parameter_face_slice(parameter)?);
+                }
+                faces
+            }
+        };
+        let mut parameter_texts = Vec::with_capacity(faces.len() + 1);
+        if let Some(this_parameter) = this_parameter {
+            // tryGetThisParameterDeclaration (52802-52805): the
+            // declared this parameter unshifts to the front.
+            let face = self.declared_parameter_face_slice(this_parameter)?;
+            parameter_texts.push(self.parameter_face_to_string_slice(&face, fully_qualified)?);
+        }
+        for face in &faces {
+            parameter_texts.push(self.parameter_face_to_string_slice(face, fully_qualified)?);
+        }
+        let type_parameters_text = match &type_parameters {
+            Some(parameters) if !parameters.is_empty() => {
+                let mut rendered = Vec::with_capacity(parameters.len());
+                for &parameter in parameters {
+                    rendered.push(
+                        self.type_parameter_to_declaration_slice(parameter, fully_qualified)?,
+                    );
+                }
+                format!("<{}>", rendered.join(", "))
+            }
+            _ => String::new(),
+        };
+        let return_text =
+            self.serialize_return_type_for_signature_slice(signature, fully_qualified)?;
+        let parameters_text = parameter_texts.join(", ");
+        let type_parameters_text = type_parameters_text.as_str();
+        Ok(match kind {
+            SliceSignatureKind::FunctionType => {
+                format!("{type_parameters_text}({parameters_text}) => {return_text}")
+            }
+            SliceSignatureKind::ConstructorType => {
+                let modifier = if is_abstract { "abstract " } else { "" };
+                format!("{modifier}new {type_parameters_text}({parameters_text}) => {return_text}")
+            }
+            SliceSignatureKind::CallSignature => {
+                format!("{type_parameters_text}({parameters_text}): {return_text}")
+            }
+            SliceSignatureKind::ConstructSignature => {
+                format!("new {type_parameters_text}({parameters_text}): {return_text}")
+            }
+            SliceSignatureKind::MethodSignature => {
+                let (name, optional) = member_name.unwrap_or(("", false));
+                let question = if optional { "?" } else { "" };
+                format!("{name}{question}{type_parameters_text}({parameters_text}): {return_text}")
+            }
+            SliceSignatureKind::GetAccessor => {
+                // The accessor factories take no type parameters —
+                // the grammar admits none on accessors.
+                let (name, _) = member_name.unwrap_or(("", false));
+                format!("get {name}({parameters_text}): {return_text}")
+            }
+            SliceSignatureKind::SetAccessor => {
+                let (name, _) = member_name.unwrap_or(("", false));
+                format!("set {name}({parameters_text})")
+            }
+        })
+    }
+
+    /// tsc-port: getExpandedParameters @6.0.3 (skipUnionExpanding face)
+    /// tsc-hash: 43c4acbf32d5eaa48b8366c408ee5255add1639b9c48993d53c049bc18b7e6c8
+    /// tsc-span: _tsc.js:57911-57960
+    ///
+    /// The display helper always passes skipUnionExpanding
+    /// (52508-52511), so only [0] materializes and the union
+    /// expansion never runs. tsc mints transient parameter symbols;
+    /// the slice carries (name, type, optional, rest) faces instead —
+    /// the only other consumer of the symbols is enterNewScope's fake
+    /// scope, dead without an enclosingDeclaration. None = the
+    /// declared parameter list (no tuple-typed rest).
+    fn expanded_parameter_faces_slice(
+        &mut self,
+        signature: SignatureId,
+    ) -> CheckResult2<Option<Vec<SliceParameterFace>>> {
+        let sig = self.signature_of(signature);
+        if !sig
+            .flags
+            .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER)
+            || sig.parameters.is_empty()
+        {
+            return Ok(None);
+        }
+        let rest_index = sig.parameters.len() - 1;
+        let rest_symbol = sig.parameters[rest_index];
+        let prefix: Vec<SymbolId> = sig.parameters[..rest_index].to_vec();
+        let rest_type = self.get_type_of_symbol(rest_symbol)?;
+        if !self
+            .tables
+            .object_flags_of(rest_type)
+            .intersects(ObjectFlags::REFERENCE)
+        {
+            return Ok(None);
+        }
+        let target = self.tables.reference_target(rest_type);
+        let TypeData::TupleTarget(data) = self.tables.type_of(target).data.clone() else {
+            return Ok(None);
+        };
+        let element_types = self.get_type_arguments(rest_type)?;
+        let count = element_types.len().min(data.element_flags.len());
+        // getUniqAssociatedNamesFromTupleType (57937-57959): the
+        //4-arg getTupleElementLabel derives every name (labeled or
+        // synthesized through the rest parameter's binding name); the
+        // duplicate `_N` counter pass runs only when the target
+        // carries a labels array, matching tsc's names-array gate.
+        let mut names = Vec::with_capacity(count);
+        for i in 0..count {
+            let label = data
+                .labeled_element_declarations
+                .as_ref()
+                .and_then(|labels| labels.get(i).copied())
+                .flatten();
+            names.push(self.tuple_element_label_slice(
+                label.map(NodeId),
+                i,
+                data.element_flags[i],
+                Some(rest_symbol),
+            )?);
+        }
+        if data.labeled_element_declarations.is_some() {
+            let mut unique: std::collections::HashSet<String> = std::collections::HashSet::new();
+            let mut duplicates = Vec::new();
+            for (i, name) in names.iter().enumerate() {
+                if !unique.insert(name.clone()) {
+                    duplicates.push(i);
+                }
+            }
+            let mut counters: std::collections::HashMap<String, usize> =
+                std::collections::HashMap::new();
+            for i in duplicates {
+                let base = names[i].clone();
+                let mut counter = counters.get(&base).copied().unwrap_or(1);
+                let mut fresh;
+                loop {
+                    fresh = format!("{base}_{counter}");
+                    if unique.insert(fresh.clone()) {
+                        break;
+                    }
+                    counter += 1;
+                }
+                names[i] = fresh.clone();
+                // 57956: tsc keys the counter on the REWRITTEN name —
+                // transcribed as-is.
+                counters.insert(fresh, counter + 1);
+            }
+        }
+        let mut faces = Vec::with_capacity(prefix.len() + count);
+        for &parameter in &prefix {
+            faces.push(self.declared_parameter_face_slice(parameter)?);
+        }
+        for (i, name) in names.into_iter().enumerate() {
+            let flags = data.element_flags[i];
+            // 57929-57931: Variable elements become rest faces,
+            // Optional elements optional faces; Rest element types
+            // wrap as arrays (57932).
+            let rest = flags.intersects(ElementFlags::VARIABLE);
+            let optional = !rest && flags.intersects(ElementFlags::OPTIONAL);
+            let ty = if flags.intersects(ElementFlags::REST) {
+                self.create_array_type(element_types[i], false)?
+            } else {
+                element_types[i]
+            };
+            faces.push(SliceParameterFace {
+                symbol: None,
+                declaration: None,
+                name: Some(name),
+                ty,
+                optional,
+                rest,
+            });
+        }
+        Ok(Some(faces))
+    }
+
+    /// tsc-port: getTupleElementLabel @6.0.3 (4-arg synthesis face)
+    /// tsc-hash: cfaef41e5163a36e33fb797ca0f1cf2445bcc1cf9453ac75b2f61681f2b472b1
+    /// tsc-span: _tsc.js:78150-78157
+    fn tuple_element_label_slice(
+        &mut self,
+        declaration: Option<NodeId>,
+        index: usize,
+        element_flags: ElementFlags,
+        rest_symbol: Option<SymbolId>,
+    ) -> CheckResult2<String> {
+        if let Some(declaration) = declaration {
+            return self.tuple_element_label(declaration);
+        }
+        let rest_parameter = rest_symbol
+            .and_then(|symbol| self.binder.symbol(symbol).value_declaration)
+            .filter(|&declaration| matches!(self.data_of(declaration), NodeData::Parameter(_)));
+        match rest_parameter {
+            Some(parameter) => {
+                self.tuple_element_label_from_binding_element_slice(parameter, index, element_flags)
+            }
+            None => {
+                let base = rest_symbol
+                    .map(|symbol| {
+                        tsrs2_binder::unescape_leading_underscores(
+                            &self.binder.symbol(symbol).escaped_name,
+                        )
+                        .to_owned()
+                    })
+                    .unwrap_or_else(|| "arg".to_owned());
+                Ok(format!("{base}_{index}"))
+            }
+        }
+    }
+
+    /// tsc-port: getTupleElementLabelFromBindingElement @6.0.3
+    /// tsc-hash: a8abed48acb2849e206d1748a97355a466b6a962706a1b417bcd041eacb3a0be
+    /// tsc-span: _tsc.js:78121-78149
+    ///
+    /// Works over Parameter and BindingElement declarations alike
+    /// (both carry name + dotDotDotToken); the escapedText reads
+    /// unescape at this boundary because the labels land directly in
+    /// display text (tsc unescapes at symbolName).
+    fn tuple_element_label_from_binding_element_slice(
+        &mut self,
+        node: NodeId,
+        index: usize,
+        element_flags: ElementFlags,
+    ) -> CheckResult2<String> {
+        let (name, dot_dot_dot) = match self.data_of(node) {
+            NodeData::Parameter(data) => (data.name, data.dot_dot_dot_token.is_some()),
+            NodeData::BindingElement(data) => (data.name, data.dot_dot_dot_token.is_some()),
+            _ => (None, false),
+        };
+        if let Some(name) = name {
+            match self.data_of(name) {
+                NodeData::Identifier(data) => {
+                    let text =
+                        tsrs2_binder::unescape_leading_underscores(&data.escaped_text).to_owned();
+                    if dot_dot_dot {
+                        return Ok(if element_flags.intersects(ElementFlags::VARIABLE) {
+                            text
+                        } else {
+                            format!("{text}_{index}")
+                        });
+                    }
+                    return Ok(
+                        if element_flags.intersects(ElementFlags::REQUIRED)
+                            || element_flags.intersects(ElementFlags::OPTIONAL)
+                        {
+                            text
+                        } else {
+                            format!("{text}_n")
+                        },
+                    );
+                }
+                NodeData::ArrayBindingPattern(data) if dot_dot_dot => {
+                    let elements = self.nodes_of(data.elements);
+                    let last_is_rest = elements.last().copied().is_some_and(|last| {
+                        matches!(self.data_of(last), NodeData::BindingElement(data)
+                            if data.dot_dot_dot_token.is_some())
+                    });
+                    let element_count = elements.len() - usize::from(last_is_rest);
+                    if index < element_count {
+                        let element = elements[index];
+                        if matches!(self.data_of(element), NodeData::BindingElement(_)) {
+                            return self.tuple_element_label_from_binding_element_slice(
+                                element,
+                                index,
+                                element_flags,
+                            );
+                        }
+                    } else if last_is_rest {
+                        let last = *elements.last().expect("last_is_rest implies non-empty");
+                        return self.tuple_element_label_from_binding_element_slice(
+                            last,
+                            index - element_count,
+                            element_flags,
+                        );
+                    }
+                }
+                _ => {}
+            }
+        }
+        Ok(format!("arg_{index}"))
+    }
+
+    /// tsc-port: getEffectiveParameterDeclaration @6.0.3 (face builder)
+    /// tsc-hash: e2d6460f51a6d6b97152d7d0e0a2de7ad9d85fd754748ccb8fbde1e29fb89a2f
+    /// tsc-span: _tsc.js:52846-52880
+    ///
+    /// The declared-parameter half of symbolToParameterDeclaration:
+    /// declaration lookup (the JSDocParameterTag arm is [JSDOC]
+    /// no-parse), the type read, and the rest/optional bits
+    /// (isRestParameter on the declaration OR the RestParameter check
+    /// flag; isOptionalParameter OR the OptionalParameter check flag).
+    fn declared_parameter_face_slice(
+        &mut self,
+        parameter: SymbolId,
+    ) -> CheckResult2<SliceParameterFace> {
+        let declaration = self
+            .binder
+            .symbol(parameter)
+            .declarations
+            .iter()
+            .copied()
+            .find(|&declaration| matches!(self.data_of(declaration), NodeData::Parameter(_)));
+        let ty = self.get_type_of_symbol(parameter)?;
+        let check_flags = self.links.symbol(parameter).check_flags;
+        let rest = declaration.is_some_and(|declaration| {
+            matches!(self.data_of(declaration), NodeData::Parameter(data)
+                if data.dot_dot_dot_token.is_some())
+        }) || check_flags.intersects(tsrs2_types::CheckFlags::REST_PARAMETER);
+        let optional = match declaration {
+            Some(declaration) => self.is_optional_parameter_slice(declaration)?,
+            None => false,
+        } || check_flags.intersects(tsrs2_types::CheckFlags::OPTIONAL_PARAMETER);
+        Ok(SliceParameterFace {
+            symbol: Some(parameter),
+            declaration,
+            name: None,
+            ty,
+            optional,
+            rest,
+        })
+    }
+
+    /// tsc-port: symbolToParameterDeclaration @6.0.3 (render face)
+    /// tsc-hash: 1852083e14ec6077c419dd8cb5fc7f552c1a3b4e26b02f96792636f55ca5cad9
+    /// tsc-span: _tsc.js:52854-52911
+    ///
+    /// preserveModifierFlags is Constructor-kind-only (kind 177 —
+    /// unreachable from the slice's member/shorthand kinds), so the
+    /// modifiers leg stays empty. parameterToParameterDeclarationName:
+    /// identifiers print their text (NoAsciiEscaping — the port
+    /// prints raw), the QualifiedName arm is JSDoc-only
+    /// (unconstructible under the no-parse policy), and binding
+    /// patterns clone with initializers elided.
+    fn parameter_face_to_string_slice(
+        &mut self,
+        face: &SliceParameterFace,
+        fully_qualified: bool,
+    ) -> CheckResult2<String> {
+        let requires_undefined = match face.declaration {
+            Some(declaration) => self.requires_adding_implicit_undefined_slice(declaration)?,
+            None => false,
+        };
+        // serializeTypeForDeclaration (53487-53509): the
+        // syntacticNodeBuilder annotation arm lives behind
+        // canReuseTypeNodeAnnotation's enclosing gate;
+        // addUndefinedForParameter rides requiresAddingImplicitUndefined.
+        let mut type_text = None;
+        if let Some(declaration) = face.declaration {
+            let annotation = match self.data_of(declaration) {
+                NodeData::Parameter(data) => data.r#type,
+                _ => None,
+            };
+            let question = matches!(self.data_of(declaration), NodeData::Parameter(data)
+                if data.question_token.is_some());
+            if let Some(annotation) = annotation {
+                type_text = self.annotation_reuse_text_slice(
+                    annotation,
+                    face.ty,
+                    requires_undefined,
+                    question,
+                    /*is_parameter*/ true,
+                )?;
+            }
+        }
+        let type_text = match type_text {
+            Some(text) => text,
+            None => {
+                let ty = if requires_undefined {
+                    self.get_optional_type(face.ty, /*is_property*/ false)?
+                } else {
+                    face.ty
+                };
+                self.type_to_string_slice_ex(ty, fully_qualified)?
+            }
+        };
+        let name_text =
+            match &face.name {
+                Some(name) => name.clone(),
+                None => {
+                    let name_node =
+                        face.declaration
+                            .and_then(|declaration| match self.data_of(declaration) {
+                                NodeData::Parameter(data) => data.name,
+                                _ => None,
+                            });
+                    match name_node {
+                        Some(name) => match self.data_of(name) {
+                            NodeData::Identifier(data) => {
+                                tsrs2_binder::unescape_leading_underscores(&data.escaped_text)
+                                    .to_owned()
+                            }
+                            NodeData::ObjectBindingPattern(_)
+                            | NodeData::ArrayBindingPattern(_) => {
+                                self.binding_pattern_text_slice(name)?
+                            }
+                            _ => return Err(Unsupported::new(
+                                "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+                            )),
+                        },
+                        None => match face.symbol {
+                            Some(symbol) => self.symbol_display_name(symbol),
+                            None => return Err(Unsupported::new(
+                                "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+                            )),
+                        },
+                    }
+                }
+            };
+        let dots = if face.rest { "..." } else { "" };
+        let question = if face.optional { "?" } else { "" };
+        Ok(format!("{dots}{name_text}{question}: {type_text}"))
+    }
+
+    /// tsc-port: isOptionalParameter @6.0.3
+    /// tsc-hash: 230cc8ce09e27fc4b9b6e370079e26817941e278127f592eca3c51ecb55ac67b
+    /// tsc-span: _tsc.js:59509-59527
+    ///
+    /// hasEffectiveQuestionToken's JSDoc arms are no-parse; the
+    /// initializer arm reads getMinArgumentCount under
+    /// (StrongArityForUntypedJS|VoidIsNonOptional), which reduces to
+    /// the min-argument integer without the void-trimming loop
+    /// (structural.rs's variant).
+    fn is_optional_parameter_slice(&mut self, node: NodeId) -> CheckResult2<bool> {
+        let NodeData::Parameter(data) = self.data_of(node) else {
+            return Ok(false);
+        };
+        let (question, initializer, annotation, dots) = (
+            data.question_token.is_some(),
+            data.initializer,
+            data.r#type,
+            data.dot_dot_dot_token.is_some(),
+        );
+        if question {
+            return Ok(true);
+        }
+        if initializer.is_some() {
+            let Some(parent) = self.parent_of(node) else {
+                return Ok(false);
+            };
+            let signature = self.get_signature_from_declaration(parent)?;
+            let parameters = match self.data_of(parent) {
+                NodeData::FunctionDeclaration(data) => self.nodes_of(data.parameters),
+                NodeData::FunctionExpression(data) => self.nodes_of(data.parameters),
+                NodeData::ArrowFunction(data) => self.nodes_of(data.parameters),
+                NodeData::MethodDeclaration(data) => self.nodes_of(data.parameters),
+                NodeData::Constructor(data) => self.nodes_of(data.parameters),
+                NodeData::GetAccessor(data) => self.nodes_of(data.parameters),
+                NodeData::SetAccessor(data) => self.nodes_of(data.parameters),
+                _ => Vec::new(),
+            };
+            let Some(parameter_index) = parameters.iter().position(|&p| p == node) else {
+                return Ok(false);
+            };
+            return Ok(parameter_index >= self.min_argument_count_without_void_trimming(signature)?);
+        }
+        let parent = self.parent_of(node);
+        if let Some(parent) = parent {
+            if let Some(iife) = self.get_immediately_invoked_function_expression(parent) {
+                // 59524: getEffectiveCallArguments — tuple spreads
+                // expand per element (`(...[1, ""] as const)` counts
+                // 2), so the syntactic argument list undercounts.
+                let argument_count = self.get_effective_call_arguments(iife)?.len();
+                let parameters = match self.data_of(parent) {
+                    NodeData::FunctionExpression(data) => self.nodes_of(data.parameters),
+                    NodeData::ArrowFunction(data) => self.nodes_of(data.parameters),
+                    _ => Vec::new(),
+                };
+                let index = parameters.iter().position(|&p| p == node);
+                return Ok(annotation.is_none()
+                    && !dots
+                    && index.is_some_and(|index| index >= argument_count));
+            }
+        }
+        Ok(false)
+    }
+
+    /// tsc-port: requiresAddingImplicitUndefined @6.0.3
+    /// tsc-hash: 0a4f62267c4e164779f61e6db1eb7e6d0ba8b59a21fe6fca9bdbce2d684aa52d
+    /// tsc-span: _tsc.js:88075-88090
+    ///
+    /// isRequiredInitializedParameter + isOptionalUninitializedParameterProperty
+    /// folded in; the JSDocParameterTag arms are no-parse. The
+    /// parameter-property arms consult the syntactic modifier mask
+    /// (accessibility/readonly/override) on the declaration.
+    fn requires_adding_implicit_undefined_slice(
+        &mut self,
+        parameter: NodeId,
+    ) -> CheckResult2<bool> {
+        let NodeData::Parameter(data) = self.data_of(parameter) else {
+            return Ok(false);
+        };
+        let has_initializer = data.initializer.is_some();
+        if !self
+            .options
+            .strict_option_value(self.options.strict_null_checks)
+        {
+            return Ok(false);
+        }
+        let optional = self.is_optional_parameter_slice(parameter)?;
+        let source = self.binder.source_of_node(parameter);
+        let parameter_property = tsrs2_binder::node_util::has_syntactic_modifier(
+            source,
+            parameter,
+            tsrs2_types::ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
+        );
+        let required_initialized = if optional || !has_initializer {
+            false
+        } else if parameter_property {
+            // 88083-88085: a parameter property counts only inside a
+            // function-like enclosing declaration — the reuse gates
+            // only run with one set, and parameter properties sit in
+            // constructors (function-like) by grammar.
+            true
+        } else {
+            true
+        };
+        let optional_uninitialized_property = optional && !has_initializer && parameter_property;
+        if !(required_initialized || optional_uninitialized_property) {
+            return Ok(false);
+        }
+        // declaredParameterTypeContainsUndefined: the annotation's
+        // type admits undefined already.
+        if let Some(annotation) = data.r#type {
+            let annotation_type = self.get_type_from_type_node(annotation)?;
+            if self.some_type_is_undefined_slice(annotation_type) {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
+    /// tsc someType(type, t => !!(t.flags & Undefined)) over the
+    /// union-member view (the serializeExistingTypeNode 53714 probe).
+    fn some_type_is_undefined_slice(&mut self, ty: TypeId) -> bool {
+        let flags = self.tables.flags_of(ty);
+        if flags.intersects(TypeFlags::UNION) {
+            if let TypeData::Union { types, .. } = &self.tables.type_of(ty).data {
+                return types
+                    .iter()
+                    .any(|&t| self.tables.flags_of(t).intersects(TypeFlags::UNDEFINED));
+            }
+        }
+        flags.intersects(TypeFlags::UNDEFINED)
+    }
+
+    /// tsc-port: serializeReturnTypeForSignature @6.0.3
+    /// tsc-hash: 894fb20ae6f5651fefa9cb149da299323b03e147cf90976c6a47ec2a9d8ad42d
+    /// tsc-span: _tsc.js:53524-53556
+    ///
+    /// SuppressAnyReturnType is never set on the slice's contexts, so
+    /// the suppress legs are dead and a node always yields. The
+    /// syntactic arm rides the annotation-reuse gate; the inferred
+    /// arm renders the type predicate first (53548-53556).
+    /// context.mapper re-instantiation of the predicate is identity
+    /// here: getTypePredicateOfSignature already resolves through
+    /// signature.target/mapper (narrow.rs), and enterNewScope's
+    /// context.mapper IS signature.mapper, whose second application
+    /// re-maps type parameters the instantiation already replaced.
+    fn serialize_return_type_for_signature_slice(
+        &mut self,
+        signature: SignatureId,
+        fully_qualified: bool,
+    ) -> CheckResult2<String> {
+        let return_type = self.get_return_type_of_signature(signature)?;
+        let declaration = self.signature_of(signature).declaration;
+        if let Some(declaration) = declaration {
+            let annotation = match self.data_of(declaration) {
+                NodeData::FunctionDeclaration(data) => data.r#type,
+                NodeData::FunctionExpression(data) => data.r#type,
+                NodeData::ArrowFunction(data) => data.r#type,
+                NodeData::MethodDeclaration(data) => data.r#type,
+                NodeData::MethodSignature(data) => data.r#type,
+                NodeData::CallSignature(data) => data.r#type,
+                NodeData::ConstructSignature(data) => data.r#type,
+                NodeData::FunctionType(data) => data.r#type,
+                NodeData::ConstructorType(data) => data.r#type,
+                NodeData::GetAccessor(data) => data.r#type,
+                _ => None,
+            };
+            if let Some(annotation) = annotation {
+                if let Some(text) = self.annotation_reuse_text_slice(
+                    annotation,
+                    return_type,
+                    /*requires_adding_undefined*/ false,
+                    /*question_equivalence*/ false,
+                    /*is_parameter*/ false,
+                )? {
+                    return Ok(text);
+                }
+            }
+        }
+        if let Some(predicate) = self.get_type_predicate_of_signature(signature)? {
+            return self.type_predicate_text_slice(&predicate, fully_qualified);
+        }
+        self.type_to_string_slice_ex(return_type, fully_qualified)
+    }
+
+    /// tsc-port: typePredicateToTypePredicateNodeHelper @6.0.3
+    /// tsc-hash: ef7d04a8094c121ca47028327ba885afcb7a285a28adfe579ddff0335642b7f4
+    /// tsc-span: _tsc.js:52840-52846
+    fn type_predicate_text_slice(
+        &mut self,
+        predicate: &crate::narrow::TypePredicate,
+        fully_qualified: bool,
+    ) -> CheckResult2<String> {
+        use crate::narrow::TypePredicateKind;
+        let asserts = matches!(
+            predicate.kind,
+            TypePredicateKind::AssertsThis | TypePredicateKind::AssertsIdentifier
+        );
+        let parameter = match predicate.kind {
+            TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier => {
+                predicate.parameter_name.clone().unwrap_or_default()
+            }
+            TypePredicateKind::This | TypePredicateKind::AssertsThis => "this".to_owned(),
+        };
+        let asserts = if asserts { "asserts " } else { "" };
+        match predicate.ty {
+            Some(ty) => {
+                let text = self.type_to_string_slice_ex(ty, fully_qualified)?;
+                Ok(format!("{asserts}{parameter} is {text}"))
+            }
+            None => Ok(format!("{asserts}{parameter}")),
+        }
+    }
+
+    /// tsc-port: typeParameterToDeclarationWithConstraint @6.0.3 (+
+    /// typeParameterToDeclaration, typeToTypeNodeHelperWithPossibleReusableTypeNode)
+    /// tsc-hash: 6f194529d9afac3f1f089536f4cbef76025aed4e4f96edc0fbb233acf1fcff9f
+    /// tsc-span: _tsc.js:52822-52840
+    ///
+    /// Modifiers via getTypeParameterModifiers (67373-67376:
+    /// declaration modifier union ∩ const/in/out — const and the
+    /// variance pair are grammatically disjoint contexts, so the
+    /// emission order is unobservable). The constraint節 rides the
+    /// REUSABLE-node path (52832-52834): the declared constraint
+    /// annotation prints whenever its unmapped type IS the current
+    /// constraint — an instantiated (remapped) constraint fails the
+    /// equality and renders structurally, which is exactly tsc's
+    /// canReuseTypeNode TypeParameter-mapper rejection collapsed into
+    /// one probe. Defaults NEVER reuse (52829: typeToTypeNodeHelper
+    /// direct — oracle-probed: `= (A)` prints `= string`).
+    fn type_parameter_to_declaration_slice(
+        &mut self,
+        type_parameter: TypeId,
+        fully_qualified: bool,
+    ) -> CheckResult2<String> {
+        let symbol = self.tables.type_of(type_parameter).symbol;
+        let Some(symbol) = symbol else {
+            return Err(Unsupported::new(
+                "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+            ));
+        };
+        let mut modifiers = String::new();
+        {
+            let declarations = self.binder.symbol(symbol).declarations.clone();
+            let mut has_const = false;
+            let mut has_in = false;
+            let mut has_out = false;
+            for declaration in declarations {
+                let source = self.binder.source_of_node(declaration);
+                has_const |= tsrs2_binder::node_util::has_syntactic_modifier(
+                    source,
+                    declaration,
+                    tsrs2_types::ModifierFlags::CONST,
+                );
+                has_in |= tsrs2_binder::node_util::has_syntactic_modifier(
+                    source,
+                    declaration,
+                    tsrs2_types::ModifierFlags::IN,
+                );
+                has_out |= tsrs2_binder::node_util::has_syntactic_modifier(
+                    source,
+                    declaration,
+                    tsrs2_types::ModifierFlags::OUT,
+                );
+            }
+            if has_const {
+                modifiers.push_str("const ");
+            }
+            if has_in {
+                modifiers.push_str("in ");
+            }
+            if has_out {
+                modifiers.push_str("out ");
+            }
+        }
+        let name = self.symbol_display_name(symbol);
+        let constraint = self.get_constraint_of_type_parameter(type_parameter)?;
+        let constraint_text = match constraint {
+            Some(constraint) => {
+                let mut reused = None;
+                if let Some(declaration) = self.get_constraint_declaration(type_parameter) {
+                    let annotation_type = self.get_type_from_type_node(declaration)?;
+                    if annotation_type == constraint {
+                        reused = self.reusable_annotation_node_text_slice(declaration)?;
+                    }
+                }
+                Some(match reused {
+                    Some(text) => text,
+                    None => self.type_to_string_slice_ex(constraint, fully_qualified)?,
+                })
+            }
+            None => None,
+        };
+        let default = self.get_default_from_type_parameter(type_parameter)?;
+        let default_text = match default {
+            Some(default) => Some(self.type_to_string_slice_ex(default, fully_qualified)?),
+            None => None,
+        };
+        let mut text = format!("{modifiers}{name}");
+        if let Some(constraint_text) = constraint_text {
+            text.push_str(" extends ");
+            text.push_str(&constraint_text);
+        }
+        if let Some(default_text) = default_text {
+            text.push_str(" = ");
+            text.push_str(&default_text);
+        }
+        Ok(text)
+    }
+
+    /// tsc-port: canReuseTypeNodeAnnotation @6.0.3 (+
+    /// typeNodeIsEquivalentToType 53511-53523 and the
+    /// serializeExistingTypeNode addUndefined append 53712-53721)
+    /// tsc-hash: edfd54626c63d3d1645a16cfcad8561dab1388e09a7278579ada789709becc6d
+    /// tsc-span: _tsc.js:50932-50955
+    ///
+    /// The whole channel keys on the enclosingDeclaration the
+    /// error-display entries set only for non-context-sensitive
+    /// expression-valued symbols (getTypeNamesForErrorDisplay 50748)
+    /// — without one, every annotation renders structurally (probed:
+    /// declare-let sources drop parens/resolve aliases; fn-expression
+    /// sources keep them). An annotation that resolves to the error
+    /// type reuses unconditionally (50948-50950 — unresolved names
+    /// print as written). Returns None = render structurally.
+    fn annotation_reuse_text_slice(
+        &mut self,
+        annotation: NodeId,
+        symbol_type: TypeId,
+        requires_adding_undefined: bool,
+        question_equivalence: bool,
+        is_parameter: bool,
+    ) -> CheckResult2<Option<String>> {
+        if self.slice_display_enclosing.is_none() {
+            return Ok(None);
+        }
+        let annotation_type = self.get_type_from_type_node(annotation)?;
+        if annotation_type == self.tables.intrinsics.error {
+            return self.reusable_annotation_node_text_slice(annotation);
+        }
+        let compared_annotation_type = if requires_adding_undefined {
+            // addOptionality(annotationType, !isParameter) — the
+            // strictNullChecks gate held upstream.
+            self.get_optional_type(annotation_type, /*is_property*/ !is_parameter)?
+        } else {
+            annotation_type
+        };
+        let equivalent = compared_annotation_type == symbol_type
+            || (question_equivalence && {
+                let without_undefined =
+                    self.get_type_with_facts(symbol_type, TypeFacts::NE_UNDEFINED)?;
+                without_undefined == compared_annotation_type
+            });
+        if !equivalent {
+            return Ok(None);
+        }
+        if !self.reference_annotation_argument_count_compatible(annotation, symbol_type)? {
+            return Ok(None);
+        }
+        let Some(text) = self.reusable_annotation_node_text_slice(annotation)? else {
+            return Ok(None);
+        };
+        // serializeExistingTypeNode (53712-53721): the undefined
+        // union appends when the annotation itself lacks it.
+        if requires_adding_undefined && !self.some_type_is_undefined_slice(annotation_type) {
+            return Ok(Some(format!("{text} | undefined")));
+        }
+        Ok(Some(text))
+    }
+
+    /// tsc-port: existingTypeNodeIsNotReferenceOrIsReferenceWithCompatibleTypeArgumentCount @6.0.3
+    /// tsc-hash: f818acd066ea9e59b4904508233bd6c6a70ce3ca8f8ae6bfc0c29da862399853
+    /// tsc-span: _tsc.js:53665-53674
+    fn reference_annotation_argument_count_compatible(
+        &mut self,
+        annotation: NodeId,
+        ty: TypeId,
+    ) -> CheckResult2<bool> {
+        if !self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::REFERENCE)
+        {
+            return Ok(true);
+        }
+        let NodeData::TypeReference(data) = self.data_of(annotation) else {
+            return Ok(true);
+        };
+        let argument_count = self.nodes_of(data.type_arguments).len();
+        let Some(symbol) = self.links.node(annotation).resolved_symbol.resolved() else {
+            return Ok(true);
+        };
+        let declared = self.get_declared_type_of_symbol_slice(symbol)?;
+        let target = self.tables.reference_target(ty);
+        if declared != target {
+            return Ok(true);
+        }
+        let type_parameters = match &self.tables.type_of(target).data {
+            TypeData::GenericType {
+                type_parameters, ..
+            } => Some(type_parameters.clone()),
+            _ => None,
+        };
+        Ok(argument_count >= self.get_min_type_argument_count(type_parameters.as_deref()))
+    }
+
+    /// tsc-port: getTypeNamesForErrorDisplay @6.0.3 (enclosing probe)
+    /// tsc-hash: 2cb44b742f2abb8976c29d155182a513e19a7d2832c0d0cc11f93104230219d0
+    /// tsc-span: _tsc.js:50748-50767
+    ///
+    /// symbolValueDeclarationIsContextSensitive: the source/target of
+    /// a relation error render with the symbol's value declaration as
+    /// enclosingDeclaration when it is an expression and NOT
+    /// context-sensitive — which arms the annotation-reuse channel
+    /// (oracle-probed: `let g = (x?: number) => {}` displays
+    /// `(x?: number) => void` where the declare-let twin prints
+    /// `(x?: number | undefined) => void`).
+    pub(crate) fn slice_display_enclosing_for(&mut self, ty: TypeId) -> Option<NodeId> {
+        let symbol = self.tables.type_of(ty).symbol?;
+        let value_declaration = self.binder.symbol(symbol).value_declaration?;
+        let source = self.binder.source_of_node(value_declaration);
+        if !tsrs2_binder::node_util::is_expression_node(source, value_declaration) {
+            return None;
+        }
+        if self.is_context_sensitive(value_declaration) {
+            return None;
+        }
+        Some(value_declaration)
+    }
+
+    /// tsrs-native: the enclosing-scoped render for one relation-error
+    /// side (the state-parked face of getTypeNamesForErrorDisplay's
+    /// per-side typeToString(type, valueDeclaration) call); the
+    /// enclosing restores across the Err unwind (Unsupported rides
+    /// `?` past the reset otherwise).
+    pub(crate) fn type_to_string_slice_with_error_enclosing(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<String> {
+        let enclosing = self.slice_display_enclosing_for(ty);
+        let saved = std::mem::replace(&mut self.slice_display_enclosing, enclosing);
+        let result = self.type_to_string_slice(ty);
+        self.slice_display_enclosing = saved;
+        result
+    }
+
+    /// tsc-port: tryReuseExistingTypeNode @6.0.3 (bounded printer)
+    /// tsc-hash: dd3b6d1408c0a1685cfb3e3d107db34a442f77ff62ee7d0e9b42945b063b6cf7
+    /// tsc-span: _tsc.js:133283-133292
+    ///
+    /// The reuse path prints a CLONE of the annotation through the
+    /// printer (visitExistingNodeTreeSymbols → factory.cloneNode):
+    /// synthesized literals lose source spellings (0x10 prints its
+    /// cooked text 16, string literals re-quote double — both
+    /// oracle-probed), type-literal members re-join with `; `, and
+    /// everything else keeps its structure — parentheses, union
+    /// order, alias spellings. The visitor's rewrites are
+    /// tracker-driven and dead on the error path. A node kind the
+    /// bounded printer cannot render faithfully Errs — the row stays
+    /// curtained rather than emitting divergent text.
+    fn reusable_annotation_node_text_slice(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult2<Option<String>> {
+        Ok(Some(self.type_annotation_text_slice(node)?))
+    }
+
+    /// The bounded type-node printer behind the reuse faces: the
+    /// standard printer's emission for cloned annotation ASTs.
+    /// Initializer-free by construction (type positions); Errs on the
+    /// kinds whose emission the slice has not needed yet (import
+    /// types, mapped/conditional/infer shapes, JSDoc nodes).
+    fn type_annotation_text_slice(&mut self, node: NodeId) -> CheckResult2<String> {
+        let curtain =
+            || Unsupported::new("typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)");
+        // Keyword type nodes are kind-distinguished tokens.
+        match self.kind_of(node) {
+            SyntaxKind::StringKeyword => return Ok("string".to_owned()),
+            SyntaxKind::NumberKeyword => return Ok("number".to_owned()),
+            SyntaxKind::BooleanKeyword => return Ok("boolean".to_owned()),
+            SyntaxKind::AnyKeyword => return Ok("any".to_owned()),
+            SyntaxKind::UnknownKeyword => return Ok("unknown".to_owned()),
+            SyntaxKind::VoidKeyword => return Ok("void".to_owned()),
+            SyntaxKind::UndefinedKeyword => return Ok("undefined".to_owned()),
+            SyntaxKind::NeverKeyword => return Ok("never".to_owned()),
+            SyntaxKind::ObjectKeyword => return Ok("object".to_owned()),
+            SyntaxKind::SymbolKeyword => return Ok("symbol".to_owned()),
+            SyntaxKind::BigIntKeyword => return Ok("bigint".to_owned()),
+            SyntaxKind::IntrinsicKeyword => return Ok("intrinsic".to_owned()),
+            SyntaxKind::ThisType => return Ok("this".to_owned()),
+            _ => {}
+        }
+        match self.data_of(node).clone() {
+            NodeData::ParenthesizedType(data) => {
+                let inner = data.r#type.ok_or_else(curtain)?;
+                Ok(format!("({})", self.type_annotation_text_slice(inner)?))
+            }
+            NodeData::TypeReference(data) => {
+                let name = self.entity_name_text_slice(data.type_name.ok_or_else(curtain)?)?;
+                let arguments = self.nodes_of(data.type_arguments);
+                if arguments.is_empty() {
+                    return Ok(name);
+                }
+                let mut rendered = Vec::with_capacity(arguments.len());
+                for argument in arguments {
+                    rendered.push(self.type_annotation_text_slice(argument)?);
+                }
+                Ok(format!("{name}<{}>", rendered.join(", ")))
+            }
+            NodeData::UnionType(data) => {
+                let mut rendered = Vec::new();
+                for member in self.nodes_of(data.types) {
+                    rendered.push(self.type_annotation_text_slice(member)?);
+                }
+                Ok(rendered.join(" | "))
+            }
+            NodeData::IntersectionType(data) => {
+                let mut rendered = Vec::new();
+                for member in self.nodes_of(data.types) {
+                    rendered.push(self.type_annotation_text_slice(member)?);
+                }
+                Ok(rendered.join(" & "))
+            }
+            NodeData::ArrayType(data) => {
+                let element = data.element_type.ok_or_else(curtain)?;
+                Ok(format!("{}[]", self.type_annotation_text_slice(element)?))
+            }
+            NodeData::TupleType(data) => {
+                let mut rendered = Vec::new();
+                for element in self.nodes_of(data.elements) {
+                    rendered.push(self.type_annotation_text_slice(element)?);
+                }
+                Ok(format!("[{}]", rendered.join(", ")))
+            }
+            NodeData::NamedTupleMember(data) => {
+                let dots = if data.dot_dot_dot_token.is_some() {
+                    "..."
+                } else {
+                    ""
+                };
+                let name = self.entity_name_text_slice(data.name.ok_or_else(curtain)?)?;
+                let question = if data.question_token.is_some() {
+                    "?"
+                } else {
+                    ""
+                };
+                let ty = self.type_annotation_text_slice(data.r#type.ok_or_else(curtain)?)?;
+                Ok(format!("{dots}{name}{question}: {ty}"))
+            }
+            NodeData::OptionalType(data) => {
+                let inner = data.r#type.ok_or_else(curtain)?;
+                Ok(format!("{}?", self.type_annotation_text_slice(inner)?))
+            }
+            NodeData::RestType(data) => {
+                let inner = data.r#type.ok_or_else(curtain)?;
+                Ok(format!("...{}", self.type_annotation_text_slice(inner)?))
+            }
+            NodeData::TypeOperator(data) => {
+                let operator = match data.operator {
+                    SyntaxKind::KeyOfKeyword => "keyof",
+                    SyntaxKind::ReadonlyKeyword => "readonly",
+                    SyntaxKind::UniqueKeyword => "unique",
+                    _ => return Err(curtain()),
+                };
+                let inner = data.r#type.ok_or_else(curtain)?;
+                Ok(format!(
+                    "{operator} {}",
+                    self.type_annotation_text_slice(inner)?
+                ))
+            }
+            NodeData::TypeQuery(data) => {
+                let name = self.entity_name_text_slice(data.expr_name.ok_or_else(curtain)?)?;
+                let arguments = self.nodes_of(data.type_arguments);
+                if arguments.is_empty() {
+                    return Ok(format!("typeof {name}"));
+                }
+                let mut rendered = Vec::with_capacity(arguments.len());
+                for argument in arguments {
+                    rendered.push(self.type_annotation_text_slice(argument)?);
+                }
+                Ok(format!("typeof {name}<{}>", rendered.join(", ")))
+            }
+            NodeData::IndexedAccessType(data) => {
+                let object =
+                    self.type_annotation_text_slice(data.object_type.ok_or_else(curtain)?)?;
+                let index =
+                    self.type_annotation_text_slice(data.index_type.ok_or_else(curtain)?)?;
+                Ok(format!("{object}[{index}]"))
+            }
+            NodeData::LiteralType(data) => {
+                self.literal_type_node_text_slice(data.literal.ok_or_else(curtain)?)
+            }
+            NodeData::TypePredicate(data) => {
+                let asserts = if data.asserts_modifier.is_some() {
+                    "asserts "
+                } else {
+                    ""
+                };
+                let parameter_name = data.parameter_name.ok_or_else(curtain)?;
+                let parameter = if self.kind_of(parameter_name) == SyntaxKind::ThisType {
+                    "this".to_owned()
+                } else {
+                    self.entity_name_text_slice(parameter_name)?
+                };
+                match data.r#type {
+                    Some(ty) => Ok(format!(
+                        "{asserts}{parameter} is {}",
+                        self.type_annotation_text_slice(ty)?
+                    )),
+                    None => Ok(format!("{asserts}{parameter}")),
+                }
+            }
+            NodeData::FunctionType(data) => {
+                let type_parameters =
+                    self.type_parameter_nodes_text_slice(self.nodes_of(data.type_parameters))?;
+                let parameters = self.parameter_nodes_text_slice(self.nodes_of(data.parameters))?;
+                let ret = self.type_annotation_text_slice(data.r#type.ok_or_else(curtain)?)?;
+                Ok(format!("{type_parameters}({parameters}) => {ret}"))
+            }
+            NodeData::ConstructorType(data) => {
+                let is_abstract = {
+                    let source = self.binder.source_of_node(node);
+                    tsrs2_binder::node_util::has_syntactic_modifier(
+                        source,
+                        node,
+                        tsrs2_types::ModifierFlags::ABSTRACT,
+                    )
+                };
+                let modifier = if is_abstract { "abstract " } else { "" };
+                let type_parameters =
+                    self.type_parameter_nodes_text_slice(self.nodes_of(data.type_parameters))?;
+                let parameters = self.parameter_nodes_text_slice(self.nodes_of(data.parameters))?;
+                let ret = self.type_annotation_text_slice(data.r#type.ok_or_else(curtain)?)?;
+                Ok(format!(
+                    "{modifier}new {type_parameters}({parameters}) => {ret}"
+                ))
+            }
+            NodeData::TypeLiteral(data) => {
+                let members = self.nodes_of(data.members);
+                if members.is_empty() {
+                    return Ok("{}".to_owned());
+                }
+                let mut rendered = Vec::with_capacity(members.len());
+                for member in members {
+                    rendered.push(self.type_literal_member_text_slice(member)?);
+                }
+                Ok(format!("{{ {}; }}", rendered.join("; ")))
+            }
+            NodeData::TemplateLiteralType(data) => {
+                let head = data.head.ok_or_else(curtain)?;
+                let head_text = match self.data_of(head) {
+                    NodeData::TemplateHead(head_data) => head_data
+                        .raw_text
+                        .clone()
+                        .unwrap_or_else(|| head_data.text.clone()),
+                    _ => return Err(curtain()),
+                };
+                let mut text = format!("`{head_text}");
+                for span in self.nodes_of(data.template_spans) {
+                    let NodeData::TemplateLiteralTypeSpan(span_data) = self.data_of(span).clone()
+                    else {
+                        return Err(curtain());
+                    };
+                    let ty =
+                        self.type_annotation_text_slice(span_data.r#type.ok_or_else(curtain)?)?;
+                    let literal = span_data.literal.ok_or_else(curtain)?;
+                    let literal_text = match self.data_of(literal) {
+                        NodeData::TemplateMiddle(data) => {
+                            data.raw_text.clone().unwrap_or_else(|| data.text.clone())
+                        }
+                        NodeData::TemplateTail(data) => {
+                            data.raw_text.clone().unwrap_or_else(|| data.text.clone())
+                        }
+                        _ => return Err(curtain()),
+                    };
+                    text.push_str(&format!("${{{ty}}}{literal_text}"));
+                }
+                text.push('`');
+                if text.is_ascii() {
+                    Ok(text)
+                } else {
+                    Err(curtain())
+                }
+            }
+            _ => Err(curtain()),
+        }
+    }
+
+    /// Entity names in reused annotations: Identifier / QualifiedName
+    /// dots / the property-access spellings type queries carry.
+    fn entity_name_text_slice(&mut self, node: NodeId) -> CheckResult2<String> {
+        let curtain =
+            || Unsupported::new("typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)");
+        match self.data_of(node).clone() {
+            NodeData::Identifier(data) => {
+                Ok(tsrs2_binder::unescape_leading_underscores(&data.escaped_text).to_owned())
+            }
+            NodeData::QualifiedName(data) => {
+                let left = self.entity_name_text_slice(data.left.ok_or_else(curtain)?)?;
+                let right = self.entity_name_text_slice(data.right.ok_or_else(curtain)?)?;
+                Ok(format!("{left}.{right}"))
+            }
+            NodeData::PropertyAccessExpression(data) => {
+                let left = self.entity_name_text_slice(data.expression.ok_or_else(curtain)?)?;
+                let right = self.entity_name_text_slice(data.name.ok_or_else(curtain)?)?;
+                Ok(format!("{left}.{right}"))
+            }
+            _ => Err(curtain()),
+        }
+    }
+
+    /// LiteralTypeNode literal faces: synthesized clones print cooked
+    /// numeric text and double-quoted strings (oracle-probed Q01/Q02).
+    fn literal_type_node_text_slice(&mut self, literal: NodeId) -> CheckResult2<String> {
+        let curtain =
+            || Unsupported::new("typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)");
+        match self.kind_of(literal) {
+            SyntaxKind::TrueKeyword => return Ok("true".to_owned()),
+            SyntaxKind::FalseKeyword => return Ok("false".to_owned()),
+            SyntaxKind::NullKeyword => return Ok("null".to_owned()),
+            _ => {}
+        }
+        match self.data_of(literal).clone() {
+            NodeData::StringLiteral(data) => string_literal_name_slice(&data.text, false),
+            NodeData::NumericLiteral(data) => Ok(data.text.clone()),
+            NodeData::BigIntLiteral(data) => {
+                let text = &data.text;
+                if text.ends_with('n') && text[..text.len() - 1].bytes().all(|b| b.is_ascii_digit())
+                {
+                    Ok(text.clone())
+                } else {
+                    Err(curtain())
+                }
+            }
+            NodeData::PrefixUnaryExpression(data) => {
+                let operator = match data.operator {
+                    SyntaxKind::MinusToken => "-",
+                    SyntaxKind::PlusToken => "+",
+                    _ => return Err(curtain()),
+                };
+                let operand = data.operand.ok_or_else(curtain)?;
+                Ok(format!(
+                    "{operator}{}",
+                    self.literal_type_node_text_slice(operand)?
+                ))
+            }
+            _ => Err(curtain()),
+        }
+    }
+
+    /// Type-parameter declaration NODES inside reused annotations
+    /// (`(x: <T>(y: T) => T)` shapes): name / constraint / default
+    /// print from the AST.
+    fn type_parameter_nodes_text_slice(&mut self, nodes: Vec<NodeId>) -> CheckResult2<String> {
+        if nodes.is_empty() {
+            return Ok(String::new());
+        }
+        let curtain =
+            || Unsupported::new("typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)");
+        let mut rendered = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let NodeData::TypeParameter(data) = self.data_of(node).clone() else {
+                return Err(curtain());
+            };
+            let source = self.binder.source_of_node(node);
+            let mut text = String::new();
+            if tsrs2_binder::node_util::has_syntactic_modifier(
+                source,
+                node,
+                tsrs2_types::ModifierFlags::CONST,
+            ) {
+                text.push_str("const ");
+            }
+            if tsrs2_binder::node_util::has_syntactic_modifier(
+                source,
+                node,
+                tsrs2_types::ModifierFlags::IN,
+            ) {
+                text.push_str("in ");
+            }
+            if tsrs2_binder::node_util::has_syntactic_modifier(
+                source,
+                node,
+                tsrs2_types::ModifierFlags::OUT,
+            ) {
+                text.push_str("out ");
+            }
+            text.push_str(&self.entity_name_text_slice(data.name.ok_or_else(curtain)?)?);
+            if let Some(constraint) = data.constraint {
+                text.push_str(" extends ");
+                text.push_str(&self.type_annotation_text_slice(constraint)?);
+            }
+            if let Some(default) = data.r#default {
+                text.push_str(" = ");
+                text.push_str(&self.type_annotation_text_slice(default)?);
+            }
+            rendered.push(text);
+        }
+        Ok(format!("<{}>", rendered.join(", ")))
+    }
+
+    /// Parameter declaration NODES inside reused annotations: the
+    /// printer's `[...]name[?][: type]` face (initializers cannot
+    /// appear in type positions).
+    fn parameter_nodes_text_slice(&mut self, nodes: Vec<NodeId>) -> CheckResult2<String> {
+        let curtain =
+            || Unsupported::new("typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)");
+        let mut rendered = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let NodeData::Parameter(data) = self.data_of(node).clone() else {
+                return Err(curtain());
+            };
+            let dots = if data.dot_dot_dot_token.is_some() {
+                "..."
+            } else {
+                ""
+            };
+            let name_node = data.name.ok_or_else(curtain)?;
+            let name = match self.data_of(name_node) {
+                NodeData::Identifier(data) => {
+                    tsrs2_binder::unescape_leading_underscores(&data.escaped_text).to_owned()
+                }
+                NodeData::ObjectBindingPattern(_) | NodeData::ArrayBindingPattern(_) => {
+                    self.binding_pattern_text_slice(name_node)?
+                }
+                _ => return Err(curtain()),
+            };
+            let question = if data.question_token.is_some() {
+                "?"
+            } else {
+                ""
+            };
+            let mut text = format!("{dots}{name}{question}");
+            if let Some(annotation) = data.r#type {
+                text.push_str(": ");
+                text.push_str(&self.type_annotation_text_slice(annotation)?);
+            }
+            rendered.push(text);
+        }
+        Ok(rendered.join(", "))
+    }
+
+    /// Type-literal MEMBER nodes inside reused annotations, printed
+    /// with the single-line `; ` joins (oracle-probed C07:
+    /// `{ a: (number) }` renders `{ a: (number); }`).
+    fn type_literal_member_text_slice(&mut self, member: NodeId) -> CheckResult2<String> {
+        let curtain =
+            || Unsupported::new("typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)");
+        match self.data_of(member).clone() {
+            NodeData::PropertySignature(data) => {
+                let source = self.binder.source_of_node(member);
+                let readonly = if tsrs2_binder::node_util::has_syntactic_modifier(
+                    source,
+                    member,
+                    tsrs2_types::ModifierFlags::READONLY,
+                ) {
+                    "readonly "
+                } else {
+                    ""
+                };
+                let name = self.member_name_node_text_slice(data.name.ok_or_else(curtain)?)?;
+                let question = if data.question_token.is_some() {
+                    "?"
+                } else {
+                    ""
+                };
+                let mut text = format!("{readonly}{name}{question}");
+                if let Some(annotation) = data.r#type {
+                    text.push_str(": ");
+                    text.push_str(&self.type_annotation_text_slice(annotation)?);
+                }
+                Ok(text)
+            }
+            NodeData::MethodSignature(data) => {
+                let name = self.member_name_node_text_slice(data.name.ok_or_else(curtain)?)?;
+                let question = if data.question_token.is_some() {
+                    "?"
+                } else {
+                    ""
+                };
+                let type_parameters =
+                    self.type_parameter_nodes_text_slice(self.nodes_of(data.type_parameters))?;
+                let parameters = self.parameter_nodes_text_slice(self.nodes_of(data.parameters))?;
+                let mut text = format!("{name}{question}{type_parameters}({parameters})");
+                if let Some(annotation) = data.r#type {
+                    text.push_str(": ");
+                    text.push_str(&self.type_annotation_text_slice(annotation)?);
+                }
+                Ok(text)
+            }
+            NodeData::CallSignature(data) => {
+                let type_parameters =
+                    self.type_parameter_nodes_text_slice(self.nodes_of(data.type_parameters))?;
+                let parameters = self.parameter_nodes_text_slice(self.nodes_of(data.parameters))?;
+                let mut text = format!("{type_parameters}({parameters})");
+                if let Some(annotation) = data.r#type {
+                    text.push_str(": ");
+                    text.push_str(&self.type_annotation_text_slice(annotation)?);
+                }
+                Ok(text)
+            }
+            NodeData::ConstructSignature(data) => {
+                let type_parameters =
+                    self.type_parameter_nodes_text_slice(self.nodes_of(data.type_parameters))?;
+                let parameters = self.parameter_nodes_text_slice(self.nodes_of(data.parameters))?;
+                let mut text = format!("new {type_parameters}({parameters})");
+                if let Some(annotation) = data.r#type {
+                    text.push_str(": ");
+                    text.push_str(&self.type_annotation_text_slice(annotation)?);
+                }
+                Ok(text)
+            }
+            NodeData::IndexSignature(data) => {
+                let source = self.binder.source_of_node(member);
+                let readonly = if tsrs2_binder::node_util::has_syntactic_modifier(
+                    source,
+                    member,
+                    tsrs2_types::ModifierFlags::READONLY,
+                ) {
+                    "readonly "
+                } else {
+                    ""
+                };
+                let parameters = self.parameter_nodes_text_slice(self.nodes_of(data.parameters))?;
+                let mut text = format!("{readonly}[{parameters}]");
+                if let Some(annotation) = data.r#type {
+                    text.push_str(": ");
+                    text.push_str(&self.type_annotation_text_slice(annotation)?);
+                }
+                Ok(text)
+            }
+            NodeData::GetAccessor(data) => {
+                let name = self.member_name_node_text_slice(data.name.ok_or_else(curtain)?)?;
+                let parameters = self.parameter_nodes_text_slice(self.nodes_of(data.parameters))?;
+                let mut text = format!("get {name}({parameters})");
+                if let Some(annotation) = data.r#type {
+                    text.push_str(": ");
+                    text.push_str(&self.type_annotation_text_slice(annotation)?);
+                }
+                Ok(text)
+            }
+            NodeData::SetAccessor(data) => {
+                let name = self.member_name_node_text_slice(data.name.ok_or_else(curtain)?)?;
+                let parameters = self.parameter_nodes_text_slice(self.nodes_of(data.parameters))?;
+                Ok(format!("set {name}({parameters})"))
+            }
+            _ => Err(curtain()),
+        }
+    }
+
+    /// Member/binding property NAMES inside reused nodes: identifier,
+    /// quoted string (double — clones), numeric text, computed
+    /// `[entity]`.
+    fn member_name_node_text_slice(&mut self, name: NodeId) -> CheckResult2<String> {
+        let curtain =
+            || Unsupported::new("typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)");
+        match self.data_of(name).clone() {
+            NodeData::Identifier(data) => {
+                Ok(tsrs2_binder::unescape_leading_underscores(&data.escaped_text).to_owned())
+            }
+            NodeData::StringLiteral(data) => string_literal_name_slice(&data.text, false),
+            NodeData::NumericLiteral(data) => Ok(data.text.clone()),
+            NodeData::ComputedPropertyName(data) => {
+                let expression = data.expression.ok_or_else(curtain)?;
+                Ok(format!("[{}]", self.entity_name_text_slice(expression)?))
+            }
+            _ => Err(curtain()),
+        }
+    }
+
+    /// tsc-port: parameterToParameterDeclarationName @6.0.3 (binding face)
+    /// tsc-hash: 44f35dfdb10907de5255a8afcf28645007b1953c6aef8352dc742faa73a0804e
+    /// tsc-span: _tsc.js:52880-52911
+    ///
+    /// cloneBindingName elides initializers and single-lines the
+    /// emission; the printer pads object-pattern braces (`{ a, b }`)
+    /// but not array patterns (`[a, b]`); omitted elements print
+    /// empty (`[, x]`); trackComputedName is tracker-dead.
+    fn binding_pattern_text_slice(&mut self, pattern: NodeId) -> CheckResult2<String> {
+        let curtain =
+            || Unsupported::new("typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)");
+        match self.data_of(pattern).clone() {
+            NodeData::ObjectBindingPattern(data) => {
+                let elements = self.nodes_of(data.elements);
+                if elements.is_empty() {
+                    return Ok("{}".to_owned());
+                }
+                let mut rendered = Vec::with_capacity(elements.len());
+                for element in elements {
+                    rendered.push(self.binding_element_text_slice(element)?);
+                }
+                Ok(format!("{{ {} }}", rendered.join(", ")))
+            }
+            NodeData::ArrayBindingPattern(data) => {
+                let elements = self.nodes_of(data.elements);
+                let mut rendered = Vec::with_capacity(elements.len());
+                for element in elements {
+                    rendered.push(self.binding_element_text_slice(element)?);
+                }
+                Ok(format!("[{}]", rendered.join(", ")))
+            }
+            _ => Err(curtain()),
+        }
+    }
+
+    fn binding_element_text_slice(&mut self, element: NodeId) -> CheckResult2<String> {
+        let curtain =
+            || Unsupported::new("typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)");
+        match self.data_of(element).clone() {
+            NodeData::OmittedExpression(_) => Ok(String::new()),
+            NodeData::BindingElement(data) => {
+                let dots = if data.dot_dot_dot_token.is_some() {
+                    "..."
+                } else {
+                    ""
+                };
+                let property = match data.property_name {
+                    Some(property_name) => {
+                        format!("{}: ", self.member_name_node_text_slice(property_name)?)
+                    }
+                    None => String::new(),
+                };
+                let name_node = data.name.ok_or_else(curtain)?;
+                let name = match self.data_of(name_node) {
+                    NodeData::Identifier(data) => {
+                        tsrs2_binder::unescape_leading_underscores(&data.escaped_text).to_owned()
+                    }
+                    NodeData::ObjectBindingPattern(_) | NodeData::ArrayBindingPattern(_) => {
+                        self.binding_pattern_text_slice(name_node)?
+                    }
+                    _ => return Err(curtain()),
+                };
+                Ok(format!("{dots}{property}{name}"))
+            }
+            _ => Err(curtain()),
+        }
     }
 
     /// tsc-port: getPropertyNameNodeForSymbol @6.0.3
@@ -4408,8 +6158,7 @@ impl<'a> CheckerState<'a> {
 /// node's KIND at each join; the string renderer carries the kind
 /// beside the text so the joins below apply the same rules. Only
 /// kinds the slice can produce are listed — the parenthesizer arms
-/// for the rest (function/constructor/conditional/infer/typeof
-/// heads) land with their shapes.
+/// for the rest (conditional/infer heads) land with their shapes.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SliceTypeNodeKind {
     /// KeywordTypeNode — intrinsics; no reachable rule wraps one.
@@ -4431,19 +6180,58 @@ enum SliceTypeNodeKind {
     Array,
     /// TupleTypeNode — `[...]`.
     Tuple,
+    /// FunctionTypeNode — `(...) => R` (the signature rung).
+    FunctionType,
+    /// ConstructorTypeNode — `new (...) => R` / `abstract new ...`.
+    ConstructorType,
+}
+
+/// signatureToSignatureDeclarationHelper's kind argument, restricted
+/// to the faces the display slice produces (52504-52631). The
+/// Constructor / FunctionDeclaration / FunctionExpression / Arrow /
+/// JSDocFunctionType / IndexSignature / MethodDeclaration kinds ride
+/// declaration-emit bands the slice never enters.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SliceSignatureKind {
+    FunctionType,
+    ConstructorType,
+    CallSignature,
+    ConstructSignature,
+    MethodSignature,
+    GetAccessor,
+    SetAccessor,
+}
+
+/// One rendered parameter: the declared symbol face (declaration-
+/// carrying) or a tuple-expanded transient face
+/// (getExpandedParameters' created symbols, 57923-57934 — carried as
+/// fields instead of minted symbols; nothing outside the render
+/// observes them).
+struct SliceParameterFace {
+    symbol: Option<SymbolId>,
+    declaration: Option<NodeId>,
+    /// Synthesized label for expanded faces (already unescaped).
+    name: Option<String>,
+    ty: TypeId,
+    optional: bool,
+    rest: bool,
 }
 
 /// tsc-port: parenthesizeConstituentTypeOfUnionType @6.0.3 (kind test)
 /// tsc-hash: 6a071b4a7c2eebb30005580cc9d725278da358dddc6e0a5a2543d51c9b33f0c3
 /// tsc-span: _tsc.js:20540-20548
 ///
-/// The fall-through (parenthesizeCheckTypeOfConditionalType) wraps
-/// function/constructor/conditional heads — none producible by the
-/// slice, so the transcription ends at the union/intersection arms.
+/// The fall-through (parenthesizeCheckTypeOfConditionalType,
+/// 20585-20593) wraps function/constructor/conditional heads — the
+/// signature rung produces the first two; conditional heads stay
+/// unproducible (M8).
 fn union_constituent_needs_parens(kind: SliceTypeNodeKind) -> bool {
     matches!(
         kind,
-        SliceTypeNodeKind::Union | SliceTypeNodeKind::Intersection
+        SliceTypeNodeKind::Union
+            | SliceTypeNodeKind::Intersection
+            | SliceTypeNodeKind::FunctionType
+            | SliceTypeNodeKind::ConstructorType
     )
 }
 
@@ -5013,11 +6801,727 @@ mod tests {
     }
 
     #[test]
-    fn anonymous_object_display_method_member_stays_curtained() {
-        // Oracle: `{ m(): void; }` — the method face is
-        // signatureToSignatureDeclaration work (the signature rung);
-        // the row contains until it lands.
-        assert_eq!(checked_diags("declare let g: { m(): void };\ng = 1;\n"), []);
+    fn anonymous_object_display_method_member_renders() {
+        // 9.3b2 signature rung: the method face renders
+        // (oracle-probed byte-exact).
+        assert_eq!(
+            checked_diags("declare let g: { m(): void };\ng = 1;\n"),
+            [(
+                2322,
+                30,
+                1,
+                "Type 'number' is not assignable to type '{ m(): void; }'.".to_owned()
+            )]
+        );
+    }
+
+    // ---- 9.3b2 signature-rung display pins (all byte-exact against
+    // strict-mode oracle probes; scratchpad probe-93b2-pins) ----
+
+    #[test]
+    fn signature_display_optional_parameter_structural() {
+        // declare-let sources render structurally: the optional
+        // parameter's symbol type carries `| undefined`.
+        assert_eq!(
+            checked_diags("declare let f: (x?: number) => void;\nlet t1: string = f;\n"),
+            [(
+                2322,
+                41,
+                2,
+                "Type '(x?: number | undefined) => void' is not assignable to type 'string'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn signature_display_optional_parameter_annotation_reuse() {
+        // The fn-expression twin arms the annotation-reuse channel
+        // (getTypeNamesForErrorDisplay's context-sensitive enclosing):
+        // the annotation `number` prints without `| undefined`.
+        assert_eq!(
+            checked_diags("let g = (x?: number) => {};\nlet t2: string = g;\n"),
+            [(
+                2322,
+                32,
+                2,
+                "Type '(x?: number) => void' is not assignable to type 'string'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn signature_display_generic_constraint_and_default() {
+        assert_eq!(
+            checked_diags(
+                "declare let f: <T extends string = \"a\">(x: T) => T;\nlet t3: string = f;\n"
+            ),
+            [(
+                2322,
+                69,
+                1,
+                "Type '<T extends string = \"a\">(x: T) => T' is not assignable to type 'string'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn signature_display_abstract_construct_shorthand() {
+        assert_eq!(
+            checked_diags(
+                "interface D { d: number }\ndeclare let f: abstract new () => D;\nlet t4: string = f;\n"
+            ),
+            [(
+                2322,
+                67,
+                2,
+                "Type 'abstract new () => D' is not assignable to type 'string'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn signature_display_member_order_call_index_property() {
+        // createTypeNodesFromResolvedType order: call signatures,
+        // construct signatures, index signatures, properties.
+        assert_eq!(
+            checked_diags(
+                "declare let o: { (x: string): void; [k: string]: number; p: 3 };\nlet t5: string = o;\n"
+            ),
+            [(
+                2322,
+                69,
+                2,
+                "Type '{ (x: string): void; [k: string]: number; p: 3; }' is not assignable to type 'string'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn signature_display_diverging_accessor_faces() {
+        assert_eq!(
+            checked_diags(
+                "declare let o: { get p(): number, set p(v: string) };\nlet t6: string = o;\n"
+            ),
+            [(
+                2322,
+                58,
+                2,
+                "Type '{ get p(): number; set p(v: string); }' is not assignable to type 'string'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn signature_display_overloaded_optional_method_members() {
+        assert_eq!(
+            checked_diags(
+                "declare let o: { m?(): void; m?(x: 1): void; p: 2 };\nlet t7: string = o;\n"
+            ),
+            [(
+                2322,
+                57,
+                2,
+                "Type '{ m?(): void; m?(x: 1): void; p: 2; }' is not assignable to type 'string'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn signature_display_tuple_rest_expansion() {
+        // getExpandedParameters: optional tuple members expand with
+        // `?` and the strict `| undefined` element type.
+        assert_eq!(
+            checked_diags(
+                "declare let f: (...args: [number, string?]) => void;\nlet t8: string = f;\n"
+            ),
+            [(
+                2322,
+                57,
+                2,
+                "Type '(args_0: number, args_1?: string | undefined) => void' is not assignable to type 'string'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn signature_display_labeled_tuple_rest_expansion() {
+        assert_eq!(
+            checked_diags(
+                "declare let f: (...args: [a: number, b: string]) => void;\nlet t9: string = f;\n"
+            ),
+            [(
+                2322,
+                62,
+                2,
+                "Type '(a: number, b: string) => void' is not assignable to type 'string'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn signature_display_middle_rest_keeps_declared_list() {
+        // 52519-52523: a mid-list REST-flagged expanded face falls
+        // back to the declared parameter list.
+        assert_eq!(
+            checked_diags(
+                "declare let f: (...args: [number, ...string[], boolean]) => void;\nlet t23: string = f;\n"
+            ),
+            [(
+                2322,
+                70,
+                3,
+                "Type '(...args: [number, ...string[], boolean]) => void' is not assignable to type 'string'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn signature_display_binding_pattern_with_annotation_reuse() {
+        // Pattern name + reused parenthesized annotation compose.
+        assert_eq!(
+            checked_diags("let g = ({ a }: ({ a: (number) })) => {};\nlet t10: string = g;\n"),
+            [(
+                2322,
+                46,
+                3,
+                "Type '({ a }: ({ a: (number); })) => void' is not assignable to type 'string'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn signature_display_asserts_predicate_return() {
+        assert_eq!(
+            checked_diags(
+                "declare let f: (x: unknown) => asserts x is string;\nlet t11: string = f;\n"
+            ),
+            [(
+                2322,
+                56,
+                3,
+                "Type '(x: unknown) => asserts x is string' is not assignable to type 'string'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn signature_display_union_wraps_function_type() {
+        assert_eq!(
+            checked_diags("declare let f: (() => void) | null;\nlet t12: string = f;\n"),
+            [(
+                2322,
+                40,
+                3,
+                "Type '(() => void) | null' is not assignable to type 'string'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn signature_display_optional_tuple_wraps_function_union() {
+        assert_eq!(
+            checked_diags("declare let f: [(() => void)?];\nlet t13: string = f;\n"),
+            [(
+                2322,
+                36,
+                3,
+                "Type '[((() => void) | undefined)?]' is not assignable to type 'string'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn signature_display_this_parameter_unshifts() {
+        assert_eq!(
+            checked_diags(
+                "interface W { w: number }\ndeclare let f: (this: W, x: number) => void;\nlet t14: string = f;\n"
+            ),
+            [(
+                2322,
+                75,
+                3,
+                "Type '(this: W, x: number) => void' is not assignable to type 'string'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn signature_display_constraint_annotation_reuse_keeps_alias() {
+        // The constraint face rides the REUSABLE-node path even
+        // without an enclosing declaration (52832-52834): the alias
+        // spelling survives where param/return positions resolve.
+        assert_eq!(
+            checked_diags(
+                "type AB = \"a\" | \"b\";\ndeclare let f: <T extends AB>(x: T) => T;\nlet t15: string = f;\n"
+            ),
+            [(
+                2322,
+                81,
+                1,
+                "Type '<T extends AB>(x: T) => T' is not assignable to type 'string'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn signature_display_context_sensitive_source_stays_structural() {
+        // A context-sensitive fn expression gets NO enclosing
+        // (symbolValueDeclarationIsContextSensitive) — nothing to
+        // reuse; the noImplicitAny 7006 rides along.
+        assert_eq!(
+            checked_diags("let g = (x) => x;\nlet t16: string = g;\n"),
+            [
+                (
+                    7006,
+                    9,
+                    1,
+                    "Parameter 'x' implicitly has an 'any' type.".to_owned()
+                ),
+                (
+                    2322,
+                    22,
+                    3,
+                    "Type '(x: any) => any' is not assignable to type 'string'.".to_owned()
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn signature_display_setter_face_param_union() {
+        assert_eq!(
+            checked_diags(
+                "declare let o: { get p(): string; set p(v: string | number) };\nlet t22: string = o;\n"
+            ),
+            [(
+                2322,
+                67,
+                3,
+                "Type '{ get p(): string; set p(v: string | number); }' is not assignable to type 'string'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn signature_display_rest_tuple_expansion_beats_annotation_reuse() {
+        // The expanded transient faces carry no declarations, so the
+        // parenthesized rest annotation cannot reuse.
+        assert_eq!(
+            checked_diags("let g = (...args: ([number, string])) => {};\nlet t24: string = g;\n"),
+            [(
+                2322,
+                49,
+                3,
+                "Type '(args_0: number, args_1: string) => void' is not assignable to type 'string'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn signature_display_return_annotation_reuse_keeps_parens() {
+        assert_eq!(
+            checked_diags(
+                "let g = function (x: number): (string) { return \"s\" };\nlet t25: string = g;\n"
+            ),
+            [(
+                2322,
+                73,
+                1,
+                "Type '(x: number) => (string)' is not assignable to type 'string'.".to_owned()
+            )]
+        );
+    }
+
+    // ---- 9.3b2 fabrication-audit pins (shouldReportUnmatchedPropertyError,
+    // elaborateArrowFunction, expando suppression) ----
+
+    #[test]
+    fn signature_shaped_source_keeps_the_headless_relation_row() {
+        // shouldReportUnmatchedPropertyError (67043): a property-less
+        // callable source against a non-callable-shaped target keeps
+        // the plain head — no 2741 missing-property face.
+        assert_eq!(
+            checked_diags(
+                "interface T { f(x: number): void }\ndeclare var t: T;\nt = (x: string) => 1;\n"
+            ),
+            [(
+                2322,
+                53,
+                1,
+                "Type '(x: string) => number' is not assignable to type 'T'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn signature_shaped_source_vs_callable_target_reports_missing_property() {
+        // The gate's TRUE branch: both sides callable — the missing
+        // property reports.
+        assert_eq!(
+            checked_diags(
+                "interface U { (): void; p: number }\ndeclare var src: { (): void };\ndeclare var u: U;\nu = src;\n"
+            ),
+            [(
+                2741,
+                85,
+                1,
+                "Property 'p' is missing in type '() => void' but required in type 'U'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn arrow_source_elaborates_the_return_position() {
+        // elaborateArrowFunction: the row lands on the body
+        // expression, not the declaration name.
+        assert_eq!(
+            checked_diags("var aLambda: (x: string) => number = (x) => 'a str';\n"),
+            [(
+                2322,
+                44,
+                7,
+                "Type 'string' is not assignable to type 'number'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn member_arrow_elaborates_through_the_paren_comma_body() {
+        // The member walk's inner recursion declines through
+        // paren→comma→undefined, then the report anchors at the
+        // arrow's return expression (the parenthesized body).
+        assert_eq!(
+            checked_diags(
+                "type OT = { x: (p: number) => string };\nvar obj1: OT = { x: x => (x, undefined) };\n"
+            ),
+            [
+                (
+                    2695,
+                    66,
+                    1,
+                    "Left side of comma operator is unused and has no side effects.".to_owned()
+                ),
+                (
+                    2322,
+                    65,
+                    14,
+                    "Type 'undefined' is not assignable to type 'string'.".to_owned()
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn block_body_arrow_keeps_the_declaration_head() {
+        assert_eq!(
+            checked_diags("var aL2: (x: string) => number = (x) => { return 'a'; };\n"),
+            [(
+                2322,
+                4,
+                3,
+                "Type '(x: string) => string' is not assignable to type '(x: string) => number'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn annotated_param_arrow_keeps_the_declaration_head() {
+        assert_eq!(
+            checked_diags("var aL3: (x: string) => number = (x: string) => 'a';\n"),
+            [(
+                2322,
+                4,
+                3,
+                "Type '(x: string) => string' is not assignable to type '(x: string) => number'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn ts_expando_function_members_suppress_instead_of_fabricating() {
+        // tsc binds `foo.x = 1` onto the function symbol even in .ts
+        // files; until stage 3.4c binds them, lookups on flagged
+        // parents suppress (errorType) rather than emit 2339/7053.
+        assert_eq!(
+            checked_diags("function foo() {}\nfoo.x = 1;\nvar q0: number = foo.x;\n"),
+            []
+        );
+    }
+
+    #[test]
+    fn class_static_assignments_still_report_2339() {
+        // The control: classes are NOT expando parents — the real
+        // rows keep emitting (the set-ratchet regression face).
+        assert_eq!(
+            checked_diags("class EC { n = 1 }\nEC.prop = 2\nvar q1 = EC.prop;\n"),
+            [
+                (
+                    2339,
+                    22,
+                    4,
+                    "Property 'prop' does not exist on type 'typeof EC'.".to_owned()
+                ),
+                (
+                    2339,
+                    43,
+                    4,
+                    "Property 'prop' does not exist on type 'typeof EC'.".to_owned()
+                )
+            ]
+        );
+    }
+
+    // ---- 9.3b2 review-round pins (expando name-precision, union
+    // best-match, IIFE effective args, optional missing removal) ----
+
+    #[test]
+    fn expando_suppression_is_name_precise() {
+        // Only the ASSIGNED member suppresses; other names miss in
+        // tsc too — y/q report 2339, "z" reports 7053, and the
+        // expando'd declaration symbol displays `typeof foo`
+        // (oracle-probed byte rows).
+        assert_eq!(
+            checked_diags(
+                "function foo() {}\nfoo.x = 1;\nfoo.y;\nfoo[\"z\"];\nconst alias = foo;\nalias.q;\nvar ok: number = foo.x;\n"
+            ),
+            [
+                (
+                    2339,
+                    33,
+                    1,
+                    "Property 'y' does not exist on type 'typeof foo'.".to_owned()
+                ),
+                (
+                    7053,
+                    36,
+                    8,
+                    "Element implicitly has an 'any' type because expression of type '\"z\"' can't be used to index type 'typeof foo'."
+                        .to_owned()
+                ),
+                (
+                    2339,
+                    71,
+                    1,
+                    "Property 'q' does not exist on type 'typeof foo'.".to_owned()
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn expando_template_key_records_like_string_literal() {
+        // Round 2: getElementOrPropertyAccessName (15134) is
+        // string-literal-LIKE — a `x` no-substitution template key
+        // records the member name exactly as "x" does, so the
+        // .x / [`x`] / ["x"] reads suppress while .y keeps its row
+        // (oracle-probed byte rows).
+        assert_eq!(
+            checked_diags(
+                "function foo() {}\nfoo[`x`] = 1;\nfoo.x;\nfoo[`x`];\nfoo[\"x\"];\nfoo.y;\n"
+            ),
+            [(
+                2339,
+                63,
+                1,
+                "Property 'y' does not exist on type 'typeof foo'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn union_target_member_elaborates_through_best_match() {
+        // getBestMatchIndexedAccessTypeOrUndefined's union leg: the
+        // member row lands on `m` (the head suppresses), method and
+        // plain flavors alike.
+        assert_eq!(
+            checked_diags("let o: { m: () => string } | { x: number } = { m() { return 1 } };\n"),
+            [(
+                2322,
+                47,
+                1,
+                "Type '() => number' is not assignable to type '() => string'.".to_owned()
+            )]
+        );
+        assert_eq!(
+            checked_diags("let o2: { m: string } | { x: number } = { m: 1 };\n"),
+            [(
+                2322,
+                42,
+                1,
+                "Type 'number' is not assignable to type 'string'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn union_target_object_members_keep_the_union_head() {
+        // The 65185 substitution needs a NULLABLE-shaped union — an
+        // object-member union keeps the full union face (declared
+        // source; the fresh-literal twin rides a pre-existing
+        // discriminated-union verdict FN outside this slice).
+        assert_eq!(
+            checked_diags(
+                "declare let src3: { kind: \"a\"; v: number };\nlet o3b: { kind: \"a\"; v: string } | { kind: \"b\"; v: number } = src3;\n"
+            ),
+            [(
+                2322,
+                48,
+                3,
+                "Type '{ kind: \"a\"; v: number; }' is not assignable to type '{ kind: \"a\"; v: string; } | { kind: \"b\"; v: number; }'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn iife_optional_probe_counts_effective_arguments() {
+        // isOptionalParameter's IIFE arm reads
+        // getEffectiveCallArguments — the spread tuple counts 2, so
+        // `b` is NOT optional.
+        assert_eq!(
+            checked_diags(
+                "(function f(a, b) {\n    let s: string = f;\n})(...[1, \"\"] as const);\n"
+            ),
+            [(
+                2322,
+                28,
+                1,
+                "Type '(a: 1, b: \"\") => void' is not assignable to type 'string'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn optional_target_member_reports_without_the_missing_type() {
+        // The elaborateElementwise report tail strips the missing
+        // type on optional targets: '() => string', not
+        // '(() => string) | undefined'; shorthand rides the same
+        // tail.
+        assert_eq!(
+            checked_diags("let o4: { m?: () => string } = { m() { return 1 } };\n"),
+            [(
+                2322,
+                33,
+                1,
+                "Type '() => number' is not assignable to type '() => string'.".to_owned()
+            )]
+        );
+        assert_eq!(
+            checked_diags("declare let p: number;\nlet o6: { p?: string } = { p };\n"),
+            [(
+                2322,
+                50,
+                1,
+                "Type 'number' is not assignable to type 'string'.".to_owned()
+            )]
+        );
+    }
+
+    // ---- 9.3b2 member-elaboration pins (method/accessor yields) ----
+
+    #[test]
+    fn method_member_elaborates_at_the_name() {
+        assert_eq!(
+            checked_diags("let o1: { m(): string } = { m() { return 1 } };\n"),
+            [(
+                2322,
+                28,
+                1,
+                "Type '() => number' is not assignable to type '() => string'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn accessor_pair_double_yields_one_row_per_name() {
+        // generateObjectLiteralElements yields the getter AND the
+        // setter — two rows, both over the shared member's read type.
+        assert_eq!(
+            checked_diags(
+                "let o2: { p: string } = { get p() { return 1 }, set p(v: number) {} };\n"
+            ),
+            [
+                (
+                    2322,
+                    30,
+                    1,
+                    "Type 'number' is not assignable to type 'string'.".to_owned()
+                ),
+                (
+                    2322,
+                    52,
+                    1,
+                    "Type 'number' is not assignable to type 'string'.".to_owned()
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn computed_method_member_keeps_the_plain_2322() {
+        // Method yields carry no errorMessage — the 2418
+        // computed-property swap is PropertyAssignment-only.
+        assert_eq!(
+            checked_diags("const k = \"m\";\nlet o3: { m(): string } = { [k]() { return 1 } };\n"),
+            [(
+                2322,
+                43,
+                3,
+                "Type '() => number' is not assignable to type '() => string'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn accessor_members_elaborate_against_index_targets() {
+        assert_eq!(
+            checked_diags(
+                "let o4: { [k: string]: number } = { get p() { return \"s\" }, set p(v: string) {} };\n"
+            ),
+            [
+                (
+                    2322,
+                    40,
+                    1,
+                    "Type 'string' is not assignable to type 'number'.".to_owned()
+                ),
+                (
+                    2322,
+                    64,
+                    1,
+                    "Type 'string' is not assignable to type 'number'.".to_owned()
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn method_member_elaborates_against_index_target() {
+        assert_eq!(
+            checked_diags("let o5: { [k: string]: number } = { m() { return \"s\" } };\n"),
+            [(
+                2322,
+                36,
+                1,
+                "Type '() => string' is not assignable to type 'number'.".to_owned()
+            )]
+        );
     }
 
     #[test]

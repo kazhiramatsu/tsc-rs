@@ -395,6 +395,24 @@ impl<'a> CheckerState<'a> {
                              answer (unported narrowing dependency, M6/M8 seam)",
                         ));
                     }
+                    // Expando-parent declarations: `const c: N = () =>
+                    // true` followed by `c.num = 123` type-checks in
+                    // tsc with the assignment-declared members ON THE
+                    // INITIALIZER's function symbol
+                    // (propertyAssignmentUseParentType*) — the port
+                    // has not bound them (stage 3.4c), so a failed
+                    // relation here would fabricate the missing-
+                    // member face. Statement-scoped containment: the
+                    // symbol's TYPE reads from the annotation, so no
+                    // neighboring statement resolves through this Err.
+                    if !self.is_type_assignable_to(initializer_type, ty)? {
+                        let declared_symbol = self.get_symbol_of_declaration(node)?;
+                        if self.binder.symbol_has_expando_assignment(declared_symbol) {
+                            return Err(Unsupported::new(
+                                "expando-function member assignment (assignment-declaration binding, M8 checkJs band)",
+                            ));
+                        }
+                    }
                     let elaborated = !self.is_type_assignable_to(initializer_type, ty)?
                         && self.elaborate_literal_assignment(
                             initializer,

@@ -870,6 +870,236 @@ Escape rows: the new arm's curtain sites join the standing M8
 nodeBuilder-tail reason (manifest diff is the review surface);
 `escapes --stale M6` green, untagged 0, recovery 116 unchanged.
 
+## 9.3b2 results (2026-07-22, signature rung + the annotation-reuse
+## channel — DONE)
+
+Band movement: all-corpus T0 56.1766% → **57.3923%** (27540 → 28136,
++596, FP=0 across every band); 2xxx T0 80.3525% → **83.1219%**
+(16915 → 17498, +583); supported-2xxx T0 82.4961% → **85.3394%**
+(17498/20504), supported FN 3,589 → **3,006** (tool integers,
+monotone ✓). Shadow tiers (2xxx): T2 79.0271% → 81.7158%, T3
+73.0607% → 74.3385%. Curtain attribution re-measured live:
+`typeToString beyond the 5.4 display slice` 1,142 → **553** (−589).
+Syntactic band unchanged.
+
+Decisions of record:
+
+1. **The arm is signatureToSignatureDeclarationHelper (52504-52631)
+   as a string renderer** over the seven producible kinds: the
+   single call/construct shorthands (51907-51916, `(...) => R` /
+   `[abstract ]new (...) => R` — the abstract modifier reads the
+   signature flag), call/construct signature members
+   (createTypeNodesFromResolvedType order: calls, constructs, index
+   signatures, properties), method members (one MethodSignature per
+   call signature of the undefined-filtered type, the optional token
+   on each), and the get/set faces for DIVERGING non-class accessor
+   pairs (the same-type non-class collapse stays the 9.3b plain
+   row). Class-parented accessor arms and the abstract-construct
+   intersection re-derivation (51918-51928) stay curtained with
+   reachability notes (spreads drop prototype accessors — probed;
+   `abstract new` mixes need M8-band synthesis). FunctionType /
+   ConstructorType joined SliceTypeNodeKind — the union-constituent
+   parenthesizer wrap covers every producible position through the
+   existing fall-through chain.
+2. **Parameter faces**: getExpandedParameters' tuple-rest expansion
+   runs as display-transient faces (no symbols minted — enterNewScope,
+   the only other consumer, is dead without an enclosingDeclaration);
+   labels ride the 4-arg getTupleElementLabel (labeled declarations,
+   pattern-element recursion incl. nested rests — `rest_0`-style
+   synthesis — and the `_N` duplicate counters keyed on the rewritten
+   name, 57956); a mid-list REST face falls back to the declared
+   parameter list (52519-52523). Binding-pattern names print with
+   initializers elided (`{ a, b }` padded, `[a, b]` unpadded, omitted
+   elements empty). isOptionalParameter's initializer arm reads
+   getMinArgumentCount under (StrongArityForUntypedJS |
+   VoidIsNonOptional), which reduces to the min-argument integer
+   without the void-trimming loop (structural.rs variant);
+   requiresAddingImplicitUndefined adds the strict `| undefined` to
+   required-initialized parameters.
+3. **The annotation-reuse channel is LIVE and enclosing-gated**
+   (oracle-probed 5 rounds, ~90 cases): canReuseTypeNodeAnnotation
+   (50932-50955) returns false without a context
+   enclosingDeclaration, and error-path typeToString carries one
+   ONLY through getTypeNamesForErrorDisplay's context-sensitive
+   probe (50748: the symbol's value declaration, when it is an
+   expression and NOT context-sensitive). So declare-let sources
+   render structurally (parens drop, aliases resolve, `x?: number`
+   prints `x?: number | undefined`) while fn-expression and
+   object-literal sources REUSE annotation spellings (`(x?: number)`,
+   `(x: (string))`, alias names — through member faces too). The
+   port parks the enclosing on CheckerState
+   (slice_display_enclosing), sets it at the three
+   getTypeNamesForErrorDisplay sites (reportRelationError pass-1,
+   the single-missing-property 2741 face, operator errors) and
+   restores across the Err unwind. Type-parameter CONSTRAINTS reuse
+   through typeToTypeNodeHelperWithPossibleReusableTypeNode
+   (52832-52834) WITHOUT the enclosing gate — the declared
+   constraint annotation prints whenever its unmapped type equals
+   the current constraint (`<T extends AB>` keeps the alias);
+   defaults never reuse (52829 — `= (A)` prints `= string`,
+   probed). The reused-node printer emits CLONES: string literals
+   re-quote double, numeric literals print their cooked text
+   (`0x10` → `16`), type-literal members re-join `{ ...; }`;
+   unsupported node kinds Err (the row stays curtained — never
+   divergent text). The 9.3b "annotation reuse probed inert" note
+   was declare-let-shaped — this slice's probes falsified it for
+   expression-valued sources and the stale-justification comment on
+   getTypeNamesForErrorDisplay came out.
+4. **Return faces**: serializeReturnTypeForSignature's syntactic arm
+   rides the same reuse gate; the inferred arm renders the type
+   predicate first (`asserts x is T` / `this is T` faces via the
+   7.5-B7 model — getTypePredicateOfSignature already resolves
+   through signature.target/mapper, so the context.mapper
+   re-instantiation is identity and elided with a comment).
+   SetAccessor faces drop the return; GetAccessor/SetAccessor take
+   no type parameters (factory shape).
+5. **Member elaboration**: generateObjectLiteralElements' method /
+   accessor / get+set yields landed in the object walk —
+   innerExpression undefined, the row at the NAME node, the source
+   member type read from the source type's own property (the indexed
+   access), and a get/set pair yields TWICE (one row per accessor
+   name — probed, no dedupe). Computed method names keep the plain
+   2322 (the 2418 swap is PropertyAssignment-only, 64449).
+6. **The anonymous-symbol gate widened to FUNCTION|METHOD symbols**:
+   shouldWriteTypeOfFunctionSymbol (51789-51795) requires
+   UseTypeOfFunction or a revisit, and error-path typeToString sets
+   neither — so top-level, local, namespace-parented declarations
+   and expressions ALL render structurally on first visit (probed);
+   the revisit `typeof f` face stays behind the slice_visited_types
+   curtain, and class/enum/value-module symbols keep their heads
+   (value-module faces are the next rung). JS-file fn symbols stay
+   behind the checkJs band.
+7. **Fabrication audit, three families** (NEW_FP=160 first 2xxx
+   re-measure + 2 band=all, every fix at the source):
+   - **shouldReportUnmatchedPropertyError (67043-67054)**: a
+     signature-shaped property-less source against a
+     non-callable-shaped target keeps the HEADLESS relation head —
+     no 2741/2739 face (`t = () => 1` vs `{ f(): void }` is a plain
+     2322; the port's 9.3b pre-walk was missing the gate, masked by
+     the fn-display curtain). Both-callable pairs keep reporting.
+   - **elaborateArrowFunction (63997-64046)**: expression-body
+     arrows with no annotated parameters elaborate the RETURN
+     position — the row lands on the body expression (`var aLambda:
+     (x: string) => number = (x) => 'a string'` rows at `'a string'`,
+     golden-verified), recursing through paren/comma bodies; block
+     bodies, annotated params, non-single-signature sources and
+     related returns decline to the caller's head. Ported into
+     elaborate_literal_assignment as the kind-220 arm — the missing
+     arm had been anchoring heads at declaration/member names.
+   - **TS expando functions (bindSpecialPropertyAssignment 44821)**:
+     `function foo() {}; foo.x = 1` declares members tsc-side even
+     in .ts files; the port's binder records the parent symbols
+     (expando_assignment_targets — the stage-3.4c unreliability
+     flag) and the member-miss reporters SUPPRESS (errorType
+     continues) for flagged parents — property access, element
+     access (7053 faces), and the failed-declaration relation
+     (propertyAssignmentUseParentType). NOT an Err containment: the
+     reporter sits inside symbol type resolution, and the first cut's
+     Unsupported unwound through `var n` redeclarations into
+     NEIGHBORING statements' real class-side 2339s — the set-ratchet
+     caught the 8-identity regression live (the third live catch).
+     Classes/class expressions are not expando parents and keep
+     their rows (control-pinned).
+8. **Flipped pins**: 4 containment pins whose documented oracle rows
+   now render (method-member display, instantiation-expression 2635
+   — the old comment's span guess was wrong, the live span is the
+   type-argument list — construct-only 2348, decorator 1270) and 3
+   7.5d-era relation-frame fail-faces (parked-frame, clamp
+   re-enter, callback control) — all flipped to oracle-probed live
+   rows.
+
+Verification pins: 33 new — 19 display faces (structural vs reuse
+optional-parameter TWIN pair, generic constraint+default, abstract
+ctor, member order, diverging accessors, overloaded optional
+methods, tuple-rest expansion ×3, binding pattern+reuse, asserts
+predicate, union/tuple parens, this-param, constraint-alias reuse,
+context-sensitive structural control, setter union, expansion-beats-
+reuse, return-annotation parens), 5 member-elaboration rows (method
+row, get/set double-yield, computed-name 2322, accessor-vs-index,
+method-vs-index), 8 fabrication-audit pins (headless-head +
+2741-control, arrow return-position ×2 + block-body/annotated-param
+controls, expando-clean + class control), plus 1 renamed decorator
+pin — all byte-exact against strict-mode oracle probes (scratchpad
+probe-sig*, probe-93b2-pins). Escapes 251/0/0/116 (the new curtain
+sites are the signature machinery's Err arms; manifest diff
+reviewed); ledger 17 new tsc-port headers hashed; ratchet +596/+583
+with comment lines.
+
+**Review round (user review, 4 findings — all fixed at the source;
++1 matched both bands, FP=0 both, escapes 250/0/0/116, 894 tests):**
+
+1. **Expando suppression made NAME-PRECISE** (high): the binder
+   records (parent symbol → assigned member names) —
+   getElementOrPropertyAccessName spellings, escaped — instead of a
+   bare parent flag, and every member-miss consult
+   (report_nonexistent_property, the element-access 7053 ladder)
+   suppresses ONLY names an assignment would have bound: `foo.y`,
+   `alias.q`, `foo["z"]` keep their real 2339/7053 rows. The
+   failed-declaration-relation containment stays symbol-level
+   (relation verdicts cannot be name-precise). The expando'd
+   DECLARATION symbol also gained its display face: tsc's binding
+   namespaces the symbol, so the ValueModule disjunct prints
+   `typeof foo` (oracle-probed) — the fn-EXPRESSION flavor flags
+   the variable, not the type's symbol, and keeps the structural
+   face minus the unbound members (recorded stage-3.4c T2 residue).
+2. **Union-target member elaboration through getBestMatchingType**
+   (high): getBestMatchingType (67256) landed as a CheckerState
+   port — findMatchingDiscriminantType /
+   findMatchingTypeReferenceOrTypeAliasReference /
+   findBestTypeForObjectLiteral / findBestTypeForInvokable /
+   findMostOverlappyType over the already-ported discriminant kit
+   (the RelationChecker twin from 9.3b keeps the in-walk
+   comparator; this one carries getBestMatchingType's default
+   assignable probe, which is what the elementwise caller passes) —
+   and the member walk's target lookup re-probes the best-matching
+   constituent for union targets
+   (getBestMatchIndexedAccessTypeOrUndefined 64103-64114, both the
+   object and array walks; the 9.3a-era calls.rs union containment
+   retired with it). `{ m: () => string } | { x: number }` sources
+   now row at `m`, head suppressed.
+3. **isOptionalParameter's IIFE arm counts EFFECTIVE arguments**
+   (medium): getEffectiveCallArguments expands spread tuples, so
+   `(function f(a, b) {...})(...[1, ""] as const)` displays
+   `(a: 1, b: "") => void` — no phantom `?`.
+4. **The optional-member face rides the 65185 nullable-candidate
+   substitution, not removeMissingType** (medium): probing showed
+   removeMissingType is exactOptionalPropertyTypes-gated identity
+   under default options, while isRelatedTo's entry substitutes a
+   [nullable, X] / [nullable, nullable, X] union target with X for
+   a DefinitelyNonNullable source — THAT is why `{ m?: () => string }`
+   members (and `let v: string | undefined = n` heads) report
+   against `() => string` alone while two-real-member unions keep
+   the union face (oracle-probed U1-U5). Ported as
+   nullable_stripped_report_target at both report entries
+   (assignable + comparable), where tsc's in-engine reporting sees
+   the substituted pair; the elementwise report tail ALSO carries
+   the faithful removeMissingType pair for the exactOptional
+   corpus. Review overreach note: the fresh-literal discriminated-
+   union control (`{kind:"a",v:1}` into a two-object union) exposed
+   a PRE-EXISTING verdict FN (the port relates it) — outside this
+   slice, pinned via the declared-source twin instead.
+
+**Review round 2 (user review, 1 finding — fixed at the source;
+corpus integers unchanged (`ratchet update`: no additions), FP=0
+both bands, 895 checker tests):**
+
+1. **No-substitution template keys record like string literals**
+   (high): round 1's name recorder was a hand-rolled near-duplicate
+   of getElementOrPropertyAccessName whose element-access arm
+   matched only StringLiteral/NumericLiteral — and whose span
+   citation (45190-45201) actually lands in getContainerFlags'
+   tail; the real definition is _tsc.js 15134, whose literal arm is
+   isStringLiteralLike || isNumericLiteral, so `` foo[`x`] = 1 ``
+   recorded nothing: the assignment kept a 7053 and every read of
+   the assigned name kept its 2339/7053 row (port-only rows). The
+   duplicate is deleted; the recording site calls the pre-existing
+   faithful port get_element_or_property_access_name
+   (is_string_or_numeric_literal_like + literal_text_of — both
+   already template-inclusive). Oracle-probed pin: `` foo[`x`] = 1
+   `` then `` foo.x / foo[`x`] / foo["x"] `` all clean, `foo.y`
+   keeps (2339, `typeof foo`) — the recorded name is the TEXT, so
+   suppression is spelling-independent in both directions.
+
 ## Working rules
 
 - Curtain retirement = FP-shield removal. Every widened display arm

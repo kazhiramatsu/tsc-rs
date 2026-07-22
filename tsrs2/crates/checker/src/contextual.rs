@@ -47,6 +47,9 @@ pub(crate) enum ContextualDiscriminator {
     Undefined,
     /// `() => trueType` (73403 — the initializer-less JSX attribute).
     True,
+    /// `() => getTypeOfSymbol(p)` (90529 — findMatchingDiscriminantType's
+    /// source-property discriminators, the getBestMatchingType leg).
+    SymbolType(SymbolId),
 }
 
 impl<'a> CheckerState<'a> {
@@ -2180,7 +2183,7 @@ impl<'a> CheckerState<'a> {
     /// timing is observable through type-creation order) and
     /// `related = isTypeAssignableTo`. The RelationChecker form
     /// (structural.rs) keeps the M3 relation-error shape.
-    fn discriminate_type_by_discriminable_items_contextual(
+    pub(crate) fn discriminate_type_by_discriminable_items_contextual(
         &mut self,
         target: TypeId,
         discriminators: &[(ContextualDiscriminator, String)],
@@ -2211,6 +2214,9 @@ impl<'a> CheckerState<'a> {
                             }
                             ContextualDiscriminator::Undefined => self.tables.intrinsics.undefined,
                             ContextualDiscriminator::True => self.tables.intrinsics.true_fresh,
+                            ContextualDiscriminator::SymbolType(symbol) => {
+                                self.get_type_of_symbol(*symbol)?
+                            }
                         };
                         let related = self.some_type_result(discriminating_type, |state, t| {
                             state.is_type_assignable_to(t, target_type)

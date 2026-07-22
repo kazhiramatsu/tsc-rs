@@ -2638,10 +2638,12 @@ impl<'a> CheckerState<'a> {
                 continue;
             }
             let name_type = self.tables.get_number_literal_type(i as f64);
-            // getBestMatchIndexedAccessTypeOrUndefined (64103): the
-            // union-target discriminant fallback is unmodeled — a
-            // union target without a direct indexed access contains.
-            let target_prop = self.get_indexed_access_type_or_undefined(
+            // getBestMatchIndexedAccessTypeOrUndefined (64103-64114):
+            // the direct indexed access, then — union targets only —
+            // the same probe over getBestMatchingType's constituent
+            // (live since 9.3b2-review; the old containment's
+            // "unmodeled" note retired with it).
+            let mut target_prop = self.get_indexed_access_type_or_undefined(
                 target,
                 name_type,
                 tsrs2_types::AccessFlags::NONE,
@@ -2649,12 +2651,19 @@ impl<'a> CheckerState<'a> {
                 None,
                 None,
             )?;
-            let Some(target_prop) = target_prop else {
-                if self.tables.flags_of(target).intersects(TypeFlags::UNION) {
-                    return Err(Unsupported::new(
-                        "getBestMatchingType union-target elaboration probe (T2)",
-                    ));
+            if target_prop.is_none() && self.tables.flags_of(target).intersects(TypeFlags::UNION) {
+                if let Some(best) = self.get_best_matching_type(source, target)? {
+                    target_prop = self.get_indexed_access_type_or_undefined(
+                        best,
+                        name_type,
+                        tsrs2_types::AccessFlags::NONE,
+                        None,
+                        None,
+                        None,
+                    )?;
                 }
+            }
+            let Some(target_prop) = target_prop else {
                 continue;
             };
             if self
@@ -6645,11 +6654,12 @@ mod tests {
             ),
             [(2348, 66, 4)]
         );
-        // The anonymous-typed flavor contains on display (T2 curtain;
-        // oracle: 2348 with the inline shape rendered).
+        // The anonymous-typed flavor renders the construct shorthand
+        // (9.3b2 signature rung; oracle-probed: 2348 displaying
+        // 'new (x: number) => object').
         assert_eq!(
             checked_rows("declare const c: { new (x: number): object };\nc(1);\n"),
-            []
+            [(2348, 46, 4)]
         );
     }
 
@@ -7218,15 +7228,14 @@ mod tests {
     }
 
     #[test]
-    fn es_method_decorator_arity_overflow_reports_1241() {
+    fn es_method_decorator_arity_overflow_reports_1241_and_1270() {
         // Oracle: locationless 2318 (ClassMethodDecoratorContext,
         // noLib — dropped from per-file rows) + (1241, 76, 3) + (1270,
         // 77, 2): the ES arity allowance clamps to 2, md declares 3.
-        // The 1270 tail's target display `void | (() => void)` rides
-        // the T2 curtain (function-type rendering) — recorded FN; the
-        // legacy 1270 pin above covers the live face.
+        // The 1270 target display `void | (() => void)` renders at
+        // the 9.3b2 signature rung (union-wrapped function type).
         let text = "declare function md(target: any, key: string, desc: any): number;\nclass C { @md m(): void {} }\n";
-        assert_eq!(checked_rows(text), [(1241, 76, 3)]);
+        assert_eq!(checked_rows(text), [(1241, 76, 3), (1270, 77, 2)]);
     }
 
     #[test]

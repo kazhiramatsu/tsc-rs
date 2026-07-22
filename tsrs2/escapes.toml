@@ -287,13 +287,6 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
-in = "array_literal_elaboration_would_report"
-reason = "getBestMatchingType union-target elaboration probe (T2)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/calls.rs"
 in = "check_applicable_signature_for_jsx_call_like_element"
 reason = "JSX attributes relation reporting (elaborateJsxComponents / headless reportRelationError, T2)"
 class = "stage"
@@ -507,7 +500,21 @@ in = "anonymous_object_type_to_string_slice"
 reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
 class = "stage"
 owner = "M8"
-count = 3
+count = 5
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "binding_element_text_slice"
+reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "binding_pattern_text_slice"
+reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/check.rs"
@@ -539,6 +546,13 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/check.rs"
+in = "entity_name_text_slice"
+reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/check.rs"
 in = "get_symbol_of_declaration"
 reason = "declaration without a bound symbol (parse-recovery tree)"
 class = "recovery"
@@ -546,6 +560,35 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/check.rs"
 in = "index_signature_slice"
+reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "literal_type_node_text_slice"
+reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "member_name_node_text_slice"
+reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "parameter_face_to_string_slice"
+reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+count = 2
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "parameter_nodes_text_slice"
 reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
 class = "stage"
 owner = "M8"
@@ -564,7 +607,7 @@ in = "property_signature_slice"
 reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
 class = "stage"
 owner = "M8"
-count = 4
+count = 2
 
 [[site]]
 file = "crates/checker/src/check.rs"
@@ -582,11 +625,39 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/check.rs"
+in = "type_annotation_text_slice"
+reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "type_literal_member_text_slice"
+reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/check.rs"
 in = "type_node_from_object_type_slice"
 reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
 class = "stage"
 owner = "M8"
-count = 3
+count = 2
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "type_parameter_nodes_text_slice"
+reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "type_parameter_to_declaration_slice"
+reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/check.rs"
@@ -1362,6 +1433,13 @@ class = "recovery"
 file = "crates/checker/src/statements.rs"
 in = "check_variable_like_declaration"
 reason = "empty-pattern non-null report over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/statements.rs"
+in = "check_variable_like_declaration"
+reason = "expando-function member assignment (assignment-declaration binding, M8 checkJs band)"
 class = "stage"
 owner = "M8"
 

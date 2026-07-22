@@ -1233,7 +1233,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getImmediatelyInvokedFunctionExpression @6.0.3
     /// tsc-hash: 376116f5822935a0b930eb122871cf6a305990b92a0e03ce126f83914ed84686
     /// tsc-span: _tsc.js:14595-14607
-    fn get_immediately_invoked_function_expression(&self, func: NodeId) -> Option<NodeId> {
+    pub(crate) fn get_immediately_invoked_function_expression(
+        &self,
+        func: NodeId,
+    ) -> Option<NodeId> {
         if !matches!(
             self.kind_of(func),
             SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction

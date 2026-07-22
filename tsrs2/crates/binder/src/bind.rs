@@ -1144,6 +1144,20 @@ impl<'a> Binder<'a> {
             }
             // Stage 3.4c: bindStaticPropertyAssignment /
             // bindPotentiallyMissingNamespaces (expando properties).
+            // Until those bodies land, record (parent, member name)
+            // so the checker can suppress lookups of exactly the
+            // members this assignment would declare
+            // (getElementOrPropertyAccessName, 15134: identifier
+            // escapedText / string-or-numeric-literal-LIKE text,
+            // escaped — no-substitution templates included).
+            if let Some(parent_symbol) = parent_symbol {
+                if let Some(name) = get_element_or_property_access_name(source, left) {
+                    self.expando_assignment_targets
+                        .entry(parent_symbol)
+                        .or_default()
+                        .insert(name);
+                }
+            }
         }
         // Stage 3.4c: the JS symbol-producing bodies.
     }

@@ -1783,18 +1783,23 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 40a0bc0eba39778afa87e7a1acdc421c12ecc5e0d0c117c72327676c61922597
     /// tsc-span: _tsc.js:50748-50756
     ///
-    /// symbolValueDeclarationIsContextSensitive only changes the
-    /// enclosingDeclaration passed to typeToString — a qualification
-    /// concern outside the display slice. The name-collision retry is
-    /// UseFullyQualifiedType (nodeBuilder, T2/M8) — same escape
-    /// disposition as check.rs's relation reporter.
+    /// symbolValueDeclarationIsContextSensitive passes the value
+    /// declaration as enclosingDeclaration for non-context-sensitive
+    /// expression symbols — which arms the display slice's
+    /// annotation-reuse channel (9.3b2 probes: fn-expression sources
+    /// keep annotation spellings where declare-let twins render
+    /// structurally; the prior "qualification concern only" note here
+    /// was the stale-justification pattern again). The
+    /// name-collision retry is UseFullyQualifiedType (nodeBuilder,
+    /// T2/M8) — same escape disposition as check.rs's relation
+    /// reporter.
     fn get_type_names_for_error_display(
         &mut self,
         left: TypeId,
         right: TypeId,
     ) -> CheckResult2<(String, String)> {
-        let left_str = self.type_to_string_slice(left)?;
-        let right_str = self.type_to_string_slice(right)?;
+        let left_str = self.type_to_string_slice_with_error_enclosing(left)?;
+        let right_str = self.type_to_string_slice_with_error_enclosing(right)?;
         if left_str == right_str {
             return Err(Unsupported::new(
                 "operator-error display for identically-named types \
@@ -2627,6 +2632,92 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
+    /// tsc-port: getBestMatchIndexedAccessTypeOrUndefined @6.0.3
+    /// tsc-hash: d9c9a56511cb15f6d99180834836ddea10da6cc2af84f172c7932f6490c2e349
+    /// tsc-span: _tsc.js:64103-64114
+    ///
+    /// The member walk's target-side lookup: property first, then the
+    /// applicable index signature (the port's indexed-access
+    /// modeling), then — for UNION targets only — the same pair over
+    /// getBestMatchingType's constituent. The `targetPropType.flags &
+    /// IndexedAccess` continue is unreachable in this modeling (the
+    /// lookup never yields an IndexedAccess type).
+    fn member_elaboration_target_type(
+        &mut self,
+        expression: NodeId,
+        target_type: TypeId,
+        name_text: &str,
+    ) -> CheckResult2<Option<TypeId>> {
+        if let Some(property) = self.get_property_of_type_full(target_type, name_text)? {
+            return Ok(Some(self.get_type_of_symbol(property)?));
+        }
+        let apparent = self.get_apparent_type(target_type)?;
+        if let Some(info) = self.get_applicable_index_info_for_name_info(apparent, name_text)? {
+            return Ok(Some(info.value_type));
+        }
+        if self
+            .tables
+            .flags_of(target_type)
+            .intersects(TypeFlags::UNION)
+        {
+            let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
+            if let Some(best) = self.get_best_matching_type(source_type, target_type)? {
+                if let Some(property) = self.get_property_of_type_full(best, name_text)? {
+                    return Ok(Some(self.get_type_of_symbol(property)?));
+                }
+                let apparent = self.get_apparent_type(best)?;
+                if let Some(info) =
+                    self.get_applicable_index_info_for_name_info(apparent, name_text)?
+                {
+                    return Ok(Some(info.value_type));
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: elaborateElementwise @6.0.3 (the report-pair tail)
+    /// tsc-hash: c289d4a4008697be6117b4bcd7c5f21e756946f8ccf08d921769996736688326
+    /// tsc-span: _tsc.js:64165-64171
+    ///
+    /// targetIsOptional/sourceIsOptional read the PROPERTY flags on
+    /// the original relation pair; the reported types strip the
+    /// missing type accordingly (under default options missingType IS
+    /// undefinedType, so `{ m?: T }` reports 'T'). The verdict and
+    /// the inner elaboration upstream used the raw pair.
+    fn remove_missing_for_member_report(
+        &mut self,
+        expression: NodeId,
+        target_type: TypeId,
+        name_text: &str,
+        actual: TypeId,
+        expected: TypeId,
+    ) -> CheckResult2<(TypeId, TypeId)> {
+        let target_is_optional = self
+            .get_property_of_type_full(target_type, name_text)?
+            .is_some_and(|property| {
+                self.binder
+                    .symbol(property)
+                    .flags
+                    .intersects(tsrs2_types::SymbolFlags::OPTIONAL)
+            });
+        let source_is_optional = if target_is_optional {
+            let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
+            self.get_property_of_type_full(source_type, name_text)?
+                .is_some_and(|property| {
+                    self.binder
+                        .symbol(property)
+                        .flags
+                        .intersects(tsrs2_types::SymbolFlags::OPTIONAL)
+                })
+        } else {
+            false
+        };
+        let expected = self.remove_missing_type(expected, target_is_optional);
+        let actual = self.remove_missing_type(actual, target_is_optional && source_is_optional);
+        Ok((actual, expected))
+    }
+
     /// tsrs-native: the literal-value rows of elaborateError used by
     /// `satisfies`. Returning true means at least one inner relation
     /// diagnostic was emitted, so the caller must not also emit the
@@ -2696,27 +2787,106 @@ impl<'a> CheckerState<'a> {
         }
         let before = self.diagnostics.len();
         match self.data_of(expression) {
+            NodeData::ArrowFunction(data) => {
+                // tsc-port: elaborateArrowFunction @6.0.3
+                // (63997-64046, the elaborateError kind-220 arm):
+                // expression-body arrows with NO annotated parameters
+                // elaborate the RETURN position — the row lands on
+                // the body expression (or deeper via the recursion),
+                // suppressing the caller's head. Block bodies,
+                // annotated parameters, non-single-signature sources,
+                // signature-less targets and RELATED return types all
+                // decline, and the caller's head reports normally.
+                // (Unmasked at 9.3b2: the fn displays these rows need
+                // rendered, so the missing arm anchored heads at the
+                // caller's node — variable names, member names —
+                // where the oracle rows sit in the arrow body.)
+                let data = data.clone();
+                let Some(body) = data.body else {
+                    return Ok(self.diagnostics.len() > before);
+                };
+                if matches!(self.data_of(body), NodeData::Block(_)) {
+                    return Ok(self.diagnostics.len() > before);
+                }
+                let any_annotated = self.nodes_of(data.parameters).iter().any(|&parameter| {
+                    matches!(self.data_of(parameter), NodeData::Parameter(data)
+                        if data.r#type.is_some())
+                });
+                if any_annotated {
+                    return Ok(self.diagnostics.len() > before);
+                }
+                let source = self.check_expression_cached(expression, CheckMode::NORMAL)?;
+                let Some(source_signature) = self.get_single_call_signature(source)? else {
+                    return Ok(self.diagnostics.len() > before);
+                };
+                let target_signatures =
+                    self.get_signatures_of_type(target_type, crate::state::SignatureKind::Call)?;
+                if target_signatures.is_empty() {
+                    return Ok(self.diagnostics.len() > before);
+                }
+                let source_return = self.get_return_type_of_signature(source_signature)?;
+                let mut target_returns = Vec::with_capacity(target_signatures.len());
+                for signature in target_signatures {
+                    target_returns.push(self.get_return_type_of_signature(signature)?);
+                }
+                let target_return =
+                    self.get_union_type_ex(&target_returns, tsrs2_types::UnionReduction::Literal)?;
+                if self.is_type_assignable_to(source_return, target_return)? {
+                    return Ok(self.diagnostics.len() > before);
+                }
+                if self.elaborate_literal_assignment(
+                    body,
+                    target_return,
+                    Some(&tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1),
+                )? {
+                    return Ok(true);
+                }
+                // The related-info tail ("The expected type comes
+                // from...", 64040-64046) is chain content the port's
+                // reporter does not model (T3 residue).
+                self.check_type_assignable_to(
+                    source_return,
+                    target_return,
+                    Some(body),
+                    &tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1,
+                )?;
+                return Ok(true);
+            }
             NodeData::ObjectLiteralExpression(data) => {
                 let properties = self.nodes_of(data.properties);
                 for property in properties {
                     // generateObjectLiteralElements (64437-64460):
                     // PropertyAssignment yields its initializer as the
-                    // inner expression; ShorthandPropertyAssignment
-                    // yields innerExpression UNDEFINED and elaborates
-                    // the source member type at the name — the
-                    // shorthand name IS the value reference, so the
-                    // identifier's cached type is that member type.
-                    // Method/accessor members also yield in tsc
-                    // (member-type probes); they stay skipped until a
-                    // corpus row demands them (the get/set pair
-                    // double-yield needs a dedupe decision).
-                    let (name, initializer) = match self.data_of(property) {
+                    // inner expression; ShorthandPropertyAssignment,
+                    // MethodDeclaration and the accessors yield
+                    // innerExpression UNDEFINED and elaborate the
+                    // source member type at the name. The shorthand
+                    // name IS the value reference (its cached type is
+                    // the member type); method/accessor member types
+                    // read through the source type's member — tsc's
+                    // getIndexedAccessTypeOrUndefined(source, nameType)
+                    // — and a get/set pair yields TWICE, one row per
+                    // accessor name (oracle-probed: no dedupe).
+                    // Spread assignments continue (64439).
+                    let (name, initializer, member_lookup) = match self.data_of(property) {
                         NodeData::PropertyAssignment(data) => match (data.name, data.initializer) {
-                            (Some(name), Some(initializer)) => (name, Some(initializer)),
+                            (Some(name), Some(initializer)) => (name, Some(initializer), false),
                             _ => continue,
                         },
                         NodeData::ShorthandPropertyAssignment(data) => match data.name {
-                            Some(name) => (name, None),
+                            Some(name) => (name, None, false),
+                            None => continue,
+                        },
+                        NodeData::MethodDeclaration(data) => match data.name {
+                            Some(name) => (name, None, true),
+                            None => continue,
+                        },
+                        NodeData::GetAccessor(data) => match data.name {
+                            Some(name) => (name, None, true),
+                            None => continue,
+                        },
+                        NodeData::SetAccessor(data) => match data.name {
+                            Some(name) => (name, None, true),
                             None => continue,
                         },
                         _ => continue,
@@ -2729,25 +2899,38 @@ impl<'a> CheckerState<'a> {
                     // indexed access (64131): a property miss falls
                     // through to the APPLICABLE INDEX SIGNATURE's
                     // value type (the numeric-indexer member rows ride
-                    // it); neither → the element is skipped, exactly
-                    // tsc's `if (!targetPropType) continue`.
-                    let expected = match self.get_property_of_type_full(target_type, &name_text)? {
-                        Some(expected_property) => self.get_type_of_symbol(expected_property)?,
-                        None => {
-                            let apparent = self.get_apparent_type(target_type)?;
-                            match self
-                                .get_applicable_index_info_for_name_info(apparent, &name_text)?
-                            {
-                                Some(info) => info.value_type,
-                                None => continue,
-                            }
-                        }
+                    // it); a UNION target without a direct member
+                    // re-probes the best-matching constituent
+                    // (getBestMatchIndexedAccessTypeOrUndefined,
+                    // 64103-64114); nothing → the element is skipped,
+                    // exactly tsc's `if (!targetPropType) continue`.
+                    let expected = match self.member_elaboration_target_type(
+                        expression,
+                        target_type,
+                        &name_text,
+                    )? {
+                        Some(expected) => expected,
+                        None => continue,
                     };
-                    let actual = match initializer {
-                        Some(initializer) => {
-                            self.check_expression_cached(initializer, CheckMode::NORMAL)?
+                    let actual = if member_lookup {
+                        // Method/accessor entries: sourcePropType =
+                        // the source type's own member (the indexed
+                        // access resolves to the property's read
+                        // type; accessors share one symbol, so both
+                        // yields read the same pair of types).
+                        let source_type =
+                            self.check_expression_cached(expression, CheckMode::NORMAL)?;
+                        match self.get_property_of_type_full(source_type, &name_text)? {
+                            Some(source_property) => self.get_type_of_symbol(source_property)?,
+                            None => continue,
                         }
-                        None => self.check_expression_cached(name, CheckMode::NORMAL)?,
+                    } else {
+                        match initializer {
+                            Some(initializer) => {
+                                self.check_expression_cached(initializer, CheckMode::NORMAL)?
+                            }
+                            None => self.check_expression_cached(name, CheckMode::NORMAL)?,
+                        }
                     };
                     if self.is_type_assignable_to(actual, expected)? {
                         continue;
@@ -2777,24 +2960,46 @@ impl<'a> CheckerState<'a> {
                     // for the 2418 computed-property face
                     // (isComputedNonLiteralName — string/numeric
                     // literal keys keep the plain 2322).
-                    let computed_non_literal = match self.data_of(name) {
-                        NodeData::ComputedPropertyName(data) => {
-                            data.expression.is_some_and(|expression| {
-                                !matches!(
-                                    self.kind_of(expression),
-                                    SyntaxKind::StringLiteral
-                                        | SyntaxKind::NoSubstitutionTemplateLiteral
-                                        | SyntaxKind::NumericLiteral
-                                )
-                            })
-                        }
-                        _ => false,
-                    };
+                    // The swap is the PropertyAssignment case's
+                    // errorMessage only (64449) — method/accessor
+                    // yields carry no errorMessage (64443-64445), so
+                    // a computed method name keeps the plain 2322
+                    // (oracle-probed: `{ [k]() {...} }` rows 2322).
+                    let computed_non_literal = !member_lookup
+                        && match self.data_of(name) {
+                            NodeData::ComputedPropertyName(data) => {
+                                data.expression.is_some_and(|expression| {
+                                    !matches!(
+                                        self.kind_of(expression),
+                                        SyntaxKind::StringLiteral
+                                            | SyntaxKind::NoSubstitutionTemplateLiteral
+                                            | SyntaxKind::NumericLiteral
+                                    )
+                                })
+                            }
+                            _ => false,
+                        };
                     let message = if computed_non_literal {
                         &tsrs2_diags::gen::Type_of_computed_property_s_value_is_0_which_is_not_assignable_to_type_1
                     } else {
                         &tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1
                     };
+                    // 64165-64171: the REPORTED pair strips the
+                    // MISSING type on optional targets (and optional
+                    // sources when the target is) — live under
+                    // exactOptionalPropertyTypes only (removeMissingType
+                    // is identity otherwise); the everyday
+                    // `{ m?: T }` face reports 'T' via the reporter's
+                    // 65185 nullable-candidate substitution instead.
+                    // The raw pair fed the verdict and the inner
+                    // recursion above.
+                    let (actual, expected) = self.remove_missing_for_member_report(
+                        expression,
+                        target_type,
+                        &name_text,
+                        actual,
+                        expected,
+                    )?;
                     self.check_type_assignable_to(actual, expected, Some(name), message)?;
                 }
             }
@@ -2833,19 +3038,24 @@ impl<'a> CheckerState<'a> {
                     // property first, then the applicable index
                     // signature (arrays and numeric-indexed object
                     // literals alike).
-                    let expected = match self.get_property_of_type_full(target_type, &index_name)? {
-                        Some(property) => self.get_type_of_symbol(property)?,
-                        None => {
-                            if self.is_tuple_like_type(target_type)? {
-                                continue;
-                            }
-                            let apparent = self.get_apparent_type(target_type)?;
-                            match self
-                                .get_applicable_index_info_for_name_info(apparent, &index_name)?
-                            {
-                                Some(info) => info.value_type,
-                                None => continue,
-                            }
+                    let expected = if self.is_tuple_like_type(target_type)?
+                        && self
+                            .get_property_of_type_full(target_type, &index_name)?
+                            .is_none()
+                    {
+                        // generateLimitedTupleElements (64393-64401)
+                        // skips an element a TUPLE-LIKE target has no
+                        // property for (the arity mismatch reports at
+                        // the outer head).
+                        continue;
+                    } else {
+                        match self.member_elaboration_target_type(
+                            expression,
+                            target_type,
+                            &index_name,
+                        )? {
+                            Some(expected) => expected,
+                            None => continue,
                         }
                     };
                     let actual = self.check_expression_cached(element, CheckMode::NORMAL)?;
@@ -2866,6 +3076,14 @@ impl<'a> CheckerState<'a> {
                     )? {
                         continue;
                     }
+                    // 64168-64171 (shared elaborateElementwise tail).
+                    let (actual, expected) = self.remove_missing_for_member_report(
+                        expression,
+                        target_type,
+                        &index_name,
+                        actual,
+                        expected,
+                    )?;
                     self.check_type_assignable_to(
                         actual,
                         expected,
@@ -5626,13 +5844,14 @@ mod tests {
     }
 
     #[test]
-    fn instantiation_expression_arity_mismatch_contains_on_signature_display() {
-        // Oracle: (2635, 34, 14) displaying '<T>(x: T) => T' — the
-        // signature display is nodeBuilder work (T2/M8), so the row
-        // contains.
+    fn instantiation_expression_arity_mismatch_renders_2635() {
+        // 9.3b2 signature rung: (2635, 37, 14) displaying
+        // '<T>(x: T) => T', the span = the type-argument list
+        // (oracle-probed; the pre-rung containment note here
+        // mis-remembered the span as 34).
         assert_eq!(
             checked_rows("declare const gf: <T>(x: T) => T;\ngf<string, number>;\n"),
-            []
+            [(2635, 37, 14)]
         );
     }
 
