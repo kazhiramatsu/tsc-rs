@@ -398,10 +398,6 @@ name = "children_of"
 
 [[fn]]
 file = "crates/checker/src/instantiate.rs"
-name = "import_type_is_type_of"
-
-[[fn]]
-file = "crates/checker/src/instantiate.rs"
 name = "instantiate_types"
 
 [[fn]]

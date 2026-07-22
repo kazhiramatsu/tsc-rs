@@ -26,12 +26,11 @@ use crate::nodes::{
     MetaPropertyData, MethodDeclarationData, MethodSignatureData, ModuleBlockData,
     ModuleDeclarationData, NamedExportsData, NamedImportsData, NamedTupleMemberData,
     NamespaceExportData, NamespaceExportDeclarationData, NamespaceImportData, NewExpressionData,
-    NoSubstitutionTemplateLiteralData, NodeData, NodeId, NodePayload, NonNullExpressionData,
-    NumericLiteralData, ObjectBindingPatternData, ObjectLiteralExpressionData,
-    OmittedExpressionData, OptionalTypeData, ParameterData, ParenthesizedExpressionData,
-    ParenthesizedTypeData, PostfixUnaryExpressionData, PrefixUnaryExpressionData,
-    PrivateIdentifierData, PropertyAccessExpressionData, PropertyAssignmentData,
-    PropertyDeclarationData, PropertySignatureData, QualifiedNameData,
+    NoSubstitutionTemplateLiteralData, NodeData, NodeId, NonNullExpressionData, NumericLiteralData,
+    ObjectBindingPatternData, ObjectLiteralExpressionData, OmittedExpressionData, OptionalTypeData,
+    ParameterData, ParenthesizedExpressionData, ParenthesizedTypeData, PostfixUnaryExpressionData,
+    PrefixUnaryExpressionData, PrivateIdentifierData, PropertyAccessExpressionData,
+    PropertyAssignmentData, PropertyDeclarationData, PropertySignatureData, QualifiedNameData,
     RegularExpressionLiteralData, RestTypeData, ReturnStatementData, SatisfiesExpressionData,
     SetAccessorData, ShorthandPropertyAssignmentData, SourceFileData, SpreadAssignmentData,
     SpreadElementData, StringLiteralData, SwitchStatementData, TaggedTemplateExpressionData,
@@ -1835,12 +1834,12 @@ impl<'text> Parser<'text> {
         }
     }
 
-    /// The clause keyword (extends vs implements) is recoverable from the
-    /// source range; HeritageClauseData does not store it.
+    /// tsc parseHeritageClause.
     fn parse_heritage_clause(&mut self) -> NodeId {
         let pos = self.node_pos();
+        let token = self.token();
         debug_assert!(matches!(
-            self.token(),
+            token,
             SyntaxKind::ExtendsKeyword | SyntaxKind::ImplementsKeyword
         ));
         self.next_token();
@@ -1850,7 +1849,10 @@ impl<'text> Parser<'text> {
             false,
         );
         self.finish_node_data(
-            NodeData::HeritageClause(HeritageClauseData { types: Some(types) }),
+            NodeData::HeritageClause(HeritageClauseData {
+                token,
+                types: Some(types),
+            }),
             pos,
         )
     }
@@ -2111,8 +2113,7 @@ impl<'text> Parser<'text> {
         })
     }
 
-    /// tsc parseImportDeclarationOrImportEqualsDeclaration. The type-only and
-    /// defer phase modifiers steer the grammar but have no node-data slot yet.
+    /// tsc parseImportDeclarationOrImportEqualsDeclaration.
     fn parse_import_declaration_or_import_equals_declaration(
         &mut self,
         pos: usize,
@@ -2125,8 +2126,7 @@ impl<'text> Parser<'text> {
         } else {
             None
         };
-        let mut is_type_only = false;
-        let mut is_defer_phase = false;
+        let mut phase_modifier = None;
         if self.identifier_text_is(identifier, "type")
             && (self.token() != SyntaxKind::FromKeyword
                 || self.is_identifier()
@@ -2135,7 +2135,7 @@ impl<'text> Parser<'text> {
             && (self.is_identifier()
                 || self.token_after_import_definitely_produces_import_declaration())
         {
-            is_type_only = true;
+            phase_modifier = Some(SyntaxKind::TypeKeyword);
             identifier = if self.is_identifier() {
                 Some(self.parse_identifier())
             } else {
@@ -2148,7 +2148,7 @@ impl<'text> Parser<'text> {
                 self.token() != SyntaxKind::CommaToken && self.token() != SyntaxKind::EqualsToken
             })
         {
-            is_defer_phase = true;
+            phase_modifier = Some(SyntaxKind::DeferKeyword);
             identifier = if self.is_identifier() {
                 Some(self.parse_identifier())
             } else {
@@ -2157,18 +2157,18 @@ impl<'text> Parser<'text> {
         }
         if let Some(identifier) = identifier {
             if !self.token_after_imported_identifier_definitely_produces_import_declaration()
-                && !is_defer_phase
+                && phase_modifier != Some(SyntaxKind::DeferKeyword)
             {
                 return self.parse_import_equals_declaration(
                     pos,
                     modifiers,
                     identifier,
-                    is_type_only,
+                    phase_modifier == Some(SyntaxKind::TypeKeyword),
                 );
             }
         }
         let import_clause =
-            self.try_parse_import_clause(identifier, after_import_pos, is_type_only);
+            self.try_parse_import_clause(identifier, after_import_pos, phase_modifier);
         let module_specifier = self.parse_module_specifier();
         let attributes = self.try_parse_import_attributes();
         self.parse_semicolon();
@@ -2213,7 +2213,7 @@ impl<'text> Parser<'text> {
         &mut self,
         identifier: Option<NodeId>,
         pos: usize,
-        is_type_only: bool,
+        phase_modifier: Option<SyntaxKind>,
     ) -> Option<NodeId> {
         if identifier.is_some()
             || matches!(
@@ -2221,7 +2221,7 @@ impl<'text> Parser<'text> {
                 SyntaxKind::AsteriskToken | SyntaxKind::OpenBraceToken
             )
         {
-            let import_clause = self.parse_import_clause(identifier, pos, is_type_only);
+            let import_clause = self.parse_import_clause(identifier, pos, phase_modifier);
             self.parse_expected(SyntaxKind::FromKeyword, None);
             Some(import_clause)
         } else {
@@ -2233,7 +2233,7 @@ impl<'text> Parser<'text> {
         &mut self,
         identifier: Option<NodeId>,
         pos: usize,
-        is_type_only: bool,
+        phase_modifier: Option<SyntaxKind>,
     ) -> NodeId {
         let named_bindings = if identifier.is_none() || self.parse_optional(SyntaxKind::CommaToken)
         {
@@ -2247,7 +2247,10 @@ impl<'text> Parser<'text> {
         };
         self.finish_node_data(
             NodeData::ImportClause(ImportClauseData {
-                is_type_only,
+                // tsc createImportClause: isTypeOnly is derived, true
+                // exactly for the TypeKeyword phase.
+                is_type_only: phase_modifier == Some(SyntaxKind::TypeKeyword),
+                phase_modifier,
                 name: identifier,
                 named_bindings,
             }),
@@ -2255,7 +2258,7 @@ impl<'text> Parser<'text> {
         )
     }
 
-    /// tsc parseImportEqualsDeclaration (isTypeOnly has no node-data slot).
+    /// tsc parseImportEqualsDeclaration.
     fn parse_import_equals_declaration(
         &mut self,
         pos: usize,
@@ -4380,13 +4383,19 @@ impl<'text> Parser<'text> {
         result
     }
 
-    /// tsc parseJsxText. The containsOnlyTriviaWhiteSpaces flag has no slot;
-    /// the JsxText/JsxTextAllWhiteSpaces distinction is parse-and-drop.
+    /// tsc parseJsxText.
     fn parse_jsx_text(&mut self) -> NodeId {
         let pos = self.node_pos();
         let text = self.scanner.token_value().to_owned();
+        let contains_only_trivia_white_spaces = self.token() == SyntaxKind::JsxTextAllWhiteSpaces;
         self.scan_jsx_text();
-        self.finish_node_data(NodeData::JsxText(JsxTextData { text }), pos)
+        self.finish_node_data(
+            NodeData::JsxText(JsxTextData {
+                text,
+                contains_only_trivia_white_spaces,
+            }),
+            pos,
+        )
     }
 
     /// tsc parseJsxChild.
@@ -4892,13 +4901,14 @@ impl<'text> Parser<'text> {
                 self.source_flags |= NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT;
                 self.parse_token_node()
             } else if self.look_ahead(|parser| parser.next_token_is_dot()) {
-                // tsc createMetaProperty(ImportKeyword, ...); the
-                // keywordToken has no slot.
                 self.next_token();
                 self.next_token();
                 let name = self.parse_identifier_name(None);
                 let meta = self.finish_node_data(
-                    NodeData::MetaProperty(MetaPropertyData { name: Some(name) }),
+                    NodeData::MetaProperty(MetaPropertyData {
+                        keyword_token: SyntaxKind::ImportKeyword,
+                        name: Some(name),
+                    }),
                     pos,
                 );
                 // tsc: `import.defer(...)`/`import.defer<...>` is a
@@ -5525,7 +5535,10 @@ impl<'text> Parser<'text> {
         if self.parse_optional(SyntaxKind::DotToken) {
             let name = self.parse_identifier();
             return self.finish_node_data(
-                NodeData::MetaProperty(MetaPropertyData { name: Some(name) }),
+                NodeData::MetaProperty(MetaPropertyData {
+                    keyword_token: SyntaxKind::NewKeyword,
+                    name: Some(name),
+                }),
                 pos,
             );
         }
@@ -6106,19 +6119,13 @@ impl<'text> Parser<'text> {
         // legitimate (current_token_text's missing-token fallback would
         // turn it into the token NAME).
         let text = self.scanner.token_value().to_owned();
+        let raw_text = Some(self.template_literal_raw_text(kind));
         let data = match kind {
-            SyntaxKind::TemplateHead => NodeData::TemplateHead(TemplateHeadData {
-                text,
-                raw_text: None,
-            }),
-            SyntaxKind::TemplateMiddle => NodeData::TemplateMiddle(TemplateMiddleData {
-                text,
-                raw_text: None,
-            }),
-            SyntaxKind::TemplateTail => NodeData::TemplateTail(TemplateTailData {
-                text,
-                raw_text: None,
-            }),
+            SyntaxKind::TemplateHead => NodeData::TemplateHead(TemplateHeadData { text, raw_text }),
+            SyntaxKind::TemplateMiddle => {
+                NodeData::TemplateMiddle(TemplateMiddleData { text, raw_text })
+            }
+            SyntaxKind::TemplateTail => NodeData::TemplateTail(TemplateTailData { text, raw_text }),
             _ => unreachable!("template fragment kind"),
         };
         let id = self.arena.alloc_node(data, pos, end, NodeFlags::NONE);
@@ -6190,14 +6197,38 @@ impl<'text> Parser<'text> {
         let end = self.scanner.pos();
         // Empty cooked text (``) is legitimate — see parse_template_fragment.
         let text = self.scanner.token_value().to_owned();
+        let raw_text = self.template_literal_raw_text(SyntaxKind::NoSubstitutionTemplateLiteral);
         let id = self.arena.alloc_node(
-            NodeData::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData { text }),
+            NodeData::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData {
+                text,
+                raw_text: Some(raw_text),
+            }),
             pos,
             end,
             NodeFlags::NONE,
         );
         self.next_token();
         self.finish_node_at(id, pos, end)
+    }
+
+    /// tsc getTemplateLiteralRawText (_tsc.js 30644): the source text of
+    /// the token minus its delimiters — the leading `` ` `` (head, no-sub)
+    /// or `}` (middle, tail), and the trailing `` ` `` (last fragment) or
+    /// `${` (head, middle); an unterminated token keeps its tail. Must be
+    /// read BEFORE next_token. Byte slicing is safe: every delimiter is
+    /// ASCII. Unlike the cooked `text`, escapes and CRLF stay raw.
+    fn template_literal_raw_text(&self, kind: SyntaxKind) -> String {
+        let is_last =
+            kind == SyntaxKind::NoSubstitutionTemplateLiteral || kind == SyntaxKind::TemplateTail;
+        let token_text = self.scanner.token_text();
+        let strip_end = if self.scanner.is_unterminated() {
+            0
+        } else if is_last {
+            1
+        } else {
+            2
+        };
+        token_text[1..token_text.len() - strip_end].to_owned()
     }
 
     fn parse_type_annotation(&mut self) -> Option<NodeId> {
@@ -6256,13 +6287,6 @@ impl<'text> Parser<'text> {
             .alloc_array(spans, spans_pos, self.node_pos(), false);
         self.finish_node_data(
             NodeData::TemplateLiteralType(TemplateLiteralTypeData {
-                readonly_pos: 0.0,
-                readonly_end: 0.0,
-                readonly_kind: SyntaxKind::TemplateLiteralType,
-                readonly_flags: NodeId::default(),
-                readonly_parent: NodeId::default(),
-                readonly_head: NodePayload::String(String::new()),
-                readonly_template_spans: crate::NodeArrayId::default(),
                 head: Some(head),
                 template_spans: Some(template_spans),
             }),
@@ -7097,12 +7121,11 @@ impl<'text> Parser<'text> {
         self.token() == SyntaxKind::ImportKeyword
     }
 
-    /// tsc parseImportType. The isTypeOf marker has no home in the
-    /// current node data yet.
+    /// tsc parseImportType.
     fn parse_import_type(&mut self) -> NodeId {
         self.source_flags |= NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT;
         let pos = self.node_pos();
-        let _is_type_of = self.parse_optional(SyntaxKind::TypeOfKeyword);
+        let is_type_of = self.parse_optional(SyntaxKind::TypeOfKeyword);
         self.parse_expected(SyntaxKind::ImportKeyword, None);
         self.parse_expected(SyntaxKind::OpenParenToken, None);
         let argument = self.parse_type();
@@ -7139,6 +7162,7 @@ impl<'text> Parser<'text> {
         let type_arguments = self.parse_type_arguments_of_type_reference();
         self.finish_node_data(
             NodeData::ImportType(ImportTypeData {
+                is_type_of,
                 argument: Some(argument),
                 attributes,
                 qualifier,
@@ -8152,25 +8176,23 @@ impl<'text> Parser<'text> {
         }
     }
 
-    /// tsc walkTreeForImportMeta / isImportMeta. MetaProperty carries no
-    /// keywordToken slot, so the leading source token disambiguates
-    /// `import.meta` from `new.target`.
+    /// tsc walkTreeForImportMeta / isImportMeta.
     fn walk_tree_for_import_meta(&self, id: NodeId) -> Option<NodeId> {
         // Explicit stack: deep trees overflow a recursive walk.
         let mut stack = vec![id];
         while let Some(id) = stack.pop() {
             let node = self.arena.node(id);
             if node.kind == SyntaxKind::MetaProperty {
-                let token_start =
-                    crate::scanner::skip_trivia(self.scanner.text(), node.pos as usize);
-                let is_import = self.scanner.text()[token_start..].starts_with("import");
-                let is_meta = match &node.data {
-                    NodeData::MetaProperty(data) => data.name.is_some_and(|name| {
-                        matches!(&self.arena.node(name).data, NodeData::Identifier(data) if data.escaped_text == "meta")
-                    }),
+                let is_import_meta = match &node.data {
+                    NodeData::MetaProperty(data) => {
+                        data.keyword_token == SyntaxKind::ImportKeyword
+                            && data.name.is_some_and(|name| {
+                                matches!(&self.arena.node(name).data, NodeData::Identifier(data) if data.escaped_text == "meta")
+                            })
+                    }
                     _ => false,
                 };
-                if is_import && is_meta {
+                if is_import_meta {
                     return Some(id);
                 }
             }
@@ -8904,6 +8926,213 @@ fn context_flags_for_function_body(is_generator: bool, is_async: bool) -> (NodeF
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn nodes_of_kind(source: &crate::SourceFile, kind: SyntaxKind) -> Vec<NodeId> {
+        (0..source.arena.len() as u32)
+            .map(NodeId)
+            .filter(|&id| source.arena.node(id).kind == kind)
+            .collect()
+    }
+
+    /// tsc parseHeritageClause (34277): the clause token is stored on
+    /// the node (createHeritageClause 24106), extends vs implements.
+    #[test]
+    fn heritage_clause_stores_its_token() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "class A extends B implements I {}\n".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        let tokens: Vec<SyntaxKind> = nodes_of_kind(&source, SyntaxKind::HeritageClause)
+            .into_iter()
+            .map(|id| match &source.arena.node(id).data {
+                NodeData::HeritageClause(data) => data.token,
+                _ => unreachable!(),
+            })
+            .collect();
+        assert_eq!(
+            tokens,
+            vec![SyntaxKind::ExtendsKeyword, SyntaxKind::ImplementsKeyword]
+        );
+    }
+
+    /// tsc createImportClause (23491): phaseModifier is the storage,
+    /// isTypeOnly is derived (true exactly for the TypeKeyword phase);
+    /// `import defer` is a value import with the DeferKeyword phase.
+    #[test]
+    fn import_clause_stores_phase_modifier_and_derives_is_type_only() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "import type { A } from \"m\";\n\
+             import defer * as ns from \"n\";\n\
+             import x from \"o\";\n"
+                .to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        let clauses: Vec<(Option<SyntaxKind>, bool)> =
+            nodes_of_kind(&source, SyntaxKind::ImportClause)
+                .into_iter()
+                .map(|id| match &source.arena.node(id).data {
+                    NodeData::ImportClause(data) => (data.phase_modifier, data.is_type_only),
+                    _ => unreachable!(),
+                })
+                .collect();
+        assert_eq!(
+            clauses,
+            vec![
+                (Some(SyntaxKind::TypeKeyword), true),
+                (Some(SyntaxKind::DeferKeyword), false),
+                (None, false),
+            ]
+        );
+    }
+
+    /// tsc getTemplateLiteralRawText (30644): every template fragment
+    /// stores the raw source slice alongside the cooked text — escapes
+    /// stay escaped, CRLF stays CRLF.
+    #[test]
+    fn template_literals_store_raw_text() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "const a = `\\n`;\nconst b = `x\r\ny`;\nconst c = `h${1}m${2}t`;\n".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        let fragments = |kind: SyntaxKind| -> Vec<(String, Option<String>)> {
+            nodes_of_kind(&source, kind)
+                .into_iter()
+                .map(|id| match &source.arena.node(id).data {
+                    NodeData::NoSubstitutionTemplateLiteral(data) => {
+                        (data.text.clone(), data.raw_text.clone())
+                    }
+                    NodeData::TemplateHead(data) => (data.text.clone(), data.raw_text.clone()),
+                    NodeData::TemplateMiddle(data) => (data.text.clone(), data.raw_text.clone()),
+                    NodeData::TemplateTail(data) => (data.text.clone(), data.raw_text.clone()),
+                    _ => unreachable!(),
+                })
+                .collect()
+        };
+        assert_eq!(
+            fragments(SyntaxKind::NoSubstitutionTemplateLiteral),
+            vec![
+                ("\n".to_owned(), Some("\\n".to_owned())),
+                ("x\ny".to_owned(), Some("x\r\ny".to_owned())),
+            ]
+        );
+        assert_eq!(
+            fragments(SyntaxKind::TemplateHead),
+            vec![("h".to_owned(), Some("h".to_owned()))]
+        );
+        assert_eq!(
+            fragments(SyntaxKind::TemplateMiddle),
+            vec![("m".to_owned(), Some("m".to_owned()))]
+        );
+        assert_eq!(
+            fragments(SyntaxKind::TemplateTail),
+            vec![("t".to_owned(), Some("t".to_owned()))]
+        );
+    }
+
+    /// tsc getTemplateLiteralRawText: an unterminated literal keeps its
+    /// tail (nothing stripped past the opening delimiter).
+    #[test]
+    fn unterminated_template_raw_text_keeps_tail() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "`ab".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        let raws: Vec<(String, Option<String>)> =
+            nodes_of_kind(&source, SyntaxKind::NoSubstitutionTemplateLiteral)
+                .into_iter()
+                .map(|id| match &source.arena.node(id).data {
+                    NodeData::NoSubstitutionTemplateLiteral(data) => {
+                        (data.text.clone(), data.raw_text.clone())
+                    }
+                    _ => unreachable!(),
+                })
+                .collect();
+        assert_eq!(raws, vec![("ab".to_owned(), Some("ab".to_owned()))]);
+    }
+
+    /// tsc createMetaProperty (23009): keywordToken disambiguates
+    /// `import.meta` from `new.target` without re-reading source text.
+    #[test]
+    fn meta_property_stores_its_keyword_token() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "const u = import.meta.url;\nfunction f() { return new.target; }\n".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        let tokens: Vec<SyntaxKind> = nodes_of_kind(&source, SyntaxKind::MetaProperty)
+            .into_iter()
+            .map(|id| match &source.arena.node(id).data {
+                NodeData::MetaProperty(data) => data.keyword_token,
+                _ => unreachable!(),
+            })
+            .collect();
+        assert_eq!(
+            tokens,
+            vec![SyntaxKind::ImportKeyword, SyntaxKind::NewKeyword]
+        );
+    }
+
+    /// tsc parseImportType (31291): isTypeOf records the leading
+    /// `typeof` (createImportTypeNode 22332).
+    #[test]
+    fn import_type_stores_is_type_of() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "type T = typeof import(\"m\");\ntype U = import(\"m\").X;\n".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        let flags: Vec<bool> = nodes_of_kind(&source, SyntaxKind::ImportType)
+            .into_iter()
+            .map(|id| match &source.arena.node(id).data {
+                NodeData::ImportType(data) => data.is_type_of,
+                _ => unreachable!(),
+            })
+            .collect();
+        assert_eq!(flags, vec![true, false]);
+    }
+
+    /// tsc parseJsxText (32400): the flag is the scanner's
+    /// JsxTextAllWhiteSpaces verdict — line-break-carrying all-whitespace
+    /// text only; inline-only whitespace stays a semantic child.
+    #[test]
+    fn jsx_text_stores_contains_only_trivia_white_spaces() {
+        let source = parse_source_file(
+            "a.tsx".to_owned(),
+            "const x = <div>\n  <span> hi </span>\n</div>;\n".to_owned(),
+            ParseOptions {
+                language_variant: crate::LanguageVariant::Jsx,
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        let flags: Vec<(String, bool)> = nodes_of_kind(&source, SyntaxKind::JsxText)
+            .into_iter()
+            .map(|id| match &source.arena.node(id).data {
+                NodeData::JsxText(data) => {
+                    (data.text.clone(), data.contains_only_trivia_white_spaces)
+                }
+                _ => unreachable!(),
+            })
+            .collect();
+        assert_eq!(
+            flags,
+            vec![
+                ("\n  ".to_owned(), true),
+                (" hi ".to_owned(), false),
+                ("\n".to_owned(), true),
+            ]
+        );
+    }
 
     /// tsc isDeclarationFileName (36180): the `.d.` probe runs on the
     /// BASENAME under both separators — a `.d.` in a directory name

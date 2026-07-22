@@ -2595,10 +2595,10 @@ impl<'a> CheckerState<'a> {
                     return false;
                 }
                 if parent_kind == SyntaxKind::ImportType {
-                    // The parser keeps no isTypeOf marker (ImportTypeData
-                    // has no home for it) — recover it from source text
-                    // like the heritage-token recovery in resolveName.
-                    return !self.import_type_is_type_of(parent);
+                    return !matches!(
+                        self.data_of(parent),
+                        NodeData::ImportType(data) if data.is_type_of
+                    );
                 }
                 if SyntaxKind::FirstTypeNode <= parent_kind
                     && parent_kind <= SyntaxKind::LastTypeNode
@@ -2664,9 +2664,7 @@ impl<'a> CheckerState<'a> {
         !self.is_expression_with_type_arguments_in_class_extends_clause(node)
     }
 
-    /// isExpressionWithTypeArgumentsInClassExtendsClause (utilities):
-    /// heritage token recovered from source text (HeritageClauseData
-    /// stores no token — same recovery as resolveName's heritage walk).
+    /// isExpressionWithTypeArgumentsInClassExtendsClause (utilities).
     fn is_expression_with_type_arguments_in_class_extends_clause(&self, node: NodeId) -> bool {
         let Some(clause) = self.parent_of(node) else {
             return false;
@@ -2682,22 +2680,6 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
         );
         is_class && self.heritage_clause_is_extends(clause)
-    }
-
-    /// The ImportType node's leading `typeof` keyword, re-derived from
-    /// source text — the parser drops tsc's isTypeOf marker (its data
-    /// has no home yet), and an ImportType whose first non-trivia
-    /// token is `typeof` is exactly tsc's isTypeOf=true.
-    pub(crate) fn import_type_is_type_of(&self, node: NodeId) -> bool {
-        let source = self.binder.source_of_node(node);
-        let raw = source.arena.node(node);
-        let start = tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize);
-        let rest = &source.text[start..];
-        rest.starts_with("typeof")
-            && !rest[6..]
-                .chars()
-                .next()
-                .is_some_and(|c| c.is_alphanumeric() || c == '_' || c == '$')
     }
 }
 

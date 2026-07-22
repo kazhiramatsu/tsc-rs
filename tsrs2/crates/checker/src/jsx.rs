@@ -648,7 +648,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn is_semantic_jsx_child(&self, child: NodeId) -> bool {
         match self.data_of(child) {
             NodeData::JsxExpression(data) => data.expression.is_some(),
-            NodeData::JsxText(data) => !jsx_text_contains_only_trivia_white_spaces(&data.text),
+            NodeData::JsxText(data) => !data.contains_only_trivia_white_spaces,
             _ => true,
         }
     }
@@ -931,15 +931,11 @@ impl<'a> CheckerState<'a> {
         for child in self.nodes_of(children) {
             match self.kind_of(child) {
                 SyntaxKind::JsxText => {
-                    // containsOnlyTriviaWhiteSpaces (scanner verdict,
-                    // see jsx_text_contains_only_trivia_white_spaces):
-                    // inline-only whitespace is a semantic string
-                    // child; only line-break-carrying whitespace is
-                    // trivia.
+                    // containsOnlyTriviaWhiteSpaces: inline-only
+                    // whitespace is a semantic string child; only
+                    // line-break-carrying whitespace is trivia.
                     let is_trivia = match self.data_of(child) {
-                        NodeData::JsxText(data) => {
-                            jsx_text_contains_only_trivia_white_spaces(&data.text)
-                        }
+                        NodeData::JsxText(data) => data.contains_only_trivia_white_spaces,
                         _ => false,
                     };
                     if !is_trivia {
@@ -2246,17 +2242,6 @@ impl<'a> CheckerState<'a> {
             _ => String::new(),
         }
     }
-}
-
-/// tsc scanJsxToken's JsxTextAllWhiteSpaces verdict (10923-10952),
-/// reproduced over the token text (the parser keeps no flag slot):
-/// the -1 sentinel survives iff EVERY char is whitespace-like AND a
-/// line break occurred while nothing non-whitespace had been seen —
-/// for all-whitespace text that reduces to "contains a line break".
-/// Inline-only whitespace (`<a>   </a>`) is a SEMANTIC string child.
-fn jsx_text_contains_only_trivia_white_spaces(text: &str) -> bool {
-    text.chars().all(tsrs2_syntax::is_whitespace_like)
-        && text.chars().any(tsrs2_syntax::is_line_break)
 }
 
 /// tsc-port: isIntrinsicJsxName @6.0.3

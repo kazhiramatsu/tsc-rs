@@ -1,0 +1,114 @@
+# tsc 6.0.3 node-interface fields the generated schema does not carry yet
+# (impl-nodes.md field contract debt). Regenerate with
+# `cargo xtask schema-audit --write`; the diff is the review surface.
+ArrowFunction.asteriskToken type=Node optional=true
+ArrowFunction.exclamationToken type=Node optional=true
+ArrowFunction.name type=Payload optional=false
+ArrowFunction.questionToken type=Node optional=true
+BigIntLiteral.hasExtendedUnicodeEscape type=Bool optional=true
+BigIntLiteral.isUnterminated type=Bool optional=true
+CallSignature.name type=Node optional=true
+CallSignature.questionToken type=Node optional=true
+ClassStaticBlockDeclaration.name type=Node optional=true
+ConstructSignature.name type=Node optional=true
+ConstructSignature.questionToken type=Node optional=true
+Constructor.asteriskToken type=Node optional=true
+Constructor.exclamationToken type=Node optional=true
+Constructor.questionToken type=Node optional=true
+ConstructorType.name type=Node optional=true
+ExportAssignment.name type=Node optional=true
+ExportDeclaration.assertClause type=Node optional=true
+ExportDeclaration.name type=Node optional=true
+FunctionDeclaration.exclamationToken type=Node optional=true
+FunctionDeclaration.questionToken type=Node optional=true
+FunctionExpression.exclamationToken type=Node optional=true
+FunctionExpression.questionToken type=Node optional=true
+FunctionType.name type=Node optional=true
+GetAccessor.asteriskToken type=Node optional=true
+GetAccessor.exclamationToken type=Node optional=true
+GetAccessor.questionToken type=Node optional=true
+ImportAttributes.multiLine type=Bool optional=true
+ImportDeclaration.assertClause type=Node optional=true
+ImportType.assertions type=Node optional=true
+ImportTypeAssertionContainer.multiLine type=Bool optional=true
+IndexSignature.name type=Node optional=true
+IndexSignature.questionToken type=Node optional=true
+JSDocCallbackTag.name type=Node optional=true
+JSDocFunctionType.name type=Node optional=true
+JSDocFunctionType.typeParameters type=NodeArray optional=true
+JSDocLink.text type=String optional=false
+JSDocLinkCode.text type=String optional=false
+JSDocLinkPlain.text type=String optional=false
+JSDocNonNullableType.postfix type=Bool optional=false
+JSDocNullableType.postfix type=Bool optional=false
+JSDocParameterTag.isBracketed type=Bool optional=false
+JSDocParameterTag.isNameFirst type=Bool optional=false
+JSDocPropertyTag.isBracketed type=Bool optional=false
+JSDocPropertyTag.isNameFirst type=Bool optional=false
+JSDocSignature.parameters type=Payload optional=false
+JSDocSignature.typeParameters type=Payload optional=true
+JSDocTypeLiteral.isArrayType type=Bool optional=false
+JSDocTypeLiteral.jsDocPropertyTags type=Payload optional=true
+JSDocTypedefTag.name type=Node optional=true
+JsxSpreadAttribute.name type=Node optional=true
+JsxText.hasExtendedUnicodeEscape type=Bool optional=true
+JsxText.isUnterminated type=Bool optional=true
+MissingDeclaration.name type=Node optional=true
+NoSubstitutionTemplateLiteral.hasExtendedUnicodeEscape type=Bool optional=true
+NoSubstitutionTemplateLiteral.isUnterminated type=Bool optional=true
+NumericLiteral.hasExtendedUnicodeEscape type=Bool optional=true
+NumericLiteral.isUnterminated type=Bool optional=true
+RegularExpressionLiteral.hasExtendedUnicodeEscape type=Bool optional=true
+RegularExpressionLiteral.isUnterminated type=Bool optional=true
+SetAccessor.asteriskToken type=Node optional=true
+SetAccessor.exclamationToken type=Node optional=true
+SetAccessor.questionToken type=Node optional=true
+SourceFile.amdDependencies type=Payload optional=false
+SourceFile.fileName type=String optional=false
+SourceFile.hasNoDefaultLib type=Bool optional=false
+SourceFile.impliedNodeFormat type=Payload optional=true
+SourceFile.isDeclarationFile type=Bool optional=false
+SourceFile.languageVariant type=Payload optional=false
+SourceFile.languageVersion type=Payload optional=false
+SourceFile.libReferenceDirectives type=Payload optional=false
+SourceFile.moduleName type=String optional=true
+SourceFile.referencedFiles type=Payload optional=false
+SourceFile.text type=String optional=false
+SourceFile.typeReferenceDirectives type=Payload optional=false
+SpreadAssignment.name type=Node optional=true
+StringLiteral.hasExtendedUnicodeEscape type=Bool optional=true
+StringLiteral.isUnterminated type=Bool optional=true
+SwitchStatement.possiblyExhaustive type=Bool optional=true
+TemplateHead.hasExtendedUnicodeEscape type=Bool optional=true
+TemplateHead.isUnterminated type=Bool optional=true
+TemplateMiddle.hasExtendedUnicodeEscape type=Bool optional=true
+TemplateMiddle.isUnterminated type=Bool optional=true
+TemplateTail.hasExtendedUnicodeEscape type=Bool optional=true
+TemplateTail.isUnterminated type=Bool optional=true
+# -- runtime-only child fields: forEachChildTable-backed, stripped
+# -- from the public d.ts as @internal grammar-error slots
+ClassStaticBlockDeclaration.modifiers
+FunctionType.modifiers
+MissingDeclaration.modifiers
+NamespaceExportDeclaration.modifiers
+NewExpression.questionDotToken
+PropertyAssignment.exclamationToken
+PropertyAssignment.modifiers
+PropertyAssignment.questionToken
+PropertySignature.initializer
+ShorthandPropertyAssignment.exclamationToken
+ShorthandPropertyAssignment.modifiers
+ShorthandPropertyAssignment.questionToken
+TaggedTemplateExpression.questionDotToken
+# -- d.ts fields on unmaterialized kinds (UNMATERIALIZED_KINDS in
+# -- xtask: kind-only token nodes or tsc-synthetic kinds with no
+# -- payload struct generated yet)
+Bundle.sourceFiles type=Payload optional=false
+JSDocNamepathType.type type=Node optional=false
+JSDocText.text type=String optional=false
+NotEmittedTypeElement.name type=Node optional=true
+NotEmittedTypeElement.questionToken type=Node optional=true
+SemicolonClassElement.name type=Node optional=true
+SyntheticExpression.isSpread type=Bool optional=false
+SyntheticExpression.tupleNameSource type=Node optional=true
+SyntheticExpression.type type=Node optional=false
