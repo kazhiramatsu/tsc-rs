@@ -8986,10 +8986,13 @@ mod tests {
 
         assert!(!root_flags("const x = 1;\n").intersects(either));
 
-        assert!(root_flags("const p = import(\"m\");\n")
-            .intersects(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT));
-        assert!(root_flags("type T = import(\"m\").X;\n")
-            .intersects(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT));
+        let dynamic = root_flags("const p = import(\"m\");\n");
+        assert!(dynamic.intersects(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT));
+        assert!(!dynamic.intersects(NodeFlags::POSSIBLY_CONTAINS_IMPORT_META));
+
+        let import_type = root_flags("type T = import(\"m\").X;\n");
+        assert!(import_type.intersects(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT));
+        assert!(!import_type.intersects(NodeFlags::POSSIBLY_CONTAINS_IMPORT_META));
 
         let meta = root_flags("const u = import.meta.url;\n");
         assert!(meta.intersects(NodeFlags::POSSIBLY_CONTAINS_IMPORT_META));
@@ -9001,6 +9004,41 @@ mod tests {
 
         // Bare `import.defer` (not called) sets neither flag.
         assert!(!root_flags("const d = import.defer;\n").intersects(either));
+    }
+
+    /// tsc speculationHelper (29538) restores the token, the
+    /// diagnostics length, and (assert-unchanged) contextFlags —
+    /// never sourceFlags — and parseImportType (31292) sets
+    /// PossiblyContainsDynamicImport before consuming a token: an
+    /// import type parsed inside a speculation leaks the bit even
+    /// when the speculation rewinds.
+    #[test]
+    fn speculation_rewind_keeps_accumulated_source_flags() {
+        let text = "import(\"m\")";
+
+        // lookAhead rewinds unconditionally.
+        let mut parser = Parser::new("a.ts".to_owned(), text, LanguageVariant::Standard, false);
+        parser.next_token();
+        parser.look_ahead(|parser| parser.parse_import_type());
+        assert_eq!(parser.token(), SyntaxKind::ImportKeyword);
+        assert!(parser
+            .source_flags
+            .intersects(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT));
+
+        // tryParse rewinds on a falsy result (the
+        // tryParseConstraintOfInferType shape: parse, then give the
+        // parse up).
+        let mut parser = Parser::new("a.ts".to_owned(), text, LanguageVariant::Standard, false);
+        parser.next_token();
+        let rewound = parser.try_parse(|parser| {
+            parser.parse_import_type();
+            Option::<NodeId>::None
+        });
+        assert_eq!(rewound, None);
+        assert_eq!(parser.token(), SyntaxKind::ImportKeyword);
+        assert!(parser
+            .source_flags
+            .intersects(NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT));
     }
 
     fn parse_tsx(text: &str) -> SourceFile {

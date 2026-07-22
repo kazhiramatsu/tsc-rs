@@ -3974,6 +3974,38 @@ mod tests {
         assert!(!binder.node_return_flow.contains_key(&f));
     }
 
+    /// setValueDeclaration (15190): an ambient non-assignment
+    /// declaration displaces an assignment-declaration
+    /// valueDeclaration only in a JS file, and isInJSFile is
+    /// flag-driven (root JavaScriptFile from ParseOptions), not
+    /// extension-sniffed — the file NAME says .ts in both directions
+    /// here. Driven at the unit level: the expando symbol-producing
+    /// bodies that feed assignment declarations through
+    /// addDeclarationToSymbol are stage 3.4c.
+    #[test]
+    fn set_value_declaration_ambient_displacement_reads_root_js_flag() {
+        let text = "f.x = 1;\ndeclare var d: number;\n";
+        for (javascript_file, ambient_wins) in [(true, true), (false, false)] {
+            let source = parse_named("a.ts", text, javascript_file);
+            let options: &'static CompilerOptions = Box::leak(Box::new(default_options()));
+            let mut binder = Binder::new(&source, options);
+            let assignment = find_nodes(&source, SyntaxKind::BinaryExpression)[0];
+            let ambient = find_nodes(&source, SyntaxKind::VariableDeclaration)[0];
+            assert!(crate::node_util::node_flags(&source, ambient).intersects(NodeFlags::AMBIENT));
+            assert!(
+                !crate::node_util::node_flags(&source, assignment).intersects(NodeFlags::AMBIENT)
+            );
+            let symbol = binder.symbols.alloc(SymbolFlags::NONE, "x".to_owned());
+            binder.set_value_declaration(symbol, assignment);
+            binder.set_value_declaration(symbol, ambient);
+            let expected = if ambient_wins { ambient } else { assignment };
+            assert_eq!(
+                binder.symbols.symbol(symbol).value_declaration,
+                Some(expected)
+            );
+        }
+    }
+
     #[test]
     fn function_in_block_es5_strict_reports_1250_family() {
         let options = CompilerOptions {
