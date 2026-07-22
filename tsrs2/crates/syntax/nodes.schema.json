@@ -661,6 +661,7 @@
       "kindName": "HeritageClause",
       "dataName": "HeritageClauseData",
       "fields": [
+        {"name": "token", "rustName": "token", "type": "SyntaxKind", "optional": false, "child": false},
         {"name": "types", "rustName": "types", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
@@ -719,6 +720,7 @@
       "dataName": "ImportClauseData",
       "fields": [
         {"name": "isTypeOnly", "rustName": "is_type_only", "type": "Bool", "optional": false, "child": false},
+        {"name": "phaseModifier", "rustName": "phase_modifier", "type": "SyntaxKind", "optional": true, "child": false},
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
         {"name": "namedBindings", "rustName": "named_bindings", "type": "Node", "optional": true, "child": true}
       ],
@@ -747,6 +749,7 @@
       "kindName": "ImportEqualsDeclaration",
       "dataName": "ImportEqualsDeclarationData",
       "fields": [
+        {"name": "isTypeOnly", "rustName": "is_type_only", "type": "Bool", "optional": false, "child": false},
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
         {"name": "moduleReference", "rustName": "module_reference", "type": "Node", "optional": true, "child": true}
@@ -774,6 +777,7 @@
       "kindName": "ImportType",
       "dataName": "ImportTypeData",
       "fields": [
+        {"name": "isTypeOf", "rustName": "is_type_of", "type": "Bool", "optional": false, "child": false},
         {"name": "argument", "rustName": "argument", "type": "Node", "optional": true, "child": true},
         {"name": "attributes", "rustName": "attributes", "type": "Node", "optional": true, "child": true},
         {"name": "qualifier", "rustName": "qualifier", "type": "Node", "optional": true, "child": true},
@@ -932,13 +936,6 @@
       "kindName": "JSDocDeprecatedTag",
       "dataName": "JSDocDeprecatedTagData",
       "fields": [
-        {"name": "readonly pos", "rustName": "readonly_pos", "type": "Number", "optional": false, "child": false},
-        {"name": "readonly end", "rustName": "readonly_end", "type": "Number", "optional": false, "child": false},
-        {"name": "readonly kind", "rustName": "readonly_kind", "type": "SyntaxKind", "optional": false, "child": false},
-        {"name": "readonly flags", "rustName": "readonly_flags", "type": "Node", "optional": false, "child": false},
-        {"name": "readonly parent", "rustName": "readonly_parent", "type": "Node", "optional": false, "child": false},
-        {"name": "readonly tagName", "rustName": "readonly_tag_name", "type": "Node", "optional": false, "child": false},
-        {"name": "readonly comment", "rustName": "readonly_comment", "type": "NodeArray", "optional": true, "child": false},
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
         {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
       ],
@@ -1485,7 +1482,8 @@
       "kindName": "JsxText",
       "dataName": "JsxTextData",
       "fields": [
-        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false}
+        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false},
+        {"name": "containsOnlyTriviaWhiteSpaces", "rustName": "contains_only_trivia_white_spaces", "type": "Bool", "optional": false, "child": false}
       ],
       "children": [
       ]
@@ -1536,6 +1534,7 @@
       "kindName": "MetaProperty",
       "dataName": "MetaPropertyData",
       "fields": [
+        {"name": "keywordToken", "rustName": "keyword_token", "type": "SyntaxKind", "optional": false, "child": false},
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
@@ -1710,7 +1709,8 @@
       "kindName": "NoSubstitutionTemplateLiteral",
       "dataName": "NoSubstitutionTemplateLiteralData",
       "fields": [
-        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false}
+        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false},
+        {"name": "rawText", "rustName": "raw_text", "type": "String", "optional": true, "child": false}
       ],
       "children": [
       ]
@@ -2074,11 +2074,6 @@
       "kindName": "SyntaxList",
       "dataName": "SyntaxListData",
       "fields": [
-        {"name": "readonly pos", "rustName": "readonly_pos", "type": "Number", "optional": false, "child": false},
-        {"name": "readonly end", "rustName": "readonly_end", "type": "Number", "optional": false, "child": false},
-        {"name": "readonly kind", "rustName": "readonly_kind", "type": "SyntaxKind", "optional": false, "child": false},
-        {"name": "readonly flags", "rustName": "readonly_flags", "type": "Node", "optional": false, "child": false},
-        {"name": "readonly parent", "rustName": "readonly_parent", "type": "Node", "optional": false, "child": false}
       ],
       "children": [
       ]
@@ -2125,13 +2120,6 @@
       "kindName": "TemplateLiteralType",
       "dataName": "TemplateLiteralTypeData",
       "fields": [
-        {"name": "readonly pos", "rustName": "readonly_pos", "type": "Number", "optional": false, "child": false},
-        {"name": "readonly end", "rustName": "readonly_end", "type": "Number", "optional": false, "child": false},
-        {"name": "readonly kind", "rustName": "readonly_kind", "type": "SyntaxKind", "optional": false, "child": false},
-        {"name": "readonly flags", "rustName": "readonly_flags", "type": "Node", "optional": false, "child": false},
-        {"name": "readonly parent", "rustName": "readonly_parent", "type": "Node", "optional": false, "child": false},
-        {"name": "readonly head", "rustName": "readonly_head", "type": "Payload", "optional": false, "child": false},
-        {"name": "readonly templateSpans", "rustName": "readonly_template_spans", "type": "NodeArray", "optional": false, "child": false},
         {"name": "head", "rustName": "head", "type": "Node", "optional": true, "child": true},
         {"name": "templateSpans", "rustName": "template_spans", "type": "NodeArray", "optional": true, "child": true}
       ],

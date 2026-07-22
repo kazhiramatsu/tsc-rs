@@ -366,6 +366,7 @@ pub struct GetAccessorData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct HeritageClauseData {
+    pub token: SyntaxKind,
     pub types: Option<NodeArrayId>,
 }
 
@@ -397,6 +398,7 @@ pub struct ImportAttributesData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImportClauseData {
     pub is_type_only: bool,
+    pub phase_modifier: Option<SyntaxKind>,
     pub name: Option<NodeId>,
     pub named_bindings: Option<NodeId>,
 }
@@ -426,6 +428,7 @@ pub struct ImportSpecifierData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImportTypeData {
+    pub is_type_of: bool,
     pub argument: Option<NodeId>,
     pub attributes: Option<NodeId>,
     pub qualifier: Option<NodeId>,
@@ -505,13 +508,6 @@ pub struct JSDocClassTagData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocDeprecatedTagData {
-    pub readonly_pos: f64,
-    pub readonly_end: f64,
-    pub readonly_kind: SyntaxKind,
-    pub readonly_flags: NodeId,
-    pub readonly_parent: NodeId,
-    pub readonly_tag_name: NodeId,
-    pub readonly_comment: Option<NodeArrayId>,
     pub tag_name: Option<NodeId>,
     pub comment: Option<NodeArrayId>,
 }
@@ -785,6 +781,7 @@ pub struct JsxSpreadAttributeData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct JsxTextData {
     pub text: String,
+    pub contains_only_trivia_white_spaces: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -810,6 +807,7 @@ pub struct MappedTypeData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct MetaPropertyData {
+    pub keyword_token: SyntaxKind,
     pub name: Option<NodeId>,
 }
 
@@ -898,6 +896,7 @@ pub struct NewExpressionData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct NoSubstitutionTemplateLiteralData {
     pub text: String,
+    pub raw_text: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1081,13 +1080,7 @@ pub struct SwitchStatementData {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct SyntaxListData {
-    pub readonly_pos: f64,
-    pub readonly_end: f64,
-    pub readonly_kind: SyntaxKind,
-    pub readonly_flags: NodeId,
-    pub readonly_parent: NodeId,
-}
+pub struct SyntaxListData {}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TaggedTemplateExpressionData {
@@ -1111,13 +1104,6 @@ pub struct TemplateHeadData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TemplateLiteralTypeData {
-    pub readonly_pos: f64,
-    pub readonly_end: f64,
-    pub readonly_kind: SyntaxKind,
-    pub readonly_flags: NodeId,
-    pub readonly_parent: NodeId,
-    pub readonly_head: NodePayload,
-    pub readonly_template_spans: NodeArrayId,
     pub head: Option<NodeId>,
     pub template_spans: Option<NodeArrayId>,
 }
@@ -1892,7 +1878,10 @@ impl NodeData {
                 r#type: None,
                 body: None,
             }),
-            SyntaxKind::HeritageClause => Self::HeritageClause(HeritageClauseData { types: None }),
+            SyntaxKind::HeritageClause => Self::HeritageClause(HeritageClauseData {
+                token: SyntaxKind::HeritageClause,
+                types: None,
+            }),
             SyntaxKind::Identifier => Self::Identifier(IdentifierData {
                 escaped_text: String::new(),
                 text: String::new(),
@@ -1912,6 +1901,7 @@ impl NodeData {
             }),
             SyntaxKind::ImportClause => Self::ImportClause(ImportClauseData {
                 is_type_only: false,
+                phase_modifier: None,
                 name: None,
                 named_bindings: None,
             }),
@@ -1935,6 +1925,7 @@ impl NodeData {
                 name: None,
             }),
             SyntaxKind::ImportType => Self::ImportType(ImportTypeData {
+                is_type_of: false,
                 argument: None,
                 attributes: None,
                 qualifier: None,
@@ -1994,13 +1985,6 @@ impl NodeData {
                 comment: None,
             }),
             SyntaxKind::JSDocDeprecatedTag => Self::JSDocDeprecatedTag(JSDocDeprecatedTagData {
-                readonly_pos: 0.0,
-                readonly_end: 0.0,
-                readonly_kind: SyntaxKind::JSDocDeprecatedTag,
-                readonly_flags: NodeId::default(),
-                readonly_parent: NodeId::default(),
-                readonly_tag_name: NodeId::default(),
-                readonly_comment: None,
                 tag_name: None,
                 comment: None,
             }),
@@ -2180,6 +2164,7 @@ impl NodeData {
             }
             SyntaxKind::JsxText => Self::JsxText(JsxTextData {
                 text: String::new(),
+                contains_only_trivia_white_spaces: false,
             }),
             SyntaxKind::LabeledStatement => Self::LabeledStatement(LabeledStatementData {
                 label: None,
@@ -2194,7 +2179,10 @@ impl NodeData {
                 r#type: None,
                 members: None,
             }),
-            SyntaxKind::MetaProperty => Self::MetaProperty(MetaPropertyData { name: None }),
+            SyntaxKind::MetaProperty => Self::MetaProperty(MetaPropertyData {
+                keyword_token: SyntaxKind::MetaProperty,
+                name: None,
+            }),
             SyntaxKind::MethodDeclaration => Self::MethodDeclaration(MethodDeclarationData {
                 modifiers: None,
                 asterisk_token: None,
@@ -2252,6 +2240,7 @@ impl NodeData {
             SyntaxKind::NoSubstitutionTemplateLiteral => {
                 Self::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData {
                     text: String::new(),
+                    raw_text: None,
                 })
             }
             SyntaxKind::NonNullExpression => {
@@ -2384,13 +2373,7 @@ impl NodeData {
                 expression: None,
                 case_block: None,
             }),
-            SyntaxKind::SyntaxList => Self::SyntaxList(SyntaxListData {
-                readonly_pos: 0.0,
-                readonly_end: 0.0,
-                readonly_kind: SyntaxKind::SyntaxList,
-                readonly_flags: NodeId::default(),
-                readonly_parent: NodeId::default(),
-            }),
+            SyntaxKind::SyntaxList => Self::SyntaxList(SyntaxListData {}),
             SyntaxKind::TaggedTemplateExpression => {
                 Self::TaggedTemplateExpression(TaggedTemplateExpressionData {
                     tag: None,
@@ -2408,13 +2391,6 @@ impl NodeData {
                 raw_text: None,
             }),
             SyntaxKind::TemplateLiteralType => Self::TemplateLiteralType(TemplateLiteralTypeData {
-                readonly_pos: 0.0,
-                readonly_end: 0.0,
-                readonly_kind: SyntaxKind::TemplateLiteralType,
-                readonly_flags: NodeId::default(),
-                readonly_parent: NodeId::default(),
-                readonly_head: NodePayload::String(String::new()),
-                readonly_template_spans: NodeArrayId::default(),
                 head: None,
                 template_spans: None,
             }),

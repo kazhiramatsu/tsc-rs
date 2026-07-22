@@ -1659,7 +1659,10 @@ impl<'a> CheckerState<'a> {
                 .overwrite_import_type_resolved_type(self.speculation_depth, node, error);
             return Ok(error);
         };
-        let is_type_of = self.import_type_is_type_of(node);
+        let is_type_of = matches!(
+            self.data_of(node),
+            NodeData::ImportType(data) if data.is_type_of
+        );
         let target_meaning = if is_type_of {
             SymbolFlags::VALUE
         } else {

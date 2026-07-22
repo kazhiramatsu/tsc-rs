@@ -4014,8 +4014,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:11899-11925
     ///
     /// Folded with isTypeOnlyExportDeclaration into the OR the checker
-    /// consumes (isTypeOnlyImportOrExportDeclaration). phaseModifier
-    /// (import defer) parses onto is_type_only in ours.
+    /// consumes (isTypeOnlyImportOrExportDeclaration). ImportClause
+    /// is_type_only mirrors tsc's derivation: true exactly for the
+    /// TypeKeyword phase, so `import defer` (DeferKeyword phase) stays
+    /// a value import here.
     pub(crate) fn is_type_only_import_or_export_declaration(&self, node: NodeId) -> bool {
         match self.data_of(node) {
             NodeData::ImportSpecifier(data) => {
@@ -5180,8 +5182,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 135005635990b013ef4d869f68234202f2703dae3e7cb87768337c7a642852c3
     /// tsc-span: _tsc.js:90396-90417
     ///
-    /// The defer-phase arm parses onto nothing yet (import defer is
-    /// dropped by the parser's phase handling) — type-only arms only.
+    /// The defer-phase arm (tsc 90405-90414: diags 18058/18059/18060 off
+    /// phase_modifier == DeferKeyword) is not ported yet — type-only arms
+    /// only.
     fn check_grammar_import_clause(&mut self, node: NodeId) -> CheckResult2<bool> {
         let (is_type_only, name, named_bindings) = match self.data_of(node) {
             NodeData::ImportClause(data) => (data.is_type_only, data.name, data.named_bindings),

@@ -109,6 +109,7 @@ fn main() {
             }
         },
         Some("ci") => run_or_exit(ci(args)),
+        Some("schema-audit") => run_or_exit(schema_audit(args)),
         Some("escapes") => run_or_exit(escapes(args)),
         Some("readme-status") => run_or_exit(readme_status(args)),
         Some("codegen") => match args.next().as_deref() {
@@ -4025,6 +4026,17 @@ fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
             .arg("all")
             .arg("--check"),
     )?;
+    // Generated node schema: committed files match the generator, and
+    // the schema matches typescript.d.ts as parsed by the vendored
+    // TypeScript itself (ghost/mismatched fields fail; absent tsc
+    // fields must be listed in nodes-missing-fields.txt).
+    run_command(
+        Command::new("cargo")
+            .arg("xtask")
+            .arg("codegen")
+            .arg("nodes-check"),
+    )?;
+    run_command(Command::new("cargo").arg("xtask").arg("schema-audit"))?;
     run_command(Command::new("cargo").arg("xtask").arg("relpin").arg("run"))?;
     // Parse+bind smoke over the full corpus (~1s): the cheap panic
     // net for the parser/binder invariants the 5.9a dead-guard
@@ -5662,10 +5674,8 @@ fn codegen_nodes(check: bool) -> Result<(), Box<dyn Error>> {
 
     let child_table = parse_for_each_child_table(&tsc)?;
     let interfaces = parse_dts_interfaces(&dts)?;
-    let mut dts_nodes = collect_dts_nodes(&interfaces)?;
-    seed_token_payload_nodes(&mut dts_nodes);
-    seed_fieldless_nodes(&mut dts_nodes);
-    seed_grammar_flag_fields(&mut dts_nodes);
+    let aliases = parse_dts_type_aliases(&dts);
+    let dts_nodes = collect_dts_nodes(&interfaces, &aliases, &child_table)?;
     let schemas = merge_node_schema(child_table, dts_nodes);
 
     let nodes_rs = rustfmt_text(&render_nodes_rs(&schemas)?)?;
@@ -5694,6 +5704,180 @@ fn codegen_nodes(check: bool) -> Result<(), Box<dyn Error>> {
         println!("generated node schema files");
     }
 
+    Ok(())
+}
+
+/// Field-level schema gate (impl-nodes.md contract): cross-check
+/// crates/syntax/nodes.schema.json against typescript.d.ts as parsed by
+/// the VENDORED TypeScript itself (crates/oracle/schema-dump.mjs). A
+/// schema field tsc does not declare, or whose payload category
+/// disagrees, is a hard failure (the readonly_* generator-bug class).
+/// tsc fields the schema does not carry yet are tracked exactly in
+/// nodes-missing-fields.txt; `--write` regenerates the manifest so its
+/// diff is the review surface.
+fn schema_audit(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut write = false;
+    for arg in args {
+        match arg.as_str() {
+            "--write" => write = true,
+            other => return Err(format!("unexpected schema-audit argument: {other}").into()),
+        }
+    }
+    let workspace = find_tsrs2_root()?;
+    let output = std::process::Command::new("node")
+        .arg(workspace.join("crates/oracle/schema-dump.mjs"))
+        .arg(workspace.join("vendor/typescript-6.0.3/lib/typescript.d.ts"))
+        .output()?;
+    if !output.status.success() {
+        return Err(format!(
+            "schema-dump probe failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )
+        .into());
+    }
+    let dump: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    if let Some(conflicts) = dump["conflicts"].as_array() {
+        if !conflicts.is_empty() {
+            return Err(format!("schema-dump kind conflicts unresolved: {conflicts:?}").into());
+        }
+    }
+    let tsc_kinds = &dump["kinds"];
+
+    let schema_text = fs::read_to_string(workspace.join("crates/syntax/nodes.schema.json"))?;
+    let schema: serde_json::Value = serde_json::from_str(&schema_text)?;
+
+    // pos/end/flags live on the Node header and `parent` in the parent
+    // map — header-owned, never schema fields.
+    const HEADER_OWNED_FIELDS: &[&str] = &["pos", "end", "flags", "parent"];
+
+    let mut ghosts = Vec::new();
+    let mut mismatches = Vec::new();
+    let mut missing = Vec::new();
+    let mut runtime_only = Vec::new();
+    let mut kind_count = 0usize;
+    for node in schema["nodes"]
+        .as_array()
+        .ok_or("malformed nodes.schema.json: nodes")?
+    {
+        let kind_name = node["kindName"]
+            .as_str()
+            .ok_or("malformed nodes.schema.json: kindName")?;
+        kind_count += 1;
+        let fields = node["fields"]
+            .as_array()
+            .ok_or("malformed nodes.schema.json: fields")?;
+        let tsc_node = &tsc_kinds[kind_name];
+        if tsc_node.is_null() {
+            missing.push(format!("{kind_name} (no tsc interface resolved)"));
+            continue;
+        }
+        let mut tsc_by_name = BTreeMap::<&str, (&str, bool)>::new();
+        for field in tsc_node["fields"]
+            .as_array()
+            .ok_or("malformed schema-dump: fields")?
+        {
+            tsc_by_name.insert(
+                field["name"]
+                    .as_str()
+                    .ok_or("malformed schema-dump: name")?,
+                (
+                    field["type"]
+                        .as_str()
+                        .ok_or("malformed schema-dump: type")?,
+                    field["optional"].as_bool().unwrap_or(false),
+                ),
+            );
+        }
+        let mut ours = Vec::new();
+        for field in fields {
+            let name = field["name"]
+                .as_str()
+                .ok_or("malformed nodes.schema.json: field name")?;
+            let ty = field["type"]
+                .as_str()
+                .ok_or("malformed nodes.schema.json: field type")?;
+            let child = field["child"].as_bool().unwrap_or(false);
+            ours.push(name);
+            match tsc_by_name.get(name) {
+                // A child field is backed by _tsc.js's forEachChildTable
+                // (the runtime node shape); the public d.ts strips
+                // @internal grammar-error slots, so absence there is
+                // expected — tracked in the manifest, not a ghost.
+                None if child => runtime_only.push(format!("{kind_name}.{name}")),
+                None => ghosts.push(format!("{kind_name}.{name}")),
+                Some((tsc_ty, _)) => {
+                    if ty != *tsc_ty {
+                        mismatches.push(format!("{kind_name}.{name}: rust {ty} vs tsc {tsc_ty}"));
+                    }
+                }
+            }
+        }
+        for (name, (ty, optional)) in &tsc_by_name {
+            if HEADER_OWNED_FIELDS.contains(name) || ours.contains(name) {
+                continue;
+            }
+            missing.push(format!("{kind_name}.{name} type={ty} optional={optional}"));
+        }
+    }
+
+    if !ghosts.is_empty() || !mismatches.is_empty() {
+        return Err(format!(
+            "schema-audit failed: {} ghost field(s) not in typescript.d.ts: {:?}; {} category mismatch(es): {:?}",
+            ghosts.len(),
+            ghosts,
+            mismatches.len(),
+            mismatches
+        )
+        .into());
+    }
+
+    missing.sort();
+    runtime_only.sort();
+    let mut manifest = String::new();
+    manifest.push_str(
+        "# tsc 6.0.3 node-interface fields the generated schema does not carry yet\n\
+         # (impl-nodes.md field contract debt). Regenerate with\n\
+         # `cargo xtask schema-audit --write`; the diff is the review surface.\n",
+    );
+    for line in &missing {
+        manifest.push_str(line);
+        manifest.push('\n');
+    }
+    manifest.push_str(
+        "# -- runtime-only child fields: forEachChildTable-backed, stripped\n\
+         # -- from the public d.ts as @internal grammar-error slots\n",
+    );
+    for line in &runtime_only {
+        manifest.push_str(line);
+        manifest.push('\n');
+    }
+    let manifest_path = workspace.join("nodes-missing-fields.txt");
+    if write {
+        fs::write(&manifest_path, &manifest)?;
+        println!(
+            "schema-audit: wrote {} ({} tracked entries)",
+            manifest_path.display(),
+            missing.len()
+        );
+    } else {
+        let current = fs::read_to_string(&manifest_path).map_err(|error| {
+            format!(
+                "{} unreadable ({error}); run `cargo xtask schema-audit --write`",
+                manifest_path.display()
+            )
+        })?;
+        if current != manifest {
+            return Err(format!(
+                "{} is stale; run `cargo xtask schema-audit --write` and review the diff",
+                manifest_path.display()
+            )
+            .into());
+        }
+    }
+    println!(
+        "schema-audit ok: kinds={kind_count} ghost=0 mismatch=0 missing-tracked={}",
+        missing.len()
+    );
     Ok(())
 }
 
@@ -5987,12 +6171,20 @@ fn parse_dts_field(entry: &str) -> Option<DtsField> {
     if entry.is_empty() || entry.contains('(') || entry.starts_with('[') {
         return None;
     }
-    let entry = entry
-        .strip_prefix("readonly ")
-        .unwrap_or(&entry)
-        .strip_prefix("/** @internal */ ")
-        .unwrap_or(entry.as_str())
-        .trim();
+    // `/** @internal */` and `readonly` may stack in either order.
+    let mut rest = entry.as_str();
+    loop {
+        let stripped = rest.trim_start();
+        if let Some(next) = stripped.strip_prefix("/** @internal */") {
+            rest = next;
+        } else if let Some(next) = stripped.strip_prefix("readonly ") {
+            rest = next;
+        } else {
+            rest = stripped;
+            break;
+        }
+    }
+    let entry = rest;
     let colon = entry.find(':')?;
     let mut name = entry[..colon].trim();
     let optional = name.ends_with('?') || entry[colon + 1..].contains("undefined");
@@ -6018,149 +6210,178 @@ fn merge_dts_field(fields: &mut Vec<DtsField>, field: DtsField) {
     }
 }
 
+/// Scalar payload fields admitted into the generated node schema at this
+/// stage, keyed by kind name. The field data (type, optionality, order)
+/// comes from the parsed typescript.d.ts; listing a field the d.ts does
+/// not carry is a hard error, so the schema cannot drift from the vendor
+/// contract. tsc fields not admitted here are surfaced by the
+/// schema-audit missing-field manifest rather than silently dropped.
+const DTS_SCALAR_ADMISSIONS: &[(&str, &[&str])] = &[
+    ("BigIntLiteral", &["text"]),
+    ("ExportAssignment", &["isExportEquals"]),
+    ("ExportDeclaration", &["isTypeOnly"]),
+    ("ExportSpecifier", &["isTypeOnly"]),
+    ("HeritageClause", &["token"]),
+    ("Identifier", &["escapedText", "text"]),
+    ("ImportAttributes", &["token"]),
+    ("ImportClause", &["isTypeOnly", "phaseModifier"]),
+    ("ImportEqualsDeclaration", &["isTypeOnly"]),
+    ("ImportSpecifier", &["isTypeOnly"]),
+    ("ImportType", &["isTypeOf"]),
+    ("JsxText", &["text", "containsOnlyTriviaWhiteSpaces"]),
+    ("MetaProperty", &["keywordToken"]),
+    ("NoSubstitutionTemplateLiteral", &["text", "rawText"]),
+    ("NumericLiteral", &["text"]),
+    ("PostfixUnaryExpression", &["operator"]),
+    ("PrefixUnaryExpression", &["operator"]),
+    ("PrivateIdentifier", &["escapedText", "text"]),
+    ("RegularExpressionLiteral", &["text"]),
+    ("StringLiteral", &["text"]),
+    ("TemplateHead", &["text", "rawText"]),
+    ("TemplateMiddle", &["text", "rawText"]),
+    ("TemplateTail", &["text", "rawText"]),
+    ("TypeOperator", &["operator"]),
+];
+
+/// Kinds with neither forEachChild visits nor admitted scalars, listed so
+/// they still generate (fieldless) node data.
+const FIELDLESS_KINDS: &[&str] = &[
+    "DebuggerStatement",
+    "EmptyStatement",
+    "OmittedExpression",
+    "SyntaxList",
+];
+
 fn collect_dts_nodes(
     interfaces: &BTreeMap<String, InterfaceDecl>,
+    aliases: &BTreeMap<String, String>,
+    child_table: &BTreeMap<String, Vec<ChildVisit>>,
 ) -> Result<BTreeMap<String, Vec<DtsField>>, Box<dyn Error>> {
-    let mut nodes = BTreeMap::<String, Vec<DtsField>>::new();
+    let admissions: BTreeMap<&str, &[&str]> = DTS_SCALAR_ADMISSIONS.iter().copied().collect();
+
+    // Interfaces claiming each kind via their own (non-inherited) `kind`
+    // field. Ties resolve to the interface named after the kind (e.g.
+    // JsonMinusNumericLiteral re-declares PrefixUnaryExpression's kind),
+    // else to the unique interface declaring the kind as a single literal
+    // (ConstructorTypeNode beats FunctionOrConstructorTypeNodeBase, whose
+    // own kind is the FunctionType | ConstructorType union).
+    let mut claimants = BTreeMap::<String, Vec<(&str, bool)>>::new();
     for (interface_name, decl) in interfaces {
         let Some(kind_field) = decl.fields.iter().find(|field| field.name == "kind") else {
             continue;
         };
         let kinds = syntax_kinds_from_type(&kind_field.type_text);
-        if kinds.is_empty() {
+        let single_literal = kinds.len() == 1;
+        for kind in kinds {
+            claimants
+                .entry(kind)
+                .or_default()
+                .push((interface_name.as_str(), single_literal));
+        }
+    }
+
+    let mut nodes = BTreeMap::<String, Vec<DtsField>>::new();
+    for (kind, interface_names) in claimants {
+        if !child_table.contains_key(&kind)
+            && !admissions.contains_key(kind.as_str())
+            && !FIELDLESS_KINDS.contains(&kind.as_str())
+        {
             continue;
         }
-        let fields = collect_interface_fields(interface_name, interfaces, &mut Vec::new())?;
-        let fields: Vec<DtsField> = fields
-            .into_iter()
-            .filter(|field| field.name != "kind")
-            .collect();
-        for kind in kinds {
-            nodes.entry(kind).or_insert_with(|| fields.clone());
+        let interface_name = if let [(single, _)] = interface_names.as_slice() {
+            *single
+        } else if let Some((exact, _)) = interface_names.iter().find(|(name, _)| *name == kind) {
+            *exact
+        } else {
+            let single_literal: Vec<&str> = interface_names
+                .iter()
+                .filter(|(_, single)| *single)
+                .map(|(name, _)| *name)
+                .collect();
+            match single_literal.as_slice() {
+                [one] => *one,
+                _ => {
+                    return Err(format!(
+                        "kind {kind} is claimed by multiple interfaces with no unique resolution: {interface_names:?}"
+                    )
+                    .into())
+                }
+            }
+        };
+
+        let admitted = admissions.get(kind.as_str()).copied().unwrap_or(&[]);
+        let merged = collect_interface_fields(interface_name, interfaces, &mut Vec::new())?;
+        let mut fields = Vec::new();
+        for mut field in merged {
+            if !admitted.contains(&field.name.as_str()) {
+                continue;
+            }
+            field.type_text = resolve_alias_type(&field.type_text, aliases);
+            if rust_field_type(&field.type_text) == RustFieldType::Payload {
+                return Err(format!(
+                    "admitted field {kind}.{} has unmappable type `{}`",
+                    field.name, field.type_text
+                )
+                .into());
+            }
+            fields.push(field);
         }
+        let missing: Vec<&&str> = admitted
+            .iter()
+            .filter(|name| fields.iter().all(|field| field.name != **name))
+            .collect();
+        if !missing.is_empty() {
+            return Err(format!(
+                "admitted fields for {kind} not found in typescript.d.ts: {missing:?}"
+            )
+            .into());
+        }
+        nodes.insert(kind, fields);
     }
     Ok(nodes)
 }
 
-fn seed_token_payload_nodes(nodes: &mut BTreeMap<String, Vec<DtsField>>) {
-    for kind in ["Identifier", "PrivateIdentifier"] {
-        nodes.entry(kind.to_owned()).or_insert_with(|| {
-            vec![
-                DtsField {
-                    name: "escapedText".to_owned(),
-                    type_text: "__String".to_owned(),
-                    optional: false,
-                },
-                DtsField {
-                    name: "text".to_owned(),
-                    type_text: "string".to_owned(),
-                    optional: false,
-                },
-            ]
-        });
+/// Single-line `type Name = ...;` aliases from the d.ts, for resolving
+/// alias-named scalar field types (PrefixUnaryOperator and friends) to
+/// their SyntaxKind unions. Multi-line aliases stay unresolved.
+fn parse_dts_type_aliases(dts: &str) -> BTreeMap<String, String> {
+    let mut aliases = BTreeMap::new();
+    for line in dts.lines() {
+        let line = line.trim();
+        let Some(rest) = line.strip_prefix("type ") else {
+            continue;
+        };
+        let Some((name, rhs)) = rest.split_once('=') else {
+            continue;
+        };
+        let name = name.trim();
+        let Some(rhs) = rhs.trim().strip_suffix(';') else {
+            continue;
+        };
+        if !name.is_empty()
+            && name
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+        {
+            aliases.insert(name.to_owned(), rhs.trim().to_owned());
+        }
     }
-
-    for kind in [
-        "StringLiteral",
-        "NumericLiteral",
-        "BigIntLiteral",
-        "RegularExpressionLiteral",
-        "NoSubstitutionTemplateLiteral",
-        "JsxText",
-    ] {
-        nodes.entry(kind.to_owned()).or_insert_with(|| {
-            vec![DtsField {
-                name: "text".to_owned(),
-                type_text: "string".to_owned(),
-                optional: false,
-            }]
-        });
-    }
-
-    for kind in ["TemplateHead", "TemplateMiddle", "TemplateTail"] {
-        nodes.entry(kind.to_owned()).or_insert_with(|| {
-            vec![
-                DtsField {
-                    name: "text".to_owned(),
-                    type_text: "string".to_owned(),
-                    optional: false,
-                },
-                DtsField {
-                    name: "rawText".to_owned(),
-                    type_text: "string".to_owned(),
-                    optional: true,
-                },
-            ]
-        });
-    }
+    aliases
 }
 
-fn seed_fieldless_nodes(nodes: &mut BTreeMap<String, Vec<DtsField>>) {
-    for kind in ["DebuggerStatement", "EmptyStatement", "OmittedExpression"] {
-        nodes.entry(kind.to_owned()).or_default();
+fn resolve_alias_type(type_text: &str, aliases: &BTreeMap<String, String>) -> String {
+    let bare = type_text
+        .trim()
+        .trim_start_matches("undefined |")
+        .trim()
+        .trim_end_matches("| undefined")
+        .trim();
+    match aliases.get(bare) {
+        // Optionality was computed from the original text; the alias RHS
+        // only needs to carry the payload category.
+        Some(rhs) => rhs.clone(),
+        None => type_text.to_owned(),
     }
-}
-
-/// isTypeOnly/isExportEquals: grammar bits the JS-file walker (and later
-/// import elision) reads; seeded explicitly because the dts payload
-/// extraction does not surface them.
-fn seed_grammar_flag_fields(nodes: &mut BTreeMap<String, Vec<DtsField>>) {
-    for kind in [
-        "ImportClause",
-        "ExportDeclaration",
-        "ImportSpecifier",
-        "ExportSpecifier",
-    ] {
-        nodes.entry(kind.to_owned()).or_default().push(DtsField {
-            name: "isTypeOnly".to_owned(),
-            type_text: "boolean".to_owned(),
-            optional: false,
-        });
-    }
-    nodes
-        .entry("ExportAssignment".to_owned())
-        .or_default()
-        .push(DtsField {
-            name: "isExportEquals".to_owned(),
-            type_text: "boolean".to_owned(),
-            optional: true,
-        });
-    // tsc PrefixUnaryExpression.operator / PostfixUnaryExpression.operator:
-    // a SyntaxKind payload, not a child node. The binder consumes it
-    // (getDeclarationName signed-numeric computed names, strict-mode
-    // ++/-- checks, createFlowMutation).
-    for kind in ["PrefixUnaryExpression", "PostfixUnaryExpression"] {
-        nodes.entry(kind.to_owned()).or_default().push(DtsField {
-            name: "operator".to_owned(),
-            type_text: "SyntaxKind".to_owned(),
-            optional: false,
-        });
-    }
-    // tsc TypeOperatorNode.operator: KeyOfKeyword | UniqueKeyword |
-    // ReadonlyKeyword — a SyntaxKind payload, not a child node. The
-    // checker consumes it (isReadonlyTypeOperator 61138 for readonly
-    // array/tuple targets, getTypeFromTypeOperatorNode dispatch).
-    nodes
-        .entry("TypeOperator".to_owned())
-        .or_default()
-        .push(DtsField {
-            name: "operator".to_owned(),
-            type_text: "SyntaxKind".to_owned(),
-            optional: false,
-        });
-    // tsc ImportAttributes.token: WithKeyword | AssertKeyword — a
-    // SyntaxKind payload, not a child node. The checker consumes it
-    // (checkImportType's assert-deprecation row 2880; the parser
-    // consumes the keyword before the attributes braces, so source
-    // reconstruction cannot recover it).
-    nodes
-        .entry("ImportAttributes".to_owned())
-        .or_default()
-        .push(DtsField {
-            name: "token".to_owned(),
-            type_text: "SyntaxKind".to_owned(),
-            optional: false,
-        });
 }
 
 fn collect_interface_fields(

@@ -1840,16 +1840,10 @@ impl<'a> CheckerState<'a> {
     }
 
     pub(crate) fn heritage_clause_is_extends(&self, clause: NodeId) -> bool {
-        if self.kind_of(clause) != SyntaxKind::HeritageClause {
-            return false;
-        }
-        // The clause keyword is recoverable from the source range
-        // (HeritageClauseData stores no token — parser note at
-        // parse_heritage_clause).
-        let source = self.binder.source_of_node(clause);
-        let node = source.arena.node(clause);
-        let start = tsrs2_syntax::skip_trivia(&source.text, node.pos as usize);
-        source.text[start..].starts_with("extends")
+        matches!(
+            self.data_of(clause),
+            NodeData::HeritageClause(data) if data.token == SyntaxKind::ExtendsKeyword
+        )
     }
 
     fn is_class_element_kind(&self, node: NodeId) -> bool {
