@@ -1079,6 +1079,27 @@ with comment lines.
    a PRE-EXISTING verdict FN (the port relates it) — outside this
    slice, pinned via the declared-source twin instead.
 
+**Review round 2 (user review, 1 finding — fixed at the source;
+corpus integers unchanged (`ratchet update`: no additions), FP=0
+both bands, 895 checker tests):**
+
+1. **No-substitution template keys record like string literals**
+   (high): round 1's name recorder was a hand-rolled near-duplicate
+   of getElementOrPropertyAccessName whose element-access arm
+   matched only StringLiteral/NumericLiteral — and whose span
+   citation (45190-45201) actually lands in getContainerFlags'
+   tail; the real definition is _tsc.js 15134, whose literal arm is
+   isStringLiteralLike || isNumericLiteral, so `` foo[`x`] = 1 ``
+   recorded nothing: the assignment kept a 7053 and every read of
+   the assigned name kept its 2339/7053 row (port-only rows). The
+   duplicate is deleted; the recording site calls the pre-existing
+   faithful port get_element_or_property_access_name
+   (is_string_or_numeric_literal_like + literal_text_of — both
+   already template-inclusive). Oracle-probed pin: `` foo[`x`] = 1
+   `` then `` foo.x / foo[`x`] / foo["x"] `` all clean, `foo.y`
+   keeps (2339, `typeof foo`) — the recorded name is the TEXT, so
+   suppression is spelling-independent in both directions.
+
 ## Working rules
 
 - Curtain retirement = FP-shield removal. Every widened display arm

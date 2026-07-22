@@ -7325,6 +7325,26 @@ mod tests {
     }
 
     #[test]
+    fn expando_template_key_records_like_string_literal() {
+        // Round 2: getElementOrPropertyAccessName (15134) is
+        // string-literal-LIKE — a `x` no-substitution template key
+        // records the member name exactly as "x" does, so the
+        // .x / [`x`] / ["x"] reads suppress while .y keeps its row
+        // (oracle-probed byte rows).
+        assert_eq!(
+            checked_diags(
+                "function foo() {}\nfoo[`x`] = 1;\nfoo.x;\nfoo[`x`];\nfoo[\"x\"];\nfoo.y;\n"
+            ),
+            [(
+                2339,
+                63,
+                1,
+                "Property 'y' does not exist on type 'typeof foo'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
     fn union_target_member_elaborates_through_best_match() {
         // getBestMatchIndexedAccessTypeOrUndefined's union leg: the
         // member row lands on `m` (the head suppresses), method and

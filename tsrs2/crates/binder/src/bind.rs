@@ -1147,10 +1147,11 @@ impl<'a> Binder<'a> {
             // Until those bodies land, record (parent, member name)
             // so the checker can suppress lookups of exactly the
             // members this assignment would declare
-            // (getElementOrPropertyAccessName, 45190-45201: identifier
-            // escapedText / string-or-numeric literal text, escaped).
+            // (getElementOrPropertyAccessName, 15134: identifier
+            // escapedText / string-or-numeric-literal-LIKE text,
+            // escaped — no-substitution templates included).
             if let Some(parent_symbol) = parent_symbol {
-                if let Some(name) = element_or_property_access_name_of(source, left) {
+                if let Some(name) = get_element_or_property_access_name(source, left) {
                     self.expando_assignment_targets
                         .entry(parent_symbol)
                         .or_default()
@@ -3253,37 +3254,6 @@ fn remove_file_extension(path: &str) -> &str {
 }
 
 /// The `.expression` of an access expression.
-/// tsc getElementOrPropertyAccessName (45190-45201), the
-/// static-name slice: identifier names read escapedText, bindable
-/// string/numeric literal keys escape their text.
-fn element_or_property_access_name_of(
-    source: &tsrs2_syntax::SourceFile,
-    node: NodeId,
-) -> Option<String> {
-    match &source.arena.node(node).data {
-        NodeData::PropertyAccessExpression(data) => {
-            let name = data.name?;
-            match &source.arena.node(name).data {
-                NodeData::Identifier(data) => Some(data.escaped_text.clone()),
-                _ => None,
-            }
-        }
-        NodeData::ElementAccessExpression(data) => {
-            let argument = data.argument_expression?;
-            match &source.arena.node(argument).data {
-                NodeData::StringLiteral(data) => {
-                    Some(tsrs2_syntax::escape_leading_underscores(&data.text))
-                }
-                NodeData::NumericLiteral(data) => {
-                    Some(tsrs2_syntax::escape_leading_underscores(&data.text))
-                }
-                _ => None,
-            }
-        }
-        _ => None,
-    }
-}
-
 fn access_expression_of(source: &tsrs2_syntax::SourceFile, node: NodeId) -> Option<NodeId> {
     match &source.arena.node(node).data {
         NodeData::PropertyAccessExpression(data) => data.expression,
