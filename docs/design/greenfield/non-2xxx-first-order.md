@@ -120,7 +120,11 @@ Per family, in map order of strictness:
 
 A family CLOSES at level 2 for its owner milestone's gate; level 3
 is tracked by the same rollup and finishes inside the M8 tier
-sweeps. The rollup is a derived view over the A1 accepted-match
+sweeps. Closing at level 2 does not authorize a T0-only reporter: the
+[slice-fidelity policy](definition-of-done.md#milestone-gates-vs-slice-fidelity)
+requires the touched family to match every currently live shadow tier,
+or to record exact blocked rows with their shared prerequisite and M8
+retirement owner. The rollup is a derived view over the A1 accepted-match
 artifact, immutable oracle-input manifest, exact A2 scope, current
 full-conformance observation, and frozen family map. Scope is applied to
 the exact oracle/tsrs record multisets before tier grading and family

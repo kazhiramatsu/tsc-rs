@@ -18,6 +18,28 @@ stage below additionally closes on its own family rows
 [non-2xxx-first-order.md](non-2xxx-first-order.md)); the
 aggregate rate is never a substitute for a stage gate.
 
+## Tier execution policy
+
+M7 keeps the staged corpus gates while applying the vertical-slice
+policy from
+[definition-of-done.md](definition-of-done.md#milestone-gates-vs-slice-fidelity):
+
+- 8.1-8.3 remain globally gated at T0, but every touched family records
+  its T1/T2/T3 shadow delta and oracle-pins the highest live tier. A
+  T0 gain may not consume a previously matching upper-tier identity.
+- 8.4 activates the T1 accepted-set gate. Category is therefore part
+  of each 8.4-and-later family's close, not an M8 cleanup item.
+- 8.5 lands deterministic T4 formatter and program/global assembly
+  structure. Before A3, its formatter goldens and T4 conformance are
+  report-only validation; they do not create accepted T4 identities.
+- M8 activates T2/T3 corpus gates and then A3 T4 byte parity after the
+  A2 global freeze prerequisites hold. It closes the explicit
+  upper-tier blockers left by otherwise-complete M7 families.
+
+An upper tier may be deferred only to a named shared prerequisite with
+exact affected rows, an owner, and a retirement stage. "T4 in M8" by
+itself is not sufficient evidence.
+
 ## Stage 8.1: grammar checks [M]
 
 Fill the driver's grammar slot (M4 stage 5.4 hook): port the
@@ -140,7 +162,13 @@ the corpus exercises), the strict-family expansion
 (1148/6131-family, reference directives, case-collision 1149/1261),
 exit-code semantics for the CLI, and the T4 output formatter
 (`formatDiagnosticsWithColorAndContext`-shape minus color for the
-hash — byte parity is M8's tier work; land the structure).
+hash). Land the real deterministic sort/dedupe, path/newline,
+UTF-16-span, chain, related-information, suggestion, and file-less
+diagnostic structure here. Corpus-wide accepted T4 byte parity is
+still A3/M8 work because A3 cannot activate before exact scope is
+globally frozen; 8.5 nevertheless carries local formatter goldens and
+the report-only corpus diff so M8 is closing measured rendering residue,
+not replacing a placeholder formatter.
 
 DRIVER-BAND PREREQUISITE (recorded 2026-07-20, M4-review slice 5 —
 B30/B31; the two land TOGETHER, B31 first or same commit):
@@ -173,6 +201,8 @@ cargo xtask conformance              # expect: T0 ≥ 63%; T1 recorded
 cargo xtask families report          # expect: every M7-owned family complete (readiness row 10)
 cargo xtask invariants --suite all
 cargo xtask ledger check
+cargo xtask oracle-refresh --render-hashes --check
+cargo xtask conformance --tier t4 --report-only
 cargo xtask m8 evidence produce --all # current runtime/fuzz/perf artifacts; approved runner
 cargo xtask m8 readiness --require-ready
 ```

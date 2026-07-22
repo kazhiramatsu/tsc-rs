@@ -225,6 +225,18 @@ family residue, T1 category, T2 span/top message, T3 chain/related
 information, T4 rendering, recovery, then the final emitter/dependency
 converse.
 
+That global sweep order is not permission to implement new families
+T0-only. Under the
+[slice-fidelity policy](definition-of-done.md#milestone-gates-vs-slice-fidelity),
+a family made observable before M8 is carried vertically through the
+highest tier whose shared prerequisites are live, and every unavailable
+upper tier has an exact-row blocker record with an owner and retirement
+stage. M8's tier sweeps activate the formal accepted-set gates and close
+the cross-family residue; they do not replace knowingly wrong reporter,
+chain, or formatter structures admitted by an earlier T0 slice. Pre-A3
+T4 evidence remains local/report-only until the measurement-integrity
+activation preconditions hold.
+
 Every slice removes an exact mismatch or measured prerequisite. Three
 probes exposing the same model ceiling trigger the
 [stall playbook](../stall-playbook.md), not more local patches.
