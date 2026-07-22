@@ -464,6 +464,16 @@ impl<'text> Scanner<'text> {
         &self.token_value
     }
 
+    /// tsc getTokenText: the raw source slice of the current token.
+    pub(crate) fn token_text(&self) -> &'text str {
+        &self.text[self.token_start..self.pos]
+    }
+
+    /// tsc isUnterminated.
+    pub(crate) fn is_unterminated(&self) -> bool {
+        self.token_flags.contains(TokenFlags::UNTERMINATED)
+    }
+
     pub(crate) fn take_errors(&mut self) -> Vec<ScanError> {
         std::mem::take(&mut self.errors)
     }

@@ -6119,19 +6119,13 @@ impl<'text> Parser<'text> {
         // legitimate (current_token_text's missing-token fallback would
         // turn it into the token NAME).
         let text = self.scanner.token_value().to_owned();
+        let raw_text = Some(self.template_literal_raw_text(kind));
         let data = match kind {
-            SyntaxKind::TemplateHead => NodeData::TemplateHead(TemplateHeadData {
-                text,
-                raw_text: None,
-            }),
-            SyntaxKind::TemplateMiddle => NodeData::TemplateMiddle(TemplateMiddleData {
-                text,
-                raw_text: None,
-            }),
-            SyntaxKind::TemplateTail => NodeData::TemplateTail(TemplateTailData {
-                text,
-                raw_text: None,
-            }),
+            SyntaxKind::TemplateHead => NodeData::TemplateHead(TemplateHeadData { text, raw_text }),
+            SyntaxKind::TemplateMiddle => {
+                NodeData::TemplateMiddle(TemplateMiddleData { text, raw_text })
+            }
+            SyntaxKind::TemplateTail => NodeData::TemplateTail(TemplateTailData { text, raw_text }),
             _ => unreachable!("template fragment kind"),
         };
         let id = self.arena.alloc_node(data, pos, end, NodeFlags::NONE);
@@ -6203,10 +6197,11 @@ impl<'text> Parser<'text> {
         let end = self.scanner.pos();
         // Empty cooked text (``) is legitimate — see parse_template_fragment.
         let text = self.scanner.token_value().to_owned();
+        let raw_text = self.template_literal_raw_text(SyntaxKind::NoSubstitutionTemplateLiteral);
         let id = self.arena.alloc_node(
             NodeData::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData {
                 text,
-                raw_text: None,
+                raw_text: Some(raw_text),
             }),
             pos,
             end,
@@ -6214,6 +6209,26 @@ impl<'text> Parser<'text> {
         );
         self.next_token();
         self.finish_node_at(id, pos, end)
+    }
+
+    /// tsc getTemplateLiteralRawText (_tsc.js 30644): the source text of
+    /// the token minus its delimiters — the leading `` ` `` (head, no-sub)
+    /// or `}` (middle, tail), and the trailing `` ` `` (last fragment) or
+    /// `${` (head, middle); an unterminated token keeps its tail. Must be
+    /// read BEFORE next_token. Byte slicing is safe: every delimiter is
+    /// ASCII. Unlike the cooked `text`, escapes and CRLF stay raw.
+    fn template_literal_raw_text(&self, kind: SyntaxKind) -> String {
+        let is_last =
+            kind == SyntaxKind::NoSubstitutionTemplateLiteral || kind == SyntaxKind::TemplateTail;
+        let token_text = self.scanner.token_text();
+        let strip_end = if self.scanner.is_unterminated() {
+            0
+        } else if is_last {
+            1
+        } else {
+            2
+        };
+        token_text[1..token_text.len() - strip_end].to_owned()
     }
 
     fn parse_type_annotation(&mut self) -> Option<NodeId> {
@@ -8972,6 +8987,75 @@ mod tests {
                 (None, false),
             ]
         );
+    }
+
+    /// tsc getTemplateLiteralRawText (30644): every template fragment
+    /// stores the raw source slice alongside the cooked text — escapes
+    /// stay escaped, CRLF stays CRLF.
+    #[test]
+    fn template_literals_store_raw_text() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "const a = `\\n`;\nconst b = `x\r\ny`;\nconst c = `h${1}m${2}t`;\n".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        let fragments = |kind: SyntaxKind| -> Vec<(String, Option<String>)> {
+            nodes_of_kind(&source, kind)
+                .into_iter()
+                .map(|id| match &source.arena.node(id).data {
+                    NodeData::NoSubstitutionTemplateLiteral(data) => {
+                        (data.text.clone(), data.raw_text.clone())
+                    }
+                    NodeData::TemplateHead(data) => (data.text.clone(), data.raw_text.clone()),
+                    NodeData::TemplateMiddle(data) => (data.text.clone(), data.raw_text.clone()),
+                    NodeData::TemplateTail(data) => (data.text.clone(), data.raw_text.clone()),
+                    _ => unreachable!(),
+                })
+                .collect()
+        };
+        assert_eq!(
+            fragments(SyntaxKind::NoSubstitutionTemplateLiteral),
+            vec![
+                ("\n".to_owned(), Some("\\n".to_owned())),
+                ("x\ny".to_owned(), Some("x\r\ny".to_owned())),
+            ]
+        );
+        assert_eq!(
+            fragments(SyntaxKind::TemplateHead),
+            vec![("h".to_owned(), Some("h".to_owned()))]
+        );
+        assert_eq!(
+            fragments(SyntaxKind::TemplateMiddle),
+            vec![("m".to_owned(), Some("m".to_owned()))]
+        );
+        assert_eq!(
+            fragments(SyntaxKind::TemplateTail),
+            vec![("t".to_owned(), Some("t".to_owned()))]
+        );
+    }
+
+    /// tsc getTemplateLiteralRawText: an unterminated literal keeps its
+    /// tail (nothing stripped past the opening delimiter).
+    #[test]
+    fn unterminated_template_raw_text_keeps_tail() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "`ab".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        let raws: Vec<(String, Option<String>)> =
+            nodes_of_kind(&source, SyntaxKind::NoSubstitutionTemplateLiteral)
+                .into_iter()
+                .map(|id| match &source.arena.node(id).data {
+                    NodeData::NoSubstitutionTemplateLiteral(data) => {
+                        (data.text.clone(), data.raw_text.clone())
+                    }
+                    _ => unreachable!(),
+                })
+                .collect();
+        assert_eq!(raws, vec![("ab".to_owned(), Some("ab".to_owned()))]);
     }
 
     /// tsc createMetaProperty (23009): keywordToken disambiguates
