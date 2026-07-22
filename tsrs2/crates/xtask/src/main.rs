@@ -1178,6 +1178,10 @@ struct AstDumpResult {
 /// pruned. `--write-expected <manifest>` regenerates the manifest from
 /// the observed diffs — its diff is the review surface (escapes
 /// --write-manifest pattern).
+/// Allowlist identity of one known symbol-diff: (workspace-relative
+/// fixture, matrix key, program file name, compared-pair fingerprint).
+type SymbolDiffKey = (String, String, String, String);
+
 fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let mut fixtures: Vec<PathBuf> = Vec::new();
     let mut sample: Option<usize> = None;
@@ -1210,11 +1214,16 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
             _ => fixtures.push(PathBuf::from(arg)),
         }
     }
+    if expected_path.is_some() && write_expected.is_some() {
+        // Update mode records reality and skips gating; verifying
+        // against the file being rewritten would be circular.
+        return Err("--expected and --write-expected are mutually exclusive".into());
+    }
 
     let workspace = find_tsrs2_root()?;
     let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
     let workspace_canonical = workspace.canonicalize()?;
-    let expected_keys: Option<BTreeSet<(String, String)>> = match &expected_path {
+    let expected_keys: Option<BTreeSet<SymbolDiffKey>> = match &expected_path {
         Some(path) => {
             let text = fs::read_to_string(path)
                 .map_err(|error| format!("read {}: {error}", path.display()))?;
@@ -1224,10 +1233,21 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
                 if line.is_empty() || line.starts_with('#') {
                     continue;
                 }
-                let Some((fixture, file)) = line.split_once('\t') else {
-                    return Err(format!("expected-manifest line without TAB: {line}").into());
+                let fields: Vec<&str> = line.split('\t').collect();
+                let &[fixture, matrix_key, file, fingerprint] = fields.as_slice() else {
+                    return Err(format!(
+                        "expected-manifest line needs 4 TAB-separated fields \
+                         (fixture, matrix key, file, fingerprint) — regenerate \
+                         with --write-expected: {line}"
+                    )
+                    .into());
                 };
-                keys.insert((fixture.to_owned(), file.to_owned()));
+                keys.insert((
+                    fixture.to_owned(),
+                    matrix_key.to_owned(),
+                    file.to_owned(),
+                    fingerprint.to_owned(),
+                ));
             }
             Some(keys)
         }
@@ -1269,8 +1289,8 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
     let mut unknown_diffs = 0usize;
     let mut failures = String::new();
     let mut executed_fixtures: BTreeSet<String> = BTreeSet::new();
-    let mut observed_keys: BTreeSet<(String, String)> = BTreeSet::new();
-    let mut matched_keys: BTreeSet<(String, String)> = BTreeSet::new();
+    let mut observed_keys: BTreeSet<SymbolDiffKey> = BTreeSet::new();
+    let mut matched_keys: BTreeSet<SymbolDiffKey> = BTreeSet::new();
 
     for (fixture_index, fixture) in fixtures.iter().enumerate() {
         let rel_fixture = fixture
@@ -1340,7 +1360,23 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
                 let rust_dump = project(&rust_lines);
                 if !oracle_file.in_program || oracle_dump != rust_dump {
                     differing += 1;
-                    let key = (rel_fixture.clone(), rust_file.name.clone());
+                    // Fingerprint the exact compared pair: a known diff
+                    // whose content changes (either side), or a new
+                    // diff on an allowlisted file under another matrix
+                    // variant, keys differently and goes unknown.
+                    let mut fingerprint_bytes = rust_dump.clone().into_bytes();
+                    fingerprint_bytes.push(0);
+                    fingerprint_bytes.extend_from_slice(if oracle_file.in_program {
+                        oracle_dump.as_bytes()
+                    } else {
+                        b"<file not in oracle program>"
+                    });
+                    let key = (
+                        rel_fixture.clone(),
+                        program.matrix_key.clone(),
+                        rust_file.name.clone(),
+                        sha256_hex(&fingerprint_bytes)[..16].to_owned(),
+                    );
                     observed_keys.insert(key.clone());
                     let known = expected_keys
                         .as_ref()
@@ -1401,12 +1437,15 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
     if let Some(path) = &write_expected {
         let mut text = String::from(
             "# symbol-diff expected differences (known-diff allowlist).\n\
-             # One `<workspace-relative fixture>\\t<program file name>` per line.\n\
+             # One `<workspace-relative fixture>\\t<matrix key>\\t<program file\n\
+             # name>\\t<fingerprint>` per line; the fingerprint is sha256[..16]\n\
+             # over the compared tsrs/oracle dump pair, so a known diff whose\n\
+             # content changes fails the gate as unknown until re-reviewed.\n\
              # Regenerate: cargo xtask symbol-diff --sample 5908 --write-expected <path>\n\
              # Verify:     cargo xtask symbol-diff --sample 5908 --expected <path>\n",
         );
-        for (fixture, file) in &observed_keys {
-            text.push_str(&format!("{fixture}\t{file}\n"));
+        for (fixture, matrix_key, file, fingerprint) in &observed_keys {
+            text.push_str(&format!("{fixture}\t{matrix_key}\t{file}\t{fingerprint}\n"));
         }
         fs::write(path, text)?;
         println!(
@@ -1414,13 +1453,19 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
             path.display(),
             observed_keys.len()
         );
+        // Update mode records observed reality (the manifest diff is
+        // the review surface); the differing>0 gate below would fail
+        // every regeneration that has any known diffs.
+        return Ok(());
     }
     if let Some(keys) = &expected_keys {
-        // Stale = expected on a fixture that RAN and came back clean;
-        // partial runs gate only the executed-fixture projection.
+        // Stale = expected on a fixture that RAN without reproducing
+        // this exact diff (retired, or changed — changed content also
+        // surfaces as an unknown diff); partial runs gate only the
+        // executed-fixture projection.
         let stale: Vec<_> = keys
             .iter()
-            .filter(|(fixture, _)| executed_fixtures.contains(fixture))
+            .filter(|(fixture, ..)| executed_fixtures.contains(fixture))
             .filter(|key| !matched_keys.contains(*key))
             .collect();
         println!(
@@ -1428,8 +1473,11 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
             matched_keys.len(),
             stale.len()
         );
-        for (fixture, file) in &stale {
-            println!("stale expectation (fixture ran clean): {fixture}\t{file}");
+        for (fixture, matrix_key, file, fingerprint) in &stale {
+            println!(
+                "stale expectation (fixture ran without this diff): \
+                 {fixture}\t{matrix_key}\t{file}\t{fingerprint}"
+            );
         }
         if unknown_diffs > 0 || !stale.is_empty() {
             return Err(format!(
