@@ -2458,25 +2458,36 @@ fn midpoint_char_boundary(text: &str) -> usize {
 fn run_prefix_determinism(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
     for program in programs {
         for file in &program.files {
-            let cut = midpoint_char_boundary(&file.text);
             let variant = language_variant_for_path(Path::new(&file.name));
-            let full = tsrs2_syntax::scan_tokens(&file.text, variant);
-            let prefix = tsrs2_syntax::scan_tokens(&file.text[..cut], variant);
-            // Tokens touching the cut are inherently ambiguous (they may be
-            // truncated or merge with later text); everything strictly
-            // before it must be byte-identical.
-            let full_before = full.iter().filter(|token| (token.end as usize) < cut);
-            let prefix_before = prefix.iter().filter(|token| (token.end as usize) < cut);
-            if !full_before.eq(prefix_before) {
+            if !prefix_determinism_holds(&file.text, variant) {
                 return Err(format!(
                     "prefix-determinism failed for {} [{}] file {} (cut {})",
-                    program.fixture, program.matrix_key, file.name, cut
+                    program.fixture,
+                    program.matrix_key,
+                    file.name,
+                    midpoint_char_boundary(&file.text)
                 )
                 .into());
             }
         }
     }
     Ok(())
+}
+
+fn prefix_determinism_holds(text: &str, variant: tsrs2_syntax::LanguageVariant) -> bool {
+    let cut = midpoint_char_boundary(text);
+    // TokenRecord offsets are UTF-16 code units while `cut` indexes UTF-8
+    // bytes; both filters must use one coordinate system, or non-ASCII
+    // prefixes admit full-scan tokens that lie at or past the byte cut.
+    let cut_utf16: u32 = text[..cut].chars().map(|ch| ch.len_utf16() as u32).sum();
+    let full = tsrs2_syntax::scan_tokens(text, variant);
+    let prefix = tsrs2_syntax::scan_tokens(&text[..cut], variant);
+    // Tokens touching the cut are inherently ambiguous (they may be
+    // truncated or merge with later text); everything strictly
+    // before it must be byte-identical.
+    let full_before = full.iter().filter(|token| token.end < cut_utf16);
+    let prefix_before = prefix.iter().filter(|token| token.end < cut_utf16);
+    full_before.eq(prefix_before)
 }
 
 fn run_idempotence(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
@@ -7662,6 +7673,36 @@ fn lib_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
         return Err("lib-gate failed".into());
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod prefix_determinism_tests {
+    use super::*;
+
+    #[test]
+    fn non_ascii_prefix_compares_in_utf16() {
+        // Six 3-byte U+2028 chars make UTF-16 offsets lag UTF-8 byte
+        // offsets by 12 in the ASCII tail, so every token in the 12
+        // bytes past the midpoint has a UTF-16 end below the byte cut —
+        // a mixed-coordinate filter admits those tokens on the full
+        // scan only and fails spuriously (the corpus shape:
+        // es2019/allowUnescapedParagraphAndLineSeparatorsInStringLiteral.ts,
+        // cut 400).
+        let text = format!("/*{}*/{}", "\u{2028}".repeat(6), "aa=1;".repeat(12));
+        assert!(prefix_determinism_holds(
+            &text,
+            tsrs2_syntax::LanguageVariant::Standard
+        ));
+    }
+
+    #[test]
+    fn ascii_prefix_still_holds() {
+        let text = "const value = 1;\nconst other = value + 2;\n".to_string();
+        assert!(prefix_determinism_holds(
+            &text,
+            tsrs2_syntax::LanguageVariant::Standard
+        ));
+    }
 }
 
 #[cfg(test)]
