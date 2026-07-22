@@ -174,9 +174,13 @@ After M7 the build enters the mining loop this playbook already runs:
 full conformance snapshot → top one-sided codes → owner → smallest
 probe → port the missing tsc branch → gate. The comparison tiers climb
 from T0 to T2/T3 by turning on stricter comparators fixture-family by
-fixture-family in `ratchet.toml`. The classifier, snapshot procedure,
-and triage discipline are the same as the parent repo's
-EXECUTION-GUIDE; only the engine under test differs.
+fixture-family in `ratchet.toml`, followed by A3 T4 byte parity. This is
+the corpus-wide activation order, not a T0-only coding rule: a newly
+observable family follows the
+[slice-fidelity policy](definition-of-done.md#milestone-gates-vs-slice-fidelity)
+through every live tier, while pre-A3 T4 checks remain local/report-only.
+The classifier, snapshot procedure, and triage discipline are the same
+as the parent repo's EXECUTION-GUIDE; only the engine under test differs.
 
 M8 has an executable entry contract: see
 [m8-readiness.md](m8-readiness.md) and run `cargo xtask m8 readiness`.

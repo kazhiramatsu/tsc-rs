@@ -63,6 +63,54 @@ two-view contract in [m8-readiness.md](m8-readiness.md):
    known-open divergence class.
    This is an engineering bar, not a formal guarantee.
 
+## Milestone gates vs slice fidelity
+
+The implementation is designed for full T0-T4 parity from the first
+ported branch, but corpus-wide activation remains staged. These are
+different obligations:
+
+- **Milestone gate**: the active corpus gate starts at T0 + absolute
+  all-corpus FP=0; T1 joins it at M7 8.4, while A3/T4 activates only
+  under [measurement-integrity.md §4](measurement-integrity.md#4-a3--t4-activation).
+- **Touched-family fidelity**: a slice that makes a diagnostic family
+  observable follows that family vertically through every tier whose
+  prerequisites are live. T1 category, T2 span/top message, and T3
+  chain/related information are oracle-pinned in the same slice when
+  available; the slice may not knowingly choose a T0-equivalent but
+  structurally wrong reporter merely because the higher tier is still
+  shadow-only.
+- **Shadow evidence before identity diff tooling**: while conformance
+  exposes T1/T2/T3 only as band-level shadow rates plus row data in
+  `mismatches.json`, a slice records the before/after rates and reviews
+  the target-family rows directly. This is the current evidence for the
+  no-trade rule above; it must not be described as an automated
+  identity-level shadow ratchet. If that review becomes noisy or
+  ambiguous, add per-tier matched/mismatched identity fields to
+  `conformance --out-json` in a dedicated measurement-tooling slice,
+  then gate the exact diff. Do not reconstruct tier identities from
+  aggregate rates.
+- **Pre-A3 T4**: local formatter goldens and
+  `conformance --tier t4 --report-only` are validation evidence, not
+  accepted T4 identities and not corpus-wide T4 activation. The A3
+  schema transition and T4 accepted-set ratchet still wait for the
+  globally frozen A2 scope and zero live `resolved` entries.
+- **Blocked upper tier**: if a shared prerequisite (diagnostic-chain
+  builder, program/global assembly, formatter, or an unconstructible
+  type family) prevents vertical completion, the slice records the
+  exact blocker, owner, retirement milestone, and oracle anchors. A
+  bare "T2/T3/T4 later" note is not sufficient evidence. The slice
+  must not expand that debt beyond the rows it unlocks.
+- **Prerequisite-only slice**: a data-model or cache-discipline change
+  may legitimately add no accepted diagnostic. It names the downstream
+  family, carries direct semantic pins, leaves every active accepted
+  set unchanged, and is followed by the consuming slice rather than
+  being counted as parity progress.
+
+M8 performs the formal cross-family tier sweeps and closes every
+recorded upper-tier blocker. This policy keeps the causal clarity of
+staged gates without creating a T0-only reporting architecture that
+must be replaced at the end.
+
 ## Explicitly out of scope
 
 - **Emitter** (no JS/d.ts output; emit-dependent diagnostics get
