@@ -313,6 +313,16 @@ pub struct CheckerState<'a> {
     /// the slice guards both — divergence is observable only on a
     /// symbol-less self-containing type, which cannot be constructed.
     pub(crate) slice_visited_types: std::collections::HashSet<TypeId>,
+    /// The display slice's face of the nodeBuilder's
+    /// context.enclosingDeclaration for the ANNOTATION-REUSE gates
+    /// only (canReuseTypeNodeAnnotation, 50932-50955: `undefined →
+    /// false`). getTypeNamesForErrorDisplay (50748) passes the
+    /// symbol's value declaration for non-context-sensitive
+    /// expression-valued symbols; every other slice entry renders
+    /// with None. The 5.4 slice prints bare symbol names, so the
+    /// node's OTHER context roles (symbol-chain qualification, fake
+    /// scopes, unique-symbol ancestry) stay out of slice.
+    pub(crate) slice_display_enclosing: Option<NodeId>,
     /// tsc markerTypes (47005): ids of createMarkerType results.
     pub(crate) marker_types: std::collections::HashSet<TypeId>,
     /// tsc inVarianceComputation (47422).
@@ -816,6 +826,7 @@ impl<'a> CheckerState<'a> {
             marker_sub_type_for_check: TypeId(0),
             variance_type_parameter: None,
             slice_visited_types: std::collections::HashSet::new(),
+            slice_display_enclosing: None,
             marker_types: std::collections::HashSet::new(),
             in_variance_computation: false,
             variance_handler_stack: Vec::new(),

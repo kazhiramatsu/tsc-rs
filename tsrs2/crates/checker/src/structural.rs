@@ -5847,6 +5847,32 @@ impl<'a> CheckerState<'a> {
         Ok(min_argument_count)
     }
 
+    /// tsc-port: getMinArgumentCount @6.0.3 (VoidIsNonOptional face)
+    /// tsc-hash: 7e615bfc72d73516124a8fd89a208b2ca2036519bbaf5b7cad73d2010b1ef3b8
+    /// tsc-span: _tsc.js:78287-78321
+    ///
+    /// isOptionalParameter (59509-59527) reads the count under
+    /// (StrongArityForUntypedJS | VoidIsNonOptional): the void-
+    /// trimming loop is skipped (the 78313 early return) and the
+    /// untyped-JS zero (78309-78311) is bypassed — leaving exactly
+    /// the tuple-rest required count or the declared integer.
+    pub(crate) fn min_argument_count_without_void_trimming(
+        &mut self,
+        signature: SignatureId,
+    ) -> CheckResult2<usize> {
+        if let Some((_, data)) = self.rest_tuple_target_data(signature)? {
+            let first_optional_index = data
+                .element_flags
+                .iter()
+                .position(|flags| !flags.intersects(ElementFlags::REQUIRED));
+            let required_count = first_optional_index.unwrap_or(data.fixed_length);
+            if required_count > 0 {
+                return Ok(self.signature_of(signature).parameters.len() - 1 + required_count);
+            }
+        }
+        Ok(self.signature_of(signature).min_argument_count as usize)
+    }
+
     /// tsc-port: hasEffectiveRestParameter @6.0.3
     /// tsc-hash: 4545af73ef96a3c83fa4e089d6a10737e822c04c947fb002fbfa5e24fe93959f
     /// tsc-span: _tsc.js:78322-78328
@@ -7640,14 +7666,13 @@ mod tests {
             ),
             (vec![], 0)
         );
-        // Fail face: tsc 2322 — the head's function-type args sit
-        // behind the display curtain, so the False verdict contains
-        // (no fabricated rows).
+        // Fail face: 2322 renders at the 9.3b2 signature rung
+        // (oracle-probed byte row).
         assert_eq!(
             rows_and_partials(
                 "declare function f<T extends U, U extends string>(x: T, y: U): void;\nconst g: (x: \"a\", y: \"b\") => void = f;\n"
             ),
-            (vec![], 1)
+            (vec![(2322, 75, 1)], 0)
         );
     }
 
@@ -7664,11 +7689,13 @@ mod tests {
             ),
             (vec![], 0)
         );
+        // The fail face renders at the 9.3b2 signature rung
+        // (oracle-probed byte row).
         assert_eq!(
             rows_and_partials(
                 "declare function f2<T extends { u: U }, U extends string>(x: T, y: U): void;\nconst g2: (x: { u: \"a\" }, y: \"b\") => void = f2;\n"
             ),
-            (vec![], 1)
+            (vec![(2322, 83, 2)], 0)
         );
     }
 
@@ -7752,13 +7779,13 @@ mod tests {
         );
         // Control: annotation-derived positions carry no
         // signature.target, so callback treatment SURVIVES — the
-        // arity-incompatible pair still Falses (tsc: 2322 behind the
-        // display curtain).
+        // arity-incompatible pair still Falses, and the 2322 renders
+        // at the 9.3b2 signature rung (oracle-probed byte row).
         assert_eq!(
             rows_and_partials(
                 "declare function on(cb: (x: string) => void): void;\ndeclare const h: (x: string, y: number) => void;\nconst c: (cb: (x: string, y: number) => void) => void = on;\n"
             ),
-            (vec![], 1)
+            (vec![(2322, 107, 1)], 0)
         );
     }
 

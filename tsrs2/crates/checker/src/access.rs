@@ -2898,6 +2898,47 @@ impl<'a> CheckerState<'a> {
         containing_type: TypeId,
         is_unchecked_js: bool,
     ) -> CheckResult2<()> {
+        // Expando-parent suppression: tsc's binder declares members
+        // for `foo.x = 1` on FUNCTION symbols even in .ts files
+        // (bindSpecialPropertyAssignment 44821), so every member
+        // lookup on such a symbol resolves against members the port
+        // has not bound (stage 3.4c) — a miss here fabricates 2339s
+        // (nullPropertyName, typeFromPropertyAssignment*; masked
+        // pre-9.3b2 by the fn-display curtain). The binder records
+        // the parents; both the local and export faces consult.
+        // SUPPRESS the report and let the caller produce errorType
+        // instead of Err-containing: this reporter sits inside symbol
+        // TYPE RESOLUTION, and an Unsupported here unwinds through
+        // shared-symbol reads into NEIGHBORING statements (`var n`
+        // redeclared across expando and class statements lost its
+        // REAL class-side 2339s — the set-ratchet caught the 8-row
+        // regression live). errorType keeps tsc's own suppression
+        // semantics downstream; the divergence (tsc types the member
+        // from the assignment) is the recorded stage-3.4c residual —
+        // the ASSIGNMENT faces keep their operators.rs containment.
+        let receiver_symbol = self
+            .parent_of(prop_node)
+            .and_then(|access| match self.data_of(access) {
+                NodeData::PropertyAccessExpression(data) => data.expression,
+                NodeData::ElementAccessExpression(data) => data.expression,
+                _ => None,
+            })
+            .and_then(|receiver| self.links.node(receiver).resolved_symbol.resolved());
+        // Value-flow faces (`f(true).s`, `new.target.marked`, aliased
+        // reads) carry the parent on the CONTAINING TYPE's symbol
+        // instead of the receiver node — consult both.
+        let candidates = [receiver_symbol, self.tables.type_of(containing_type).symbol];
+        for symbol in candidates.into_iter().flatten() {
+            let flagged = self.binder.symbol_has_expando_assignment(symbol)
+                || self
+                    .binder
+                    .symbol(symbol)
+                    .export_symbol
+                    .is_some_and(|export| self.binder.symbol_has_expando_assignment(export));
+            if flagged {
+                return Ok(());
+            }
+        }
         // 6.6f, consult rebuilt at m6 7.6: a NEVER receiver whose
         // reference DECLARES a non-never type went never through OUR
         // narrowing. Genuinely-never receivers (declared never)

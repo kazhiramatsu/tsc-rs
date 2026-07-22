@@ -136,6 +136,20 @@ impl<'a> ProgramBinder<'a> {
         }
     }
 
+    /// tsrs-native: whether the owning file binder recorded a TS-file
+    /// expando member assignment on this symbol
+    /// (bind_special_property_assignment's function-parent arm;
+    /// transient symbols never carry one) — the stage-3.4c
+    /// unreliability flag the member-lookup suppressions consult.
+    pub fn symbol_has_expando_assignment(&self, id: SymbolId) -> bool {
+        match self.owner_of_symbol(id) {
+            Ok(file) => self.file_binders[file]
+                .expando_assignment_targets
+                .contains(&id),
+            Err(()) => false,
+        }
+    }
+
     /// TRANSIENT symbols only: file binders are read-only after bind
     /// (shared lib binders make this structural — merge writes go to
     /// transient clones, and the merged-symbol mapping lives on

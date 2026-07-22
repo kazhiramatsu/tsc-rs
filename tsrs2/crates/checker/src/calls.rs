@@ -6645,11 +6645,12 @@ mod tests {
             ),
             [(2348, 66, 4)]
         );
-        // The anonymous-typed flavor contains on display (T2 curtain;
-        // oracle: 2348 with the inline shape rendered).
+        // The anonymous-typed flavor renders the construct shorthand
+        // (9.3b2 signature rung; oracle-probed: 2348 displaying
+        // 'new (x: number) => object').
         assert_eq!(
             checked_rows("declare const c: { new (x: number): object };\nc(1);\n"),
-            []
+            [(2348, 46, 4)]
         );
     }
 
@@ -7218,15 +7219,14 @@ mod tests {
     }
 
     #[test]
-    fn es_method_decorator_arity_overflow_reports_1241() {
+    fn es_method_decorator_arity_overflow_reports_1241_and_1270() {
         // Oracle: locationless 2318 (ClassMethodDecoratorContext,
         // noLib — dropped from per-file rows) + (1241, 76, 3) + (1270,
         // 77, 2): the ES arity allowance clamps to 2, md declares 3.
-        // The 1270 tail's target display `void | (() => void)` rides
-        // the T2 curtain (function-type rendering) — recorded FN; the
-        // legacy 1270 pin above covers the live face.
+        // The 1270 target display `void | (() => void)` renders at
+        // the 9.3b2 signature rung (union-wrapped function type).
         let text = "declare function md(target: any, key: string, desc: any): number;\nclass C { @md m(): void {} }\n";
-        assert_eq!(checked_rows(text), [(1241, 76, 3)]);
+        assert_eq!(checked_rows(text), [(1241, 76, 3), (1270, 77, 2)]);
     }
 
     #[test]

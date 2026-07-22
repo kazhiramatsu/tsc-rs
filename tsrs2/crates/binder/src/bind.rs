@@ -1144,6 +1144,12 @@ impl<'a> Binder<'a> {
             }
             // Stage 3.4c: bindStaticPropertyAssignment /
             // bindPotentiallyMissingNamespaces (expando properties).
+            // Until those bodies land, record the parent so the
+            // checker can contain member lookups on it (the members
+            // this assignment would declare are unbound).
+            if let Some(parent_symbol) = parent_symbol {
+                self.expando_assignment_targets.insert(parent_symbol);
+            }
         }
         // Stage 3.4c: the JS symbol-producing bodies.
     }

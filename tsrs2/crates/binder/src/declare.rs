@@ -53,6 +53,13 @@ pub struct Binder<'a> {
     /// tsc container.locals, keyed by the scope-owning node.
     pub locals: HashMap<NodeId, SymbolTable>,
     pub bind_diagnostics: DiagnosticList,
+    /// TS-file expando parents: function symbols with at least one
+    /// bindSpecialPropertyAssignment-shaped member assignment
+    /// (44821's function-parent arm). The symbol-producing bodies are
+    /// stage 3.4c — until they land, the checker treats member
+    /// resolution on these symbols as unreliable (their own members
+    /// are unbound) and contains instead of fabricating 2339s.
+    pub expando_assignment_targets: std::collections::HashSet<SymbolId>,
     /// tsc file.classifiableNames (insertion-ordered Set).
     pub classifiable_names: IndexSet<String>,
     /// tsc getSymbolId's lazily-assigned global symbol ids; the counter
@@ -151,6 +158,7 @@ impl<'a> Binder<'a> {
             node_local_symbol: HashMap::new(),
             locals: HashMap::new(),
             bind_diagnostics: Vec::new(),
+            expando_assignment_targets: std::collections::HashSet::new(),
             classifiable_names: IndexSet::new(),
             assigned_symbol_ids: HashMap::new(),
             next_symbol_id,
