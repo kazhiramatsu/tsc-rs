@@ -3862,6 +3862,64 @@ mod tests {
             .intersects(tsrs2_types::NodeFlags::UNREACHABLE));
     }
 
+    fn statement_labels(source: &SourceFile) -> Vec<NodeId> {
+        find_nodes(source, SyntaxKind::LabeledStatement)
+            .into_iter()
+            .filter_map(|statement| match &source.arena.node(statement).data {
+                NodeData::LabeledStatement(data) => data.label,
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn nested_function_break_cannot_see_outer_label() {
+        // bindContainer (42734): a control-flow container saves and
+        // CLEARS activeLabelList (42761/42781/42812), so `break outer`
+        // inside a nested function finds no active label: no flow edge
+        // crosses the function boundary and the outer label stays
+        // unreferenced (stamped Unreachable).
+        let source = parse("outer: { function f() { break outer; } }\n");
+        let binder = bind(&source);
+        let labels = statement_labels(&source);
+        assert!(binder
+            .flags_of(labels[0])
+            .intersects(tsrs2_types::NodeFlags::UNREACHABLE));
+        // The only BranchLabel is outer's post-statement label; the
+        // nested break must not have added a second antecedent.
+        let branch_labels: Vec<_> = (0..binder.flow.len() as u32)
+            .map(crate::flow::FlowId)
+            .filter(|&id| flow_flags(&binder, id).intersects(tsrs2_types::FlowFlags::BRANCH_LABEL))
+            .collect();
+        assert_eq!(branch_labels.len(), 1);
+        assert_eq!(binder.flow.flow(branch_labels[0]).antecedent.len(), 1);
+    }
+
+    #[test]
+    fn class_static_block_break_cannot_see_outer_label() {
+        // ClassStaticBlockDeclaration is a control-flow container
+        // (isImmediatelyInvoked keeps currentFlow flowing through, but
+        // the label list still clears): its `break outer` finds nothing.
+        let source = parse("outer: { class C { static { break outer; } } }\n");
+        let binder = bind(&source);
+        let labels = statement_labels(&source);
+        assert!(binder
+            .flags_of(labels[0])
+            .intersects(tsrs2_types::NodeFlags::UNREACHABLE));
+    }
+
+    #[test]
+    fn label_list_restores_after_nested_container() {
+        // The outer label is visible again once the nested function
+        // ends: the trailing break references it (flag stays clear).
+        let source = parse("outer: { function f() {} break outer; }\n");
+        let binder = bind(&source);
+        let labels = statement_labels(&source);
+        assert!(!binder
+            .flags_of(labels[0])
+            .intersects(tsrs2_types::NodeFlags::UNREACHABLE));
+    }
+
     #[test]
     fn function_in_block_es5_strict_reports_1250_family() {
         let options = CompilerOptions {

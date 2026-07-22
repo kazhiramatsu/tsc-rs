@@ -242,6 +242,9 @@ impl<'a> Binder<'a> {
             let save_continue_target = self.current_continue_target;
             let save_return_target = self.current_return_target;
             let save_exception_target = self.current_exception_target;
+            // 42761 saveActiveLabelList + 42781 `activeLabelList =
+            // undefined`: the take is both the save and the clear.
+            let save_active_label_list = std::mem::take(&mut self.active_label_list);
             let save_has_explicit_return = self.has_explicit_return;
             let save_seen_this_keyword = self.seen_this_keyword;
             let is_immediately_invoked = (container_flags
@@ -332,6 +335,7 @@ impl<'a> Binder<'a> {
             self.current_continue_target = save_continue_target;
             self.current_return_target = save_return_target;
             self.current_exception_target = save_exception_target;
+            self.active_label_list = save_active_label_list;
             self.has_explicit_return = save_has_explicit_return;
             self.seen_this_keyword =
                 if container_flags.intersects(ContainerFlags::PROPAGATES_THIS_KEYWORD) {
