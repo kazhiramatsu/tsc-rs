@@ -1025,6 +1025,60 @@ sites are the signature machinery's Err arms; manifest diff
 reviewed); ledger 17 new tsc-port headers hashed; ratchet +596/+583
 with comment lines.
 
+**Review round (user review, 4 findings — all fixed at the source;
++1 matched both bands, FP=0 both, escapes 250/0/0/116, 894 tests):**
+
+1. **Expando suppression made NAME-PRECISE** (high): the binder
+   records (parent symbol → assigned member names) —
+   getElementOrPropertyAccessName spellings, escaped — instead of a
+   bare parent flag, and every member-miss consult
+   (report_nonexistent_property, the element-access 7053 ladder)
+   suppresses ONLY names an assignment would have bound: `foo.y`,
+   `alias.q`, `foo["z"]` keep their real 2339/7053 rows. The
+   failed-declaration-relation containment stays symbol-level
+   (relation verdicts cannot be name-precise). The expando'd
+   DECLARATION symbol also gained its display face: tsc's binding
+   namespaces the symbol, so the ValueModule disjunct prints
+   `typeof foo` (oracle-probed) — the fn-EXPRESSION flavor flags
+   the variable, not the type's symbol, and keeps the structural
+   face minus the unbound members (recorded stage-3.4c T2 residue).
+2. **Union-target member elaboration through getBestMatchingType**
+   (high): getBestMatchingType (67256) landed as a CheckerState
+   port — findMatchingDiscriminantType /
+   findMatchingTypeReferenceOrTypeAliasReference /
+   findBestTypeForObjectLiteral / findBestTypeForInvokable /
+   findMostOverlappyType over the already-ported discriminant kit
+   (the RelationChecker twin from 9.3b keeps the in-walk
+   comparator; this one carries getBestMatchingType's default
+   assignable probe, which is what the elementwise caller passes) —
+   and the member walk's target lookup re-probes the best-matching
+   constituent for union targets
+   (getBestMatchIndexedAccessTypeOrUndefined 64103-64114, both the
+   object and array walks; the 9.3a-era calls.rs union containment
+   retired with it). `{ m: () => string } | { x: number }` sources
+   now row at `m`, head suppressed.
+3. **isOptionalParameter's IIFE arm counts EFFECTIVE arguments**
+   (medium): getEffectiveCallArguments expands spread tuples, so
+   `(function f(a, b) {...})(...[1, ""] as const)` displays
+   `(a: 1, b: "") => void` — no phantom `?`.
+4. **The optional-member face rides the 65185 nullable-candidate
+   substitution, not removeMissingType** (medium): probing showed
+   removeMissingType is exactOptionalPropertyTypes-gated identity
+   under default options, while isRelatedTo's entry substitutes a
+   [nullable, X] / [nullable, nullable, X] union target with X for
+   a DefinitelyNonNullable source — THAT is why `{ m?: () => string }`
+   members (and `let v: string | undefined = n` heads) report
+   against `() => string` alone while two-real-member unions keep
+   the union face (oracle-probed U1-U5). Ported as
+   nullable_stripped_report_target at both report entries
+   (assignable + comparable), where tsc's in-engine reporting sees
+   the substituted pair; the elementwise report tail ALSO carries
+   the faithful removeMissingType pair for the exactOptional
+   corpus. Review overreach note: the fresh-literal discriminated-
+   union control (`{kind:"a",v:1}` into a two-object union) exposed
+   a PRE-EXISTING verdict FN (the port relates it) — outside this
+   slice, pinned via the declared-source twin instead.
+
 ## Working rules
 
 - Curtain retirement = FP-shield removal. Every widened display arm

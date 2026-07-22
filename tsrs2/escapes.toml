@@ -287,13 +287,6 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
-in = "array_literal_elaboration_would_report"
-reason = "getBestMatchingType union-target elaboration probe (T2)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/calls.rs"
 in = "check_applicable_signature_for_jsx_call_like_element"
 reason = "JSX attributes relation reporting (elaborateJsxComponents / headless reportRelationError, T2)"
 class = "stage"

@@ -2654,6 +2654,55 @@ impl<'a> CheckerState<'a> {
 
     // ---- relation reporting (the 5.4 slice) ----
 
+    /// tsc-port: isRelatedTo @6.0.3 (the nullable-candidate substitution)
+    /// tsc-hash: e700526d3ad4ff20b24e5f5218b2fe969a0745358f190ce915314e8fbe2eac9f
+    /// tsc-span: _tsc.js:65185-65196
+    ///
+    /// A DefinitelyNonNullable source against a 2-member
+    /// [nullable, X] or 3-member [nullable, nullable, X] union
+    /// substitutes X for the WHOLE relation level — which is why
+    /// `let v: string | undefined = 1` reports `number ↛ string`
+    /// while two-real-member unions keep the union face
+    /// (oracle-probed U1-U5). Verdicts are unchanged (a definitely
+    /// non-nullable source relates to the union iff it relates to
+    /// X); the port applies the substitution at its report entries,
+    /// where tsc's in-engine reportRelationError sees the
+    /// substituted pair. Nullable members sort first in union lists,
+    /// matching tsc's positional probe.
+    fn nullable_stripped_report_target(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<TypeId> {
+        if !self
+            .tables
+            .flags_of(source)
+            .intersects(TypeFlags::DEFINITELY_NON_NULLABLE)
+            || !self.tables.flags_of(target).intersects(TypeFlags::UNION)
+        {
+            return Ok(target);
+        }
+        let types = match &self.tables.type_of(target).data {
+            TypeData::Union { types, .. } => types.to_vec(),
+            _ => return Ok(target),
+        };
+        let nullable =
+            |state: &Self, t: TypeId| state.tables.flags_of(t).intersects(TypeFlags::NULLABLE);
+        let candidate = if types.len() == 2 && nullable(self, types[0]) {
+            Some(types[1])
+        } else if types.len() == 3 && nullable(self, types[0]) && nullable(self, types[1]) {
+            Some(types[2])
+        } else {
+            None
+        };
+        match candidate {
+            Some(candidate) if !nullable(self, candidate) => {
+                self.get_normalized_type(candidate, /*writing*/ true)
+            }
+            _ => Ok(target),
+        }
+    }
+
     /// tsc-port: checkTypeAssignableTo @6.0.3 (5.4 slice)
     /// tsc-hash: c54f432c89f2f52677994a63f73b2d9e30dadfe890712c62749b4aab33e7f833
     /// tsc-span: _tsc.js:63931-63933
@@ -2681,6 +2730,12 @@ impl<'a> CheckerState<'a> {
         let related = self.is_type_assignable_to(source, target)?;
         if !related {
             if let Some(error_node) = error_node {
+                // The 65185 nullable-candidate substitution runs at
+                // the failing level's entry — every report arm below
+                // (excess/common-property heads, unmatched-property
+                // faces, the rendered pair) sees the substituted
+                // target, exactly like tsc's in-engine reporting.
+                let target = self.nullable_stripped_report_target(source, target)?;
                 // An EXPLICIT tsc headMessage chains OUTERMOST
                 // unconditionally (64860: errorInfo =
                 // chainDiagnosticMessages(errorInfo, headMessage)) —
@@ -3329,6 +3384,9 @@ impl<'a> CheckerState<'a> {
         let related = self.is_type_comparable_to(source, target)?;
         if !related {
             if let Some(error_node) = error_node {
+                // 65185 nullable-candidate substitution (see the
+                // assignable twin).
+                let target = self.nullable_stripped_report_target(source, target)?;
                 // isRelatedTo's excess-property arm runs under the
                 // comparable relation too (65353) — a fresh-literal
                 // case expression reports the parent-skipped
@@ -4035,6 +4093,24 @@ impl<'a> CheckerState<'a> {
                 return Err(Unsupported::new(
                     "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
                 ));
+            }
+            if symbol_flags.intersects(tsrs2_types::SymbolFlags::FUNCTION)
+                && self.binder.symbol_has_expando_assignment(symbol)
+            {
+                // tsc's expando binding gives the DECLARATION symbol a
+                // namespace face (bindPotentiallyMissingNamespaces),
+                // so the ValueModule disjunct (51779) prints it under
+                // the Value meaning — `typeof foo` (oracle-probed).
+                // The fn-EXPRESSION flavor flags the VARIABLE symbol
+                // instead, so its type renders structurally MINUS the
+                // unbound members (tsc prints them: recorded
+                // stage-3.4c T2 residue; the row keys are unaffected).
+                let name = if fully_qualified {
+                    self.get_fully_qualified_name(symbol)
+                } else {
+                    self.symbol_display_name(symbol)
+                };
+                return Ok((format!("typeof {name}"), SliceTypeNodeKind::TypeQuery));
             }
         }
         if self.slice_visited_types.contains(&ty) {
@@ -4865,10 +4941,10 @@ impl<'a> CheckerState<'a> {
         let parent = self.parent_of(node);
         if let Some(parent) = parent {
             if let Some(iife) = self.get_immediately_invoked_function_expression(parent) {
-                let argument_count = match self.data_of(iife) {
-                    NodeData::CallExpression(data) => self.nodes_of(data.arguments).len(),
-                    _ => 0,
-                };
+                // 59524: getEffectiveCallArguments — tuple spreads
+                // expand per element (`(...[1, ""] as const)` counts
+                // 2), so the syntactic argument list undercounts.
+                let argument_count = self.get_effective_call_arguments(iife)?.len();
                 let parameters = match self.data_of(parent) {
                     NodeData::FunctionExpression(data) => self.nodes_of(data.parameters),
                     NodeData::ArrowFunction(data) => self.nodes_of(data.parameters),
@@ -7208,6 +7284,132 @@ mod tests {
                     "Property 'prop' does not exist on type 'typeof EC'.".to_owned()
                 )
             ]
+        );
+    }
+
+    // ---- 9.3b2 review-round pins (expando name-precision, union
+    // best-match, IIFE effective args, optional missing removal) ----
+
+    #[test]
+    fn expando_suppression_is_name_precise() {
+        // Only the ASSIGNED member suppresses; other names miss in
+        // tsc too — y/q report 2339, "z" reports 7053, and the
+        // expando'd declaration symbol displays `typeof foo`
+        // (oracle-probed byte rows).
+        assert_eq!(
+            checked_diags(
+                "function foo() {}\nfoo.x = 1;\nfoo.y;\nfoo[\"z\"];\nconst alias = foo;\nalias.q;\nvar ok: number = foo.x;\n"
+            ),
+            [
+                (
+                    2339,
+                    33,
+                    1,
+                    "Property 'y' does not exist on type 'typeof foo'.".to_owned()
+                ),
+                (
+                    7053,
+                    36,
+                    8,
+                    "Element implicitly has an 'any' type because expression of type '\"z\"' can't be used to index type 'typeof foo'."
+                        .to_owned()
+                ),
+                (
+                    2339,
+                    71,
+                    1,
+                    "Property 'q' does not exist on type 'typeof foo'.".to_owned()
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn union_target_member_elaborates_through_best_match() {
+        // getBestMatchIndexedAccessTypeOrUndefined's union leg: the
+        // member row lands on `m` (the head suppresses), method and
+        // plain flavors alike.
+        assert_eq!(
+            checked_diags("let o: { m: () => string } | { x: number } = { m() { return 1 } };\n"),
+            [(
+                2322,
+                47,
+                1,
+                "Type '() => number' is not assignable to type '() => string'.".to_owned()
+            )]
+        );
+        assert_eq!(
+            checked_diags("let o2: { m: string } | { x: number } = { m: 1 };\n"),
+            [(
+                2322,
+                42,
+                1,
+                "Type 'number' is not assignable to type 'string'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn union_target_object_members_keep_the_union_head() {
+        // The 65185 substitution needs a NULLABLE-shaped union — an
+        // object-member union keeps the full union face (declared
+        // source; the fresh-literal twin rides a pre-existing
+        // discriminated-union verdict FN outside this slice).
+        assert_eq!(
+            checked_diags(
+                "declare let src3: { kind: \"a\"; v: number };\nlet o3b: { kind: \"a\"; v: string } | { kind: \"b\"; v: number } = src3;\n"
+            ),
+            [(
+                2322,
+                48,
+                3,
+                "Type '{ kind: \"a\"; v: number; }' is not assignable to type '{ kind: \"a\"; v: string; } | { kind: \"b\"; v: number; }'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn iife_optional_probe_counts_effective_arguments() {
+        // isOptionalParameter's IIFE arm reads
+        // getEffectiveCallArguments — the spread tuple counts 2, so
+        // `b` is NOT optional.
+        assert_eq!(
+            checked_diags(
+                "(function f(a, b) {\n    let s: string = f;\n})(...[1, \"\"] as const);\n"
+            ),
+            [(
+                2322,
+                28,
+                1,
+                "Type '(a: 1, b: \"\") => void' is not assignable to type 'string'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn optional_target_member_reports_without_the_missing_type() {
+        // The elaborateElementwise report tail strips the missing
+        // type on optional targets: '() => string', not
+        // '(() => string) | undefined'; shorthand rides the same
+        // tail.
+        assert_eq!(
+            checked_diags("let o4: { m?: () => string } = { m() { return 1 } };\n"),
+            [(
+                2322,
+                33,
+                1,
+                "Type '() => number' is not assignable to type '() => string'.".to_owned()
+            )]
+        );
+        assert_eq!(
+            checked_diags("declare let p: number;\nlet o6: { p?: string } = { p };\n"),
+            [(
+                2322,
+                50,
+                1,
+                "Type 'number' is not assignable to type 'string'.".to_owned()
+            )]
         );
     }
 

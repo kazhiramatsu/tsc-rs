@@ -2632,6 +2632,92 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
+    /// tsc-port: getBestMatchIndexedAccessTypeOrUndefined @6.0.3
+    /// tsc-hash: d9c9a56511cb15f6d99180834836ddea10da6cc2af84f172c7932f6490c2e349
+    /// tsc-span: _tsc.js:64103-64114
+    ///
+    /// The member walk's target-side lookup: property first, then the
+    /// applicable index signature (the port's indexed-access
+    /// modeling), then — for UNION targets only — the same pair over
+    /// getBestMatchingType's constituent. The `targetPropType.flags &
+    /// IndexedAccess` continue is unreachable in this modeling (the
+    /// lookup never yields an IndexedAccess type).
+    fn member_elaboration_target_type(
+        &mut self,
+        expression: NodeId,
+        target_type: TypeId,
+        name_text: &str,
+    ) -> CheckResult2<Option<TypeId>> {
+        if let Some(property) = self.get_property_of_type_full(target_type, name_text)? {
+            return Ok(Some(self.get_type_of_symbol(property)?));
+        }
+        let apparent = self.get_apparent_type(target_type)?;
+        if let Some(info) = self.get_applicable_index_info_for_name_info(apparent, name_text)? {
+            return Ok(Some(info.value_type));
+        }
+        if self
+            .tables
+            .flags_of(target_type)
+            .intersects(TypeFlags::UNION)
+        {
+            let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
+            if let Some(best) = self.get_best_matching_type(source_type, target_type)? {
+                if let Some(property) = self.get_property_of_type_full(best, name_text)? {
+                    return Ok(Some(self.get_type_of_symbol(property)?));
+                }
+                let apparent = self.get_apparent_type(best)?;
+                if let Some(info) =
+                    self.get_applicable_index_info_for_name_info(apparent, name_text)?
+                {
+                    return Ok(Some(info.value_type));
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: elaborateElementwise @6.0.3 (the report-pair tail)
+    /// tsc-hash: c289d4a4008697be6117b4bcd7c5f21e756946f8ccf08d921769996736688326
+    /// tsc-span: _tsc.js:64165-64171
+    ///
+    /// targetIsOptional/sourceIsOptional read the PROPERTY flags on
+    /// the original relation pair; the reported types strip the
+    /// missing type accordingly (under default options missingType IS
+    /// undefinedType, so `{ m?: T }` reports 'T'). The verdict and
+    /// the inner elaboration upstream used the raw pair.
+    fn remove_missing_for_member_report(
+        &mut self,
+        expression: NodeId,
+        target_type: TypeId,
+        name_text: &str,
+        actual: TypeId,
+        expected: TypeId,
+    ) -> CheckResult2<(TypeId, TypeId)> {
+        let target_is_optional = self
+            .get_property_of_type_full(target_type, name_text)?
+            .is_some_and(|property| {
+                self.binder
+                    .symbol(property)
+                    .flags
+                    .intersects(tsrs2_types::SymbolFlags::OPTIONAL)
+            });
+        let source_is_optional = if target_is_optional {
+            let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
+            self.get_property_of_type_full(source_type, name_text)?
+                .is_some_and(|property| {
+                    self.binder
+                        .symbol(property)
+                        .flags
+                        .intersects(tsrs2_types::SymbolFlags::OPTIONAL)
+                })
+        } else {
+            false
+        };
+        let expected = self.remove_missing_type(expected, target_is_optional);
+        let actual = self.remove_missing_type(actual, target_is_optional && source_is_optional);
+        Ok((actual, expected))
+    }
+
     /// tsrs-native: the literal-value rows of elaborateError used by
     /// `satisfies`. Returning true means at least one inner relation
     /// diagnostic was emitted, so the caller must not also emit the
@@ -2813,19 +2899,18 @@ impl<'a> CheckerState<'a> {
                     // indexed access (64131): a property miss falls
                     // through to the APPLICABLE INDEX SIGNATURE's
                     // value type (the numeric-indexer member rows ride
-                    // it); neither → the element is skipped, exactly
-                    // tsc's `if (!targetPropType) continue`.
-                    let expected = match self.get_property_of_type_full(target_type, &name_text)? {
-                        Some(expected_property) => self.get_type_of_symbol(expected_property)?,
-                        None => {
-                            let apparent = self.get_apparent_type(target_type)?;
-                            match self
-                                .get_applicable_index_info_for_name_info(apparent, &name_text)?
-                            {
-                                Some(info) => info.value_type,
-                                None => continue,
-                            }
-                        }
+                    // it); a UNION target without a direct member
+                    // re-probes the best-matching constituent
+                    // (getBestMatchIndexedAccessTypeOrUndefined,
+                    // 64103-64114); nothing → the element is skipped,
+                    // exactly tsc's `if (!targetPropType) continue`.
+                    let expected = match self.member_elaboration_target_type(
+                        expression,
+                        target_type,
+                        &name_text,
+                    )? {
+                        Some(expected) => expected,
+                        None => continue,
                     };
                     let actual = if member_lookup {
                         // Method/accessor entries: sourcePropType =
@@ -2899,6 +2984,22 @@ impl<'a> CheckerState<'a> {
                     } else {
                         &tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1
                     };
+                    // 64165-64171: the REPORTED pair strips the
+                    // MISSING type on optional targets (and optional
+                    // sources when the target is) — live under
+                    // exactOptionalPropertyTypes only (removeMissingType
+                    // is identity otherwise); the everyday
+                    // `{ m?: T }` face reports 'T' via the reporter's
+                    // 65185 nullable-candidate substitution instead.
+                    // The raw pair fed the verdict and the inner
+                    // recursion above.
+                    let (actual, expected) = self.remove_missing_for_member_report(
+                        expression,
+                        target_type,
+                        &name_text,
+                        actual,
+                        expected,
+                    )?;
                     self.check_type_assignable_to(actual, expected, Some(name), message)?;
                 }
             }
@@ -2937,19 +3038,24 @@ impl<'a> CheckerState<'a> {
                     // property first, then the applicable index
                     // signature (arrays and numeric-indexed object
                     // literals alike).
-                    let expected = match self.get_property_of_type_full(target_type, &index_name)? {
-                        Some(property) => self.get_type_of_symbol(property)?,
-                        None => {
-                            if self.is_tuple_like_type(target_type)? {
-                                continue;
-                            }
-                            let apparent = self.get_apparent_type(target_type)?;
-                            match self
-                                .get_applicable_index_info_for_name_info(apparent, &index_name)?
-                            {
-                                Some(info) => info.value_type,
-                                None => continue,
-                            }
+                    let expected = if self.is_tuple_like_type(target_type)?
+                        && self
+                            .get_property_of_type_full(target_type, &index_name)?
+                            .is_none()
+                    {
+                        // generateLimitedTupleElements (64393-64401)
+                        // skips an element a TUPLE-LIKE target has no
+                        // property for (the arity mismatch reports at
+                        // the outer head).
+                        continue;
+                    } else {
+                        match self.member_elaboration_target_type(
+                            expression,
+                            target_type,
+                            &index_name,
+                        )? {
+                            Some(expected) => expected,
+                            None => continue,
                         }
                     };
                     let actual = self.check_expression_cached(element, CheckMode::NORMAL)?;
@@ -2970,6 +3076,14 @@ impl<'a> CheckerState<'a> {
                     )? {
                         continue;
                     }
+                    // 64168-64171 (shared elaborateElementwise tail).
+                    let (actual, expected) = self.remove_missing_for_member_report(
+                        expression,
+                        target_type,
+                        &index_name,
+                        actual,
+                        expected,
+                    )?;
                     self.check_type_assignable_to(
                         actual,
                         expected,

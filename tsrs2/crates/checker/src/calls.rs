@@ -2638,10 +2638,12 @@ impl<'a> CheckerState<'a> {
                 continue;
             }
             let name_type = self.tables.get_number_literal_type(i as f64);
-            // getBestMatchIndexedAccessTypeOrUndefined (64103): the
-            // union-target discriminant fallback is unmodeled — a
-            // union target without a direct indexed access contains.
-            let target_prop = self.get_indexed_access_type_or_undefined(
+            // getBestMatchIndexedAccessTypeOrUndefined (64103-64114):
+            // the direct indexed access, then — union targets only —
+            // the same probe over getBestMatchingType's constituent
+            // (live since 9.3b2-review; the old containment's
+            // "unmodeled" note retired with it).
+            let mut target_prop = self.get_indexed_access_type_or_undefined(
                 target,
                 name_type,
                 tsrs2_types::AccessFlags::NONE,
@@ -2649,12 +2651,19 @@ impl<'a> CheckerState<'a> {
                 None,
                 None,
             )?;
-            let Some(target_prop) = target_prop else {
-                if self.tables.flags_of(target).intersects(TypeFlags::UNION) {
-                    return Err(Unsupported::new(
-                        "getBestMatchingType union-target elaboration probe (T2)",
-                    ));
+            if target_prop.is_none() && self.tables.flags_of(target).intersects(TypeFlags::UNION) {
+                if let Some(best) = self.get_best_matching_type(source, target)? {
+                    target_prop = self.get_indexed_access_type_or_undefined(
+                        best,
+                        name_type,
+                        tsrs2_types::AccessFlags::NONE,
+                        None,
+                        None,
+                        None,
+                    )?;
                 }
+            }
+            let Some(target_prop) = target_prop else {
                 continue;
             };
             if self

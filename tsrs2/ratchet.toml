@@ -134,8 +134,11 @@
 # expansion, the annotation-reuse channel) + the fabrication-audit
 # source fixes (shouldReportUnmatchedPropertyError, elaborateArrowFunction,
 # TS-expando member suppression).
-rate = 0.573923
-matched = 28136
+# p9 9.3b2 review round: +1/+1 (name-precise expando suppression,
+# union best-match member rows, IIFE effective-arg optionality, the
+# 65185 nullable-candidate report substitution).
+rate = 0.573943
+matched = 28137
 total = 49024
 allowed_regression = 0.0
 
@@ -168,8 +171,9 @@ allowed_regression = 0.0
 # p9 9.3b: +407 with the anonymous-object display arm + the seven
 # fabrication-family source fixes (see the T0 comment).
 # p9 9.3b2: +583 with the signature rung (see the T0 comment).
-rate = 0.831219
-matched = 17498
+# p9 9.3b2 review round: +1 (see the T0 comment).
+rate = 0.831267
+matched = 17499
 total = 21051
 allowed_regression = 0.0
 
