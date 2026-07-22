@@ -53,12 +53,12 @@ pub struct ArrayTypeData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ArrowFunctionData {
-    pub modifiers: Option<NodeArrayId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
     pub r#type: Option<NodeId>,
-    pub equals_greater_than_token: Option<NodeId>,
     pub body: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
+    pub equals_greater_than_token: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -86,9 +86,9 @@ pub struct BinaryExpressionData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct BindingElementData {
-    pub dot_dot_dot_token: Option<NodeId>,
-    pub property_name: Option<NodeId>,
     pub name: Option<NodeId>,
+    pub property_name: Option<NodeId>,
+    pub dot_dot_dot_token: Option<NodeId>,
     pub initializer: Option<NodeId>,
 }
 
@@ -136,26 +136,26 @@ pub struct CatchClauseData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ClassDeclarationData {
-    pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub heritage_clauses: Option<NodeArrayId>,
     pub members: Option<NodeArrayId>,
+    pub modifiers: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ClassExpressionData {
-    pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub heritage_clauses: Option<NodeArrayId>,
     pub members: Option<NodeArrayId>,
+    pub modifiers: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ClassStaticBlockDeclarationData {
-    pub modifiers: Option<NodeArrayId>,
     pub body: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -194,20 +194,20 @@ pub struct ConstructSignatureData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConstructorData {
-    pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
     pub r#type: Option<NodeId>,
     pub body: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConstructorTypeData {
-    pub modifiers: Option<NodeArrayId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
     pub r#type: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -251,8 +251,8 @@ pub struct EmptyStatementData {}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct EnumDeclarationData {
-    pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
     pub members: Option<NodeArrayId>,
 }
 
@@ -264,15 +264,15 @@ pub struct EnumMemberData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ExportAssignmentData {
-    pub is_export_equals: Option<bool>,
     pub modifiers: Option<NodeArrayId>,
+    pub is_export_equals: Option<bool>,
     pub expression: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ExportDeclarationData {
-    pub is_type_only: bool,
     pub modifiers: Option<NodeArrayId>,
+    pub is_type_only: bool,
     pub export_clause: Option<NodeId>,
     pub module_specifier: Option<NodeId>,
     pub attributes: Option<NodeId>,
@@ -280,9 +280,9 @@ pub struct ExportDeclarationData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ExportSpecifierData {
+    pub name: Option<NodeId>,
     pub is_type_only: bool,
     pub property_name: Option<NodeId>,
-    pub name: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -292,8 +292,8 @@ pub struct ExpressionStatementData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ExpressionWithTypeArgumentsData {
-    pub expression: Option<NodeId>,
     pub type_arguments: Option<NodeArrayId>,
+    pub expression: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -303,65 +303,65 @@ pub struct ExternalModuleReferenceData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ForInStatementData {
+    pub statement: Option<NodeId>,
     pub initializer: Option<NodeId>,
     pub expression: Option<NodeId>,
-    pub statement: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ForOfStatementData {
+    pub statement: Option<NodeId>,
     pub await_modifier: Option<NodeId>,
     pub initializer: Option<NodeId>,
     pub expression: Option<NodeId>,
-    pub statement: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ForStatementData {
+    pub statement: Option<NodeId>,
     pub initializer: Option<NodeId>,
     pub condition: Option<NodeId>,
     pub incrementor: Option<NodeId>,
-    pub statement: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct FunctionDeclarationData {
-    pub modifiers: Option<NodeArrayId>,
-    pub asterisk_token: Option<NodeId>,
     pub name: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
     pub r#type: Option<NodeId>,
+    pub asterisk_token: Option<NodeId>,
     pub body: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct FunctionExpressionData {
-    pub modifiers: Option<NodeArrayId>,
-    pub asterisk_token: Option<NodeId>,
     pub name: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
     pub r#type: Option<NodeId>,
+    pub asterisk_token: Option<NodeId>,
     pub body: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct FunctionTypeData {
-    pub modifiers: Option<NodeArrayId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
     pub r#type: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct GetAccessorData {
-    pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
     pub r#type: Option<NodeId>,
     pub body: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -397,9 +397,9 @@ pub struct ImportAttributesData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImportClauseData {
+    pub name: Option<NodeId>,
     pub is_type_only: bool,
     pub phase_modifier: Option<SyntaxKind>,
-    pub name: Option<NodeId>,
     pub named_bindings: Option<NodeId>,
 }
 
@@ -413,26 +413,26 @@ pub struct ImportDeclarationData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImportEqualsDeclarationData {
-    pub is_type_only: bool,
-    pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
+    pub is_type_only: bool,
     pub module_reference: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImportSpecifierData {
-    pub is_type_only: bool,
-    pub property_name: Option<NodeId>,
     pub name: Option<NodeId>,
+    pub property_name: Option<NodeId>,
+    pub is_type_only: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ImportTypeData {
+    pub type_arguments: Option<NodeArrayId>,
     pub is_type_of: bool,
     pub argument: Option<NodeId>,
     pub attributes: Option<NodeId>,
     pub qualifier: Option<NodeId>,
-    pub type_arguments: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -442,10 +442,10 @@ pub struct ImportTypeAssertionContainerData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct IndexSignatureData {
-    pub modifiers: Option<NodeArrayId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
     pub r#type: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -461,8 +461,8 @@ pub struct InferTypeData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct InterfaceDeclarationData {
-    pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
     pub type_parameters: Option<NodeArrayId>,
     pub heritage_clauses: Option<NodeArrayId>,
     pub members: Option<NodeArrayId>,
@@ -475,15 +475,15 @@ pub struct IntersectionTypeData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocData {
-    pub comment: Option<NodeArrayId>,
     pub tags: Option<NodeArrayId>,
+    pub comment: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocAugmentsTagData {
     pub tag_name: Option<NodeId>,
-    pub class: Option<NodeId>,
     pub comment: Option<NodeArrayId>,
+    pub class: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -495,9 +495,9 @@ pub struct JSDocAuthorTagData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocCallbackTagData {
     pub tag_name: Option<NodeId>,
+    pub comment: Option<NodeArrayId>,
     pub full_name: Option<NodeId>,
     pub type_expression: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -515,8 +515,8 @@ pub struct JSDocDeprecatedTagData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocEnumTagData {
     pub tag_name: Option<NodeId>,
-    pub type_expression: Option<NodeId>,
     pub comment: Option<NodeArrayId>,
+    pub type_expression: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -528,17 +528,17 @@ pub struct JSDocFunctionTypeData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocImplementsTagData {
     pub tag_name: Option<NodeId>,
-    pub class: Option<NodeId>,
     pub comment: Option<NodeArrayId>,
+    pub class: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocImportTagData {
     pub tag_name: Option<NodeId>,
+    pub comment: Option<NodeArrayId>,
     pub import_clause: Option<NodeId>,
     pub module_specifier: Option<NodeId>,
     pub attributes: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -585,8 +585,8 @@ pub struct JSDocOptionalTypeData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocOverloadTagData {
     pub tag_name: Option<NodeId>,
-    pub type_expression: Option<NodeId>,
     pub comment: Option<NodeArrayId>,
+    pub type_expression: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -598,9 +598,9 @@ pub struct JSDocOverrideTagData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocParameterTagData {
     pub tag_name: Option<NodeId>,
+    pub comment: Option<NodeArrayId>,
     pub name: Option<NodeId>,
     pub type_expression: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -612,9 +612,9 @@ pub struct JSDocPrivateTagData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocPropertyTagData {
     pub tag_name: Option<NodeId>,
+    pub comment: Option<NodeArrayId>,
     pub name: Option<NodeId>,
     pub type_expression: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -638,22 +638,22 @@ pub struct JSDocReadonlyTagData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocReturnTagData {
     pub tag_name: Option<NodeId>,
-    pub type_expression: Option<NodeId>,
     pub comment: Option<NodeArrayId>,
+    pub type_expression: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocSatisfiesTagData {
     pub tag_name: Option<NodeId>,
-    pub type_expression: Option<NodeId>,
     pub comment: Option<NodeArrayId>,
+    pub type_expression: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocSeeTagData {
     pub tag_name: Option<NodeId>,
-    pub name: Option<NodeId>,
     pub comment: Option<NodeArrayId>,
+    pub name: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -670,23 +670,23 @@ pub struct JSDocTagData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocTemplateTagData {
     pub tag_name: Option<NodeId>,
+    pub comment: Option<NodeArrayId>,
     pub constraint: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
-    pub comment: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocThisTagData {
     pub tag_name: Option<NodeId>,
-    pub type_expression: Option<NodeId>,
     pub comment: Option<NodeArrayId>,
+    pub type_expression: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocThrowsTagData {
     pub tag_name: Option<NodeId>,
-    pub type_expression: Option<NodeId>,
     pub comment: Option<NodeArrayId>,
+    pub type_expression: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -700,16 +700,16 @@ pub struct JSDocTypeLiteralData {}
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocTypeTagData {
     pub tag_name: Option<NodeId>,
-    pub type_expression: Option<NodeId>,
     pub comment: Option<NodeArrayId>,
+    pub type_expression: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocTypedefTagData {
     pub tag_name: Option<NodeId>,
-    pub type_expression: Option<NodeId>,
-    pub full_name: Option<NodeId>,
     pub comment: Option<NodeArrayId>,
+    pub full_name: Option<NodeId>,
+    pub type_expression: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -755,8 +755,8 @@ pub struct JsxFragmentData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JsxNamespacedNameData {
-    pub namespace: Option<NodeId>,
     pub name: Option<NodeId>,
+    pub namespace: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -813,25 +813,25 @@ pub struct MetaPropertyData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct MethodDeclarationData {
-    pub modifiers: Option<NodeArrayId>,
-    pub asterisk_token: Option<NodeId>,
     pub name: Option<NodeId>,
-    pub question_token: Option<NodeId>,
-    pub exclamation_token: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
     pub r#type: Option<NodeId>,
+    pub asterisk_token: Option<NodeId>,
+    pub question_token: Option<NodeId>,
+    pub exclamation_token: Option<NodeId>,
     pub body: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct MethodSignatureData {
-    pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
-    pub question_token: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
     pub r#type: Option<NodeId>,
+    pub question_token: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -846,8 +846,8 @@ pub struct ModuleBlockData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ModuleDeclarationData {
-    pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
     pub body: Option<NodeId>,
 }
 
@@ -876,8 +876,8 @@ pub struct NamespaceExportData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct NamespaceExportDeclarationData {
-    pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -888,9 +888,9 @@ pub struct NamespaceImportData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct NewExpressionData {
     pub expression: Option<NodeId>,
-    pub question_dot_token: Option<NodeId>,
     pub type_arguments: Option<NodeArrayId>,
     pub arguments: Option<NodeArrayId>,
+    pub question_dot_token: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -929,9 +929,9 @@ pub struct OptionalTypeData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ParameterData {
+    pub name: Option<NodeId>,
     pub modifiers: Option<NodeArrayId>,
     pub dot_dot_dot_token: Option<NodeId>,
-    pub name: Option<NodeId>,
     pub question_token: Option<NodeId>,
     pub r#type: Option<NodeId>,
     pub initializer: Option<NodeId>,
@@ -954,8 +954,8 @@ pub struct PartiallyEmittedExpressionData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PostfixUnaryExpressionData {
-    pub operator: SyntaxKind,
     pub operand: Option<NodeId>,
+    pub operator: SyntaxKind,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -972,24 +972,24 @@ pub struct PrivateIdentifierData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PropertyAccessExpressionData {
+    pub name: Option<NodeId>,
     pub expression: Option<NodeId>,
     pub question_dot_token: Option<NodeId>,
-    pub name: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PropertyAssignmentData {
-    pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
+    pub initializer: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
     pub question_token: Option<NodeId>,
     pub exclamation_token: Option<NodeId>,
-    pub initializer: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PropertyDeclarationData {
-    pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
     pub question_token: Option<NodeId>,
     pub exclamation_token: Option<NodeId>,
     pub r#type: Option<NodeId>,
@@ -998,9 +998,9 @@ pub struct PropertyDeclarationData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PropertySignatureData {
-    pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
     pub question_token: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
     pub r#type: Option<NodeId>,
     pub initializer: Option<NodeId>,
 }
@@ -1034,22 +1034,22 @@ pub struct SatisfiesExpressionData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SetAccessorData {
-    pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
     pub r#type: Option<NodeId>,
     pub body: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ShorthandPropertyAssignmentData {
-    pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
-    pub question_token: Option<NodeId>,
-    pub exclamation_token: Option<NodeId>,
     pub equals_token: Option<NodeId>,
     pub object_assignment_initializer: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
+    pub question_token: Option<NodeId>,
+    pub exclamation_token: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1085,9 +1085,9 @@ pub struct SyntaxListData {}
 #[derive(Clone, Debug, PartialEq)]
 pub struct TaggedTemplateExpressionData {
     pub tag: Option<NodeId>,
-    pub question_dot_token: Option<NodeId>,
     pub type_arguments: Option<NodeArrayId>,
     pub template: Option<NodeId>,
+    pub question_dot_token: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1151,8 +1151,8 @@ pub struct TupleTypeData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TypeAliasDeclarationData {
-    pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
     pub type_parameters: Option<NodeArrayId>,
     pub r#type: Option<NodeId>,
 }
@@ -1181,8 +1181,8 @@ pub struct TypeOperatorData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TypeParameterData {
-    pub modifiers: Option<NodeArrayId>,
     pub name: Option<NodeId>,
+    pub modifiers: Option<NodeArrayId>,
     pub constraint: Option<NodeId>,
     pub r#default: Option<NodeId>,
     pub expression: Option<NodeId>,
@@ -1197,14 +1197,14 @@ pub struct TypePredicateData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TypeQueryData {
-    pub expr_name: Option<NodeId>,
     pub type_arguments: Option<NodeArrayId>,
+    pub expr_name: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TypeReferenceData {
-    pub type_name: Option<NodeId>,
     pub type_arguments: Option<NodeArrayId>,
+    pub type_name: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1238,8 +1238,8 @@ pub struct VoidExpressionData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct WhileStatementData {
-    pub expression: Option<NodeId>,
     pub statement: Option<NodeId>,
+    pub expression: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1658,12 +1658,12 @@ impl NodeData {
             }
             SyntaxKind::ArrayType => Self::ArrayType(ArrayTypeData { element_type: None }),
             SyntaxKind::ArrowFunction => Self::ArrowFunction(ArrowFunctionData {
-                modifiers: None,
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
-                equals_greater_than_token: None,
                 body: None,
+                modifiers: None,
+                equals_greater_than_token: None,
             }),
             SyntaxKind::AsExpression => Self::AsExpression(AsExpressionData {
                 expression: None,
@@ -1681,9 +1681,9 @@ impl NodeData {
                 right: None,
             }),
             SyntaxKind::BindingElement => Self::BindingElement(BindingElementData {
-                dot_dot_dot_token: None,
-                property_name: None,
                 name: None,
+                property_name: None,
+                dot_dot_dot_token: None,
                 initializer: None,
             }),
             SyntaxKind::Block => Self::Block(BlockData { statements: None }),
@@ -1709,23 +1709,23 @@ impl NodeData {
                 block: None,
             }),
             SyntaxKind::ClassDeclaration => Self::ClassDeclaration(ClassDeclarationData {
-                modifiers: None,
                 name: None,
                 type_parameters: None,
                 heritage_clauses: None,
                 members: None,
+                modifiers: None,
             }),
             SyntaxKind::ClassExpression => Self::ClassExpression(ClassExpressionData {
-                modifiers: None,
                 name: None,
                 type_parameters: None,
                 heritage_clauses: None,
                 members: None,
+                modifiers: None,
             }),
             SyntaxKind::ClassStaticBlockDeclaration => {
                 Self::ClassStaticBlockDeclaration(ClassStaticBlockDeclarationData {
-                    modifiers: None,
                     body: None,
+                    modifiers: None,
                 })
             }
             SyntaxKind::CommaListExpression => {
@@ -1755,18 +1755,18 @@ impl NodeData {
                 r#type: None,
             }),
             SyntaxKind::Constructor => Self::Constructor(ConstructorData {
-                modifiers: None,
                 name: None,
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
                 body: None,
+                modifiers: None,
             }),
             SyntaxKind::ConstructorType => Self::ConstructorType(ConstructorTypeData {
-                modifiers: None,
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
+                modifiers: None,
             }),
             SyntaxKind::ContinueStatement => {
                 Self::ContinueStatement(ContinueStatementData { label: None })
@@ -1792,8 +1792,8 @@ impl NodeData {
             }
             SyntaxKind::EmptyStatement => Self::EmptyStatement(EmptyStatementData {}),
             SyntaxKind::EnumDeclaration => Self::EnumDeclaration(EnumDeclarationData {
-                modifiers: None,
                 name: None,
+                modifiers: None,
                 members: None,
             }),
             SyntaxKind::EnumMember => Self::EnumMember(EnumMemberData {
@@ -1801,82 +1801,82 @@ impl NodeData {
                 initializer: None,
             }),
             SyntaxKind::ExportAssignment => Self::ExportAssignment(ExportAssignmentData {
-                is_export_equals: None,
                 modifiers: None,
+                is_export_equals: None,
                 expression: None,
             }),
             SyntaxKind::ExportDeclaration => Self::ExportDeclaration(ExportDeclarationData {
-                is_type_only: false,
                 modifiers: None,
+                is_type_only: false,
                 export_clause: None,
                 module_specifier: None,
                 attributes: None,
             }),
             SyntaxKind::ExportSpecifier => Self::ExportSpecifier(ExportSpecifierData {
+                name: None,
                 is_type_only: false,
                 property_name: None,
-                name: None,
             }),
             SyntaxKind::ExpressionStatement => {
                 Self::ExpressionStatement(ExpressionStatementData { expression: None })
             }
             SyntaxKind::ExpressionWithTypeArguments => {
                 Self::ExpressionWithTypeArguments(ExpressionWithTypeArgumentsData {
-                    expression: None,
                     type_arguments: None,
+                    expression: None,
                 })
             }
             SyntaxKind::ExternalModuleReference => {
                 Self::ExternalModuleReference(ExternalModuleReferenceData { expression: None })
             }
             SyntaxKind::ForInStatement => Self::ForInStatement(ForInStatementData {
+                statement: None,
                 initializer: None,
                 expression: None,
-                statement: None,
             }),
             SyntaxKind::ForOfStatement => Self::ForOfStatement(ForOfStatementData {
+                statement: None,
                 await_modifier: None,
                 initializer: None,
                 expression: None,
-                statement: None,
             }),
             SyntaxKind::ForStatement => Self::ForStatement(ForStatementData {
+                statement: None,
                 initializer: None,
                 condition: None,
                 incrementor: None,
-                statement: None,
             }),
             SyntaxKind::FunctionDeclaration => Self::FunctionDeclaration(FunctionDeclarationData {
-                modifiers: None,
-                asterisk_token: None,
                 name: None,
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
+                asterisk_token: None,
                 body: None,
+                modifiers: None,
             }),
             SyntaxKind::FunctionExpression => Self::FunctionExpression(FunctionExpressionData {
-                modifiers: None,
-                asterisk_token: None,
                 name: None,
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
+                asterisk_token: None,
                 body: None,
+                modifiers: None,
             }),
             SyntaxKind::FunctionType => Self::FunctionType(FunctionTypeData {
-                modifiers: None,
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
+                modifiers: None,
             }),
             SyntaxKind::GetAccessor => Self::GetAccessor(GetAccessorData {
-                modifiers: None,
                 name: None,
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
                 body: None,
+                modifiers: None,
             }),
             SyntaxKind::HeritageClause => Self::HeritageClause(HeritageClauseData {
                 token: SyntaxKind::HeritageClause,
@@ -1900,9 +1900,9 @@ impl NodeData {
                 elements: None,
             }),
             SyntaxKind::ImportClause => Self::ImportClause(ImportClauseData {
+                name: None,
                 is_type_only: false,
                 phase_modifier: None,
-                name: None,
                 named_bindings: None,
             }),
             SyntaxKind::ImportDeclaration => Self::ImportDeclaration(ImportDeclarationData {
@@ -1913,23 +1913,23 @@ impl NodeData {
             }),
             SyntaxKind::ImportEqualsDeclaration => {
                 Self::ImportEqualsDeclaration(ImportEqualsDeclarationData {
-                    is_type_only: false,
-                    modifiers: None,
                     name: None,
+                    modifiers: None,
+                    is_type_only: false,
                     module_reference: None,
                 })
             }
             SyntaxKind::ImportSpecifier => Self::ImportSpecifier(ImportSpecifierData {
-                is_type_only: false,
-                property_name: None,
                 name: None,
+                property_name: None,
+                is_type_only: false,
             }),
             SyntaxKind::ImportType => Self::ImportType(ImportTypeData {
+                type_arguments: None,
                 is_type_of: false,
                 argument: None,
                 attributes: None,
                 qualifier: None,
-                type_arguments: None,
             }),
             SyntaxKind::ImportTypeAssertionContainer => {
                 Self::ImportTypeAssertionContainer(ImportTypeAssertionContainerData {
@@ -1937,10 +1937,10 @@ impl NodeData {
                 })
             }
             SyntaxKind::IndexSignature => Self::IndexSignature(IndexSignatureData {
-                modifiers: None,
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
+                modifiers: None,
             }),
             SyntaxKind::IndexedAccessType => Self::IndexedAccessType(IndexedAccessTypeData {
                 object_type: None,
@@ -1951,8 +1951,8 @@ impl NodeData {
             }),
             SyntaxKind::InterfaceDeclaration => {
                 Self::InterfaceDeclaration(InterfaceDeclarationData {
-                    modifiers: None,
                     name: None,
+                    modifiers: None,
                     type_parameters: None,
                     heritage_clauses: None,
                     members: None,
@@ -1962,13 +1962,13 @@ impl NodeData {
                 Self::IntersectionType(IntersectionTypeData { types: None })
             }
             SyntaxKind::JSDoc => Self::JSDoc(JSDocData {
-                comment: None,
                 tags: None,
+                comment: None,
             }),
             SyntaxKind::JSDocAugmentsTag => Self::JSDocAugmentsTag(JSDocAugmentsTagData {
                 tag_name: None,
-                class: None,
                 comment: None,
+                class: None,
             }),
             SyntaxKind::JSDocAuthorTag => Self::JSDocAuthorTag(JSDocAuthorTagData {
                 tag_name: None,
@@ -1976,9 +1976,9 @@ impl NodeData {
             }),
             SyntaxKind::JSDocCallbackTag => Self::JSDocCallbackTag(JSDocCallbackTagData {
                 tag_name: None,
+                comment: None,
                 full_name: None,
                 type_expression: None,
-                comment: None,
             }),
             SyntaxKind::JSDocClassTag => Self::JSDocClassTag(JSDocClassTagData {
                 tag_name: None,
@@ -1990,8 +1990,8 @@ impl NodeData {
             }),
             SyntaxKind::JSDocEnumTag => Self::JSDocEnumTag(JSDocEnumTagData {
                 tag_name: None,
-                type_expression: None,
                 comment: None,
+                type_expression: None,
             }),
             SyntaxKind::JSDocFunctionType => Self::JSDocFunctionType(JSDocFunctionTypeData {
                 parameters: None,
@@ -1999,15 +1999,15 @@ impl NodeData {
             }),
             SyntaxKind::JSDocImplementsTag => Self::JSDocImplementsTag(JSDocImplementsTagData {
                 tag_name: None,
-                class: None,
                 comment: None,
+                class: None,
             }),
             SyntaxKind::JSDocImportTag => Self::JSDocImportTag(JSDocImportTagData {
                 tag_name: None,
+                comment: None,
                 import_clause: None,
                 module_specifier: None,
                 attributes: None,
-                comment: None,
             }),
             SyntaxKind::JSDocLink => Self::JSDocLink(JSDocLinkData { name: None }),
             SyntaxKind::JSDocLinkCode => Self::JSDocLinkCode(JSDocLinkCodeData { name: None }),
@@ -2030,8 +2030,8 @@ impl NodeData {
             }
             SyntaxKind::JSDocOverloadTag => Self::JSDocOverloadTag(JSDocOverloadTagData {
                 tag_name: None,
-                type_expression: None,
                 comment: None,
+                type_expression: None,
             }),
             SyntaxKind::JSDocOverrideTag => Self::JSDocOverrideTag(JSDocOverrideTagData {
                 tag_name: None,
@@ -2039,9 +2039,9 @@ impl NodeData {
             }),
             SyntaxKind::JSDocParameterTag => Self::JSDocParameterTag(JSDocParameterTagData {
                 tag_name: None,
+                comment: None,
                 name: None,
                 type_expression: None,
-                comment: None,
             }),
             SyntaxKind::JSDocPrivateTag => Self::JSDocPrivateTag(JSDocPrivateTagData {
                 tag_name: None,
@@ -2049,9 +2049,9 @@ impl NodeData {
             }),
             SyntaxKind::JSDocPropertyTag => Self::JSDocPropertyTag(JSDocPropertyTagData {
                 tag_name: None,
+                comment: None,
                 name: None,
                 type_expression: None,
-                comment: None,
             }),
             SyntaxKind::JSDocProtectedTag => Self::JSDocProtectedTag(JSDocProtectedTagData {
                 tag_name: None,
@@ -2067,18 +2067,18 @@ impl NodeData {
             }),
             SyntaxKind::JSDocReturnTag => Self::JSDocReturnTag(JSDocReturnTagData {
                 tag_name: None,
-                type_expression: None,
                 comment: None,
+                type_expression: None,
             }),
             SyntaxKind::JSDocSatisfiesTag => Self::JSDocSatisfiesTag(JSDocSatisfiesTagData {
                 tag_name: None,
-                type_expression: None,
                 comment: None,
+                type_expression: None,
             }),
             SyntaxKind::JSDocSeeTag => Self::JSDocSeeTag(JSDocSeeTagData {
                 tag_name: None,
-                name: None,
                 comment: None,
+                name: None,
             }),
             SyntaxKind::JSDocSignature => Self::JSDocSignature(JSDocSignatureData { r#type: None }),
             SyntaxKind::JSDocTag => Self::JSDocTag(JSDocTagData {
@@ -2087,19 +2087,19 @@ impl NodeData {
             }),
             SyntaxKind::JSDocTemplateTag => Self::JSDocTemplateTag(JSDocTemplateTagData {
                 tag_name: None,
+                comment: None,
                 constraint: None,
                 type_parameters: None,
-                comment: None,
             }),
             SyntaxKind::JSDocThisTag => Self::JSDocThisTag(JSDocThisTagData {
                 tag_name: None,
-                type_expression: None,
                 comment: None,
+                type_expression: None,
             }),
             SyntaxKind::JSDocThrowsTag => Self::JSDocThrowsTag(JSDocThrowsTagData {
                 tag_name: None,
-                type_expression: None,
                 comment: None,
+                type_expression: None,
             }),
             SyntaxKind::JSDocTypeExpression => {
                 Self::JSDocTypeExpression(JSDocTypeExpressionData { r#type: None })
@@ -2107,14 +2107,14 @@ impl NodeData {
             SyntaxKind::JSDocTypeLiteral => Self::JSDocTypeLiteral(JSDocTypeLiteralData {}),
             SyntaxKind::JSDocTypeTag => Self::JSDocTypeTag(JSDocTypeTagData {
                 tag_name: None,
-                type_expression: None,
                 comment: None,
+                type_expression: None,
             }),
             SyntaxKind::JSDocTypedefTag => Self::JSDocTypedefTag(JSDocTypedefTagData {
                 tag_name: None,
-                type_expression: None,
-                full_name: None,
                 comment: None,
+                full_name: None,
+                type_expression: None,
             }),
             SyntaxKind::JSDocVariadicType => {
                 Self::JSDocVariadicType(JSDocVariadicTypeData { r#type: None })
@@ -2144,8 +2144,8 @@ impl NodeData {
                 closing_fragment: None,
             }),
             SyntaxKind::JsxNamespacedName => Self::JsxNamespacedName(JsxNamespacedNameData {
-                namespace: None,
                 name: None,
+                namespace: None,
             }),
             SyntaxKind::JsxOpeningElement => Self::JsxOpeningElement(JsxOpeningElementData {
                 tag_name: None,
@@ -2184,31 +2184,31 @@ impl NodeData {
                 name: None,
             }),
             SyntaxKind::MethodDeclaration => Self::MethodDeclaration(MethodDeclarationData {
-                modifiers: None,
-                asterisk_token: None,
                 name: None,
+                type_parameters: None,
+                parameters: None,
+                r#type: None,
+                asterisk_token: None,
                 question_token: None,
                 exclamation_token: None,
-                type_parameters: None,
-                parameters: None,
-                r#type: None,
                 body: None,
+                modifiers: None,
             }),
             SyntaxKind::MethodSignature => Self::MethodSignature(MethodSignatureData {
-                modifiers: None,
                 name: None,
-                question_token: None,
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
+                question_token: None,
+                modifiers: None,
             }),
             SyntaxKind::MissingDeclaration => {
                 Self::MissingDeclaration(MissingDeclarationData { modifiers: None })
             }
             SyntaxKind::ModuleBlock => Self::ModuleBlock(ModuleBlockData { statements: None }),
             SyntaxKind::ModuleDeclaration => Self::ModuleDeclaration(ModuleDeclarationData {
-                modifiers: None,
                 name: None,
+                modifiers: None,
                 body: None,
             }),
             SyntaxKind::NamedExports => Self::NamedExports(NamedExportsData { elements: None }),
@@ -2224,8 +2224,8 @@ impl NodeData {
             }
             SyntaxKind::NamespaceExportDeclaration => {
                 Self::NamespaceExportDeclaration(NamespaceExportDeclarationData {
-                    modifiers: None,
                     name: None,
+                    modifiers: None,
                 })
             }
             SyntaxKind::NamespaceImport => {
@@ -2233,9 +2233,9 @@ impl NodeData {
             }
             SyntaxKind::NewExpression => Self::NewExpression(NewExpressionData {
                 expression: None,
-                question_dot_token: None,
                 type_arguments: None,
                 arguments: None,
+                question_dot_token: None,
             }),
             SyntaxKind::NoSubstitutionTemplateLiteral => {
                 Self::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData {
@@ -2258,9 +2258,9 @@ impl NodeData {
             SyntaxKind::OmittedExpression => Self::OmittedExpression(OmittedExpressionData {}),
             SyntaxKind::OptionalType => Self::OptionalType(OptionalTypeData { r#type: None }),
             SyntaxKind::Parameter => Self::Parameter(ParameterData {
+                name: None,
                 modifiers: None,
                 dot_dot_dot_token: None,
-                name: None,
                 question_token: None,
                 r#type: None,
                 initializer: None,
@@ -2278,8 +2278,8 @@ impl NodeData {
             }
             SyntaxKind::PostfixUnaryExpression => {
                 Self::PostfixUnaryExpression(PostfixUnaryExpressionData {
-                    operator: SyntaxKind::PostfixUnaryExpression,
                     operand: None,
+                    operator: SyntaxKind::PostfixUnaryExpression,
                 })
             }
             SyntaxKind::PrefixUnaryExpression => {
@@ -2294,30 +2294,30 @@ impl NodeData {
             }),
             SyntaxKind::PropertyAccessExpression => {
                 Self::PropertyAccessExpression(PropertyAccessExpressionData {
+                    name: None,
                     expression: None,
                     question_dot_token: None,
-                    name: None,
                 })
             }
             SyntaxKind::PropertyAssignment => Self::PropertyAssignment(PropertyAssignmentData {
-                modifiers: None,
                 name: None,
+                initializer: None,
+                modifiers: None,
                 question_token: None,
                 exclamation_token: None,
-                initializer: None,
             }),
             SyntaxKind::PropertyDeclaration => Self::PropertyDeclaration(PropertyDeclarationData {
-                modifiers: None,
                 name: None,
+                modifiers: None,
                 question_token: None,
                 exclamation_token: None,
                 r#type: None,
                 initializer: None,
             }),
             SyntaxKind::PropertySignature => Self::PropertySignature(PropertySignatureData {
-                modifiers: None,
                 name: None,
                 question_token: None,
+                modifiers: None,
                 r#type: None,
                 initializer: None,
             }),
@@ -2339,21 +2339,21 @@ impl NodeData {
                 r#type: None,
             }),
             SyntaxKind::SetAccessor => Self::SetAccessor(SetAccessorData {
-                modifiers: None,
                 name: None,
                 type_parameters: None,
                 parameters: None,
                 r#type: None,
                 body: None,
+                modifiers: None,
             }),
             SyntaxKind::ShorthandPropertyAssignment => {
                 Self::ShorthandPropertyAssignment(ShorthandPropertyAssignmentData {
-                    modifiers: None,
                     name: None,
-                    question_token: None,
-                    exclamation_token: None,
                     equals_token: None,
                     object_assignment_initializer: None,
+                    modifiers: None,
+                    question_token: None,
+                    exclamation_token: None,
                 })
             }
             SyntaxKind::SourceFile => Self::SourceFile(SourceFileData {
@@ -2377,9 +2377,9 @@ impl NodeData {
             SyntaxKind::TaggedTemplateExpression => {
                 Self::TaggedTemplateExpression(TaggedTemplateExpressionData {
                     tag: None,
-                    question_dot_token: None,
                     type_arguments: None,
                     template: None,
+                    question_dot_token: None,
                 })
             }
             SyntaxKind::TemplateExpression => Self::TemplateExpression(TemplateExpressionData {
@@ -2423,8 +2423,8 @@ impl NodeData {
             SyntaxKind::TupleType => Self::TupleType(TupleTypeData { elements: None }),
             SyntaxKind::TypeAliasDeclaration => {
                 Self::TypeAliasDeclaration(TypeAliasDeclarationData {
-                    modifiers: None,
                     name: None,
+                    modifiers: None,
                     type_parameters: None,
                     r#type: None,
                 })
@@ -2444,8 +2444,8 @@ impl NodeData {
                 r#type: None,
             }),
             SyntaxKind::TypeParameter => Self::TypeParameter(TypeParameterData {
-                modifiers: None,
                 name: None,
+                modifiers: None,
                 constraint: None,
                 r#default: None,
                 expression: None,
@@ -2456,12 +2456,12 @@ impl NodeData {
                 r#type: None,
             }),
             SyntaxKind::TypeQuery => Self::TypeQuery(TypeQueryData {
-                expr_name: None,
                 type_arguments: None,
+                expr_name: None,
             }),
             SyntaxKind::TypeReference => Self::TypeReference(TypeReferenceData {
-                type_name: None,
                 type_arguments: None,
+                type_name: None,
             }),
             SyntaxKind::UnionType => Self::UnionType(UnionTypeData { types: None }),
             SyntaxKind::VariableDeclaration => Self::VariableDeclaration(VariableDeclarationData {
@@ -2481,8 +2481,8 @@ impl NodeData {
                 Self::VoidExpression(VoidExpressionData { expression: None })
             }
             SyntaxKind::WhileStatement => Self::WhileStatement(WhileStatementData {
-                expression: None,
                 statement: None,
+                expression: None,
             }),
             SyntaxKind::WithStatement => Self::WithStatement(WithStatementData {
                 expression: None,

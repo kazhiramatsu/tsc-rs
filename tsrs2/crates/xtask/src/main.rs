@@ -5710,8 +5710,9 @@ fn codegen_nodes(check: bool) -> Result<(), Box<dyn Error>> {
 /// Field-level schema gate (impl-nodes.md contract): cross-check
 /// crates/syntax/nodes.schema.json against typescript.d.ts as parsed by
 /// the VENDORED TypeScript itself (crates/oracle/schema-dump.mjs). A
-/// schema field tsc does not declare, or whose payload category
-/// disagrees, is a hard failure (the readonly_* generator-bug class).
+/// schema field tsc does not declare, or whose payload category or
+/// optionality disagrees, is a hard failure (the readonly_* generator-bug
+/// class; the fabricated child `optional: true` class).
 /// tsc fields the schema does not carry yet are tracked exactly in
 /// nodes-missing-fields.txt; `--write` regenerates the manifest so its
 /// diff is the review surface.
@@ -5797,6 +5798,7 @@ fn schema_audit(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>
                 .as_str()
                 .ok_or("malformed nodes.schema.json: field type")?;
             let child = field["child"].as_bool().unwrap_or(false);
+            let optional = field["optional"].as_bool().unwrap_or(false);
             ours.push(name);
             match tsc_by_name.get(name) {
                 // A child field is backed by _tsc.js's forEachChildTable
@@ -5805,9 +5807,14 @@ fn schema_audit(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>
                 // expected — tracked in the manifest, not a ghost.
                 None if child => runtime_only.push(format!("{kind_name}.{name}")),
                 None => ghosts.push(format!("{kind_name}.{name}")),
-                Some((tsc_ty, _)) => {
+                Some((tsc_ty, tsc_optional)) => {
                     if ty != *tsc_ty {
                         mismatches.push(format!("{kind_name}.{name}: rust {ty} vs tsc {tsc_ty}"));
+                    }
+                    if optional != *tsc_optional {
+                        mismatches.push(format!(
+                            "{kind_name}.{name}: rust optional={optional} vs tsc optional={tsc_optional}"
+                        ));
                     }
                 }
             }
@@ -6211,7 +6218,9 @@ fn merge_dts_field(fields: &mut Vec<DtsField>, field: DtsField) {
 }
 
 /// Scalar payload fields admitted into the generated node schema at this
-/// stage, keyed by kind name. The field data (type, optionality, order)
+/// stage, keyed by kind name. forEachChildTable-backed children need no
+/// listing — they always merge, carrying their d.ts optionality. The
+/// field data (type, optionality, order)
 /// comes from the parsed typescript.d.ts; listing a field the d.ts does
 /// not carry is a hard error, so the schema cannot drift from the vendor
 /// contract. tsc fields not admitted here are surfaced by the
@@ -6310,14 +6319,20 @@ fn collect_dts_nodes(
         };
 
         let admitted = admissions.get(kind.as_str()).copied().unwrap_or(&[]);
+        let children: &[ChildVisit] = child_table.get(&kind).map(Vec::as_slice).unwrap_or(&[]);
         let merged = collect_interface_fields(interface_name, interfaces, &mut Vec::new())?;
         let mut fields = Vec::new();
         for mut field in merged {
-            if !admitted.contains(&field.name.as_str()) {
+            // forEachChildTable-backed children ride along unconditionally:
+            // their TYPE comes from the table (Node vs NodeArray, in
+            // build_node_schema), but their OPTIONALITY is d.ts truth the
+            // table cannot see (schema-audit compares it).
+            let is_child = children.iter().any(|child| child.name == field.name);
+            if !is_child && !admitted.contains(&field.name.as_str()) {
                 continue;
             }
             field.type_text = resolve_alias_type(&field.type_text, aliases);
-            if rust_field_type(&field.type_text) == RustFieldType::Payload {
+            if !is_child && rust_field_type(&field.type_text) == RustFieldType::Payload {
                 return Err(format!(
                     "admitted field {kind}.{} has unmappable type `{}`",
                     field.name, field.type_text
@@ -6724,8 +6739,20 @@ fn render_nodes_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
     Ok(out)
 }
 
+/// Rust-side optionality. Scalars follow the d.ts contract, but node/array
+/// CHILDREN are always Option-typed regardless of it — the layout every
+/// parser/binder/checker site is written against, and `NodeData::missing`
+/// fills None for every child where tsc materializes per-kind missing
+/// tokens. The schema JSON carries the honest d.ts `optional` (schema-audit
+/// cross-checks it against the vendored tsc); flipping d.ts-required
+/// children to bare NodeId needs the recovery-guarantee census first and
+/// is tracked pre-M7 debt (m1-review-2026-07-22.md #8).
+fn rust_optional(field: &SchemaField) -> bool {
+    field.optional || field.child
+}
+
 fn render_missing_field_value(field: &SchemaField, kind_name: &str) -> String {
-    if field.optional {
+    if rust_optional(field) {
         return "None".to_owned();
     }
 
@@ -6750,7 +6777,7 @@ fn render_field_type(field: &SchemaField) -> String {
         RustFieldType::SyntaxKind => "SyntaxKind",
         RustFieldType::Payload => "NodePayload",
     };
-    if field.optional {
+    if rust_optional(field) {
         format!("Option<{base}>")
     } else {
         base.to_owned()
@@ -6801,7 +6828,7 @@ fn render_for_each_child_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Er
                     .iter()
                     .find(|field| field.ts_name == child.name)
                     .ok_or_else(|| format!("missing generated field for child {}", child.name))?;
-                let helper = match (child.kind, field.optional) {
+                let helper = match (child.kind, rust_optional(field)) {
                     (ChildKind::Node, false) => "visit_node",
                     (ChildKind::Node, true) => "visit_optional_node",
                     (ChildKind::Nodes, false) => "visit_nodes",

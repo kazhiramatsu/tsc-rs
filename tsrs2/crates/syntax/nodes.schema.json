@@ -5,7 +5,7 @@
       "kindName": "ArrayBindingPattern",
       "dataName": "ArrayBindingPatternData",
       "fields": [
-        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "elements", "array": true}
@@ -15,7 +15,7 @@
       "kindName": "ArrayLiteralExpression",
       "dataName": "ArrayLiteralExpressionData",
       "fields": [
-        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "elements", "array": true}
@@ -25,7 +25,7 @@
       "kindName": "ArrayType",
       "dataName": "ArrayTypeData",
       "fields": [
-        {"name": "elementType", "rustName": "element_type", "type": "Node", "optional": true, "child": true}
+        {"name": "elementType", "rustName": "element_type", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "elementType", "array": false}
@@ -35,12 +35,12 @@
       "kindName": "ArrowFunction",
       "dataName": "ArrowFunctionData",
       "fields": [
-        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": false, "child": true},
         {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
-        {"name": "equalsGreaterThanToken", "rustName": "equals_greater_than_token", "type": "Node", "optional": true, "child": true},
-        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
+        {"name": "body", "rustName": "body", "type": "Node", "optional": false, "child": true},
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "equalsGreaterThanToken", "rustName": "equals_greater_than_token", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -55,8 +55,8 @@
       "kindName": "AsExpression",
       "dataName": "AsExpressionData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false},
@@ -67,7 +67,7 @@
       "kindName": "AwaitExpression",
       "dataName": "AwaitExpressionData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false}
@@ -86,9 +86,9 @@
       "kindName": "BinaryExpression",
       "dataName": "BinaryExpressionData",
       "fields": [
-        {"name": "left", "rustName": "left", "type": "Node", "optional": true, "child": true},
-        {"name": "operatorToken", "rustName": "operator_token", "type": "Node", "optional": true, "child": true},
-        {"name": "right", "rustName": "right", "type": "Node", "optional": true, "child": true}
+        {"name": "left", "rustName": "left", "type": "Node", "optional": false, "child": true},
+        {"name": "operatorToken", "rustName": "operator_token", "type": "Node", "optional": false, "child": true},
+        {"name": "right", "rustName": "right", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "left", "array": false},
@@ -100,9 +100,9 @@
       "kindName": "BindingElement",
       "dataName": "BindingElementData",
       "fields": [
-        {"name": "dotDotDotToken", "rustName": "dot_dot_dot_token", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "propertyName", "rustName": "property_name", "type": "Node", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "dotDotDotToken", "rustName": "dot_dot_dot_token", "type": "Node", "optional": true, "child": true},
         {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
@@ -116,7 +116,7 @@
       "kindName": "Block",
       "dataName": "BlockData",
       "fields": [
-        {"name": "statements", "rustName": "statements", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "statements", "rustName": "statements", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "statements", "array": true}
@@ -136,10 +136,10 @@
       "kindName": "CallExpression",
       "dataName": "CallExpressionData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true},
         {"name": "questionDotToken", "rustName": "question_dot_token", "type": "Node", "optional": true, "child": true},
         {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "arguments", "rustName": "arguments", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "arguments", "rustName": "arguments", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false},
@@ -153,7 +153,7 @@
       "dataName": "CallSignatureData",
       "fields": [
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": false, "child": true},
         {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
@@ -166,7 +166,7 @@
       "kindName": "CaseBlock",
       "dataName": "CaseBlockData",
       "fields": [
-        {"name": "clauses", "rustName": "clauses", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "clauses", "rustName": "clauses", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "clauses", "array": true}
@@ -176,8 +176,8 @@
       "kindName": "CaseClause",
       "dataName": "CaseClauseData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
-        {"name": "statements", "rustName": "statements", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true},
+        {"name": "statements", "rustName": "statements", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false},
@@ -189,7 +189,7 @@
       "dataName": "CatchClauseData",
       "fields": [
         {"name": "variableDeclaration", "rustName": "variable_declaration", "type": "Node", "optional": true, "child": true},
-        {"name": "block", "rustName": "block", "type": "Node", "optional": true, "child": true}
+        {"name": "block", "rustName": "block", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "variableDeclaration", "array": false},
@@ -200,11 +200,11 @@
       "kindName": "ClassDeclaration",
       "dataName": "ClassDeclarationData",
       "fields": [
-        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
         {"name": "heritageClauses", "rustName": "heritage_clauses", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "members", "rustName": "members", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "members", "rustName": "members", "type": "NodeArray", "optional": false, "child": true},
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -218,11 +218,11 @@
       "kindName": "ClassExpression",
       "dataName": "ClassExpressionData",
       "fields": [
-        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
         {"name": "heritageClauses", "rustName": "heritage_clauses", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "members", "rustName": "members", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "members", "rustName": "members", "type": "NodeArray", "optional": false, "child": true},
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -236,8 +236,8 @@
       "kindName": "ClassStaticBlockDeclaration",
       "dataName": "ClassStaticBlockDeclarationData",
       "fields": [
-        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
+        {"name": "body", "rustName": "body", "type": "Node", "optional": false, "child": true},
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -248,7 +248,7 @@
       "kindName": "CommaListExpression",
       "dataName": "CommaListExpressionData",
       "fields": [
-        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "elements", "array": true}
@@ -258,7 +258,7 @@
       "kindName": "ComputedPropertyName",
       "dataName": "ComputedPropertyNameData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false}
@@ -268,11 +268,11 @@
       "kindName": "ConditionalExpression",
       "dataName": "ConditionalExpressionData",
       "fields": [
-        {"name": "condition", "rustName": "condition", "type": "Node", "optional": true, "child": true},
-        {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
-        {"name": "whenTrue", "rustName": "when_true", "type": "Node", "optional": true, "child": true},
-        {"name": "colonToken", "rustName": "colon_token", "type": "Node", "optional": true, "child": true},
-        {"name": "whenFalse", "rustName": "when_false", "type": "Node", "optional": true, "child": true}
+        {"name": "condition", "rustName": "condition", "type": "Node", "optional": false, "child": true},
+        {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": false, "child": true},
+        {"name": "whenTrue", "rustName": "when_true", "type": "Node", "optional": false, "child": true},
+        {"name": "colonToken", "rustName": "colon_token", "type": "Node", "optional": false, "child": true},
+        {"name": "whenFalse", "rustName": "when_false", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "condition", "array": false},
@@ -286,10 +286,10 @@
       "kindName": "ConditionalType",
       "dataName": "ConditionalTypeData",
       "fields": [
-        {"name": "checkType", "rustName": "check_type", "type": "Node", "optional": true, "child": true},
-        {"name": "extendsType", "rustName": "extends_type", "type": "Node", "optional": true, "child": true},
-        {"name": "trueType", "rustName": "true_type", "type": "Node", "optional": true, "child": true},
-        {"name": "falseType", "rustName": "false_type", "type": "Node", "optional": true, "child": true}
+        {"name": "checkType", "rustName": "check_type", "type": "Node", "optional": false, "child": true},
+        {"name": "extendsType", "rustName": "extends_type", "type": "Node", "optional": false, "child": true},
+        {"name": "trueType", "rustName": "true_type", "type": "Node", "optional": false, "child": true},
+        {"name": "falseType", "rustName": "false_type", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "checkType", "array": false},
@@ -303,7 +303,7 @@
       "dataName": "ConstructSignatureData",
       "fields": [
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": false, "child": true},
         {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
@@ -316,12 +316,12 @@
       "kindName": "Constructor",
       "dataName": "ConstructorData",
       "fields": [
-        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": false, "child": true},
         {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
-        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
+        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true},
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -336,10 +336,10 @@
       "kindName": "ConstructorType",
       "dataName": "ConstructorTypeData",
       "fields": [
-        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": false, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true},
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -370,7 +370,7 @@
       "kindName": "Decorator",
       "dataName": "DecoratorData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false}
@@ -380,7 +380,7 @@
       "kindName": "DefaultClause",
       "dataName": "DefaultClauseData",
       "fields": [
-        {"name": "statements", "rustName": "statements", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "statements", "rustName": "statements", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "statements", "array": true}
@@ -390,7 +390,7 @@
       "kindName": "DeleteExpression",
       "dataName": "DeleteExpressionData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false}
@@ -400,8 +400,8 @@
       "kindName": "DoStatement",
       "dataName": "DoStatementData",
       "fields": [
-        {"name": "statement", "rustName": "statement", "type": "Node", "optional": true, "child": true},
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+        {"name": "statement", "rustName": "statement", "type": "Node", "optional": false, "child": true},
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "statement", "array": false},
@@ -412,9 +412,9 @@
       "kindName": "ElementAccessExpression",
       "dataName": "ElementAccessExpressionData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true},
         {"name": "questionDotToken", "rustName": "question_dot_token", "type": "Node", "optional": true, "child": true},
-        {"name": "argumentExpression", "rustName": "argument_expression", "type": "Node", "optional": true, "child": true}
+        {"name": "argumentExpression", "rustName": "argument_expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false},
@@ -434,9 +434,9 @@
       "kindName": "EnumDeclaration",
       "dataName": "EnumDeclarationData",
       "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
-        {"name": "members", "rustName": "members", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "members", "rustName": "members", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -448,7 +448,7 @@
       "kindName": "EnumMember",
       "dataName": "EnumMemberData",
       "fields": [
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
@@ -460,9 +460,9 @@
       "kindName": "ExportAssignment",
       "dataName": "ExportAssignmentData",
       "fields": [
-        {"name": "isExportEquals", "rustName": "is_export_equals", "type": "Bool", "optional": true, "child": false},
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+        {"name": "isExportEquals", "rustName": "is_export_equals", "type": "Bool", "optional": true, "child": false},
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -473,8 +473,8 @@
       "kindName": "ExportDeclaration",
       "dataName": "ExportDeclarationData",
       "fields": [
-        {"name": "isTypeOnly", "rustName": "is_type_only", "type": "Bool", "optional": false, "child": false},
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "isTypeOnly", "rustName": "is_type_only", "type": "Bool", "optional": false, "child": false},
         {"name": "exportClause", "rustName": "export_clause", "type": "Node", "optional": true, "child": true},
         {"name": "moduleSpecifier", "rustName": "module_specifier", "type": "Node", "optional": true, "child": true},
         {"name": "attributes", "rustName": "attributes", "type": "Node", "optional": true, "child": true}
@@ -490,9 +490,9 @@
       "kindName": "ExportSpecifier",
       "dataName": "ExportSpecifierData",
       "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "isTypeOnly", "rustName": "is_type_only", "type": "Bool", "optional": false, "child": false},
-        {"name": "propertyName", "rustName": "property_name", "type": "Node", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+        {"name": "propertyName", "rustName": "property_name", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "propertyName", "array": false},
@@ -503,7 +503,7 @@
       "kindName": "ExpressionStatement",
       "dataName": "ExpressionStatementData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false}
@@ -513,8 +513,8 @@
       "kindName": "ExpressionWithTypeArguments",
       "dataName": "ExpressionWithTypeArgumentsData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
-        {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false},
@@ -525,7 +525,7 @@
       "kindName": "ExternalModuleReference",
       "dataName": "ExternalModuleReferenceData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false}
@@ -535,9 +535,9 @@
       "kindName": "ForInStatement",
       "dataName": "ForInStatementData",
       "fields": [
-        {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": true, "child": true},
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
-        {"name": "statement", "rustName": "statement", "type": "Node", "optional": true, "child": true}
+        {"name": "statement", "rustName": "statement", "type": "Node", "optional": false, "child": true},
+        {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": false, "child": true},
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "initializer", "array": false},
@@ -549,10 +549,10 @@
       "kindName": "ForOfStatement",
       "dataName": "ForOfStatementData",
       "fields": [
+        {"name": "statement", "rustName": "statement", "type": "Node", "optional": false, "child": true},
         {"name": "awaitModifier", "rustName": "await_modifier", "type": "Node", "optional": true, "child": true},
-        {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": true, "child": true},
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
-        {"name": "statement", "rustName": "statement", "type": "Node", "optional": true, "child": true}
+        {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": false, "child": true},
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "awaitModifier", "array": false},
@@ -565,10 +565,10 @@
       "kindName": "ForStatement",
       "dataName": "ForStatementData",
       "fields": [
+        {"name": "statement", "rustName": "statement", "type": "Node", "optional": false, "child": true},
         {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": true, "child": true},
         {"name": "condition", "rustName": "condition", "type": "Node", "optional": true, "child": true},
-        {"name": "incrementor", "rustName": "incrementor", "type": "Node", "optional": true, "child": true},
-        {"name": "statement", "rustName": "statement", "type": "Node", "optional": true, "child": true}
+        {"name": "incrementor", "rustName": "incrementor", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "initializer", "array": false},
@@ -581,13 +581,13 @@
       "kindName": "FunctionDeclaration",
       "dataName": "FunctionDeclarationData",
       "fields": [
-        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "asteriskToken", "rustName": "asterisk_token", "type": "Node", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": false, "child": true},
         {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
-        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
+        {"name": "asteriskToken", "rustName": "asterisk_token", "type": "Node", "optional": true, "child": true},
+        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true},
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -603,13 +603,13 @@
       "kindName": "FunctionExpression",
       "dataName": "FunctionExpressionData",
       "fields": [
-        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "asteriskToken", "rustName": "asterisk_token", "type": "Node", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": false, "child": true},
         {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
-        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
+        {"name": "asteriskToken", "rustName": "asterisk_token", "type": "Node", "optional": true, "child": true},
+        {"name": "body", "rustName": "body", "type": "Node", "optional": false, "child": true},
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -625,10 +625,10 @@
       "kindName": "FunctionType",
       "dataName": "FunctionTypeData",
       "fields": [
-        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": false, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true},
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -641,12 +641,12 @@
       "kindName": "GetAccessor",
       "dataName": "GetAccessorData",
       "fields": [
-        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": false, "child": true},
         {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
-        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
+        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true},
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -662,7 +662,7 @@
       "dataName": "HeritageClauseData",
       "fields": [
         {"name": "token", "rustName": "token", "type": "SyntaxKind", "optional": false, "child": false},
-        {"name": "types", "rustName": "types", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "types", "rustName": "types", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "types", "array": true}
@@ -682,8 +682,8 @@
       "kindName": "IfStatement",
       "dataName": "IfStatementData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
-        {"name": "thenStatement", "rustName": "then_statement", "type": "Node", "optional": true, "child": true},
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true},
+        {"name": "thenStatement", "rustName": "then_statement", "type": "Node", "optional": false, "child": true},
         {"name": "elseStatement", "rustName": "else_statement", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
@@ -696,8 +696,8 @@
       "kindName": "ImportAttribute",
       "dataName": "ImportAttributeData",
       "fields": [
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
-        {"name": "value", "rustName": "value", "type": "Node", "optional": true, "child": true}
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
+        {"name": "value", "rustName": "value", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "name", "array": false},
@@ -709,7 +709,7 @@
       "dataName": "ImportAttributesData",
       "fields": [
         {"name": "token", "rustName": "token", "type": "SyntaxKind", "optional": false, "child": false},
-        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "elements", "array": true}
@@ -719,9 +719,9 @@
       "kindName": "ImportClause",
       "dataName": "ImportClauseData",
       "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
         {"name": "isTypeOnly", "rustName": "is_type_only", "type": "Bool", "optional": false, "child": false},
         {"name": "phaseModifier", "rustName": "phase_modifier", "type": "SyntaxKind", "optional": true, "child": false},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
         {"name": "namedBindings", "rustName": "named_bindings", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
@@ -735,7 +735,7 @@
       "fields": [
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
         {"name": "importClause", "rustName": "import_clause", "type": "Node", "optional": true, "child": true},
-        {"name": "moduleSpecifier", "rustName": "module_specifier", "type": "Node", "optional": true, "child": true},
+        {"name": "moduleSpecifier", "rustName": "module_specifier", "type": "Node", "optional": false, "child": true},
         {"name": "attributes", "rustName": "attributes", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
@@ -749,10 +749,10 @@
       "kindName": "ImportEqualsDeclaration",
       "dataName": "ImportEqualsDeclarationData",
       "fields": [
-        {"name": "isTypeOnly", "rustName": "is_type_only", "type": "Bool", "optional": false, "child": false},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
-        {"name": "moduleReference", "rustName": "module_reference", "type": "Node", "optional": true, "child": true}
+        {"name": "isTypeOnly", "rustName": "is_type_only", "type": "Bool", "optional": false, "child": false},
+        {"name": "moduleReference", "rustName": "module_reference", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -764,9 +764,9 @@
       "kindName": "ImportSpecifier",
       "dataName": "ImportSpecifierData",
       "fields": [
-        {"name": "isTypeOnly", "rustName": "is_type_only", "type": "Bool", "optional": false, "child": false},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "propertyName", "rustName": "property_name", "type": "Node", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+        {"name": "isTypeOnly", "rustName": "is_type_only", "type": "Bool", "optional": false, "child": false}
       ],
       "children": [
         {"name": "propertyName", "array": false},
@@ -777,11 +777,11 @@
       "kindName": "ImportType",
       "dataName": "ImportTypeData",
       "fields": [
+        {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true},
         {"name": "isTypeOf", "rustName": "is_type_of", "type": "Bool", "optional": false, "child": false},
-        {"name": "argument", "rustName": "argument", "type": "Node", "optional": true, "child": true},
+        {"name": "argument", "rustName": "argument", "type": "Node", "optional": false, "child": true},
         {"name": "attributes", "rustName": "attributes", "type": "Node", "optional": true, "child": true},
-        {"name": "qualifier", "rustName": "qualifier", "type": "Node", "optional": true, "child": true},
-        {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "qualifier", "rustName": "qualifier", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "argument", "array": false},
@@ -794,7 +794,7 @@
       "kindName": "ImportTypeAssertionContainer",
       "dataName": "ImportTypeAssertionContainerData",
       "fields": [
-        {"name": "assertClause", "rustName": "assert_clause", "type": "Node", "optional": true, "child": true}
+        {"name": "assertClause", "rustName": "assert_clause", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "assertClause", "array": false}
@@ -804,10 +804,10 @@
       "kindName": "IndexSignature",
       "dataName": "IndexSignatureData",
       "fields": [
-        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": false, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true},
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -820,8 +820,8 @@
       "kindName": "IndexedAccessType",
       "dataName": "IndexedAccessTypeData",
       "fields": [
-        {"name": "objectType", "rustName": "object_type", "type": "Node", "optional": true, "child": true},
-        {"name": "indexType", "rustName": "index_type", "type": "Node", "optional": true, "child": true}
+        {"name": "objectType", "rustName": "object_type", "type": "Node", "optional": false, "child": true},
+        {"name": "indexType", "rustName": "index_type", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "objectType", "array": false},
@@ -832,7 +832,7 @@
       "kindName": "InferType",
       "dataName": "InferTypeData",
       "fields": [
-        {"name": "typeParameter", "rustName": "type_parameter", "type": "Node", "optional": true, "child": true}
+        {"name": "typeParameter", "rustName": "type_parameter", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "typeParameter", "array": false}
@@ -842,11 +842,11 @@
       "kindName": "InterfaceDeclaration",
       "dataName": "InterfaceDeclarationData",
       "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
         {"name": "heritageClauses", "rustName": "heritage_clauses", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "members", "rustName": "members", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "members", "rustName": "members", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -860,7 +860,7 @@
       "kindName": "IntersectionType",
       "dataName": "IntersectionTypeData",
       "fields": [
-        {"name": "types", "rustName": "types", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "types", "rustName": "types", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "types", "array": true}
@@ -870,8 +870,8 @@
       "kindName": "JSDoc",
       "dataName": "JSDocData",
       "fields": [
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "tags", "rustName": "tags", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "tags", "rustName": "tags", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
         {"name": "comment", "array": true},
@@ -882,9 +882,9 @@
       "kindName": "JSDocAugmentsTag",
       "dataName": "JSDocAugmentsTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
-        {"name": "class", "rustName": "class", "type": "Node", "optional": true, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "class", "rustName": "class", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -896,7 +896,7 @@
       "kindName": "JSDocAuthorTag",
       "dataName": "JSDocAuthorTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
         {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
@@ -908,10 +908,10 @@
       "kindName": "JSDocCallbackTag",
       "dataName": "JSDocCallbackTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
         {"name": "fullName", "rustName": "full_name", "type": "Node", "optional": true, "child": true},
-        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -924,7 +924,7 @@
       "kindName": "JSDocClassTag",
       "dataName": "JSDocClassTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
         {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
@@ -936,7 +936,7 @@
       "kindName": "JSDocDeprecatedTag",
       "dataName": "JSDocDeprecatedTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
         {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
@@ -948,9 +948,9 @@
       "kindName": "JSDocEnumTag",
       "dataName": "JSDocEnumTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
-        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -962,7 +962,7 @@
       "kindName": "JSDocFunctionType",
       "dataName": "JSDocFunctionTypeData",
       "fields": [
-        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": false, "child": true},
         {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
@@ -974,9 +974,9 @@
       "kindName": "JSDocImplementsTag",
       "dataName": "JSDocImplementsTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
-        {"name": "class", "rustName": "class", "type": "Node", "optional": true, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "class", "rustName": "class", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -988,11 +988,11 @@
       "kindName": "JSDocImportTag",
       "dataName": "JSDocImportTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
         {"name": "importClause", "rustName": "import_clause", "type": "Node", "optional": true, "child": true},
-        {"name": "moduleSpecifier", "rustName": "module_specifier", "type": "Node", "optional": true, "child": true},
-        {"name": "attributes", "rustName": "attributes", "type": "Node", "optional": true, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "moduleSpecifier", "rustName": "module_specifier", "type": "Node", "optional": false, "child": true},
+        {"name": "attributes", "rustName": "attributes", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1036,8 +1036,8 @@
       "kindName": "JSDocMemberName",
       "dataName": "JSDocMemberNameData",
       "fields": [
-        {"name": "left", "rustName": "left", "type": "Node", "optional": true, "child": true},
-        {"name": "right", "rustName": "right", "type": "Node", "optional": true, "child": true}
+        {"name": "left", "rustName": "left", "type": "Node", "optional": false, "child": true},
+        {"name": "right", "rustName": "right", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "left", "array": false},
@@ -1048,7 +1048,7 @@
       "kindName": "JSDocNameReference",
       "dataName": "JSDocNameReferenceData",
       "fields": [
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "name", "array": false}
@@ -1058,7 +1058,7 @@
       "kindName": "JSDocNonNullableType",
       "dataName": "JSDocNonNullableTypeData",
       "fields": [
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "type", "array": false}
@@ -1068,7 +1068,7 @@
       "kindName": "JSDocNullableType",
       "dataName": "JSDocNullableTypeData",
       "fields": [
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "type", "array": false}
@@ -1078,7 +1078,7 @@
       "kindName": "JSDocOptionalType",
       "dataName": "JSDocOptionalTypeData",
       "fields": [
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "type", "array": false}
@@ -1088,9 +1088,9 @@
       "kindName": "JSDocOverloadTag",
       "dataName": "JSDocOverloadTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
-        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1102,7 +1102,7 @@
       "kindName": "JSDocOverrideTag",
       "dataName": "JSDocOverrideTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
         {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
@@ -1114,10 +1114,10 @@
       "kindName": "JSDocParameterTag",
       "dataName": "JSDocParameterTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
-        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1130,7 +1130,7 @@
       "kindName": "JSDocPrivateTag",
       "dataName": "JSDocPrivateTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
         {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
@@ -1142,10 +1142,10 @@
       "kindName": "JSDocPropertyTag",
       "dataName": "JSDocPropertyTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
-        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1158,7 +1158,7 @@
       "kindName": "JSDocProtectedTag",
       "dataName": "JSDocProtectedTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
         {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
@@ -1170,7 +1170,7 @@
       "kindName": "JSDocPublicTag",
       "dataName": "JSDocPublicTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
         {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
@@ -1182,7 +1182,7 @@
       "kindName": "JSDocReadonlyTag",
       "dataName": "JSDocReadonlyTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
         {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
@@ -1194,9 +1194,9 @@
       "kindName": "JSDocReturnTag",
       "dataName": "JSDocReturnTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
-        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1208,9 +1208,9 @@
       "kindName": "JSDocSatisfiesTag",
       "dataName": "JSDocSatisfiesTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
-        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1222,9 +1222,9 @@
       "kindName": "JSDocSeeTag",
       "dataName": "JSDocSeeTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1246,7 +1246,7 @@
       "kindName": "JSDocTag",
       "dataName": "JSDocTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
         {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
@@ -1258,10 +1258,10 @@
       "kindName": "JSDocTemplateTag",
       "dataName": "JSDocTemplateTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
         {"name": "constraint", "rustName": "constraint", "type": "Node", "optional": true, "child": true},
-        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1274,9 +1274,9 @@
       "kindName": "JSDocThisTag",
       "dataName": "JSDocThisTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
-        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1288,9 +1288,9 @@
       "kindName": "JSDocThrowsTag",
       "dataName": "JSDocThrowsTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
-        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1302,7 +1302,7 @@
       "kindName": "JSDocTypeExpression",
       "dataName": "JSDocTypeExpressionData",
       "fields": [
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "type", "array": false}
@@ -1320,9 +1320,9 @@
       "kindName": "JSDocTypeTag",
       "dataName": "JSDocTypeTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
-        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1334,10 +1334,10 @@
       "kindName": "JSDocTypedefTag",
       "dataName": "JSDocTypedefTagData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
-        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
         {"name": "fullName", "rustName": "full_name", "type": "Node", "optional": true, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1350,7 +1350,7 @@
       "kindName": "JSDocVariadicType",
       "dataName": "JSDocVariadicTypeData",
       "fields": [
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "type", "array": false}
@@ -1360,7 +1360,7 @@
       "kindName": "JsxAttribute",
       "dataName": "JsxAttributeData",
       "fields": [
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
@@ -1372,7 +1372,7 @@
       "kindName": "JsxAttributes",
       "dataName": "JsxAttributesData",
       "fields": [
-        {"name": "properties", "rustName": "properties", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "properties", "rustName": "properties", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "properties", "array": true}
@@ -1382,7 +1382,7 @@
       "kindName": "JsxClosingElement",
       "dataName": "JsxClosingElementData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true}
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false}
@@ -1392,9 +1392,9 @@
       "kindName": "JsxElement",
       "dataName": "JsxElementData",
       "fields": [
-        {"name": "openingElement", "rustName": "opening_element", "type": "Node", "optional": true, "child": true},
-        {"name": "children", "rustName": "children", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "closingElement", "rustName": "closing_element", "type": "Node", "optional": true, "child": true}
+        {"name": "openingElement", "rustName": "opening_element", "type": "Node", "optional": false, "child": true},
+        {"name": "children", "rustName": "children", "type": "NodeArray", "optional": false, "child": true},
+        {"name": "closingElement", "rustName": "closing_element", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "openingElement", "array": false},
@@ -1418,9 +1418,9 @@
       "kindName": "JsxFragment",
       "dataName": "JsxFragmentData",
       "fields": [
-        {"name": "openingFragment", "rustName": "opening_fragment", "type": "Node", "optional": true, "child": true},
-        {"name": "children", "rustName": "children", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "closingFragment", "rustName": "closing_fragment", "type": "Node", "optional": true, "child": true}
+        {"name": "openingFragment", "rustName": "opening_fragment", "type": "Node", "optional": false, "child": true},
+        {"name": "children", "rustName": "children", "type": "NodeArray", "optional": false, "child": true},
+        {"name": "closingFragment", "rustName": "closing_fragment", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "openingFragment", "array": false},
@@ -1432,8 +1432,8 @@
       "kindName": "JsxNamespacedName",
       "dataName": "JsxNamespacedNameData",
       "fields": [
-        {"name": "namespace", "rustName": "namespace", "type": "Node", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
+        {"name": "namespace", "rustName": "namespace", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "namespace", "array": false},
@@ -1444,9 +1444,9 @@
       "kindName": "JsxOpeningElement",
       "dataName": "JsxOpeningElementData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
         {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "attributes", "rustName": "attributes", "type": "Node", "optional": true, "child": true}
+        {"name": "attributes", "rustName": "attributes", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1458,9 +1458,9 @@
       "kindName": "JsxSelfClosingElement",
       "dataName": "JsxSelfClosingElementData",
       "fields": [
-        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": true, "child": true},
+        {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
         {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "attributes", "rustName": "attributes", "type": "Node", "optional": true, "child": true}
+        {"name": "attributes", "rustName": "attributes", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1472,7 +1472,7 @@
       "kindName": "JsxSpreadAttribute",
       "dataName": "JsxSpreadAttributeData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false}
@@ -1492,8 +1492,8 @@
       "kindName": "LabeledStatement",
       "dataName": "LabeledStatementData",
       "fields": [
-        {"name": "label", "rustName": "label", "type": "Node", "optional": true, "child": true},
-        {"name": "statement", "rustName": "statement", "type": "Node", "optional": true, "child": true}
+        {"name": "label", "rustName": "label", "type": "Node", "optional": false, "child": true},
+        {"name": "statement", "rustName": "statement", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "label", "array": false},
@@ -1504,7 +1504,7 @@
       "kindName": "LiteralType",
       "dataName": "LiteralTypeData",
       "fields": [
-        {"name": "literal", "rustName": "literal", "type": "Node", "optional": true, "child": true}
+        {"name": "literal", "rustName": "literal", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "literal", "array": false}
@@ -1515,7 +1515,7 @@
       "dataName": "MappedTypeData",
       "fields": [
         {"name": "readonlyToken", "rustName": "readonly_token", "type": "Node", "optional": true, "child": true},
-        {"name": "typeParameter", "rustName": "type_parameter", "type": "Node", "optional": true, "child": true},
+        {"name": "typeParameter", "rustName": "type_parameter", "type": "Node", "optional": false, "child": true},
         {"name": "nameType", "rustName": "name_type", "type": "Node", "optional": true, "child": true},
         {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
         {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
@@ -1535,7 +1535,7 @@
       "dataName": "MetaPropertyData",
       "fields": [
         {"name": "keywordToken", "rustName": "keyword_token", "type": "SyntaxKind", "optional": false, "child": false},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "name", "array": false}
@@ -1545,15 +1545,15 @@
       "kindName": "MethodDeclaration",
       "dataName": "MethodDeclarationData",
       "fields": [
-        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": false, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "asteriskToken", "rustName": "asterisk_token", "type": "Node", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
         {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
         {"name": "exclamationToken", "rustName": "exclamation_token", "type": "Node", "optional": true, "child": true},
-        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
-        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
+        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true},
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -1571,12 +1571,12 @@
       "kindName": "MethodSignature",
       "dataName": "MethodSignatureData",
       "fields": [
-        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
-        {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": false, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
+        {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -1601,7 +1601,7 @@
       "kindName": "ModuleBlock",
       "dataName": "ModuleBlockData",
       "fields": [
-        {"name": "statements", "rustName": "statements", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "statements", "rustName": "statements", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "statements", "array": true}
@@ -1611,8 +1611,8 @@
       "kindName": "ModuleDeclaration",
       "dataName": "ModuleDeclarationData",
       "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
         {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
@@ -1625,7 +1625,7 @@
       "kindName": "NamedExports",
       "dataName": "NamedExportsData",
       "fields": [
-        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "elements", "array": true}
@@ -1635,7 +1635,7 @@
       "kindName": "NamedImports",
       "dataName": "NamedImportsData",
       "fields": [
-        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "elements", "array": true}
@@ -1646,9 +1646,9 @@
       "dataName": "NamedTupleMemberData",
       "fields": [
         {"name": "dotDotDotToken", "rustName": "dot_dot_dot_token", "type": "Node", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "dotDotDotToken", "array": false},
@@ -1661,7 +1661,7 @@
       "kindName": "NamespaceExport",
       "dataName": "NamespaceExportData",
       "fields": [
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "name", "array": false}
@@ -1671,8 +1671,8 @@
       "kindName": "NamespaceExportDeclaration",
       "dataName": "NamespaceExportDeclarationData",
       "fields": [
-        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -1683,7 +1683,7 @@
       "kindName": "NamespaceImport",
       "dataName": "NamespaceImportData",
       "fields": [
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "name", "array": false}
@@ -1693,10 +1693,10 @@
       "kindName": "NewExpression",
       "dataName": "NewExpressionData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
-        {"name": "questionDotToken", "rustName": "question_dot_token", "type": "Node", "optional": true, "child": true},
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true},
         {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "arguments", "rustName": "arguments", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "arguments", "rustName": "arguments", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "questionDotToken", "rustName": "question_dot_token", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false},
@@ -1719,7 +1719,7 @@
       "kindName": "NonNullExpression",
       "dataName": "NonNullExpressionData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false}
@@ -1738,7 +1738,7 @@
       "kindName": "ObjectBindingPattern",
       "dataName": "ObjectBindingPatternData",
       "fields": [
-        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "elements", "array": true}
@@ -1748,7 +1748,7 @@
       "kindName": "ObjectLiteralExpression",
       "dataName": "ObjectLiteralExpressionData",
       "fields": [
-        {"name": "properties", "rustName": "properties", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "properties", "rustName": "properties", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "properties", "array": true}
@@ -1766,7 +1766,7 @@
       "kindName": "OptionalType",
       "dataName": "OptionalTypeData",
       "fields": [
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "type", "array": false}
@@ -1776,9 +1776,9 @@
       "kindName": "Parameter",
       "dataName": "ParameterData",
       "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
         {"name": "dotDotDotToken", "rustName": "dot_dot_dot_token", "type": "Node", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
         {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
         {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": true, "child": true}
@@ -1796,7 +1796,7 @@
       "kindName": "ParenthesizedExpression",
       "dataName": "ParenthesizedExpressionData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false}
@@ -1806,7 +1806,7 @@
       "kindName": "ParenthesizedType",
       "dataName": "ParenthesizedTypeData",
       "fields": [
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "type", "array": false}
@@ -1816,7 +1816,7 @@
       "kindName": "PartiallyEmittedExpression",
       "dataName": "PartiallyEmittedExpressionData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false}
@@ -1826,8 +1826,8 @@
       "kindName": "PostfixUnaryExpression",
       "dataName": "PostfixUnaryExpressionData",
       "fields": [
-        {"name": "operator", "rustName": "operator", "type": "SyntaxKind", "optional": false, "child": false},
-        {"name": "operand", "rustName": "operand", "type": "Node", "optional": true, "child": true}
+        {"name": "operand", "rustName": "operand", "type": "Node", "optional": false, "child": true},
+        {"name": "operator", "rustName": "operator", "type": "SyntaxKind", "optional": false, "child": false}
       ],
       "children": [
         {"name": "operand", "array": false}
@@ -1838,7 +1838,7 @@
       "dataName": "PrefixUnaryExpressionData",
       "fields": [
         {"name": "operator", "rustName": "operator", "type": "SyntaxKind", "optional": false, "child": false},
-        {"name": "operand", "rustName": "operand", "type": "Node", "optional": true, "child": true}
+        {"name": "operand", "rustName": "operand", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "operand", "array": false}
@@ -1858,9 +1858,9 @@
       "kindName": "PropertyAccessExpression",
       "dataName": "PropertyAccessExpressionData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
-        {"name": "questionDotToken", "rustName": "question_dot_token", "type": "Node", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true},
+        {"name": "questionDotToken", "rustName": "question_dot_token", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false},
@@ -1872,11 +1872,11 @@
       "kindName": "PropertyAssignment",
       "dataName": "PropertyAssignmentData",
       "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
+        {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": false, "child": true},
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
         {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
-        {"name": "exclamationToken", "rustName": "exclamation_token", "type": "Node", "optional": true, "child": true},
-        {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": true, "child": true}
+        {"name": "exclamationToken", "rustName": "exclamation_token", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -1890,8 +1890,8 @@
       "kindName": "PropertyDeclaration",
       "dataName": "PropertyDeclarationData",
       "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
         {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
         {"name": "exclamationToken", "rustName": "exclamation_token", "type": "Node", "optional": true, "child": true},
         {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
@@ -1910,9 +1910,9 @@
       "kindName": "PropertySignature",
       "dataName": "PropertySignatureData",
       "fields": [
-        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
         {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": true, "child": true}
       ],
@@ -1928,8 +1928,8 @@
       "kindName": "QualifiedName",
       "dataName": "QualifiedNameData",
       "fields": [
-        {"name": "left", "rustName": "left", "type": "Node", "optional": true, "child": true},
-        {"name": "right", "rustName": "right", "type": "Node", "optional": true, "child": true}
+        {"name": "left", "rustName": "left", "type": "Node", "optional": false, "child": true},
+        {"name": "right", "rustName": "right", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "left", "array": false},
@@ -1949,7 +1949,7 @@
       "kindName": "RestType",
       "dataName": "RestTypeData",
       "fields": [
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "type", "array": false}
@@ -1969,8 +1969,8 @@
       "kindName": "SatisfiesExpression",
       "dataName": "SatisfiesExpressionData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true},
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false},
@@ -1981,12 +1981,12 @@
       "kindName": "SetAccessor",
       "dataName": "SetAccessorData",
       "fields": [
-        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": false, "child": true},
         {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
-        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true}
+        {"name": "body", "rustName": "body", "type": "Node", "optional": true, "child": true},
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -2001,12 +2001,12 @@
       "kindName": "ShorthandPropertyAssignment",
       "dataName": "ShorthandPropertyAssignmentData",
       "fields": [
-        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
-        {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
-        {"name": "exclamationToken", "rustName": "exclamation_token", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "equalsToken", "rustName": "equals_token", "type": "Node", "optional": true, "child": true},
-        {"name": "objectAssignmentInitializer", "rustName": "object_assignment_initializer", "type": "Node", "optional": true, "child": true}
+        {"name": "objectAssignmentInitializer", "rustName": "object_assignment_initializer", "type": "Node", "optional": true, "child": true},
+        {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "questionToken", "rustName": "question_token", "type": "Node", "optional": true, "child": true},
+        {"name": "exclamationToken", "rustName": "exclamation_token", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -2021,8 +2021,8 @@
       "kindName": "SourceFile",
       "dataName": "SourceFileData",
       "fields": [
-        {"name": "statements", "rustName": "statements", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "endOfFileToken", "rustName": "end_of_file_token", "type": "Node", "optional": true, "child": true}
+        {"name": "statements", "rustName": "statements", "type": "NodeArray", "optional": false, "child": true},
+        {"name": "endOfFileToken", "rustName": "end_of_file_token", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "statements", "array": true},
@@ -2033,7 +2033,7 @@
       "kindName": "SpreadAssignment",
       "dataName": "SpreadAssignmentData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false}
@@ -2043,7 +2043,7 @@
       "kindName": "SpreadElement",
       "dataName": "SpreadElementData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false}
@@ -2062,8 +2062,8 @@
       "kindName": "SwitchStatement",
       "dataName": "SwitchStatementData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
-        {"name": "caseBlock", "rustName": "case_block", "type": "Node", "optional": true, "child": true}
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true},
+        {"name": "caseBlock", "rustName": "case_block", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false},
@@ -2082,10 +2082,10 @@
       "kindName": "TaggedTemplateExpression",
       "dataName": "TaggedTemplateExpressionData",
       "fields": [
-        {"name": "tag", "rustName": "tag", "type": "Node", "optional": true, "child": true},
-        {"name": "questionDotToken", "rustName": "question_dot_token", "type": "Node", "optional": true, "child": true},
+        {"name": "tag", "rustName": "tag", "type": "Node", "optional": false, "child": true},
         {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "template", "rustName": "template", "type": "Node", "optional": true, "child": true}
+        {"name": "template", "rustName": "template", "type": "Node", "optional": false, "child": true},
+        {"name": "questionDotToken", "rustName": "question_dot_token", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
         {"name": "tag", "array": false},
@@ -2098,8 +2098,8 @@
       "kindName": "TemplateExpression",
       "dataName": "TemplateExpressionData",
       "fields": [
-        {"name": "head", "rustName": "head", "type": "Node", "optional": true, "child": true},
-        {"name": "templateSpans", "rustName": "template_spans", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "head", "rustName": "head", "type": "Node", "optional": false, "child": true},
+        {"name": "templateSpans", "rustName": "template_spans", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "head", "array": false},
@@ -2120,8 +2120,8 @@
       "kindName": "TemplateLiteralType",
       "dataName": "TemplateLiteralTypeData",
       "fields": [
-        {"name": "head", "rustName": "head", "type": "Node", "optional": true, "child": true},
-        {"name": "templateSpans", "rustName": "template_spans", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "head", "rustName": "head", "type": "Node", "optional": false, "child": true},
+        {"name": "templateSpans", "rustName": "template_spans", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "head", "array": false},
@@ -2132,8 +2132,8 @@
       "kindName": "TemplateLiteralTypeSpan",
       "dataName": "TemplateLiteralTypeSpanData",
       "fields": [
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
-        {"name": "literal", "rustName": "literal", "type": "Node", "optional": true, "child": true}
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true},
+        {"name": "literal", "rustName": "literal", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "type", "array": false},
@@ -2154,8 +2154,8 @@
       "kindName": "TemplateSpan",
       "dataName": "TemplateSpanData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
-        {"name": "literal", "rustName": "literal", "type": "Node", "optional": true, "child": true}
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true},
+        {"name": "literal", "rustName": "literal", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false},
@@ -2176,7 +2176,7 @@
       "kindName": "ThrowStatement",
       "dataName": "ThrowStatementData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false}
@@ -2186,7 +2186,7 @@
       "kindName": "TryStatement",
       "dataName": "TryStatementData",
       "fields": [
-        {"name": "tryBlock", "rustName": "try_block", "type": "Node", "optional": true, "child": true},
+        {"name": "tryBlock", "rustName": "try_block", "type": "Node", "optional": false, "child": true},
         {"name": "catchClause", "rustName": "catch_clause", "type": "Node", "optional": true, "child": true},
         {"name": "finallyBlock", "rustName": "finally_block", "type": "Node", "optional": true, "child": true}
       ],
@@ -2200,7 +2200,7 @@
       "kindName": "TupleType",
       "dataName": "TupleTypeData",
       "fields": [
-        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "elements", "array": true}
@@ -2210,10 +2210,10 @@
       "kindName": "TypeAliasDeclaration",
       "dataName": "TypeAliasDeclarationData",
       "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -2226,8 +2226,8 @@
       "kindName": "TypeAssertionExpression",
       "dataName": "TypeAssertionExpressionData",
       "fields": [
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true},
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "type", "array": false},
@@ -2238,7 +2238,7 @@
       "kindName": "TypeLiteral",
       "dataName": "TypeLiteralData",
       "fields": [
-        {"name": "members", "rustName": "members", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "members", "rustName": "members", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "members", "array": true}
@@ -2248,7 +2248,7 @@
       "kindName": "TypeOfExpression",
       "dataName": "TypeOfExpressionData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false}
@@ -2259,7 +2259,7 @@
       "dataName": "TypeOperatorData",
       "fields": [
         {"name": "operator", "rustName": "operator", "type": "SyntaxKind", "optional": false, "child": false},
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "type", "array": false}
@@ -2269,8 +2269,8 @@
       "kindName": "TypeParameter",
       "dataName": "TypeParameterData",
       "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
         {"name": "constraint", "rustName": "constraint", "type": "Node", "optional": true, "child": true},
         {"name": "default", "rustName": "r#default", "type": "Node", "optional": true, "child": true},
         {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
@@ -2288,7 +2288,7 @@
       "dataName": "TypePredicateData",
       "fields": [
         {"name": "assertsModifier", "rustName": "asserts_modifier", "type": "Node", "optional": true, "child": true},
-        {"name": "parameterName", "rustName": "parameter_name", "type": "Node", "optional": true, "child": true},
+        {"name": "parameterName", "rustName": "parameter_name", "type": "Node", "optional": false, "child": true},
         {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
@@ -2301,8 +2301,8 @@
       "kindName": "TypeQuery",
       "dataName": "TypeQueryData",
       "fields": [
-        {"name": "exprName", "rustName": "expr_name", "type": "Node", "optional": true, "child": true},
-        {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "exprName", "rustName": "expr_name", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "exprName", "array": false},
@@ -2313,8 +2313,8 @@
       "kindName": "TypeReference",
       "dataName": "TypeReferenceData",
       "fields": [
-        {"name": "typeName", "rustName": "type_name", "type": "Node", "optional": true, "child": true},
-        {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "typeArguments", "rustName": "type_arguments", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "typeName", "rustName": "type_name", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "typeName", "array": false},
@@ -2325,7 +2325,7 @@
       "kindName": "UnionType",
       "dataName": "UnionTypeData",
       "fields": [
-        {"name": "types", "rustName": "types", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "types", "rustName": "types", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "types", "array": true}
@@ -2335,7 +2335,7 @@
       "kindName": "VariableDeclaration",
       "dataName": "VariableDeclarationData",
       "fields": [
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "exclamationToken", "rustName": "exclamation_token", "type": "Node", "optional": true, "child": true},
         {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true},
         {"name": "initializer", "rustName": "initializer", "type": "Node", "optional": true, "child": true}
@@ -2351,7 +2351,7 @@
       "kindName": "VariableDeclarationList",
       "dataName": "VariableDeclarationListData",
       "fields": [
-        {"name": "declarations", "rustName": "declarations", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "declarations", "rustName": "declarations", "type": "NodeArray", "optional": false, "child": true}
       ],
       "children": [
         {"name": "declarations", "array": true}
@@ -2362,7 +2362,7 @@
       "dataName": "VariableStatementData",
       "fields": [
         {"name": "modifiers", "rustName": "modifiers", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "declarationList", "rustName": "declaration_list", "type": "Node", "optional": true, "child": true}
+        {"name": "declarationList", "rustName": "declaration_list", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "modifiers", "array": true},
@@ -2373,7 +2373,7 @@
       "kindName": "VoidExpression",
       "dataName": "VoidExpressionData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true}
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false}
@@ -2383,8 +2383,8 @@
       "kindName": "WhileStatement",
       "dataName": "WhileStatementData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
-        {"name": "statement", "rustName": "statement", "type": "Node", "optional": true, "child": true}
+        {"name": "statement", "rustName": "statement", "type": "Node", "optional": false, "child": true},
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false},
@@ -2395,8 +2395,8 @@
       "kindName": "WithStatement",
       "dataName": "WithStatementData",
       "fields": [
-        {"name": "expression", "rustName": "expression", "type": "Node", "optional": true, "child": true},
-        {"name": "statement", "rustName": "statement", "type": "Node", "optional": true, "child": true}
+        {"name": "expression", "rustName": "expression", "type": "Node", "optional": false, "child": true},
+        {"name": "statement", "rustName": "statement", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
         {"name": "expression", "array": false},
