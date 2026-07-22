@@ -100,3 +100,15 @@ ShorthandPropertyAssignment.exclamationToken
 ShorthandPropertyAssignment.modifiers
 ShorthandPropertyAssignment.questionToken
 TaggedTemplateExpression.questionDotToken
+# -- d.ts fields on unmaterialized kinds (UNMATERIALIZED_KINDS in
+# -- xtask: kind-only token nodes or tsc-synthetic kinds with no
+# -- payload struct generated yet)
+Bundle.sourceFiles type=Payload optional=false
+JSDocNamepathType.type type=Node optional=false
+JSDocText.text type=String optional=false
+NotEmittedTypeElement.name type=Node optional=true
+NotEmittedTypeElement.questionToken type=Node optional=true
+SemicolonClassElement.name type=Node optional=true
+SyntheticExpression.isSpread type=Bool optional=false
+SyntheticExpression.tupleNameSource type=Node optional=true
+SyntheticExpression.type type=Node optional=false

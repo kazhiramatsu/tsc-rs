@@ -5713,7 +5713,13 @@ fn codegen_nodes(check: bool) -> Result<(), Box<dyn Error>> {
 /// schema field tsc does not declare, or whose payload category or
 /// optionality disagrees, is a hard failure (the readonly_* generator-bug
 /// class; the fabricated child `optional: true` class).
-/// tsc fields the schema does not carry yet are tracked exactly in
+/// The KIND SETS reconcile exactly in both directions: a d.ts kind the
+/// schema does not materialize must be allowlisted in
+/// UNMATERIALIZED_KINDS (else a dropped-kind generator bug), a schema
+/// kind no d.ts interface claims is a ghost, and stale allowlist entries
+/// fail either way.
+/// tsc fields the schema does not carry yet — including fields on
+/// allowlisted unmaterialized kinds — are tracked exactly in
 /// nodes-missing-fields.txt; `--write` regenerates the manifest so its
 /// diff is the review surface.
 fn schema_audit(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -5753,8 +5759,11 @@ fn schema_audit(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>
 
     let mut ghosts = Vec::new();
     let mut mismatches = Vec::new();
+    let mut kind_errors = Vec::new();
     let mut missing = Vec::new();
     let mut runtime_only = Vec::new();
+    let mut unmaterialized = Vec::new();
+    let mut rust_kinds = BTreeSet::new();
     let mut kind_count = 0usize;
     for node in schema["nodes"]
         .as_array()
@@ -5763,13 +5772,16 @@ fn schema_audit(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>
         let kind_name = node["kindName"]
             .as_str()
             .ok_or("malformed nodes.schema.json: kindName")?;
+        rust_kinds.insert(kind_name);
         kind_count += 1;
         let fields = node["fields"]
             .as_array()
             .ok_or("malformed nodes.schema.json: fields")?;
         let tsc_node = &tsc_kinds[kind_name];
         if tsc_node.is_null() {
-            missing.push(format!("{kind_name} (no tsc interface resolved)"));
+            kind_errors.push(format!(
+                "{kind_name}: in nodes.schema.json but no typescript.d.ts interface claims the kind"
+            ));
             continue;
         }
         let mut tsc_by_name = BTreeMap::<&str, (&str, bool)>::new();
@@ -5827,13 +5839,63 @@ fn schema_audit(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>
         }
     }
 
-    if !ghosts.is_empty() || !mismatches.is_empty() {
+    // Kind-set reconciliation, both directions: every d.ts kind is either
+    // materialized or explicitly allowlisted (with its field debt
+    // harvested), and the allowlist carries no stale entries.
+    let tsc_kind_map = tsc_kinds
+        .as_object()
+        .ok_or("malformed schema-dump: kinds")?;
+    for (kind_name, tsc_node) in tsc_kind_map {
+        if rust_kinds.contains(kind_name.as_str()) {
+            continue;
+        }
+        if !UNMATERIALIZED_KINDS.contains(&kind_name.as_str()) {
+            kind_errors.push(format!(
+                "{kind_name}: typescript.d.ts kind absent from nodes.schema.json and not \
+                 allowlisted in UNMATERIALIZED_KINDS (dropped-kind generator bug?)"
+            ));
+            continue;
+        }
+        for field in tsc_node["fields"]
+            .as_array()
+            .ok_or("malformed schema-dump: fields")?
+        {
+            let name = field["name"]
+                .as_str()
+                .ok_or("malformed schema-dump: name")?;
+            if HEADER_OWNED_FIELDS.contains(&name) {
+                continue;
+            }
+            let ty = field["type"]
+                .as_str()
+                .ok_or("malformed schema-dump: type")?;
+            let optional = field["optional"].as_bool().unwrap_or(false);
+            unmaterialized.push(format!("{kind_name}.{name} type={ty} optional={optional}"));
+        }
+    }
+    for kind_name in UNMATERIALIZED_KINDS {
+        if rust_kinds.contains(kind_name) {
+            kind_errors.push(format!(
+                "{kind_name}: allowlisted in UNMATERIALIZED_KINDS but nodes.schema.json \
+                 materializes it; drop the stale entry"
+            ));
+        }
+        if !tsc_kind_map.contains_key(*kind_name) {
+            kind_errors.push(format!(
+                "{kind_name}: allowlisted in UNMATERIALIZED_KINDS but not a typescript.d.ts kind"
+            ));
+        }
+    }
+
+    if !ghosts.is_empty() || !mismatches.is_empty() || !kind_errors.is_empty() {
         return Err(format!(
-            "schema-audit failed: {} ghost field(s) not in typescript.d.ts: {:?}; {} category mismatch(es): {:?}",
+            "schema-audit failed: {} ghost field(s) not in typescript.d.ts: {:?}; {} category mismatch(es): {:?}; {} kind-set error(s): {:?}",
             ghosts.len(),
             ghosts,
             mismatches.len(),
-            mismatches
+            mismatches,
+            kind_errors.len(),
+            kind_errors
         )
         .into());
     }
@@ -5855,6 +5917,16 @@ fn schema_audit(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>
          # -- from the public d.ts as @internal grammar-error slots\n",
     );
     for line in &runtime_only {
+        manifest.push_str(line);
+        manifest.push('\n');
+    }
+    unmaterialized.sort();
+    manifest.push_str(
+        "# -- d.ts fields on unmaterialized kinds (UNMATERIALIZED_KINDS in\n\
+         # -- xtask: kind-only token nodes or tsc-synthetic kinds with no\n\
+         # -- payload struct generated yet)\n",
+    );
+    for line in &unmaterialized {
         manifest.push_str(line);
         manifest.push('\n');
     }
@@ -5882,8 +5954,10 @@ fn schema_audit(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>
         }
     }
     println!(
-        "schema-audit ok: kinds={kind_count} ghost=0 mismatch=0 missing-tracked={}",
-        missing.len()
+        "schema-audit ok: kinds={kind_count} unmaterialized={} ghost=0 mismatch=0 missing-tracked={} unmaterialized-field-debt={}",
+        UNMATERIALIZED_KINDS.len(),
+        missing.len(),
+        unmaterialized.len()
     );
     Ok(())
 }
@@ -6259,6 +6333,44 @@ const FIELDLESS_KINDS: &[&str] = &[
     "EmptyStatement",
     "OmittedExpression",
     "SyntaxList",
+];
+
+/// typescript.d.ts SyntaxKinds deliberately NOT materialized as payload
+/// structs (absent from nodes.schema.json). schema-audit enforces this
+/// list exactly, in both directions: a d.ts kind absent from the schema
+/// must be listed here, a listed kind must stay absent from the schema
+/// and present in the d.ts, and any d.ts fields these kinds declare are
+/// tracked in nodes-missing-fields.txt so the debt stays visible.
+const UNMATERIALIZED_KINDS: &[&str] = &[
+    // Keyword-literal expressions and fieldless markers: the parser
+    // allocates kind-only token nodes (finish_kind_only_node); their
+    // d.ts interfaces add nothing beyond the Node header, except
+    // SemicolonClassElement's ClassElement-inherited optional `name`
+    // (tracked as debt).
+    "FalseKeyword",
+    "ImportKeyword",
+    "JsxClosingFragment",
+    "JsxOpeningFragment",
+    "NullKeyword",
+    "SemicolonClassElement",
+    "SuperKeyword",
+    "ThisKeyword",
+    "ThisType",
+    "TrueKeyword",
+    // JSDoc: All/Unknown are kind-only sentinel types the parser emits
+    // in type positions; JSDocText/JSDocNamepathType occur only inside
+    // JSDoc comment bodies the port does not parse yet (M8 umbrella) —
+    // their fields are tracked as debt.
+    "JSDocAllType",
+    "JSDocNamepathType",
+    "JSDocText",
+    "JSDocUnknownType",
+    // Synthetic kinds tsc itself never parses: checker/transform/emit
+    // fabrications.
+    "Bundle",
+    "NotEmittedStatement",
+    "NotEmittedTypeElement",
+    "SyntheticExpression",
 ];
 
 fn collect_dts_nodes(
