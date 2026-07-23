@@ -3750,12 +3750,20 @@ impl<'a> CheckerState<'a> {
                 Ok(((*name).to_owned(), SliceTypeNodeKind::Keyword))
             }
             TypeData::Literal { value } => match value {
-                tsrs2_types::LiteralValue::String(text)
-                    if text.chars().all(|c| {
-                        c.is_ascii() && !c.is_ascii_control() && c != '"' && c != '\\'
-                    }) =>
-                {
-                    Ok((format!("\"{text}\""), SliceTypeNodeKind::Literal))
+                tsrs2_types::LiteralValue::String(text) => {
+                    // 51401-51403: the StringLiteral face carries
+                    // EmitFlags.NoAsciiEscaping, so getLiteralText
+                    // runs escapeString(text, '"') WITHOUT the
+                    // non-ASCII pass — `"あ"` prints raw while
+                    // `"AB\r\nC"` spells its escapes (oracle-pinned).
+                    // (The string-literal domain's unpaired-surrogate
+                    // gap is the recorded 9.3b4-r1 D1a census
+                    // candidate; LiteralValue::String cannot carry
+                    // one.)
+                    Ok((
+                        format!("\"{}\"", string_literal_type_display_text(text)),
+                        SliceTypeNodeKind::Literal,
+                    ))
                 }
                 tsrs2_types::LiteralValue::Number(value) => Ok((
                     tsrs2_types::js_number_to_string(*value),
@@ -3765,6 +3773,34 @@ impl<'a> CheckerState<'a> {
                     "literal display beyond plain strings/numbers (nodeBuilder, T2/M8)",
                 )),
             },
+            TypeData::UniqueESSymbol { .. } => {
+                // 51417-51428. typeToString's DEFAULT flags include
+                // AllowUniqueESSymbolType (50717) — the plain render
+                // short-circuits every unique symbol to the OPERATOR
+                // face `unique symbol` (probed: accessible locals and
+                // type-literal members alike). Only
+                // getTypeNameForErrorDisplay REPLACES the defaults
+                // with bare UseFullyQualifiedType, unlocking the
+                // 51419 accessible-value probe — the Value
+                // symbolToTypeNode chain face (`typeof
+                // Symbol.toPrimitive` / `typeof A.B.tp`; a
+                // nested-literal member with no accessible chain
+                // collapses to [symbol] → bare `typeof tp` — all
+                // oracle-probed). reportRelationError reaches the FQ
+                // flavor through its GENERALIZED render:
+                // getBaseTypeOfLiteralType passes unique symbols
+                // through unchanged.
+                if fully_qualified {
+                    let symbol = self
+                        .tables
+                        .type_of(ty)
+                        .symbol
+                        .expect("unique symbols carry their declaration symbol");
+                    self.symbol_value_face_slice(symbol, true)
+                } else {
+                    Ok(("unique symbol".to_owned(), SliceTypeNodeKind::TypeOperator))
+                }
+            }
             _ => self.type_to_string_slice_structured(ty, fully_qualified),
         }
     }
@@ -3810,30 +3846,65 @@ impl<'a> CheckerState<'a> {
             return Ok(("boolean".to_owned(), SliceTypeNodeKind::Keyword));
         }
         if flags.intersects(TypeFlags::UNION | TypeFlags::INTERSECTION) {
-            let (types, origin) = match &self.tables.type_of(ty).data {
+            let (mut types, origin) = match &self.tables.type_of(ty).data {
                 TypeData::Union { types, origin } => (types.to_vec(), *origin),
                 TypeData::Intersection { types } => (types.to_vec(), None),
                 _ => unreachable!("union/intersection flag implies composite data"),
             };
+            let mut is_union = flags.intersects(TypeFlags::UNION);
             if let Some(origin) = origin {
-                // typeToString substitutes a denormalized union's
-                // ORIGIN wholesale (51536-51538) and re-dispatches:
-                // keyof origins land on the Index arm below. Non-keyof
-                // origins (syntactic `A | B` denormalizations) stay
-                // behind the curtain — the M5/M6 verdict bands lean on
-                // this suppression as their FP shield (5.9d
-                // re-measure: 2403/2322/2536 rows over narrowable
-                // unions fabricate without flow narrowing); removal is
-                // the 9.3b5 proof obligation.
+                // 51542-51544: `type = type.origin` — the denormalized
+                // union substitutes its ORIGIN wholesale and falls
+                // through THIS arm (never back through the alias/named
+                // heads above, so an origin's own alias face cannot
+                // apply). Union/intersection origins re-enter the walk
+                // with the origin's list (`(A | B) & (C | D)` prints
+                // the syntactic shape — the M5/M6-era verdict shield
+                // retired with this slice: narrowing landed at M5/M6
+                // and the corpus-wide FP=0 + set-ratchet run is the
+                // removal proof); keyof origins continue down the
+                // substituted helper to the Index arm.
                 let origin_flags = self.tables.flags_of(origin);
-                if origin_flags.intersects(TypeFlags::INDEX) {
+                if origin_flags.intersects(TypeFlags::UNION | TypeFlags::INTERSECTION) {
+                    is_union = origin_flags.intersects(TypeFlags::UNION);
+                    types = match &self.tables.type_of(origin).data {
+                        TypeData::Union { types, .. } => types.to_vec(),
+                        TypeData::Intersection { types } => types.to_vec(),
+                        _ => unreachable!("union/intersection flag implies composite data"),
+                    };
+                    // NARROWED verdict shield: origins with
+                    // INSTANTIABLE members are the cross-product
+                    // relation band where the port's verdict is NOT
+                    // yet faithful — `T & U ⊆ (A | B) & T & U` holds
+                    // in tsc through a normalized-intersection path
+                    // the port lacks (each constituent relates
+                    // individually here, and `T & U ⊆ 2` passes
+                    // standalone but fails inside the intersection-
+                    // target walk; FP-gate catch #8). Rendering those
+                    // origins would report the wrong verdicts, so the
+                    // shield stays EXACTLY for them until the relation
+                    // producer lands (9.9x/M8 owner); concrete-typed
+                    // origins (the interface cross products) render.
+                    if types.iter().any(|&member| {
+                        self.tables
+                            .flags_of(member)
+                            .intersects(TypeFlags::INSTANTIABLE)
+                    }) {
+                        return Err(Unsupported::new(
+                            "origin display over instantiable members (cross-product relation verdict dependency, M8)",
+                        ));
+                    }
+                } else if origin_flags.intersects(TypeFlags::INDEX) {
                     return self.index_type_to_string_slice_node(origin, fully_qualified);
+                } else {
+                    // No other origin kind is minted today (union
+                    // denormalizations and keyof distributions); keep
+                    // the curtain rather than a fresh panic claim.
+                    return Err(Unsupported::new(
+                        "origin display beyond union/intersection/keyof origins (nodeBuilder tail, M8)",
+                    ));
                 }
-                return Err(Unsupported::new(
-                    "origin-union display beyond keyof origins (M5/M6 verdict shield; nodeBuilder tail, M8)",
-                ));
             }
-            let is_union = flags.intersects(TypeFlags::UNION);
             let separator = if is_union { " | " } else { " & " };
             // 51546: union member lists format for display before
             // rendering; intersections render their stored order.
@@ -3842,6 +3913,12 @@ impl<'a> CheckerState<'a> {
             } else {
                 types
             };
+            // 51547-51548: a single-member list (enum-run collapse,
+            // origin lists) renders the member bare with ITS OWN node
+            // kind for the enclosing parenthesizer.
+            if types.len() == 1 {
+                return self.type_to_string_slice_node(types[0], fully_qualified);
+            }
             let mut rendered = Vec::new();
             for member in types {
                 let (text, kind) = self.type_to_string_slice_node(member, fully_qualified)?;
@@ -4183,15 +4260,13 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         fully_qualified: bool,
     ) -> CheckResult2<(String, SliceTypeNodeKind)> {
-        if self
-            .tables
-            .object_flags_of(ty)
-            .intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE)
-        {
-            return Err(Unsupported::new(
-                "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
-            ));
-        }
+        // InstantiationExpressionType (51755-51770): the TypeQuery
+        // syntactic-reuse leg needs an enclosing-armed context (the
+        // 9.3b probes established the reuse channel is inert for
+        // error display) and the visitedTypes placeholder is the
+        // recursion guard below — the error path renders these
+        // STRUCTURALLY through the ordinary symbol routing
+        // (oracle: 2635 prints `{ (): number; g<U>(): U; }`).
         if let Some(symbol) = self.tables.type_of(ty).symbol {
             let symbol_flags = self.binder.symbol(symbol).flags;
             // 51771-51786 symbol routing: the Class arm (51773) and
@@ -4230,16 +4305,23 @@ impl<'a> CheckerState<'a> {
             if symbol_flags.intersects(tsrs2_types::SymbolFlags::VALUE_MODULE) {
                 return self.symbol_value_face_slice(symbol, fully_qualified);
             }
-            if !symbol_flags.intersects(
-                tsrs2_types::SymbolFlags::TYPE_LITERAL
-                    | tsrs2_types::SymbolFlags::OBJECT_LITERAL
-                    | tsrs2_types::SymbolFlags::FUNCTION
-                    | tsrs2_types::SymbolFlags::METHOD,
-            ) {
-                return Err(Unsupported::new(
-                    "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
-                ));
-            }
+            // Every OTHER symbol flavor is tsc's else branch —
+            // createAnonymousTypeNode falls through to
+            // visitAndTransformType(createTypeNodeFromObjectType)
+            // (51786-51788): variable-symbol rest/widening clones and
+            // the rest take the structural walk below. The 9.3b3-era
+            // allowlist (TYPE_LITERAL|OBJECT_LITERAL|FUNCTION|METHOD)
+            // was an over-narrow constructibility guess — the
+            // object-rest types carry their VARIABLE symbol
+            // (getRestType passes the binding's symbol) and were
+            // display-inert behind it. Unreal-member flavors stay
+            // protected by the empty-resolution shield and the JS
+            // gates, not by symbol-flag allowlisting. (A blanket
+            // JSON-declaration curtain here regressed 8 accepted
+            // nodeModulesJson rows — direct JSON-literal members bind
+            // and render correctly; the arbitrary-extensions
+            // declaration-vs-JSON winner is contained at the RESOLVER
+            // instead.)
             if symbol_flags
                 .intersects(tsrs2_types::SymbolFlags::FUNCTION | tsrs2_types::SymbolFlags::METHOD)
                 && self
@@ -5113,6 +5195,13 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         fully_qualified: bool,
     ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+        // Captured BEFORE the lazy walk: a members link already
+        // Resolved here means the type was BORN resolved
+        // (make_resolved_anonymous_type / the widening clone — its
+        // producer computed the complete member set through live
+        // machinery), the trust signal for the empty-face admission
+        // below.
+        let born_resolved = self.links.ty(ty).resolved_members.resolved().is_some();
         let members = self.resolve_structured_type_members(ty)?;
         let resolved = self.members_of(members);
         let properties = resolved.properties.clone();
@@ -5124,12 +5213,40 @@ impl<'a> CheckerState<'a> {
                 // The member-less TypeLiteral (51900-51906). The
                 // symbol guard is load-bearing FP shielding, not
                 // display fidelity: symbol-CARRYING shapes that
-                // resolve empty today do so because their member
+                // resolve empty today MAY do so because their member
                 // machinery is unported (module-namespace M7, JSON
                 // imports M7, checkJs object literals M8 —
                 // corpus-probed at 7.5: dropping the guard unmasked 5
                 // fabricated 2339/2322 rows in exactly those bands).
-                if self.tables.type_of(ty).symbol.is_none() {
+                // 9.3b5 narrowing, two REAL-empty admits:
+                // (1) the canonical emptyTypeLiteralType singleton —
+                // every empty source `{}` annotation resolves to it
+                // (getTypeFromTypeNode's members-empty collapse) and
+                // its checker-created symbol carries
+                // Transient|TypeLiteral in tsc too;
+                // (2) BORN-resolved types from a non-JS declaration —
+                // make_resolved_anonymous_type producers (object
+                // literals, spread/rest results, import attributes)
+                // and the widening clone computed the complete member
+                // set through live machinery, so resolving empty IS
+                // tsc's `{}` (the all-consumed object rest pins).
+                // JS-file declarations stay curtained: their members
+                // can live in unbound JSDoc/expando machinery
+                // (fixSignatureCaching band), the 7.5-probe
+                // fabrication flavor. Lazily-resolved symbol-carrying
+                // empties (module-namespace faces, JSON module
+                // objects, instantiated literals) keep the guard.
+                let symbol = self.tables.type_of(ty).symbol;
+                let js_declared = symbol.is_some_and(|symbol| {
+                    self.binder
+                        .symbol(symbol)
+                        .value_declaration
+                        .is_some_and(|declaration| self.is_in_js_file(declaration))
+                });
+                if symbol.is_none()
+                    || ty == self.empty_type_literal_type
+                    || (born_resolved && !js_declared)
+                {
                     return Ok(("{}".to_owned(), SliceTypeNodeKind::TypeLiteral));
                 }
                 return Err(Unsupported::new(
@@ -6979,9 +7096,17 @@ impl<'a> CheckerState<'a> {
                 );
             }
             if flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) {
-                return Err(Unsupported::new(
-                    "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
-                ));
+                // 53427-53429: createComputedPropertyName(
+                // symbolToExpression(nameType.symbol, Value)). The
+                // error path's chain is [symbol] (52946 without an
+                // enclosing), so the face is the bare declaration
+                // name — oracle: `{ [sym]: number; }`.
+                let name_symbol = self
+                    .tables
+                    .type_of(name_type)
+                    .symbol
+                    .expect("unique symbols carry their declaration symbol");
+                return Ok(format!("[{}]", self.symbol_display_name(name_symbol)));
             }
         }
         let raw =
@@ -7323,6 +7448,45 @@ fn template_text_utf16_raw(units: &[u16]) -> String {
 /// template_text_utf16_raw): uppercase hex, four digits.
 fn encode_utf16_escape_sequence(unit: u16) -> String {
     format!("\\u{unit:04X}")
+}
+
+/// tsc-port: escapeString @6.0.3 (doubleQuote flavor)
+/// tsc-hash: a41f6d5932395df14118761cfc227d8ad3266e0e2f3133c4ec5857ff7e0b4d2d
+/// tsc-span: _tsc.js:16311-16314
+///
+/// doubleQuoteEscapedCharsRegExp = backslash, `"`, the FULL C0 range
+/// (`\n`/`\t` included — unlike the backtick class), U+2028/U+2029/
+/// U+0085; escapedCharsMap first (lowercase u-escapes), NUL digit
+/// lookahead, then the UPPERCASE 4-hex fallback. Non-ASCII passes
+/// through raw — the StringLiteral face sets NoAsciiEscaping.
+fn string_literal_type_display_text(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let chars: Vec<char> = text.chars().collect();
+    for (index, &c) in chars.iter().enumerate() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            '\0' => {
+                if chars.get(index + 1).is_some_and(char::is_ascii_digit) {
+                    out.push_str("\\x00");
+                } else {
+                    out.push_str("\\0");
+                }
+            }
+            '\t' => out.push_str("\\t"),
+            '\u{000B}' => out.push_str("\\v"),
+            '\u{000C}' => out.push_str("\\f"),
+            '\u{0008}' => out.push_str("\\b"),
+            '\r' => out.push_str("\\r"),
+            '\n' => out.push_str("\\n"),
+            '\u{2028}' => out.push_str("\\u2028"),
+            '\u{2029}' => out.push_str("\\u2029"),
+            '\u{0085}' => out.push_str("\\u0085"),
+            '\u{0001}'..='\u{001F}' => out.push_str(&encode_utf16_escape_sequence(c as u16)),
+            _ => out.push(c),
+        }
+    }
+    out
 }
 
 /// tsc-port: escapeTemplateSubstitution @6.0.3
@@ -9924,6 +10088,323 @@ mod tests {
                     "Type 'number' is not assignable to type 'keyof T & U'.".to_owned()
                 ),
             ]
+        );
+    }
+
+    // ---- 9.3b5 display special tail (all oracle-probed byte-exact;
+    // probe-f/probe-b batches in the session scratchpad) ----
+
+    #[test]
+    fn operator_error_retries_identical_names_fully_qualified_and_keeps_them() {
+        // getTypeNamesForErrorDisplay 50751-50754: equal renders retry
+        // through getTypeNameForErrorDisplay and the retried texts are
+        // used EVEN IF STILL EQUAL — same-type operands print
+        // `'symbol' and 'symbol'`; tsc has no third fallback.
+        assert_eq!(
+            checked_diags("declare const s: symbol;\nvar r = s + s;\n"),
+            [(
+                2365,
+                33,
+                5,
+                "Operator '+' cannot be applied to types 'symbol' and 'symbol'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn class_extends_heritage_flows_2454_and_reports_2507_empty_face() {
+        // The extends expression of a CLASS is expression context
+        // (isExpressionWithTypeArgumentsInClassExtendsClause) — its
+        // identifier flow-stamps, so the unassigned `x` reports 2454;
+        // the 2507 face renders the canonical emptyTypeLiteralType as
+        // `{}` and the errorType continuation replaces the old
+        // curtain unwind.
+        assert_eq!(
+            checked_diags("var x: {};\nclass C6 extends x { }\n"),
+            [
+                (
+                    2454,
+                    28,
+                    1,
+                    "Variable 'x' is used before being assigned.".to_owned()
+                ),
+                (
+                    2507,
+                    28,
+                    1,
+                    "Type '{}' is not a constructor function type.".to_owned()
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn extends_interface_reports_2689_before_the_reprobe_gate() {
+        // checkAndReportErrorForExtendingInterface is SECOND in the
+        // 48114 resolveName failure chain — ahead of the port's
+        // all-meanings re-probe gate, which used to swallow the report
+        // because I resolves under the Interface meaning.
+        assert_eq!(
+            checked_diags("interface I {\n    foo: string;\n}\nclass C extends I { }\n"),
+            [(
+                2689,
+                49,
+                1,
+                "Cannot extend an interface 'I'. Did you mean 'implements'?".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn type_parameter_base_reports_2507_with_did_you_mean_related() {
+        // 57172-57183: a TypeParameter base constructor adds the 2735
+        // related info anchored at declarations[0], with the
+        // constraint's construct return (unknownType fallback).
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T>(ctor: T) { class C extends ctor { } return C; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                let row = state
+                    .diagnostics
+                    .iter()
+                    .find(|diag| diag.code() == 2507)
+                    .expect("2507 emitted");
+                assert_eq!(
+                    row.message_text(),
+                    "Type 'T' is not a constructor function type."
+                );
+                assert_eq!(row.start, Some(41));
+                assert_eq!(row.related.len(), 1);
+                assert_eq!(
+                    row.related[0].message.text,
+                    "Did you mean for 'T' to be constrained to type 'new (...args: any[]) => unknown'?"
+                );
+                assert_eq!(row.related[0].start, Some(11));
+            },
+        );
+    }
+
+    #[test]
+    fn invalid_base_constructor_return_reports_2509_and_continues() {
+        // 57277-57286: the 2509 head renders through the display slice
+        // and resolution continues with the emptyArray sentinel.
+        assert_eq!(
+            checked_diags("declare const x: new () => number;\nclass C extends x { }\n"),
+            [(
+                2509,
+                51,
+                1,
+                "Base constructor return type 'number' is not an object type or intersection of object types with statically known members."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn origin_intersection_of_unions_renders_the_syntactic_face() {
+        // 51542-51544: the denormalized union substitutes its ORIGIN
+        // wholesale — `(A | B) & (C | D)` prints the syntactic shape
+        // with union members parenthesized by the intersection rule.
+        // (2454 lands first in sink order: checkIdentifier runs before
+        // the assignment relation.)
+        assert_eq!(
+            checked_diags(
+                "interface A { a: string }\ninterface B { b: string }\ninterface C { c: string }\ninterface D { d: string }\nvar y: (A | B) & (C | D);\nvar x: A & B;\ny = x;\n"
+            ),
+            [
+                (
+                    2454,
+                    148,
+                    1,
+                    "Variable 'x' is used before being assigned.".to_owned()
+                ),
+                (
+                    2322,
+                    144,
+                    1,
+                    "Type 'A & B' is not assignable to type '(A | B) & (C | D)'.".to_owned()
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn origin_with_instantiable_members_stays_curtained() {
+        // The narrowed verdict shield: `T & U ⊆ (A | B) & T & U` holds
+        // in tsc through a normalized-intersection path the port lacks
+        // (T & U ⊆ 2 passes standalone but fails inside the
+        // intersection-target walk), so instantiable-membered origins
+        // keep the curtain — the wrong verdict must not report.
+        assert_eq!(
+            checked_diags(
+                "type A = 1 | 2;\ntype B = 2 | 3;\nfunction f2<T extends A, U extends B>(ab: T & U): (A | B) & T & U { return ab; }\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn all_consumed_object_rest_renders_the_empty_face() {
+        // getRestType results are BORN resolved
+        // (make_resolved_anonymous_type) — an all-consumed rest is a
+        // REAL `{}` and the 2741 single-missing face renders it.
+        assert_eq!(
+            checked_diags(
+                "declare const s: { a: number };\nconst { a, ...r } = s;\nconst q: { b: string } = r;\n"
+            ),
+            [(
+                2741,
+                61,
+                1,
+                "Property 'b' is missing in type '{}' but required in type '{ b: string; }'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn unique_symbol_relation_faces_take_the_fq_typeof_chain() {
+        // reportRelationError's GENERALIZED render is
+        // getTypeNameForErrorDisplay (UseFullyQualifiedType) and
+        // getBaseTypeOfLiteralType passes unique symbols through
+        // unchanged — the namespace chain qualifies.
+        assert_eq!(
+            checked_diags(
+                "declare namespace NS { const tp: unique symbol; }\nvar z: object = NS.tp;\n"
+            ),
+            [(
+                2322,
+                54,
+                1,
+                "Type 'typeof NS.tp' is not assignable to type 'object'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn unique_symbol_plain_face_is_the_operator_keyword() {
+        // typeToString's DEFAULT flags include AllowUniqueESSymbolType
+        // (50717) — with generalization skipped (singleton-capable
+        // target) the plain render is the `unique symbol` operator.
+        assert_eq!(
+            checked_diags("declare const local: unique symbol;\nvar z: \"a\" | \"b\" = local;\n"),
+            [(
+                2322,
+                40,
+                1,
+                "Type 'unique symbol' is not assignable to type '\"a\" | \"b\"'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn string_literal_faces_spell_escapes_but_not_non_ascii() {
+        // 51401-51403: NoAsciiEscaping — escapeString('"') only.
+        assert_eq!(
+            checked_diags("var x: \"AB\\r\\nC\" = \"AB\\nC\";\n"),
+            [(
+                2322,
+                4,
+                1,
+                "Type '\"AB\\nC\"' is not assignable to type '\"AB\\r\\nC\"'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn unique_symbol_member_name_renders_the_computed_face() {
+        // 53427-53429: nameType UniqueESSymbol →
+        // createComputedPropertyName(symbolToExpression(symbol, Value))
+        // — the [symbol]-chain face `[sym]`.
+        assert_eq!(
+            checked_diags(
+                "declare const sym: unique symbol;\nconst o = { [sym]: 0 };\nconst t: { [key: symbol]: string } = o;\n"
+            ),
+            [(
+                2322,
+                64,
+                1,
+                "Type '{ [sym]: number; }' is not assignable to type '{ [key: symbol]: string; }'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn instantiation_expression_type_renders_structurally() {
+        // 51755-51770: the error path falls through the
+        // InstantiationExpressionType arm to the ordinary structural
+        // walk (the TypeQuery reuse leg needs an enclosing-armed
+        // context and the placeholder is the recursion guard).
+        assert_eq!(
+            checked_diags(
+                "declare const f: { (): number; g<U>(): U; };\nconst h = f<number>;\n"
+            ),
+            [(
+                2635,
+                57,
+                6,
+                "Type '{ (): number; g<U>(): U; }' has no signatures for which the type argument list is applicable."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn json_declaration_twin_suppresses_the_json_resolution() {
+        // A present <stem>.d.json.ts twin makes the
+        // resolveJsonModule-vs-arbitrary-extensions winner undecidable
+        // — the import routes to the Suppressed channel (no 2307, no
+        // fabricated 2322); without the twin the JSON literal shape
+        // resolves and relates.
+        let options = CompilerOptions {
+            resolve_json_module: Some(true),
+            // ModuleKind.CommonJS
+            module: Some(1),
+            ..CompilerOptions::default()
+        };
+        let run = |files: &[(&str, &str)]| -> Vec<(u32, u32, u32, String)> {
+            let names: Vec<String> = files.iter().map(|(name, _)| (*name).to_owned()).collect();
+            with_program_state(files, &options, |state| {
+                // The unit harness has no ProgramJson host — seed the
+                // resolver's host paths (the Suppressed channel keys
+                // on them) from the program list.
+                state.host_file_paths = names.iter().cloned().collect();
+                state.check_source_file(0);
+                diag_rows(state)
+            })
+        };
+        let with_twin = run(&[
+            (
+                "/main.ts",
+                "import data from \"./data.json\";\nlet x: string = data;\n",
+            ),
+            ("/data.json", "{}"),
+            (
+                "/data.d.json.ts",
+                "declare var val: string;\nexport default val;\n",
+            ),
+        ]);
+        assert_eq!(with_twin, []);
+        let without_twin = run(&[
+            (
+                "/main.ts",
+                "import data from \"./data.json\";\nlet x: string = data;\n",
+            ),
+            ("/data.json", "{}"),
+        ]);
+        assert_eq!(
+            without_twin,
+            [(
+                2322,
+                36,
+                1,
+                "Type '{}' is not assignable to type 'string'.".to_owned()
+            )]
         );
     }
 

@@ -127,7 +127,7 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_base_constructor_type_of_class"
-reason = "Type_0_is_not_a_constructor_function_type display (2507, T2/M8)"
+reason = "isJSConstructor probe on a JS declaration (checkJs band, M8)"
 class = "stage"
 owner = "M8"
 
@@ -263,13 +263,6 @@ file = "crates/checker/src/annotate.rs"
 in = "get_type_of_variable_or_parameter_or_property"
 reason = "worker declaration kind {other:?} (Debug.fail transcription, parse recovery)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "resolve_base_types_of_class"
-reason = "Base_constructor_return_type_0_is_not_an_object_type display (2509, T2/M8)"
-class = "stage"
-owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -500,7 +493,7 @@ in = "anonymous_object_type_to_string_slice"
 reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
 class = "stage"
 owner = "M8"
-count = 5
+count = 3
 
 [[site]]
 file = "crates/checker/src/check.rs"
@@ -599,7 +592,6 @@ in = "property_name_slice"
 reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
 class = "stage"
 owner = "M8"
-count = 2
 
 [[site]]
 file = "crates/checker/src/check.rs"
@@ -684,7 +676,14 @@ count = 3
 [[site]]
 file = "crates/checker/src/check.rs"
 in = "type_to_string_slice_structured"
-reason = "origin-union display beyond keyof origins (M5/M6 verdict shield; nodeBuilder tail, M8)"
+reason = "origin display beyond union/intersection/keyof origins (nodeBuilder tail, M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "type_to_string_slice_structured"
+reason = "origin display over instantiable members (cross-product relation verdict dependency, M8)"
 class = "stage"
 owner = "M8"
 
@@ -1397,13 +1396,6 @@ file = "crates/checker/src/operators.rs"
 in = "get_syntactic_truthy_semantics"
 reason = "conditional with missing branch (parse-recovery tree)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "get_type_names_for_error_display"
-reason = "operator-error display for identically-named types (getTypeNameForErrorDisplay UseFullyQualifiedType, T2 M8)"
-class = "stage"
-owner = "M8"
 
 [[site]]
 file = "crates/checker/src/operators.rs"

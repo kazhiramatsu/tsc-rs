@@ -2837,8 +2837,19 @@ impl<'a> CheckerState<'a> {
             }
         };
         if self.options.resolve_json_module_effective() && candidate.ends_with(".json") {
-            if let Some(index) = lookup(candidate) {
-                return Some(make(index, false, candidate));
+            // allowArbitraryExtensions declaration twin: tsc's TYPES
+            // extension group tries <stem>.d.json.ts BEFORE the JSON
+            // file wins, and the option is unmodeled here — with a
+            // twin present the winner is undecidable, so fall through
+            // and let miss_is_undecidable route the import to the
+            // Suppressed channel (its arbitrary-extension arm already
+            // matches the twin). Rendering the JSON shape in that
+            // world fabricated a 2322 (FP-gate catch #7).
+            let twin = format!("{}.d.json.ts", candidate.trim_end_matches(".json"));
+            if !self.program_path_index.contains_key(&twin) {
+                if let Some(index) = lookup(candidate) {
+                    return Some(make(index, false, candidate));
+                }
             }
         }
         // Exact name with a recognized TS-family extension.

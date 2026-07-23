@@ -1294,6 +1294,152 @@ curtain message).
    band run, integers byte-identical, reverted) found zero curtain
    rows dying inside the new arms.
 
+## 9.3b5 results (2026-07-23, display special tail — DONE)
+
+Numbers (tool-read, band 2xxx): T0 86.1527% (18136/21051, +285)
+FP=0; supported T0 88.4510% (18136/20504) FN=2,368 (from 2,653);
+T2 87.0708% (+1.33pt) / T3 79.0480% (+1.18pt). Band all: 58.8059%
+(28829/49024, +324) FP=0; syntactic unchanged. 948 checker tests
+(13 new oracle-probed pins + 2 unique-symbol containment pins
+FLIPPED to their comment-recorded oracle rows). Escapes 248/0/0/116
+(identically-named / 2507-display / 2509-display / old origin-union
+rows retired; narrowed origin shields + the annotate isJSConstructor
+site added). Ledger 1763 stale=0.
+
+1. **Census** (re-tag of the 31 shared-reason sites + 4 dynamic
+   discriminants, integers byte-identical, reverted): 279
+   display-family FN attributions = shield 175 (empty-sym
+   ObjectLiteral 107 + Transient|TypeLiteral 68) + identically-named
+   38 + 2507 31 + tail-object 18 (importAttributes 13 dominate) +
+   origin-union 6 + JSON-import 4 + outer-TP 2 + unique-symbol 2 +
+   singles (member-name face / literal-escape / instexpr) + 2509 3
+   (visible mid-slice). All non-shield families closed; the two
+   post-slice generic-curtain reasons left standing are the
+   empty-resolution shield and the narrowed instantiable-origin
+   shield below.
+
+2. **Identically-named operators** — getTypeNamesForErrorDisplay's
+   equal-render retry (50751-50754) now runs
+   getTypeNameForErrorDisplay on BOTH sides and uses the results
+   EVEN IF STILL EQUAL: same-type operands print `'null' and
+   'null'` / `'symbol' and 'symbol'` (oracle-probed); tsc has no
+   third fallback. Sibling rows on the same expressions (2703/2357)
+   revived with the containment.
+
+3. **Base-constructor family** — the 2507 arm reports through a
+   one-closure diagnostic build (head + the TypeParameter 2735
+   Did-you-mean related info at declarations[0], constraint
+   construct-return with unknownType fallback) and ALWAYS continues
+   with errorType like tsc 57185 — a display Unsupported drops the
+   report whole, never the continuation; downstream rows
+   (2554/2345/2416/2417/2454/2564 on the classExtending fixtures)
+   revived. Induced fixes, all FP-gate catches: the null comparison
+   is nullWideningType (the old `intrinsics.null` read was dead
+   while the arm unconditionally unwound — non-strict `extends null`
+   fabricated 2507+2377); JS-declared bases keep the pre-slice
+   unwind (isJSConstructor synthesizes construct signatures tsc-side
+   — our empty construct list is not evidence; the errorType
+   continuation fabricated a downstream 2339 on the salsa fixture).
+   The sibling 2509 arm reports the same way (head +
+   elaborateNeverIntersection chain tail nested like
+   chainDiagnosticMessages) and continues with the emptyArray
+   sentinel. 2689 (Cannot extend an interface) wired into
+   on_failed_to_resolve_symbol SECOND per the 48114 chain — ahead of
+   the all-meanings re-probe gate that had swallowed it.
+
+4. **Binder: class-extends is expression context** — the
+   is_in_expression_context ExpressionWithTypeArguments arm carried
+   a blanket `grandparent != HeritageClause` test; tsc's rule
+   (isPartOfTypeExpressionWithTypeArguments 14272-14274 +
+   isExpressionWithTypeArgumentsInClassExtendsClause 17093-17127)
+   makes a CLASS `extends x` an expression — its identifiers
+   flow-stamp and narrow — while implements clauses and interface
+   extends stay type context. Landing it revived heritage-position
+   2454 (`extends x` over an unassigned `var x: {}`).
+
+5. **Empty-resolution shield narrowed, two REAL-empty admits**:
+   (a) the canonical emptyTypeLiteralType singleton — every empty
+   source `{}` annotation resolves to it and its checker-created
+   symbol carries Transient|TypeLiteral IN TSC TOO (47158-47160), so
+   flag tests cannot distinguish it; identity does. (b) BORN-resolved
+   types from non-JS declarations — make_resolved_anonymous_type
+   producers and the widening clone computed their complete member
+   sets through live machinery, so resolving empty IS tsc's `{}`
+   (all-consumed object rest / spread, oracle-pinned). JS-file
+   declarations stay curtained (JSDoc/expando members unbound —
+   fixSignatureCaching band), as do lazily-resolved symbol-carrying
+   empties (module-namespace faces, instantiated literals).
+
+6. **createAnonymousType invariant** — tsc stamps
+   ObjectFlags.Anonymous unconditionally; two
+   make_resolved_anonymous_type callers (import attributes,
+   getRestType) had dropped the bit, routing their types past the
+   anonymous renderer into the structured tail. The helper now ORs
+   the bit in (matching createObjectType(16 | extra)); the 9.3b3-era
+   anon-other symbol-flag allowlist retired for tsc's else-branch
+   catch-all (rest/widening clones carry their VARIABLE symbol and
+   were display-inert behind it). The uncovered JSON world produced
+   FP-gate catch #7 — declarationFileForJsonImport's
+   .d.json.ts-vs-JSON winner — contained at the RESOLVER: a present
+   `<stem>.d.json.ts` twin makes the resolveJsonModule hit
+   undecidable and routes the import to the existing Suppressed
+   channel (a blanket display-side JSON curtain regressed 8 accepted
+   nodeModulesJson rows — set-ratchet catch #5 — direct JSON-literal
+   members bind and render correctly).
+
+7. **Origin display** — 51542-51544 substitutes `type = type.origin`
+   and falls through the SAME arm (never back through the alias
+   heads), with the 51547 single-member collapse returning the
+   member's own node kind. Union/intersection origins render the
+   syntactic face (`(A | B) & (C | D)`, oracle-pinned); keyof
+   origins keep the Index routing. The M5/M6-era verdict shield is
+   retired for CONCRETE-membered origins; a NARROWED shield stays
+   for origins with INSTANTIABLE members: `T & U ⊆ (A | B) & T & U`
+   holds in tsc through a normalized-intersection path the port
+   lacks (`T & U ⊆ 2` passes standalone and every constituent
+   relates individually, but the intersection-target walk fails —
+   FP-gate catch #8, typeParameterExtendsUnionConstraintDistributed)
+   — the wrong verdicts must not report. RECORDED VERDICT GAP:
+   intersection-of-type-parameters vs literal members inside an
+   intersection-target walk (tsc mechanism unresolved this session —
+   needs a live-debug pass; candidate owners 9.9x relation residue /
+   M8), the shield's named escape is the tracking row.
+
+8. **Unique symbols, two faces** — typeToString's DEFAULT flags
+   include AllowUniqueESSymbolType (50717), so the plain render is
+   ALWAYS the `unique symbol` operator face; only
+   getTypeNameForErrorDisplay replaces the defaults with bare
+   UseFullyQualifiedType, unlocking the 51419 accessible-value
+   typeof face. reportRelationError reaches the FQ flavor through
+   its GENERALIZED render — getBaseTypeOfLiteralType passes unique
+   symbols through UNCHANGED — which also fixed
+   build_relation_error_with_head's generalized render (it used the
+   plain slice; check.rs's twin was already FQ since 9.3b3 r2). The
+   FQ chain rides the 9.3b3 getSymbolChain slice: `typeof NS.tp` /
+   `typeof Symbol.toPrimitive` (additionalContainers lift through
+   the interface-typed global var), nested-literal members collapse
+   to the bare `[symbol]` face. T1 residue: a 1-level
+   type-literal-member lift (`q.tp` on a variable) renders `typeof
+   tp` where tsc prints `typeof q.tp` — corpus-unexercised,
+   getContainersOfSymbol's variable-candidates leg is the owner.
+
+9. **Small tails** — string-literal faces run escapeString('"') ONLY
+   (51401-51403 sets NoAsciiEscaping: escapes spell, non-ASCII stays
+   raw); the UniqueESSymbol member-name face renders
+   `[sym]` (53427-53429, [symbol]-chain expression);
+   InstantiationExpressionType falls through to the structural walk
+   on the error path (51755-51770 — the TypeQuery reuse leg needs an
+   enclosing-armed context; `{ (): number; g<U>(): U; }`
+   oracle-pinned).
+
+10. Residual: the generic display curtain now carries ONLY the
+    empty-resolution shield rows (members unreal until their
+    9.5/9.6/9.8 producers land) and the instantiable-origin verdict
+    shield — zero supported 2XXX rows over currently constructible,
+    faithfully-membered types remain display-curtained, meeting the
+    slice exit. Later-created mapped/conditional shapes land with
+    their renderers (9.5/9.6).
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

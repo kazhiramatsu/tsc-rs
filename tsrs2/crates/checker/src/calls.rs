@@ -2382,7 +2382,13 @@ impl<'a> CheckerState<'a> {
             && !self.type_could_have_top_level_singleton_types(target)?
         {
             let generalized = self.get_base_type_of_literal_type(source)?;
-            self.type_to_string_slice(generalized)?
+            // 65072: the generalized source renders through
+            // getTypeNameForErrorDisplay (UseFullyQualifiedType) —
+            // observable for unique symbols, which
+            // getBaseTypeOfLiteralType passes through UNCHANGED and
+            // whose typeof face qualifies only on the FQ chain
+            // (`typeof Symbol.toPrimitive`, oracle-probed).
+            self.get_type_name_for_error_display(generalized)?
         } else {
             source_text
         };
@@ -7117,25 +7123,27 @@ mod tests {
 
     #[test]
     fn matching_unique_symbol_argument_is_clean_and_mismatch_contains() {
-        // Oracle: 2345 at `w` (116+1) — the row stays FN behind the
-        // unique-symbol DISPLAY (`typeof u` is nodeBuilder work, T2);
-        // the passing `wantU(u)` row pins the type identity.
+        // Oracle: 2345 at `w` (116+1) — FLIPPED LIVE at 9.3b5: the
+        // unique-symbol display landed (plain face = the
+        // AllowUniqueESSymbolType operator keyword, FQ face = the
+        // typeof chain), so the pinned oracle row emits; the passing
+        // `wantU(u)` row still pins the type identity.
         assert_eq!(
             checked_rows(
                 "declare const u: unique symbol;\ndeclare function wantU(x: typeof u): void;\ndeclare const w: symbol;\nwantU(u);\nwantU(w);\n"
             ),
-            []
+            [(2345, 116, 1)]
         );
     }
 
     #[test]
     fn unique_symbol_reassignment_2322_is_a_statement_band_row() {
-        // Oracle: 2322 at `v` (38+1) — checkVariableLikeDeclaration's
-        // annotated-initializer check is the 5.8 statement band; type
-        // demand alone reports nothing (demand caveat).
+        // Oracle: 2322 at `v` (38+1) — FLIPPED LIVE at 9.3b5 with the
+        // unique-symbol display (the 5.8 statement band was already
+        // reporting; only the face was curtained).
         assert_eq!(
             checked_rows("declare const u: unique symbol;\nconst v: unique symbol = u;\nv;\n"),
-            []
+            [(2322, 38, 1)]
         );
     }
 
