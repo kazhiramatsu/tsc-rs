@@ -611,6 +611,13 @@ count = 2
 
 [[site]]
 file = "crates/checker/src/check.rs"
+in = "specifier_for_module_symbol_slice"
+reason = "module specifier without a non-augmentation declaration (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/check.rs"
 in = "string_literal_name_slice"
 reason = "literal display beyond plain strings/numbers (nodeBuilder, T2/M8)"
 class = "stage"

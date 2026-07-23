@@ -407,7 +407,7 @@ impl<'a> CheckerState<'a> {
                     // neighboring statement resolves through this Err.
                     if !self.is_type_assignable_to(initializer_type, ty)? {
                         let declared_symbol = self.get_symbol_of_declaration(node)?;
-                        if self.binder.symbol_has_expando_assignment(declared_symbol) {
+                        if self.symbol_has_expando_assignment_merged(declared_symbol) {
                             return Err(Unsupported::new(
                                 "expando-function member assignment (assignment-declaration binding, M8 checkJs band)",
                             ));

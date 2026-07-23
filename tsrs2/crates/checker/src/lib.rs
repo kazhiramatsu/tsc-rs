@@ -445,6 +445,78 @@ pub fn check_program_with_libs(
     files: &[InputFile],
     options: &CompilerOptions,
 ) -> CheckResult {
+    check_program_with_libs_at(libs, files, options, "/")
+}
+
+/// Resolve the harness cwd in the same order as
+/// `normalizeFileName(path.posix.resolve(cwd))` in program-host.mjs.
+///
+/// Backslashes must remain ordinary characters while `.` and `..`
+/// segments are resolved. Only after that POSIX-path pass does the
+/// oracle turn them into separators with normalizeFileName.
+fn resolve_host_current_directory(current_directory: &str) -> String {
+    let raw_path = if current_directory.starts_with('/') {
+        current_directory.to_owned()
+    } else {
+        let process_cwd = std::env::current_dir()
+            .map(|dir| {
+                let raw = dir.to_string_lossy().into_owned();
+                if cfg!(windows) {
+                    let flipped = raw.replace('\\', "/");
+                    match flipped.find('/') {
+                        Some(root) => flipped[root..].to_owned(),
+                        None => flipped,
+                    }
+                } else {
+                    raw
+                }
+            })
+            .unwrap_or_default();
+        format!("{process_cwd}/{current_directory}")
+    };
+
+    let absolute = raw_path.starts_with('/');
+    let mut segments: Vec<&str> = Vec::new();
+    for segment in raw_path.split('/') {
+        match segment {
+            "" | "." => {}
+            ".." => {
+                if segments.last().is_some_and(|last| *last != "..") {
+                    segments.pop();
+                } else if !absolute {
+                    segments.push(segment);
+                }
+            }
+            other => segments.push(other),
+        }
+    }
+    let normalized = segments.join("/");
+    let resolved = if absolute {
+        format!("/{normalized}")
+    } else if normalized.is_empty() {
+        ".".to_owned()
+    } else {
+        normalized
+    };
+    resolved.replace('\\', "/")
+}
+
+/// tsrs-native: the cwd-carrying entry — `current_directory` is the
+/// harness ProgramJson `cwd` (tsc host.getCurrentDirectory), which the
+/// oracle host uses to absolutize every program fileName. It follows
+/// path.posix.resolve (program-host.mjs decodeProgram): a RELATIVE cwd
+/// — including a "\\"-led one, which posix.resolve does NOT treat as
+/// absolute — roots at Node's posixCwd (the process working directory;
+/// drive-stripped on Windows), not "/". Display-side
+/// path rendering roots relative file names against it; the "/"-rooted
+/// resolution world is unaffected (see
+/// CheckerState::host_current_directory).
+pub fn check_program_with_libs_at(
+    libs: &[InputFile],
+    files: &[InputFile],
+    options: &CompilerOptions,
+    current_directory: &str,
+) -> CheckResult {
     let mut diagnostics = Vec::new();
     let mut syntactic_diagnostics = Vec::new();
     let mut partial_checks = Vec::new();
@@ -645,6 +717,15 @@ pub fn check_program_with_libs(
     if !binder_refs.is_empty() {
         let lib_count = lib_binders.len();
         let mut state = state::CheckerState::from_program(binder_refs, options);
+        // path.posix.resolve absoluteness test (charAt(0) === '/') on
+        // the RAW value — a "\\"-led cwd is RELATIVE there, so the
+        // process-cwd join and POSIX dot-segment resolution both happen
+        // on the raw string BEFORE normalizeFileName flips "\\" into
+        // separators. The join base is Node's posixCwd: process.cwd()
+        // untouched on POSIX; on Windows backslashes flipped and
+        // everything before the first "/" (the drive) dropped. ""
+        // (the old "/"-rooted world) is the no-cwd degenerate fallback.
+        state.host_current_directory = resolve_host_current_directory(current_directory);
         // The resolver's host view (M4 5.8d): every INPUT path, incl.
         // files the program dropped (.json bodies, .js without
         // allowJs) — the suppression probes need them to keep 2307
@@ -1012,6 +1093,142 @@ mod tests {
     fn empty_engine_returns_no_diagnostics() {
         let result = check_program(&[], &CompilerOptions::default());
         assert!(result.diagnostics.is_empty());
+    }
+
+    /// Node posixCwd — path.posix.resolve's implicit base: the process
+    /// working directory untouched on POSIX; on Windows backslashes
+    /// flipped and the pre-"/" drive prefix dropped. The expectation
+    /// twin of the derivation in check_program_with_libs_at.
+    fn posix_process_cwd() -> String {
+        let raw = std::env::current_dir()
+            .expect("test process has a working directory")
+            .to_string_lossy()
+            .into_owned();
+        if cfg!(windows) {
+            let flipped = raw.replace('\\', "/");
+            let root = flipped
+                .find('/')
+                .expect("an absolute Windows cwd has a separator");
+            flipped[root..].to_owned()
+        } else {
+            raw
+        }
+    }
+
+    fn cwd_probe_diagnostic_rows(current_directory: &str) -> Vec<(String, u32, u32, u32, String)> {
+        let result = check_program_with_libs_at(
+            &[],
+            &[
+                InputFile {
+                    name: "b.ts".to_owned(),
+                    text: "export const bee = 1;\n".to_owned(),
+                },
+                InputFile {
+                    name: "a.ts".to_owned(),
+                    text: "import * as b from \"./b\";\nb.nope;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions::default(),
+            current_directory,
+        );
+        result
+            .diagnostics
+            .iter()
+            .map(|diag| {
+                (
+                    diag.file_name.clone().unwrap_or_default(),
+                    diag.code(),
+                    diag.start.unwrap_or(u32::MAX),
+                    diag.length.unwrap_or(u32::MAX),
+                    diag.message_text().to_owned(),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn relative_cwd_roots_at_the_process_working_directory() {
+        // The oracle host resolves ProgramJson cwd with
+        // path.posix.resolve (program-host.mjs decodeProgram), so a
+        // RELATIVE cwd roots at Node's posixCwd (drive-stripped on
+        // Windows) — not "/". Must ride the PUBLIC entry: the check.rs
+        // cwd pins set host_current_directory directly
+        // (post-normalization) and cannot catch a regression at this
+        // seam.
+        let process_cwd = posix_process_cwd();
+        assert_eq!(
+            cwd_probe_diagnostic_rows("review-relative"),
+            [(
+                "a.ts".to_owned(),
+                2339,
+                28,
+                4,
+                format!(
+                    "Property 'nope' does not exist on type 'typeof import(\"{process_cwd}/review-relative/b\")'."
+                )
+            )]
+        );
+    }
+
+    #[test]
+    fn backslash_led_cwd_is_relative_under_posix_resolve() {
+        // path.posix.resolve treats "\\" as an ordinary character, so a
+        // "\\"-led cwd is RELATIVE — it joins onto posixCwd and the
+        // later separator flip collapses "<cwd>/\\x" into "<cwd>/x".
+        // Normalizing separators BEFORE the absoluteness test would
+        // wrongly re-root it at "/" and drop the process cwd.
+        let process_cwd = posix_process_cwd();
+        assert_eq!(
+            cwd_probe_diagnostic_rows("\\review-relative"),
+            [(
+                "a.ts".to_owned(),
+                2339,
+                28,
+                4,
+                format!(
+                    "Property 'nope' does not exist on type 'typeof import(\"{process_cwd}/review-relative/b\")'."
+                )
+            )]
+        );
+    }
+
+    #[test]
+    fn mixed_separator_cwd_resolves_dot_segments_before_backslash_flip() {
+        // path.posix.resolve sees "\\" as a literal segment here, so
+        // the following POSIX "/.." removes that segment and leaves
+        // posixCwd unchanged. Flipping "\\" first would instead let
+        // ".." remove the final segment of posixCwd.
+        let process_cwd = posix_process_cwd();
+        let module_path = state::CheckerState::normalize_program_path("b", &process_cwd);
+        assert_eq!(
+            cwd_probe_diagnostic_rows("\\/.."),
+            [(
+                "a.ts".to_owned(),
+                2339,
+                28,
+                4,
+                format!(
+                    "Property 'nope' does not exist on type 'typeof import(\"{module_path}\")'."
+                )
+            )]
+        );
+    }
+
+    #[test]
+    fn absolute_cwd_backslash_segments_stay_literal_during_dot_resolution() {
+        // posix.resolve("/a\\b/..") = "/": "a\\b" is ONE literal
+        // segment eaten by "..". Flipping "\\" first would split it
+        // and leave "/a". Oracle-probed (driver.mjs): import("/b").
+        assert_eq!(
+            cwd_probe_diagnostic_rows("/a\\b/.."),
+            [(
+                "a.ts".to_owned(),
+                2339,
+                28,
+                4,
+                "Property 'nope' does not exist on type 'typeof import(\"/b\")'.".to_owned()
+            )]
+        );
     }
 
     #[test]

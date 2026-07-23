@@ -1100,6 +1100,116 @@ both bands, 895 checker tests):**
    keeps (2339, `typeof foo`) — the recorded name is the TEXT, so
    suppression is spelling-independent in both directions.
 
+## 9.3b3 results (2026-07-23, symbol/value/module heads — DONE)
+
+Numbers (tool-read, band 2xxx): T0 84.1385% (17712/21051, +213)
+FP=0; supported T0 86.3831% (17712/20504) FN=2,792 (from 3,005);
+T1 84.1338% / T2 82.7372% (+206) / T3 75.3076% (+204) — the new rows
+carry chain fidelity through T3 nearly 1:1 with T0, so the module
+faces land T2/T3-clean where the chain model is live. Band all:
+57.8594% (28365/49024, +228) FP=0. Generic display curtain 553→340.
+Syntactic unchanged. 904 checker tests (9 new oracle-probed pins).
+
+1. **Throwaway re-census** (evidence in the PR; method = the 9.3b
+   pattern: 30 curtain sites tagged with unique `[cen ...]` reasons,
+   4 of them dynamic — structured-tail TypeData discriminant,
+   anon-symbol flag split, anon-other flags, empty-resolution symbol
+   flags — one band-2xxx run, integers byte-identical, then the
+   instrumentation reverted). All 553 generic-curtain FN rows carried
+   exactly one tag: module-ns 200 / empty-sym ObjectLiteral 107 /
+   template-literal 83 / empty-sym Transient|TypeLiteral 61 /
+   string-mapping 26 / indexed-access 23 / tail-object 18 /
+   module-ext 17 / keyof-index 10 / JSON-import transient 4 /
+   unique-symbol 3 / instexpr 1. Slice target = module-ns +
+   module-ext = 217; the 9.3b4 operator ranking (template-literal /
+   string-mapping / indexed-access / keyof) and the 9.3b5 tail
+   (tail-object incl. importAttributes6, unique/private names,
+   instexpr revisit) are re-confirmed by the same census.
+
+2. **The arm** — `symbolToTypeNode` error-path Value slice
+   (53114-53198): lookupSymbolChainWorker (52943-52958) builds
+   `[symbol]` without an enclosingDeclaration, so faces render
+   UNQUALIFIED (probed: nested `namespace A { namespace B }` member
+   misses print `typeof Inner`, never `typeof A.B`) and the
+   accessibility/type-parameter chain machinery is out of scope by
+   construction. Import face (hasNonGlobalAugmentationExternalModuleSymbol
+   50541-50543 over the symbol's declarations): `typeof
+   import("<specifier>")`, where the error-path specifier
+   (getSpecifierForModuleSymbol 53060-53081) is the SECOND
+   ambientModuleSymbolRegex unquote — it matches every admitted
+   symbol because bindSourceFileAsExternalModule names source-file
+   modules `"<fileName minus extension>"` (which is also why corpus
+   faces print extension-free `import("/b")`); the AMD moduleName arm
+   (pragma unparsed, zero conformance uses) and the fileName fallback
+   are unreachable on the error path under that naming invariant —
+   the quoted-name test still GATES (new named escape site) instead
+   of asserting. The node16/nodenext resolution-mode attributes and
+   /node_modules/ specifier-swap legs read impliedNodeFormat (not
+   modeled): recorded T2 residue, row keys unaffected. Entity face:
+   `typeof <name>` TypeQuery via the symbol_display_name posture
+   (getNameOfSymbolAsWritten's module names are identifier text);
+   globalThis rides it (SymbolFlags::MODULE, symbolName fallback).
+   ImportType joined SliceTypeNodeKind: NO parenthesizer rule lists
+   the kind (20540-20606), probed (`typeof import("/b") | null`
+   renders bare).
+
+3. **Anon-gate split** — CLASS/REGULAR_ENUM/CONST_ENUM stay curtained
+   (intercepted upstream by the named-object arm; the gate is now a
+   constructibility guard), VALUE_MODULE routes to the new face
+   BEFORE the FUNCTION admission (tsc's 51779 disjunct order —
+   pinned via the function+namespace merge printing `typeof f`).
+   Upstream named-object arm fix: the typeof split adds VALUE_MODULE
+   — a merged interface+namespace VALUE side printed the plain `X`
+   reference (pre-existing 5.4-era infidelity, probe: tsc prints
+   `typeof X`); class+ns/enum+ns splits pinned as controls.
+
+4. **Fabrication audit: NEW_FP=10 → 0, both families fixed at
+   source** (the 7.5 protocol, fourth consecutive slice it fired):
+   - *Alias-blind value filters* (2×2353, namespaceImportTypeQuery2/3):
+     `export { A }` over a local that merges a type-only import alias
+     with a `const` is a VALUE property of the module face; tsc's
+     symbolIsValue (50092-50094) FOLLOWS aliases via getSymbolFlags.
+     `is_known_property` had hand-rolled an inline members.get +
+     VALUE-flags probe (the 9.3b2 "second copy" pattern again — the
+     faithful `get_property_of_object_type` existed one file over)
+     and `get_named_members` carried a stale "alias resolution is M4"
+     justification note (watch-pattern hit) — both now gate through
+     the faithful `symbol_is_value` (get_symbol_flags_full was
+     already fully ported in modules.rs).
+   - *Merge-blind expando consults* (8×2339,
+     typeFromPropertyAssignment32/33): the amalgamated-duplicates
+     flush CLONES per-file symbols into fresh program symbols
+     (cloneSymbol), and the stage-3.4c expando-record consults keyed
+     the per-file binder symbol — a cross-file function+namespace
+     merge lost its suppression and fabricated member-miss rows. New
+     reverse index (merged_symbol_sources) +
+     symbol_has_expando_assignment_merged /
+     symbol_expando_covers_merged thread all four consult sites
+     (report_nonexistent_property, the element-access 7053 ladder,
+     the typeof-face admission, the declaration-relation
+     containment) through merge sources transitively. tsc needs no
+     equivalent — it binds expando members into the merged table
+     itself; the indirection is the recorded 3.4c stand-in shape.
+
+5. **Pins** (all oracle-probed byte-exact, incl. spans): unqualified
+   nested-namespace faces; merged interface+ns `typeof X` with the
+   type-position `X` control; class+ns/enum+ns controls; `typeof
+   globalThis`; fn+ns disjunct order; ambient-module import face;
+   source-file import face (extension-free specifier); the
+   export-alias known-property program (2353 absent + properties
+   introspection); expando+ns cross-file merge (suppression through
+   the clone + the unassigned-name `typeof EM` row + tsc's 2433).
+   Multi-file pins ride a new `program_diags` helper; the unit env's
+   un-rooted fileNames print `import("b")` where corpus goldens show
+   `import("/b")` (same naming rule, different fileName input —
+   noted in the pins).
+
+6. Residual FN attribution: fixture-32/33's p8/p9 assignment-face
+   2322s stay contained (operators.rs, recorded 3.4c residual);
+   remaining curtain 340 = the 9.3b4 operator shapes + the preserved
+   empty-resolution shield (ObjectLiteral 107 / Transient|TypeLiteral
+   61 — members unreal until their producers land) + the 9.3b5 tail.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

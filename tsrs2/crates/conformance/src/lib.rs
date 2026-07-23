@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use serde::{Deserialize, Serialize};
 use toml_edit::{DocumentMut, Item, Table};
 use tsrs2_checker::{
-    check_program, check_program_with_libs, CompilerOptions, InputFile, PartialCheck,
+    check_program, check_program_with_libs_at, CompilerOptions, InputFile, PartialCheck,
 };
 use tsrs2_diags::{compute_line_map, get_line_and_character_of_position, Diagnostic, MessageChain};
 use tsrs2_oracle::{OracleDiag, OracleMessageChain, OraclePool};
@@ -366,10 +366,11 @@ pub fn run_prefix_conformance(
                     })
                     .collect::<ConformanceResult<Vec<_>>>()?;
                 let libs = read_lib_inputs(&truncated.libs, &vendor_lib_dir)?;
-                let result = check_program_with_libs(
+                let result = check_program_with_libs_at(
                     &libs,
                     &input_files,
                     &compiler_options_from_program(&truncated),
+                    &truncated.cwd,
                 );
                 let actual = t0_set(
                     result
@@ -1298,7 +1299,12 @@ fn current_case_tsrs(
     }
 
     let libs = read_lib_inputs(&program.libs, vendor_lib_dir)?;
-    let result = check_program_with_libs(&libs, &files, &compiler_options_from_program(program));
+    let result = check_program_with_libs_at(
+        &libs,
+        &files,
+        &compiler_options_from_program(program),
+        &program.cwd,
+    );
     Ok(CaseTsrs {
         all: result
             .diagnostics

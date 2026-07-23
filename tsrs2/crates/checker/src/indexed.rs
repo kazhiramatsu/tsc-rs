@@ -1581,7 +1581,7 @@ impl<'a> CheckerState<'a> {
             if [object_symbol, receiver_symbol]
                 .into_iter()
                 .flatten()
-                .any(|symbol| self.binder.symbol_expando_assignment_covers(symbol, name))
+                .any(|symbol| self.symbol_expando_covers_merged(symbol, name))
             {
                 return Ok(None);
             }

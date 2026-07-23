@@ -692,6 +692,16 @@ pub struct CheckerState<'a> {
     /// without allowJs) — the resolver's suppression probes read this
     /// set to decide whether a miss is tsc-undecidable (FP=0 rule).
     pub host_file_paths: std::collections::HashSet<String>,
+    /// tsrs-native: the harness ProgramJson `cwd` (tsc
+    /// host.getCurrentDirectory). The oracle host absolutizes every
+    /// program fileName against it (program-host.mjs
+    /// absoluteProgramFileName), so DISPLAY-side path rendering —
+    /// getSpecifierForModuleSymbol's source-file specifiers and
+    /// getFullyQualifiedName's quoted module names — must root
+    /// relative file names here, not at `/`. Resolution-side
+    /// normalization stays "/"-rooted: all internal paths share that
+    /// base, and the two worlds never compare paths with each other.
+    pub host_current_directory: String,
     /// Normalized package.json path → whether its `"type"` is
     /// `"module"`. Node16/NodeNext use the nearest package scope to
     /// determine the implied emit format of plain .ts/.js files.
@@ -741,6 +751,13 @@ pub struct CheckerState<'a> {
     /// merge-target, per checker. A side map — NOT a symbol field —
     /// so shared (cached) lib binders stay immutable across programs.
     pub(crate) merged_symbols: std::collections::HashMap<SymbolId, SymbolId>,
+    /// The reverse index (target → sources) for the stage-3.4c
+    /// expando-record consults: the record lives on per-file binder
+    /// symbols, and amalgamated-duplicate merging clones them into
+    /// fresh program symbols, so a merged symbol consults its merge
+    /// sources (tsc needs no equivalent — it binds expando members
+    /// into the symbol table itself).
+    pub(crate) merged_symbol_sources: std::collections::HashMap<SymbolId, Vec<SymbolId>>,
 
     // ---- M4 5.0: cross-file duplicate grouping ----
     /// tsc amalgamatedDuplicates (initializeTypeChecker 88736; flushed
@@ -908,6 +925,7 @@ impl<'a> CheckerState<'a> {
             unresolved_package_root_cache: Default::default(),
             program_path_index: std::collections::HashMap::new(),
             host_file_paths: std::collections::HashSet::new(),
+            host_current_directory: "/".to_owned(),
             host_package_json_module_types: std::collections::HashMap::new(),
             host_package_json_names: std::collections::HashMap::new(),
             jsx_implicit_import_containers: std::collections::HashMap::new(),
@@ -920,6 +938,7 @@ impl<'a> CheckerState<'a> {
             resolution_property_names: Vec::new(),
             resolution_start: 0,
             merged_symbols: std::collections::HashMap::new(),
+            merged_symbol_sources: std::collections::HashMap::new(),
             amalgamated_duplicates: Some(indexmap::IndexMap::new()),
         };
         // undefinedSymbol.declarations = [] (46490); globalThisSymbol
