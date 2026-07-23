@@ -1440,6 +1440,180 @@ site added). Ledger 1763 stale=0.
     slice exit. Later-created mapped/conditional shapes land with
     their renderers (9.5/9.6).
 
+## 9.3b5 review r2 plan (PR #67, 2026-07-23): UMD alias exclusion + no-enclosing omission re-audit
+
+Review r1 (@5e130375) armed `enclosingDeclaration` into the
+accessible-chain slice (the forEachSymbolTableInScope walk) for the
+unique-symbol member faces. That slice carried omissions justified by
+"enclosing is always None"; r1 deleted the premise without re-auditing
+the omissions built on it. The external r2 finding is one such
+omission surfacing. This section is the r2 contract: the finding's
+fix, a SECOND stale omission the one-line fix would expose as an FN
+regression, a THIRD reachable divergence of the same class found by
+the audit, and dispositions for the rest. All check.rs line refs are
+at branch head @5e130375; bundle refs are the vendored 6.0.3
+`_tsc.js`.
+
+1. **The finding [P2]** — inside an external module tsc excludes UMD
+   global aliases from trySymbolTable's alias scan; the port adopts
+   `U`. Repro (strict): `umd.d.ts` = `export as namespace U;` +
+   `export const s: unique symbol;`; `a.ts` = `export {};` /
+   `declare let a: {};` / `let b: {` / `// @ts-ignore` / `[U.s]:
+   number` / `} = a;`. TS 6.0.3 prints `... required in type '{ [s]:
+   number; }'.`; the port prints `'{ [U.s]: number; }'`. Mechanism:
+   `U` sits in globals as an Alias (bindNamespaceExportDeclaration,
+   bind.rs:463, → the file symbol's globalExports; first-in-wins
+   globals adoption, merge.rs:652-656) resolving to the umd.d.ts
+   module symbol, so the globals alias scan builds [U, s]. tsc's
+   excluded leg (trySymbolTable, 50341):
+   `!(isUMDExportSymbol(sym) && enclosingDeclaration &&
+   isExternalModule(getSourceFileOfNode(enclosingDeclaration)))`.
+   isUMDExportSymbol (17555-17557) tests `declarations[0]` ONLY for
+   NamespaceExportDeclaration (`export as namespace U` — NOT
+   SyntaxKind::NamespaceExport, which is `export * as ns from`,
+   already filtered one leg later). isExternalModule (28910-28912) is
+   the externalModuleIndicator ONLY — NOT
+   is_external_or_common_js_module_of_node (program.rs:210 also
+   admits the CJS indicator; that predicate would over-filter). Port
+   gap: the check.rs:4964 comment ("The isUMDExportSymbol leg (50341)
+   needs an enclosingDeclaration ... both filters are off") — true
+   until r1 armed `enclosing`, stale since.
+
+2. **Why the one-line fix alone regresses FP→FN** (code-read against
+   the bundle; probe A re-confirms before implementing). With the
+   filter, the accessible chain for `s` from the a.ts enclosing goes
+   None (`U` was the only route), and symbol_chain_slice's parent
+   walk takes over: get_parent_of_symbol(s) = the umd.d.ts module
+   symbol (annotate.rs:7275 reads symbol.parent; exports declares set
+   it, containers.rs:581-589) → the module symbol's own chain lookup
+   also goes None (`U` filtered there too, no other containers) → the
+   fallback arm (check.rs:4775-4781) returns Some([module])
+   UNCONDITIONALLY → chain [module, s] →
+   symbol_expression_face_slice's external-module root curtain
+   (check.rs:4637) → Err(Unsupported) → the whole 2741 report drops:
+   today's wrong-face FP becomes a missing-diagnostic FN, still
+   diverging from tsc. tsc reaches the bare `[s]` through
+   getSymbolChain's module-parent suppression (52996-52998):
+   `!endOfChain && !yieldModuleSymbol &&
+   forEach(declarations, hasNonGlobalAugmentationExternalModuleSymbol)
+   → return undefined` — the module parent dies, no other parent
+   exists, and the outer endOfChain fallback yields [s].
+   `yieldModuleSymbol` is per caller: symbolToTypeNode passes
+   `!(context.flags & UseAliasDefinedOutsideCurrentScope)` = true on
+   the error path (53115); symbolToExpression (53338) and
+   symbolToName (53316) pass NOTHING = falsy. The check.rs:4663
+   comment ("yieldModuleSymbol is TRUE on the symbolToTypeNode path
+   ... the module-parent suppression never fires") is the same
+   stale-omission class — written when the typeof face was the only
+   armed caller.
+
+3. **Third instance, live without UMD** (found by the audit; probe C
+   confirms): the exportSymbol arm (trySymbolTable 50348-50357) was
+   skipped at check.rs:4921-4926 as "needs a LOCALS table, which the
+   no-enclosing walk never consults". Post-r1 the walk consults
+   ancestor locals, and module locals DO hold EXPORT_VALUE locals
+   with export_symbol links (containers.rs:566-591). The arm is
+   result-identical to the same location's exports-table direct hit
+   ONLY when nothing else in the locals table yields first — tsc
+   decides per entry inside ONE forEachEntry pass, so an alias entry
+   iterated before the name-matching local can win in the port where
+   tsc's arm would have returned [symbol] already. Predicted
+   divergence (self-import module, no UMD involved):
+   `export declare const s: unique symbol;` /
+   `import * as Self from "./c";` / `declare let a: {};` /
+   `let b: { [s]: number } = a;` — tsc prints `[s]` (the "s" local
+   precedes "Self" in table order, arm fires first); the port's
+   alias scan builds `[Self.s]`.
+
+4. **Fix design** (one r2 commit on the PR #67 branch):
+   - (a) try_symbol_table_slice: insert the 50341 leg in tsc's &&
+     order (after the export=/default skips, before the
+     isLocalNameLookup leg): skip the entry when `enclosing` is Some
+     && `is_umd_export_symbol(entry)` &&
+     `is_external_module_of_node(enclosing)`. New helpers:
+     `is_umd_export_symbol` (check.rs; ledger header tsc-port:
+     isUMDExportSymbol @6.0.3, tsc-span _tsc.js:17555-17557, hash
+     from the vendored bundle; `declarations.first()` only — not the
+     any-declaration helper) and `is_external_module_of_node`
+     (program.rs beside the CJS variant at :210,
+     external_module_indicator only, plain sibling-style comment).
+     The old comment's useOnlyExternalAliasing half stays true (the
+     error path passes false, 52959) — keep that clause.
+   - (b) symbol_chain_slice gains `yield_module_symbol: bool`,
+     threaded through the parent recursion (check.rs:4733) and into
+     the fallback arm: before `Some(vec![symbol])`, return None when
+     `!end_of_chain && !yield_module_symbol &&
+     symbol_has_external_module_declaration(symbol)`. Callers: the FQ
+     typeof face (check.rs:4562) passes TRUE — symbolToTypeNode
+     flavor; its `typeof import("...")` faces REQUIRE module roots —
+     and symbol_expression_face_slice (check.rs:4632) passes FALSE,
+     including its fully_qualified retry (tsc's FQ retry still rides
+     symbolToExpression). end_of_chain=true tops are unaffected (the
+     suppression is !endOfChain-guarded), so the `.expect("always
+     yields")` contracts at 4564/4633 hold. Rewrite the 4663 comment
+     to the per-caller rule.
+   - (c) exportSymbol arm, verbatim, inside the existing scan loop
+     and per entry (alias legs first, then the arm — preserving tsc's
+     within-entry order): `entry.escaped_name == symbol.escaped_name
+     && entry.export_symbol is Some →
+     symbol_chain_is_accessible_slice(symbol,
+     Some(get_merged_symbol(export_symbol)), None, meaning,
+     ignore_qualification, enclosing) → Some(vec![symbol])`. NOTE the
+     current loop `continue`s non-ALIAS entries at its top
+     (check.rs:4950-4958) before a second leg could run — restructure
+     so both legs see every entry in table order.
+   - (d) Comment re-justifications (no behavior): the
+     forEachSymbolTableInScope slice header's class/interface
+     members-table omission (check.rs:4842-4845) gains "exportSymbol
+     links never occur on class/interface members
+     (declareModuleMember-only)"; the getSymbolChain header
+     (check.rs:4659-4670) restates the no-enclosing containers view
+     under (b): expression-path module parents now suppress, the
+     typeof path passes enclosing=None (4563), so the enclosing-fed
+     reexportContainers (getAlternativeContainingModules) stay empty
+     either way.
+
+5. **No-enclosing omission audit** (every omission whose recorded
+   justification cited the dead premise, swept):
+
+   | omission (bundle) | old justification | post-r1 status | disposition |
+   |---|---|---|---|
+   | UMD leg 50341 | needs enclosing | LIVE — the finding | fix (a) |
+   | module-parent suppression 52996-52998 | yieldModuleSymbol TRUE on the only armed path | LIVE on the expression path; one-line fix would FN | fix (b) |
+   | exportSymbol arm 50348-50357 | needs a LOCALS table, never consulted | reachable AND order-sensitive (self-import shape, §3) | fix (c) |
+   | globalThis tail probe 50359 | its face is rendered upstream | fires only when the globals scan misses; a hit needs `s` reachable through globalThis exports but not the globals direct/alias scan | in-slice: targeted probe (script-global unique symbol, module enclosing, shadowing local); implement or re-justify WITH the probe recorded in the comment |
+   | needsQualification 50376-50396 | — | tsc itself has NO UMD leg there | correct as-is (recorded so nobody "fixes" it) |
+   | getContainersOfSymbol enclosing-fed reexportContainers | module-specifier faces curtained | typeof caller passes enclosing=None; expression-path module containers now suppress under (b) | comment-only, (d) |
+
+6. **Probes, then tests** (driver.mjs on the vendored 6.0.3 FIRST;
+   record code/pos/len/text into the test comments): probe A = the §1
+   repro verbatim (@ts-ignore directives are implemented, lib.rs:226;
+   tsc's 2686 at the `U` reference is suppressed by the directive and
+   is a resolve.rs stub on our side anyway — out of scope): expect
+   ONE 2741-shaped row anchored at `b`, head AND tail faces `[s]`,
+   related 2728. probe B = the repro minus @ts-ignore: records the
+   unsuppressed row set for the comment (2686 FN acceptable). probe
+   C = the §3 self-import fixture: pin the per-entry order (`[s]`,
+   not `[Self.s]`). Unit tests: with_program_state multi-file
+   fixtures ([("umd.d.ts", ...), ("a.ts", ...)], check over the
+   a.ts index) + the probe-C single-file module; the existing
+   963-test suite pins (b)'s TRUE side (typeof import faces).
+
+7. **Expectations + gates**: FP=0 held through r1, so no corpus row
+   currently EMITS a wrong UMD/self-import face — expect corpus
+   byte-identical, or strictly-positive revivals if (a)/(c) un-drop
+   rows; ANY negative movement = stop and re-census before accepting.
+   Full gate list per CLAUDE.md; the ledger gains exactly one entry
+   (isUMDExportSymbol) and must re-verify stale=0; escapes untouched.
+   Commit style: `p9 9.3b5 review r2: ...` with gates in the body.
+
+8. **Meta-rule** (to the port playbook at merge): arming a
+   previously-always-None parameter invalidates every omission
+   justified by that None-ness; the arming slice must grep the
+   omission comments citing the premise and re-audit them in the SAME
+   slice. (r1's own diff deleted the premise one function above the
+   4964 comment that cited it.)
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
