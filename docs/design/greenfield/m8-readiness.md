@@ -52,6 +52,10 @@ property calls may over-approximate but keep candidates separate.
 `m8-emitter-dispositions.json` pins the generated inventory and classifies
 every closure identity as ported, deferred, or not applicable with
 evidence. Schema-1 name-collapsed files are draft migration input only.
+The earlier D2a exact planning report and `port-plan` view are also
+report-only: neither an unanchored D2a inventory nor an incomplete
+disposition set can satisfy readiness. This section consumes only the
+frozen D2b inventory/dispositions and their reviewed snapshot anchor.
 The complete contract is
 [D2 declaration identity](measurement-integrity.md#6-d2--declaration-identity-and-closure).
 

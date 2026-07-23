@@ -411,17 +411,55 @@ sibling. The dispositions pin the exact inventory hash. Each D2 tooling
 slice must reduce `unaccounted` monotonically and may not shrink the
 inventory through an unexplained parser heuristic.
 
-### 6.1 Trace-assisted implementation clusters
+### 6.1 D2a planning view and D2b freeze
+
+D2a starts during phase 9 after the current display ladder, may run
+beside 9.4, and must land before 9.5a. It uses schema 2 and the same exact
+declaration parser and call-graph rules as the final inventory from its
+first report, but its artifact is marked `draft/report-only`: it has no
+snapshot anchor, cannot satisfy readiness, and cannot authorize a
+not-applicable disposition. Exact `tsc-span`/`tsc-hash` ledger joins are
+automatic; only unmatched or ambiguous identities enter manual review.
+Mechanical ownership is restricted to the three rules above.
+
+The D2a `port-plan` view accepts an exact declaration identity or exact
+schema-2 diagnostic occurrence and reports:
+
+- vendor source slice/hash and direct-emitter paths;
+- static callers/callees, SCC, property-dispatch candidates, and the
+  nearest already-ported or reviewed-disposition boundary;
+- exact Rust ledger matches, mechanical family owner/curtain reason,
+  fixture evidence, live escapes, and `dormant-assumption` rows;
+- previously recorded manual probe recipes when an exact record exists.
+
+Automated probe synthesis, diagnostic stack traces, runtime coverage,
+and document-level slice assignment remain explicitly unavailable fields;
+they are never silently capped or inferred.
+
+`port-plan` is a generated view over pinned inputs, never a second
+editable inventory. Its absence/unavailable runtime fields do not remove
+static candidates. A later D2 parser correction may change D2a only with
+an enumerated before/after identity diff and explanation.
+
+D2b completes every owner and disposition on the same schema-2 identity
+artifact, pins its inventory hash through the reviewed snapshot
+protocol, and is immutable except through the declared vendor/universe
+transition. It does not re-extract, renumber, or replace D2a identities.
+Only D2b can satisfy M8 readiness or feed D3 runtime/static
+reconciliation.
+
+### 6.2 Trace-assisted implementation clusters
 
 Once the D2 inventory/static-call-graph and B2 trace tooling land,
 diagnostic-time oracle traces are the preferred exact way to discover
 which declarations should move together in an implementation slice.
-Before then, source-level call-chain analysis plus minimal oracle probes
-is the manual equivalent and does not block an earlier semantic slice.
-Neither form defines the declaration closure. A trace is a dynamic
-slice: it omits functions that already returned after constructing a
-type or symbol, cache producers, lazy work executed at another time,
-and unselected branches.
+Before D2a, source-level call-chain analysis plus minimal oracle probes
+is the manual equivalent. Between D2a and B2, `port-plan` supplies the
+exact static cluster while probes remain manual. Neither interval blocks
+an earlier semantic slice. Neither manual nor runtime evidence defines
+the declaration closure. A trace is a dynamic slice: it omits functions
+that already returned after constructing a type or symbol, cache
+producers, lazy work executed at another time, and unselected branches.
 
 Trace an instrumented copy under `target/`; never edit the vendor. Each
 trace record joins the emitted diagnostic to its exact schema-2 oracle
@@ -474,13 +512,16 @@ The implementations must pin at least these failure classes:
 | A1 producer | pinned module or `.node-version` drift named per file; universe-transition touching producer pins; the pin extension riding any other change; a refresh under a mismatched LAUNCHED Node refused before any golden write |
 | A1 correction | unenumerated removal names the identity; over-enumeration fails; `lapsed` without the transition (and vice versa) fails; a lapsed identity still accepted fails; a correction with unchanged input pins fails; fixture bytes/expansion/vendor/corpus change under a correction fails; baseline across a correction accepts enumerated lapses only and still rejects further removals; universe-transition still refuses oracle edits |
 | A1 views | 2/2 to 2/1 regression; syntactic FN hidden by semantic gain; fixed or partial view skipping its accepted subset |
+| A1 shadow diff | unchanged aggregate T1/T2/T3 rate hides an exchanged matched identity; a lost touched-family identity or its exact-row debt record is omitted from PR evidence; a report-only gain enters active accepted state |
 | A2 identity | same T0 key but different span/message/occurrence conflated; Node/Rust canonical bytes differ; stale, duplicate, or ambiguous exclusion accepted |
 | A2 pin | add/edit plus rewritten set/count/hash; non-ancestor or mismatching adjudication commit; movable-ref or non-commit anchor; anchor manifest under another encoder version |
 | A2 tombstone | proof absent, partial-view only, stale A1 pin, or duplicate bucket not multiplicity-complete; a live resolved exclusion is unreported or passes readiness; resolving commit changed or dropped against the trusted base; marked lapsed while the occurrence still exists |
 | A2 global | unpinned-band edit after freeze; status downgrade; branch add-and-reanchor; unverified band pin |
 | A5 map | unmapped/duplicate row; enumerated 2XXX row; owner/canary change after freeze; old owner change disguised as extension |
 | A5 rollup | stale conformance/scope fingerprint; excluded duplicate neighbor lost; A1 summary substituted for current supported grading |
+| D1 dormant | an M8-stub/constant-false constructibility claim is absent from the escape manifest; its canary exists and passes while the old annotation remains; a family-construction exit lacks the named canary; the dormant ceiling increases; a row disappears without a real branch/pin or narrower exact escape |
 | D2 | same-name declarations share id, ledger closure, runtime counter, property-call evidence, disposition, or trace-frame resolution; instrumented coordinates are treated as vendor coordinates without a position map |
+| D2 phase | D2a report claims readiness; an unavailable probe/trace field removes a static candidate; D2b regenerates/rekeys D2a or freezes with an incomplete owner/disposition set |
 | D2 trace | a truncated, unresolved, wrapper, or Node-internal frame is silently dropped instead of resolved or explicitly classified; trace/coverage absence shrinks the static closure or justifies a not-applicable disposition |
 
 Positive companions cover additions-only A1 updates, append-only universe

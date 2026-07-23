@@ -52,7 +52,10 @@ two-view contract in [m8-readiness.md](m8-readiness.md):
    tsc-span/tsc-hash declaration identities; function names are aliases,
    not keys) is the M8-start checkpoint. Parse-recovery guards may
    be separately ratcheted through M7, but must move off the
-   `Unsupported` channel before this final gate.
+   `Unsupported` channel before this final gate. The escape ledger's
+   `dormant-assumption` entries are constructibility debt rather than
+   runtime `Unsupported`, but share the same final zero/empty-manifest
+   requirement.
 5. **Determinism invariants green** at full scope: idempotence,
    jobs-independence, prefix-determinism, encodings,
    matrix-independence.
@@ -84,11 +87,18 @@ different obligations:
   `mismatches.json`, a slice records the before/after rates and reviews
   the target-family rows directly. This is the current evidence for the
   no-trade rule above; it must not be described as an automated
-  identity-level shadow ratchet. If that review becomes noisy or
-  ambiguous, add per-tier matched/mismatched identity fields to
-  `conformance --out-json` in a dedicated measurement-tooling slice,
-  then gate the exact diff. Do not reconstruct tier identities from
-  aggregate rates.
+  identity-level shadow ratchet. Phase 9.3c adds exact per-tier
+  matched/lost/gained identity fields (or stable hashes) to
+  `conformance --out-json` after the display ladder and before 9.4b; an
+  external `cargo xtask conformance-diff <old> <new>` report compares
+  two observations. It does not change A1 or any ratchet artifact. From
+  9.4b onward, the exact diff is mandatory PR evidence: a loss is fixed
+  or attached to the existing exact-row shared-prerequisite debt record.
+  It becomes an automated no-loss gate only after that debt vocabulary
+  is machine-readable.
+  This remains shadow/report-only rather than early corpus-wide tier
+  activation. Earlier slices continue using the manual evidence above.
+  Do not reconstruct tier identities from aggregate rates.
 - **Pre-A3 T4**: local formatter goldens and
   `conformance --tier t4 --report-only` are validation evidence, not
   accepted T4 identities and not corpus-wide T4 activation. The A3

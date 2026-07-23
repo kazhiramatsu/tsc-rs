@@ -57,9 +57,9 @@ At least one emitter must execute. Every zero-hit identity needs reviewed
 evidence tied to the exact inventory hash. Unknown, duplicate,
 overlapping, name-collapsed, or unaccounted identities fail.
 
-The completed B2 instrumented runner also provides selected-fixture
-trace mode for
-[D2 trace-assisted implementation clusters](measurement-integrity.md#61-trace-assisted-implementation-clusters).
+The completed B2 instrumented runner provides selected-fixture trace
+mode for
+[D2 trace-assisted implementation clusters](measurement-integrity.md#62-trace-assisted-implementation-clusters).
 Trace mode associates a diagnostic-time call stack and all-declaration
 execution coverage with exact oracle diagnostic identities. It is
 planning and review evidence: it identifies the dynamic seed for a
@@ -69,8 +69,8 @@ dispositions. In particular, a declaration absent from a trace may not
 be classified as not applicable on that basis.
 
 The fingerprint includes the instrumenter, Node pin, vendor, declaration
-inventory, immutable oracle inputs, and full-corpus command. A trace
-artifact additionally fingerprints its position map or shadow-stack
+inventory, immutable oracle inputs, and full-corpus command. A selected
+trace additionally fingerprints its position map or shadow-stack
 producer, stack-depth policy, and emitting/non-emitting probe pair.
 
 Acceptance:
