@@ -4158,10 +4158,14 @@ impl<'a> CheckerState<'a> {
     /// (WriteTypeParametersInQualifiedName-gated) and
     /// createAccessFromSymbolChain's parent/indexed-access arms all
     /// collapse to the single-identifier face. The
-    /// UseFullyQualifiedType leg rides the slice's standing
-    /// getFullyQualifiedName approximation (the
-    /// getTypeNameForErrorDisplay posture, 50757-50764). The import
-    /// face's node16/nodenext resolution-mode attributes (53125-53150)
+    /// UseFullyQualifiedType leg approximates getSymbolChain's
+    /// getContainersOfSymbol walk (52958-52988) with the binder parent
+    /// chain (the getTypeNameForErrorDisplay posture, 50757-50764):
+    /// an external-module ROOT is chain[0] for the 53117 gate, so the
+    /// below-root links ride as the ImportTypeNode's qualifier
+    /// (createAccessFromSymbolChain with stopper 1); other roots keep
+    /// the standing getFullyQualifiedName face. The import face's
+    /// node16/nodenext resolution-mode attributes (53125-53150)
     /// and /node_modules/ specifier swap (53151-53174) read
     /// impliedNodeFormat, which the port does not model: the swap can
     /// only fire on node_modules fixtures (host-adjudicated band) and
@@ -4180,10 +4184,32 @@ impl<'a> CheckerState<'a> {
             // typeParameterNodes undefined — the face is the bare
             // ImportTypeNode with isTypeOf (meaning === Value).
             let specifier = self.specifier_for_module_symbol_slice(symbol)?;
+            let literal = string_literal_name_slice(&specifier, false)?;
             return Ok((
-                format!("typeof import(\"{specifier}\")"),
+                format!("typeof import({literal})"),
                 SliceTypeNodeKind::ImportType,
             ));
+        }
+        if fully_qualified {
+            let mut lineage = vec![symbol];
+            while let Some(parent) = self.binder.symbol(*lineage.last().unwrap()).parent {
+                lineage.push(parent);
+            }
+            let root = *lineage.last().unwrap();
+            if lineage.len() > 1 && self.symbol_has_external_module_declaration(root) {
+                let specifier = self.specifier_for_module_symbol_slice(root)?;
+                let literal = string_literal_name_slice(&specifier, false)?;
+                let qualifier = lineage[..lineage.len() - 1]
+                    .iter()
+                    .rev()
+                    .map(|&link| self.symbol_display_name(link))
+                    .collect::<Vec<_>>()
+                    .join(".");
+                return Ok((
+                    format!("typeof import({literal}).{qualifier}"),
+                    SliceTypeNodeKind::ImportType,
+                ));
+            }
         }
         // 53186-53197: the entity face — createAccessFromSymbolChain
         // at index 0 is getNameOfSymbolAsWritten (the slice's
@@ -4222,28 +4248,59 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:53060-53111
     ///
     /// Without an enclosingFile the specifier is decided before the
-    /// getModuleSpecifiers machinery (53076-53081), and the
-    /// ambientModuleSymbolRegex unquote matches EVERY symbol the
-    /// import face admits: ambient modules bind their string-literal
-    /// name and source-file modules bind `"<fileName minus
-    /// extension>"` (bindSourceFileAsExternalModule, 44548-44550) —
-    /// which is also why the rendered specifier is extension-free.
-    /// The moduleName arm (53068; AMD `///<amd-module>` pragma —
-    /// unparsed by the port, zero conformance uses) and the fileName
-    /// fallback (53080) cannot fire on the error path under that
-    /// naming invariant, and the export= file-equivalence probe
-    /// (53062-53067) only re-points the moduleName read — outcome-
-    /// inert here. The quoted-name test still gates the face instead
-    /// of asserting the invariant.
+    /// getModuleSpecifiers machinery (53076-53081): the
+    /// ambientModuleSymbolRegex unquote covers ambient modules (their
+    /// string-literal name) and source-file modules (`"<fileName minus
+    /// extension>"`, bindSourceFileAsExternalModule, 44548-44550 —
+    /// which is also why the rendered specifier is extension-free),
+    /// and the fileName fallback (53080) fires exactly when the regex
+    /// rejects — `declare module ""` binds `""`, whose empty body
+    /// fails /^".+"$/ — reading getNonAugmentationDeclaration's
+    /// source file, extension intact. The moduleName arm (53068; AMD
+    /// `///<amd-module>` pragma) is unparsed by the port (zero
+    /// conformance uses), and the export= file-equivalence probe
+    /// (53062-53067) only re-points that moduleName read — outcome-
+    /// inert here. Source-file paths (both legs) render through the
+    /// host's absolute normalized form: the oracle host roots every
+    /// fileName (program-host.mjs absoluteProgramFileName), the same
+    /// posture as getFullyQualifiedName's source-file arm.
     fn specifier_for_module_symbol_slice(&self, symbol: SymbolId) -> CheckResult2<String> {
-        let escaped = &self.binder.symbol(symbol).escaped_name;
+        let data = self.binder.symbol(symbol);
+        let escaped = &data.escaped_name;
         // ambientModuleSymbolRegex (46291): /^".+"$/.
         if escaped.len() >= 3 && escaped.starts_with('"') && escaped.ends_with('"') {
-            return Ok(escaped[1..escaped.len() - 1].to_owned());
+            let name = &escaped[1..escaped.len() - 1];
+            let source_file_module = data
+                .declarations
+                .iter()
+                .any(|&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile);
+            if source_file_module {
+                return Ok(Self::normalize_program_path(name, ""));
+            }
+            return Ok(name.to_owned());
         }
-        Err(Unsupported::new(
-            "module specifier outside the quoted-name invariant (nodeBuilder, T2/M8)",
-        ))
+        // tsc-port: getNonAugmentationDeclaration @6.0.3
+        // tsc-span: _tsc.js:13749-13752
+        let declaration = data.declarations.iter().copied().find(|&declaration| {
+            let source = self.binder.source_of_node(declaration);
+            let external_augmentation = node_util::is_ambient_module(source, declaration)
+                && node_util::is_module_augmentation_external(source, declaration);
+            let global_augmentation =
+                matches!(self.data_of(declaration), NodeData::ModuleDeclaration(_))
+                    && node_util::is_global_scope_augmentation(source, declaration);
+            !external_augmentation && !global_augmentation
+        });
+        match declaration {
+            Some(declaration) => Ok(Self::normalize_program_path(
+                &self.binder.source_of_node(declaration).file_name,
+                "",
+            )),
+            // tsc dereferences the find() unconditionally —
+            // augmentation-only symbols stay behind the curtain.
+            None => Err(Unsupported::new(
+                "module specifier without a non-augmentation declaration (nodeBuilder, T2/M8)",
+            )),
+        }
     }
 
     /// tsc-port: createTypeNodeFromObjectType @6.0.3
@@ -6443,9 +6500,10 @@ fn identifier_or_literal_name_slice(
     string_literal_name_slice(name, single_quote)
 }
 
-/// The printer's string-literal property-name face, bounded like the
-/// literal display arm: plain ASCII without escapes; anything needing
-/// escapeString's rewriting stays behind the curtain.
+/// The printer's string-literal face (property names, import-type
+/// specifiers), bounded like the literal display arm: plain ASCII
+/// without escapes; anything needing escapeString's rewriting stays
+/// behind the curtain.
 fn string_literal_name_slice(name: &str, single_quote: bool) -> CheckResult2<String> {
     let quote = if single_quote { '\'' } else { '"' };
     if name
@@ -8353,9 +8411,10 @@ mod tests {
     fn source_file_module_value_prints_import_face() {
         // The specifier is the binder's quoted module name minus
         // quotes — extension-free because
-        // bindSourceFileAsExternalModule strips it at naming time
-        // (the corpus face is `import("/b")` under the harness's
-        // rooted fileNames).
+        // bindSourceFileAsExternalModule strips it at naming time —
+        // rendered through the host's absolute normalized form (the
+        // oracle host roots every fileName, so tsc binds and prints
+        // `import("/b")` for this fixture; oracle-probed).
         assert_eq!(
             program_diags(&[
                 ("b.ts", "export const bee = 1;\n"),
@@ -8366,8 +8425,111 @@ mod tests {
                 2339,
                 28,
                 4,
-                "Property 'nope' does not exist on type 'typeof import(\"b\")'.".to_owned()
+                "Property 'nope' does not exist on type 'typeof import(\"/b\")'.".to_owned()
             )]
+        );
+    }
+
+    #[test]
+    fn empty_ambient_module_specifier_falls_back_to_file_name() {
+        // getSpecifierForModuleSymbol's fileName fallback (53080):
+        // `declare module ""` binds `""`, which fails
+        // ambientModuleSymbolRegex, so the specifier reads
+        // getNonAugmentationDeclaration's rooted file name, extension
+        // intact (oracle-probed: `typeof import("/g.d.ts")`).
+        assert_eq!(
+            program_diags(&[
+                (
+                    "g.d.ts",
+                    "declare module \"\" { export const x: number; }\n"
+                ),
+                ("main.ts", "import * as ns from \"\";\nns.y;\n"),
+            ]),
+            [(
+                "main.ts".to_owned(),
+                2339,
+                27,
+                1,
+                "Property 'y' does not exist on type 'typeof import(\"/g.d.ts\")'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn fully_qualified_namespace_under_module_prints_import_qualifier() {
+        // UseFullyQualifiedType roots the symbol chain at the external
+        // module (getSymbolChain's container walk), so the 53117 gate
+        // fires on chain[0] and the namespace rides as the
+        // ImportTypeNode's qualifier — NOT the quoted-name entity face
+        // (oracle-probed: `typeof import("/b").N` vs
+        // `typeof import("/a").N`).
+        assert_eq!(
+            program_diags(&[
+                ("a.ts", "export namespace N { export const x = 1; }\n"),
+                ("b.ts", "export namespace N { export const x = \"s\"; }\n"),
+                (
+                    "c.ts",
+                    "import { N as NA } from \"./a\";\nimport { N as NB } from \"./b\";\nlet v: typeof NA;\nv = NB;\n"
+                ),
+            ]),
+            [(
+                "c.ts".to_owned(),
+                2322,
+                80,
+                1,
+                "Type 'typeof import(\"/b\").N' is not assignable to type 'typeof import(\"/a\").N'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn fully_qualified_nested_namespace_joins_import_qualifier() {
+        // The below-root links join as the qualifier spine
+        // (createAccessFromSymbolChain with stopper 1; oracle-probed:
+        // `typeof import("/b").A.B`).
+        assert_eq!(
+            program_diags(&[
+                (
+                    "a.ts",
+                    "export namespace A { export namespace B { export const x = 1; } }\n"
+                ),
+                (
+                    "b.ts",
+                    "export namespace A { export namespace B { export const x = \"s\"; } }\n"
+                ),
+                (
+                    "c.ts",
+                    "import { A as XA } from \"./a\";\nimport { A as XB } from \"./b\";\nlet v: typeof XA.B;\nv = XB.B;\n"
+                ),
+            ]),
+            [(
+                "c.ts".to_owned(),
+                2322,
+                82,
+                1,
+                "Type 'typeof import(\"/b\").A.B' is not assignable to type 'typeof import(\"/a\").A.B'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn module_specifier_needing_escapes_stays_behind_the_curtain() {
+        // tsc prints `typeof import("a\"b")` (the printer's
+        // escapeString over the synthesized specifier literal); escape
+        // rewriting stays behind the curtain
+        // (string_literal_name_slice posture), so the 2339 is
+        // suppressed rather than misprinted as `import("a"b")`.
+        assert_eq!(
+            program_diags(&[
+                (
+                    "d.d.ts",
+                    "declare module \"a\\\"b\" { export const x: number; }\n"
+                ),
+                ("main.ts", "import * as m from \"a\\\"b\";\nm.y;\n"),
+            ]),
+            []
         );
     }
 
