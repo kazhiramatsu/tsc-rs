@@ -11,7 +11,9 @@ pub use tables::{
     js_number_to_string, IntersectionFlags, Intrinsics, TupleTargetFlags, TypeTables,
     UnionReduction,
 };
-pub use ty::{LiteralValue, PseudoBigInt, SymbolId, TupleTargetData, Type, TypeData, TypeId};
+pub use ty::{
+    LiteralValue, PseudoBigInt, SymbolId, TemplateText, TupleTargetData, Type, TypeData, TypeId,
+};
 
 pub fn is_scaffolded() -> bool {
     true

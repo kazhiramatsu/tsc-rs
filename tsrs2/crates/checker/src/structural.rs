@@ -19,8 +19,8 @@ use tsrs2_binder::SymbolId;
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
     AccessFlags, CheckFlags, ElementFlags, IndexFlags, IntersectionState, ModifierFlags,
-    ObjectFlags, PseudoBigInt, RecursionFlags, SymbolFlags, Ternary, TupleTargetFlags, TypeData,
-    TypeFlags, TypeId, UnionReduction,
+    ObjectFlags, PseudoBigInt, RecursionFlags, SymbolFlags, TemplateText, Ternary,
+    TupleTargetFlags, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::engine::{is_false, is_true, ternary_and, RelationChecker};
@@ -1063,7 +1063,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         Ok(Ternary::FALSE)
     }
 
-    fn template_parts(&self, ty: TypeId) -> (Vec<String>, Vec<TypeId>) {
+    fn template_parts(&self, ty: TypeId) -> (Vec<TemplateText>, Vec<TypeId>) {
         match &self.st.tables.type_of(ty).data {
             TypeData::TemplateLiteral { texts, types } => (texts.to_vec(), types.to_vec()),
             _ => unreachable!("template flag implies template data"),
@@ -6493,17 +6493,17 @@ impl<'a> CheckerState<'a> {
         // different prefixes anyway.
         let (source_texts, _) = self.template_parts_of(source);
         let (target_texts, _) = self.template_parts_of(target);
-        let source_start = utf16_units(&source_texts[0]);
-        let target_start = utf16_units(&target_texts[0]);
-        let source_end = utf16_units(&source_texts[source_texts.len() - 1]);
-        let target_end = utf16_units(&target_texts[target_texts.len() - 1]);
+        let source_start = source_texts[0].units();
+        let target_start = target_texts[0].units();
+        let source_end = source_texts[source_texts.len() - 1].units();
+        let target_end = target_texts[target_texts.len() - 1].units();
         let start_len = source_start.len().min(target_start.len());
         let end_len = source_end.len().min(target_end.len());
         source_start[..start_len] != target_start[..start_len]
             || source_end[source_end.len() - end_len..] != target_end[target_end.len() - end_len..]
     }
 
-    fn template_parts_of(&self, ty: TypeId) -> (Vec<String>, Vec<TypeId>) {
+    fn template_parts_of(&self, ty: TypeId) -> (Vec<TemplateText>, Vec<TypeId>) {
         match &self.tables.type_of(ty).data {
             TypeData::TemplateLiteral { texts, types } => (texts.to_vec(), types.to_vec()),
             _ => unreachable!("template flag implies template data"),
@@ -6620,7 +6620,11 @@ impl<'a> CheckerState<'a> {
             else {
                 unreachable!("string literal data");
             };
-            return self.infer_from_literal_parts_to_template_literal(&[value], &[], target);
+            return self.infer_from_literal_parts_to_template_literal(
+                &[TemplateText::from_utf8(&value)],
+                &[],
+                target,
+            );
         }
         if source_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
             let (source_texts, source_types) = self.template_parts_of(source);
@@ -6766,14 +6770,20 @@ impl<'a> CheckerState<'a> {
     #[allow(clippy::needless_range_loop)] // seg/pos cursor walk, ported as tsc wrote it
     fn infer_from_literal_parts_to_template_literal(
         &mut self,
-        source_texts: &[String],
+        source_texts: &[TemplateText],
         source_types: &[TypeId],
         target: TypeId,
     ) -> CheckResult2<Option<Vec<TypeId>>> {
-        let source_units: Vec<Vec<u16>> = source_texts.iter().map(|t| utf16_units(t)).collect();
+        let source_units: Vec<Vec<u16>> = source_texts
+            .iter()
+            .map(|text| text.units().to_vec())
+            .collect();
         let last_source_index = source_texts.len() - 1;
         let (target_texts, _) = self.template_parts_of(target);
-        let target_units: Vec<Vec<u16>> = target_texts.iter().map(|t| utf16_units(t)).collect();
+        let target_units: Vec<Vec<u16>> = target_texts
+            .iter()
+            .map(|text| text.units().to_vec())
+            .collect();
         let last_target_index = target_units.len() - 1;
         {
             let source_start = &source_units[0];
@@ -6810,11 +6820,12 @@ impl<'a> CheckerState<'a> {
                     let text = utf16_to_string(&get_source_units(s)[pos..p])?;
                     self.tables.get_string_literal_type(&text)
                 } else {
-                    let mut texts = vec![utf16_to_string(&source_units[seg][pos..])?];
+                    let mut texts = vec![TemplateText::from_utf16(&source_units[seg][pos..])];
                     texts.extend(source_texts[seg + 1..s].iter().cloned());
-                    texts.push(utf16_to_string(&get_source_units(s)[..p])?);
+                    texts.push(TemplateText::from_utf16(&get_source_units(s)[..p]));
                     let types = source_types[seg..s].to_vec();
-                    self.tables.get_template_literal_type(&texts, &types)
+                    self.tables
+                        .get_template_literal_type_from_texts(&texts, &types)
                 };
                 matches.push(match_type);
                 #[allow(unused_assignments)]
@@ -6860,12 +6871,6 @@ impl<'a> CheckerState<'a> {
     }
 }
 
-/// JS string indexing operates on UTF-16 code units; the template
-/// matcher does all its cursor arithmetic in that domain.
-fn utf16_units(s: &str) -> Vec<u16> {
-    s.encode_utf16().collect()
-}
-
 /// `haystack.indexOf(needle, from)` over UTF-16 code units.
 fn find_utf16(haystack: &[u16], needle: &[u16], from: usize) -> Option<usize> {
     if needle.is_empty() {
@@ -6889,35 +6894,27 @@ fn utf16_to_string(units: &[u16]) -> CheckResult2<String> {
 }
 
 /// tsc isNumericLiteralName over JS number round-trip (19205): the
-/// name coerces to a number whose string form is the name.
+/// name coerces to a number whose string form is the name — over the
+/// RAW coercion, so "NaN" (and the Infinity spellings) count exactly
+/// like tsc's `(+name).toString() === name`.
 fn is_numeric_literal_name_js(name: &str) -> bool {
-    match js_string_to_number(name) {
-        Some(n) => js_number_to_string(n) == name,
-        None => false,
-    }
+    js_number_to_string(crate::evaluate::js_string_to_number(name)) == name
 }
 
-/// tsrs-native: the `+s` coercion slice — trimmed decimal/exponent/
-/// hex/infinity forms (full JS ToNumber is M6 with expression
-/// checking); None encodes NaN.
+/// tsrs-native: the `+s` coercion — the full ToNumber port lives in
+/// evaluate.rs (M6 expression checking); this face keeps the
+/// None-encodes-NaN shape its relation/inference callers branch on.
+/// The M4-era local slice it replaces dropped the 0b/0o radix forms
+/// (and let Rust's float parser admit "inf" spellings JS rejects) —
+/// the 9.3b4 display arm unmasked the 0b/0o gap as `${number}`
+/// pattern 2345 fabrications on templateLiteralTypesPatterns.
 pub(crate) fn js_string_to_number(s: &str) -> Option<f64> {
-    let trimmed = s.trim();
-    if trimmed.is_empty() {
-        return Some(0.0);
+    let n = crate::evaluate::js_string_to_number(s);
+    if n.is_nan() {
+        None
+    } else {
+        Some(n)
     }
-    if let Some(hex) = trimmed
-        .strip_prefix("0x")
-        .or_else(|| trimmed.strip_prefix("0X"))
-    {
-        return u64::from_str_radix(hex, 16).ok().map(|v| v as f64);
-    }
-    if trimmed == "Infinity" || trimmed == "+Infinity" {
-        return Some(f64::INFINITY);
-    }
-    if trimmed == "-Infinity" {
-        return Some(f64::NEG_INFINITY);
-    }
-    trimmed.parse::<f64>().ok().filter(|n| !n.is_nan())
 }
 
 /// JS number formatting for the round-trip checks — the canonical

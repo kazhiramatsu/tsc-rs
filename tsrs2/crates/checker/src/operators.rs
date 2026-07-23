@@ -3740,9 +3740,13 @@ impl<'a> CheckerState<'a> {
             .head
             .ok_or_else(|| Unsupported::new("template without head (parse-recovery tree)"))?;
         let spans = self.nodes_of(data.template_spans);
-        let mut texts: Vec<String> = Vec::with_capacity(spans.len() + 1);
+        let mut texts: Vec<tsrs2_types::TemplateText> = Vec::with_capacity(spans.len() + 1);
         match self.data_of(head) {
-            NodeData::TemplateHead(data) => texts.push(data.text.clone()),
+            NodeData::TemplateHead(data) => {
+                texts.push(tsrs2_types::TemplateText::from_utf16(
+                    &tsrs2_syntax::template_text_utf16(&data.text, data.raw_text.as_deref()),
+                ));
+            }
             _ => unreachable!("parser invariant: template heads carry TemplateHead data"),
         }
         let mut types: Vec<TypeId> = Vec::with_capacity(spans.len());
@@ -3766,8 +3770,16 @@ impl<'a> CheckerState<'a> {
                 Unsupported::new("template span without literal (parse-recovery tree)")
             })?;
             match self.data_of(literal) {
-                NodeData::TemplateMiddle(data) => texts.push(data.text.clone()),
-                NodeData::TemplateTail(data) => texts.push(data.text.clone()),
+                NodeData::TemplateMiddle(data) => {
+                    texts.push(tsrs2_types::TemplateText::from_utf16(
+                        &tsrs2_syntax::template_text_utf16(&data.text, data.raw_text.as_deref()),
+                    ));
+                }
+                NodeData::TemplateTail(data) => {
+                    texts.push(tsrs2_types::TemplateText::from_utf16(
+                        &tsrs2_syntax::template_text_utf16(&data.text, data.raw_text.as_deref()),
+                    ));
+                }
                 _ => unreachable!(
                     "parser invariant: span literals are TemplateMiddle/TemplateTail (missing shape included)"
                 ),
@@ -3803,7 +3815,9 @@ impl<'a> CheckerState<'a> {
             || self.is_template_literal_context(node)
             || contextual_template
         {
-            return Ok(self.tables.get_template_literal_type(&texts, &types));
+            return Ok(self
+                .tables
+                .get_template_literal_type_from_texts(&texts, &types));
         }
         Ok(self.tables.intrinsics.string)
     }

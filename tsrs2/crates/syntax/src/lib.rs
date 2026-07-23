@@ -19,8 +19,8 @@ pub use nodes::{Node, NodeArray, NodeArrayId, NodeData, NodeId, NodePayload, Sou
 pub use parser::{is_identifier_text, ParseOptions, SyntaxCursor};
 pub use scanner::{
     is_js_whitespace, is_line_break, is_whitespace_like, js_trim_start, scan_big_int_string,
-    scan_tokens, skip_trivia, BigIntStringScan, CommentDirective, CommentDirectiveKind,
-    LanguageVariant, TokenRecord,
+    scan_tokens, skip_trivia, template_text_utf16, BigIntStringScan, CommentDirective,
+    CommentDirectiveKind, LanguageVariant, TokenRecord,
 };
 
 #[derive(Clone, Debug, PartialEq)]

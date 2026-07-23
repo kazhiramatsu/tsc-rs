@@ -1619,19 +1619,19 @@ pub(crate) fn js_string_to_number(text: &str) -> f64 {
         .strip_prefix("0x")
         .or_else(|| trimmed.strip_prefix("0X"))
     {
-        return u128::from_str_radix(digits, 16).map_or(f64::NAN, |value| value as f64);
+        return radix_integer_to_number(digits, 16);
     }
     if let Some(digits) = trimmed
         .strip_prefix("0o")
         .or_else(|| trimmed.strip_prefix("0O"))
     {
-        return u128::from_str_radix(digits, 8).map_or(f64::NAN, |value| value as f64);
+        return radix_integer_to_number(digits, 8);
     }
     if let Some(digits) = trimmed
         .strip_prefix("0b")
         .or_else(|| trimmed.strip_prefix("0B"))
     {
-        return u128::from_str_radix(digits, 2).map_or(f64::NAN, |value| value as f64);
+        return radix_integer_to_number(digits, 2);
     }
     if trimmed
         .chars()
@@ -1640,6 +1640,88 @@ pub(crate) fn js_string_to_number(text: &str) -> f64 {
         return f64::NAN;
     }
     trimmed.parse::<f64>().unwrap_or(f64::NAN)
+}
+
+/// JS StringNumericLiteral's binary/octal/hex integer conversion.
+///
+/// These radices are powers of two, so the correctly rounded IEEE-754
+/// result can be assembled without first fitting the integer in a Rust
+/// primitive: retain the leading 53 bits, then apply round-to-nearest,
+/// ties-to-even from the first discarded bit and the remaining sticky
+/// bits. This also handles arbitrarily long inputs (finite or
+/// overflowing), matching the unbounded integer parse used by JS
+/// `Number(string)`.
+fn radix_integer_to_number(digits: &str, radix: u32) -> f64 {
+    let bits_per_digit = match radix {
+        2 => 1usize,
+        8 => 3,
+        16 => 4,
+        _ => unreachable!("StringNumericLiteral uses only binary/octal/hex here"),
+    };
+
+    if digits.is_empty() {
+        return f64::NAN;
+    }
+    let mut values = Vec::with_capacity(digits.len());
+    for byte in digits.bytes() {
+        let value = match byte {
+            b'0'..=b'9' => u32::from(byte - b'0'),
+            b'a'..=b'f' => u32::from(byte - b'a') + 10,
+            b'A'..=b'F' => u32::from(byte - b'A') + 10,
+            _ => return f64::NAN,
+        };
+        if value >= radix {
+            return f64::NAN;
+        }
+        values.push(value as u8);
+    }
+
+    let Some(first_nonzero) = values.iter().position(|&value| value != 0) else {
+        return 0.0;
+    };
+    let values = &values[first_nonzero..];
+    let first_width = (u8::BITS - values[0].leading_zeros()) as usize;
+    let Some(bit_length) = (values.len() - 1)
+        .checked_mul(bits_per_digit)
+        .and_then(|tail| tail.checked_add(first_width))
+    else {
+        return f64::INFINITY;
+    };
+    if bit_length > 1024 {
+        return f64::INFINITY;
+    }
+
+    let mut significand = 0u64;
+    let mut seen_bits = 0usize;
+    let mut round_bit = false;
+    let mut sticky = false;
+    for (digit_index, &value) in values.iter().enumerate() {
+        let width = if digit_index == 0 {
+            first_width
+        } else {
+            bits_per_digit
+        };
+        for bit_index in (0..width).rev() {
+            let bit = (value >> bit_index) & 1 != 0;
+            if seen_bits < 53 {
+                significand = (significand << 1) | u64::from(bit);
+            } else if seen_bits == 53 {
+                round_bit = bit;
+            } else {
+                sticky |= bit;
+            }
+            seen_bits += 1;
+        }
+    }
+
+    if bit_length <= 53 {
+        return significand as f64;
+    }
+    if round_bit && (sticky || significand & 1 != 0) {
+        significand += 1;
+    }
+    let shift = bit_length - 53;
+    (significand as f64) * 2.0f64.powi(shift as i32)
 }
 
 /// ECMAScript ToInt32 (used by `| & ^ ~ << >>`).
@@ -1693,6 +1775,30 @@ mod tests {
         assert!(js_pow(2.0, f64::NAN).is_nan());
         assert_eq!(js_pow(f64::NAN, 0.0), 1.0);
         assert_eq!(js_pow(2.0, 10.0), 1024.0);
+    }
+
+    #[test]
+    fn radix_string_to_number_has_no_u128_ceiling_and_rounds_to_even() {
+        assert_eq!(
+            js_string_to_number("0x100000000000000000000000000000000"),
+            2.0f64.powi(128)
+        );
+        assert_eq!(
+            js_string_to_number(&format!("0b{}", "1".repeat(129))),
+            2.0f64.powi(129)
+        );
+        assert_eq!(
+            js_string_to_number(&format!("0o{}", "7".repeat(50))),
+            2.0f64.powi(150)
+        );
+        assert_eq!(js_string_to_number("0x20000000000001"), 2.0f64.powi(53));
+        assert_eq!(
+            js_string_to_number("0x20000000000003"),
+            2.0f64.powi(53) + 4.0
+        );
+        assert!(js_string_to_number(&format!("0x{}", "f".repeat(256))).is_infinite());
+        assert!(js_string_to_number("0x").is_nan());
+        assert!(js_string_to_number("0b102").is_nan());
     }
 
     #[test]

@@ -3816,27 +3816,18 @@ impl<'a> CheckerState<'a> {
                 _ => unreachable!("union/intersection flag implies composite data"),
             };
             if let Some(origin) = origin {
-                // typeToString prints the ORIGIN of a denormalized
-                // union (nodeBuilder typeToTypeNodeHelper origin read):
-                // keyof origins render as `keyof T`. Non-keyof origins
-                // (syntactic `A | B` denormalizations) stay behind the
-                // curtain — the M5/M6 verdict bands lean on this
-                // suppression as their FP shield (5.9d re-measure:
-                // 2403/2322/2536 rows over narrowable unions fabricate
-                // without flow narrowing).
+                // typeToString substitutes a denormalized union's
+                // ORIGIN wholesale (51536-51538) and re-dispatches:
+                // keyof origins land on the Index arm below. Non-keyof
+                // origins (syntactic `A | B` denormalizations) stay
+                // behind the curtain — the M5/M6 verdict bands lean on
+                // this suppression as their FP shield (5.9d
+                // re-measure: 2403/2322/2536 rows over narrowable
+                // unions fabricate without flow narrowing); removal is
+                // the 9.3b5 proof obligation.
                 let origin_flags = self.tables.flags_of(origin);
                 if origin_flags.intersects(TypeFlags::INDEX) {
-                    let inner = match self.tables.type_of(origin).data {
-                        TypeData::Index { ty: inner, .. } => inner,
-                        _ => unreachable!("INDEX flag implies Index data"),
-                    };
-                    let (inner, kind) = self.type_to_string_slice_node(inner, fully_qualified)?;
-                    let inner = if type_operator_operand_needs_parens(kind) {
-                        format!("({inner})")
-                    } else {
-                        inner
-                    };
-                    return Ok((format!("keyof {inner}"), SliceTypeNodeKind::TypeOperator));
+                    return self.index_type_to_string_slice_node(origin, fully_qualified);
                 }
                 return Err(Unsupported::new(
                     "origin-union display beyond keyof origins (M5/M6 verdict shield; nodeBuilder tail, M8)",
@@ -4053,9 +4044,125 @@ impl<'a> CheckerState<'a> {
         {
             return self.anonymous_object_type_to_string_slice(ty, fully_qualified);
         }
+        if flags.intersects(TypeFlags::INDEX) {
+            return self.index_type_to_string_slice_node(ty, fully_qualified);
+        }
+        // tsc-port: typeToTypeNodeHelper @6.0.3 (the TemplateLiteral arm)
+        // tsc-hash: 6493ff308f2472547a5845eab6a4caf09dac56f0b3916dd3f5029ab1e4fa1ef7
+        // tsc-span: _tsc.js:51575-51587
+        //
+        // createTemplateHead/Middle/Tail carry the COOKED texts; the
+        // printer re-derives rawText per getLiteralText's synthesized
+        // branch (template_text_raw below). Span types join bare —
+        // createTemplateLiteralTypeSpan applies no parenthesizer rule
+        // (22120-22126).
+        if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
+            let (texts, types) = match &self.tables.type_of(ty).data {
+                TypeData::TemplateLiteral { texts, types } => (texts.clone(), types.clone()),
+                _ => unreachable!("TEMPLATE_LITERAL flag implies TemplateLiteral data"),
+            };
+            let mut out = String::from("`");
+            out.push_str(&template_text_utf16_raw(texts[0].units()));
+            for (i, &span_type) in types.iter().enumerate() {
+                out.push_str("${");
+                let (text, _) = self.type_to_string_slice_node(span_type, fully_qualified)?;
+                out.push_str(&text);
+                out.push('}');
+                out.push_str(&template_text_utf16_raw(texts[i + 1].units()));
+            }
+            out.push('`');
+            return Ok((out, SliceTypeNodeKind::TemplateLiteral));
+        }
+        // tsc-port: typeToTypeNodeHelper @6.0.3 (the StringMapping arm)
+        // tsc-hash: 291aa6e7b9a0b30d8b3c92b1db3553639c530d4bef608fe985d2d89944b52aa6
+        // tsc-span: _tsc.js:51588-51591
+        //
+        // symbolToTypeNode under the Type meaning with one type
+        // argument — the intrinsic alias reference `Uppercase<T>`.
+        // Type::symbol is set at creation for every string mapping
+        // (createStringMappingType); the guard is a constructibility
+        // gate, not a reachable face. The argument never wraps
+        // (parenthesizeOrdinalTypeArgument's leading arm needs a
+        // type-parametered function head, unconstructible under the
+        // `S extends string` operand constraint).
+        if flags.intersects(TypeFlags::STRING_MAPPING) {
+            let inner = match self.tables.type_of(ty).data {
+                TypeData::StringMapping { ty: inner } => inner,
+                _ => unreachable!("STRING_MAPPING flag implies StringMapping data"),
+            };
+            let Some(symbol) = self.tables.type_of(ty).symbol else {
+                return Err(Unsupported::new(
+                    "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+                ));
+            };
+            let (argument, _) = self.type_to_string_slice_node(inner, fully_qualified)?;
+            let name = if fully_qualified {
+                self.get_fully_qualified_name(symbol)
+            } else {
+                self.symbol_display_name(symbol)
+            };
+            return Ok((format!("{name}<{argument}>"), SliceTypeNodeKind::Reference));
+        }
+        // tsc-port: typeToTypeNodeHelper @6.0.3 (the IndexedAccess arm)
+        // tsc-hash: 68490ac5787a8d01645877e13a6f9c108604b8806d7168e7566adb32f942c760
+        // tsc-span: _tsc.js:51592-51597
+        //
+        // createIndexedAccessTypeNode parenthesizes the OBJECT side
+        // only (parenthesizeNonArrayTypeOfPostfixType, 22372-22378);
+        // the index side joins bare — oracle: `(keyof T)[K]` /
+        // `(T | U)[K]` vs `T[keyof T]` / `T[K][K2]`.
+        if flags.intersects(TypeFlags::INDEXED_ACCESS) {
+            let (object_type, index_type) = match self.tables.type_of(ty).data {
+                TypeData::IndexedAccess {
+                    object_type,
+                    index_type,
+                    ..
+                } => (object_type, index_type),
+                _ => unreachable!("INDEXED_ACCESS flag implies IndexedAccess data"),
+            };
+            let (object_text, object_kind) =
+                self.type_to_string_slice_node(object_type, fully_qualified)?;
+            let object = if non_array_postfix_operand_needs_parens(object_kind) {
+                format!("({object_text})")
+            } else {
+                object_text
+            };
+            let (index_text, _) = self.type_to_string_slice_node(index_type, fully_qualified)?;
+            return Ok((
+                format!("{object}[{index_text}]"),
+                SliceTypeNodeKind::IndexedAccess,
+            ));
+        }
         Err(Unsupported::new(
             "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
         ))
+    }
+
+    /// tsc-port: typeToTypeNodeHelper @6.0.3 (the Index arm)
+    /// tsc-hash: 52a79339b35cd929e71042a217573bdcac4282a23ebfc182c37349459e88a6c6
+    /// tsc-span: _tsc.js:51569-51574
+    ///
+    /// createTypeOperatorNode(KeyOfKeyword) parenthesizes the operand
+    /// (parenthesizeOperandOfTypeOperator, 22362-22368). Reached both
+    /// directly (deferred `keyof T` over a generic operand) and
+    /// through the union-origin substitution (51536-51538) — origin
+    /// index types share TypeData::Index.
+    fn index_type_to_string_slice_node(
+        &mut self,
+        ty: TypeId,
+        fully_qualified: bool,
+    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+        let inner = match self.tables.type_of(ty).data {
+            TypeData::Index { ty: inner, .. } => inner,
+            _ => unreachable!("INDEX flag implies Index data"),
+        };
+        let (text, kind) = self.type_to_string_slice_node(inner, fully_qualified)?;
+        let operand = if type_operator_operand_needs_parens(kind) {
+            format!("({text})")
+        } else {
+            text
+        };
+        Ok((format!("keyof {operand}"), SliceTypeNodeKind::TypeOperator))
     }
 
     /// tsc-port: createAnonymousTypeNode @6.0.3 (structural tail)
@@ -7048,6 +7155,13 @@ enum SliceTypeNodeKind {
     Array,
     /// TupleTypeNode — `[...]`.
     Tuple,
+    /// TemplateLiteralTypeNode — `` `a${T}b` ``; no parenthesizer
+    /// rule lists the kind (20540-20606), so the face never wraps.
+    TemplateLiteral,
+    /// IndexedAccessTypeNode — `T[K]`; no parenthesizer rule lists
+    /// the kind (the node's own OBJECT side applies the postfix rule
+    /// at creation, 22372-22378), so the face never wraps.
+    IndexedAccess,
     /// FunctionTypeNode — `(...) => R` (the signature rung).
     FunctionType,
     /// ConstructorTypeNode — `new (...) => R` / `abstract new ...`.
@@ -7142,6 +7256,80 @@ fn non_array_postfix_operand_needs_parens(kind: SliceTypeNodeKind) -> bool {
 /// cannot render — the postfix rule is the whole reachable test.
 fn optional_type_operand_needs_parens(kind: SliceTypeNodeKind) -> bool {
     non_array_postfix_operand_needs_parens(kind)
+}
+
+/// tsc-port: getLiteralText @6.0.3 (synthesized template branch)
+/// tsc-hash: e09a970bf93f42fa341190e5980f0adbc970e1d809299edf94e843729db22090
+/// tsc-span: _tsc.js:13660-13677
+///
+/// The nodeBuilder's template heads carry cooked text and no rawText,
+/// and typeToTypeNodeHelper sets no NoAsciiEscaping emit flag on them
+/// (contrast the StringLiteral arm, 51401-51403), so the printer
+/// derives rawText = escapeTemplateSubstitution(escapeNonAsciiString
+/// (text, backtick)). The `` ` ``/`${`/`}` delimiters are the callers'
+/// (the template arm concatenation).
+#[cfg(test)]
+fn template_text_raw(text: &str) -> String {
+    template_text_utf16_raw(&text.encode_utf16().collect::<Vec<_>>())
+}
+
+/// escapeString(backtick) followed by escapeNonAsciiString, over the
+/// printer's native UTF-16 code-unit domain. Keeping this join in one
+/// pass preserves unpaired surrogates while retaining the exact
+/// escapedCharsMap/null-lookahead behavior.
+fn template_text_utf16_raw(units: &[u16]) -> String {
+    let mut out = String::with_capacity(units.len());
+    let mut index = 0usize;
+    while index < units.len() {
+        let unit = units[index];
+        match unit {
+            0x000D if units.get(index + 1) == Some(&0x000A) => {
+                out.push_str("\\r\\n");
+                index += 2;
+                continue;
+            }
+            0x005C => out.push_str("\\\\"),
+            0x0060 => out.push_str("\\`"),
+            0 => {
+                if units
+                    .get(index + 1)
+                    .is_some_and(|next| (b'0' as u16..=b'9' as u16).contains(next))
+                {
+                    out.push_str("\\x00");
+                } else {
+                    out.push_str("\\0");
+                }
+            }
+            0x0009 => out.push_str("\\t"),
+            0x0008 => out.push_str("\\b"),
+            0x000B => out.push_str("\\v"),
+            0x000C => out.push_str("\\f"),
+            0x000D => out.push_str("\\r"),
+            0x2028 => out.push_str("\\u2028"),
+            0x2029 => out.push_str("\\u2029"),
+            0x0085 => out.push_str("\\u0085"),
+            0x0000..=0x001F if unit != 0x000A => {
+                out.push_str(&encode_utf16_escape_sequence(unit));
+            }
+            0x0080..=0xFFFF => out.push_str(&encode_utf16_escape_sequence(unit)),
+            _ => out.push(char::from_u32(u32::from(unit)).expect("ASCII code unit is a scalar")),
+        }
+        index += 1;
+    }
+    escape_template_substitution(&out)
+}
+
+/// encodeUtf16EscapeSequence (16296-16300, folded into
+/// template_text_utf16_raw): uppercase hex, four digits.
+fn encode_utf16_escape_sequence(unit: u16) -> String {
+    format!("\\u{unit:04X}")
+}
+
+/// tsc-port: escapeTemplateSubstitution @6.0.3
+/// tsc-hash: f078436145475a9ae2bec1c683c638bb1e8161d02d10f155a9088dc65faf678d
+/// tsc-span: _tsc.js:16263-16266
+fn escape_template_substitution(s: &str) -> String {
+    s.replace("${", "\\${")
 }
 
 /// tsc-port: createArrayTypeNode @6.0.3 (string form)
@@ -9683,6 +9871,449 @@ mod tests {
                     "A namespace declaration cannot be in a different file from a class or function with which it is merged.".to_owned()
                 )
             ]
+        );
+    }
+
+    // ---- 9.3b4 type-operator display pins (all rows oracle-probed
+    // byte-exact against vendored 6.0.3, noLib; strict unless noted;
+    // target-position annotations because source-position operator
+    // types generalize to their constraints in reportRelationError) ----
+
+    #[test]
+    fn keyof_faces_render_the_type_operator_arm() {
+        // f2: keyof (keyof T) resolves through the apparent type
+        // (never under noLib) — nesting is display-covered via the
+        // g4 indexed-access object below. f3: keyof (T & U)
+        // distributes into a union whose TypeOperator members join
+        // bare. f4: the nullable-candidate substitution (65185)
+        // reports against the stripped `keyof T`. f5: TypeOperator
+        // joins an intersection bare.
+        assert_eq!(
+            checked_diags(
+                "\nfunction f1<T>(x: number) { const y: keyof T = x; }\nfunction f2<T>(x: number) { const y: keyof keyof T = x; }\nfunction f3<T, U>(x: number) { const y: keyof (T & U) = x; }\nfunction f4<T>(x: number) { const y: keyof T | null = x; }\nfunction f5<T, U>(x: number) { const y: keyof T & U = x; }\n"
+            ),
+            [
+                (
+                    2322,
+                    35,
+                    1,
+                    "Type 'number' is not assignable to type 'keyof T'.".to_owned()
+                ),
+                (
+                    2322,
+                    87,
+                    1,
+                    "Type 'number' is not assignable to type 'never'.".to_owned()
+                ),
+                (
+                    2322,
+                    148,
+                    1,
+                    "Type 'number' is not assignable to type 'keyof T | keyof U'.".to_owned()
+                ),
+                (
+                    2322,
+                    206,
+                    1,
+                    "Type 'number' is not assignable to type 'keyof T'.".to_owned()
+                ),
+                (
+                    2322,
+                    268,
+                    1,
+                    "Type 'number' is not assignable to type 'keyof T & U'.".to_owned()
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn indexed_access_faces_parenthesize_the_object_side_only() {
+        // g2: chained accesses join bare (the kind is listed in no
+        // parenthesizer rule); g3/g4: union and TypeOperator OBJECT
+        // sides wrap (parenthesizeNonArrayTypeOfPostfixType); g5: a
+        // literal index over a template resolves through the apparent
+        // type (2339 on `{}` under noLib); g7: the INDEX side joins
+        // bare.
+        assert_eq!(
+            checked_diags(
+                "\nfunction g1<T, K extends keyof T>(x: number) { const y: T[K] = x; }\nfunction g2<T, K extends keyof T, K2 extends keyof T[K]>(x: number) { const y: T[K][K2] = x; }\nfunction g3<T, U, K extends keyof (T | U)>(x: number) { const y: (T | U)[K] = x; }\nfunction g4<T, K extends keyof keyof T>(x: number) { const y: (keyof T)[K] = x; }\nfunction g5<T extends string>(x: number) { const y: `a${T}`[\"x\"] = x; }\nfunction g6<T, K extends keyof T>(x: number) { const y: T[K] | null = x; }\nfunction g7<T, K extends keyof T>(x: number) { const y: T[keyof T] = x; }\n"
+            ),
+            [
+                (
+                    2322,
+                    54,
+                    1,
+                    "Type 'number' is not assignable to type 'T[K]'.".to_owned()
+                ),
+                (
+                    2322,
+                    145,
+                    1,
+                    "Type 'number' is not assignable to type 'T[K][K2]'.".to_owned()
+                ),
+                (
+                    2322,
+                    226,
+                    1,
+                    "Type 'number' is not assignable to type '(T | U)[K]'.".to_owned()
+                ),
+                (
+                    2322,
+                    306,
+                    1,
+                    "Type 'number' is not assignable to type '(keyof T)[K]'.".to_owned()
+                ),
+                (
+                    2339,
+                    389,
+                    3,
+                    "Property 'x' does not exist on type '{}'.".to_owned()
+                ),
+                (
+                    2322,
+                    454,
+                    1,
+                    "Type 'number' is not assignable to type 'T[K]'.".to_owned()
+                ),
+                (
+                    2322,
+                    529,
+                    1,
+                    "Type 'number' is not assignable to type 'T[keyof T]'.".to_owned()
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn template_literal_faces_render_head_spans_and_tail() {
+        // h3: a union span distributes at construction — the display
+        // renders the resulting union of templates, members bare;
+        // h4: nullable-candidate substitution strips to the bare
+        // template; h5: adjacent spans share an empty middle text.
+        assert_eq!(
+            checked_diags(
+                "\nfunction h1<T extends string>(x: number) { const y: `a${T}b` = x; }\nfunction h2<T extends string>(x: number) { const y: `${T}` = x; }\nfunction h3<T extends string, U extends string>(x: number) { const y: `a${T | U}b` = x; }\nfunction h4<T extends string>(x: number) { const y: `a${T}` | null = x; }\nfunction h5<T extends string, U extends string>(x: number) { const y: `${T}${U}` = x; }\n"
+            ),
+            [
+                (
+                    2322,
+                    50,
+                    1,
+                    "Type 'number' is not assignable to type '`a${T}b`'.".to_owned()
+                ),
+                (
+                    2322,
+                    118,
+                    1,
+                    "Type 'number' is not assignable to type '`${T}`'.".to_owned()
+                ),
+                (
+                    2322,
+                    202,
+                    1,
+                    "Type 'number' is not assignable to type '`a${T}b` | `a${U}b`'.".to_owned()
+                ),
+                (
+                    2322,
+                    274,
+                    1,
+                    "Type 'number' is not assignable to type '`a${T}`'.".to_owned()
+                ),
+                (
+                    2322,
+                    366,
+                    1,
+                    "Type 'number' is not assignable to type '`${T}${U}`'.".to_owned()
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn template_literal_texts_reescape_like_the_printer() {
+        // Cooked texts re-escape through template_text_raw: CRLF is
+        // the map's pair entry, a null before a digit prints `\x00`
+        // (getReplacement's lookahead), unmapped controls and
+        // non-ASCII take `\uXXXX` (astral = two surrogate escapes),
+        // and `$`/`{` are identity when not forming `${`.
+        assert_eq!(
+            checked_diags(
+                "\nfunction e1<T extends string>(x: number) { const y: `a\\r\\nb${T}` = x; }\nfunction e2<T extends string>(x: number) { const y: `a\\u0000b${T}` = x; }\nfunction e3<T extends string>(x: number) { const y: `a\\u00001${T}` = x; }\nfunction e4<T extends string>(x: number) { const y: `a\\u0001b${T}` = x; }\nfunction e5<T extends string>(x: number) { const y: `あ${T}` = x; }\nfunction e6<T extends string>(x: number) { const y: `😀${T}` = x; }\nfunction e7<T extends string>(x: number) { const y: `a\\rb${T}` = x; }\nfunction e8<T extends string>(x: number) { const y: `a$b{c${T}` = x; }\n"
+            ),
+            [
+                (
+                    2322,
+                    50,
+                    1,
+                    "Type 'number' is not assignable to type '`a\\r\\nb${T}`'.".to_owned()
+                ),
+                (
+                    2322,
+                    122,
+                    1,
+                    "Type 'number' is not assignable to type '`a\\0b${T}`'.".to_owned()
+                ),
+                (
+                    2322,
+                    196,
+                    1,
+                    "Type 'number' is not assignable to type '`a\\x001${T}`'.".to_owned()
+                ),
+                (
+                    2322,
+                    270,
+                    1,
+                    "Type 'number' is not assignable to type '`a\\u0001b${T}`'.".to_owned()
+                ),
+                (
+                    2322,
+                    344,
+                    1,
+                    "Type 'number' is not assignable to type '`\\u3042${T}`'.".to_owned()
+                ),
+                (
+                    2322,
+                    411,
+                    1,
+                    "Type 'number' is not assignable to type '`\\uD83D\\uDE00${T}`'.".to_owned()
+                ),
+                (
+                    2322,
+                    479,
+                    1,
+                    "Type 'number' is not assignable to type '`a\\rb${T}`'.".to_owned()
+                ),
+                (
+                    2322,
+                    549,
+                    1,
+                    "Type 'number' is not assignable to type '`a$b{c${T}`'.".to_owned()
+                ),
+            ]
+        );
+        assert_eq!(
+            checked_diags(
+                "function s<T extends string>(x: number) { const y: `\\uD800${T}` = x; }"
+            ),
+            [(
+                2322,
+                48,
+                1,
+                "Type 'number' is not assignable to type '`\\uD800${T}`'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn string_mapping_faces_render_the_intrinsic_reference() {
+        // Local intrinsic aliases stand in for the lib set (same
+        // symbol-name route). m4: keyof over a string mapping
+        // resolves through the apparent type (never under noLib);
+        // m5: a mapping nests bare inside a template span.
+        assert_eq!(
+            checked_diags(
+                "\ntype Uppercase<S extends string> = intrinsic;\ntype Lowercase<S extends string> = intrinsic;\ntype Capitalize<S extends string> = intrinsic;\n\nfunction m1<T extends string>(x: number) { const y: Uppercase<T> = x; }\nfunction m2<T extends string>(x: number) { const y: Lowercase<Uppercase<T>> = x; }\nfunction m3<T extends string>(x: number) { const y: Uppercase<T> | null = x; }\nfunction m4<T extends string>(x: number) { const y: keyof Uppercase<T> = x; }\nfunction m5<T extends string>(x: number) { const y: `a${Uppercase<T>}b` = x; }\n"
+            ),
+            [
+                (
+                    2322,
+                    190,
+                    1,
+                    "Type 'number' is not assignable to type 'Uppercase<T>'.".to_owned()
+                ),
+                (
+                    2322,
+                    262,
+                    1,
+                    "Type 'number' is not assignable to type 'Lowercase<Uppercase<T>>'.".to_owned()
+                ),
+                (
+                    2322,
+                    345,
+                    1,
+                    "Type 'number' is not assignable to type 'Uppercase<T>'.".to_owned()
+                ),
+                (
+                    2322,
+                    424,
+                    1,
+                    "Type 'number' is not assignable to type 'never'.".to_owned()
+                ),
+                (
+                    2322,
+                    502,
+                    1,
+                    "Type 'number' is not assignable to type '`a${Uppercase<T>}b`'.".to_owned()
+                ),
+            ]
+        );
+        assert_eq!(
+            checked_diags(
+                "type Uppercase<S extends string> = intrinsic;\nfunction s<T extends string>(x: number) { const y: Uppercase<`\\uD800a${T}`> = x; }"
+            ),
+            [(
+                2322,
+                94,
+                1,
+                "Type 'number' is not assignable to type '`\\uD800A${Uppercase<T>}`'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn operator_faces_in_array_positions_follow_the_postfix_rule() {
+        // Local Array/ReadonlyArray interfaces supply the display
+        // sugar targets. TypeOperator elements wrap ((keyof T)[],
+        // and again under the readonly face); indexed-access,
+        // template, and reference elements join bare.
+        assert_eq!(
+            checked_diags(
+                "\ninterface Array<T> { length: number; }\ninterface ReadonlyArray<T> { length: number; }\n\ntype Uppercase<S extends string> = intrinsic;\ntype Lowercase<S extends string> = intrinsic;\ntype Capitalize<S extends string> = intrinsic;\n\nfunction a1<T>(x: number) { const y: (keyof T)[] = x; }\nfunction a2<T, K extends keyof T>(x: number) { const y: T[K][] = x; }\nfunction a3<T extends string>(x: number) { const y: `a${T}`[] = x; }\nfunction a4<T extends string>(x: number) { const y: Uppercase<T>[] = x; }\nfunction a5<T>(x: number) { const y: readonly (keyof T)[] = x; }\n"
+            ),
+            [
+                (
+                    2322,
+                    262,
+                    1,
+                    "Type 'number' is not assignable to type '(keyof T)[]'.".to_owned()
+                ),
+                (
+                    2322,
+                    337,
+                    1,
+                    "Type 'number' is not assignable to type 'T[K][]'.".to_owned()
+                ),
+                (
+                    2322,
+                    403,
+                    1,
+                    "Type 'number' is not assignable to type '`a${T}`[]'.".to_owned()
+                ),
+                (
+                    2322,
+                    472,
+                    1,
+                    "Type 'number' is not assignable to type 'Uppercase<T>[]'.".to_owned()
+                ),
+                (
+                    2322,
+                    531,
+                    1,
+                    "Type 'number' is not assignable to type 'readonly (keyof T)[]'.".to_owned()
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn operator_faces_in_optional_tuple_positions_split_by_kind() {
+        // strict:false keeps optional elements bare (no `| undefined`
+        // widening), exposing parenthesizeTypeOfOptionalType per
+        // kind: TypeOperator wraps, indexed-access and template
+        // faces join bare.
+        let options = CompilerOptions {
+            strict: Some(false),
+            ..CompilerOptions::default()
+        };
+        let diags = with_program_state(
+            &[(
+                "a.ts",
+                "\nfunction o1<T>(x: number) { const y: [(keyof T)?] = x; }\nfunction o2<T, K extends keyof T>(x: number) { const y: [T[K]?] = x; }\nfunction o3<T extends string>(x: number) { const y: [`a${T}`?] = x; }\n",
+            )],
+            &options,
+            |state| {
+                state.check_source_file(0);
+                diag_rows(state)
+            },
+        );
+        assert_eq!(
+            diags,
+            [
+                (
+                    2322,
+                    35,
+                    1,
+                    "Type 'number' is not assignable to type '[(keyof T)?]'.".to_owned()
+                ),
+                (
+                    2322,
+                    111,
+                    1,
+                    "Type 'number' is not assignable to type '[T[K]?]'.".to_owned()
+                ),
+                (
+                    2322,
+                    178,
+                    1,
+                    "Type 'number' is not assignable to type '[`a${T}`?]'.".to_owned()
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn template_number_pattern_admits_the_tonumber_coercion_forms() {
+        // Audit pin (oracle-probed byte-exact): `${number}` placeholder
+        // validity rides the FULL JS ToNumber — radix forms 0b/0o/0x
+        // and exponent forms admit; "other" and the JS-rejected "inf"
+        // spelling refuse. The M4-era local coercion slice dropped
+        // 0b/0o, and the 9.3b4 template display unmasked the stale
+        // verdicts as templateLiteralTypesPatterns 2345 fabrications
+        // (the reporting Err had contained them).
+        assert_eq!(
+            checked_diags(
+                "declare function numbers(x: `${number}`): void;\nnumbers(\"1\");\nnumbers(\"-1\");\nnumbers(\"0\");\nnumbers(\"0b1\");\nnumbers(\"0o1\");\nnumbers(\"0x1\");\nnumbers(\"1e21\");\nnumbers(\"other\");\nnumbers(\"inf\");\nnumbers(\"0x100000000000000000000000000000000\");\nnumbers(\"0b111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111\");\nnumbers(\"0o77777777777777777777777777777777777777777777777777\");\n",
+            ),
+            [
+                (
+                    2345,
+                    164,
+                    7,
+                    "Argument of type '\"other\"' is not assignable to parameter of type '`${number}`'.".to_owned()
+                ),
+                (
+                    2345,
+                    182,
+                    5,
+                    "Argument of type '\"inf\"' is not assignable to parameter of type '`${number}`'.".to_owned()
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn template_text_escape_tables_cover_the_map() {
+        // Spec twins for cooked texts a .ts fixture cannot spell
+        // directly (the scanner normalizes raw CR/CRLF to LF and the
+        // source-expressible escapes ride the probe pins above):
+        // the vendored tables at _tsc.js:16275-16295 — mapped
+        // entries, the CRLF pair, LF identity, the null lookahead
+        // against a non-digit, and per-unit surrogate escapes.
+        assert_eq!(super::template_text_raw("a\r\nb"), "a\\r\\nb");
+        assert_eq!(super::template_text_raw("a\rb"), "a\\rb");
+        assert_eq!(super::template_text_raw("a\nb"), "a\nb");
+        assert_eq!(
+            super::template_text_raw("a\tb\u{8}\u{B}\u{C}"),
+            "a\\tb\\b\\v\\f"
+        );
+        assert_eq!(super::template_text_raw("a\0b"), "a\\0b");
+        assert_eq!(super::template_text_raw("a\u{0}1"), "a\\x001");
+        assert_eq!(super::template_text_raw("a\0あ"), "a\\0\\u3042");
+        assert_eq!(
+            super::template_text_raw("\u{2028}\u{2029}\u{85}"),
+            "\\u2028\\u2029\\u0085"
+        );
+        assert_eq!(super::template_text_raw("\u{1}\u{1F}"), "\\u0001\\u001F");
+        assert_eq!(super::template_text_raw("\u{7F}"), "\u{7F}");
+        assert_eq!(super::template_text_raw("😀"), "\\uD83D\\uDE00");
+        assert_eq!(super::template_text_raw("a`b\\c"), "a\\`b\\\\c");
+        assert_eq!(super::template_text_raw("${x}$y{z"), "\\${x}$y{z");
+        assert_eq!(super::template_text_raw("$${"), "$\\${");
+        assert_eq!(
+            super::template_text_utf16_raw(&[0xD800, b'a' as u16, 0xDC00]),
+            "\\uD800a\\uDC00"
         );
     }
 }

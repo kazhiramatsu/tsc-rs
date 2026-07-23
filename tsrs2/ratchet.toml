@@ -145,8 +145,15 @@
 # symbolIsValue in isKnownProperty/getNamedMembers (module export-
 # aliases are value properties) and the expando-record consults
 # threaded through checker symbol merges (cross-file fn+ns clones).
-rate = 0.578594
-matched = 28365
+# p9 9.3b4: +140 with the type-operator display arms (typeToTypeNodeHelper
+# Index/TemplateLiteral/StringMapping/IndexedAccess faces incl. the
+# printer's template-text re-escape and the factory parenthesizer
+# positions) + the fabrication family the arms unmasked, fixed at
+# source: the relation-side `${number}` placeholder coercion now
+# rides the faithful evaluate.rs ToNumber (the M4-era local slice
+# dropped the 0b/0o radix forms).
+rate = 0.58145
+matched = 28505
 total = 49024
 allowed_regression = 0.0
 
@@ -182,8 +189,10 @@ allowed_regression = 0.0
 # p9 9.3b2 review round: +1 (see the T0 comment).
 # p9 9.3b3: +213 with the symbol/value/module heads (see the T0
 # comment).
-rate = 0.841385
-matched = 17712
+# p9 9.3b4: +139 with the type-operator display arms (see the T0
+# comment).
+rate = 0.847988
+matched = 17851
 total = 21051
 allowed_regression = 0.0
 

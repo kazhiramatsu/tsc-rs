@@ -485,7 +485,9 @@ impl<'a> CheckerState<'a> {
         let NodeData::TemplateHead(head_data) = self.data_of(head) else {
             unreachable!("kind/data agree");
         };
-        let mut texts = vec![head_data.text.clone()];
+        let mut texts = vec![tsrs2_types::TemplateText::from_utf16(
+            &tsrs2_syntax::template_text_utf16(&head_data.text, head_data.raw_text.as_deref()),
+        )];
         let mut types = Vec::with_capacity(spans.len());
         for span in spans {
             let NodeData::TemplateLiteralTypeSpan(span_data) = self.data_of(span).clone() else {
@@ -498,8 +500,12 @@ impl<'a> CheckerState<'a> {
                 .literal
                 .expect("parser invariant: template span literal always parsed");
             let text = match self.data_of(literal) {
-                NodeData::TemplateMiddle(data) => data.text.clone(),
-                NodeData::TemplateTail(data) => data.text.clone(),
+                NodeData::TemplateMiddle(data) => tsrs2_types::TemplateText::from_utf16(
+                    &tsrs2_syntax::template_text_utf16(&data.text, data.raw_text.as_deref()),
+                ),
+                NodeData::TemplateTail(data) => tsrs2_types::TemplateText::from_utf16(
+                    &tsrs2_syntax::template_text_utf16(&data.text, data.raw_text.as_deref()),
+                ),
                 _ => unreachable!(
                     "parser invariant: span literals are TemplateMiddle/TemplateTail (missing shape included)"
                 ),
@@ -507,7 +513,9 @@ impl<'a> CheckerState<'a> {
             types.push(self.get_type_from_type_node(span_type)?);
             texts.push(text);
         }
-        let template = self.tables.get_template_literal_type(&texts, &types);
+        let template = self
+            .tables
+            .get_template_literal_type_from_texts(&texts, &types);
         self.links.set_node_resolved_type(
             self.speculation_depth,
             node,
