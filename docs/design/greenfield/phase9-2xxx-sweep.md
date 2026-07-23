@@ -1634,6 +1634,34 @@ at branch head @5e130375; bundle refs are the vendored 6.0.3
    slice. (r1's own diff deleted the premise one function above the
    4964 comment that cited it.)
 
+## 9.3b5 review r2 results (2026-07-24 — DONE)
+
+The r2 contract landed in @6c513fe9: trySymbolTable excludes UMD
+global aliases inside external modules; getSymbolChain carries the
+per-caller yieldModuleSymbol value and suppresses expression-path
+module parents; the exportSymbol arm runs in the original per-entry
+order; and the remaining no-enclosing omissions have recorded
+dispositions. Oracle probes A/C/D are pinned as multi-file tests, with
+probe B's unsuppressed row set recorded beside probe A. The r2 commit
+was T0-byte-neutral: all 28829/49024, 2xxx 18136/21051, syntactic
+2242/2246, FP=0; the touched 2xxx T2/T3 counts stayed 17853/16208.
+
+Review follow-up @ed983427 closed the externalModuleIndicator producer
+gap exposed by implicit modules. Program parsing now applies TS 6.0.3
+moduleDetection Legacy/Auto/Force semantics, including explicit
+module formats, React JSX tags, and Node/package `type: module`
+formats; forced/JSX modules also take the top-level-await reparse.
+The UMD regression is pinned for `.mts`, Force, React JSX, package
+scope Auto, and the Legacy control. This revived 12 accepted non-2xxx
+rows without a loss or FP: final all T0 58.8304% (28841/49024), 2xxx
+T0 86.1527% (18136/21051), syntactic T0 99.8219% (2242/2246).
+
+Final gates: `cargo xtask ci` exit 0; checker tests 960; ledger
+entries=1770, stale=0; escapes 250, stale=0, untagged=0. The +12
+accepted identities are fixed in the ratchet artifacts. The
+premise-invalidation rule from §8 is now permanent house style in
+`docs/design/stall-playbook.md` §3.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
