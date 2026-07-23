@@ -1061,6 +1061,17 @@ impl<'a> CheckerState<'a> {
             Ok(false) => {}
             Err(_) => return,
         }
+        // checkAndReportErrorForExtendingInterface is SECOND (48114
+        // chain order): `class C extends I` over a type-only I reports
+        // 2689 instead of the plain form. Same Err disposition as the
+        // prefix probe.
+        if let Some(error_location) = error_location {
+            match self.check_and_report_error_for_extending_interface(error_location) {
+                Ok(true) => return,
+                Ok(false) => {}
+                Err(_) => return,
+            }
+        }
         // The primitive-name slice of the chain (isPrimitiveTypeName
         // 48334): checkAndReportErrorForExportingPrimitiveType (48337)
         // + checkAndReportErrorForUsingTypeAsValue's keyword arm

@@ -1120,7 +1120,13 @@ impl<'a> CheckerState<'a> {
         object_flags: ObjectFlags,
     ) -> TypeId {
         let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
-        self.tables.type_mut(id).object_flags = object_flags;
+        // createObjectType(16 /* Anonymous */ | extra) — tsc's
+        // createAnonymousType stamps Anonymous unconditionally; the
+        // parameter carries only the caller's extras (two callers had
+        // dropped the bit — import attributes and getRestType — which
+        // routed their types past the anonymous renderer into the
+        // structured tail).
+        self.tables.type_mut(id).object_flags = object_flags | ObjectFlags::ANONYMOUS;
         self.tables.type_mut(id).symbol = symbol;
         let members_id = self.alloc_members(crate::state::ResolvedMembers {
             members,

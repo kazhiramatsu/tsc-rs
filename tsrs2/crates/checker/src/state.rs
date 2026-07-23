@@ -1701,6 +1701,7 @@ pub(crate) mod test_support {
                     javascript_file,
                     node_id_base,
                     node_array_id_base,
+                    ..ParseOptions::default()
                 },
                 None,
             );

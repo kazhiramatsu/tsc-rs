@@ -1297,6 +1297,55 @@ fn is_jsx_tag_name(source: &SourceFile, node: NodeId) -> bool {
     }
 }
 
+/// tsc-port: isPartOfTypeExpressionWithTypeArguments @6.0.3
+/// tsc-hash: 0f2387b198c4ceea64de5780c0199fd0d2a34cbe4abfa7d56c44b4a3e891da24
+/// tsc-span: _tsc.js:14272-14274
+///
+/// JSDoc implements/augments tag arms carved to the JS band (stage
+/// 3.4c) — the in-scope producers are heritage clauses only.
+fn is_part_of_type_expression_with_type_arguments(source: &SourceFile, node: NodeId) -> bool {
+    let Some(clause) = parent_of(source, node) else {
+        return false;
+    };
+    if kind_of(source, clause) != SyntaxKind::HeritageClause {
+        return false;
+    }
+    !is_expression_with_type_arguments_in_class_extends_clause(source, node)
+}
+
+/// tsc-port: isExpressionWithTypeArgumentsInClassExtendsClause @6.0.3
+/// tsc-hash: dd340f3e994ad8dcb7bf28a1f3de22f232fe32c4364e2df5a607fff05a048c84
+/// tsc-span: _tsc.js:17125-17127
+///
+/// tryGetClassExtendingExpressionWithTypeArguments (17093-17095) over
+/// the parse-tree half: heritage-clause parent, class-like
+/// grandparent, non-implements token (the JSDoc augments-tag arm is
+/// carved with its host machinery).
+fn is_expression_with_type_arguments_in_class_extends_clause(
+    source: &SourceFile,
+    node: NodeId,
+) -> bool {
+    let Some(clause) = parent_of(source, node) else {
+        return false;
+    };
+    if kind_of(source, clause) != SyntaxKind::HeritageClause {
+        return false;
+    }
+    let Some(class) = parent_of(source, clause) else {
+        return false;
+    };
+    if !matches!(
+        kind_of(source, class),
+        SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+    ) {
+        return false;
+    }
+    let NodeData::HeritageClause(data) = &source.arena.node(clause).data else {
+        return false;
+    };
+    data.token != SyntaxKind::ImplementsKeyword
+}
+
 /// tsc isInExpressionContext (14806-region).
 pub fn is_in_expression_context(source: &SourceFile, node: NodeId) -> bool {
     let Some(parent) = parent_of(source, node) else {
@@ -1344,11 +1393,18 @@ pub fn is_in_expression_context(source: &SourceFile, node: NodeId) -> bool {
         | NodeData::JsxSpreadAttribute(_)
         | NodeData::SpreadAssignment(_) => true,
         NodeData::ExpressionWithTypeArguments(data) => {
-            // !isPartOfTypeNode(parent): heritage clauses are the only
-            // parse-tree position for this kind outside expressions.
+            // !isPartOfTypeNode(parent) — for this kind that is
+            // isPartOfTypeExpressionWithTypeArguments (14272-14274): a
+            // heritage-clause member is a TYPE unless it is the extends
+            // expression of a CLASS
+            // (isExpressionWithTypeArgumentsInClassExtendsClause,
+            // 17093-17127) — class `extends x` is an expression whose
+            // identifiers flow-stamp and narrow like any reference;
+            // implements clauses and interface extends stay type
+            // context. The prior blanket grand != HeritageClause test
+            // killed flow nodes (and 2454) under every class extends.
             data.expression == Some(node)
-                && parent_of(source, parent)
-                    .is_some_and(|grand| kind_of(source, grand) != SyntaxKind::HeritageClause)
+                && !is_part_of_type_expression_with_type_arguments(source, parent)
         }
         NodeData::ShorthandPropertyAssignment(data) => {
             data.object_assignment_initializer == Some(node)

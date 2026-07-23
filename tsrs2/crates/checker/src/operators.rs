@@ -1789,10 +1789,11 @@ impl<'a> CheckerState<'a> {
     /// annotation-reuse channel (9.3b2 probes: fn-expression sources
     /// keep annotation spellings where declare-let twins render
     /// structurally; the prior "qualification concern only" note here
-    /// was the stale-justification pattern again). The
-    /// name-collision retry is UseFullyQualifiedType (nodeBuilder,
-    /// T2/M8) — same escape disposition as check.rs's relation
-    /// reporter.
+    /// was the stale-justification pattern again). Equal renderings
+    /// retry through getTypeNameForErrorDisplay
+    /// (UseFullyQualifiedType, 50757-50764) and the retried texts are
+    /// used EVEN IF STILL EQUAL — same-type operands print
+    /// `'null' and 'null'` (oracle-probed); tsc has no third fallback.
     fn get_type_names_for_error_display(
         &mut self,
         left: TypeId,
@@ -1801,9 +1802,9 @@ impl<'a> CheckerState<'a> {
         let left_str = self.type_to_string_slice_with_error_enclosing(left)?;
         let right_str = self.type_to_string_slice_with_error_enclosing(right)?;
         if left_str == right_str {
-            return Err(Unsupported::new(
-                "operator-error display for identically-named types \
-                 (getTypeNameForErrorDisplay UseFullyQualifiedType, T2 M8)",
+            return Ok((
+                self.get_type_name_for_error_display(left)?,
+                self.get_type_name_for_error_display(right)?,
             ));
         }
         Ok((left_str, right_str))

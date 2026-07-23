@@ -212,4 +212,19 @@ impl<'a> ProgramBinder<'a> {
         binder.source.external_module_indicator.is_some()
             || binder.common_js_module_indicator.is_some()
     }
+
+    /// tsc-port: isExternalModule @6.0.3
+    /// tsc-hash: 5effe04fdce706cc75f238b5c4efbb1f317b3f6bd665389fb71a79a119e7ceaa
+    /// tsc-span: _tsc.js:28910-28912
+    ///
+    /// For the file owning `node` (getSourceFileOfNode folded in):
+    /// the externalModuleIndicator ONLY — the CJS indicator the
+    /// variant above also admits would over-filter trySymbolTable's
+    /// UMD leg (50341).
+    pub fn is_external_module_of_node(&self, node: NodeId) -> bool {
+        self.binder_of_node(node)
+            .source
+            .external_module_indicator
+            .is_some()
+    }
 }

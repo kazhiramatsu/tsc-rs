@@ -53,6 +53,14 @@ pub struct ParseOptions {
     pub language_variant: LanguageVariant,
     /// tsc ContextFlags.JavaScriptFile (subset: the parse-steering uses).
     pub javascript_file: bool,
+    /// Program's getSetExternalModuleIndicator callback has already
+    /// determined that this non-declaration file is a module (Force or
+    /// format/package-driven Auto). The SourceFile root stands in for
+    /// tsc's boolean `true` indicator when there is no syntax node.
+    pub force_external_module: bool,
+    /// Auto module detection under ReactJSX/ReactJSXDev: a real JSX tag
+    /// in the parsed tree becomes the external-module indicator.
+    pub detect_external_module_from_jsx: bool,
     /// Program-wide id bases (M4 5.0): the multi-file checker parses
     /// file N with bases continuing where file N-1 ended, so NodeId/
     /// NodeArrayId are program-unique (tsc's object-identity property).
@@ -66,6 +74,8 @@ impl Default for ParseOptions {
         Self {
             language_variant: LanguageVariant::Standard,
             javascript_file: false,
+            force_external_module: false,
+            detect_external_module_from_jsx: false,
             node_id_base: 0,
             node_array_id_base: 0,
         }
@@ -8160,6 +8170,38 @@ impl<'text> Parser<'text> {
         }
     }
 
+    /// tsc-port: walkTreeForJSXTags @6.0.3
+    /// tsc-hash: 347744b0815a115d63ac89b0d5ff206588dae8ca645d77579b6cb8994a89097a
+    /// tsc-span: _tsc.js:17963-17966
+    fn jsx_external_module_indicator(&self, statements: crate::NodeArrayId) -> Option<NodeId> {
+        let mut stack: Vec<NodeId> = self
+            .arena
+            .node_array(statements)
+            .nodes
+            .iter()
+            .rev()
+            .copied()
+            .collect();
+        while let Some(id) = stack.pop() {
+            let node = self.arena.node(id);
+            if matches!(
+                node.kind,
+                SyntaxKind::JsxOpeningElement
+                    | SyntaxKind::JsxSelfClosingElement
+                    | SyntaxKind::JsxFragment
+            ) {
+                return Some(id);
+            }
+            let mut children = Vec::new();
+            for_each_child(&self.arena, node, |child| {
+                children.push(child);
+                false
+            });
+            stack.extend(children.into_iter().rev());
+        }
+        None
+    }
+
     fn statement_modifiers(&self, id: NodeId) -> Option<crate::NodeArrayId> {
         match &self.arena.node(id).data {
             NodeData::FunctionDeclaration(data) => data.modifiers,
@@ -8494,17 +8536,30 @@ pub fn parse_source_file(
 
     // tsc createSourceFile2: a module whose statements possibly contain
     // top-level await re-parses those statements in the Await context.
-    if !parser.is_declaration_file
-        && parser
+    let force_external_module = !parser.is_declaration_file && options.force_external_module;
+    let detects_jsx_module = !parser.is_declaration_file && options.detect_external_module_from_jsx;
+    let is_external_module = force_external_module
+        || parser
             .is_file_probably_external_module(statements)
             .is_some()
+        || (detects_jsx_module && parser.jsx_external_module_indicator(statements).is_some());
+    if !parser.is_declaration_file
+        && is_external_module
         && parser.statements_possibly_contain_top_level_await(statements)
     {
         statements = parser.reparse_top_level_await(statements);
     }
-    let external_module_indicator = parser.is_file_probably_external_module(statements);
+    let detected_external_module_indicator = parser
+        .is_file_probably_external_module(statements)
+        .or_else(|| {
+            detects_jsx_module
+                .then(|| parser.jsx_external_module_indicator(statements))
+                .flatten()
+        });
 
     let finished = parser.finish(statements, end_of_file_token);
+    let external_module_indicator = detected_external_module_indicator
+        .or_else(|| force_external_module.then_some(finished.root));
     SourceFile {
         file_name: finished.file_name,
         text,
@@ -9193,6 +9248,49 @@ mod tests {
             .expect("statement");
         assert!(NodeFlags::from_bits(js.arena.node(statement).flags)
             .intersects(NodeFlags::JAVA_SCRIPT_FILE));
+    }
+
+    #[test]
+    fn forced_external_module_uses_the_root_indicator_and_reparses_await() {
+        let source = parse_source_file(
+            "a.mts".to_owned(),
+            "await work();\n".to_owned(),
+            ParseOptions {
+                force_external_module: true,
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        assert_eq!(source.external_module_indicator, Some(source.root));
+        assert!(
+            source
+                .arena
+                .nodes()
+                .iter()
+                .any(|node| node.kind == SyntaxKind::AwaitExpression),
+            "forced modules must take createSourceFile2's top-level-await reparse"
+        );
+    }
+
+    #[test]
+    fn automatic_jsx_module_detection_uses_the_jsx_tag() {
+        let source = parse_source_file(
+            "a.tsx".to_owned(),
+            "const element = <div />;\n".to_owned(),
+            ParseOptions {
+                language_variant: LanguageVariant::Jsx,
+                detect_external_module_from_jsx: true,
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        let indicator = source
+            .external_module_indicator
+            .expect("React JSX tags make the file a module in Auto mode");
+        assert_eq!(
+            source.arena.node(indicator).kind,
+            SyntaxKind::JsxSelfClosingElement
+        );
     }
 
     /// tsc accumulates sourceFlags during the parse and they reach the

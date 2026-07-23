@@ -4162,8 +4162,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:57146-57190
     ///
     /// The JSDoc extended-tag double-check (57160-57163) is elided;
-    /// the 2507 not-a-constructor error renders the base type through
-    /// typeToString — that arm unwinds as Unsupported (display T2/M8).
+    /// the 2507 not-a-constructor arm reports through the display
+    /// slice (report-only containment) and always continues with
+    /// errorType like tsc.
     pub(crate) fn get_base_constructor_type_of_class(
         &mut self,
         ty: TypeId,
@@ -4186,13 +4187,13 @@ impl<'a> CheckerState<'a> {
         ) {
             return Ok(self.tables.intrinsics.error);
         }
+        let NodeData::ExpressionWithTypeArguments(data) = self.data_of(base_type_node) else {
+            unreachable!("heritage clause types are ExpressionWithTypeArguments");
+        };
+        let expression = data.expression.expect(
+            "parser invariant: heritage ExpressionWithTypeArguments expression always parsed",
+        );
         let computed = (|state: &mut Self| -> CheckResult2<TypeId> {
-            let NodeData::ExpressionWithTypeArguments(data) = state.data_of(base_type_node) else {
-                unreachable!("heritage clause types are ExpressionWithTypeArguments");
-            };
-            let expression = data.expression.expect(
-                "parser invariant: heritage ExpressionWithTypeArguments expression always parsed",
-            );
             let base_constructor_type = state.check_base_type_expression(expression)?;
             if state
                 .tables
@@ -4244,7 +4245,12 @@ impl<'a> CheckerState<'a> {
                 .resolved()
                 .expect("just filled"));
         }
-        let null_widening = self.tables.intrinsics.null;
+        // 57169: the comparison is against nullWideningType — distinct
+        // from nullType only under strictNullChecks:false, where
+        // `extends null` must NOT report 2507 (the old `intrinsics.null`
+        // read was dead while this arm unconditionally unwound; the
+        // continuation made it observable and the FP gate caught it).
+        let null_widening = self.tables.intrinsics.null_widening;
         if !self
             .tables
             .flags_of(base_constructor_type)
@@ -4252,11 +4258,110 @@ impl<'a> CheckerState<'a> {
             && base_constructor_type != null_widening
             && !self.is_constructor_type(base_constructor_type)?
         {
-            // 57170-57185: 2507 + the type-parameter constraint
-            // elaboration — both render through typeToString.
-            return Err(Unsupported::new(
-                "Type_0_is_not_a_constructor_function_type display (2507, T2/M8)",
-            ));
+            // A JS-declared base makes the not-a-constructor verdict
+            // undecidable here: tsc's getSignaturesOfType synthesizes
+            // construct signatures through isJSConstructor
+            // (JSDoc-class + members probes, checkJs band), so our
+            // empty construct list is not evidence — `class K extends
+            // Wagon` over a JS function is VALID in tsc. Keep the
+            // pre-slice unwind for exactly those shapes (the FP gate
+            // caught the errorType continuation fabricating a
+            // downstream 2339 on the salsa fixture).
+            if let Some(symbol) = self.tables.type_of(base_constructor_type).symbol {
+                if self
+                    .binder
+                    .symbol(symbol)
+                    .value_declaration
+                    .is_some_and(|declaration| self.is_in_js_file(declaration))
+                {
+                    return Err(Unsupported::new(
+                        "isJSConstructor probe on a JS declaration (checkJs band, M8)",
+                    ));
+                }
+            }
+            // 57170-57185: the not-a-constructor verdict is fully
+            // decided above; only the diagnostic STRINGS ride the
+            // display slice. The whole diagnostic (2507 head + the
+            // type-parameter Did-you-mean 2735 related info) builds in
+            // one closure so a display Unsupported drops the report
+            // whole (FN row, never a partial face) — but the
+            // errorType continuation below runs regardless: tsc sets
+            // resolvedBaseConstructorType = errorType on this arm, and
+            // every downstream consumer reads the link value, so
+            // containment here cannot fabricate. The drop must still
+            // mark the report anchor partial: an @ts-expect-error
+            // above the heritage line consumes tsc's 2507, and without
+            // the range the directive accounting fabricates 2578
+            // (9.3b5 review r1; DR-F6 start-face rule).
+            let report = (|state: &mut Self| -> CheckResult2<()> {
+                let text = state.type_to_string_slice(base_constructor_type)?;
+                let mut related = Vec::new();
+                if state
+                    .tables
+                    .flags_of(base_constructor_type)
+                    .intersects(TypeFlags::TYPE_PARAMETER)
+                {
+                    // 57172-57183: the constraint's first construct
+                    // signature return (unknownType fallback), anchored
+                    // at declarations[0].
+                    let constraint =
+                        state.get_constraint_from_type_parameter(base_constructor_type)?;
+                    let mut ctor_return = state.tables.intrinsics.unknown;
+                    if let Some(constraint) = constraint {
+                        let ctor_signatures = state.get_signatures_of_type(
+                            constraint,
+                            crate::structural::SignatureKind::Construct,
+                        )?;
+                        if let Some(&first) = ctor_signatures.first() {
+                            ctor_return = state.get_return_type_of_signature(first)?;
+                        }
+                    }
+                    let symbol = state
+                        .tables
+                        .type_of(base_constructor_type)
+                        .symbol
+                        .expect("type parameters carry their symbol");
+                    if let Some(&declaration) = state.binder.symbol(symbol).declarations.first() {
+                        let symbol_text = state.symbol_display_name(symbol);
+                        let return_text = state.type_to_string_slice(ctor_return)?;
+                        related.push(state.related_info_for_node(
+                            declaration,
+                            &diagnostics::Did_you_mean_for_0_to_be_constrained_to_type_new_args_any_1,
+                            &[&symbol_text, &return_text],
+                        ));
+                    }
+                }
+                state.error_at_with_related(
+                    Some(expression),
+                    &diagnostics::Type_0_is_not_a_constructor_function_type,
+                    &[&text],
+                    related,
+                );
+                Ok(())
+            })(self);
+            if let Err(err) = report {
+                self.mark_partially_checked_node(expression, err.reason.clone());
+            }
+            let error = self.tables.intrinsics.error;
+            if self
+                .links
+                .ty(ty)
+                .resolved_base_constructor_type
+                .resolved()
+                .is_none()
+            {
+                self.links.set_type_resolved_base_constructor_type(
+                    self.speculation_depth,
+                    ty,
+                    error,
+                );
+            }
+            return Ok(self
+                .links
+                .ty(ty)
+                .resolved_base_constructor_type
+                .resolved()
+                .expect("just filled"));
         }
         if self
             .links
@@ -4308,9 +4413,9 @@ impl<'a> CheckerState<'a> {
     /// The resolvingEmptyArray sentinel is the entry write; the
     /// members reset at the tail (57297-57298) retracts a members
     /// table that resolved mid-flight against the empty sentinel. The
-    /// 2508 no-base-constructor-type-arguments and 2509 invalid-base
-    /// errors render through typeToString — those arms unwind as
-    /// Unsupported.
+    /// 2509 invalid-base arm reports through the display slice
+    /// (report-only containment) and always continues with the
+    /// emptyArray sentinel like tsc.
     fn resolve_base_types_of_class(&mut self, ty: TypeId) -> CheckResult2<()> {
         self.links
             .set_type_resolved_base_types(self.speculation_depth, ty, Vec::new());
@@ -4373,9 +4478,43 @@ impl<'a> CheckerState<'a> {
         }
         let reduced_base_type = self.get_reduced_type(base_type)?;
         if !self.is_valid_base_type(reduced_base_type)? {
-            return Err(Unsupported::new(
-                "Base_constructor_return_type_0_is_not_an_object_type display (2509, T2/M8)",
-            ));
+            // 57277-57286: the invalid-base verdict is decided; only
+            // the strings ride the display slice. The whole diagnostic
+            // (2509 head + the elaborateNeverIntersection chain tail,
+            // nested like chainDiagnosticMessages) builds in one
+            // closure — a display Unsupported drops the report whole
+            // and the emptyArray continuation below runs regardless,
+            // matching tsc's `return type.resolvedBaseTypes =
+            // emptyArray` (the entry write already parked the empty
+            // sentinel). The drop marks the report anchor partial so
+            // an @ts-expect-error consuming tsc's 2509 is not counted
+            // unused (9.3b5 review r1; DR-F6 start-face rule).
+            let NodeData::ExpressionWithTypeArguments(data) = self.data_of(base_type_node) else {
+                unreachable!("heritage clause types are ExpressionWithTypeArguments");
+            };
+            let expression = data.expression.expect(
+                "parser invariant: heritage ExpressionWithTypeArguments expression always parsed",
+            );
+            let report = (|state: &mut Self| -> CheckResult2<()> {
+                let elaboration = state.elaborate_never_intersection_row(base_type)?;
+                let text = state.type_to_string_slice(reduced_base_type)?;
+                let head = tsrs2_diags::MessageChain::new(
+                    &diagnostics::Base_constructor_return_type_0_is_not_an_object_type_or_intersection_of_object_types_with_statically_known_members,
+                    &[text],
+                );
+                let mut diagnostic = state.diagnostic_for_node(
+                    expression,
+                    &diagnostics::Base_constructor_return_type_0_is_not_an_object_type_or_intersection_of_object_types_with_statically_known_members,
+                    &[],
+                );
+                diagnostic.message = head.with_next(elaboration.into_iter().collect());
+                state.push_error_diagnostic(diagnostic);
+                Ok(())
+            })(self);
+            if let Err(err) = report {
+                self.mark_partially_checked_node(expression, err.reason.clone());
+            }
+            return Ok(());
         }
         if ty == reduced_base_type || self.has_base_type(reduced_base_type, ty)? {
             let symbol = self

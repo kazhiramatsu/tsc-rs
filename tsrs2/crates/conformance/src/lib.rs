@@ -1457,11 +1457,30 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
             None
         }
     });
+    let module_detection = program.options.iter().find_map(|(key, value)| {
+        if key.eq_ignore_ascii_case("moduleDetection") {
+            match value {
+                tsrs2_harness::OptionValue::String(value) => {
+                    Some(match value.to_ascii_lowercase().as_str() {
+                        "legacy" => 1,
+                        "auto" => 2,
+                        "force" => 3,
+                        _ => return None,
+                    })
+                }
+                tsrs2_harness::OptionValue::Number(value) => Some(*value),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    });
     CompilerOptions {
         allow_js: bool_option("allowJs").unwrap_or_else(|| bool_option("checkJs").unwrap_or(false)),
         experimental_decorators: bool_option("experimentalDecorators").unwrap_or(false),
         target,
         module,
+        module_detection,
         always_strict: bool_option("alwaysStrict"),
         strict: bool_option("strict"),
         strict_null_checks: bool_option("strictNullChecks"),
@@ -2187,6 +2206,26 @@ mod tests {
             options.lib,
             Some(vec!["es2020".to_owned(), "dom".to_owned()])
         );
+    }
+
+    #[test]
+    fn module_detection_reaches_compiler_options() {
+        let program = tsrs2_harness::ProgramJson {
+            schema: 1,
+            cwd: ".".to_owned(),
+            options: [(
+                "moduleDetection".to_owned(),
+                tsrs2_harness::OptionValue::String("force".to_owned()),
+            )]
+            .into_iter()
+            .collect(),
+            libs: Vec::new(),
+            files: Vec::new(),
+            matrix_key: String::new(),
+        };
+        let options = compiler_options_from_program(&program);
+        assert_eq!(options.module_detection, Some(3));
+        assert_eq!(options.emit_module_detection_kind(), 3);
     }
 
     /// Integer ratchets gate exactly: one lost diagnostic must fail

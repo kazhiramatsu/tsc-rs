@@ -152,8 +152,8 @@
 # source: the relation-side `${number}` placeholder coercion now
 # rides the faithful evaluate.rs ToNumber (the M4-era local slice
 # dropped the 0b/0o radix forms).
-rate = 0.58145
-matched = 28505
+rate = 0.588059
+matched = 28829
 total = 49024
 allowed_regression = 0.0
 
@@ -191,8 +191,8 @@ allowed_regression = 0.0
 # comment).
 # p9 9.3b4: +139 with the type-operator display arms (see the T0
 # comment).
-rate = 0.847988
-matched = 17851
+rate = 0.861527
+matched = 18136
 total = 21051
 allowed_regression = 0.0
 

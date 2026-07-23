@@ -533,6 +533,33 @@ pub fn check_program_with_libs_at(
         .iter()
         .filter(|lib| !fixture_names.contains(lib.name.as_str()))
         .collect();
+    // getImpliedNodeFormatForFileWorker's package-scope input. Build it
+    // before parsing because getSetExternalModuleIndicator's Auto mode
+    // consults the implied format while SourceFiles are created.
+    let host_package_json_module_types: std::collections::HashMap<String, bool> = files
+        .iter()
+        .filter(|file| {
+            file.name
+                .rsplit(['/', '\\'])
+                .next()
+                .is_some_and(|name| name == "package.json")
+        })
+        .map(|file| {
+            let is_module = serde_json::from_str::<serde_json::Value>(&file.text)
+                .ok()
+                .and_then(|value| {
+                    value
+                        .get("type")
+                        .and_then(serde_json::Value::as_str)
+                        .map(|value| value == "module")
+                })
+                .unwrap_or(false);
+            (
+                state::CheckerState::normalize_program_path(&file.name, ""),
+                is_module,
+            )
+        })
+        .collect();
     let bundle = (!effective_libs.is_empty()).then(|| lib_bundle(&effective_libs, options));
     let (lib_sources, lib_binders): (&[tsrs2_syntax::SourceFile], &[tsrs2_binder::Binder<'_>]) =
         match bundle {
@@ -590,6 +617,71 @@ pub fn check_program_with_libs_at(
         } else {
             tsrs2_syntax::LanguageVariant::Standard
         };
+        // getSetExternalModuleIndicator (17973-17993): syntax-based
+        // indicators stay in the parser; this seam supplies the
+        // option/host-dependent Force and Auto inputs.
+        let is_declaration_file = file.name.ends_with(".d.ts")
+            || file.name.ends_with(".d.cts")
+            || file.name.ends_with(".d.mts");
+        let module_detection = options.emit_module_detection_kind();
+        let force_external_module = !is_declaration_file
+            && match module_detection {
+                // Force: every non-declaration file is a module.
+                3 => true,
+                // Auto: explicit module formats always count; for
+                // ordinary TS/JS files an ESM package scope counts
+                // when getImpliedNodeFormatForFileWorker would read it.
+                2 => {
+                    let explicit_module_format = [".cjs", ".cts", ".mjs", ".mts"]
+                        .iter()
+                        .any(|extension| file.name.ends_with(extension));
+                    if explicit_module_format {
+                        true
+                    } else {
+                        let normalized =
+                            state::CheckerState::normalize_program_path(&file.name, "");
+                        let package_lookup_enabled = (3..=99)
+                            .contains(&options.emit_module_resolution_kind())
+                            || normalized
+                                .split('/')
+                                .any(|segment| segment == "node_modules");
+                        let package_eligible = [".ts", ".tsx", ".js", ".jsx"]
+                            .iter()
+                            .any(|extension| file.name.ends_with(extension));
+                        let package_scope_is_module = if package_lookup_enabled && package_eligible
+                        {
+                            let mut directory = normalized
+                                .rsplit_once('/')
+                                .map(|(directory, _)| directory)
+                                .unwrap_or("");
+                            loop {
+                                let package_json = if directory.is_empty() {
+                                    "/package.json".to_owned()
+                                } else {
+                                    format!("{directory}/package.json")
+                                };
+                                if let Some(&is_module) =
+                                    host_package_json_module_types.get(&package_json)
+                                {
+                                    break is_module;
+                                }
+                                let Some((parent, _)) = directory.rsplit_once('/') else {
+                                    break false;
+                                };
+                                directory = parent;
+                            }
+                        } else {
+                            false
+                        };
+                        package_scope_is_module
+                    }
+                }
+                // Legacy (and invalid values, which option validation
+                // owns) uses syntax indicators only.
+                _ => false,
+            };
+        let detect_external_module_from_jsx =
+            !is_declaration_file && module_detection == 2 && matches!(options.jsx, Some(4 | 5));
         let (node_id_base, node_array_id_base) = match program_sources.last() {
             Some(previous) => (previous.arena.node_end(), previous.arena.array_end()),
             None => lib_sources
@@ -603,6 +695,8 @@ pub fn check_program_with_libs_at(
             tsrs2_syntax::ParseOptions {
                 language_variant,
                 javascript_file,
+                force_external_module,
+                detect_external_module_from_jsx,
                 node_id_base,
                 node_array_id_base,
             },
@@ -734,30 +828,7 @@ pub fn check_program_with_libs_at(
             .iter()
             .map(|file| state::CheckerState::normalize_program_path(&file.name, ""))
             .collect();
-        state.host_package_json_module_types = files
-            .iter()
-            .filter(|file| {
-                file.name
-                    .rsplit(['/', '\\'])
-                    .next()
-                    .is_some_and(|name| name == "package.json")
-            })
-            .map(|file| {
-                let is_module = serde_json::from_str::<serde_json::Value>(&file.text)
-                    .ok()
-                    .and_then(|value| {
-                        value
-                            .get("type")
-                            .and_then(serde_json::Value::as_str)
-                            .map(|value| value == "module")
-                    })
-                    .unwrap_or(false);
-                (
-                    state::CheckerState::normalize_program_path(&file.name, ""),
-                    is_module,
-                )
-            })
-            .collect();
+        state.host_package_json_module_types = host_package_json_module_types;
         state.host_package_json_names = files
             .iter()
             .filter_map(|file| {
@@ -1063,6 +1134,8 @@ fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static 
             tsrs2_syntax::ParseOptions {
                 language_variant: tsrs2_syntax::LanguageVariant::Standard,
                 javascript_file: false,
+                force_external_module: false,
+                detect_external_module_from_jsx: false,
                 node_id_base,
                 node_array_id_base,
             },
@@ -1382,6 +1455,99 @@ mod tests {
                 .map(|diagnostic| diagnostic.code())
                 .collect::<Vec<_>>(),
             [2322]
+        );
+    }
+
+    #[test]
+    fn implicit_external_modules_exclude_umd_global_aliases() {
+        let run = |file_name: &str,
+                   file_text: &str,
+                   options: CompilerOptions,
+                   extra_files: &[InputFile]| {
+            let mut files = vec![InputFile {
+                name: "umd.d.ts".to_owned(),
+                text: "export as namespace U;\nexport const s: unique symbol;\n".to_owned(),
+            }];
+            files.extend_from_slice(extra_files);
+            files.push(InputFile {
+                name: file_name.to_owned(),
+                text: file_text.to_owned(),
+            });
+            let result = check_program(&files, &options);
+            result
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 2741)
+                .expect("the computed-property assignment should report 2741")
+                .message_text()
+                .to_owned()
+        };
+        let assignment = "declare let a: {};\nlet b: {\n  // @ts-ignore\n  [U.s]: number\n} = a;\n";
+        let expected =
+            "Property '[U.s]' is missing in type '{}' but required in type '{ [s]: number; }'.";
+
+        // Auto mode: .mts/.cts are modules even without import/export.
+        assert_eq!(
+            run("a.mts", assignment, CompilerOptions::default(), &[]),
+            expected
+        );
+        // Force mode: every non-declaration source file is a module.
+        assert_eq!(
+            run(
+                "a.ts",
+                assignment,
+                CompilerOptions {
+                    module_detection: Some(3),
+                    ..CompilerOptions::default()
+                },
+                &[]
+            ),
+            expected
+        );
+        // Auto + React JSX: a real JSX tag is the indicator.
+        assert_eq!(
+            run(
+                "a.tsx",
+                &format!("{assignment}const element = <div />;\n"),
+                CompilerOptions {
+                    jsx: Some(4),
+                    ..CompilerOptions::default()
+                },
+                &[]
+            ),
+            expected
+        );
+        // Auto + Node-flavored package lookup: a nearest `type: module`
+        // package scope supplies an ESNext implied format.
+        assert_eq!(
+            run(
+                "/src/a.ts",
+                assignment,
+                CompilerOptions {
+                    module: Some(7),
+                    module_resolution: Some(3),
+                    module_detection: Some(2),
+                    ..CompilerOptions::default()
+                },
+                &[InputFile {
+                    name: "/package.json".to_owned(),
+                    text: r#"{"type":"module"}"#.to_owned(),
+                }]
+            ),
+            expected
+        );
+        // Legacy mode intentionally retains syntax-only detection.
+        assert_eq!(
+            run(
+                "a.mts",
+                assignment,
+                CompilerOptions {
+                    module_detection: Some(1),
+                    ..CompilerOptions::default()
+                },
+                &[]
+            ),
+            "Property '[U.s]' is missing in type '{}' but required in type '{ [U.s]: number; }'."
         );
     }
 
@@ -3456,6 +3622,31 @@ mod tests {
                 "// @ts-expect-error\n\
                  const bad = (() => 1) satisfies number;\n"
             ),
+            Vec::<u32>::new()
+        );
+    }
+
+    #[test]
+    fn expect_error_on_a_curtained_2507_extends_is_exempt() {
+        // oracle (vendored 6.0.3, strict, noLib, 2026-07-23): clean —
+        // the directive consumes the 2507. The bigint-literal face
+        // curtains the port's 2507, so the drop must mark the report
+        // anchor partial or the directive accounting fabricates 2578
+        // (9.3b5 review r1).
+        assert_eq!(
+            codes_of("declare const x: 1n;\n// @ts-expect-error\nclass C extends x {}\n"),
+            Vec::<u32>::new()
+        );
+    }
+
+    #[test]
+    fn expect_error_on_a_curtained_2509_base_return_is_exempt() {
+        // oracle (vendored 6.0.3, strict, noLib, 2026-07-23): clean —
+        // the directive consumes the 2509 (base constructor return
+        // type 1n is not an object type). Same containment-marking
+        // rule as the 2507 twin above.
+        assert_eq!(
+            codes_of("declare const x: new () => 1n;\n// @ts-expect-error\nclass C extends x {}\n"),
             Vec::<u32>::new()
         );
     }
