@@ -1846,6 +1846,114 @@ fn utf16_encode_as_string(value: u32) -> String {
         .to_string()
 }
 
+/// tsrs-native: decode a template fragment's raw source text to its
+/// cooked JavaScript UTF-16 code units. This is the lossless side
+/// channel for Rust `String`'s inability to hold unpaired surrogates;
+/// JavaScript's scanner gets the same units directly from its native
+/// string representation.
+///
+/// The scanner's general token-value surface is a Rust `String`, so a
+/// `\uXXXX` escape naming an unpaired surrogate is represented there
+/// as U+FFFD. Template literal types need the original code unit for
+/// matching and synthesized printing. Re-decoding the already stored
+/// raw fragment is lossless and leaves the scanner's UTF-8-facing API
+/// unchanged.
+pub fn template_text_utf16(cooked: &str, raw: Option<&str>) -> Vec<u16> {
+    raw.and_then(try_decode_template_raw_utf16)
+        .unwrap_or_else(|| cooked.encode_utf16().collect())
+}
+
+fn try_decode_template_raw_utf16(raw: &str) -> Option<Vec<u16>> {
+    let mut units = Vec::with_capacity(raw.len());
+    let mut chars = raw.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch == '\r' {
+            if chars.peek() == Some(&'\n') {
+                chars.next();
+            }
+            units.push(b'\n' as u16);
+            continue;
+        }
+        if ch != '\\' {
+            let mut encoded = [0u16; 2];
+            units.extend_from_slice(ch.encode_utf16(&mut encoded));
+            continue;
+        }
+
+        let escaped = chars.next()?;
+        match escaped {
+            '0' if !chars.peek().is_some_and(char::is_ascii_digit) => units.push(0),
+            '0' => return None,
+            'b' => units.push(0x0008),
+            't' => units.push(b'\t' as u16),
+            'n' => units.push(b'\n' as u16),
+            'v' => units.push(0x000B),
+            'f' => units.push(0x000C),
+            'r' => units.push(b'\r' as u16),
+            '\r' => {
+                if chars.peek() == Some(&'\n') {
+                    chars.next();
+                }
+            }
+            '\n' | '\u{2028}' | '\u{2029}' => {}
+            'x' => {
+                let value = take_hex_value(&mut chars, 2)?;
+                units.push(value as u16);
+            }
+            'u' if chars.peek() == Some(&'{') => {
+                chars.next();
+                let mut value = 0u32;
+                let mut count = 0usize;
+                loop {
+                    let digit = chars.next()?;
+                    if digit == '}' {
+                        break;
+                    }
+                    value = value.checked_mul(16)?.checked_add(digit.to_digit(16)?)?;
+                    count += 1;
+                }
+                if count == 0 || value > 0x10FFFF {
+                    return None;
+                }
+                push_code_point_utf16(&mut units, value);
+            }
+            'u' => {
+                let value = take_hex_value(&mut chars, 4)?;
+                units.push(value as u16);
+            }
+            '1'..='9' => return None,
+            other => {
+                let mut encoded = [0u16; 2];
+                units.extend_from_slice(other.encode_utf16(&mut encoded));
+            }
+        }
+    }
+    Some(units)
+}
+
+fn take_hex_value(
+    chars: &mut std::iter::Peekable<std::str::Chars<'_>>,
+    count: usize,
+) -> Option<u32> {
+    let mut value = 0u32;
+    for _ in 0..count {
+        value = value
+            .checked_mul(16)?
+            .checked_add(chars.next()?.to_digit(16)?)?;
+    }
+    Some(value)
+}
+
+fn push_code_point_utf16(units: &mut Vec<u16>, value: u32) {
+    if value <= 0xFFFF {
+        units.push(value as u16);
+    } else {
+        let supplementary = value - 0x10000;
+        units.push(0xD800 | (supplementary >> 10) as u16);
+        units.push(0xDC00 | (supplementary & 0x03FF) as u16);
+    }
+}
+
 fn trim_leading_zeroes(text: &str) -> &str {
     let trimmed = text.trim_start_matches('0');
     if trimmed.is_empty() {
@@ -3267,5 +3375,24 @@ mod tests {
         assert_eq!(scanner.pos(), 5);
         assert_eq!(scanner.token_value, "a\nb");
         assert!(scanner.errors().is_empty());
+    }
+
+    #[test]
+    fn template_raw_text_decodes_to_lossless_utf16() {
+        assert_eq!(template_text_utf16("\u{FFFD}", Some("\\uD800")), [0xD800]);
+        assert_eq!(template_text_utf16("\u{FFFD}", Some("\\u{DC00}")), [0xDC00]);
+        assert_eq!(
+            template_text_utf16("😀", Some("\\u{1F600}")),
+            [0xD83D, 0xDE00]
+        );
+        assert_eq!(
+            template_text_utf16("\\uD800", Some("\\\\uD800")),
+            "\\uD800".encode_utf16().collect::<Vec<_>>()
+        );
+        assert_eq!(template_text_utf16("\u{FFFD}", Some("\u{FFFD}")), [0xFFFD]);
+        assert_eq!(
+            template_text_utf16("a\nb", Some("a\r\nb")),
+            "a\nb".encode_utf16().collect::<Vec<_>>()
+        );
     }
 }

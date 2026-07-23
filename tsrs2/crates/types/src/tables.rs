@@ -13,7 +13,9 @@
 use std::collections::HashMap;
 
 use crate::flags::{AccessFlags, ElementFlags, ObjectFlags, TypeFlags};
-use crate::ty::{LiteralValue, PseudoBigInt, SymbolId, TupleTargetData, Type, TypeData, TypeId};
+use crate::ty::{
+    LiteralValue, PseudoBigInt, SymbolId, TemplateText, TupleTargetData, Type, TypeData, TypeId,
+};
 
 /// The named intrinsic/derived types created at checker construction,
 /// in tsc's exact allocation order (_tsc.js 47011-47111). Conditional
@@ -2110,14 +2112,14 @@ impl TypeTables {
     /// tsc-port: getTemplateStringForType @6.0.3
     /// tsc-hash: 12f4d4dec01084eb847c25479a03a47c5bee30ced949361e1ab0cd181ebd0259
     /// tsc-span: _tsc.js:62110-62112
-    fn get_template_string_for_type(&self, id: TypeId) -> Option<String> {
+    fn get_template_string_for_type(&self, id: TypeId) -> Option<TemplateText> {
         let ty = self.type_of(id);
         if ty.flags.intersects(TypeFlags::STRING_LITERAL) {
             if let TypeData::Literal {
                 value: LiteralValue::String(value),
             } = &ty.data
             {
-                return Some(value.clone());
+                return Some(TemplateText::from_utf8(value));
             }
         }
         if ty.flags.intersects(TypeFlags::NUMBER_LITERAL) {
@@ -2125,7 +2127,7 @@ impl TypeTables {
                 value: LiteralValue::Number(value),
             } = &ty.data
             {
-                return Some(js_number_to_string(*value));
+                return Some(TemplateText::from(js_number_to_string(*value)));
             }
         }
         if ty.flags.intersects(TypeFlags::BIG_INT_LITERAL) {
@@ -2133,14 +2135,14 @@ impl TypeTables {
                 value: LiteralValue::BigInt(value),
             } = &ty.data
             {
-                return Some(value.to_base10_string());
+                return Some(TemplateText::from(value.to_base10_string()));
             }
         }
         if ty.flags.intersects(TypeFlags::from_bits(
             TypeFlags::BOOLEAN_LITERAL.bits() | TypeFlags::NULLABLE.bits(),
         )) {
             if let TypeData::Intrinsic { name, .. } = &ty.data {
-                return Some((*name).to_owned());
+                return Some(TemplateText::from_utf8(name));
             }
         }
         None
@@ -2149,7 +2151,11 @@ impl TypeTables {
     /// tsc-port: createTemplateLiteralType @6.0.3
     /// tsc-hash: 044da3c41e15fc13e9dbed4c062c7b6cd55d63aaef354968402604071716c263
     /// tsc-span: _tsc.js:62113-62118
-    fn create_template_literal_type(&mut self, texts: Vec<String>, types: Vec<TypeId>) -> TypeId {
+    fn create_template_literal_type(
+        &mut self,
+        texts: Vec<TemplateText>,
+        types: Vec<TypeId>,
+    ) -> TypeId {
         self.create_type(
             TypeFlags::TEMPLATE_LITERAL,
             TypeData::TemplateLiteral {
@@ -2167,6 +2173,20 @@ impl TypeTables {
     /// yields errorType; the M3 port yields errorType silently (the
     /// probe never constructs unions that large).
     pub fn get_template_literal_type(&mut self, texts: &[String], types: &[TypeId]) -> TypeId {
+        let texts = texts
+            .iter()
+            .map(|text| TemplateText::from_utf8(text))
+            .collect::<Vec<_>>();
+        self.get_template_literal_type_from_texts(&texts, types)
+    }
+
+    /// Lossless UTF-16 entry used by parsed template fragments and by
+    /// transformations of existing template literal types.
+    pub fn get_template_literal_type_from_texts(
+        &mut self,
+        texts: &[TemplateText],
+        types: &[TypeId],
+    ) -> TypeId {
         debug_assert_eq!(texts.len(), types.len() + 1);
         let union_index = types.iter().position(|&t| {
             self.flags_of(t).intersects(TypeFlags::from_bits(
@@ -2189,7 +2209,7 @@ impl TypeTables {
             for &m in members.iter() {
                 let mut replaced = types.to_vec();
                 replaced[union_index] = m;
-                mapped.push(self.get_template_literal_type(texts, &replaced));
+                mapped.push(self.get_template_literal_type_from_texts(texts, &replaced));
             }
             return self.get_union_type(&mapped, UnionReduction::Literal);
         }
@@ -2197,13 +2217,17 @@ impl TypeTables {
             return self.intrinsics.wildcard;
         }
         let mut new_types: Vec<TypeId> = Vec::new();
-        let mut new_texts: Vec<String> = Vec::new();
+        let mut new_texts: Vec<TemplateText> = Vec::new();
         let mut text = texts[0].clone();
         if !self.add_spans(&mut new_types, &mut new_texts, &mut text, texts, types) {
             return self.intrinsics.string;
         }
         if new_types.is_empty() {
-            return self.get_string_literal_type(&text);
+            // D1a dormant-assumption census candidate (9.4): this is a
+            // silent UTF-16 -> Rust String boundary. For example,
+            // `\uD800${"a"}` folds to a string literal containing U+FFFD.
+            // The related explicit M8 escape is structural::utf16_to_string.
+            return self.get_string_literal_type(&text.to_string_lossy());
         }
         new_texts.push(text);
         if new_texts.iter().all(|t| t.is_empty()) {
@@ -2225,7 +2249,11 @@ impl TypeTables {
                 .map(|t| t.len().to_string())
                 .collect::<Vec<_>>()
                 .join(","),
-            new_texts.join("")
+            new_texts
+                .iter()
+                .flat_map(|text| text.units())
+                .map(|unit| format!("{unit:04X}"))
+                .collect::<String>()
         );
         if let Some(&id) = self.template_literal_types.get(&key) {
             return id;
@@ -2239,9 +2267,9 @@ impl TypeTables {
     fn add_spans(
         &mut self,
         new_types: &mut Vec<TypeId>,
-        new_texts: &mut Vec<String>,
-        text: &mut String,
-        texts: &[String],
+        new_texts: &mut Vec<TemplateText>,
+        text: &mut TemplateText,
+        texts: &[TemplateText],
         types: &[TypeId],
     ) -> bool {
         for (i, &t) in types.iter().enumerate() {
@@ -2251,8 +2279,8 @@ impl TypeTables {
             )) {
                 match self.get_template_string_for_type(t) {
                     Some(segment) => {
-                        text.push_str(&segment);
-                        text.push_str(&texts[i + 1]);
+                        text.push_text(&segment);
+                        text.push_text(&texts[i + 1]);
                     }
                     None => return false,
                 }
@@ -2264,12 +2292,12 @@ impl TypeTables {
                 else {
                     unreachable!("template flag implies template data");
                 };
-                text.push_str(&inner_texts[0]);
-                let inner_tail: Vec<String> = inner_texts.to_vec();
+                text.push_text(&inner_texts[0]);
+                let inner_tail: Vec<TemplateText> = inner_texts.to_vec();
                 if !self.add_spans(new_types, new_texts, text, &inner_tail, &inner_types) {
                     return false;
                 }
-                text.push_str(&texts[i + 1]);
+                text.push_text(&texts[i + 1]);
             } else if self.is_generic_index_type(t) || self.is_pattern_literal_placeholder_type(t) {
                 new_types.push(t);
                 new_texts.push(std::mem::take(text));
@@ -3014,6 +3042,23 @@ mod tests {
         let n = t.get_template_literal_type(&["".into(), "".into()], &[number]);
         assert!(t.flags_of(n).intersects(TypeFlags::TEMPLATE_LITERAL));
         assert!(t.is_pattern_literal_type(n));
+
+        // Fixed texts intern by JavaScript UTF-16 code units: an
+        // unpaired surrogate stays distinct from U+FFFD, while a
+        // valid pair is the same text as its scalar UTF-8 spelling.
+        let surrogate = t.get_template_literal_type_from_texts(
+            &[TemplateText::from_utf16(&[0xD800]), TemplateText::default()],
+            &[number],
+        );
+        let replacement = t.get_template_literal_type_from_texts(
+            &[TemplateText::from_utf16(&[0xFFFD]), TemplateText::default()],
+            &[number],
+        );
+        assert_ne!(surrogate, replacement);
+        assert_eq!(
+            TemplateText::from_utf16(&[0xD83D, 0xDE00]),
+            TemplateText::from_utf8("😀")
+        );
     }
 
     #[test]

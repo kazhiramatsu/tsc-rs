@@ -4062,13 +4062,13 @@ impl<'a> CheckerState<'a> {
                 _ => unreachable!("TEMPLATE_LITERAL flag implies TemplateLiteral data"),
             };
             let mut out = String::from("`");
-            out.push_str(&template_text_raw(&texts[0]));
+            out.push_str(&template_text_utf16_raw(texts[0].units()));
             for (i, &span_type) in types.iter().enumerate() {
                 out.push_str("${");
                 let (text, _) = self.type_to_string_slice_node(span_type, fully_qualified)?;
                 out.push_str(&text);
                 out.push('}');
-                out.push_str(&template_text_raw(&texts[i + 1]));
+                out.push_str(&template_text_utf16_raw(texts[i + 1].units()));
             }
             out.push('`');
             return Ok((out, SliceTypeNodeKind::TemplateLiteral));
@@ -7268,84 +7268,59 @@ fn optional_type_operand_needs_parens(kind: SliceTypeNodeKind) -> bool {
 /// derives rawText = escapeTemplateSubstitution(escapeNonAsciiString
 /// (text, backtick)). The `` ` ``/`${`/`}` delimiters are the callers'
 /// (the template arm concatenation).
+#[cfg(test)]
 fn template_text_raw(text: &str) -> String {
-    escape_template_substitution(&escape_non_ascii_backtick(escape_string_backtick(text)))
+    template_text_utf16_raw(&text.encode_utf16().collect::<Vec<_>>())
 }
 
-/// tsc-port: escapeString @6.0.3 (backtick tables)
-/// tsc-hash: de9aaacb4d22b7f0a1b767ab3a79c1cc0ed68a16f9c031dd7ae0a66bdf9172b5
-/// tsc-span: _tsc.js:16275-16314
-///
-/// backtickQuoteEscapedCharsRegExp + escapedCharsMap + getReplacement
-/// folded: the class matches `\r\n` as a pair, `\`/`` ` ``, controls
-/// U+0000-U+0009 and U+000B-U+001F (LF stays literal — templates keep
-/// real newlines), and U+2028/U+2029/U+0085. Unmapped matches fall to
-/// encodeUtf16EscapeSequence; a null followed by an ASCII digit in
-/// the ORIGINAL text prints `\x00` (getReplacement's lookahead).
-fn escape_string_backtick(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    let mut chars = s.chars().peekable();
-    while let Some(c) = chars.next() {
-        match c {
-            '\r' => {
-                if chars.peek() == Some(&'\n') {
-                    chars.next();
-                    out.push_str("\\r\\n");
-                } else {
-                    out.push_str("\\r");
-                }
+/// escapeString(backtick) followed by escapeNonAsciiString, over the
+/// printer's native UTF-16 code-unit domain. Keeping this join in one
+/// pass preserves unpaired surrogates while retaining the exact
+/// escapedCharsMap/null-lookahead behavior.
+fn template_text_utf16_raw(units: &[u16]) -> String {
+    let mut out = String::with_capacity(units.len());
+    let mut index = 0usize;
+    while index < units.len() {
+        let unit = units[index];
+        match unit {
+            0x000D if units.get(index + 1) == Some(&0x000A) => {
+                out.push_str("\\r\\n");
+                index += 2;
+                continue;
             }
-            '\\' => out.push_str("\\\\"),
-            '`' => out.push_str("\\`"),
-            '\0' => {
-                if chars.peek().is_some_and(char::is_ascii_digit) {
+            0x005C => out.push_str("\\\\"),
+            0x0060 => out.push_str("\\`"),
+            0 => {
+                if units
+                    .get(index + 1)
+                    .is_some_and(|next| (b'0' as u16..=b'9' as u16).contains(next))
+                {
                     out.push_str("\\x00");
                 } else {
                     out.push_str("\\0");
                 }
             }
-            '\t' => out.push_str("\\t"),
-            '\x08' => out.push_str("\\b"),
-            '\x0B' => out.push_str("\\v"),
-            '\x0C' => out.push_str("\\f"),
-            '\u{2028}' => out.push_str("\\u2028"),
-            '\u{2029}' => out.push_str("\\u2029"),
-            '\u{0085}' => out.push_str("\\u0085"),
-            c if (c as u32) < 0x20 && c != '\n' => {
-                out.push_str(&encode_utf16_escape_sequence(c as u32 as u16));
+            0x0009 => out.push_str("\\t"),
+            0x0008 => out.push_str("\\b"),
+            0x000B => out.push_str("\\v"),
+            0x000C => out.push_str("\\f"),
+            0x000D => out.push_str("\\r"),
+            0x2028 => out.push_str("\\u2028"),
+            0x2029 => out.push_str("\\u2029"),
+            0x0085 => out.push_str("\\u0085"),
+            0x0000..=0x001F if unit != 0x000A => {
+                out.push_str(&encode_utf16_escape_sequence(unit));
             }
-            c => out.push(c),
+            0x0080..=0xFFFF => out.push_str(&encode_utf16_escape_sequence(unit)),
+            _ => out.push(char::from_u32(u32::from(unit)).expect("ASCII code unit is a scalar")),
         }
+        index += 1;
     }
-    out
+    escape_template_substitution(&out)
 }
 
-/// tsc-port: escapeNonAsciiString @6.0.3 (backtick)
-/// tsc-hash: 71d445a71dce00734a0a31b2279b97c85be909297139c0fa16c074e0a620768e
-/// tsc-span: _tsc.js:16315-16319
-///
-/// nonAsciiCharacters matches per UTF-16 CODE UNIT (no /u flag), so
-/// astral characters print as two surrogate escapes.
-fn escape_non_ascii_backtick(s: String) -> String {
-    if s.chars().all(|c| (c as u32) <= 0x7F) {
-        return s;
-    }
-    let mut out = String::with_capacity(s.len());
-    for c in s.chars() {
-        if (c as u32) <= 0x7F {
-            out.push(c);
-        } else {
-            let mut units = [0u16; 2];
-            for unit in c.encode_utf16(&mut units) {
-                out.push_str(&encode_utf16_escape_sequence(*unit));
-            }
-        }
-    }
-    out
-}
-
-/// encodeUtf16EscapeSequence (16296-16300, hashed under the
-/// escape_string_backtick span): uppercase hex, four digits.
+/// encodeUtf16EscapeSequence (16296-16300, folded into
+/// template_text_utf16_raw): uppercase hex, four digits.
 fn encode_utf16_escape_sequence(unit: u16) -> String {
     format!("\\u{unit:04X}")
 }
@@ -10118,6 +10093,17 @@ mod tests {
                 ),
             ]
         );
+        assert_eq!(
+            checked_diags(
+                "function s<T extends string>(x: number) { const y: `\\uD800${T}` = x; }"
+            ),
+            [(
+                2322,
+                48,
+                1,
+                "Type 'number' is not assignable to type '`\\uD800${T}`'.".to_owned()
+            )]
+        );
     }
 
     #[test]
@@ -10162,6 +10148,17 @@ mod tests {
                     "Type 'number' is not assignable to type '`a${Uppercase<T>}b`'.".to_owned()
                 ),
             ]
+        );
+        assert_eq!(
+            checked_diags(
+                "type Uppercase<S extends string> = intrinsic;\nfunction s<T extends string>(x: number) { const y: Uppercase<`\\uD800a${T}`> = x; }"
+            ),
+            [(
+                2322,
+                94,
+                1,
+                "Type 'number' is not assignable to type '`\\uD800A${Uppercase<T>}`'.".to_owned()
+            )]
         );
     }
 
@@ -10267,7 +10264,7 @@ mod tests {
         // (the reporting Err had contained them).
         assert_eq!(
             checked_diags(
-                "declare function numbers(x: `${number}`): void;\nnumbers(\"1\");\nnumbers(\"-1\");\nnumbers(\"0\");\nnumbers(\"0b1\");\nnumbers(\"0o1\");\nnumbers(\"0x1\");\nnumbers(\"1e21\");\nnumbers(\"other\");\nnumbers(\"inf\");\n",
+                "declare function numbers(x: `${number}`): void;\nnumbers(\"1\");\nnumbers(\"-1\");\nnumbers(\"0\");\nnumbers(\"0b1\");\nnumbers(\"0o1\");\nnumbers(\"0x1\");\nnumbers(\"1e21\");\nnumbers(\"other\");\nnumbers(\"inf\");\nnumbers(\"0x100000000000000000000000000000000\");\nnumbers(\"0b111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111\");\nnumbers(\"0o77777777777777777777777777777777777777777777777777\");\n",
             ),
             [
                 (
@@ -10314,5 +10311,9 @@ mod tests {
         assert_eq!(super::template_text_raw("a`b\\c"), "a\\`b\\\\c");
         assert_eq!(super::template_text_raw("${x}$y{z"), "\\${x}$y{z");
         assert_eq!(super::template_text_raw("$${"), "$\\${");
+        assert_eq!(
+            super::template_text_utf16_raw(&[0xD800, b'a' as u16, 0xDC00]),
+            "\\uD800a\\uDC00"
+        );
     }
 }

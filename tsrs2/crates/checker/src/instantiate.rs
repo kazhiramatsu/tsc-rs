@@ -161,6 +161,58 @@ fn js_capitalize(s: &str, upper: bool) -> String {
     format!("{mapped}{}", chars.as_str())
 }
 
+fn js_template_text_case(
+    text: &tsrs2_types::TemplateText,
+    upper: bool,
+) -> tsrs2_types::TemplateText {
+    let mut mapped_units = Vec::with_capacity(text.len());
+    let mut scalar_run = String::new();
+    let flush_run = |run: &mut String, out: &mut Vec<u16>| {
+        if run.is_empty() {
+            return;
+        }
+        let mapped = if upper {
+            js_to_upper_case(run)
+        } else {
+            js_to_lower_case(run)
+        };
+        out.extend(mapped.encode_utf16());
+        run.clear();
+    };
+    for decoded in char::decode_utf16(text.units().iter().copied()) {
+        match decoded {
+            Ok(ch) => scalar_run.push(ch),
+            Err(error) => {
+                flush_run(&mut scalar_run, &mut mapped_units);
+                mapped_units.push(error.unpaired_surrogate());
+            }
+        }
+    }
+    flush_run(&mut scalar_run, &mut mapped_units);
+    tsrs2_types::TemplateText::from_utf16(&mapped_units)
+}
+
+fn js_template_text_capitalize(
+    text: &tsrs2_types::TemplateText,
+    upper: bool,
+) -> tsrs2_types::TemplateText {
+    let Some((&first, rest)) = text.units().split_first() else {
+        return text.clone();
+    };
+    if (0xD800..=0xDFFF).contains(&first) {
+        return text.clone();
+    }
+    let first = char::from_u32(u32::from(first)).expect("non-surrogate BMP unit is a scalar");
+    let mapped = if upper {
+        first.to_uppercase().to_string()
+    } else {
+        first.to_lowercase().to_string()
+    };
+    let mut units = mapped.encode_utf16().collect::<Vec<_>>();
+    units.extend_from_slice(rest);
+    tsrs2_types::TemplateText::from_utf16(&units)
+}
+
 impl<'a> CheckerState<'a> {
     pub(crate) fn mapper(&self, id: MapperId) -> &TypeMapper {
         &self.mappers[id.0 as usize]
@@ -1282,7 +1334,9 @@ impl<'a> CheckerState<'a> {
                 _ => unreachable!("template flag implies template data"),
             };
             let new_types = self.instantiate_types(&types, mapper)?;
-            return Ok(self.tables.get_template_literal_type(&texts, &new_types));
+            return Ok(self
+                .tables
+                .get_template_literal_type_from_texts(&texts, &new_types));
         }
         if flags.intersects(TypeFlags::STRING_MAPPING) {
             let TypeData::StringMapping { ty: inner } = self.tables.type_of(ty).data else {
@@ -2364,7 +2418,7 @@ impl<'a> CheckerState<'a> {
                 self.apply_template_string_mapping(symbol, texts, types)?;
             return Ok(self
                 .tables
-                .get_template_literal_type(&new_texts, &new_types));
+                .get_template_literal_type_from_texts(&new_texts, &new_types));
         }
         // Mapping<Mapping<T>> === Mapping<T>
         if flags.intersects(TypeFlags::STRING_MAPPING)
@@ -2397,22 +2451,16 @@ impl<'a> CheckerState<'a> {
     fn apply_template_string_mapping(
         &mut self,
         symbol: SymbolId,
-        texts: Vec<String>,
+        texts: Vec<tsrs2_types::TemplateText>,
         types: Vec<TypeId>,
-    ) -> CheckResult2<(Vec<String>, Vec<TypeId>)> {
+    ) -> CheckResult2<(Vec<tsrs2_types::TemplateText>, Vec<TypeId>)> {
         let name = self.binder.symbol(symbol).escaped_name.clone();
         match intrinsic_type_kind(&name) {
             Some(IntrinsicTypeKind::Uppercase) | Some(IntrinsicTypeKind::Lowercase) => {
                 let upper = intrinsic_type_kind(&name) == Some(IntrinsicTypeKind::Uppercase);
                 let new_texts = texts
                     .iter()
-                    .map(|text| {
-                        if upper {
-                            js_to_upper_case(text)
-                        } else {
-                            js_to_lower_case(text)
-                        }
-                    })
+                    .map(|text| js_template_text_case(text, upper))
                     .collect();
                 let mut new_types = Vec::with_capacity(types.len());
                 for t in types {
@@ -2428,7 +2476,7 @@ impl<'a> CheckerState<'a> {
                     Ok((texts, new_types))
                 } else {
                     let mut new_texts = texts.clone();
-                    new_texts[0] = js_capitalize(&texts[0], upper);
+                    new_texts[0] = js_template_text_capitalize(&texts[0], upper);
                     Ok((new_texts, types))
                 }
             }
