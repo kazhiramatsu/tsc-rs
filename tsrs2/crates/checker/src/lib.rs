@@ -452,7 +452,9 @@ pub fn check_program_with_libs(
 /// harness ProgramJson `cwd` (tsc host.getCurrentDirectory), which the
 /// oracle host uses to absolutize every program fileName. It follows
 /// path.posix.resolve (program-host.mjs decodeProgram): a RELATIVE cwd
-/// roots at the process working directory, not "/". Display-side
+/// — including a "\\"-led one, which posix.resolve does NOT treat as
+/// absolute — roots at Node's posixCwd (the process working directory;
+/// drive-stripped on Windows), not "/". Display-side
 /// path rendering roots relative file names against it; the "/"-rooted
 /// resolution world is unaffected (see
 /// CheckerState::host_current_directory).
@@ -663,16 +665,35 @@ pub fn check_program_with_libs_at(
         let lib_count = lib_binders.len();
         let mut state = state::CheckerState::from_program(binder_refs, options);
         // path.posix.resolve absoluteness test (charAt(0) === '/') on
-        // the RAW value; the process-cwd read only runs on the
-        // relative branch, with "" (the old "/"-rooted world) as the
-        // no-cwd degenerate fallback.
+        // the RAW value — a "\\"-led cwd is RELATIVE there, so the
+        // process-cwd join happens on the raw string BEFORE separator
+        // normalization (normalize_program_path flips "\\" first and
+        // would re-root it at "/"). The join base is Node's posixCwd:
+        // process.cwd() untouched on POSIX; on Windows backslashes
+        // flipped and everything before the first "/" (the drive)
+        // dropped. "" (the old "/"-rooted world) is the no-cwd
+        // degenerate fallback.
         state.host_current_directory = if current_directory.starts_with('/') {
             state::CheckerState::normalize_program_path(current_directory, "")
         } else {
             let process_cwd = std::env::current_dir()
-                .map(|dir| dir.to_string_lossy().replace('\\', "/"))
+                .map(|dir| {
+                    let raw = dir.to_string_lossy().into_owned();
+                    if cfg!(windows) {
+                        let flipped = raw.replace('\\', "/");
+                        match flipped.find('/') {
+                            Some(root) => flipped[root..].to_owned(),
+                            None => flipped,
+                        }
+                    } else {
+                        raw
+                    }
+                })
                 .unwrap_or_default();
-            state::CheckerState::normalize_program_path(current_directory, &process_cwd)
+            state::CheckerState::normalize_program_path(
+                &format!("{process_cwd}/{current_directory}"),
+                "",
+            )
         };
         // The resolver's host view (M4 5.8d): every INPUT path, incl.
         // files the program dropped (.json bodies, .js without
@@ -1043,14 +1064,27 @@ mod tests {
         assert!(result.diagnostics.is_empty());
     }
 
-    #[test]
-    fn relative_cwd_roots_at_the_process_working_directory() {
-        // The oracle host resolves ProgramJson cwd with
-        // path.posix.resolve (program-host.mjs decodeProgram), so a
-        // RELATIVE cwd roots at the PROCESS working directory — not
-        // "/". Must ride the PUBLIC entry: the check.rs cwd pins set
-        // host_current_directory directly (post-normalization) and
-        // cannot catch a regression at this seam.
+    /// Node posixCwd — path.posix.resolve's implicit base: the process
+    /// working directory untouched on POSIX; on Windows backslashes
+    /// flipped and the pre-"/" drive prefix dropped. The expectation
+    /// twin of the derivation in check_program_with_libs_at.
+    fn posix_process_cwd() -> String {
+        let raw = std::env::current_dir()
+            .expect("test process has a working directory")
+            .to_string_lossy()
+            .into_owned();
+        if cfg!(windows) {
+            let flipped = raw.replace('\\', "/");
+            let root = flipped
+                .find('/')
+                .expect("an absolute Windows cwd has a separator");
+            flipped[root..].to_owned()
+        } else {
+            raw
+        }
+    }
+
+    fn cwd_probe_diagnostic_rows(current_directory: &str) -> Vec<(String, u32, u32, u32, String)> {
         let result = check_program_with_libs_at(
             &[],
             &[
@@ -1064,13 +1098,9 @@ mod tests {
                 },
             ],
             &CompilerOptions::default(),
-            "review-relative",
+            current_directory,
         );
-        let process_cwd = std::env::current_dir()
-            .expect("test process has a working directory")
-            .to_string_lossy()
-            .replace('\\', "/");
-        let rows: Vec<(String, u32, u32, u32, String)> = result
+        result
             .diagnostics
             .iter()
             .map(|diag| {
@@ -1082,9 +1112,43 @@ mod tests {
                     diag.message_text().to_owned(),
                 )
             })
-            .collect();
+            .collect()
+    }
+
+    #[test]
+    fn relative_cwd_roots_at_the_process_working_directory() {
+        // The oracle host resolves ProgramJson cwd with
+        // path.posix.resolve (program-host.mjs decodeProgram), so a
+        // RELATIVE cwd roots at Node's posixCwd (drive-stripped on
+        // Windows) — not "/". Must ride the PUBLIC entry: the check.rs
+        // cwd pins set host_current_directory directly
+        // (post-normalization) and cannot catch a regression at this
+        // seam.
+        let process_cwd = posix_process_cwd();
         assert_eq!(
-            rows,
+            cwd_probe_diagnostic_rows("review-relative"),
+            [(
+                "a.ts".to_owned(),
+                2339,
+                28,
+                4,
+                format!(
+                    "Property 'nope' does not exist on type 'typeof import(\"{process_cwd}/review-relative/b\")'."
+                )
+            )]
+        );
+    }
+
+    #[test]
+    fn backslash_led_cwd_is_relative_under_posix_resolve() {
+        // path.posix.resolve treats "\\" as an ordinary character, so a
+        // "\\"-led cwd is RELATIVE — it joins onto posixCwd and the
+        // later separator flip collapses "<cwd>/\\x" into "<cwd>/x".
+        // Normalizing separators BEFORE the absoluteness test would
+        // wrongly re-root it at "/" and drop the process cwd.
+        let process_cwd = posix_process_cwd();
+        assert_eq!(
+            cwd_probe_diagnostic_rows("\\review-relative"),
             [(
                 "a.ts".to_owned(),
                 2339,
