@@ -18,6 +18,10 @@ pub struct CompilerOptions {
     /// checker still assume the default (their fixtures' divergences
     /// predate this field; tighten per-site as bands land).
     pub module: Option<i32>,
+    /// tsc ModuleDetectionKind value (Legacy=1, Auto=2, Force=3);
+    /// None reads through the computed default, which is Force for
+    /// Node16..NodeNext module kinds and Auto otherwise.
+    pub module_detection: Option<i32>,
     pub always_strict: Option<bool>,
     pub strict: Option<bool>,
     /// strict-family flags the relation engine consumes (M3+); read
@@ -175,6 +179,19 @@ impl CompilerOptions {
         } else {
             1
         }
+    }
+
+    /// tsc-port: _computedOptions.moduleDetection.computeValue @6.0.3
+    /// tsc-hash: 02bdfcb4bb95a89419dc45c895950e09fd6dcd12f54f2893380375555decf3ef
+    /// tsc-span: _tsc.js:18062-18071
+    pub fn emit_module_detection_kind(&self) -> i32 {
+        self.module_detection.unwrap_or_else(|| {
+            if (100..=199).contains(&self.emit_module_kind()) {
+                3
+            } else {
+                2
+            }
+        })
     }
 
     /// tsc _computedOptions.alwaysStrict.computeValue (18257):
