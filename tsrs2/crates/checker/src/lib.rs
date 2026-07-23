@@ -450,7 +450,9 @@ pub fn check_program_with_libs(
 
 /// tsrs-native: the cwd-carrying entry — `current_directory` is the
 /// harness ProgramJson `cwd` (tsc host.getCurrentDirectory), which the
-/// oracle host uses to absolutize every program fileName. Display-side
+/// oracle host uses to absolutize every program fileName. It follows
+/// path.posix.resolve (program-host.mjs decodeProgram): a RELATIVE cwd
+/// roots at the process working directory, not "/". Display-side
 /// path rendering roots relative file names against it; the "/"-rooted
 /// resolution world is unaffected (see
 /// CheckerState::host_current_directory).
@@ -660,8 +662,18 @@ pub fn check_program_with_libs_at(
     if !binder_refs.is_empty() {
         let lib_count = lib_binders.len();
         let mut state = state::CheckerState::from_program(binder_refs, options);
-        state.host_current_directory =
-            state::CheckerState::normalize_program_path(current_directory, "");
+        // path.posix.resolve absoluteness test (charAt(0) === '/') on
+        // the RAW value; the process-cwd read only runs on the
+        // relative branch, with "" (the old "/"-rooted world) as the
+        // no-cwd degenerate fallback.
+        state.host_current_directory = if current_directory.starts_with('/') {
+            state::CheckerState::normalize_program_path(current_directory, "")
+        } else {
+            let process_cwd = std::env::current_dir()
+                .map(|dir| dir.to_string_lossy().replace('\\', "/"))
+                .unwrap_or_default();
+            state::CheckerState::normalize_program_path(current_directory, &process_cwd)
+        };
         // The resolver's host view (M4 5.8d): every INPUT path, incl.
         // files the program dropped (.json bodies, .js without
         // allowJs) — the suppression probes need them to keep 2307
@@ -1029,6 +1041,60 @@ mod tests {
     fn empty_engine_returns_no_diagnostics() {
         let result = check_program(&[], &CompilerOptions::default());
         assert!(result.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn relative_cwd_roots_at_the_process_working_directory() {
+        // The oracle host resolves ProgramJson cwd with
+        // path.posix.resolve (program-host.mjs decodeProgram), so a
+        // RELATIVE cwd roots at the PROCESS working directory — not
+        // "/". Must ride the PUBLIC entry: the check.rs cwd pins set
+        // host_current_directory directly (post-normalization) and
+        // cannot catch a regression at this seam.
+        let result = check_program_with_libs_at(
+            &[],
+            &[
+                InputFile {
+                    name: "b.ts".to_owned(),
+                    text: "export const bee = 1;\n".to_owned(),
+                },
+                InputFile {
+                    name: "a.ts".to_owned(),
+                    text: "import * as b from \"./b\";\nb.nope;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions::default(),
+            "review-relative",
+        );
+        let process_cwd = std::env::current_dir()
+            .expect("test process has a working directory")
+            .to_string_lossy()
+            .replace('\\', "/");
+        let rows: Vec<(String, u32, u32, u32, String)> = result
+            .diagnostics
+            .iter()
+            .map(|diag| {
+                (
+                    diag.file_name.clone().unwrap_or_default(),
+                    diag.code(),
+                    diag.start.unwrap_or(u32::MAX),
+                    diag.length.unwrap_or(u32::MAX),
+                    diag.message_text().to_owned(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            rows,
+            [(
+                "a.ts".to_owned(),
+                2339,
+                28,
+                4,
+                format!(
+                    "Property 'nope' does not exist on type 'typeof import(\"{process_cwd}/review-relative/b\")'."
+                )
+            )]
+        );
     }
 
     #[test]
