@@ -518,7 +518,7 @@ pub fn refresh_oracle_goldens(options: &RefreshOptions) -> ConformanceResult<Ref
 /// A gating conformance run: enforces the accepted-set ratchet
 /// (measurement-integrity.md §2) on top of the integer/FP gates.
 pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<ConformanceSummary> {
-    run_conformance_inner(options, SetGate::Enforce, false).map(|run| run.summary)
+    run_conformance_inner(options, SetGate::Enforce, false, None).map(|run| run.summary)
 }
 
 /// The A5 rollup path: the identical gating run, additionally
@@ -534,7 +534,7 @@ pub fn run_conformance_with_families_report(
     report_out: &Path,
 ) -> ConformanceResult<ConformanceSummary> {
     let preparation = families::prepare_report(&options.workspace)?;
-    let run = run_conformance_inner(options, SetGate::Enforce, true)?;
+    let run = run_conformance_inner(options, SetGate::Enforce, true, None)?;
     let observation = run
         .observation
         .expect("observing run collects an observation");
@@ -554,7 +554,82 @@ pub fn run_conformance_with_families_report(
 pub(crate) fn run_conformance_collect(
     options: &ConformanceOptions,
 ) -> ConformanceResult<ConformanceRun> {
-    run_conformance_inner(options, SetGate::Collect, false)
+    run_conformance_inner(options, SetGate::Collect, false, None)
+}
+
+/// The merge-gate shape: grade every fixed view while executing the
+/// checker only once per expanded case. The three grading passes stay
+/// sequential, so this does not increase CPU concurrency; a scoped
+/// in-memory cache replaces the two duplicate checker executions and
+/// is dropped as soon as the fixed-view gates finish.
+///
+/// No program JSON or per-case cache files are written. `out_json`
+/// retains the historical CI behavior: each view writes it in order,
+/// leaving the syntactic report there when all gates pass.
+/// `completed_view` runs immediately after each view's gates pass, so
+/// a later-view failure does not hide earlier summaries in CI logs.
+pub fn run_ci_conformance(
+    workspace: &Path,
+    out_json: &Path,
+    families_report_out: &Path,
+    mut completed_view: impl FnMut(&ConformanceSummary),
+) -> ConformanceResult<CiConformanceSummaries> {
+    let mut case_cache = CaseTsrsCache::new();
+    let options_for = |band| ConformanceOptions {
+        workspace: workspace.to_owned(),
+        limit: None,
+        files: Vec::new(),
+        out_json: out_json.to_owned(),
+        band,
+    };
+
+    let preparation = families::prepare_report(workspace)?;
+    let all_run = run_conformance_inner(
+        &options_for(DiagnosticBand::All),
+        SetGate::Enforce,
+        true,
+        Some(&mut case_cache),
+    )?;
+    let all_observation = all_run
+        .observation
+        .expect("observing run collects an observation");
+    families::finish_report(
+        workspace,
+        preparation,
+        &all_run.summary,
+        &all_observation,
+        families_report_out,
+    )?;
+    completed_view(&all_run.summary);
+
+    let two_xxx = run_conformance_inner(
+        &options_for(DiagnosticBand::TwoXxx),
+        SetGate::Enforce,
+        false,
+        Some(&mut case_cache),
+    )?
+    .summary;
+    completed_view(&two_xxx);
+    let syntactic = run_conformance_inner(
+        &options_for(DiagnosticBand::Syntactic),
+        SetGate::Enforce,
+        false,
+        Some(&mut case_cache),
+    )?
+    .summary;
+    completed_view(&syntactic);
+
+    Ok(CiConformanceSummaries {
+        all: all_run.summary,
+        two_xxx,
+        syntactic,
+    })
+}
+
+pub struct CiConformanceSummaries {
+    pub all: ConformanceSummary,
+    pub two_xxx: ConformanceSummary,
+    pub syntactic: ConformanceSummary,
 }
 
 pub struct ConformanceRun {
@@ -576,6 +651,7 @@ fn run_conformance_inner(
     options: &ConformanceOptions,
     set_gate: SetGate,
     families_observe: bool,
+    mut case_cache: Option<&mut CaseTsrsCache>,
 ) -> ConformanceResult<ConformanceRun> {
     let fixtures = select_fixtures(&RefreshOptions {
         workspace: options.workspace.clone(),
@@ -683,7 +759,18 @@ fn run_conformance_inner(
                 .ok_or_else(|| {
                     format!("missing golden case {fixture_key} [{}]", program.matrix_key)
                 })?;
-            let case_tsrs = current_case_tsrs(&program, &vendor_lib_dir)?;
+            let cache_key = (fixture_key.clone(), program.matrix_key.clone());
+            let case_tsrs = if let Some(cache) = case_cache.as_deref_mut() {
+                if let Some(cached) = cache.get(&cache_key) {
+                    cached.clone()
+                } else {
+                    let current = Arc::new(current_case_tsrs(&program, &vendor_lib_dir)?);
+                    cache.insert(cache_key, current.clone());
+                    current
+                }
+            } else {
+                Arc::new(current_case_tsrs(&program, &vendor_lib_dir)?)
+            };
             // Collection records every fixed view from one pass; a
             // gating run records only its selected view.
             for view in measured_views.iter().copied() {
@@ -1281,6 +1368,8 @@ struct CaseTsrs {
     syntactic: Vec<GoldenDiag>,
     partial_checks: Vec<PartialCheck>,
 }
+
+type CaseTsrsCache = BTreeMap<(String, String), Arc<CaseTsrs>>;
 
 fn current_case_tsrs(
     program: &tsrs2_harness::ProgramJson,

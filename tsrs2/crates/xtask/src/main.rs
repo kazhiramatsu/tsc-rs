@@ -321,23 +321,47 @@ fn m8_readiness(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>
             _ => return Err(format!("unexpected m8 readiness argument: {arg}").into()),
         }
     }
+    m8_readiness_inner(require_ready, None, false)
+}
 
+fn m8_readiness_inner(
+    require_ready: bool,
+    reused_conformance: Option<&tsrs2_conformance::ConformanceSummary>,
+    prerequisites_already_checked: bool,
+) -> Result<(), Box<dyn Error>> {
     let workspace = find_tsrs2_root()?;
     let out_dir = workspace.join("target/m8");
     fs::create_dir_all(&out_dir)?;
-    ledger_check()?;
-    codegen_band_inventory(
-        ["--by-function", "--band", "all", "--check"]
-            .into_iter()
-            .map(str::to_owned),
-    )?;
-    let conformance = tsrs2_conformance::run_conformance(&tsrs2_conformance::ConformanceOptions {
-        workspace: workspace.clone(),
-        limit: None,
-        files: Vec::new(),
-        out_json: out_dir.join("conformance.json"),
-        band: tsrs2_conformance::DiagnosticBand::All,
-    })?;
+    if !prerequisites_already_checked {
+        ledger_check()?;
+        codegen_band_inventory(
+            ["--by-function", "--band", "all", "--check"]
+                .into_iter()
+                .map(str::to_owned),
+        )?;
+    }
+    let measured_conformance = if reused_conformance.is_none() {
+        Some(tsrs2_conformance::run_conformance(
+            &tsrs2_conformance::ConformanceOptions {
+                workspace: workspace.clone(),
+                limit: None,
+                files: Vec::new(),
+                out_json: out_dir.join("conformance.json"),
+                band: tsrs2_conformance::DiagnosticBand::All,
+            },
+        )?)
+    } else {
+        None
+    };
+    let conformance = reused_conformance
+        .or(measured_conformance.as_ref())
+        .expect("one conformance source is always present");
+    if reused_conformance.is_some() {
+        fs::write(
+            out_dir.join("conformance.json"),
+            serde_json::to_string_pretty(conformance)?,
+        )?;
+    }
 
     let inventory_path = workspace.join("m8-emitter-inventory.json");
     let inventory: M8EmitterInventory = read_json(&inventory_path)?;
@@ -2013,6 +2037,11 @@ fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
     } else {
         tsrs2_conformance::run_conformance(&options)?
     };
+    print_conformance_summary(&summary, &out_json);
+    Ok(())
+}
+
+fn print_conformance_summary(summary: &tsrs2_conformance::ConformanceSummary, out_json: &Path) {
     println!(
         "conformance band={} fixtures={} cases={} T0={:.4}% matched={}/{} FP={} FN={} mismatches={}",
         summary.band,
@@ -2054,7 +2083,6 @@ fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
         summary.supported_false_negative_diagnostics,
     );
     println!("mismatch json: {}", out_json.display());
-    Ok(())
 }
 
 /// A1 set-monotone conformance state (measurement-integrity.md §2):
@@ -4027,128 +4055,69 @@ fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     )?;
     run_command(Command::new("cargo").arg("build").arg("--workspace"))?;
     run_command(Command::new("cargo").arg("test").arg("--workspace"))?;
-    run_command(
-        Command::new("cargo")
-            .arg("xtask")
-            .arg("codegen")
-            .arg("band-inventory")
-            .arg("--by-function")
-            .arg("--band")
-            .arg("all")
-            .arg("--check"),
+    let workspace = find_tsrs2_root()?;
+    // The remaining gates are Rust functions in this binary. Keep
+    // them in-process: spawning `cargo xtask` for every phase only
+    // repeats Cargo startup and discards reusable conformance state.
+    codegen_band_inventory(
+        ["--by-function", "--band", "all", "--check"]
+            .into_iter()
+            .map(str::to_owned),
     )?;
     // Generated node schema: committed files match the generator, and
     // the schema matches typescript.d.ts as parsed by the vendored
     // TypeScript itself (ghost/mismatched fields fail; absent tsc
     // fields must be listed in nodes-missing-fields.txt).
-    run_command(
-        Command::new("cargo")
-            .arg("xtask")
-            .arg("codegen")
-            .arg("nodes-check"),
-    )?;
-    run_command(Command::new("cargo").arg("xtask").arg("schema-audit"))?;
-    run_command(Command::new("cargo").arg("xtask").arg("relpin").arg("run"))?;
+    codegen_nodes(true)?;
+    schema_audit(std::iter::empty())?;
+    relpin::run(std::iter::empty())?;
     // Parse+bind smoke over the full corpus (~1s): the cheap panic
     // net for the parser/binder invariants the 5.9a dead-guard
     // conversions lean on (m4-end-sweep-steps.md dead-guard policy).
-    run_command(Command::new("cargo").arg("xtask").arg("bind-corpus"))?;
+    bind_corpus(std::iter::empty())?;
     // A1 accepted-state coherence: artifact/inputs/lineage verify
     // before the behavior runs that gate against them. Hosted PR CI
     // supplies GitHub's immutable base SHA; local runs default to the
     // origin/main convenience ref. The direct compare prevents a
     // rewritten branch from replacing the accepted set with a smaller
     // self-consistent chain.
-    run_command(
-        Command::new("cargo")
-            .arg("xtask")
-            .arg("ratchet")
-            .arg("check")
-            .arg("--baseline")
-            .arg(&baseline),
-    )?;
+    tsrs2_conformance::ratchet::check(&workspace, Some(&baseline))?;
     // A2 exact scope coherence: manifest identities, encoder
     // cross-check, snapshot anchors, and tombstone proofs verify
     // against the same trusted base before the supported view that
     // depends on them gates anything.
-    run_command(
-        Command::new("cargo")
-            .arg("xtask")
-            .arg("scope")
-            .arg("audit")
-            .arg("--baseline")
-            .arg(&baseline),
-    )?;
+    tsrs2_conformance::scope_audit(&workspace, Some(&baseline))?;
     // A5 family-map coherence: the exactly-once (code, pass) domain,
     // freeze/extension anchors, and the trusted-base compare — before
     // the rollup below reads the map as a verified input.
-    run_command(
-        Command::new("cargo")
-            .arg("xtask")
-            .arg("families")
-            .arg("check")
-            .arg("--baseline")
-            .arg(&baseline),
+    tsrs2_conformance::families_check(&workspace, Some(&baseline))?;
+    // One checker execution per expanded case feeds all three fixed
+    // views. Grading remains sequential, preserving the independent
+    // ratchet/FP/scope gates without increasing CPU concurrency.
+    let conformance_out = workspace.join("target/conformance/mismatches.json");
+    let families_out = workspace.join("target/families/report.json");
+    let summaries = tsrs2_conformance::run_ci_conformance(
+        &workspace,
+        &conformance_out,
+        &families_out,
+        |summary| print_conformance_summary(summary, &conformance_out),
     )?;
-    // The band=all gating run also carries the A5 rollup
-    // (report-only; the set ratchet and FP=0 gate the run itself) so
-    // the corpus is checked once for both artifacts.
-    run_command(
-        Command::new("cargo")
-            .arg("xtask")
-            .arg("conformance")
-            .arg("--families-report"),
-    )?;
-    run_command(
-        Command::new("cargo")
-            .arg("xtask")
-            .arg("conformance")
-            .arg("--band")
-            .arg("2xxx"),
-    )?;
-    // The permanent syntactic gate (convergence invariant 3): parser
-    // fidelity is ratcheted independently on every merge so a
-    // semantic gain can never hide a syntactic regression.
-    run_command(
-        Command::new("cargo")
-            .arg("xtask")
-            .arg("conformance")
-            .arg("--syntactic-only"),
-    )?;
-    run_command(
-        Command::new("cargo")
-            .arg("xtask")
-            .arg("invariants")
-            .arg("--suite")
-            .arg("all"),
-    )?;
-    run_command(
-        Command::new("cargo")
-            .arg("xtask")
-            .arg("ledger")
-            .arg("check"),
-    )?;
+    // The permanent syntactic gate (convergence invariant 3) is one
+    // of the independently graded fixed views above.
+    invariants(["--suite", "all"].into_iter().map(str::to_owned))?;
+    ledger_check()?;
     // The expiry audit: escapes whose owner stage (per the STAGE
     // marker file) has passed must be implemented or re-marked.
-    let stage = fs::read_to_string(find_tsrs2_root()?.join("STAGE"))?;
-    run_command(
-        Command::new("cargo")
-            .arg("xtask")
-            .arg("escapes")
-            .arg("--stale")
-            .arg(stage.trim()),
-    )?;
+    let stage = fs::read_to_string(workspace.join("STAGE"))?;
+    escapes(["--stale", stage.trim()].into_iter().map(str::to_owned))?;
     // E1 topology (evidence-and-steady-state.md §5): readiness
     // evidence is produced and consumed inside this same workspace on
     // every gate run — never split across jobs where one side can go
     // stale. Report-only until M7 close arms --require-ready
     // (landing order row 14).
-    run_command(
-        Command::new("cargo")
-            .arg("xtask")
-            .arg("m8")
-            .arg("readiness"),
-    )?;
+    // Reuse the all-band summary and the already-run inventory/ledger
+    // checks instead of launching a fourth full-corpus checker pass.
+    m8_readiness_inner(false, Some(&summaries.all), true)?;
     Ok(())
 }
 
