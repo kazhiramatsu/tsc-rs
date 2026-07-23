@@ -4559,8 +4559,11 @@ impl<'a> CheckerState<'a> {
             ));
         }
         if fully_qualified {
+            // yield_module_symbol TRUE — symbolToTypeNode flavor
+            // (53115): the `typeof import("...")` faces REQUIRE module
+            // roots.
             let chain = self
-                .symbol_chain_slice(symbol, tsrs2_types::SymbolFlags::VALUE, true, None)?
+                .symbol_chain_slice(symbol, tsrs2_types::SymbolFlags::VALUE, true, true, None)?
                 .expect("getSymbolChain with endOfChain always yields (52991-52999)");
             let root = chain[0];
             if self.symbol_has_external_module_declaration(root) {
@@ -4629,8 +4632,17 @@ impl<'a> CheckerState<'a> {
         let curtain =
             || Unsupported::new("typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)");
         let chain = if enclosing.is_some() || fully_qualified {
-            self.symbol_chain_slice(symbol, tsrs2_types::SymbolFlags::VALUE, true, enclosing)?
-                .expect("getSymbolChain with endOfChain always yields (52991-52999)")
+            // yield_module_symbol FALSE — symbolToExpression passes
+            // nothing (53338), including tsc's FQ retry, which still
+            // rides this same entry point.
+            self.symbol_chain_slice(
+                symbol,
+                tsrs2_types::SymbolFlags::VALUE,
+                true,
+                false,
+                enclosing,
+            )?
+            .expect("getSymbolChain with endOfChain always yields (52991-52999)")
         } else {
             vec![symbol]
         };
@@ -4657,22 +4669,30 @@ impl<'a> CheckerState<'a> {
     /// member faces re-enclose at the property declaration,
     /// addPropertyToElementList 52265-52267 / symbolToNode
     /// 51128-51131), while the error-path type faces pass None.
-    /// getContainersOfSymbol keeps the no-enclosing view — the
-    /// enclosing-fed reexportContainers
-    /// (getAlternativeContainingModules) are module-specifier faces
-    /// the member-name renderer curtains anyway. yieldModuleSymbol is
-    /// TRUE on the symbolToTypeNode path (DoNotIncludeSymbolChain
-    /// unset), so the module-parent suppression (52996-52998) never
-    /// fires; the TypeLiteral/ObjectLiteral parent guard (52991-52995)
-    /// is kept verbatim though the module/namespace parents this face
-    /// walks cannot carry those flags. getQualifiedLeftMeaning (50291)
-    /// fixes Value → Value, so the top-level Value meaning rides the
-    /// whole recursion.
+    /// getContainersOfSymbol keeps the no-enclosing view — the typeof
+    /// face passes enclosing=None (4563) and the expression path's
+    /// module parents suppress at the fallback under the per-caller
+    /// rule below, so the enclosing-fed reexportContainers
+    /// (getAlternativeContainingModules) stay empty either way.
+    /// yieldModuleSymbol is per caller (9.3b5 r2): symbolToTypeNode
+    /// passes `!(context.flags & UseAliasDefinedOutsideCurrentScope)`
+    /// = TRUE on the error path (53115) — its `typeof import("...")`
+    /// faces REQUIRE module roots — while symbolToExpression (53338)
+    /// and symbolToName (53316) pass NOTHING = falsy, so the
+    /// module-parent suppression (52996-52998) fires there. The
+    /// suppression is !endOfChain-guarded: end_of_chain tops still
+    /// yield [symbol], keeping the `.expect("always yields")`
+    /// contracts at both callers. The TypeLiteral/ObjectLiteral parent
+    /// guard (52991-52995) is kept verbatim though the
+    /// module/namespace parents this face walks cannot carry those
+    /// flags. getQualifiedLeftMeaning (50291) fixes Value → Value, so
+    /// the top-level Value meaning rides the whole recursion.
     fn symbol_chain_slice(
         &mut self,
         symbol: SymbolId,
         meaning: tsrs2_types::SymbolFlags,
         end_of_chain: bool,
+        yield_module_symbol: bool,
         enclosing: Option<NodeId>,
     ) -> CheckResult2<Option<Vec<SymbolId>>> {
         let mut accessible = self.accessible_symbol_chain_at_slice(symbol, meaning, enclosing)?;
@@ -4734,6 +4754,7 @@ impl<'a> CheckerState<'a> {
                         parent,
                         Self::qualified_left_meaning(meaning),
                         false,
+                        yield_module_symbol,
                         enclosing,
                     )?
                     else {
@@ -4777,6 +4798,15 @@ impl<'a> CheckerState<'a> {
                 tsrs2_types::SymbolFlags::TYPE_LITERAL | tsrs2_types::SymbolFlags::OBJECT_LITERAL,
             )
         {
+            // 52996-52998: a module PARENT dies on the falsy-
+            // yieldModuleSymbol paths — `x`, never `"./mod".x` — and
+            // the outer end_of_chain fallback yields the bare tail.
+            if !end_of_chain
+                && !yield_module_symbol
+                && self.symbol_has_external_module_declaration(symbol)
+            {
+                return Ok(None);
+            }
             return Ok(Some(vec![symbol]));
         }
         Ok(None)
@@ -4841,8 +4871,10 @@ impl<'a> CheckerState<'a> {
     /// `globals` tail (50284-50289). The class/interface Type-filtered
     /// members table (50260-50283) is omitted: every armed entry point
     /// here carries the Value meaning, the filtered table holds only
-    /// Type-meaning member symbols, and class members are never
-    /// Alias-flagged — neither trySymbolTable arm can fire on it.
+    /// Type-meaning member symbols, class members are never
+    /// Alias-flagged, and exportSymbol links never occur on
+    /// class/interface members (declareModuleMember-only) — no
+    /// trySymbolTable leg can fire on it.
     fn symbol_tables_in_scope_slice(
         &mut self,
         enclosing: Option<NodeId>,
@@ -4918,12 +4950,19 @@ impl<'a> CheckerState<'a> {
         result
     }
 
-    /// trySymbolTable (50331-50360): the direct hit, then the alias
-    /// scan in table order. The exportSymbol arm (50348-50357) needs a
-    /// LOCALS table, which the no-enclosing walk never consults; the
-    /// globals-tail globalThis probe (50359) can only yield the
-    /// globalThis face, which the named-object arm renders upstream —
-    /// both skipped.
+    /// trySymbolTable (50331-50360): the direct hit, then per entry —
+    /// in table order — the alias leg and the exportSymbol arm; an
+    /// alias leg that declines (or whose candidate walk misses) falls
+    /// through to the arm on the SAME entry before the next entry is
+    /// seen, tsc's single forEachEntry pass. The globals-tail
+    /// globalThis probe (50359) stays omitted: the member faces
+    /// re-enclose at the property declaration (52265-52267), where a
+    /// script-global's direct hit precedes the tail, and `unique
+    /// symbol` requires `const` — a script-global const is not a
+    /// `globalThis` property, so no computed-name face can require the
+    /// `globalThis.s` spelling (probe D, driver.mjs 6.0.3 2026-07-24:
+    /// a module-local `s` shadowing a script-global `s` still prints
+    /// '[s]', related 2728 at the script declaration).
     #[allow(clippy::too_many_arguments)]
     fn try_symbol_table_slice(
         &mut self,
@@ -4948,45 +4987,65 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(vec![symbol]));
         }
         for (name, &entry) in table.iter() {
-            if !self
+            let alias_leg = self
                 .binder
                 .symbol(entry)
                 .flags
                 .intersects(tsrs2_types::SymbolFlags::ALIAS)
-            {
-                continue;
-            }
-            if name == tsrs2_types::InternalSymbolName::EXPORT_EQUALS
-                || name == tsrs2_types::InternalSymbolName::DEFAULT
-            {
-                continue;
-            }
-            // The isUMDExportSymbol leg (50341) needs an
-            // enclosingDeclaration and useOnlyExternalAliasing is
-            // false on the error path (52959) — both filters are off.
-            if is_local_name_lookup
-                && self.symbol_has_declaration_of_kind(entry, SyntaxKind::NamespaceExport)
-            {
+                && name != tsrs2_types::InternalSymbolName::EXPORT_EQUALS
+                && name != tsrs2_types::InternalSymbolName::DEFAULT
+                // The isUMDExportSymbol leg (50341): inside an
+                // external module the UMD global alias is excluded —
+                // r1 armed `enclosing` (the member faces re-enclose at
+                // the property declaration), so the filter is live.
+                // The useOnlyExternalAliasing half stays off: the
+                // error path passes false (52959).
+                && !(self.is_umd_export_symbol(entry)
+                    && enclosing
+                        .is_some_and(|enclosing| self.binder.is_external_module_of_node(enclosing)))
                 // isNamespaceReexportDeclaration (50341): `export * as
                 // ns from` — the only grammatical NamespaceExport.
-                continue;
+                && !(is_local_name_lookup
+                    && self.symbol_has_declaration_of_kind(entry, SyntaxKind::NamespaceExport))
+                && (ignore_qualification
+                    || !self.symbol_has_declaration_of_kind(entry, SyntaxKind::ExportSpecifier));
+            if alias_leg {
+                let resolved = self.resolve_alias(entry)?;
+                if let Some(chain) = self.candidate_list_for_symbol_slice(
+                    entry,
+                    resolved,
+                    symbol,
+                    meaning,
+                    ignore_qualification,
+                    visited,
+                    enclosing,
+                )? {
+                    return Ok(Some(chain));
+                }
             }
-            if !ignore_qualification
-                && self.symbol_has_declaration_of_kind(entry, SyntaxKind::ExportSpecifier)
-            {
-                continue;
-            }
-            let resolved = self.resolve_alias(entry)?;
-            if let Some(chain) = self.candidate_list_for_symbol_slice(
-                entry,
-                resolved,
-                symbol,
-                meaning,
-                ignore_qualification,
-                visited,
-                enclosing,
-            )? {
-                return Ok(Some(chain));
+            // The exportSymbol arm (50348-50357): a name-matching
+            // local whose export slot IS the symbol (the EXPORT_VALUE
+            // locals of containers.rs:566-591) yields the bare
+            // [symbol] before any LATER entry's alias leg can qualify
+            // it (per-entry order, probe C: `[s]`, not `[Self.s]`).
+            let export_symbol = {
+                let entry_symbol = self.binder.symbol(entry);
+                (entry_symbol.escaped_name == escaped)
+                    .then_some(entry_symbol.export_symbol)
+                    .flatten()
+            };
+            if let Some(export_symbol) = export_symbol {
+                let merged = self.get_merged_symbol(export_symbol);
+                if self.symbol_chain_is_accessible_slice(
+                    symbol,
+                    Some(merged),
+                    None,
+                    meaning,
+                    ignore_qualification,
+                    enclosing,
+                )? {
+                    return Ok(Some(vec![symbol]));
+                }
             }
         }
         Ok(None)
@@ -5374,6 +5433,24 @@ impl<'a> CheckerState<'a> {
             .declarations
             .iter()
             .any(|&declaration| self.kind_of(declaration) == kind)
+    }
+
+    /// tsc-port: isUMDExportSymbol @6.0.3
+    /// tsc-hash: 28246d1b6ded3e56b4f91451ba3fe1ebfd5c9166d25974444417b47edf8c3cdf
+    /// tsc-span: _tsc.js:17555-17557
+    ///
+    /// declarations[0] ONLY — not the any-declaration helper above.
+    /// NamespaceExportDeclaration is `export as namespace U`; the
+    /// `export * as ns from` shape is SyntaxKind::NamespaceExport,
+    /// filtered one leg later.
+    fn is_umd_export_symbol(&self, symbol: SymbolId) -> bool {
+        self.binder
+            .symbol(symbol)
+            .declarations
+            .first()
+            .is_some_and(|&declaration| {
+                self.kind_of(declaration) == SyntaxKind::NamespaceExportDeclaration
+            })
     }
 
     /// tsc-port: hasNonGlobalAugmentationExternalModuleSymbol @6.0.3
@@ -9180,6 +9257,128 @@ mod tests {
                 "Property '[s]' is missing in type '{}' but required in type '{ [s]: number; }'."
                     .to_owned()
             )]
+        );
+    }
+
+    #[test]
+    fn umd_global_alias_is_excluded_inside_external_modules() {
+        // oracle probe A (vendored 6.0.3, strict, driver.mjs
+        // 2026-07-24): ONE 2741 @a.ts:34 len 1 — Property '[U.s]' is
+        // missing in type '{}' but required in type
+        // '{ [s]: number; }'. — the WriteComputedProps head keeps the
+        // written '[U.s]'; the target member face drops the UMD
+        // global-alias route (trySymbolTable 50341, enclosing is the
+        // external-module property declaration) AND its module parent
+        // (52996-52998, yieldModuleSymbol falsy on the
+        // symbolToExpression path), leaving the bare '[s]'. related
+        // 2728 @a.ts:61 len 5 '[U.s]' is declared here. probe B (the
+        // repro minus @ts-ignore) adds 2686 at the `U` reference
+        // @a.ts:44 len 1 — directive-suppressed here and a resolve.rs
+        // stub on our side (accepted FN), plus 6133 suggestions the
+        // sink excludes.
+        with_program_state(
+            &[
+                (
+                    "umd.d.ts",
+                    "export as namespace U;\nexport const s: unique symbol;\n",
+                ),
+                (
+                    "a.ts",
+                    "export {};\ndeclare let a: {};\nlet b: {\n    // @ts-ignore\n    [U.s]: \
+                     number\n} = a;\n",
+                ),
+            ],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(1);
+                assert_eq!(
+                    diag_rows(state),
+                    [(
+                        2741,
+                        34,
+                        1,
+                        "Property '[U.s]' is missing in type '{}' but required in type '{ [s]: \
+                         number; }'."
+                            .to_owned()
+                    )]
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn self_import_export_value_local_wins_over_the_alias_scan() {
+        // oracle probe C (vendored 6.0.3, strict, driver.mjs
+        // 2026-07-24): 2741 @c.ts:91 len 1 — Property '[s]' is missing
+        // in type '{}' but required in type '{ [s]: number; }'. — NOT
+        // '[Self.s]': the exportSymbol arm (50348-50357) fires on the
+        // "s" EXPORT_VALUE local BEFORE the later "Self" entry's alias
+        // leg inside tsc's single per-entry forEachEntry pass. related
+        // 2728 @c.ts:96 len 3 '[s]' is declared here; the 6133
+        // suggestions stay outside the sink.
+        with_program_state(
+            &[(
+                "c.ts",
+                "export declare const s: unique symbol;\nimport * as Self from \
+                 \"./c\";\ndeclare let a: {};\nlet b: { [s]: number } = a;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                assert_eq!(
+                    diag_rows(state),
+                    [(
+                        2741,
+                        91,
+                        1,
+                        "Property '[s]' is missing in type '{}' but required in type '{ [s]: \
+                         number; }'."
+                            .to_owned()
+                    )]
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn script_global_member_face_ignores_module_local_shadowing() {
+        // oracle probe D (vendored 6.0.3, strict, driver.mjs
+        // 2026-07-24): 2741 @a.ts:66 len 1 — Property '[s]' is missing
+        // in type '{}' but required in type '{ [s]: number; }'.
+        // related 2728 at the SCRIPT declaration (global.d.ts:49 len
+        // 3). The member face re-encloses at the property declaration
+        // in the script file, where the globals direct hit precedes
+        // both the alias scan and the globals-tail globalThis probe
+        // (50359) — the module-local shadowing `s` never enters. Pins
+        // the globals-tail omission's re-justification
+        // (try_symbol_table_slice header).
+        with_program_state(
+            &[
+                (
+                    "global.d.ts",
+                    "declare const s: unique symbol;\ndeclare let g: { [s]: number };\n",
+                ),
+                (
+                    "a.ts",
+                    "export {};\ndeclare const s: unique symbol;\ndeclare let a: {};\nlet b: \
+                     typeof g = a;\n",
+                ),
+            ],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(1);
+                assert_eq!(
+                    diag_rows(state),
+                    [(
+                        2741,
+                        66,
+                        1,
+                        "Property '[s]' is missing in type '{}' but required in type '{ [s]: \
+                         number; }'."
+                            .to_owned()
+                    )]
+                );
+            },
         );
     }
 
