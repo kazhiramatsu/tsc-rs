@@ -1216,30 +1216,33 @@ The table in §Slice plan remains the phase contract. The following is
 the concrete PR order from the 9.3b2 landing point. Names are minimum
 reviewable slices, not permission to combine unrelated tsc branches;
 split a row further when its fabrication audit finds more than one
-semantic owner. One row/sub-row = one `p9/<slice>` branch and PR.
+semantic owner. One row/sub-row = one `p9/<slice>` branch and PR. The
+serial spine is below; the explicitly parallel D2a/escape-infrastructure
+lane follows the table.
 
 | Order | Slice | Implementation boundary | Slice exit |
 |---:|---|---|---|
 | 1 | 9.3b3 symbol/value/module heads | Re-run the throwaway blocking-shape census over the current generic display curtain; port namespace/module value faces, `typeof` value-side heads, qualified symbol names, import-alias heads, `globalThis`, and external-module symbol references. Preserve the symbol-carrying empty-resolution shield until that symbol's members are real. | The selected shapes leave the generic curtain; target rows are T2/T3-pinned where the diagnostic path is live; all-band FP=0. |
 | 2 | 9.3b4 type operators | Render the already-constructible `TemplateLiteral`, `StringMapping`, `Index` (`keyof`), and `IndexedAccess` shapes, including every parenthesizer position used by union/intersection/array/tuple/signature displays. | No newly constructible type is display-inert; target rows and local render pins match the oracle. |
 | 3 | 9.3b5 display special tail | Close identically-named operator display, 2507 display, non-keyof origin-union, unique/private names, recursive aliases, and the re-censused tail. A non-keyof origin-union shield is removed only with proof that its flow/relation verdict is already faithful, or with that producer fix in the same slice. | Generic display curtain is zero for supported 2XXX rows over currently constructible types. Later-created mapped/conditional shapes are owned by 9.5/9.6 and must land with their renderer. |
-| 4 | 9.4a elaboration core | Extract the existing `operators.rs` reporting implementation and `calls.rs` disposition-only walk into one tsc-declaration-preserving elaboration module. Use an explicit reported/declined outcome; `Unsupported` is not the normal "declined to elaborate" result. This is behavior-preserving before the callers are widened. | Direct oracle pins preserve current rows; no accepted-set movement is required; duplicated elaboration decisions no longer have separate owners. |
-| 5 | 9.4b object/array/arrow | Route call/assignment sites through the common engine; close object members, forced-tuple array/spread elaboration, arrow return-position recursion, and `getBestMatchingType`. | The object/array/arrow curtain reasons retire; moved inner rows match T0-T3 when chain prerequisites are live. |
-| 6 | 9.4c JSX/report heads | Add JSX component/attribute elementwise reporting and the remaining `reportRelationError` head selection to the common engine. The result representation must carry chain/related data rather than baking in a head-only API. | F4 supported rows have no elaboration curtain; any shared chain blocker is listed as exact-row tier debt under its M8 owner. |
-| 7 | 9.5a mapped model | Add the mapped-type immutable semantic payload, constructor/accessors, `getTypeFromMappedTypeNode`, and mapped display. Mutable resolved members/caches stay in `TypeLinks`; semantic identity does not become flags plus side-table convention. Update the core-interface contract in the same PR if the representation changes it. | Model pins pass; the producer reaches only named downstream mapped escapes; creating a mapped type never creates an unrenderable type. |
-| 8 | 9.5b mapped members/instantiation | Port mapped constraint/template/name types, key remapping, `+/-readonly`, `+/-?`, index infos, apparent members, and instantiation. | Member and instantiation canaries match; no broad `errorType` or empty-object fallback is introduced. |
-| 9 | 9.5c mapped relations/context/inference | Activate `mappedTypeRelatedTo`, mapped indexed access, contextual substitution, homomorphic inference, and corpus-required reverse-mapped paths. Audit every pre-M8 constant-false/unreachable mapped assumption in `instantiate.rs`, `indexed.rs`, `structural.rs`, `contextual.rs`, `literals.rs`, `access.rs`, and `inference.rs`. | F3a supported rows close and every activated dormant branch has a direct pin or a narrower named escape. |
-| 10 | 9.6a conditional/substitution model | Add conditional root/type and substitution immutable payloads, interning/accessors, constraint hooks, and display. | Model pins pass; no accepted movement required; every producer has a renderer and unwind-safe cache protocol. |
-| 11 | 9.6b NoInfer | Mint the NoInfer substitution type and activate all `isNoInferType` guards in inference/indexed/expression paths. | The mandatory NoInfer supported rows close; no NoInfer-specific escape remains. |
-| 12 | 9.6c conditional resolution | Port check/extends/true/false resolution, distributivity, infer positions, constraints/default constraints, simplification, tail recursion, and 2589. | Conditional evaluation pins match and the M8-stub reason narrows to relation/inference consumers only. |
-| 13 | 9.6d conditional relation/inference | Port instantiation, relation, and dormant `inferToConditionalType` paths. Before widening candidate/inference trials, adopt the existing speculation transaction at a real production candidate boundary and prove commit/rollback behavior. | F3b supported rows close; permanent cache writes remain forbidden during rollback-capable trials. |
-| 14 | 9.7a recovery census | Partition the overload curtain by recovery shape and compare declaration kind/name/body presence, symbol-declaration order, and parse-error boundary against the oracle tree. Do not narrow the checker bail in this slice. | Reproducible fingerprints and minimal parser fixtures exist for every selected shape; semantic accepted sets are unchanged. |
-| 15 | 9.7b recovery tree parity | Fix parser/binder recovery one shape family at a time, holding the syntactic gate and AST/schema audits. | Each fixed shape has tree and syntactic-diagnostic pins; no checker-side guessed boundary. |
-| 16 | 9.7c overload bail retirement | Narrow, then remove, `checkFunctionOrConstructorSymbol`'s blanket recovery bail only for tree shapes proven equivalent. | F2 supported rows close and syntactic T0 remains at or above the pinned baseline. |
-| 17 | 9.8a assignment-declaration binding | Centralize the non-JSDoc assignment-declaration classifier and bind function/property/prototype/module assignment forms into real symbols. | Assignment-kind and symbol-diff canaries match; JSDoc-driven scope records are untouched. |
-| 18 | 9.8b expando members | Resolve expando members through the normal symbol/type paths and retire name-level diagnostic suppression and the stage-3.4c symbol-diff allowlist as their real producers land. | Binary/expando curtain reasons retire without suppressing neighboring unknown members. |
-| 19 | 9.8c JS constructors/tail | Port JS-constructor, prototype/static, and remaining in-scope non-JSDoc checkJs paths. | F5 supported rows close; excluded JSDoc rows remain visible only in the all-corpus view. |
-| 20+ | 9.9x owner-mined residue | Re-snapshot after 9.8 and rank supported FN buckets, but branch by tsc emitter/dependency owner, never by diagnostic code alone. Start with the heaviest shared prerequisites (expected candidates: in-program relative resolution 2834/2835/2307, `checkExternalEmitHelpers` 2343, parameter-initializer scope 2372/2373, namespace/member resolution 2694), then re-rank after every slice. | Each branch removes a fixed family snapshot or a measured prerequisite; phase closes only at supported T0-2xxx=100%, all-corpus FP=0. |
+| 4 | 9.3c shadow-tier identity diff | Serialize exact T1/T2/T3 matched/lost/gained identities or stable hashes in `conformance --out-json`, and add `cargo xtask conformance-diff <old> <new>`. Do not touch A1/ratchet artifacts or activate a corpus-wide tier. | Adversarial identity-swap tests pass; existing 9.3 evidence replays; the report is mandatory PR evidence from 9.4b onward but is not yet a hard no-loss gate. |
+| 5 | 9.4a elaboration core | Extract the existing `operators.rs` reporting implementation and `calls.rs` disposition-only walk into one tsc-declaration-preserving elaboration module. Use an explicit reported/declined outcome; `Unsupported` is not the normal "declined to elaborate" result. This is behavior-preserving before the callers are widened. | Direct oracle pins preserve current rows; no accepted-set movement is required; duplicated elaboration decisions no longer have separate owners. |
+| 6 | 9.4b object/array/arrow | Route call/assignment sites through the common engine; close object members, forced-tuple array/spread elaboration, arrow return-position recursion, and `getBestMatchingType`. | The object/array/arrow curtain reasons retire; moved inner rows match T0-T3 when chain prerequisites are live; exact T1-T3 diff is reviewed and each loss is fixed or carries an exact-row shared-prerequisite debt record. |
+| 7 | 9.4c JSX/report heads | Add JSX component/attribute elementwise reporting and the remaining `reportRelationError` head selection to the common engine. The result representation must carry chain/related data rather than baking in a head-only API. | F4 supported rows have no elaboration curtain; exact T1-T3 diff is reviewed and each loss is fixed or carries an exact-row shared-prerequisite debt record. |
+| 8 | 9.5a mapped model | Add the mapped-type immutable semantic payload, constructor/accessors, `getTypeFromMappedTypeNode`, and mapped display. Mutable resolved members/caches stay in `TypeLinks`; semantic identity does not become flags plus side-table convention. Update the core-interface contract in the same PR if the representation changes it. | D2a and the dormant-assumption census are landed; model/constructibility canaries pass and trigger the owned dormant audit; the producer reaches only named downstream escapes; creating a mapped type never creates an unrenderable type. |
+| 9 | 9.5b mapped members/instantiation | Port mapped constraint/template/name types, key remapping, `+/-readonly`, `+/-?`, index infos, apparent members, and instantiation. | Member and instantiation canaries match; no broad `errorType` or empty-object fallback is introduced. |
+| 10 | 9.5c mapped relations/context/inference | Activate `mappedTypeRelatedTo`, mapped indexed access, contextual substitution, homomorphic inference, and corpus-required reverse-mapped paths. Audit every pre-M8 constant-false/unreachable mapped assumption in `instantiate.rs`, `indexed.rs`, `structural.rs`, `contextual.rs`, `literals.rs`, `access.rs`, and `inference.rs`. | F3a supported rows close and every canary-triggered dormant assumption has a direct pin or a narrower named escape. |
+| 11 | 9.6a conditional/substitution model | Add conditional root/type and substitution immutable payloads, interning/accessors, constraint hooks, and display. | Model/constructibility canaries pass and trigger the owned dormant audit; no accepted movement required; every producer has a renderer and unwind-safe cache protocol. |
+| 12 | 9.6b NoInfer | Mint the NoInfer substitution type and activate all `isNoInferType` guards in inference/indexed/expression paths. | The mandatory NoInfer supported rows close; no NoInfer-specific escape remains. |
+| 13 | 9.6c conditional resolution | Port check/extends/true/false resolution, distributivity, infer positions, constraints/default constraints, simplification, tail recursion, and 2589. | Conditional evaluation pins match and every newly triggered dormant assumption is retired or narrowed to an exact owned escape. |
+| 14 | 9.6d conditional relation/inference | Port instantiation, relation, and dormant `inferToConditionalType` paths. Before widening candidate/inference trials, adopt the existing speculation transaction at a real production candidate boundary and prove commit/rollback behavior. | F3b supported rows close; every triggered conditional/substitution assumption has a direct pin or narrower exact escape; permanent cache writes remain forbidden during rollback-capable trials. |
+| 15 | 9.7a recovery census | Partition the overload curtain by recovery shape and compare declaration kind/name/body presence, symbol-declaration order, and parse-error boundary against the oracle tree. Do not narrow the checker bail in this slice. | Reproducible fingerprints and minimal parser fixtures exist for every selected shape; semantic accepted sets are unchanged. |
+| 16 | 9.7b recovery tree parity | Fix parser/binder recovery one shape family at a time, holding the syntactic gate and AST/schema audits. | Each fixed shape has tree and syntactic-diagnostic pins; no checker-side guessed boundary. |
+| 17 | 9.7c overload bail retirement | Narrow, then remove, `checkFunctionOrConstructorSymbol`'s blanket recovery bail only for tree shapes proven equivalent. | F2 supported rows close and syntactic T0 remains at or above the pinned baseline. |
+| 18 | 9.8a assignment-declaration binding | Centralize the non-JSDoc assignment-declaration classifier and bind function/property/prototype/module assignment forms into real symbols. | Assignment-kind and symbol-diff canaries match; JSDoc-driven scope records are untouched. |
+| 19 | 9.8b expando members | Resolve expando members through the normal symbol/type paths and retire name-level diagnostic suppression and the stage-3.4c symbol-diff allowlist as their real producers land. | Binary/expando curtain reasons retire without suppressing neighboring unknown members. |
+| 20 | 9.8c JS constructors/tail | Port JS-constructor, prototype/static, and remaining in-scope non-JSDoc checkJs paths. | F5 supported rows close; excluded JSDoc rows remain visible only in the all-corpus view. |
+| 21+ | 9.9x owner-mined residue | Re-snapshot after 9.8 and rank supported FN buckets, but branch by tsc emitter/dependency owner, never by diagnostic code alone. Start with the heaviest shared prerequisites (expected candidates: in-program relative resolution 2834/2835/2307, `checkExternalEmitHelpers` 2343, parameter-initializer scope 2372/2373, namespace/member resolution 2694), then re-rank after every slice. | Each branch removes a fixed family snapshot or a measured prerequisite; phase closes only at supported T0-2xxx=100%, all-corpus FP=0. |
 
 The model slices (9.4a, 9.5a, 9.6a, and 9.7a) are allowed to be
 accepted-set neutral under the prerequisite-only rule in
@@ -1249,6 +1252,19 @@ consumer. The displayed sequence is deliberately serial at the model
 activation seams: mapped and conditional construction turn previously
 dead branches live across several modules, and recovery bail retirement
 changes which semantic paths execute.
+
+Parallel infrastructure lane after 9.3b5: D2a may run beside any of
+9.4a-9.4c and has a hard landing deadline immediately before 9.5a.
+It upgrades the existing inventory to schema 2, adds exact static
+closure/SCC + ledger joins, and exposes the non-gating `port-plan`
+display; automated probes/traces stay unavailable. The
+`dormant-assumption` escape-class/canary extension and the initial
+annotation census may ride D2a or a separate small infra PR, but share
+the same 9.5a deadline. The writing-time grep upper bound is 32; the
+transition adjudicates the sites and records the landed census count as
+`[escapes].max_dormant`. The existing ceiling machinery then admits only
+non-increasing updates. Neither artifact counts as a parity gain or
+satisfies D2b/D3/M8 readiness.
 
 ## Per-slice tier policy
 
@@ -1267,30 +1283,43 @@ implementations:
   newly regressed previously-matching upper-tier identity is fixed in
   the slice; it is not traded for a T0 gain. Today the review evidence
   is the band-level shadow-rate delta plus the target-family rows in
-  `mismatches.json`; identity-level shadow diff is not yet automated.
-  If that review stops being crisp, a later measurement-tooling slice
-  adds per-tier identity fields to `conformance --out-json` before this
-  policy is promoted to an exact automated shadow gate.
+  `mismatches.json`; through 9.3b5 the identity-level shadow diff is not
+  yet automated. Slice 9.3c then adds exact per-tier identities. From
+  9.4b onward, each touched family attaches the exact diff to PR
+  evidence; each lost previously-matching T1/T2/T3 identity is fixed or
+  gets the existing exact-row shared-prerequisite debt record. This
+  remains a review requirement, not an automated no-loss gate, until
+  that debt vocabulary is machine-readable. Gained identities remain
+  report-only until formal tier activation; A1 artifacts do not change.
 - When an upper tier is blocked by shared infrastructure, record exact
   rows, dependency owner, and retirement slice. Do not add a broad
   "nodeBuilder/T2/M8" reason for a shape whose producer is now known.
 
 ## Working rules
 
-- Until the D2 exact inventory/static call graph and B2 trace mode land,
-  select a semantic slice boundary by the manual equivalent: inspect the
-  target tsc call chain, run minimal emitting/non-emitting sibling oracle
-  probes where constructible, and record the dependency boundary in the
-  PR. This does not block any listed Phase-9 slice. Once the tooling is
-  available, use the D2
-  [trace-assisted cluster procedure](measurement-integrity.md#61-trace-assisted-implementation-clusters):
-  capture the exact declaration-identity stack, add differential
-  declaration coverage, then close the seed through the static call
-  graph. The dynamic trace groups the work; it is not the completeness
-  proof. A preparatory/cache function missing from the emission-time
-  trace remains in the slice when static reachability or coverage shows
-  it is required, and a zero-hit function needs a reviewed disposition
-  rather than silent omission.
+- Until D2a exact inventory/static call graph lands—no later than
+  9.5a—use the manual equivalent to select a semantic slice boundary:
+  inspect the target tsc call chain, run minimal emitting/non-emitting
+  sibling oracle probes where constructible, and record the dependency
+  boundary in the PR. This does not block 9.3b4/9.3b5 or 9.4. After
+  D2a, every semantic slice carries its exact static cluster and
+  `port-plan` report. B2 may later add the
+  [trace-assisted cluster procedure](measurement-integrity.md#62-trace-assisted-implementation-clusters);
+  D2a itself does not synthesize probes or runtime coverage.
+- Dormant constructibility assumptions use `escapes.toml`
+  `class = "dormant-assumption"` plus a named canary, never a second
+  manifest and never `STAGE` expiry. Existing M8-stub stage rows are
+  reclassified, not duplicated; one site has one class. The scanner also
+  matches legacy `M8-stub`/`constant-false` markers; after the census
+  transition it rejects a remaining marker without exactly one dormant
+  manifest row. When the canary test exists and passes, the old
+  annotation must disappear or narrow in the same PR. The 9.5a/9.6a
+  exits require their owned constructibility canaries to exist, pass,
+  and trigger a full owned-row audit.
+- The owning PRs for elaboration, mapped, conditional/substitution,
+  recovery, and JS assignment carry the convergence-plan subsystem
+  matrix. Only one new type-model family is constructible at a time;
+  finish mapped activation before conditional/substitution activation.
 - Curtain retirement = FP-shield removal. Every widened display arm
   or narrowed bail runs the 7.5 fabrication audit: corpus diff at
   the arm, any NEW port-only row probed against the oracle before

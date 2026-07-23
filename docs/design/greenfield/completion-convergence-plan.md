@@ -66,8 +66,8 @@ M4 -> M5 -> M6 -> 2XXX sweep -> M7 -> bounded M8 -> recovery zero -> M9
 B1 evidence -> B2 coverage ------+
             -> B3 fuzzer --------+
             -> B4 perf/RSS ------+
-D1 Rust ledger ----------------------------------------------+
-D2 declarations -> D3 runtime/static converse ---------------+
+D1 ledger + escape dormant assumptions ----------------------+
+D2a planning -> phase-9 clusters -> D2b freeze -> D3 converse+
 E1 CI/toolchains + E2 current docs --------------------------+
 ```
 
@@ -257,21 +257,79 @@ Burn down the Rust function backlog with its owning semantic stages.
 Native helpers require evidence. New undispositioned functions remain
 forbidden; the backlog is zero before M8 readiness.
 
-#### D2. Declaration-level tsc closure
+#### D1a. Dormant assumptions through the escape ledger
 
-Regenerate the tsc inventory with exact declaration identities, lexical
-call resolution, conservative-but-distinct property candidates, shortest
-emitter paths, review SCCs, exact ledger joins, and an explicit owner for
-every direct emitter. Name-collapsed schema 1 remains migration input
-only. The full identity and ownership rules live in
+Branch-level constructibility debt extends the existing
+`escapes.toml`; it does not create a second manifest. Existing entries
+keep their current classes unless the transition adjudicates that exact
+site as dormant constructibility debt. A structured `tsc-dormant`
+annotation generates an entry with
+`class = "dormant-assumption"` and a required
+`canary = "<test-name>"`, alongside the existing
+file/containing-function/reason/count identity and optional review owner.
+An existing M8-stub `class = "stage"` / `owner = "M8"` row is
+reclassified through a reviewed manifest diff; it is never retained
+beside a second dormant row. One site has exactly one class.
+
+`cargo xtask escapes` scans every class and verifies one exact generated
+manifest. The transition scan also inventories the legacy `M8-stub` and
+`constant-false` markers: adjudication either replaces each candidate
+with one structured dormant row or removes/rewrites the marker with a
+reviewed non-dormant explanation. Afterwards, a remaining marker without
+exactly one `dormant-assumption` manifest row fails. Dormant expiry is
+never based on `STAGE`—phase 9 deliberately keeps `STAGE=M6`. Instead,
+when the named constructibility test exists and passes, the old dormant
+annotation is stale and the escape check fails. The producer slice
+removes it, replaces it with the real branch and pin, or narrows it to
+another exact escape. A family-construction exit requires every owned
+canary to exist and pass, so a misspelled or never-landed canary cannot
+defer the audit indefinitely.
+
+The one-time schema transition adjudicates the census and records its
+landed count in `ratchet.toml [escapes].max_dormant` through the same
+ceiling path as untagged/recovery debt. The writing-time grep upper bound
+is 32, not a frozen census or required initial ceiling. Afterwards the
+dormant ceiling is non-increasing and every new key/count remains an
+explicit manifest diff; this is reuse of the escape ratchet, not a new
+completion ledger.
+
+#### D2a. Early declaration planning view
+
+After phase 9.3b5, begin a report-only tsc inventory slice in parallel
+with 9.4; it must land before 9.5a. It records schema-2 exact declaration
+identities from its first version, lexical call resolution,
+conservative-but-distinct property candidates, shortest emitter paths,
+review SCCs, and exact ledger joins. Name-collapsed schema 1 remains
+migration input only. Mechanical ownership uses only the three
+measurement-integrity §6 rules; unresolved identities alone enter manual
+review.
+
+D2a also provides a non-gating `cargo xtask port-plan` view keyed by an
+exact D2 declaration or exact oracle diagnostic occurrence. It shows
+the source slice/hash, static SCC and nearest ported/disposition
+boundary, exact Rust ledger joins, mechanical family owner/curtain
+reason, fixtures, escape/dormant-assumption rows, and already-recorded
+manual probe recipes. Automated probe synthesis, runtime trace/coverage,
+and document-level slice assignment remain explicitly unavailable. The
+view schedules and explains implementation; it cannot classify an
+identity as not applicable or satisfy readiness.
+
+#### D2b. Frozen declaration closure
+
+Before M7 closes, complete the same D2a schema-2 inventory with an
+explicit owner and ported/deferred/not-applicable disposition for every
+closure identity, then anchor/freeze its inventory and disposition hash;
+D2b does not regenerate or replace D2a identities. Only D2b is the
+declaration-converse readiness artifact. The full identity, planning,
+freeze, and ownership rules live in
 [the integrity contract](measurement-integrity.md#6-d2--declaration-identity-and-closure).
 
 #### D3. Runtime/static reconciliation
 
-Join B2 runtime hits to D2 closure. Every direct emitter is executed or
-has zero-hit evidence; every closure identity is ported, deferred, or
-not applicable. Contradictions—such as an executed not-applicable emitter
-or an emitter without a family—fail.
+Join B2 runtime hits to the frozen D2b closure. Every direct emitter is
+executed or has zero-hit evidence; every closure identity is ported,
+deferred, or not applicable. Contradictions—such as an executed
+not-applicable emitter or an emitter without a family—fail.
 
 ### Track E — reproducible operation
 
@@ -307,8 +365,8 @@ green.
 | 6 | E2 documentation cleanup | M5 close |
 | 7 | M5 flow | M6 |
 | 8 | M6 transaction precondition, then M6 | M7 |
-| 9 | pin 2XXX scope, then sweep to all-corpus FP=0 and supported FN=0 | M7 |
-| 10 | B1 evidence protocol + D2 closure tooling | M7 close |
+| 9 | pin 2XXX scope, then sweep to all-corpus FP=0 and supported FN=0, with tier-diff before 9.4b and parallel D2a + dormant-canary work complete before 9.5a | M7 |
+| 10 | B1 evidence protocol + D2b closure freeze tooling | M7 close |
 | 11 | B2 coverage + B3 fuzzer + B4 performance | M7 close |
 | 12 | M7 stages 8.1-8.5 including A3 structure; content complete, not closed | M7 close prerequisites |
 | 13 | D1-D3 complete + A2 globally frozen | M7 close |
@@ -324,6 +382,16 @@ baseline counts and decision record remain in the
 Evidence begins before M7 so milestone close is not an infrastructure
 cliff.
 
+Row 9's internal sequence is owned by the phase-9 plan. It finishes
+9.3b4/9.3b5, lands exact shadow-tier identity reporting before 9.4b,
+and allows report-only D2a plus the escape-ledger dormant annotations to
+run beside 9.4. D2a and the canary-backed dormant census are hard
+prerequisites only for 9.5a, where new mapped/conditional model
+constructibility begins.
+These planning/checking artifacts do not satisfy rows 10-13 early:
+D2b freeze, B2 evidence, D1 backlog zero, and D3 reconciliation remain
+M7-close requirements.
+
 ## 5. Per-slice review template
 
 Every implementation PR records:
@@ -335,11 +403,22 @@ Exact fixtures or generated signatures:
 Accepted-set additions (removals MUST be 0):
 All FP; All / 2XXX / syntactic T0; active/shadow T1-T4:
 Escapes, ledgers, closure, and runtime rows before -> after:
+D2 cluster/SCC and port-plan artifact (required after D2a):
+Escape dormant-assumption rows/canaries activated or retired:
+Subsystem matrix (model/construction/instantiation/members/relations/
+inference/display/diagnostics/cache-order):
 Tests and evidence artifact hashes:
 ```
 
 For docs-only or pure tooling work, mark semantic fields not applicable
 but still run CI when gate behavior can change.
+
+Mapped, conditional/substitution, elaboration, recovery, and JS
+assignment families keep the subsystem matrix in every owning PR. A
+family may split the cells across dependency-ordered PRs, but only one
+new type-model family is activated at a time and the family close names
+every cell complete or an exact upper-tier blocker already owned by a
+later slice. This is required review evidence, not a new machine gate.
 
 ## 6. Stop conditions
 
