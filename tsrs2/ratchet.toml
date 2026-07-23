@@ -152,8 +152,14 @@
 # source: the relation-side `${number}` placeholder coercion now
 # rides the faithful evaluate.rs ToNumber (the M4-era local slice
 # dropped the 0b/0o radix forms).
-rate = 0.588059
-matched = 28829
+# p9 9.3b5: +324 with the display-special tail (identically-named /
+# 2507-2509 / origin / unique-symbol / empty faces) and its source
+# fixes. Review r2's UMD alias / symbol-chain corrections were
+# T0-neutral; the implicit-external-module completion added +12 by
+# honoring Auto/Force module detection for format, JSX, and package
+# scope indicators.
+rate = 0.588304
+matched = 28841
 total = 49024
 allowed_regression = 0.0
 
@@ -191,6 +197,9 @@ allowed_regression = 0.0
 # comment).
 # p9 9.3b4: +139 with the type-operator display arms (see the T0
 # comment).
+# p9 9.3b5: +285 with the display-special tail (see the T0 comment);
+# review r2 and its implicit-external-module completion are
+# byte-neutral in the 2xxx band.
 rate = 0.861527
 matched = 18136
 total = 21051

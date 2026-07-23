@@ -248,6 +248,14 @@ codified here as requirements for any §2 remedy:
    (archived parse-error-gate precedent).
 6. Determinism check (`verify.sh mf`) is mandatory for anything
    touching flow, worker transport, or output ordering.
+7. **Premise-invalidating changes require a same-slice omission
+   audit.** When a parameter or state that was previously always
+   absent (`None`/undefined/false) becomes live, grep every omission
+   comment whose justification cited that old premise. Re-audit and
+   disposition every hit in the same slice, and pin each newly
+   reachable behavior or retained omission with a probe or test. A
+   green aggregate gate does not replace this audit when the affected
+   behavior is message-only or otherwise outside the primary metric.
 
 ## 4. Explicit non-goals (recorded so nobody re-litigates them cheaply)
 
