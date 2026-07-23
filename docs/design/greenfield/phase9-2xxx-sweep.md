@@ -1210,6 +1210,90 @@ Syntactic unchanged. 904 checker tests (9 new oracle-probed pins).
    empty-resolution shield (ObjectLiteral 107 / Transient|TypeLiteral
    61 — members unreal until their producers land) + the 9.3b5 tail.
 
+## 9.3b4 results (2026-07-23, type operators — DONE)
+
+Numbers (tool-read, band 2xxx): T0 84.7988% (17851/21051, +139)
+FP=0; supported T0 87.0611% (17851/20504) FN=2,653 (from 2,792);
+T2 83.5162% (+0.78pt) / T3 75.8491% (+0.54pt). Band all: 58.1450%
+(28505/49024, +140) FP=0; syntactic unchanged. Generic display
+curtain 340→200/201 (the ±1 is evidence-chooser drift between runs
+on identical integers). 933 checker tests (9 new: 7 oracle-probed
+display-pin batteries + the printer escape-table twin + the
+fabrication-audit coercion pin). Escapes 252/0/0/116 (+1: the
+StringMapping symbol-less constructibility gate shares the standard
+curtain message).
+
+1. **The arms** — typeToTypeNodeHelper's four operator faces
+   (51569-51597) land in the structured slice in tsc order after the
+   anonymous dispatch: `Index` → `keyof <operand>` (operand takes
+   parenthesizeOperandOfTypeOperator; the union-origin substitution
+   51536-51538 re-routes through the same helper, so keyof origins
+   and direct deferred Index types share one renderer);
+   `TemplateLiteral` → head/span/tail concatenation (span types join
+   bare — createTemplateLiteralTypeSpan applies no parenthesizer);
+   `StringMapping` → the intrinsic alias reference `Uppercase<T>`
+   (symbolToTypeNode Type-meaning with one argument; Type::symbol is
+   set at creation, the gate is a constructibility guard);
+   `IndexedAccess` → `obj[index]` (OBJECT side takes
+   parenthesizeNonArrayTypeOfPostfixType; index side bare). Two new
+   SliceTypeNodeKind variants (TemplateLiteral, IndexedAccess) are
+   parenthesizer-inert — no factory rule lists either kind, so they
+   join every position bare; TypeOperator/Reference reuse covers the
+   other two. All positions oracle-probed: union/intersection bare
+   for all four, `(keyof T)[]`/`[(keyof T)?]`/`(keyof T)[K]` wraps
+   vs `T[K][]`/`[T[K]?]`/`` `a${T}`[] ``/`[`a${T}`?]`/`T[K][K2]`/
+   `T[keyof T]` bare, `readonly (keyof T)[]` composition.
+
+2. **Template texts print through the printer's real re-escape** —
+   getLiteralText's synthesized branch (13660-13677):
+   escapeTemplateSubstitution(escapeNonAsciiString(text, backtick)),
+   ported as template_text_raw + escape_string_backtick (the
+   backtick regex/escapedCharsMap/getReplacement fold, 16275-16314)
+   + escape_non_ascii_backtick (per-UTF-16-unit, astral = two
+   surrogate escapes) + escape_template_substitution. Probe-pinned:
+   `\r\n` pair, `\0` vs digit-lookahead `\x001`, unmapped control
+   U+0001 → `\u0001`, `あ` → `\u3042`, `😀` → `\uD83D\uDE00`, lone
+   `\r`, literal LF stays raw, `$`/`{` identity outside `${`. This
+   is a FULL escape (no identity-admission curtain) — the 9.3b3
+   "escapeString stays behind the curtain" posture was a
+   specifier-face decision and stands there; template texts are
+   the printer's own literal path.
+
+3. **Fabrication audit: NEW_FP=2 → 0, fixed at source** (fifth
+   consecutive slice the protocol fired; the display arm unmasked a
+   pre-existing verdict infidelity whose reporting had been contained
+   by the curtain Err): templateLiteralTypesPatterns `numbers("0b1")`
+   / `numbers("0o1")` drew 2345 because structural.rs carried an
+   M4-era local `js_string_to_number` slice missing the 0b/0o radix
+   forms (and admitting Rust-parser "inf" spellings JS rejects) —
+   the 9.3b2 second-copy pattern again: the faithful full ToNumber
+   had landed in evaluate.rs at M6. The local slice now delegates
+   (None-encodes-NaN face kept for its relation/inference callers),
+   and is_numeric_literal_name_js runs tsc's raw
+   `(+name).toString() === name` formula (so "NaN"/"Infinity" names
+   count exactly like tsc). Oracle-probed pin: the ToNumber battery
+   (`1`/`-1`/`0`/`0b1`/`0o1`/`0x1`/`1e21` admit, `other`/`inf`
+   refuse, byte-exact spans).
+
+4. **Producer facts the probes settled** (no port work needed — all
+   pinned green first run): `keyof keyof T` and `keyof Uppercase<T>`
+   resolve through the apparent type (never under noLib) rather than
+   defer; `keyof (T & U)` distributes to `keyof T | keyof U`;
+   `` `a${T | U}b` `` distributes at construction into a union of
+   templates; a literal index over a generic template resolves
+   through the apparent type (2339 on `{}` under noLib); the 65185
+   nullable-candidate substitution strips `keyof T | null` report
+   targets to `keyof T`. Source-position operator types generalize
+   to their constraints in reportRelationError — display pins ride
+   TARGET-position annotations.
+
+5. Residual: remaining curtain 200 = the preserved empty-resolution
+   shield (168) + the 9.3b5 tail (26) + a handful of rows whose
+   operator face renders but whose FN has other owners; a throwaway
+   inner-recursion census (tags on all five arm recursion sites, one
+   band run, integers byte-identical, reverted) found zero curtain
+   rows dying inside the new arms.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

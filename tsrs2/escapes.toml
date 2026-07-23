@@ -701,7 +701,7 @@ in = "type_to_string_slice_structured"
 reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
 class = "stage"
 owner = "M8"
-count = 2
+count = 3
 
 [[site]]
 file = "crates/checker/src/class.rs"
