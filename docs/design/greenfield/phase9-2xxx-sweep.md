@@ -1479,8 +1479,9 @@ at branch head @5e130375; bundle refs are the vendored 6.0.3
    needs an enclosingDeclaration ... both filters are off") — true
    until r1 armed `enclosing`, stale since.
 
-2. **Why the one-line fix alone regresses FP→FN** (code-read against
-   the bundle; probe A re-confirms before implementing). With the
+2. **Why the one-line fix alone regresses a T2/T3 mismatch → T0 FN**
+   (code-read against the bundle; probe A re-confirms before
+   implementing). With the
    filter, the accessible chain for `s` from the a.ts enclosing goes
    None (`U` was the only route), and symbol_chain_slice's parent
    walk takes over: get_parent_of_symbol(s) = the umd.d.ts module
@@ -1491,8 +1492,10 @@ at branch head @5e130375; bundle refs are the vendored 6.0.3
    UNCONDITIONALLY → chain [module, s] →
    symbol_expression_face_slice's external-module root curtain
    (check.rs:4637) → Err(Unsupported) → the whole 2741 report drops:
-   today's wrong-face FP becomes a missing-diagnostic FN, still
-   diverging from tsc. tsc reaches the bare `[s]` through
+   today's wrong-face T2/T3 mismatch (the row still matches at T0,
+   whose key excludes message text) becomes a T0
+   missing-diagnostic FN, still diverging from tsc. tsc reaches the
+   bare `[s]` through
    getSymbolChain's module-parent suppression (52996-52998):
    `!endOfChain && !yieldModuleSymbol &&
    forEach(declarations, hasNonGlobalAugmentationExternalModuleSymbol)
@@ -1535,8 +1538,10 @@ at branch head @5e130375; bundle refs are the vendored 6.0.3
      isUMDExportSymbol @6.0.3, tsc-span _tsc.js:17555-17557, hash
      from the vendored bundle; `declarations.first()` only — not the
      any-declaration helper) and `is_external_module_of_node`
-     (program.rs beside the CJS variant at :210,
-     external_module_indicator only, plain sibling-style comment).
+     (program.rs beside the CJS variant at :210; ledger header
+     tsc-port: isExternalModule @6.0.3, tsc-span
+     _tsc.js:28910-28912, hash from the vendored bundle;
+     external_module_indicator only).
      The old comment's useOnlyExternalAliasing half stays true (the
      error path passes false, 52959) — keep that clause.
    - (b) symbol_chain_slice gains `yield_module_symbol: bool`,
@@ -1590,22 +1595,37 @@ at branch head @5e130375; bundle refs are the vendored 6.0.3
    repro verbatim (@ts-ignore directives are implemented, lib.rs:226;
    tsc's 2686 at the `U` reference is suppressed by the directive and
    is a resolve.rs stub on our side anyway — out of scope): expect
-   ONE 2741-shaped row anchored at `b`, head AND tail faces `[s]`,
-   related 2728. probe B = the repro minus @ts-ignore: records the
-   unsuppressed row set for the comment (2686 FN acceptable). probe
-   C = the §3 self-import fixture: pin the per-entry order (`[s]`,
-   not `[Self.s]`). Unit tests: with_program_state multi-file
-   fixtures ([("umd.d.ts", ...), ("a.ts", ...)], check over the
-   a.ts index) + the probe-C single-file module; the existing
-   963-test suite pins (b)'s TRUE side (typeof import faces).
+   ONE 2741 row anchored at `b`:
 
-7. **Expectations + gates**: FP=0 held through r1, so no corpus row
-   currently EMITS a wrong UMD/self-import face — expect corpus
-   byte-identical, or strictly-positive revivals if (a)/(c) un-drop
-   rows; ANY negative movement = stop and re-census before accepting.
-   Full gate list per CLAUDE.md; the ledger gains exactly one entry
-   (isUMDExportSymbol) and must re-verify stale=0; escapes untouched.
-   Commit style: `p9 9.3b5 review r2: ...` with gates in the body.
+   ```text
+   Property '[U.s]' is missing in type '{}' but required in type '{ [s]: number; }'.
+   ```
+
+   The WriteComputedProps head keeps the written `[U.s]`, while only
+   the target member face becomes `[s]`. Its related 2728 is
+   `'[U.s]' is declared here.` at the computed property name. probe B
+   = the repro minus @ts-ignore: records the
+   unsuppressed row set for the comment (2686 FN acceptable). probe C
+   = the §3 self-import fixture: pin the per-entry order (`[s]`, not
+   `[Self.s]`). Unit tests: with_program_state multi-file fixtures
+   ([("umd.d.ts", ...), ("a.ts", ...)], check over the a.ts index) +
+   the probe-C single-file module; the existing 956-test suite pins
+   (b)'s TRUE side (typeof import faces).
+
+7. **Expectations + gates**: T0 FP=0 says nothing about wrong message
+   faces — T0 keys only file/code/line/col, so today's `[U.s]` tail
+   already matches the oracle row at T0. Expect the T0 bucket sets and
+   counts to be byte-identical, or to move only by positive revivals;
+   ANY T0 loss or new FP = stop and re-census before accepting. The
+   touched-family fidelity gate is separate: record T2/T3 shadow
+   counts before/after AND inspect the UMD/self-import rows directly
+   in `mismatches.json` (9.3c's exact identity diff is not available
+   yet); any target-row loss or identity swap is also a stop. Full
+   gate list per CLAUDE.md; the ledger gains exactly TWO entries
+   (isUMDExportSymbol and isExternalModule) and must re-verify
+   stale=0; `fn-dispositions.toml` does not grow because both new
+   helpers carry tsc-port dispositions; escapes untouched. Commit
+   style: `p9 9.3b5 review r2: ...` with gates in the body.
 
 8. **Meta-rule** (to the port playbook at merge): arming a
    previously-always-None parameter invalidates every omission
