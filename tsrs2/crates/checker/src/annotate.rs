@@ -4288,8 +4288,12 @@ impl<'a> CheckerState<'a> {
             // errorType continuation below runs regardless: tsc sets
             // resolvedBaseConstructorType = errorType on this arm, and
             // every downstream consumer reads the link value, so
-            // containment here cannot fabricate.
-            let _ = (|state: &mut Self| -> CheckResult2<()> {
+            // containment here cannot fabricate. The drop must still
+            // mark the report anchor partial: an @ts-expect-error
+            // above the heritage line consumes tsc's 2507, and without
+            // the range the directive accounting fabricates 2578
+            // (9.3b5 review r1; DR-F6 start-face rule).
+            let report = (|state: &mut Self| -> CheckResult2<()> {
                 let text = state.type_to_string_slice(base_constructor_type)?;
                 let mut related = Vec::new();
                 if state
@@ -4335,6 +4339,9 @@ impl<'a> CheckerState<'a> {
                 );
                 Ok(())
             })(self);
+            if let Err(err) = report {
+                self.mark_partially_checked_node(expression, err.reason.clone());
+            }
             let error = self.tables.intrinsics.error;
             if self
                 .links
@@ -4479,14 +4486,16 @@ impl<'a> CheckerState<'a> {
             // and the emptyArray continuation below runs regardless,
             // matching tsc's `return type.resolvedBaseTypes =
             // emptyArray` (the entry write already parked the empty
-            // sentinel).
+            // sentinel). The drop marks the report anchor partial so
+            // an @ts-expect-error consuming tsc's 2509 is not counted
+            // unused (9.3b5 review r1; DR-F6 start-face rule).
             let NodeData::ExpressionWithTypeArguments(data) = self.data_of(base_type_node) else {
                 unreachable!("heritage clause types are ExpressionWithTypeArguments");
             };
             let expression = data.expression.expect(
                 "parser invariant: heritage ExpressionWithTypeArguments expression always parsed",
             );
-            let _ = (|state: &mut Self| -> CheckResult2<()> {
+            let report = (|state: &mut Self| -> CheckResult2<()> {
                 let elaboration = state.elaborate_never_intersection_row(base_type)?;
                 let text = state.type_to_string_slice(reduced_base_type)?;
                 let head = tsrs2_diags::MessageChain::new(
@@ -4502,6 +4511,9 @@ impl<'a> CheckerState<'a> {
                 state.push_error_diagnostic(diagnostic);
                 Ok(())
             })(self);
+            if let Err(err) = report {
+                self.mark_partially_checked_node(expression, err.reason.clone());
+            }
             return Ok(());
         }
         if ty == reduced_base_type || self.has_base_type(reduced_base_type, ty)? {

@@ -3316,7 +3316,11 @@ impl<'a> CheckerState<'a> {
         };
         if unmatched.len() == 1 {
             let prop = unmatched[0];
-            let prop_name = self.missing_property_display_name(unmatched[0]);
+            // 66736-66742: the single-property face is symbolToString
+            // with WriteComputedProps — computed-name declarations
+            // re-print their name node; the related 2728 reuses the
+            // same string.
+            let prop_name = self.missing_property_display_name(unmatched[0], true)?;
             let declaration = self.binder.symbol(prop).declarations.first().copied();
             let related = declaration
                 .map(|declaration| {
@@ -3336,10 +3340,13 @@ impl<'a> CheckerState<'a> {
             );
             return Ok(true);
         }
-        let names: Vec<String> = unmatched
-            .iter()
-            .map(|&prop| self.missing_property_display_name(prop))
-            .collect();
+        // 66752-66757: the multi-property lists ride plain
+        // symbolToString (no WriteComputedProps) — late-bound computed
+        // names print their declaration SOURCE text verbatim.
+        let mut names: Vec<String> = Vec::with_capacity(unmatched.len());
+        for &prop in &unmatched {
+            names.push(self.missing_property_display_name(prop, false)?);
+        }
         if unmatched.len() > 5 {
             let head: Vec<String> = names[..4].to_vec();
             let more = (unmatched.len() - 4).to_string();
@@ -3359,25 +3366,125 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsrs-native: the missing-property display name — private
-    /// identifiers print their declaration text (`#x`), everything
+    /// identifiers print their declaration text (`#x`), computed-name
+    /// declarations follow the two symbolToString flavors, everything
     /// else unescapes like symbolToString.
-    fn missing_property_display_name(&self, prop: SymbolId) -> String {
-        let escaped = &self.binder.symbol(prop).escaped_name;
+    ///
+    /// write_computed_props mirrors SymbolFormatFlags.WriteComputedProps
+    /// (symbolToNode, 51122-51135): a computed-name value declaration
+    /// re-prints its name node through the comment-stripping printer
+    /// (51124-51127; entity chains normalize whitespace, strings
+    /// re-quote double, numerics print the scanner's cooked value —
+    /// all oracle-probed), and a declaration-less EnumLiteral /
+    /// UniqueESSymbol nameType re-encloses at the name symbol's own
+    /// declaration (51128-51133). WITHOUT the flag
+    /// (getNameOfSymbolAsWritten, 50682-50690) late-bound computed
+    /// names print declarationNameToString — SOURCE text verbatim
+    /// (oracle: `other, [ B . sym ]`) — while early-bound
+    /// string/number computed names ride the
+    /// getNameOfSymbolFromNameType value face, which the unescape
+    /// tail matches for bound names.
+    fn missing_property_display_name(
+        &mut self,
+        prop: SymbolId,
+        write_computed_props: bool,
+    ) -> CheckResult2<String> {
+        let escaped = self.binder.symbol(prop).escaped_name.clone();
         if escaped.starts_with('#') {
-            return escaped.clone();
+            return Ok(escaped);
         }
-        if let Some(stripped) = escaped.strip_prefix("__#") {
-            let _ = stripped;
+        if escaped.starts_with("__#") {
             if let Some(declaration) = self.binder.symbol(prop).value_declaration {
                 let source = self.binder.source_of_node(declaration);
                 if let Some(name) =
                     tsrs2_binder::node_util::get_name_of_declaration(source, declaration)
                 {
-                    return tsrs2_binder::node_util::declaration_name_to_string(source, Some(name));
+                    return Ok(tsrs2_binder::node_util::declaration_name_to_string(
+                        source,
+                        Some(name),
+                    ));
                 }
             }
         }
-        tsrs2_binder::unescape_leading_underscores(escaped).to_owned()
+        let computed_name = self.binder.symbol(prop).value_declaration.and_then(|decl| {
+            tsrs2_binder::node_util::get_name_of_declaration(self.binder.source_of_node(decl), decl)
+                .filter(|&name| matches!(self.data_of(name), NodeData::ComputedPropertyName(_)))
+        });
+        if let Some(name) = computed_name {
+            if write_computed_props {
+                return self.computed_property_name_face_slice(name);
+            }
+            if self
+                .links
+                .symbol(prop)
+                .check_flags
+                .intersects(tsrs2_types::CheckFlags::LATE)
+            {
+                let source = self.binder.source_of_node(name);
+                return Ok(tsrs2_binder::node_util::declaration_name_to_string(
+                    source,
+                    Some(name),
+                ));
+            }
+        } else if write_computed_props {
+            if let Some(name_type) = self.links.symbol(prop).name_type {
+                if self
+                    .tables
+                    .flags_of(name_type)
+                    .intersects(TypeFlags::ENUM_LITERAL | TypeFlags::UNIQUE_ES_SYMBOL)
+                {
+                    let name_symbol = self
+                        .tables
+                        .type_of(name_type)
+                        .symbol
+                        .expect("enum-literal/unique-symbol name types carry their symbol");
+                    let enclosing = self.binder.symbol(name_symbol).value_declaration;
+                    let face = self.symbol_expression_face_slice(name_symbol, enclosing, false)?;
+                    return Ok(format!("[{face}]"));
+                }
+            }
+        }
+        Ok(tsrs2_binder::unescape_leading_underscores(&escaped).to_owned())
+    }
+
+    /// tsc-port: symbolToNode @6.0.3 (WriteComputedProps name reprint)
+    /// tsc-hash: ba015cf97ede8e4493cf851a6464d86bfd06e225e4fed66cae72ea6a2d91ff41
+    /// tsc-span: _tsc.js:51122-51135
+    ///
+    /// The 51124-51127 arm returns the declaration's computed name
+    /// NODE and symbolToStringWorker prints it without a source file:
+    /// entity chains re-print structurally (whitespace normalizes),
+    /// string literals re-escape double-quoted (probed: `[ 'ab' ]` →
+    /// `["ab"]`), numeric literals print the scanner's cooked value
+    /// (probed: `[0x10]` → `[16]`), prefix-minus numerics keep the
+    /// operator. Other expression shapes (templates, bigints,
+    /// element-access names) stay behind the curtain.
+    fn computed_property_name_face_slice(&mut self, name: NodeId) -> CheckResult2<String> {
+        let curtain =
+            || Unsupported::new("typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)");
+        let NodeData::ComputedPropertyName(data) = self.data_of(name) else {
+            return Err(curtain());
+        };
+        let expression = data.expression.ok_or_else(curtain)?;
+        let text = match self.data_of(expression).clone() {
+            NodeData::StringLiteral(data) => string_literal_name_slice(&data.text, false)?,
+            NodeData::NumericLiteral(data) => data.text.clone(),
+            NodeData::PrefixUnaryExpression(data)
+                if data.operator == SyntaxKind::MinusToken
+                    && data.operand.is_some_and(|operand| {
+                        matches!(self.data_of(operand), NodeData::NumericLiteral(_))
+                    }) =>
+            {
+                let NodeData::NumericLiteral(operand) =
+                    self.data_of(data.operand.expect("guarded above")).clone()
+                else {
+                    unreachable!("guarded above");
+                };
+                format!("-{}", operand.text)
+            }
+            _ => self.entity_name_text_slice(expression)?,
+        };
+        Ok(format!("[{text}]"))
     }
 
     /// tsc-port: checkTypeComparableTo @6.0.3 (5.4-slice shape)
@@ -3805,6 +3912,41 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsrs-native: the origin verdict shield's transitive
+    /// INSTANTIABLE probe — a type variable anywhere inside the
+    /// origin's composite shape (nested unions/intersections and
+    /// their own origins included) puts the relation in the
+    /// cross-product band the port cannot verdict yet. Iterative
+    /// (50k-chain corpus fixtures); only composite member lists are
+    /// walked, so object members cannot cycle through here, and the
+    /// seen-set bounds re-visits.
+    fn composite_shape_contains_instantiable(&self, types: &[TypeId]) -> bool {
+        let mut stack: Vec<TypeId> = types.to_vec();
+        let mut seen: std::collections::HashSet<TypeId> = std::collections::HashSet::new();
+        while let Some(ty) = stack.pop() {
+            if !seen.insert(ty) {
+                continue;
+            }
+            let flags = self.tables.flags_of(ty);
+            if flags.intersects(TypeFlags::INSTANTIABLE) {
+                return true;
+            }
+            if flags.intersects(TypeFlags::UNION | TypeFlags::INTERSECTION) {
+                match &self.tables.type_of(ty).data {
+                    TypeData::Union { types, origin } => {
+                        stack.extend(types.iter().copied());
+                        if let Some(origin) = origin {
+                            stack.push(*origin);
+                        }
+                    }
+                    TypeData::Intersection { types } => stack.extend(types.iter().copied()),
+                    _ => {}
+                }
+            }
+        }
+        false
+    }
+
     fn type_to_string_slice_structured(
         &mut self,
         ty: TypeId,
@@ -3872,24 +4014,28 @@ impl<'a> CheckerState<'a> {
                         TypeData::Intersection { types } => types.to_vec(),
                         _ => unreachable!("union/intersection flag implies composite data"),
                     };
-                    // NARROWED verdict shield: origins with
-                    // INSTANTIABLE members are the cross-product
-                    // relation band where the port's verdict is NOT
-                    // yet faithful — `T & U ⊆ (A | B) & T & U` holds
-                    // in tsc through a normalized-intersection path
-                    // the port lacks (each constituent relates
-                    // individually here, and `T & U ⊆ 2` passes
-                    // standalone but fails inside the intersection-
-                    // target walk; FP-gate catch #8). Rendering those
-                    // origins would report the wrong verdicts, so the
-                    // shield stays EXACTLY for them until the relation
-                    // producer lands (9.9x/M8 owner); concrete-typed
-                    // origins (the interface cross products) render.
-                    if types.iter().any(|&member| {
-                        self.tables
-                            .flags_of(member)
-                            .intersects(TypeFlags::INSTANTIABLE)
-                    }) {
+                    // NARROWED verdict shield: origins whose shape
+                    // contains INSTANTIABLE constituents are the
+                    // cross-product relation band where the port's
+                    // verdict is NOT yet faithful — `T & U ⊆ (A | B) &
+                    // T & U` holds in tsc through a normalized-
+                    // intersection path the port lacks (each
+                    // constituent relates individually here, and `T &
+                    // U ⊆ 2` passes standalone but fails inside the
+                    // intersection-target walk; FP-gate catch #8).
+                    // The probe is TRANSITIVE through nested
+                    // composites and their origins: a type variable
+                    // wrapped in a named union member (`type N<T, U> =
+                    // (T & U) | 4` inside `N<T, U> & (A | B)`) rides
+                    // the same unfaithful verdict band as a direct
+                    // member — the direct-member probe let it through
+                    // and fabricated a 2322 tsc does not report
+                    // (9.3b5 review r1). Rendering those origins would
+                    // report the wrong verdicts, so the shield stays
+                    // EXACTLY for them until the relation producer
+                    // lands (9.9x/M8 owner); concrete-typed origins
+                    // (the interface cross products) render.
+                    if self.composite_shape_contains_instantiable(&types) {
                         return Err(Unsupported::new(
                             "origin display over instantiable members (cross-product relation verdict dependency, M8)",
                         ));
@@ -4414,7 +4560,7 @@ impl<'a> CheckerState<'a> {
         }
         if fully_qualified {
             let chain = self
-                .symbol_chain_slice(symbol, tsrs2_types::SymbolFlags::VALUE, true)?
+                .symbol_chain_slice(symbol, tsrs2_types::SymbolFlags::VALUE, true, None)?
                 .expect("getSymbolChain with endOfChain always yields (52991-52999)");
             let root = chain[0];
             if self.symbol_has_external_module_declaration(root) {
@@ -4460,26 +4606,76 @@ impl<'a> CheckerState<'a> {
         ))
     }
 
+    /// tsc-port: symbolToExpression @6.0.3 (computed-name face slice)
+    /// tsc-hash: f1c7de91b82f1b2f5a3b4a2e7c1b82bd8504e06172492e073464b298e0938e03
+    /// tsc-span: _tsc.js:53337-53387
+    ///
+    /// lookupSymbolChainWorker (52943-52958) gates the chain walk on
+    /// `context.enclosingDeclaration || UseFullyQualifiedType`; the
+    /// unarmed contexts collapse to the `[symbol]` bare-name face.
+    /// createExpressionFromSymbolChain renders identifier links as a
+    /// property-access join (canUsePropertyAccess, 53357); the
+    /// module-specifier string-literal roots (53351-53355) and the
+    /// element-access faces over non-identifier links (53362-53385)
+    /// stay behind the curtain. Link names ride
+    /// getNameOfSymbolAsWritten — the slice's symbol_display_name
+    /// posture.
+    fn symbol_expression_face_slice(
+        &mut self,
+        symbol: SymbolId,
+        enclosing: Option<NodeId>,
+        fully_qualified: bool,
+    ) -> CheckResult2<String> {
+        let curtain =
+            || Unsupported::new("typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)");
+        let chain = if enclosing.is_some() || fully_qualified {
+            self.symbol_chain_slice(symbol, tsrs2_types::SymbolFlags::VALUE, true, enclosing)?
+                .expect("getSymbolChain with endOfChain always yields (52991-52999)")
+        } else {
+            vec![symbol]
+        };
+        if self.symbol_has_external_module_declaration(chain[0]) {
+            return Err(curtain());
+        }
+        let mut parts = Vec::with_capacity(chain.len());
+        for &link in &chain {
+            let name = self.symbol_display_name(link);
+            if !tsrs2_syntax::is_identifier_text(&name) {
+                return Err(curtain());
+            }
+            parts.push(name);
+        }
+        Ok(parts.join("."))
+    }
+
     /// tsc-port: getSymbolChain @6.0.3 (error-path slice)
     /// tsc-hash: 8ccb0f4b99b34c677210c369edfdf15d1f0cc32eed7f57b6b153783b4808d291
     /// tsc-span: _tsc.js:52958-53016
     ///
-    /// lookupSymbolChainWorker's chain builder with no
-    /// enclosingDeclaration. yieldModuleSymbol is TRUE on the
-    /// symbolToTypeNode path (DoNotIncludeSymbolChain unset), so the
-    /// module-parent suppression (52996-52998) never fires; the
-    /// TypeLiteral/ObjectLiteral parent guard (52991-52995) is kept
-    /// verbatim though the module/namespace parents this face walks
-    /// cannot carry those flags. getQualifiedLeftMeaning (50291) fixes
-    /// Value → Value, so the top-level Value meaning rides the whole
-    /// recursion.
+    /// lookupSymbolChainWorker's chain builder; the enclosing
+    /// declaration arms the accessibility walks (the computed-name
+    /// member faces re-enclose at the property declaration,
+    /// addPropertyToElementList 52265-52267 / symbolToNode
+    /// 51128-51131), while the error-path type faces pass None.
+    /// getContainersOfSymbol keeps the no-enclosing view — the
+    /// enclosing-fed reexportContainers
+    /// (getAlternativeContainingModules) are module-specifier faces
+    /// the member-name renderer curtains anyway. yieldModuleSymbol is
+    /// TRUE on the symbolToTypeNode path (DoNotIncludeSymbolChain
+    /// unset), so the module-parent suppression (52996-52998) never
+    /// fires; the TypeLiteral/ObjectLiteral parent guard (52991-52995)
+    /// is kept verbatim though the module/namespace parents this face
+    /// walks cannot carry those flags. getQualifiedLeftMeaning (50291)
+    /// fixes Value → Value, so the top-level Value meaning rides the
+    /// whole recursion.
     fn symbol_chain_slice(
         &mut self,
         symbol: SymbolId,
         meaning: tsrs2_types::SymbolFlags,
         end_of_chain: bool,
+        enclosing: Option<NodeId>,
     ) -> CheckResult2<Option<Vec<SymbolId>>> {
-        let mut accessible = self.accessible_symbol_chain_slice(symbol, meaning)?;
+        let mut accessible = self.accessible_symbol_chain_at_slice(symbol, meaning, enclosing)?;
         let needs_walk = match &accessible {
             None => true,
             Some(chain) => {
@@ -4488,7 +4684,7 @@ impl<'a> CheckerState<'a> {
                 } else {
                     Self::qualified_left_meaning(meaning)
                 };
-                self.needs_qualification_slice(chain[0], link_meaning)?
+                self.needs_qualification_slice(chain[0], link_meaning, enclosing)?
             }
         };
         if needs_walk {
@@ -4538,6 +4734,7 @@ impl<'a> CheckerState<'a> {
                         parent,
                         Self::qualified_left_meaning(meaning),
                         false,
+                        enclosing,
                     )?
                     else {
                         continue;
@@ -4600,44 +4797,109 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 86303c2907e872494ac8075b43923ebdd2dda7e3c0de5261e57930f45c0a8346
     /// tsc-span: _tsc.js:50294-50375
     ///
-    /// No enclosingDeclaration: forEachSymbolTableInScope's location
-    /// walk is empty and the single consulted table is `globals`
-    /// (50283-50289). The isPropertyOrMethodDeclarationSymbol guard
-    /// (50295) cannot match this face's module/namespace declaration
-    /// lists, and the accessibleChainCache is a recomputation-only
-    /// economy the slice skips.
-    fn accessible_symbol_chain_slice(
+    /// The scope walk (symbol_tables_in_scope_slice below) consults
+    /// each table in lexical order and the shared visited list rides
+    /// across them like tsc's per-symbol visitedSymbolTables. The
+    /// isPropertyOrMethodDeclarationSymbol guard (50295) cannot match
+    /// this face's module/namespace/variable declaration lists, and
+    /// the accessibleChainCache is a recomputation-only economy the
+    /// slice skips.
+    fn accessible_symbol_chain_at_slice(
         &mut self,
         symbol: SymbolId,
         meaning: tsrs2_types::SymbolFlags,
+        enclosing: Option<NodeId>,
     ) -> CheckResult2<Option<Vec<SymbolId>>> {
-        let globals = self.globals.clone();
+        let tables = self.symbol_tables_in_scope_slice(enclosing);
         let mut visited = Vec::new();
-        self.accessible_chain_from_table_slice(
-            &globals,
-            None,
-            symbol,
-            meaning,
-            /*ignore_qualification*/ false,
+        for (table_key, table, is_local_name_lookup) in tables {
+            if let Some(chain) = self.accessible_chain_from_table_slice(
+                &table,
+                table_key,
+                symbol,
+                meaning,
+                /*ignore_qualification*/ false,
+                is_local_name_lookup,
+                &mut visited,
+                enclosing,
+            )? {
+                return Ok(Some(chain));
+            }
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: forEachSymbolTableInScope @6.0.3 (display slice)
+    /// tsc-hash: 00a3e1adb3bf462d0d1b2ab5d4b5872871757447673fc172a4eaa9407eb4541e
+    /// tsc-span: _tsc.js:50227-50290
+    ///
+    /// Ancestor locals tables (any locals-bearing location except the
+    /// global source file, 50230-50240), the merged exports view of
+    /// module declarations and external/CJS source files on the way up
+    /// (50242-50259; getSymbolOfDeclaration's merged table — the same
+    /// view resolve_name_full's module-exports arm reads), then the
+    /// `globals` tail (50284-50289). The class/interface Type-filtered
+    /// members table (50260-50283) is omitted: every armed entry point
+    /// here carries the Value meaning, the filtered table holds only
+    /// Type-meaning member symbols, and class members are never
+    /// Alias-flagged — neither trySymbolTable arm can fire on it.
+    fn symbol_tables_in_scope_slice(
+        &mut self,
+        enclosing: Option<NodeId>,
+    ) -> Vec<(ScopeTableKey, tsrs2_binder::SymbolTable, bool)> {
+        let mut tables = Vec::new();
+        let mut location = enclosing;
+        while let Some(loc) = location {
+            let is_global_source_file = self.kind_of(loc) == SyntaxKind::SourceFile
+                && !self.binder.is_external_or_common_js_module_of_node(loc);
+            if !is_global_source_file {
+                if let Some(locals) = self.binder.locals_of(loc) {
+                    tables.push((
+                        ScopeTableKey::Locals(loc),
+                        locals.clone(),
+                        /*is_local_name_lookup*/ true,
+                    ));
+                }
+            }
+            match self.kind_of(loc) {
+                SyntaxKind::SourceFile if is_global_source_file => {}
+                SyntaxKind::SourceFile | SyntaxKind::ModuleDeclaration => {
+                    if let Some(symbol) = self.binder.node_symbol(loc) {
+                        let symbol = self.get_merged_symbol(symbol);
+                        let exports = self.binder.symbol(symbol).exports.clone();
+                        tables.push((
+                            ScopeTableKey::Exports(symbol),
+                            exports,
+                            /*is_local_name_lookup*/ true,
+                        ));
+                    }
+                }
+                _ => {}
+            }
+            location = self.parent_of(loc);
+        }
+        tables.push((
+            ScopeTableKey::Globals,
+            self.globals.clone(),
             /*is_local_name_lookup*/ true,
-            &mut visited,
-        )
+        ));
+        tables
     }
 
     /// getAccessibleSymbolChainFromSymbolTable (50313-50319): the
-    /// visited guard is table-object identity in tsc — keyed by the
-    /// owning symbol here (each symbol resolves one exports view;
-    /// `globals` is the None key).
+    /// visited guard is table-object identity in tsc — keyed by
+    /// provenance here (ScopeTableKey).
     #[allow(clippy::too_many_arguments)]
     fn accessible_chain_from_table_slice(
         &mut self,
         table: &tsrs2_binder::SymbolTable,
-        table_key: Option<SymbolId>,
+        table_key: ScopeTableKey,
         symbol: SymbolId,
         meaning: tsrs2_types::SymbolFlags,
         ignore_qualification: bool,
         is_local_name_lookup: bool,
-        visited: &mut Vec<Option<SymbolId>>,
+        visited: &mut Vec<ScopeTableKey>,
+        enclosing: Option<NodeId>,
     ) -> CheckResult2<Option<Vec<SymbolId>>> {
         if visited.contains(&table_key) {
             return Ok(None);
@@ -4650,6 +4912,7 @@ impl<'a> CheckerState<'a> {
             ignore_qualification,
             is_local_name_lookup,
             visited,
+            enclosing,
         );
         visited.pop();
         result
@@ -4661,6 +4924,7 @@ impl<'a> CheckerState<'a> {
     /// globals-tail globalThis probe (50359) can only yield the
     /// globalThis face, which the named-object arm renders upstream —
     /// both skipped.
+    #[allow(clippy::too_many_arguments)]
     fn try_symbol_table_slice(
         &mut self,
         table: &tsrs2_binder::SymbolTable,
@@ -4668,7 +4932,8 @@ impl<'a> CheckerState<'a> {
         meaning: tsrs2_types::SymbolFlags,
         ignore_qualification: bool,
         is_local_name_lookup: bool,
-        visited: &mut Vec<Option<SymbolId>>,
+        visited: &mut Vec<ScopeTableKey>,
+        enclosing: Option<NodeId>,
     ) -> CheckResult2<Option<Vec<SymbolId>>> {
         let escaped = self.binder.symbol(symbol).escaped_name.clone();
         let direct = table.get(&escaped).copied();
@@ -4678,6 +4943,7 @@ impl<'a> CheckerState<'a> {
             None,
             meaning,
             ignore_qualification,
+            enclosing,
         )? {
             return Ok(Some(vec![symbol]));
         }
@@ -4718,6 +4984,7 @@ impl<'a> CheckerState<'a> {
                 meaning,
                 ignore_qualification,
                 visited,
+                enclosing,
             )? {
                 return Ok(Some(chain));
             }
@@ -4728,6 +4995,7 @@ impl<'a> CheckerState<'a> {
     /// getCandidateListForSymbol (50361-50374): the alias itself, or
     /// the alias prepended to a chain found in its target's export
     /// table (qualification ignored inside).
+    #[allow(clippy::too_many_arguments)]
     fn candidate_list_for_symbol_slice(
         &mut self,
         entry: SymbolId,
@@ -4735,7 +5003,8 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         meaning: tsrs2_types::SymbolFlags,
         ignore_qualification: bool,
-        visited: &mut Vec<Option<SymbolId>>,
+        visited: &mut Vec<ScopeTableKey>,
+        enclosing: Option<NodeId>,
     ) -> CheckResult2<Option<Vec<SymbolId>>> {
         if self.symbol_chain_is_accessible_slice(
             symbol,
@@ -4743,21 +5012,27 @@ impl<'a> CheckerState<'a> {
             Some(resolved),
             meaning,
             ignore_qualification,
+            enclosing,
         )? {
             return Ok(Some(vec![entry]));
         }
         let candidate_table = self.get_exports_of_symbol(resolved)?;
         let inner = self.accessible_chain_from_table_slice(
             &candidate_table,
-            Some(resolved),
+            ScopeTableKey::Exports(resolved),
             symbol,
             meaning,
             /*ignore_qualification*/ true,
             /*is_local_name_lookup*/ false,
             visited,
+            enclosing,
         )?;
         if let Some(inner) = inner {
-            if self.can_qualify_symbol_slice(entry, Self::qualified_left_meaning(meaning))? {
+            if self.can_qualify_symbol_slice(
+                entry,
+                Self::qualified_left_meaning(meaning),
+                enclosing,
+            )? {
                 let mut chain = vec![entry];
                 chain.extend(inner);
                 return Ok(Some(chain));
@@ -4776,6 +5051,7 @@ impl<'a> CheckerState<'a> {
         resolved: Option<SymbolId>,
         meaning: tsrs2_types::SymbolFlags,
         ignore_qualification: bool,
+        enclosing: Option<NodeId>,
     ) -> CheckResult2<bool> {
         let Some(entry) = entry else {
             return Ok(false);
@@ -4791,24 +5067,29 @@ impl<'a> CheckerState<'a> {
             return Ok(true);
         }
         let merged_entry = self.get_merged_symbol(entry);
-        self.can_qualify_symbol_slice(merged_entry, meaning)
+        self.can_qualify_symbol_slice(merged_entry, meaning, enclosing)
     }
 
     /// canQualifySymbol (50321-50324): no qualification needed, or the
-    /// parent chain is itself accessible.
+    /// parent chain is itself accessible (from the same enclosing).
     fn can_qualify_symbol_slice(
         &mut self,
         entry: SymbolId,
         meaning: tsrs2_types::SymbolFlags,
+        enclosing: Option<NodeId>,
     ) -> CheckResult2<bool> {
-        if !self.needs_qualification_slice(entry, meaning)? {
+        if !self.needs_qualification_slice(entry, meaning, enclosing)? {
             return Ok(true);
         }
         let Some(parent) = self.get_parent_of_symbol(entry) else {
             return Ok(false);
         };
         Ok(self
-            .accessible_symbol_chain_slice(parent, Self::qualified_left_meaning(meaning))?
+            .accessible_symbol_chain_at_slice(
+                parent,
+                Self::qualified_left_meaning(meaning),
+                enclosing,
+            )?
             .is_some())
     }
 
@@ -4816,37 +5097,42 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 1bde4c0406bef43d2e90c293732295ec0503439a0784611675ed408d4cd0141d
     /// tsc-span: _tsc.js:50376-50396
     ///
-    /// No enclosingDeclaration ⇒ the walk visits only `globals`. Every
-    /// slice-reachable call passes a symbol that IS the globals entry
-    /// under its own name (a direct or alias accessibility hit), so
-    /// the shadowed-slot tail is defensive fidelity: aliases resolve
-    /// (export-specifier declared ones excepted, 50384-50390) and the
-    /// meaning test decides. getSymbolFlags' transitive-alias union collapses to
-    /// the resolved symbol's flags — resolveAlias resolves chains to
-    /// their non-alias tail.
+    /// The scope walk decides at the FIRST table containing the name:
+    /// the symbol itself ⇒ no qualification; a shadowing slot whose
+    /// (alias-resolved, export-specifier declared ones excepted,
+    /// 50384-50390) flags meet the meaning ⇒ qualify; other slots are
+    /// walked past. getSymbolFlags' transitive-alias union collapses
+    /// to the resolved symbol's flags — resolveAlias resolves chains
+    /// to their non-alias tail.
     fn needs_qualification_slice(
         &mut self,
         symbol: SymbolId,
         meaning: tsrs2_types::SymbolFlags,
+        enclosing: Option<NodeId>,
     ) -> CheckResult2<bool> {
         let escaped = self.binder.symbol(symbol).escaped_name.clone();
-        let Some(&entry) = self.globals.get(&escaped) else {
-            return Ok(false);
-        };
-        let entry = self.get_merged_symbol(entry);
-        if entry == symbol {
-            return Ok(false);
+        for (_, table, _) in self.symbol_tables_in_scope_slice(enclosing) {
+            let Some(&entry) = table.get(&escaped) else {
+                continue;
+            };
+            let entry = self.get_merged_symbol(entry);
+            if entry == symbol {
+                return Ok(false);
+            }
+            let entry_flags = self.binder.symbol(entry).flags;
+            let should_resolve = entry_flags.intersects(tsrs2_types::SymbolFlags::ALIAS)
+                && !self.symbol_has_declaration_of_kind(entry, SyntaxKind::ExportSpecifier);
+            let flags = if should_resolve {
+                let resolved = self.resolve_alias(entry)?;
+                self.binder.symbol(resolved).flags
+            } else {
+                entry_flags
+            };
+            if flags.intersects(meaning) {
+                return Ok(true);
+            }
         }
-        let entry_flags = self.binder.symbol(entry).flags;
-        let should_resolve = entry_flags.intersects(tsrs2_types::SymbolFlags::ALIAS)
-            && !self.symbol_has_declaration_of_kind(entry, SyntaxKind::ExportSpecifier);
-        let flags = if should_resolve {
-            let resolved = self.resolve_alias(entry)?;
-            self.binder.symbol(resolved).flags
-        } else {
-            entry_flags
-        };
-        Ok(flags.intersects(meaning))
+        Ok(false)
     }
 
     /// tsc-port: getContainersOfSymbol @6.0.3 (error-path slice)
@@ -5437,7 +5723,7 @@ impl<'a> CheckerState<'a> {
                     // 52274-52297: the diverging pair prints one
                     // signature face per present accessor declaration,
                     // instantiated under the symbol links mapper.
-                    let name = self.property_name_slice(property)?;
+                    let name = self.property_name_slice(property, fully_qualified)?;
                     let symbol_mapper = self.links.symbol(property).mapper;
                     let declarations = self.binder.symbol(property).declarations.clone();
                     let getter = declarations
@@ -5496,7 +5782,7 @@ impl<'a> CheckerState<'a> {
                 // member per call signature, the optional token on
                 // each (`m?(...)`), the filtered type's undefined
                 // never printing.
-                let name = self.property_name_slice(property)?;
+                let name = self.property_name_slice(property, fully_qualified)?;
                 for &signature in &signatures {
                     rendered.push(self.signature_to_string_slice(
                         signature,
@@ -5511,7 +5797,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(());
             }
         }
-        let name = self.property_name_slice(property)?;
+        let name = self.property_name_slice(property, fully_qualified)?;
         let type_text = self.type_to_string_slice_ex(property_type, fully_qualified)?;
         let readonly = if self.is_readonly_symbol(property) {
             "readonly "
@@ -7026,14 +7312,17 @@ impl<'a> CheckerState<'a> {
     /// (createPropertyNameNodeForIdentifierOrLiteral, 19208-19212, is
     /// the free-fn tail below.)
     ///
-    /// Hash-private names (getClonedHashPrivateName) and unique-symbol
-    /// computed names (symbolToExpression) stay out of slice. tsc
-    /// classifies computed/element-access names through
+    /// Hash-private names (getClonedHashPrivateName) stay out of
+    /// slice. tsc classifies computed/element-access names through
     /// checkExpression's StringLike; the slice reads the late-bound
     /// nameType's flags instead — identical for the literal-typed keys
     /// late binding produces, and the display walk cannot re-enter
     /// checkExpression (recorded deviation).
-    fn property_name_slice(&mut self, property: SymbolId) -> CheckResult2<String> {
+    fn property_name_slice(
+        &mut self,
+        property: SymbolId,
+        fully_qualified: bool,
+    ) -> CheckResult2<String> {
         if let Some(value_declaration) = self.binder.symbol(property).value_declaration {
             let name = tsrs2_binder::node_util::get_name_of_declaration(
                 self.binder.source_of_node(value_declaration),
@@ -7096,17 +7385,30 @@ impl<'a> CheckerState<'a> {
                 );
             }
             if flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) {
-                // 53427-53429: createComputedPropertyName(
-                // symbolToExpression(nameType.symbol, Value)). The
-                // error path's chain is [symbol] (52946 without an
-                // enclosing), so the face is the bare declaration
-                // name — oracle: `{ [sym]: number; }`.
+                // 53439-53441: createComputedPropertyName(
+                // symbolToExpression(nameType.symbol, Value)).
+                // addPropertyToElementList arms the context with the
+                // property's OWN declaration (52265-52267) before the
+                // name renders, so accessibility from that declaration
+                // decides the face: lexically reachable symbols print
+                // bare (`[sym]` — oracle: top-level declarations),
+                // container-qualified ones print the chain (`[B.sym]`
+                // — oracle: namespace-nested declarations, no FQ retry
+                // involved), and the getTypeNameForErrorDisplay retry
+                // arms the walk even without an enclosing (52946).
                 let name_symbol = self
                     .tables
                     .type_of(name_type)
                     .symbol
                     .expect("unique symbols carry their declaration symbol");
-                return Ok(format!("[{}]", self.symbol_display_name(name_symbol)));
+                let enclosing = self
+                    .binder
+                    .symbol(property)
+                    .value_declaration
+                    .or_else(|| declarations.first().copied());
+                let face =
+                    self.symbol_expression_face_slice(name_symbol, enclosing, fully_qualified)?;
+                return Ok(format!("[{face}]"));
             }
         }
         let raw =
@@ -7246,6 +7548,18 @@ impl<'a> CheckerState<'a> {
             )),
         }
     }
+}
+
+/// forEachSymbolTableInScope table identity for the accessibility
+/// walk's visited guard — tsc keys by table OBJECT identity
+/// (pushIfUnique over the table references, 50315); the slice keys by
+/// provenance: locals by their owning node, export views by their
+/// owning symbol, and the globals tail.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ScopeTableKey {
+    Globals,
+    Exports(SymbolId),
+    Locals(NodeId),
 }
 
 /// The would-be TypeNode kind of a slice rendering. The factory's
@@ -8799,6 +9113,138 @@ mod tests {
                 5,
                 "Object literal may only specify known properties, but 'hallo' does not exist \
                  in type '{ hello: number; }'. Did you mean to write 'hello'?"
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn aliased_union_type_variables_keep_the_origin_shield() {
+        // oracle (vendored 6.0.3, strict, noLib, 2026-07-23): clean.
+        // The origin's instantiable constituents hide inside the named
+        // union member `N<T, U>`; the port's cross-product verdict is
+        // still unfaithful there, so the shield must cover the nested
+        // shape — the direct-member probe fabricated a 2322 (9.3b5
+        // review r1).
+        assert_eq!(
+            checked_diags(
+                "type A = 1 | 2;\ntype B = 2 | 3;\ntype N<T, U> = (T & U) | 4;\n\nfunction f<T \
+                 extends A, U extends B>(\n  ab: T & U\n): N<T, U> & (A | B) {\n  return ab;\n}\n"
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn unique_symbol_missing_property_prints_qualified_computed_faces() {
+        // oracle (vendored 6.0.3, strict, noLib, 2026-07-23):
+        // Property '[B.sym]' is missing in type '{ [A.sym]: number; }'
+        // but required in type '{ [B.sym]: number; }'. @4:5 len 1,
+        // related 2728 '[B.sym]' is declared here. The namespace-
+        // nested symbols qualify through the property-declaration
+        // enclosing (addPropertyToElementList 52265-52267) on the
+        // PLAIN pass — no FQ retry involved; the propName rides
+        // WriteComputedProps' name-node reprint.
+        assert_eq!(
+            checked_diags(
+                "declare namespace A { const sym: unique symbol }\ndeclare namespace B { const \
+                 sym: unique symbol }\ndeclare const a: { [A.sym]: number };\nlet b: { [B.sym]: \
+                 number } = a;\n"
+            ),
+            [(
+                2741,
+                140,
+                1,
+                "Property '[B.sym]' is missing in type '{ [A.sym]: number; }' but required in \
+                 type '{ [B.sym]: number; }'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn top_level_unique_symbol_member_face_stays_bare() {
+        // oracle (vendored 6.0.3, strict, noLib, 2026-07-23):
+        // Property '[s]' is missing in type '{}' but required in type
+        // '{ [s]: number; }'. A global-script symbol is accessible
+        // bare from the property declaration, so no qualifier prints.
+        assert_eq!(
+            checked_diags(
+                "declare const s: unique symbol;\ndeclare const a4: {};\nlet b4: { [s]: number } \
+                 = a4;\n"
+            ),
+            [(
+                2741,
+                58,
+                2,
+                "Property '[s]' is missing in type '{}' but required in type '{ [s]: number; }'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn alias_typed_computed_member_splits_prop_name_and_face() {
+        // oracle (vendored 6.0.3, strict, noLib, 2026-07-23):
+        // Property '[k]' is missing in type '{}' but required in type
+        // '{ [B.sym]: number; }'. The propName re-prints the written
+        // name node (`[k]`); the member face renders the NAMETYPE
+        // symbol's chain (`[B.sym]`).
+        assert_eq!(
+            checked_diags(
+                "declare namespace B { const sym: unique symbol }\ndeclare const k: typeof \
+                 B.sym;\ndeclare const a2: {};\nlet b2: { [k]: number } = a2;\n"
+            ),
+            [(
+                2741,
+                106,
+                2,
+                "Property '[k]' is missing in type '{}' but required in type '{ [B.sym]: number; \
+                 }'."
+                .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn early_bound_computed_string_name_reprints_the_bracket_face() {
+        // oracle (vendored 6.0.3, strict, noLib, 2026-07-23):
+        // Property '["ab"]' is missing in type '{}' but required in
+        // type '{ ab: number; }'. The single-quoted, space-padded
+        // source name normalizes through the printer: double quotes,
+        // no padding — while the TYPE face keeps the identifier form.
+        assert_eq!(
+            checked_diags("declare const a5: {};\nlet b5: { [ 'ab' ]: number } = a5;\n"),
+            [(
+                2741,
+                26,
+                2,
+                "Property '[\"ab\"]' is missing in type '{}' but required in type '{ ab: number; \
+                 }'."
+                .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn late_bound_multi_missing_list_prints_source_verbatim() {
+        // oracle (vendored 6.0.3, strict, noLib, 2026-07-23) — the
+        // multi-property 2739 rides plain symbolToString: the
+        // late-bound name prints its declaration SOURCE text verbatim
+        // (`[ B . sym ]`, spaces kept) while the TYPE face qualifies
+        // through the property enclosing (`[B.sym]`) and sorts the
+        // late-bound member after the early ones.
+        assert_eq!(
+            checked_diags(
+                "declare namespace B { const sym: unique symbol }\ndeclare const a8: {};\nlet \
+                 b8: { [ B . sym ]: number; other: string } = a8;\n"
+            ),
+            [(
+                2739,
+                75,
+                2,
+                "Type '{}' is missing the following properties from type '{ other: string; \
+                 [B.sym]: number; }': other, [ B . sym ]"
                     .to_owned()
             )]
         );

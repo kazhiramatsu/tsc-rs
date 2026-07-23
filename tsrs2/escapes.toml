@@ -539,6 +539,13 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/check.rs"
+in = "computed_property_name_face_slice"
+reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/check.rs"
 in = "entity_name_text_slice"
 reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
 class = "stage"
@@ -612,6 +619,13 @@ owner = "M8"
 file = "crates/checker/src/check.rs"
 in = "string_literal_name_slice"
 reason = "literal display beyond plain strings/numbers (nodeBuilder, T2/M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/check.rs"
+in = "symbol_expression_face_slice"
+reason = "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)"
 class = "stage"
 owner = "M8"
 

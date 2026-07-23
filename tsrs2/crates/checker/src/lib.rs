@@ -3461,6 +3461,31 @@ mod tests {
     }
 
     #[test]
+    fn expect_error_on_a_curtained_2507_extends_is_exempt() {
+        // oracle (vendored 6.0.3, strict, noLib, 2026-07-23): clean —
+        // the directive consumes the 2507. The bigint-literal face
+        // curtains the port's 2507, so the drop must mark the report
+        // anchor partial or the directive accounting fabricates 2578
+        // (9.3b5 review r1).
+        assert_eq!(
+            codes_of("declare const x: 1n;\n// @ts-expect-error\nclass C extends x {}\n"),
+            Vec::<u32>::new()
+        );
+    }
+
+    #[test]
+    fn expect_error_on_a_curtained_2509_base_return_is_exempt() {
+        // oracle (vendored 6.0.3, strict, noLib, 2026-07-23): clean —
+        // the directive consumes the 2509 (base constructor return
+        // type 1n is not an object type). Same containment-marking
+        // rule as the 2507 twin above.
+        assert_eq!(
+            codes_of("declare const x: new () => 1n;\n// @ts-expect-error\nclass C extends x {}\n"),
+            Vec::<u32>::new()
+        );
+    }
+
+    #[test]
     fn directive_inside_a_checked_mapped_type_is_not_blanket_exempted() {
         assert_eq!(
             codes_of(
