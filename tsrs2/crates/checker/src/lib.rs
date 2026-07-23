@@ -448,6 +448,59 @@ pub fn check_program_with_libs(
     check_program_with_libs_at(libs, files, options, "/")
 }
 
+/// Resolve the harness cwd in the same order as
+/// `normalizeFileName(path.posix.resolve(cwd))` in program-host.mjs.
+///
+/// Backslashes must remain ordinary characters while `.` and `..`
+/// segments are resolved. Only after that POSIX-path pass does the
+/// oracle turn them into separators with normalizeFileName.
+fn resolve_host_current_directory(current_directory: &str) -> String {
+    let raw_path = if current_directory.starts_with('/') {
+        current_directory.to_owned()
+    } else {
+        let process_cwd = std::env::current_dir()
+            .map(|dir| {
+                let raw = dir.to_string_lossy().into_owned();
+                if cfg!(windows) {
+                    let flipped = raw.replace('\\', "/");
+                    match flipped.find('/') {
+                        Some(root) => flipped[root..].to_owned(),
+                        None => flipped,
+                    }
+                } else {
+                    raw
+                }
+            })
+            .unwrap_or_default();
+        format!("{process_cwd}/{current_directory}")
+    };
+
+    let absolute = raw_path.starts_with('/');
+    let mut segments: Vec<&str> = Vec::new();
+    for segment in raw_path.split('/') {
+        match segment {
+            "" | "." => {}
+            ".." => {
+                if segments.last().is_some_and(|last| *last != "..") {
+                    segments.pop();
+                } else if !absolute {
+                    segments.push(segment);
+                }
+            }
+            other => segments.push(other),
+        }
+    }
+    let normalized = segments.join("/");
+    let resolved = if absolute {
+        format!("/{normalized}")
+    } else if normalized.is_empty() {
+        ".".to_owned()
+    } else {
+        normalized
+    };
+    resolved.replace('\\', "/")
+}
+
 /// tsrs-native: the cwd-carrying entry — `current_directory` is the
 /// harness ProgramJson `cwd` (tsc host.getCurrentDirectory), which the
 /// oracle host uses to absolutize every program fileName. It follows
@@ -666,35 +719,13 @@ pub fn check_program_with_libs_at(
         let mut state = state::CheckerState::from_program(binder_refs, options);
         // path.posix.resolve absoluteness test (charAt(0) === '/') on
         // the RAW value — a "\\"-led cwd is RELATIVE there, so the
-        // process-cwd join happens on the raw string BEFORE separator
-        // normalization (normalize_program_path flips "\\" first and
-        // would re-root it at "/"). The join base is Node's posixCwd:
-        // process.cwd() untouched on POSIX; on Windows backslashes
-        // flipped and everything before the first "/" (the drive)
-        // dropped. "" (the old "/"-rooted world) is the no-cwd
-        // degenerate fallback.
-        state.host_current_directory = if current_directory.starts_with('/') {
-            state::CheckerState::normalize_program_path(current_directory, "")
-        } else {
-            let process_cwd = std::env::current_dir()
-                .map(|dir| {
-                    let raw = dir.to_string_lossy().into_owned();
-                    if cfg!(windows) {
-                        let flipped = raw.replace('\\', "/");
-                        match flipped.find('/') {
-                            Some(root) => flipped[root..].to_owned(),
-                            None => flipped,
-                        }
-                    } else {
-                        raw
-                    }
-                })
-                .unwrap_or_default();
-            state::CheckerState::normalize_program_path(
-                &format!("{process_cwd}/{current_directory}"),
-                "",
-            )
-        };
+        // process-cwd join and POSIX dot-segment resolution both happen
+        // on the raw string BEFORE normalizeFileName flips "\\" into
+        // separators. The join base is Node's posixCwd: process.cwd()
+        // untouched on POSIX; on Windows backslashes flipped and
+        // everything before the first "/" (the drive) dropped. ""
+        // (the old "/"-rooted world) is the no-cwd degenerate fallback.
+        state.host_current_directory = resolve_host_current_directory(current_directory);
         // The resolver's host view (M4 5.8d): every INPUT path, incl.
         // files the program dropped (.json bodies, .js without
         // allowJs) — the suppression probes need them to keep 2307
@@ -1157,6 +1188,45 @@ mod tests {
                 format!(
                     "Property 'nope' does not exist on type 'typeof import(\"{process_cwd}/review-relative/b\")'."
                 )
+            )]
+        );
+    }
+
+    #[test]
+    fn mixed_separator_cwd_resolves_dot_segments_before_backslash_flip() {
+        // path.posix.resolve sees "\\" as a literal segment here, so
+        // the following POSIX "/.." removes that segment and leaves
+        // posixCwd unchanged. Flipping "\\" first would instead let
+        // ".." remove the final segment of posixCwd.
+        let process_cwd = posix_process_cwd();
+        let module_path = state::CheckerState::normalize_program_path("b", &process_cwd);
+        assert_eq!(
+            cwd_probe_diagnostic_rows("\\/.."),
+            [(
+                "a.ts".to_owned(),
+                2339,
+                28,
+                4,
+                format!(
+                    "Property 'nope' does not exist on type 'typeof import(\"{module_path}\")'."
+                )
+            )]
+        );
+    }
+
+    #[test]
+    fn absolute_cwd_backslash_segments_stay_literal_during_dot_resolution() {
+        // posix.resolve("/a\\b/..") = "/": "a\\b" is ONE literal
+        // segment eaten by "..". Flipping "\\" first would split it
+        // and leave "/a". Oracle-probed (driver.mjs): import("/b").
+        assert_eq!(
+            cwd_probe_diagnostic_rows("/a\\b/.."),
+            [(
+                "a.ts".to_owned(),
+                2339,
+                28,
+                4,
+                "Property 'nope' does not exist on type 'typeof import(\"/b\")'.".to_owned()
             )]
         );
     }
