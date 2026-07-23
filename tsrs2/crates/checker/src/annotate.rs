@@ -1612,7 +1612,10 @@ impl<'a> CheckerState<'a> {
                     .strip_prefix('"')
                     .and_then(|name| name.strip_suffix('"'))
                 {
-                    display = format!("\"{}\"", Self::normalize_program_path(module_name, ""));
+                    display = format!(
+                        "\"{}\"",
+                        Self::normalize_program_path(module_name, &self.host_current_directory)
+                    );
                 }
             }
             parts.push(display);

@@ -445,6 +445,21 @@ pub fn check_program_with_libs(
     files: &[InputFile],
     options: &CompilerOptions,
 ) -> CheckResult {
+    check_program_with_libs_at(libs, files, options, "/")
+}
+
+/// tsrs-native: the cwd-carrying entry — `current_directory` is the
+/// harness ProgramJson `cwd` (tsc host.getCurrentDirectory), which the
+/// oracle host uses to absolutize every program fileName. Display-side
+/// path rendering roots relative file names against it; the "/"-rooted
+/// resolution world is unaffected (see
+/// CheckerState::host_current_directory).
+pub fn check_program_with_libs_at(
+    libs: &[InputFile],
+    files: &[InputFile],
+    options: &CompilerOptions,
+    current_directory: &str,
+) -> CheckResult {
     let mut diagnostics = Vec::new();
     let mut syntactic_diagnostics = Vec::new();
     let mut partial_checks = Vec::new();
@@ -645,6 +660,8 @@ pub fn check_program_with_libs(
     if !binder_refs.is_empty() {
         let lib_count = lib_binders.len();
         let mut state = state::CheckerState::from_program(binder_refs, options);
+        state.host_current_directory =
+            state::CheckerState::normalize_program_path(current_directory, "");
         // The resolver's host view (M4 5.8d): every INPUT path, incl.
         // files the program dropped (.json bodies, .js without
         // allowJs) — the suppression probes need them to keep 2307

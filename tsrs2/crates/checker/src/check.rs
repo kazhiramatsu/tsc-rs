@@ -2826,6 +2826,19 @@ impl<'a> CheckerState<'a> {
                     source_text = self.get_type_name_for_error_display(source)?;
                     target_text = self.get_type_name_for_error_display(target)?;
                 }
+                // reportRelationError 65097-65098: the GENERIC head
+                // whose faces stay identical after the fully-qualified
+                // re-render (unqualifiable same-name symbols — type
+                // parameters, unexported namespaces) swaps to the 2719
+                // "Two different types with this name exist" face. The
+                // selection reads the PRE-generalization source face
+                // (65066/65094-65099 ordering); explicit heads keep their
+                // code.
+                let head_message = if generic_head && source_text == target_text {
+                    &diagnostics::Type_0_is_not_assignable_to_type_1_Two_different_types_with_this_name_exist_but_they_are_unrelated
+                } else {
+                    head_message
+                };
                 // reportRelationError 65068-65072: a literal source
                 // generalizes to its base primitive unless the target
                 // could accept singletons.
@@ -3600,6 +3613,21 @@ impl<'a> CheckerState<'a> {
         }
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
+            // isThisTypeParameter (51454-51463): the synthesized
+            // thisType renders the ThisTypeNode face — `this`, never
+            // the symbol name (the InObjectTypeLiteral
+            // inaccessible-this tracking is declaration-emit band; the
+            // error path has no tracker). No parenthesizer rule lists
+            // the ThisType kind — it joins like a keyword.
+            if matches!(
+                self.tables.type_of(ty).data,
+                TypeData::TypeParameter {
+                    is_this_type: true,
+                    ..
+                }
+            ) {
+                return Ok(("this".to_owned(), SliceTypeNodeKind::Keyword));
+            }
             return Ok((
                 match self.tables.type_of(ty).symbol {
                     Some(symbol) => self.symbol_display_name(symbol),
@@ -4158,13 +4186,13 @@ impl<'a> CheckerState<'a> {
     /// (WriteTypeParametersInQualifiedName-gated) and
     /// createAccessFromSymbolChain's parent/indexed-access arms all
     /// collapse to the single-identifier face. The
-    /// UseFullyQualifiedType leg approximates getSymbolChain's
-    /// getContainersOfSymbol walk (52958-52988) with the binder parent
-    /// chain (the getTypeNameForErrorDisplay posture, 50757-50764):
-    /// an external-module ROOT is chain[0] for the 53117 gate, so the
-    /// below-root links ride as the ImportTypeNode's qualifier
-    /// (createAccessFromSymbolChain with stopper 1); other roots keep
-    /// the standing getFullyQualifiedName face. The import face's
+    /// UseFullyQualifiedType leg runs getSymbolChain
+    /// (symbol_chain_slice below): an external-module ROOT is chain[0]
+    /// for the 53117 gate, so the below-root links ride as the
+    /// ImportTypeNode's qualifier (createAccessFromSymbolChain with
+    /// stopper 1, export-table naming) and the export= short-circuit's
+    /// length-1 chain keeps the bare import face; other roots render
+    /// the entity face over the same chain. The import face's
     /// node16/nodenext resolution-mode attributes (53125-53150)
     /// and /node_modules/ specifier swap (53151-53174) read
     /// impliedNodeFormat, which the port does not model: the swap can
@@ -4178,7 +4206,12 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<(String, SliceTypeNodeKind)> {
         // 53117: some(chain[0].declarations,
         // hasNonGlobalAugmentationExternalModuleSymbol) routes the
-        // import-type face.
+        // import-type face. (For a module symbol the chain is always
+        // [symbol]: ambient-module declarations fail the candidates
+        // guard (49995 isAmbientModule) and the globals accessibility
+        // probe (50329 external-module rejection), and source-file
+        // declarations have no node parent — so the head-first check
+        // is chain[0]-exact.)
         if self.symbol_has_external_module_declaration(symbol) {
             // 53175-53185: a length-1 chain leaves nonRootParts and
             // typeParameterNodes undefined — the face is the bare
@@ -4191,37 +4224,681 @@ impl<'a> CheckerState<'a> {
             ));
         }
         if fully_qualified {
-            let mut lineage = vec![symbol];
-            while let Some(parent) = self.binder.symbol(*lineage.last().unwrap()).parent {
-                lineage.push(parent);
-            }
-            let root = *lineage.last().unwrap();
-            if lineage.len() > 1 && self.symbol_has_external_module_declaration(root) {
+            let chain = self
+                .symbol_chain_slice(symbol, tsrs2_types::SymbolFlags::VALUE, true)?
+                .expect("getSymbolChain with endOfChain always yields (52991-52999)");
+            let root = chain[0];
+            if self.symbol_has_external_module_declaration(root) {
                 let specifier = self.specifier_for_module_symbol_slice(root)?;
                 let literal = string_literal_name_slice(&specifier, false)?;
-                let qualifier = lineage[..lineage.len() - 1]
-                    .iter()
-                    .rev()
-                    .map(|&link| self.symbol_display_name(link))
-                    .collect::<Vec<_>>()
-                    .join(".");
+                // 53175-53185: the export= short-circuit (52978-52981)
+                // leaves a length-1 chain — the bare ImportTypeNode.
+                if chain.len() == 1 {
+                    return Ok((
+                        format!("typeof import({literal})"),
+                        SliceTypeNodeKind::ImportType,
+                    ));
+                }
+                let mut qualifier = Vec::with_capacity(chain.len() - 1);
+                for index in 1..chain.len() {
+                    qualifier
+                        .push(self.qualifier_symbol_name_slice(chain[index - 1], chain[index])?);
+                }
+                let qualifier = qualifier.join(".");
                 return Ok((
                     format!("typeof import({literal}).{qualifier}"),
                     SliceTypeNodeKind::ImportType,
                 ));
             }
+            // 53186-53197: the entity face over the chain —
+            // getNameOfSymbolAsWritten at the root (the slice's
+            // symbol_display_name posture), the export-table naming
+            // below it, isTypeOf wrapping the TypeQuery.
+            let mut parts = Vec::with_capacity(chain.len());
+            parts.push(self.symbol_display_name(root));
+            for index in 1..chain.len() {
+                parts.push(self.qualifier_symbol_name_slice(chain[index - 1], chain[index])?);
+            }
+            return Ok((
+                format!("typeof {}", parts.join(".")),
+                SliceTypeNodeKind::TypeQuery,
+            ));
         }
-        // 53186-53197: the entity face — createAccessFromSymbolChain
-        // at index 0 is getNameOfSymbolAsWritten (the slice's
-        // symbol_display_name posture: module declaration names are
-        // identifiers whose text is the escaped name), and isTypeOf
-        // wraps the TypeQuery.
-        let name = if fully_qualified {
-            self.get_fully_qualified_name(symbol)
-        } else {
-            self.symbol_display_name(symbol)
+        // 53186-53197 with the [symbol] chain: the bare-name face.
+        Ok((
+            format!("typeof {}", self.symbol_display_name(symbol)),
+            SliceTypeNodeKind::TypeQuery,
+        ))
+    }
+
+    /// tsc-port: getSymbolChain @6.0.3 (error-path slice)
+    /// tsc-hash: 8ccb0f4b99b34c677210c369edfdf15d1f0cc32eed7f57b6b153783b4808d291
+    /// tsc-span: _tsc.js:52958-53016
+    ///
+    /// lookupSymbolChainWorker's chain builder with no
+    /// enclosingDeclaration. yieldModuleSymbol is TRUE on the
+    /// symbolToTypeNode path (DoNotIncludeSymbolChain unset), so the
+    /// module-parent suppression (52996-52998) never fires; the
+    /// TypeLiteral/ObjectLiteral parent guard (52991-52995) is kept
+    /// verbatim though the module/namespace parents this face walks
+    /// cannot carry those flags. getQualifiedLeftMeaning (50291) fixes
+    /// Value → Value, so the top-level Value meaning rides the whole
+    /// recursion.
+    fn symbol_chain_slice(
+        &mut self,
+        symbol: SymbolId,
+        meaning: tsrs2_types::SymbolFlags,
+        end_of_chain: bool,
+    ) -> CheckResult2<Option<Vec<SymbolId>>> {
+        let mut accessible = self.accessible_symbol_chain_slice(symbol, meaning)?;
+        let needs_walk = match &accessible {
+            None => true,
+            Some(chain) => {
+                let link_meaning = if chain.len() == 1 {
+                    meaning
+                } else {
+                    Self::qualified_left_meaning(meaning)
+                };
+                self.needs_qualification_slice(chain[0], link_meaning)?
+            }
         };
-        Ok((format!("typeof {name}"), SliceTypeNodeKind::TypeQuery))
+        if needs_walk {
+            let walk_from = accessible.as_ref().map_or(symbol, |chain| chain[0]);
+            let parents = self.containers_of_symbol_slice(walk_from)?;
+            if !parents.is_empty() {
+                // 52964-52969: parents sort by specifier shape
+                // (sortByBestName) — module parents key their
+                // specifier, namespace parents ride as ties (the
+                // missing-specifier `return 0`, 53014).
+                let mut specifiers: Vec<Option<String>> = Vec::with_capacity(parents.len());
+                for &parent in &parents {
+                    if self.symbol_has_external_module_declaration(parent) {
+                        match self.specifier_for_module_symbol_slice(parent) {
+                            Ok(specifier) => specifiers.push(Some(specifier)),
+                            // tsc always produces a specifier; a
+                            // curtained one can only misorder a
+                            // MULTI-parent sort.
+                            Err(unsupported) => {
+                                if parents.len() > 1 {
+                                    return Err(unsupported);
+                                }
+                                specifiers.push(None);
+                            }
+                        }
+                    } else {
+                        specifiers.push(None);
+                    }
+                }
+                let mut order: Vec<usize> = (0..parents.len()).collect();
+                order.sort_by(|&a, &b| match (&specifiers[a], &specifiers[b]) {
+                    // pathIsRelative (5314) is false for both the
+                    // host-rooted absolute paths and ambient names
+                    // (standalone relative ambient modules are a 2436
+                    // parse-band reject), so sortByBestName reduces to
+                    // countPathComponents (45645): the separator
+                    // count.
+                    (Some(a), Some(b)) => {
+                        let count = |s: &str| s.bytes().filter(|&byte| byte == b'/').count();
+                        count(a).cmp(&count(b))
+                    }
+                    _ => std::cmp::Ordering::Equal,
+                });
+                for index in order {
+                    let parent = parents[index];
+                    let Some(parent_chain) = self.symbol_chain_slice(
+                        parent,
+                        Self::qualified_left_meaning(meaning),
+                        false,
+                    )?
+                    else {
+                        continue;
+                    };
+                    // 52978-52981: an export= parent whose target IS
+                    // the symbol renders as the bare parent chain.
+                    let export_equals = self
+                        .binder
+                        .symbol(parent)
+                        .exports
+                        .get(tsrs2_types::InternalSymbolName::EXPORT_EQUALS)
+                        .copied();
+                    if let Some(export_equals) = export_equals {
+                        if self.symbol_if_same_reference_slice(export_equals, symbol)? {
+                            accessible = Some(parent_chain);
+                            break;
+                        }
+                    }
+                    // 52982: parentChain.concat(accessibleSymbolChain
+                    // || [getAliasForSymbolInContainer(parent, symbol)
+                    // || symbol]).
+                    let mut chain = parent_chain;
+                    match accessible.take() {
+                        Some(tail) => chain.extend(tail),
+                        None => {
+                            let alias = self.alias_for_symbol_in_container_slice(parent, symbol)?;
+                            chain.push(alias.unwrap_or(symbol));
+                        }
+                    }
+                    accessible = Some(chain);
+                    break;
+                }
+            }
+        }
+        if accessible.is_some() {
+            return Ok(accessible);
+        }
+        if end_of_chain
+            || !self.binder.symbol(symbol).flags.intersects(
+                tsrs2_types::SymbolFlags::TYPE_LITERAL | tsrs2_types::SymbolFlags::OBJECT_LITERAL,
+            )
+        {
+            return Ok(Some(vec![symbol]));
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: getQualifiedLeftMeaning @6.0.3
+    /// tsc-hash: c3a93b2efde3a16cc56ac39c4a7d91e7bd2297ad3c569c10077e18e1f20f63f9
+    /// tsc-span: _tsc.js:50291-50293
+    fn qualified_left_meaning(meaning: tsrs2_types::SymbolFlags) -> tsrs2_types::SymbolFlags {
+        if meaning == tsrs2_types::SymbolFlags::VALUE {
+            tsrs2_types::SymbolFlags::VALUE
+        } else {
+            tsrs2_types::SymbolFlags::NAMESPACE
+        }
+    }
+
+    /// tsc-port: getAccessibleSymbolChain @6.0.3 (error-path slice)
+    /// tsc-hash: 86303c2907e872494ac8075b43923ebdd2dda7e3c0de5261e57930f45c0a8346
+    /// tsc-span: _tsc.js:50294-50375
+    ///
+    /// No enclosingDeclaration: forEachSymbolTableInScope's location
+    /// walk is empty and the single consulted table is `globals`
+    /// (50283-50289). The isPropertyOrMethodDeclarationSymbol guard
+    /// (50295) cannot match this face's module/namespace declaration
+    /// lists, and the accessibleChainCache is a recomputation-only
+    /// economy the slice skips.
+    fn accessible_symbol_chain_slice(
+        &mut self,
+        symbol: SymbolId,
+        meaning: tsrs2_types::SymbolFlags,
+    ) -> CheckResult2<Option<Vec<SymbolId>>> {
+        let globals = self.globals.clone();
+        let mut visited = Vec::new();
+        self.accessible_chain_from_table_slice(
+            &globals,
+            None,
+            symbol,
+            meaning,
+            /*ignore_qualification*/ false,
+            /*is_local_name_lookup*/ true,
+            &mut visited,
+        )
+    }
+
+    /// getAccessibleSymbolChainFromSymbolTable (50313-50319): the
+    /// visited guard is table-object identity in tsc — keyed by the
+    /// owning symbol here (each symbol resolves one exports view;
+    /// `globals` is the None key).
+    #[allow(clippy::too_many_arguments)]
+    fn accessible_chain_from_table_slice(
+        &mut self,
+        table: &tsrs2_binder::SymbolTable,
+        table_key: Option<SymbolId>,
+        symbol: SymbolId,
+        meaning: tsrs2_types::SymbolFlags,
+        ignore_qualification: bool,
+        is_local_name_lookup: bool,
+        visited: &mut Vec<Option<SymbolId>>,
+    ) -> CheckResult2<Option<Vec<SymbolId>>> {
+        if visited.contains(&table_key) {
+            return Ok(None);
+        }
+        visited.push(table_key);
+        let result = self.try_symbol_table_slice(
+            table,
+            symbol,
+            meaning,
+            ignore_qualification,
+            is_local_name_lookup,
+            visited,
+        );
+        visited.pop();
+        result
+    }
+
+    /// trySymbolTable (50331-50360): the direct hit, then the alias
+    /// scan in table order. The exportSymbol arm (50348-50357) needs a
+    /// LOCALS table, which the no-enclosing walk never consults; the
+    /// globals-tail globalThis probe (50359) can only yield the
+    /// globalThis face, which the named-object arm renders upstream —
+    /// both skipped.
+    fn try_symbol_table_slice(
+        &mut self,
+        table: &tsrs2_binder::SymbolTable,
+        symbol: SymbolId,
+        meaning: tsrs2_types::SymbolFlags,
+        ignore_qualification: bool,
+        is_local_name_lookup: bool,
+        visited: &mut Vec<Option<SymbolId>>,
+    ) -> CheckResult2<Option<Vec<SymbolId>>> {
+        let escaped = self.binder.symbol(symbol).escaped_name.clone();
+        let direct = table.get(&escaped).copied();
+        if self.symbol_chain_is_accessible_slice(
+            symbol,
+            direct,
+            None,
+            meaning,
+            ignore_qualification,
+        )? {
+            return Ok(Some(vec![symbol]));
+        }
+        for (name, &entry) in table.iter() {
+            if !self
+                .binder
+                .symbol(entry)
+                .flags
+                .intersects(tsrs2_types::SymbolFlags::ALIAS)
+            {
+                continue;
+            }
+            if name == tsrs2_types::InternalSymbolName::EXPORT_EQUALS
+                || name == tsrs2_types::InternalSymbolName::DEFAULT
+            {
+                continue;
+            }
+            // The isUMDExportSymbol leg (50341) needs an
+            // enclosingDeclaration and useOnlyExternalAliasing is
+            // false on the error path (52959) — both filters are off.
+            if is_local_name_lookup
+                && self.symbol_has_declaration_of_kind(entry, SyntaxKind::NamespaceExport)
+            {
+                // isNamespaceReexportDeclaration (50341): `export * as
+                // ns from` — the only grammatical NamespaceExport.
+                continue;
+            }
+            if !ignore_qualification
+                && self.symbol_has_declaration_of_kind(entry, SyntaxKind::ExportSpecifier)
+            {
+                continue;
+            }
+            let resolved = self.resolve_alias(entry)?;
+            if let Some(chain) = self.candidate_list_for_symbol_slice(
+                entry,
+                resolved,
+                symbol,
+                meaning,
+                ignore_qualification,
+                visited,
+            )? {
+                return Ok(Some(chain));
+            }
+        }
+        Ok(None)
+    }
+
+    /// getCandidateListForSymbol (50361-50374): the alias itself, or
+    /// the alias prepended to a chain found in its target's export
+    /// table (qualification ignored inside).
+    fn candidate_list_for_symbol_slice(
+        &mut self,
+        entry: SymbolId,
+        resolved: SymbolId,
+        symbol: SymbolId,
+        meaning: tsrs2_types::SymbolFlags,
+        ignore_qualification: bool,
+        visited: &mut Vec<Option<SymbolId>>,
+    ) -> CheckResult2<Option<Vec<SymbolId>>> {
+        if self.symbol_chain_is_accessible_slice(
+            symbol,
+            Some(entry),
+            Some(resolved),
+            meaning,
+            ignore_qualification,
+        )? {
+            return Ok(Some(vec![entry]));
+        }
+        let candidate_table = self.get_exports_of_symbol(resolved)?;
+        let inner = self.accessible_chain_from_table_slice(
+            &candidate_table,
+            Some(resolved),
+            symbol,
+            meaning,
+            /*ignore_qualification*/ true,
+            /*is_local_name_lookup*/ false,
+            visited,
+        )?;
+        if let Some(inner) = inner {
+            if self.can_qualify_symbol_slice(entry, Self::qualified_left_meaning(meaning))? {
+                let mut chain = vec![entry];
+                chain.extend(inner);
+                return Ok(Some(chain));
+            }
+        }
+        Ok(None)
+    }
+
+    /// isAccessible (50325-50330): identity (raw or merged) against
+    /// the alias-resolved view, the external-module rejection, then
+    /// qualifiability.
+    fn symbol_chain_is_accessible_slice(
+        &mut self,
+        symbol: SymbolId,
+        entry: Option<SymbolId>,
+        resolved: Option<SymbolId>,
+        meaning: tsrs2_types::SymbolFlags,
+        ignore_qualification: bool,
+    ) -> CheckResult2<bool> {
+        let Some(entry) = entry else {
+            return Ok(false);
+        };
+        let respect = resolved.unwrap_or(entry);
+        if symbol != respect && self.get_merged_symbol(symbol) != self.get_merged_symbol(respect) {
+            return Ok(false);
+        }
+        if self.symbol_has_external_module_declaration(entry) {
+            return Ok(false);
+        }
+        if ignore_qualification {
+            return Ok(true);
+        }
+        let merged_entry = self.get_merged_symbol(entry);
+        self.can_qualify_symbol_slice(merged_entry, meaning)
+    }
+
+    /// canQualifySymbol (50321-50324): no qualification needed, or the
+    /// parent chain is itself accessible.
+    fn can_qualify_symbol_slice(
+        &mut self,
+        entry: SymbolId,
+        meaning: tsrs2_types::SymbolFlags,
+    ) -> CheckResult2<bool> {
+        if !self.needs_qualification_slice(entry, meaning)? {
+            return Ok(true);
+        }
+        let Some(parent) = self.get_parent_of_symbol(entry) else {
+            return Ok(false);
+        };
+        Ok(self
+            .accessible_symbol_chain_slice(parent, Self::qualified_left_meaning(meaning))?
+            .is_some())
+    }
+
+    /// tsc-port: needsQualification @6.0.3 (error-path slice)
+    /// tsc-hash: 1bde4c0406bef43d2e90c293732295ec0503439a0784611675ed408d4cd0141d
+    /// tsc-span: _tsc.js:50376-50396
+    ///
+    /// No enclosingDeclaration ⇒ the walk visits only `globals`. Every
+    /// slice-reachable call passes a symbol that IS the globals entry
+    /// under its own name (a direct or alias accessibility hit), so
+    /// the shadowed-slot tail is defensive fidelity: aliases resolve
+    /// (export-specifier declared ones excepted, 50384-50390) and the
+    /// meaning test decides. getSymbolFlags' transitive-alias union collapses to
+    /// the resolved symbol's flags — resolveAlias resolves chains to
+    /// their non-alias tail.
+    fn needs_qualification_slice(
+        &mut self,
+        symbol: SymbolId,
+        meaning: tsrs2_types::SymbolFlags,
+    ) -> CheckResult2<bool> {
+        let escaped = self.binder.symbol(symbol).escaped_name.clone();
+        let Some(&entry) = self.globals.get(&escaped) else {
+            return Ok(false);
+        };
+        let entry = self.get_merged_symbol(entry);
+        if entry == symbol {
+            return Ok(false);
+        }
+        let entry_flags = self.binder.symbol(entry).flags;
+        let should_resolve = entry_flags.intersects(tsrs2_types::SymbolFlags::ALIAS)
+            && !self.symbol_has_declaration_of_kind(entry, SyntaxKind::ExportSpecifier);
+        let flags = if should_resolve {
+            let resolved = self.resolve_alias(entry)?;
+            self.binder.symbol(resolved).flags
+        } else {
+            entry_flags
+        };
+        Ok(flags.intersects(meaning))
+    }
+
+    /// tsc-port: getContainersOfSymbol @6.0.3 (error-path slice)
+    /// tsc-hash: 22e0144d0040f4fb713cbdddd579457d28490db454397361da682542484911d7
+    /// tsc-span: _tsc.js:49989-50051
+    ///
+    /// No enclosingDeclaration ⇒ reexportContainers
+    /// (getAlternativeContainingModules) stay empty. This face's
+    /// symbols are VALUE_MODULE-flagged (symbol_value_face routing):
+    /// the TypeParameter guard is inert, the class-expression-
+    /// assignment candidates arm (50003-50009) cannot match a
+    /// module/function declaration list, and the
+    /// getVariableDeclarationOfObjectLiteral / firstVariableMatch
+    /// probes (50038-50046) both need a NON-namespace container, which
+    /// module/namespace parents never are.
+    fn containers_of_symbol_slice(&mut self, symbol: SymbolId) -> CheckResult2<Vec<SymbolId>> {
+        if let Some(container) = self.get_parent_of_symbol(symbol) {
+            return self.with_alternative_containers_slice(container, Some(container));
+        }
+        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let mut candidates = Vec::new();
+        for declaration in declarations {
+            let source = self.binder.source_of_node(declaration);
+            if node_util::is_ambient_module(source, declaration) {
+                continue;
+            }
+            let Some(parent) = self.parent_of(declaration) else {
+                continue;
+            };
+            // 49996-49998: a direct child of an external module.
+            if self.is_non_global_augmentation_external_module_node(parent) {
+                if let Some(parent_symbol) = self.node_symbol(parent) {
+                    candidates.push(parent_symbol);
+                }
+                continue;
+            }
+            // 49999-50001: an export='d member of an ambient module.
+            if self.kind_of(parent) == SyntaxKind::ModuleBlock {
+                if let Some(grandparent) = self.parent_of(parent) {
+                    if let Some(module_symbol) = self.node_symbol(grandparent) {
+                        if self.resolve_external_module_symbol(Some(module_symbol), false)?
+                            == Some(symbol)
+                        {
+                            candidates.push(module_symbol);
+                        }
+                    }
+                }
+            }
+        }
+        if candidates.is_empty() {
+            return Ok(Vec::new());
+        }
+        // 50014: only containers that actually re-export the symbol
+        // count.
+        let mut containers = Vec::new();
+        for candidate in candidates {
+            if self
+                .alias_for_symbol_in_container_slice(candidate, symbol)?
+                .is_some()
+            {
+                containers.push(candidate);
+            }
+        }
+        // 50015-50022: best/alternative interleave over each
+        // container's expansion. additionalContainers close over the
+        // OUTER getParentOfSymbol container (50048-50050) — undefined
+        // on this parentless leg, so each expansion is the container
+        // alone.
+        let mut best = Vec::new();
+        let mut alternatives = Vec::new();
+        for container in containers {
+            let expanded = self.with_alternative_containers_slice(container, None)?;
+            let mut expanded = expanded.into_iter();
+            if let Some(first) = expanded.next() {
+                best.push(first);
+            }
+            alternatives.extend(expanded);
+        }
+        best.extend(alternatives);
+        Ok(best)
+    }
+
+    /// getWithAlternativeContainers (50023-50047), no enclosing:
+    /// additionalContainers (files whose export= IS the symbol's
+    /// PARENT container — the closure reads the outer `container`,
+    /// 50048-50050) ahead of the container itself; reexportContainers,
+    /// the accessible-container early return, firstVariableMatch and
+    /// objectLiteralContainer are all inert on this path.
+    fn with_alternative_containers_slice(
+        &mut self,
+        container: SymbolId,
+        parent_container: Option<SymbolId>,
+    ) -> CheckResult2<Vec<SymbolId>> {
+        let mut result = Vec::new();
+        if let Some(parent_container) = parent_container {
+            let declarations = self.binder.symbol(container).declarations.clone();
+            for declaration in declarations {
+                if let Some(file_symbol) = self
+                    .file_symbol_if_export_equals_container_slice(declaration, parent_container)?
+                {
+                    result.push(file_symbol);
+                }
+            }
+        }
+        result.push(container);
+        Ok(result)
+    }
+
+    /// tsc-port: getFileSymbolIfFileSymbolExportEqualsContainer @6.0.3
+    /// tsc-hash: 664797354015a10df710b2c342bfa160aa42af4711c31bf017f98df27ae685ad
+    /// tsc-span: _tsc.js:50060-50064
+    ///
+    /// getExternalModuleContainer's findAncestor starts AT the
+    /// declaration (a string-named module declaration is its own
+    /// container); the export= read is the RAW exports table.
+    fn file_symbol_if_export_equals_container_slice(
+        &mut self,
+        declaration: NodeId,
+        container: SymbolId,
+    ) -> CheckResult2<Option<SymbolId>> {
+        let mut current = Some(declaration);
+        let mut file_symbol = None;
+        while let Some(node) = current {
+            if self.is_non_global_augmentation_external_module_node(node) {
+                file_symbol = self.node_symbol(node);
+                break;
+            }
+            current = self.parent_of(node);
+        }
+        let Some(file_symbol) = file_symbol else {
+            return Ok(None);
+        };
+        let exported = self
+            .binder
+            .symbol(file_symbol)
+            .exports
+            .get(tsrs2_types::InternalSymbolName::EXPORT_EQUALS)
+            .copied();
+        let Some(exported) = exported else {
+            return Ok(None);
+        };
+        Ok(self
+            .symbol_if_same_reference_slice(exported, container)?
+            .then_some(file_symbol))
+    }
+
+    /// tsc-port: getAliasForSymbolInContainer @6.0.3
+    /// tsc-hash: 33333377bf20d625fbd2b1ed3577e8e1ff93b9385d89c1fd0818cf487e348c63
+    /// tsc-span: _tsc.js:50065-50083
+    fn alias_for_symbol_in_container_slice(
+        &mut self,
+        container: SymbolId,
+        symbol: SymbolId,
+    ) -> CheckResult2<Option<SymbolId>> {
+        if self.get_parent_of_symbol(symbol) == Some(container) {
+            return Ok(Some(symbol));
+        }
+        // 50070: the RAW exports table's export= (not the resolved
+        // view) — its same-reference target elects the container
+        // itself.
+        let export_equals = self
+            .binder
+            .symbol(container)
+            .exports
+            .get(tsrs2_types::InternalSymbolName::EXPORT_EQUALS)
+            .copied();
+        if let Some(export_equals) = export_equals {
+            if self.symbol_if_same_reference_slice(export_equals, symbol)? {
+                return Ok(Some(container));
+            }
+        }
+        let exports = self.get_exports_of_symbol(container)?;
+        let escaped = self.binder.symbol(symbol).escaped_name.clone();
+        if let Some(&quick) = exports.get(&escaped) {
+            if self.symbol_if_same_reference_slice(quick, symbol)? {
+                return Ok(Some(quick));
+            }
+        }
+        for (_, &exported) in exports.iter() {
+            if self.symbol_if_same_reference_slice(exported, symbol)? {
+                return Ok(Some(exported));
+            }
+        }
+        Ok(None)
+    }
+
+    /// tsc-port: getSymbolIfSameReference @6.0.3 (predicate face)
+    /// tsc-hash: 908084bf7d1f72b02a8256627f01987eb8cd0a6897b9c7027f0cac3f156f5d3d
+    /// tsc-span: _tsc.js:50084-50088
+    fn symbol_if_same_reference_slice(&mut self, s1: SymbolId, s2: SymbolId) -> CheckResult2<bool> {
+        let merged1 = self.get_merged_symbol(s1);
+        let resolved1 = self
+            .resolve_symbol_ex(Some(merged1), false)?
+            .expect("resolveSymbol(Some) is Some");
+        let merged2 = self.get_merged_symbol(s2);
+        let resolved2 = self
+            .resolve_symbol_ex(Some(merged2), false)?
+            .expect("resolveSymbol(Some) is Some");
+        Ok(self.get_merged_symbol(resolved1) == self.get_merged_symbol(resolved2))
+    }
+
+    /// tsc-port: createAccessFromSymbolChain @6.0.3 (below-root naming)
+    /// tsc-hash: 702a651dcc1e3cb163bfbcd065fcb88ceb8714e0dd9cb8bb6b81b452f1f3e757
+    /// tsc-span: _tsc.js:53199-53251
+    ///
+    /// A below-root link takes its NAME from the first entry of the
+    /// parent's resolved export table that same-references it,
+    /// skipping export= and late-bound `__@` keys (53210-53218) — NOT
+    /// from the link symbol itself (oracle-probed: `export { N as M }`
+    /// renders `typeof import("/b").M`; with both `export { N as M }`
+    /// and `export { N }` the FIRST table entry wins regardless of the
+    /// symbol's own name or the import path). The computed-name
+    /// fallback (53221-53228) and the parent-members IndexedAccess
+    /// face (53232-53238) need member-table parents that
+    /// module/namespace/alias links never have;
+    /// getNameOfSymbolAsWritten (the symbol_display_name posture)
+    /// closes the misses — including alias parents, whose unresolved
+    /// export table is empty (probed: `typeof M.B`).
+    fn qualifier_symbol_name_slice(
+        &mut self,
+        parent: SymbolId,
+        symbol: SymbolId,
+    ) -> CheckResult2<String> {
+        let exports = self.get_exports_of_symbol(parent)?;
+        for (name, &exported) in exports.iter() {
+            if self.symbol_if_same_reference_slice(exported, symbol)?
+                && !name.starts_with("__@")
+                && name != tsrs2_types::InternalSymbolName::EXPORT_EQUALS
+            {
+                return Ok(tsrs2_binder::unescape_leading_underscores(name).to_owned());
+            }
+        }
+        Ok(self.symbol_display_name(symbol))
+    }
+
+    fn symbol_has_declaration_of_kind(&self, symbol: SymbolId, kind: SyntaxKind) -> bool {
+        self.binder
+            .symbol(symbol)
+            .declarations
+            .iter()
+            .any(|&declaration| self.kind_of(declaration) == kind)
     }
 
     /// tsc-port: hasNonGlobalAugmentationExternalModuleSymbol @6.0.3
@@ -4232,15 +4909,18 @@ impl<'a> CheckerState<'a> {
             .symbol(symbol)
             .declarations
             .iter()
-            .any(|&declaration| match self.data_of(declaration) {
-                NodeData::ModuleDeclaration(data) => data
-                    .name
-                    .is_some_and(|name| matches!(self.data_of(name), NodeData::StringLiteral(_))),
-                NodeData::SourceFile(_) => self
-                    .binder
-                    .is_external_or_common_js_module_of_node(declaration),
-                _ => false,
-            })
+            .any(|&declaration| self.is_non_global_augmentation_external_module_node(declaration))
+    }
+
+    /// The node face of the same predicate (tsc takes declarations).
+    fn is_non_global_augmentation_external_module_node(&self, node: NodeId) -> bool {
+        match self.data_of(node) {
+            NodeData::ModuleDeclaration(data) => data
+                .name
+                .is_some_and(|name| matches!(self.data_of(name), NodeData::StringLiteral(_))),
+            NodeData::SourceFile(_) => self.binder.is_external_or_common_js_module_of_node(node),
+            _ => false,
+        }
     }
 
     /// tsc-port: getSpecifierForModuleSymbol @6.0.3 (error-path slice)
@@ -4262,8 +4942,9 @@ impl<'a> CheckerState<'a> {
     /// (53062-53067) only re-points that moduleName read — outcome-
     /// inert here. Source-file paths (both legs) render through the
     /// host's absolute normalized form: the oracle host roots every
-    /// fileName (program-host.mjs absoluteProgramFileName), the same
-    /// posture as getFullyQualifiedName's source-file arm.
+    /// fileName against the program cwd (program-host.mjs
+    /// absoluteProgramFileName), the same posture as
+    /// getFullyQualifiedName's source-file arm.
     fn specifier_for_module_symbol_slice(&self, symbol: SymbolId) -> CheckResult2<String> {
         let data = self.binder.symbol(symbol);
         let escaped = &data.escaped_name;
@@ -4275,7 +4956,10 @@ impl<'a> CheckerState<'a> {
                 .iter()
                 .any(|&declaration| self.kind_of(declaration) == SyntaxKind::SourceFile);
             if source_file_module {
-                return Ok(Self::normalize_program_path(name, ""));
+                return Ok(Self::normalize_program_path(
+                    name,
+                    &self.host_current_directory,
+                ));
             }
             return Ok(name.to_owned());
         }
@@ -4293,7 +4977,7 @@ impl<'a> CheckerState<'a> {
         match declaration {
             Some(declaration) => Ok(Self::normalize_program_path(
                 &self.binder.source_of_node(declaration).file_name,
-                "",
+                &self.host_current_directory,
             )),
             // tsc dereferences the find() unconditionally —
             // augmentation-only symbols stay behind the curtain.
@@ -8249,7 +8933,19 @@ mod tests {
     /// Program-driving helper for the multi-file pins: (file, code,
     /// start, length, message) rows in checker sink order.
     fn program_diags(files: &[(&str, &str)]) -> Vec<(String, u32, u32, u32, String)> {
-        with_program_state(files, &CompilerOptions::default(), |state| {
+        program_diags_with(files, &CompilerOptions::default(), "/")
+    }
+
+    /// The options/cwd-carrying twin: `cwd` mirrors the harness
+    /// ProgramJson `cwd` the driver threads through
+    /// check_program_with_libs_at.
+    fn program_diags_with(
+        files: &[(&str, &str)],
+        options: &CompilerOptions,
+        cwd: &str,
+    ) -> Vec<(String, u32, u32, u32, String)> {
+        with_program_state(files, options, |state| {
+            state.host_current_directory = cwd.to_owned();
             for index in 0..state.binder.files().count() {
                 state.check_source_file(index);
             }
@@ -8509,6 +9205,376 @@ mod tests {
                 82,
                 1,
                 "Type 'typeof import(\"/b\").A.B' is not assignable to type 'typeof import(\"/a\").A.B'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn fully_qualified_alias_reexport_names_the_export_entry() {
+        // getContainersOfSymbol's candidates leg (49994-50001): a
+        // parentless namespace re-exported via `export { N as M }`
+        // roots at the module (getAliasForSymbolInContainer admits the
+        // container), and createAccessFromSymbolChain names the link
+        // from the export-table entry (oracle-probed:
+        // `typeof import("/b").M`, not `typeof N`).
+        assert_eq!(
+            program_diags(&[
+                ("a.ts", "namespace N { export const x = 1; }\nexport { N as M };\n"),
+                (
+                    "b.ts",
+                    "namespace N { export const x = \"s\"; }\nexport { N as M };\n"
+                ),
+                (
+                    "c.ts",
+                    "import { M as MA } from \"./a\";\nimport { M as MB } from \"./b\";\nlet v: typeof MA;\nv = MB;\n"
+                ),
+            ]),
+            [(
+                "c.ts".to_owned(),
+                2322,
+                80,
+                1,
+                "Type 'typeof import(\"/b\").M' is not assignable to type 'typeof import(\"/a\").M'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn export_table_order_names_the_qualifier() {
+        // createAccessFromSymbolChain (53210-53217): the FIRST
+        // resolved-export entry that same-references the link names it
+        // — regardless of the symbol's own name or the import path
+        // (oracle-probed both orders).
+        let face = |first: &str, second: &str, import_name: &str, expected: &str| {
+            let a = format!("namespace N {{ export const x = 1; }}\n{first}\n{second}\n");
+            let b = format!("namespace N {{ export const x = \"s\"; }}\n{first}\n{second}\n");
+            let c = format!(
+                "import {{ {import_name} as NA }} from \"./a\";\nimport {{ {import_name} as NB }} from \"./b\";\nlet v: typeof NA;\nv = NB;\n"
+            );
+            assert_eq!(
+                program_diags(&[("a.ts", &a), ("b.ts", &b), ("c.ts", &c)]),
+                [(
+                    "c.ts".to_owned(),
+                    2322,
+                    80,
+                    1,
+                    format!(
+                        "Type 'typeof import(\"/b\").{expected}' is not assignable to type 'typeof import(\"/a\").{expected}'."
+                    )
+                )]
+            );
+        };
+        face("export { N as M };", "export { N };", "N", "M");
+        face("export { N };", "export { N as M };", "M", "N");
+    }
+
+    #[test]
+    fn fully_qualified_nested_namespace_under_alias_reexport() {
+        // The chain recursion applies the export-table naming at every
+        // below-root link: the aliased root child renders `M`, the
+        // parent-fast-path child renders `P` (oracle-probed:
+        // `typeof import("/b").M.P`).
+        assert_eq!(
+            program_diags(&[
+                (
+                    "a.ts",
+                    "namespace N { export namespace P { export const x = 1; } }\nexport { N as M };\n"
+                ),
+                (
+                    "b.ts",
+                    "namespace N { export namespace P { export const x = \"s\"; } }\nexport { N as M };\n"
+                ),
+                (
+                    "c.ts",
+                    "import { M as MA } from \"./a\";\nimport { M as MB } from \"./b\";\nlet v: typeof MA.P;\nv = MB.P;\n"
+                ),
+            ]),
+            [(
+                "c.ts".to_owned(),
+                2322,
+                82,
+                1,
+                "Type 'typeof import(\"/b\").M.P' is not assignable to type 'typeof import(\"/a\").M.P'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn default_exported_namespace_names_the_default_entry() {
+        // The below-root naming scan skips only export= and late-bound
+        // keys — `default` is an admissible qualifier name
+        // (oracle-probed: `typeof import("/b").default`).
+        assert_eq!(
+            program_diags(&[
+                ("a.ts", "namespace N { export const x = 1; }\nexport default N;\n"),
+                (
+                    "b.ts",
+                    "namespace N { export const x = \"s\"; }\nexport default N;\n"
+                ),
+                (
+                    "c.ts",
+                    "import MA from \"./a\";\nimport MB from \"./b\";\nlet v: typeof MA;\nv = MB;\n"
+                ),
+            ]),
+            [(
+                "c.ts".to_owned(),
+                2322,
+                62,
+                1,
+                "Type 'typeof import(\"/b\").default' is not assignable to type 'typeof import(\"/a\").default'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn export_equals_namespace_member_renders_import_qualifier() {
+        // getWithAlternativeContainers' additionalContainers (50024):
+        // the file whose export= IS the member's parent container
+        // roots the chain; the export-table naming scan skips the
+        // export= entry and falls to the symbol name (oracle-probed
+        // under @module: commonjs: `typeof import("/b").Q`).
+        let options = CompilerOptions {
+            module: Some(1),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            program_diags_with(
+                &[
+                    (
+                        "a.ts",
+                        "namespace P { export namespace Q { export const x = 1; } }\nexport = P;\n"
+                    ),
+                    (
+                        "b.ts",
+                        "namespace P { export namespace Q { export const x = \"s\"; } }\nexport = P;\n"
+                    ),
+                    (
+                        "c.ts",
+                        "import PA = require(\"./a\");\nimport PB = require(\"./b\");\nlet v: typeof PA.Q;\nv = PB.Q;\n"
+                    ),
+                ],
+                &options,
+                "/"
+            ),
+            [(
+                "c.ts".to_owned(),
+                2322,
+                76,
+                1,
+                "Type 'typeof import(\"/b\").Q' is not assignable to type 'typeof import(\"/a\").Q'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn ambient_export_equals_member_prints_bare_import_face() {
+        // getSymbolChain's export= short-circuit (52978-52981): the
+        // ambient module (candidates ModuleBlock arm, 49999-50001)
+        // whose export= target IS the symbol renders as the bare
+        // parent chain — a length-1 import face (oracle-probed under
+        // @module: commonjs: `typeof import("amba")`).
+        let options = CompilerOptions {
+            module: Some(1),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            program_diags_with(
+                &[
+                    (
+                        "g.d.ts",
+                        "declare module \"amba\" { namespace Q { const x: number; } export = Q; }\ndeclare module \"ambb\" { namespace Q { const x: string; } export = Q; }\n"
+                    ),
+                    (
+                        "a.ts",
+                        "import A = require(\"amba\");\nimport B = require(\"ambb\");\nlet v: typeof A;\nv = B;\n"
+                    ),
+                ],
+                &options,
+                "/"
+            ),
+            [(
+                "a.ts".to_owned(),
+                2322,
+                73,
+                1,
+                "Type 'typeof import(\"ambb\")' is not assignable to type 'typeof import(\"amba\")'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn script_alias_chain_prints_alias_qualified_face() {
+        // getAccessibleSymbolChain's globals alias scan with the
+        // candidate-table recursion (50328-50411): a script-file
+        // `import M = A` reaches the nested namespace as [M, B], and
+        // the alias parent's EMPTY unresolved export table falls the
+        // link name back to getNameOfSymbolAsWritten (oracle-probed:
+        // `typeof M.B` vs `typeof import("/m").A.B`).
+        assert_eq!(
+            program_diags(&[
+                (
+                    "s.ts",
+                    "namespace A { export namespace B { export const x = 1; } }\nimport M = A;\n"
+                ),
+                (
+                    "m.ts",
+                    "namespace A { export namespace B { export const x = \"s\"; } }\nexport { A };\n"
+                ),
+                (
+                    "c.ts",
+                    "import { A as XA } from \"./m\";\nlet v: typeof XA.B;\nv = A.B;\n"
+                ),
+            ]),
+            [(
+                "c.ts".to_owned(),
+                2322,
+                51,
+                1,
+                "Type 'typeof M.B' is not assignable to type 'typeof import(\"/m\").A.B'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn script_global_direct_hit_beats_the_alias_scan() {
+        // trySymbolTable's direct hit (50321-50327) precedes the alias
+        // scan: the global namespace renders its bare name while the
+        // module side names the export entry (oracle-probed:
+        // `typeof N` vs `typeof import("/m").O`).
+        assert_eq!(
+            program_diags(&[
+                (
+                    "s.ts",
+                    "namespace N { export const x = 1; }\nimport M = N;\n"
+                ),
+                (
+                    "m.ts",
+                    "namespace N { export const x = \"s\"; }\nexport { N as O };\n"
+                ),
+                (
+                    "c.ts",
+                    "import { O } from \"./m\";\nlet v: typeof O;\nv = N;\n"
+                ),
+            ]),
+            [(
+                "c.ts".to_owned(),
+                2322,
+                42,
+                1,
+                "Type 'typeof N' is not assignable to type 'typeof import(\"/m\").O'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn same_name_unexported_namespaces_take_the_2719_face() {
+        // A namespace that is neither exported nor re-exported has no
+        // qualifying container (the candidates filter, 50014), so both
+        // faces stay `typeof N` after the fully-qualified re-render —
+        // reportRelationError swaps the generic head to 2719
+        // (65097-65098; oracle-probed).
+        assert_eq!(
+            program_diags(&[
+                (
+                    "a.ts",
+                    "namespace N { export const x = 1; }\nexport const val = N;\n"
+                ),
+                (
+                    "b.ts",
+                    "namespace N { export const x = \"s\"; }\nexport const val = N;\n"
+                ),
+                (
+                    "c.ts",
+                    "import { val as va } from \"./a\";\nimport { val as vb } from \"./b\";\nlet v: typeof va;\nv = vb;\n"
+                ),
+            ]),
+            [(
+                "c.ts".to_owned(),
+                2719,
+                84,
+                1,
+                "Type 'typeof N' is not assignable to type 'typeof N'. Two different types with this name exist, but they are unrelated."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn type_parameter_name_collision_takes_the_2719_face() {
+        // Type parameters never chain (lookupSymbolChainWorker 52946:
+        // isTypeParameter forces [symbol]), so shadowed same-name
+        // parameters stay `T` under the re-render and the head swaps
+        // to 2719 (oracle-probed).
+        assert_eq!(
+            checked_diags(
+                "function f<T>(a: T) {\n    return function g<T>(b: T): T {\n        return a;\n    };\n}\n"
+            ),
+            [(
+                2719,
+                66,
+                6,
+                "Type 'T' is not assignable to type 'T'. Two different types with this name exist, but they are unrelated."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn source_file_specifier_roots_at_the_program_cwd() {
+        // The oracle host absolutizes every fileName against the
+        // ProgramJson cwd (program-host.mjs absoluteProgramFileName),
+        // so the extension-free source-file specifier renders
+        // cwd-rooted (oracle-probed under @currentDirectory: /src:
+        // `typeof import("/src/b")`).
+        assert_eq!(
+            program_diags_with(
+                &[
+                    ("b.ts", "export const bee = 1;\n"),
+                    ("a.ts", "import * as b from \"./b\";\nb.nope;\n"),
+                ],
+                &CompilerOptions::default(),
+                "/src"
+            ),
+            [(
+                "a.ts".to_owned(),
+                2339,
+                28,
+                4,
+                "Property 'nope' does not exist on type 'typeof import(\"/src/b\")'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn fully_qualified_specifier_roots_at_the_program_cwd() {
+        // The cwd rooting rides the chain faces too (oracle-probed:
+        // `typeof import("/src/b").N` vs `typeof import("/src/a").N`).
+        assert_eq!(
+            program_diags_with(
+                &[
+                    ("a.ts", "export namespace N { export const x = 1; }\n"),
+                    ("b.ts", "export namespace N { export const x = \"s\"; }\n"),
+                    (
+                        "c.ts",
+                        "import { N as NA } from \"./a\";\nimport { N as NB } from \"./b\";\nlet v: typeof NA;\nv = NB;\n"
+                    ),
+                ],
+                &CompilerOptions::default(),
+                "/src"
+            ),
+            [(
+                "c.ts".to_owned(),
+                2322,
+                80,
+                1,
+                "Type 'typeof import(\"/src/b\").N' is not assignable to type 'typeof import(\"/src/a\").N'."
                     .to_owned()
             )]
         );
