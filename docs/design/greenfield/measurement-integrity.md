@@ -411,6 +411,57 @@ sibling. The dispositions pin the exact inventory hash. Each D2 tooling
 slice must reduce `unaccounted` monotonically and may not shrink the
 inventory through an unexplained parser heuristic.
 
+### 6.1 Trace-assisted implementation clusters
+
+Once the D2 inventory/static-call-graph and B2 trace tooling land,
+diagnostic-time oracle traces are the preferred exact way to discover
+which declarations should move together in an implementation slice.
+Before then, source-level call-chain analysis plus minimal oracle probes
+is the manual equivalent and does not block an earlier semantic slice.
+Neither form defines the declaration closure. A trace is a dynamic
+slice: it omits functions that already returned after constructing a
+type or symbol, cache producers, lazy work executed at another time,
+and unselected branches.
+
+Trace an instrumented copy under `target/`; never edit the vendor. Each
+trace record joins the emitted diagnostic to its exact schema-2 oracle
+identity, including occurrence handling for duplicate buckets. The
+instrumenter either pushes exact D2 ids onto a logical shadow stack or
+emits a position map from instrumented coordinates back to vendor
+coordinates; it never regenerates the inventory from the instrumented
+copy. A V8 stack must not be accepted with the default truncated frame
+limit. Resolve each vendor frame to the innermost containing D2
+declaration identity. Instrumenter-wrapper and Node-internal frames are
+retained under explicit external-frame classifications; an unresolved
+frame is reported, never silently dropped. A printed function name is
+insufficient: same-named, suffixed, and anonymous declarations remain
+distinct by span/hash.
+
+Build a porting cluster for a target mismatch as follows:
+
+1. collect its diagnostic-time stack across the applicable fixture
+   matrices and minimal oracle probes;
+2. add the declaration-level coverage difference between the emitting
+   probe and the nearest valid non-emitting sibling probe, which
+   recovers diagnostic-specific preparatory functions that returned
+   before emission; if no sibling exists, positive-run coverage is only
+   a broad review lead and enters the seed only with a static path to a
+   traced declaration or direct emitter;
+3. expand that dynamic seed through the static D2 call graph to the
+   nearest already-ported or reviewed-disposition boundary;
+4. preserve property-call candidates separately and review any
+   over-approximation instead of collapsing by name;
+5. merge repeated stacks or static SCCs when they identify one semantic
+   subsystem, then use that dependency-closed cluster as the slice
+   boundary.
+
+Run cold probes when cache state can select a different path, and retain
+the full-corpus run as the coverage authority. A zero-hit trace or
+coverage counter is never proof that a declaration is not applicable.
+Only the frozen static inventory plus an exact reviewed disposition can
+close an unexecuted identity. Runtime traces choose and explain porting
+clusters; static reachability and dispositions prove completeness.
+
 ## 7. Required adversarial tests
 
 The implementations must pin at least these failure classes:
@@ -429,7 +480,8 @@ The implementations must pin at least these failure classes:
 | A2 global | unpinned-band edit after freeze; status downgrade; branch add-and-reanchor; unverified band pin |
 | A5 map | unmapped/duplicate row; enumerated 2XXX row; owner/canary change after freeze; old owner change disguised as extension |
 | A5 rollup | stale conformance/scope fingerprint; excluded duplicate neighbor lost; A1 summary substituted for current supported grading |
-| D2 | same-name declarations share id, ledger closure, runtime counter, property-call evidence, or disposition |
+| D2 | same-name declarations share id, ledger closure, runtime counter, property-call evidence, disposition, or trace-frame resolution; instrumented coordinates are treated as vendor coordinates without a position map |
+| D2 trace | a truncated, unresolved, wrapper, or Node-internal frame is silently dropped instead of resolved or explicitly classified; trace/coverage absence shrinks the static closure or justifies a not-applicable disposition |
 
 Positive companions cover additions-only A1 updates, append-only universe
 extensions, proven tombstone deletions, non-2XXX draft edits while only

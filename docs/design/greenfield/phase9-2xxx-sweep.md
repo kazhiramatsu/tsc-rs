@@ -1277,6 +1277,20 @@ implementations:
 
 ## Working rules
 
+- Until the D2 exact inventory/static call graph and B2 trace mode land,
+  select a semantic slice boundary by the manual equivalent: inspect the
+  target tsc call chain, run minimal emitting/non-emitting sibling oracle
+  probes where constructible, and record the dependency boundary in the
+  PR. This does not block any listed Phase-9 slice. Once the tooling is
+  available, use the D2
+  [trace-assisted cluster procedure](measurement-integrity.md#61-trace-assisted-implementation-clusters):
+  capture the exact declaration-identity stack, add differential
+  declaration coverage, then close the seed through the static call
+  graph. The dynamic trace groups the work; it is not the completeness
+  proof. A preparatory/cache function missing from the emission-time
+  trace remains in the slice when static reachability or coverage shows
+  it is required, and a zero-hit function needs a reviewed disposition
+  rather than silent omission.
 - Curtain retirement = FP-shield removal. Every widened display arm
   or narrowed bail runs the 7.5 fabrication audit: corpus diff at
   the arm, any NEW port-only row probed against the oracle before

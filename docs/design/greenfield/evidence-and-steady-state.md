@@ -57,8 +57,21 @@ At least one emitter must execute. Every zero-hit identity needs reviewed
 evidence tied to the exact inventory hash. Unknown, duplicate,
 overlapping, name-collapsed, or unaccounted identities fail.
 
+The completed B2 instrumented runner also provides selected-fixture
+trace mode for
+[D2 trace-assisted implementation clusters](measurement-integrity.md#61-trace-assisted-implementation-clusters).
+Trace mode associates a diagnostic-time call stack and all-declaration
+execution coverage with exact oracle diagnostic identities. It is
+planning and review evidence: it identifies the dynamic seed for a
+dependency-closed porting slice, but it does not replace the full-corpus
+direct-emitter counters, the static call graph, or declaration
+dispositions. In particular, a declaration absent from a trace may not
+be classified as not applicable on that basis.
+
 The fingerprint includes the instrumenter, Node pin, vendor, declaration
-inventory, immutable oracle inputs, and full-corpus command.
+inventory, immutable oracle inputs, and full-corpus command. A trace
+artifact additionally fingerprints its position map or shadow-stack
+producer, stack-depth policy, and emitting/non-emitting probe pair.
 
 Acceptance:
 
@@ -197,6 +210,11 @@ Gate logic stays in local commands; YAML only executes it.
   workflow passes;
 - same-name declaration counters, anonymous counters, and `<top>` remain
   distinct; a hit for one never covers another;
+- a trace joined by printed name, instrumented coordinates treated as
+  vendor coordinates without a position map, or a truncated, unresolved,
+  or external frame silently dropped instead of classified fails;
+- trace or coverage absence used to shrink the static closure or justify
+  a not-applicable disposition fails;
 - an out-of-domain generated case, unequal comparison count, signature
   classifier drift, or reducer changing signature fails;
 - a deleted/rewritten/unsigned/stale/under-budget nightly window or a
