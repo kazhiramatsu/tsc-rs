@@ -86,6 +86,11 @@ pub struct CompilerOptions {
     /// when noEmit is set (filterSemanticDiagnostics 125664). 727
     /// conformance fixtures carry the directive (469 true-valued).
     pub no_emit: Option<bool>,
+    /// Imports downlevel emit helpers from `tslib`. Unlike the
+    /// transformer-side use of this option, checkExternalEmitHelpers
+    /// is semantic: it verifies that an in-program helper module
+    /// exports every helper required by the checked syntax.
+    pub import_helpers: Option<bool>,
     /// M4 5.8b §4: getIteratedTypeOrElementType's plain-falsiness read
     /// (83915 `!uplevelIteration && compilerOptions.downlevelIteration`)
     /// — selects the downlevel diagnostic flavors under low targets.

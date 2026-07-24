@@ -1829,6 +1829,146 @@ mod tests {
     }
 
     #[test]
+    fn external_emit_helpers_validate_an_in_program_tslib() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "types.d.ts".to_owned(),
+                    text: "declare module \"tslib\" { export {}; }\n".to_owned(),
+                },
+                InputFile {
+                    name: "a.ts".to_owned(),
+                    text: "export {};\n".to_owned(),
+                },
+                InputFile {
+                    name: "main.ts".to_owned(),
+                    text: "export * as ns from \"./a\";\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                module: Some(1),
+                import_helpers: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        let helper = result
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code() == 2343)
+            .expect("missing __importStar should report");
+        assert!(helper.message_text().contains("__importStar"));
+    }
+
+    #[test]
+    fn external_emit_helpers_report_only_definite_tslib_misses() {
+        let files = [
+            InputFile {
+                name: "a.ts".to_owned(),
+                text: "export {};\n".to_owned(),
+            },
+            InputFile {
+                name: "main.ts".to_owned(),
+                text: "export * as ns from \"./a\";\n".to_owned(),
+            },
+        ];
+        let options = CompilerOptions {
+            module: Some(1),
+            import_helpers: Some(true),
+            ..CompilerOptions::default()
+        };
+        let missing = check_program(&files, &options);
+        assert!(
+            missing
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code() == 2354),
+            "{:#?}",
+            missing.diagnostics
+        );
+
+        let mut host_dependent = files.to_vec();
+        host_dependent.push(InputFile {
+            name: "node_modules/tslib/index.d.ts".to_owned(),
+            text: "export {};\n".to_owned(),
+        });
+        let suppressed = check_program(&host_dependent, &options);
+        assert!(
+            suppressed
+                .diagnostics
+                .iter()
+                .all(|diagnostic| !matches!(diagnostic.code(), 2343 | 2354 | 2807)),
+            "{:#?}",
+            suppressed.diagnostics
+        );
+    }
+
+    #[test]
+    fn external_emit_helpers_check_spread_array_arity() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "types.d.ts".to_owned(),
+                    text: "declare module \"tslib\" {\n  export function __spreadArray(to: any[], from: any[]): any[];\n}\n".to_owned(),
+                },
+                InputFile {
+                    name: "main.ts".to_owned(),
+                    text: "export {};\nconst values = [1, ...[2], 3];\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                target: Some(tsrs2_types::ScriptTarget::ES5.bits()),
+                import_helpers: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        let helper = result
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code() == 2807)
+            .expect("two-parameter __spreadArray should report");
+        assert!(helper.message_text().contains("3 parameters"));
+    }
+
+    #[test]
+    fn external_emit_helpers_cover_decorator_named_evaluation_helpers() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "types.d.ts".to_owned(),
+                    text: "declare module \"tslib\" { export {}; }\n".to_owned(),
+                },
+                InputFile {
+                    name: "main.ts".to_owned(),
+                    text: "export {};\ndeclare let dec: any;\ndeclare let key: any;\n({ [key]: @dec class {} });\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                target: Some(tsrs2_types::ScriptTarget::ES2022.bits()),
+                module: Some(1),
+                import_helpers: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        let messages: Vec<&str> = result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 2343)
+            .map(|diagnostic| diagnostic.message_text())
+            .collect();
+        for helper in [
+            "__esDecorate",
+            "__runInitializers",
+            "__setFunctionName",
+            "__propKey",
+        ] {
+            assert!(
+                messages.iter().any(|message| message.contains(helper)),
+                "missing {helper}: {messages:#?}"
+            );
+        }
+    }
+
+    #[test]
     fn missing_import_meta_global_is_public_semantic_diagnostic() {
         assert_eq!(
             codes_of_with_options(

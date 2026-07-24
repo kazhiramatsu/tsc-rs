@@ -722,6 +722,13 @@ pub struct CheckerState<'a> {
     /// Bare self-name imports are undecidable only inside a matching
     /// package scope; an unrelated package.json must not hide 2307.
     pub host_package_json_names: std::collections::HashMap<String, String>,
+    /// checkExternalEmitHelpers' per-source resolveHelpersModule memo.
+    /// `None` is a cached missing or provenance-suppressed `tslib`;
+    /// the first definite miss has already emitted 2354.
+    pub(crate) external_helpers_modules: std::collections::HashMap<NodeId, Option<SymbolId>>,
+    /// tsc SymbolLinks.requestedExternalEmitHelpers, kept checker-local
+    /// because binder symbols are shared by cached lib bundles.
+    pub(crate) requested_external_emit_helpers: std::collections::HashMap<SymbolId, u32>,
     /// Per-source getJsxNamespaceContainerForImplicitImport cache.
     /// `Some(None)` records an attempted miss so repeated JSX nodes do
     /// not duplicate the runtime-module diagnostic.
@@ -955,6 +962,8 @@ impl<'a> CheckerState<'a> {
             host_current_directory: "/".to_owned(),
             host_package_json_module_types: std::collections::HashMap::new(),
             host_package_json_names: std::collections::HashMap::new(),
+            external_helpers_modules: std::collections::HashMap::new(),
+            requested_external_emit_helpers: std::collections::HashMap::new(),
             jsx_implicit_import_containers: std::collections::HashMap::new(),
             jsdoc_typed_declarations: std::collections::HashSet::new(),
             non_jsdoc_js_diagnostics: std::collections::HashSet::new(),

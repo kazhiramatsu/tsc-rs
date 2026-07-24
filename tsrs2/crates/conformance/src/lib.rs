@@ -1691,6 +1691,7 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
         use_define_for_class_fields: bool_option("useDefineForClassFields"),
         use_unknown_in_catch_variables: bool_option("useUnknownInCatchVariables"),
         no_emit: bool_option("noEmit"),
+        import_helpers: bool_option("importHelpers"),
         downlevel_iteration: bool_option("downlevelIteration"),
         strict_builtin_iterator_return: bool_option("strictBuiltinIteratorReturn"),
         module_resolution,
@@ -2430,6 +2431,27 @@ mod tests {
         let options = compiler_options_from_program(&program);
         assert_eq!(options.module_detection, Some(3));
         assert_eq!(options.emit_module_detection_kind(), 3);
+    }
+
+    #[test]
+    fn import_helpers_reaches_compiler_options() {
+        let program = tsrs2_harness::ProgramJson {
+            schema: 1,
+            cwd: ".".to_owned(),
+            options: [(
+                "importHelpers".to_owned(),
+                tsrs2_harness::OptionValue::Bool(true),
+            )]
+            .into_iter()
+            .collect(),
+            libs: Vec::new(),
+            files: Vec::new(),
+            matrix_key: String::new(),
+        };
+        assert_eq!(
+            compiler_options_from_program(&program).import_helpers,
+            Some(true)
+        );
     }
 
     /// Integer ratchets gate exactly: one lost diagnostic must fail

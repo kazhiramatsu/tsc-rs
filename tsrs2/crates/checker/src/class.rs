@@ -497,12 +497,113 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a02caab9f1df7c6c3d4005cd5a084050bf147ce03943cc383d0c007ecf59827b
     /// tsc-span: _tsc.js:84972-84977
     ///
-    /// checkClassExpressionExternalHelpers is an emit-helper no-op.
+    /// Anonymous named-evaluation expressions may additionally require
+    /// `__setFunctionName` and `__propKey`.
     pub(crate) fn check_class_expression(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         self.check_class_like_declaration(node)?;
         self.check_node_deferred(node);
+        self.check_class_expression_external_helpers(node)?;
         let symbol = self.get_symbol_of_declaration(node)?;
         self.get_type_of_symbol(symbol)
+    }
+
+    /// tsc-port: checkClassExpressionExternalHelpers @6.0.3
+    /// tsc-hash: 5cdf3e4e84646112ba71437925723c10e4f1d9fbf2eeccfae194c78a23386e3a
+    /// tsc-span: _tsc.js:84950-84972
+    fn check_class_expression_external_helpers(&mut self, node: NodeId) -> CheckResult2<()> {
+        let (name, modifiers) = match self.data_of(node) {
+            NodeData::ClassExpression(data) => (data.name, data.modifiers),
+            _ => return Ok(()),
+        };
+        if name.is_some()
+            || self.options.experimental_decorators
+            || self.options.emit_script_target() >= tsrs2_types::ScriptTarget::ES_NEXT
+        {
+            return Ok(());
+        }
+        let Some(first_decorator) = self
+            .nodes_of(modifiers)
+            .into_iter()
+            .find(|&modifier| self.kind_of(modifier) == SyntaxKind::Decorator)
+        else {
+            return Ok(());
+        };
+
+        let mut parent = self.parent_of(node);
+        while parent.is_some_and(|parent| {
+            matches!(
+                self.kind_of(parent),
+                SyntaxKind::ParenthesizedExpression
+                    | SyntaxKind::TypeAssertionExpression
+                    | SyntaxKind::AsExpression
+                    | SyntaxKind::SatisfiesExpression
+                    | SyntaxKind::ExpressionWithTypeArguments
+                    | SyntaxKind::NonNullExpression
+            )
+        }) {
+            parent = parent.and_then(|parent| self.parent_of(parent));
+        }
+        let Some(parent) = parent else {
+            return Ok(());
+        };
+        let is_named_evaluation_source = match self.data_of(parent) {
+            NodeData::PropertyAssignment(_) | NodeData::ExportAssignment(_) => true,
+            NodeData::ShorthandPropertyAssignment(data) => {
+                data.object_assignment_initializer.is_some()
+            }
+            NodeData::VariableDeclaration(data) => {
+                data.name
+                    .is_some_and(|name| self.kind_of(name) == SyntaxKind::Identifier)
+                    && data.initializer.is_some()
+            }
+            NodeData::Parameter(data) => {
+                data.name
+                    .is_some_and(|name| self.kind_of(name) == SyntaxKind::Identifier)
+                    && data.initializer.is_some()
+                    && data.dot_dot_dot_token.is_none()
+            }
+            NodeData::BindingElement(data) => {
+                data.name
+                    .is_some_and(|name| self.kind_of(name) == SyntaxKind::Identifier)
+                    && data.initializer.is_some()
+                    && data.dot_dot_dot_token.is_none()
+            }
+            NodeData::PropertyDeclaration(data) => data.initializer.is_some(),
+            NodeData::BinaryExpression(data) => {
+                data.operator_token.is_some_and(|operator| {
+                    matches!(
+                        self.kind_of(operator),
+                        SyntaxKind::EqualsToken
+                            | SyntaxKind::AmpersandAmpersandEqualsToken
+                            | SyntaxKind::BarBarEqualsToken
+                            | SyntaxKind::QuestionQuestionEqualsToken
+                    )
+                }) && data
+                    .left
+                    .is_some_and(|left| self.kind_of(left) == SyntaxKind::Identifier)
+            }
+            _ => false,
+        };
+        if !is_named_evaluation_source {
+            return Ok(());
+        }
+        self.check_external_emit_helpers(
+            first_decorator,
+            crate::modules::EMIT_HELPER_SET_FUNCTION_NAME,
+        )?;
+        let parent_name = match self.data_of(parent) {
+            NodeData::PropertyAssignment(data) => data.name,
+            NodeData::PropertyDeclaration(data) => data.name,
+            NodeData::BindingElement(data) => data.name,
+            _ => None,
+        };
+        if parent_name.is_some_and(|name| self.kind_of(name) == SyntaxKind::ComputedPropertyName) {
+            self.check_external_emit_helpers(
+                first_decorator,
+                crate::modules::EMIT_HELPER_PROP_KEY,
+            )?;
+        }
+        Ok(())
     }
 
     /// tsc-port: checkClassExpressionDeferred @6.0.3

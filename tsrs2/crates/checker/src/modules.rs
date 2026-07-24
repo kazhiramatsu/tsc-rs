@@ -59,6 +59,16 @@ pub(crate) enum ModuleResolutionMode {
     Unknown,
 }
 
+pub(crate) const EMIT_HELPER_DECORATE: u32 = 1 << 3;
+pub(crate) const EMIT_HELPER_READ: u32 = 1 << 9;
+pub(crate) const EMIT_HELPER_SPREAD_ARRAY: u32 = 1 << 10;
+pub(crate) const EMIT_HELPER_EXPORT_STAR: u32 = 1 << 15;
+pub(crate) const EMIT_HELPER_IMPORT_STAR: u32 = 1 << 16;
+pub(crate) const EMIT_HELPER_IMPORT_DEFAULT: u32 = 1 << 17;
+pub(crate) const EMIT_HELPER_SET_FUNCTION_NAME: u32 = 1 << 22;
+pub(crate) const EMIT_HELPER_PROP_KEY: u32 = 1 << 23;
+pub(crate) const EMIT_HELPER_ADD_DISPOSABLE_RESOURCE_AND_DISPOSE_RESOURCES: u32 = 1 << 24;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ResolutionModeOverrideParse {
     Missing,
@@ -2735,6 +2745,191 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsc-port: checkExternalEmitHelpers @6.0.3
+    /// tsc-hash: 5f72636b67358cec9e7c94abf473b9595b180848fb2dbf04231af134818b46e6
+    /// tsc-span: _tsc.js:88907-88944
+    ///
+    /// The host boundary is the same three-way in-memory resolver used
+    /// by ordinary imports. An ambient or in-program `tslib` is
+    /// authoritative; a definite miss reports 2354; a package-host
+    /// miss remains FN-side so node_modules cannot fabricate 2343 or
+    /// 2807. requestedExternalEmitHelpers is module-wide in tsc and is
+    /// therefore keyed by the resolved module symbol here.
+    pub(crate) fn check_external_emit_helpers(
+        &mut self,
+        location: NodeId,
+        helpers: u32,
+    ) -> CheckResult2<()> {
+        if self.options.import_helpers != Some(true)
+            || !self.is_effective_external_module(location)
+            || tsrs2_types::NodeFlags::from_bits(self.node_flags(location))
+                .intersects(tsrs2_types::NodeFlags::AMBIENT)
+        {
+            return Ok(());
+        }
+
+        let source_root = self.binder.source_of_node(location).root;
+        let helpers_module = if let Some(&cached) = self.external_helpers_modules.get(&source_root)
+        {
+            cached
+        } else {
+            let resolved = if let Some(ambient) =
+                self.try_find_ambient_module("tslib", /*with_augmentations*/ true)
+            {
+                Some(ambient)
+            } else {
+                match self.resolve_program_module(location, "tslib") {
+                    ProgramModuleResolution::Resolved(resolved) => {
+                        let root = self.binder.source(resolved.file_index).root;
+                        self.binder
+                            .node_symbol(root)
+                            .map(|symbol| self.get_merged_symbol(symbol))
+                    }
+                    ProgramModuleResolution::Suppressed => None,
+                    ProgramModuleResolution::Missed => {
+                        let diagnostics_before = self.diagnostics.len();
+                        self.error_at(
+                            Some(location),
+                            &diagnostics::This_syntax_requires_an_imported_helper_but_module_0_cannot_be_found,
+                            &["tslib"],
+                        );
+                        if self.is_in_js_file(location) {
+                            self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
+                        }
+                        None
+                    }
+                }
+            };
+            self.external_helpers_modules.insert(source_root, resolved);
+            resolved
+        };
+        let Some(helpers_module) = helpers_module else {
+            return Ok(());
+        };
+
+        let requested = self
+            .requested_external_emit_helpers
+            .get(&helpers_module)
+            .copied()
+            .unwrap_or(0);
+        let unchecked = helpers & !requested;
+        if unchecked == 0 {
+            return Ok(());
+        }
+
+        let exports = self.get_exports_of_module(helpers_module)?;
+        let legacy_decorators = self.options.experimental_decorators;
+        let mut helper = 1u32;
+        while helper <= EMIT_HELPER_ADD_DISPOSABLE_RESOURCE_AND_DISPOSE_RESOURCES {
+            if unchecked & helper != 0 {
+                for &name in Self::external_emit_helper_names(helper, legacy_decorators) {
+                    let exported = exports
+                        .get(&escape_leading_underscores(name))
+                        .copied()
+                        .filter(|&symbol| {
+                            self.binder
+                                .symbol(symbol)
+                                .flags
+                                .intersects(SymbolFlags::VALUE)
+                        });
+                    let symbol = self.resolve_symbol_ex(exported, false)?;
+                    let Some(symbol) = symbol.filter(|&symbol| symbol != self.unknown_symbol)
+                    else {
+                        let diagnostics_before = self.diagnostics.len();
+                        self.error_at(
+                            Some(location),
+                            &diagnostics::This_syntax_requires_an_imported_helper_named_1_which_does_not_exist_in_0_Consider_upgrading_your_version_of_0,
+                            &["tslib", name],
+                        );
+                        if self.is_in_js_file(location) {
+                            self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
+                        }
+                        continue;
+                    };
+                    let required_parameter_count = match helper {
+                        524_288 => Some(4usize),
+                        1_048_576 => Some(5usize),
+                        EMIT_HELPER_SPREAD_ARRAY => Some(3usize),
+                        _ => None,
+                    };
+                    if let Some(required) = required_parameter_count {
+                        let mut compatible = false;
+                        for signature in self.get_signatures_of_symbol(Some(symbol))? {
+                            if self.get_parameter_count(signature)? >= required {
+                                compatible = true;
+                                break;
+                            }
+                        }
+                        if !compatible {
+                            let required = required.to_string();
+                            let diagnostics_before = self.diagnostics.len();
+                            self.error_at(
+                                Some(location),
+                                &diagnostics::This_syntax_requires_an_imported_helper_named_1_with_2_parameters_which_is_not_compatible_with_the_one_in_0_Consider_upgrading_your_version_of_0,
+                                &["tslib", name, &required],
+                            );
+                            if self.is_in_js_file(location) {
+                                self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
+                            }
+                        }
+                    }
+                }
+            }
+            helper <<= 1;
+        }
+        self.requested_external_emit_helpers
+            .insert(helpers_module, requested | helpers);
+        Ok(())
+    }
+
+    fn external_emit_helper_names(helper: u32, legacy_decorators: bool) -> &'static [&'static str] {
+        match helper {
+            1 => &["__extends"],
+            2 => &["__assign"],
+            4 => &["__rest"],
+            EMIT_HELPER_DECORATE if legacy_decorators => &["__decorate"],
+            EMIT_HELPER_DECORATE => &["__esDecorate", "__runInitializers"],
+            16 => &["__metadata"],
+            32 => &["__param"],
+            64 => &["__awaiter"],
+            128 => &["__generator"],
+            256 => &["__values"],
+            EMIT_HELPER_READ => &["__read"],
+            EMIT_HELPER_SPREAD_ARRAY => &["__spreadArray"],
+            2_048 => &["__await"],
+            4_096 => &["__asyncGenerator"],
+            8_192 => &["__asyncDelegator"],
+            16_384 => &["__asyncValues"],
+            EMIT_HELPER_EXPORT_STAR => &["__exportStar"],
+            EMIT_HELPER_IMPORT_STAR => &["__importStar"],
+            EMIT_HELPER_IMPORT_DEFAULT => &["__importDefault"],
+            262_144 => &["__makeTemplateObject"],
+            524_288 => &["__classPrivateFieldGet"],
+            1_048_576 => &["__classPrivateFieldSet"],
+            2_097_152 => &["__classPrivateFieldIn"],
+            EMIT_HELPER_SET_FUNCTION_NAME => &["__setFunctionName"],
+            EMIT_HELPER_PROP_KEY => &["__propKey"],
+            EMIT_HELPER_ADD_DISPOSABLE_RESOURCE_AND_DISPOSE_RESOURCES => {
+                &["__addDisposableResource", "__disposeResources"]
+            }
+            _ => &[],
+        }
+    }
+
+    /// host.getEmitModuleFormatOfFile(location) < ModuleKind.System.
+    /// Node-flavored module kinds use their per-file package format;
+    /// ordinary kinds use the explicit/computed module kind directly.
+    /// tsrs-native: reduction over the in-memory host's modeled module
+    /// format seam.
+    pub(crate) fn emit_module_format_is_pre_system(&self, location: NodeId) -> bool {
+        let module_kind = self.options.emit_module_kind();
+        if (100..=199).contains(&module_kind) {
+            self.implied_node_format_for_file(location) == ModuleResolutionMode::CommonJs
+        } else {
+            module_kind < 4
+        }
+    }
+
     fn package_name_from_module_reference(module_reference: &str) -> Option<String> {
         if module_reference.starts_with('#') {
             return None;
@@ -4748,8 +4943,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: bdbcb3f8fcc5ff897e583528e7557fe9192fd3fe24a8648e97734bb1539cfba8
     /// tsc-span: _tsc.js:86163-86172
     ///
-    /// The esModuleInterop default-import probe is
-    /// checkExternalEmitHelpers — an emit-marking no-op.
+    /// The esModuleInterop default-import probe verifies
+    /// `__importDefault` when this file emits CommonJS.
     fn check_import_binding(&mut self, node: NodeId) -> CheckResult2<()> {
         let name = match self.data_of(node) {
             NodeData::ImportClause(data) => data.name,
@@ -4766,6 +4961,14 @@ impl<'a> CheckerState<'a> {
                 _ => None,
             };
             self.check_module_export_name(property_name, true)?;
+            let imported_name = property_name.or(name);
+            if imported_name
+                .is_some_and(|name| self.module_export_name_text_unescaped(name) == "default")
+                && self.options.es_module_interop_effective()
+                && self.emit_module_format_is_pre_system(node)
+            {
+                self.check_external_emit_helpers(node, EMIT_HELPER_IMPORT_DEFAULT)?;
+            }
         }
         Ok(())
     }
@@ -5089,6 +5292,11 @@ impl<'a> CheckerState<'a> {
                     if let Some(named_bindings) = named_bindings {
                         if self.kind_of(named_bindings) == SyntaxKind::NamespaceImport {
                             self.check_import_binding(named_bindings)?;
+                            if self.options.es_module_interop_effective()
+                                && self.emit_module_format_is_pre_system(node)
+                            {
+                                self.check_external_emit_helpers(node, EMIT_HELPER_IMPORT_STAR)?;
+                            }
                         } else {
                             let module_specifier = match self.data_of(node) {
                                 NodeData::ImportDeclaration(data) => data.module_specifier,
@@ -5346,7 +5554,8 @@ impl<'a> CheckerState<'a> {
     ///
     /// The An_export_declaration_cannot_have_modifiers follower rides
     /// the M7-stub checkGrammarModifiers — contained (same as the
-    /// import flavor). Emit helpers are no-ops.
+    /// import flavor). Import/export helper availability follows the
+    /// source file's effective emit format.
     pub(crate) fn check_export_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
         if self.check_grammar_module_element_context(
             node,
@@ -5422,6 +5631,15 @@ impl<'a> CheckerState<'a> {
                     };
                     self.check_module_export_name(clause_name, true)?;
                 }
+                if self.emit_module_format_is_pre_system(node) {
+                    if export_clause.is_some() {
+                        if self.options.es_module_interop_effective() {
+                            self.check_external_emit_helpers(node, EMIT_HELPER_IMPORT_STAR)?;
+                        }
+                    } else {
+                        self.check_external_emit_helpers(node, EMIT_HELPER_EXPORT_STAR)?;
+                    }
+                }
             }
         }
         self.check_import_attributes_of(node)
@@ -5450,7 +5668,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:86354-86390
     ///
     /// collectLinkedAliases/markLinkedReferences are declaration-emit
-    /// machinery (no-ops); the interop emit-helper probe too.
+    /// bookkeeping; a default re-export can require
+    /// `__importDefault` under CommonJS interop.
     fn check_export_specifier(&mut self, node: NodeId) -> CheckResult2<()> {
         self.check_alias_symbol(node)?;
         let (property_name, name) = match self.data_of(node) {
@@ -5510,6 +5729,13 @@ impl<'a> CheckerState<'a> {
                     );
                 }
             }
+        } else if property_name
+            .or(name)
+            .is_some_and(|name| self.module_export_name_text_unescaped(name) == "default")
+            && self.options.es_module_interop_effective()
+            && self.emit_module_format_is_pre_system(node)
+        {
+            self.check_external_emit_helpers(node, EMIT_HELPER_IMPORT_DEFAULT)?;
         }
         Ok(())
     }

@@ -2921,7 +2921,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 3a8f89111524b9308588a5bccb7b84d080a64ba8ebb1e5858bcd85eb71ab52c6
     /// tsc-span: _tsc.js:73939-73945
     ///
-    /// The sub-ES2015 emit-helper probe is importHelpers-gated (no-op).
+    /// Sub-ES2015 spreads verify the imported `__spreadArray` helper
+    /// (and `__read` under downlevelIteration).
     fn check_spread_expression(
         &mut self,
         node: NodeId,
@@ -2933,6 +2934,14 @@ impl<'a> CheckerState<'a> {
         let Some(expression) = data.expression else {
             return Err(Unsupported::new("SpreadElement recovery node"));
         };
+        if self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES2015 {
+            let helpers = if self.options.downlevel_iteration == Some(true) {
+                crate::modules::EMIT_HELPER_READ | crate::modules::EMIT_HELPER_SPREAD_ARRAY
+            } else {
+                crate::modules::EMIT_HELPER_SPREAD_ARRAY
+            };
+            self.check_external_emit_helpers(node, helpers)?;
+        }
         let array_or_iterable_type = self.check_expression(expression, check_mode)?;
         let undefined_type = self.tables.intrinsics.undefined;
         self.check_iterated_type_or_element_type(

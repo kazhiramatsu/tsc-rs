@@ -141,8 +141,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c9548a5ffbc73ebc39448b27acad5fe94e216419bc688d0f785ab9a0b6d18fd9
     /// tsc-span: _tsc.js:73956-74033
     ///
-    /// The languageVersion emit-helper gate is dead at target ES2025
-    /// (LanguageFeatureMinimumTarget.SpreadElements = ES2015); the
+    /// The languageVersion emit-helper gate verifies imported helpers
+    /// below ES2015; the
     /// [INFER] intra-expression site is behind the Inferential
     /// checkMode bit — producible since M6 7.1 (Some-context pushes
     /// only), so the arm below is a live named Unsupported until the
@@ -177,8 +177,15 @@ impl<'a> CheckerState<'a> {
             let mut has_omitted_expression = false;
             for e in elements {
                 if state.kind_of(e) == SyntaxKind::SpreadElement {
-                    // languageVersion < SpreadElements:
-                    // checkExternalEmitHelpers — dead at ES2025.
+                    if state.options.emit_script_target() < tsrs2_types::ScriptTarget::ES2015 {
+                        let helpers = if state.options.downlevel_iteration == Some(true) {
+                            crate::modules::EMIT_HELPER_READ
+                                | crate::modules::EMIT_HELPER_SPREAD_ARRAY
+                        } else {
+                            crate::modules::EMIT_HELPER_SPREAD_ARRAY
+                        };
+                        state.check_external_emit_helpers(e, helpers)?;
+                    }
                     let expression = match state.data_of(e) {
                         NodeData::SpreadElement(data) => data.expression,
                         _ => None,
