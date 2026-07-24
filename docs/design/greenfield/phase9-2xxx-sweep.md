@@ -2682,6 +2682,36 @@ Checker tests are **1,013**. Escape evidence is unchanged at
 sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
 Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9c results (2026-07-25, parameter initializer scope — DONE)
+
+The live `resolveNameHelper` walk already carried tsc's associated
+parameter/binding-element declaration and deferred-context state.
+`onSuccessfullyResolvedSymbol` now consumes that state: late/merged
+symbol identity reports 2372 for self-reference, while declaration
+position plus the root function's locals table reports 2373 for a
+later parameter or function-body `var`. References inside deferred
+function expressions remain silent.
+
+The `useOuterVariableScopeInParameter` prerequisite now reads the
+modeled `emitStandardClassFields` computation for static class fields.
+This preserves the parameter scope when
+`useDefineForClassFields: false` is explicit at ESNext; the previous
+target-only approximation incorrectly escaped four rows to outer
+bindings.
+
+All remaining **17** code-2372 and **60** code-2373 supported rows
+close. 2xxx T0 grows by **77** to **20162/21051** (**95.7769%**) with
+FP=0; supported T0 is **20162/20504** (**98.3320%**) with supported
+FN=**342**. All-band T0 is **31084/49024** (**63.4057%**) with FP=0.
+T1/T2/T3 each report lost=0, gained=**77** in both bands and both
+scope views. The accepted-set ratchet adds 77 T0 identities and 77
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,015**. Escape evidence is unchanged at
+sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
+Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

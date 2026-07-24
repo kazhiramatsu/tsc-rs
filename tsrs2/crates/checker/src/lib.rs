@@ -1969,6 +1969,46 @@ mod tests {
     }
 
     #[test]
+    fn parameter_initializer_ordering_reports_self_and_later_but_not_deferred() {
+        assert_eq!(
+            codes_of("function f(a = a, b = c, c = 1, d = () => e, e = 1) {}\n")
+                .into_iter()
+                .filter(|code| matches!(code, 2372 | 2373))
+                .collect::<Vec<_>>(),
+            [2372, 2373]
+        );
+    }
+
+    #[test]
+    fn parameter_initializer_scope_change_honors_explicit_legacy_class_fields() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "class C {}\n((b = class extends C { static x = 1 }, d = x) => { var C; var x; })();\n"
+                    .to_owned(),
+            }],
+            &CompilerOptions {
+                target: Some(tsrs2_types::ScriptTarget::ES_NEXT.bits()),
+                use_define_for_class_fields: Some(false),
+                ..CompilerOptions::default()
+            },
+        );
+        let rows: Vec<(u32, u32, u32)> = result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 2373)
+            .map(|diagnostic| {
+                (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or_default(),
+                    diagnostic.length.unwrap_or_default(),
+                )
+            })
+            .collect();
+        assert_eq!(rows, [(2373, 31, 1), (2373, 55, 1)]);
+    }
+
+    #[test]
     fn missing_import_meta_global_is_public_semantic_diagnostic() {
         assert_eq!(
             codes_of_with_options(

@@ -749,13 +749,15 @@ impl<'a> CheckerState<'a> {
             }
             match result {
                 None => self.on_failed_to_resolve_symbol(original_location, name, meaning, message),
-                Some(found) => self.on_successfully_resolved_symbol(
-                    original_location,
-                    found,
-                    meaning,
-                    associated_declaration_for_containing_initializer,
-                    within_deferred_context,
-                ),
+                Some(found) => {
+                    self.on_successfully_resolved_symbol(
+                        original_location,
+                        found,
+                        meaning,
+                        associated_declaration_for_containing_initializer,
+                        within_deferred_context,
+                    )?;
+                }
             }
         }
         Ok(result)
@@ -845,9 +847,7 @@ impl<'a> CheckerState<'a> {
                     node,
                     ModifierFlags::STATIC,
                 ) {
-                    // getEmitStandardClassFields: useDefineForClassFields
-                    // is unmodeled (defaults by target).
-                    return target < ScriptTarget::ES2022;
+                    return !self.options.emit_standard_class_fields();
                 }
                 self.name_of_node(node)
                     .is_some_and(|n| self.requires_scope_change_worker(n))
@@ -1371,27 +1371,26 @@ impl<'a> CheckerState<'a> {
         );
     }
 
-    /// tsc-port: onSuccessfullyResolvedSymbol @6.0.3 (5.5a slice)
+    /// tsc-port: onSuccessfullyResolvedSymbol @6.0.3
     /// tsc-hash: acc9b965f1efc2a1b2b86a42dfcd0415aa683933fb79d87a0a4a9db0c34ec7af
     /// tsc-span: _tsc.js:48156-48205
     ///
-    /// Live from 5.5a: the checkResolvedBlockScopedVariable arm (the
-    /// TDZ 2448/2449/2450 band; addLazyDiagnostic = eager identity).
-    /// Still stubbed, each with its owner: the UMD-global module check
-    /// (module resolution, 5.8), parameter self-reference 2372/2373
-    /// (initializer forcing, 5.6), type-only alias use (alias
-    /// resolution, 5.8), and the isolatedModules import conflict
-    /// (option unmodeled).
+    /// Live arms: checkResolvedBlockScopedVariable (2448/2449/2450)
+    /// and the parameter-initializer ordering checks (2372/2373).
+    /// addLazyDiagnostic is eager by the checker-wide identity
+    /// decision. The UMD-global, type-only-alias, and
+    /// isolatedModules tails remain owned by their option/module
+    /// prerequisites.
     fn on_successfully_resolved_symbol(
         &mut self,
         error_location: Option<NodeId>,
         result: SymbolId,
         meaning: SymbolFlags,
-        _associated_declaration: Option<NodeId>,
-        _within_deferred_context: bool,
-    ) {
+        associated_declaration: Option<NodeId>,
+        within_deferred_context: bool,
+    ) -> CheckResult2<()> {
         let Some(error_location) = error_location else {
-            return;
+            return Ok(());
         };
         if meaning.intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE)
             || (meaning.intersects(SymbolFlags::CLASS | SymbolFlags::ENUM)
@@ -1408,6 +1407,63 @@ impl<'a> CheckerState<'a> {
                 let _ = self.check_resolved_block_scoped_variable(export_or_local, error_location);
             }
         }
+        if let Some(associated_declaration) = associated_declaration
+            .filter(|_| !within_deferred_context && meaning.contains(SymbolFlags::VALUE))
+        {
+            let candidate = self.get_late_bound_symbol(result)?;
+            let candidate = self.get_merged_symbol(candidate);
+            let associated_symbol = self.get_symbol_of_declaration(associated_declaration)?;
+            let associated_name = self
+                .name_of_node(associated_declaration)
+                .map(|name| {
+                    node_util::declaration_name_to_string(
+                        self.binder.source_of_node(name),
+                        Some(name),
+                    )
+                })
+                .unwrap_or_default();
+            if candidate == associated_symbol {
+                self.error_at(
+                    Some(error_location),
+                    &diagnostics::Parameter_0_cannot_reference_itself,
+                    &[&associated_name],
+                );
+            } else {
+                let candidate_data = self.binder.symbol(candidate);
+                let value_declaration = candidate_data.value_declaration;
+                let candidate_name = candidate_data.escaped_name.clone();
+                let root = node_util::get_root_declaration(
+                    self.binder.source_of_node(associated_declaration),
+                    associated_declaration,
+                );
+                let root_parent = self.parent_of(root);
+                let root_local = root_parent
+                    .and_then(|parent| self.binder.locals_of(parent))
+                    .cloned()
+                    .map(|locals| (locals, candidate_name));
+                let declared_after = value_declaration.is_some_and(|declaration| {
+                    self.pos_of(declaration) > self.pos_of(associated_declaration)
+                });
+                if declared_after {
+                    if let Some((locals, candidate_name)) = root_local {
+                        if self.get_symbol_in_table(&locals, &candidate_name, meaning)?
+                            == Some(candidate)
+                        {
+                            let referenced_name = node_util::declaration_name_to_string(
+                                self.binder.source_of_node(error_location),
+                                Some(error_location),
+                            );
+                            self.error_at(
+                                Some(error_location),
+                                &diagnostics::Parameter_0_cannot_reference_identifier_1_declared_after_it,
+                                &[&associated_name, &referenced_name],
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     /// tsc-port: checkResolvedBlockScopedVariable @6.0.3
