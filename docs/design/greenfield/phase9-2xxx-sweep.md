@@ -2371,6 +2371,45 @@ unchanged. Ratchet artifacts contain exactly +43 all / +43 2xxx
 accepted identities; syntactic remains 2242/2246. Full
 `cargo xtask ci` exits 0.
 
+## 9.7a results (2026-07-24, recovery-shape census — DONE)
+
+The F2 curtain is now an exact, reproducible input rather than a
+reason-string total. `cargo xtask recovery-census --check` starts from
+the current 2xxx conformance report's reached
+`checkFunctionOrConstructorSymbol` boundary, gates its exact
+fixture/matrix set, expands those programs through the normal harness,
+and compares a dedicated vendored-tsc oracle dump with the Rust
+parser/binder. The compared surface is the declaration kind and
+parent, UTF-16 declaration/name/body boundaries, missing-node state,
+name text, symbol escaped name, symbol-declaration order, and every
+parse diagnostic's relation to the declaration and partial range.
+Private-name symbol ids are wildcarded only at the program-global id
+slot (`__#N@`); their private spelling and declaration order remain
+strict.
+
+The landed census contains **67 fixture/matrix cases**, **328 reached
+F2 partial ranges**, and **23 recovery shapes** classified by
+declaration structure plus inside/edge/outside parse boundary. All
+**328/328** selected regions are exact against tsc for the compared
+parser/binder surface; differing regions are **0**. Each of the 23
+shape fingerprints has a small committed fixture under
+`pins/fixtures/recovery/`, including source/module functions and
+classes, interface/type-literal method signatures, overload
+declaration order, duplicate bodies, recovered missing bodies,
+class-expression recovery, and line-ending/EOF boundary cases. CI reuses
+the already-computed 2xxx summary to gate the census and fixtures,
+avoiding a second corpus checker pass.
+
+This is the specified measurement-only slice: the checker recovery
+bail is unchanged. Tool-read 2xxx remains **18633/21051**
+(**88.5136%**), supported **18633/20504** (**90.8750%**), FP=0,
+supported FN=1,871; the F2 reason currently covers **1,100** FN rows.
+`ratchet.toml`, `ratchets/conformance-matches.v1.json.zst`, and
+`ratchets/oracle-inputs.v1.json.zst` are byte-unchanged. The census
+proof makes 9.7b's boundary explicit: preserve these tree/binder pins
+while deciding whether any parser work remains before 9.7c narrows the
+semantic bail.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
