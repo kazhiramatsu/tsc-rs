@@ -160,6 +160,17 @@ pub struct MappedTypeData {
     pub mapper: Option<MapperId>,
 }
 
+/// Immutable semantic inputs of an inferred reverse-mapped object.
+///
+/// Member and symbol types resolve lazily in the checker. Arrays and
+/// tuples are reversed directly and therefore never use this payload.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ReverseMappedTypeData {
+    pub source: TypeId,
+    pub mapped_type: TypeId,
+    pub constraint_type: TypeId,
+}
+
 /// tsc MappedTypeModifiers, bit-compatible with the checker source.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct MappedTypeModifiers(i32);
@@ -194,8 +205,9 @@ impl std::ops::BitOr for MappedTypeModifiers {
 
 /// Per-kind payload (greenfield §4.2 TypeData). M3 carries the kinds
 /// the relation pins can construct; StringMapping landed with M4 5.2;
-/// IndexedAccess arrived with the keyof follow-up; Mapped is live from
-/// phase 9.5a; Conditional/Substitution follow in phase 9.6.
+/// IndexedAccess arrived with the keyof follow-up; Mapped and
+/// ReverseMapped are live from phase 9.5; Conditional/Substitution
+/// follow in phase 9.6.
 #[derive(Clone, Debug, PartialEq)]
 pub enum TypeData {
     /// any/unknown/string/... incl. error/silentNever/wildcard/missing
@@ -290,6 +302,10 @@ pub enum TypeData {
     /// createObjectType(ObjectFlags::Mapped): declaration identity is
     /// intrinsic to the type; mutable resolutions stay in TypeLinks.
     Mapped(MappedTypeData),
+    /// createObjectType(ObjectFlags::ReverseMapped | Anonymous):
+    /// homomorphic inference records the source plus its mapped
+    /// template and constraint. Mutable members stay in TypeLinks.
+    ReverseMapped(ReverseMappedTypeData),
     /// tsc GenericType (InterfaceType & TypeReference): the declared
     /// type of a class, a generic interface, or a this-ful interface
     /// (getDeclaredTypeOfClassOrInterface 57387-57400). The target

@@ -823,6 +823,220 @@ impl<'a> CheckerState<'a> {
         walker.infer_from_types(original_source, original_target)
     }
 
+    /// tsc-port: inferTypeForHomomorphicMappedType @6.0.3
+    /// tsc-hash: a9eb863be94f7bac6a664c5a17382d2b6bc49583f831479de4827200ae07732a
+    /// tsc-span: _tsc.js:68386-68394
+    pub(crate) fn infer_type_for_homomorphic_mapped_type(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        constraint: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let key = (source, target, constraint);
+        if let Some(cached) = self.reverse_homomorphic_mapped_cache.get(&key) {
+            return Ok(*cached);
+        }
+        let reversed = self.create_reverse_mapped_type(source, target, constraint)?;
+        self.reverse_homomorphic_mapped_cache.insert(key, reversed);
+        Ok(reversed)
+    }
+
+    /// tsc-port: isPartiallyInferableType @6.0.3
+    /// tsc-hash: 83b3b49b9e9ff1e05c6d4329e2cc159c1a01293d24153bdf88698bb4233cd7d2
+    /// tsc-span: _tsc.js:68395-68397
+    fn is_partially_inferable_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        if !self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::NON_INFERRABLE_TYPE)
+        {
+            return Ok(true);
+        }
+        if self.is_object_literal_type(ty) {
+            for property in self.get_properties_of_type(ty)? {
+                let property_type = self.get_type_of_symbol(property)?;
+                if self.is_partially_inferable_type(property_type)? {
+                    return Ok(true);
+                }
+            }
+        }
+        if self.tables.is_tuple_type(ty) {
+            for element in self.get_type_arguments(ty)? {
+                if self.is_partially_inferable_type(element)? {
+                    return Ok(true);
+                }
+            }
+        }
+        Ok(false)
+    }
+
+    /// tsc-port: createReverseMappedType @6.0.3
+    /// tsc-hash: 277f8b1a9d8c23df175dd5dedf8d81cfb5567154f767cc11fb26c7d132c557a8
+    /// tsc-span: _tsc.js:68398-68426
+    fn create_reverse_mapped_type(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        constraint: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let string = self.tables.intrinsics.string;
+        let has_string_index = self.get_index_info_of_type(source, string)?.is_some();
+        let properties = self.get_properties_of_type(source)?;
+        if !has_string_index
+            && (properties.is_empty() || !self.is_partially_inferable_type(source)?)
+        {
+            return Ok(None);
+        }
+
+        if self.is_array_type(source)? {
+            let element = self
+                .get_type_arguments(source)?
+                .first()
+                .copied()
+                .expect("array references carry an element type");
+            let Some(reversed_element) =
+                self.infer_reverse_mapped_type(element, target, constraint)?
+            else {
+                return Ok(None);
+            };
+            let readonly = self.is_readonly_array_type(source)?;
+            return self.create_array_type(reversed_element, readonly).map(Some);
+        }
+
+        if self.tables.is_tuple_type(source) {
+            let source_elements = self.get_type_arguments(source)?;
+            let mut reversed_elements = Vec::with_capacity(source_elements.len());
+            for element in source_elements {
+                let Some(reversed) = self.infer_reverse_mapped_type(element, target, constraint)?
+                else {
+                    return Ok(None);
+                };
+                reversed_elements.push(reversed);
+            }
+            let tuple_target = self.tables.reference_target(source);
+            let TypeData::TupleTarget(data) = self.tables.type_of(tuple_target).data.clone() else {
+                unreachable!("tuple source has a tuple target");
+            };
+            let element_flags = if self
+                .get_mapped_type_modifiers(target)
+                .intersects(tsrs2_types::MappedTypeModifiers::INCLUDE_OPTIONAL)
+            {
+                data.element_flags
+                    .iter()
+                    .map(|flags| {
+                        if flags.intersects(ElementFlags::OPTIONAL) {
+                            ElementFlags::REQUIRED
+                        } else {
+                            *flags
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            } else {
+                data.element_flags.to_vec()
+            };
+            return self
+                .create_tuple_type_forced(
+                    &reversed_elements,
+                    Some(&element_flags),
+                    data.readonly,
+                    data.labeled_element_declarations.as_deref(),
+                )
+                .map(Some);
+        }
+
+        Ok(Some(
+            self.tables
+                .create_reverse_mapped_type(source, target, constraint),
+        ))
+    }
+
+    /// tsc-port: inferReverseMappedTypeWorker @6.0.3
+    /// tsc-hash: 3d69e84dbaf8816b638243a583d8d06009ca51e398b488dbcdac86089189712f
+    /// tsc-span: _tsc.js:68434-68440
+    fn infer_reverse_mapped_type_worker(
+        &mut self,
+        source_type: TypeId,
+        target: TypeId,
+        constraint: TypeId,
+    ) -> CheckResult2<TypeId> {
+        let TypeData::Index {
+            ty: constraint_type,
+            ..
+        } = self.tables.type_of(constraint).data
+        else {
+            unreachable!("reverse mapped inference constraint is an index type");
+        };
+        let mapped_parameter = self.get_type_parameter_from_mapped_type(target)?;
+        let type_parameter = self.get_indexed_access_type(
+            constraint_type,
+            mapped_parameter,
+            tsrs2_types::AccessFlags::NONE,
+            None,
+            None,
+            None,
+        )?;
+        let template_type = self.get_template_type_from_mapped_type(target)?;
+        let inference = self.alloc_inference_info(create_inference_info(type_parameter));
+        self.infer_types(
+            &[inference],
+            source_type,
+            template_type,
+            InferencePriority::NONE,
+            false,
+        )?;
+        let inferred = self
+            .get_type_from_inference(inference)?
+            .unwrap_or(self.tables.intrinsics.unknown);
+        self.get_widened_type(inferred)
+    }
+
+    /// tsc-port: inferReverseMappedType @6.0.3
+    /// tsc-hash: 47bc2d121727aacb819dd03fae053613dd3b3c2105a5e5e0e371f227c8bff20a
+    /// tsc-span: _tsc.js:68441-68460
+    pub(crate) fn infer_reverse_mapped_type(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        constraint: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let key = (source, target, constraint);
+        if let Some(cached) = self.reverse_mapped_cache.get(&key) {
+            return Ok(Some(cached.unwrap_or(self.tables.intrinsics.unknown)));
+        }
+
+        self.reverse_mapped_source_stack.push(source);
+        self.reverse_mapped_target_stack.push(target);
+        let saved_flags = self.reverse_expanding_flags;
+        if self.is_deeply_nested_type(
+            source,
+            &self.reverse_mapped_source_stack,
+            self.reverse_mapped_source_stack.len(),
+            2,
+        ) {
+            self.reverse_expanding_flags |= ExpandingFlags::SOURCE;
+        }
+        if self.is_deeply_nested_type(
+            target,
+            &self.reverse_mapped_target_stack,
+            self.reverse_mapped_target_stack.len(),
+            2,
+        ) {
+            self.reverse_expanding_flags |= ExpandingFlags::TARGET;
+        }
+        let result = if self.reverse_expanding_flags != ExpandingFlags::BOTH {
+            self.infer_reverse_mapped_type_worker(source, target, constraint)
+                .map(Some)
+        } else {
+            Ok(None)
+        };
+        self.reverse_mapped_target_stack.pop();
+        self.reverse_mapped_source_stack.pop();
+        self.reverse_expanding_flags = saved_flags;
+        let inferred = result?;
+        self.reverse_mapped_cache.insert(key, inferred);
+        Ok(inferred)
+    }
+
     /// tsc-port: hasPrimitiveConstraint @6.0.3
     /// tsc-hash: c32a05bffced6341169f55c1becde664b444f157943fb77ed7b653ff9e09ef16
     /// tsc-span: _tsc.js:69240-69243
@@ -2739,18 +2953,114 @@ impl InferTypesWalker<'_, '_> {
     /// tsc-port: inferFromGenericMappedTypes @6.0.3
     /// tsc-hash: 43d46bba590ef8ed07cccef71609b0ec8b215d1343ac158b54caac6075f39580
     /// tsc-span: _tsc.js:69063-69069
-    ///
-    /// Named 9.5c boundary: the constraint/template/name-type pairwise
-    /// inference body lands with the mapped inference consumers.
     fn infer_from_generic_mapped_types(
         &mut self,
         source: TypeId,
         target: TypeId,
     ) -> CheckResult2<()> {
-        let _ = (source, target);
-        Err(Unsupported::new(
-            "inferFromGenericMappedTypes body (mapped inference, 9.5c/M8)",
-        ))
+        let source_constraint = self.st.get_constraint_type_from_mapped_type(source)?;
+        let target_constraint = self.st.get_constraint_type_from_mapped_type(target)?;
+        self.infer_from_types(source_constraint, target_constraint)?;
+
+        let source_template = self.st.get_template_type_from_mapped_type(source)?;
+        let target_template = self.st.get_template_type_from_mapped_type(target)?;
+        self.infer_from_types(source_template, target_template)?;
+
+        let source_name = self.st.get_name_type_from_mapped_type(source)?;
+        let target_name = self.st.get_name_type_from_mapped_type(target)?;
+        if let (Some(source_name), Some(target_name)) = (source_name, target_name) {
+            self.infer_from_types(source_name, target_name)?;
+        }
+        Ok(())
+    }
+
+    /// tsc-port: inferToMappedType @6.0.3
+    /// tsc-hash: 011d195d72a9618a2fa383e72666fac77e894391307b119b5b7028d07eddab38
+    /// tsc-span: _tsc.js:68972-69010
+    fn infer_to_mapped_type(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        constraint_type: TypeId,
+    ) -> CheckResult2<bool> {
+        let constraint_flags = self.st.tables.flags_of(constraint_type);
+        if constraint_flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
+            let mut result = false;
+            for constraint in self.types_of(constraint_type) {
+                result = self.infer_to_mapped_type(source, target, constraint)? || result;
+            }
+            return Ok(result);
+        }
+        if constraint_flags.intersects(TypeFlags::INDEX) {
+            let TypeData::Index {
+                ty: constraint_inner,
+                ..
+            } = self.st.tables.type_of(constraint_type).data
+            else {
+                unreachable!("index flag implies index data");
+            };
+            if let Some(inference) = self.get_inference_info_for_type(constraint_inner) {
+                let is_fixed = self.st.inference_info(inference).is_fixed;
+                if !is_fixed && !self.st.is_from_inference_blocked_source(source) {
+                    if let Some(inferred) = self.st.infer_type_for_homomorphic_mapped_type(
+                        source,
+                        target,
+                        constraint_type,
+                    )? {
+                        let priority = if self
+                            .st
+                            .tables
+                            .object_flags_of(source)
+                            .intersects(ObjectFlags::NON_INFERRABLE_TYPE)
+                        {
+                            InferencePriority::PARTIAL_HOMOMORPHIC_MAPPED_TYPE
+                        } else {
+                            InferencePriority::HOMOMORPHIC_MAPPED_TYPE
+                        };
+                        let parameter = self.st.inference_info(inference).type_parameter;
+                        self.infer_with_priority(inferred, parameter, priority)?;
+                    }
+                }
+            }
+            return Ok(true);
+        }
+        if constraint_flags.intersects(TypeFlags::TYPE_PARAMETER) {
+            let index_flags = if self.st.links.ty(source).pattern.is_some() {
+                tsrs2_types::IndexFlags::NO_INDEX_SIGNATURES
+            } else {
+                tsrs2_types::IndexFlags::NONE
+            };
+            let source_index = self.st.get_index_type(source, index_flags)?;
+            self.infer_with_priority(
+                source_index,
+                constraint_type,
+                InferencePriority::MAPPED_TYPE_CONSTRAINT,
+            )?;
+            if let Some(extended) = self.st.get_constraint_of_type(constraint_type)? {
+                if self.infer_to_mapped_type(source, target, extended)? {
+                    return Ok(true);
+                }
+            }
+
+            let mut source_types = Vec::new();
+            for property in self.st.get_properties_of_type(source)? {
+                source_types.push(self.st.get_type_of_symbol(property)?);
+            }
+            for info in self.st.get_index_infos_of_type(source)? {
+                source_types.push(if info.is_enum_number_index_info {
+                    self.st.tables.intrinsics.never
+                } else {
+                    info.value_type
+                });
+            }
+            let union = self
+                .st
+                .get_union_type_ex(&source_types, UnionReduction::Literal)?;
+            let template = self.st.get_template_type_from_mapped_type(target)?;
+            self.infer_from_types(union, template)?;
+            return Ok(true);
+        }
+        Ok(false)
     }
 
     /// tsc-port: inferFromObjectTypes @6.0.3
@@ -2788,12 +3098,13 @@ impl InferTypesWalker<'_, '_> {
         {
             self.infer_from_generic_mapped_types(source, target)?;
         }
-        if target_object_flags.intersects(ObjectFlags::MAPPED) {
-            // 69078-69083: inferToMappedType is a named 9.5c
-            // inference consumer.
-            return Err(Unsupported::new(
-                "inferToMappedType (mapped inference, 9.5c/M8)",
-            ));
+        if target_object_flags.intersects(ObjectFlags::MAPPED)
+            && !self.st.mapped_type_declaration_has_name_type(target)
+        {
+            let constraint = self.st.get_constraint_type_from_mapped_type(target)?;
+            if self.infer_to_mapped_type(source, target, constraint)? {
+                return Ok(());
+            }
         }
         if !self.st.types_definitely_unrelated(source, target)? {
             if self.st.is_array_type(source)? || self.st.tables.is_tuple_type(source) {
@@ -3303,8 +3614,7 @@ impl InferTypesWalker<'_, '_> {
     /// tsc-hash: d2c290c69b4d6765f25bc2fada5b162e904b4f299e8e46882a86d536e24657be
     /// tsc-span: _tsc.js:69204-69232
     ///
-    /// The Mapped&Mapped homomorphic priority is written 1:1; mapped
-    /// member reads remain protected by their named 9.5b/9.5c gates.
+    /// The Mapped&Mapped homomorphic priority is written 1:1.
     fn infer_from_index_types(&mut self, source: TypeId, target: TypeId) -> CheckResult2<()> {
         let priority2 = if self
             .st
@@ -3397,8 +3707,8 @@ fn js_slice_bounds(len: usize, start: i64, end: i64) -> (usize, usize) {
 #[cfg(test)]
 mod tests {
     use tsrs2_types::{
-        CompilerOptions, ContextFlags, IndexFlags, InferenceFlags, InferencePriority, ObjectFlags,
-        PseudoBigInt, SymbolFlags, TypeFlags, TypeId, UnionReduction,
+        CompilerOptions, ContextFlags, ElementFlags, IndexFlags, InferenceFlags, InferencePriority,
+        ObjectFlags, PseudoBigInt, SymbolFlags, TypeData, TypeFlags, TypeId, UnionReduction,
     };
 
     use super::CompareTypesFn;
@@ -5239,6 +5549,102 @@ mod tests {
             .get_type_from_type_node(target_annotation)
             .expect("target annotation");
         (source, target)
+    }
+
+    #[test]
+    fn homomorphic_mapped_inference_builds_lazy_reverse_members() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T>() {\n\
+                   var s: { a: string; readonly b?: number };\n\
+                   var t: { [K in keyof T]: T[K] };\n\
+                 }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let info = detached_info(state, t);
+                let (source, target) = annotated_pair(state, "s", "t");
+                state
+                    .infer_types(&[info], source, target, InferencePriority::NONE, false)
+                    .expect("homomorphic mapped inference resolves");
+                let reverse = state.inference_info(info).candidates.as_ref().unwrap()[0];
+                assert!(state
+                    .tables
+                    .object_flags_of(reverse)
+                    .intersects(ObjectFlags::REVERSE_MAPPED));
+                let TypeData::ReverseMapped(data) = state.tables.type_of(reverse).data.clone()
+                else {
+                    panic!("object reverse inference retains its semantic inputs");
+                };
+                assert_eq!(data.source, source);
+                assert_eq!(data.mapped_type, target);
+
+                let a = state
+                    .get_property_of_type_full(reverse, "a")
+                    .expect("reverse members resolve")
+                    .expect("a is reconstructed");
+                let b = state
+                    .get_property_of_type_full(reverse, "b")
+                    .expect("reverse members remain cached")
+                    .expect("b is reconstructed");
+                assert_eq!(
+                    state.get_type_of_symbol(a).expect("a infers"),
+                    state.tables.intrinsics.string
+                );
+                let b_type = state.get_type_of_symbol(b).expect("b infers");
+                assert_eq!(
+                    state
+                        .remove_missing_or_undefined_type(b_type)
+                        .expect("optional flavor removes"),
+                    state.tables.intrinsics.number
+                );
+                assert!(state.symbol_flags(b).intersects(SymbolFlags::OPTIONAL));
+                assert!(state.is_readonly_symbol(b));
+            },
+        );
+    }
+
+    #[test]
+    fn homomorphic_mapped_inference_preserves_tuple_shape() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T>() {\n\
+                   var s: readonly [string, number?];\n\
+                   var t: { [K in keyof T]: T[K] };\n\
+                 }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let info = detached_info(state, t);
+                let (source, target) = annotated_pair(state, "s", "t");
+                state
+                    .infer_types(&[info], source, target, InferencePriority::NONE, false)
+                    .expect("tuple reverse inference resolves");
+                let reversed = state.inference_info(info).candidates.as_ref().unwrap()[0];
+                assert!(state.tables.is_tuple_type(reversed));
+                let target = state.tables.reference_target(reversed);
+                let TypeData::TupleTarget(data) = state.tables.type_of(target).data.clone() else {
+                    panic!("reverse tuple has a tuple target");
+                };
+                assert!(data.readonly);
+                assert_eq!(
+                    data.element_flags.as_ref(),
+                    &[ElementFlags::REQUIRED, ElementFlags::OPTIONAL]
+                );
+                let arguments = state.get_type_arguments(reversed).expect("tuple arguments");
+                assert_eq!(arguments[0], state.tables.intrinsics.string);
+                assert_eq!(
+                    state
+                        .remove_missing_or_undefined_type(arguments[1])
+                        .expect("optional tuple flavor removes"),
+                    state.tables.intrinsics.number
+                );
+            },
+        );
     }
 
     /// Probe r4: `[string, string, string]` against `[string, ...T]`

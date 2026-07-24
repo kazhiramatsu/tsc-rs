@@ -170,8 +170,10 @@
 # mapped constraints, templates, name types, and optionality.
 # p9 9.5c2a adds +29 through mapped contextual-property substitution,
 # mapped validation/readonly writes, constness, and tuple context.
-rate = 0.595749
-matched = 29206
+# p9 9.5c2b adds +11 through reverse-mapped member reconstruction and
+# homomorphic mapped inference.
+rate = 0.595973
+matched = 29217
 total = 49024
 allowed_regression = 0.0
 
@@ -217,8 +219,9 @@ allowed_regression = 0.0
 # member rows; p9 9.5b2 adds +84 mapped instantiation/apparent rows.
 # p9 9.5c1 adds +55 mapped indexed-access/relation rows.
 # p9 9.5c2a adds +28 mapped contextual/check-consumer rows.
-rate = 0.878676
-matched = 18497
+# p9 9.5c2b adds +11 reverse-mapped/homomorphic-inference rows.
+rate = 0.879198
+matched = 18508
 total = 21051
 allowed_regression = 0.0
 

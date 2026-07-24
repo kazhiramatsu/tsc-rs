@@ -2150,6 +2150,45 @@ Ratchet artifacts contain exactly +29 all / +28 2xxx accepted
 identities; syntactic remains 2242/2246. Full `cargo xtask ci` is the
 merge gate for the sub-row.
 
+## 9.5c2b results (2026-07-24, reverse-mapped inference — DONE)
+
+The final mapped sub-row adds an immutable `ReverseMapped` semantic
+payload over source/mapped/constraint identities. Reverse homomorphic
+and per-property inference use the two upstream caches plus independent
+depth-2 expansion stacks. Object results synthesize lazy
+reverse-mapped properties and string index infos; array and tuple
+results preserve readonly, optional, label, and container shape.
+Reverse-mapped symbol types infer from the mapped template on first
+read, and instantiation reconstructs the reverse type when both mapped
+and `keyof` inputs remain live.
+
+The mapped inference walker now handles constraint/template/name-type
+pairs, union/intersection constraints, homomorphic `keyof` inference,
+mapped constraint priority, and property/index unions. The previously
+known inferable-index gap is closed at the same consumer: enums,
+namespaces, object-rest types, and recursively reverse-mapped objects
+now use the exact predicate. Direct canaries cover a production generic
+call, lazy readonly/optional object members, readonly optional tuple
+shape, and the types-table payload. Checker tests are **984** and
+types tests are **22**.
+
+All five remaining reverse/mapped inference escape rows retired:
+sites=**229**, stale=0, untagged=0, recovery=116, dormant=13. The exact
+ledger is **1814**/stale=0, and schema-2 closure declarations
+unaccounted by exact ports fell 4,035→**4,025**. This completes the
+9.5 mapped-type implementation boundary.
+
+Band movement (tool-read): all T0 **59.5749%→59.5973%**
+(29206→29217, +11), FP=0; 2xxx T0 **87.8676%→87.9198%**
+(18497→18508, +11), FP=0; supported T0
+**90.2117%→90.2653%** (18508/20504), supported FN
+2,007→**1,996**. The exact 2xxx shadow gains are T1 +11,
+T2 +11, and T3 +4, with **zero lost identities** in every tier and
+both all/supported views. The supported universe is unchanged.
+Ratchet artifacts contain exactly +11 all / +11 2xxx accepted
+identities; syntactic remains 2242/2246. Full `cargo xtask ci` is the
+merge gate for the sub-row.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

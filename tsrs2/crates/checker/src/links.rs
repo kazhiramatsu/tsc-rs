@@ -176,8 +176,13 @@ pub struct SymbolLinks {
     /// carried through instantiateSymbol's copy (63460).
     pub name_type: Option<TypeId>,
     /// tsc links.mappedType for CheckFlags::MAPPED property symbols
-    /// synthesized by resolveMappedTypeMembers (58549).
+    /// synthesized by resolveMappedTypeMembers (58549), and for
+    /// CheckFlags::REVERSE_MAPPED properties (58446/58449).
     pub mapped_type: Option<TypeId>,
+    /// tsc links.propertyType / constraintType for fresh
+    /// CheckFlags::REVERSE_MAPPED properties (58442, 58447/58450).
+    pub property_type: Option<TypeId>,
+    pub constraint_type: Option<TypeId>,
     /// tsc links.keyType for CheckFlags::MAPPED property symbols
     /// (58551); distinct from nameType after key remapping.
     pub key_type: Option<TypeId>,
@@ -1065,6 +1070,31 @@ impl LinksTables {
         links.mapped_type = Some(mapped_type);
         links.name_type = Some(name_type);
         links.key_type = Some(key_type);
+    }
+
+    /// tsrs-native: grouped fresh-link writes from
+    /// resolveReverseMappedTypeMembers (58441-58450).
+    pub fn set_symbol_reverse_mapped_links(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        name_type: Option<TypeId>,
+        property_type: TypeId,
+        mapped_type: TypeId,
+        constraint_type: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.symbol.entry(id).or_default();
+        assert!(
+            links.mapped_type.is_none()
+                && links.property_type.is_none()
+                && links.constraint_type.is_none(),
+            "reverse-mapped symbol links rewritten"
+        );
+        links.name_type = name_type;
+        links.property_type = Some(property_type);
+        links.mapped_type = Some(mapped_type);
+        links.constraint_type = Some(constraint_type);
     }
 
     /// tsrs-native: grouped LinksTables setter for tsc

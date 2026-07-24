@@ -211,13 +211,6 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
-in = "get_type_of_symbol"
-reason = "reverse-mapped symbols (getTypeOfReverseMappedSymbol, M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
 in = "get_type_of_variable_or_parameter_or_property"
 reason = "assignment-declaration value type (getWidenedTypeForAssignmentDeclaration [JSDOC] M8)"
 class = "stage"
@@ -246,13 +239,6 @@ file = "crates/checker/src/annotate.rs"
 in = "get_type_of_variable_or_parameter_or_property"
 reason = "worker declaration kind {other:?} (Debug.fail transcription, parse recovery)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "resolve_structured_type_members"
-reason = "member resolution for object flags {object_flags:?} (ReverseMapped, 9.5c/M8)"
-class = "stage"
-owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -903,23 +889,9 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/inference.rs"
-in = "infer_from_generic_mapped_types"
-reason = "inferFromGenericMappedTypes body (mapped inference, 9.5c/M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/inference.rs"
 in = "infer_from_middle_slice"
 reason = "tsc-crash deviation: undefined middle-slice source against a type-variable rest target (m8-readiness deviation row 4, parse-recovery-class permanent containment)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/inference.rs"
-in = "infer_from_object_types"
-reason = "inferToMappedType (mapped inference, 9.5c/M8)"
-class = "stage"
-owner = "M8"
 
 [[site]]
 file = "crates/checker/src/inference.rs"
@@ -962,13 +934,6 @@ owner = "M8"
 file = "crates/checker/src/instantiate.rs"
 in = "instantiate_type_worker"
 reason = "conditional-type instantiation (getConditionalTypeInstantiation, M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/instantiate.rs"
-in = "instantiate_type_worker"
-reason = "reverse-mapped type instantiation (M8)"
 class = "stage"
 owner = "M8"
 

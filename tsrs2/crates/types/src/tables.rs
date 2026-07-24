@@ -14,8 +14,8 @@ use std::collections::HashMap;
 
 use crate::flags::{AccessFlags, ElementFlags, ObjectFlags, TypeFlags};
 use crate::ty::{
-    LiteralValue, MappedTypeData, MapperId, PseudoBigInt, SymbolId, TemplateText, TupleTargetData,
-    Type, TypeData, TypeId,
+    LiteralValue, MappedTypeData, MapperId, PseudoBigInt, ReverseMappedTypeData, SymbolId,
+    TemplateText, TupleTargetData, Type, TypeData, TypeId,
 };
 
 /// The named intrinsic/derived types created at checker construction,
@@ -260,6 +260,26 @@ impl TypeTables {
             ObjectFlags::MAPPED
         };
         ty.symbol = symbol;
+        id
+    }
+
+    /// createObjectType(ObjectFlags::ReverseMapped | Anonymous) plus
+    /// the three reverse-inference inputs assigned at 68422-68424.
+    pub fn create_reverse_mapped_type(
+        &mut self,
+        source: TypeId,
+        mapped_type: TypeId,
+        constraint_type: TypeId,
+    ) -> TypeId {
+        let id = self.create_type(
+            TypeFlags::OBJECT,
+            TypeData::ReverseMapped(ReverseMappedTypeData {
+                source,
+                mapped_type,
+                constraint_type,
+            }),
+        );
+        self.type_mut(id).object_flags = ObjectFlags::REVERSE_MAPPED | ObjectFlags::ANONYMOUS;
         id
     }
 
@@ -3118,6 +3138,26 @@ mod tests {
         };
         assert_eq!(instance_data.target, Some(root));
         assert_eq!(instance_data.mapper, Some(mapper));
+    }
+
+    #[test]
+    fn reverse_mapped_types_retain_inference_inputs() {
+        let mut t = tables();
+        let source = t.intrinsics.string;
+        let mapped = t.intrinsics.number;
+        let constraint = t.intrinsics.es_symbol;
+        let reverse = t.create_reverse_mapped_type(source, mapped, constraint);
+        assert_eq!(t.flags_of(reverse), TypeFlags::OBJECT);
+        assert_eq!(
+            t.object_flags_of(reverse),
+            ObjectFlags::REVERSE_MAPPED | ObjectFlags::ANONYMOUS
+        );
+        let TypeData::ReverseMapped(data) = &t.type_of(reverse).data else {
+            panic!("reverse mapped constructor must retain its inputs");
+        };
+        assert_eq!(data.source, source);
+        assert_eq!(data.mapped_type, mapped);
+        assert_eq!(data.constraint_type, constraint);
     }
 
     #[test]

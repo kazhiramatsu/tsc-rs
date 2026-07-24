@@ -11,8 +11,8 @@ use tsrs2_binder::{Binder, InternalSymbolName, SymbolId, SymbolTable};
 use tsrs2_diags::{Diagnostic, DiagnosticList, DiagnosticMessage, MessageChain};
 use tsrs2_syntax::{NodeId, SourceFile};
 use tsrs2_types::{
-    CheckFlags, CompilerOptions, ObjectFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags,
-    TypeId, TypeSystemPropertyName, TypeTables,
+    CheckFlags, CompilerOptions, ExpandingFlags, ObjectFlags, SignatureFlags, SymbolFlags,
+    TypeData, TypeFlags, TypeId, TypeSystemPropertyName, TypeTables,
 };
 
 use crate::instantiate::MapperId;
@@ -561,6 +561,18 @@ pub struct CheckerState<'a> {
     /// (append-only, same discipline as the context arena) and
     /// contexts hold `InferenceInfoId` slots.
     pub(crate) inference_info_arena: Vec<crate::inference::InferenceInfo>,
+    /// tsc reverseHomomorphicMappedCache / reverseMappedCache
+    /// (46991-46992). The value's None is the stored JS `undefined`
+    /// verdict and is distinct from an absent key.
+    pub(crate) reverse_homomorphic_mapped_cache:
+        std::collections::HashMap<(TypeId, TypeId, TypeId), Option<TypeId>>,
+    pub(crate) reverse_mapped_cache:
+        std::collections::HashMap<(TypeId, TypeId, TypeId), Option<TypeId>>,
+    /// tsc reverseMappedSourceStack / reverseMappedTargetStack /
+    /// reverseExpandingFlags (46993-46995).
+    pub(crate) reverse_mapped_source_stack: Vec<TypeId>,
+    pub(crate) reverse_mapped_target_stack: Vec<TypeId>,
+    pub(crate) reverse_expanding_flags: ExpandingFlags,
     /// tsc cachedTypes (47415): the string-keyed side cache
     /// (getCachedType/setCachedType 47484-47490) — `B{typeId}` literal-
     /// base unions, `D{nodeId},{typeId}` object-literal discrimination.
@@ -895,6 +907,11 @@ impl<'a> CheckerState<'a> {
             inference_contexts: Vec::new(),
             inference_context_arena: Vec::new(),
             inference_info_arena: Vec::new(),
+            reverse_homomorphic_mapped_cache: std::collections::HashMap::new(),
+            reverse_mapped_cache: std::collections::HashMap::new(),
+            reverse_mapped_source_stack: Vec::new(),
+            reverse_mapped_target_stack: Vec::new(),
+            reverse_expanding_flags: ExpandingFlags::NONE,
             cached_types: std::collections::HashMap::new(),
             flow_loop_start: 0,
             flow_loop_stack: Vec::new(),
