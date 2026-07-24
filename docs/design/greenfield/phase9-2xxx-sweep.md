@@ -2645,6 +2645,43 @@ Checker tests are **1,009**. Escape evidence is unchanged at
 sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
 Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9b results (2026-07-25, external emit helpers — DONE)
+
+`importHelpers` now reaches `CompilerOptions`, and
+`checkExternalEmitHelpers` is a semantic checker rule rather than an
+emit-only placeholder. The checker resolves `tslib` once per source,
+checks requested helpers once per resolved module, validates value
+exports and the three arity-sensitive helpers, and preserves tsc's
+module-wide requested-helper bitset.
+
+The helper resolver uses the existing three-way provenance boundary.
+Ambient and in-program `tslib` modules are authoritative; a definite
+miss reports 2354; a node_modules/package-host miss remains
+suppressed. This closes in-scope helper diagnostics without exposing
+the two excluded private-name fixtures whose `tslib` declarations are
+behind node_modules resolution. Checked-JavaScript helper diagnostics
+are published by exact diagnostic key.
+
+Call sites are live for ES and legacy decorators, CommonJS interop
+default/namespace imports and re-exports, export-star, sub-ES2015
+array spread, and sub-ESNext using declarations. All **83** remaining
+2343 rows close, along with three 2354 rows and the in-program
+`__spreadArray` 2807 row. The only remaining helper-family rows are
+four scope-excluded 2807 records in the node_modules private-name
+fixtures.
+
+2xxx T0 grows by **87** to **20085/21051** (**95.4111%**) with FP=0;
+supported T0 is **20085/20504** (**97.9565%**) with supported
+FN=**419**. All-band T0 is **31007/49024** (**63.2486%**) with FP=0.
+T1/T2/T3 each report lost=0, gained=**87** in both bands and both
+scope views. The accepted-set ratchet adds 87 T0 identities and 87
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,013**. Escape evidence is unchanged at
+sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
+Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

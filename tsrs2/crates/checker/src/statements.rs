@@ -13,9 +13,8 @@
 //!   the ArrayBindingPattern widened-type arm and
 //!   checkRightHandSideOfForOf escape with it.
 //! - checkExternalEmitHelpers (88907) — importHelpers-gated; the
-//!   option is absent from CompilerOptions, so every call site is a
-//!   verified no-op (§13 options audit) and the calls are elided with
-//!   per-site notes.
+//!   semantic helper-module validation is live, with call sites
+//!   restored as their owner bands are revisited.
 //! - checkCollisionWithArgumentsInGeneratedCode (83229) — its only
 //!   caller is checkSignatureDeclarationDiagnostics (81315), a §5
 //!   worker; the fn ports with its caller in 5.8b.
@@ -90,13 +89,24 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b77f7ceb5cc6e0fd5717ec5b97459be4ad38ae3d30017e9a23b183a6f0372d14
     /// tsc-span: _tsc.js:83611-83617
     ///
-    /// The using/await-using checkExternalEmitHelpers probe
-    /// (languageVersion < ESNext) is an importHelpers-gated no-op
-    /// (module note) — elided.
+    /// using/await-using below ESNext requires the paired disposal
+    /// helpers when importHelpers is enabled.
     pub(crate) fn check_variable_declaration_list(&mut self, node: NodeId) -> CheckResult2<()> {
         let NodeData::VariableDeclarationList(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
+        let block_scope_kind = self.node_flags(node) & NodeFlags::BLOCK_SCOPED.bits();
+        if matches!(
+            block_scope_kind,
+            value if value == NodeFlags::USING.bits()
+                || value == NodeFlags::AWAIT_USING.bits()
+        ) && self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES_NEXT
+        {
+            self.check_external_emit_helpers(
+                node,
+                crate::modules::EMIT_HELPER_ADD_DISPOSABLE_RESOURCE_AND_DISPOSE_RESOURCES,
+            )?;
+        }
         for declaration in self.nodes_of(data.declarations) {
             self.check_source_element(Some(declaration));
         }

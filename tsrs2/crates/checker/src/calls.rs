@@ -163,8 +163,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c9d5b1fd8dd418487134d131d2a23dc1575b2a5e9105dc7bf2d1278dd45ece84
     /// tsc-span: _tsc.js:82744-82783
     ///
-    /// The checkExternalEmitHelpers probes and markLinkedReferences
-    /// are emit-only no-ops.
+    /// markLinkedReferences is declaration-emit bookkeeping. The
+    /// importHelpers probe is semantic and verifies the resolved
+    /// helper module before decorator checking.
     pub(crate) fn check_decorators(&mut self, node: NodeId) -> CheckResult2<()> {
         if !crate::js_grammar::can_have_decorators(self.kind_of(node)) {
             return Ok(());
@@ -174,12 +175,13 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         };
         let modifiers = self.nodes_of(Some(modifiers));
-        if !modifiers
+        let first_decorator = modifiers
             .iter()
-            .any(|&modifier| self.kind_of(modifier) == SyntaxKind::Decorator)
-        {
+            .copied()
+            .find(|&modifier| self.kind_of(modifier) == SyntaxKind::Decorator);
+        let Some(first_decorator) = first_decorator else {
             return Ok(());
-        }
+        };
         let parent = self.parent_of(node);
         let grandparent = parent.and_then(|parent| self.parent_of(parent));
         if !self.node_can_be_decorated(
@@ -189,6 +191,72 @@ impl<'a> CheckerState<'a> {
             grandparent,
         ) {
             return Ok(());
+        }
+        if self.options.experimental_decorators
+            || self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES_NEXT
+        {
+            self.check_external_emit_helpers(
+                first_decorator,
+                crate::modules::EMIT_HELPER_DECORATE,
+            )?;
+        }
+        if !self.options.experimental_decorators
+            && self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES_NEXT
+        {
+            if self.kind_of(node) == SyntaxKind::ClassDeclaration {
+                let (name, members) = match self.data_of(node) {
+                    NodeData::ClassDeclaration(data) => (data.name, data.members),
+                    _ => (None, None),
+                };
+                let needs_set_function_name = name.is_none()
+                    || self.nodes_of(members).into_iter().any(|member| {
+                        self.is_static_element(member)
+                            && (self.kind_of(member) == SyntaxKind::ClassStaticBlockDeclaration
+                                || self.name_of_node(member).is_some_and(|name| {
+                                    self.kind_of(name) == SyntaxKind::PrivateIdentifier
+                                })
+                                || node_util::modifiers_of(
+                                    self.binder.source_of_node(member),
+                                    member,
+                                )
+                                .is_some_and(|modifiers| {
+                                    self.nodes_of(Some(modifiers)).into_iter().any(|modifier| {
+                                        self.kind_of(modifier) == SyntaxKind::Decorator
+                                    })
+                                }))
+                    });
+                if needs_set_function_name {
+                    self.check_external_emit_helpers(
+                        first_decorator,
+                        crate::modules::EMIT_HELPER_SET_FUNCTION_NAME,
+                    )?;
+                }
+            } else if self.kind_of(node) != SyntaxKind::ClassExpression {
+                let name = self.name_of_node(node);
+                let private_named_callable = name
+                    .is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier)
+                    && (matches!(
+                        self.kind_of(node),
+                        SyntaxKind::MethodDeclaration
+                            | SyntaxKind::GetAccessor
+                            | SyntaxKind::SetAccessor
+                    ) || node_util::is_auto_accessor_property_declaration(
+                        self.binder.source_of_node(node),
+                        node,
+                    ));
+                if private_named_callable {
+                    self.check_external_emit_helpers(
+                        first_decorator,
+                        crate::modules::EMIT_HELPER_SET_FUNCTION_NAME,
+                    )?;
+                }
+                if name.is_some_and(|name| self.kind_of(name) == SyntaxKind::ComputedPropertyName) {
+                    self.check_external_emit_helpers(
+                        first_decorator,
+                        crate::modules::EMIT_HELPER_PROP_KEY,
+                    )?;
+                }
+            }
         }
         for modifier in modifiers {
             if self.kind_of(modifier) == SyntaxKind::Decorator {
