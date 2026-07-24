@@ -19,6 +19,12 @@ pub struct TypeId(pub u32);
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct MapperId(pub u32);
 
+/// Checker-local conditional-root arena identity. A root is shared by
+/// every distributed/instantiated form of one written conditional
+/// declaration, just as tsc shares the `root` object.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ConditionalRootId(pub u32);
+
 /// tsc Symbol id space. Lives in tsrs2-types so Type.symbol can point
 /// at binder/checker symbols without a dependency cycle; the binder
 /// re-exports it and owns the arena.
@@ -171,6 +177,41 @@ pub struct ReverseMappedTypeData {
     pub constraint_type: TypeId,
 }
 
+/// Immutable semantic root of a conditional type.
+///
+/// The syntax node is stored as a raw NodeId for the same dependency
+/// boundary used by mapped types. Mutable instantiation maps stay in
+/// the checker rather than on this shared payload.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ConditionalRootData {
+    pub node: u32,
+    pub check_type: TypeId,
+    pub extends_type: TypeId,
+    pub is_distributive: bool,
+    pub infer_type_parameters: Box<[TypeId]>,
+    pub outer_type_parameters: Option<Box<[TypeId]>>,
+    pub alias_symbol: Option<SymbolId>,
+    pub alias_type_arguments: Option<Box<[TypeId]>>,
+}
+
+/// Immutable per-instantiation fields of a conditional type. Resolved
+/// true/false/default/constraint types are checker-owned lazy links.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ConditionalTypeData {
+    pub root: ConditionalRootId,
+    pub check_type: TypeId,
+    pub extends_type: TypeId,
+    pub mapper: Option<MapperId>,
+    pub combined_mapper: Option<MapperId>,
+}
+
+/// Immutable semantic inputs of a substitution type.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SubstitutionTypeData {
+    pub base_type: TypeId,
+    pub constraint: TypeId,
+}
+
 /// tsc MappedTypeModifiers, bit-compatible with the checker source.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct MappedTypeModifiers(i32);
@@ -306,6 +347,12 @@ pub enum TypeData {
     /// homomorphic inference records the source plus its mapped
     /// template and constraint. Mutable members stay in TypeLinks.
     ReverseMapped(ReverseMappedTypeData),
+    /// Deferred conditional type. The shared root owns the written
+    /// declaration and type-parameter environment; this payload owns
+    /// the current check/extends pair and mapper identities.
+    Conditional(ConditionalTypeData),
+    /// Narrowing/NoInfer wrapper interned by `(base, constraint)`.
+    Substitution(SubstitutionTypeData),
     /// tsc GenericType (InterfaceType & TypeReference): the declared
     /// type of a class, a generic interface, or a this-ful interface
     /// (getDeclaredTypeOfClassOrInterface 57387-57400). The target

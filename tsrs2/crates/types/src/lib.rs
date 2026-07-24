@@ -12,8 +12,9 @@ pub use tables::{
     UnionReduction,
 };
 pub use ty::{
-    LiteralValue, MappedTypeData, MappedTypeModifiers, MapperId, PseudoBigInt,
-    ReverseMappedTypeData, SymbolId, TemplateText, TupleTargetData, Type, TypeData, TypeId,
+    ConditionalRootData, ConditionalRootId, ConditionalTypeData, LiteralValue, MappedTypeData,
+    MappedTypeModifiers, MapperId, PseudoBigInt, ReverseMappedTypeData, SubstitutionTypeData,
+    SymbolId, TemplateText, TupleTargetData, Type, TypeData, TypeId,
 };
 
 pub fn is_scaffolded() -> bool {

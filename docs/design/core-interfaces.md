@@ -174,6 +174,40 @@ allocation. Lazily resolved `typeParameter`, `constraintType`,
 mutable caches in checker `TypeLinks`; they are not part of semantic
 identity and must follow the one-write/speculation rules there.
 
+Conditional and substitution types follow the same split:
+
+```rust
+ConditionalRootData {
+    node: u32,
+    check_type: TypeId,
+    extends_type: TypeId,
+    is_distributive: bool,
+    infer_type_parameters: Box<[TypeId]>,
+    outer_type_parameters: Option<Box<[TypeId]>>,
+    alias_symbol: Option<SymbolId>,
+    alias_type_arguments: Option<Box<[TypeId]>>,
+}
+TypeData::Conditional(ConditionalTypeData {
+    root: ConditionalRootId,
+    check_type: TypeId,
+    extends_type: TypeId,
+    mapper: Option<MapperId>,
+    combined_mapper: Option<MapperId>,
+})
+TypeData::Substitution(SubstitutionTypeData {
+    base_type: TypeId,
+    constraint: TypeId,
+})
+```
+
+`ConditionalRootId` is allocation identity in the types-layer root
+arena; instantiated/distributed conditionals retain it. Root
+instantiations and resolved true/false/inferred/default/constraint
+answers are mutable checker caches and therefore live behind
+speculation-guarded `TypeLinks` access. Substitution types alone are
+interned, exactly by `(base_type, constraint)`; the immutable payload
+is also the input to NoInfer recognition.
+
 Audit notes on the tail variants: `EvolvingArray` is a REAL type
 kind (ObjectFlags.EvolvingArray — the `var a = []; a.push(x)` flow
 machinery, checker-key §4.9, needs a TypeData home, not a flow-local

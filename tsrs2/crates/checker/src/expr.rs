@@ -1525,15 +1525,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 08613f8018f28889de94abc11ac1bde0cf82fcae244ea2813d7674cf36969b91
     /// tsc-span: _tsc.js:71640-71646
     ///
-    /// isNoInferType remains false until NoInfer substitution types
-    /// are constructible.
+    /// NoInfer production and this guard activate together in 9.6b.
     pub(crate) fn get_narrowable_type_for_reference(
         &mut self,
         ty: TypeId,
         reference: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult2<TypeId> {
-        // tsc-dormant: canary=substitution_type_model_constructibility; owner=9.6a; reason=getNarrowableTypeForReference NoInfer substitution arm
+        // tsc-dormant: canary=no_infer_type_production; owner=9.6b; reason=getNarrowableTypeForReference NoInfer substitution arm
         let substitute_constraints = !check_mode.intersects(CheckMode::INFERENTIAL)
             && self.some_type_result(ty, |state, t| {
                 state.is_generic_type_with_union_constraint(t)

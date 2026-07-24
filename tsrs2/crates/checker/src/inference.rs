@@ -617,8 +617,7 @@ impl<'a> CheckerState<'a> {
         }
         if depth < 3 && flags.intersects(TypeFlags::CONDITIONAL) {
             return Err(Unsupported::new(
-                "isTypeParameterAtTopLevel conditional branches (M8 — the flag is \
-                 unconstructible before conditional types land)",
+                "isTypeParameterAtTopLevel conditional relation walk (9.6d/M8)",
             ));
         }
         Ok(false)
@@ -1051,8 +1050,7 @@ impl<'a> CheckerState<'a> {
         {
             // 69242: getDefaultConstraintOfConditionalType projection.
             return Err(Unsupported::new(
-                "hasPrimitiveConstraint conditional-constraint arm (M8 — Conditional \
-                 constraint flags are unconstructible before conditional types land)",
+                "hasPrimitiveConstraint conditional default-constraint projection (9.6c/M8)",
             ));
         }
         Ok(self.maybe_type_of_kind(
@@ -1826,10 +1824,9 @@ impl InferTypesWalker<'_, '_> {
     fn infer_from_types(&mut self, source: TypeId, target: TypeId) -> CheckResult2<()> {
         let mut source = source;
         let mut target = target;
-        // 68647: `|| isNoInferType(target)` stays false until NoInfer
-        // Substitution types are constructible (the
-        // getIndexType precedent, indexed.rs).
-        // tsc-dormant: canary=substitution_type_model_constructibility; owner=9.6a; reason=inferFromTypes entry NoInfer target arm
+        // 68647: the `|| isNoInferType(target)` half activates with
+        // NoInfer production in 9.6b.
+        // tsc-dormant: canary=no_infer_type_production; owner=9.6b; reason=inferFromTypes entry NoInfer target arm
         if !self.st.could_contain_type_variables(target) {
             return Ok(());
         }
@@ -2002,9 +1999,9 @@ impl InferTypesWalker<'_, '_> {
             .flags_of(target)
             .intersects(TypeFlags::INDEXED_ACCESS | TypeFlags::SUBSTITUTION)
         {
-            // 68695-68699: the isNoInferType guard stays false until
-            // substitution types land, as at the entry gate.
-            // tsc-dormant: canary=substitution_type_model_constructibility; owner=9.6a; reason=inferFromTypes indexed/substitution NoInfer guard
+            // 68695-68699: the isNoInferType guard activates with
+            // NoInfer production in 9.6b.
+            // tsc-dormant: canary=no_infer_type_production; owner=9.6b; reason=inferFromTypes indexed/substitution NoInfer guard
             target = self.st.get_actual_type_variable(target)?;
         }
         if self
@@ -2238,13 +2235,11 @@ impl InferTypesWalker<'_, '_> {
             }
         } else if source_flags.intersects(TypeFlags::SUBSTITUTION) {
             return Err(Unsupported::new(
-                "inferFromTypes Substitution-source arm (M8 — Substitution types are \
-                 unconstructible before their type nodes land)",
+                "inferFromTypes Substitution-source relation arm (9.6d/M8)",
             ));
         } else if target_flags.intersects(TypeFlags::CONDITIONAL) {
             // 68786: routed through invokeOnce (the action body is the
-            // dormant M8 escape — no Conditional type is constructible
-            // before M8's type nodes).
+            // named 9.6d relation escape.
             self.invoke_once(source, target, InferAction::ToConditionalType)?;
         } else if target_flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
             let member_types = self.types_of(target);
@@ -2337,7 +2332,7 @@ impl InferTypesWalker<'_, '_> {
     /// tsc-port: inferToMultipleTypesWithPriority @6.0.3
     /// tsc-hash: 4991227f792f48ec39032a10a770ce401747830dfff0986f12a0a54aac743480
     /// tsc-span: _tsc.js:68827-68832
-    #[allow(dead_code)] // sole consumer: the dormant inferToConditionalType body (69019, M8)
+    #[allow(dead_code)] // sole consumer: inferToConditionalType (69019), owned by 9.6d
     fn infer_to_multiple_types_with_priority(
         &mut self,
         source: TypeId,
@@ -2670,19 +2665,14 @@ impl InferTypesWalker<'_, '_> {
     /// tsc-hash: bf377141643390f5d80731fa855630df43df7fee74e32c6d56c2fbb8fea2f7aa
     /// tsc-span: _tsc.js:69011-69021
     ///
-    /// DORMANT (doc 7.2 arm dispositions): the dispatch guard requires
-    /// a Conditional target and TypeData has no Conditional variant
-    /// until M8 lands the type nodes, so the deepest portable point is
-    /// this body escape — the checkType/extendsType/true/false reads
-    /// and the ContravariantConditional split get re-cut against
-    /// source and pinned when the constructors go live. The
+    /// Phase 9.6d owns the checkType/extendsType/true/false inference
+    /// reads and the ContravariantConditional split. The
     /// inferToMultipleTypesWithPriority helper it dispatches through
     /// is already ported above.
     fn infer_to_conditional_type(&mut self, source: TypeId, target: TypeId) -> CheckResult2<()> {
         let _ = (source, target);
         Err(Unsupported::new(
-            "inferToConditionalType body (M8 — Conditional TypeData is unconstructible \
-             before conditional type nodes land)",
+            "inferToConditionalType relation body (9.6d/M8)",
         ))
     }
 
@@ -4129,15 +4119,19 @@ mod tests {
                 state.add_intra_expression_inference_site(ctx, literal, string);
                 let fixing = state.inference_context(ctx).mapper;
                 // The annotated initializer HAS a contextual type
-                // whose resolution unwinds (conditional-type
-                // annotation — the M8 family), so the drain Errs
+                // whose inference unwinds (inferToConditionalType
+                // remains the 9.6d boundary), so the drain Errs
                 // mid-loop, BEFORE the 68297 clear and the 68265 fix.
                 // (A resolvable annotation no longer unwinds here:
                 // 7.2's inferTypes returns Ok for variable-free
-                // targets, so this pin rides the M8 escape until
-                // conditional types land — re-point it then.)
-                let err = state.get_mapped_type(t, fixing).expect_err("M8 escape");
-                assert!(err.reason.contains("conditional types"), "{}", err.reason);
+                // targets, so this pin rides the 9.6d escape until
+                // conditional inference lands — re-point it then.)
+                let err = state.get_mapped_type(t, fixing).expect_err("9.6d escape");
+                assert!(
+                    err.reason.contains("inferToConditionalType relation body"),
+                    "{}",
+                    err.reason
+                );
                 assert!(state
                     .inference_context(ctx)
                     .intra_expression_inference_sites

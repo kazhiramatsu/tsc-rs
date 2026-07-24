@@ -1839,14 +1839,14 @@ mod resolution_unwind_tests {
 
     #[test]
     fn err_unwind_leaves_stack_balanced_and_slot_requeryable() {
-        // An annotation the slice cannot type (conditional type, 5.2)
-        // unwinds as Unsupported: the resolution stack must be balanced
-        // and a SECOND query must fail identically instead of
-        // fabricating a cached type (M3-review Resolving-dangling fix).
+        // An infer-type annotation inside the now-constructible
+        // conditional shell still unwinds at the 9.6c boundary: the
+        // resolution stack must be balanced and a SECOND query must
+        // fail identically instead of fabricating a cached type.
         with_program_state(
             &[(
                 "a.ts",
-                "declare var v: number extends string ? number : string;\n",
+                "declare var v: string extends infer U ? U : never;\n",
             )],
             &CompilerOptions::default(),
             |state| {
@@ -1854,12 +1854,12 @@ mod resolution_unwind_tests {
                     .resolve_file_scope_name("v", SymbolFlags::VALUE)
                     .expect("v resolves");
                 let first = state.get_type_of_symbol(symbol);
-                assert!(first.is_err(), "conditional annotations are out of slice");
+                assert!(first.is_err(), "infer annotations are out of slice");
                 assert_eq!(state.resolution_targets.len(), 0);
                 let second = state.get_type_of_symbol(symbol);
                 assert_eq!(
                     first.unwrap_err().reason,
-                    second.expect_err("still out of slice").reason
+                    second.expect_err("infer remains out of slice").reason
                 );
                 assert_eq!(state.resolution_targets.len(), 0);
             },

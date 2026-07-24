@@ -361,11 +361,11 @@ impl<'a> CheckerState<'a> {
             };
         }
         if flags.intersects(TypeFlags::CONDITIONAL) {
-            // tsc's distributive branch requires the phase-9.6
-            // conditional/substitution model. Do not turn the
-            // conditional into an arbitrary key domain.
+            // tsc's distributive branch requires conditional
+            // resolution. Do not turn the conditional into an
+            // arbitrary key domain.
             return Err(Unsupported::new(
-                "getLowerBoundOfKeyType over conditional keys (9.6/M8)",
+                "getLowerBoundOfKeyType conditional distribution (9.6c/M8)",
             ));
         }
         if flags.intersects(TypeFlags::UNION) {

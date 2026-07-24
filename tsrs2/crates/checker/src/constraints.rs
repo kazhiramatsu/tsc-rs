@@ -168,11 +168,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getConstraintOfType @6.0.3
     /// tsc-hash: 777f460fb1f80fa7dca265a22f81147c4d585c4afe7985df22dece9922edba03
     /// tsc-span: _tsc.js:58784-58786
-    ///
-    /// The Conditional arm (getConstraintOfConditionalType) falls to
-    /// the base-constraint default — those TypeFlags are
-    /// unconstructible until M8 and the base computation escapes on
-    /// them.
     pub fn get_constraint_of_type(&mut self, ty: TypeId) -> CheckResult2<Option<TypeId>> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
@@ -180,6 +175,12 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::INDEXED_ACCESS) {
             return self.get_constraint_of_indexed_access(ty);
+        }
+        if flags.intersects(TypeFlags::CONDITIONAL) {
+            // tsc-dormant: canary=conditional_resolution; owner=9.6c
+            return Err(Unsupported::new(
+                "getConstraintOfConditionalType resolution (9.6c)",
+            ));
         }
         self.get_base_constraint_of_type(ty)
     }
@@ -302,11 +303,9 @@ impl<'a> CheckerState<'a> {
     ///
     /// computeBaseConstraint arms present: TypeParameter,
     /// Union/Intersection, TemplateLiteral, StringMapping,
-    /// IndexedAccess, generic tuple, and the default identity.
-    /// Conditional/Substitution escape (those TypeFlags are
-    /// unconstructible before their type nodes land — the escape
-    /// fires if they ever appear rather than mis-computing). The
-    /// circular-constraint related-info (currentNode) is driver
+    /// IndexedAccess, Substitution, generic tuple, and the default
+    /// identity. Conditional resolution is the named 9.6c boundary.
+    /// The circular-constraint related-info (currentNode) is driver
     /// state — 5.4.
     pub fn get_resolved_base_constraint(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.ty(ty).resolved_base_constraint.resolved() {
@@ -531,11 +530,15 @@ impl<'a> CheckerState<'a> {
                 None => Ok(None),
             };
         }
-        if flags.intersects(TypeFlags::CONDITIONAL | TypeFlags::SUBSTITUTION) {
+        if flags.intersects(TypeFlags::CONDITIONAL) {
+            // tsc-dormant: canary=conditional_resolution; owner=9.6c
             return Err(Unsupported::new(
-                "computeBaseConstraint for Conditional/Substitution (M8 — those \
-                 TypeFlags are unconstructible before their type nodes land)",
+                "computeBaseConstraint via getConstraintFromConditionalType (9.6c)",
             ));
+        }
+        if flags.intersects(TypeFlags::SUBSTITUTION) {
+            let intersection = self.get_substitution_intersection(t)?;
+            return self.get_base_constraint_inner(intersection, stack);
         }
         if self.is_generic_tuple_type(t) {
             // 59016-59022: variadic type-parameter elements step to
