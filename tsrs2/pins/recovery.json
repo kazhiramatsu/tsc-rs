@@ -1,97 +1,2210 @@
 {
-  "schema": 2,
+  "schema": 3,
   "cases": [
-    { "fixture": "conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration7_es2017.ts", "matrixKey": "" },
-    { "fixture": "conformance/async/es5/functionDeclarations/asyncFunctionDeclaration7_es5.ts", "matrixKey": "target=es2015" },
-    { "fixture": "conformance/async/es5/functionDeclarations/asyncFunctionDeclaration7_es5.ts", "matrixKey": "target=es5" },
-    { "fixture": "conformance/async/es6/functionDeclarations/asyncFunctionDeclaration7_es6.ts", "matrixKey": "" },
-    { "fixture": "conformance/classes/classStaticBlock/classStaticBlock6.ts", "matrixKey": "target=es2015" },
-    { "fixture": "conformance/classes/classStaticBlock/classStaticBlock6.ts", "matrixKey": "target=es5" },
-    { "fixture": "conformance/classes/constructorDeclarations/superCalls/derivedClassSuperCallsInNonConstructorMembers.ts", "matrixKey": "" },
-    { "fixture": "conformance/classes/members/accessibility/privateInstanceMemberAccessibility.ts", "matrixKey": "target=es2015" },
-    { "fixture": "conformance/classes/members/accessibility/privateInstanceMemberAccessibility.ts", "matrixKey": "target=es5" },
-    { "fixture": "conformance/classes/members/privateNames/privateNameInInExpressionTransform.ts", "matrixKey": "target=es2020" },
-    { "fixture": "conformance/classes/members/privateNames/privateNameInInExpressionTransform.ts", "matrixKey": "target=es2022" },
-    { "fixture": "conformance/classes/members/privateNames/privateNameInInExpressionTransform.ts", "matrixKey": "target=esnext" },
-    { "fixture": "conformance/classes/members/privateNames/privateNamesAndIndexedAccess.ts", "matrixKey": "" },
-    { "fixture": "conformance/classes/nestedClassDeclaration.ts", "matrixKey": "" },
-    { "fixture": "conformance/decorators/class/method/parameter/decoratorOnClassMethodThisParameter.ts", "matrixKey": "target=es2015" },
-    { "fixture": "conformance/decorators/class/method/parameter/decoratorOnClassMethodThisParameter.ts", "matrixKey": "target=es5" },
-    { "fixture": "conformance/es6/destructuring/destructuringParameterDeclaration2.ts", "matrixKey": "" },
-    { "fixture": "conformance/es6/memberFunctionDeclarations/MemberFunctionDeclaration6_es6.ts", "matrixKey": "" },
-    { "fixture": "conformance/es6/memberFunctionDeclarations/MemberFunctionDeclaration8_es6.ts", "matrixKey": "" },
-    { "fixture": "conformance/es6/templates/taggedTemplatesWithTypeArguments2.ts", "matrixKey": "" },
-    { "fixture": "conformance/es7/exponentiationOperator/compoundExponentiationAssignmentLHSIsValue.ts", "matrixKey": "" },
-    { "fixture": "conformance/esDecorators/esDecorators-decoratorExpression.3.ts", "matrixKey": "experimentalDecorators=false" },
-    { "fixture": "conformance/esDecorators/esDecorators-decoratorExpression.3.ts", "matrixKey": "experimentalDecorators=true" },
-    { "fixture": "conformance/expressions/assignmentOperator/assignmentLHSIsValue.ts", "matrixKey": "" },
-    { "fixture": "conformance/expressions/assignmentOperator/compoundAssignmentLHSIsValue.ts", "matrixKey": "" },
-    { "fixture": "conformance/expressions/optionalChaining/privateIdentifierChain/privateIdentifierChain.1.ts", "matrixKey": "" },
-    { "fixture": "conformance/expressions/superCalls/errorSuperCalls.ts", "matrixKey": "" },
-    { "fixture": "conformance/expressions/typeGuards/typeGuardFunctionErrors.ts", "matrixKey": "" },
-    { "fixture": "conformance/expressions/unaryOperators/deleteOperator/deleteOperatorInvalidOperations.ts", "matrixKey": "" },
-    { "fixture": "conformance/interfaces/interfacesExtendingClasses/interfaceExtendingClass2.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration8.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/ErrorRecovery/ArgumentLists/parserErrorRecovery_ArgumentList1.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/ErrorRecovery/ArgumentLists/parserErrorRecovery_ArgumentList2.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/ErrorRecovery/ArgumentLists/parserErrorRecovery_ArgumentList3.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/ErrorRecovery/ArgumentLists/parserErrorRecovery_ArgumentList4.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/ErrorRecovery/Blocks/parserErrorRecovery_Block3.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/ErrorRecovery/IfStatements/parserErrorRecoveryIfStatement2.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/ErrorRecovery/IfStatements/parserErrorRecoveryIfStatement3.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/ErrorRecovery/IfStatements/parserErrorRecoveryIfStatement4.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/ErrorRecovery/IfStatements/parserErrorRecoveryIfStatement5.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/ErrorRecovery/IfStatements/parserErrorRecoveryIfStatement6.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/ErrorRecovery/IncompleteMemberVariables/parserErrorRecovery_IncompleteMemberVariable2.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/ErrorRecovery/ModuleElements/parserErrorRecovery_ModuleElement2.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/ErrorRecovery/ParameterLists/parserErrorRecovery_ParameterList1.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/ErrorRecovery/ParameterLists/parserErrorRecovery_ParameterList2.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/ErrorRecovery/SwitchStatements/parserErrorRecovery_SwitchStatement2.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/ErrorRecovery/parserMissingLambdaOpenBrace1.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/Fuzz/parser0_004152.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/IndexMemberDeclarations/parserIndexMemberDeclaration5.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration8.ts", "matrixKey": "target=es2015" },
-    { "fixture": "conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration8.ts", "matrixKey": "target=es5" },
-    { "fixture": "conformance/parser/ecmascript5/RealWorld/parserharness.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/SuperExpressions/parserSuperExpression2.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/parserRealSource10.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/parserRealSource11.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/parserRealSource7.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript5/parserRealSource9.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName27.ts", "matrixKey": "" },
-    { "fixture": "conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName33.ts", "matrixKey": "" },
-    { "fixture": "conformance/statements/labeledStatements/labeledStatementDeclarationListInLoopNoCrash3.ts", "matrixKey": "target=es2015" },
-    { "fixture": "conformance/statements/labeledStatements/labeledStatementDeclarationListInLoopNoCrash3.ts", "matrixKey": "target=es5" },
-    { "fixture": "conformance/statements/labeledStatements/labeledStatementDeclarationListInLoopNoCrash4.ts", "matrixKey": "target=es2015" },
-    { "fixture": "conformance/statements/labeledStatements/labeledStatementDeclarationListInLoopNoCrash4.ts", "matrixKey": "target=es5" },
-    { "fixture": "conformance/types/objectTypeLiteral/callSignatures/callSignaturesWithParameterInitializers2.ts", "matrixKey": "" },
-    { "fixture": "conformance/types/objectTypeLiteral/propertySignatures/numericNamedPropertyDuplicates.ts", "matrixKey": "" },
-    { "fixture": "conformance/types/objectTypeLiteral/propertySignatures/stringNamedPropertyDuplicates.ts", "matrixKey": "" },
-    { "fixture": "conformance/types/thisType/thisTypeInFunctionsNegative.ts", "matrixKey": "" }
+    {
+      "fixture": "conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration7_es2017.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "asyncFunctionDeclaration7_es2017.ts",
+          "start": 0,
+          "length": 156
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/async/es5/functionDeclarations/asyncFunctionDeclaration7_es5.ts",
+      "matrixKey": "target=es2015",
+      "regions": [
+        {
+          "file": "asyncFunctionDeclaration7_es5.ts",
+          "start": 0,
+          "length": 156
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/async/es5/functionDeclarations/asyncFunctionDeclaration7_es5.ts",
+      "matrixKey": "target=es5",
+      "regions": [
+        {
+          "file": "asyncFunctionDeclaration7_es5.ts",
+          "start": 0,
+          "length": 156
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/async/es6/functionDeclarations/asyncFunctionDeclaration7_es6.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "asyncFunctionDeclaration7_es6.ts",
+          "start": 0,
+          "length": 156
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/classes/classStaticBlock/classStaticBlock6.ts",
+      "matrixKey": "target=es2015",
+      "regions": [
+        {
+          "file": "classStaticBlock6.ts",
+          "start": 0,
+          "length": 31
+        },
+        {
+          "file": "classStaticBlock6.ts",
+          "start": 31,
+          "length": 242
+        },
+        {
+          "file": "classStaticBlock6.ts",
+          "start": 273,
+          "length": 301
+        },
+        {
+          "file": "classStaticBlock6.ts",
+          "start": 574,
+          "length": 240
+        },
+        {
+          "file": "classStaticBlock6.ts",
+          "start": 814,
+          "length": 185
+        },
+        {
+          "file": "classStaticBlock6.ts",
+          "start": 999,
+          "length": 199
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/classes/classStaticBlock/classStaticBlock6.ts",
+      "matrixKey": "target=es5",
+      "regions": [
+        {
+          "file": "classStaticBlock6.ts",
+          "start": 0,
+          "length": 31
+        },
+        {
+          "file": "classStaticBlock6.ts",
+          "start": 31,
+          "length": 242
+        },
+        {
+          "file": "classStaticBlock6.ts",
+          "start": 273,
+          "length": 301
+        },
+        {
+          "file": "classStaticBlock6.ts",
+          "start": 574,
+          "length": 240
+        },
+        {
+          "file": "classStaticBlock6.ts",
+          "start": 814,
+          "length": 185
+        },
+        {
+          "file": "classStaticBlock6.ts",
+          "start": 999,
+          "length": 199
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/classes/constructorDeclarations/superCalls/derivedClassSuperCallsInNonConstructorMembers.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "derivedClassSuperCallsInNonConstructorMembers.ts",
+          "start": 0,
+          "length": 84
+        },
+        {
+          "file": "derivedClassSuperCallsInNonConstructorMembers.ts",
+          "start": 84,
+          "length": 371
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/classes/members/accessibility/privateInstanceMemberAccessibility.ts",
+      "matrixKey": "target=es2015",
+      "regions": [
+        {
+          "file": "privateInstanceMemberAccessibility.ts",
+          "start": 0,
+          "length": 41
+        },
+        {
+          "file": "privateInstanceMemberAccessibility.ts",
+          "start": 41,
+          "length": 182
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/classes/members/accessibility/privateInstanceMemberAccessibility.ts",
+      "matrixKey": "target=es5",
+      "regions": [
+        {
+          "file": "privateInstanceMemberAccessibility.ts",
+          "start": 0,
+          "length": 41
+        },
+        {
+          "file": "privateInstanceMemberAccessibility.ts",
+          "start": 41,
+          "length": 182
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/classes/members/privateNames/privateNameInInExpressionTransform.ts",
+      "matrixKey": "target=es2020",
+      "regions": [
+        {
+          "file": "privateNameInInExpressionTransform.ts",
+          "start": 0,
+          "length": 1086
+        },
+        {
+          "file": "privateNameInInExpressionTransform.ts",
+          "start": 1086,
+          "length": 117
+        },
+        {
+          "file": "privateNameInInExpressionTransform.ts",
+          "start": 1203,
+          "length": 122
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/classes/members/privateNames/privateNameInInExpressionTransform.ts",
+      "matrixKey": "target=es2022",
+      "regions": [
+        {
+          "file": "privateNameInInExpressionTransform.ts",
+          "start": 0,
+          "length": 1086
+        },
+        {
+          "file": "privateNameInInExpressionTransform.ts",
+          "start": 1086,
+          "length": 117
+        },
+        {
+          "file": "privateNameInInExpressionTransform.ts",
+          "start": 1203,
+          "length": 122
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/classes/members/privateNames/privateNameInInExpressionTransform.ts",
+      "matrixKey": "target=esnext",
+      "regions": [
+        {
+          "file": "privateNameInInExpressionTransform.ts",
+          "start": 0,
+          "length": 1086
+        },
+        {
+          "file": "privateNameInInExpressionTransform.ts",
+          "start": 1086,
+          "length": 117
+        },
+        {
+          "file": "privateNameInInExpressionTransform.ts",
+          "start": 1203,
+          "length": 122
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/classes/members/privateNames/privateNamesAndIndexedAccess.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "privateNamesAndIndexedAccess.ts",
+          "start": 0,
+          "length": 314
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/classes/nestedClassDeclaration.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "nestedClassDeclaration.ts",
+          "start": 0,
+          "length": 62
+        },
+        {
+          "file": "nestedClassDeclaration.ts",
+          "start": 62,
+          "length": 23
+        },
+        {
+          "file": "nestedClassDeclaration.ts",
+          "start": 88,
+          "length": 46
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/decorators/class/method/parameter/decoratorOnClassMethodThisParameter.ts",
+      "matrixKey": "target=es2015",
+      "regions": [
+        {
+          "file": "decoratorOnClassMethodThisParameter.ts",
+          "start": 0,
+          "length": 97
+        },
+        {
+          "file": "decoratorOnClassMethodThisParameter.ts",
+          "start": 97,
+          "length": 41
+        },
+        {
+          "file": "decoratorOnClassMethodThisParameter.ts",
+          "start": 138,
+          "length": 61
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/decorators/class/method/parameter/decoratorOnClassMethodThisParameter.ts",
+      "matrixKey": "target=es5",
+      "regions": [
+        {
+          "file": "decoratorOnClassMethodThisParameter.ts",
+          "start": 0,
+          "length": 97
+        },
+        {
+          "file": "decoratorOnClassMethodThisParameter.ts",
+          "start": 97,
+          "length": 41
+        },
+        {
+          "file": "decoratorOnClassMethodThisParameter.ts",
+          "start": 138,
+          "length": 61
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/es6/destructuring/destructuringParameterDeclaration2.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "destructuringParameterDeclaration2.ts",
+          "start": 0,
+          "length": 370
+        },
+        {
+          "file": "destructuringParameterDeclaration2.ts",
+          "start": 741,
+          "length": 70
+        },
+        {
+          "file": "destructuringParameterDeclaration2.ts",
+          "start": 842,
+          "length": 57
+        },
+        {
+          "file": "destructuringParameterDeclaration2.ts",
+          "start": 899,
+          "length": 59
+        },
+        {
+          "file": "destructuringParameterDeclaration2.ts",
+          "start": 958,
+          "length": 90
+        },
+        {
+          "file": "destructuringParameterDeclaration2.ts",
+          "start": 1091,
+          "length": 178
+        },
+        {
+          "file": "destructuringParameterDeclaration2.ts",
+          "start": 1269,
+          "length": 34
+        },
+        {
+          "file": "destructuringParameterDeclaration2.ts",
+          "start": 1303,
+          "length": 27
+        },
+        {
+          "file": "destructuringParameterDeclaration2.ts",
+          "start": 1330,
+          "length": 61
+        },
+        {
+          "file": "destructuringParameterDeclaration2.ts",
+          "start": 1391,
+          "length": 33
+        },
+        {
+          "file": "destructuringParameterDeclaration2.ts",
+          "start": 1424,
+          "length": 63
+        },
+        {
+          "file": "destructuringParameterDeclaration2.ts",
+          "start": 1487,
+          "length": 36
+        },
+        {
+          "file": "destructuringParameterDeclaration2.ts",
+          "start": 1945,
+          "length": 401
+        },
+        {
+          "file": "destructuringParameterDeclaration2.ts",
+          "start": 2346,
+          "length": 102
+        },
+        {
+          "file": "destructuringParameterDeclaration2.ts",
+          "start": 2539,
+          "length": 21
+        },
+        {
+          "file": "destructuringParameterDeclaration2.ts",
+          "start": 2560,
+          "length": 21
+        },
+        {
+          "file": "destructuringParameterDeclaration2.ts",
+          "start": 2581,
+          "length": 20
+        },
+        {
+          "file": "destructuringParameterDeclaration2.ts",
+          "start": 2604,
+          "length": 174
+        },
+        {
+          "file": "destructuringParameterDeclaration2.ts",
+          "start": 2778,
+          "length": 351
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/es6/memberFunctionDeclarations/MemberFunctionDeclaration6_es6.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "MemberFunctionDeclaration6_es6.ts",
+          "start": 0,
+          "length": 21
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/es6/memberFunctionDeclarations/MemberFunctionDeclaration8_es6.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "MemberFunctionDeclaration8_es6.ts",
+          "start": 0,
+          "length": 143
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/es6/templates/taggedTemplatesWithTypeArguments2.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "taggedTemplatesWithTypeArguments2.ts",
+          "start": 653,
+          "length": 58
+        },
+        {
+          "file": "taggedTemplatesWithTypeArguments2.ts",
+          "start": 711,
+          "length": 142
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/es7/exponentiationOperator/compoundExponentiationAssignmentLHSIsValue.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "compoundExponentiationAssignmentLHSIsValue.ts",
+          "start": 99,
+          "length": 163
+        },
+        {
+          "file": "compoundExponentiationAssignmentLHSIsValue.ts",
+          "start": 262,
+          "length": 40
+        },
+        {
+          "file": "compoundExponentiationAssignmentLHSIsValue.ts",
+          "start": 648,
+          "length": 202
+        },
+        {
+          "file": "compoundExponentiationAssignmentLHSIsValue.ts",
+          "start": 850,
+          "length": 44
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/esDecorators/esDecorators-decoratorExpression.3.ts",
+      "matrixKey": "experimentalDecorators=false",
+      "regions": [
+        {
+          "file": "esDecorators-decoratorExpression.3.ts",
+          "start": 70,
+          "length": 19
+        },
+        {
+          "file": "esDecorators-decoratorExpression.3.ts",
+          "start": 101,
+          "length": 19
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/esDecorators/esDecorators-decoratorExpression.3.ts",
+      "matrixKey": "experimentalDecorators=true",
+      "regions": [
+        {
+          "file": "esDecorators-decoratorExpression.3.ts",
+          "start": 70,
+          "length": 19
+        },
+        {
+          "file": "esDecorators-decoratorExpression.3.ts",
+          "start": 101,
+          "length": 19
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/expressions/assignmentOperator/assignmentLHSIsValue.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "assignmentLHSIsValue.ts",
+          "start": 64,
+          "length": 121
+        },
+        {
+          "file": "assignmentLHSIsValue.ts",
+          "start": 185,
+          "length": 34
+        },
+        {
+          "file": "assignmentLHSIsValue.ts",
+          "start": 538,
+          "length": 151
+        },
+        {
+          "file": "assignmentLHSIsValue.ts",
+          "start": 689,
+          "length": 45
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/expressions/assignmentOperator/compoundAssignmentLHSIsValue.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "compoundAssignmentLHSIsValue.ts",
+          "start": 99,
+          "length": 229
+        },
+        {
+          "file": "compoundAssignmentLHSIsValue.ts",
+          "start": 328,
+          "length": 58
+        },
+        {
+          "file": "compoundAssignmentLHSIsValue.ts",
+          "start": 906,
+          "length": 271
+        },
+        {
+          "file": "compoundAssignmentLHSIsValue.ts",
+          "start": 1177,
+          "length": 44
+        },
+        {
+          "file": "compoundAssignmentLHSIsValue.ts",
+          "start": 1231,
+          "length": 20
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/expressions/optionalChaining/privateIdentifierChain/privateIdentifierChain.1.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "privateIdentifierChain.1.ts",
+          "start": 0,
+          "length": 216
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/expressions/superCalls/errorSuperCalls.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "errorSuperCalls.ts",
+          "start": 0,
+          "length": 883
+        },
+        {
+          "file": "errorSuperCalls.ts",
+          "start": 883,
+          "length": 35
+        },
+        {
+          "file": "errorSuperCalls.ts",
+          "start": 918,
+          "length": 150
+        },
+        {
+          "file": "errorSuperCalls.ts",
+          "start": 1068,
+          "length": 50
+        },
+        {
+          "file": "errorSuperCalls.ts",
+          "start": 1118,
+          "length": 402
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/expressions/typeGuards/typeGuardFunctionErrors.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 0,
+          "length": 30
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 30,
+          "length": 32
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 62,
+          "length": 42
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 104,
+          "length": 70
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 174,
+          "length": 57
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 257,
+          "length": 56
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 313,
+          "length": 61
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 374,
+          "length": 51
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 444,
+          "length": 66
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 510,
+          "length": 74
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 584,
+          "length": 84
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 668,
+          "length": 81
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 770,
+          "length": 36
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 806,
+          "length": 35
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 841,
+          "length": 50
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 891,
+          "length": 36
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 1216,
+          "length": 126
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 1844,
+          "length": 26
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 1871,
+          "length": 21
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 1919,
+          "length": 257
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 2268,
+          "length": 79
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 2347,
+          "length": 95
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 2442,
+          "length": 63
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 2505,
+          "length": 68
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 2752,
+          "length": 128
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 2986,
+          "length": 36
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 3143,
+          "length": 83
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 3226,
+          "length": 75
+        },
+        {
+          "file": "typeGuardFunctionErrors.ts",
+          "start": 3301,
+          "length": 78
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/expressions/unaryOperators/deleteOperator/deleteOperatorInvalidOperations.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "deleteOperatorInvalidOperations.ts",
+          "start": 159,
+          "length": 131
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/interfaces/interfacesExtendingClasses/interfaceExtendingClass2.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "interfaceExtendingClass2.ts",
+          "start": 0,
+          "length": 110
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration8.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserConstructorDeclaration8.ts",
+          "start": 0,
+          "length": 59
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/ErrorRecovery/ArgumentLists/parserErrorRecovery_ArgumentList1.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserErrorRecovery_ArgumentList1.ts",
+          "start": 0,
+          "length": 42
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/ErrorRecovery/ArgumentLists/parserErrorRecovery_ArgumentList2.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserErrorRecovery_ArgumentList2.ts",
+          "start": 0,
+          "length": 29
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/ErrorRecovery/ArgumentLists/parserErrorRecovery_ArgumentList3.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserErrorRecovery_ArgumentList3.ts",
+          "start": 0,
+          "length": 42
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/ErrorRecovery/ArgumentLists/parserErrorRecovery_ArgumentList4.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserErrorRecovery_ArgumentList4.ts",
+          "start": 0,
+          "length": 43
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/ErrorRecovery/Blocks/parserErrorRecovery_Block3.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserErrorRecovery_Block3.ts",
+          "start": 0,
+          "length": 78
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/ErrorRecovery/IfStatements/parserErrorRecoveryIfStatement2.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserErrorRecoveryIfStatement2.ts",
+          "start": 0,
+          "length": 70
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/ErrorRecovery/IfStatements/parserErrorRecoveryIfStatement3.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserErrorRecoveryIfStatement3.ts",
+          "start": 0,
+          "length": 72
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/ErrorRecovery/IfStatements/parserErrorRecoveryIfStatement4.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserErrorRecoveryIfStatement4.ts",
+          "start": 0,
+          "length": 73
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/ErrorRecovery/IfStatements/parserErrorRecoveryIfStatement5.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserErrorRecoveryIfStatement5.ts",
+          "start": 0,
+          "length": 75
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/ErrorRecovery/IfStatements/parserErrorRecoveryIfStatement6.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserErrorRecoveryIfStatement6.ts",
+          "start": 0,
+          "length": 82
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/ErrorRecovery/IncompleteMemberVariables/parserErrorRecovery_IncompleteMemberVariable2.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserErrorRecovery_IncompleteMemberVariable2.ts",
+          "start": 32,
+          "length": 24
+        },
+        {
+          "file": "parserErrorRecovery_IncompleteMemberVariable2.ts",
+          "start": 92,
+          "length": 362
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/ErrorRecovery/ModuleElements/parserErrorRecovery_ModuleElement2.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserErrorRecovery_ModuleElement2.ts",
+          "start": 0,
+          "length": 19
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/ErrorRecovery/ParameterLists/parserErrorRecovery_ParameterList1.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserErrorRecovery_ParameterList1.ts",
+          "start": 0,
+          "length": 17
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/ErrorRecovery/ParameterLists/parserErrorRecovery_ParameterList2.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserErrorRecovery_ParameterList2.ts",
+          "start": 0,
+          "length": 18
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/ErrorRecovery/SwitchStatements/parserErrorRecovery_SwitchStatement2.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserErrorRecovery_SwitchStatement2.ts",
+          "start": 0,
+          "length": 62
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/ErrorRecovery/parserMissingLambdaOpenBrace1.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserMissingLambdaOpenBrace1.ts",
+          "start": 0,
+          "length": 242
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/Fuzz/parser0_004152.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parser0_004152.ts",
+          "start": 0,
+          "length": 163
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/IndexMemberDeclarations/parserIndexMemberDeclaration5.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserIndexMemberDeclaration5.ts",
+          "start": 0,
+          "length": 53
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration8.ts",
+      "matrixKey": "target=es2015",
+      "regions": [
+        {
+          "file": "parserMemberAccessorDeclaration8.ts",
+          "start": 0,
+          "length": 45
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration8.ts",
+      "matrixKey": "target=es5",
+      "regions": [
+        {
+          "file": "parserMemberAccessorDeclaration8.ts",
+          "start": 0,
+          "length": 45
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/RealWorld/parserharness.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserharness.ts",
+          "start": 963,
+          "length": 109
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 1072,
+          "length": 241
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 1791,
+          "length": 58
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 1849,
+          "length": 60
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 2715,
+          "length": 213
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 2928,
+          "length": 308
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 3236,
+          "length": 199
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 3435,
+          "length": 380
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 3815,
+          "length": 213
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 4028,
+          "length": 222
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 4250,
+          "length": 197
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 4447,
+          "length": 534
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 4981,
+          "length": 914
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 5895,
+          "length": 590
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 6485,
+          "length": 480
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 6972,
+          "length": 547
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 7519,
+          "length": 427
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 8652,
+          "length": 705
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 9426,
+          "length": 93
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 9519,
+          "length": 271
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 9879,
+          "length": 2708
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 12587,
+          "length": 1362
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 13949,
+          "length": 2425
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 16374,
+          "length": 847
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 17441,
+          "length": 57
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 17562,
+          "length": 68
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 17630,
+          "length": 70
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 18315,
+          "length": 398
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 18713,
+          "length": 1425
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 20138,
+          "length": 661
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 21612,
+          "length": 1141
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 22753,
+          "length": 309
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 23162,
+          "length": 872
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 24034,
+          "length": 1734
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 26066,
+          "length": 119
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 26185,
+          "length": 807
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 27238,
+          "length": 675
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 27913,
+          "length": 5898
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 33811,
+          "length": 8385
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 42196,
+          "length": 3147
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 45343,
+          "length": 1890
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 47233,
+          "length": 406
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 47639,
+          "length": 374
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 48013,
+          "length": 458
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 48860,
+          "length": 1167
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 50027,
+          "length": 350
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 50377,
+          "length": 490
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 50867,
+          "length": 1696
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 52563,
+          "length": 619
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 53182,
+          "length": 127
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 53309,
+          "length": 157
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 53466,
+          "length": 1326
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 54792,
+          "length": 1715
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 57528,
+          "length": 324
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 57852,
+          "length": 4600
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 62459,
+          "length": 2517
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 64976,
+          "length": 9242
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 74218,
+          "length": 380
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 74598,
+          "length": 217
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 74815,
+          "length": 220
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 75116,
+          "length": 240
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 75356,
+          "length": 898
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 76254,
+          "length": 266
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 77583,
+          "length": 366
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 77949,
+          "length": 378
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 78327,
+          "length": 161
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 78488,
+          "length": 475
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 78963,
+          "length": 930
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 79893,
+          "length": 1022
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 80915,
+          "length": 1235
+        },
+        {
+          "file": "parserharness.ts",
+          "start": 82150,
+          "length": 1361
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/SuperExpressions/parserSuperExpression2.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserSuperExpression2.ts",
+          "start": 0,
+          "length": 44
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/parserRealSource10.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserRealSource10.ts",
+          "start": 4087,
+          "length": 359
+        },
+        {
+          "file": "parserRealSource10.ts",
+          "start": 4446,
+          "length": 767
+        },
+        {
+          "file": "parserRealSource10.ts",
+          "start": 24832,
+          "length": 116
+        },
+        {
+          "file": "parserRealSource10.ts",
+          "start": 25124,
+          "length": 133
+        },
+        {
+          "file": "parserRealSource10.ts",
+          "start": 25257,
+          "length": 1082
+        },
+        {
+          "file": "parserRealSource10.ts",
+          "start": 26339,
+          "length": 444
+        },
+        {
+          "file": "parserRealSource10.ts",
+          "start": 26783,
+          "length": 343
+        },
+        {
+          "file": "parserRealSource10.ts",
+          "start": 27126,
+          "length": 372
+        },
+        {
+          "file": "parserRealSource10.ts",
+          "start": 27498,
+          "length": 347
+        },
+        {
+          "file": "parserRealSource10.ts",
+          "start": 27845,
+          "length": 438
+        },
+        {
+          "file": "parserRealSource10.ts",
+          "start": 28283,
+          "length": 367
+        },
+        {
+          "file": "parserRealSource10.ts",
+          "start": 28743,
+          "length": 166
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/parserRealSource11.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserRealSource11.ts",
+          "start": 238,
+          "length": 204
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 442,
+          "length": 6610
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 7052,
+          "length": 220
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 7272,
+          "length": 1954
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 9226,
+          "length": 2282
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 11508,
+          "length": 343
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 11851,
+          "length": 874
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 12725,
+          "length": 248
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 12973,
+          "length": 6972
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 19945,
+          "length": 1163
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 21108,
+          "length": 7261
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 28369,
+          "length": 1019
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 29388,
+          "length": 1411
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 30799,
+          "length": 668
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 31467,
+          "length": 825
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 32292,
+          "length": 140
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 32432,
+          "length": 2629
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 35061,
+          "length": 848
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 35909,
+          "length": 660
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 36569,
+          "length": 800
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 37396,
+          "length": 5982
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 43378,
+          "length": 137
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 43594,
+          "length": 3283
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 46877,
+          "length": 322
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 47199,
+          "length": 1828
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 49027,
+          "length": 612
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 49639,
+          "length": 783
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 50422,
+          "length": 561
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 50983,
+          "length": 498
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 51481,
+          "length": 1257
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 52738,
+          "length": 2240
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 54978,
+          "length": 2035
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 57013,
+          "length": 2231
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 59244,
+          "length": 2344
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 61588,
+          "length": 3268
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 64856,
+          "length": 1175
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 66031,
+          "length": 124
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 66155,
+          "length": 5491
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 71646,
+          "length": 3788
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 75434,
+          "length": 993
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 76427,
+          "length": 3260
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 79687,
+          "length": 2207
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 81894,
+          "length": 1092
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 82986,
+          "length": 1777
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 84763,
+          "length": 2050
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 86813,
+          "length": 987
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 87800,
+          "length": 3561
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 91361,
+          "length": 1002
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 92363,
+          "length": 786
+        },
+        {
+          "file": "parserRealSource11.ts",
+          "start": 93149,
+          "length": 517
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/parserRealSource7.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserRealSource7.ts",
+          "start": 238,
+          "length": 131
+        },
+        {
+          "file": "parserRealSource7.ts",
+          "start": 369,
+          "length": 599
+        },
+        {
+          "file": "parserRealSource7.ts",
+          "start": 968,
+          "length": 274
+        },
+        {
+          "file": "parserRealSource7.ts",
+          "start": 1242,
+          "length": 662
+        },
+        {
+          "file": "parserRealSource7.ts",
+          "start": 1904,
+          "length": 361
+        },
+        {
+          "file": "parserRealSource7.ts",
+          "start": 2265,
+          "length": 881
+        },
+        {
+          "file": "parserRealSource7.ts",
+          "start": 3345,
+          "length": 332
+        },
+        {
+          "file": "parserRealSource7.ts",
+          "start": 3677,
+          "length": 1679
+        },
+        {
+          "file": "parserRealSource7.ts",
+          "start": 5356,
+          "length": 1723
+        },
+        {
+          "file": "parserRealSource7.ts",
+          "start": 7079,
+          "length": 5636
+        },
+        {
+          "file": "parserRealSource7.ts",
+          "start": 12715,
+          "length": 6514
+        },
+        {
+          "file": "parserRealSource7.ts",
+          "start": 19229,
+          "length": 2598
+        },
+        {
+          "file": "parserRealSource7.ts",
+          "start": 21827,
+          "length": 1255
+        },
+        {
+          "file": "parserRealSource7.ts",
+          "start": 23082,
+          "length": 3845
+        },
+        {
+          "file": "parserRealSource7.ts",
+          "start": 26927,
+          "length": 9940
+        },
+        {
+          "file": "parserRealSource7.ts",
+          "start": 36867,
+          "length": 1963
+        },
+        {
+          "file": "parserRealSource7.ts",
+          "start": 38830,
+          "length": 535
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript5/parserRealSource9.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserRealSource9.ts",
+          "start": 238,
+          "length": 10244
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName27.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserComputedPropertyName27.ts",
+          "start": 0,
+          "length": 66
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName33.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "parserComputedPropertyName33.ts",
+          "start": 0,
+          "length": 49
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/statements/labeledStatements/labeledStatementDeclarationListInLoopNoCrash3.ts",
+      "matrixKey": "target=es2015",
+      "regions": [
+        {
+          "file": "labeledStatementDeclarationListInLoopNoCrash3.ts",
+          "start": 0,
+          "length": 619
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/statements/labeledStatements/labeledStatementDeclarationListInLoopNoCrash3.ts",
+      "matrixKey": "target=es5",
+      "regions": [
+        {
+          "file": "labeledStatementDeclarationListInLoopNoCrash3.ts",
+          "start": 0,
+          "length": 619
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/statements/labeledStatements/labeledStatementDeclarationListInLoopNoCrash4.ts",
+      "matrixKey": "target=es2015",
+      "regions": [
+        {
+          "file": "labeledStatementDeclarationListInLoopNoCrash4.ts",
+          "start": 0,
+          "length": 532
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/statements/labeledStatements/labeledStatementDeclarationListInLoopNoCrash4.ts",
+      "matrixKey": "target=es5",
+      "regions": [
+        {
+          "file": "labeledStatementDeclarationListInLoopNoCrash4.ts",
+          "start": 0,
+          "length": 532
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/types/objectTypeLiteral/callSignatures/callSignaturesWithParameterInitializers2.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "callSignaturesWithParameterInitializers2.ts",
+          "start": 0,
+          "length": 141
+        },
+        {
+          "file": "callSignaturesWithParameterInitializers2.ts",
+          "start": 185,
+          "length": 53
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/types/objectTypeLiteral/propertySignatures/numericNamedPropertyDuplicates.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "numericNamedPropertyDuplicates.ts",
+          "start": 0,
+          "length": 92
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/types/objectTypeLiteral/propertySignatures/stringNamedPropertyDuplicates.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "stringNamedPropertyDuplicates.ts",
+          "start": 0,
+          "length": 106
+        }
+      ]
+    },
+    {
+      "fixture": "conformance/types/thisType/thisTypeInFunctionsNegative.ts",
+      "matrixKey": "",
+      "regions": [
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 0,
+          "length": 482
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 482,
+          "length": 169
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 682,
+          "length": 40
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 722,
+          "length": 40
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 762,
+          "length": 52
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 814,
+          "length": 41
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 855,
+          "length": 39
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 1454,
+          "length": 126
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 1580,
+          "length": 99
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 1679,
+          "length": 99
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 3004,
+          "length": 47
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 3051,
+          "length": 106
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 3223,
+          "length": 50
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 4036,
+          "length": 295
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 4331,
+          "length": 50
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 4381,
+          "length": 143
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 4524,
+          "length": 50
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 4846,
+          "length": 127
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 5005,
+          "length": 129
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 5275,
+          "length": 66
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 5341,
+          "length": 90
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 5431,
+          "length": 59
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 5490,
+          "length": 56
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 5546,
+          "length": 64
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 5610,
+          "length": 38
+        },
+        {
+          "file": "thisTypeInFunctionsNegative.ts",
+          "start": 5965,
+          "length": 95
+        }
+      ]
+    }
   ],
   "shapes": [
-    { "id": "source-function-overload-signature-and-body-outside", "fingerprint": "0b0188e71507d198", "treeFingerprint": "242426d5692a5ba1", "syntacticFingerprint": "9eb6d66e5d404310", "fixture": "pins/fixtures/recovery/outside-source-elements.ts" },
-    { "id": "namespace-function-body-outside", "fingerprint": "27f9457c56f44df7", "treeFingerprint": "23b6fe5e2ea408f9", "syntacticFingerprint": "1b0d934023ab528b", "fixture": "pins/fixtures/recovery/namespace-elements.ts" },
-    { "id": "namespace-function-signature-outside", "fingerprint": "295caf8b4c872f1b", "treeFingerprint": "d42a9310f7f41407", "syntacticFingerprint": "ea5a8279152a16b1", "fixture": "pins/fixtures/recovery/namespace-elements.ts" },
-    { "id": "namespace-class-outside", "fingerprint": "2aaa9564712d05b9", "treeFingerprint": "baaab696661ff65b", "syntacticFingerprint": "69537ae497504afb", "fixture": "pins/fixtures/recovery/namespace-elements.ts" },
-    { "id": "source-class-outside", "fingerprint": "32a8ca1bc0a51738", "treeFingerprint": "6190aa464d1277db", "syntacticFingerprint": "8bcd7b1b0b313b5a", "fixture": "pins/fixtures/recovery/outside-source-elements.ts" },
-    { "id": "class-expression-edge-and-outside", "fingerprint": "49cb6a18b246bcea", "treeFingerprint": "9dd2d5685a095d3c", "syntacticFingerprint": "b9d651d66a81a5c1", "fixture": "pins/fixtures/recovery/class-expression.ts" },
-    { "id": "type-literal-method-signature-outside", "fingerprint": "4ba52cbabb827f52", "treeFingerprint": "74acd41a00e7f4d1", "syntacticFingerprint": "231979a606486c96", "fixture": "pins/fixtures/recovery/method-signatures.ts" },
-    { "id": "source-function-two-bodies-outside", "fingerprint": "502ecb27cc40fa48", "treeFingerprint": "db56aba3883010ca", "syntacticFingerprint": "2b3288a9d5b869e4", "fixture": "pins/fixtures/recovery/outside-source-elements.ts" },
-    { "id": "source-class-inside-and-outside", "fingerprint": "526d0b98ca70cc5f", "treeFingerprint": "c008d1e9eb6bfe07", "syntacticFingerprint": "714064b64753506c", "fixture": "pins/fixtures/recovery/inside-source-elements.ts" },
-    { "id": "source-function-body-outside", "fingerprint": "5621741cbfa9d406", "treeFingerprint": "71a9ac76ecb26e8a", "syntacticFingerprint": "30df5528458a70d2", "fixture": "pins/fixtures/recovery/outside-source-elements.ts" },
-    { "id": "source-function-signature-edge", "fingerprint": "6257ebe2880f8336", "treeFingerprint": "e4bbfd4f3c1cfb71", "syntacticFingerprint": "8e78ac069470004c", "fixture": "pins/fixtures/recovery/parameter-list-edge.ts" },
-    { "id": "source-function-signature-inside-and-edge", "fingerprint": "8d3591b1cd3a6299", "treeFingerprint": "e6642fa06df0a775", "syntacticFingerprint": "ce5bac7d8e388beb", "fixture": "pins/fixtures/recovery/parameter-list-inside-edge.ts" },
-    { "id": "namespace-function-body-inside", "fingerprint": "9d7b9cb582a6fc99", "treeFingerprint": "6855e73f57860b47", "syntacticFingerprint": "7d37d8272cf1280c", "fixture": "pins/fixtures/recovery/inside-namespace-function.ts" },
-    { "id": "source-function-missing-body-outside", "fingerprint": "a3c39e8b72143250", "treeFingerprint": "d766997574ea0670", "syntacticFingerprint": "715f61c91856fdbb", "fixture": "pins/fixtures/recovery/recovered-missing-body.ts" },
-    { "id": "source-class-inside-and-edge", "fingerprint": "b492f07ff9f5edd5", "treeFingerprint": "86a2b593ad5d0805", "syntacticFingerprint": "db9d7914e7ea5714", "fixture": "pins/fixtures/recovery/class-edge-inside.ts" },
-    { "id": "interface-method-signature-outside", "fingerprint": "b6c4157cdcddf8d6", "treeFingerprint": "74acd41a00e7f4d1", "syntacticFingerprint": "0aca8f314d28ca47", "fixture": "pins/fixtures/recovery/method-signatures.ts" },
-    { "id": "namespace-class-inside", "fingerprint": "c264c64e434060af", "treeFingerprint": "bcda88ff0f0a3737", "syntacticFingerprint": "6fb688316eab2706", "fixture": "pins/fixtures/recovery/inside-namespace-class.ts" },
-    { "id": "source-function-body-inside", "fingerprint": "d623a6bbc38068fa", "treeFingerprint": "2fe6ff78c7f14cde", "syntacticFingerprint": "9ac68bad8c1f1a5a", "fixture": "pins/fixtures/recovery/inside-function.ts" },
-    { "id": "source-function-body-inside-and-outside", "fingerprint": "eeb6469c3eadd144", "treeFingerprint": "2fe6ff78c7f14cde", "syntacticFingerprint": "614e6a1e89e24951", "fixture": "pins/fixtures/recovery/inside-source-elements.ts" },
-    { "id": "source-class-inside", "fingerprint": "efb12a0a982413fd", "treeFingerprint": "228cb31a2f281135", "syntacticFingerprint": "f2379e1ed0f7dcf3", "fixture": "pins/fixtures/recovery/inside-class.ts" },
-    { "id": "source-function-signature-outside", "fingerprint": "f6e965bcdd1c1aa9", "treeFingerprint": "4931a92726b1b000", "syntacticFingerprint": "21e84a180c68f49c", "fixture": "pins/fixtures/recovery/outside-source-elements.ts" },
-    { "id": "source-function-missing-body-mixed", "fingerprint": "f84f67fe4fc7a098", "treeFingerprint": "85d49bd3537b4a4f", "syntacticFingerprint": "641cbe0c526dd90b", "fixture": "pins/fixtures/recovery/recovered-missing-body-mixed.ts" },
-    { "id": "namespace-class-inside-and-outside", "fingerprint": "fd3c3a83bc099c8b", "treeFingerprint": "bcda88ff0f0a3737", "syntacticFingerprint": "729b73ca8f515e58", "fixture": "pins/fixtures/recovery/namespace-elements.ts" }
+    {
+      "id": "source-function-overload-signature-and-body-outside",
+      "fingerprint": "0b0188e71507d198",
+      "treeFingerprint": "242426d5692a5ba1",
+      "syntacticFingerprint": "9eb6d66e5d404310",
+      "fixture": "pins/fixtures/recovery/outside-source-elements.ts"
+    },
+    {
+      "id": "namespace-function-body-outside",
+      "fingerprint": "27f9457c56f44df7",
+      "treeFingerprint": "23b6fe5e2ea408f9",
+      "syntacticFingerprint": "1b0d934023ab528b",
+      "fixture": "pins/fixtures/recovery/namespace-elements.ts"
+    },
+    {
+      "id": "namespace-function-signature-outside",
+      "fingerprint": "295caf8b4c872f1b",
+      "treeFingerprint": "d42a9310f7f41407",
+      "syntacticFingerprint": "ea5a8279152a16b1",
+      "fixture": "pins/fixtures/recovery/namespace-elements.ts"
+    },
+    {
+      "id": "namespace-class-outside",
+      "fingerprint": "2aaa9564712d05b9",
+      "treeFingerprint": "baaab696661ff65b",
+      "syntacticFingerprint": "69537ae497504afb",
+      "fixture": "pins/fixtures/recovery/namespace-elements.ts"
+    },
+    {
+      "id": "source-class-outside",
+      "fingerprint": "32a8ca1bc0a51738",
+      "treeFingerprint": "6190aa464d1277db",
+      "syntacticFingerprint": "8bcd7b1b0b313b5a",
+      "fixture": "pins/fixtures/recovery/outside-source-elements.ts"
+    },
+    {
+      "id": "class-expression-edge-and-outside",
+      "fingerprint": "49cb6a18b246bcea",
+      "treeFingerprint": "9dd2d5685a095d3c",
+      "syntacticFingerprint": "b9d651d66a81a5c1",
+      "fixture": "pins/fixtures/recovery/class-expression.ts"
+    },
+    {
+      "id": "type-literal-method-signature-outside",
+      "fingerprint": "4ba52cbabb827f52",
+      "treeFingerprint": "74acd41a00e7f4d1",
+      "syntacticFingerprint": "231979a606486c96",
+      "fixture": "pins/fixtures/recovery/method-signatures.ts"
+    },
+    {
+      "id": "source-function-two-bodies-outside",
+      "fingerprint": "502ecb27cc40fa48",
+      "treeFingerprint": "db56aba3883010ca",
+      "syntacticFingerprint": "2b3288a9d5b869e4",
+      "fixture": "pins/fixtures/recovery/outside-source-elements.ts"
+    },
+    {
+      "id": "source-class-inside-and-outside",
+      "fingerprint": "526d0b98ca70cc5f",
+      "treeFingerprint": "c008d1e9eb6bfe07",
+      "syntacticFingerprint": "714064b64753506c",
+      "fixture": "pins/fixtures/recovery/inside-source-elements.ts"
+    },
+    {
+      "id": "source-function-body-outside",
+      "fingerprint": "5621741cbfa9d406",
+      "treeFingerprint": "71a9ac76ecb26e8a",
+      "syntacticFingerprint": "30df5528458a70d2",
+      "fixture": "pins/fixtures/recovery/outside-source-elements.ts"
+    },
+    {
+      "id": "source-function-signature-edge",
+      "fingerprint": "6257ebe2880f8336",
+      "treeFingerprint": "e4bbfd4f3c1cfb71",
+      "syntacticFingerprint": "8e78ac069470004c",
+      "fixture": "pins/fixtures/recovery/parameter-list-edge.ts"
+    },
+    {
+      "id": "source-function-signature-inside-and-edge",
+      "fingerprint": "8d3591b1cd3a6299",
+      "treeFingerprint": "e6642fa06df0a775",
+      "syntacticFingerprint": "ce5bac7d8e388beb",
+      "fixture": "pins/fixtures/recovery/parameter-list-inside-edge.ts"
+    },
+    {
+      "id": "namespace-function-body-inside",
+      "fingerprint": "9d7b9cb582a6fc99",
+      "treeFingerprint": "6855e73f57860b47",
+      "syntacticFingerprint": "7d37d8272cf1280c",
+      "fixture": "pins/fixtures/recovery/inside-namespace-function.ts"
+    },
+    {
+      "id": "source-function-missing-body-outside",
+      "fingerprint": "a3c39e8b72143250",
+      "treeFingerprint": "d766997574ea0670",
+      "syntacticFingerprint": "715f61c91856fdbb",
+      "fixture": "pins/fixtures/recovery/recovered-missing-body.ts"
+    },
+    {
+      "id": "source-class-inside-and-edge",
+      "fingerprint": "b492f07ff9f5edd5",
+      "treeFingerprint": "86a2b593ad5d0805",
+      "syntacticFingerprint": "db9d7914e7ea5714",
+      "fixture": "pins/fixtures/recovery/class-edge-inside.ts"
+    },
+    {
+      "id": "interface-method-signature-outside",
+      "fingerprint": "b6c4157cdcddf8d6",
+      "treeFingerprint": "74acd41a00e7f4d1",
+      "syntacticFingerprint": "0aca8f314d28ca47",
+      "fixture": "pins/fixtures/recovery/method-signatures.ts"
+    },
+    {
+      "id": "namespace-class-inside",
+      "fingerprint": "c264c64e434060af",
+      "treeFingerprint": "bcda88ff0f0a3737",
+      "syntacticFingerprint": "6fb688316eab2706",
+      "fixture": "pins/fixtures/recovery/inside-namespace-class.ts"
+    },
+    {
+      "id": "source-function-body-inside",
+      "fingerprint": "d623a6bbc38068fa",
+      "treeFingerprint": "2fe6ff78c7f14cde",
+      "syntacticFingerprint": "9ac68bad8c1f1a5a",
+      "fixture": "pins/fixtures/recovery/inside-function.ts"
+    },
+    {
+      "id": "source-function-body-inside-and-outside",
+      "fingerprint": "eeb6469c3eadd144",
+      "treeFingerprint": "2fe6ff78c7f14cde",
+      "syntacticFingerprint": "614e6a1e89e24951",
+      "fixture": "pins/fixtures/recovery/inside-source-elements.ts"
+    },
+    {
+      "id": "source-class-inside",
+      "fingerprint": "efb12a0a982413fd",
+      "treeFingerprint": "228cb31a2f281135",
+      "syntacticFingerprint": "f2379e1ed0f7dcf3",
+      "fixture": "pins/fixtures/recovery/inside-class.ts"
+    },
+    {
+      "id": "source-function-signature-outside",
+      "fingerprint": "f6e965bcdd1c1aa9",
+      "treeFingerprint": "4931a92726b1b000",
+      "syntacticFingerprint": "21e84a180c68f49c",
+      "fixture": "pins/fixtures/recovery/outside-source-elements.ts"
+    },
+    {
+      "id": "source-function-missing-body-mixed",
+      "fingerprint": "f84f67fe4fc7a098",
+      "treeFingerprint": "85d49bd3537b4a4f",
+      "syntacticFingerprint": "641cbe0c526dd90b",
+      "fixture": "pins/fixtures/recovery/recovered-missing-body-mixed.ts"
+    },
+    {
+      "id": "namespace-class-inside-and-outside",
+      "fingerprint": "fd3c3a83bc099c8b",
+      "treeFingerprint": "bcda88ff0f0a3737",
+      "syntacticFingerprint": "729b73ca8f515e58",
+      "fixture": "pins/fixtures/recovery/namespace-elements.ts"
+    }
   ]
 }
