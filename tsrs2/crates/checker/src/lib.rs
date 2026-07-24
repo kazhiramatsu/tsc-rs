@@ -1769,6 +1769,66 @@ mod tests {
     }
 
     #[test]
+    fn checked_js_definite_relative_module_miss_is_public() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "foo.js".to_owned(),
+                    text: "export const value = 1;\n".to_owned(),
+                },
+                InputFile {
+                    name: "main.mjs".to_owned(),
+                    text: "import { value } from \"./foo\";\nvalue;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                module: Some(100),
+                module_resolution: Some(3),
+                ..CompilerOptions::default()
+            },
+        );
+        let codes: Vec<u32> = result
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect();
+        assert_eq!(codes, [2835], "{:#?}", result.diagnostics);
+    }
+
+    #[test]
+    fn checked_js_host_dependent_module_resolution_stays_suppressed() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "node_modules/pkg/index.js".to_owned(),
+                    text: "export const value = 1;\n".to_owned(),
+                },
+                InputFile {
+                    name: "main.js".to_owned(),
+                    text: "import { value } from \"pkg\";\nvalue;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                module: Some(100),
+                module_resolution: Some(3),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(
+            !result
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code() == 2307),
+            "{:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
     fn missing_import_meta_global_is_public_semantic_diagnostic() {
         assert_eq!(
             codes_of_with_options(
