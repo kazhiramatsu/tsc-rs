@@ -496,8 +496,32 @@ impl<'a> CheckerState<'a> {
             }
             return Ok(true);
         }
-        // TS source files (isSourceFileJS is always false: JS checking
-        // remains unmodeled).
+        if let Some(file_index) = file_index {
+            let source = self.binder.source(file_index);
+            if crate::is_js_file_name(&source.file_name) {
+                // A syntax-external JS file is ESM and cannot gain a
+                // synthetic default. CommonJS/script JS can, unless
+                // the conventional __esModule marker is exported.
+                if self
+                    .binder
+                    .file(file_index)
+                    .common_js_module_indicator
+                    .is_none()
+                    && source.external_module_indicator.is_some()
+                {
+                    return Ok(false);
+                }
+                return Ok(self
+                    .resolve_export_by_name(
+                        module_symbol,
+                        &escape_leading_underscores("__esModule"),
+                        /*source_node*/ None,
+                        dont_resolve_alias,
+                    )?
+                    .is_none());
+            }
+        }
+        // Non-JS source files synthesize a default only for export=.
         Ok(self.has_export_assignment_symbol(module_symbol))
     }
 
@@ -2573,10 +2597,11 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: the host.getResolvedModule seam over the in-memory
     /// program file set (program-and-modules.md §2): relative/absolute
     /// specifiers resolve against the importing file's directory with
-    /// the TS-family candidate order (exact-with-extension first,
-    /// marking resolvedUsingTsExtension); directory candidates probe
-    /// the index.* family (non-Classic only); .js-family specifiers
-    /// substitute their TS twins (non-Classic only); non-relative
+    /// the TS-first candidate order (exact TS extension first, marking
+    /// resolvedUsingTsExtension, then allowJs implementation files);
+    /// directory candidates probe the index.* family (non-Classic
+    /// only); .js-family specifiers substitute their TS twins before
+    /// their written JS file (non-Classic only); non-relative
     /// specifiers walk up the directory tree under Classic and probe
     /// baseUrl, and are otherwise only resolvable through machinery
     /// the port does not model (node_modules, paths) — those misses
@@ -2650,6 +2675,19 @@ impl<'a> CheckerState<'a> {
                                 resolved_using_ts_extension: false,
                                 is_tsx: probed.ends_with(".tsx"),
                             });
+                        }
+                    }
+                    if self.options.allow_js {
+                        for extension in [".js", ".jsx"] {
+                            let probed =
+                                format!("{}/index{extension}", candidate.trim_end_matches('/'));
+                            if let Some(&index) = self.program_path_index.get(&probed) {
+                                return ProgramModuleResolution::Resolved(ResolvedProgramModule {
+                                    file_index: index,
+                                    resolved_using_ts_extension: false,
+                                    is_tsx: probed.ends_with(".jsx"),
+                                });
+                            }
                         }
                     }
                 }
@@ -3045,7 +3083,8 @@ impl<'a> CheckerState<'a> {
             ResolvedProgramModule {
                 file_index,
                 resolved_using_ts_extension,
-                is_tsx: path.ends_with(".tsx") && !path.ends_with(".d.tsx"),
+                is_tsx: (path.ends_with(".tsx") && !path.ends_with(".d.tsx"))
+                    || path.ends_with(".jsx"),
             }
         };
         if self.options.resolve_json_module_effective() && candidate.ends_with(".json") {
@@ -3100,6 +3139,18 @@ impl<'a> CheckerState<'a> {
                 break;
             }
         }
+        // allowJs implementation fallback follows the TS substitution
+        // group for a written JS-family extension. This is authoritative
+        // only for files in the in-memory program set.
+        if self.options.allow_js
+            && [".js", ".jsx", ".mjs", ".cjs"]
+                .iter()
+                .any(|extension| candidate.ends_with(extension))
+        {
+            if let Some(index) = lookup(candidate) {
+                return Some(make(index, false, candidate));
+            }
+        }
         // Extension appends are only the extensionless probe group.
         // Once a recognized extension substitution group has failed,
         // loadModuleFromFile does not then try `<candidate>.ts`
@@ -3109,6 +3160,14 @@ impl<'a> CheckerState<'a> {
                 let probed = format!("{candidate}{extension}");
                 if let Some(index) = lookup(&probed) {
                     return Some(make(index, false, &probed));
+                }
+            }
+            if self.options.allow_js {
+                for extension in [".js", ".jsx"] {
+                    let probed = format!("{candidate}{extension}");
+                    if let Some(index) = lookup(&probed) {
+                        return Some(make(index, false, &probed));
+                    }
                 }
             }
         }
@@ -3121,6 +3180,14 @@ impl<'a> CheckerState<'a> {
                 let probed = format!("{base}/index{extension}");
                 if let Some(index) = lookup(&probed) {
                     return Some(make(index, false, &probed));
+                }
+            }
+            if self.options.allow_js {
+                for extension in [".js", ".jsx"] {
+                    let probed = format!("{base}/index{extension}");
+                    if let Some(index) = lookup(&probed) {
+                        return Some(make(index, false, &probed));
+                    }
                 }
             }
         }
@@ -6226,6 +6293,66 @@ mod tests {
                 }
             ),
             [("/a.js".to_owned(), 2307, 34, 10)]
+        );
+    }
+
+    #[test]
+    fn allow_js_resolves_in_program_js_after_ts_substitution_candidates() {
+        let files = [
+            (
+                "/mod.js",
+                "const present = 1;\n/** @typedef {() => number} buz */\nmodule.exports = { present };\n",
+            ),
+            (
+                "/main.ts",
+                "type T = import(\"./mod\").Missing;\ntype U = import(\"./mod\").buz;\n",
+            ),
+        ];
+        assert_eq!(
+            program_rows(
+                &files,
+                &CompilerOptions {
+                    allow_js: true,
+                    ..CompilerOptions::default()
+                }
+            ),
+            [("/main.ts".to_owned(), 2694, 25, 7)]
+        );
+
+        let files = [
+            ("/foo.ts", "export const value: number = 1;\n"),
+            ("/foo.js", "exports.value = \"js\";\n"),
+            (
+                "/main.ts",
+                "import { value } from \"./foo.js\";\nconst n: number = value;\n",
+            ),
+        ];
+        assert_eq!(
+            program_rows(
+                &files,
+                &CompilerOptions {
+                    allow_js: true,
+                    ..CompilerOptions::default()
+                }
+            ),
+            []
+        );
+
+        let files = [
+            ("/foo.cjs", "exports.foo = \"foo\";\n"),
+            ("/bar.ts", "import foo from \"./foo.cjs\";\nfoo.foo;\n"),
+        ];
+        assert_eq!(
+            program_rows(
+                &files,
+                &CompilerOptions {
+                    allow_js: true,
+                    module: Some(100),
+                    target: Some(9),
+                    ..CompilerOptions::default()
+                }
+            ),
+            []
         );
     }
 

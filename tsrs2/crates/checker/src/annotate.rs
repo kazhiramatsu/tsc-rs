@@ -1756,6 +1756,27 @@ impl<'a> CheckerState<'a> {
                 };
                 let next = symbol_from_module.or(symbol_from_variable);
                 let Some(next) = next else {
+                    // JSDoc typedef/callback declarations are not
+                    // materialized in the arena yet. A matching type
+                    // declaration in the resolved JS source makes the
+                    // TYPE lookup undecidable, but does not shield a
+                    // `typeof import()` VALUE lookup.
+                    let jsdoc_type_declaration_possible = !is_type_of
+                        && name_stack.is_empty()
+                        && self
+                            .source_file_index_of_symbol(inner_module_symbol)
+                            .is_some_and(|file_index| {
+                                self.source_has_jsdoc_type_name(file_index, &current_text)
+                            });
+                    if jsdoc_type_declaration_possible {
+                        let error = self.tables.intrinsics.error;
+                        self.links.overwrite_import_type_resolved_type(
+                            self.speculation_depth,
+                            node,
+                            error,
+                        );
+                        return Ok(error);
+                    }
                     let namespace_name = self.get_fully_qualified_name(current_namespace);
                     let declaration_name = tsrs2_binder::node_util::declaration_name_to_string(
                         self.binder.source_of_node(current),
@@ -1814,6 +1835,57 @@ impl<'a> CheckerState<'a> {
         self.links
             .overwrite_import_type_resolved_type(self.speculation_depth, node, resolved);
         Ok(resolved)
+    }
+
+    /// Exact-name provenance shield for JSDoc type declarations in a
+    /// JS source. The syntax arena does not materialize JSDoc nodes,
+    /// so this recognizes only the declaration-name slot of
+    /// `@typedef {T} Name` and `@callback Name`; it never treats names
+    /// appearing inside the type expression as declarations.
+    fn source_has_jsdoc_type_name(&self, file_index: usize, name: &str) -> bool {
+        let text = &self.binder.source(file_index).text;
+        let mut cursor = 0usize;
+        while let Some(relative_start) = text[cursor..].find("/**") {
+            let start = cursor + relative_start + 3;
+            let Some(relative_end) = text[start..].find("*/") else {
+                break;
+            };
+            let end = start + relative_end;
+            let comment = &text[start..end];
+            let lower = comment.to_ascii_lowercase();
+            for tag in ["@typedef", "@callback"] {
+                let mut tag_cursor = 0usize;
+                while let Some(relative_tag) = lower[tag_cursor..].find(tag) {
+                    let after_tag = tag_cursor + relative_tag + tag.len();
+                    let mut declaration_tail = &comment[after_tag..];
+                    declaration_tail = declaration_tail.trim_start_matches(|character: char| {
+                        character.is_whitespace() || character == '*'
+                    });
+                    if tag == "@typedef" && declaration_tail.starts_with('{') {
+                        let Some(close) = declaration_tail.find('}') else {
+                            break;
+                        };
+                        declaration_tail = &declaration_tail[close + 1..];
+                        declaration_tail =
+                            declaration_tail.trim_start_matches(|character: char| {
+                                character.is_whitespace() || character == '*'
+                            });
+                    }
+                    let declared_name: String = declaration_tail
+                        .chars()
+                        .take_while(|character| {
+                            character.is_alphanumeric() || matches!(character, '_' | '$')
+                        })
+                        .collect();
+                    if declared_name == name {
+                        return true;
+                    }
+                    tag_cursor = after_tag;
+                }
+            }
+            cursor = end + 2;
+        }
+        false
     }
 
     /// tsc-port: resolveImportSymbolType @6.0.3
