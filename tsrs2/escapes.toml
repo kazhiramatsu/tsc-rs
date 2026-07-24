@@ -673,21 +673,7 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/constraints.rs"
 in = "compute_base_constraint"
-reason = "base constraint of a generic mapped indexed access (substituteIndexedMappedType, 9.5c/M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/constraints.rs"
-in = "compute_base_constraint"
 reason = "computeBaseConstraint for Conditional/Substitution (M8 — those TypeFlags are unconstructible before their type nodes land)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/constraints.rs"
-in = "get_constraint_from_indexed_access"
-reason = "indexed-access constraints over mapped types (substituteIndexedMappedType, 9.5c/M8)"
 class = "stage"
 owner = "M8"
 
@@ -931,25 +917,11 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/indexed.rs"
-in = "get_simplified_index_type"
-reason = "getSimplifiedIndexType for mapped types (key remapping, 9.5b/M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/indexed.rs"
 in = "get_simplified_type"
 reason = "getSimplifiedConditionalType (unported family, M8-stub)"
 class = "dormant-assumption"
 owner = "9.6a"
 canary = "conditional_type_model_constructibility"
-
-[[site]]
-file = "crates/checker/src/indexed.rs"
-in = "simplified_indexed_access_worker"
-reason = "simplified indexed access over mapped types (mapped instantiation, 9.5b/M8)"
-class = "stage"
-owner = "M8"
 
 [[site]]
 file = "crates/checker/src/inference.rs"
@@ -1489,20 +1461,6 @@ reason = "identity for substitution types (unported family, M8-stub)"
 class = "dormant-assumption"
 owner = "9.6a"
 canary = "substitution_type_model_constructibility"
-
-[[site]]
-file = "crates/checker/src/structural.rs"
-in = "structured_type_related_to_worker"
-reason = "mapped-source to type-parameter relations (9.5c/M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/structural.rs"
-in = "structured_type_related_to_worker"
-reason = "mapped-type targets (mappedTypeRelatedTo, 9.5c/M8)"
-class = "stage"
-owner = "M8"
 
 [[site]]
 file = "crates/checker/src/structural.rs"

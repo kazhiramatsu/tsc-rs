@@ -18,9 +18,9 @@
 use tsrs2_binder::SymbolId;
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    AccessFlags, CheckFlags, ElementFlags, IndexFlags, IntersectionState, ModifierFlags,
-    ObjectFlags, PseudoBigInt, RecursionFlags, SymbolFlags, TemplateText, Ternary,
-    TupleTargetFlags, TypeData, TypeFlags, TypeId, UnionReduction,
+    AccessFlags, CheckFlags, ElementFlags, IndexFlags, IntersectionFlags, IntersectionState,
+    MappedTypeModifiers, ModifierFlags, ObjectFlags, PseudoBigInt, RecursionFlags, SymbolFlags,
+    TemplateText, Ternary, TupleTargetFlags, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::engine::{is_false, is_true, ternary_and, RelationChecker};
@@ -478,18 +478,49 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         if target_flags.intersects(TypeFlags::TYPE_PARAMETER) {
-            // 66098-66107: mapped-source index/template comparison is a
-            // 9.5c relation consumer. Once mapped types are constructible
-            // it must fail closed rather than silently skipping the arm.
             if self
                 .st
                 .tables
                 .object_flags_of(source)
                 .intersects(ObjectFlags::MAPPED)
+                && !self.st.mapped_type_declaration_has_name_type(source)
             {
-                return Err(Unsupported::new(
-                    "mapped-source to type-parameter relations (9.5c/M8)",
-                ));
+                let target_keys = self.st.get_index_type(target, IndexFlags::NONE)?;
+                let source_constraint = self.st.get_constraint_type_from_mapped_type(source)?;
+                let constraints_related = self.is_related_to(
+                    target_keys,
+                    source_constraint,
+                    RecursionFlags::BOTH,
+                    /*report_errors*/ false,
+                    IntersectionState::NONE,
+                )?;
+                if !is_false(constraints_related)
+                    && !self
+                        .st
+                        .get_mapped_type_modifiers(source)
+                        .intersects(MappedTypeModifiers::INCLUDE_OPTIONAL)
+                {
+                    let template = self.st.get_template_type_from_mapped_type(source)?;
+                    let parameter = self.st.get_type_parameter_from_mapped_type(source)?;
+                    let indexed = self.st.get_indexed_access_type(
+                        target,
+                        parameter,
+                        AccessFlags::NONE,
+                        None,
+                        None,
+                        None,
+                    )?;
+                    let result = self.is_related_to(
+                        template,
+                        indexed,
+                        RecursionFlags::BOTH,
+                        report_errors,
+                        IntersectionState::NONE,
+                    )?;
+                    if !is_false(result) {
+                        return Ok(result);
+                    }
+                }
             }
             if self.relation == RelationKind::Comparable
                 && source_flags.intersects(TypeFlags::TYPE_PARAMETER)
@@ -580,10 +611,37 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     )?) {
                         return Ok(Ternary::TRUE);
                     }
+                } else if self.st.is_generic_mapped_type_state(target_type)? {
+                    let name_type = self.st.get_name_type_from_mapped_type(target_type)?;
+                    let constraint_type =
+                        self.st.get_constraint_type_from_mapped_type(target_type)?;
+                    let target_keys = match name_type {
+                        Some(name_type)
+                            if self
+                                .st
+                                .is_mapped_type_with_keyof_constraint_declaration(target_type) =>
+                        {
+                            let mapped_keys = self
+                                .st
+                                .get_apparent_mapped_type_keys(name_type, target_type)?;
+                            self.st.get_union_type_ex(
+                                &[mapped_keys, name_type],
+                                UnionReduction::Literal,
+                            )?
+                        }
+                        Some(name_type) => name_type,
+                        None => constraint_type,
+                    };
+                    if is_true(self.is_related_to(
+                        source,
+                        target_keys,
+                        RecursionFlags::TARGET,
+                        report_errors,
+                        IntersectionState::NONE,
+                    )?) {
+                        return Ok(Ternary::TRUE);
+                    }
                 }
-                // 66151-66162 isGenericMappedType(targetType): mapped
-                // types are unconstructible until M8, the arm is
-                // vacuously false.
             }
         }
         if target_flags.intersects(TypeFlags::INDEXED_ACCESS) {
@@ -679,10 +737,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
             }
         }
-        if self.is_generic_mapped_type(target) && self.relation != RelationKind::Identity {
-            return Err(Unsupported::new(
-                "mapped-type targets (mappedTypeRelatedTo, 9.5c/M8)",
-            ));
+        if self.relation != RelationKind::Identity
+            && self.st.is_generic_mapped_type_state(target)?
+        {
+            if let Some(result) =
+                self.generic_mapped_target_related_to(source, target, report_errors)?
+            {
+                return Ok(result);
+            }
         }
         if target_flags.intersects(TypeFlags::CONDITIONAL) {
             // tsc-dormant: canary=conditional_type_model_constructibility; owner=9.6a
@@ -764,30 +826,93 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 if !is_false(result) {
                     return Ok(result);
                 }
-                // isMappedTypeGenericIndexedAccess (66314) stays
-                // false under 9.5a's conservative "every mapped type
-                // is generic" classifier. 9.5b owns the precise
-                // classifier and this mapped-index relation branch.
+                if self.st.is_mapped_type_generic_indexed_access(source)? {
+                    let TypeData::IndexedAccess {
+                        object_type,
+                        index_type,
+                        ..
+                    } = self.st.tables.type_of(source).data
+                    else {
+                        unreachable!("mapped generic access is IndexedAccess");
+                    };
+                    if let Some(index_constraint) = self.st.get_constraint_of_type(index_type)? {
+                        let indexed = self.st.get_indexed_access_type(
+                            object_type,
+                            index_constraint,
+                            AccessFlags::NONE,
+                            None,
+                            None,
+                            None,
+                        )?;
+                        let result = self.is_related_to(
+                            indexed,
+                            target,
+                            RecursionFlags::SOURCE,
+                            report_errors,
+                            IntersectionState::NONE,
+                        )?;
+                        if !is_false(result) {
+                            return Ok(result);
+                        }
+                    }
+                }
             }
             // 66292-66443 is ONE else-if chain: a type-variable source
             // whose constraint chase failed exits it — the worker tail
             // returns FALSE, never the object block.
         } else if source_flags.intersects(TypeFlags::INDEX) {
-            // 66325-66337: keyof sources relate through
-            // string | number | symbol. A deferred mapped-index
-            // producer remains behind getIndexTypeForMappedType in
-            // 9.5b; 9.5c owns the relation branch once such an Index
-            // type is constructible.
+            // 66325-66337: keyof sources first relate through
+            // string | number | symbol, then through their mapped key
+            // domain when the Index type was deferred.
+            let TypeData::Index {
+                ty: source_inner,
+                index_flags,
+            } = self.st.tables.type_of(source).data
+            else {
+                unreachable!("index flag implies index payload");
+            };
+            let is_deferred_mapped_index =
+                self.st.should_defer_index_type(source_inner, index_flags)?
+                    && self
+                        .st
+                        .tables
+                        .object_flags_of(source_inner)
+                        .intersects(ObjectFlags::MAPPED);
             let string_number_symbol = self.st.tables.intrinsics.string_number_symbol;
             let result = self.is_related_to(
                 string_number_symbol,
                 target,
                 RecursionFlags::SOURCE,
-                report_errors,
+                report_errors && !is_deferred_mapped_index,
                 IntersectionState::NONE,
             )?;
             if !is_false(result) {
                 return Ok(result);
+            }
+            if is_deferred_mapped_index {
+                let name_type = self.st.get_name_type_from_mapped_type(source_inner)?;
+                let source_keys = match name_type {
+                    Some(name_type)
+                        if self
+                            .st
+                            .is_mapped_type_with_keyof_constraint_declaration(source_inner) =>
+                    {
+                        self.st
+                            .get_apparent_mapped_type_keys(name_type, source_inner)?
+                    }
+                    Some(name_type) => name_type,
+                    None => self.st.get_constraint_type_from_mapped_type(source_inner)?,
+                };
+                let result = self.is_related_to(
+                    source_keys,
+                    target,
+                    RecursionFlags::SOURCE,
+                    report_errors,
+                    IntersectionState::NONE,
+                )?;
+                if !is_false(result) {
+                    return Ok(result);
+                }
             }
         } else if source_flags.intersects(TypeFlags::TEMPLATE_LITERAL)
             && !target_flags.intersects(TypeFlags::OBJECT)
@@ -860,15 +985,28 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 "conditional sources (unported family, M8-stub)",
             ));
         } else {
-            // Stubbed guard: tsc gates this band behind
-            // `!(source TEMPLATE_LITERAL && target OBJECT && <predicate>)`;
-            // the predicate is unported (stub false), so the band always
-            // runs. Partial mapped targets (66404-66406) are M4. Generic
-            // mapped sources/targets handled above.
+            if self.relation != RelationKind::Subtype
+                && self.relation != RelationKind::StrictSubtype
+                && self.st.is_partial_mapped_type(target)
+                && self.st.is_empty_object_type(source)?
+            {
+                return Ok(Ternary::TRUE);
+            }
+            if self.st.is_generic_mapped_type_state(target)? {
+                if self.st.is_generic_mapped_type_state(source)? {
+                    let result = self.mapped_type_related_to(source, target, report_errors)?;
+                    if !is_false(result) {
+                        return Ok(result);
+                    }
+                }
+                return Ok(Ternary::FALSE);
+            }
             let source_is_primitive = source_flags.intersects(TypeFlags::PRIMITIVE);
             if self.relation != RelationKind::Identity {
                 source = self.st.get_apparent_type(source)?;
                 source_flags = self.flags(source);
+            } else if self.st.is_generic_mapped_type_state(source)? {
+                return Ok(Ternary::FALSE);
             }
             // 66420-66431: the same-target reference variance fast
             // path.
@@ -1084,14 +1222,188 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
     }
 
-    pub(crate) fn is_generic_mapped_type(&self, ty: TypeId) -> bool {
-        // Conservative until 9.5b inspects mapped constraints/name
-        // types: mapped relation arms are live and fail closed as soon
-        // as ObjectFlags::Mapped is constructible.
-        self.st
-            .tables
-            .object_flags_of(ty)
-            .intersects(ObjectFlags::MAPPED)
+    /// tsc-port: mappedTypeRelatedTo @6.0.3
+    /// tsc-hash: 3044800da0c4910ba585c5e4b0b596f9b54a40c737c8d2623f84b06637c6af2a
+    /// tsc-span: _tsc.js:66508-66522
+    fn mapped_type_related_to(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        report_errors: bool,
+    ) -> CheckResult2<Ternary> {
+        let source_optionality = self.st.get_combined_mapped_type_optionality(source)?;
+        let modifiers_related = if self.relation == RelationKind::Comparable {
+            true
+        } else if self.relation == RelationKind::Identity {
+            self.st.get_mapped_type_modifiers(source) == self.st.get_mapped_type_modifiers(target)
+        } else {
+            source_optionality <= self.st.get_combined_mapped_type_optionality(target)?
+        };
+        if !modifiers_related {
+            return Ok(Ternary::FALSE);
+        }
+        let target_constraint = self.st.get_constraint_type_from_mapped_type(target)?;
+        let source_constraint = self.st.get_constraint_type_from_mapped_type(source)?;
+        let variance_mapper = if source_optionality < 0 {
+            self.st.report_unmeasurable_mapper
+        } else {
+            self.st.report_unreliable_mapper
+        };
+        let source_constraint = self
+            .st
+            .instantiate_type(source_constraint, Some(variance_mapper))?;
+        let constraint_result = self.is_related_to(
+            target_constraint,
+            source_constraint,
+            RecursionFlags::BOTH,
+            report_errors,
+            IntersectionState::NONE,
+        )?;
+        if is_false(constraint_result) {
+            return Ok(Ternary::FALSE);
+        }
+        let source_parameter = self.st.get_type_parameter_from_mapped_type(source)?;
+        let target_parameter = self.st.get_type_parameter_from_mapped_type(target)?;
+        let mapper = self
+            .st
+            .create_type_mapper(vec![source_parameter], Some(vec![target_parameter]));
+        let source_name = match self.st.get_name_type_from_mapped_type(source)? {
+            Some(name) => Some(self.st.instantiate_type(name, Some(mapper))?),
+            None => None,
+        };
+        let target_name = match self.st.get_name_type_from_mapped_type(target)? {
+            Some(name) => Some(self.st.instantiate_type(name, Some(mapper))?),
+            None => None,
+        };
+        if source_name != target_name {
+            return Ok(Ternary::FALSE);
+        }
+        let source_template = self.st.get_template_type_from_mapped_type(source)?;
+        let source_template = self.st.instantiate_type(source_template, Some(mapper))?;
+        let target_template = self.st.get_template_type_from_mapped_type(target)?;
+        let template_result = self.is_related_to(
+            source_template,
+            target_template,
+            RecursionFlags::BOTH,
+            report_errors,
+            IntersectionState::NONE,
+        )?;
+        Ok(ternary_and(constraint_result, template_result))
+    }
+
+    /// tsrs-native: extracted generic-mapped target arm of
+    /// structuredTypeRelatedToWorker (66204-66243). `None` means that
+    /// the arm did not produce a successful relation and the
+    /// source-side dispatch must continue.
+    fn generic_mapped_target_related_to(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        report_errors: bool,
+    ) -> CheckResult2<Option<Ternary>> {
+        let keys_remapped = self.st.mapped_type_declaration_has_name_type(target);
+        let template = self.st.get_template_type_from_mapped_type(target)?;
+        let modifiers = self.st.get_mapped_type_modifiers(target);
+        if modifiers.intersects(MappedTypeModifiers::EXCLUDE_OPTIONAL) {
+            return Ok(None);
+        }
+        let parameter = self.st.get_type_parameter_from_mapped_type(target)?;
+        if !keys_remapped {
+            if let TypeData::IndexedAccess {
+                object_type,
+                index_type,
+                ..
+            } = self.st.tables.type_of(template).data
+            {
+                if object_type == source && index_type == parameter {
+                    return Ok(Some(Ternary::TRUE));
+                }
+            }
+        }
+        if self.st.is_generic_mapped_type_state(source)? {
+            return Ok(None);
+        }
+        let target_keys = if keys_remapped {
+            self.st
+                .get_name_type_from_mapped_type(target)?
+                .expect("remapped mapped types have a name type")
+        } else {
+            self.st.get_constraint_type_from_mapped_type(target)?
+        };
+        let source_keys = self
+            .st
+            .get_index_type(source, IndexFlags::NO_INDEX_SIGNATURES)?;
+        let include_optional = modifiers.intersects(MappedTypeModifiers::INCLUDE_OPTIONAL);
+        let filtered_by_applicability = if include_optional {
+            Some(
+                self.st
+                    .get_intersection_type(&[target_keys, source_keys], IntersectionFlags::NONE)?,
+            )
+        } else {
+            None
+        };
+        let keys_related = match filtered_by_applicability {
+            Some(filtered) => !self.flags(filtered).intersects(TypeFlags::NEVER),
+            None => !is_false(self.is_related_to(
+                target_keys,
+                source_keys,
+                RecursionFlags::BOTH,
+                /*report_errors*/ false,
+                IntersectionState::NONE,
+            )?),
+        };
+        if !keys_related {
+            return Ok(None);
+        }
+        let non_null_component = self.st.tables.filter_type(template, |tables, member| {
+            !tables.flags_of(member).intersects(TypeFlags::NULLABLE)
+        });
+        if !keys_remapped {
+            if let TypeData::IndexedAccess {
+                object_type,
+                index_type,
+                ..
+            } = self.st.tables.type_of(non_null_component).data
+            {
+                if index_type == parameter {
+                    let result = self.is_related_to(
+                        source,
+                        object_type,
+                        RecursionFlags::TARGET,
+                        report_errors,
+                        IntersectionState::NONE,
+                    )?;
+                    if !is_false(result) {
+                        return Ok(Some(result));
+                    }
+                    return Ok(None);
+                }
+            }
+        }
+        let indexing_type = if keys_remapped {
+            filtered_by_applicability.unwrap_or(target_keys)
+        } else if let Some(filtered) = filtered_by_applicability {
+            self.st
+                .get_intersection_type(&[filtered, parameter], IntersectionFlags::NONE)?
+        } else {
+            parameter
+        };
+        let indexed = self.st.get_indexed_access_type(
+            source,
+            indexing_type,
+            AccessFlags::NONE,
+            None,
+            None,
+            None,
+        )?;
+        let result = self.is_related_to(
+            indexed,
+            template,
+            RecursionFlags::BOTH,
+            report_errors,
+            IntersectionState::NONE,
+        )?;
+        Ok((!is_false(result)).then_some(result))
     }
 
     /// tsc-port: typeRelatedToDiscriminatedType @6.0.3

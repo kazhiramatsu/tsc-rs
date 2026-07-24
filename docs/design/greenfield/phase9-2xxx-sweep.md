@@ -2073,6 +2073,44 @@ The exact ledger is **1795**/stale=0, and schema-2 closure declarations
 unaccounted by exact ports fell 4,048→**4,041**. Full
 `cargo xtask ci` is the merge gate for the sub-row.
 
+## 9.5c1 results (2026-07-24, mapped indexed access/relations — DONE)
+
+The original 9.5c row was split between its relation/indexed-access
+owner and the remaining contextual/inference/reverse-mapped owner.
+This first sub-row ports generic mapped indexed-access classification,
+template substitution with exact optionality, mapped indexed-access
+constraint simplification, and apparent remapped key computation.
+Indexed access now simplifies a generic key against a non-remapping
+mapped object without materializing a speculative property table.
+
+Relation checking now follows mapped constraints, templates, name
+types, and combined optionality. It covers generic mapped targets,
+mapped sources related to type parameters, `keyof` mapped source/target
+comparisons, partial mapped targets against empty sources, and the
+mapped/indexed constraint retry. The generic mapped-target fast path
+is required for homomorphic relations such as `T` to `Partial<T>`;
+omitting it creates false positives, so the direct canary pins that
+path together with indexed substitution and optionality.
+
+Six owned relation/indexed-access escapes retired: sites=**240**,
+stale=0, untagged=0, recovery=116, dormant=13. Checker tests are
+**976**. The exact ledger is **1800**/stale=0, and schema-2 closure
+declarations unaccounted by exact ports fell 4,041→**4,036**.
+Contextual substitution, homomorphic inference, `isConstMappedType`,
+and corpus-required reverse-mapped paths remain explicitly owned by
+9.5c2.
+
+Band movement (tool-read): all T0 **59.4036%→59.5157%**
+(29122→29177, +55), FP=0; 2xxx T0 **87.4733%→87.7345%**
+(18414→18469, +55), FP=0; supported T0
+**89.8069%→90.0751%** (18469/20504), supported FN
+2,090→**2,035**. Relative to 9.5b2, the exact 2xxx shadow gains are
+T1 +55, T2 +48, and T3 +14, with **zero lost identities** in every
+tier and both all/supported views. The supported universe is
+unchanged. Ratchet artifacts contain exactly +55 all / +55 2xxx
+accepted identities; syntactic remains 2242/2246. Full
+`cargo xtask ci` exits 0, including every invariant.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

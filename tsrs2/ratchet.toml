@@ -165,9 +165,11 @@
 # 9.5b1 adds +3 through finite mapped member materialization. p9
 # 9.5b2 adds +87 by instantiating homomorphic mapped arrays/tuples,
 # completing their apparent type, and replacing conservative generic
-# classification with the constraint/name-type predicate.
-rate = 0.594036
-matched = 29122
+# classification with the constraint/name-type predicate. p9 9.5c1
+# adds +55 by substituting generic mapped indexed access and relating
+# mapped constraints, templates, name types, and optionality.
+rate = 0.595157
+matched = 29177
 total = 49024
 allowed_regression = 0.0
 
@@ -211,8 +213,9 @@ allowed_regression = 0.0
 # elaboration rows; p9 9.4c adds +113 JSX/report-head rows; p9 9.5a
 # adds +7 mapped model/display rows; p9 9.5b1 adds +3 finite mapped
 # member rows; p9 9.5b2 adds +84 mapped instantiation/apparent rows.
-rate = 0.874733
-matched = 18414
+# p9 9.5c1 adds +55 mapped indexed-access/relation rows.
+rate = 0.877345
+matched = 18469
 total = 21051
 allowed_regression = 0.0
 

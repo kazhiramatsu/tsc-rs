@@ -1071,10 +1071,6 @@ name = "get_target_symbol"
 
 [[fn]]
 file = "crates/checker/src/structural.rs"
-name = "is_generic_mapped_type"
-
-[[fn]]
-file = "crates/checker/src/structural.rs"
 name = "is_type_identical_to"
 
 [[fn]]
