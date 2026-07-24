@@ -2464,12 +2464,48 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if target == self.st.any_function_type {
             return Ok(Ternary::FALSE);
         }
-        let source_signatures = self.st.get_signatures_of_type(source, kind)?;
-        let target_signatures = self.st.get_signatures_of_type(target, kind)?;
+        let mut source_signatures = self.st.get_signatures_of_type(source, kind)?;
+        let mut target_signatures = self.st.get_signatures_of_type(target, kind)?;
         if kind == SignatureKind::Construct
             && !source_signatures.is_empty()
             && !target_signatures.is_empty()
         {
+            let source_is_js_constructor = self
+                .st
+                .tables
+                .type_of(source)
+                .symbol
+                .and_then(|symbol| self.st.binder.symbol(symbol).value_declaration)
+                .is_some_and(|declaration| {
+                    self.st.is_js_constructor_without_jsdoc(declaration) == Some(true)
+                });
+            let target_is_js_constructor = self
+                .st
+                .tables
+                .type_of(target)
+                .symbol
+                .and_then(|symbol| self.st.binder.symbol(symbol).value_declaration)
+                .is_some_and(|declaration| {
+                    self.st.is_js_constructor_without_jsdoc(declaration) == Some(true)
+                });
+            if source_is_js_constructor && target_is_js_constructor {
+                return self.signatures_related_to(
+                    source,
+                    target,
+                    SignatureKind::Call,
+                    intersection_state,
+                );
+            }
+            if source_is_js_constructor {
+                source_signatures = self
+                    .st
+                    .get_signatures_of_type(source, SignatureKind::Call)?;
+            }
+            if target_is_js_constructor {
+                target_signatures = self
+                    .st
+                    .get_signatures_of_type(target, SignatureKind::Call)?;
+            }
             let source_is_abstract = self
                 .st
                 .signature_of(source_signatures[0])
@@ -3155,11 +3191,6 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         if check_mode & check_mode::IGNORE_RETURN_TYPES == 0 {
-            // KNOWN-GAP (checkJs band): tsc's isJSConstructor arms
-            // (64577/64581 — a JS constructor's "return type" is its
-            // declared class/interface type) are unported on both
-            // sides; isJSConstructor requires isInJSFile, so the arms
-            // are dead for TS inputs and land with checkJs (M7/M8).
             let target_resolving = self
                 .st
                 .signature_of(target)
@@ -3167,6 +3198,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .is_resolving();
             let target_return_type = if target_resolving {
                 self.st.tables.intrinsics.any
+            } else if let Some(symbol) = self
+                .st
+                .signature_of(target)
+                .declaration
+                .filter(|&declaration| {
+                    self.st.is_js_constructor_without_jsdoc(declaration) == Some(true)
+                })
+                .and_then(|declaration| self.st.node_symbol(declaration))
+                .map(|symbol| self.st.get_merged_symbol(symbol))
+            {
+                self.st.get_declared_type_of_class_or_interface(symbol)?
             } else {
                 self.st.get_return_type_of_signature(target)?
             };
@@ -3182,6 +3224,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .is_resolving();
             let source_return_type = if source_resolving {
                 self.st.tables.intrinsics.any
+            } else if let Some(symbol) = self
+                .st
+                .signature_of(source)
+                .declaration
+                .filter(|&declaration| {
+                    self.st.is_js_constructor_without_jsdoc(declaration) == Some(true)
+                })
+                .and_then(|declaration| self.st.node_symbol(declaration))
+                .map(|symbol| self.st.get_merged_symbol(symbol))
+            {
+                self.st.get_declared_type_of_class_or_interface(symbol)?
             } else {
                 self.st.get_return_type_of_signature(source)?
             };

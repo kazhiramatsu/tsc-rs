@@ -946,6 +946,14 @@ pub fn check_program_with_libs_at(
                             Some(used),
                         );
                         diagnostics.extend(filtered.into_iter().filter(|diagnostic| {
+                            let key = diagnostic
+                                .file_name
+                                .as_ref()
+                                .zip(diagnostic.start)
+                                .zip(diagnostic.length)
+                                .map(|((file, start), length)| {
+                                    (file.clone(), start, length, diagnostic.code())
+                                });
                             plain_js_errors::is_plain_js_error(diagnostic.code())
                                 || diagnostic.code() == 2349
                                 || (diagnostic.code() == 2322
@@ -961,6 +969,9 @@ pub fn check_program_with_libs_at(
                                                 length,
                                             ))
                                         }))
+                                || key.is_some_and(|key| {
+                                    state.non_jsdoc_js_diagnostics.contains(&key)
+                                })
                         }));
                     }
                 }

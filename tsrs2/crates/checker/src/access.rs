@@ -12,7 +12,7 @@
 //! correction: checkNonNullNonVoidType's consumers are the 5.8
 //! variable-declaration sites, not arm 236).
 
-use tsrs2_binder::{node_util, SymbolTable};
+use tsrs2_binder::node_util;
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
     CheckMode, MappedTypeModifiers, ModifierFlags, NodeFlags, SymbolFlags, SymbolId, TypeFacts,
@@ -305,7 +305,12 @@ impl<'a> CheckerState<'a> {
                      (unported narrowing dependency, M6/M8 seam)",
                 ));
             }
+            let expose_non_jsdoc_js = self.is_non_jsdoc_js_expression_type(node, ty);
+            let diagnostics_before = self.diagnostics.len();
             report_error(self, node, facts)?;
+            if expose_non_jsdoc_js {
+                self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
+            }
             let t = self.get_non_nullable_type(ty)?;
             return Ok(
                 if self
@@ -320,39 +325,6 @@ impl<'a> CheckerState<'a> {
             );
         }
         Ok(ty)
-    }
-
-    /// Immutable lexical VALUE lookup — the `&self` face that
-    /// `resolve_name` cannot offer (it caches, reports, and allocates
-    /// suggestion symbols). Walks `locals` up the parent chain, then
-    /// the globals table. Misses (import aliases whose VALUE-flag
-    /// chase is unported, class members, anything else) stay None,
-    /// which the caller treats as "cannot distinguish". The
-    /// NO-alias-chase getSymbol flavor is deliberate (PR #7
-    /// hardening); the tsc-shaped chase lives in get_symbol_in_table
-    /// for the name resolvers. (Once the [FLOW M5] gate probe's home;
-    /// the surviving consumer is is_self_type_access's head match.)
-    /// tsrs-native: raw lexical probe.
-    fn resolve_lexical_value_symbol(&self, at: NodeId, name: &str) -> Option<SymbolId> {
-        let probe = |table: &SymbolTable| -> Option<SymbolId> {
-            let &symbol = table.get(name)?;
-            let symbol = self.get_merged_symbol(symbol);
-            self.binder
-                .symbol(symbol)
-                .flags
-                .intersects(SymbolFlags::VALUE)
-                .then_some(symbol)
-        };
-        let mut location = Some(at);
-        while let Some(current) = location {
-            if let Some(table) = self.binder.locals_of(current) {
-                if let Some(symbol) = probe(table) {
-                    return Some(symbol);
-                }
-            }
-            location = self.parent_of(current);
-        }
-        probe(&self.globals)
     }
 
     pub(crate) fn check_non_null_type(&mut self, ty: TypeId, node: NodeId) -> CheckResult2<TypeId> {
@@ -1408,215 +1380,6 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
-    fn js_assignment_candidates_for_property(
-        &self,
-        source: &tsrs2_syntax::SourceFile,
-        property_name: &str,
-    ) -> Vec<NodeId> {
-        if !self
-            .js_assignment_containment_indexes
-            .borrow()
-            .contains_key(&source.root)
-        {
-            let mut index: std::collections::HashMap<String, Vec<NodeId>> =
-                std::collections::HashMap::new();
-            for node in source.arena.node_ids() {
-                let NodeData::BinaryExpression(binary) = self.data_of(node) else {
-                    continue;
-                };
-                if binary.operator_token.map(|token| self.kind_of(token))
-                    != Some(SyntaxKind::EqualsToken)
-                {
-                    continue;
-                }
-                let Some(left) = binary.left else { continue };
-                let NodeData::PropertyAccessExpression(access) = self.data_of(left) else {
-                    continue;
-                };
-                let Some(name) = access.name.and_then(|name| self.identifier_text_of(name)) else {
-                    continue;
-                };
-                let Some(receiver) = access.expression else {
-                    continue;
-                };
-                index.entry(name.to_owned()).or_default().push(receiver);
-            }
-            self.js_assignment_containment_indexes
-                .borrow_mut()
-                .insert(source.root, index);
-        }
-        self.js_assignment_containment_indexes
-            .borrow()
-            .get(&source.root)
-            .and_then(|index| index.get(property_name))
-            .cloned()
-            .unwrap_or_default()
-    }
-
-    fn js_assignment_receiver_matches_container(
-        &self,
-        source: &tsrs2_syntax::SourceFile,
-        receiver: NodeId,
-        symbol: SymbolId,
-        value_symbols: &[SymbolId],
-        instance_side: bool,
-    ) -> bool {
-        // Chain-head resolution (5.9c FP sweep): JS expando
-        // assignments write through arbitrary chains —
-        // `this.member.a = 0`, `obj.property.a = 0` — so the guard
-        // keys on the HEAD of the receiver chain.
-        let mut head = receiver;
-        let mut through_prototype = false;
-        let mut through_nested_receiver = false;
-        loop {
-            match self.data_of(head) {
-                NodeData::PropertyAccessExpression(step) => {
-                    if step.name.and_then(|name| self.identifier_text_of(name)) == Some("prototype")
-                    {
-                        through_prototype = true;
-                    } else {
-                        through_nested_receiver = true;
-                    }
-                    let Some(next) = step.expression else {
-                        return false;
-                    };
-                    head = next;
-                }
-                NodeData::ElementAccessExpression(step) => {
-                    through_nested_receiver = true;
-                    let Some(next) = step.expression else {
-                        return false;
-                    };
-                    head = next;
-                }
-                _ => break,
-            }
-        }
-        match self.data_of(head) {
-            // A prototype hop selects the instance side; a plain
-            // identifier chain selects the static/anonymous side.
-            NodeData::Identifier(data) if instance_side == through_prototype => self
-                .resolve_lexical_value_symbol(head, &data.escaped_text)
-                .map(|receiver| self.get_merged_symbol(receiver))
-                .is_some_and(|receiver| {
-                    value_symbols.contains(&receiver)
-                        && !(through_nested_receiver && receiver == symbol)
-                }),
-            _ if self.kind_of(head) == SyntaxKind::ThisKeyword => {
-                // getThisContainer skips arrows but stops at ordinary
-                // functions. Its class element also selects the side.
-                let Some(container) = node_util::get_this_container(
-                    source, head, /*include_arrow_functions*/ false,
-                ) else {
-                    return false;
-                };
-                let Some(class_like) = self.parent_of(container).filter(|&parent| {
-                    matches!(
-                        self.kind_of(parent),
-                        SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
-                    )
-                }) else {
-                    return false;
-                };
-                let assignment_instance_side = !self.is_static_element(container);
-                if assignment_instance_side != instance_side {
-                    return false;
-                }
-                let class_symbol = self
-                    .node_symbol(class_like)
-                    .map(|symbol| self.get_merged_symbol(symbol));
-                if through_nested_receiver && class_symbol == Some(symbol) {
-                    return false;
-                }
-                if class_symbol.is_some_and(|class| value_symbols.contains(&class)) {
-                    return true;
-                }
-                value_symbols.iter().any(|&value_symbol| {
-                    self.binder
-                        .symbol(value_symbol)
-                        .declarations
-                        .iter()
-                        .any(|&value_declaration| {
-                            let mut cursor = Some(value_declaration);
-                            while let Some(current) = cursor {
-                                if current == class_like {
-                                    return true;
-                                }
-                                cursor = self.parent_of(current);
-                            }
-                            false
-                        })
-                })
-            }
-            _ => false,
-        }
-    }
-
-    /// JS assignment-declared members that our binder has not
-    /// materialized yet. Match the receiver's lexical symbol, not its
-    /// spelling: a nested `class C` must never open the outer `C`.
-    fn container_has_unbound_js_member(&self, ty: TypeId, property_name: &str) -> bool {
-        let Some(symbol) = self.tables.type_of(ty).symbol else {
-            return false;
-        };
-        let symbol = self.get_merged_symbol(symbol);
-        let declarations = self.binder.symbol(symbol).declarations.clone();
-        let mut value_symbols = Vec::new();
-        let mut push_value_symbol = |candidate: SymbolId| {
-            let candidate = self.get_merged_symbol(candidate);
-            if self
-                .binder
-                .symbol(candidate)
-                .flags
-                .intersects(SymbolFlags::VALUE | SymbolFlags::EXPORT_VALUE)
-                && !value_symbols.contains(&candidate)
-            {
-                value_symbols.push(candidate);
-            }
-        };
-        push_value_symbol(symbol);
-        // Anonymous object/function types carry a synthetic symbol;
-        // the receiver binding lives on a nearby declaration node.
-        for &declaration in &declarations {
-            let mut cursor = Some(declaration);
-            for _ in 0..4 {
-                let Some(current) = cursor else { break };
-                if let Some(candidate) = self.node_symbol(current) {
-                    push_value_symbol(candidate);
-                }
-                cursor = self.parent_of(current);
-            }
-        }
-        if value_symbols.is_empty() {
-            return false;
-        }
-        // Class value types are anonymous constructor objects; class
-        // instances are CLASS targets or REFERENCE instantiations.
-        // Static assignments must not open the instance side (or vice
-        // versa) merely because both types carry the class symbol.
-        let instance_side = !self
-            .tables
-            .object_flags_of(ty)
-            .intersects(tsrs2_types::ObjectFlags::ANONYMOUS);
-        declarations.iter().any(|&declaration| {
-            let source = self.binder.source_of_node(declaration);
-            if !crate::is_js_file_name(&source.file_name) {
-                return false;
-            }
-            self.js_assignment_candidates_for_property(source, property_name)
-                .into_iter()
-                .any(|receiver| {
-                    self.js_assignment_receiver_matches_container(
-                        source,
-                        receiver,
-                        symbol,
-                        &value_symbols,
-                        instance_side,
-                    )
-                })
-        })
-    }
-
     /// tsc-port: isThisPropertyAccessInConstructor @6.0.3
     /// tsc-hash: 5607d52a591e4970cd8b5ff02cb5ebe04d85bcf7ab6a5b16722bb6e6c4bc27be
     /// tsc-span: _tsc.js:75192-75200
@@ -1630,9 +1393,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         prop: SymbolId,
     ) -> CheckResult2<bool> {
-        if !self.is_this_property(node) {
-            return Ok(false);
-        }
+        let assignment_constructor = self.constructor_declaring_assignment_property(prop);
         let is_auto_typed = {
             let declaration = self.binder.symbol(prop).value_declaration;
             match declaration {
@@ -1651,27 +1412,28 @@ impl<'a> CheckerState<'a> {
                 _ => false,
             }
         };
-        if !is_auto_typed {
+        if assignment_constructor.is_none() && !(self.is_this_property(node) && is_auto_typed) {
             return Ok(false);
         }
         // getThisContainer(node, true, false) === getDeclaringConstructor(prop)
         let source = self.binder.source_of_node(node);
         let this_container =
             node_util::get_this_container(source, node, /*include_arrow_functions*/ true);
-        let declaring_ctor = self
-            .binder
-            .symbol(prop)
-            .declarations
-            .iter()
-            .copied()
-            .find_map(|declaration| {
-                let container = node_util::get_this_container(
-                    self.binder.source_of_node(declaration),
-                    declaration,
-                    /*include_arrow_functions*/ false,
-                )?;
-                (self.kind_of(container) == SyntaxKind::Constructor).then_some(container)
-            });
+        let declaring_ctor = assignment_constructor.or_else(|| {
+            self.binder
+                .symbol(prop)
+                .declarations
+                .iter()
+                .copied()
+                .find_map(|declaration| {
+                    let container = node_util::get_this_container(
+                        self.binder.source_of_node(declaration),
+                        declaration,
+                        /*include_arrow_functions*/ false,
+                    )?;
+                    (self.kind_of(container) == SyntaxKind::Constructor).then_some(container)
+                })
+        });
         Ok(this_container.is_some() && this_container == declaring_ctor)
     }
 
@@ -1943,17 +1705,6 @@ impl<'a> CheckerState<'a> {
                     }
                     // JS assignment-declared members: tsc's binder
                     // turns `C.staticProp = 0` in a .js file into a
-                    // static member declaration
-                    // (bindSpecialPropertyAssignment) — a miss against
-                    // a JS-declared container reflects our missing
-                    // expando binding, not a real miss
-                    // (inferringClassStaticMembersFromAssignments,
-                    // 5.8e lift FP).
-                    if self.container_has_unbound_js_member(left_type, &right_text) {
-                        return Err(Unsupported::new(
-                            "property miss on a JS-declared container (assignment-declaration binding, M8 checkJs band)",
-                        ));
-                    }
                     // A resolver-suppressed module augmentation never
                     // merged its members. Contain only when a container
                     // from the referenced module could supply this
@@ -1972,7 +1723,13 @@ impl<'a> CheckerState<'a> {
                     } else {
                         left_type
                     };
+                    let expose_non_jsdoc_js = right_is_private
+                        && self.is_non_jsdoc_js_expression_type(left, report_target);
+                    let diagnostics_before = self.diagnostics.len();
                     self.report_nonexistent_property(right, report_target, is_unchecked_js)?;
+                    if expose_non_jsdoc_js {
+                        self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
+                    }
                 }
                 return Ok(self.tables.intrinsics.error);
             };

@@ -1344,6 +1344,194 @@ impl<'a> CheckerState<'a> {
         Ok(true)
     }
 
+    fn jsdoc_provenance_of_symbol(
+        &mut self,
+        symbol: SymbolId,
+        symbols: &mut std::collections::HashSet<SymbolId>,
+        types: &mut std::collections::HashSet<TypeId>,
+    ) -> bool {
+        let symbol = self.get_merged_symbol(symbol);
+        if !symbols.insert(symbol) {
+            return false;
+        }
+        let declarations = self.binder.symbol(symbol).declarations.clone();
+        for declaration in declarations {
+            let mut cursor = Some(declaration);
+            for _ in 0..5 {
+                let Some(current) = cursor else { break };
+                if self.jsdoc_typed_declarations.contains(&current)
+                    || self.declaration_has_jsdoc_semantics(current)
+                    || self.node_contains_jsdoc_semantics(current)
+                {
+                    return true;
+                }
+                cursor = match self.kind_of(current) {
+                    SyntaxKind::SourceFile
+                    | SyntaxKind::Block
+                    | SyntaxKind::ModuleBlock
+                    | SyntaxKind::ClassDeclaration
+                    | SyntaxKind::ClassExpression => None,
+                    _ => self.parent_of(current),
+                };
+            }
+            let initializer = match self.data_of(declaration) {
+                NodeData::BinaryExpression(data) => data.right,
+                _ => self.initializer_of(declaration),
+            };
+            if initializer.is_some_and(|initializer| {
+                self.jsdoc_provenance_of_expression(initializer, symbols, types)
+            }) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn jsdoc_provenance_of_expression(
+        &mut self,
+        expression: NodeId,
+        symbols: &mut std::collections::HashSet<SymbolId>,
+        types: &mut std::collections::HashSet<TypeId>,
+    ) -> bool {
+        if self.declaration_has_jsdoc_semantics(expression)
+            || self.node_contains_jsdoc_semantics(expression)
+        {
+            return true;
+        }
+        let expression = self.skip_parentheses(expression);
+        match self.data_of(expression) {
+            NodeData::Identifier(_) => match self.get_resolved_symbol(expression) {
+                Ok(Some(symbol)) => self.jsdoc_provenance_of_symbol(symbol, symbols, types),
+                Ok(None) => false,
+                Err(_) => true,
+            },
+            NodeData::PropertyAccessExpression(data) => {
+                let property = self.links.node(expression).resolved_symbol.resolved();
+                property.is_some_and(|symbol| {
+                    symbol != self.unknown_symbol
+                        && self.jsdoc_provenance_of_symbol(symbol, symbols, types)
+                }) || data.expression.is_some_and(|receiver| {
+                    self.jsdoc_provenance_of_expression(receiver, symbols, types)
+                })
+            }
+            NodeData::ElementAccessExpression(data) => {
+                let property = self.links.node(expression).resolved_symbol.resolved();
+                property.is_some_and(|symbol| {
+                    symbol != self.unknown_symbol
+                        && self.jsdoc_provenance_of_symbol(symbol, symbols, types)
+                }) || data.expression.is_some_and(|receiver| {
+                    self.jsdoc_provenance_of_expression(receiver, symbols, types)
+                }) || data.argument_expression.is_some_and(|argument| {
+                    self.jsdoc_provenance_of_expression(argument, symbols, types)
+                })
+            }
+            NodeData::AsExpression(data) => data
+                .expression
+                .is_some_and(|inner| self.jsdoc_provenance_of_expression(inner, symbols, types)),
+            NodeData::SatisfiesExpression(data) => data
+                .expression
+                .is_some_and(|inner| self.jsdoc_provenance_of_expression(inner, symbols, types)),
+            _ => self
+                .node_symbol(expression)
+                .is_some_and(|symbol| self.jsdoc_provenance_of_symbol(symbol, symbols, types)),
+        }
+    }
+
+    fn jsdoc_provenance_of_type(
+        &mut self,
+        ty: TypeId,
+        symbols: &mut std::collections::HashSet<SymbolId>,
+        types: &mut std::collections::HashSet<TypeId>,
+    ) -> bool {
+        if !types.insert(ty) {
+            return false;
+        }
+        let type_data = self.tables.type_of(ty).data.clone();
+        match type_data {
+            TypeData::Union { types: members, .. } | TypeData::Intersection { types: members } => {
+                if members
+                    .into_vec()
+                    .into_iter()
+                    .any(|member| self.jsdoc_provenance_of_type(member, symbols, types))
+                {
+                    return true;
+                }
+            }
+            TypeData::Reference {
+                target,
+                resolved_type_arguments,
+            } => {
+                if self.jsdoc_provenance_of_type(target, symbols, types)
+                    || resolved_type_arguments.is_some_and(|arguments| {
+                        arguments
+                            .into_vec()
+                            .into_iter()
+                            .any(|argument| self.jsdoc_provenance_of_type(argument, symbols, types))
+                    })
+                {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+        let type_symbol = self
+            .tables
+            .type_of(ty)
+            .symbol
+            .or(self.tables.type_of(ty).alias_symbol);
+        if type_symbol.is_some_and(|symbol| self.jsdoc_provenance_of_symbol(symbol, symbols, types))
+        {
+            return true;
+        }
+        if !self
+            .tables
+            .flags_of(ty)
+            .intersects(TypeFlags::OBJECT | TypeFlags::UNION | TypeFlags::INTERSECTION)
+        {
+            return false;
+        }
+        match self.get_properties_of_type(ty) {
+            Ok(properties) => properties
+                .into_iter()
+                .any(|property| self.jsdoc_provenance_of_symbol(property, symbols, types)),
+            Err(_) => true,
+        }
+    }
+
+    fn is_non_jsdoc_js_assignment_relation(
+        &mut self,
+        left: NodeId,
+        right: NodeId,
+        assignee_type: TypeId,
+        value_type: TypeId,
+    ) -> bool {
+        if !self.is_in_js_file(left) {
+            return false;
+        }
+        let mut symbols = std::collections::HashSet::new();
+        let mut types = std::collections::HashSet::new();
+        !self.jsdoc_provenance_of_expression(left, &mut symbols, &mut types)
+            && !self.jsdoc_provenance_of_expression(right, &mut symbols, &mut types)
+            && !self.jsdoc_provenance_of_type(assignee_type, &mut symbols, &mut types)
+            && !self.jsdoc_provenance_of_type(value_type, &mut symbols, &mut types)
+    }
+
+    /// tsrs-native: checked-JS publication gate for one expression and
+    /// its resulting type.
+    pub(crate) fn is_non_jsdoc_js_expression_type(
+        &mut self,
+        expression: NodeId,
+        ty: TypeId,
+    ) -> bool {
+        if !self.is_in_js_file(expression) {
+            return false;
+        }
+        let mut symbols = std::collections::HashSet::new();
+        let mut types = std::collections::HashSet::new();
+        !self.jsdoc_provenance_of_expression(expression, &mut symbols, &mut types)
+            && !self.jsdoc_provenance_of_type(ty, &mut symbols, &mut types)
+    }
+
     fn check_assignment_operator(
         &mut self,
         left: NodeId,
@@ -1367,6 +1555,13 @@ impl<'a> CheckerState<'a> {
             &tsrs2_diags::gen::The_left_hand_side_of_an_assignment_expression_must_be_a_variable_or_a_property_access,
             &tsrs2_diags::gen::The_left_hand_side_of_an_assignment_expression_may_not_be_an_optional_property_access,
         ) {
+            let expose_non_jsdoc_js = self.is_non_jsdoc_js_assignment_relation(
+                left,
+                right,
+                assignee_type,
+                value_type,
+            );
+            let diagnostics_before = self.diagnostics.len();
             let mut head_message: Option<&'static tsrs2_diags::DiagnosticMessage> = None;
             if self.tables.exact_optional_property_types
                 && self.kind_of(left) == SyntaxKind::PropertyAccessExpression
@@ -1422,6 +1617,9 @@ impl<'a> CheckerState<'a> {
                     Some(left),
                     head_message.unwrap_or(&tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1),
                 )?;
+            }
+            if expose_non_jsdoc_js {
+                self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
             }
         }
         Ok(())

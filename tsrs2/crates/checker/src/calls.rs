@@ -5208,21 +5208,21 @@ impl<'a> CheckerState<'a> {
             {
                 let declaration = self.signature_of(signature).declaration;
                 if let Some(declaration) = declaration {
-                    if self.is_in_js_file(declaration) {
-                        // isJSConstructor consults JS expando members —
-                        // the JS band; guessing either way mis-codes
-                        // (conformance FP: salsa inferring fixtures).
+                    let js_constructor = self.is_js_constructor_without_jsdoc(declaration);
+                    if self.is_in_js_file(declaration) && js_constructor.is_none() {
                         return Err(Unsupported::new(
                             "isJSConstructor probe on a JS declaration (checkJs band, M8)",
                         ));
                     }
-                    let return_type = self.get_return_type_of_signature(signature)?;
-                    if return_type != self.tables.intrinsics.void {
-                        self.error_at(
-                            Some(node),
-                            &diagnostics::Only_a_void_function_can_be_called_with_the_new_keyword,
-                            &[],
-                        );
+                    if js_constructor != Some(true) {
+                        let return_type = self.get_return_type_of_signature(signature)?;
+                        if return_type != self.tables.intrinsics.void {
+                            self.error_at(
+                                Some(node),
+                                &diagnostics::Only_a_void_function_can_be_called_with_the_new_keyword,
+                                &[],
+                            );
+                        }
                     }
                 }
                 if self.get_this_type_of_signature(signature)? == Some(self.tables.intrinsics.void)
@@ -6086,24 +6086,25 @@ impl<'a> CheckerState<'a> {
                         | SyntaxKind::ConstructSignature
                         | SyntaxKind::ConstructorType
                 ) {
-                    if self.is_in_js_file(declaration) {
-                        // The 77625 isJSConstructor/JSDoc arms decide
-                        // this band for JS declarations (JS band).
-                        return Err(Unsupported::new(
-                            "isJSConstructor probe on a JS declaration (checkJs band, M8)",
-                        ));
+                    let js_constructor = self.is_js_constructor_without_jsdoc(declaration);
+                    if js_constructor != Some(true) {
+                        if self.is_in_js_file(declaration) && js_constructor.is_none() {
+                            return Err(Unsupported::new(
+                                "isJSConstructor probe on a JS declaration (checkJs band, M8)",
+                            ));
+                        }
+                        if self
+                            .options
+                            .strict_option_value(self.options.no_implicit_any)
+                        {
+                            self.error_at(
+                                Some(node),
+                                &diagnostics::new_expression_whose_target_lacks_a_construct_signature_implicitly_has_an_any_type,
+                                &[],
+                            );
+                        }
+                        return Ok(self.tables.intrinsics.any);
                     }
-                    if self
-                        .options
-                        .strict_option_value(self.options.no_implicit_any)
-                    {
-                        self.error_at(
-                            Some(node),
-                            &diagnostics::new_expression_whose_target_lacks_a_construct_signature_implicitly_has_an_any_type,
-                            &[],
-                        );
-                    }
-                    return Ok(self.tables.intrinsics.any);
                 }
             }
         }

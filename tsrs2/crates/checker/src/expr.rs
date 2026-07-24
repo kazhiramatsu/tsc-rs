@@ -2238,11 +2238,41 @@ impl<'a> CheckerState<'a> {
             && (!self.is_in_parameter_initializer_before_containing_function(node)
                 || self.get_this_parameter_of_declaration(container).is_some())
         {
-            let this_type = match self.get_this_type_of_declaration(container)? {
-                Some(this_type) => Some(this_type),
-                None => self.get_contextual_this_parameter_type(container)?,
-            };
+            let this_type = self.get_this_type_of_declaration(container)?;
             if let Some(this_type) = this_type {
+                return Ok(Some(
+                    self.get_flow_type_of_reference(node, this_type, this_type, None)?,
+                ));
+            }
+            if self.is_in_js_file(node) {
+                let constructor_symbol = if let Some(class_name) =
+                    self.get_class_name_from_prototype_method(container)
+                {
+                    let class_value_type = self.get_type_of_expression(class_name)?;
+                    self.tables
+                        .type_of(class_value_type)
+                        .symbol
+                        .map(|symbol| self.get_merged_symbol(symbol))
+                        .filter(|&symbol| {
+                            self.symbol_flags(symbol).intersects(SymbolFlags::FUNCTION)
+                                && !self.binder.symbol(symbol).members.is_empty()
+                        })
+                } else if self.is_js_constructor_without_jsdoc(container) == Some(true) {
+                    self.node_symbol(container)
+                        .map(|symbol| self.get_merged_symbol(symbol))
+                } else {
+                    None
+                };
+                if let Some(symbol) = constructor_symbol {
+                    let declared = self.get_declared_type_of_class_or_interface(symbol)?;
+                    if let Some(this_type) = self.this_type_of_class_or_interface(declared) {
+                        return Ok(Some(
+                            self.get_flow_type_of_reference(node, this_type, this_type, None)?,
+                        ));
+                    }
+                }
+            }
+            if let Some(this_type) = self.get_contextual_this_parameter_type(container)? {
                 return Ok(Some(
                     self.get_flow_type_of_reference(node, this_type, this_type, None)?,
                 ));
@@ -2285,6 +2315,59 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(None)
+    }
+
+    /// The non-JSDoc prototype-assignment shapes from
+    /// getClassNameFromPrototypeMethod (72483-72500).
+    fn get_class_name_from_prototype_method(&self, container: NodeId) -> Option<NodeId> {
+        let source = self.binder.source_of_node(container);
+        let access_receiver = |node: NodeId| match self.data_of(node) {
+            NodeData::PropertyAccessExpression(data) => data.expression,
+            NodeData::ElementAccessExpression(data) => data.expression,
+            _ => None,
+        };
+        let class_name_from_assignment = |assignment: NodeId| {
+            if tsrs2_binder::get_assignment_declaration_kind(source, assignment)
+                != tsrs2_binder::AssignmentDeclarationKind::Prototype
+            {
+                return None;
+            }
+            let NodeData::BinaryExpression(data) = self.data_of(assignment) else {
+                return None;
+            };
+            access_receiver(data.left?)
+        };
+        match self.kind_of(container) {
+            SyntaxKind::FunctionExpression => {
+                let parent = self.parent_of(container)?;
+                if self.kind_of(parent) == SyntaxKind::BinaryExpression
+                    && tsrs2_binder::get_assignment_declaration_kind(source, parent)
+                        == tsrs2_binder::AssignmentDeclarationKind::PrototypeProperty
+                {
+                    let NodeData::BinaryExpression(data) = self.data_of(parent) else {
+                        return None;
+                    };
+                    let prototype = access_receiver(data.left?)?;
+                    return access_receiver(prototype);
+                }
+                if self.kind_of(parent) == SyntaxKind::PropertyAssignment {
+                    let object = self.parent_of(parent)?;
+                    if self.kind_of(object) == SyntaxKind::ObjectLiteralExpression {
+                        return class_name_from_assignment(self.parent_of(object)?);
+                    }
+                }
+                None
+            }
+            SyntaxKind::MethodDeclaration => {
+                let object = self.parent_of(container)?;
+                if self.kind_of(object) == SyntaxKind::ObjectLiteralExpression {
+                    class_name_from_assignment(self.parent_of(object)?)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
     }
 
     /// tryGetThisTypeAt's default-argument form (container defaults to
@@ -4100,6 +4183,20 @@ mod tests {
         })
     }
 
+    fn checked_js_rows(text: &str) -> Vec<(u32, u32, u32)> {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            no_implicit_any: Some(true),
+            strict_null_checks: Some(true),
+            ..CompilerOptions::default()
+        };
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            rows(state)
+        })
+    }
+
     fn rows(state: &CheckerState) -> Vec<(u32, u32, u32)> {
         state
             .diagnostics
@@ -4601,6 +4698,19 @@ mod tests {
         assert_eq!(
             checked_rows("const r = require(\"m\");\nr;\n"),
             [(2591, 10, 7)]
+        );
+    }
+
+    #[test]
+    fn js_constructor_prototype_method_uses_the_instance_this_type() {
+        // The raw checker sink also contains the noLib `prototype`
+        // lookup row. The load-bearing assertion is the 2322 inside
+        // the assigned method: `this` has C's instance type.
+        assert_eq!(
+            checked_js_rows(
+                "function C() { this.x = 0; }\nC.prototype.m = function () { this.x = 'bad'; };\n"
+            ),
+            [(2339, 31, 9), (2322, 59, 6)]
         );
     }
 

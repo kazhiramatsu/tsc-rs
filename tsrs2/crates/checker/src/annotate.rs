@@ -4845,15 +4845,13 @@ impl<'a> CheckerState<'a> {
             // caught the errorType continuation fabricating a
             // downstream 2339 on the salsa fixture).
             if let Some(symbol) = self.tables.type_of(base_constructor_type).symbol {
-                if self
-                    .binder
-                    .symbol(symbol)
-                    .value_declaration
-                    .is_some_and(|declaration| self.is_in_js_file(declaration))
-                {
-                    return Err(Unsupported::new(
-                        "isJSConstructor probe on a JS declaration (checkJs band, M8)",
-                    ));
+                if let Some(declaration) = self.binder.symbol(symbol).value_declaration {
+                    let js_constructor = self.is_js_constructor_without_jsdoc(declaration);
+                    if self.is_in_js_file(declaration) && js_constructor != Some(false) {
+                        return Err(Unsupported::new(
+                            "isJSConstructor probe on a JS declaration (checkJs band, M8)",
+                        ));
+                    }
                 }
             }
             // 57170-57185: the not-a-constructor verdict is fully
@@ -6163,13 +6161,25 @@ impl<'a> CheckerState<'a> {
                     };
                 let mut construct_signatures = Vec::new();
                 if flags.intersects(SymbolFlags::CLASS) {
+                    let class_type = state.get_declared_type_of_class_or_interface(symbol)?;
                     let constructor = state
                         .symbol_members(symbol)
                         .get(InternalSymbolName::CONSTRUCTOR)
                         .copied();
                     construct_signatures = state.get_signatures_of_symbol(constructor)?;
+                    if flags.intersects(SymbolFlags::FUNCTION) {
+                        for signature in call_signatures.iter().copied() {
+                            let declaration = state.signature_of(signature).declaration;
+                            if declaration.is_some_and(|declaration| {
+                                state.is_js_constructor_without_jsdoc(declaration) == Some(true)
+                            }) {
+                                let constructor =
+                                    state.create_js_constructor_signature(signature, class_type);
+                                construct_signatures.push(constructor);
+                            }
+                        }
+                    }
                     if construct_signatures.is_empty() {
-                        let class_type = state.get_declared_type_of_class_or_interface(symbol)?;
                         construct_signatures =
                             state.get_default_construct_signatures(class_type)?;
                     }
@@ -6739,10 +6749,9 @@ impl<'a> CheckerState<'a> {
                 SyntaxKind::Identifier
                 | SyntaxKind::StringLiteral
                 | SyntaxKind::NumericLiteral
-                | SyntaxKind::SourceFile => Err(Unsupported::new(
-                    "assignment-declaration value type \
-                     (getWidenedTypeForAssignmentDeclaration [JSDOC] M8)",
-                )),
+                | SyntaxKind::SourceFile => {
+                    state.get_widened_type_for_assignment_declaration(symbol)
+                }
                 SyntaxKind::PropertyAssignment => {
                     match state.try_get_type_from_effective_type_node(declaration)? {
                         Some(declared) => Ok(declared),
@@ -7155,6 +7164,100 @@ impl<'a> CheckerState<'a> {
             self.jsdoc_typed_declarations.insert(declaration);
         }
         Ok(resolved)
+    }
+
+    /// tsrs-native: conservative provenance probe for the checked-JS
+    /// output gate.
+    ///
+    /// JSDoc nodes are not represented in the syntax arena, so use the
+    /// nearest attached `/** ... */` trivia before the declaration
+    /// name. Punctuation from a completed/intervening statement breaks
+    /// attachment; declaration prefixes (`var`, `function`, `this.`)
+    /// do not.
+    pub(crate) fn declaration_has_jsdoc_semantics(&self, declaration: NodeId) -> bool {
+        if !self.is_in_js_file(declaration) {
+            return false;
+        }
+        let source = self.binder.source_of_node(declaration);
+        let anchor = match self.data_of(declaration) {
+            NodeData::BinaryExpression(data) => data
+                .left
+                .and_then(|left| self.name_of_node(left).or(Some(left)))
+                .unwrap_or(declaration),
+            _ => self.name_of_node(declaration).unwrap_or(declaration),
+        };
+        let anchor_pos = source.arena.node(anchor).pos as usize;
+        let prefix = &source.text[..anchor_pos.min(source.text.len())];
+        let Some(comment_start) = prefix.rfind("/**") else {
+            return false;
+        };
+        let Some(relative_end) = prefix[comment_start + 3..].find("*/") else {
+            return false;
+        };
+        let comment_end = comment_start + 3 + relative_end + 2;
+        let between = &prefix[comment_end..];
+        if between
+            .chars()
+            .any(|character| matches!(character, ';' | '{' | '}' | '='))
+        {
+            return false;
+        }
+        let comment = prefix[comment_start + 3..comment_end - 2].to_ascii_lowercase();
+        [
+            "@type",
+            "@param",
+            "@template",
+            "@typedef",
+            "@callback",
+            "@property",
+            "@class",
+            "@constructor",
+            "@this",
+            "@return",
+            "@returns",
+            "@extends",
+            "@implements",
+            "@enum",
+            "@satisfies",
+        ]
+        .iter()
+        .any(|tag| comment.contains(tag))
+    }
+
+    /// tsrs-native: subtree half of the conservative checked-JS
+    /// JSDoc provenance gate.
+    pub(crate) fn node_contains_jsdoc_semantics(&self, node: NodeId) -> bool {
+        if !self.is_in_js_file(node) {
+            return false;
+        }
+        let source = self.binder.source_of_node(node);
+        let raw = source.arena.node(node);
+        let start = raw.pos as usize;
+        let end = (raw.end as usize).min(source.text.len());
+        if start >= end {
+            return false;
+        }
+        let text = source.text[start..end].to_ascii_lowercase();
+        text.contains("/**")
+            && [
+                "@type",
+                "@param",
+                "@template",
+                "@typedef",
+                "@callback",
+                "@property",
+                "@class",
+                "@constructor",
+                "@this",
+                "@return",
+                "@returns",
+                "@extends",
+                "@implements",
+                "@enum",
+                "@satisfies",
+            ]
+            .iter()
+            .any(|tag| text.contains(tag))
     }
 
     fn get_type_from_jsdoc_text(
@@ -7684,6 +7787,11 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult2<TypeId> {
+        if let Some(constructor) = self.constructor_declaring_assignment_property(symbol) {
+            if let Some(flow_type) = self.get_flow_type_in_constructor(symbol, constructor)? {
+                return Ok(flow_type);
+            }
+        }
         let declarations = self.binder.symbol(symbol).declarations.clone();
         let mut types = Vec::new();
         let mut constructor_types = Vec::new();
@@ -7701,8 +7809,7 @@ impl<'a> CheckerState<'a> {
                 continue;
             };
             let is_this_property = self.assignment_is_this_property(expression);
-            let in_constructor =
-                is_this_property && self.assignment_is_in_class_constructor(expression);
+            let in_constructor = is_this_property && self.assignment_is_in_constructor(expression);
             if is_this_property {
                 if in_constructor {
                     defined_in_constructor = true;
@@ -7716,7 +7823,14 @@ impl<'a> CheckerState<'a> {
                         continue;
                     };
                     let checked = self.check_expression_cached(right, CheckMode::NORMAL)?;
-                    self.get_widened_literal_type(checked)?
+                    let widened = self.get_widened_literal_type(checked)?;
+                    if self.is_empty_array_literal_type(widened)? {
+                        let any_array = self.any_array_type()?;
+                        self.report_implicit_any(expression, any_array, None)?;
+                        any_array
+                    } else {
+                        widened
+                    }
                 }
                 NodeData::CallExpression(data) => {
                     let Some(arguments) = data.arguments else {
@@ -7868,25 +7982,145 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn assignment_is_in_class_constructor(&self, expression: NodeId) -> bool {
-        let mut current = self.parent_of(expression);
-        while let Some(node) = current {
-            match self.kind_of(node) {
-                SyntaxKind::Constructor => return true,
-                SyntaxKind::FunctionDeclaration
-                | SyntaxKind::FunctionExpression
-                | SyntaxKind::MethodDeclaration
-                | SyntaxKind::GetAccessor
-                | SyntaxKind::SetAccessor
-                | SyntaxKind::PropertyDeclaration
-                | SyntaxKind::ClassStaticBlockDeclaration
-                | SyntaxKind::SourceFile => return false,
-                SyntaxKind::ArrowFunction => {}
-                _ => {}
+    fn assignment_is_in_constructor(&self, expression: NodeId) -> bool {
+        self.assignment_constructor_container(expression).is_some()
+    }
+
+    fn assignment_constructor_container(&self, expression: NodeId) -> Option<NodeId> {
+        let source = self.binder.source_of_node(expression);
+        let container = node_util::get_this_container(
+            source, expression, /*include_arrow_functions*/ false,
+        )?;
+        match self.kind_of(container) {
+            SyntaxKind::Constructor => Some(container),
+            SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionExpression
+                if self.is_js_constructor_without_jsdoc(container) == Some(true) =>
+            {
+                Some(container)
             }
-            current = self.parent_of(node);
+            _ => None,
         }
-        false
+    }
+
+    /// tsrs-native: non-JSDoc projection of tsc
+    /// `isConstructorDeclaredProperty` / `getDeclaringConstructor`
+    /// (56142-56178), restricted to the non-JSDoc assignment forms
+    /// materialized by the 9.8 binder. The flow query at the
+    /// constructor return is important: an initial `undefined` or
+    /// empty-array placeholder is replaced by later writes instead of
+    /// becoming a permanent union constituent.
+    pub(crate) fn constructor_declaring_assignment_property(
+        &self,
+        symbol: SymbolId,
+    ) -> Option<NodeId> {
+        let declarations = &self.binder.symbol(symbol).declarations;
+        let mut constructor = None;
+        for &declaration in declarations {
+            if self.kind_of(declaration) != SyntaxKind::BinaryExpression
+                || !self.assignment_is_this_property(declaration)
+            {
+                return None;
+            }
+            let NodeData::BinaryExpression(data) = self.data_of(declaration) else {
+                unreachable!("kind/data agree");
+            };
+            if let Some(left) = data.left {
+                if let NodeData::ElementAccessExpression(access) = self.data_of(left) {
+                    let argument = access.argument_expression?;
+                    if !matches!(
+                        self.kind_of(argument),
+                        SyntaxKind::StringLiteral
+                            | SyntaxKind::NumericLiteral
+                            | SyntaxKind::NoSubstitutionTemplateLiteral
+                    ) {
+                        return None;
+                    }
+                }
+            }
+            if constructor.is_none() {
+                constructor = self.assignment_constructor_container(declaration);
+            }
+        }
+        constructor
+    }
+
+    /// tsrs-native: tri-state, non-JSDoc projection of tsc
+    /// isJSConstructor
+    /// (77509-77519).
+    ///
+    /// `Some(true)` means ordinary binding proved the constructor:
+    /// the function owns instance members from `this`/prototype
+    /// assignments. `Some(false)` covers syntax that tsc rejects
+    /// without consulting tags. `None` is deliberately reserved for
+    /// a propertyless JS function whose answer could only change via
+    /// `@class`/`@constructor`.
+    pub(crate) fn is_js_constructor_without_jsdoc(&self, node: NodeId) -> Option<bool> {
+        if !self.is_in_js_file(node) {
+            return Some(false);
+        }
+        let func = match self.data_of(node) {
+            NodeData::FunctionDeclaration(_) | NodeData::FunctionExpression(_) => node,
+            NodeData::VariableDeclaration(data) => {
+                let initializer = data.initializer?;
+                if self.kind_of(initializer) != SyntaxKind::FunctionExpression {
+                    return Some(false);
+                }
+                initializer
+            }
+            NodeData::PropertyAssignment(data) => {
+                let initializer = data.initializer?;
+                if self.kind_of(initializer) != SyntaxKind::FunctionExpression {
+                    return Some(false);
+                }
+                initializer
+            }
+            _ => return Some(false),
+        };
+        if self
+            .parent_of(func)
+            .map(|parent| self.walk_up_parenthesized_expressions(parent))
+            .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::PropertyAssignment)
+        {
+            return Some(false);
+        }
+        let symbol = self
+            .node_symbol(func)
+            .map(|symbol| self.get_merged_symbol(symbol));
+        match symbol {
+            Some(symbol) if !self.binder.symbol(symbol).members.is_empty() => Some(true),
+            _ => None,
+        }
+    }
+
+    fn create_js_constructor_signature(
+        &mut self,
+        signature: SignatureId,
+        class_type: TypeId,
+    ) -> SignatureId {
+        let source = self.signature_of(signature).clone();
+        self.alloc_signature(crate::state::Signature {
+            declaration: source.declaration,
+            flags: SignatureFlags::from_bits(
+                source.flags.bits() & SignatureFlags::PROPAGATING_FLAGS.bits(),
+            ),
+            type_parameters: source.type_parameters,
+            parameters: source.parameters,
+            this_parameter: source.this_parameter,
+            min_argument_count: source.min_argument_count,
+            resolved_return_type: LinkSlot::Resolved(class_type),
+            from_method: source.from_method,
+            target: None,
+            mapper: None,
+            instantiations: std::collections::HashMap::new(),
+            erased_signature_cache: None,
+            canonical_signature_cache: None,
+            base_signature_cache: None,
+            composite_kind: None,
+            composite_signatures: None,
+            optional_call_signature_cache: (None, None),
+            isolated_signature_kind: None,
+            isolated_signature_type: None,
+        })
     }
 
     /// tsc getSymbolOfExpando(node, false), the non-JSDoc symbol

@@ -629,14 +629,6 @@ pub struct CheckerState<'a> {
     /// 59765) — state-side; None IS the memoized noTypePredicate.
     pub(crate) resolved_type_predicates:
         std::collections::HashMap<SignatureId, Option<crate::narrow::TypePredicate>>,
-    /// tsrs-native temporary M8/checkJs containment index. Each JS
-    /// source is scanned once, grouping simple assignment declarations
-    /// by their final property name. The receiver/scope checks remain at
-    /// the use site because they depend on the queried type.
-    pub(crate) js_assignment_containment_indexes: std::cell::RefCell<
-        std::collections::HashMap<NodeId, std::collections::HashMap<String, Vec<NodeId>>>,
-    >,
-
     // ---- M4 5.0: the diags sink ----
     /// tsc `diagnostics` (createDiagnosticCollection) — the semantic
     /// sink; the driver (5.4) drains it per program.
@@ -739,6 +731,12 @@ pub struct CheckerState<'a> {
     /// diagnostic spans to expose the resulting semantic diagnostics
     /// without admitting unrelated JSDoc-dependent approximations.
     pub(crate) jsdoc_typed_declarations: std::collections::HashSet<NodeId>,
+    /// Diagnostics produced by a phase-9 non-JSDoc checked-JS path.
+    /// The public program layer still filters checked-JS output while
+    /// JSDoc is incomplete; this exact key set lets newly ported
+    /// assignment/constructor paths opt in without opening unrelated
+    /// JSDoc-dependent diagnostics.
+    pub(crate) non_jsdoc_js_diagnostics: std::collections::HashSet<(String, u32, u32, u32)>,
     /// Lazy getGlobal*Type memos (deferredGlobal* pattern 60679 for the
     /// deferred ones; the core init block 88788+ is deliberately LAZY
     /// here — m4-checker-skeleton-steps.md 5.0 — so each global starts
@@ -936,7 +934,6 @@ impl<'a> CheckerState<'a> {
             exhaustive_switch_computing: std::collections::HashSet::new(),
             effects_signature_cache: std::collections::HashMap::new(),
             resolved_type_predicates: std::collections::HashMap::new(),
-            js_assignment_containment_indexes: Default::default(),
             diagnostics: Vec::new(),
             visible_global_diagnostics: Vec::new(),
             partially_checked_ranges: std::collections::HashMap::new(),
@@ -960,6 +957,7 @@ impl<'a> CheckerState<'a> {
             host_package_json_names: std::collections::HashMap::new(),
             jsx_implicit_import_containers: std::collections::HashMap::new(),
             jsdoc_typed_declarations: std::collections::HashSet::new(),
+            non_jsdoc_js_diagnostics: std::collections::HashSet::new(),
             global_type_memos: Default::default(),
             decorator_context_override_type_cache: Default::default(),
             relation_frame_loan: crate::engine::RelationFrameLoan::None,
@@ -1551,6 +1549,23 @@ impl<'a> CheckerState<'a> {
         if !self.partial_check_records.contains(&record) {
             self.partial_check_records.push(record);
         }
+    }
+
+    /// tsrs-native: publish exact diagnostic keys produced by a
+    /// provenance-checked non-JSDoc JavaScript path.
+    pub(crate) fn mark_non_jsdoc_js_diagnostics_since(&mut self, start: usize) {
+        let keys: Vec<_> = self.diagnostics[start..]
+            .iter()
+            .filter_map(|diagnostic| {
+                Some((
+                    diagnostic.file_name.clone()?,
+                    diagnostic.start?,
+                    diagnostic.length?,
+                    diagnostic.code(),
+                ))
+            })
+            .collect();
+        self.non_jsdoc_js_diagnostics.extend(keys);
     }
 
     // ---- out-of-band variance marker handler (M4 5.3b) ----
