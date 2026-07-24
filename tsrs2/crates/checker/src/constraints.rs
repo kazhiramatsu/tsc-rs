@@ -213,9 +213,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getConstraintFromIndexedAccess @6.0.3
     /// tsc-hash: 9b4db0b05453c8a4498e23b0bae23b37a34724a3f3778fd8d62391ba9cf6a2a4
     /// tsc-span: _tsc.js:58809-58825
-    ///
-    /// The isMappedTypeGenericIndexedAccess head (58810-58812) escapes
-    /// conservatively until the mapped payload lands in M8.
     fn get_constraint_from_indexed_access(&mut self, ty: TypeId) -> CheckResult2<Option<TypeId>> {
         let TypeData::IndexedAccess {
             object_type,
@@ -225,10 +222,9 @@ impl<'a> CheckerState<'a> {
         else {
             unreachable!("indexed-access flag implies indexed-access data");
         };
-        if self.is_generic_mapped_type_state(object_type)? {
-            return Err(Unsupported::new(
-                "indexed-access constraints over mapped types \
-                 (substituteIndexedMappedType, 9.5c/M8)",
+        if self.is_mapped_type_generic_indexed_access(ty)? {
+            return Ok(Some(
+                self.substitute_indexed_mapped_type(object_type, index_type)?,
             ));
         }
         let index_constraint = self.get_simplified_type_or_constraint(index_type)?;
@@ -501,9 +497,9 @@ impl<'a> CheckerState<'a> {
             }));
         }
         if flags.intersects(TypeFlags::INDEXED_ACCESS) {
-            // 59000-59008: base constraints of both sides re-access.
-            // substituteIndexedMappedType is a 9.5c consumer and must
-            // not be skipped now that mapped objects are constructible.
+            // 59000-59008: mapped generic accesses substitute their
+            // template first; other accesses re-access both base
+            // constraints.
             let TypeData::IndexedAccess {
                 object_type,
                 index_type,
@@ -512,11 +508,9 @@ impl<'a> CheckerState<'a> {
             else {
                 unreachable!("indexed-access flag implies indexed-access data");
             };
-            if self.is_generic_mapped_type_state(object_type)? {
-                return Err(Unsupported::new(
-                    "base constraint of a generic mapped indexed access \
-                     (substituteIndexedMappedType, 9.5c/M8)",
-                ));
+            if self.is_mapped_type_generic_indexed_access(t)? {
+                let substituted = self.substitute_indexed_mapped_type(object_type, index_type)?;
+                return self.get_base_constraint_inner(substituted, stack);
             }
             let base_object = self.get_base_constraint_inner(object_type, stack)?;
             let base_index = self.get_base_constraint_inner(index_type, stack)?;

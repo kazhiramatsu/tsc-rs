@@ -137,7 +137,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// The generic-mapped-with-nameType disjunct stays behind the named
     /// getIndexTypeForMappedType 9.5b boundary below.
-    fn should_defer_index_type(
+    pub(crate) fn should_defer_index_type(
         &mut self,
         ty: TypeId,
         index_flags: IndexFlags,
@@ -692,21 +692,15 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b26e70997196efd7e1f1d3d114b5ff87f5ea045e5856d5925477022d8f4c120c
     /// tsc-span: _tsc.js:62527-62532
     ///
-    /// The whole body is the generic-mapped-with-nameType rewrite. The
-    /// conservative mapped gate escapes until that M8 payload lands,
-    /// rather than silently becoming an identity simplification.
-    fn get_simplified_index_type(&self, ty: TypeId) -> CheckResult2<TypeId> {
+    fn get_simplified_index_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
         let TypeData::Index { ty: inner, .. } = self.tables.type_of(ty).data else {
             unreachable!("index flag implies index data");
         };
-        if self
-            .tables
-            .object_flags_of(inner)
-            .intersects(ObjectFlags::MAPPED)
+        if self.is_generic_mapped_type_state(inner)?
+            && self.get_name_type_from_mapped_type(inner)?.is_some()
+            && !self.is_mapped_type_with_keyof_constraint_declaration(inner)
         {
-            return Err(Unsupported::new(
-                "getSimplifiedIndexType for mapped types (key remapping, 9.5b/M8)",
-            ));
+            return self.get_index_type_for_mapped_type(inner, IndexFlags::NONE);
         }
         Ok(ty)
     }
@@ -893,10 +887,17 @@ impl<'a> CheckerState<'a> {
                 return Ok(element);
             }
         }
-        if self.is_generic_mapped_type_state(object_type)? {
-            return Err(Unsupported::new(
-                "simplified indexed access over mapped types (mapped instantiation, 9.5b/M8)",
-            ));
+        if self.is_generic_mapped_type_state(object_type)?
+            && self.get_mapped_type_name_type_kind(object_type)?
+                != crate::mapped::MappedTypeNameTypeKind::Remapping
+        {
+            let substituted = self.substitute_indexed_mapped_type(object_type, index_type)?;
+            let mapped = self.map_type(
+                substituted,
+                &mut |state, member| Ok(Some(state.get_simplified_type(member, writing)?)),
+                /*no_reductions*/ false,
+            )?;
+            return Ok(mapped.expect("mapped indexed substitution never drops a member"));
         }
         Ok(ty)
     }

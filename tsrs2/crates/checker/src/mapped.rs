@@ -20,7 +20,7 @@ use crate::state::{
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum MappedTypeNameTypeKind {
+pub(crate) enum MappedTypeNameTypeKind {
     None,
     Filtering,
     Remapping,
@@ -59,7 +59,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getMappedTypeOptionality @6.0.3
     /// tsc-hash: f2ff51c93f2b27afb3a02a30de4d6fda4499f79aca0382e2d6abb0a8d4824987
     /// tsc-span: _tsc.js:58642-58645
-    #[allow(dead_code)] // consumers land in 9.5c indexed substitution/relation fidelity
     pub(crate) fn get_mapped_type_optionality(&self, ty: TypeId) -> i8 {
         let modifiers = self.get_mapped_type_modifiers(ty);
         if modifiers.intersects(MappedTypeModifiers::EXCLUDE_OPTIONAL) {
@@ -74,7 +73,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getCombinedMappedTypeOptionality @6.0.3
     /// tsc-hash: 1ecb4167362e790cb5a669db93477c0f13ebaa79454f26830f5d7f2157e71cbf
     /// tsc-span: _tsc.js:58646-58655
-    #[allow(dead_code)] // consumers land in 9.5c indexed substitution/relation fidelity
     pub(crate) fn get_combined_mapped_type_optionality(&mut self, ty: TypeId) -> CheckResult2<i8> {
         if self
             .tables
@@ -111,7 +109,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isPartialMappedType @6.0.3
     /// tsc-hash: 85f48737a839d61c088c792e89dedb86340523a69587fde73d6c615a1697744e
     /// tsc-span: _tsc.js:58656-58658
-    #[allow(dead_code)] // consumer lands in 9.5c relation fidelity
     pub(crate) fn is_partial_mapped_type(&self, ty: TypeId) -> bool {
         self.tables
             .object_flags_of(ty)
@@ -207,7 +204,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getMappedTypeNameTypeKind @6.0.3
     /// tsc-hash: 9dea04b3321844f615e94bc2b55d8c666bb11ac4638391437b1d4ef833d69170
     /// tsc-span: _tsc.js:58672-58678
-    fn get_mapped_type_name_type_kind(
+    pub(crate) fn get_mapped_type_name_type_kind(
         &mut self,
         ty: TypeId,
     ) -> CheckResult2<MappedTypeNameTypeKind> {
@@ -220,6 +217,131 @@ impl<'a> CheckerState<'a> {
         } else {
             MappedTypeNameTypeKind::Remapping
         })
+    }
+
+    /// tsrs-native: syntax-domain projection of `type.declaration.nameType`
+    /// for the relation and indexed-access ports.
+    pub(crate) fn mapped_type_declaration_has_name_type(&self, ty: TypeId) -> bool {
+        let declaration = self.mapped_type_declaration(ty);
+        matches!(
+            self.data_of(declaration),
+            NodeData::MappedType(mapped) if mapped.name_type.is_some()
+        )
+    }
+
+    /// tsc-port: isMappedTypeGenericIndexedAccess @6.0.3
+    /// tsc-hash: 47fcca6fc630c1206068c295d4d5b695e4927d0f58e88b3fb8f67dd43f842300
+    /// tsc-span: _tsc.js:59089-59092
+    pub(crate) fn is_mapped_type_generic_indexed_access(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<bool> {
+        let TypeData::IndexedAccess {
+            object_type,
+            index_type,
+            ..
+        } = self.tables.type_of(ty).data
+        else {
+            return Ok(false);
+        };
+        if !self
+            .tables
+            .object_flags_of(object_type)
+            .intersects(ObjectFlags::MAPPED)
+            || self.is_generic_mapped_type_state(object_type)?
+            || !self.is_generic_index_type_state(index_type)?
+            || self
+                .get_mapped_type_modifiers(object_type)
+                .intersects(MappedTypeModifiers::EXCLUDE_OPTIONAL)
+            || self.mapped_type_declaration_has_name_type(object_type)
+        {
+            return Ok(false);
+        }
+        Ok(true)
+    }
+
+    /// tsc-port: substituteIndexedMappedType @6.0.3
+    /// tsc-hash: fa7b0179f7b50aaa394482eedd579ac86c71e27631cffde2e0cb08a83ab94fac
+    /// tsc-span: _tsc.js:62536-62547
+    pub(crate) fn substitute_indexed_mapped_type(
+        &mut self,
+        object_type: TypeId,
+        index: TypeId,
+    ) -> CheckResult2<TypeId> {
+        let type_parameter = self.get_type_parameter_from_mapped_type(object_type)?;
+        let mapper = self.create_type_mapper(vec![type_parameter], Some(vec![index]));
+        let mapped = self.mapped_type_data(object_type);
+        let template_mapper = self.combine_type_mappers(mapped.mapper, mapper);
+        let target = mapped.target.unwrap_or(object_type);
+        let template = self.get_template_type_from_mapped_type(target)?;
+        let instantiated_template = self.instantiate_type(template, Some(template_mapper))?;
+        let is_optional = self.get_mapped_type_optionality(object_type) > 0
+            || if self.is_generic_type(object_type)? {
+                let modifiers = self.get_modifiers_type_from_mapped_type(object_type)?;
+                self.get_combined_mapped_type_optionality(modifiers)? > 0
+            } else {
+                self.could_access_optional_property(object_type, index)?
+            };
+        Ok(self.tables.add_optionality(
+            instantiated_template,
+            /*is_property*/ true,
+            is_optional,
+        ))
+    }
+
+    /// tsc-port: couldAccessOptionalProperty @6.0.3
+    /// tsc-hash: 9e1466e47e95dc90a1c56812d70ce53bf6ad15c0e6a81495439193421daf6625
+    /// tsc-span: _tsc.js:62548-62551
+    fn could_access_optional_property(
+        &mut self,
+        object_type: TypeId,
+        index_type: TypeId,
+    ) -> CheckResult2<bool> {
+        let Some(index_constraint) = self.get_base_constraint_of_type(index_type)? else {
+            return Ok(false);
+        };
+        for property in self.get_properties_of_type(object_type)? {
+            if !self
+                .symbol_flags(property)
+                .intersects(SymbolFlags::OPTIONAL)
+            {
+                continue;
+            }
+            let literal = self.get_literal_type_from_property(
+                property,
+                TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
+                /*include_non_public*/ true,
+            )?;
+            if self.is_type_assignable_to(literal, index_constraint)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// tsc-port: getApparentMappedTypeKeys @6.0.3
+    /// tsc-hash: 1e0ba86eae6fe2bbb459888507d27b63a11680301841c47a5d9d5a660e4993ed
+    /// tsc-span: _tsc.js:65930-65941
+    pub(crate) fn get_apparent_mapped_type_keys(
+        &mut self,
+        name_type: TypeId,
+        target_type: TypeId,
+    ) -> CheckResult2<TypeId> {
+        let modifiers = self.get_modifiers_type_from_mapped_type(target_type)?;
+        let apparent_modifiers = self.get_apparent_type(modifiers)?;
+        let keys = self.mapped_property_and_index_key_types(
+            apparent_modifiers,
+            TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
+            /*strings_only*/ false,
+        )?;
+        let parameter = self.get_type_parameter_from_mapped_type(target_type)?;
+        let mapped = self.mapped_type_data(target_type);
+        let mut mapped_keys = Vec::with_capacity(keys.len());
+        for key in keys {
+            let mapper = self.append_type_mapping(mapped.mapper, parameter, key);
+            mapped_keys.push(self.instantiate_type(name_type, Some(mapper))?);
+        }
+        self.get_union_type_ex(&mapped_keys, UnionReduction::Literal)
     }
 
     /// tsc-port: getLowerBoundOfKeyType @6.0.3
@@ -1010,6 +1132,101 @@ mod tests {
                         .expect("apparent array element"),
                     Some(state.tables.intrinsics.number)
                 );
+            },
+        );
+    }
+
+    #[test]
+    fn generic_indexed_mapped_substitution_preserves_template_and_optionality() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<K extends \"a\" | \"b\">(\n\
+                   value: { [P in \"a\" | \"b\"]: P }[K],\n\
+                   optional: { [P in \"a\" | \"b\"]?: P }[K]\n\
+                 ) {}\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let value = parameter_annotation_type(state, "value");
+                let TypeData::IndexedAccess {
+                    object_type,
+                    index_type,
+                    ..
+                } = state.tables.type_of(value).data
+                else {
+                    panic!("generic mapped access remains deferred");
+                };
+                assert!(state
+                    .is_mapped_type_generic_indexed_access(value)
+                    .expect("mapped generic indexed classifier"));
+                let substituted = state
+                    .substitute_indexed_mapped_type(object_type, index_type)
+                    .expect("mapped template substitutes");
+                assert_eq!(
+                    state
+                        .type_to_string_slice(substituted)
+                        .expect("substitution renders"),
+                    "K"
+                );
+                assert_eq!(
+                    state
+                        .get_constraint_of_indexed_access(value)
+                        .expect("constraint resolves"),
+                    Some(substituted)
+                );
+
+                let optional = parameter_annotation_type(state, "optional");
+                let TypeData::IndexedAccess {
+                    object_type,
+                    index_type,
+                    ..
+                } = state.tables.type_of(optional).data
+                else {
+                    panic!("optional generic mapped access remains deferred");
+                };
+                let substituted = state
+                    .substitute_indexed_mapped_type(object_type, index_type)
+                    .expect("optional mapped template substitutes");
+                let rendered = state
+                    .type_to_string_slice(substituted)
+                    .expect("optional substitution renders");
+                assert!(rendered.contains('K'), "{rendered}");
+                assert!(rendered.contains("undefined"), "{rendered}");
+            },
+        );
+    }
+
+    #[test]
+    fn generic_mapped_relations_compare_constraint_template_and_optionality() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T>(\n\
+                   required: { [P in keyof T]: T[P] },\n\
+                   same: { [Q in keyof T]: T[Q] },\n\
+                   optional: { [P in keyof T]?: T[P] },\n\
+                   empty: {}\n\
+                 ) {}\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let required = parameter_annotation_type(state, "required");
+                let same = parameter_annotation_type(state, "same");
+                let optional = parameter_annotation_type(state, "optional");
+                let empty = parameter_annotation_type(state, "empty");
+                assert!(state
+                    .is_type_assignable_to(required, same)
+                    .expect("equivalent mapped relation"));
+                assert!(state
+                    .is_type_assignable_to(required, optional)
+                    .expect("required maps to optional"));
+                assert!(!state
+                    .is_type_assignable_to(optional, required)
+                    .expect("optional does not map to required"));
+                assert!(state
+                    .is_type_assignable_to(empty, optional)
+                    .expect("empty object maps to a partial mapped target"));
             },
         );
     }
