@@ -175,6 +175,12 @@ pub struct SymbolLinks {
     /// tsc links.nameType — written by late-bound member binding (5.3);
     /// carried through instantiateSymbol's copy (63460).
     pub name_type: Option<TypeId>,
+    /// tsc links.mappedType for CheckFlags::MAPPED property symbols
+    /// synthesized by resolveMappedTypeMembers (58549).
+    pub mapped_type: Option<TypeId>,
+    /// tsc links.keyType for CheckFlags::MAPPED property symbols
+    /// (58551); distinct from nameType after key remapping.
+    pub key_type: Option<TypeId>,
     /// tsc links.typeParameters for generic type-alias symbols
     /// (getDeclaredTypeOfTypeAlias 57416).
     pub type_parameters: Option<Vec<TypeId>>,
@@ -293,6 +299,12 @@ pub struct TypeLinks {
     /// tsc MappedType.modifiersType (58625), consumed when mapped
     /// members/instantiation land in 9.5b.
     pub mapped_modifiers_type: LinkSlot<TypeId>,
+    /// tsc MappedType.containsError, set by a mapped-property type
+    /// resolution cycle (58581). This is monotone diagnostic state.
+    pub mapped_contains_error: bool,
+    /// tsc MappedType.resolvedApparentType
+    /// (getApparentTypeOfMappedType 59071).
+    pub mapped_apparent_type: LinkSlot<TypeId>,
     /// tsc type.resolvedBaseConstraint (getResolvedBaseConstraint
     /// 58916-58920).
     pub resolved_base_constraint: LinkSlot<TypeId>,
@@ -1033,6 +1045,48 @@ impl LinksTables {
         self.symbol.entry(id).or_default().name_type = name_type;
     }
 
+    /// tsrs-native: grouped LinksTables setter for tsc
+    /// resolveMappedTypeMembers' fresh property-link writes
+    /// (58549-58551).
+    pub fn set_symbol_mapped_links(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        mapped_type: TypeId,
+        name_type: TypeId,
+        key_type: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.symbol.entry(id).or_default();
+        assert!(
+            links.mapped_type.is_none() && links.key_type.is_none(),
+            "mapped symbol links rewritten"
+        );
+        links.mapped_type = Some(mapped_type);
+        links.name_type = Some(name_type);
+        links.key_type = Some(key_type);
+    }
+
+    /// tsrs-native: grouped LinksTables setter for tsc
+    /// resolveMappedTypeMembers' duplicate-remap union update
+    /// (58537-58538).
+    pub fn update_symbol_mapped_name_and_key(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        name_type: TypeId,
+        key_type: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let links = self.symbol.entry(id).or_default();
+        assert!(
+            links.mapped_type.is_some(),
+            "only mapped symbols merge name/key links"
+        );
+        links.name_type = Some(name_type);
+        links.key_type = Some(key_type);
+    }
+
     /// `links.target = ...` (checkObjectLiteral 74209 — the object
     /// literal member's source symbol, not the instantiation target).
     pub fn set_symbol_target(&mut self, speculation_depth: u32, id: SymbolId, target: SymbolId) {
@@ -1332,6 +1386,24 @@ impl LinksTables {
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.entry(id).or_default().mapped_modifiers_type,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    /// tsrs-native: LinksTables setter for tsc
+    /// `mappedType.containsError = true` on a mapped-property type
+    /// resolution cycle (58581).
+    pub fn set_mapped_contains_error(&mut self, speculation_depth: u32, id: TypeId) {
+        Self::assert_writable(speculation_depth);
+        self.ty.entry(id).or_default().mapped_contains_error = true;
+    }
+
+    /// tsrs-native: one-write TypeLinks setter for tsc
+    /// MappedType.resolvedApparentType.
+    pub fn set_mapped_apparent_type(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.ty.entry(id).or_default().mapped_apparent_type,
             LinkSlot::Resolved(value),
         );
     }

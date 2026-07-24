@@ -74,8 +74,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:62016-62019
     ///
     /// isNoInferType is constant false (Substitution types are
-    /// unconstructible before 9.6); mapped objects stop at the named
-    /// getIndexTypeForMappedType boundary below.
+    /// unconstructible before 9.6); mapped objects use the 9.5b key
+    /// expansion path.
     pub fn get_index_type(&mut self, ty: TypeId, index_flags: IndexFlags) -> CheckResult2<TypeId> {
         let ty = self.get_reduced_type(ty)?;
         if self.should_defer_index_type(ty, index_flags)? {
@@ -106,9 +106,7 @@ impl<'a> CheckerState<'a> {
             .object_flags_of(ty)
             .intersects(ObjectFlags::MAPPED)
         {
-            return Err(Unsupported::new(
-                "getIndexTypeForMappedType (mapped members, 9.5b/M8)",
-            ));
+            return self.get_index_type_for_mapped_type(ty, index_flags);
         }
         if ty == self.tables.intrinsics.wildcard {
             return Ok(self.tables.intrinsics.wildcard);
@@ -225,7 +223,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getIndexTypeForGenericType @6.0.3
     /// tsc-hash: dd50d78b15b0cf1329a53a526c20a55ce1ffd277d902b105da86d535f2f30a9b
     /// tsc-span: _tsc.js:61932-61934
-    fn get_index_type_for_generic_type(&mut self, ty: TypeId, index_flags: IndexFlags) -> TypeId {
+    pub(crate) fn get_index_type_for_generic_type(
+        &mut self,
+        ty: TypeId,
+        index_flags: IndexFlags,
+    ) -> TypeId {
         let strings_only = index_flags.intersects(IndexFlags::STRINGS_ONLY);
         let cached = if strings_only {
             self.links.ty(ty).resolved_string_index_type.resolved()

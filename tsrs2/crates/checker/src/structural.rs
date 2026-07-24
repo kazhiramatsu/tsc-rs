@@ -2937,7 +2937,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 619ac2a1ef46eed57fbe781a4e1aaf381e2d5e02401d1f26609ce218ae2beedb
     /// tsc-span: _tsc.js:59093-59097
     ///
-    /// getApparentTypeOfMappedType remains a named 9.5b boundary.
+    /// Mapped objects delegate to the 9.5b apparent-type path.
     /// Wrapper globals resolve through the lazy 5.0 accessors — in the
     /// noLib world getGlobalType's failure fallback is emptyObjectType
     /// with the file-less one-shot 2318, invisible to fixture files.
@@ -2950,9 +2950,7 @@ impl<'a> CheckerState<'a> {
         };
         let object_flags = self.tables.object_flags_of(t);
         if object_flags.intersects(ObjectFlags::MAPPED) {
-            return Err(Unsupported::new(
-                "getApparentTypeOfMappedType (mapped apparent type, 9.5b/M8)",
-            ));
+            return self.get_apparent_type_of_mapped_type(t);
         }
         if object_flags.intersects(ObjectFlags::REFERENCE) && t != ty {
             return self.get_type_with_this_argument(
@@ -5577,7 +5575,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: appendIndexInfo @6.0.3
     /// tsc-hash: 261bc2d3946da7a99f772ef4313e7e6aaaf97a8a814919c7272cc52947c0a5ef
     /// tsc-span: _tsc.js:58304-58317
-    fn append_index_info(
+    pub(crate) fn append_index_info(
         &mut self,
         index_infos: &mut Vec<IndexInfo>,
         new_info: IndexInfo,

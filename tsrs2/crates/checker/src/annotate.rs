@@ -2042,7 +2042,9 @@ impl<'a> CheckerState<'a> {
         })
     }
 
-    fn mapped_type_data(&self, ty: TypeId) -> MappedTypeData {
+    /// tsrs-native: typed immutable-payload projection for checker-side
+    /// mapped-type algorithms.
+    pub(crate) fn mapped_type_data(&self, ty: TypeId) -> MappedTypeData {
         match &self.tables.type_of(ty).data {
             TypeData::Mapped(data) => data.clone(),
             other => unreachable!("mapped object flag implies mapped payload, got {other:?}"),
@@ -3175,8 +3177,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 07b72758470ff7a70755a9aebe3dda44c543f90521b873fda21f7e03be3793a1
     /// tsc-span: _tsc.js:58679-58704
     ///
-    /// ReverseMapped/Mapped member resolution is M8; union and
-    /// intersection member synthesis is 5.3d.
+    /// ReverseMapped member resolution remains a named 9.5c boundary;
+    /// mapped member synthesis is owned by 9.5b.
     pub fn resolve_structured_type_members(&mut self, ty: TypeId) -> CheckResult2<MembersId> {
         if let Some(members) = self.links.ty(ty).resolved_members.resolved() {
             return Ok(members);
@@ -3201,8 +3203,11 @@ impl<'a> CheckerState<'a> {
         if object_flags.intersects(ObjectFlags::ANONYMOUS) {
             return self.resolve_anonymous_type_members(ty);
         }
+        if object_flags.intersects(ObjectFlags::MAPPED) {
+            return self.resolve_mapped_type_members(ty);
+        }
         Err(Unsupported::new(format!(
-            "member resolution for object flags {object_flags:?} (Mapped/ReverseMapped, M8)"
+            "member resolution for object flags {object_flags:?} (ReverseMapped, 9.5c/M8)"
         )))
     }
 
@@ -6119,7 +6124,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// Dispatch slice: the Instantiated check-flag arm (5.2),
     /// variable/property symbols (annotation-typed) and function/method
-    /// symbols. Mapped/ReverseMapped are M8; accessors, classes,
+    /// symbols. Mapped symbols are 9.5b; ReverseMapped remains 9.5c. Accessors, classes,
     /// enums, modules and aliases keep their owning-stage escapes.
     /// tsc's DeferredType arm (getTypeOfSymbolWithDeferredType,
     /// 56945-56947) is ELIDED as a documented divergence (m6 close):
@@ -6134,9 +6139,7 @@ impl<'a> CheckerState<'a> {
             return self.get_type_of_instantiated_symbol(symbol);
         }
         if check_flags.intersects(CheckFlags::MAPPED) {
-            return Err(Unsupported::new(
-                "mapped symbols (getTypeOfMappedSymbol, M8)",
-            ));
+            return self.get_type_of_mapped_symbol(symbol);
         }
         if check_flags.intersects(CheckFlags::REVERSE_MAPPED) {
             return Err(Unsupported::new(

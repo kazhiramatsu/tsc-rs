@@ -24,6 +24,7 @@ mod js_grammar;
 pub mod jsx;
 pub mod links;
 pub mod literals;
+pub mod mapped;
 pub mod merge;
 pub mod modules;
 pub mod narrow;

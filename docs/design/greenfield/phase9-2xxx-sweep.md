@@ -1972,6 +1972,58 @@ seven accepted identities; syntactic remains 2242/2246. Checker tests
 are 970, types tests 21, and xtask tests 29; ledger=1778/stale=0.
 `cargo xtask ci` exits 0, including every invariant.
 
+## 9.5b1 results (2026-07-24, mapped member materialization — DONE)
+
+The original 9.5b row was split at its two semantic owners:
+`resolveMappedTypeMembers` and `instantiateMappedType`. This first
+sub-row closes the former. Finite mapped types now materialize an
+ordered member table from literal/`keyof`/index-signature key domains,
+instantiate `as` name types, merge duplicate remapped names by unioning
+their original key types, and synthesize mapped property symbols whose
+lazy value types instantiate the template under that key. The symbol
+links retain mapped type, name type, key type, modifier origin, and
+cycle state; they do not cache a guessed `errorType`.
+
+Modifier propagation follows the mapped declaration exactly:
+`+/-readonly` and `+/-?` override source modifiers, an omitted modifier
+copies it from the apparent modifier source, strict optional removal
+uses the `StripOptional` path, remapped properties do not borrow source
+declarations, and non-property key domains synthesize and union index
+infos. `getIndexTypeForMappedType` now covers ordinary and remapped
+finite domains. `getTypeOfMappedSymbol` uses the resolution stack,
+reports 2615 on a real cycle, and retracts no-success cache writes.
+`getLowerBoundOfKeyType` covers index, union, and intersection keys;
+its conditional branch remains an exact 9.6 boundary.
+
+The finite apparent-type identity face is live and cached. The only
+remaining apparent-type boundary is the homomorphic array/tuple
+transformation, deliberately paired with `instantiateMappedType` in
+9.5b2. The conservative generic-mapped classifier also stays until
+that sub-row, so generic consumers continue to fail closed rather than
+observing an empty-object approximation. Direct canaries pin finite
+optional members, template-literal remapping, duplicate-key unions,
+readonly/optional copying and subtraction, mapped index infos, lazy
+value instantiation, and `keyof` over a remapped type.
+
+Band movement (tool-read): all T0 **59.2200%→59.2261%**
+(29032→29035, +3), FP=0; 2xxx T0 **87.0600%→87.0742%**
+(18327→18330, +3), FP=0; supported T0
+**89.3826%→89.3972%** (18330/20504), supported FN
+2,177→**2,174**. The exact gains at T1/T2/T3 are the same three
+2536 identities in `mappedTypeErrors2.ts` (lines 12, 14, and 16);
+every tier has **zero lost identities** in all and supported views,
+and the supported universe is unchanged. Ratchet artifacts gained
+exactly those three identities; syntactic remains 2242/2246.
+
+The four broad mapped-symbol/member/index/apparent escape rows retired
+and three narrower boundaries landed (ReverseMapped=9.5c,
+conditional-key lower bound=9.6, homomorphic apparent
+array/tuple=9.5b2): sites=**248**, stale=0, untagged=0, recovery=116,
+dormant=13. Checker tests are 972. The exact ledger is
+1788/stale=0, and schema-2 closure declarations unaccounted by exact
+ports fell 4,058→**4,048**. Full `cargo xtask ci` is the merge gate for
+the sub-row.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
@@ -1992,7 +2044,8 @@ lane follows the table.
 | 6 | 9.4b object/array/arrow | Route call/assignment sites through the common engine; close object members, forced-tuple array/spread elaboration, arrow return-position recursion, and `getBestMatchingType`. | The object/array/arrow curtain reasons retire; moved inner rows match T0-T3 when chain prerequisites are live; exact T1-T3 diff is reviewed and each loss is fixed or carries an exact-row shared-prerequisite debt record. |
 | 7 | 9.4c JSX/report heads | Add JSX component/attribute elementwise reporting and the remaining `reportRelationError` head selection to the common engine. The result representation must carry chain/related data rather than baking in a head-only API. | F4 supported rows have no elaboration curtain; exact T1-T3 diff is reviewed and each loss is fixed or carries an exact-row shared-prerequisite debt record. |
 | 8 | 9.5a mapped model | Add the mapped-type immutable semantic payload, constructor/accessors, `getTypeFromMappedTypeNode`, and mapped display. Mutable resolved members/caches stay in `TypeLinks`; semantic identity does not become flags plus side-table convention. Update the core-interface contract in the same PR if the representation changes it. | D2a and the dormant-assumption census are landed; model/constructibility canaries pass and trigger the owned dormant audit; the producer reaches only named downstream escapes; creating a mapped type never creates an unrenderable type. |
-| 9 | 9.5b mapped members/instantiation | Port mapped constraint/template/name types, key remapping, `+/-readonly`, `+/-?`, index infos, apparent members, and instantiation. | Member and instantiation canaries match; no broad `errorType` or empty-object fallback is introduced. |
+| 9a | 9.5b1 mapped member materialization | Port finite mapped key expansion, constraint/template/name access, key remapping, `+/-readonly`, `+/-?`, index infos, lazy mapped-symbol types, and finite apparent members. | Member canaries match; no broad `errorType` or empty-object fallback is introduced. |
+| 9b | 9.5b2 mapped instantiation/apparent | Port `instantiateMappedType`, mapped object instantiation and homomorphic array/tuple preservation; activate the precise generic-mapped classifier and finish the apparent-type transformation. | Instantiation/apparent canaries match; the 9.5b1 homomorphic boundary retires and no conservative generic-mapped classification remains. |
 | 10 | 9.5c mapped relations/context/inference | Activate `mappedTypeRelatedTo`, mapped indexed access, contextual substitution, homomorphic inference, and corpus-required reverse-mapped paths. Audit every pre-M8 constant-false/unreachable mapped assumption in `instantiate.rs`, `indexed.rs`, `structural.rs`, `contextual.rs`, `literals.rs`, `access.rs`, and `inference.rs`. | F3a supported rows close and every canary-triggered dormant assumption has a direct pin or a narrower named escape. |
 | 11 | 9.6a conditional/substitution model | Add conditional root/type and substitution immutable payloads, interning/accessors, constraint hooks, and display. | Model/constructibility canaries pass and trigger the owned dormant audit; no accepted movement required; every producer has a renderer and unwind-safe cache protocol. |
 | 12 | 9.6b NoInfer | Mint the NoInfer substitution type and activate all `isNoInferType` guards in inference/indexed/expression paths. | The mandatory NoInfer supported rows close; no NoInfer-specific escape remains. |
