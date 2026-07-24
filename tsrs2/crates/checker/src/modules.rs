@@ -2142,6 +2142,7 @@ impl<'a> CheckerState<'a> {
             && !Self::has_extension(module_reference)
             && self.resolution_mode_for_usage(location) == ModuleResolutionMode::EsNext
         {
+            let diagnostics_before = self.diagnostics.len();
             if let Some(suggested) = self.suggested_extension_for(location, module_reference) {
                 let suggestion = format!("{module_reference}{suggested}");
                 self.error_at(
@@ -2155,6 +2156,9 @@ impl<'a> CheckerState<'a> {
                     &diagnostics::Relative_import_paths_need_explicit_file_extensions_in_ECMAScript_imports_when_moduleResolution_is_node16_or_nodenext_Consider_adding_an_extension_to_the_import_path,
                     &[],
                 );
+            }
+            if self.is_in_js_file(error_node) {
+                self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
             }
             return Ok(None);
         }
@@ -2183,11 +2187,15 @@ impl<'a> CheckerState<'a> {
                 // only yields typed results); the NOT-FOUND face rides
                 // the plain tail below in tsc too.
             }
+            let diagnostics_before = self.diagnostics.len();
             self.error_at(
                 Some(error_node),
                 module_not_found_error,
                 &[module_reference],
             );
+            if self.is_in_js_file(error_node) {
+                self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
+            }
         }
         Ok(None)
     }

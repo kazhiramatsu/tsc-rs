@@ -2616,6 +2616,35 @@ owner; remaining `.js` fixtures owned by module resolution, emit
 helpers, parse recovery, display, or JSDoc do not reopen this slice.
 Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9a results (2026-07-25, checked-JS module misses — DONE)
+
+The in-memory resolver already distinguished a definite
+`ProgramModuleResolution::Missed` result from the
+`Suppressed` result used when node_modules, package redirects, paths,
+or another unmodeled host input could change the answer. The
+checked-JavaScript output gate now publishes exact diagnostic keys
+created only after that definite miss. Node16/NodeNext extensionless
+ESM imports expose 2834/2835 and the ordinary not-found tail exposes
+2307; host-dependent resolutions remain silent.
+
+The `nodeModulesAllowJs1` four-case module matrix moves from 0/220 to
+220/220. The same producer closes another 20 rows across seven
+fixtures, including declaration-generation JavaScript and
+rewrite-relative-import-extension cases. Direct public-entry tests pin
+both sides: a definite relative miss is emitted, while a node_modules
+candidate remains suppressed.
+
+Every shadow tier grows by **240** with lost=0 in both bands and both
+scope views. 2xxx T0 is **19998/21051** (**94.9979%**) with FP=0;
+supported T0 is **19998/20504** (**97.5322%**) with supported
+FN=**506**. All-band T0 is **30920/49024** (**63.0711%**) with FP=0.
+The ratchet adds exactly 240 all-band and 240 2xxx identities; the
+syntactic set is unchanged.
+
+Checker tests are **1,009**. Escape evidence is unchanged at
+sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
+Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

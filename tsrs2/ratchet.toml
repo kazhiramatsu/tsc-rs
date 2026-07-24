@@ -183,8 +183,10 @@
 # p9 9.8b adds +16 through normal expando-member resolution.
 # p9 9.8c adds +16 through JS constructor/assignment-declaration
 # contextual typing, instance `this`, and constructor property flow.
-rate = 0.625816
-matched = 30680
+# p9 9.9a adds +240 by publishing definite checked-JS module
+# resolution misses while preserving host-dependent suppression.
+rate = 0.630711
+matched = 30920
 total = 49024
 allowed_regression = 0.0
 
@@ -238,8 +240,9 @@ allowed_regression = 0.0
 # p9 9.7c adds +1097 by retiring the parser-recovery overload bail.
 # p9 9.8b adds +12 expando-member rows.
 # p9 9.8c adds +16 JS constructor/assignment-declaration rows.
-rate = 0.938578
-matched = 19758
+# p9 9.9a adds +240 definite checked-JS module-resolution rows.
+rate = 0.949979
+matched = 19998
 total = 21051
 allowed_regression = 0.0
 
