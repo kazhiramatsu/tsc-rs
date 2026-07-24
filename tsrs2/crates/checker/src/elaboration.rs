@@ -106,16 +106,14 @@ impl<'a> CheckerState<'a> {
         Ok(None)
     }
 
-    /// tsrs-native: report-free elaborateError probe for call
-    /// applicability; retired when 9.4b routes those callers through
-    /// the reporting engine.
+    /// tsrs-native: the remaining report-free JSX disposition adapter.
+    /// Ordinary call arguments route through the reporting engine as of
+    /// 9.4b; 9.4c retires this with the JSX component walk.
     ///
     /// `Declined` means the ordinary relation head is correct.
     /// `DidYouMean` preserves the walked diagnostic node and related
-    /// row. An `Unsupported` result identifies a branch that would
-    /// report an inner row but is not routed through the common
-    /// reporting engine until 9.4b/9.4c.
-    pub(crate) fn probe_elaboration_disposition(
+    /// row. `Unsupported` is the still-unported JSX component walk.
+    pub(crate) fn probe_jsx_elaboration_disposition(
         &mut self,
         node: NodeId,
         source: TypeId,
@@ -125,252 +123,21 @@ impl<'a> CheckerState<'a> {
         if self.is_or_has_generic_conditional(target) {
             return Ok(ElaborationDisposition::Declined);
         }
-        let mut walk = node;
-        loop {
-            // 63959-63967: the did-you-mean probe runs per recursion
-            // level, reporting at the CURRENT node.
-            if let Some(kind) = self.did_you_mean_signature_kind(source, target, relation)? {
-                let message = if kind == SignatureKind::Construct {
-                    &diagnostics::Did_you_mean_to_use_new_with_this_expression
-                } else {
-                    &diagnostics::Did_you_mean_to_call_this_expression
-                };
-                let related = self.related_info_for_node(walk, message, &[]);
-                return Ok(ElaborationDisposition::DidYouMean {
-                    node: walk,
-                    related,
-                });
-            }
-            match self.kind_of(walk) {
-                SyntaxKind::AsExpression => {
-                    let NodeData::AsExpression(data) = self.data_of(walk) else {
-                        unreachable!("kind/data agree");
-                    };
-                    let is_const = data
-                        .r#type
-                        .is_some_and(|type_node| self.is_const_type_reference_node(type_node));
-                    if !is_const {
-                        return Ok(ElaborationDisposition::Declined);
-                    }
-                    match data.expression {
-                        Some(expression) => walk = expression,
-                        None => return Ok(ElaborationDisposition::Declined),
-                    }
-                }
-                SyntaxKind::JsxExpression => {
-                    let NodeData::JsxExpression(data) = self.data_of(walk) else {
-                        unreachable!("kind/data agree");
-                    };
-                    match data.expression {
-                        Some(expression) => walk = expression,
-                        None => return Ok(ElaborationDisposition::Declined),
-                    }
-                }
-                SyntaxKind::ParenthesizedExpression => {
-                    let NodeData::ParenthesizedExpression(data) = self.data_of(walk) else {
-                        unreachable!("kind/data agree");
-                    };
-                    match data.expression {
-                        Some(expression) => walk = expression,
-                        None => return Ok(ElaborationDisposition::Declined),
-                    }
-                }
-                SyntaxKind::BinaryExpression => {
-                    let NodeData::BinaryExpression(data) = self.data_of(walk) else {
-                        unreachable!("kind/data agree");
-                    };
-                    let operator = data.operator_token.map(|token| self.kind_of(token));
-                    match operator {
-                        Some(SyntaxKind::EqualsToken | SyntaxKind::CommaToken) => {
-                            match data.right {
-                                Some(right) => walk = right,
-                                None => return Ok(ElaborationDisposition::Declined),
-                            }
-                        }
-                        _ => return Ok(ElaborationDisposition::Declined),
-                    }
-                }
-                SyntaxKind::ObjectLiteralExpression => {
-                    // elaborateObjectLiteral (64456): the primitive/
-                    // never-target early-out falls back to the plain
-                    // head — whose object-literal source display is T2
-                    // anyway — so the blanket escape loses nothing.
-                    return Err(Unsupported::new(
-                        "elaborateObjectLiteral (elementwise elaboration, T2)",
-                    ));
-                }
-                SyntaxKind::ArrayLiteralExpression => {
-                    // elaborateArrayLiteral (64410): decide whether the
-                    // elementwise walk WOULD report — if not, tsc falls
-                    // back to the plain head at the literal (live).
-                    if self
-                        .array_literal_elaboration_would_report(walk, source, target, relation)?
-                    {
-                        return Err(Unsupported::new(
-                            "elaborateArrayLiteral (elementwise elaboration, T2)",
-                        ));
-                    }
-                    return Ok(ElaborationDisposition::Declined);
-                }
-                SyntaxKind::JsxAttributes => {
-                    return Err(Unsupported::new(
-                        "elaborateJsxComponents (elementwise elaboration, T2)",
-                    ));
-                }
-                SyntaxKind::ArrowFunction => {
-                    // elaborateArrowFunction gates (64024-64038): an
-                    // expression body, no annotated parameters, a
-                    // single-call-signature source, and a callable
-                    // target make the elaboration recurse into the
-                    // return expression.
-                    let NodeData::ArrowFunction(data) = self.data_of(walk) else {
-                        unreachable!("kind/data agree");
-                    };
-                    let body_is_block = data
-                        .body
-                        .is_some_and(|body| self.kind_of(body) == SyntaxKind::Block);
-                    if body_is_block {
-                        return Ok(ElaborationDisposition::Declined);
-                    }
-                    let parameters = self.nodes_of(data.parameters);
-                    let has_typed_parameter = parameters.iter().any(|&parameter| {
-                        matches!(self.data_of(parameter), NodeData::Parameter(p) if p.r#type.is_some())
-                    });
-                    if has_typed_parameter {
-                        return Ok(ElaborationDisposition::Declined);
-                    }
-                    // 64031: getSingleCallSignature(source) is the
-                    // elaborateArrowFunction source gate.
-                    if self.get_single_call_signature(source)?.is_none() {
-                        return Ok(ElaborationDisposition::Declined);
-                    }
-                    if self
-                        .get_signatures_of_type(target, SignatureKind::Call)?
-                        .is_empty()
-                    {
-                        return Ok(ElaborationDisposition::Declined);
-                    }
-                    return Err(Unsupported::new(
-                        "elaborateArrowFunction (return-position elaboration, T2)",
-                    ));
-                }
-                _ => return Ok(ElaborationDisposition::Declined),
-            }
-        }
-    }
-
-    /// The elaborateArrayLiteral decision (64410-64431 +
-    /// generateLimitedTupleElements 64398 + elaborateElementwise's
-    /// per-element verdicts): true when tsc's elaboration would emit
-    /// inner rows instead of the plain head.
-    fn array_literal_elaboration_would_report(
-        &mut self,
-        node: NodeId,
-        source: TypeId,
-        target: TypeId,
-        relation: RelationKind,
-    ) -> CheckResult2<bool> {
-        if self
-            .tables
-            .flags_of(target)
-            .intersects(TypeFlags::from_bits(
-                TypeFlags::PRIMITIVE.bits() | TypeFlags::NEVER.bits(),
-            ))
-        {
-            return Ok(false);
-        }
-        let elements = match self.data_of(node) {
-            NodeData::ArrayLiteralExpression(data) => self.nodes_of(data.elements),
-            _ => return Ok(false),
-        };
-        // Target-side pass first: an element can only produce a row
-        // when the target has a matching indexed access — deciding
-        // this before the forced-tuple re-check keeps no-index targets
-        // out of the contextual element reads.
-        let mut candidates: Vec<(usize, TypeId)> = Vec::new();
-        for (index, &element) in elements.iter().enumerate() {
-            if self.is_tuple_like_type(target)?
-                && self
-                    .get_property_of_type_full(target, &index.to_string())?
-                    .is_none()
-            {
-                continue;
-            }
-            if self.kind_of(element) == SyntaxKind::OmittedExpression {
-                continue;
-            }
-            let name_type = self.tables.get_number_literal_type(index as f64);
-            // getBestMatchIndexedAccessTypeOrUndefined (64103-64114):
-            // the direct indexed access, then — union targets only —
-            // the same probe over getBestMatchingType's constituent.
-            let mut target_prop = self.get_indexed_access_type_or_undefined(
-                target,
-                name_type,
-                AccessFlags::NONE,
-                None,
-                None,
-                None,
-            )?;
-            if target_prop.is_none() && self.tables.flags_of(target).intersects(TypeFlags::UNION) {
-                if let Some(best) = self.get_best_matching_type(source, target)? {
-                    target_prop = self.get_indexed_access_type_or_undefined(
-                        best,
-                        name_type,
-                        AccessFlags::NONE,
-                        None,
-                        None,
-                        None,
-                    )?;
-                }
-            }
-            let Some(target_prop) = target_prop else {
-                continue;
+        if let Some(kind) = self.did_you_mean_signature_kind(source, target, relation)? {
+            let message = if kind == SignatureKind::Construct {
+                &diagnostics::Did_you_mean_to_use_new_with_this_expression
+            } else {
+                &diagnostics::Did_you_mean_to_call_this_expression
             };
-            if self
-                .tables
-                .flags_of(target_prop)
-                .intersects(TypeFlags::INDEXED_ACCESS)
-            {
-                continue;
-            }
-            candidates.push((index, target_prop));
+            let related = self.related_info_for_node(node, message, &[]);
+            return Ok(ElaborationDisposition::DidYouMean { node, related });
         }
-        if candidates.is_empty() {
-            return Ok(false);
+        if self.kind_of(node) == SyntaxKind::JsxAttributes {
+            return Err(Unsupported::new(
+                "elaborateJsxComponents (elementwise elaboration, T2)",
+            ));
         }
-        let tupleized = if self.is_tuple_like_type(source)? {
-            source
-        } else {
-            // 64416-64423: re-check as a forced tuple under the target
-            // context (re-runs dedupe against the original check).
-            self.push_contextual_type(node, Some(target), /*is_cache*/ false);
-            let result =
-                self.check_array_literal(node, CheckMode::CONTEXTUAL, /*force_tuple*/ true);
-            self.pop_contextual_type();
-            let tupleized = result?;
-            if !self.is_tuple_like_type(tupleized)? {
-                return Ok(false);
-            }
-            tupleized
-        };
-        for (index, target_prop) in candidates {
-            let name_type = self.tables.get_number_literal_type(index as f64);
-            let Some(source_prop) = self.get_indexed_access_type_or_undefined(
-                tupleized,
-                name_type,
-                AccessFlags::NONE,
-                None,
-                None,
-                None,
-            )?
-            else {
-                continue;
-            };
-            if !self.check_type_related_to(source_prop, target_prop, relation)? {
-                return Ok(true);
-            }
-        }
-        Ok(false)
+        Ok(ElaborationDisposition::Declined)
     }
 
     /// tsc-port: elaborateDidYouMeanToCallOrConstruct @6.0.3
@@ -417,7 +184,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:64103-64114
     fn member_elaboration_target_type(
         &mut self,
-        expression: NodeId,
+        source_type: TypeId,
         target_type: TypeId,
         name_text: &str,
     ) -> CheckResult2<Option<TypeId>> {
@@ -433,7 +200,6 @@ impl<'a> CheckerState<'a> {
             .flags_of(target_type)
             .intersects(TypeFlags::UNION)
         {
-            let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
             if let Some(best) = self.get_best_matching_type(source_type, target_type)? {
                 if let Some(property) = self.get_property_of_type_full(best, name_text)? {
                     return Ok(Some(self.get_type_of_symbol(property)?));
@@ -454,7 +220,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:64165-64171
     fn remove_missing_for_member_report(
         &mut self,
-        expression: NodeId,
+        source_type: TypeId,
         target_type: TypeId,
         name_text: &str,
         actual: TypeId,
@@ -469,7 +235,6 @@ impl<'a> CheckerState<'a> {
                     .intersects(tsrs2_types::SymbolFlags::OPTIONAL)
             });
         let source_is_optional = if target_is_optional {
-            let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
             self.get_property_of_type_full(source_type, name_text)?
                 .is_some_and(|property| {
                     self.binder
@@ -610,7 +375,19 @@ impl<'a> CheckerState<'a> {
                 return Ok(ElaborationOutcome::Reported);
             }
             NodeData::ObjectLiteralExpression(data) => {
+                // elaborateObjectLiteral (64456): primitive and Never
+                // targets decline before generating member entries.
+                if self
+                    .tables
+                    .flags_of(target_type)
+                    .intersects(TypeFlags::from_bits(
+                        TypeFlags::PRIMITIVE.bits() | TypeFlags::NEVER.bits(),
+                    ))
+                {
+                    return Ok(ElaborationOutcome::Declined);
+                }
                 let properties = self.nodes_of(data.properties);
+                let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
                 for property in properties {
                     let (name, initializer, member_lookup) = match self.data_of(property) {
                         NodeData::PropertyAssignment(data) => match (data.name, data.initializer) {
@@ -640,7 +417,7 @@ impl<'a> CheckerState<'a> {
                         continue;
                     };
                     let expected = match self.member_elaboration_target_type(
-                        expression,
+                        source_type,
                         target_type,
                         &name_text,
                     )? {
@@ -648,8 +425,6 @@ impl<'a> CheckerState<'a> {
                         None => continue,
                     };
                     let actual = if member_lookup {
-                        let source_type =
-                            self.check_expression_cached(expression, CheckMode::NORMAL)?;
                         match self.get_property_of_type_full(source_type, &name_text)? {
                             Some(source_property) => self.get_type_of_symbol(source_property)?,
                             None => continue,
@@ -697,7 +472,7 @@ impl<'a> CheckerState<'a> {
                         &diagnostics::Type_0_is_not_assignable_to_type_1
                     };
                     let (actual, expected) = self.remove_missing_for_member_report(
-                        expression,
+                        source_type,
                         target_type,
                         &name_text,
                         actual,
@@ -708,21 +483,48 @@ impl<'a> CheckerState<'a> {
             }
             NodeData::ArrayLiteralExpression(data) => {
                 let elements = self.nodes_of(data.elements);
-                if elements
-                    .iter()
-                    .any(|&element| self.kind_of(element) == SyntaxKind::SpreadElement)
+                // elaborateArrayLiteral @6.0.3, _tsc.js:64410-64431
+                // vendored span hash:
+                // 226140f17e9a3411add9f3a938acc8794d00b550a22d5adfcb775c5c8f9b8bc5
+                //
+                // A non-tuple source is checked again under the target
+                // context with forceTuple. This is load-bearing for
+                // spread elements: generateLimitedTupleElements indexes
+                // the tupleized SOURCE by the syntax-element position,
+                // rather than comparing the SpreadElement expression's
+                // array type directly.
+                let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
+                if self
+                    .tables
+                    .flags_of(target_type)
+                    .intersects(TypeFlags::from_bits(
+                        TypeFlags::PRIMITIVE.bits() | TypeFlags::NEVER.bits(),
+                    ))
                 {
-                    return Err(Unsupported::new(
-                        "failed array-literal relation with a spread element \
-                         (elaborateArrayLiteral tupleization; M6 close -> phase-9 2xxx \
-                         sweep, M7)",
-                    ));
+                    return Ok(ElaborationOutcome::Declined);
                 }
+                let tupleized_source = if self.is_tuple_like_type(source_type)? {
+                    source_type
+                } else {
+                    self.push_contextual_type(
+                        expression,
+                        Some(target_type),
+                        /*is_cache*/ false,
+                    );
+                    let result = self.check_array_literal(
+                        expression,
+                        CheckMode::CONTEXTUAL,
+                        /*force_tuple*/ true,
+                    );
+                    self.pop_contextual_type();
+                    let tupleized = result?;
+                    if !self.is_tuple_like_type(tupleized)? {
+                        return Ok(ElaborationOutcome::Declined);
+                    }
+                    tupleized
+                };
                 for (index, element) in elements.into_iter().enumerate() {
-                    if matches!(
-                        self.kind_of(element),
-                        SyntaxKind::OmittedExpression | SyntaxKind::SpreadElement
-                    ) {
+                    if self.kind_of(element) == SyntaxKind::OmittedExpression {
                         continue;
                     }
                     let index_name = index.to_string();
@@ -734,7 +536,7 @@ impl<'a> CheckerState<'a> {
                         continue;
                     } else {
                         match self.member_elaboration_target_type(
-                            expression,
+                            tupleized_source,
                             target_type,
                             &index_name,
                         )? {
@@ -742,7 +544,18 @@ impl<'a> CheckerState<'a> {
                             None => continue,
                         }
                     };
-                    let actual = self.check_expression_cached(element, CheckMode::NORMAL)?;
+                    let name_type = self.tables.get_number_literal_type(index as f64);
+                    let Some(actual) = self.get_indexed_access_type_or_undefined(
+                        tupleized_source,
+                        name_type,
+                        AccessFlags::NONE,
+                        None,
+                        None,
+                        None,
+                    )?
+                    else {
+                        continue;
+                    };
                     if self.is_type_assignable_to(actual, expected)? {
                         continue;
                     }
@@ -758,7 +571,7 @@ impl<'a> CheckerState<'a> {
                         continue;
                     }
                     let (actual, expected) = self.remove_missing_for_member_report(
-                        expression,
+                        tupleized_source,
                         target_type,
                         &index_name,
                         actual,

@@ -157,9 +157,10 @@
 # fixes. Review r2's UMD alias / symbol-chain corrections were
 # T0-neutral; the implicit-external-module completion added +12 by
 # honoring Auto/Force module detection for format, JSX, and package
-# scope indicators.
-rate = 0.588304
-matched = 28841
+# scope indicators. p9 9.4b adds +71 by routing call arguments through
+# object/array/arrow elaboration and force-tupleizing spread arrays.
+rate = 0.589752
+matched = 28912
 total = 49024
 allowed_regression = 0.0
 
@@ -199,9 +200,10 @@ allowed_regression = 0.0
 # comment).
 # p9 9.3b5: +285 with the display-special tail (see the T0 comment);
 # review r2 and its implicit-external-module completion are
-# byte-neutral in the 2xxx band.
-rate = 0.861527
-matched = 18136
+# byte-neutral in the 2xxx band. p9 9.4b adds +71 object/array/arrow
+# elaboration rows.
+rate = 0.8649
+matched = 18207
 total = 21051
 allowed_regression = 0.0
 

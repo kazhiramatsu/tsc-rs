@@ -1754,6 +1754,65 @@ band has FP=0. Ratchet and A2 artifacts are unchanged. Checker tests
 remain 960; ledger=1770/stale=0; escapes=250/stale=0/untagged=0
 (recovery=116); `cargo xtask ci` exits 0.
 
+## 9.4b results (2026-07-24, object/array/arrow elaboration — DONE)
+
+The common 9.4a engine now owns ordinary call-argument reporting as
+well as assignment/return reporting. The full selected curtain
+snapshot closed: `elaborateObjectLiteral` 42→0,
+`elaborateArrayLiteral` 19→0, `elaborateArrowFunction` 4→0, and the
+spread/forceTuple escape 6→0. JSX remains isolated for 9.4c
+(91 headless/attribute rows + 14 component-walk rows).
+
+Decisions of record:
+
+1. **Applicability uses an errorOutputContainer-shaped capture
+   channel**: the common reporter still writes through CheckerState for
+   assignment/return callers, while call `Report` captures complete
+   diagnostics for later publication and call `Probe` captures their
+   span/related data for the 2769 overload wrapper. File-less
+   missing-global rows emitted lazily by relation probes stay in the
+   main diagnostic list. The four direct pins cover object member,
+   excess-property fallback, arrow return, and spread tupleization; a
+   fifth pins a two-overload 2769 at the shared elaborated member span.
+2. **Declined elaboration re-enters the source-level relation
+   reporter**, never the old span-only head builder. The fabrication
+   audit caught four 2345 outer heads replacing oracle 2353
+   excess-property rows when the object walk correctly declined an
+   unknown member. Capturing `check_type_assignable_to` restores
+   excess/common-property/readonly head selection and preserves the
+   full chain+related payload supplied by that reporter.
+3. **Object primitive/Never early-out is live** (64456): the first
+   widened run exposed `wrappedAndRecursiveConstraints4` as a fabricated
+   inner 2322 against a `string` target where tsc declines elaboration
+   and emits 2345. The target-flag guard fixes the source decision,
+   rather than shielding the display.
+4. **Array sources are force-tupleized** (64410-64431): a non-tuple
+   source is rechecked under the target context with `forceTuple=true`;
+   the element walk indexes that tupleized source at each syntax
+   position, including spreads, and uses it for union best-match and
+   optional-member reporting. The M7 spread escape retires.
+5. **The report-free adapter is JSX-only now**: its object/array/arrow
+   branches and array verdict duplicate were deleted. Escape sites
+   250→246 with stale=0/untagged=0; the single remaining JSX
+   disposition site belongs to 9.4c.
+6. **Subsystem matrix**: model/construction/instantiation/inference/
+   display = unchanged; members = object/array elementwise walk live at
+   call sites; relations = source-level fallback and union
+   getBestMatchingType live; diagnostics = Report/Probe capture carries
+   message chain + related data; cache-order = contextual forceTuple
+   push/check/pop matches tsc and writes no rollback-only cache.
+
+Band movement (tool-read): all T0 **58.8304%→58.9752%**
+(28841→28912, +71), FP=0; 2xxx T0 **86.1527%→86.4900%**
+(18136→18207, +71), FP=0; supported T0
+**88.4510%→88.7973%** (18207/20504), supported FN
+2,368→**2,297**. Exact 2xxx diff: T1 +71, T2 +73, T3 +37, with
+**zero lost identities** in all and supported views and an unchanged
+supported universe. Ratchet artifacts gained exactly the 71 accepted
+identities; no A2 artifact changed. Checker tests 960→965.
+`cargo xtask ci` exits 0; ledger=1770/stale=0 and
+escapes=246/stale=0/untagged=0/recovery=116.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

@@ -2971,6 +2971,110 @@ impl<'a> CheckerState<'a> {
         }))
     }
 
+    /// tsrs-native: run the common elaborateError reporter under
+    /// errorOutputContainer.skipLogging semantics.
+    ///
+    /// The common engine writes through CheckerState so assignment and
+    /// return callers keep their established behavior. Applicability
+    /// needs the same diagnostics as DATA: Report mode publishes them
+    /// only after overload selection, while Probe mode wraps their
+    /// span/related rows in 2769. Capture only rows inside the effective
+    /// argument; relation probes can lazily emit file-less missing-global
+    /// diagnostics, which remain in the main list.
+    fn capture_argument_elaboration(
+        &mut self,
+        node: NodeId,
+        target: TypeId,
+        head: &'static DiagnosticMessage,
+        mode: ApplicabilityMode,
+    ) -> CheckResult2<Option<Vec<ApplicabilityError>>> {
+        let before = self.diagnostics.len();
+        let outcome = self.elaborate_literal_assignment(node, target, Some(head))?;
+        if !outcome.reported() {
+            return Ok(None);
+        }
+        Ok(Some(
+            self.take_captured_applicability_errors(node, before, mode),
+        ))
+    }
+
+    /// tsrs-native: capture the ordinary relation reporter through the
+    /// same skipLogging-shaped channel as elaboration. This keeps
+    /// source-level head selection (excess properties, weak targets,
+    /// array readonly faces) live instead of rebuilding a head from
+    /// only a preselected span.
+    fn capture_argument_relation_error(
+        &mut self,
+        node: NodeId,
+        source: TypeId,
+        target: TypeId,
+        head: &'static DiagnosticMessage,
+        mode: ApplicabilityMode,
+    ) -> CheckResult2<Vec<ApplicabilityError>> {
+        let head = if head.code
+            == diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1.code
+            && self.options.exact_optional_property_types.unwrap_or(false)
+            && self.has_exact_optional_unassignable_properties(source, target)?
+        {
+            &diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1_with_exactOptionalPropertyTypes_true_Consider_adding_undefined_to_the_types_of_the_target_s_properties
+        } else {
+            head
+        };
+        let before = self.diagnostics.len();
+        self.check_type_assignable_to(source, target, Some(node), head)?;
+        Ok(self.take_captured_applicability_errors(node, before, mode))
+    }
+
+    fn take_captured_applicability_errors(
+        &mut self,
+        node: NodeId,
+        before: usize,
+        mode: ApplicabilityMode,
+    ) -> Vec<ApplicabilityError> {
+        let source = self.binder.source_of_node(node);
+        let syntax_node = source.arena.node(node);
+        let start_byte = tsrs2_syntax::skip_trivia(&source.text, syntax_node.pos as usize);
+        let to_utf16 = |byte: usize| -> u32 {
+            source
+                .line_map
+                .byte_to_utf16
+                .get(byte)
+                .copied()
+                .unwrap_or(byte as u32)
+        };
+        let node_start = to_utf16(start_byte);
+        let node_end = to_utf16(syntax_node.end as usize);
+        let file_name = source.file_name.clone();
+
+        let emitted = self.diagnostics.split_off(before);
+        let mut errors = Vec::new();
+        for diagnostic in emitted {
+            let is_argument_row = diagnostic.file_name.as_deref() == Some(file_name.as_str())
+                && diagnostic
+                    .start
+                    .is_some_and(|start| node_start <= start && start < node_end);
+            if !is_argument_row {
+                self.push_error_diagnostic(diagnostic);
+                continue;
+            }
+            let span = DiagSpan {
+                file_name: diagnostic
+                    .file_name
+                    .clone()
+                    .expect("argument rows have a file"),
+                start: diagnostic.start.expect("argument rows have a start"),
+                length: diagnostic.length.expect("argument rows have a length"),
+            };
+            let related = diagnostic.related.clone();
+            errors.push(ApplicabilityError {
+                span,
+                related,
+                diagnostic: (mode == ApplicabilityMode::Report).then_some(diagnostic),
+            });
+        }
+        errors
+    }
+
     /// tsc-port: getSignatureApplicabilityError @6.0.3
     /// tsc-hash: bd05784a6cdf0b44aae49b1b7135d05b6105da3b41e39e7b01d3950a29709f1b
     /// tsc-span: _tsc.js:76194-76276
@@ -3071,6 +3175,41 @@ impl<'a> CheckerState<'a> {
                         ));
                     }
                 }
+                if let Some(effective) = effective {
+                    if let Some(mut errors) =
+                        self.capture_argument_elaboration(effective, param_type, head, mode)?
+                    {
+                        if let Some(await_related) =
+                            self.missing_await_related(&arg, check_arg_type, param_type, relation)?
+                        {
+                            if let Some(first) = errors.first_mut() {
+                                first.related.push(await_related.clone());
+                                if let Some(diagnostic) = first.diagnostic.as_mut() {
+                                    diagnostic.related.push(await_related);
+                                }
+                            }
+                        }
+                        return Ok(Some(errors));
+                    }
+                    let mut errors = self.capture_argument_relation_error(
+                        effective,
+                        check_arg_type,
+                        param_type,
+                        head,
+                        mode,
+                    )?;
+                    if let Some(await_related) =
+                        self.missing_await_related(&arg, check_arg_type, param_type, relation)?
+                    {
+                        if let Some(first) = errors.first_mut() {
+                            first.related.push(await_related.clone());
+                            if let Some(diagnostic) = first.diagnostic.as_mut() {
+                                diagnostic.related.push(await_related);
+                            }
+                        }
+                    }
+                    return Ok(Some(errors));
+                }
                 // The elaboration gate: elementwise elaborations move
                 // the code/span (Err); the did-you-mean flavor keeps
                 // the head but reports at the walked node.
@@ -3078,25 +3217,11 @@ impl<'a> CheckerState<'a> {
                 // 76229: errorNode = effectiveCheckArgumentNode — the
                 // span skips parentheses/satisfies exactly like the
                 // rest branch below.
-                let mut span = match effective {
+                let span = match effective {
                     Some(effective) => self.diag_span_of_node(effective),
                     None => self.diag_span_of_effective_arg(node, &arg),
                 };
                 let mut related: Vec<RelatedInfo> = Vec::new();
-                if let Some(effective) = effective {
-                    if let ElaborationDisposition::DidYouMean {
-                        node,
-                        related: info,
-                    } = self.probe_elaboration_disposition(
-                        effective,
-                        check_arg_type,
-                        param_type,
-                        relation,
-                    )? {
-                        span = self.diag_span_of_node(node);
-                        related.push(info);
-                    }
-                }
                 if let Some(await_related) =
                     self.missing_await_related(&arg, check_arg_type, param_type, relation)?
                 {
@@ -5251,7 +5376,7 @@ impl<'a> CheckerState<'a> {
                         RelationKind::Assignable,
                     )?
                 {
-                    if self.probe_elaboration_disposition(
+                    if self.probe_jsx_elaboration_disposition(
                         attributes,
                         attr_type,
                         result,
@@ -6601,13 +6726,64 @@ mod tests {
     }
 
     #[test]
-    fn array_literal_arg_with_elementwise_rows_contains() {
+    fn array_literal_arg_reports_elementwise_row() {
         // Oracle: 2322 at the element — the elementwise elaboration
-        // (T2) owns that row; the plain head would be a wrong-payload
-        // FP, so the statement contains.
+        // replaces the 2345 argument head.
         assert_eq!(
             checked_rows("declare function tup(a: [number]): void;\ntup([\"x\"]);\n"),
-            []
+            [(2322, 46, 3)]
+        );
+    }
+
+    #[test]
+    fn object_literal_arg_reports_member_row() {
+        // elaborateObjectLiteral → elaborateElementwise: the row
+        // anchors at the property name, not the outer argument.
+        assert_eq!(
+            checked_rows("declare function f(a:{x:number}):void;\nf({x:\"s\"});\n"),
+            [(2322, 42, 1)]
+        );
+    }
+
+    #[test]
+    fn declined_object_elaboration_keeps_excess_property_selection() {
+        // The elementwise walk skips unknown target properties, then
+        // the ordinary relation reporter selects 2353 at `y`.
+        assert_eq!(
+            checked_rows("declare function f(a:{x:number}):void;\nf({x:1,y:2});\n"),
+            [(2353, 46, 1)]
+        );
+    }
+
+    #[test]
+    fn arrow_argument_elaborates_the_return_expression() {
+        assert_eq!(
+            checked_rows("declare function f(a:()=>number):void;\nf(()=>\"s\");\n"),
+            [(2322, 45, 3)]
+        );
+    }
+
+    #[test]
+    fn spread_array_argument_reports_the_tupleized_element() {
+        // elaborateArrayLiteral force-tuples the source; the spread
+        // syntax position then indexes the tupleized string element.
+        assert_eq!(
+            checked_rows(
+                "declare function f(a:[number,number]):void;\nconst xs:[string]=[\"s\"];\nf([1,...xs]);\n"
+            ),
+            [(2322, 74, 5)]
+        );
+    }
+
+    #[test]
+    fn overload_probe_uses_the_elaborated_member_span() {
+        // errorOutputContainer.skipLogging captures both overload
+        // tails; the shared inner `x` span anchors the outer 2769.
+        assert_eq!(
+            checked_rows(
+                "declare function f(a:{x:number}):void;\ndeclare function f(a:{x:boolean}):void;\nf({x:\"s\"});\n"
+            ),
+            [(2769, 82, 1)]
         );
     }
 
