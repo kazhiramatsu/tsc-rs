@@ -1495,10 +1495,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeOfPropertyOfContextualType @6.0.3
     /// tsc-hash: ec4d63f5248309d0acfd4a38b4b9e2e26840d7b409f04390cd5d3333d849d0cd
     /// tsc-span: _tsc.js:73112-73162
-    ///
-    /// Generic mapped objects stop at the named
-    /// getIndexedMappedTypeSubstitutedTypeOfContextualType boundary
-    /// until 9.5c supplies the per-property substitution.
     pub(crate) fn get_type_of_property_of_contextual_type(
         &mut self,
         ty: TypeId,
@@ -1525,13 +1521,24 @@ impl<'a> CheckerState<'a> {
                         {
                             continue;
                         }
-                        if state.is_generic_mapped_type_state(constituent)? {
-                            return Err(Unsupported::new(
-                                "getIndexedMappedTypeSubstitutedTypeOfContextualType (mapped types, M8)",
-                            ));
+                        if state.is_generic_mapped_type_state(constituent)?
+                            && state.get_mapped_type_name_type_kind(constituent)?
+                                != crate::mapped::MappedTypeNameTypeKind::Remapping
+                        {
+                            let substituted = state
+                                .get_indexed_mapped_type_substituted_type_of_contextual_type(
+                                    constituent,
+                                    &name,
+                                    name_type,
+                                )?;
+                            state.append_contextual_property_type_constituent(
+                                &mut types,
+                                substituted,
+                            );
+                            continue;
                         }
-                        let property_type =
-                            state.get_type_of_concrete_property_of_contextual_type(constituent, &name)?;
+                        let property_type = state
+                            .get_type_of_concrete_property_of_contextual_type(constituent, &name)?;
                         let Some(property_type) = property_type else {
                             if !ignore_index_infos {
                                 index_info_candidates.push(constituent);
@@ -1540,12 +1547,19 @@ impl<'a> CheckerState<'a> {
                         };
                         ignore_index_infos = true;
                         index_info_candidates.clear();
-                        state.append_contextual_property_type_constituent(&mut types, Some(property_type));
+                        state.append_contextual_property_type_constituent(
+                            &mut types,
+                            Some(property_type),
+                        );
                     }
                     for candidate in index_info_candidates {
-                        let index_info_type = state
-                            .get_type_from_index_infos_of_contextual_type(candidate, &name, name_type)?;
-                        state.append_contextual_property_type_constituent(&mut types, index_info_type);
+                        let index_info_type = state.get_type_from_index_infos_of_contextual_type(
+                            candidate, &name, name_type,
+                        )?;
+                        state.append_contextual_property_type_constituent(
+                            &mut types,
+                            index_info_type,
+                        );
                     }
                     if types.is_empty() {
                         return Ok(None);
@@ -1560,10 +1574,13 @@ impl<'a> CheckerState<'a> {
                 if !state.tables.flags_of(t).intersects(TypeFlags::OBJECT) {
                     return Ok(None);
                 }
-                if state.is_generic_mapped_type_state(t)? {
-                    return Err(Unsupported::new(
-                        "getIndexedMappedTypeSubstitutedTypeOfContextualType (mapped types, M8)",
-                    ));
+                if state.is_generic_mapped_type_state(t)?
+                    && state.get_mapped_type_name_type_kind(t)?
+                        != crate::mapped::MappedTypeNameTypeKind::Remapping
+                {
+                    return state.get_indexed_mapped_type_substituted_type_of_contextual_type(
+                        t, &name, name_type,
+                    );
                 }
                 match state.get_type_of_concrete_property_of_contextual_type(t, &name)? {
                     Some(property_type) => {
@@ -1578,6 +1595,66 @@ impl<'a> CheckerState<'a> {
             },
             true,
         )
+    }
+
+    /// tsrs-native: the currently constructible
+    /// isExcludedMappedPropertyName branches (73102-73111).
+    fn is_excluded_mapped_property_name(
+        &mut self,
+        constraint: TypeId,
+        _property_name_type: TypeId,
+    ) -> CheckResult2<bool> {
+        let flags = self.tables.flags_of(constraint);
+        if flags.intersects(TypeFlags::CONDITIONAL) {
+            return Err(Unsupported::new(
+                "isExcludedMappedPropertyName conditional branch (Conditional type, 9.6a/M8)",
+            ));
+        }
+        if flags.intersects(TypeFlags::INTERSECTION) {
+            let TypeData::Intersection { types } = self.tables.type_of(constraint).data.clone()
+            else {
+                unreachable!("intersection flag implies payload");
+            };
+            for member in types.iter().copied() {
+                if self.is_excluded_mapped_property_name(member, _property_name_type)? {
+                    return Ok(true);
+                }
+            }
+        }
+        Ok(false)
+    }
+
+    /// tsc-port: getIndexedMappedTypeSubstitutedTypeOfContextualType @6.0.3
+    /// tsc-hash: 80d9c33b479640b8d3f675320d8bb2a6a4602849210e0bbf5eccdda16ffc9e84
+    /// tsc-span: _tsc.js:73166-73177
+    fn get_indexed_mapped_type_substituted_type_of_contextual_type(
+        &mut self,
+        ty: TypeId,
+        name: &str,
+        name_type: Option<TypeId>,
+    ) -> CheckResult2<Option<TypeId>> {
+        let property_name_type = name_type.unwrap_or_else(|| {
+            self.tables
+                .get_string_literal_type(tsrs2_binder::unescape_leading_underscores(name))
+        });
+        let constraint = self.get_constraint_type_from_mapped_type(ty)?;
+        if let Some(mapped_name) = self.get_name_type_from_mapped_type(ty)? {
+            if self.is_excluded_mapped_property_name(mapped_name, property_name_type)? {
+                return Ok(None);
+            }
+        }
+        if self.is_excluded_mapped_property_name(constraint, property_name_type)? {
+            return Ok(None);
+        }
+        let constraint_of_constraint = self
+            .get_base_constraint_of_type(constraint)?
+            .unwrap_or(constraint);
+        if !self.is_type_assignable_to(property_name_type, constraint_of_constraint)? {
+            return Ok(None);
+        }
+        Ok(Some(
+            self.substitute_indexed_mapped_type(ty, property_name_type)?,
+        ))
     }
 
     /// tsc-port: appendContextualPropertyTypeConstituent @6.0.3
@@ -1603,10 +1680,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeOfConcretePropertyOfContextualType @6.0.3
     /// tsc-hash: a43fe4c12bceede221999a4ac05100e280a4f8caab2099195e2bc86334d2afe8
     /// tsc-span: _tsc.js:73178-73184
-    ///
-    /// isCircularMappedProperty (73099-73101) reads CheckFlags::MAPPED
-    /// — unconstructible until M8, so the probe reduces to the
-    /// property read.
     fn get_type_of_concrete_property_of_contextual_type(
         &mut self,
         ty: TypeId,
@@ -1615,14 +1688,31 @@ impl<'a> CheckerState<'a> {
         let Some(prop) = self.get_property_of_type_full(ty, name)? else {
             return Ok(None);
         };
-        if self.get_check_flags(prop).intersects(CheckFlags::MAPPED) {
-            return Err(Unsupported::new(
-                "isCircularMappedProperty (mapped-type properties, M8)",
-            ));
+        if self.is_circular_mapped_property(prop) {
+            return Ok(None);
         }
         let prop_type = self.get_type_of_symbol(prop)?;
         let optional = self.symbol_flags(prop).intersects(SymbolFlags::OPTIONAL);
         Ok(Some(self.remove_missing_type(prop_type, optional)))
+    }
+
+    /// tsc-port: isCircularMappedProperty @6.0.3
+    /// tsc-hash: 9491812f1667f3367d92329a3a905a0eb8416ea919212d2ad9209d38070d71d1
+    /// tsc-span: _tsc.js:73099-73101
+    fn is_circular_mapped_property(&self, symbol: SymbolId) -> bool {
+        self.get_check_flags(symbol).intersects(CheckFlags::MAPPED)
+            && self
+                .links
+                .symbol(symbol)
+                .type_of_symbol
+                .resolved()
+                .is_none()
+            && self
+                .find_resolution_cycle_start_index(
+                    crate::state::ResolutionTarget::Symbol(symbol),
+                    tsrs2_types::TypeSystemPropertyName::TYPE,
+                )
+                .is_some()
     }
 
     /// tsc-port: getTypeFromIndexInfosOfContextualType @6.0.3
@@ -3950,6 +4040,60 @@ mod tests {
                     Some(SyntaxKind::AsExpression),
                 );
                 assert!(state.is_const_context(operand).expect("in slice"));
+            },
+        );
+    }
+
+    #[test]
+    fn generic_mapped_context_substitutes_the_named_property() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T extends { a: string }>(x: { [K in keyof T]: T[K] }) {}\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let mapped_node = find_node(state, SyntaxKind::MappedType, None);
+                let mapped = state
+                    .get_type_from_type_node(mapped_node)
+                    .expect("mapped type resolves");
+                let property = state
+                    .get_type_of_property_of_contextual_type(mapped, "a", None)
+                    .expect("mapped contextual substitution resolves")
+                    .expect("a is inside the mapped constraint");
+                assert!(state
+                    .is_type_assignable_to(property, state.tables.intrinsics.string)
+                    .expect("substituted property relates to its constraint"));
+            },
+        );
+    }
+
+    #[test]
+    fn circular_mapped_contextual_property_is_not_forced() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "type M = { [K in \"a\"]: K };\ndeclare let value: M;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let mapped_node = find_node(state, SyntaxKind::MappedType, None);
+                let mapped = state
+                    .get_type_from_type_node(mapped_node)
+                    .expect("mapped type resolves");
+                let property = state
+                    .get_property_of_type_full(mapped, "a")
+                    .expect("members resolve")
+                    .expect("a exists");
+                assert!(state.push_type_resolution(
+                    crate::state::ResolutionTarget::Symbol(property),
+                    tsrs2_types::TypeSystemPropertyName::TYPE,
+                ));
+                let contextual = state
+                    .get_type_of_concrete_property_of_contextual_type(mapped, "a")
+                    .expect("cycle is a non-result, not an unwind");
+                assert_eq!(contextual, None);
+                state.pop_type_resolution();
             },
         );
     }

@@ -125,15 +125,18 @@ impl<'a> CheckerState<'a> {
 
     /// The inTupleContext contextual disjunct (73969):
     /// `isTupleLikeType(t) || isGenericMappedType(t) && !t.nameType &&
-    /// getHomomorphicTypeVariable(...)` — the mapped disjunct is a
-    /// named 9.5c contextual/inference boundary.
+    /// getHomomorphicTypeVariable(...)`.
     fn is_tuple_context_constituent(&mut self, t: TypeId) -> CheckResult2<bool> {
-        if self.is_generic_mapped_type_state(t)? {
-            return Err(Unsupported::new(
-                "inTupleContext generic-mapped disjunct (getHomomorphicTypeVariable, M8)",
-            ));
+        if self.is_tuple_like_type(t)? {
+            return Ok(true);
         }
-        self.is_tuple_like_type(t)
+        if !self.is_generic_mapped_type_state(t)?
+            || self.get_name_type_from_mapped_type(t)?.is_some()
+        {
+            return Ok(false);
+        }
+        let target = self.mapped_type_data(t).target.unwrap_or(t);
+        Ok(self.get_homomorphic_type_variable(target)?.is_some())
     }
 
     /// tsc-port: checkArrayLiteral @6.0.3
@@ -1667,6 +1670,7 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
+    use tsrs2_syntax::SyntaxKind;
     use tsrs2_types::CompilerOptions;
 
     use crate::state::test_support::with_program_state;
@@ -1696,6 +1700,31 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    #[test]
+    fn homomorphic_mapped_context_requests_tuple_literal_shape() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T>(value: { [K in keyof T]: T[K] }) {}\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let source = state.binder.source(0);
+                let mapped_node = source
+                    .arena
+                    .node_ids()
+                    .find(|&node| source.arena.node(node).kind == SyntaxKind::MappedType)
+                    .expect("fixture has a mapped type");
+                let mapped = state
+                    .get_type_from_type_node(mapped_node)
+                    .expect("mapped type resolves");
+                assert!(state
+                    .is_tuple_context_constituent(mapped)
+                    .expect("mapped tuple-context predicate resolves"));
+            },
+        );
     }
 
     // ---- computed names: the 2464 legality band ----

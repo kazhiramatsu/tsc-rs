@@ -15,8 +15,8 @@
 use tsrs2_binder::{node_util, SymbolTable};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    CheckMode, ModifierFlags, NodeFlags, SymbolFlags, SymbolId, TypeFacts, TypeFlags, TypeId,
-    UnionReduction,
+    CheckMode, MappedTypeModifiers, ModifierFlags, NodeFlags, SymbolFlags, SymbolId, TypeFacts,
+    TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::state::{CheckResult2, CheckerState, Unsupported};
@@ -3683,8 +3683,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkIndexedAccessIndexType @6.0.3
     /// tsc-hash: a2cd8152c78bd2c6042737704036aee3897bd1e8fb54378add79f82572845461
     /// tsc-span: _tsc.js:81893-81919
-    ///
-    /// The mapped-readonly write arm (2542) is a named 9.5c consumer.
     pub(crate) fn check_indexed_access_index_type(
         &mut self,
         ty: TypeId,
@@ -3729,10 +3727,16 @@ impl<'a> CheckerState<'a> {
                     .tables
                     .object_flags_of(object_type)
                     .intersects(tsrs2_types::ObjectFlags::MAPPED)
+                && self
+                    .get_mapped_type_modifiers(object_type)
+                    .intersects(MappedTypeModifiers::INCLUDE_READONLY)
             {
-                return Err(Unsupported::new(
-                    "mapped-readonly write 2542 (getMappedTypeModifiers — mapped family, M8)",
-                ));
+                let display = self.type_to_string_slice(object_type)?;
+                self.error_at(
+                    Some(access_node),
+                    &tsrs2_diags::gen::Index_signature_in_type_0_only_permits_reading,
+                    &[&display],
+                );
             }
             return Ok(ty);
         }
