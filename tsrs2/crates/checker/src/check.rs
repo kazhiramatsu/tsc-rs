@@ -4,12 +4,10 @@
 //! lists and the 2636 variance-annotation probe).
 //!
 //! Dispatch discipline: checkSourceElementWorker's switch is ported
-//! with the FULL kind list; arms whose workers belong to a later M4
-//! stage are explicit no-op escapes named after their tsc worker and
-//! owner stage (grep `source_element_stub`). An Unsupported unwind
-//! abandons the CURRENT element's remaining checks only (an honest
-//! FN) — the driver continues with the next element, so one
-//! out-of-slice construct never silences a whole file.
+//! with the FULL kind list. An Unsupported unwind abandons the CURRENT
+//! element's remaining checks only (an honest FN) — the driver
+//! continues with the next element, so one out-of-slice construct
+//! never silences a whole file.
 //!
 //! Grammar checks: checkGrammarStatementInAmbientContext is LIVE from
 //! 5.5a (checkExpressionStatement's head; the EmptyStatement/Debugger
@@ -28,8 +26,8 @@ use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
 use tsrs2_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    ElementFlags, ModifierFlags, NodeCheckFlags, ObjectFlags, TypeData, TypeFacts, TypeFlags,
-    TypeId,
+    ElementFlags, ModifierFlags, NodeCheckFlags, ObjectFlags, SymbolFlags, TypeData, TypeFacts,
+    TypeFlags, TypeId,
 };
 
 use crate::state::{CheckResult2, CheckerState, SignatureId, SignatureKind, Unsupported};
@@ -1216,16 +1214,6 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// One no-op escape per not-yet-landed checkSourceElementWorker
-    /// arm (and per value-level SILENT stub — a divergence that keeps
-    /// producing a result instead of unwinding). The worker name +
-    /// owner stage make each disposition greppable and visible to the
-    /// `xtask escapes` audit; the site emits nothing (FN) until its
-    /// stage ports the worker.
-    pub(crate) fn source_element_stub(&self, _worker: &str, _owner: &str) -> CheckResult2<()> {
-        Ok(())
-    }
-
     /// tsc-port: checkBlock @6.0.3
     /// tsc-hash: ea6aec550a59633f1e11e780af1c7be7f4c89f5b46519add41fcaa41c4c823ad
     /// tsc-span: _tsc.js:83214-83228
@@ -1622,47 +1610,63 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         has_type_arguments: bool,
     ) -> CheckResult2<()> {
+        if has_type_arguments
+            && (self.type_reference_arguments_may_resolve_alias(node)?
+                || self.is_self_referential_type_alias_reference(node)?)
+        {
+            // The modeled observable here is the addLazyDiagnostic
+            // constraint block; deprecation suggestions are outside
+            // the diagnostic channel. Queue the force with that block
+            // when an argument can re-enter an alias still being
+            // declared.
+            self.check_node_deferred(node);
+            return Ok(());
+        }
         let ty = self.get_type_from_type_node(node)?;
         if ty != self.tables.intrinsics.error && has_type_arguments {
-            // Conditional-scope escape: inside a ConditionalType, the
-            // check type's parameters carry the extends-clause
-            // constraint context (M8 conditional machinery) — the
-            // slice's constraint check over the RAW parameters
-            // fabricates 2344 (conditionalTypes2 pins the true-branch
-            // reference staying silent).
-            if self.has_conditional_type_ancestor(node) {
-                return self.source_element_stub(
-                    "checkTypeArgumentConstraints under a ConditionalType (9.6c)",
-                    "M8",
-                );
-            }
-            // addLazyDiagnostic runs inline (eager identity).
-            if let Some(type_parameters) =
-                self.get_type_parameters_for_type_reference_or_import(node)?
-            {
-                self.check_type_argument_constraints(node, &type_parameters)?;
-            }
+            self.check_node_deferred(node);
         }
         Ok(())
     }
 
-    /// The conditional-scope probe feeding the M8 constraint escapes.
-    fn has_conditional_type_ancestor(&self, node: NodeId) -> bool {
+    fn is_self_referential_type_alias_reference(&mut self, node: NodeId) -> CheckResult2<bool> {
+        let NodeData::TypeReference(data) = self.data_of(node) else {
+            return Ok(false);
+        };
+        let Some(type_name) = data.type_name else {
+            return Ok(false);
+        };
+        let Some(referenced) = self.resolve_entity_name(
+            type_name,
+            SymbolFlags::TYPE,
+            /*ignore_errors*/ true,
+            None,
+        )?
+        else {
+            return Ok(false);
+        };
+        let mut nested_in_type_reference = false;
         let mut current = self.parent_of(node);
         while let Some(candidate) = current {
-            if self.kind_of(candidate) == SyntaxKind::ConditionalType {
-                return true;
+            if self.kind_of(candidate) == SyntaxKind::TypeReference {
+                nested_in_type_reference = true;
+            }
+            if self.kind_of(candidate) == SyntaxKind::TypeAliasDeclaration {
+                return Ok(nested_in_type_reference
+                    && self
+                        .node_symbol(candidate)
+                        .is_some_and(|symbol| self.get_merged_symbol(symbol) == referenced));
             }
             current = self.parent_of(candidate);
         }
-        false
+        Ok(false)
     }
 
     /// tsc-port: getTypeParametersForTypeReferenceOrImport @6.0.3
     /// (covers getTypeParametersForTypeAndSymbol in the same span)
     /// tsc-hash: cb54b2481679e0a7eb4e9530f2d7710e9bf374f4323522fcf273ab2d8d9aab8f
     /// tsc-span: _tsc.js:81703-81718
-    fn get_type_parameters_for_type_reference_or_import(
+    pub(crate) fn get_type_parameters_for_type_reference_or_import(
         &mut self,
         node: NodeId,
     ) -> CheckResult2<Option<Vec<TypeId>>> {
@@ -1926,16 +1930,6 @@ impl<'a> CheckerState<'a> {
         let (object_type, index_type) = (data.object_type, data.index_type);
         self.check_source_element(object_type);
         self.check_source_element(index_type);
-        // Conditional-scope escape (same M8 class as the constraint
-        // check above): `T extends K ? Obj[T] : ...` narrows T in the
-        // true branch — the raw-parameter index check fabricates 2536
-        // (stringMappingReduction / unknownControlFlow pins).
-        if self.has_conditional_type_ancestor(node) {
-            return self.source_element_stub(
-                "checkIndexedAccessIndexType under a ConditionalType (9.6c)",
-                "M8",
-            );
-        }
         let resolved = self.get_type_from_indexed_access_type_node(node)?;
         self.check_indexed_access_index_type(resolved, node)?;
         Ok(())
@@ -2568,6 +2562,16 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::ClassExpression => self.check_class_expression_deferred(node),
             SyntaxKind::TypeParameter => self.check_type_parameter_deferred(node),
+            SyntaxKind::TypeReference
+            | SyntaxKind::ImportType
+            | SyntaxKind::ExpressionWithTypeArguments => {
+                if let Some(type_parameters) =
+                    self.get_type_parameters_for_type_reference_or_import(node)?
+                {
+                    self.check_type_argument_constraints(node, &type_parameters)?;
+                }
+                Ok(())
+            }
             SyntaxKind::JsxSelfClosingElement => self.check_jsx_self_closing_element_deferred(node),
             SyntaxKind::JsxElement => self.check_jsx_element_deferred(node),
             SyntaxKind::TypeAssertionExpression

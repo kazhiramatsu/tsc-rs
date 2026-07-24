@@ -174,8 +174,10 @@
 # homomorphic mapped inference. p9 9.6a adds +13 by constructing and
 # rendering the conditional/substitution semantic model. p9 9.6b adds
 # +9 through NoInfer production and its inference/relation consumers.
-rate = 0.596422
-matched = 29239
+# p9 9.6c adds +62 through conditional resolution, distributivity,
+# constraint/simplification consumers, and exact recursive diagnostics.
+rate = 0.597687
+matched = 29301
 total = 49024
 allowed_regression = 0.0
 
@@ -224,8 +226,9 @@ allowed_regression = 0.0
 # p9 9.5c2b adds +11 reverse-mapped/homomorphic-inference rows.
 # p9 9.6a adds +13 conditional/substitution model/display rows.
 # p9 9.6b adds +9 NoInfer production/inference/relation rows.
-rate = 0.880243
-matched = 18530
+# p9 9.6c adds +60 conditional-resolution/distribution rows.
+rate = 0.883093
+matched = 18590
 total = 21051
 allowed_regression = 0.0
 

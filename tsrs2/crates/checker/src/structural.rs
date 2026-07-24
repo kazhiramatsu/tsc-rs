@@ -102,11 +102,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-hash: bccafd822efb034656afe7f2bc249a4f735cb74edadd3218be0428f5000a973c
     /// tsc-span: _tsc.js:65872-65929
     ///
-    /// getEffectiveConstraintOfIntersection contributes only when an
-    /// intersection member is Instantiable — unconstructible in M3, so
-    /// the constraint retry is faithfully None. The optionalsOnly
-    /// intersection-source arm keys on getApparentType being
-    /// structured — the M3 apparent slice covers it.
+    /// The optionalsOnly intersection-source arm keys on
+    /// getApparentType being structured.
     pub(crate) fn structured_type_related_to(
         &mut self,
         source: TypeId,
@@ -121,9 +118,32 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             intersection_state,
         )?;
         if self.relation != RelationKind::Identity {
-            // Intersection-source constraint retry (65876-65890):
-            // getEffectiveConstraintOfIntersection is None without
-            // Instantiable members.
+            if is_false(result)
+                && (self.flags(source).intersects(TypeFlags::INTERSECTION)
+                    || (self.flags(source).intersects(TypeFlags::TYPE_PARAMETER)
+                        && self.flags(target).intersects(TypeFlags::UNION)))
+            {
+                let source_types = if self.flags(source).intersects(TypeFlags::INTERSECTION) {
+                    self.union_members(source)
+                } else {
+                    vec![source]
+                };
+                let constraint = self.st.get_effective_constraint_of_intersection(
+                    &source_types,
+                    self.flags(target).intersects(TypeFlags::UNION),
+                )?;
+                if let Some(constraint) = constraint
+                    .filter(|&constraint| self.st.every_type(constraint, |_st, ty| ty != source))
+                {
+                    result = self.is_related_to(
+                        constraint,
+                        target,
+                        RecursionFlags::SOURCE,
+                        /*report_errors*/ false,
+                        intersection_state,
+                    )?;
+                }
+            }
             if is_true(result)
                 && !intersection_state.intersects(IntersectionState::TARGET)
                 && self.flags(target).intersects(TypeFlags::INTERSECTION)

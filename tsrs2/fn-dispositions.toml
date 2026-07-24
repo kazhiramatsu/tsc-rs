@@ -106,10 +106,6 @@ name = "get_symbol_of_declaration"
 
 [[fn]]
 file = "crates/checker/src/check.rs"
-name = "source_element_stub"
-
-[[fn]]
-file = "crates/checker/src/check.rs"
 name = "type_to_string_slice"
 
 [[fn]]

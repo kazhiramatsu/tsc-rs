@@ -2277,6 +2277,53 @@ artifacts contain exactly +9 all / +9 2xxx accepted identities;
 syntactic remains 2242/2246. Full `cargo xtask ci` is the merge gate
 for the sub-row.
 
+## 9.6c results (2026-07-24, conditional resolution — DONE)
+
+Conditional types now resolve through the exact check/extends decision
+ladder. The implementation instantiates the actual check variable and
+extends type, creates and combines infer mappers, distinguishes
+permissive and restrictive assignability, accumulates the `any` branch
+union, distributes over the check union, and performs true/false tail
+recursion. Alias-bearing tail recursion is counted and reports 2589 at
+the 1,000-iteration boundary. Conditional instantiations use their
+root cache and may replace a re-entrant provisional value exactly like
+tsc's `Map.set`.
+
+The default, distributive, and resolved conditional constraints are
+live, as are conditional simplification, intersection-emptiness
+reduction, inferred type-parameter constraints, and the effective
+intersection-constraint retry used by structural relations. Deferred
+true/false/inferred mappers now resolve effective arguments lazily.
+Type-reference constraint diagnostics retain tsc's lazy ordering during
+nested alias construction; ordinary references still force immediately,
+which preserves the oracle's 2589 location for recursive mapped types.
+Conditional consumers in indexed access, mapped types, contextual
+substitution, inference, and ordinary instantiation no longer return
+fabricated fallback types.
+
+The D2a report for
+`d2:3a05cd29315f2e1e4d056aa5d82e1aea1afea49d8b581c4b449492e9b2c5fc03`
+joins `getConditionalType` to the exact Rust port and its direct 2589
+emitter. Twelve conditional/substitution resolution escape rows
+retired. Escape evidence is sites=**206**, stale=0, untagged=0,
+recovery=116, dormant=**3**; the two remaining checker-owned dormant
+rows are the conditional relation directions assigned to 9.6d. The
+exact ledger is **1839**/stale=0, and schema-2 closure declarations
+unaccounted by exact ports fell 4,022→**4,008**. Checker tests are
+**988** and types tests remain **24**.
+
+Band movement (tool-read): all T0 **59.6422%→59.7687%**
+(29239→29301, +62), FP=0; 2xxx T0 **88.0243%→88.3093%**
+(18530→18590, +60), FP=0; supported T0
+**90.3726%→90.6652%** (18590/20504), supported FN
+1,974→**1,914**. Exact 2xxx shadow gains are T1 +60, T2 +54, and
+T3 +40, with **zero lost identities** in every tier and both
+all/supported views; the supported universe is unchanged. The all-band
+shadow gains are T1 +62, T2 +56, and T3 +42, also with zero losses.
+Ratchet artifacts contain exactly +62 all / +60 2xxx accepted
+identities; syntactic remains 2242/2246. Full `cargo xtask ci` is the
+merge gate for the sub-row.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

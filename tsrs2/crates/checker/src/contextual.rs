@@ -1602,13 +1602,20 @@ impl<'a> CheckerState<'a> {
     fn is_excluded_mapped_property_name(
         &mut self,
         constraint: TypeId,
-        _property_name_type: TypeId,
+        property_name_type: TypeId,
     ) -> CheckResult2<bool> {
         let flags = self.tables.flags_of(constraint);
         if flags.intersects(TypeFlags::CONDITIONAL) {
-            return Err(Unsupported::new(
-                "isExcludedMappedPropertyName conditional constraint projection (9.6c/M8)",
-            ));
+            let TypeData::Conditional(data) = self.tables.type_of(constraint).data.clone() else {
+                unreachable!("Conditional flag implies conditional data");
+            };
+            let true_type = self.get_true_type_from_conditional_type(constraint)?;
+            let true_type = self.get_reduced_type(true_type)?;
+            let false_type = self.get_false_type_from_conditional_type(constraint)?;
+            return Ok(self.tables.flags_of(true_type).intersects(TypeFlags::NEVER)
+                && self.get_actual_type_variable(false_type)?
+                    == self.get_actual_type_variable(data.check_type)?
+                && self.is_type_assignable_to(property_name_type, data.extends_type)?);
         }
         if flags.intersects(TypeFlags::INTERSECTION) {
             let TypeData::Intersection { types } = self.tables.type_of(constraint).data.clone()
@@ -1616,7 +1623,7 @@ impl<'a> CheckerState<'a> {
                 unreachable!("intersection flag implies payload");
             };
             for member in types.iter().copied() {
-                if self.is_excluded_mapped_property_name(member, _property_name_type)? {
+                if self.is_excluded_mapped_property_name(member, property_name_type)? {
                     return Ok(true);
                 }
             }

@@ -459,7 +459,8 @@ pub struct LinksTables {
     pub alias_instantiations: HashMap<(SymbolId, String), TypeId>,
     /// tsc ConditionalRoot.instantiations, keyed by the shared root
     /// object plus getTypeListId/getAliasId. Writes happen only after
-    /// a complete result so Unsupported cannot leave a partial entry.
+    /// a complete result; a re-entrant outer evaluation may replace
+    /// the inner complete result, matching Map.set.
     conditional_instantiations: HashMap<(ConditionalRootId, String), TypeId>,
 }
 
@@ -492,11 +493,7 @@ impl LinksTables {
         value: TypeId,
     ) {
         Self::assert_writable(speculation_depth);
-        let old = self.conditional_instantiations.insert((root, key), value);
-        assert!(
-            old.is_none() || old == Some(value),
-            "conditional cache rewritten"
-        );
+        self.conditional_instantiations.insert((root, key), value);
     }
 
     fn assert_writable(speculation_depth: u32) {
