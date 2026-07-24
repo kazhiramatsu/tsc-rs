@@ -2712,6 +2712,36 @@ Checker tests are **1,015**. Escape evidence is unchanged at
 sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
 Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9d results (2026-07-25, recognized-extension module misses — DONE)
+
+The in-program resolver now keeps tsc's extension probe groups
+disjoint. The `.ts/.tsx/.d.ts` append group runs only for an
+extensionless specifier; after a recognized TS/JS substitution group
+misses, `file.d.ts` can no longer resolve accidentally to
+`file.d.ts.ts`. Recognized TS/JS extensions also bypass the
+arbitrary-extension declaration-twin uncertainty gate, so
+`file.d.js.ts` cannot hide the authoritative miss for `./file.js`.
+Unknown extensions retain the conservative twin suppression.
+
+The string-literal argument of a syntactic checked-JavaScript
+`require()` now reaches the same three-way module resolver used by
+imports. Definite relative misses publish 2307, while expression
+arguments and host-dependent package resolution remain unchanged.
+
+All remaining **35** supported code-2307 rows close: 33
+recognized-extension rows and two checked-JavaScript `require` rows.
+2xxx T0 grows by **35** to **20197/21051** (**95.9432%**) with FP=0;
+supported T0 is **20197/20504** (**98.5027%**) with supported
+FN=**307**. All-band T0 is **31119/49024** (**63.4771%**) with FP=0.
+T1/T2/T3 each report lost=0, gained=**35** in both bands and both
+scope views. The accepted-set ratchet adds 35 T0 identities and 35
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,017**. Escape evidence is unchanged at
+sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
+Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
