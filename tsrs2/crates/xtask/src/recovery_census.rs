@@ -1,8 +1,8 @@
-//! Phase 9.7a: reproducible census of the parse-recovery overload curtain.
+//! Phase 9.7a-9.7b: reproducible census of the parse-recovery overload curtain.
 //!
-//! This is deliberately measurement-only. It starts from conformance's
-//! reached F2 boundary evidence, then compares the declaration tree and
-//! binder declaration order with the vendored tsc oracle.
+//! This starts from conformance's reached F2 boundary evidence, then compares
+//! the complete recovery subtree, exact syntactic diagnostics, declaration
+//! shape, and binder declaration order with the vendored tsc oracle.
 
 use std::collections::BTreeSet;
 use std::error::Error;
@@ -41,6 +41,10 @@ struct ManifestCase {
 struct ManifestShape {
     id: String,
     fingerprint: String,
+    #[serde(rename = "treeFingerprint")]
+    tree_fingerprint: String,
+    #[serde(rename = "syntacticFingerprint")]
+    syntactic_fingerprint: String,
     fixture: String,
     #[serde(default, rename = "matrixKey")]
     matrix_key: String,
@@ -57,6 +61,7 @@ struct FileDump {
     #[serde(rename = "parseDiagnostics")]
     parse_diagnostics: Vec<ParseDiagnostic>,
     declarations: Vec<DeclarationEntry>,
+    tree: Vec<TreeNodeRef>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -108,6 +113,15 @@ struct NodeRef {
     missing: bool,
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+struct TreeNodeRef {
+    kind: u16,
+    pos: u32,
+    end: u32,
+    missing: bool,
+    depth: usize,
+}
+
 #[derive(Debug, Serialize)]
 struct CensusReport {
     schema: u32,
@@ -140,6 +154,8 @@ struct RegionReport {
     start: u32,
     length: u32,
     fingerprint: String,
+    tree_fingerprint: String,
+    syntactic_fingerprint: String,
     exact: bool,
     tsrs: RegionDump,
     oracle: RegionDump,
@@ -149,6 +165,7 @@ struct RegionReport {
 struct RegionDump {
     parse_boundaries: Vec<BoundaryDiagnostic>,
     groups: Vec<GroupDump>,
+    tree: Vec<RegionTreeNode>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -192,6 +209,15 @@ struct RegionNode {
     relative_pos: i64,
     relative_end: i64,
     missing: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+struct RegionTreeNode {
+    kind: u16,
+    relative_pos: i64,
+    relative_end: i64,
+    missing: bool,
+    depth: usize,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -249,7 +275,7 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
         out_path = workspace.join(out_path);
     }
     let manifest: Manifest = serde_json::from_slice(&fs::read(&manifest_path)?)?;
-    if manifest.schema != 1 {
+    if manifest.schema != 2 {
         return Err(format!("unsupported recovery census schema {}", manifest.schema).into());
     }
 
@@ -277,7 +303,7 @@ pub fn check_with_summary(
     }
     let manifest: Manifest =
         serde_json::from_slice(&fs::read(workspace.join("pins/recovery.json"))?)?;
-    if manifest.schema != 1 {
+    if manifest.schema != 2 {
         return Err(format!("unsupported recovery census schema {}", manifest.schema).into());
     }
     run_census(
@@ -352,15 +378,19 @@ fn run_census(
         for partial in partials {
             let rust_file = find_file(&rust_dump, &partial.file_name)?;
             let oracle_file = find_file(&oracle_dump, &partial.file_name)?;
-            let rust_region = region_dump(rust_file, partial.start, partial.length);
-            let oracle_region = region_dump(oracle_file, partial.start, partial.length);
+            let rust_region = region_dump(rust_file, partial.start, partial.length)?;
+            let oracle_region = region_dump(oracle_file, partial.start, partial.length)?;
             let fingerprint = shape_fingerprint(&rust_region, &oracle_region)?;
+            let tree_fingerprint = json_fingerprint(&rust_region.tree)?;
+            let syntactic_fingerprint = json_fingerprint(&rust_region.parse_boundaries)?;
             shape_fingerprints.insert(fingerprint.clone());
             regions.push(RegionReport {
                 file: partial.file_name,
                 start: partial.start,
                 length: partial.length,
                 fingerprint,
+                tree_fingerprint,
+                syntactic_fingerprint,
                 exact: rust_region == oracle_region,
                 tsrs: rust_region,
                 oracle: oracle_region,
@@ -379,7 +409,7 @@ fn run_census(
         .filter(|region| region.exact)
         .count();
     let report = CensusReport {
-        schema: 1,
+        schema: 2,
         reason: F2_REASON,
         cases: reports,
         unique_shape_fingerprints: shape_fingerprints.iter().cloned().collect(),
@@ -424,8 +454,15 @@ fn run_census(
             .into());
         }
         for shape in &manifest.shapes {
-            if shape.id.is_empty() || shape.fixture.is_empty() {
-                return Err("recovery shape entries require id and fixture".into());
+            if shape.id.is_empty()
+                || shape.fixture.is_empty()
+                || !is_fingerprint(&shape.fingerprint)
+                || !is_fingerprint(&shape.tree_fingerprint)
+                || !is_fingerprint(&shape.syntactic_fingerprint)
+            {
+                return Err(
+                    "recovery shape entries require id, fixture, and 16-digit fingerprints".into(),
+                );
             }
             let fixture = workspace.join(&shape.fixture);
             if !fixture.is_file() {
@@ -457,12 +494,12 @@ fn run_census(
                     find_file(&rust_dump, &partial.file_name)?,
                     partial.start,
                     partial.length,
-                );
+                )?;
                 let oracle_region = region_dump(
                     find_file(&oracle_dump, &partial.file_name)?,
                     partial.start,
                     partial.length,
-                );
+                )?;
                 if rust_region != oracle_region {
                     return Err(format!(
                         "minimal recovery fixture {} is not exact at {}:{}+{}",
@@ -471,7 +508,10 @@ fn run_census(
                     .into());
                 }
                 let fingerprint = shape_fingerprint(&rust_region, &oracle_region)?;
-                reproduced |= fingerprint == shape.fingerprint;
+                reproduced |= fingerprint == shape.fingerprint
+                    && json_fingerprint(&rust_region.tree)? == shape.tree_fingerprint
+                    && json_fingerprint(&rust_region.parse_boundaries)?
+                        == shape.syntactic_fingerprint;
             }
             if !reproduced {
                 return Err(format!(
@@ -520,12 +560,12 @@ fn probe_fixture(workspace: &Path, fixture: &Path) -> Result<(), Box<dyn Error>>
                 find_file(&rust_dump, &partial.file_name)?,
                 partial.start,
                 partial.length,
-            );
+            )?;
             let oracle_region = region_dump(
                 find_file(&oracle_dump, &partial.file_name)?,
                 partial.start,
                 partial.length,
-            );
+            )?;
             println!(
                 "{} [{}] {}:{}+{} fingerprint={} exact={}",
                 fixture.display(),
@@ -535,6 +575,11 @@ fn probe_fixture(workspace: &Path, fixture: &Path) -> Result<(), Box<dyn Error>>
                 partial.length,
                 shape_fingerprint(&rust_region, &oracle_region)?,
                 rust_region == oracle_region,
+            );
+            println!(
+                "tree={} syntactic={}",
+                json_fingerprint(&rust_region.tree)?,
+                json_fingerprint(&rust_region.parse_boundaries)?,
             );
             println!("{}", serde_json::to_string(&shape_dump(&rust_region))?);
         }
@@ -644,9 +689,17 @@ fn rust_file_dump(source: &SourceFile, binder: &tsrs2_binder::Binder<'_>) -> Fil
     let to_utf16 =
         |pos: u32| -> u32 { map.byte_to_utf16.get(pos as usize).copied().unwrap_or(pos) };
     let mut entries = Vec::new();
-    let mut stack = vec![source.root];
-    while let Some(id) = stack.pop() {
+    let mut tree = Vec::new();
+    let mut stack = vec![(source.root, 0usize)];
+    while let Some((id, depth)) = stack.pop() {
         let node = source.arena.node(id);
+        tree.push(TreeNodeRef {
+            kind: node.kind as u16,
+            pos: to_utf16(node.pos),
+            end: to_utf16(node.end),
+            missing: tsrs2_binder::node_util::node_is_missing(source, Some(id)),
+            depth,
+        });
         if is_census_kind(node.kind) {
             let symbol = binder.node_symbol.get(&id).copied().map(|symbol| {
                 let symbol = binder.symbols.symbol(symbol);
@@ -669,7 +722,7 @@ fn rust_file_dump(source: &SourceFile, binder: &tsrs2_binder::Binder<'_>) -> Fil
             children.push(child);
             false
         });
-        stack.extend(children.into_iter().rev());
+        stack.extend(children.into_iter().rev().map(|child| (child, depth + 1)));
     }
     FileDump {
         name: source.file_name.clone(),
@@ -683,6 +736,7 @@ fn rust_file_dump(source: &SourceFile, binder: &tsrs2_binder::Binder<'_>) -> Fil
             })
             .collect(),
         declarations: entries,
+        tree,
     }
 }
 
@@ -743,7 +797,7 @@ fn find_file<'a>(dump: &'a RecoveryDump, name: &str) -> Result<&'a FileDump, Box
         .ok_or_else(|| format!("recovery dump is missing file {name}").into())
 }
 
-fn region_dump(file: &FileDump, start: u32, length: u32) -> RegionDump {
+fn region_dump(file: &FileDump, start: u32, length: u32) -> Result<RegionDump, Box<dyn Error>> {
     let end = start.saturating_add(length.max(1));
     let parse_boundaries = file
         .parse_diagnostics
@@ -790,10 +844,44 @@ fn region_dump(file: &FileDump, start: u32, length: u32) -> RegionDump {
             }
         })
         .collect();
-    RegionDump {
+    Ok(RegionDump {
         parse_boundaries,
         groups,
+        tree: region_tree(file, start, end)?,
+    })
+}
+
+fn region_tree(
+    file: &FileDump,
+    start: u32,
+    end: u32,
+) -> Result<Vec<RegionTreeNode>, Box<dyn Error>> {
+    let Some(root_index) = file
+        .tree
+        .iter()
+        .position(|node| node.pos == start && node.end == end)
+    else {
+        return Err(format!(
+            "recovery region has no exact tree root: {}:{start}..{end}",
+            file.name
+        )
+        .into());
+    };
+    let root_depth = file.tree[root_index].depth;
+    let mut tree = Vec::new();
+    for (index, node) in file.tree[root_index..].iter().enumerate() {
+        if index > 0 && node.depth <= root_depth {
+            break;
+        }
+        tree.push(RegionTreeNode {
+            kind: node.kind,
+            relative_pos: i64::from(node.pos) - i64::from(start),
+            relative_end: i64::from(node.end) - i64::from(start),
+            missing: node.missing,
+            depth: node.depth - root_depth,
+        });
     }
+    Ok(tree)
 }
 
 fn overlap_length(declaration: &DeclarationRef, start: u32, end: u32) -> u32 {
@@ -961,6 +1049,14 @@ fn sha256_hex(bytes: &[u8]) -> String {
     digest.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
+fn json_fingerprint(value: &impl Serialize) -> Result<String, Box<dyn Error>> {
+    Ok(sha256_hex(&serde_json::to_vec(value)?)[..16].to_owned())
+}
+
+fn is_fingerprint(value: &str) -> bool {
+    value.len() == 16 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
 struct RecoveryOracle {
     child: Child,
     stdin: ChildStdin,
@@ -1041,6 +1137,15 @@ struct OracleResponse {
 mod tests {
     use super::*;
 
+    fn tree_file(tree: Vec<TreeNodeRef>) -> FileDump {
+        FileDump {
+            name: "recovery.ts".to_owned(),
+            parse_diagnostics: Vec::new(),
+            declarations: Vec::new(),
+            tree,
+        }
+    }
+
     #[test]
     fn private_symbol_ids_are_wildcarded_without_hiding_the_name() {
         assert_eq!(
@@ -1059,5 +1164,68 @@ mod tests {
         assert_eq!(shape_boundary_class("at-end"), "edge");
         assert_eq!(shape_boundary_class("before-body"), "inside");
         assert_eq!(shape_boundary_class("in-body"), "inside");
+    }
+
+    #[test]
+    fn region_tree_requires_an_exact_root_and_preserves_preorder_subtree() {
+        let file = tree_file(vec![
+            TreeNodeRef {
+                kind: 308,
+                pos: 0,
+                end: 20,
+                missing: false,
+                depth: 0,
+            },
+            TreeNodeRef {
+                kind: 263,
+                pos: 2,
+                end: 12,
+                missing: false,
+                depth: 1,
+            },
+            TreeNodeRef {
+                kind: 80,
+                pos: 4,
+                end: 5,
+                missing: false,
+                depth: 2,
+            },
+            TreeNodeRef {
+                kind: 1,
+                pos: 12,
+                end: 12,
+                missing: false,
+                depth: 1,
+            },
+        ]);
+
+        assert_eq!(
+            region_tree(&file, 2, 12).unwrap(),
+            vec![
+                RegionTreeNode {
+                    kind: 263,
+                    relative_pos: 0,
+                    relative_end: 10,
+                    missing: false,
+                    depth: 0,
+                },
+                RegionTreeNode {
+                    kind: 80,
+                    relative_pos: 2,
+                    relative_end: 3,
+                    missing: false,
+                    depth: 1,
+                },
+            ]
+        );
+        assert!(region_tree(&file, 3, 12).is_err());
+    }
+
+    #[test]
+    fn recovery_fingerprints_are_exactly_sixteen_hex_digits() {
+        assert!(is_fingerprint("0123456789abcdef"));
+        assert!(is_fingerprint("ABCDEF0123456789"));
+        assert!(!is_fingerprint("0123456789abcde"));
+        assert!(!is_fingerprint("0123456789abcdeg"));
     }
 }

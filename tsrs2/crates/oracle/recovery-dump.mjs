@@ -67,7 +67,15 @@ function symbolForDeclaration(checker, node) {
 
 function fileDump(checker, sourceFile) {
   const declarations = [];
-  function visit(node) {
+  const tree = [];
+  function visit(node, depth) {
+    tree.push({
+      kind: node.kind,
+      pos: node.pos,
+      end: node.end,
+      missing: node.pos === node.end && node.kind !== ts.SyntaxKind.EndOfFileToken,
+      depth,
+    });
     if (isCensusDeclaration(node)) {
       const symbol = symbolForDeclaration(checker, node);
       declarations.push({
@@ -80,9 +88,9 @@ function fileDump(checker, sourceFile) {
           : null,
       });
     }
-    ts.forEachChild(node, visit);
+    ts.forEachChild(node, (child) => visit(child, depth + 1));
   }
-  visit(sourceFile);
+  visit(sourceFile, 0);
 
   return {
     name: normalizeFileName(sourceFile.fileName),
@@ -92,6 +100,7 @@ function fileDump(checker, sourceFile) {
       length: diagnostic.length ?? 0,
     })),
     declarations,
+    tree,
   };
 }
 

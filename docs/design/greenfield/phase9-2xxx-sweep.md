@@ -2410,6 +2410,35 @@ proof makes 9.7b's boundary explicit: preserve these tree/binder pins
 while deciding whether any parser work remains before 9.7c narrows the
 semantic bail.
 
+## 9.7b results (2026-07-25, recovery tree parity — DONE)
+
+The 9.7a census now compares the complete pre-order AST subtree rooted
+at every selected partial range. Each node records its `SyntaxKind`,
+UTF-16 `pos`/`end`, missing-node state, and relative depth. The
+syntactic side now pins exact diagnostic code, offset, and length as
+well as the boundary class. Region selection requires an AST node with
+the exact partial range; there is no overlap-based fallback that could
+make two unrelated subtrees appear equal.
+
+All **328/328** reached regions across the same **67** fixture/matrix
+cases are exact for the full tree, declaration/name/body shape,
+symbol-declaration order, and syntactic diagnostics. The 23 minimal
+shape fixtures reproduce both a tree fingerprint and a syntactic
+fingerprint under recovery manifest schema 2. Since every selected
+shape was already parser/binder-exact, no production parser or binder
+change was justified in this slice; the checker recovery bail remains
+unchanged for 9.7c.
+
+This prerequisite-only proof leaves accepted sets unchanged: all T0
+**29344/49024** (**59.8564%**), 2xxx T0 **18633/21051**
+(**88.5136%**), supported T0 **18633/20504** (**90.8750%**),
+supported FN=1,871, and FP=0. Syntactic remains **2242/2246**.
+Checker tests remain **1,001** and xtask tests are **33**.
+`ratchet.toml`, `ratchets/conformance-matches.v1.json.zst`, and
+`ratchets/oracle-inputs.v1.json.zst` are byte-unchanged. The complete
+tree proof permits 9.7c to retire the blanket semantic bail directly,
+while preserving this census as the parser/binder regression gate.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
