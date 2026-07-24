@@ -14,8 +14,9 @@ use std::collections::HashMap;
 
 use crate::flags::{AccessFlags, ElementFlags, ObjectFlags, TypeFlags};
 use crate::ty::{
-    LiteralValue, MappedTypeData, MapperId, PseudoBigInt, ReverseMappedTypeData, SymbolId,
-    TemplateText, TupleTargetData, Type, TypeData, TypeId,
+    ConditionalRootData, ConditionalRootId, ConditionalTypeData, LiteralValue, MappedTypeData,
+    MapperId, PseudoBigInt, ReverseMappedTypeData, SubstitutionTypeData, SymbolId, TemplateText,
+    TupleTargetData, Type, TypeData, TypeId,
 };
 
 /// The named intrinsic/derived types created at checker construction,
@@ -151,6 +152,12 @@ pub struct TypeTables {
     /// `${objectId},${indexId},${persistentFlags}${aliasId}`
     /// (getIndexedAccessTypeOrUndefined 62580).
     indexed_access_types: HashMap<String, TypeId>,
+    /// substitutionTypes (47007), keyed `${baseId}>${constraintId}`
+    /// (getOrCreateSubstitutionType 60440).
+    substitution_types: HashMap<(TypeId, TypeId), TypeId>,
+    /// Immutable conditional-root objects shared by every
+    /// instantiation of one written conditional declaration.
+    conditional_roots: Vec<ConditionalRootData>,
     /// Per-target `type.instantiations` maps (createTypeReference
     /// 60170-60174 AND getObjectTypeInstantiation 63489-63492 — one map
     /// per target in tsc), flattened to one table keyed (target, id).
@@ -213,6 +220,8 @@ impl TypeTables {
             template_literal_types: HashMap::new(),
             string_mapping_types: HashMap::new(),
             indexed_access_types: HashMap::new(),
+            substitution_types: HashMap::new(),
+            conditional_roots: Vec::new(),
             instantiations: HashMap::new(),
         };
         tables.create_initial_types();
@@ -281,6 +290,87 @@ impl TypeTables {
         );
         self.type_mut(id).object_flags = ObjectFlags::REVERSE_MAPPED | ObjectFlags::ANONYMOUS;
         id
+    }
+
+    pub fn create_conditional_root(&mut self, data: ConditionalRootData) -> ConditionalRootId {
+        let id = ConditionalRootId(self.conditional_roots.len() as u32);
+        self.conditional_roots.push(data);
+        id
+    }
+
+    pub fn conditional_root(&self, id: ConditionalRootId) -> &ConditionalRootData {
+        &self.conditional_roots[id.0 as usize]
+    }
+
+    /// The allocation half of getConditionalType. Resolution and
+    /// distribution are checker-owned because they read relations and
+    /// syntax; this constructor preserves the exact semantic payload.
+    pub fn create_conditional_type(
+        &mut self,
+        data: ConditionalTypeData,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+    ) -> TypeId {
+        let id = self.create_type(TypeFlags::CONDITIONAL, TypeData::Conditional(data));
+        let ty = self.type_mut(id);
+        ty.alias_symbol = alias_symbol;
+        ty.alias_type_arguments = alias_type_arguments.map(|arguments| arguments.into());
+        id
+    }
+
+    /// tsc-port: getSubstitutionType @6.0.3
+    /// tsc-hash: 29e3ffe089091bb53cd7d22c227b19a1218c758083d65ddaf3a53641137109db
+    /// tsc-span: _tsc.js:60431-60433
+    pub fn get_substitution_type(&mut self, base_type: TypeId, constraint: TypeId) -> TypeId {
+        if self
+            .flags_of(constraint)
+            .intersects(TypeFlags::ANY_OR_UNKNOWN)
+            || constraint == base_type
+            || self.flags_of(base_type).intersects(TypeFlags::ANY)
+        {
+            base_type
+        } else {
+            self.get_or_create_substitution_type(base_type, constraint)
+        }
+    }
+
+    /// tsc-port: getOrCreateSubstitutionType @6.0.3
+    /// tsc-hash: 7498c528d8c1f8f140dc1ca555944da7013098688ed1a92199cff2abbbe19059
+    /// tsc-span: _tsc.js:60434-60445
+    pub fn get_or_create_substitution_type(
+        &mut self,
+        base_type: TypeId,
+        constraint: TypeId,
+    ) -> TypeId {
+        if let Some(&cached) = self.substitution_types.get(&(base_type, constraint)) {
+            return cached;
+        }
+        let id = self.create_type(
+            TypeFlags::SUBSTITUTION,
+            TypeData::Substitution(SubstitutionTypeData {
+                base_type,
+                constraint,
+            }),
+        );
+        self.substitution_types.insert((base_type, constraint), id);
+        id
+    }
+
+    pub fn substitution_data(&self, id: TypeId) -> Option<&SubstitutionTypeData> {
+        match &self.type_of(id).data {
+            TypeData::Substitution(data) => Some(data),
+            _ => None,
+        }
+    }
+
+    /// tsc-port: isNoInferType @6.0.3
+    /// tsc-hash: 32d14160415d1fc5aa0ab2a5bdf66de37add6af7de1320fd38937f4d4d7d610e
+    /// tsc-span: _tsc.js:60428-60430
+    pub fn is_no_infer_type(&self, id: TypeId) -> bool {
+        self.substitution_data(id).is_some_and(|data| {
+            self.flags_of(data.constraint)
+                .intersects(TypeFlags::UNKNOWN)
+        })
     }
 
     pub fn type_of(&self, id: TypeId) -> &Type {
@@ -2390,8 +2480,7 @@ impl TypeTables {
     /// tsc-hash: f3a4b640057f3aa5519de7fd4c29d117ae33ec29fb1c7618f8e4456782af7b02
     /// tsc-span: _tsc.js:62440-62455
     ///
-    /// The Substitution arm is unreachable until conditional types
-    /// land. Mapped genericity depends on checker-owned constraint and
+    /// Mapped genericity depends on checker-owned constraint and
     /// name-type resolution, so mapped callers route through
     /// CheckerState::get_generic_object_flags instead of this
     /// syntax-free fallback.
@@ -2421,7 +2510,12 @@ impl TypeTables {
             );
         }
         if flags.intersects(TypeFlags::SUBSTITUTION) {
-            unreachable!("substitution types are unconstructible before conditional types (M8)");
+            let TypeData::Substitution(data) = self.type_of(id).data.clone() else {
+                unreachable!("Substitution flag implies substitution data");
+            };
+            let combined = self.get_generic_object_flags(data.base_type)
+                | self.get_generic_object_flags(data.constraint);
+            return combined & ObjectFlags::IS_GENERIC_TYPE;
         }
         let object = if flags.intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
             || self.is_generic_tuple_type(id)
@@ -3158,6 +3252,71 @@ mod tests {
         assert_eq!(data.source, source);
         assert_eq!(data.mapped_type, mapped);
         assert_eq!(data.constraint_type, constraint);
+    }
+
+    #[test]
+    fn conditional_type_model_constructibility() {
+        let mut t = tables();
+        let check = t.create_synthesized_type_parameter(None);
+        let extends = t.intrinsics.string;
+        let root = t.create_conditional_root(ConditionalRootData {
+            node: 42,
+            check_type: check,
+            extends_type: extends,
+            is_distributive: true,
+            infer_type_parameters: Box::new([]),
+            outer_type_parameters: Some(Box::new([check])),
+            alias_symbol: Some(SymbolId(7)),
+            alias_type_arguments: Some(Box::new([check])),
+        });
+        let conditional = t.create_conditional_type(
+            ConditionalTypeData {
+                root,
+                check_type: check,
+                extends_type: extends,
+                mapper: None,
+                combined_mapper: None,
+            },
+            Some(SymbolId(7)),
+            Some(&[check]),
+        );
+        assert_eq!(t.flags_of(conditional), TypeFlags::CONDITIONAL);
+        let TypeData::Conditional(data) = &t.type_of(conditional).data else {
+            panic!("conditional constructor must retain its root");
+        };
+        assert_eq!(data.root, root);
+        assert_eq!(data.check_type, check);
+        assert_eq!(data.extends_type, extends);
+        assert!(t.conditional_root(root).is_distributive);
+        assert_eq!(
+            t.conditional_root(root).outer_type_parameters.as_deref(),
+            Some([check].as_slice())
+        );
+    }
+
+    #[test]
+    fn substitution_type_model_constructibility() {
+        let mut t = tables();
+        let base = t.create_synthesized_type_parameter(None);
+        let constraint = t.intrinsics.string;
+        let substitution = t.get_substitution_type(base, constraint);
+        assert_eq!(
+            substitution,
+            t.get_substitution_type(base, constraint),
+            "substitution pairs intern"
+        );
+        let data = t
+            .substitution_data(substitution)
+            .expect("nontrivial substitution has a payload");
+        assert_eq!(data.base_type, base);
+        assert_eq!(data.constraint, constraint);
+        assert_eq!(
+            t.get_substitution_type(base, t.intrinsics.unknown),
+            base,
+            "ordinary substitution creation collapses unknown constraints"
+        );
+        let no_infer = t.get_or_create_substitution_type(base, t.intrinsics.unknown);
+        assert!(t.is_no_infer_type(no_infer));
     }
 
     #[test]

@@ -8,9 +8,9 @@ use tsrs2_binder::{node_util, InternalSymbolName, SymbolId};
 use tsrs2_diags::gen as diagnostics;
 use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    CheckFlags, CheckMode, ElementFlags, IntersectionFlags, LiteralValue, MappedTypeData,
-    MappedTypeModifiers, ModifierFlags, ObjectFlags, PseudoBigInt, SignatureFlags, SymbolFlags,
-    TupleTargetFlags, TypeData, TypeFlags, TypeId, UnionReduction,
+    CheckFlags, CheckMode, ConditionalRootData, ConditionalRootId, ElementFlags, IntersectionFlags,
+    LiteralValue, MappedTypeData, MappedTypeModifiers, ModifierFlags, ObjectFlags, PseudoBigInt,
+    SignatureFlags, SymbolFlags, TupleTargetFlags, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::evaluate::EvalValue;
@@ -64,21 +64,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b2dfca101ec5c568bfe71c1127cf9ce42b730f6b27b3a8a7ba7733117c54d61e
     /// tsc-span: _tsc.js:60454-60482
     ///
-    /// A collected constraint means tsc builds a Substitution type
-    /// (getSubstitutionType) — that TypeFlag is unconstructible until
-    /// M8, so the collection escapes instead of resolving to the
-    /// UNSUBSTITUTED type (the plain parameter would mis-relate:
-    /// mappedTypeAsClauseRelationships pins the template-span check
-    /// under `P extends string ? \`bool${P}\` : P`). The mapped-type
-    /// arm (60467-60478) is identity unless the homomorphic variable is
-    /// array/tuple-constrained; only that numeric-key Substitution
-    /// subset remains a named 9.6a dependency.
     /// The JSDoc kind stop is vacuous (JSDoc nodes are unconstructed).
     fn get_conditional_flow_type_of_type(
         &mut self,
         ty: TypeId,
         node: NodeId,
     ) -> CheckResult2<TypeId> {
+        let mut constraints = Vec::new();
         let mut covariant = true;
         let mut node = node;
         while !Self::is_statement_kind(self.kind_of(node)) {
@@ -103,15 +95,10 @@ impl<'a> CheckerState<'a> {
                     (data.check_type, data.extends_type, data.true_type);
                 if true_type == Some(node) {
                     if let (Some(check_type), Some(extends_type)) = (check_type, extends_type) {
-                        if self
-                            .get_implied_constraint(ty, check_type, extends_type)?
-                            .is_some()
+                        if let Some(constraint) =
+                            self.get_implied_constraint(ty, check_type, extends_type)?
                         {
-                            // tsc-dormant: canary=substitution_type_model_constructibility; owner=9.6a
-                            return Err(Unsupported::new(
-                                "conditional-flow substitution over the true branch \
-                                 (getSubstitutionType — unported family, M8-stub)",
-                            ));
+                            constraints.push(constraint);
                         }
                     }
                 }
@@ -142,10 +129,12 @@ impl<'a> CheckerState<'a> {
                                     }
                                 }
                                 if every_array_or_tuple {
-                                    return Err(Unsupported::new(
-                                        "mapped conditional-flow numeric-key substitution \
-                                         (Substitution type, 9.6a/M8)",
-                                    ));
+                                    let number = self.tables.intrinsics.number;
+                                    let numeric_string = self.tables.intrinsics.numeric_string;
+                                    constraints.push(self.get_union_type_ex(
+                                        &[number, numeric_string],
+                                        UnionReduction::Literal,
+                                    )?);
                                 }
                             }
                         }
@@ -154,15 +143,18 @@ impl<'a> CheckerState<'a> {
             }
             node = parent;
         }
-        Ok(ty)
+        if constraints.is_empty() {
+            Ok(ty)
+        } else {
+            let constraint = self.get_intersection_type(&constraints, IntersectionFlags::NONE)?;
+            Ok(self.tables.get_substitution_type(ty, constraint))
+        }
     }
 
     /// tsc-port: getImpliedConstraint @6.0.3
     /// tsc-hash: 8f769603fba272d4c8241a3bb071298d8f088b86157b532a877e4eda33b5fd26
     /// tsc-span: _tsc.js:60451-60453
     ///
-    /// getActualTypeVariable is the identity while Substitution types
-    /// are unconstructible (M8).
     fn get_implied_constraint(
         &mut self,
         ty: TypeId,
@@ -176,7 +168,7 @@ impl<'a> CheckerState<'a> {
             return self.get_implied_constraint(ty, check_element, extends_element);
         }
         let check_type = self.get_type_from_type_node(check_node)?;
-        if check_type == ty {
+        if self.get_actual_type_variable(check_type)? == self.get_actual_type_variable(ty)? {
             Ok(Some(self.get_type_from_type_node(extends_node)?))
         } else {
             Ok(None)
@@ -286,12 +278,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::TypeQuery => self.get_type_from_type_query_node(node),
             SyntaxKind::IndexedAccessType => self.get_type_from_indexed_access_type_node(node),
             SyntaxKind::MappedType => self.get_type_from_mapped_type_node(node),
-            SyntaxKind::ConditionalType => {
-                // tsc-dormant: canary=conditional_type_model_constructibility; owner=9.6a
-                Err(Unsupported::new(
-                    "conditional types (unported family, M8-stub)",
-                ))
-            }
+            SyntaxKind::ConditionalType => self.get_type_from_conditional_type_node(node),
             SyntaxKind::InferType => {
                 // tsc-dormant: canary=infer_type_model_constructibility; owner=9.6c
                 Err(Unsupported::new("infer types (unported family, M8-stub)"))
@@ -2292,6 +2279,112 @@ impl<'a> CheckerState<'a> {
         Ok(resolved)
     }
 
+    /// tsc-port: getTypeFromConditionalTypeNode @6.0.3
+    /// tsc-hash: 766735fd59931f0f60a040345d6d2396a00f7e3f915371eddf45b3ab05eb38d2
+    /// tsc-span: _tsc.js:62770-62806
+    ///
+    /// Phase 9.6a installs the exact root environment and cache seed.
+    /// Evaluation/distribution inside getConditionalType remains the
+    /// named 9.6c consumer; until then this worker constructs its
+    /// deferred representation for every written conditional.
+    fn get_type_from_conditional_type_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.links.node(node).resolved_type.resolved() {
+            return Ok(cached);
+        }
+        let NodeData::ConditionalType(data) = self.data_of(node).clone() else {
+            unreachable!("ConditionalType kind implies payload");
+        };
+        let check_node = data
+            .check_type
+            .expect("parser invariant: ConditionalType check_type always parsed");
+        let extends_node = data
+            .extends_type
+            .expect("parser invariant: ConditionalType extends_type always parsed");
+        let check_type = self.get_type_from_type_node(check_node)?;
+        let alias_symbol = self.get_alias_symbol_for_type_node(node);
+        let alias_type_arguments = self.get_type_arguments_for_alias_symbol(alias_symbol);
+        let all_outer_type_parameters =
+            self.get_outer_type_parameters(node, /*include_this_types*/ true)?;
+        let outer_type_parameters = if alias_type_arguments.is_some() {
+            all_outer_type_parameters
+        } else if let Some(parameters) = all_outer_type_parameters {
+            let mut filtered = Vec::new();
+            for parameter in parameters {
+                if self.is_type_parameter_possibly_referenced(parameter, node)? {
+                    filtered.push(parameter);
+                }
+            }
+            Some(filtered)
+        } else {
+            None
+        };
+        let extends_type = self.get_type_from_type_node(extends_node)?;
+        let infer_type_parameters = self.get_infer_type_parameters(node);
+        let root = self.tables.create_conditional_root(ConditionalRootData {
+            node: node.0,
+            check_type,
+            extends_type,
+            is_distributive: self
+                .tables
+                .flags_of(check_type)
+                .intersects(TypeFlags::TYPE_PARAMETER),
+            infer_type_parameters: infer_type_parameters.into_boxed_slice(),
+            outer_type_parameters: outer_type_parameters
+                .as_deref()
+                .map(|parameters| parameters.into()),
+            alias_symbol,
+            alias_type_arguments: alias_type_arguments
+                .as_deref()
+                .map(|arguments| arguments.into()),
+        });
+        let resolved = self.create_deferred_conditional_type(
+            root,
+            /*mapper*/ None,
+            /*combined_mapper*/ None,
+            alias_symbol,
+            alias_type_arguments.as_deref(),
+        );
+        self.links.set_node_resolved_type(
+            self.speculation_depth,
+            node,
+            LinkSlot::Resolved(resolved),
+        );
+        if let Some(parameters) = outer_type_parameters {
+            let key = self.tables.get_type_list_id(&parameters);
+            self.links
+                .set_conditional_instantiation(self.speculation_depth, root, key, resolved);
+        }
+        Ok(resolved)
+    }
+
+    /// Phase-9.6a allocation boundary for getConditionalType. The
+    /// semantic evaluator replaces this deferred-only body in 9.6c.
+    fn create_deferred_conditional_type(
+        &mut self,
+        root: ConditionalRootId,
+        mapper: Option<tsrs2_types::MapperId>,
+        combined_mapper: Option<tsrs2_types::MapperId>,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+    ) -> TypeId {
+        let root_data = self.tables.conditional_root(root).clone();
+        self.tables.create_conditional_type(
+            tsrs2_types::ConditionalTypeData {
+                root,
+                check_type: root_data.check_type,
+                extends_type: root_data.extends_type,
+                mapper,
+                combined_mapper,
+            },
+            alias_symbol.or(root_data.alias_symbol),
+            if alias_symbol.is_some() {
+                alias_type_arguments
+            } else {
+                root_data.alias_type_arguments.as_deref()
+            },
+        )
+    }
+
     /// tsc-port: getTypeArgumentsForAliasSymbol @6.0.3
     /// tsc-hash: 3515d46635004f0f184c6e32860b51099bc66259e42e5af8f1777adc0f086061
     /// tsc-span: _tsc.js:62915-62917
@@ -2403,7 +2496,7 @@ impl<'a> CheckerState<'a> {
                     if arguments.len() == 1 {
                         return if kind == crate::instantiate::IntrinsicTypeKind::NoInfer {
                             Err(Unsupported::new(
-                                "NoInfer intrinsic (getNoInferType — Substitution types, M8)",
+                                "NoInfer intrinsic production (getNoInferType, 9.6b/M8)",
                             ))
                         } else {
                             self.get_string_mapping_type(symbol, arguments[0])
@@ -8903,19 +8996,24 @@ mod tests {
     }
 
     #[test]
-    fn m4_shapes_report_unsupported_not_wrong_types() {
+    fn newly_constructible_conditional_and_unresolved_name_shapes_are_sound() {
         with_state(
             "declare var b: number extends string ? 1 : 2;\ndeclare var c: Missing;\n",
             |state| {
                 let annotation =
                     find_probe_annotation(state.binder.source(0), "b").expect("annotation");
-                let err = state
+                let conditional = state
                     .get_type_from_type_node(annotation)
-                    .expect_err("out-of-slice shape must be Unsupported");
-                assert!(
-                    err.reason.contains("conditional"),
-                    "b: {} should mention conditional",
-                    err.reason
+                    .expect("9.6a conditional shell");
+                assert!(state
+                    .tables
+                    .flags_of(conditional)
+                    .intersects(TypeFlags::CONDITIONAL));
+                assert_eq!(
+                    state
+                        .type_to_string_slice(conditional)
+                        .expect("conditional display"),
+                    "number extends string ? 1 : 2"
                 );
                 // Unresolved names are in-slice: resolveEntityName
                 // reports 2304 and the reference types as errorType.
@@ -10642,6 +10740,79 @@ mod mapped_type_tests {
                         .type_to_string_slice(remapped)
                         .expect("mapped key remap and subtractive modifiers render"),
                     "{ -readonly [Q in keyof T as `x${Q & string}`]-?: T[Q]; }"
+                );
+            },
+        );
+    }
+}
+
+#[cfg(test)]
+mod conditional_type_tests {
+    use tsrs2_types::{CompilerOptions, TypeData, TypeFlags};
+
+    use crate::relpin::find_probe_annotation;
+    use crate::state::test_support::with_program_state;
+
+    #[test]
+    fn conditional_and_substitution_models_are_constructible_and_renderable() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T>() { let v: T extends string ? T : number; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let annotation =
+                    find_probe_annotation(state.binder.source(0), "v").expect("v annotation");
+                let conditional = state
+                    .get_type_from_type_node(annotation)
+                    .expect("conditional model");
+                assert!(state
+                    .tables
+                    .flags_of(conditional)
+                    .intersects(TypeFlags::CONDITIONAL));
+                let TypeData::Conditional(data) = state.tables.type_of(conditional).data.clone()
+                else {
+                    panic!("conditional flags require the semantic payload");
+                };
+                let root = state.tables.conditional_root(data.root);
+                assert!(root.is_distributive);
+                assert_eq!(root.node, annotation.0);
+                assert_eq!(
+                    root.outer_type_parameters
+                        .as_ref()
+                        .expect("function parameter is captured")
+                        .len(),
+                    1
+                );
+
+                let true_type = state
+                    .get_true_type_from_conditional_type(conditional)
+                    .expect("true arm");
+                let TypeData::Substitution(substitution) =
+                    state.tables.type_of(true_type).data.clone()
+                else {
+                    panic!("true-arm narrowing creates a substitution");
+                };
+                assert_eq!(substitution.base_type, data.check_type);
+                assert_eq!(substitution.constraint, state.tables.intrinsics.string);
+                assert_eq!(
+                    state
+                        .get_normalized_type(true_type, /*writing*/ true)
+                        .expect("writing normalization"),
+                    substitution.base_type
+                );
+                assert_eq!(
+                    state
+                        .type_to_string_slice(conditional)
+                        .expect("every constructible conditional renders"),
+                    "T extends string ? T : number"
+                );
+                assert_eq!(
+                    state
+                        .get_type_from_type_node(annotation)
+                        .expect("node cache requery"),
+                    conditional
                 );
             },
         );

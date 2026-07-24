@@ -542,18 +542,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 194568789a48a4a0e08ba0b934c9acafdf81244913ba01c0b5e42a0ca99c5983
     /// tsc-span: _tsc.js:62631-62639
     ///
-    /// The Substitution unwrap arm is an M8 escape (the flag is
-    /// unconstructible until substitution types land), which also
-    /// makes the IndexedAccess re-build condition — a Substitution
-    /// objectType/indexType — unreachable today: plain indexed
-    /// accesses fall through unchanged, exactly as in tsc.
     pub(crate) fn get_actual_type_variable(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::SUBSTITUTION) {
-            return Err(Unsupported::new(
-                "getActualTypeVariable Substitution unwrap (M8 — Substitution types \
-                 are unconstructible before their type nodes land)",
-            ));
+            let TypeData::Substitution(data) = self.tables.type_of(ty).data.clone() else {
+                unreachable!("Substitution flag implies substitution data");
+            };
+            return self.get_actual_type_variable(data.base_type);
         }
         if flags.intersects(TypeFlags::INDEXED_ACCESS) {
             let TypeData::IndexedAccess {
@@ -618,9 +613,6 @@ impl<'a> CheckerState<'a> {
     /// The IsGenericTypeComputed memo (62442/62448) is elided: the
     /// port's type tables are append-only, so the composite reduction
     /// recomputes per query — cache-only deviation, verdict-identical.
-    /// The Substitution arm is an M8 escape like its neighbors above
-    /// (the flag is unconstructible until substitution type nodes
-    /// land).
     pub(crate) fn get_generic_object_flags(&mut self, ty: TypeId) -> CheckResult2<ObjectFlags> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::UNION | TypeFlags::INTERSECTION) {
@@ -637,10 +629,12 @@ impl<'a> CheckerState<'a> {
             return Ok(reduced & ObjectFlags::IS_GENERIC_TYPE);
         }
         if flags.intersects(TypeFlags::SUBSTITUTION) {
-            return Err(Unsupported::new(
-                "getGenericObjectFlags Substitution arm (M8 — Substitution types are \
-                 unconstructible before their type nodes land)",
-            ));
+            let TypeData::Substitution(data) = self.tables.type_of(ty).data.clone() else {
+                unreachable!("Substitution flag implies substitution data");
+            };
+            return Ok((self.get_generic_object_flags(data.base_type)?
+                | self.get_generic_object_flags(data.constraint)?)
+                & ObjectFlags::IS_GENERIC_TYPE);
         }
         let object_half = if flags.intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
             || self.is_generic_mapped_type_state(ty)?
@@ -677,10 +671,8 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::INDEXED_ACCESS) {
             self.get_simplified_indexed_access_type(ty, writing)
         } else if flags.intersects(TypeFlags::CONDITIONAL) {
-            // tsc-dormant: canary=conditional_type_model_constructibility; owner=9.6a
-            Err(Unsupported::new(
-                "getSimplifiedConditionalType (unported family, M8-stub)",
-            ))
+            // tsc-dormant: canary=conditional_resolution; owner=9.6c
+            Err(Unsupported::new("getSimplifiedConditionalType (9.6c)"))
         } else if flags.intersects(TypeFlags::INDEX) {
             self.get_simplified_index_type(ty)
         } else {

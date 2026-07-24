@@ -2189,6 +2189,55 @@ Ratchet artifacts contain exactly +11 all / +11 2xxx accepted
 identities; syntactic remains 2242/2246. Full `cargo xtask ci` is the
 merge gate for the sub-row.
 
+## 9.6a results (2026-07-24, conditional/substitution model — DONE)
+
+Conditional type nodes now create a real semantic shell instead of
+stopping at the family stub. `ConditionalRootData` owns the written
+node, check/extends types, distributivity, infer/outer parameter
+environment, and alias environment; `ConditionalTypeData` owns the
+per-instantiation check/extends pair and mapper identities.
+`SubstitutionTypeData` owns its base and constraint and is interned by
+that exact pair. Mutable root instantiations and resolved
+true/false/inferred/default/constraint answers remain in
+speculation-guarded `TypeLinks`. The core-interface contract records
+this immutable/mutable split.
+
+`getTypeFromConditionalTypeNode` installs the exact root environment,
+creates the deferred conditional, publishes the node cache only after
+successful construction, and seeds the root instantiation cache.
+Conditional evaluation and distribution remain the named 9.6c
+consumer. Exact lazy true/false/inferred accessors, substitution
+intersection, conditional-flow narrowing, reading/writing
+normalization, generic-object hooks, structural identity, and
+conditional/substitution display make every constructible model usable
+without inventing a resolution verdict. The direct canary pins the
+root, narrowed true-arm substitution, cache identity, normalization,
+and `T extends string ? T : number` rendering.
+
+The D2a report for
+`d2:085ca32de5840614b44e8c4c30bbf87d7e31af6752025088875a411a73f95f49`
+joins `getTypeFromConditionalTypeNode` to the exact Rust port and its
+four-declaration shortest emitter path. The owned construction,
+normalization, and identity assumptions retired; remaining boundaries
+are named for NoInfer production (9.6b), conditional resolution
+(9.6c), or conditional relation/instantiation/inference (9.6d).
+Escape evidence is sites=**222**, stale=0, untagged=0, recovery=116,
+dormant=**10**. The exact ledger is **1822**/stale=0, and schema-2
+closure declarations unaccounted by exact ports fell 4,025→**4,024**.
+Checker tests are **985** and types tests are **24**.
+
+The model plus renderer exposed 13 previously oracle-present
+diagnostics without fabricating a row. Band movement (tool-read): all
+T0 **59.5973%→59.6239%** (29217→29230, +13), FP=0; 2xxx T0
+**87.9198%→87.9816%** (18508→18521, +13), FP=0; supported T0
+**90.2653%→90.3287%** (18521/20504), supported FN
+1,996→**1,983**. Exact 2xxx shadow gains are T1 +13, T2 +11, and
+T3 +8, with **zero lost identities** in every tier and both
+all/supported views; the supported universe is unchanged. Ratchet
+artifacts contain exactly +13 all / +13 2xxx accepted identities;
+syntactic remains 2242/2246. Full `cargo xtask ci` is the merge gate
+for the sub-row.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

@@ -171,9 +171,10 @@
 # p9 9.5c2a adds +29 through mapped contextual-property substitution,
 # mapped validation/readonly writes, constness, and tuple context.
 # p9 9.5c2b adds +11 through reverse-mapped member reconstruction and
-# homomorphic mapped inference.
-rate = 0.595973
-matched = 29217
+# homomorphic mapped inference. p9 9.6a adds +13 by constructing and
+# rendering the conditional/substitution semantic model.
+rate = 0.596239
+matched = 29230
 total = 49024
 allowed_regression = 0.0
 
@@ -220,8 +221,9 @@ allowed_regression = 0.0
 # p9 9.5c1 adds +55 mapped indexed-access/relation rows.
 # p9 9.5c2a adds +28 mapped contextual/check-consumer rows.
 # p9 9.5c2b adds +11 reverse-mapped/homomorphic-inference rows.
-rate = 0.879198
-matched = 18508
+# p9 9.6a adds +13 conditional/substitution model/display rows.
+rate = 0.879816
+matched = 18521
 total = 21051
 allowed_regression = 0.0
 

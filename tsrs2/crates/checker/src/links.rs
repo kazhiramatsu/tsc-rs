@@ -12,7 +12,7 @@ use std::collections::HashMap;
 
 use tsrs2_binder::SymbolId;
 use tsrs2_syntax::NodeId;
-use tsrs2_types::TypeId;
+use tsrs2_types::{ConditionalRootId, TypeId};
 
 use crate::instantiate::MapperId;
 use crate::state::SignatureId;
@@ -310,6 +310,15 @@ pub struct TypeLinks {
     /// tsc MappedType.resolvedApparentType
     /// (getApparentTypeOfMappedType 59071).
     pub mapped_apparent_type: LinkSlot<TypeId>,
+    /// tsc ConditionalType resolved arm/constraint caches. They are
+    /// checker-owned because conditional types are immutable in the
+    /// types arena. `Resolved(None)` is the stored false sentinel for
+    /// `resolvedConstraintOfDistributive`.
+    pub conditional_true_type: LinkSlot<TypeId>,
+    pub conditional_false_type: LinkSlot<TypeId>,
+    pub conditional_inferred_true_type: LinkSlot<TypeId>,
+    pub conditional_default_constraint: LinkSlot<TypeId>,
+    pub conditional_constraint_of_distributive: LinkSlot<Option<TypeId>>,
     /// tsc type.resolvedBaseConstraint (getResolvedBaseConstraint
     /// 58916-58920).
     pub resolved_base_constraint: LinkSlot<TypeId>,
@@ -448,6 +457,10 @@ pub struct LinksTables {
     /// 57417 seed + getTypeAliasInstantiation 60271), keyed by
     /// getTypeListId + getAliasId — a monotone cache like tsc's map.
     pub alias_instantiations: HashMap<(SymbolId, String), TypeId>,
+    /// tsc ConditionalRoot.instantiations, keyed by the shared root
+    /// object plus getTypeListId/getAliasId. Writes happen only after
+    /// a complete result so Unsupported cannot leave a partial entry.
+    conditional_instantiations: HashMap<(ConditionalRootId, String), TypeId>,
 }
 
 impl LinksTables {
@@ -461,6 +474,29 @@ impl LinksTables {
 
     pub fn ty(&self, id: TypeId) -> TypeLinks {
         self.ty.get(&id).cloned().unwrap_or_default()
+    }
+
+    /// tsrs-native: read the immutable-root conditional instantiation cache.
+    pub fn conditional_instantiation(&self, root: ConditionalRootId, key: &str) -> Option<TypeId> {
+        self.conditional_instantiations
+            .get(&(root, key.to_owned()))
+            .copied()
+    }
+
+    /// tsrs-native: speculation-guarded conditional instantiation cache write.
+    pub fn set_conditional_instantiation(
+        &mut self,
+        speculation_depth: u32,
+        root: ConditionalRootId,
+        key: String,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        let old = self.conditional_instantiations.insert((root, key), value);
+        assert!(
+            old.is_none() || old == Some(value),
+            "conditional cache rewritten"
+        );
     }
 
     fn assert_writable(speculation_depth: u32) {
@@ -1434,6 +1470,83 @@ impl LinksTables {
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.entry(id).or_default().mapped_apparent_type,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    /// tsrs-native: one-write ConditionalType.resolvedTrueType setter.
+    pub fn set_conditional_true_type(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.ty.entry(id).or_default().conditional_true_type,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    /// tsrs-native: one-write ConditionalType.resolvedFalseType setter.
+    pub fn set_conditional_false_type(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.ty.entry(id).or_default().conditional_false_type,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    /// tsrs-native: one-write ConditionalType.resolvedInferredTrueType setter.
+    pub fn set_conditional_inferred_true_type(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self
+                .ty
+                .entry(id)
+                .or_default()
+                .conditional_inferred_true_type,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    /// tsrs-native: one-write ConditionalType.resolvedDefaultConstraint setter.
+    pub fn set_conditional_default_constraint(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self
+                .ty
+                .entry(id)
+                .or_default()
+                .conditional_default_constraint,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    /// tsrs-native: one-write resolvedConstraintOfDistributive setter.
+    pub fn set_conditional_constraint_of_distributive(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: Option<TypeId>,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self
+                .ty
+                .entry(id)
+                .or_default()
+                .conditional_constraint_of_distributive,
             LinkSlot::Resolved(value),
         );
     }

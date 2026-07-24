@@ -292,18 +292,112 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
             }
             if source_flags.intersects(TypeFlags::CONDITIONAL) {
-                // 65984-66039: those TypeFlags are unconstructible
-                // before their type nodes land.
-                // tsc-dormant: canary=conditional_type_model_constructibility; owner=9.6a
-                return Err(Unsupported::new(
-                    "identity for conditional types (unported family, M8-stub)",
-                ));
+                let TypeData::Conditional(source_data) =
+                    self.st.tables.type_of(source).data.clone()
+                else {
+                    unreachable!("Conditional flag implies conditional data");
+                };
+                let TypeData::Conditional(target_data) =
+                    self.st.tables.type_of(target).data.clone()
+                else {
+                    unreachable!("Conditional flag implies conditional data");
+                };
+                let source_root = self
+                    .st
+                    .tables
+                    .conditional_root(source_data.root)
+                    .is_distributive;
+                let target_root = self
+                    .st
+                    .tables
+                    .conditional_root(target_data.root)
+                    .is_distributive;
+                if source_root == target_root {
+                    let mut result = self.is_related_to(
+                        source_data.check_type,
+                        target_data.check_type,
+                        RecursionFlags::BOTH,
+                        /*report_errors*/ false,
+                        IntersectionState::NONE,
+                    )?;
+                    if !is_false(result) {
+                        result = ternary_and(
+                            result,
+                            self.is_related_to(
+                                source_data.extends_type,
+                                target_data.extends_type,
+                                RecursionFlags::BOTH,
+                                /*report_errors*/ false,
+                                IntersectionState::NONE,
+                            )?,
+                        );
+                    }
+                    if !is_false(result) {
+                        let source_true = self.st.get_true_type_from_conditional_type(source)?;
+                        let target_true = self.st.get_true_type_from_conditional_type(target)?;
+                        result = ternary_and(
+                            result,
+                            self.is_related_to(
+                                source_true,
+                                target_true,
+                                RecursionFlags::BOTH,
+                                /*report_errors*/ false,
+                                IntersectionState::NONE,
+                            )?,
+                        );
+                    }
+                    if !is_false(result) {
+                        let source_false = self.st.get_false_type_from_conditional_type(source)?;
+                        let target_false = self.st.get_false_type_from_conditional_type(target)?;
+                        result = ternary_and(
+                            result,
+                            self.is_related_to(
+                                source_false,
+                                target_false,
+                                RecursionFlags::BOTH,
+                                /*report_errors*/ false,
+                                IntersectionState::NONE,
+                            )?,
+                        );
+                    }
+                    if !is_false(result) {
+                        return Ok(result);
+                    }
+                }
             }
             if source_flags.intersects(TypeFlags::SUBSTITUTION) {
-                // tsc-dormant: canary=substitution_type_model_constructibility; owner=9.6a
-                return Err(Unsupported::new(
-                    "identity for substitution types (unported family, M8-stub)",
-                ));
+                let TypeData::Substitution(source_data) =
+                    self.st.tables.type_of(source).data.clone()
+                else {
+                    unreachable!("Substitution flag implies substitution data");
+                };
+                let TypeData::Substitution(target_data) =
+                    self.st.tables.type_of(target).data.clone()
+                else {
+                    unreachable!("Substitution flag implies substitution data");
+                };
+                let mut result = self.is_related_to(
+                    source_data.base_type,
+                    target_data.base_type,
+                    RecursionFlags::BOTH,
+                    /*report_errors*/ false,
+                    IntersectionState::NONE,
+                )?;
+                if !is_false(result) {
+                    result = ternary_and(
+                        result,
+                        self.is_related_to(
+                            source_data.constraint,
+                            target_data.constraint,
+                            RecursionFlags::BOTH,
+                            /*report_errors*/ false,
+                            IntersectionState::NONE,
+                        )?,
+                    );
+                }
+                if !is_false(result) {
+                    return Ok(result);
+                }
             }
             if source_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
                 let (source_texts, source_types) = self.template_parts(source);
@@ -747,9 +841,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         if target_flags.intersects(TypeFlags::CONDITIONAL) {
-            // tsc-dormant: canary=conditional_type_model_constructibility; owner=9.6a
+            // tsc-dormant: canary=conditional_relation; owner=9.6d
             return Err(Unsupported::new(
-                "conditional targets (unported family, M8-stub)",
+                "conditional targets (relation/inference, 9.6d)",
             ));
         }
         if target_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
@@ -980,9 +1074,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
             }
         } else if source_flags.intersects(TypeFlags::CONDITIONAL) {
-            // tsc-dormant: canary=conditional_type_model_constructibility; owner=9.6a
+            // tsc-dormant: canary=conditional_relation; owner=9.6d
             return Err(Unsupported::new(
-                "conditional sources (unported family, M8-stub)",
+                "conditional sources (relation/inference, 9.6d)",
             ));
         } else {
             if self.relation != RelationKind::Subtype

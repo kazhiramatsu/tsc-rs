@@ -904,7 +904,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isTypeParameterPossiblyReferenced @6.0.3
     /// tsc-hash: d81c8461734d2002d8f9c657319d9f1aa8c55019b3278723ea0de45f6c917f1f
     /// tsc-span: _tsc.js:63521-63562
-    fn is_type_parameter_possibly_referenced(
+    pub(crate) fn is_type_parameter_possibly_referenced(
         &mut self,
         tp: TypeId,
         node: NodeId,
@@ -1703,11 +1703,13 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::CONDITIONAL) {
             return Err(Unsupported::new(
-                "conditional-type instantiation (getConditionalTypeInstantiation, M8)",
+                "conditional-type instantiation (getConditionalTypeInstantiation, 9.6d/M8)",
             ));
         }
         if flags.intersects(TypeFlags::SUBSTITUTION) {
-            return Err(Unsupported::new("substitution-type instantiation (M8)"));
+            return Err(Unsupported::new(
+                "substitution-type instantiation (9.6d/M8)",
+            ));
         }
         Ok(ty)
     }
@@ -2142,7 +2144,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getInferTypeParameters @6.0.3
     /// tsc-hash: a727c630d4ac1b86e85eeef5f93c891ff28ac96696c47f2c4a0cf72b0552dd42
     /// tsc-span: _tsc.js:62756-62766
-    fn get_infer_type_parameters(&mut self, node: NodeId) -> Vec<TypeId> {
+    pub(crate) fn get_infer_type_parameters(&mut self, node: NodeId) -> Vec<TypeId> {
         let Some(locals) = self.binder.locals_of(node) else {
             return Vec::new();
         };

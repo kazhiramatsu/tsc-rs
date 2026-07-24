@@ -1607,7 +1607,7 @@ impl<'a> CheckerState<'a> {
         let flags = self.tables.flags_of(constraint);
         if flags.intersects(TypeFlags::CONDITIONAL) {
             return Err(Unsupported::new(
-                "isExcludedMappedPropertyName conditional branch (Conditional type, 9.6a/M8)",
+                "isExcludedMappedPropertyName conditional constraint projection (9.6c/M8)",
             ));
         }
         if flags.intersects(TypeFlags::INTERSECTION) {

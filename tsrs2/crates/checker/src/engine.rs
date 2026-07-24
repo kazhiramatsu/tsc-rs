@@ -29,7 +29,7 @@ use tsrs2_types::{
 use tsrs2_syntax::NodeId;
 
 use crate::relate::RelationKind;
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState};
 
 /// stableTypeOrdering off: binary search keyed by type id over the
 /// id-sorted member list (tsc containsType 61327).
@@ -379,9 +379,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:64807-64813
     ///
     /// Deferred (node-carrying) references normalize to their eager
-    /// twin (createNormalizedTypeReference over the forced arguments);
-    /// the Substitution arm fails closed until its base/constraint
-    /// payload and reading/writing normalization land in M8.
+    /// twin (createNormalizedTypeReference over the forced arguments).
     pub fn get_normalized_type(&mut self, mut ty: TypeId, writing: bool) -> CheckResult2<TypeId> {
         loop {
             let flags = self.tables.flags_of(ty);
@@ -409,10 +407,14 @@ impl<'a> CheckerState<'a> {
             } else if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
                 self.get_normalized_union_or_intersection_type(ty, writing)?
             } else if flags.intersects(TypeFlags::SUBSTITUTION) {
-                // tsc-dormant: canary=substitution_type_model_constructibility; owner=9.6a
-                return Err(Unsupported::new(
-                    "getNormalizedType for substitution types (unported family, M8-stub)",
-                ));
+                if writing {
+                    let TypeData::Substitution(data) = self.tables.type_of(ty).data.clone() else {
+                        unreachable!("Substitution flag implies substitution data");
+                    };
+                    data.base_type
+                } else {
+                    self.get_substitution_intersection(ty)?
+                }
             } else if flags.intersects(TypeFlags::SIMPLIFIABLE) {
                 self.get_simplified_type(ty, writing)?
             } else {
@@ -2126,7 +2128,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 1953585bcdc5c930273bb00a55255f46d4aec77870ba0b1ba4526e965052b8dc
     /// tsc-span: _tsc.js:67285-67297
     ///
-    /// The Substitution arm is dead until M4.
     pub fn is_weak_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
         let flags = self.tables.flags_of(ty);
         // Tuple references resolve members through
@@ -2149,6 +2150,12 @@ impl<'a> CheckerState<'a> {
                         .flags
                         .intersects(tsrs2_types::SymbolFlags::OPTIONAL)
                 }));
+        }
+        if flags.intersects(TypeFlags::SUBSTITUTION) {
+            let TypeData::Substitution(data) = self.tables.type_of(ty).data.clone() else {
+                unreachable!("Substitution flag implies substitution data");
+            };
+            return self.is_weak_type(data.base_type);
         }
         if flags.intersects(TypeFlags::INTERSECTION) {
             let TypeData::Intersection { types } = self.tables.type_of(ty).data.clone() else {
@@ -2329,6 +2336,12 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(TypeFlags::NON_PRIMITIVE) {
             return true;
+        }
+        if flags.intersects(TypeFlags::SUBSTITUTION) {
+            let TypeData::Substitution(data) = &self.tables.type_of(ty).data else {
+                unreachable!("Substitution flag implies substitution data");
+            };
+            return self.is_excess_property_check_target(data.base_type);
         }
         if flags.intersects(TypeFlags::UNION) {
             let TypeData::Union { types, .. } = &self.tables.type_of(ty).data else {

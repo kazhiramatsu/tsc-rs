@@ -1632,7 +1632,7 @@ impl<'a> CheckerState<'a> {
             // reference staying silent).
             if self.has_conditional_type_ancestor(node) {
                 return self.source_element_stub(
-                    "checkTypeArgumentConstraints under a ConditionalType",
+                    "checkTypeArgumentConstraints under a ConditionalType (9.6c)",
                     "M8",
                 );
             }
@@ -1931,8 +1931,10 @@ impl<'a> CheckerState<'a> {
         // true branch — the raw-parameter index check fabricates 2536
         // (stringMappingReduction / unknownControlFlow pins).
         if self.has_conditional_type_ancestor(node) {
-            return self
-                .source_element_stub("checkIndexedAccessIndexType under a ConditionalType", "M8");
+            return self.source_element_stub(
+                "checkIndexedAccessIndexType under a ConditionalType (9.6c)",
+                "M8",
+            );
         }
         let resolved = self.get_type_from_indexed_access_type_node(node)?;
         self.check_indexed_access_index_type(resolved, node)?;
@@ -4440,6 +4442,39 @@ impl<'a> CheckerState<'a> {
                 format!("{object}[{index_text}]"),
                 SliceTypeNodeKind::IndexedAccess,
             ));
+        }
+        if flags.intersects(TypeFlags::CONDITIONAL) {
+            let TypeData::Conditional(data) = self.tables.type_of(ty).data.clone() else {
+                unreachable!("CONDITIONAL flag implies Conditional data");
+            };
+            let (check_text, check_kind) =
+                self.type_to_string_slice_node(data.check_type, fully_qualified)?;
+            let check = if conditional_check_type_needs_parens(check_kind) {
+                format!("({check_text})")
+            } else {
+                check_text
+            };
+            let (extends_text, extends_kind) =
+                self.type_to_string_slice_node(data.extends_type, fully_qualified)?;
+            let extends = if extends_kind == SliceTypeNodeKind::Conditional {
+                format!("({extends_text})")
+            } else {
+                extends_text
+            };
+            let true_type = self.get_true_type_from_conditional_type(ty)?;
+            let false_type = self.get_false_type_from_conditional_type(ty)?;
+            let (true_text, _) = self.type_to_string_slice_node(true_type, fully_qualified)?;
+            let (false_text, _) = self.type_to_string_slice_node(false_type, fully_qualified)?;
+            return Ok((
+                format!("{check} extends {extends} ? {true_text} : {false_text}"),
+                SliceTypeNodeKind::Conditional,
+            ));
+        }
+        if flags.intersects(TypeFlags::SUBSTITUTION) {
+            let TypeData::Substitution(data) = self.tables.type_of(ty).data.clone() else {
+                unreachable!("SUBSTITUTION flag implies Substitution data");
+            };
+            return self.type_to_string_slice_node(data.base_type, fully_qualified);
         }
         Err(Unsupported::new(
             "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
@@ -7836,6 +7871,8 @@ enum SliceTypeNodeKind {
     /// the kind (the node's own OBJECT side applies the postfix rule
     /// at creation, 22372-22378), so the face never wraps.
     IndexedAccess,
+    /// ConditionalTypeNode — `T extends U ? X : Y`.
+    Conditional,
     /// FunctionTypeNode — `(...) => R` (the signature rung).
     FunctionType,
     /// ConstructorTypeNode — `new (...) => R` / `abstract new ...`.
@@ -7888,6 +7925,16 @@ fn union_constituent_needs_parens(kind: SliceTypeNodeKind) -> bool {
             | SliceTypeNodeKind::Intersection
             | SliceTypeNodeKind::FunctionType
             | SliceTypeNodeKind::ConstructorType
+            | SliceTypeNodeKind::Conditional
+    )
+}
+
+fn conditional_check_type_needs_parens(kind: SliceTypeNodeKind) -> bool {
+    matches!(
+        kind,
+        SliceTypeNodeKind::FunctionType
+            | SliceTypeNodeKind::ConstructorType
+            | SliceTypeNodeKind::Conditional
     )
 }
 
