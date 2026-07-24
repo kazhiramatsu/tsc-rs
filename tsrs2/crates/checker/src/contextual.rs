@@ -33,7 +33,7 @@ use tsrs2_types::{
 };
 
 use crate::indexed::is_numeric_literal_name;
-use crate::state::{CheckResult2, CheckerState, SignatureId, Unsupported};
+use crate::state::{CheckResult2, CheckerState, SignatureId};
 
 /// One lazy discriminator of discriminateTypeByDiscriminableItems'
 /// contextual callers (73357/73391): tsc passes `[() => type, name]`
@@ -1049,14 +1049,40 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc isDefaultedExpandoInitializer (15010-15013): expando
-    /// detection reads getExpandoInitializer, whose every arm requires
-    /// a JS file — constant false in TS; JS rides [JSDOC] (FN: the JS
-    /// `var x = x || {}` shape keeps its contextual type where tsc
-    /// switches to the LHS type).
+    /// tsc-port: isDefaultedExpandoInitializer @6.0.3
+    /// tsc-hash: 46127311127c6759fe62ca2b7684bd0221f0a54e2161a3a8ea3bf50e8233934c
+    /// tsc-span: _tsc.js:15010-15013
     fn is_defaulted_expando_initializer(&self, node: NodeId) -> bool {
-        let _ = node;
-        false
+        let NodeData::BinaryExpression(data) = self.data_of(node) else {
+            return false;
+        };
+        let (Some(left), Some(right)) = (data.left, data.right) else {
+            return false;
+        };
+        let Some(parent) = self.parent_of(node) else {
+            return false;
+        };
+        let name = match self.data_of(parent) {
+            NodeData::VariableDeclaration(data) => data.name,
+            NodeData::BinaryExpression(data)
+                if data
+                    .operator_token
+                    .is_some_and(|operator| self.kind_of(operator) == SyntaxKind::EqualsToken) =>
+            {
+                data.left
+            }
+            _ => None,
+        };
+        let Some(name) = name else { return false };
+        let source = self.binder.source_of_node(node);
+        tsrs2_binder::assignment::get_expando_initializer(
+            source,
+            right,
+            tsrs2_binder::assignment::is_prototype_access(source, name),
+        )
+        .is_some()
+            && tsrs2_binder::assignment::is_bindable_static_name_expression(source, name, false)
+            && tsrs2_binder::assignment::is_same_entity_name(source, name, left)
     }
 
     /// tsc-port: getSymbolForExpression @6.0.3
@@ -1113,19 +1139,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 8ab1d325cd62ac8ae1977531d737fddfbc18d36415268f97afa6801f97b02eb2
     /// tsc-span: _tsc.js:72980-73052
     ///
-    /// TS-visible kinds only: getAssignmentDeclarationKind maps every
-    /// worker answer except Property(5) to None(0) outside JS files
-    /// (15055-15058), so the ThisProperty/Exports/Prototype/
-    /// ModuleExports arms are JS-only [JSDOC] — JS files escape whole.
+    /// The effective annotation reads remain inert for untagged JS,
+    /// while the assignment-kind and ordinary symbol/type paths are
+    /// shared with TS.
     fn get_contextual_type_for_assignment_declaration(
         &mut self,
         binary_expression: NodeId,
     ) -> CheckResult2<Option<TypeId>> {
-        if self.is_in_js_file(binary_expression) {
-            return Err(Unsupported::new(
-                "getContextualTypeForAssignmentDeclaration JS kinds ([JSDOC] band, M8)",
-            ));
-        }
         let NodeData::BinaryExpression(data) = self.data_of(binary_expression) else {
             unreachable!("kind/data agree");
         };
@@ -1133,10 +1153,8 @@ impl<'a> CheckerState<'a> {
         let source = self.binder.source_of_node(binary_expression);
         let kind = tsrs2_binder::get_assignment_declaration_kind(source, binary_expression);
         match kind {
-            tsrs2_binder::AssignmentDeclarationKind::None => {
-                // The kind-0 head is shared with ThisProperty in tsc;
-                // only the TS-reachable half ports (`this.x = e` maps
-                // to kind 0 in TS files).
+            tsrs2_binder::AssignmentDeclarationKind::None
+            | tsrs2_binder::AssignmentDeclarationKind::ThisProperty => {
                 let lhs_symbol = self.get_symbol_for_expression(left)?;
                 let decl =
                     lhs_symbol.and_then(|symbol| self.binder.symbol(symbol).value_declaration);
@@ -1165,14 +1183,13 @@ impl<'a> CheckerState<'a> {
                         return Ok(None);
                     }
                 }
-                Ok(Some(self.get_type_of_expression(left)?))
+                if kind == tsrs2_binder::AssignmentDeclarationKind::None {
+                    Ok(Some(self.get_type_of_expression(left)?))
+                } else {
+                    self.get_contextual_type_for_this_property_assignment(binary_expression)
+                }
             }
             tsrs2_binder::AssignmentDeclarationKind::Property => {
-                // isPossiblyAliasedThisProperty is JS-gated for kind 5
-                // (73053-73063) — false in TS. `left.symbol` is a
-                // declaration-site symbol; TS binary assignments never
-                // declare, so the node-symbol arm answers None and the
-                // getTypeOfExpression(left) arm is the TS shape.
                 if self.node_symbol(left).is_none() {
                     return Ok(Some(self.get_type_of_expression(left)?));
                 }
@@ -1188,7 +1205,7 @@ impl<'a> CheckerState<'a> {
                     // same tail; the identifier probe below only
                     // applies to property accesses in tsc, so fall
                     // through to the final arm.
-                    return Ok(if decl == left {
+                    return Ok(if self.is_in_js_file(decl) || decl == left {
                         None
                     } else {
                         Some(self.get_type_of_expression(left)?)
@@ -1218,14 +1235,76 @@ impl<'a> CheckerState<'a> {
                         return Ok(None);
                     }
                 }
-                Ok(if decl == left {
+                Ok(if self.is_in_js_file(decl) || decl == left {
                     None
                 } else {
                     Some(self.get_type_of_expression(left)?)
                 })
             }
-            _ => unreachable!("JS assignment kinds are gated above"),
+            tsrs2_binder::AssignmentDeclarationKind::ExportsProperty
+            | tsrs2_binder::AssignmentDeclarationKind::PrototypeProperty
+            | tsrs2_binder::AssignmentDeclarationKind::ModuleExports
+            | tsrs2_binder::AssignmentDeclarationKind::Prototype => {
+                let value_declaration = self
+                    .node_symbol(left)
+                    .and_then(|symbol| self.binder.symbol(symbol).value_declaration)
+                    .or_else(|| {
+                        self.node_symbol(binary_expression)
+                            .and_then(|symbol| self.binder.symbol(symbol).value_declaration)
+                    });
+                let annotation =
+                    value_declaration.and_then(|decl| self.effective_type_annotation_node(decl));
+                match annotation {
+                    Some(annotation) => Ok(Some(self.get_type_from_type_node(annotation)?)),
+                    None => Ok(None),
+                }
+            }
+            tsrs2_binder::AssignmentDeclarationKind::ObjectDefinePropertyValue
+            | tsrs2_binder::AssignmentDeclarationKind::ObjectDefinePropertyExports
+            | tsrs2_binder::AssignmentDeclarationKind::ObjectDefinePrototypeProperty => Ok(None),
         }
+    }
+
+    /// tsc-port: getContextualTypeForThisPropertyAssignment @6.0.3
+    /// tsc-hash: 18cd72ce11a1945199994ac5754b2cb64e790ccb844c5c89bfb5bb21f6048a64
+    /// tsc-span: _tsc.js:73074-73098
+    fn get_contextual_type_for_this_property_assignment(
+        &mut self,
+        binary_expression: NodeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let NodeData::BinaryExpression(data) = self.data_of(binary_expression) else {
+            return Ok(None);
+        };
+        let Some(left) = data.left else {
+            return Ok(None);
+        };
+        let Some(symbol) = self.node_symbol(binary_expression) else {
+            return Ok(Some(self.get_type_of_expression(left)?));
+        };
+        if let Some(value_declaration) = self.binder.symbol(symbol).value_declaration {
+            if let Some(annotation) = self.effective_type_annotation_node(value_declaration) {
+                return Ok(Some(self.get_type_from_type_node(annotation)?));
+            }
+        }
+        let receiver = match self.data_of(left) {
+            NodeData::PropertyAccessExpression(data) => data.expression,
+            NodeData::ElementAccessExpression(data) => data.expression,
+            _ => None,
+        };
+        let Some(receiver) = receiver else {
+            return Ok(None);
+        };
+        let source = self.binder.source_of_node(receiver);
+        let container =
+            node_util::get_this_container(source, receiver, /*include_arrow_functions*/ false);
+        if !container.is_some_and(|container| self.is_object_literal_method(container)) {
+            return Ok(None);
+        }
+        let this_type = self.check_this_expression(receiver)?;
+        let Some(name) = self.element_or_property_access_name(left) else {
+            return Ok(None);
+        };
+        self.get_type_of_property_of_contextual_type(this_type, &name, None)
     }
 
     /// tsc getElementOrPropertyAccessName (15134-15145): the identifier
@@ -2499,14 +2578,9 @@ impl<'a> CheckerState<'a> {
                 self.get_contextual_type_for_substitution_expression(template, node)
             }
             SyntaxKind::ParenthesizedExpression => {
-                if self.is_in_js_file(parent) {
-                    // [JSDOC] the satisfies/type-tag reads are
-                    // invisible (no JSDoc parse) — the recursion below
-                    // is tsc's untagged path.
-                    return Err(Unsupported::new(
-                        "getContextualType parenthesized JSDoc arms ([JSDOC] band, M8)",
-                    ));
-                }
+                // The unavailable JSDoc satisfies/type-tag heads would
+                // override this result. Untagged JS uses the same
+                // recursive path as TS and must not be contained.
                 self.get_contextual_type(parent, context_flags)
             }
             SyntaxKind::NonNullExpression => self.get_contextual_type(parent, context_flags),

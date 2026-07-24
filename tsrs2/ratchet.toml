@@ -180,8 +180,11 @@
 # distributive constraints and homomorphic inference under real
 # rollback-capable overload candidate trials.
 # p9 9.7c adds +1304 by retiring the parser-recovery overload bail.
-rate = 0.62549
-matched = 30664
+# p9 9.8b adds +16 through normal expando-member resolution.
+# p9 9.8c adds +16 through JS constructor/assignment-declaration
+# contextual typing, instance `this`, and constructor property flow.
+rate = 0.625816
+matched = 30680
 total = 49024
 allowed_regression = 0.0
 
@@ -233,8 +236,10 @@ allowed_regression = 0.0
 # p9 9.6c adds +60 conditional-resolution/distribution rows.
 # p9 9.6d adds +43 conditional relation/inference rows.
 # p9 9.7c adds +1097 by retiring the parser-recovery overload bail.
-rate = 0.937818
-matched = 19742
+# p9 9.8b adds +12 expando-member rows.
+# p9 9.8c adds +16 JS constructor/assignment-declaration rows.
+rate = 0.938578
+matched = 19758
 total = 21051
 allowed_regression = 0.0
 

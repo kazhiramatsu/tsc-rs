@@ -73,13 +73,6 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/access.rs"
 in = "check_property_access_expression_or_qualified_name"
-reason = "property miss on a JS-declared container (assignment-declaration binding, M8 checkJs band)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/access.rs"
-in = "check_property_access_expression_or_qualified_name"
 reason = "property miss over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
 class = "stage"
 owner = "M8"
@@ -170,13 +163,6 @@ file = "crates/checker/src/annotate.rs"
 in = "get_type_from_type_operator_node"
 reason = "type operator without a parent (parse recovery)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_of_variable_or_parameter_or_property"
-reason = "assignment-declaration value type (getWidenedTypeForAssignmentDeclaration [JSDOC] M8)"
-class = "stage"
-owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -587,20 +573,6 @@ class = "recovery"
 file = "crates/checker/src/class.rs"
 in = "fully_qualified_name_slice"
 reason = "getFullyQualifiedName over a contained symbol (nodeBuilder display, T2)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/contextual.rs"
-in = "get_contextual_type"
-reason = "getContextualType parenthesized JSDoc arms ([JSDOC] band, M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/contextual.rs"
-in = "get_contextual_type_for_assignment_declaration"
-reason = "getContextualTypeForAssignmentDeclaration JS kinds ([JSDOC] band, M8)"
 class = "stage"
 owner = "M8"
 

@@ -2572,6 +2572,50 @@ Binder tests are **52** and checker tests are **1,006**. The ledger has
 family-map, recovery-census, and all invariant suites pass against
 `origin/main`; full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.8c results (2026-07-25, JS constructors/tail — DONE)
+
+Ordinary non-JSDoc JavaScript constructor functions now expose
+construct signatures derived from their call signatures, while
+definite non-constructor syntax stays callable-only and unresolved
+JSDoc-only constructor evidence remains behind the exact existing
+escape. Prototype-assigned and object-literal methods receive the
+constructor instance as their `this` type; static, instance, and
+nested receiver forms remain separate.
+
+Assignment declarations now use the normal contextual-type dispatcher
+for property, prototype, CommonJS, and expando forms. Parenthesized
+JavaScript expressions recurse when no JSDoc type assertion is present.
+Constructor `this` assignments participate in property flow and
+widening, including empty-array evolution and later incompatible or
+nullable writes. Construct-to-call signature relations use the
+declared class instance return where the JavaScript constructor form
+requires it.
+
+Checked-JavaScript publication is provenance-based for the newly live
+assignment, nullable-receiver, and private-name paths. Diagnostics
+whose source expression or participating type depends on a JSDoc type
+stay out of the supported publication set; the exact JSDoc scope rows
+remain visible as all-corpus false negatives. This avoids opening
+unrelated JavaScript property-miss producers while removing the four
+implemented escape sites (assignment-declaration value/context,
+parenthesized context, and the old JS-container property curtain).
+
+The slice grows every shadow tier without loss. In the 2xxx band,
+T1/T2/T3 each report lost=0, gained=**16**. T0 is
+**19758/21051** (**93.8578%**) with FP=0 and FN=1293; supported T0 is
+**19758/20504** (**96.3617%**) with supported FN=**746**. In the all
+band, T1/T2/T3 likewise report lost=0, gained=**16**; T0 is
+**30680/49024** (**62.5816%**) with FP=0. The ratchet adds exactly 16
+all-band and 16 2xxx accepted identities; the syntactic set is
+unchanged.
+
+Checker tests are **1,007**. Escape evidence is sites=**192**,
+stale=0, untagged=0, recovery=**115**, dormant=1. The remaining
+supported false negatives are re-snapshotted for 9.9x by semantic
+owner; remaining `.js` fixtures owned by module resolution, emit
+helpers, parse recovery, display, or JSDoc do not reopen this slice.
+Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
