@@ -312,34 +312,6 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
-in = "elaboration_disposition"
-reason = "elaborateArrayLiteral (elementwise elaboration, T2)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/calls.rs"
-in = "elaboration_disposition"
-reason = "elaborateArrowFunction (return-position elaboration, T2)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/calls.rs"
-in = "elaboration_disposition"
-reason = "elaborateJsxComponents (elementwise elaboration, T2)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/calls.rs"
-in = "elaboration_disposition"
-reason = "elaborateObjectLiteral (elementwise elaboration, T2)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/calls.rs"
 in = "get_class_element_property_key_type"
 reason = "class element without a name (parse recovery)"
 class = "recovery"
@@ -778,6 +750,41 @@ reason = "getIndexedMappedTypeSubstitutedTypeOfContextualType (mapped types, M8)
 class = "stage"
 owner = "M8"
 count = 2
+
+[[site]]
+file = "crates/checker/src/elaboration.rs"
+in = "elaborate_literal_assignment"
+reason = "failed array-literal relation with a spread element (elaborateArrayLiteral tupleization; M6 close -> phase-9 2xxx sweep, M7)"
+class = "stage"
+owner = "M7"
+
+[[site]]
+file = "crates/checker/src/elaboration.rs"
+in = "probe_elaboration_disposition"
+reason = "elaborateArrayLiteral (elementwise elaboration, T2)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/elaboration.rs"
+in = "probe_elaboration_disposition"
+reason = "elaborateArrowFunction (return-position elaboration, T2)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/elaboration.rs"
+in = "probe_elaboration_disposition"
+reason = "elaborateJsxComponents (elementwise elaboration, T2)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/elaboration.rs"
+in = "probe_elaboration_disposition"
+reason = "elaborateObjectLiteral (elementwise elaboration, T2)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/engine.rs"
@@ -1391,13 +1398,6 @@ file = "crates/checker/src/operators.rs"
 in = "check_template_expression"
 reason = "template without head (parse-recovery tree)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "elaborate_literal_assignment"
-reason = "failed array-literal relation with a spread element (elaborateArrayLiteral tupleization; M6 close -> phase-9 2xxx sweep, M7)"
-class = "stage"
-owner = "M7"
 
 [[site]]
 file = "crates/checker/src/operators.rs"

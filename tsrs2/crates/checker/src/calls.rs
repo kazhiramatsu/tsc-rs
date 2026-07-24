@@ -33,6 +33,7 @@ use tsrs2_types::{
 use crate::inference::InferenceContextId;
 use crate::relate::RelationKind;
 
+use crate::elaboration::ElaborationDisposition;
 use crate::links::LinkSlot;
 use crate::operators::OuterExpressionKinds;
 use crate::state::{CheckResult2, CheckerState, Signature, SignatureId, Unsupported};
@@ -2419,306 +2420,6 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
-    // ---- elaboration gate ----
-
-    /// isOrHasGenericConditional (63954-63956).
-    fn is_or_has_generic_conditional(&self, ty: TypeId) -> bool {
-        let flags = self.tables.flags_of(ty);
-        if flags.intersects(TypeFlags::CONDITIONAL) {
-            return true;
-        }
-        if flags.intersects(TypeFlags::INTERSECTION) {
-            if let TypeData::Intersection { types } = &self.tables.type_of(ty).data {
-                return types
-                    .to_vec()
-                    .iter()
-                    .any(|&t| self.is_or_has_generic_conditional(t));
-            }
-        }
-        false
-    }
-
-    /// elaborateError's eligibility walk (63957-63994): Ok(None) = no
-    /// elaboration (plain head), Ok(Some) = elaborateDidYouMeanToCall-
-    /// OrConstruct fired (same head + span at the WALKED node, plus
-    /// the did-you-mean related row — 63995-64023), Err = an
-    /// elementwise elaboration would move the code/span into the
-    /// literal (T2 machinery, contain).
-    fn elaboration_disposition(
-        &mut self,
-        node: NodeId,
-        source: TypeId,
-        target: TypeId,
-        relation: RelationKind,
-    ) -> CheckResult2<Option<(NodeId, RelatedInfo)>> {
-        if self.is_or_has_generic_conditional(target) {
-            return Ok(None);
-        }
-        let mut walk = node;
-        loop {
-            // 63959-63967: the did-you-mean probe runs per recursion
-            // level, reporting at the CURRENT node.
-            for kind in [SignatureKind::Construct, SignatureKind::Call] {
-                let signatures = self.get_signatures_of_type(source, kind)?;
-                let mut fires = false;
-                for signature in signatures {
-                    let return_type = self.get_return_type_of_signature(signature)?;
-                    if self
-                        .tables
-                        .flags_of(return_type)
-                        .intersects(TypeFlags::ANY | TypeFlags::NEVER)
-                    {
-                        continue;
-                    }
-                    if self.check_type_related_to(return_type, target, relation)? {
-                        fires = true;
-                        break;
-                    }
-                }
-                if fires {
-                    let message = if kind == SignatureKind::Construct {
-                        &diagnostics::Did_you_mean_to_use_new_with_this_expression
-                    } else {
-                        &diagnostics::Did_you_mean_to_call_this_expression
-                    };
-                    let related = self.related_info_for_node(walk, message, &[]);
-                    return Ok(Some((walk, related)));
-                }
-            }
-            match self.kind_of(walk) {
-                SyntaxKind::AsExpression => {
-                    let NodeData::AsExpression(data) = self.data_of(walk) else {
-                        unreachable!("kind/data agree");
-                    };
-                    let is_const = data
-                        .r#type
-                        .is_some_and(|type_node| self.is_const_type_reference_node(type_node));
-                    if !is_const {
-                        return Ok(None);
-                    }
-                    match data.expression {
-                        Some(expression) => walk = expression,
-                        None => return Ok(None),
-                    }
-                }
-                SyntaxKind::JsxExpression => {
-                    let NodeData::JsxExpression(data) = self.data_of(walk) else {
-                        unreachable!("kind/data agree");
-                    };
-                    match data.expression {
-                        Some(expression) => walk = expression,
-                        None => return Ok(None),
-                    }
-                }
-                SyntaxKind::ParenthesizedExpression => {
-                    let NodeData::ParenthesizedExpression(data) = self.data_of(walk) else {
-                        unreachable!("kind/data agree");
-                    };
-                    match data.expression {
-                        Some(expression) => walk = expression,
-                        None => return Ok(None),
-                    }
-                }
-                SyntaxKind::BinaryExpression => {
-                    let NodeData::BinaryExpression(data) = self.data_of(walk) else {
-                        unreachable!("kind/data agree");
-                    };
-                    let operator = data.operator_token.map(|token| self.kind_of(token));
-                    match operator {
-                        Some(SyntaxKind::EqualsToken | SyntaxKind::CommaToken) => {
-                            match data.right {
-                                Some(right) => walk = right,
-                                None => return Ok(None),
-                            }
-                        }
-                        _ => return Ok(None),
-                    }
-                }
-                SyntaxKind::ObjectLiteralExpression => {
-                    // elaborateObjectLiteral (64456): the primitive/
-                    // never-target early-out falls back to the plain
-                    // head — whose object-literal source display is T2
-                    // anyway — so the blanket escape loses nothing.
-                    return Err(Unsupported::new(
-                        "elaborateObjectLiteral (elementwise elaboration, T2)",
-                    ));
-                }
-                SyntaxKind::ArrayLiteralExpression => {
-                    // elaborateArrayLiteral (64410): decide whether the
-                    // elementwise walk WOULD report — if not, tsc falls
-                    // back to the plain head at the literal (live).
-                    if self
-                        .array_literal_elaboration_would_report(walk, source, target, relation)?
-                    {
-                        return Err(Unsupported::new(
-                            "elaborateArrayLiteral (elementwise elaboration, T2)",
-                        ));
-                    }
-                    return Ok(None);
-                }
-                SyntaxKind::JsxAttributes => {
-                    return Err(Unsupported::new(
-                        "elaborateJsxComponents (elementwise elaboration, T2)",
-                    ));
-                }
-                SyntaxKind::ArrowFunction => {
-                    // elaborateArrowFunction gates (64024-64038): an
-                    // expression body, no annotated parameters, a
-                    // single-call-signature source, and a callable
-                    // target make the elaboration recurse into the
-                    // return expression.
-                    let NodeData::ArrowFunction(data) = self.data_of(walk) else {
-                        unreachable!("kind/data agree");
-                    };
-                    let body_is_block = data
-                        .body
-                        .is_some_and(|body| self.kind_of(body) == SyntaxKind::Block);
-                    if body_is_block {
-                        return Ok(None);
-                    }
-                    let parameters = self.nodes_of(data.parameters);
-                    let has_typed_parameter = parameters.iter().any(|&parameter| {
-                        matches!(self.data_of(parameter), NodeData::Parameter(p) if p.r#type.is_some())
-                    });
-                    if has_typed_parameter {
-                        return Ok(None);
-                    }
-                    // 64031: getSingleCallSignature(source) is the
-                    // elaborateArrowFunction source gate.
-                    if self.get_single_call_signature(source)?.is_none() {
-                        return Ok(None);
-                    }
-                    if self
-                        .get_signatures_of_type(target, SignatureKind::Call)?
-                        .is_empty()
-                    {
-                        return Ok(None);
-                    }
-                    return Err(Unsupported::new(
-                        "elaborateArrowFunction (return-position elaboration, T2)",
-                    ));
-                }
-                _ => return Ok(None),
-            }
-        }
-    }
-
-    /// The elaborateArrayLiteral decision (64410-64431 +
-    /// generateLimitedTupleElements 64398 + elaborateElementwise's
-    /// per-element verdicts): true when tsc's elaboration would emit
-    /// inner rows instead of the plain head.
-    fn array_literal_elaboration_would_report(
-        &mut self,
-        node: NodeId,
-        source: TypeId,
-        target: TypeId,
-        relation: RelationKind,
-    ) -> CheckResult2<bool> {
-        if self
-            .tables
-            .flags_of(target)
-            .intersects(TypeFlags::from_bits(
-                TypeFlags::PRIMITIVE.bits() | TypeFlags::NEVER.bits(),
-            ))
-        {
-            return Ok(false);
-        }
-        let elements = match self.data_of(node) {
-            NodeData::ArrayLiteralExpression(data) => self.nodes_of(data.elements),
-            _ => return Ok(false),
-        };
-        // Target-side pass first: an element can only produce a row
-        // when the target has a matching indexed access — deciding
-        // this before the forced-tuple re-check keeps no-index targets
-        // out of the contextual element reads.
-        let mut candidates: Vec<(usize, TypeId)> = Vec::new();
-        for (i, &element) in elements.iter().enumerate() {
-            if self.is_tuple_like_type(target)?
-                && self
-                    .get_property_of_type_full(target, &i.to_string())?
-                    .is_none()
-            {
-                continue;
-            }
-            if self.kind_of(element) == SyntaxKind::OmittedExpression {
-                continue;
-            }
-            let name_type = self.tables.get_number_literal_type(i as f64);
-            // getBestMatchIndexedAccessTypeOrUndefined (64103-64114):
-            // the direct indexed access, then — union targets only —
-            // the same probe over getBestMatchingType's constituent
-            // (live since 9.3b2-review; the old containment's
-            // "unmodeled" note retired with it).
-            let mut target_prop = self.get_indexed_access_type_or_undefined(
-                target,
-                name_type,
-                tsrs2_types::AccessFlags::NONE,
-                None,
-                None,
-                None,
-            )?;
-            if target_prop.is_none() && self.tables.flags_of(target).intersects(TypeFlags::UNION) {
-                if let Some(best) = self.get_best_matching_type(source, target)? {
-                    target_prop = self.get_indexed_access_type_or_undefined(
-                        best,
-                        name_type,
-                        tsrs2_types::AccessFlags::NONE,
-                        None,
-                        None,
-                        None,
-                    )?;
-                }
-            }
-            let Some(target_prop) = target_prop else {
-                continue;
-            };
-            if self
-                .tables
-                .flags_of(target_prop)
-                .intersects(TypeFlags::INDEXED_ACCESS)
-            {
-                continue;
-            }
-            candidates.push((i, target_prop));
-        }
-        if candidates.is_empty() {
-            return Ok(false);
-        }
-        let tupleized = if self.is_tuple_like_type(source)? {
-            source
-        } else {
-            // 64416-64423: re-check as a forced tuple under the target
-            // context (re-runs dedupe against the original check).
-            self.push_contextual_type(node, Some(target), /*is_cache*/ false);
-            let result =
-                self.check_array_literal(node, CheckMode::CONTEXTUAL, /*force_tuple*/ true);
-            self.pop_contextual_type();
-            let tupleized = result?;
-            if !self.is_tuple_like_type(tupleized)? {
-                return Ok(false);
-            }
-            tupleized
-        };
-        for (i, target_prop) in candidates {
-            let name_type = self.tables.get_number_literal_type(i as f64);
-            let Some(source_prop) = self.get_indexed_access_type_or_undefined(
-                tupleized,
-                name_type,
-                tsrs2_types::AccessFlags::NONE,
-                None,
-                None,
-                None,
-            )?
-            else {
-                continue;
-            };
-            if !self.check_type_related_to(source_prop, target_prop, relation)? {
-                return Ok(true);
-            }
-        }
-        Ok(false)
-    }
-
     // ---- this arguments ----
 
     /// tsc-port: getThisArgumentOfCall @6.0.3
@@ -3383,14 +3084,17 @@ impl<'a> CheckerState<'a> {
                 };
                 let mut related: Vec<RelatedInfo> = Vec::new();
                 if let Some(effective) = effective {
-                    if let Some((walked, did_you_mean)) = self.elaboration_disposition(
+                    if let ElaborationDisposition::DidYouMean {
+                        node,
+                        related: info,
+                    } = self.probe_elaboration_disposition(
                         effective,
                         check_arg_type,
                         param_type,
                         relation,
                     )? {
-                        span = self.diag_span_of_node(walked);
-                        related.push(did_you_mean);
+                        span = self.diag_span_of_node(node);
+                        related.push(info);
                     }
                 }
                 if let Some(await_related) =
@@ -5547,14 +5251,12 @@ impl<'a> CheckerState<'a> {
                         RelationKind::Assignable,
                     )?
                 {
-                    if self
-                        .elaboration_disposition(
-                            attributes,
-                            attr_type,
-                            result,
-                            RelationKind::Assignable,
-                        )?
-                        .is_some()
+                    if self.probe_elaboration_disposition(
+                        attributes,
+                        attr_type,
+                        result,
+                        RelationKind::Assignable,
+                    )? != ElaborationDisposition::Declined
                     {
                         return Err(Unsupported::new(
                             "did-you-mean elaboration over JSX attributes (T2)",

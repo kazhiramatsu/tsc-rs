@@ -7,6 +7,7 @@ pub mod check;
 pub mod class;
 pub mod constraints;
 pub mod contextual;
+pub mod elaboration;
 pub mod engine;
 pub mod evaluate;
 pub mod expr;
