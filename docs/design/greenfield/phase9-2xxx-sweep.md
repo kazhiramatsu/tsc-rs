@@ -2475,6 +2475,59 @@ sites=**199**, stale=0, untagged=0, recovery=**115**, dormant=1.
 Checker tests are **1,002** and xtask tests are **34**. Full
 `cargo xtask ci` exits 0.
 
+## 9.8a results (2026-07-25, assignment-declaration binding — DONE)
+
+The non-JSDoc `AssignmentDeclarationKind` classifier now has one
+binder-owned implementation shared by the binder and checker. Its
+JavaScript gate, `void 0` exclusion, literal/dynamic element-access
+split, prototype forms, CommonJS forms, and
+`Object.defineProperty` forms are pinned directly against TypeScript
+6.0.3. The old checker-local TS-only classifier and the duplicated
+binder helpers are gone.
+
+The binder now publishes real assignment declarations for function
+expandos, prototype and static members, `this` members,
+`Object.defineProperty` value/get/set descriptors, CommonJS named
+exports, `export=`, export aliases, and the implicit `module` symbol.
+Top-level missing JavaScript namespace chains are recorded in
+`jsGlobalAugmentations`, and aliases of `exports` /
+`module.exports` follow their variable initializers with tsc's bounded
+walk. Literal element-access declaration names are handled in the
+binder-local assignment path; the general checker-facing declaration
+name/JSDoc activation remains deliberately deferred to 9.8b/9.8c.
+
+Publishing these declarations made their initializer types reachable
+before the 9.8b consumer work. A narrow non-JSDoc initializer slice
+therefore resolves binary and descriptor assignments through the real
+symbol, including the class-constructor-vs-method source selection and
+method-only optionality needed at this boundary. This prevents the new
+producer from either fabricating call diagnostics or hiding already
+accepted class-member rows. It does not inspect JSDoc annotations,
+classify JavaScript constructors, or change the 9.1b scope records.
+
+Oracle-pinned binder canaries cover the exact function/class/module
+symbol flags and member/export faces, bracket names, CommonJS aliases,
+and `require` arity. The ten fixtures in the stage-3.4c symbol-diff
+allowlist now compare with **0** differences; the committed allowlist
+is intentionally retained until its diagnostic-side retirement in
+9.8b.
+
+This prerequisite-only slice is accepted-set neutral. All T0 remains
+**30648/49024** (**62.5163%**), 2xxx T0 remains
+**19730/21051** (**93.7248%**), supported 2xxx remains
+**19730/20504** (**96.2251%**) with supported FN=**774**, and FP=0.
+The exact before/after diff has lost=0 and gained=0 for T1, T2, and T3
+in both all/supported views of both bands; the supported universe is
+unchanged. Ratchet artifacts and the 9.1b scope manifest are
+byte-unchanged.
+
+Binder tests are **52**, checker tests are **1,002**, and xtask tests
+are **34**. Ledger entries are fresh, escape evidence remains
+sites=**199**, stale=0, untagged=0, recovery=**115**, dormant=1, and
+full `cargo xtask ci` exits 0. The next slice is 9.8b: route all expando
+reads through these normal symbols/types, then remove the legacy
+name-level suppression and stale symbol-diff allowlist.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

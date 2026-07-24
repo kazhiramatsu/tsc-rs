@@ -6733,8 +6733,10 @@ impl<'a> CheckerState<'a> {
                 SyntaxKind::BinaryExpression
                 | SyntaxKind::PropertyAccessExpression
                 | SyntaxKind::ElementAccessExpression
-                | SyntaxKind::CallExpression
-                | SyntaxKind::Identifier
+                | SyntaxKind::CallExpression => {
+                    state.get_widened_type_for_assignment_declaration(symbol)
+                }
+                SyntaxKind::Identifier
                 | SyntaxKind::StringLiteral
                 | SyntaxKind::NumericLiteral
                 | SyntaxKind::SourceFile => Err(Unsupported::new(
@@ -7670,6 +7672,174 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// The 9.8a non-JSDoc initializer slice of tsc
+    /// getWidenedTypeForAssignmentDeclaration /
+    /// getInitializerTypeFromAssignmentDeclaration. The binder now
+    /// publishes assignment members, so resolving those real symbols
+    /// must type their initializer instead of tripping the former
+    /// producer-missing curtain. JSDoc annotations and JS-constructor
+    /// classification remain owned by 9.8c and are intentionally not
+    /// consulted here.
+    fn get_widened_type_for_assignment_declaration(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult2<TypeId> {
+        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let mut types = Vec::new();
+        let mut constructor_types = Vec::new();
+        let mut defined_in_constructor = false;
+        let mut defined_in_method = false;
+        for declaration in declarations {
+            let expression = match self.kind_of(declaration) {
+                SyntaxKind::BinaryExpression | SyntaxKind::CallExpression => Some(declaration),
+                SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => self
+                    .parent_of(declaration)
+                    .filter(|&parent| self.kind_of(parent) == SyntaxKind::BinaryExpression),
+                _ => None,
+            };
+            let Some(expression) = expression else {
+                continue;
+            };
+            let is_this_property = self.assignment_is_this_property(expression);
+            let in_constructor =
+                is_this_property && self.assignment_is_in_class_constructor(expression);
+            if is_this_property {
+                if in_constructor {
+                    defined_in_constructor = true;
+                } else {
+                    defined_in_method = true;
+                }
+            }
+            let initializer_type = match self.data_of(expression) {
+                NodeData::BinaryExpression(data) => {
+                    let Some(right) = data.right else {
+                        continue;
+                    };
+                    let checked = self.check_expression_cached(right, CheckMode::NORMAL)?;
+                    self.get_widened_literal_type(checked)?
+                }
+                NodeData::CallExpression(data) => {
+                    let Some(arguments) = data.arguments else {
+                        continue;
+                    };
+                    let arguments = self.nodes_of(Some(arguments));
+                    let Some(&descriptor) = arguments.get(2) else {
+                        continue;
+                    };
+                    let descriptor_type =
+                        self.check_expression_cached(descriptor, CheckMode::NORMAL)?;
+                    if let Some(value) =
+                        self.get_type_of_property_of_type(descriptor_type, "value")?
+                    {
+                        value
+                    } else if let Some(getter) =
+                        self.get_type_of_property_of_type(descriptor_type, "get")?
+                    {
+                        match self.get_single_call_signature(getter)? {
+                            Some(signature) => self.get_return_type_of_signature(signature)?,
+                            None => self.tables.intrinsics.any,
+                        }
+                    } else if let Some(setter) =
+                        self.get_type_of_property_of_type(descriptor_type, "set")?
+                    {
+                        match self.get_single_call_signature(setter)? {
+                            Some(signature)
+                                if !self.signature_of(signature).parameters.is_empty() =>
+                            {
+                                self.get_type_at_position(signature, 0)?
+                            }
+                            _ => self.tables.intrinsics.any,
+                        }
+                    } else {
+                        self.tables.intrinsics.any
+                    }
+                }
+                _ => continue,
+            };
+            if in_constructor {
+                constructor_types.push(initializer_type);
+            }
+            types.push(initializer_type);
+        }
+        if types.is_empty() {
+            return Ok(self.tables.intrinsics.error);
+        }
+        let source_types = if constructor_types.iter().any(|&ty| {
+            !self.every_type(ty, |state, member| {
+                state
+                    .tables
+                    .flags_of(member)
+                    .intersects(TypeFlags::NULLABLE)
+            })
+        }) {
+            &constructor_types
+        } else {
+            &types
+        };
+        let mut ty = if source_types.len() == 1 {
+            source_types[0]
+        } else {
+            self.get_union_type_ex(source_types, tsrs2_types::UnionReduction::Literal)?
+        };
+        if self.tables.strict_null_checks && defined_in_method && !defined_in_constructor {
+            ty = self.get_optional_type(ty, /*is_property*/ false)?;
+        }
+        if self
+            .binder
+            .symbol(symbol)
+            .value_declaration
+            .is_some_and(|declaration| self.is_in_js_file(declaration))
+            && self.every_type(ty, |state, member| {
+                state
+                    .tables
+                    .flags_of(member)
+                    .intersects(TypeFlags::NULLABLE)
+            })
+        {
+            return Ok(self.tables.intrinsics.any);
+        }
+        self.get_widened_type(ty)
+    }
+
+    fn assignment_is_this_property(&self, expression: NodeId) -> bool {
+        let NodeData::BinaryExpression(data) = self.data_of(expression) else {
+            return false;
+        };
+        let Some(left) = data.left else {
+            return false;
+        };
+        match self.data_of(left) {
+            NodeData::PropertyAccessExpression(data) => data
+                .expression
+                .is_some_and(|receiver| self.kind_of(receiver) == SyntaxKind::ThisKeyword),
+            NodeData::ElementAccessExpression(data) => data
+                .expression
+                .is_some_and(|receiver| self.kind_of(receiver) == SyntaxKind::ThisKeyword),
+            _ => false,
+        }
+    }
+
+    fn assignment_is_in_class_constructor(&self, expression: NodeId) -> bool {
+        let mut current = self.parent_of(expression);
+        while let Some(node) = current {
+            match self.kind_of(node) {
+                SyntaxKind::Constructor => return true,
+                SyntaxKind::FunctionDeclaration
+                | SyntaxKind::FunctionExpression
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::SetAccessor
+                | SyntaxKind::PropertyDeclaration
+                | SyntaxKind::ClassStaticBlockDeclaration
+                | SyntaxKind::SourceFile => return false,
+                SyntaxKind::ArrowFunction => {}
+                _ => {}
+            }
+            current = self.parent_of(node);
+        }
+        false
+    }
+
     /// tsc-port: getTypeOfFuncClassEnumModule @6.0.3
     /// tsc-hash: 079629bbc8a29f3e85c4f2c38c64b0c6ecd7f8e5253a87f56bef8c1749dc8dfa
     /// tsc-span: _tsc.js:56808-56827
@@ -7679,6 +7849,31 @@ impl<'a> CheckerState<'a> {
     fn get_type_of_func_class_enum_module(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
             return Ok(cached);
+        }
+        if self
+            .binder
+            .symbol(symbol)
+            .value_declaration
+            .is_some_and(|declaration| {
+                matches!(
+                    self.kind_of(declaration),
+                    SyntaxKind::BinaryExpression
+                        | SyntaxKind::PropertyAccessExpression
+                        | SyntaxKind::ElementAccessExpression
+                        | SyntaxKind::CallExpression
+                )
+            })
+            && self
+                .symbol_flags(symbol)
+                .intersects(SymbolFlags::ASSIGNMENT)
+        {
+            let resolved = self.get_widened_type_for_assignment_declaration(symbol)?;
+            self.links.set_symbol_type_func_class_enum_module(
+                self.speculation_depth,
+                symbol,
+                resolved,
+            );
+            return Ok(resolved);
         }
         // getTypeOfFuncClassEnumModuleWorker (56828-56860): the JS
         // assignment/expando and commonJS arms are elided project-wide.

@@ -52,6 +52,9 @@ pub struct Binder<'a> {
     pub node_local_symbol: HashMap<NodeId, SymbolId>,
     /// tsc container.locals, keyed by the scope-owning node.
     pub locals: HashMap<NodeId, SymbolTable>,
+    /// tsc SourceFile.jsGlobalAugmentations: namespaces introduced by
+    /// top-level JavaScript property assignments before checker merge.
+    pub js_global_augmentations: SymbolTable,
     pub bind_diagnostics: DiagnosticList,
     /// TS-file expando parents: function symbols with
     /// bindSpecialPropertyAssignment-shaped member assignments
@@ -161,6 +164,7 @@ impl<'a> Binder<'a> {
             node_symbol: HashMap::new(),
             node_local_symbol: HashMap::new(),
             locals: HashMap::new(),
+            js_global_augmentations: SymbolTable::default(),
             bind_diagnostics: Vec::new(),
             expando_assignment_targets: std::collections::HashMap::new(),
             classifiable_names: IndexSet::new(),
@@ -434,6 +438,9 @@ impl<'a> Binder<'a> {
                 .to_owned(),
             );
         }
+        if let Some(name) = crate::assignment::get_assignment_declaration_name(self.source, node) {
+            return get_escaped_text_of_identifier_or_literal(self.source, name);
+        }
         if let Some(name) = get_name_of_declaration(self.source, node) {
             if is_ambient_module(self.source, node) {
                 let module_name =
@@ -506,8 +513,12 @@ impl<'a> Binder<'a> {
             SyntaxKind::IndexSignature => Some(InternalSymbolName::INDEX.to_owned()),
             SyntaxKind::ExportDeclaration => Some(InternalSymbolName::EXPORT_STAR.to_owned()),
             SyntaxKind::SourceFile => Some(InternalSymbolName::EXPORT_EQUALS.to_owned()),
-            // JS-only: BinaryExpression `module.exports =` resolves via
-            // getAssignmentDeclarationKind (stage 3.4).
+            SyntaxKind::BinaryExpression
+                if crate::assignment::get_assignment_declaration_kind(self.source, node)
+                    == crate::assignment::AssignmentDeclarationKind::ModuleExports =>
+            {
+                Some(InternalSymbolName::EXPORT_EQUALS.to_owned())
+            }
             _ => None,
         }
     }

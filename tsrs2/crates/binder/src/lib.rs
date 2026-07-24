@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+pub mod assignment;
 pub mod bind;
 pub mod containers;
 pub mod declare;
@@ -10,6 +11,7 @@ pub mod symbols;
 use tsrs2_syntax::SourceFile;
 use tsrs2_types::CompilerOptions;
 
+pub use assignment::{get_assignment_declaration_kind, AssignmentDeclarationKind};
 pub use declare::{Binder, TableRef};
 pub use symbols::{
     escape_leading_underscores, unescape_leading_underscores, InternalSymbolName, Symbol,

@@ -3,43 +3,34 @@
 //! bindWorker with its per-kind symbol arms, the strict-mode check
 //! family, and the contextual-identifier checks. The flow-aware
 //! bindChildren arms are stage 3.5; the JS special-assignment symbol
-//! bodies are stage 3.4c (the dispatch and its early-return shape are
-//! here).
+//! bodies landed in phase 9.8a, with their remaining checker consumers
+//! owned by 9.8b/9.8c.
 
+use crate::assignment::{
+    access_expression_of, get_assignment_declaration_kind, get_element_or_property_access_name,
+    get_right_most_assigned_expression, is_bindable_object_define_property_call,
+    is_bindable_static_access_expression, is_exports_identifier,
+    is_module_exports_access_expression, is_prototype_access, AssignmentDeclarationKind,
+};
 use crate::containers::{get_container_flags, ContainerFlags};
 use crate::declare::{Binder, TableRef};
 use crate::flow::FlowId;
 use crate::node_util::{
     can_have_flow_node, declaration_name_to_string, get_containing_class, get_error_span_for_node,
-    has_dynamic_name, id_text, is_assignment_operator, is_async_function,
-    is_auto_accessor_property_declaration, is_binding_pattern, is_block_or_catch_scoped,
-    is_destructuring_assignment, is_entity_name_expression, is_expression_node,
-    is_function_like_kind, is_identifier_name, is_in_top_level_context, is_narrowable_operand,
-    is_narrowable_reference, is_narrowing_expression, is_object_literal_method,
-    is_object_literal_or_class_expression_method_or_accessor, is_parameter_property_declaration,
-    is_part_of_parameter_declaration, is_part_of_type_query, is_potentially_executable_node,
-    is_string_or_numeric_literal_like, kind_of, literal_text_of, name_field_of, parent_of,
-    statements_of,
+    has_dynamic_name, id_text, is_assignment_expression_simple, is_assignment_operator,
+    is_async_function, is_auto_accessor_property_declaration, is_binding_pattern,
+    is_block_or_catch_scoped, is_destructuring_assignment, is_entity_name_expression,
+    is_expression_node, is_function_like_kind, is_identifier_name, is_in_top_level_context,
+    is_narrowable_operand, is_narrowable_reference, is_narrowing_expression,
+    is_object_literal_method, is_object_literal_or_class_expression_method_or_accessor,
+    is_parameter_property_declaration, is_part_of_parameter_declaration, is_part_of_type_query,
+    is_potentially_executable_node, is_string_or_numeric_literal_like, kind_of, literal_text_of,
+    name_field_of, parent_of, skip_parentheses_pub, statements_of,
 };
 use crate::symbols::{InternalSymbolName, SymbolId};
 use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
 use tsrs2_syntax::{for_each_child, NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{FlowFlags, ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags};
-
-/// tsc AssignmentDeclarationKind.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum AssignmentDeclarationKind {
-    None,
-    ExportsProperty,
-    ModuleExports,
-    PrototypeProperty,
-    ThisProperty,
-    Property,
-    Prototype,
-    ObjectDefinePropertyValue,
-    ObjectDefinePropertyExports,
-    ObjectDefinePrototypeProperty,
-}
 
 impl<'a> Binder<'a> {
     /// tsc-port: bindSourceFile2 @6.0.3
@@ -90,10 +81,10 @@ impl<'a> Binder<'a> {
     /// tsc-hash: 4b259323fa2534e8d67ea9485669ddbff8e0a5a252719533558d6d8e99181588
     /// tsc-span: _tsc.js:44287-44527
     ///
-    /// JS-only arms carved out (stage 3.4c / JSDoc): the JSDoc-namespace
-    /// identifier alias, special property declarations, the CommonJS
-    /// module-symbol declaration, bindCallExpression, and the JSDoc tag
-    /// arms.
+    /// The non-JSDoc special-property/CommonJS arms formerly carved out
+    /// at stage 3.4c landed in phase 9.8a. JSDoc namespace aliases,
+    /// special declarations driven solely by tags, and JSDoc tag arms
+    /// remain deferred.
     pub(crate) fn bind_worker(&mut self, node: NodeId) {
         match kind_of(self.source, node) {
             SyntaxKind::Identifier | SyntaxKind::ThisKeyword => {
@@ -130,18 +121,23 @@ impl<'a> Binder<'a> {
                         self.node_flow.insert(node, current_flow);
                     }
                 }
-                // JS-only: isSpecialPropertyDeclaration (needs JSDoc type
-                // tags) and the CommonJS `module` symbol declaration.
+                // isSpecialPropertyDeclaration remains JSDoc-driven.
+                self.bind_common_js_module_symbol(node);
             }
             SyntaxKind::BinaryExpression => {
                 match self.get_assignment_declaration_kind(node) {
-                    AssignmentDeclarationKind::ExportsProperty
-                    | AssignmentDeclarationKind::ModuleExports
-                    | AssignmentDeclarationKind::PrototypeProperty
-                    | AssignmentDeclarationKind::Prototype
-                    | AssignmentDeclarationKind::ThisProperty => {
-                        // JS-only symbol bodies: stage 3.4c
-                        // (bindExportsPropertyAssignment et al).
+                    AssignmentDeclarationKind::ExportsProperty => {
+                        self.bind_exports_property_assignment(node)
+                    }
+                    AssignmentDeclarationKind::ModuleExports => {
+                        self.bind_module_exports_assignment(node)
+                    }
+                    AssignmentDeclarationKind::PrototypeProperty => {
+                        self.bind_prototype_property_assignment(node)
+                    }
+                    AssignmentDeclarationKind::Prototype => self.bind_prototype_assignment(node),
+                    AssignmentDeclarationKind::ThisProperty => {
+                        self.bind_this_property_assignment(node)
                     }
                     AssignmentDeclarationKind::Property => {
                         self.bind_special_property_assignment(node);
@@ -265,12 +261,19 @@ impl<'a> Binder<'a> {
             SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction => {
                 self.bind_function_expression(node)
             }
-            SyntaxKind::CallExpression => {
-                // The ObjectDefineProperty* kinds are JS-only (the
-                // wrapper maps them to None in TS files); dispatch kept
-                // for shape. bindCallExpression is JS-only.
-                let _ = self.get_assignment_declaration_kind(node);
-            }
+            SyntaxKind::CallExpression => match self.get_assignment_declaration_kind(node) {
+                AssignmentDeclarationKind::ObjectDefinePropertyValue => {
+                    self.bind_object_define_property_assignment(node)
+                }
+                AssignmentDeclarationKind::ObjectDefinePropertyExports => {
+                    self.bind_object_define_property_export(node)
+                }
+                AssignmentDeclarationKind::ObjectDefinePrototypeProperty => {
+                    self.bind_object_define_prototype_property(node)
+                }
+                AssignmentDeclarationKind::None => self.bind_call_expression(node),
+                _ => debug_assert!(false, "Unknown call expression assignment declaration kind"),
+            },
             SyntaxKind::ClassExpression | SyntaxKind::ClassDeclaration => {
                 self.in_strict_mode = true;
                 self.bind_class_like_declaration(node);
@@ -975,158 +978,16 @@ impl<'a> Binder<'a> {
         None
     }
 
-    // ---- assignment-declaration classification (TS-visible subset) ----
+    // ---- assignment-declaration classification and binding ----
 
     /// tsc-port: getAssignmentDeclarationKind @6.0.3
     /// tsc-hash: 86ed418c050973f93d14271122ba9f948961e1e038e6c338eb6df19543402bd2
     /// tsc-span: _tsc.js:15055-15058
     pub fn get_assignment_declaration_kind(&self, expr: NodeId) -> AssignmentDeclarationKind {
-        let special = self.get_assignment_declaration_kind_worker(expr);
-        if special == AssignmentDeclarationKind::Property || self.in_js_file_public() {
-            special
-        } else {
-            AssignmentDeclarationKind::None
-        }
+        get_assignment_declaration_kind(self.source, expr)
     }
 
-    /// tsc-port: getAssignmentDeclarationKindWorker @6.0.3
-    /// tsc-hash: 748a8d0ff34b41c4230a22f31b31e87e5752191e17183fafd67e39f4e2773d51
-    /// tsc-span: _tsc.js:15095-15120
-    fn get_assignment_declaration_kind_worker(&self, expr: NodeId) -> AssignmentDeclarationKind {
-        let source = self.source;
-        if let NodeData::CallExpression(data) = &source.arena.node(expr).data {
-            if !self.is_bindable_object_define_property_call(expr) {
-                return AssignmentDeclarationKind::None;
-            }
-            let arguments = data.arguments.expect("checked by predicate");
-            let entity_name = source.arena.node_array(arguments).nodes[0];
-            if is_exports_identifier(source, entity_name)
-                || is_module_exports_access_expression(source, entity_name)
-            {
-                return AssignmentDeclarationKind::ObjectDefinePropertyExports;
-            }
-            if is_bindable_static_access_expression(source, entity_name, false)
-                && get_element_or_property_access_name(source, entity_name).as_deref()
-                    == Some("prototype")
-            {
-                return AssignmentDeclarationKind::ObjectDefinePrototypeProperty;
-            }
-            return AssignmentDeclarationKind::ObjectDefinePropertyValue;
-        }
-        let NodeData::BinaryExpression(data) = &source.arena.node(expr).data else {
-            return AssignmentDeclarationKind::None;
-        };
-        let operator = data
-            .operator_token
-            .map(|token| kind_of(source, token))
-            .unwrap_or(SyntaxKind::Unknown);
-        let Some(left) = data.left else {
-            return AssignmentDeclarationKind::None;
-        };
-        if operator != SyntaxKind::EqualsToken
-            || !matches!(
-                kind_of(source, left),
-                SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
-            )
-            || is_void_zero(source, get_right_most_assigned_expression(source, expr))
-        {
-            return AssignmentDeclarationKind::None;
-        }
-        let left_expression = access_expression_of(source, left);
-        if left_expression
-            .is_some_and(|expression| is_bindable_static_name_expression(source, expression, true))
-            && get_element_or_property_access_name(source, left).as_deref() == Some("prototype")
-            && kind_of(source, get_initializer_of_binary_expression(source, expr))
-                == SyntaxKind::ObjectLiteralExpression
-        {
-            return AssignmentDeclarationKind::Prototype;
-        }
-        self.get_assignment_declaration_property_access_kind(left)
-    }
-
-    /// tsc getAssignmentDeclarationPropertyAccessKind (15121-region).
-    fn get_assignment_declaration_property_access_kind(
-        &self,
-        lhs: NodeId,
-    ) -> AssignmentDeclarationKind {
-        let source = self.source;
-        let Some(lhs_expression) = access_expression_of(source, lhs) else {
-            return AssignmentDeclarationKind::None;
-        };
-        if kind_of(source, lhs_expression) == SyntaxKind::ThisKeyword {
-            return AssignmentDeclarationKind::ThisProperty;
-        }
-        if is_module_exports_access_expression(source, lhs) {
-            return AssignmentDeclarationKind::ModuleExports;
-        }
-        if is_bindable_static_name_expression(source, lhs_expression, true) {
-            if is_prototype_access(source, lhs_expression) {
-                return AssignmentDeclarationKind::PrototypeProperty;
-            }
-            let mut next_to_last = lhs;
-            while let Some(expression) = access_expression_of(source, next_to_last) {
-                if kind_of(source, expression) == SyntaxKind::Identifier {
-                    break;
-                }
-                next_to_last = expression;
-            }
-            let id = access_expression_of(source, next_to_last).unwrap_or(next_to_last);
-            let id_escaped = match &source.arena.node(id).data {
-                NodeData::Identifier(data) => Some(data.escaped_text.as_str()),
-                _ => None,
-            };
-            if (id_escaped == Some("exports")
-                || id_escaped == Some("module")
-                    && get_element_or_property_access_name(source, next_to_last).as_deref()
-                        == Some("exports"))
-                && is_bindable_static_access_expression(source, lhs, false)
-            {
-                return AssignmentDeclarationKind::ExportsProperty;
-            }
-            if is_bindable_static_name_expression(source, lhs, true)
-                || kind_of(source, lhs) == SyntaxKind::ElementAccessExpression
-            {
-                return AssignmentDeclarationKind::Property;
-            }
-        }
-        AssignmentDeclarationKind::None
-    }
-
-    /// tsc isBindableObjectDefinePropertyCall (15059).
-    fn is_bindable_object_define_property_call(&self, expr: NodeId) -> bool {
-        let source = self.source;
-        let NodeData::CallExpression(data) = &source.arena.node(expr).data else {
-            return false;
-        };
-        let Some(arguments) = data.arguments else {
-            return false;
-        };
-        let arguments = &source.arena.node_array(arguments).nodes;
-        if arguments.len() != 3 {
-            return false;
-        }
-        let Some(expression) = data.expression else {
-            return false;
-        };
-        let NodeData::PropertyAccessExpression(access) = &source.arena.node(expression).data else {
-            return false;
-        };
-        let object_ok = access
-            .expression
-            .is_some_and(|object| id_text(source, object) == Some("Object"));
-        let name_ok = access
-            .name
-            .is_some_and(|name| id_text(source, name) == Some("defineProperty"));
-        object_ok
-            && name_ok
-            && is_string_or_numeric_literal_like(source, arguments[1])
-            && is_bindable_static_name_expression(source, arguments[0], true)
-    }
-
-    /// The TS-visible slice of bindSpecialPropertyAssignment (44821):
-    /// in a TS file only function-parent (expando) assignments proceed;
-    /// the symbol-producing body is stage 3.4c.
-    #[allow(clippy::needless_return)] // the guard's fall-through body is the 3.4c stub tail
+    /// tsc bindSpecialPropertyAssignment (44821).
     fn bind_special_property_assignment(&mut self, node: NodeId) {
         let source = self.source;
         let left = match &source.arena.node(node).data {
@@ -1137,21 +998,15 @@ impl<'a> Binder<'a> {
         let Some(left_expression) = access_expression_of(source, left) else {
             return;
         };
-        if !self.in_js_file_public() {
-            let parent_symbol = self.lookup_symbol_for_property_access(left_expression);
-            if !self.is_function_symbol(parent_symbol) {
-                return;
-            }
-            // Stage 3.4c: bindStaticPropertyAssignment /
-            // bindPotentiallyMissingNamespaces (expando properties).
-            // Until those bodies land, record (parent, member name)
-            // so the checker can suppress lookups of exactly the
-            // members this assignment would declare
-            // (getElementOrPropertyAccessName, 15134: identifier
-            // escapedText / string-or-numeric-literal-LIKE text,
-            // escaped — no-substitution templates included).
+        let parent_symbol = self.lookup_symbol_for_property_access(left_expression);
+        if !self.is_in_js_file() && !self.is_function_symbol(parent_symbol) {
+            return;
+        }
+        if !self.is_in_js_file() {
             if let Some(parent_symbol) = parent_symbol {
                 if let Some(name) = get_element_or_property_access_name(source, left) {
+                    // Kept through 9.8a so the diagnostic-side retirement in
+                    // 9.8b can be reviewed separately from the producer.
                     self.expando_assignment_targets
                         .entry(parent_symbol)
                         .or_default()
@@ -1159,7 +1014,42 @@ impl<'a> Binder<'a> {
                 }
             }
         }
-        // Stage 3.4c: the JS symbol-producing bodies.
+        let root = self.leftmost_access_expression(left);
+        let root_is_alias = id_text(source, root).is_some_and(|name| {
+            self.container.is_some_and(|container| {
+                self.lookup_symbol_for_name(container, name)
+                    .is_some_and(|symbol| {
+                        self.symbols
+                            .symbol(symbol)
+                            .flags
+                            .intersects(SymbolFlags::ALIAS)
+                    })
+            })
+        });
+        if root_is_alias {
+            return;
+        }
+        if kind_of(source, left_expression) == SyntaxKind::Identifier
+            && self.container == Some(source.root)
+            && self.is_exports_or_module_exports_or_alias(left_expression)
+        {
+            self.bind_exports_property_assignment(node);
+        } else if has_dynamic_name(source, node) {
+            self.bind_anonymous_declaration(
+                node,
+                SymbolFlags::PROPERTY | SymbolFlags::ASSIGNMENT,
+                InternalSymbolName::COMPUTED.to_owned(),
+            );
+            self.bind_potentially_missing_namespaces(
+                parent_symbol,
+                left_expression,
+                self.is_top_level_namespace_assignment(left),
+                false,
+                false,
+            );
+        } else {
+            self.bind_static_property_assignment(left);
+        }
     }
 
     fn is_function_symbol(&self, symbol: Option<SymbolId>) -> bool {
@@ -1178,15 +1068,1045 @@ impl<'a> Binder<'a> {
         }
     }
 
+    fn set_common_js_module_indicator(&mut self, node: NodeId) -> bool {
+        if self
+            .source
+            .external_module_indicator
+            .is_some_and(|indicator| indicator != self.source.root)
+        {
+            return false;
+        }
+        if self.common_js_module_indicator.is_none() {
+            self.common_js_module_indicator = Some(node);
+            if self.source.external_module_indicator.is_none() {
+                self.bind_source_file_as_external_module();
+            }
+        }
+        true
+    }
+
+    fn file_symbol(&self) -> Option<SymbolId> {
+        self.node_symbol.get(&self.source.root).copied()
+    }
+
+    fn bind_exports_property_assignment(&mut self, node: NodeId) {
+        if !self.set_common_js_module_indicator(node) {
+            return;
+        }
+        let (left, right) = match &self.source.arena.node(node).data {
+            NodeData::BinaryExpression(data) => (data.left, data.right),
+            _ => (None, None),
+        };
+        let (Some(left), Some(right)) = (left, right) else {
+            return;
+        };
+        let Some(entity_name) = access_expression_of(self.source, left) else {
+            return;
+        };
+        let Some(symbol) = self.bind_existing_entity_name_as_module(entity_name, None) else {
+            return;
+        };
+        let is_alias = self.is_aliasable_expression(right)
+            && (is_exports_identifier(self.source, entity_name)
+                || is_module_exports_access_expression(self.source, entity_name));
+        let flags = if is_alias {
+            SymbolFlags::ALIAS
+        } else {
+            SymbolFlags::PROPERTY | SymbolFlags::EXPORT_VALUE
+        };
+        self.declare_symbol(
+            TableRef::Exports(symbol),
+            Some(symbol),
+            left,
+            flags,
+            SymbolFlags::NONE,
+            false,
+            false,
+        );
+    }
+
+    fn bind_module_exports_assignment(&mut self, node: NodeId) {
+        if !self.set_common_js_module_indicator(node) {
+            return;
+        }
+        let Some(file_symbol) = self.file_symbol() else {
+            return;
+        };
+        let Some(right) = (match &self.source.arena.node(node).data {
+            NodeData::BinaryExpression(data) => data.right,
+            _ => None,
+        }) else {
+            return;
+        };
+        let assigned = get_right_most_assigned_expression(self.source, right);
+        if self.is_empty_object_literal(assigned)
+            || self.container == Some(self.source.root)
+                && self.is_exports_or_module_exports_or_alias(assigned)
+        {
+            return;
+        }
+        if self.bind_export_assigned_shorthand_object(assigned, file_symbol) {
+            return;
+        }
+        let flags = if self.is_aliasable_expression(right) {
+            SymbolFlags::ALIAS
+        } else {
+            SymbolFlags::PROPERTY | SymbolFlags::EXPORT_VALUE | SymbolFlags::VALUE_MODULE
+        };
+        let symbol = self.declare_symbol(
+            TableRef::Exports(file_symbol),
+            Some(file_symbol),
+            node,
+            flags | SymbolFlags::ASSIGNMENT,
+            SymbolFlags::NONE,
+            false,
+            false,
+        );
+        self.set_value_declaration(symbol, node);
+    }
+
+    fn bind_export_assigned_shorthand_object(
+        &mut self,
+        expression: NodeId,
+        file_symbol: SymbolId,
+    ) -> bool {
+        let NodeData::ObjectLiteralExpression(data) = &self.source.arena.node(expression).data
+        else {
+            return false;
+        };
+        let Some(properties) = data.properties else {
+            return false;
+        };
+        let properties = self.source.arena.node_array(properties).nodes.clone();
+        if properties.is_empty()
+            || !properties.iter().all(|&property| {
+                kind_of(self.source, property) == SyntaxKind::ShorthandPropertyAssignment
+            })
+        {
+            return false;
+        }
+        for property in properties {
+            self.declare_symbol(
+                TableRef::Exports(file_symbol),
+                Some(file_symbol),
+                property,
+                SymbolFlags::ALIAS | SymbolFlags::ASSIGNMENT,
+                SymbolFlags::NONE,
+                false,
+                false,
+            );
+        }
+        true
+    }
+
+    fn bind_prototype_assignment(&mut self, node: NodeId) {
+        let Some(left) = (match &self.source.arena.node(node).data {
+            NodeData::BinaryExpression(data) => data.left,
+            _ => None,
+        }) else {
+            return;
+        };
+        let Some(constructor) = access_expression_of(self.source, left) else {
+            return;
+        };
+        self.bind_property_assignment(constructor, left, false, true);
+    }
+
+    fn bind_prototype_property_assignment(&mut self, node: NodeId) {
+        let Some(left) = (match &self.source.arena.node(node).data {
+            NodeData::BinaryExpression(data) => data.left,
+            _ => None,
+        }) else {
+            return;
+        };
+        let Some(class_prototype) = access_expression_of(self.source, left) else {
+            return;
+        };
+        let Some(constructor) = access_expression_of(self.source, class_prototype) else {
+            return;
+        };
+        self.bind_property_assignment(constructor, left, true, true);
+    }
+
+    fn bind_this_property_assignment(&mut self, node: NodeId) {
+        if !self.is_in_js_file() || has_dynamic_name(self.source, node) {
+            return;
+        }
+        let Some(this_container) = self.get_this_container(node) else {
+            return;
+        };
+        match kind_of(self.source, this_container) {
+            SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionExpression => {
+                let mut constructor_symbol = self.node_symbol.get(&this_container).copied();
+                if kind_of(self.source, this_container) == SyntaxKind::FunctionExpression {
+                    if let Some(parent) = parent_of(self.source, this_container) {
+                        if let NodeData::BinaryExpression(data) =
+                            &self.source.arena.node(parent).data
+                        {
+                            if data.operator_token.is_some_and(|token| {
+                                kind_of(self.source, token) == SyntaxKind::EqualsToken
+                            }) {
+                                if let Some(left) = data.left {
+                                    if is_bindable_static_access_expression(
+                                        self.source,
+                                        left,
+                                        false,
+                                    ) && access_expression_of(self.source, left).is_some_and(
+                                        |expression| is_prototype_access(self.source, expression),
+                                    ) {
+                                        if let Some(prototype) =
+                                            access_expression_of(self.source, left)
+                                        {
+                                            if let Some(constructor) =
+                                                access_expression_of(self.source, prototype)
+                                            {
+                                                constructor_symbol = self
+                                                    .lookup_symbol_for_property_access(constructor);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                let Some(constructor_symbol) = constructor_symbol else {
+                    return;
+                };
+                if self
+                    .symbols
+                    .symbol(constructor_symbol)
+                    .value_declaration
+                    .is_none()
+                {
+                    return;
+                }
+                self.declare_symbol(
+                    TableRef::Members(constructor_symbol),
+                    Some(constructor_symbol),
+                    node,
+                    SymbolFlags::PROPERTY | SymbolFlags::ASSIGNMENT,
+                    SymbolFlags::NONE,
+                    true,
+                    false,
+                );
+                if let Some(value_declaration) =
+                    self.symbols.symbol(constructor_symbol).value_declaration
+                {
+                    self.add_declaration_to_symbol(
+                        constructor_symbol,
+                        value_declaration,
+                        SymbolFlags::CLASS,
+                    );
+                }
+            }
+            SyntaxKind::Constructor
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::ClassStaticBlockDeclaration => {
+                let Some(containing_class) = parent_of(self.source, this_container) else {
+                    return;
+                };
+                let Some(class_symbol) = self.node_symbol.get(&containing_class).copied() else {
+                    return;
+                };
+                let table = if kind_of(self.source, this_container)
+                    == SyntaxKind::ClassStaticBlockDeclaration
+                    || crate::node_util::has_syntactic_modifier(
+                        self.source,
+                        this_container,
+                        ModifierFlags::STATIC,
+                    ) {
+                    TableRef::Exports(class_symbol)
+                } else {
+                    TableRef::Members(class_symbol)
+                };
+                self.declare_symbol(
+                    table,
+                    Some(class_symbol),
+                    node,
+                    SymbolFlags::PROPERTY | SymbolFlags::ASSIGNMENT,
+                    SymbolFlags::NONE,
+                    true,
+                    false,
+                );
+            }
+            SyntaxKind::SourceFile => {
+                if let Some(file_symbol) = self
+                    .common_js_module_indicator
+                    .and_then(|_| self.file_symbol())
+                {
+                    self.declare_symbol(
+                        TableRef::Exports(file_symbol),
+                        Some(file_symbol),
+                        node,
+                        SymbolFlags::PROPERTY | SymbolFlags::EXPORT_VALUE,
+                        SymbolFlags::NONE,
+                        false,
+                        false,
+                    );
+                } else {
+                    self.declare_symbol_and_add_to_symbol_table(
+                        node,
+                        SymbolFlags::FUNCTION_SCOPED_VARIABLE,
+                        SymbolFlags::FUNCTION_SCOPED_VARIABLE_EXCLUDES,
+                    );
+                }
+            }
+            SyntaxKind::ModuleDeclaration => {}
+            _ => {}
+        }
+    }
+
+    fn get_this_container(&self, node: NodeId) -> Option<NodeId> {
+        let mut current = parent_of(self.source, node);
+        while let Some(candidate) = current {
+            match kind_of(self.source, candidate) {
+                SyntaxKind::ArrowFunction => {}
+                SyntaxKind::FunctionDeclaration
+                | SyntaxKind::FunctionExpression
+                | SyntaxKind::Constructor
+                | SyntaxKind::PropertyDeclaration
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::SetAccessor
+                | SyntaxKind::ClassStaticBlockDeclaration
+                | SyntaxKind::SourceFile
+                | SyntaxKind::ModuleDeclaration => return Some(candidate),
+                _ => {}
+            }
+            current = parent_of(self.source, candidate);
+        }
+        None
+    }
+
+    fn bind_static_property_assignment(&mut self, node: NodeId) {
+        let Some(expression) = access_expression_of(self.source, node) else {
+            return;
+        };
+        self.bind_property_assignment(expression, node, false, false);
+    }
+
+    fn bind_property_assignment(
+        &mut self,
+        name: NodeId,
+        property_access: NodeId,
+        is_prototype_property: bool,
+        container_is_class: bool,
+    ) {
+        let mut namespace_symbol = self.lookup_symbol_for_property_access(name);
+        let Some(entity_name) = access_expression_of(self.source, property_access) else {
+            return;
+        };
+        namespace_symbol = self.bind_potentially_missing_namespaces(
+            namespace_symbol,
+            entity_name,
+            self.is_top_level_namespace_assignment(property_access),
+            is_prototype_property,
+            container_is_class,
+        );
+        self.bind_potentially_new_expando_member(
+            property_access,
+            namespace_symbol,
+            is_prototype_property,
+        );
+    }
+
+    fn bind_potentially_missing_namespaces(
+        &mut self,
+        mut namespace_symbol: Option<SymbolId>,
+        entity_name: NodeId,
+        is_toplevel: bool,
+        is_prototype_property: bool,
+        container_is_class: bool,
+    ) -> Option<SymbolId> {
+        if namespace_symbol.is_some_and(|symbol| {
+            self.symbols
+                .symbol(symbol)
+                .flags
+                .intersects(SymbolFlags::ALIAS)
+        }) {
+            return namespace_symbol;
+        }
+        if is_toplevel && !is_prototype_property {
+            namespace_symbol =
+                self.bind_or_create_entity_name_modules(entity_name, None, namespace_symbol);
+        }
+        if container_is_class {
+            if let Some(symbol) = namespace_symbol {
+                if let Some(value_declaration) = self.symbols.symbol(symbol).value_declaration {
+                    self.add_declaration_to_symbol(symbol, value_declaration, SymbolFlags::CLASS);
+                }
+            }
+        }
+        namespace_symbol
+    }
+
+    fn bind_potentially_new_expando_member(
+        &mut self,
+        declaration: NodeId,
+        namespace_symbol: Option<SymbolId>,
+        is_prototype_property: bool,
+    ) {
+        let Some(namespace_symbol) = namespace_symbol else {
+            return;
+        };
+        if !self.is_expando_symbol(namespace_symbol) {
+            return;
+        }
+        let (includes, excludes) = self.expando_member_flags(declaration);
+        let table = if is_prototype_property {
+            TableRef::Members(namespace_symbol)
+        } else {
+            TableRef::Exports(namespace_symbol)
+        };
+        self.declare_symbol(
+            table,
+            Some(namespace_symbol),
+            declaration,
+            includes | SymbolFlags::ASSIGNMENT,
+            SymbolFlags::from_bits(excludes.bits() & !SymbolFlags::ASSIGNMENT.bits()),
+            false,
+            false,
+        );
+    }
+
+    fn expando_member_flags(&self, declaration: NodeId) -> (SymbolFlags, SymbolFlags) {
+        if self
+            .assigned_expando_initializer(declaration)
+            .is_some_and(|initializer| is_function_like_kind(kind_of(self.source, initializer)))
+        {
+            return (SymbolFlags::METHOD, SymbolFlags::METHOD_EXCLUDES);
+        }
+        if is_bindable_object_define_property_call(self.source, declaration) {
+            let mut includes = SymbolFlags::NONE;
+            let mut excludes = SymbolFlags::NONE;
+            if let Some(descriptor) = self.object_define_descriptor(declaration) {
+                let (has_get, has_set) = self.descriptor_accessors(descriptor);
+                if has_set {
+                    includes |= SymbolFlags::SET_ACCESSOR | SymbolFlags::PROPERTY;
+                    excludes |= SymbolFlags::SET_ACCESSOR_EXCLUDES;
+                }
+                if has_get {
+                    includes |= SymbolFlags::GET_ACCESSOR | SymbolFlags::PROPERTY;
+                    excludes |= SymbolFlags::GET_ACCESSOR_EXCLUDES;
+                }
+            }
+            if includes != SymbolFlags::NONE {
+                return (includes, excludes);
+            }
+        }
+        (SymbolFlags::PROPERTY, SymbolFlags::PROPERTY_EXCLUDES)
+    }
+
+    fn assigned_expando_initializer(&self, declaration: NodeId) -> Option<NodeId> {
+        let (name, initializer) = match &self.source.arena.node(declaration).data {
+            NodeData::BinaryExpression(data)
+                if data.operator_token.is_some_and(|token| {
+                    kind_of(self.source, token) == SyntaxKind::EqualsToken
+                }) =>
+            {
+                (data.left, data.right)
+            }
+            NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
+                let parent = parent_of(self.source, declaration)?;
+                match &self.source.arena.node(parent).data {
+                    NodeData::BinaryExpression(data)
+                        if data.left == Some(declaration)
+                            && data.operator_token.is_some_and(|token| {
+                                kind_of(self.source, token) == SyntaxKind::EqualsToken
+                            }) =>
+                    {
+                        (data.left, data.right)
+                    }
+                    _ => return None,
+                }
+            }
+            NodeData::CallExpression(_) => {
+                let descriptor = self.object_define_descriptor(declaration)?;
+                let NodeData::ObjectLiteralExpression(data) =
+                    &self.source.arena.node(descriptor).data
+                else {
+                    return None;
+                };
+                let properties = data.properties?;
+                let initializer = self
+                    .source
+                    .arena
+                    .node_array(properties)
+                    .nodes
+                    .iter()
+                    .find_map(|&property| match &self.source.arena.node(property).data {
+                        NodeData::PropertyAssignment(data)
+                            if data.name.is_some_and(|name| {
+                                id_text(self.source, name) == Some("value")
+                            }) =>
+                        {
+                            data.initializer
+                        }
+                        _ => None,
+                    })?;
+                let is_prototype_assignment = self
+                    .assignment_object_define_property_name(declaration)
+                    .as_deref()
+                    == Some("prototype");
+                return self.expando_initializer(initializer, is_prototype_assignment);
+            }
+            _ => return None,
+        };
+        let (Some(name), Some(initializer)) = (name, initializer) else {
+            return None;
+        };
+        let initializer = get_right_most_assigned_expression(self.source, initializer);
+        let is_prototype_assignment = is_prototype_access(self.source, name);
+        self.expando_initializer(initializer, is_prototype_assignment)
+            .or_else(|| {
+                self.defaulted_expando_initializer(name, initializer, is_prototype_assignment)
+            })
+    }
+
+    fn assignment_object_define_property_name(&self, declaration: NodeId) -> Option<String> {
+        let NodeData::CallExpression(data) = &self.source.arena.node(declaration).data else {
+            return None;
+        };
+        let arguments = data.arguments?;
+        let name = *self.source.arena.node_array(arguments).nodes.get(1)?;
+        literal_text_of(self.source, name).map(str::to_owned)
+    }
+
+    fn expando_initializer(
+        &self,
+        initializer: NodeId,
+        is_prototype_assignment: bool,
+    ) -> Option<NodeId> {
+        match &self.source.arena.node(initializer).data {
+            NodeData::CallExpression(data) => {
+                let expression = skip_parentheses_pub(self.source, data.expression?);
+                matches!(
+                    kind_of(self.source, expression),
+                    SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
+                )
+                .then_some(initializer)
+            }
+            NodeData::FunctionExpression(_)
+            | NodeData::ClassExpression(_)
+            | NodeData::ArrowFunction(_) => Some(initializer),
+            NodeData::ObjectLiteralExpression(data)
+                if is_prototype_assignment
+                    || data.properties.is_none_or(|properties| {
+                        self.source.arena.node_array(properties).nodes.is_empty()
+                    }) =>
+            {
+                Some(initializer)
+            }
+            _ => None,
+        }
+    }
+
+    fn defaulted_expando_initializer(
+        &self,
+        name: NodeId,
+        initializer: NodeId,
+        is_prototype_assignment: bool,
+    ) -> Option<NodeId> {
+        let NodeData::BinaryExpression(data) = &self.source.arena.node(initializer).data else {
+            return None;
+        };
+        let is_defaulting = data.operator_token.is_some_and(|token| {
+            matches!(
+                kind_of(self.source, token),
+                SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
+            )
+        });
+        let (Some(left), Some(right)) = (data.left, data.right) else {
+            return None;
+        };
+        if !is_defaulting || !self.is_same_entity_name(name, left) {
+            return None;
+        }
+        self.expando_initializer(right, is_prototype_assignment)
+    }
+
+    fn is_same_entity_name(&self, name: NodeId, initializer: NodeId) -> bool {
+        let name_text = id_text(self.source, name).map(str::to_owned).or_else(|| {
+            if is_string_or_numeric_literal_like(self.source, name) {
+                literal_text_of(self.source, name).map(str::to_owned)
+            } else {
+                None
+            }
+        });
+        let initializer_text = id_text(self.source, initializer)
+            .map(str::to_owned)
+            .or_else(|| {
+                if is_string_or_numeric_literal_like(self.source, initializer) {
+                    literal_text_of(self.source, initializer).map(str::to_owned)
+                } else {
+                    None
+                }
+            });
+        if name_text.is_some() && name_text == initializer_text {
+            return true;
+        }
+
+        if name_text.is_some() {
+            if let Some(receiver) = access_expression_of(self.source, initializer) {
+                let is_global_receiver = kind_of(self.source, receiver) == SyntaxKind::ThisKeyword
+                    || id_text(self.source, receiver)
+                        .is_some_and(|text| matches!(text, "window" | "self" | "global"));
+                if is_global_receiver {
+                    return crate::assignment::get_element_or_property_access_argument_expression_or_name(
+                        self.source,
+                        initializer,
+                    )
+                    .is_some_and(|initializer_name| {
+                        self.is_same_entity_name(name, initializer_name)
+                    });
+                }
+            }
+        }
+
+        let (Some(name_expression), Some(initializer_expression)) = (
+            access_expression_of(self.source, name),
+            access_expression_of(self.source, initializer),
+        ) else {
+            return false;
+        };
+        let (Some(name_property), Some(initializer_property)) = (
+            get_element_or_property_access_name(self.source, name),
+            get_element_or_property_access_name(self.source, initializer),
+        ) else {
+            return false;
+        };
+        name_property == initializer_property
+            && self.is_same_entity_name(name_expression, initializer_expression)
+    }
+
+    fn object_define_descriptor(&self, call: NodeId) -> Option<NodeId> {
+        let NodeData::CallExpression(data) = &self.source.arena.node(call).data else {
+            return None;
+        };
+        let arguments = data.arguments?;
+        self.source
+            .arena
+            .node_array(arguments)
+            .nodes
+            .get(2)
+            .copied()
+    }
+
+    fn descriptor_accessors(&self, descriptor: NodeId) -> (bool, bool) {
+        let NodeData::ObjectLiteralExpression(data) = &self.source.arena.node(descriptor).data
+        else {
+            return (false, false);
+        };
+        let Some(properties) = data.properties else {
+            return (false, false);
+        };
+        let mut has_get = false;
+        let mut has_set = false;
+        for &property in &self.source.arena.node_array(properties).nodes {
+            let name = name_field_of(self.source, property);
+            has_get |= name.is_some_and(|name| id_text(self.source, name) == Some("get"));
+            has_set |= name.is_some_and(|name| id_text(self.source, name) == Some("set"));
+        }
+        (has_get, has_set)
+    }
+
+    fn is_expando_symbol(&self, symbol: SymbolId) -> bool {
+        let flags = self.symbols.symbol(symbol).flags;
+        if flags
+            .intersects(SymbolFlags::FUNCTION | SymbolFlags::CLASS | SymbolFlags::NAMESPACE_MODULE)
+        {
+            return true;
+        }
+        let Some(declaration) = self.symbols.symbol(symbol).value_declaration else {
+            return false;
+        };
+        if kind_of(self.source, declaration) == SyntaxKind::CallExpression {
+            return self.assigned_expando_initializer(declaration).is_some();
+        }
+        let initializer = match &self.source.arena.node(declaration).data {
+            NodeData::VariableDeclaration(data) => data.initializer,
+            NodeData::BinaryExpression(data) => data.right,
+            NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
+                parent_of(self.source, declaration).and_then(|parent| {
+                    match &self.source.arena.node(parent).data {
+                        NodeData::BinaryExpression(data) => data.right,
+                        _ => None,
+                    }
+                })
+            }
+            _ => None,
+        };
+        let Some(initializer) = initializer else {
+            return false;
+        };
+        let initializer = get_right_most_assigned_expression(self.source, initializer);
+        let assignment_name = match &self.source.arena.node(declaration).data {
+            NodeData::VariableDeclaration(data) => data.name,
+            NodeData::BinaryExpression(data) => data.left,
+            NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
+                Some(declaration)
+            }
+            _ => None,
+        };
+        let is_prototype_assignment =
+            assignment_name.is_some_and(|name| is_prototype_access(self.source, name));
+        let initializer = match &self.source.arena.node(initializer).data {
+            NodeData::BinaryExpression(data)
+                if data.operator_token.is_some_and(|token| {
+                    matches!(
+                        kind_of(self.source, token),
+                        SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
+                    )
+                }) =>
+            {
+                data.right.unwrap_or(initializer)
+            }
+            _ => initializer,
+        };
+        self.expando_initializer(initializer, is_prototype_assignment)
+            .is_some()
+    }
+
+    fn bind_object_define_property_assignment(&mut self, node: NodeId) {
+        let Some(target) = self.object_define_target(node) else {
+            return;
+        };
+        let mut namespace = self.lookup_symbol_for_property_access(target);
+        namespace = self.bind_potentially_missing_namespaces(
+            namespace,
+            target,
+            self.is_top_level_namespace_assignment(node),
+            false,
+            false,
+        );
+        self.bind_potentially_new_expando_member(node, namespace, false);
+    }
+
+    fn bind_object_define_property_export(&mut self, node: NodeId) {
+        if !self.set_common_js_module_indicator(node) {
+            return;
+        }
+        let Some(target) = self.object_define_target(node) else {
+            return;
+        };
+        let Some(symbol) = self.bind_existing_entity_name_as_module(target, None) else {
+            return;
+        };
+        self.declare_symbol(
+            TableRef::Exports(symbol),
+            Some(symbol),
+            node,
+            SymbolFlags::PROPERTY | SymbolFlags::EXPORT_VALUE,
+            SymbolFlags::NONE,
+            false,
+            false,
+        );
+    }
+
+    fn bind_object_define_prototype_property(&mut self, node: NodeId) {
+        let Some(target) = self.object_define_target(node) else {
+            return;
+        };
+        let Some(constructor) = access_expression_of(self.source, target) else {
+            return;
+        };
+        let namespace = self.lookup_symbol_for_property_access(constructor);
+        if let Some(symbol) = namespace {
+            if let Some(value_declaration) = self.symbols.symbol(symbol).value_declaration {
+                self.add_declaration_to_symbol(symbol, value_declaration, SymbolFlags::CLASS);
+            }
+        }
+        self.bind_potentially_new_expando_member(node, namespace, true);
+    }
+
+    fn object_define_target(&self, node: NodeId) -> Option<NodeId> {
+        let NodeData::CallExpression(data) = &self.source.arena.node(node).data else {
+            return None;
+        };
+        let arguments = data.arguments?;
+        self.source
+            .arena
+            .node_array(arguments)
+            .nodes
+            .first()
+            .copied()
+    }
+
+    fn bind_call_expression(&mut self, node: NodeId) {
+        if self.common_js_module_indicator.is_some() {
+            return;
+        }
+        let NodeData::CallExpression(data) = &self.source.arena.node(node).data else {
+            return;
+        };
+        let Some(expression) = data.expression else {
+            return;
+        };
+        let has_one_argument = data
+            .arguments
+            .is_some_and(|arguments| self.source.arena.node_array(arguments).nodes.len() == 1);
+        if has_one_argument && id_text(self.source, expression) == Some("require") {
+            self.set_common_js_module_indicator(node);
+        }
+    }
+
+    fn bind_common_js_module_symbol(&mut self, node: NodeId) {
+        if !self.is_in_js_file()
+            || self.common_js_module_indicator.is_none()
+            || !is_module_exports_access_expression(self.source, node)
+        {
+            return;
+        }
+        let Some(module_name) = access_expression_of(self.source, node) else {
+            return;
+        };
+        let Some(block_scope) = self.block_scope_container else {
+            return;
+        };
+        if self.lookup_symbol_for_name(block_scope, "module").is_some() {
+            return;
+        }
+        self.ensure_locals(self.source.root);
+        self.declare_symbol(
+            TableRef::Locals(self.source.root),
+            None,
+            module_name,
+            SymbolFlags::FUNCTION_SCOPED_VARIABLE | SymbolFlags::MODULE_EXPORTS,
+            SymbolFlags::FUNCTION_SCOPED_VARIABLE_EXCLUDES,
+            false,
+            false,
+        );
+    }
+
+    fn bind_existing_entity_name_as_module(
+        &mut self,
+        entity_name: NodeId,
+        parent_symbol: Option<SymbolId>,
+    ) -> Option<SymbolId> {
+        if self.is_exports_or_module_exports_or_alias(entity_name) {
+            return self.file_symbol();
+        }
+        match &self.source.arena.node(entity_name).data {
+            NodeData::Identifier(_) => {
+                let symbol = self.lookup_symbol_for_property_access(entity_name)?;
+                self.add_declaration_to_symbol(
+                    symbol,
+                    entity_name,
+                    SymbolFlags::MODULE | SymbolFlags::ASSIGNMENT,
+                );
+                Some(symbol)
+            }
+            NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
+                let expression = access_expression_of(self.source, entity_name)?;
+                let parent = self.bind_existing_entity_name_as_module(expression, parent_symbol)?;
+                let name = get_element_or_property_access_name(self.source, entity_name)?;
+                let symbol = self.symbols.symbol(parent).exports.get(&name).copied()?;
+                let name_node =
+                    crate::assignment::get_element_or_property_access_argument_expression_or_name(
+                        self.source,
+                        entity_name,
+                    )?;
+                self.add_declaration_to_symbol(
+                    symbol,
+                    name_node,
+                    SymbolFlags::MODULE | SymbolFlags::ASSIGNMENT,
+                );
+                Some(symbol)
+            }
+            _ => parent_symbol,
+        }
+    }
+
+    fn bind_or_create_entity_name_modules(
+        &mut self,
+        entity_name: NodeId,
+        parent_symbol: Option<SymbolId>,
+        known_symbol: Option<SymbolId>,
+    ) -> Option<SymbolId> {
+        if self.is_exports_or_module_exports_or_alias(entity_name) {
+            return self.file_symbol();
+        }
+        match &self.source.arena.node(entity_name).data {
+            NodeData::Identifier(data) => {
+                if let Some(symbol) =
+                    known_symbol.or_else(|| self.lookup_symbol_for_property_access(entity_name))
+                {
+                    self.add_declaration_to_symbol(
+                        symbol,
+                        entity_name,
+                        SymbolFlags::MODULE | SymbolFlags::ASSIGNMENT,
+                    );
+                    return Some(symbol);
+                }
+                let name = data.escaped_text.clone();
+                let symbol = if let Some(parent) = parent_symbol {
+                    self.declare_symbol(
+                        TableRef::Exports(parent),
+                        Some(parent),
+                        entity_name,
+                        SymbolFlags::MODULE | SymbolFlags::ASSIGNMENT,
+                        SymbolFlags::from_bits(
+                            SymbolFlags::VALUE_MODULE_EXCLUDES.bits()
+                                & !SymbolFlags::ASSIGNMENT.bits(),
+                        ),
+                        false,
+                        false,
+                    )
+                } else {
+                    let existing = self.js_global_augmentations.get(&name).copied();
+                    if let Some(existing) = existing {
+                        self.add_declaration_to_symbol(
+                            existing,
+                            entity_name,
+                            SymbolFlags::MODULE | SymbolFlags::ASSIGNMENT,
+                        );
+                        existing
+                    } else {
+                        let symbol = self.symbols.alloc(SymbolFlags::NONE, name.clone());
+                        self.js_global_augmentations.insert(name, symbol);
+                        self.add_declaration_to_symbol(
+                            symbol,
+                            entity_name,
+                            SymbolFlags::MODULE | SymbolFlags::ASSIGNMENT,
+                        );
+                        symbol
+                    }
+                };
+                Some(symbol)
+            }
+            NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
+                let expression = access_expression_of(self.source, entity_name)?;
+                let parent =
+                    self.bind_or_create_entity_name_modules(expression, parent_symbol, None)?;
+                let name_node =
+                    crate::assignment::get_element_or_property_access_argument_expression_or_name(
+                        self.source,
+                        entity_name,
+                    )?;
+                let name = get_element_or_property_access_name(self.source, entity_name)?;
+                if let Some(&symbol) = self.symbols.symbol(parent).exports.get(&name) {
+                    self.add_declaration_to_symbol(
+                        symbol,
+                        name_node,
+                        SymbolFlags::MODULE | SymbolFlags::ASSIGNMENT,
+                    );
+                    Some(symbol)
+                } else {
+                    Some(self.declare_symbol(
+                        TableRef::Exports(parent),
+                        Some(parent),
+                        name_node,
+                        SymbolFlags::MODULE | SymbolFlags::ASSIGNMENT,
+                        SymbolFlags::from_bits(
+                            SymbolFlags::VALUE_MODULE_EXCLUDES.bits()
+                                & !SymbolFlags::ASSIGNMENT.bits(),
+                        ),
+                        false,
+                        false,
+                    ))
+                }
+            }
+            _ => known_symbol,
+        }
+    }
+
+    fn is_top_level_namespace_assignment(&self, node: NodeId) -> bool {
+        let mut current = node;
+        while let Some(parent) = parent_of(self.source, current) {
+            if kind_of(self.source, parent) == SyntaxKind::BinaryExpression {
+                current = parent;
+            } else {
+                current = parent;
+                break;
+            }
+        }
+        parent_of(self.source, current)
+            .is_some_and(|parent| kind_of(self.source, parent) == SyntaxKind::SourceFile)
+    }
+
+    fn leftmost_access_expression(&self, mut node: NodeId) -> NodeId {
+        while let Some(expression) = access_expression_of(self.source, node) {
+            node = expression;
+        }
+        node
+    }
+
+    fn is_aliasable_expression(&self, node: NodeId) -> bool {
+        is_entity_name_expression(self.source, node)
+            || kind_of(self.source, node) == SyntaxKind::ClassExpression
+    }
+
+    fn is_exports_or_module_exports_or_alias(&self, node: NodeId) -> bool {
+        let mut queue = vec![node];
+        let mut index = 0;
+        while index < queue.len() && index < 100 {
+            let node = queue[index];
+            index += 1;
+            if is_exports_identifier(self.source, node)
+                || is_module_exports_access_expression(self.source, node)
+            {
+                return true;
+            }
+            let Some(name) = id_text(self.source, node) else {
+                continue;
+            };
+            let Some(symbol) = self.lookup_symbol_for_name(self.source.root, name) else {
+                continue;
+            };
+            let Some(declaration) = self.symbols.symbol(symbol).value_declaration else {
+                continue;
+            };
+            let NodeData::VariableDeclaration(data) = &self.source.arena.node(declaration).data
+            else {
+                continue;
+            };
+            let Some(initializer) = data.initializer else {
+                continue;
+            };
+            queue.push(initializer);
+            if is_assignment_expression_simple(self.source, initializer) {
+                let NodeData::BinaryExpression(data) = &self.source.arena.node(initializer).data
+                else {
+                    unreachable!("assignment expression must be binary")
+                };
+                if let Some(left) = data.left {
+                    queue.push(left);
+                }
+                if let Some(right) = data.right {
+                    queue.push(right);
+                }
+            }
+        }
+        false
+    }
+
+    fn is_empty_object_literal(&self, node: NodeId) -> bool {
+        matches!(
+            &self.source.arena.node(node).data,
+            NodeData::ObjectLiteralExpression(data)
+                if data.properties.is_none_or(|properties| {
+                    self.source.arena.node_array(properties).nodes.is_empty()
+                })
+        )
+    }
+
     /// tsc-port: lookupSymbolForName @6.0.3
     /// tsc-hash: dae249c103758584c4ea6f4bfc83facec94aa163b279cfa2a91db53cae556a9a
     /// tsc-span: _tsc.js:45202-45216
     ///
-    /// JS-only: jsGlobalAugmentations awaits the JS subsystem.
     fn lookup_symbol_for_name(&self, container: NodeId, name: &str) -> Option<SymbolId> {
         if let Some(locals) = self.locals.get(&container) {
             if let Some(&local) = locals.get(name) {
                 return Some(self.symbols.symbol(local).export_symbol.unwrap_or(local));
+            }
+        }
+        if kind_of(self.source, container) == SyntaxKind::SourceFile {
+            if let Some(&symbol) = self.js_global_augmentations.get(name) {
+                return Some(symbol);
             }
         }
         let container_symbol = self.node_symbol.get(&container).copied()?;
@@ -1197,23 +2117,26 @@ impl<'a> Binder<'a> {
             .copied()
     }
 
-    /// lookupSymbolForPropertyAccess for the identifier root only (the
-    /// access-chain walk is stage 3.4c).
     fn lookup_symbol_for_property_access(&self, node: NodeId) -> Option<SymbolId> {
-        let NodeData::Identifier(data) = &self.source.arena.node(node).data else {
-            return None;
-        };
-        let name = data.escaped_text.clone();
-        let block_scope_container = self.block_scope_container?;
-        self.lookup_symbol_for_name(block_scope_container, &name)
-            .or_else(|| {
-                self.container
-                    .and_then(|container| self.lookup_symbol_for_name(container, &name))
-            })
-    }
-
-    fn in_js_file_public(&self) -> bool {
-        self.is_in_js_file()
+        match &self.source.arena.node(node).data {
+            NodeData::Identifier(data) => {
+                let name = data.escaped_text.as_str();
+                self.block_scope_container
+                    .and_then(|container| self.lookup_symbol_for_name(container, name))
+                    .or_else(|| {
+                        self.container
+                            .and_then(|container| self.lookup_symbol_for_name(container, name))
+                    })
+                    .or_else(|| self.lookup_symbol_for_name(self.source.root, name))
+            }
+            NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
+                let parent = self
+                    .lookup_symbol_for_property_access(access_expression_of(self.source, node)?)?;
+                let name = get_element_or_property_access_name(self.source, node)?;
+                self.symbols.symbol(parent).exports.get(&name).copied()
+            }
+            _ => None,
+        }
     }
 
     // ---- strict-mode + contextual checks ----
@@ -3251,190 +4174,6 @@ fn remove_file_extension(path: &str) -> &str {
     path
 }
 
-/// The `.expression` of an access expression.
-fn access_expression_of(source: &tsrs2_syntax::SourceFile, node: NodeId) -> Option<NodeId> {
-    match &source.arena.node(node).data {
-        NodeData::PropertyAccessExpression(data) => data.expression,
-        NodeData::ElementAccessExpression(data) => data.expression,
-        _ => None,
-    }
-}
-
-/// tsc isExportsIdentifier (15046).
-fn is_exports_identifier(source: &tsrs2_syntax::SourceFile, node: NodeId) -> bool {
-    matches!(
-        &source.arena.node(node).data,
-        NodeData::Identifier(data) if data.escaped_text == "exports"
-    )
-}
-
-/// tsc isModuleExportsAccessExpression (15052).
-fn is_module_exports_access_expression(source: &tsrs2_syntax::SourceFile, node: NodeId) -> bool {
-    let is_access = matches!(kind_of(source, node), SyntaxKind::PropertyAccessExpression)
-        || is_literal_like_element_access(source, node);
-    is_access
-        && access_expression_of(source, node).is_some_and(|expression| {
-            matches!(
-                &source.arena.node(expression).data,
-                NodeData::Identifier(data) if data.escaped_text == "module"
-            )
-        })
-        && get_element_or_property_access_name(source, node).as_deref() == Some("exports")
-}
-
-/// tsc isLiteralLikeElementAccess (15069).
-fn is_literal_like_element_access(source: &tsrs2_syntax::SourceFile, node: NodeId) -> bool {
-    matches!(
-        &source.arena.node(node).data,
-        NodeData::ElementAccessExpression(data)
-            if data.argument_expression.is_some_and(|argument| {
-                is_string_or_numeric_literal_like(source, argument)
-            })
-    )
-}
-
-/// tsc isBindableStaticAccessExpression (15072).
-fn is_bindable_static_access_expression(
-    source: &tsrs2_syntax::SourceFile,
-    node: NodeId,
-    exclude_this_keyword: bool,
-) -> bool {
-    if let NodeData::PropertyAccessExpression(data) = &source.arena.node(node).data {
-        let this_ok = !exclude_this_keyword
-            && data
-                .expression
-                .is_some_and(|expression| kind_of(source, expression) == SyntaxKind::ThisKeyword);
-        let static_ok = data
-            .name
-            .is_some_and(|name| kind_of(source, name) == SyntaxKind::Identifier)
-            && data.expression.is_some_and(|expression| {
-                is_bindable_static_name_expression(source, expression, true)
-            });
-        if this_ok || static_ok {
-            return true;
-        }
-    }
-    is_bindable_static_element_access_expression(source, node, exclude_this_keyword)
-}
-
-/// tsc isBindableStaticElementAccessExpression (15079).
-fn is_bindable_static_element_access_expression(
-    source: &tsrs2_syntax::SourceFile,
-    node: NodeId,
-    exclude_this_keyword: bool,
-) -> bool {
-    is_literal_like_element_access(source, node)
-        && access_expression_of(source, node).is_some_and(|expression| {
-            !exclude_this_keyword && kind_of(source, expression) == SyntaxKind::ThisKeyword
-                || is_entity_name_expression(source, expression)
-                || is_bindable_static_access_expression(source, expression, true)
-        })
-}
-
-/// tsc isBindableStaticNameExpression (15086).
-fn is_bindable_static_name_expression(
-    source: &tsrs2_syntax::SourceFile,
-    node: NodeId,
-    exclude_this_keyword: bool,
-) -> bool {
-    is_entity_name_expression(source, node)
-        || is_bindable_static_access_expression(source, node, exclude_this_keyword)
-}
-
-/// tsc getElementOrPropertyAccessName (15134): escaped name of the
-/// accessed member.
-fn get_element_or_property_access_name(
-    source: &tsrs2_syntax::SourceFile,
-    node: NodeId,
-) -> Option<String> {
-    match &source.arena.node(node).data {
-        NodeData::PropertyAccessExpression(data) => {
-            let name = data.name?;
-            match &source.arena.node(name).data {
-                NodeData::Identifier(data) => Some(data.escaped_text.clone()),
-                _ => None,
-            }
-        }
-        NodeData::ElementAccessExpression(data) => {
-            let argument = data.argument_expression?;
-            if is_string_or_numeric_literal_like(source, argument) {
-                literal_text_of(source, argument).map(crate::symbols::escape_leading_underscores)
-            } else {
-                None
-            }
-        }
-        _ => None,
-    }
-}
-
-/// tsc getRightMostAssignedExpression (15036).
-fn get_right_most_assigned_expression(
-    source: &tsrs2_syntax::SourceFile,
-    mut node: NodeId,
-) -> NodeId {
-    loop {
-        let NodeData::BinaryExpression(data) = &source.arena.node(node).data else {
-            return node;
-        };
-        let is_assignment = data
-            .operator_token
-            .is_some_and(|token| kind_of(source, token) == SyntaxKind::EqualsToken)
-            && data
-                .left
-                .is_some_and(|left| crate::node_util::is_left_hand_side_expression(source, left));
-        if !is_assignment {
-            return node;
-        }
-        match data.right {
-            Some(right) => node = right,
-            None => return node,
-        }
-    }
-}
-
-/// tsc isVoidZero (15121-region).
-fn is_void_zero(source: &tsrs2_syntax::SourceFile, node: NodeId) -> bool {
-    match &source.arena.node(node).data {
-        NodeData::VoidExpression(data) => data.expression.is_some_and(|expression| {
-            matches!(
-                &source.arena.node(expression).data,
-                NodeData::NumericLiteral(data) if data.text == "0"
-            )
-        }),
-        _ => false,
-    }
-}
-
-/// tsc getInitializerOfBinaryExpression (15178).
-fn get_initializer_of_binary_expression(
-    source: &tsrs2_syntax::SourceFile,
-    mut expr: NodeId,
-) -> NodeId {
-    loop {
-        let NodeData::BinaryExpression(data) = &source.arena.node(expr).data else {
-            return expr;
-        };
-        match data.right {
-            Some(right)
-                if matches!(
-                    &source.arena.node(right).data,
-                    NodeData::BinaryExpression(_)
-                ) =>
-            {
-                expr = right;
-            }
-            Some(right) => return right,
-            None => return expr,
-        }
-    }
-}
-
-/// tsc isPrototypeAccess (17171).
-fn is_prototype_access(source: &tsrs2_syntax::SourceFile, node: NodeId) -> bool {
-    is_bindable_static_access_expression(source, node, false)
-        && get_element_or_property_access_name(source, node).as_deref() == Some("prototype")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -4004,6 +4743,240 @@ mod tests {
                 Some(expected)
             );
         }
+    }
+
+    #[test]
+    fn assignment_declarations_bind_oracle_pinned_symbol_faces() {
+        // Oracle: TypeScript 6.0.3, allowJs/checkJs/noLib. This single
+        // canary covers function expandos, instance/prototype members,
+        // descriptor members, CommonJS named exports and export=.
+        let source = parse_named(
+            "a.js",
+            "\
+function F() { this.i = 1; }
+F.s = function() {};
+F[\"b\"] = 1;
+F.prototype.p = 1;
+F.prototype = { q: 1 };
+Object.defineProperty(F, \"d\", { value: function() {} });
+Object.defineProperty(F.prototype, \"g\", { get() { return 1; } });
+exports.x = 1;
+module.exports.y = 2;
+module.exports = F;
+",
+            true,
+        );
+        let binder = bind(&source);
+        let root_locals = &binder.locals[&source.root];
+        let f = root_locals["F"];
+        let f_symbol = binder.symbols.symbol(f);
+        assert_eq!(f_symbol.flags.bits(), 67_110_448);
+        assert_eq!(
+            f_symbol
+                .members
+                .keys()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            ["i", "p", "g"]
+        );
+        assert_eq!(
+            f_symbol
+                .exports
+                .keys()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            ["s", "b", "prototype", "d"]
+        );
+        assert_eq!(
+            binder.symbols.symbol(f_symbol.members["i"]).flags.bits(),
+            67_108_868
+        );
+        assert_eq!(
+            binder.symbols.symbol(f_symbol.members["p"]).flags.bits(),
+            67_108_868
+        );
+        assert_eq!(
+            binder.symbols.symbol(f_symbol.members["g"]).flags.bits(),
+            67_141_636
+        );
+        assert_eq!(
+            binder.symbols.symbol(f_symbol.exports["s"]).flags.bits(),
+            67_117_056
+        );
+        assert_eq!(
+            binder.symbols.symbol(f_symbol.exports["b"]).flags.bits(),
+            67_108_868
+        );
+        assert_eq!(
+            binder
+                .symbols
+                .symbol(f_symbol.exports["prototype"])
+                .flags
+                .bits(),
+            67_108_868
+        );
+        assert_eq!(
+            binder.symbols.symbol(f_symbol.exports["d"]).flags.bits(),
+            67_117_056
+        );
+
+        let file = binder.node_symbol[&source.root];
+        let file_symbol = binder.symbols.symbol(file);
+        assert_eq!(file_symbol.flags, SymbolFlags::VALUE_MODULE);
+        assert_eq!(
+            file_symbol
+                .exports
+                .keys()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            ["x", "y", InternalSymbolName::EXPORT_EQUALS]
+        );
+        assert_eq!(
+            binder.symbols.symbol(file_symbol.exports["x"]).flags.bits(),
+            1_048_580
+        );
+        assert_eq!(
+            binder.symbols.symbol(file_symbol.exports["y"]).flags.bits(),
+            1_048_580
+        );
+        assert_eq!(
+            binder
+                .symbols
+                .symbol(file_symbol.exports[InternalSymbolName::EXPORT_EQUALS])
+                .flags
+                .bits(),
+            69_206_016
+        );
+        assert!(binder.common_js_module_indicator.is_some());
+        assert!(binder
+            .symbols
+            .symbol(root_locals["module"])
+            .flags
+            .intersects(SymbolFlags::MODULE_EXPORTS));
+    }
+
+    #[test]
+    fn common_js_aliases_follow_initializers_without_treating_every_alias_as_exports() {
+        // Oracle: TypeScript 6.0.3. Aliases initialized from exports or
+        // module.exports feed named exports, while an unrelated entity
+        // name on the right of module.exports remains an export= alias.
+        let source = parse_named(
+            "a.js",
+            "\
+const e = exports;
+e.x = 1;
+const m = module.exports;
+m.y = 2;
+function F() {}
+const imported = F;
+module.exports = imported;
+",
+            true,
+        );
+        let binder = bind(&source);
+        let file = binder.node_symbol[&source.root];
+        let file_symbol = binder.symbols.symbol(file);
+        assert_eq!(
+            file_symbol
+                .exports
+                .keys()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            ["x", "y", InternalSymbolName::EXPORT_EQUALS]
+        );
+        assert_eq!(
+            binder
+                .symbols
+                .symbol(file_symbol.exports[InternalSymbolName::EXPORT_EQUALS])
+                .flags
+                .bits(),
+            69_206_016
+        );
+    }
+
+    #[test]
+    fn common_js_require_indicator_requires_exactly_one_argument() {
+        for (text, expected) in [
+            ("require();\n", false),
+            ("require('a', 'b');\n", false),
+            ("require('a');\n", true),
+        ] {
+            let source = parse_named("a.js", text, true);
+            let binder = bind(&source);
+            assert_eq!(binder.common_js_module_indicator.is_some(), expected);
+        }
+
+        // bindCallExpression is not JS-gated in tsc: a require call
+        // also makes an otherwise-script TypeScript source external.
+        let source = parse_named("a.ts", "require('a');\n", false);
+        let binder = bind(&source);
+        assert!(binder.common_js_module_indicator.is_some());
+        assert!(binder.node_symbol.contains_key(&source.root));
+    }
+
+    #[test]
+    fn forced_external_module_still_accepts_common_js_assignments() {
+        // tsc's boolean `true` externalModuleIndicator is represented
+        // by the SourceFile root. Unlike a syntax indicator, it does
+        // not block the CommonJS indicator or its exports.
+        let source = parse_source_file(
+            "a.js",
+            "module.exports.x = 1;\n",
+            ParseOptions {
+                javascript_file: true,
+                force_external_module: true,
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        assert_eq!(source.external_module_indicator, Some(source.root));
+        let binder = bind(&source);
+        assert!(binder.common_js_module_indicator.is_some());
+        let file = binder.node_symbol[&source.root];
+        assert!(binder.symbols.symbol(file).exports.contains_key("x"));
+    }
+
+    #[test]
+    fn nested_expando_initializer_shapes_match_tsc() {
+        let source = parse_named(
+            "a.js",
+            "\
+function outer() {
+    const empty = {};
+    empty.x = 1;
+    const rich = { a: 1 };
+    rich.y = 1;
+    const defaulted = defaulted || {};
+    defaulted.z = 1;
+    const called = (function () {})();
+    called.w = 1;
+}
+",
+            true,
+        );
+        let binder = bind(&source);
+        let outer = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
+        let locals = &binder.locals[&outer];
+        assert!(binder
+            .symbols
+            .symbol(locals["empty"])
+            .exports
+            .contains_key("x"));
+        assert!(!binder
+            .symbols
+            .symbol(locals["rich"])
+            .exports
+            .contains_key("y"));
+        assert!(binder
+            .symbols
+            .symbol(locals["defaulted"])
+            .exports
+            .contains_key("z"));
+        assert!(binder
+            .symbols
+            .symbol(locals["called"])
+            .exports
+            .contains_key("w"));
     }
 
     #[test]
