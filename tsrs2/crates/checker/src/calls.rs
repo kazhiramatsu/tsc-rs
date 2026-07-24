@@ -6132,6 +6132,22 @@ impl<'a> CheckerState<'a> {
             NodeData::NewExpression(data) => (data.type_arguments, data.expression),
             _ => unreachable!("checkCallExpression serves call/new"),
         };
+        // tsc getSymbolAtLocation's string-literal arm resolves the
+        // argument of a syntactic JS require call. The ordinary call
+        // path still checks the callee/signature below; this additional
+        // read is what publishes a definite 2307 for
+        // `require("./missing")` under checkJs.
+        if self.is_in_js_file(node)
+            && self.is_require_call(node, /*require_string_literal_like_argument*/ true)
+        {
+            let argument = match self.data_of(node) {
+                NodeData::CallExpression(data) => self.nodes_of(data.arguments).first().copied(),
+                _ => None,
+            };
+            if let Some(argument) = argument {
+                self.resolve_external_module_name(node, argument, false)?;
+            }
+        }
         self.check_grammar_type_arguments(node, type_arguments);
         let signature = self.get_resolved_signature(node, check_mode)?;
         if signature == self.resolving_signature {

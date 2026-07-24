@@ -3809,7 +3809,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isRequireCall @6.0.3
     /// tsc-hash: 97ce63365149bdbd32198cf0b6527081ed21cc939dcfbe25d0c24caf3aad5077
     /// tsc-span: _tsc.js:14901-14914
-    fn is_require_call(&self, node: NodeId, require_string_literal_like_argument: bool) -> bool {
+    pub(crate) fn is_require_call(
+        &self,
+        node: NodeId,
+        require_string_literal_like_argument: bool,
+    ) -> bool {
         if self.kind_of(node) != SyntaxKind::CallExpression {
             return false;
         }

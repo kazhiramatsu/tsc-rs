@@ -190,8 +190,9 @@
 # spread-helper arity over provenance-resolved in-program tslib.
 # p9 9.9c adds +77 through parameter-initializer self/forward
 # reference checks and the emitStandardClassFields scope-change seam.
-rate = 0.634057
-matched = 31084
+# p9 9.9d adds +35 recognized-extension and checked-JS require misses.
+rate = 0.634771
+matched = 31119
 total = 49024
 allowed_regression = 0.0
 
@@ -248,8 +249,9 @@ allowed_regression = 0.0
 # p9 9.9a adds +240 definite checked-JS module-resolution rows.
 # p9 9.9b adds +87 external emit-helper availability/arity rows.
 # p9 9.9c adds +77 parameter-initializer ordering rows.
-rate = 0.957769
-matched = 20162
+# p9 9.9d adds +35 recognized-extension and checked-JS require misses.
+rate = 0.959432
+matched = 20197
 total = 21051
 allowed_regression = 0.0
 

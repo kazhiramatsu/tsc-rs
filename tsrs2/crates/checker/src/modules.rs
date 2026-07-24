@@ -3006,16 +3006,25 @@ impl<'a> CheckerState<'a> {
             return true;
         }
         // Arbitrary-extension declaration twin (allowArbitraryExtensions
-        // .d.<ext>.ts): "./file.html" may resolve to file.d.html.ts —
-        // present twin makes the miss undecidable (tsc emits either
-        // nothing or the unmodeled 6263 family).
-        if let Some(dot) = base.rfind('.') {
-            let slash = base.rfind('/').map_or(0, |position| position + 1);
-            if dot > slash {
-                let (stem, extension) = base.split_at(dot);
-                let twin = format!("{stem}.d{extension}.ts");
-                if self.host_file_paths.contains(&twin) {
-                    return true;
+        // .d.<ext>.ts): "./file.html" may resolve to file.d.html.ts.
+        // The arbitrary-extension branch is NOT entered for the
+        // resolver's recognized TS/JS extension groups: "./file.js"
+        // must not be hidden by file.d.js.ts, nor "./file.d.mts" by
+        // file.d.d.mts.ts. In those groups tryAddingExtensions already
+        // made the complete authoritative probe above.
+        let recognized_ts_js_extension =
+            [".ts", ".tsx", ".js", ".jsx", ".mts", ".mjs", ".cts", ".cjs"]
+                .iter()
+                .any(|extension| base.ends_with(extension));
+        if !recognized_ts_js_extension {
+            if let Some(dot) = base.rfind('.') {
+                let slash = base.rfind('/').map_or(0, |position| position + 1);
+                if dot > slash {
+                    let (stem, extension) = base.split_at(dot);
+                    let twin = format!("{stem}.d{extension}.ts");
+                    if self.host_file_paths.contains(&twin) {
+                        return true;
+                    }
                 }
             }
         }
@@ -3091,12 +3100,16 @@ impl<'a> CheckerState<'a> {
                 break;
             }
         }
-        // Extension appends (extensionless specifiers probe the plain
-        // TS family only — .mts/.cts require the explicit form).
-        for extension in [".ts", ".tsx", ".d.ts"] {
-            let probed = format!("{candidate}{extension}");
-            if let Some(index) = lookup(&probed) {
-                return Some(make(index, false, &probed));
+        // Extension appends are only the extensionless probe group.
+        // Once a recognized extension substitution group has failed,
+        // loadModuleFromFile does not then try `<candidate>.ts`
+        // (`file.d.ts` must not resolve to `file.d.ts.ts`).
+        if !Self::has_extension(candidate) {
+            for extension in [".ts", ".tsx", ".d.ts"] {
+                let probed = format!("{candidate}{extension}");
+                if let Some(index) = lookup(&probed) {
+                    return Some(make(index, false, &probed));
+                }
             }
         }
         // Directory → index.* family (Classic has no directory
@@ -6164,6 +6177,55 @@ mod tests {
         assert_eq!(
             program_rows(&files, &node16_options()),
             [("/src/main.mts".to_owned(), 2307, 14, 15)]
+        );
+    }
+
+    /// Recognized extensions use their fixed substitution groups.
+    /// Arbitrary declaration twins such as file.d.js.ts must not make
+    /// those authoritative misses host-dependent.
+    #[test]
+    fn recognized_extension_misses_ignore_arbitrary_declaration_twins() {
+        let files = [
+            (
+                "/main.ts",
+                "import d1 from \"./file.js\";\nimport d2 from \"./file.jsx\";\nimport d3 from \"./file.ts\";\nimport d4 from \"./file.tsx\";\nimport d5 from \"./file.mjs\";\nimport d6 from \"./file.cjs\";\nimport d7 from \"./file.mts\";\nimport d8 from \"./file.cts\";\nimport d9 from \"./file.d.ts\";\nimport d10 from \"./file.d.cts\";\nimport d11 from \"./file.d.mts\";\nimport d12 from \"./file.d.json.ts\";\nd1; d2; d3; d4; d5; d6; d7; d8; d9; d10; d11; d12;\n",
+            ),
+            ("/file.d.js.ts", "export {};\n"),
+            ("/file.d.jsx.ts", "export {};\n"),
+            ("/file.d.ts.ts", "export {};\n"),
+            ("/file.d.tsx.ts", "export {};\n"),
+            ("/file.d.mjs.ts", "export {};\n"),
+            ("/file.d.cjs.ts", "export {};\n"),
+            ("/file.d.mts.ts", "export {};\n"),
+            ("/file.d.cts.ts", "export {};\n"),
+            ("/file.d.d.ts.ts", "export {};\n"),
+            ("/file.d.d.cts.ts", "export {};\n"),
+            ("/file.d.d.mts.ts", "export {};\n"),
+            ("/file.d.d.json.ts", "export {};\n"),
+        ];
+        let diagnostics = program_rows(&files, &node16_options());
+        assert_eq!(diagnostics.len(), 12, "{diagnostics:?}");
+        assert!(diagnostics
+            .iter()
+            .all(|(file, code, _, _)| file == "/main.ts" && *code == 2307));
+    }
+
+    #[test]
+    fn checked_js_require_literal_publishes_definite_module_miss() {
+        let files = [(
+            "/a.js",
+            "require(\"\" + \"./foo.ts\");\nrequire(\"./foo.ts\");\n",
+        )];
+        assert_eq!(
+            program_rows(
+                &files,
+                &CompilerOptions {
+                    allow_js: true,
+                    check_js: Some(true),
+                    ..CompilerOptions::default()
+                }
+            ),
+            [("/a.js".to_owned(), 2307, 34, 10)]
         );
     }
 
