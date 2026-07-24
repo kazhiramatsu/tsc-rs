@@ -148,13 +148,6 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
-in = "get_type_alias_instantiation"
-reason = "NoInfer intrinsic production (getNoInferType, 9.6b/M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
 in = "get_type_for_variable_like_declaration"
 reason = "ForInStatement recovery node"
 class = "recovery"
@@ -740,14 +733,6 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/expr.rs"
-in = "get_narrowable_type_for_reference"
-reason = "getNarrowableTypeForReference NoInfer substitution arm"
-class = "dormant-assumption"
-owner = "9.6b"
-canary = "no_infer_type_production"
-
-[[site]]
-file = "crates/checker/src/expr.rs"
 in = "parse_pseudo_big_int"
 reason = "unparsable bigint literal text {text:?} (parse recovery)"
 class = "recovery"
@@ -863,22 +848,6 @@ in = "infer_from_types"
 reason = "inferFromTypes Substitution-source relation arm (9.6d/M8)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/inference.rs"
-in = "infer_from_types"
-reason = "inferFromTypes entry NoInfer target arm"
-class = "dormant-assumption"
-owner = "9.6b"
-canary = "no_infer_type_production"
-
-[[site]]
-file = "crates/checker/src/inference.rs"
-in = "infer_from_types"
-reason = "inferFromTypes indexed/substitution NoInfer guard"
-class = "dormant-assumption"
-owner = "9.6b"
-canary = "no_infer_type_production"
 
 [[site]]
 file = "crates/checker/src/inference.rs"

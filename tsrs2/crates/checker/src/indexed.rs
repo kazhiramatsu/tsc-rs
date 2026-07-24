@@ -73,11 +73,17 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: af5867f7723c495d086366e08501a86c4c76b02f70bf5b94dae8f524f2ef51ac
     /// tsc-span: _tsc.js:62016-62019
     ///
-    /// isNoInferType is constant false (Substitution types are
-    /// unconstructible before 9.6); mapped objects use the 9.5b key
-    /// expansion path.
+    /// NoInfer preserves its inference barrier over the computed key
+    /// type; mapped objects use the 9.5b key expansion path.
     pub fn get_index_type(&mut self, ty: TypeId, index_flags: IndexFlags) -> CheckResult2<TypeId> {
         let ty = self.get_reduced_type(ty)?;
+        if self.tables.is_no_infer_type(ty) {
+            let TypeData::Substitution(data) = self.tables.type_of(ty).data.clone() else {
+                unreachable!("NoInfer is a Substitution type");
+            };
+            let indexed = self.get_index_type(data.base_type, index_flags)?;
+            return self.get_no_infer_type(indexed);
+        }
         if self.should_defer_index_type(ty, index_flags)? {
             return Ok(self.get_index_type_for_generic_type(ty, index_flags));
         }

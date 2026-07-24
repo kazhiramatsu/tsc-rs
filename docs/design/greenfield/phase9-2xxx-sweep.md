@@ -2238,6 +2238,45 @@ artifacts contain exactly +13 all / +13 2xxx accepted identities;
 syntactic remains 2242/2246. Full `cargo xtask ci` is the merge gate
 for the sub-row.
 
+## 9.6b results (2026-07-24, NoInfer — DONE)
+
+The intrinsic `NoInfer<T>` alias now mints the same substitution
+barrier as tsc for non-empty object, instantiable, union, and
+intersection targets while primitive targets erase to their base
+type. The indexed-access path preserves `NoInfer<keyof T>`, reference
+narrowing unwraps the barrier, and inference refuses candidates at
+both the entry and indexed/substitution recursion points. NoInfer
+instantiation reconstructs the wrapper after mapping its base.
+
+The relation consumers now recurse through substitution targets for
+known-property checks and normalize a NoInfer write target before
+missing-property elaboration. Consequently all **9/9** mandatory
+`noInfer.ts` diagnostics are exact, including the 2741 missing-member
+head and both argument/excess-property locations. The direct
+`no_infer_type_production` canary pins primitive erasure, object and
+`keyof` barriers, display, and production call inference.
+
+The D2a report for
+`d2:db9eb64a1714fb8d48bd4e933023b174a3287aac2578eebbcb24c77eac363144`
+joins `getNoInferType` to the exact Rust port and its three-declaration
+shortest emitter path. All four NoInfer-specific escape rows retired.
+Escape evidence is sites=**218**, stale=0, untagged=0, recovery=116,
+dormant=**7**. The exact ledger is **1824**/stale=0, and schema-2
+closure declarations unaccounted by exact ports fell
+4,024→**4,022**. Checker tests are **986** and types tests remain
+**24**.
+
+Band movement (tool-read): all T0 **59.6239%→59.6422%**
+(29230→29239, +9), FP=0; 2xxx T0 **87.9816%→88.0243%**
+(18521→18530, +9), FP=0; supported T0
+**90.3287%→90.3726%** (18530/20504), supported FN
+1,983→**1,974**. Exact 2xxx shadow gains are T1 +9, T2 +6, and
+T3 +1, with **zero lost identities** in every tier and both
+all/supported views; the supported universe is unchanged. Ratchet
+artifacts contain exactly +9 all / +9 2xxx accepted identities;
+syntactic remains 2242/2246. Full `cargo xtask ci` is the merge gate
+for the sub-row.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

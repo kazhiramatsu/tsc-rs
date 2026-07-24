@@ -1811,8 +1811,8 @@ impl InferTypesWalker<'_, '_> {
     /// the literal-keyof arm is 7.2b, inferToConditionalType rides
     /// invokeOnce at 7.2b, inferToTemplateLiteralType is 7.2c, and the
     /// reduced/apparent object tail (inferFromObjectTypes) is 7.2d —
-    /// each a named escape below until its commit. The Substitution
-    /// source arm is a genuine M8 escape (unconstructible flag).
+    /// each a named escape below until its commit. General
+    /// Substitution-source relation stays owned by 9.6d.
     ///
     /// Load-bearing shape notes:
     /// - The TypeVariable block (68701-68769) returns ONLY when an
@@ -1824,10 +1824,8 @@ impl InferTypesWalker<'_, '_> {
     fn infer_from_types(&mut self, source: TypeId, target: TypeId) -> CheckResult2<()> {
         let mut source = source;
         let mut target = target;
-        // 68647: the `|| isNoInferType(target)` half activates with
-        // NoInfer production in 9.6b.
-        // tsc-dormant: canary=no_infer_type_production; owner=9.6b; reason=inferFromTypes entry NoInfer target arm
-        if !self.st.could_contain_type_variables(target) {
+        if !self.st.could_contain_type_variables(target) || self.st.tables.is_no_infer_type(target)
+        {
             return Ok(());
         }
         if source == self.st.tables.intrinsics.wildcard
@@ -1999,9 +1997,9 @@ impl InferTypesWalker<'_, '_> {
             .flags_of(target)
             .intersects(TypeFlags::INDEXED_ACCESS | TypeFlags::SUBSTITUTION)
         {
-            // 68695-68699: the isNoInferType guard activates with
-            // NoInfer production in 9.6b.
-            // tsc-dormant: canary=no_infer_type_production; owner=9.6b; reason=inferFromTypes indexed/substitution NoInfer guard
+            if self.st.tables.is_no_infer_type(target) {
+                return Ok(());
+            }
             target = self.st.get_actual_type_variable(target)?;
         }
         if self
@@ -3351,11 +3349,7 @@ impl InferTypesWalker<'_, '_> {
     /// `!couldContainTypeVariables(target) || isNoInferType(target)`
     /// — and TypeErrors otherwise: the recorded tsc-crash deviation
     /// (m8-readiness row 4, probe-tuple.mjs f6). The port skips the
-    /// harmless shape and reports the crash shape. The isNoInferType
-    /// disjunct is not yet modeled here: NoInfer rides Substitution
-    /// types, unconstructible until M8 (see infer_from_types'
-    /// Substitution escape) — M8 must widen this guard when they
-    /// land, or a NoInfer rest target contains where tsc no-ops.
+    /// harmless shape and reports the crash shape.
     fn infer_from_middle_slice(
         &mut self,
         source: Option<TypeId>,
@@ -3364,7 +3358,9 @@ impl InferTypesWalker<'_, '_> {
         match source {
             Some(source) => self.infer_from_types(source, target),
             None => {
-                if self.st.could_contain_type_variables(target) {
+                if self.st.could_contain_type_variables(target)
+                    && !self.st.tables.is_no_infer_type(target)
+                {
                     Err(Unsupported::new(
                         "tsc-crash deviation: undefined middle-slice source against a \
                          type-variable rest target (m8-readiness deviation row 4, \

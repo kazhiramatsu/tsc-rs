@@ -2276,7 +2276,6 @@ impl<'a> CheckerState<'a> {
     /// string)` disjunct is live. `isComparingJsxAttributes` is owned
     /// by the callers because it depends on the source type; they
     /// admit hyphenated JSX names before this target-only recursion.
-    /// The Substitution recursion arm remains dormant until 9.6.
     pub fn is_known_property(&mut self, target: TypeId, name: &str) -> CheckResult2<bool> {
         let flags = self.tables.flags_of(target);
         if flags.intersects(TypeFlags::OBJECT) {
@@ -2305,6 +2304,12 @@ impl<'a> CheckerState<'a> {
                     return Ok(true);
                 }
             }
+        }
+        if flags.intersects(TypeFlags::SUBSTITUTION) {
+            let TypeData::Substitution(data) = self.tables.type_of(target).data.clone() else {
+                unreachable!("Substitution flag implies substitution data");
+            };
+            return self.is_known_property(data.base_type, name);
         }
         if flags.intersects(TypeFlags::UNION_OR_INTERSECTION)
             && self.is_excess_property_check_target(target)
