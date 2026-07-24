@@ -22,9 +22,7 @@ use tsrs2_types::{
 };
 
 use crate::links::LinkSlot;
-use crate::state::{
-    CheckResult2, CheckerState, ResolutionTarget, Signature, SignatureId, Unsupported,
-};
+use crate::state::{CheckResult2, CheckerState, ResolutionTarget, Signature, SignatureId};
 
 pub use tsrs2_types::MapperId;
 
@@ -38,15 +36,19 @@ pub use tsrs2_types::MapperId;
 /// the InferenceContext doc for the creation-stability proof that
 /// this equals tsc's creation-time snapshot), targets are the
 /// fixing/non-fixing thunk bodies (inference.rs *_mapper_target).
-/// The remaining tsc constructor site extends this enum when its
-/// stage lands: infer-type constraint resolution
-/// (getInferredTypeParameterConstraint 60074, M8).
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum DeferredMapperTargets {
     /// makeFixingMapperForContext (68258).
     InferenceFixing(crate::inference::InferenceContextId),
     /// makeNonFixingMapperForContext (68271).
     InferenceNonFixing(crate::inference::InferenceContextId),
+    /// getInferredTypeParameterConstraint's makeDeferredTypeMapper
+    /// (60072-60076): each target thunk resolves one effective type
+    /// argument only if its source is actually mapped.
+    EffectiveTypeArguments {
+        node: NodeId,
+        type_parameters: Vec<TypeId>,
+    },
 }
 
 /// tsc-port: makeFunctionTypeMapper @6.0.3
@@ -300,22 +302,40 @@ impl<'a> CheckerState<'a> {
             // makeDeferredTypeMapper snapshot) — object-identical to
             // tsc, including after 7.4's mergeInferences slot
             // rewrites.
-            TypeMapper::Deferred(targets) => {
-                let (context, fixing) = match targets {
-                    DeferredMapperTargets::InferenceFixing(context) => (context, true),
-                    DeferredMapperTargets::InferenceNonFixing(context) => (context, false),
-                };
-                let index = self
-                    .inference_context(context)
-                    .mapper_sources
-                    .iter()
-                    .position(|&source| source == ty);
-                match index {
-                    Some(index) if fixing => self.fixing_mapper_target(context, index),
-                    Some(index) => self.non_fixing_mapper_target(context, index),
-                    None => Ok(ty),
+            TypeMapper::Deferred(targets) => match targets {
+                DeferredMapperTargets::InferenceFixing(context) => {
+                    let index = self
+                        .inference_context(context)
+                        .mapper_sources
+                        .iter()
+                        .position(|&source| source == ty);
+                    match index {
+                        Some(index) => self.fixing_mapper_target(context, index),
+                        None => Ok(ty),
+                    }
                 }
-            }
+                DeferredMapperTargets::InferenceNonFixing(context) => {
+                    let index = self
+                        .inference_context(context)
+                        .mapper_sources
+                        .iter()
+                        .position(|&source| source == ty);
+                    match index {
+                        Some(index) => self.non_fixing_mapper_target(context, index),
+                        None => Ok(ty),
+                    }
+                }
+                DeferredMapperTargets::EffectiveTypeArguments {
+                    node,
+                    type_parameters,
+                } => {
+                    let Some(index) = type_parameters.iter().position(|&source| source == ty)
+                    else {
+                        return Ok(ty);
+                    };
+                    self.get_effective_type_argument_at_index(node, &type_parameters, index)
+                }
+            },
             TypeMapper::Function(kind) => {
                 if self
                     .tables
@@ -1432,7 +1452,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: mapTypeWithAlias @6.0.3
     /// tsc-hash: 224ab5c11627768edcffaadb4a0315704e90c285a05b106593ae3aa5e39a78bb
     /// tsc-span: _tsc.js:70052-70054
-    fn map_type_with_alias(
+    pub(crate) fn map_type_with_alias(
         &mut self,
         ty: TypeId,
         mapper: &mut dyn FnMut(&mut Self, TypeId) -> CheckResult2<TypeId>,
@@ -1537,8 +1557,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b13e58cd032228486ee4b1aaf036cfd363ea106831c16d6bc6c3e4f2d537b0e9
     /// tsc-span: _tsc.js:63717-63795
     ///
-    /// Index/IndexedAccess/ReverseMapped are live. Conditional and
-    /// Substitution retain their named 9.6 boundaries.
+    /// Index/IndexedAccess/ReverseMapped/Conditional/Substitution are live.
     fn instantiate_type_worker(
         &mut self,
         ty: TypeId,
@@ -1702,21 +1721,54 @@ impl<'a> CheckerState<'a> {
             );
         }
         if flags.intersects(TypeFlags::CONDITIONAL) {
-            return Err(Unsupported::new(
-                "conditional-type instantiation (getConditionalTypeInstantiation, 9.6d/M8)",
-            ));
+            let TypeData::Conditional(data) = self.tables.type_of(ty).data.clone() else {
+                unreachable!("Conditional flag implies conditional data");
+            };
+            let conditional_mapper = self.combine_type_mappers(data.mapper, mapper);
+            return self.get_conditional_type_instantiation(
+                ty,
+                conditional_mapper,
+                /*for_constraint*/ false,
+                alias_symbol,
+                alias_type_arguments,
+            );
         }
         if flags.intersects(TypeFlags::SUBSTITUTION) {
+            let TypeData::Substitution(data) = self.tables.type_of(ty).data.clone() else {
+                unreachable!("Substitution flag implies substitution data");
+            };
+            let new_base = self.instantiate_type(data.base_type, Some(mapper))?;
             if self.tables.is_no_infer_type(ty) {
-                let TypeData::Substitution(data) = self.tables.type_of(ty).data.clone() else {
-                    unreachable!("NoInfer is a Substitution type");
-                };
-                let new_base = self.instantiate_type(data.base_type, Some(mapper))?;
                 return self.get_no_infer_type(new_base);
             }
-            return Err(Unsupported::new(
-                "substitution-type instantiation (9.6d/M8)",
-            ));
+            let new_constraint = self.instantiate_type(data.constraint, Some(mapper))?;
+            if self
+                .tables
+                .flags_of(new_base)
+                .intersects(TypeFlags::TYPE_VARIABLE)
+                && self.is_generic_type(new_constraint)?
+            {
+                return Ok(self.tables.get_substitution_type(new_base, new_constraint));
+            }
+            let restrictive_base = self.get_restrictive_instantiation(new_base)?;
+            let restrictive_constraint = self.get_restrictive_instantiation(new_constraint)?;
+            if self
+                .tables
+                .flags_of(new_constraint)
+                .intersects(TypeFlags::ANY_OR_UNKNOWN)
+                || self.is_type_assignable_to(restrictive_base, restrictive_constraint)?
+            {
+                return Ok(new_base);
+            }
+            return if self
+                .tables
+                .flags_of(new_base)
+                .intersects(TypeFlags::TYPE_VARIABLE)
+            {
+                Ok(self.tables.get_substitution_type(new_base, new_constraint))
+            } else {
+                self.get_intersection_type(&[new_constraint, new_base], IntersectionFlags::NONE)
+            };
         }
         Ok(ty)
     }

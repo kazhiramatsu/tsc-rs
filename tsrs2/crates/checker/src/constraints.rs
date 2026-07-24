@@ -9,8 +9,9 @@ use tsrs2_diags::gen as diagnostics;
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{ElementFlags, ObjectFlags, TypeData, TypeFlags, TypeId, TypeSystemPropertyName};
 
+use crate::instantiate::{DeferredMapperTargets, TypeMapper};
 use crate::links::LinkSlot;
-use crate::state::{CheckResult2, CheckerState, ResolutionTarget, Unsupported};
+use crate::state::{CheckResult2, CheckerState, ResolutionTarget};
 
 impl<'a> CheckerState<'a> {
     /// tsc-port: getDeclaredTypeOfTypeParameter @6.0.3
@@ -70,11 +71,8 @@ impl<'a> CheckerState<'a> {
     ///
     /// The instantiated-parameter arm (typeParameter.target, 60105-60107)
     /// is live since 5.2 (cloneTypeParameter constructs targeted
-    /// parameters). The inferred-constraint arm
-    /// (getInferredTypeParameterConstraint — infer-declared parameters)
-    /// unwinds as Unsupported: infer type parameters ARE resolvable by
-    /// name (resolveName's InferType arm), but their constraints need
-    /// conditional-type machinery (5.2/M8).
+    /// parameters). Infer-declared parameters derive their contextual
+    /// constraints through getInferredTypeParameterConstraint.
     pub fn get_constraint_from_type_parameter(
         &mut self,
         ty: TypeId,
@@ -105,11 +103,11 @@ impl<'a> CheckerState<'a> {
         let constraint = match self.get_constraint_declaration(ty) {
             None => {
                 if self.is_infer_type_parameter(ty) {
-                    return Err(Unsupported::new(
-                        "infer-type parameter constraints (conditional types, M4 5.2/M8)",
-                    ));
+                    self.get_inferred_type_parameter_constraint(ty, false)?
+                        .unwrap_or(self.no_constraint_type)
+                } else {
+                    self.no_constraint_type
                 }
-                self.no_constraint_type
             }
             Some(declaration) => {
                 let mut resolved = self.get_type_from_type_node(declaration)?;
@@ -135,6 +133,157 @@ impl<'a> CheckerState<'a> {
         self.links
             .set_type_parameter_constraint(self.speculation_depth, ty, constraint);
         Ok((constraint != self.no_constraint_type).then_some(constraint))
+    }
+
+    /// tsc-port: getInferredTypeParameterConstraint @6.0.3
+    /// tsc-hash: cb1b6ef1fcbf111aaed4d2c1d88e86b0f4e4c47c190977efda64b8d79aaed43c
+    /// tsc-span: _tsc.js:60059-60102
+    fn get_inferred_type_parameter_constraint(
+        &mut self,
+        type_parameter: TypeId,
+        omit_type_references: bool,
+    ) -> CheckResult2<Option<TypeId>> {
+        let Some(symbol) = self.tables.type_of(type_parameter).symbol else {
+            return Ok(None);
+        };
+        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let mut inferences = Vec::new();
+        for declaration in declarations {
+            let Some(infer_node) = self.parent_of(declaration) else {
+                continue;
+            };
+            if self.kind_of(infer_node) != SyntaxKind::InferType {
+                continue;
+            }
+            let mut child = infer_node;
+            let Some(mut grand_parent) = self.parent_of(infer_node) else {
+                continue;
+            };
+            while self.kind_of(grand_parent) == SyntaxKind::ParenthesizedType {
+                child = grand_parent;
+                let Some(parent) = self.parent_of(grand_parent) else {
+                    break;
+                };
+                grand_parent = parent;
+            }
+
+            if self.kind_of(grand_parent) == SyntaxKind::TypeReference && !omit_type_references {
+                let Some(type_parameters) =
+                    self.get_type_parameters_for_type_reference_or_import(grand_parent)?
+                else {
+                    continue;
+                };
+                let NodeData::TypeReference(reference) = self.data_of(grand_parent) else {
+                    unreachable!("TypeReference kind implies payload");
+                };
+                let arguments = self.nodes_of(reference.type_arguments);
+                let Some(index) = arguments.iter().position(|&argument| argument == child) else {
+                    continue;
+                };
+                if index >= type_parameters.len() {
+                    continue;
+                }
+                let Some(declared_constraint) =
+                    self.get_constraint_of_type_parameter(type_parameters[index])?
+                else {
+                    continue;
+                };
+                let mapper = self.alloc_mapper(TypeMapper::Deferred(
+                    DeferredMapperTargets::EffectiveTypeArguments {
+                        node: grand_parent,
+                        type_parameters: type_parameters.clone(),
+                    },
+                ));
+                let constraint = self.instantiate_type(declared_constraint, Some(mapper))?;
+                if constraint != type_parameter {
+                    inferences.push(constraint);
+                }
+                continue;
+            }
+
+            let rest_position = match self.data_of(grand_parent) {
+                NodeData::Parameter(data) => data.dot_dot_dot_token.is_some(),
+                NodeData::RestType(_) => true,
+                NodeData::NamedTupleMember(data) => data.dot_dot_dot_token.is_some(),
+                _ => false,
+            };
+            if rest_position {
+                inferences.push(self.create_array_type(self.tables.intrinsics.unknown, false)?);
+                continue;
+            }
+            if self.kind_of(grand_parent) == SyntaxKind::TemplateLiteralTypeSpan {
+                inferences.push(self.tables.intrinsics.string);
+                continue;
+            }
+            if self.kind_of(grand_parent) == SyntaxKind::TypeParameter
+                && self
+                    .parent_of(grand_parent)
+                    .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::MappedType)
+            {
+                inferences.push(self.tables.intrinsics.string_number_symbol);
+                continue;
+            }
+            if self.kind_of(grand_parent) == SyntaxKind::MappedType {
+                let NodeData::MappedType(mapped) = self.data_of(grand_parent).clone() else {
+                    unreachable!("MappedType kind implies payload");
+                };
+                let mapped_type = mapped.r#type.map(|node| {
+                    let mut node = node;
+                    while let NodeData::ParenthesizedType(data) = self.data_of(node) {
+                        let Some(inner) = data.r#type else {
+                            break;
+                        };
+                        node = inner;
+                    }
+                    node
+                });
+                let Some(conditional_node) = self.parent_of(grand_parent) else {
+                    continue;
+                };
+                let NodeData::ConditionalType(conditional) = self.data_of(conditional_node).clone()
+                else {
+                    continue;
+                };
+                if mapped_type != Some(infer_node) || conditional.extends_type != Some(grand_parent)
+                {
+                    continue;
+                }
+                let Some(check_mapped_node) = conditional.check_type else {
+                    continue;
+                };
+                let NodeData::MappedType(check_mapped) = self.data_of(check_mapped_node).clone()
+                else {
+                    continue;
+                };
+                let (Some(check_template_node), Some(check_parameter_node)) =
+                    (check_mapped.r#type, check_mapped.type_parameter)
+                else {
+                    continue;
+                };
+                let NodeData::TypeParameter(check_parameter) =
+                    self.data_of(check_parameter_node).clone()
+                else {
+                    continue;
+                };
+                let check_parameter_symbol =
+                    self.get_symbol_of_declaration(check_parameter_node)?;
+                let check_parameter_type =
+                    self.get_declared_type_of_type_parameter(check_parameter_symbol);
+                let target = match check_parameter.constraint {
+                    Some(constraint) => self.get_type_from_type_node(constraint)?,
+                    None => self.tables.intrinsics.string_number_symbol,
+                };
+                let mapper = self.make_unary_type_mapper(check_parameter_type, target);
+                let node_type = self.get_type_from_type_node(check_template_node)?;
+                inferences.push(self.instantiate_type(node_type, Some(mapper))?);
+            }
+        }
+        if inferences.is_empty() {
+            Ok(None)
+        } else {
+            self.get_intersection_type(&inferences, tsrs2_types::IntersectionFlags::NONE)
+                .map(Some)
+        }
     }
 
     fn is_infer_type_parameter(&self, ty: TypeId) -> bool {
@@ -177,12 +326,65 @@ impl<'a> CheckerState<'a> {
             return self.get_constraint_of_indexed_access(ty);
         }
         if flags.intersects(TypeFlags::CONDITIONAL) {
-            // tsc-dormant: canary=conditional_resolution; owner=9.6c
-            return Err(Unsupported::new(
-                "getConstraintOfConditionalType resolution (9.6c)",
-            ));
+            return self.get_constraint_of_conditional_type(ty);
         }
         self.get_base_constraint_of_type(ty)
+    }
+
+    /// tsc-port: getEffectiveConstraintOfIntersection @6.0.3
+    /// tsc-hash: 0b1f728f04999f6e11dd7970ddcedb98cc13965292e07283f5c4db532bd497c2
+    /// tsc-span: _tsc.js:58867-58901
+    pub(crate) fn get_effective_constraint_of_intersection(
+        &mut self,
+        types: &[TypeId],
+        target_is_union: bool,
+    ) -> CheckResult2<Option<TypeId>> {
+        let mut constraints = Vec::new();
+        let mut has_disjoint_domain_type = false;
+        for &ty in types {
+            let flags = self.tables.flags_of(ty);
+            if flags.intersects(TypeFlags::INSTANTIABLE) {
+                let mut constraint = self.get_constraint_of_type(ty)?;
+                while let Some(current) = constraint.filter(|&current| {
+                    self.tables.flags_of(current).intersects(
+                        TypeFlags::TYPE_PARAMETER | TypeFlags::INDEX | TypeFlags::CONDITIONAL,
+                    )
+                }) {
+                    constraint = self.get_constraint_of_type(current)?;
+                }
+                if let Some(constraint) = constraint {
+                    constraints.push(constraint);
+                    if target_is_union {
+                        constraints.push(ty);
+                    }
+                }
+            } else if flags.intersects(TypeFlags::DISJOINT_DOMAINS)
+                || self.is_empty_anonymous_object_type(ty)?
+            {
+                has_disjoint_domain_type = true;
+            }
+        }
+        if constraints.is_empty() || !(target_is_union || has_disjoint_domain_type) {
+            return Ok(None);
+        }
+        if has_disjoint_domain_type {
+            for &ty in types {
+                if self
+                    .tables
+                    .flags_of(ty)
+                    .intersects(TypeFlags::DISJOINT_DOMAINS)
+                    || self.is_empty_anonymous_object_type(ty)?
+                {
+                    constraints.push(ty);
+                }
+            }
+        }
+        let intersection = self.get_intersection_type(
+            &constraints,
+            tsrs2_types::IntersectionFlags::NO_CONSTRAINT_REDUCTION,
+        )?;
+        self.get_normalized_type(intersection, /*writing*/ false)
+            .map(Some)
     }
 
     /// tsc-port: getConstraintOfIndexedAccess @6.0.3
@@ -531,10 +733,8 @@ impl<'a> CheckerState<'a> {
             };
         }
         if flags.intersects(TypeFlags::CONDITIONAL) {
-            // tsc-dormant: canary=conditional_resolution; owner=9.6c
-            return Err(Unsupported::new(
-                "computeBaseConstraint via getConstraintFromConditionalType (9.6c)",
-            ));
+            let constraint = self.get_constraint_from_conditional_type(t)?;
+            return self.get_base_constraint_inner(constraint, stack);
         }
         if flags.intersects(TypeFlags::SUBSTITUTION) {
             let intersection = self.get_substitution_intersection(t)?;

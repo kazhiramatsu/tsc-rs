@@ -665,9 +665,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: ac9c7ff358d22383776d3bf0d841ff1a331b67e77b87198ef19ad9398418adc5
     /// tsc-span: _tsc.js:62455-62457
     ///
-    /// The Conditional arm is M8 (those TypeFlags are unconstructible
-    /// before conditional type nodes land) — the escape fires if one
-    /// ever appears rather than mis-simplifying.
     pub(crate) fn get_simplified_type(
         &mut self,
         ty: TypeId,
@@ -677,8 +674,7 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::INDEXED_ACCESS) {
             self.get_simplified_indexed_access_type(ty, writing)
         } else if flags.intersects(TypeFlags::CONDITIONAL) {
-            // tsc-dormant: canary=conditional_resolution; owner=9.6c
-            Err(Unsupported::new("getSimplifiedConditionalType (9.6c)"))
+            self.get_simplified_conditional_type(ty, writing)
         } else if flags.intersects(TypeFlags::INDEX) {
             self.get_simplified_index_type(ty)
         } else {

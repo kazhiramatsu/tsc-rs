@@ -1048,9 +1048,13 @@ impl<'a> CheckerState<'a> {
             .flags_of(constraint)
             .intersects(TypeFlags::CONDITIONAL)
         {
-            // 69242: getDefaultConstraintOfConditionalType projection.
-            return Err(Unsupported::new(
-                "hasPrimitiveConstraint conditional default-constraint projection (9.6c/M8)",
+            let constraint = self.get_default_constraint_of_conditional_type(constraint)?;
+            return Ok(self.maybe_type_of_kind(
+                constraint,
+                TypeFlags::PRIMITIVE
+                    | TypeFlags::INDEX
+                    | TypeFlags::TEMPLATE_LITERAL
+                    | TypeFlags::STRING_MAPPING,
             ));
         }
         Ok(self.maybe_type_of_kind(

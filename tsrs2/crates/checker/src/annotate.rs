@@ -8,9 +8,9 @@ use tsrs2_binder::{node_util, InternalSymbolName, SymbolId};
 use tsrs2_diags::gen as diagnostics;
 use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    CheckFlags, CheckMode, ConditionalRootData, ConditionalRootId, ElementFlags, IntersectionFlags,
-    LiteralValue, MappedTypeData, MappedTypeModifiers, ModifierFlags, ObjectFlags, PseudoBigInt,
-    SignatureFlags, SymbolFlags, TupleTargetFlags, TypeData, TypeFlags, TypeId, UnionReduction,
+    CheckFlags, CheckMode, ConditionalRootData, ElementFlags, IntersectionFlags, LiteralValue,
+    MappedTypeData, MappedTypeModifiers, ModifierFlags, ObjectFlags, PseudoBigInt, SignatureFlags,
+    SymbolFlags, TupleTargetFlags, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::evaluate::EvalValue;
@@ -279,10 +279,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::IndexedAccessType => self.get_type_from_indexed_access_type_node(node),
             SyntaxKind::MappedType => self.get_type_from_mapped_type_node(node),
             SyntaxKind::ConditionalType => self.get_type_from_conditional_type_node(node),
-            SyntaxKind::InferType => {
-                // tsc-dormant: canary=infer_type_model_constructibility; owner=9.6c
-                Err(Unsupported::new("infer types (unported family, M8-stub)"))
-            }
+            SyntaxKind::InferType => self.get_type_from_infer_type_node(node),
             SyntaxKind::ImportType => self.get_type_from_import_type_node(node),
             // 63207: heritage ExpressionWithTypeArguments routes
             // through the same type-reference worker (getTypeReferenceName
@@ -1935,6 +1932,28 @@ impl<'a> CheckerState<'a> {
             .unwrap_or_default())
     }
 
+    /// tsc-port: getEffectiveTypeArgumentAtIndex @6.0.3
+    /// tsc-hash: d8dff9db1d5b5b959dbcb848ffcb46dbfc98d7a869c30ef534034753db7fd1dd
+    /// tsc-span: _tsc.js:81673-81678
+    pub(crate) fn get_effective_type_argument_at_index(
+        &mut self,
+        node: NodeId,
+        type_parameters: &[TypeId],
+        index: usize,
+    ) -> CheckResult2<TypeId> {
+        let argument_nodes = match self.data_of(node) {
+            NodeData::TypeReference(data) => self.nodes_of(data.type_arguments),
+            NodeData::ImportType(data) => self.nodes_of(data.type_arguments),
+            NodeData::ExpressionWithTypeArguments(data) => self.nodes_of(data.type_arguments),
+            _ => unreachable!("TypeReference/ImportType/heritage route here"),
+        };
+        if let Some(&argument) = argument_nodes.get(index) {
+            self.get_type_from_type_node(argument)
+        } else {
+            Ok(self.get_effective_type_arguments(node, type_parameters)?[index])
+        }
+    }
+
     /// tsc-port: getTypeFromClassOrInterfaceReference @6.0.3
     /// tsc-hash: f342ce01f970d999b75075be7cad3c36a4b6defd82cd81b155a1ae78498d449b
     /// tsc-span: _tsc.js:60226-60262
@@ -2283,10 +2302,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 766735fd59931f0f60a040345d6d2396a00f7e3f915371eddf45b3ab05eb38d2
     /// tsc-span: _tsc.js:62770-62806
     ///
-    /// Phase 9.6a installs the exact root environment and cache seed.
-    /// Evaluation/distribution inside getConditionalType remains the
-    /// named 9.6c consumer; until then this worker constructs its
-    /// deferred representation for every written conditional.
     fn get_type_from_conditional_type_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.node(node).resolved_type.resolved() {
             return Ok(cached);
@@ -2337,13 +2352,10 @@ impl<'a> CheckerState<'a> {
                 .as_deref()
                 .map(|arguments| arguments.into()),
         });
-        let resolved = self.create_deferred_conditional_type(
-            root,
-            /*mapper*/ None,
-            /*combined_mapper*/ None,
-            alias_symbol,
-            alias_type_arguments.as_deref(),
-        );
+        let resolved = self.get_conditional_type(
+            root, /*mapper*/ None, /*for_constraint*/ false, /*alias_symbol*/ None,
+            /*alias_type_arguments*/ None,
+        )?;
         self.links.set_node_resolved_type(
             self.speculation_depth,
             node,
@@ -2357,32 +2369,27 @@ impl<'a> CheckerState<'a> {
         Ok(resolved)
     }
 
-    /// Phase-9.6a allocation boundary for getConditionalType. The
-    /// semantic evaluator replaces this deferred-only body in 9.6c.
-    fn create_deferred_conditional_type(
-        &mut self,
-        root: ConditionalRootId,
-        mapper: Option<tsrs2_types::MapperId>,
-        combined_mapper: Option<tsrs2_types::MapperId>,
-        alias_symbol: Option<SymbolId>,
-        alias_type_arguments: Option<&[TypeId]>,
-    ) -> TypeId {
-        let root_data = self.tables.conditional_root(root).clone();
-        self.tables.create_conditional_type(
-            tsrs2_types::ConditionalTypeData {
-                root,
-                check_type: root_data.check_type,
-                extends_type: root_data.extends_type,
-                mapper,
-                combined_mapper,
-            },
-            alias_symbol.or(root_data.alias_symbol),
-            if alias_symbol.is_some() {
-                alias_type_arguments
-            } else {
-                root_data.alias_type_arguments.as_deref()
-            },
-        )
+    /// tsc-port: getTypeFromInferTypeNode @6.0.3
+    /// tsc-hash: e701c8ac2036b0b493a9bd1ea3228aec8e0c2a1625f45cb8162d973ff861036c
+    /// tsc-span: _tsc.js:62807-62813
+    fn get_type_from_infer_type_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.links.node(node).resolved_type.resolved() {
+            return Ok(cached);
+        }
+        let NodeData::InferType(data) = self.data_of(node) else {
+            unreachable!("InferType kind implies payload");
+        };
+        let parameter = data
+            .type_parameter
+            .expect("parser invariant: InferType type parameter always parsed");
+        let symbol = self.get_symbol_of_declaration(parameter)?;
+        let resolved = self.get_declared_type_of_type_parameter(symbol);
+        self.links.set_node_resolved_type(
+            self.speculation_depth,
+            node,
+            LinkSlot::Resolved(resolved),
+        );
+        Ok(resolved)
     }
 
     /// tsc-port: getTypeArgumentsForAliasSymbol @6.0.3
@@ -2830,6 +2837,35 @@ impl<'a> CheckerState<'a> {
             }
             _ => Ok(false),
         }
+    }
+
+    /// tsrs-native: limits pre-force lazy-diagnostic scheduling to type
+    /// alias construction whose argument can re-enter alias resolution.
+    pub(crate) fn type_reference_arguments_may_resolve_alias(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult2<bool> {
+        let mut current = self.parent_of(node);
+        let mut within_type_alias = false;
+        while let Some(candidate) = current {
+            if self.kind_of(candidate) == SyntaxKind::TypeAliasDeclaration {
+                within_type_alias = true;
+                break;
+            }
+            current = self.parent_of(candidate);
+        }
+        if !within_type_alias {
+            return Ok(false);
+        }
+        let NodeData::TypeReference(data) = self.data_of(node) else {
+            return Ok(false);
+        };
+        for argument in self.nodes_of(data.type_arguments) {
+            if self.may_resolve_type_alias(argument)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     /// tsc-port: getTypeFromTypeQueryNode @6.0.3
@@ -8994,7 +9030,7 @@ mod tests {
     }
 
     #[test]
-    fn newly_constructible_conditional_and_unresolved_name_shapes_are_sound() {
+    fn resolved_conditional_and_unresolved_name_shapes_are_sound() {
         with_state(
             "declare var b: number extends string ? 1 : 2;\ndeclare var c: Missing;\n",
             |state| {
@@ -9002,16 +9038,12 @@ mod tests {
                     find_probe_annotation(state.binder.source(0), "b").expect("annotation");
                 let conditional = state
                     .get_type_from_type_node(annotation)
-                    .expect("9.6a conditional shell");
-                assert!(state
-                    .tables
-                    .flags_of(conditional)
-                    .intersects(TypeFlags::CONDITIONAL));
+                    .expect("resolved conditional");
                 assert_eq!(
                     state
                         .type_to_string_slice(conditional)
-                        .expect("conditional display"),
-                    "number extends string ? 1 : 2"
+                        .expect("resolved conditional display"),
+                    "2"
                 );
                 // Unresolved names are in-slice: resolveEntityName
                 // reports 2304 and the reference types as errorType.

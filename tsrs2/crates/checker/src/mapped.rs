@@ -16,7 +16,6 @@ use tsrs2_types::{
 use crate::links::LinkSlot;
 use crate::state::{
     CheckResult2, CheckerState, IndexInfo, MembersId, ResolutionTarget, ResolvedMembers,
-    Unsupported,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -361,12 +360,21 @@ impl<'a> CheckerState<'a> {
             };
         }
         if flags.intersects(TypeFlags::CONDITIONAL) {
-            // tsc's distributive branch requires conditional
-            // resolution. Do not turn the conditional into an
-            // arbitrary key domain.
-            return Err(Unsupported::new(
-                "getLowerBoundOfKeyType conditional distribution (9.6c/M8)",
-            ));
+            let TypeData::Conditional(data) = self.tables.type_of(ty).data.clone() else {
+                unreachable!("Conditional flag implies conditional data");
+            };
+            let root = self.tables.conditional_root(data.root).clone();
+            if root.is_distributive {
+                let constraint = self.get_lower_bound_of_key_type(data.check_type)?;
+                if constraint != data.check_type {
+                    let mapper =
+                        self.prepend_type_mapping(root.check_type, constraint, data.mapper);
+                    return self.get_conditional_type_instantiation(
+                        ty, mapper, /*for_constraint*/ false, None, None,
+                    );
+                }
+            }
+            return Ok(ty);
         }
         if flags.intersects(TypeFlags::UNION) {
             let mapped = self.map_type(
