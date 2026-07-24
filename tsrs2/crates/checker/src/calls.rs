@@ -6174,7 +6174,7 @@ impl<'a> CheckerState<'a> {
 #[cfg(test)]
 mod tests {
     use tsrs2_syntax::{NodeData, SyntaxKind};
-    use tsrs2_types::{CheckMode, CompilerOptions, InferenceFlags, InferencePriority};
+    use tsrs2_types::{CheckMode, CompilerOptions, InferenceFlags, InferencePriority, SymbolFlags};
 
     use crate::state::test_support::with_program_state;
     use crate::state::CheckerState;
@@ -6424,6 +6424,41 @@ mod tests {
                 "declare function invoke<B, A extends [\"a\", B] | [\"b\", string]>(cb: (...args: A) => void): void;\ninvoke((...args) => { if (args[0] === \"a\") { args[1].bad; } });\n",
             ),
             [(2571, 141, 7)]
+        );
+    }
+
+    #[test]
+    fn homomorphic_mapped_call_infers_the_source_object_shape() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "declare function restore<T>(value: { [K in keyof T]: T[K] }): T;\n\
+                 const value = restore({ a: \"x\", b: 1 });\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                let value = state
+                    .resolve_file_scope_name("value", SymbolFlags::VARIABLE)
+                    .expect("value resolves");
+                let inferred = state.get_type_of_symbol(value).expect("call result types");
+                let a = state
+                    .get_property_of_type_full(inferred, "a")
+                    .expect("inferred members resolve")
+                    .expect("a is inferred");
+                let b = state
+                    .get_property_of_type_full(inferred, "b")
+                    .expect("inferred members stay resolved")
+                    .expect("b is inferred");
+                assert_eq!(
+                    state.get_type_of_symbol(a).expect("a types"),
+                    state.tables.intrinsics.string
+                );
+                assert_eq!(
+                    state.get_type_of_symbol(b).expect("b types"),
+                    state.tables.intrinsics.number
+                );
+            },
         );
     }
 

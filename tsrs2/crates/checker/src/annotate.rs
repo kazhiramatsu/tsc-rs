@@ -3177,8 +3177,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 07b72758470ff7a70755a9aebe3dda44c543f90521b873fda21f7e03be3793a1
     /// tsc-span: _tsc.js:58679-58704
     ///
-    /// ReverseMapped member resolution remains a named 9.5c boundary;
-    /// mapped member synthesis is owned by 9.5b.
     pub fn resolve_structured_type_members(&mut self, ty: TypeId) -> CheckResult2<MembersId> {
         if let Some(members) = self.links.ty(ty).resolved_members.resolved() {
             return Ok(members);
@@ -3200,15 +3198,217 @@ impl<'a> CheckerState<'a> {
         if object_flags.intersects(ObjectFlags::CLASS_OR_INTERFACE) {
             return self.resolve_class_or_interface_members(ty);
         }
+        if object_flags.intersects(ObjectFlags::REVERSE_MAPPED) {
+            return self.resolve_reverse_mapped_type_members(ty);
+        }
         if object_flags.intersects(ObjectFlags::ANONYMOUS) {
             return self.resolve_anonymous_type_members(ty);
         }
         if object_flags.intersects(ObjectFlags::MAPPED) {
             return self.resolve_mapped_type_members(ty);
         }
-        Err(Unsupported::new(format!(
-            "member resolution for object flags {object_flags:?} (ReverseMapped, 9.5c/M8)"
-        )))
+        unreachable!("unhandled object flags {object_flags:?}")
+    }
+
+    /// tsc-port: replaceIndexedAccess @6.0.3
+    /// tsc-hash: c4e9ac6fc333081c1ff7078e6238c8cd573722a8f78cb0808e8d9d7e44249311
+    /// tsc-span: _tsc.js:58408-58410
+    fn replace_indexed_access(
+        &mut self,
+        instantiable: TypeId,
+        indexed_access: TypeId,
+        replacement: TypeId,
+    ) -> CheckResult2<TypeId> {
+        let TypeData::IndexedAccess {
+            object_type,
+            index_type,
+            ..
+        } = self.tables.type_of(indexed_access).data
+        else {
+            unreachable!("replaceIndexedAccess takes an indexed access");
+        };
+        let zero = self.tables.get_number_literal_type(0.0);
+        let tuple = self.create_tuple_type_forced(&[replacement], None, false, None)?;
+        let mapper =
+            self.create_type_mapper(vec![index_type, object_type], Some(vec![zero, tuple]));
+        self.instantiate_type(instantiable, Some(mapper))
+    }
+
+    /// tsc-port: getLimitedConstraint @6.0.3
+    /// tsc-hash: 93099ab3d057c9f1bb52abae53c24e1f38e170b770ce24737fe40cd6e0332fd0
+    /// tsc-span: _tsc.js:58411-58422
+    fn get_limited_reverse_mapped_constraint(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let TypeData::ReverseMapped(reverse) = self.tables.type_of(ty).data.clone() else {
+            unreachable!("limited constraint takes a reverse mapped type");
+        };
+        let constraint = self.get_constraint_type_from_mapped_type(reverse.mapped_type)?;
+        let flags = self.tables.flags_of(constraint);
+        if !flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
+            return Ok(None);
+        }
+        let origin = if flags.intersects(TypeFlags::UNION) {
+            let TypeData::Union { origin, .. } = self.tables.type_of(constraint).data else {
+                unreachable!("union flag implies union data");
+            };
+            origin
+        } else {
+            Some(constraint)
+        };
+        let Some(origin) = origin else {
+            return Ok(None);
+        };
+        let TypeData::Intersection { types } = self.tables.type_of(origin).data.clone() else {
+            return Ok(None);
+        };
+        let retained = types
+            .iter()
+            .copied()
+            .filter(|&member| member != reverse.constraint_type)
+            .collect::<Vec<_>>();
+        let limited = self.get_intersection_type(&retained, IntersectionFlags::NONE)?;
+        Ok((limited != self.tables.intrinsics.never).then_some(limited))
+    }
+
+    /// tsc-port: resolveReverseMappedTypeMembers @6.0.3
+    /// tsc-hash: 9c2b1ea3f2113f2c77230deba94d6bda93f3a13f722929468e52407b4525146c
+    /// tsc-span: _tsc.js:58423-58455
+    fn resolve_reverse_mapped_type_members(&mut self, ty: TypeId) -> CheckResult2<MembersId> {
+        if let Some(cached) = self.links.ty(ty).resolved_members.resolved() {
+            return Ok(cached);
+        }
+        let reverse = match self.tables.type_of(ty).data.clone() {
+            TypeData::ReverseMapped(data) => data,
+            _ => unreachable!("reverse mapped flags imply reverse payload"),
+        };
+        let shell = self.alloc_members(ResolvedMembers::default());
+        self.links
+            .set_type_members(self.speculation_depth, ty, LinkSlot::Resolved(shell));
+        let resolved = (|state: &mut Self| -> CheckResult2<ResolvedMembers> {
+            let string = state.tables.intrinsics.string;
+            let modifiers = state.get_mapped_type_modifiers(reverse.mapped_type);
+            let readonly_mask = !modifiers.intersects(MappedTypeModifiers::INCLUDE_READONLY);
+            let preserve_optional = !modifiers.intersects(MappedTypeModifiers::INCLUDE_OPTIONAL);
+
+            let mut index_infos = Vec::new();
+            if let Some(index_info) = state.get_index_info_of_type(reverse.source, string)? {
+                let value_type = state
+                    .infer_reverse_mapped_type(
+                        index_info.value_type,
+                        reverse.mapped_type,
+                        reverse.constraint_type,
+                    )?
+                    .unwrap_or(state.tables.intrinsics.unknown);
+                index_infos.push(IndexInfo {
+                    key_type: string,
+                    value_type,
+                    is_readonly: readonly_mask && index_info.is_readonly,
+                    declaration: None,
+                    components: None,
+                    is_enum_number_index_info: false,
+                });
+            }
+
+            let limited_constraint = state.get_limited_reverse_mapped_constraint(ty)?;
+            let mut members = tsrs2_binder::SymbolTable::default();
+            for property in state.get_properties_of_type(reverse.source)? {
+                if let Some(limited) = limited_constraint {
+                    let property_name_type = state.get_literal_type_from_property(
+                        property,
+                        TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE,
+                        false,
+                    )?;
+                    if !state.is_type_assignable_to(property_name_type, limited)? {
+                        continue;
+                    }
+                }
+
+                let source_symbol = state.binder.symbol(property).clone();
+                let symbol_flags = SymbolFlags::PROPERTY
+                    | if preserve_optional && source_symbol.flags.intersects(SymbolFlags::OPTIONAL)
+                    {
+                        SymbolFlags::OPTIONAL
+                    } else {
+                        SymbolFlags::NONE
+                    };
+                let inferred = state
+                    .binder
+                    .create_symbol(symbol_flags, source_symbol.escaped_name.clone());
+                let check_flags = CheckFlags::REVERSE_MAPPED
+                    | if readonly_mask && state.is_readonly_symbol(property) {
+                        CheckFlags::READONLY
+                    } else {
+                        CheckFlags::NONE
+                    };
+                state
+                    .links
+                    .set_symbol_check_flags(state.speculation_depth, inferred, check_flags);
+                state.binder.symbol_mut(inferred).declarations = source_symbol.declarations.clone();
+
+                let property_type = state.get_type_of_symbol(property)?;
+                let mut mapped_type = reverse.mapped_type;
+                let mut constraint_type = reverse.constraint_type;
+                let constraint_inner = match state.tables.type_of(reverse.constraint_type).data {
+                    TypeData::Index { ty, .. } => Some(ty),
+                    _ => None,
+                };
+                if let Some(indexed_access) = constraint_inner {
+                    if let TypeData::IndexedAccess {
+                        object_type,
+                        index_type,
+                        ..
+                    } = state.tables.type_of(indexed_access).data
+                    {
+                        if state
+                            .tables
+                            .flags_of(object_type)
+                            .intersects(TypeFlags::TYPE_PARAMETER)
+                            && state
+                                .tables
+                                .flags_of(index_type)
+                                .intersects(TypeFlags::TYPE_PARAMETER)
+                        {
+                            mapped_type = state.replace_indexed_access(
+                                reverse.mapped_type,
+                                indexed_access,
+                                object_type,
+                            )?;
+                            constraint_type =
+                                state.get_index_type(object_type, tsrs2_types::IndexFlags::NONE)?;
+                        }
+                    }
+                }
+                state.links.set_symbol_reverse_mapped_links(
+                    state.speculation_depth,
+                    inferred,
+                    state.links.symbol(property).name_type,
+                    property_type,
+                    mapped_type,
+                    constraint_type,
+                );
+                members.insert(source_symbol.escaped_name, inferred);
+            }
+            let properties = members.values().copied().collect();
+            Ok(ResolvedMembers {
+                members,
+                properties,
+                call_signatures: Vec::new(),
+                construct_signatures: Vec::new(),
+                index_infos,
+            })
+        })(self);
+        match resolved {
+            Ok(resolved) => {
+                *self.members_mut(shell) = resolved;
+                Ok(shell)
+            }
+            Err(error) => {
+                self.links.retract_type_members(ty);
+                Err(error)
+            }
+        }
     }
 
     /// tsc-port: resolveClassOrInterfaceMembers @6.0.3
@@ -6126,8 +6326,9 @@ impl<'a> CheckerState<'a> {
     ///
     /// Dispatch slice: the Instantiated check-flag arm (5.2),
     /// variable/property symbols (annotation-typed) and function/method
-    /// symbols. Mapped symbols are 9.5b; ReverseMapped remains 9.5c. Accessors, classes,
-    /// enums, modules and aliases keep their owning-stage escapes.
+    /// symbols. Mapped and ReverseMapped properties resolve through
+    /// their synthesized checker links. Accessors, classes, enums,
+    /// modules and aliases keep their owning-stage escapes.
     /// tsc's DeferredType arm (getTypeOfSymbolWithDeferredType,
     /// 56945-56947) is ELIDED as a documented divergence (m6 close):
     /// createUnionOrIntersectionProperty computes eagerly, so
@@ -6144,9 +6345,7 @@ impl<'a> CheckerState<'a> {
             return self.get_type_of_mapped_symbol(symbol);
         }
         if check_flags.intersects(CheckFlags::REVERSE_MAPPED) {
-            return Err(Unsupported::new(
-                "reverse-mapped symbols (getTypeOfReverseMappedSymbol, M8)",
-            ));
+            return self.get_type_of_reverse_mapped_symbol(symbol);
         }
         let flags = self.symbol_flags(symbol);
         if flags.intersects(SymbolFlags::VARIABLE | SymbolFlags::PROPERTY) {
@@ -6175,6 +6374,35 @@ impl<'a> CheckerState<'a> {
         // in tsc too (typeHasStaticProperty probes hit this for
         // `{ ... }` __type receivers).
         Ok(self.tables.intrinsics.error)
+    }
+
+    /// tsc-port: getTypeOfReverseMappedSymbol @6.0.3
+    /// tsc-hash: bca6952ac584e603f918e452cf4d62b8961e15a864ea1d7c33db9b376e6cca13
+    /// tsc-span: _tsc.js:68427-68433
+    fn get_type_of_reverse_mapped_symbol(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
+            return Ok(cached);
+        }
+        let links = self.links.symbol(symbol);
+        let resolved = self
+            .infer_reverse_mapped_type(
+                links
+                    .property_type
+                    .expect("reverse mapped symbol carries propertyType"),
+                links
+                    .mapped_type
+                    .expect("reverse mapped symbol carries mappedType"),
+                links
+                    .constraint_type
+                    .expect("reverse mapped symbol carries constraintType"),
+            )?
+            .unwrap_or(self.tables.intrinsics.unknown);
+        if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
+            return Ok(cached);
+        }
+        self.links
+            .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(resolved));
+        Ok(resolved)
     }
 
     /// tsc-port: getTypeOfInstantiatedSymbol @6.0.3

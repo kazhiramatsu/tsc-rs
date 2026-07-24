@@ -4591,14 +4591,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isObjectTypeWithInferableIndex @6.0.3
     /// tsc-hash: fcdbe6c1dadf0af5c346ddc29a02ffa65512065b6bc19855678ad12c7585ea04
     /// tsc-span: _tsc.js:67895-67898
-    ///
-    /// KNOWN-GAP since M4 (m4-review B6): tsc's symbol-flag mask also
-    /// accepts Enum | ValueModule — enums and namespaces are
-    /// constructible since M4 (the old "arms are M4" framing lapsed),
-    /// so a namespace value assigned against an index-signature
-    /// target misses the inferable-index path (probed 2322 FP class).
-    /// The ObjectRestType / ReverseMapped disjuncts stay out with
-    /// their unconstructed producers.
     pub(crate) fn is_object_type_with_inferable_index(&mut self, ty: TypeId) -> CheckResult2<bool> {
         if self.tables.flags_of(ty).intersects(TypeFlags::INTERSECTION) {
             let TypeData::Intersection { types } = self.tables.type_of(ty).data.clone() else {
@@ -4611,14 +4603,29 @@ impl<'a> CheckerState<'a> {
             }
             return Ok(true);
         }
-        let Some(symbol) = self.tables.type_of(ty).symbol else {
-            return Ok(false);
+        let object_flags = self.tables.object_flags_of(ty);
+        let symbol_inferable = if let Some(symbol) = self.tables.type_of(ty).symbol {
+            let flags = self.symbol_flags(symbol);
+            flags.intersects(
+                SymbolFlags::OBJECT_LITERAL
+                    | SymbolFlags::TYPE_LITERAL
+                    | SymbolFlags::ENUM
+                    | SymbolFlags::VALUE_MODULE,
+            ) && !flags.intersects(SymbolFlags::CLASS)
+                && !self.type_has_call_or_construct_signatures(ty)?
+        } else {
+            false
         };
-        let flags = self.symbol_flags(symbol);
-        Ok(flags.intersects(SymbolFlags::from_bits(
-            SymbolFlags::OBJECT_LITERAL.bits() | SymbolFlags::TYPE_LITERAL.bits(),
-        )) && !flags.intersects(SymbolFlags::CLASS)
-            && !self.type_has_call_or_construct_signatures(ty)?)
+        if symbol_inferable || object_flags.intersects(ObjectFlags::OBJECT_REST_TYPE) {
+            return Ok(true);
+        }
+        if object_flags.intersects(ObjectFlags::REVERSE_MAPPED) {
+            let TypeData::ReverseMapped(reverse) = self.tables.type_of(ty).data.clone() else {
+                unreachable!("reverse mapped flags imply reverse payload");
+            };
+            return self.is_object_type_with_inferable_index(reverse.source);
+        }
+        Ok(false)
     }
 
     /// tsc-port: getUnmatchedProperty @6.0.3

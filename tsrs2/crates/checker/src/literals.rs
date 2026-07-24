@@ -12,9 +12,7 @@
 //! at 5.5b; assertion/object-level regular conversion land 5.5e/5.6.
 //!
 //! Stage escapes: [ITER] — non-array-like spreads escape to 5.5f
-//! (checkIteratedTypeOrElementType); the generic-mapped tuple-context
-//! disjunct stops at the named 9.5c contextual/inference boundary;
-//! object-literal
+//! (checkIteratedTypeOrElementType); object-literal
 //! accessors defer to the 5.8-DECL escape arm in check_deferred_node;
 //! grammar walks (checkGrammarObjectLiteralExpression 89637,
 //! checkGrammarMethod 89943) are elided slices — 1117-family FN

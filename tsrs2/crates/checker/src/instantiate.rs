@@ -1537,11 +1537,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b13e58cd032228486ee4b1aaf036cfd363ea106831c16d6bc6c3e4f2d537b0e9
     /// tsc-span: _tsc.js:63717-63795
     ///
-    /// Unsupported escapes name their owners: Index/IndexedAccess
-    /// (keyof + indexed access, 5.2 follow-up), ReverseMapped/
-    /// Conditional/Substitution (M8). Each of those TypeFlags is
-    /// unconstructible today — the escape fires if one ever appears
-    /// rather than mis-computing.
+    /// Index/IndexedAccess/ReverseMapped are live. Conditional and
+    /// Substitution retain their named 9.6 boundaries.
     fn instantiate_type_worker(
         &mut self,
         ty: TypeId,
@@ -1574,7 +1571,7 @@ impl<'a> CheckerState<'a> {
                     };
                 }
                 if object_flags.intersects(ObjectFlags::REVERSE_MAPPED) {
-                    return Err(Unsupported::new("reverse-mapped type instantiation (M8)"));
+                    return self.instantiate_reverse_mapped_type(ty, mapper);
                 }
                 return self.get_object_type_instantiation(
                     ty,
@@ -1713,6 +1710,39 @@ impl<'a> CheckerState<'a> {
             return Err(Unsupported::new("substitution-type instantiation (M8)"));
         }
         Ok(ty)
+    }
+
+    /// tsc-port: instantiateReverseMappedType @6.0.3
+    /// tsc-hash: a975319230a41417bfa17d5cfaae9069212e9a107a4973421bdcf25e52ebd86a
+    /// tsc-span: _tsc.js:63796-63814
+    fn instantiate_reverse_mapped_type(
+        &mut self,
+        ty: TypeId,
+        mapper: MapperId,
+    ) -> CheckResult2<TypeId> {
+        let TypeData::ReverseMapped(reverse) = self.tables.type_of(ty).data.clone() else {
+            unreachable!("reverse mapped flags imply reverse payload");
+        };
+        let inner_mapped_type = self.instantiate_type(reverse.mapped_type, Some(mapper))?;
+        if !self
+            .tables
+            .object_flags_of(inner_mapped_type)
+            .intersects(ObjectFlags::MAPPED)
+        {
+            return Ok(ty);
+        }
+        let inner_index_type = self.instantiate_type(reverse.constraint_type, Some(mapper))?;
+        if !self
+            .tables
+            .flags_of(inner_index_type)
+            .intersects(TypeFlags::INDEX)
+        {
+            return Ok(ty);
+        }
+        let source = self.instantiate_type(reverse.source, Some(mapper))?;
+        Ok(self
+            .infer_type_for_homomorphic_mapped_type(source, inner_mapped_type, inner_index_type)?
+            .unwrap_or(ty))
     }
 
     /// instantiateList + instantiateTypes (63298-63317): tsc returns
