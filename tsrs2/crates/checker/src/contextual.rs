@@ -3525,12 +3525,19 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc getEffectiveTypeAnnotationNode, TS half: the declaration's
-    /// syntactic `.type` ([JSDOC] carries the JS annotations).
+    /// syntactic `.type`, except that a TypeScript function
+    /// declaration's `.type` is a return annotation rather than a
+    /// variable-like type annotation ([JSDOC] carries the JS
+    /// annotations).
     pub(crate) fn effective_type_annotation_node(&self, declaration: NodeId) -> Option<NodeId> {
+        if self.kind_of(declaration) == SyntaxKind::FunctionDeclaration
+            && !self.is_in_js_file(declaration)
+        {
+            return None;
+        }
         // tsc getEffectiveTypeAnnotationNode is a kind-generic `.type`
-        // read; the arms below are the declaration kinds that carry
-        // one (function-like `.type` is the return annotation, per
-        // tsc). Kinds without a type field answer None.
+        // read after the function-declaration exception above. Kinds
+        // without a type field answer None.
         match self.data_of(declaration) {
             NodeData::VariableDeclaration(data) => data.r#type,
             NodeData::Parameter(data) => data.r#type,

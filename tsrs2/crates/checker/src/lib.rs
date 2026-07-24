@@ -2500,6 +2500,64 @@ mod tests {
     }
 
     #[test]
+    fn ts_const_function_expression_reads_assignment_members_normally() {
+        assert_eq!(
+            codes_of(
+                "const f = function () { return true; };\n\
+                 f.extra = 1;\n\
+                 const value: number = f.extra;\n\
+                 f.missing;\n"
+            ),
+            [2339]
+        );
+    }
+
+    #[test]
+    fn expando_member_uses_annotated_parent_property_type() {
+        assert_eq!(
+            codes_of(
+                "interface F { (): boolean; value: 123; }\n\
+                 const f: F = () => true;\n\
+                 f.value = 123;\n"
+            ),
+            Vec::<u32>::new()
+        );
+    }
+
+    #[test]
+    fn function_return_annotation_is_not_an_expando_parent_annotation() {
+        assert_eq!(
+            lib_codes_of_with_options(
+                "function f(): number { return 1; }\nf.toFixed = \"own\";\n",
+                &CompilerOptions::default(),
+            ),
+            Vec::<u32>::new()
+        );
+    }
+
+    #[test]
+    fn plain_js_object_reference_warning_requires_strict_equality() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "if ({} === {}) {}\nif ({} == {}) {}\n".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.code())
+                .collect::<Vec<_>>(),
+            [2839]
+        );
+    }
+
+    #[test]
     fn js_declared_container_property_miss_in_ts_file_reports() {
         assert_eq!(
             js_pair_diagnostics("class C {}", "const c = new C(); c.missing;"),

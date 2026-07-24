@@ -2190,8 +2190,8 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
 }
 
 /// m2-binder-steps.md final gate: bind every corpus fixture; expect
-/// zero panics. JS files bind too (crash-free is the gate; their
-/// symbol bodies are stage 3.4c).
+/// zero panics. JS files and their non-JSDoc assignment declarations
+/// bind too; crash-free remains the corpus-wide gate.
 fn bind_corpus(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let mut limit: Option<usize> = None;
     let mut args = args.peekable();

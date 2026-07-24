@@ -4697,24 +4697,6 @@ impl<'a> CheckerState<'a> {
                     "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
                 ));
             }
-            if symbol_flags.intersects(tsrs2_types::SymbolFlags::FUNCTION)
-                && self.symbol_has_expando_assignment_merged(symbol)
-            {
-                // tsc's expando binding gives the DECLARATION symbol a
-                // namespace face (bindPotentiallyMissingNamespaces),
-                // so the ValueModule disjunct (51779) prints it under
-                // the Value meaning — `typeof foo` (oracle-probed).
-                // The fn-EXPRESSION flavor flags the VARIABLE symbol
-                // instead, so its type renders structurally MINUS the
-                // unbound members (tsc prints them: recorded
-                // stage-3.4c T2 residue; the row keys are unaffected).
-                let name = if fully_qualified {
-                    self.get_fully_qualified_name(symbol)
-                } else {
-                    self.symbol_display_name(symbol)
-                };
-                return Ok((format!("typeof {name}"), SliceTypeNodeKind::TypeQuery));
-            }
         }
         if self.slice_visited_types.contains(&ty) {
             return Err(Unsupported::new(
@@ -9095,10 +9077,10 @@ mod tests {
     }
 
     #[test]
-    fn ts_expando_function_members_suppress_instead_of_fabricating() {
-        // tsc binds `foo.x = 1` onto the function symbol even in .ts
-        // files; until stage 3.4c binds them, lookups on flagged
-        // parents suppress (errorType) rather than emit 2339/7053.
+    fn ts_expando_function_members_resolve_normally() {
+        // The assignment declaration is a real export of the function
+        // symbol, so both the assignment and read use the normal member
+        // path without a diagnostic-side exception.
         assert_eq!(
             checked_diags("function foo() {}\nfoo.x = 1;\nvar q0: number = foo.x;\n"),
             []
@@ -9128,15 +9110,15 @@ mod tests {
         );
     }
 
-    // ---- 9.3b2 review-round pins (expando name-precision, union
-    // best-match, IIFE effective args, optional missing removal) ----
+    // ---- 9.3b2 review-round pins (union best-match, IIFE effective
+    // args, optional missing removal) ----
 
     #[test]
-    fn expando_suppression_is_name_precise() {
-        // Only the ASSIGNED member suppresses; other names miss in
-        // tsc too — y/q report 2339, "z" reports 7053, and the
-        // expando'd declaration symbol displays `typeof foo`
-        // (oracle-probed byte rows).
+    fn expando_resolution_is_name_precise() {
+        // Only the assigned member resolves; other names miss in tsc
+        // too — y/q report 2339, "z" reports 7053, and the expando'd
+        // declaration symbol displays `typeof foo` (oracle-probed byte
+        // rows).
         assert_eq!(
             checked_diags(
                 "function foo() {}\nfoo.x = 1;\nfoo.y;\nfoo[\"z\"];\nconst alias = foo;\nalias.q;\nvar ok: number = foo.x;\n"
@@ -9170,7 +9152,7 @@ mod tests {
         // Round 2: getElementOrPropertyAccessName (15134) is
         // string-literal-LIKE — a `x` no-substitution template key
         // records the member name exactly as "x" does, so the
-        // .x / [`x`] / ["x"] reads suppress while .y keeps its row
+        // .x / [`x`] / ["x"] reads resolve while .y keeps its row
         // (oracle-probed byte rows).
         assert_eq!(
             checked_diags(

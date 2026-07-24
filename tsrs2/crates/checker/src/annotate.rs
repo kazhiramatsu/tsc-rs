@@ -7756,6 +7756,8 @@ impl<'a> CheckerState<'a> {
                 }
                 _ => continue,
             };
+            let initializer_type =
+                self.get_annotated_type_for_assignment_declaration(initializer_type, symbol)?;
             if in_constructor {
                 constructor_types.push(initializer_type);
             }
@@ -7801,6 +7803,53 @@ impl<'a> CheckerState<'a> {
         self.get_widened_type(ty)
     }
 
+    /// The non-JSDoc parent-annotation arm of tsc
+    /// getAnnotatedTypeForAssignmentDeclaration (56334-56345).
+    /// Assignment members of a function-valued annotated variable use
+    /// the corresponding property from that annotation rather than a
+    /// widened assignment literal.
+    fn get_annotated_type_for_assignment_declaration(
+        &mut self,
+        declared_type: TypeId,
+        symbol: SymbolId,
+    ) -> CheckResult2<TypeId> {
+        let Some(parent) = self.binder.symbol(symbol).parent else {
+            return Ok(declared_type);
+        };
+        let parent = self.get_function_expression_parent_symbol_or_symbol(parent);
+        let Some(value_declaration) = self.binder.symbol(parent).value_declaration else {
+            return Ok(declared_type);
+        };
+        let Some(annotation) = self.effective_type_annotation_node(value_declaration) else {
+            return Ok(declared_type);
+        };
+        let annotated_type = self.get_type_from_type_node(annotation)?;
+        let name = self.binder.symbol(symbol).escaped_name.clone();
+        let Some(annotation_symbol) = self.get_property_of_type_full(annotated_type, &name)? else {
+            return Ok(declared_type);
+        };
+        self.get_non_missing_type_of_symbol(annotation_symbol)
+    }
+
+    /// tsc-port: getFunctionExpressionParentSymbolOrSymbol @6.0.3
+    /// tsc-hash: 339720d0d52f4ec448d4018198d338dfc43fe3e94d10a37a3cac5437f274b5e8
+    /// tsc-span: _tsc.js:49945-49948
+    fn get_function_expression_parent_symbol_or_symbol(&self, symbol: SymbolId) -> SymbolId {
+        let Some(value_declaration) = self.binder.symbol(symbol).value_declaration else {
+            return symbol;
+        };
+        if !matches!(
+            self.kind_of(value_declaration),
+            SyntaxKind::ArrowFunction | SyntaxKind::FunctionExpression
+        ) {
+            return symbol;
+        }
+        self.parent_of(value_declaration)
+            .and_then(|parent| self.node_symbol(parent))
+            .map(|parent| self.get_merged_symbol(parent))
+            .unwrap_or(symbol)
+    }
+
     fn assignment_is_this_property(&self, expression: NodeId) -> bool {
         let NodeData::BinaryExpression(data) = self.data_of(expression) else {
             return false;
@@ -7840,6 +7889,81 @@ impl<'a> CheckerState<'a> {
         false
     }
 
+    /// tsc getSymbolOfExpando(node, false), the non-JSDoc symbol
+    /// association used by getTypeOfFuncClassEnumModule. Assignment
+    /// members are bound on the containing variable/assignment
+    /// symbol, while the callable type is created from the function
+    /// expression symbol; mergeJSSymbols joins those two normal symbol
+    /// faces before the anonymous type is created.
+    fn get_symbol_of_expando(&self, node: NodeId) -> Option<SymbolId> {
+        let source = self.binder.source_of_node(node);
+        let parent = self.parent_of(node)?;
+        let (name, declaration) = match self.data_of(parent) {
+            NodeData::VariableDeclaration(data) if data.initializer == Some(node) => {
+                if !(self.is_in_js_file(node)
+                    || self.is_var_const_like(parent)
+                        && node_util::is_function_like_kind(self.kind_of(node)))
+                {
+                    return None;
+                }
+                (data.name?, parent)
+            }
+            NodeData::BinaryExpression(data)
+                if data.right == Some(node)
+                    && data.operator_token.is_some_and(|operator| {
+                        self.kind_of(operator) == SyntaxKind::EqualsToken
+                    }) =>
+            {
+                let name = data.left?;
+                (name, name)
+            }
+            NodeData::BinaryExpression(data)
+                if data.right == Some(node)
+                    && data.operator_token.is_some_and(|operator| {
+                        matches!(
+                            self.kind_of(operator),
+                            SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
+                        )
+                    }) =>
+            {
+                let left = data.left?;
+                let grandparent = self.parent_of(parent)?;
+                let (name, declaration) = match self.data_of(grandparent) {
+                    NodeData::VariableDeclaration(variable)
+                        if variable.initializer == Some(parent) =>
+                    {
+                        (variable.name?, grandparent)
+                    }
+                    NodeData::BinaryExpression(assignment)
+                        if assignment.right == Some(parent)
+                            && assignment.operator_token.is_some_and(|operator| {
+                                self.kind_of(operator) == SyntaxKind::EqualsToken
+                            }) =>
+                    {
+                        let name = assignment.left?;
+                        (name, name)
+                    }
+                    _ => return None,
+                };
+                if !tsrs2_binder::assignment::is_bindable_static_name_expression(
+                    source, name, false,
+                ) || !tsrs2_binder::assignment::is_same_entity_name(source, name, left)
+                {
+                    return None;
+                }
+                (name, declaration)
+            }
+            _ => return None,
+        };
+        tsrs2_binder::assignment::get_expando_initializer(
+            source,
+            node,
+            tsrs2_binder::assignment::is_prototype_access(source, name),
+        )?;
+        self.node_symbol(declaration)
+            .map(|symbol| self.get_merged_symbol(symbol))
+    }
+
     /// tsc-port: getTypeOfFuncClassEnumModule @6.0.3
     /// tsc-hash: 079629bbc8a29f3e85c4f2c38c64b0c6ecd7f8e5253a87f56bef8c1749dc8dfa
     /// tsc-span: _tsc.js:56808-56827
@@ -7850,9 +7974,17 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
             return Ok(cached);
         }
-        if self
+        let type_symbol = self
             .binder
             .symbol(symbol)
+            .value_declaration
+            .and_then(|declaration| self.get_symbol_of_expando(declaration))
+            .filter(|&expando| expando != symbol)
+            .map(|expando| self.merge_js_symbols(symbol, expando))
+            .unwrap_or(symbol);
+        if self
+            .binder
+            .symbol(type_symbol)
             .value_declaration
             .is_some_and(|declaration| {
                 matches!(
@@ -7864,10 +7996,10 @@ impl<'a> CheckerState<'a> {
                 )
             })
             && self
-                .symbol_flags(symbol)
+                .symbol_flags(type_symbol)
                 .intersects(SymbolFlags::ASSIGNMENT)
         {
-            let resolved = self.get_widened_type_for_assignment_declaration(symbol)?;
+            let resolved = self.get_widened_type_for_assignment_declaration(type_symbol)?;
             self.links.set_symbol_type_func_class_enum_module(
                 self.speculation_depth,
                 symbol,
@@ -7875,12 +8007,15 @@ impl<'a> CheckerState<'a> {
             );
             return Ok(resolved);
         }
-        // getTypeOfFuncClassEnumModuleWorker (56828-56860): the JS
-        // assignment/expando and commonJS arms are elided project-wide.
+        // getTypeOfFuncClassEnumModuleWorker (56828-56860): assignment
+        // declarations and function-expression expandos are handled
+        // above; the remaining CommonJS source-file arm is deferred.
         // Shorthand ambient modules (`declare module "x";`) type as
         // any (56832-56834, M4 5.8d).
-        if self.symbol_flags(symbol).intersects(SymbolFlags::MODULE)
-            && self.is_shorthand_ambient_module_symbol(symbol)
+        if self
+            .symbol_flags(type_symbol)
+            .intersects(SymbolFlags::MODULE)
+            && self.is_shorthand_ambient_module_symbol(type_symbol)
         {
             let any = self.tables.intrinsics.any;
             self.links
@@ -7889,18 +8024,23 @@ impl<'a> CheckerState<'a> {
         }
         let id = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
         self.tables.type_mut(id).object_flags = ObjectFlags::ANONYMOUS;
-        self.tables.type_mut(id).symbol = Some(symbol);
-        let resolved = if self.symbol_flags(symbol).intersects(SymbolFlags::CLASS) {
+        self.tables.type_mut(id).symbol = Some(type_symbol);
+        let resolved = if self
+            .symbol_flags(type_symbol)
+            .intersects(SymbolFlags::CLASS)
+        {
             // 56849-56852: mixin-extending classes intersect with the
             // base type variable.
-            match self.get_base_type_variable_of_class(symbol)? {
+            match self.get_base_type_variable_of_class(type_symbol)? {
                 Some(base_type_variable) => {
                     self.get_intersection_type(&[id, base_type_variable], IntersectionFlags::NONE)?
                 }
                 None => id,
             }
         } else if self.tables.strict_null_checks
-            && self.symbol_flags(symbol).intersects(SymbolFlags::OPTIONAL)
+            && self
+                .symbol_flags(type_symbol)
+                .intersects(SymbolFlags::OPTIONAL)
         {
             // 56853-56857: OPTIONAL METHODS route here — `m?(): any`
             // reads as `(() => any) | undefined` under strictNullChecks
