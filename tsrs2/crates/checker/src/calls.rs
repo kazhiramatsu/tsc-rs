@@ -35,6 +35,7 @@ use crate::relate::RelationKind;
 
 use crate::links::LinkSlot;
 use crate::operators::OuterExpressionKinds;
+use crate::speculate::SpeculationOutcome;
 use crate::state::{CheckResult2, CheckerState, Signature, SignatureId, Unsupported};
 use crate::structural::SignatureKind;
 
@@ -100,6 +101,21 @@ struct ResolveCallCtx {
     candidates_for_argument_error: Option<Vec<SignatureId>>,
     candidate_for_argument_arity_error: Option<SignatureId>,
     candidate_for_type_argument_error: Option<SignatureId>,
+}
+
+/// tsrs-native: the value carried out of one rollback-capable
+/// chooseOverload candidate transaction. Inference arenas are
+/// deliberately E-class and survive rollback.
+enum OverloadCandidateDisposition {
+    TypeArgumentError(SignatureId),
+    ArgumentArityError(SignatureId),
+    ArgumentError(SignatureId),
+    Success(SignatureId),
+}
+
+struct OverloadCandidateTrial {
+    disposition: OverloadCandidateDisposition,
+    arg_check_mode: CheckMode,
 }
 
 /// skipTrivia(text, pos, stopAfterLineBreak=true) followed by tsc's
@@ -1238,7 +1254,7 @@ impl<'a> CheckerState<'a> {
             .binder
             .create_symbol(SymbolFlags::FUNCTION_SCOPED_VARIABLE, name.to_owned());
         self.links
-            .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(ty));
+            .set_fresh_symbol_type(symbol, LinkSlot::Resolved(ty));
         symbol
     }
 
@@ -1248,7 +1264,7 @@ impl<'a> CheckerState<'a> {
             .binder
             .create_symbol(SymbolFlags::PROPERTY, name.to_owned());
         self.links
-            .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(ty));
+            .set_fresh_symbol_type(symbol, LinkSlot::Resolved(ty));
         symbol
     }
 
@@ -1527,17 +1543,13 @@ impl<'a> CheckerState<'a> {
         let result = self.clone_signature(signature);
         let data = self.signature_mut(result);
         data.flags = SignatureFlags::from_bits(data.flags.bits() | call_chain_flags.bits());
-        // Raw Signature cache — in the speculation assert net (7.0t,
-        // m4-review B35) like the links slots.
-        assert_eq!(
-            self.speculation_depth, 0,
-            "links writes are forbidden during speculation (greenfield §4.3)"
-        );
-        let cache = &mut self.signature_mut(signature).optional_call_signature_cache;
-        if inner {
-            cache.0 = Some(result);
-        } else {
-            cache.1 = Some(result);
+        if self.speculation_depth == 0 {
+            let cache = &mut self.signature_mut(signature).optional_call_signature_cache;
+            if inner {
+                cache.0 = Some(result);
+            } else {
+                cache.1 = Some(result);
+            }
         }
         result
     }
@@ -3509,6 +3521,7 @@ impl<'a> CheckerState<'a> {
                 &mut ctx,
                 RelationKind::Subtype,
                 is_single_non_generic_candidate,
+                true,
             )?;
         }
         if result.is_none() {
@@ -3516,6 +3529,7 @@ impl<'a> CheckerState<'a> {
                 &mut ctx,
                 RelationKind::Assignable,
                 is_single_non_generic_candidate,
+                true,
             )?;
         }
 
@@ -3870,6 +3884,7 @@ impl<'a> CheckerState<'a> {
                 &mut probe_ctx,
                 RelationKind::Assignable,
                 is_single_non_generic,
+                false,
             );
             probe_arg_check_mode = Some(probe_ctx.arg_check_mode);
             let chosen = chosen?;
@@ -3913,17 +3928,20 @@ impl<'a> CheckerState<'a> {
     /// passed false — plus the context's inferredTypeParameters). The
     /// re-run (76840-76864) re-infers on the SAME context in NORMAL
     /// mode, re-instantiates, and repeats the rest-tuple re-arity
-    /// check before re-checking applicability. Candidate trials are
-    /// NOT speculation-wrapped: tsc shares every trial-time write with
-    /// the surrounding check (contexts are E-class and deliberately
-    /// reused across the re-run; signature-instantiation caches are
-    /// structural truths; argument links memos are legit once-only) —
-    /// see the 7.4 decisions block.
+    /// check before re-checking applicability. 9.6d wraps each real
+    /// candidate body in the tsrs-native speculation transaction:
+    /// success commits, ordinary rejection rolls back, inference
+    /// contexts remain E-class, and permanent cache writes stay
+    /// guarded while a trial is rollback-capable. The reporting-only
+    /// implementation-success probe opts out: tsc deliberately lets
+    /// its contextual argument burn/pin effects escape the probe, and
+    /// the deferred pass observes them.
     fn choose_overload(
         &mut self,
         ctx: &mut ResolveCallCtx,
         relation: RelationKind,
         is_single_non_generic_candidate: bool,
+        rollback_rejected_candidates: bool,
     ) -> CheckResult2<Option<SignatureId>> {
         ctx.candidates_for_argument_error = None;
         ctx.candidate_for_argument_arity_error = None;
@@ -3961,155 +3979,204 @@ impl<'a> CheckerState<'a> {
             {
                 continue;
             }
-            let mut check_candidate: SignatureId;
-            let mut inference_context: Option<InferenceContextId> = None;
-            if self.signature_of(candidate).type_parameters.is_some() {
-                let type_argument_types: Vec<TypeId>;
-                if !ctx.type_argument_nodes.is_empty() {
-                    let type_argument_nodes = ctx.type_argument_nodes.clone();
-                    let checked = self.check_type_arguments(
-                        candidate,
-                        &type_argument_nodes,
-                        /*report_errors*/ false,
-                        /*head_message*/ None,
-                    )?;
-                    let Some(checked) = checked else {
-                        ctx.candidate_for_type_argument_error = Some(candidate);
-                        continue;
-                    };
-                    type_argument_types = checked;
-                } else {
-                    // 76809-76817.
-                    let type_parameters = self
-                        .signature_of(candidate)
-                        .type_parameters
-                        .clone()
-                        .expect("checked Some above");
-                    let flags = if self.is_in_js_file(node) {
-                        InferenceFlags::ANY_DEFAULT
-                    } else {
-                        InferenceFlags::NONE
-                    };
-                    let context = self.create_inference_context(
-                        &type_parameters,
-                        Some(candidate),
-                        flags,
-                        None,
-                    );
-                    inference_context = Some(context);
-                    type_argument_types = self.infer_type_arguments(
-                        node,
-                        candidate,
-                        &args,
-                        ctx.arg_check_mode | CheckMode::SKIP_GENERIC_FUNCTIONS,
-                        context,
-                    )?;
-                    if self
-                        .inference_context(context)
-                        .flags
-                        .intersects(InferenceFlags::SKIPPED_GENERIC_FUNCTION)
-                    {
-                        ctx.arg_check_mode |= CheckMode::SKIP_GENERIC_FUNCTIONS;
-                    }
+            let type_argument_nodes = ctx.type_argument_nodes.clone();
+            let run_trial = |state: &mut Self| {
+                state.try_overload_candidate(
+                    node,
+                    &args,
+                    &type_argument_nodes,
+                    candidate,
+                    relation,
+                    ctx.arg_check_mode,
+                )
+            };
+            let trial = if rollback_rejected_candidates {
+                self.speculate(|state| {
+                    let trial = run_trial(state)?;
+                    Ok(
+                        if matches!(trial.disposition, OverloadCandidateDisposition::Success(_)) {
+                            SpeculationOutcome::Commit(trial)
+                        } else {
+                            SpeculationOutcome::Rollback(trial)
+                        },
+                    )
+                })?
+            } else {
+                run_trial(self)?
+            };
+            ctx.arg_check_mode = trial.arg_check_mode;
+            match trial.disposition {
+                OverloadCandidateDisposition::TypeArgumentError(candidate) => {
+                    ctx.candidate_for_type_argument_error = Some(candidate);
                 }
+                OverloadCandidateDisposition::ArgumentArityError(candidate) => {
+                    ctx.candidate_for_argument_arity_error = Some(candidate);
+                }
+                OverloadCandidateDisposition::ArgumentError(candidate) => {
+                    ctx.candidates_for_argument_error
+                        .get_or_insert_with(Vec::new)
+                        .push(candidate);
+                }
+                OverloadCandidateDisposition::Success(check_candidate) => {
+                    ctx.candidates[candidate_index] = check_candidate;
+                    return Ok(Some(check_candidate));
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// One chooseOverload candidate body (76791-76868). The caller
+    /// owns the transaction and applies bookkeeping after it resolves.
+    fn try_overload_candidate(
+        &mut self,
+        node: NodeId,
+        args: &[EffectiveArg],
+        type_argument_nodes: &[NodeId],
+        candidate: SignatureId,
+        relation: RelationKind,
+        mut arg_check_mode: CheckMode,
+    ) -> CheckResult2<OverloadCandidateTrial> {
+        let mut check_candidate;
+        let mut inference_context: Option<InferenceContextId> = None;
+        if self.signature_of(candidate).type_parameters.is_some() {
+            let type_argument_types;
+            if !type_argument_nodes.is_empty() {
+                let Some(checked) = self.check_type_arguments(
+                    candidate,
+                    type_argument_nodes,
+                    /*report_errors*/ false,
+                    /*head_message*/ None,
+                )?
+                else {
+                    return Ok(OverloadCandidateTrial {
+                        disposition: OverloadCandidateDisposition::TypeArgumentError(candidate),
+                        arg_check_mode,
+                    });
+                };
+                type_argument_types = checked;
+            } else {
+                let type_parameters = self
+                    .signature_of(candidate)
+                    .type_parameters
+                    .clone()
+                    .expect("checked Some above");
+                let flags = if self.is_in_js_file(node) {
+                    InferenceFlags::ANY_DEFAULT
+                } else {
+                    InferenceFlags::NONE
+                };
+                let context =
+                    self.create_inference_context(&type_parameters, Some(candidate), flags, None);
+                inference_context = Some(context);
+                type_argument_types = self.infer_type_arguments(
+                    node,
+                    candidate,
+                    args,
+                    arg_check_mode | CheckMode::SKIP_GENERIC_FUNCTIONS,
+                    context,
+                )?;
+                if self
+                    .inference_context(context)
+                    .flags
+                    .intersects(InferenceFlags::SKIPPED_GENERIC_FUNCTION)
+                {
+                    arg_check_mode |= CheckMode::SKIP_GENERIC_FUNCTIONS;
+                }
+            }
+            let is_javascript = self
+                .signature_of(candidate)
+                .declaration
+                .is_some_and(|declaration| self.is_in_js_file(declaration));
+            let inferred_type_parameters = inference_context.and_then(|context| {
+                self.inference_context(context)
+                    .inferred_type_parameters
+                    .clone()
+            });
+            check_candidate = self.get_signature_instantiation(
+                candidate,
+                Some(&type_argument_types),
+                is_javascript,
+                inferred_type_parameters.as_deref(),
+            )?;
+            if self.get_non_array_rest_type(candidate)?.is_some()
+                && !self.has_correct_arity(node, args, check_candidate, false)?
+            {
+                return Ok(OverloadCandidateTrial {
+                    disposition: OverloadCandidateDisposition::ArgumentArityError(check_candidate),
+                    arg_check_mode,
+                });
+            }
+        } else {
+            check_candidate = candidate;
+        }
+        if self
+            .get_signature_applicability_error(
+                node,
+                args,
+                check_candidate,
+                relation,
+                arg_check_mode,
+                ApplicabilityMode::Silent,
+            )?
+            .is_some()
+        {
+            return Ok(OverloadCandidateTrial {
+                disposition: OverloadCandidateDisposition::ArgumentError(check_candidate),
+                arg_check_mode,
+            });
+        }
+        if !arg_check_mode.is_empty() {
+            arg_check_mode = CheckMode::NORMAL;
+            if let Some(context) = inference_context {
+                let type_argument_types =
+                    self.infer_type_arguments(node, candidate, args, arg_check_mode, context)?;
                 let is_javascript = self
                     .signature_of(candidate)
                     .declaration
                     .is_some_and(|declaration| self.is_in_js_file(declaration));
-                let inferred_type_parameters = inference_context.and_then(|context| {
-                    self.inference_context(context)
-                        .inferred_type_parameters
-                        .clone()
-                });
+                let inferred_type_parameters = self
+                    .inference_context(context)
+                    .inferred_type_parameters
+                    .clone();
                 check_candidate = self.get_signature_instantiation(
                     candidate,
                     Some(&type_argument_types),
                     is_javascript,
                     inferred_type_parameters.as_deref(),
                 )?;
-                // 76822: the non-array-rest re-arity check reads the
-                // INSTANTIATED rest tuple.
                 if self.get_non_array_rest_type(candidate)?.is_some()
-                    && !self.has_correct_arity(node, &args, check_candidate, false)?
+                    && !self.has_correct_arity(node, args, check_candidate, false)?
                 {
-                    ctx.candidate_for_argument_arity_error = Some(check_candidate);
-                    continue;
+                    return Ok(OverloadCandidateTrial {
+                        disposition: OverloadCandidateDisposition::ArgumentArityError(
+                            check_candidate,
+                        ),
+                        arg_check_mode,
+                    });
                 }
-            } else {
-                check_candidate = candidate;
             }
             if self
                 .get_signature_applicability_error(
                     node,
-                    &args,
+                    args,
                     check_candidate,
                     relation,
-                    ctx.arg_check_mode,
+                    arg_check_mode,
                     ApplicabilityMode::Silent,
                 )?
                 .is_some()
             {
-                ctx.candidates_for_argument_error
-                    .get_or_insert_with(Vec::new)
-                    .push(check_candidate);
-                continue;
+                return Ok(OverloadCandidateTrial {
+                    disposition: OverloadCandidateDisposition::ArgumentError(check_candidate),
+                    arg_check_mode,
+                });
             }
-            if !ctx.arg_check_mode.is_empty() {
-                // 76840-76864: the re-run — reset to Normal, re-infer
-                // on the SAME InferenceContext (76842-76848),
-                // re-instantiate, re-arity-check, then re-check
-                // applicability with context-sensitive args live.
-                ctx.arg_check_mode = CheckMode::NORMAL;
-                if let Some(context) = inference_context {
-                    let type_argument_types = self.infer_type_arguments(
-                        node,
-                        candidate,
-                        &args,
-                        ctx.arg_check_mode,
-                        context,
-                    )?;
-                    let is_javascript = self
-                        .signature_of(candidate)
-                        .declaration
-                        .is_some_and(|declaration| self.is_in_js_file(declaration));
-                    let inferred_type_parameters = self
-                        .inference_context(context)
-                        .inferred_type_parameters
-                        .clone();
-                    check_candidate = self.get_signature_instantiation(
-                        candidate,
-                        Some(&type_argument_types),
-                        is_javascript,
-                        inferred_type_parameters.as_deref(),
-                    )?;
-                    if self.get_non_array_rest_type(candidate)?.is_some()
-                        && !self.has_correct_arity(node, &args, check_candidate, false)?
-                    {
-                        ctx.candidate_for_argument_arity_error = Some(check_candidate);
-                        continue;
-                    }
-                }
-                if self
-                    .get_signature_applicability_error(
-                        node,
-                        &args,
-                        check_candidate,
-                        relation,
-                        ctx.arg_check_mode,
-                        ApplicabilityMode::Silent,
-                    )?
-                    .is_some()
-                {
-                    ctx.candidates_for_argument_error
-                        .get_or_insert_with(Vec::new)
-                        .push(check_candidate);
-                    continue;
-                }
-            }
-            ctx.candidates[candidate_index] = check_candidate;
-            return Ok(Some(check_candidate));
         }
-        Ok(None)
+        Ok(OverloadCandidateTrial {
+            disposition: OverloadCandidateDisposition::Success(check_candidate),
+            arg_check_mode,
+        })
     }
 
     // ---- failure candidates ----
@@ -6462,6 +6529,32 @@ mod tests {
         );
     }
 
+    #[test]
+    fn conditional_homomorphic_mapped_call_keeps_fresh_parameter_mapper() {
+        assert_eq!(
+            checked_rows(
+                "type Keys<T> = keyof T extends never ? never : { [K in keyof T]: T[K] };\n\
+                 declare function take<T>(value: Keys<T>): T;\n\
+                 const value = take({ a: \"x\" });\n",
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn recursive_conditional_inference_uses_root_recursion_identity() {
+        assert_eq!(
+            checked_rows(
+                "type GetPath<T, P> = P extends readonly [] ? T : P extends readonly [infer A extends keyof T, ...infer Rest] ? GetPath<T[A], Rest> : never;\n\
+                 declare function set<T, const P extends readonly string[]>(obj: T, path: P, value: GetPath<T, P>): void;\n\
+                 declare const obj: { a: { b: { c: \"ok\" } } };\n\
+                 declare const value: \"ok\";\n\
+                 set(obj, [\"a\", \"b\", \"c\"], value);\n",
+            ),
+            []
+        );
+    }
+
     fn checked_rows(text: &str) -> Vec<(u32, u32, u32)> {
         checked_rows_with(text, &CompilerOptions::default())
     }
@@ -6486,6 +6579,87 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    #[test]
+    fn production_overload_boundary_rolls_back_then_commits() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "declare function pick(x: string): \"s\";\n\
+                 declare function pick(x: number): \"n\";\n\
+                 const selected = pick(1);\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let commits_before = state.speculation_commit_count;
+                let rollbacks_before = state.speculation_rollback_count;
+                state.check_source_file(0);
+                assert!(rows(state).is_empty());
+                assert!(
+                    state.speculation_rollback_count > rollbacks_before,
+                    "the rejected string candidate must roll back"
+                );
+                assert!(
+                    state.speculation_commit_count > commits_before,
+                    "the selected number candidate must commit"
+                );
+                assert_eq!(state.speculation_depth, 0);
+            },
+        );
+    }
+
+    #[test]
+    fn selected_generic_object_candidate_keeps_contextual_method_returns() {
+        let options = CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            checked_rows_with(
+                "interface Component { data: any; el: any; init(): void; update(): void; }\n\
+                 type PartialLike<X> = { [P in keyof X]?: X[P] };\n\
+                 interface ThisType<T> {}\n\
+                 declare function registerComponent<T extends object>(component: T & PartialLike<Component> & ThisType<T & Component>): T;\n\
+                 const value = registerComponent({\n\
+                   init() { this.data.n = 0; this.el.use(); },\n\
+                   update() {},\n\
+                   extra() { return this.data.n; }\n\
+                 });\n",
+                &options,
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn failed_candidate_keeps_deferred_assertion_operand_stash() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "declare function use(x: string): void;\n\
+                 declare function use(x: number): void;\n\
+                 use(1 as number);\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let assertion = state
+                    .binder
+                    .source(0)
+                    .arena
+                    .node_ids()
+                    .find(|&node| state.kind_of(node) == SyntaxKind::AsExpression)
+                    .expect("assertion node");
+                state.check_source_file(0);
+                assert!(rows(state).is_empty());
+                assert!(state
+                    .links
+                    .node(assertion)
+                    .assertion_expression_type
+                    .is_some());
+                assert_eq!(state.speculation_depth, 0);
+            },
+        );
     }
 
     // ---- M6-stub observability (risk #1) ----

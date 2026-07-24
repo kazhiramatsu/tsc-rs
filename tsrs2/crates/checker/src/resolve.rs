@@ -1824,8 +1824,10 @@ impl<'a> CheckerState<'a> {
             )?
         };
         let cached = resolved.unwrap_or(self.unknown_symbol);
-        self.links
-            .set_node_resolved_symbol(self.speculation_depth, node, cached);
+        if self.speculation_depth == 0 {
+            self.links
+                .set_node_resolved_symbol(self.speculation_depth, node, cached);
+        }
         Ok(resolved)
     }
 

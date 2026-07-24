@@ -2324,6 +2324,53 @@ Ratchet artifacts contain exactly +62 all / +60 2xxx accepted
 identities; syntactic remains 2242/2246. Full `cargo xtask ci` is the
 merge gate for the sub-row.
 
+## 9.6d results (2026-07-24, conditional relation/inference — DONE)
+
+Conditional types now participate in structural relations in both
+directions. Source conditionals resolve before comparison; target
+conditionals infer from the source, instantiate their branches, and
+reuse the exact distributive constraint. Conditional-to-conditional
+inference relates the written check/extends/branch pairs, substitution
+sources take their constraint before their base, and the top-level
+type-parameter walk recurses through conditional roots. Recursive
+conditional inference keys recursion by the immutable root rather than
+an instantiated `TypeId`, matching tsc and terminating recursive path
+helpers. Homomorphic conditional-mapped inference retains the fresh
+mapped parameter and its mapper.
+
+The production `chooseOverload` candidate loop now uses the existing
+checker speculation transaction: a rejected candidate rolls back and a
+selected candidate commits. Trial-local node/type/symbol caches,
+conditional instantiations, structured members, simplifications, and
+other lazy publications are journaled and restored. Declaration
+signatures have a distinct protocol: they remain stable within a
+candidate, roll back on rejection, and commit on selection so deferred
+contextual method checks observe the selected `SignatureId` and its
+resolved return type. The reporting-only implementation-success probe
+retains tsc's shared contextual effects and therefore deliberately does
+not open a rollback boundary. Direct canaries cover the real
+commit/rollback boundary, nested signature rollback, deferred assertion
+stashes, conditional source/target relations, recursive conditional
+inference, homomorphic mapped inference, and selected contextual object
+methods. Checker tests are **1,001** and types tests remain **24**.
+
+Six owned relation/inference/speculation escape sites retired.
+Escape evidence is sites=**200**, stale=0, untagged=0, recovery=116,
+dormant=**1**. The exact ledger remains **1,839**/stale=0, and the
+schema-2 closure remains 4,008 because the new transaction helpers are
+tsrs-native dispositions rather than tsc ports.
+
+Band movement (tool-read): all T0 **59.7687%→59.8564%**
+(29301→29344, +43), FP=0; 2xxx T0 **88.3093%→88.5136%**
+(18590→18633, +43), FP=0; supported T0
+**90.6652%→90.8750%** (18633/20504), supported FN
+1,914→**1,871**. Exact shadow gains are T1 +43, T2 +38, and
+T3 +3 in both the all and 2xxx bands, with **zero lost identities**
+in every tier and both all/supported views. The supported universe is
+unchanged. Ratchet artifacts contain exactly +43 all / +43 2xxx
+accepted identities; syntactic remains 2242/2246. Full
+`cargo xtask ci` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

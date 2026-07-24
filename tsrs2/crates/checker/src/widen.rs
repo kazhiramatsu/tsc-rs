@@ -376,11 +376,8 @@ impl<'a> CheckerState<'a> {
             construct_signatures: Vec::new(),
             index_infos,
         });
-        self.links.set_type_members(
-            self.speculation_depth,
-            result,
-            crate::links::LinkSlot::Resolved(members_id),
-        );
+        self.links
+            .set_fresh_type_members(result, crate::links::LinkSlot::Resolved(members_id));
         Ok(result)
     }
 

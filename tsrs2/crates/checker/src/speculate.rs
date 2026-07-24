@@ -26,21 +26,17 @@
 //!   tsc resets it at the three check entry points (86551/86921/80965)
 //!   and never mid-resolution. `flow_analysis_disabled` is a one-way
 //!   latch even in tsc — left alone.
-//! - C (permanent-truth caches, links, interners): NEVER rolled back.
-//!   Values are candidate-independent by the same construction tsc
-//!   relies on (structural keying + the checkMode bypasses); entries
-//!   minted during a failed trial are garbage, not poison. The
-//!   speculation_depth assert net on links/Signature-cache writes stays
-//!   in force as the 7.4 wiring inventory: each site a live trial
-//!   exercises gets a per-site, evidence-backed relaxation THERE, not a
-//!   blanket one here. 7.5d addition to that inventory: B8 put erased
-//!   AND canonical signature computation on EVERY relation compare
-//!   (signatureRelatedTo erase honoring + the generic-source arm), so
-//!   when trials gain a producer, the first-touch cache writes in
-//!   get_erased_signature / get_canonical_signature /
-//!   get_base_signature and the optional-call cache are the sites an
-//!   in-trial relation check hits first — wire their relaxations
-//!   before flipping trials live.
+//! - C (permanent-truth caches, links, interners): rollback-capable
+//!   candidate trials never publish cold Links/Signature cache entries.
+//!   Pure caches bypass their write; protocols that need a temporary
+//!   re-entrancy sentinel or stable identity (call resolvedSignature,
+//!   type-node resolution, and structured members) journal and restore
+//!   the entry slot at either boundary. A successful candidate keeps
+//!   its declaration SignatureIds and completed signature return
+//!   types; nested commits promote those original snapshots to the
+//!   parent transaction. Fresh semantic object initialization is not
+//!   a cache publication. Structurally keyed type interners remain
+//!   monotone and candidate-independent, as in tsc.
 //! - D (diagnostics sinks): truncated to the checkpoint marks on
 //!   rollback (push-dedupe is order-safe under truncation), kept on
 //!   commit. `deferred_nodes` deliberately survives rollback — tsc
@@ -63,12 +59,13 @@ use tsrs2_binder::flow::FlowId;
 use tsrs2_syntax::NodeId;
 use tsrs2_types::TypeId;
 
+use crate::links::SpeculativeLinksMarks;
 use crate::state::{CheckResult2, CheckerState};
 
 /// What a completed speculative region wants done with the state it
-/// accumulated: `Commit` keeps it (the candidate succeeded), `Rollback`
-/// restores the checkpoint (the candidate failed but resolution
-/// continues — chooseOverload moves to the next candidate).
+/// accumulated: `Commit` selects the candidate and retains its
+/// commit-class state; `Rollback` restores the checkpoint because the
+/// candidate failed and chooseOverload continues to the next one.
 pub enum SpeculationOutcome<T> {
     Commit(T),
     Rollback(T),
@@ -86,6 +83,8 @@ pub struct SpeculationCheckpoint {
     /// assert it still holds, enforcing LIFO transaction nesting.
     depth: u32,
     resolved: bool,
+    speculative_links: SpeculativeLinksMarks,
+    speculative_signature_returns: usize,
 
     // ---- A: transient stacks ----
     resolution_targets: usize,
@@ -177,6 +176,8 @@ impl CheckerState<'_> {
         SpeculationCheckpoint {
             depth: self.speculation_depth,
             resolved: false,
+            speculative_links: self.links.speculative_marks(),
+            speculative_signature_returns: self.speculative_signature_return_mark(),
             resolution_targets: self.resolution_targets.len(),
             resolution_results: self.resolution_results.len(),
             resolution_property_names: self.resolution_property_names.len(),
@@ -235,8 +236,18 @@ impl CheckerState<'_> {
             self.speculation_depth, checkpoint.depth,
             "speculation transactions must resolve LIFO"
         );
+        self.links
+            .commit_speculative_writes(checkpoint.speculative_links, checkpoint.depth - 1);
+        self.commit_speculative_signature_returns(
+            checkpoint.speculative_signature_returns,
+            checkpoint.depth - 1,
+        );
         checkpoint.resolved = true;
         self.speculation_depth -= 1;
+        #[cfg(test)]
+        {
+            self.speculation_commit_count += 1;
+        }
         #[cfg(debug_assertions)]
         {
             let balanced = [
@@ -331,26 +342,26 @@ impl CheckerState<'_> {
     /// counterpart.
     ///
     /// The trial failed (or aborted): restore every A/B/D inventory
-    /// item to the checkpoint. Permanent-truth caches (category C),
-    /// `instantiation_count`, `deferred_nodes`, and the
-    /// `flow_analysis_disabled` latch deliberately survive — see the
-    /// module doc.
-    ///
-    /// M6-close decision of record: when the FIRST production
-    /// begin_speculation site lands (none exists at M6 close — 7.4
-    /// ran trials unwrapped), `assertion_expression_type` must join
-    /// the survive set alongside `deferred_nodes`: tsc never unwinds
-    /// nodeLinks, so a deferred assertion queued under a failed trial
-    /// still reads its stashed operand type at depth 0. The
-    /// operators.rs check_assertion_deferred escape (owner M8) guards
-    /// exactly that seam until then.
+    /// item and every journaled temporary category-C publication to
+    /// the checkpoint. `instantiation_count`, `deferred_nodes`,
+    /// `assertion_expression_type`, and the `flow_analysis_disabled`
+    /// latch deliberately survive: tsc never unwinds those semantic
+    /// registrations, and deferred assertion checking consumes its
+    /// stashed operand type after the candidate boundary.
     pub fn rollback_speculation(&mut self, mut checkpoint: SpeculationCheckpoint) {
         assert_eq!(
             self.speculation_depth, checkpoint.depth,
             "speculation transactions must resolve LIFO"
         );
+        self.links
+            .restore_speculative_writes(checkpoint.speculative_links);
+        self.restore_speculative_signature_returns(checkpoint.speculative_signature_returns);
         checkpoint.resolved = true;
         self.speculation_depth -= 1;
+        #[cfg(test)]
+        {
+            self.speculation_rollback_count += 1;
+        }
 
         // A: transient stacks.
         self.resolution_targets
@@ -471,12 +482,13 @@ impl CheckerState<'_> {
 mod tests {
     use tsrs2_binder::flow::FlowId;
     use tsrs2_diags::gen as diagnostics;
-    use tsrs2_types::{CompilerOptions, SymbolFlags, TypeSystemPropertyName};
+    use tsrs2_types::{CompilerOptions, SymbolFlags, TypeData, TypeFlags, TypeSystemPropertyName};
 
     use super::SpeculationOutcome;
     use crate::flow::FlowType;
+    use crate::links::LinkSlot;
     use crate::state::test_support::with_program_state;
-    use crate::state::{CheckerState, SignatureKind, Unsupported};
+    use crate::state::{CheckerState, ResolvedMembers, SignatureKind, Unsupported};
 
     fn with_state<R>(run: impl FnOnce(&mut CheckerState) -> R) -> R {
         with_program_state(
@@ -669,6 +681,181 @@ mod tests {
     }
 
     #[test]
+    fn link_protocols_are_temporary_on_commit_and_rollback() {
+        with_state(|state| {
+            let committed_node = state.binder.source(0).root;
+            let rolled_back_node = state
+                .binder
+                .source(0)
+                .arena
+                .node_ids()
+                .nth(1)
+                .expect("fixture has a declaration");
+            let committed_type = state
+                .tables
+                .create_type(TypeFlags::OBJECT, TypeData::Object);
+            let rolled_back_type = state
+                .tables
+                .create_type(TypeFlags::OBJECT, TypeData::Object);
+            let committed_symbol = state
+                .binder
+                .create_symbol(SymbolFlags::VARIABLE, "committed".to_owned());
+            let rolled_back_symbol = state
+                .binder
+                .create_symbol(SymbolFlags::VARIABLE, "rolledBack".to_owned());
+            let committed_members = state.alloc_members(ResolvedMembers::default());
+            let rolled_back_members = state.alloc_members(ResolvedMembers::default());
+            let exercise = |state: &mut CheckerState, node, symbol, ty, members| {
+                state.links.set_node_resolved_signature_call_protocol(
+                    state.speculation_depth,
+                    node,
+                    LinkSlot::Resolving,
+                );
+                state.links.set_node_resolved_signature_call_protocol(
+                    state.speculation_depth,
+                    node,
+                    LinkSlot::Resolved(state.any_signature),
+                );
+                state.links.set_node_resolved_type(
+                    state.speculation_depth,
+                    node,
+                    LinkSlot::Resolved(state.tables.intrinsics.string),
+                );
+                state.links.set_symbol_declared_type(
+                    state.speculation_depth,
+                    symbol,
+                    LinkSlot::Resolved(state.tables.intrinsics.string),
+                );
+                state.links.set_symbol_unique_es_symbol_type(
+                    state.speculation_depth,
+                    symbol,
+                    state.tables.intrinsics.es_symbol,
+                );
+                state.links.set_type_members(
+                    state.speculation_depth,
+                    ty,
+                    LinkSlot::Resolved(members),
+                );
+            };
+
+            let committed = state.begin_speculation();
+            exercise(
+                state,
+                committed_node,
+                committed_symbol,
+                committed_type,
+                committed_members,
+            );
+            state.commit_speculation(committed);
+            assert!(matches!(
+                state.links.node(committed_node).resolved_signature,
+                LinkSlot::Vacant
+            ));
+            assert!(matches!(
+                state.links.node(committed_node).resolved_type,
+                LinkSlot::Vacant
+            ));
+            assert!(matches!(
+                state.links.symbol(committed_symbol).declared_type,
+                LinkSlot::Vacant
+            ));
+            assert!(state
+                .links
+                .symbol(committed_symbol)
+                .unique_es_symbol_type
+                .is_none());
+            assert!(matches!(
+                state.links.ty(committed_type).resolved_members,
+                LinkSlot::Vacant
+            ));
+
+            let rolled_back = state.begin_speculation();
+            exercise(
+                state,
+                rolled_back_node,
+                rolled_back_symbol,
+                rolled_back_type,
+                rolled_back_members,
+            );
+            state.rollback_speculation(rolled_back);
+            assert!(matches!(
+                state.links.node(rolled_back_node).resolved_signature,
+                LinkSlot::Vacant
+            ));
+            assert!(matches!(
+                state.links.node(rolled_back_node).resolved_type,
+                LinkSlot::Vacant
+            ));
+            assert!(matches!(
+                state.links.symbol(rolled_back_symbol).declared_type,
+                LinkSlot::Vacant
+            ));
+            assert!(state
+                .links
+                .symbol(rolled_back_symbol)
+                .unique_es_symbol_type
+                .is_none());
+            assert!(matches!(
+                state.links.ty(rolled_back_type).resolved_members,
+                LinkSlot::Vacant
+            ));
+            assert_eq!(state.links.speculative_resolved_signature_mark(), 0);
+            assert_eq!(state.links.speculative_resolved_type_mark(), 0);
+            assert_eq!(state.links.speculative_symbol_declared_type_mark(), 0);
+            assert_eq!(state.links.speculative_unique_es_symbol_type_mark(), 0);
+            assert_eq!(state.links.speculative_type_members_mark(), 0);
+        });
+    }
+
+    #[test]
+    fn declaration_signatures_commit_and_nested_rollback_restores() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "declare function f(): string;\ndeclare function g(): number;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let declaration = |state: &CheckerState, name: &str| {
+                    let symbol = state
+                        .resolve_file_scope_name(name, SymbolFlags::FUNCTION)
+                        .expect("function resolves");
+                    state.binder.symbol(symbol).declarations[0]
+                };
+                let f = declaration(state, "f");
+                let g = declaration(state, "g");
+
+                let committed = state.begin_speculation();
+                let f_signature = state
+                    .get_signature_from_declaration(f)
+                    .expect("signature resolves");
+                state.commit_speculation(committed);
+                assert!(matches!(
+                    state.links.node(f).resolved_signature,
+                    LinkSlot::Resolved(signature) if signature == f_signature
+                ));
+
+                let outer = state.begin_speculation();
+                let inner = state.begin_speculation();
+                state
+                    .get_signature_from_declaration(g)
+                    .expect("nested signature resolves");
+                state.commit_speculation(inner);
+                assert!(matches!(
+                    state.links.node(g).resolved_signature,
+                    LinkSlot::Resolved(_)
+                ));
+                state.rollback_speculation(outer);
+                assert!(matches!(
+                    state.links.node(g).resolved_signature,
+                    LinkSlot::Vacant
+                ));
+                assert_eq!(state.links.speculative_declaration_signature_mark(), 0);
+            },
+        );
+    }
+
+    #[test]
     fn speculate_outcomes_commit_and_rollback() {
         with_state(|state| {
             let baseline = state.diagnostics.len();
@@ -691,6 +878,57 @@ mod tests {
             assert_eq!(state.diagnostics.len(), baseline + 1);
             assert_eq!(state.speculation_depth, 0);
         });
+    }
+
+    #[test]
+    fn signature_return_seals_commit_and_nested_rollback_restores() {
+        with_program_state(
+            &[("a.ts", "declare function f(): string;\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let symbol = state
+                    .resolve_file_scope_name("f", SymbolFlags::FUNCTION)
+                    .expect("f resolves");
+                let ty = state.get_type_of_symbol(symbol).expect("f types");
+                let signature = state
+                    .get_signatures_of_type(ty, SignatureKind::Call)
+                    .expect("f signatures")[0];
+                assert!(matches!(
+                    state.signature_of(signature).resolved_return_type,
+                    LinkSlot::Vacant
+                ));
+
+                let rolled_back = state.begin_speculation();
+                state.seal_signature_return_type(signature, state.tables.intrinsics.string);
+                state.rollback_speculation(rolled_back);
+                assert!(matches!(
+                    state.signature_of(signature).resolved_return_type,
+                    LinkSlot::Vacant
+                ));
+
+                let outer = state.begin_speculation();
+                let inner = state.begin_speculation();
+                state.seal_signature_return_type(signature, state.tables.intrinsics.string);
+                state.commit_speculation(inner);
+                assert!(matches!(
+                    state.signature_of(signature).resolved_return_type,
+                    LinkSlot::Resolved(_)
+                ));
+                state.rollback_speculation(outer);
+                assert!(matches!(
+                    state.signature_of(signature).resolved_return_type,
+                    LinkSlot::Vacant
+                ));
+
+                let committed = state.begin_speculation();
+                state.seal_signature_return_type(signature, state.tables.intrinsics.string);
+                state.commit_speculation(committed);
+                assert!(matches!(
+                    state.signature_of(signature).resolved_return_type,
+                    LinkSlot::Resolved(ty) if ty == state.tables.intrinsics.string
+                ));
+            },
+        );
     }
 
     /// The boundary ordering rule: by the time the caller sees the
@@ -800,11 +1038,10 @@ mod tests {
         );
     }
 
-    /// The extended assert net (B35): raw Signature caches follow the
-    /// links write discipline.
+    /// Cold structural signature answers may be computed during a
+    /// trial, but the permanent raw-signature cache stays untouched.
     #[test]
-    #[should_panic(expected = "links writes are forbidden during speculation")]
-    fn erased_signature_cache_write_asserts_under_speculation() {
+    fn erased_signature_cache_is_bypassed_under_speculation() {
         with_program_state(
             &[("a.ts", "declare function f<T>(x: T): T;\n")],
             &CompilerOptions::default(),
@@ -816,21 +1053,29 @@ mod tests {
                 let signature = state
                     .get_signatures_of_type(ty, SignatureKind::Call)
                     .expect("f has call signatures")[0];
-                state.speculation_depth = 1;
-                let _ = state.get_erased_signature(signature);
+                let erased = state
+                    .speculate(|state| {
+                        let erased = state.get_erased_signature(signature)?;
+                        assert!(state
+                            .signature_of(signature)
+                            .erased_signature_cache
+                            .is_none());
+                        Ok(SpeculationOutcome::Rollback(erased))
+                    })
+                    .expect("trial computes without publishing");
+                assert_ne!(erased, signature);
+                assert!(state
+                    .signature_of(signature)
+                    .erased_signature_cache
+                    .is_none());
             },
         );
     }
 
-    /// The canonical twin (M6 7.5): getCanonicalSignature's cache
-    /// write sits in the same net. The identity instantiation is
-    /// WARMED at depth 0 first (7.5d review) — cold, the
-    /// instantiations-map assert inside getSignatureInstantiation
-    /// fires before the canonical write and this test would pin the
-    /// wrong assert.
+    /// The canonical twin: prerequisite structural caches may be
+    /// warm, but the cold canonical slot is still not published.
     #[test]
-    #[should_panic(expected = "links writes are forbidden during speculation")]
-    fn canonical_signature_cache_write_asserts_under_speculation() {
+    fn canonical_signature_cache_is_bypassed_under_speculation() {
         with_program_state(
             &[("a.ts", "declare function f<T>(x: T): T;\n")],
             &CompilerOptions::default(),
@@ -855,8 +1100,21 @@ mod tests {
                         /*inferred_type_parameters*/ None,
                     )
                     .expect("identity instantiation warms at depth 0");
-                state.speculation_depth = 1;
-                let _ = state.get_canonical_signature(signature);
+                let canonical = state
+                    .speculate(|state| {
+                        let canonical = state.get_canonical_signature(signature)?;
+                        assert!(state
+                            .signature_of(signature)
+                            .canonical_signature_cache
+                            .is_none());
+                        Ok(SpeculationOutcome::Rollback(canonical))
+                    })
+                    .expect("trial computes without publishing");
+                assert_ne!(canonical, signature);
+                assert!(state
+                    .signature_of(signature)
+                    .canonical_signature_cache
+                    .is_none());
             },
         );
     }

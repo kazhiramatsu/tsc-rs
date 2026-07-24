@@ -1,29 +1,23 @@
 //! structuredTypeRelatedTo and the structural relation arms
 //! (m3-types-relations-steps.md stage 4.6, checker-key §1.4).
 //!
-//! Arm ORDER is tsc's (the dispatch is pinned even where an arm's
-//! input types are unconstructible before M4 — those arms report
-//! Unsupported with the blocking machinery named). LIVE in M3:
-//! identity dispatch, tuple targets, propertiesRelatedTo,
-//! signaturesRelatedTo (compareSignaturesRelated + arity helpers),
-//! indexInfosRelatedTo/membersRelatedToIndexInfo, the TemplateLiteral
-//! target arm, and typeRelatedToDiscriminatedType with synthetic
-//! union/intersection properties. DEAD until M4: type-parameter,
-//! keyof/Index, IndexedAccess, Conditional, Substitution, Mapped,
-//! StringMapping, reference variance (relateVariances falls through
-//! to structural for tuples by construction — getVariances gives
-//! tuples arrayVariances, but tuples are excluded from the reference
-//! fast path and take the propertiesRelatedTo tuple arm).
+//! Arm ORDER is tsc's. The original M3 spine covered identity, tuples,
+//! properties, signatures, index infos, templates, and discriminated
+//! unions/intersections; later slices activated type variables, keyof,
+//! indexed access, mapped/string-mapping/reference variance, and 9.6d
+//! activated both conditional relation directions.
 
 use tsrs2_binder::SymbolId;
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    AccessFlags, CheckFlags, ElementFlags, IndexFlags, IntersectionFlags, IntersectionState,
-    MappedTypeModifiers, ModifierFlags, ObjectFlags, PseudoBigInt, RecursionFlags, SymbolFlags,
-    TemplateText, Ternary, TupleTargetFlags, TypeData, TypeFlags, TypeId, UnionReduction,
+    AccessFlags, CheckFlags, ElementFlags, IndexFlags, InferenceFlags, InferencePriority,
+    IntersectionFlags, IntersectionState, MappedTypeModifiers, ModifierFlags, ObjectFlags,
+    PseudoBigInt, RecursionFlags, SymbolFlags, TemplateText, Ternary, TupleTargetFlags, TypeData,
+    TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::engine::{is_false, is_true, ternary_and, RelationChecker};
+use crate::inference::CompareTypesFn;
 use crate::relate::RelationKind;
 pub use crate::state::SignatureKind;
 use crate::state::{CheckResult2, CheckerState, IndexInfo, SignatureId, Unsupported};
@@ -217,12 +211,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// - alias-variance block: alias symbols are M4 (guard false).
     /// - single-element generic tuples: generic tuples are M4.
     /// - target TypeParameter/Index/IndexedAccess/Mapped/Conditional
-    ///   arms: Unsupported (M4 5.1-5.3).
+    ///   arms now dispatch to their live relation machinery.
     /// - target TemplateLiteral arm LIVE (the 4.2/4.3 template stub
     ///   call sites route here); target StringMapping Unsupported.
-    /// - source TypeVariable/Index/Conditional arms Unsupported; the
+    /// - source TypeVariable/Index/Conditional arms are live; the
     ///   source TemplateLiteral/StringMapping constraint arms reduce
-    ///   to getBaseConstraintOrType = stringType for templates.
+    ///   through getBaseConstraintOrType.
     /// - final object block: getApparentType M3 slice; the reference
     ///   variance fast path excludes tuples by construction and no
     ///   other same-target references exist before M4.
@@ -861,10 +855,80 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         if target_flags.intersects(TypeFlags::CONDITIONAL) {
-            // tsc-dormant: canary=conditional_relation; owner=9.6d
-            return Err(Unsupported::new(
-                "conditional targets (relation/inference, 9.6d)",
-            ));
+            if self
+                .st
+                .is_deeply_nested_type(target, &self.target_stack, self.target_depth, 10)
+            {
+                return Ok(Ternary::MAYBE);
+            }
+            let TypeData::Conditional(target_data) = self.st.tables.type_of(target).data.clone()
+            else {
+                unreachable!("Conditional target flag implies data");
+            };
+            let target_root = self.st.tables.conditional_root(target_data.root).clone();
+            let same_conditional_root = match &self.st.tables.type_of(source).data {
+                TypeData::Conditional(source_data) => source_data.root == target_data.root,
+                _ => false,
+            };
+            if target_root.infer_type_parameters.is_empty()
+                && !self.st.is_distribution_dependent(target_data.root)?
+                && !same_conditional_root
+            {
+                let permissive_check = self
+                    .st
+                    .get_permissive_instantiation(target_data.check_type)?;
+                let permissive_extends = self
+                    .st
+                    .get_permissive_instantiation(target_data.extends_type)?;
+                let skip_true = !self
+                    .st
+                    .is_type_assignable_to(permissive_check, permissive_extends)?;
+                let skip_false = if skip_true {
+                    false
+                } else {
+                    let restrictive_check = self
+                        .st
+                        .get_restrictive_instantiation(target_data.check_type)?;
+                    let restrictive_extends = self
+                        .st
+                        .get_restrictive_instantiation(target_data.extends_type)?;
+                    self.st
+                        .is_type_assignable_to(restrictive_check, restrictive_extends)?
+                };
+                let mut result = if skip_true {
+                    Ternary::TRUE
+                } else {
+                    let true_type = self.st.get_true_type_from_conditional_type(target)?;
+                    self.is_related_to(
+                        source,
+                        true_type,
+                        RecursionFlags::TARGET,
+                        /*report_errors*/ false,
+                        intersection_state,
+                    )?
+                };
+                if !is_false(result) {
+                    result = ternary_and(
+                        result,
+                        if skip_false {
+                            Ternary::TRUE
+                        } else {
+                            let false_type =
+                                self.st.get_false_type_from_conditional_type(target)?;
+                            self.is_related_to(
+                                source,
+                                false_type,
+                                RecursionFlags::TARGET,
+                                /*report_errors*/ false,
+                                intersection_state,
+                            )?
+                        },
+                    );
+                    if !is_false(result) {
+                        return Ok(result);
+                    }
+                }
+            }
         }
         if target_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
             if source_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
@@ -1094,10 +1158,138 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
             }
         } else if source_flags.intersects(TypeFlags::CONDITIONAL) {
-            // tsc-dormant: canary=conditional_relation; owner=9.6d
-            return Err(Unsupported::new(
-                "conditional sources (relation/inference, 9.6d)",
-            ));
+            if self
+                .st
+                .is_deeply_nested_type(source, &self.source_stack, self.source_depth, 10)
+            {
+                return Ok(Ternary::MAYBE);
+            }
+            let TypeData::Conditional(source_data) = self.st.tables.type_of(source).data.clone()
+            else {
+                unreachable!("Conditional source flag implies data");
+            };
+            if target_flags.intersects(TypeFlags::CONDITIONAL) {
+                let TypeData::Conditional(target_data) =
+                    self.st.tables.type_of(target).data.clone()
+                else {
+                    unreachable!("Conditional target flag implies data");
+                };
+                let source_root = self.st.tables.conditional_root(source_data.root).clone();
+                let mut source_extends = source_data.extends_type;
+                let mut mapper = None;
+                if !source_root.infer_type_parameters.is_empty() {
+                    let context = self.st.create_inference_context(
+                        &source_root.infer_type_parameters,
+                        None,
+                        InferenceFlags::NONE,
+                        Some(CompareTypesFn::RelationFrame),
+                    );
+                    let inferences = self.st.inference_context(context).inferences.clone();
+                    let context_mapper = self.st.inference_context(context).mapper;
+                    let frame = self.loan_frame(intersection_state);
+                    let saved = std::mem::replace(
+                        &mut self.st.relation_frame_loan,
+                        crate::engine::RelationFrameLoan::Available(frame),
+                    );
+                    let inference_result = (|| {
+                        self.st.infer_types(
+                            &inferences,
+                            target_data.extends_type,
+                            source_extends,
+                            InferencePriority::NO_CONSTRAINTS | InferencePriority::ALWAYS_STRICT,
+                            false,
+                        )?;
+                        self.st
+                            .instantiate_type(source_extends, Some(context_mapper))
+                    })();
+                    let parked = std::mem::replace(&mut self.st.relation_frame_loan, saved);
+                    let crate::engine::RelationFrameLoan::Available(frame) = parked else {
+                        panic!("the conditional-source RelationFrame loan must return Available");
+                    };
+                    self.restore_frame(frame);
+                    source_extends = inference_result?;
+                    mapper = Some(context_mapper);
+                }
+                let extends_identical = self
+                    .st
+                    .is_type_identical_to(source_extends, target_data.extends_type)?;
+                if extends_identical {
+                    let checks_overlap = !is_false(self.is_related_to(
+                        source_data.check_type,
+                        target_data.check_type,
+                        RecursionFlags::BOTH,
+                        /*report_errors*/ false,
+                        intersection_state,
+                    )?) || !is_false(self.is_related_to(
+                        target_data.check_type,
+                        source_data.check_type,
+                        RecursionFlags::BOTH,
+                        /*report_errors*/ false,
+                        intersection_state,
+                    )?);
+                    if checks_overlap {
+                        let source_true = self.st.get_true_type_from_conditional_type(source)?;
+                        let source_true = self.st.instantiate_type(source_true, mapper)?;
+                        let target_true = self.st.get_true_type_from_conditional_type(target)?;
+                        let mut result = self.is_related_to(
+                            source_true,
+                            target_true,
+                            RecursionFlags::BOTH,
+                            report_errors,
+                            intersection_state,
+                        )?;
+                        if !is_false(result) {
+                            let source_false =
+                                self.st.get_false_type_from_conditional_type(source)?;
+                            let target_false =
+                                self.st.get_false_type_from_conditional_type(target)?;
+                            result = ternary_and(
+                                result,
+                                self.is_related_to(
+                                    source_false,
+                                    target_false,
+                                    RecursionFlags::BOTH,
+                                    report_errors,
+                                    intersection_state,
+                                )?,
+                            );
+                            if !is_false(result) {
+                                return Ok(result);
+                            }
+                        }
+                    }
+                }
+            }
+            let default_constraint = self.st.get_default_constraint_of_conditional_type(source)?;
+            let result = self.is_related_to(
+                default_constraint,
+                target,
+                RecursionFlags::SOURCE,
+                report_errors,
+                intersection_state,
+            )?;
+            if !is_false(result) {
+                return Ok(result);
+            }
+            if !target_flags.intersects(TypeFlags::CONDITIONAL)
+                && self.st.has_non_circular_base_constraint(source)?
+            {
+                if let Some(distributive_constraint) = self
+                    .st
+                    .get_constraint_of_distributive_conditional_type(source)?
+                {
+                    let result = self.is_related_to(
+                        distributive_constraint,
+                        target,
+                        RecursionFlags::SOURCE,
+                        report_errors,
+                        intersection_state,
+                    )?;
+                    if !is_false(result) {
+                        return Ok(result);
+                    }
+                }
+            }
         } else {
             if self.relation != RelationKind::Subtype
                 && self.relation != RelationKind::StrictSubtype
@@ -4256,8 +4448,7 @@ impl<'a> CheckerState<'a> {
                     containing_type,
                     links_mapper,
                 );
-                self.links
-                    .set_symbol_write_type(self.speculation_depth, clone, write_type);
+                self.links.set_fresh_symbol_write_type(clone, write_type);
                 return Ok(Some(clone));
             }
             return Ok(Some(single_prop));
@@ -4361,8 +4552,7 @@ impl<'a> CheckerState<'a> {
         self.links
             .set_symbol_name_type(self.speculation_depth, result, name_type);
         if let Some(write_type) = combined_write {
-            self.links
-                .set_symbol_write_type(self.speculation_depth, result, write_type);
+            self.links.set_fresh_symbol_write_type(result, write_type);
         }
         Ok(Some(result))
     }
@@ -5067,11 +5257,8 @@ impl<'a> CheckerState<'a> {
         self.links
             .set_symbol_check_flags(self.speculation_depth, symbol, readonly);
         if let Some(ty) = ty {
-            self.links.set_symbol_type(
-                self.speculation_depth,
-                symbol,
-                crate::links::LinkSlot::Resolved(ty),
-            );
+            self.links
+                .set_fresh_symbol_type(symbol, crate::links::LinkSlot::Resolved(ty));
         }
         self.links
             .set_symbol_target(self.speculation_depth, symbol, source);
@@ -5572,11 +5759,8 @@ impl<'a> CheckerState<'a> {
             } else {
                 union_param_type
             };
-            self.links.set_symbol_type(
-                self.speculation_depth,
-                param_symbol,
-                crate::links::LinkSlot::Resolved(param_type),
-            );
+            self.links
+                .set_fresh_symbol_type(param_symbol, crate::links::LinkSlot::Resolved(param_type));
             params.push(param_symbol);
         }
         if needs_extra_rest_element {
@@ -5593,11 +5777,8 @@ impl<'a> CheckerState<'a> {
             if shorter == right {
                 rest_type = self.instantiate_type(rest_type, mapper)?;
             }
-            self.links.set_symbol_type(
-                self.speculation_depth,
-                rest_symbol,
-                crate::links::LinkSlot::Resolved(rest_type),
-            );
+            self.links
+                .set_fresh_symbol_type(rest_symbol, crate::links::LinkSlot::Resolved(rest_type));
             params.push(rest_symbol);
         }
         Ok(params)
@@ -7570,6 +7751,95 @@ mod tests {
             ),
             RelpinVerdict::Related
         ));
+    }
+
+    #[test]
+    fn conditional_source_and_target_relations_are_live() {
+        crate::state::test_support::with_program_state(
+            &[(
+                "a.ts",
+                "type C<X> = X extends string ? { a: string } : { b: number };\n\
+                 type I<X> = X extends infer U ? [U] : never;\n\
+                 type J<X> = X extends infer V ? [V] : never;\n\
+                 function f<T>() {\n\
+                 var wide: { a: string; b: number };\n\
+                 var target: C<T>;\n\
+                 var branch: C<T>;\n\
+                 var union: { a: string } | { b: number };\n\
+                 var inferredSource: I<T>;\n\
+                 var inferredTarget: J<T>;\n\
+                 }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let annotation = |state: &CheckerState, name: &str| {
+                    find_probe_annotation(state.binder.source(0), name)
+                        .unwrap_or_else(|| panic!("annotation for {name}"))
+                };
+                let wide_node = annotation(state, "wide");
+                let target_node = annotation(state, "target");
+                let branch_node = annotation(state, "branch");
+                let union_node = annotation(state, "union");
+                let inferred_source_node = annotation(state, "inferredSource");
+                let inferred_target_node = annotation(state, "inferredTarget");
+                let wide = state.get_type_from_type_node(wide_node).expect("wide");
+                let target = state
+                    .get_type_from_type_node(target_node)
+                    .expect("conditional target");
+                let branch = state
+                    .get_type_from_type_node(branch_node)
+                    .expect("conditional source");
+                let union = state.get_type_from_type_node(union_node).expect("union");
+                let inferred_source = state
+                    .get_type_from_type_node(inferred_source_node)
+                    .expect("conditional source with infer");
+                let inferred_target = state
+                    .get_type_from_type_node(inferred_target_node)
+                    .expect("conditional target with infer");
+                let true_type = state
+                    .get_true_type_from_conditional_type(target)
+                    .expect("true branch");
+                let false_type = state
+                    .get_false_type_from_conditional_type(target)
+                    .expect("false branch");
+                assert!(state
+                    .is_type_assignable_to(wide, true_type)
+                    .expect("true branch relation"));
+                assert!(state
+                    .is_type_assignable_to(wide, false_type)
+                    .expect("false branch relation"));
+                let tsrs2_types::TypeData::Conditional(target_data) =
+                    state.tables.type_of(target).data.clone()
+                else {
+                    panic!("target remains conditional");
+                };
+                assert!(
+                    !state
+                        .is_distribution_dependent(target_data.root)
+                        .expect("distribution dependence"),
+                    "neither branch references the distributive check parameter"
+                );
+
+                assert!(
+                    state
+                        .is_type_assignable_to(wide, target)
+                        .expect("conditional target relation"),
+                    "a source assignable to both branches relates to the conditional target"
+                );
+                assert!(
+                    state
+                        .is_type_assignable_to(branch, union)
+                        .expect("conditional source relation"),
+                    "the conditional source relates through its default constraint"
+                );
+                assert!(
+                    state
+                        .is_type_assignable_to(inferred_source, inferred_target)
+                        .expect("conditional-pair relation"),
+                    "matching infer parameters compare through the parked relation frame"
+                );
+            },
+        );
     }
 
     // ---- m4-review A5: createUnionOrIntersectionProperty modifier /

@@ -392,7 +392,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isDistributionDependent @6.0.3
     /// tsc-hash: 38b54dec45a443bed1c4b247799bfb22ee1bf1c9cd5d680c5f332ab644609e5b
     /// tsc-span: _tsc.js:62767-62769
-    #[allow(dead_code)] // relation consumer lands in 9.6d
     pub(crate) fn is_distribution_dependent(
         &mut self,
         root: ConditionalRootId,
@@ -488,14 +487,8 @@ impl<'a> CheckerState<'a> {
                 alias_type_arguments,
             )?
         };
-        if self.speculation_depth == 0 {
-            self.links.set_conditional_instantiation(
-                self.speculation_depth,
-                data.root,
-                key,
-                result,
-            );
-        }
+        self.links
+            .set_conditional_instantiation(self.speculation_depth, data.root, key, result);
         Ok(result)
     }
 
@@ -539,7 +532,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getConstraintOfDistributiveConditionalType @6.0.3
     /// tsc-hash: 21f63be335d12237aca227b40fc03156a1a788547fb8c8f22f2721d9d2f8a697
     /// tsc-span: _tsc.js:58834-58860
-    fn get_constraint_of_distributive_conditional_type(
+    pub(crate) fn get_constraint_of_distributive_conditional_type(
         &mut self,
         ty: TypeId,
     ) -> CheckResult2<Option<TypeId>> {

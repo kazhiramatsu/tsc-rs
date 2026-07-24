@@ -3188,11 +3188,8 @@ impl<'a> CheckerState<'a> {
             let element_type = self.get_type_from_binding_element(
                 e, /*include_pattern_in_type*/ false, /*report_errors*/ false,
             )?;
-            self.links.set_symbol_type(
-                self.speculation_depth,
-                symbol,
-                crate::links::LinkSlot::Resolved(element_type),
-            );
+            self.links
+                .set_fresh_symbol_type(symbol, crate::links::LinkSlot::Resolved(element_type));
             members.insert(name, symbol);
             properties.push(symbol);
         }
@@ -3211,11 +3208,8 @@ impl<'a> CheckerState<'a> {
             construct_signatures: Vec::new(),
             index_infos,
         });
-        self.links.set_type_members(
-            self.speculation_depth,
-            id,
-            crate::links::LinkSlot::Resolved(members_id),
-        );
+        self.links
+            .set_fresh_type_members(id, crate::links::LinkSlot::Resolved(members_id));
         Ok(id)
     }
 

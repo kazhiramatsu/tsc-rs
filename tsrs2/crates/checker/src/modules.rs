@@ -3616,11 +3616,8 @@ impl<'a> CheckerState<'a> {
         let alias_target = self
             .resolve_symbol_ex(Some(symbol), false)?
             .expect("resolveSymbol of Some is Some");
-        self.links.set_symbol_alias_target(
-            self.speculation_depth,
-            new_symbol,
-            LinkSlot::Resolved(alias_target),
-        );
+        self.links
+            .set_fresh_symbol_alias_target(new_symbol, LinkSlot::Resolved(alias_target));
         let mut member_table = SymbolTable::default();
         member_table.insert(InternalSymbolName::DEFAULT.to_owned(), new_symbol);
         // createAnonymousType's getNamedMembers over the one-entry
@@ -3705,8 +3702,7 @@ impl<'a> CheckerState<'a> {
                 Some(original_symbol),
                 Some(anonymous_symbol),
             )?;
-            self.links.set_symbol_type(
-                self.speculation_depth,
+            self.links.set_fresh_symbol_type(
                 anonymous_symbol,
                 LinkSlot::Resolved(default_containing_object),
             );
@@ -3778,11 +3774,8 @@ impl<'a> CheckerState<'a> {
             index_infos,
             ObjectFlags::ANONYMOUS,
         );
-        self.links.set_symbol_type(
-            self.speculation_depth,
-            result,
-            LinkSlot::Resolved(anonymous),
-        );
+        self.links
+            .set_fresh_symbol_type(result, LinkSlot::Resolved(anonymous));
         Ok(result)
     }
 
@@ -5033,11 +5026,8 @@ impl<'a> CheckerState<'a> {
             self.binder.symbol_mut(member).parent = Some(object_symbol);
             let value_type = self.check_expression_cached(value, CheckMode::NORMAL)?;
             let member_type = self.tables.get_regular_type_of_literal_type(value_type);
-            self.links.set_symbol_type(
-                self.speculation_depth,
-                member,
-                crate::links::LinkSlot::Resolved(member_type),
-            );
+            self.links
+                .set_fresh_symbol_type(member, crate::links::LinkSlot::Resolved(member_type));
             self.links
                 .set_symbol_target(self.speculation_depth, member, member);
             members.insert(member_name, member);

@@ -472,11 +472,8 @@ impl<'a> CheckerState<'a> {
         );
         self.tables.type_mut(restrictive).symbol = symbol;
         let no_constraint = self.no_constraint_type;
-        self.links.set_type_parameter_constraint(
-            self.speculation_depth,
-            restrictive,
-            no_constraint,
-        );
+        self.links
+            .set_fresh_type_parameter_constraint(restrictive, no_constraint);
         self.links
             .set_type_restrictive_instantiation(self.speculation_depth, tp, restrictive);
         restrictive
@@ -1140,11 +1137,8 @@ impl<'a> CheckerState<'a> {
                 Some(fresh_mapper),
                 source_symbol,
             );
-            self.links.set_mapped_type_parameter(
-                self.speculation_depth,
-                result,
-                fresh_type_parameter,
-            );
+            self.links
+                .set_fresh_mapped_type_parameter(result, fresh_type_parameter);
             result
         } else {
             let result = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
@@ -1166,12 +1160,8 @@ impl<'a> CheckerState<'a> {
                 .ty(ty)
                 .deferred_node
                 .expect("InstantiationExpressionType types stamp their node at creation");
-            self.links.set_type_deferred_reference_links(
-                self.speculation_depth,
-                result,
-                node,
-                None,
-            );
+            self.links
+                .set_fresh_type_deferred_reference_links(result, node, None);
         }
         let new_alias_symbol = alias_symbol.or(source_alias_symbol);
         let new_alias_type_arguments = if alias_symbol.is_some() {
@@ -2271,7 +2261,7 @@ impl<'a> CheckerState<'a> {
                     );
                 }
                 let new_instantiated_signature = self.clone_signature(instantiated);
-                self.seal_signature_return_type(new_instantiated_signature, new_return_type);
+                self.set_fresh_signature_return_type(new_instantiated_signature, new_return_type);
                 return Ok(new_instantiated_signature);
             }
         }
@@ -2291,15 +2281,11 @@ impl<'a> CheckerState<'a> {
             return Ok(existing);
         }
         let instantiation = self.create_signature_instantiation(signature, type_arguments)?;
-        // Raw Signature cache — in the speculation assert net (7.0t,
-        // m4-review B35) like the links slots.
-        assert_eq!(
-            self.speculation_depth, 0,
-            "links writes are forbidden during speculation (greenfield §4.3)"
-        );
-        self.signatures[signature.0 as usize]
-            .instantiations
-            .insert(key, instantiation);
+        if self.speculation_depth == 0 {
+            self.signatures[signature.0 as usize]
+                .instantiations
+                .insert(key, instantiation);
+        }
         Ok(instantiation)
     }
 
@@ -2428,13 +2414,9 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         let erased = self.create_erased_signature(signature)?;
-        // Raw Signature cache — in the speculation assert net (7.0t,
-        // m4-review B35) like the links slots.
-        assert_eq!(
-            self.speculation_depth, 0,
-            "links writes are forbidden during speculation (greenfield §4.3)"
-        );
-        self.signatures[signature.0 as usize].erased_signature_cache = Some(erased);
+        if self.speculation_depth == 0 {
+            self.signatures[signature.0 as usize].erased_signature_cache = Some(erased);
+        }
         Ok(erased)
     }
 
@@ -2452,13 +2434,9 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         let canonical = self.create_canonical_signature(signature)?;
-        // Raw Signature cache — in the speculation assert net (7.0t,
-        // m4-review B35) like the erased twin above.
-        assert_eq!(
-            self.speculation_depth, 0,
-            "links writes are forbidden during speculation (greenfield §4.3)"
-        );
-        self.signatures[signature.0 as usize].canonical_signature_cache = Some(canonical);
+        if self.speculation_depth == 0 {
+            self.signatures[signature.0 as usize].canonical_signature_cache = Some(canonical);
+        }
         Ok(canonical)
     }
 
@@ -2532,13 +2510,9 @@ impl<'a> CheckerState<'a> {
             final_mapper,
             /*erase_type_parameters*/ true,
         )?;
-        // Raw Signature cache — in the speculation assert net (7.0t,
-        // m4-review B35) like the links slots.
-        assert_eq!(
-            self.speculation_depth, 0,
-            "links writes are forbidden during speculation (greenfield §4.3)"
-        );
-        self.signatures[signature.0 as usize].base_signature_cache = Some(base);
+        if self.speculation_depth == 0 {
+            self.signatures[signature.0 as usize].base_signature_cache = Some(base);
+        }
         Ok(base)
     }
 

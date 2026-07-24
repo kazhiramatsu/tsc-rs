@@ -207,6 +207,10 @@ pub struct CheckerState<'a> {
     pub strict_function_types: bool,
     pub links: LinksTables,
     pub signatures: Vec<Signature>,
+    /// Trial-local resolvedReturnType protocol writes. The resolution
+    /// stack observes slot completion while a candidate runs, but the
+    /// signature memo returns to its entry value at the boundary.
+    pub(crate) speculative_signature_return_writes: Vec<(u32, SignatureId, LinkSlot<TypeId>)>,
     pub members: Vec<ResolvedMembers>,
     /// checker-key §1.5: five per-relation caches + enumRelation.
     pub relations: RelationCaches,
@@ -214,6 +218,10 @@ pub struct CheckerState<'a> {
     pub subtype_reduction_cache: std::collections::HashMap<String, Vec<tsrs2_types::TypeId>>,
     /// greenfield §4.3: all links writes assert this is zero.
     pub speculation_depth: u32,
+    #[cfg(test)]
+    pub(crate) speculation_commit_count: u32,
+    #[cfg(test)]
+    pub(crate) speculation_rollback_count: u32,
     /// createAnonymousType(undefined, emptySymbols, ...) (_tsc.js 47132).
     pub empty_object_type: TypeId,
     /// createAnonymousType(emptyTypeLiteralSymbol, ...) (47160).
@@ -819,10 +827,15 @@ impl<'a> CheckerState<'a> {
             strict_function_types,
             links: LinksTables::default(),
             signatures: Vec::new(),
+            speculative_signature_return_writes: Vec::new(),
             members: Vec::new(),
             relations: RelationCaches::default(),
             subtype_reduction_cache: std::collections::HashMap::new(),
             speculation_depth: 0,
+            #[cfg(test)]
+            speculation_commit_count: 0,
+            #[cfg(test)]
+            speculation_rollback_count: 0,
             empty_object_type: TypeId(0),
             empty_type_literal_type: TypeId(0),
             unknown_empty_object_type: TypeId(0),
@@ -1166,7 +1179,7 @@ impl<'a> CheckerState<'a> {
         self.tables.type_mut(id).symbol = symbol;
         let members = self.alloc_members(ResolvedMembers::default());
         self.links
-            .set_type_members(self.speculation_depth, id, LinkSlot::Resolved(members));
+            .set_fresh_type_members(id, LinkSlot::Resolved(members));
         id
     }
 
@@ -1210,16 +1223,79 @@ impl<'a> CheckerState<'a> {
     /// permanent writes during speculation, greenfield §4.3; the raw
     /// Signature field sat outside that net — m4-review A4).
     pub fn seal_signature_return_type(&mut self, id: SignatureId, resolved: TypeId) -> TypeId {
-        assert_eq!(
-            self.speculation_depth, 0,
-            "links writes are forbidden during speculation (greenfield §4.3)"
-        );
-        let slot = &mut self.signatures[id.0 as usize].resolved_return_type;
-        if let Some(existing) = slot.resolved() {
+        if let Some(existing) = self.signature_of(id).resolved_return_type.resolved() {
             return existing;
         }
-        *slot = LinkSlot::Resolved(resolved);
+        if self.speculation_depth != 0
+            && !self
+                .speculative_signature_return_writes
+                .iter()
+                .any(|(depth, signature, _)| *depth == self.speculation_depth && *signature == id)
+        {
+            let previous = self.signature_of(id).resolved_return_type.clone();
+            self.speculative_signature_return_writes
+                .push((self.speculation_depth, id, previous));
+        }
+        self.signatures[id.0 as usize].resolved_return_type = LinkSlot::Resolved(resolved);
         resolved
+    }
+
+    /// tsrs-native: capture the signature-return journal position at a
+    /// speculation boundary.
+    pub(crate) fn speculative_signature_return_mark(&self) -> usize {
+        self.speculative_signature_return_writes.len()
+    }
+
+    /// tsrs-native: keep completed signature-return seals on a
+    /// successful trial.
+    /// When the commit is nested, promote the first-write snapshot to
+    /// the parent transaction so a later outer rollback can still
+    /// restore its entry state.
+    pub(crate) fn commit_speculative_signature_returns(&mut self, mark: usize, parent_depth: u32) {
+        let committed: Vec<_> = self
+            .speculative_signature_return_writes
+            .drain(mark..)
+            .collect();
+        if parent_depth == 0 {
+            return;
+        }
+        for (_, signature, previous) in committed {
+            if !self
+                .speculative_signature_return_writes
+                .iter()
+                .any(|(depth, existing, _)| *depth == parent_depth && *existing == signature)
+            {
+                self.speculative_signature_return_writes
+                    .push((parent_depth, signature, previous));
+            }
+        }
+    }
+
+    /// tsrs-native: restore candidate-local signature return slots.
+    pub(crate) fn restore_speculative_signature_returns(&mut self, mark: usize) {
+        while self.speculative_signature_return_writes.len() > mark {
+            let (_, signature, previous) = self
+                .speculative_signature_return_writes
+                .pop()
+                .expect("length checked");
+            self.signatures[signature.0 as usize].resolved_return_type = previous;
+        }
+    }
+
+    /// tsrs-native: fresh signature initialization inside a candidate
+    /// transaction.
+    ///
+    /// Initialize the return type of a freshly cloned signature. This
+    /// is part of constructing the signature and may therefore occur
+    /// inside an overload trial; unlike `seal_signature_return_type`,
+    /// it does not publish a cache on a pre-existing signature.
+    pub fn set_fresh_signature_return_type(&mut self, id: SignatureId, resolved: TypeId) {
+        let slot = &mut self.signatures[id.0 as usize].resolved_return_type;
+        assert!(
+            slot.resolved().is_none(),
+            "fresh return type initialized twice"
+        );
+        *slot = LinkSlot::Resolved(resolved);
     }
 
     /// Empty member table shared by symbols that never had one.

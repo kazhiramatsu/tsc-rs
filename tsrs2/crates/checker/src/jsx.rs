@@ -335,11 +335,8 @@ impl<'a> CheckerState<'a> {
                             symbol.value_declaration = Some(value_declaration);
                         }
                     }
-                    self.links.set_symbol_type(
-                        self.speculation_depth,
-                        attribute_symbol,
-                        LinkSlot::Resolved(expr_type),
-                    );
+                    self.links
+                        .set_fresh_symbol_type(attribute_symbol, LinkSlot::Resolved(expr_type));
                     self.links
                         .set_symbol_target(self.speculation_depth, attribute_symbol, member);
                     attributes_table.insert(escaped_name.clone(), attribute_symbol);
@@ -540,8 +537,7 @@ impl<'a> CheckerState<'a> {
                         )?;
                         self.create_array_type(union, /*readonly*/ false)?
                     };
-                    self.links.set_symbol_type(
-                        self.speculation_depth,
+                    self.links.set_fresh_symbol_type(
                         children_prop_symbol,
                         LinkSlot::Resolved(children_prop_type),
                     );
@@ -1232,7 +1228,7 @@ impl<'a> CheckerState<'a> {
             .binder
             .create_symbol(SymbolFlags::FUNCTION_SCOPED_VARIABLE, "props".to_owned());
         self.links
-            .set_symbol_type(self.speculation_depth, props, LinkSlot::Resolved(result));
+            .set_fresh_symbol_type(props, LinkSlot::Resolved(result));
         Ok(self.alloc_signature(crate::state::Signature {
             declaration: None,
             flags: tsrs2_types::SignatureFlags::NONE,
@@ -1304,8 +1300,14 @@ impl<'a> CheckerState<'a> {
             index_infos: Vec::new(),
         });
         self.links
-            .set_type_members(self.speculation_depth, id, LinkSlot::Resolved(members));
-        self.signature_mut(signature).isolated_signature_type = Some(id);
+            .set_fresh_type_members(id, LinkSlot::Resolved(members));
+        // The anonymous type and its members are one semantic object,
+        // so construction is safe inside a candidate trial. The
+        // signature memo is a cold permanent cache, however: a failed
+        // candidate must not publish its trial-local TypeId.
+        if self.speculation_depth == 0 {
+            self.signature_mut(signature).isolated_signature_type = Some(id);
+        }
         Ok(id)
     }
 

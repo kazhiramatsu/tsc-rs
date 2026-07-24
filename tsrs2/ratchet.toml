@@ -176,8 +176,11 @@
 # +9 through NoInfer production and its inference/relation consumers.
 # p9 9.6c adds +62 through conditional resolution, distributivity,
 # constraint/simplification consumers, and exact recursive diagnostics.
-rate = 0.597687
-matched = 29301
+# p9 9.6d adds +43 through conditional relation/inference, including
+# distributive constraints and homomorphic inference under real
+# rollback-capable overload candidate trials.
+rate = 0.598564
+matched = 29344
 total = 49024
 allowed_regression = 0.0
 
@@ -227,8 +230,9 @@ allowed_regression = 0.0
 # p9 9.6a adds +13 conditional/substitution model/display rows.
 # p9 9.6b adds +9 NoInfer production/inference/relation rows.
 # p9 9.6c adds +60 conditional-resolution/distribution rows.
-rate = 0.883093
-matched = 18590
+# p9 9.6d adds +43 conditional relation/inference rows.
+rate = 0.885136
+matched = 18633
 total = 21051
 allowed_regression = 0.0
 

@@ -39,7 +39,7 @@ impl<'a> CheckerState<'a> {
         );
         self.tables.type_mut(ty).symbol = Some(symbol);
         self.links
-            .set_symbol_declared_type(self.speculation_depth, symbol, LinkSlot::Resolved(ty));
+            .set_fresh_symbol_declared_type(symbol, LinkSlot::Resolved(ty));
         ty
     }
 
@@ -907,6 +907,25 @@ mod tests {
                     .expect("intersection resolves");
                 let t = declared_type_parameter(state, "T");
                 assert_eq!(resolved, t, "T & string collapses to T (step 6)");
+            },
+        );
+    }
+
+    #[test]
+    fn declared_type_parameter_identity_survives_candidate_rollback() {
+        with_program_state(
+            &[("a.ts", "function f<T>() { var v: T; }\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let checkpoint = state.begin_speculation();
+                let inside_candidate = declared_type_parameter(state, "T");
+                state.rollback_speculation(checkpoint);
+
+                let after_candidate = declared_type_parameter(state, "T");
+                assert_eq!(
+                    after_candidate, inside_candidate,
+                    "semantic types created with the declared parameter retain its TypeId"
+                );
             },
         );
     }

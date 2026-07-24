@@ -1433,7 +1433,7 @@ impl<'a> CheckerState<'a> {
         };
         let ty = self.tables.create_deferred_reference_shell(target);
         self.links
-            .set_type_deferred_reference_links(self.speculation_depth, ty, node, mapper);
+            .set_fresh_type_deferred_reference_links(ty, node, mapper);
         let type_object = self.tables.type_mut(ty);
         type_object.alias_symbol = alias_symbol;
         type_object.alias_type_arguments = alias_type_arguments.map(Vec::into_boxed_slice);
@@ -2364,7 +2364,7 @@ impl<'a> CheckerState<'a> {
         if let Some(parameters) = outer_type_parameters {
             let key = self.tables.get_type_list_id(&parameters);
             self.links
-                .set_conditional_instantiation(self.speculation_depth, root, key, resolved);
+                .set_fresh_conditional_instantiation(root, key, resolved);
         }
         Ok(resolved)
     }
@@ -2521,11 +2521,7 @@ impl<'a> CheckerState<'a> {
             self.tables.get_type_list_id(type_arguments.unwrap_or(&[])),
             self.tables.get_alias_id(alias_symbol, alias_type_arguments)
         );
-        if let Some(&instantiation) = self
-            .links
-            .alias_instantiations
-            .get(&(symbol, id_key.clone()))
-        {
+        if let Some(instantiation) = self.links.alias_instantiation(symbol, &id_key) {
             return Ok(instantiation);
         }
         let min_type_argument_count = self.get_min_type_argument_count(Some(&type_parameters));
@@ -2544,8 +2540,7 @@ impl<'a> CheckerState<'a> {
         let instantiation =
             self.instantiate_type_with_alias(ty, mapper, alias_symbol, alias_type_arguments)?;
         self.links
-            .alias_instantiations
-            .insert((symbol, id_key), instantiation);
+            .set_alias_instantiation(self.speculation_depth, symbol, id_key, instantiation);
         Ok(instantiation)
     }
 
@@ -3031,8 +3026,7 @@ impl<'a> CheckerState<'a> {
                     type_parameters,
                 );
                 self.links
-                    .alias_instantiations
-                    .insert((symbol, list_id), ty);
+                    .set_alias_instantiation(self.speculation_depth, symbol, list_id, ty);
             }
             if ty == self.tables.intrinsics.intrinsic_marker
                 && self.binder.symbol(symbol).escaped_name == "BuiltinIteratorReturn"
@@ -3631,11 +3625,8 @@ impl<'a> CheckerState<'a> {
                             NodeId(label),
                         );
                     }
-                    self.links.set_symbol_type(
-                        self.speculation_depth,
-                        property,
-                        LinkSlot::Resolved(type_parameter),
-                    );
+                    self.links
+                        .set_fresh_symbol_type(property, LinkSlot::Resolved(type_parameter));
                     properties.push(property);
                 }
             }
@@ -3657,11 +3648,8 @@ impl<'a> CheckerState<'a> {
                     .collect();
                 self.get_union_type_ex(&literals, UnionReduction::Literal)?
             };
-            self.links.set_symbol_type(
-                self.speculation_depth,
-                length_symbol,
-                LinkSlot::Resolved(length_type),
-            );
+            self.links
+                .set_fresh_symbol_type(length_symbol, LinkSlot::Resolved(length_type));
             properties.push(length_symbol);
             let members = self.symbol_list_to_table(&properties);
             let id = self.alloc_members(ResolvedMembers {
@@ -4035,7 +4023,16 @@ impl<'a> CheckerState<'a> {
         })(self, &mut freshly_bound);
         match result {
             Ok(resolved) => {
-                if is_static {
+                if self.speculation_depth != 0 {
+                    if is_static {
+                        self.links.revert_symbol_resolved_exports(symbol);
+                    } else {
+                        self.links.revert_symbol_resolved_members(symbol);
+                    }
+                    for member in freshly_bound {
+                        self.links.revert_node_resolved_symbol_late_bind(member);
+                    }
+                } else if is_static {
                     self.links.set_symbol_resolved_exports_late_bind(
                         self.speculation_depth,
                         symbol,
@@ -4382,11 +4379,15 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(Vec::new());
         }
+        let speculative_cold =
+            self.speculation_depth != 0 && !self.links.ty(ty).base_types_resolved;
+        let mut owns_resolution = false;
         if !self.links.ty(ty).base_types_resolved {
             if self.push_type_resolution(
                 crate::state::ResolutionTarget::Type(ty),
                 tsrs2_types::TypeSystemPropertyName::RESOLVED_BASE_TYPES,
             ) {
+                owns_resolution = true;
                 let resolved = (|state: &mut Self| -> CheckResult2<()> {
                     if state
                         .tables
@@ -4421,6 +4422,9 @@ impl<'a> CheckerState<'a> {
                 })(self);
                 if let Err(err) = resolved {
                     self.pop_type_resolution();
+                    if speculative_cold && owns_resolution {
+                        self.links.clear_speculative_type_base_types(ty);
+                    }
                     return Err(err);
                 }
                 if !self.pop_type_resolution() {
@@ -4441,12 +4445,16 @@ impl<'a> CheckerState<'a> {
             self.links
                 .set_type_base_types_resolved(self.speculation_depth, ty);
         }
-        Ok(self
+        let result = self
             .links
             .ty(ty)
             .resolved_base_types
             .clone()
-            .unwrap_or_default())
+            .unwrap_or_default();
+        if speculative_cold && owns_resolution {
+            self.links.clear_speculative_type_base_types(ty);
+        }
+        Ok(result)
     }
 
     /// tsc-port: getTupleBaseType @6.0.3
@@ -8563,11 +8571,8 @@ impl<'a> CheckerState<'a> {
             let symbol = self.binder.create_symbol(flags, text.clone());
             let element_type =
                 self.get_type_from_binding_element(e, include_pattern_in_type, report_errors)?;
-            self.links.set_symbol_type(
-                self.speculation_depth,
-                symbol,
-                crate::links::LinkSlot::Resolved(element_type),
-            );
+            self.links
+                .set_fresh_symbol_type(symbol, crate::links::LinkSlot::Resolved(element_type));
             members.insert(text, symbol);
             properties.push(symbol);
         }
@@ -8582,14 +8587,10 @@ impl<'a> CheckerState<'a> {
             construct_signatures: Vec::new(),
             index_infos: string_index_info.into_iter().collect(),
         });
-        self.links.set_type_members(
-            self.speculation_depth,
-            id,
-            crate::links::LinkSlot::Resolved(members_id),
-        );
+        self.links
+            .set_fresh_type_members(id, crate::links::LinkSlot::Resolved(members_id));
         if include_pattern_in_type {
-            self.links
-                .set_type_pattern(self.speculation_depth, id, pattern);
+            self.links.set_fresh_type_pattern(id, pattern);
             // objectFlags |= ContainsObjectOrArrayLiteral (already set).
         }
         Ok(id)
@@ -8654,8 +8655,7 @@ impl<'a> CheckerState<'a> {
             self.create_tuple_type_forced(&element_types, Some(&element_flags), false, None)?;
         if include_pattern_in_type {
             result = self.tables.clone_type_reference(result);
-            self.links
-                .set_type_pattern(self.speculation_depth, result, pattern);
+            self.links.set_fresh_type_pattern(result, pattern);
             let with_literal_flag =
                 self.tables.object_flags_of(result) | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL;
             self.tables.type_mut(result).object_flags = with_literal_flag;
@@ -8716,7 +8716,9 @@ mod tests {
         CompilerOptions, ElementFlags, ObjectFlags, SignatureFlags, TypeData, TypeFlags, TypeId,
     };
 
+    use crate::links::LinkSlot;
     use crate::relpin::find_probe_annotation;
+    use crate::speculate::SpeculationOutcome;
     use crate::state::CheckerState;
 
     fn parse(text: &str) -> SourceFile {
@@ -9058,11 +9060,25 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "links writes are forbidden during speculation")]
-    fn links_writes_assert_zero_speculation_depth() {
+    fn type_node_resolution_is_trial_local_under_speculation() {
         with_state("declare var a: 1 | 2;\n", |state| {
-            state.speculation_depth = 1;
-            let _ = annotation_type(state, "a");
+            let annotation = find_probe_annotation(state.binder.source(0), "a")
+                .expect("declared var with annotation");
+            let resolved = state
+                .speculate(|state| {
+                    let resolved = annotation_type(state, "a");
+                    assert!(matches!(
+                        state.links.node(annotation).resolved_type,
+                        LinkSlot::Resolved(cached) if cached == resolved
+                    ));
+                    Ok(SpeculationOutcome::Rollback(resolved))
+                })
+                .expect("trial resolves");
+            assert!(matches!(
+                state.links.node(annotation).resolved_type,
+                LinkSlot::Vacant
+            ));
+            assert_eq!(annotation_type(state, "a"), resolved);
         });
     }
 }
