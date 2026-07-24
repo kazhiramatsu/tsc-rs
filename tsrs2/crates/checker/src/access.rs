@@ -3684,9 +3684,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a2cd8152c78bd2c6042737704036aee3897bd1e8fb54378add79f82572845461
     /// tsc-span: _tsc.js:81893-81919
     ///
-    /// The mapped-readonly write arm (2542) gates on ObjectFlags::MAPPED
-    /// — mapped types have no producer yet, so the modifiers read stays
-    /// a named escape behind the dead gate.
+    /// The mapped-readonly write arm (2542) is a named 9.5c consumer.
     pub(crate) fn check_indexed_access_index_type(
         &mut self,
         ty: TypeId,

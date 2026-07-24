@@ -482,9 +482,19 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         if target_flags.intersects(TypeFlags::TYPE_PARAMETER) {
-            // 66098-66107: the mapped-source index-signature sub-arm
-            // is dead — mapped types are unconstructible until M8
-            // (getObjectFlags(source) & Mapped never set).
+            // 66098-66107: mapped-source index/template comparison is a
+            // 9.5c relation consumer. Once mapped types are constructible
+            // it must fail closed rather than silently skipping the arm.
+            if self
+                .st
+                .tables
+                .object_flags_of(source)
+                .intersects(ObjectFlags::MAPPED)
+            {
+                return Err(Unsupported::new(
+                    "mapped-source to type-parameter relations (9.5c/M8)",
+                ));
+            }
             if self.relation == RelationKind::Comparable
                 && source_flags.intersects(TypeFlags::TYPE_PARAMETER)
             {
@@ -674,9 +684,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         if self.is_generic_mapped_type(target) && self.relation != RelationKind::Identity {
-            // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a
             return Err(Unsupported::new(
-                "mapped-type targets (unported family, M8-stub)",
+                "mapped-type targets (mappedTypeRelatedTo, 9.5c/M8)",
             ));
         }
         if target_flags.intersects(TypeFlags::CONDITIONAL) {
@@ -759,19 +768,20 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 if !is_false(result) {
                     return Ok(result);
                 }
-                // isMappedTypeGenericIndexedAccess (66314): mapped
-                // types are unconstructible until M8, the guard is
-                // vacuously false.
+                // isMappedTypeGenericIndexedAccess (66314) stays
+                // false under 9.5a's conservative "every mapped type
+                // is generic" classifier. 9.5b owns the precise
+                // classifier and this mapped-index relation branch.
             }
             // 66292-66443 is ONE else-if chain: a type-variable source
             // whose constraint chase failed exits it — the worker tail
             // returns FALSE, never the object block.
         } else if source_flags.intersects(TypeFlags::INDEX) {
             // 66325-66337: keyof sources relate through
-            // string | number | symbol; the deferred-mapped-index
-            // branch is vacuously dead (mapped types are
-            // unconstructible until M8, so isDeferredMappedIndex is
-            // constant false and reportErrors passes through).
+            // string | number | symbol. A deferred mapped-index
+            // producer remains behind getIndexTypeForMappedType in
+            // 9.5b; 9.5c owns the relation branch once such an Index
+            // type is constructible.
             let string_number_symbol = self.st.tables.intrinsics.string_number_symbol;
             let result = self.is_related_to(
                 string_number_symbol,
@@ -1079,9 +1089,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     }
 
     pub(crate) fn is_generic_mapped_type(&self, ty: TypeId) -> bool {
-        // Conservative until M8 can inspect mapped constraints/name
-        // types: mapped relation arms must become live fail-closed as
-        // soon as ObjectFlags::Mapped is constructible.
+        // Conservative until 9.5b inspects mapped constraints/name
+        // types: mapped relation arms are live and fail closed as soon
+        // as ObjectFlags::Mapped is constructible.
         self.st
             .tables
             .object_flags_of(ty)
@@ -2927,7 +2937,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 619ac2a1ef46eed57fbe781a4e1aaf381e2d5e02401d1f26609ce218ae2beedb
     /// tsc-span: _tsc.js:59093-59097
     ///
-    /// getApparentTypeOfMappedType is M8 (Mapped is unconstructible).
+    /// getApparentTypeOfMappedType remains a named 9.5b boundary.
     /// Wrapper globals resolve through the lazy 5.0 accessors — in the
     /// noLib world getGlobalType's failure fallback is emptyObjectType
     /// with the file-less one-shot 2318, invisible to fixture files.
@@ -2940,7 +2950,9 @@ impl<'a> CheckerState<'a> {
         };
         let object_flags = self.tables.object_flags_of(t);
         if object_flags.intersects(ObjectFlags::MAPPED) {
-            return Err(Unsupported::new("mapped type apparent types (M8)"));
+            return Err(Unsupported::new(
+                "getApparentTypeOfMappedType (mapped apparent type, 9.5b/M8)",
+            ));
         }
         if object_flags.intersects(ObjectFlags::REFERENCE) && t != ty {
             return self.get_type_with_this_argument(

@@ -23,8 +23,7 @@ use tsrs2_types::{
 use crate::links::LinkSlot;
 use crate::state::{CheckResult2, CheckerState, Signature, SignatureId, Unsupported};
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct MapperId(pub u32);
+pub use tsrs2_types::MapperId;
 
 /// tsc-port: makeDeferredTypeMapper @6.0.3
 /// tsc-hash: 11cf19c83b088bf7ae4ff74f09b4c0c2aae1d17efdd20ebee18049a409183c7c
@@ -819,7 +818,9 @@ impl<'a> CheckerState<'a> {
                 new_alias_type_arguments.as_deref(),
             )?
         } else if target_object_flags.intersects(ObjectFlags::MAPPED) {
-            return Err(Unsupported::new("mapped type instantiation (M8)"));
+            return Err(Unsupported::new(
+                "instantiateMappedType (mapped instantiation, 9.5b/M8)",
+            ));
         } else {
             self.instantiate_anonymous_type(
                 target,
@@ -1070,8 +1071,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: bde1b975a7540a89787ebe33ba5a6687d2d56e37688858dd76a35ab126603da9
     /// tsc-span: _tsc.js:63637-63657
     ///
-    /// The Mapped arm (63640-63647) is unreachable — mapped targets
-    /// route to instantiateMappedType (M8) before this call — and the
+    /// Mapped targets route to the named instantiateMappedType 9.5b
+    /// boundary before this call. The
     /// InstantiationExpressionType node copy (63648-63650) is dead
     /// until M6; both asserted, not elided.
     fn instantiate_anonymous_type(
@@ -1092,7 +1093,7 @@ impl<'a> CheckerState<'a> {
         let source_object_flags = self.tables.object_flags_of(ty);
         assert!(
             !source_object_flags.intersects(ObjectFlags::MAPPED),
-            "mapped types are unconstructible before M8"
+            "mapped targets must route to instantiateMappedType"
         );
         let result = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
         let mut object_flags = (source_object_flags.bits()

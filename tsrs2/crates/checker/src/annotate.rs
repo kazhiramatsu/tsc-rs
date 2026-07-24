@@ -8,9 +8,9 @@ use tsrs2_binder::{node_util, InternalSymbolName, SymbolId};
 use tsrs2_diags::gen as diagnostics;
 use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    CheckFlags, CheckMode, ElementFlags, IntersectionFlags, LiteralValue, ModifierFlags,
-    ObjectFlags, PseudoBigInt, SignatureFlags, SymbolFlags, TupleTargetFlags, TypeData, TypeFlags,
-    TypeId, UnionReduction,
+    CheckFlags, CheckMode, ElementFlags, IntersectionFlags, LiteralValue, MappedTypeData,
+    MappedTypeModifiers, ModifierFlags, ObjectFlags, PseudoBigInt, SignatureFlags, SymbolFlags,
+    TupleTargetFlags, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::evaluate::EvalValue;
@@ -70,9 +70,9 @@ impl<'a> CheckerState<'a> {
     /// UNSUBSTITUTED type (the plain parameter would mis-relate:
     /// mappedTypeAsClauseRelationships pins the template-span check
     /// under `P extends string ? \`bool${P}\` : P`). The mapped-type
-    /// arm (60467-60478) escapes locally until its homomorphic numeric-
-    /// key constraint can be built in M8, so enabling mapped node
-    /// resolution elsewhere cannot silently turn this into identity.
+    /// arm (60467-60478) is identity unless the homomorphic variable is
+    /// array/tuple-constrained; only that numeric-key Substitution
+    /// subset remains a named 9.6a dependency.
     /// The JSDoc kind stop is vacuous (JSDoc nodes are unconstructed).
     fn get_conditional_flow_type_of_type(
         &mut self,
@@ -125,10 +125,31 @@ impl<'a> CheckerState<'a> {
                     unreachable!("kind/data agree");
                 };
                 if data.name_type.is_none() && data.r#type == Some(node) {
-                    // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a
-                    return Err(Unsupported::new(
-                        "mapped conditional-flow substitution (homomorphic numeric-key constraint, M8-stub)",
-                    ));
+                    let mapped = self.get_type_from_type_node(parent)?;
+                    if self.get_type_parameter_from_mapped_type(mapped)? == ty {
+                        if let Some(type_parameter) = self.get_homomorphic_type_variable(mapped)? {
+                            if let Some(constraint) =
+                                self.get_constraint_of_type_parameter(type_parameter)?
+                            {
+                                let members = self.union_members_or_self(constraint);
+                                let mut every_array_or_tuple = true;
+                                for member in members {
+                                    if !self.tables.is_tuple_type(member)
+                                        && !self.is_array_type(member)?
+                                    {
+                                        every_array_or_tuple = false;
+                                        break;
+                                    }
+                                }
+                                if every_array_or_tuple {
+                                    return Err(Unsupported::new(
+                                        "mapped conditional-flow numeric-key substitution \
+                                         (Substitution type, 9.6a/M8)",
+                                    ));
+                                }
+                            }
+                        }
+                    }
                 }
             }
             node = parent;
@@ -264,10 +285,7 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::TypeQuery => self.get_type_from_type_query_node(node),
             SyntaxKind::IndexedAccessType => self.get_type_from_indexed_access_type_node(node),
-            SyntaxKind::MappedType => {
-                // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a
-                Err(Unsupported::new("mapped types (unported family, M8-stub)"))
-            }
+            SyntaxKind::MappedType => self.get_type_from_mapped_type_node(node),
             SyntaxKind::ConditionalType => {
                 // tsc-dormant: canary=conditional_type_model_constructibility; owner=9.6a
                 Err(Unsupported::new(
@@ -2022,6 +2040,209 @@ impl<'a> CheckerState<'a> {
         } else {
             self.tables.intrinsics.error
         })
+    }
+
+    fn mapped_type_data(&self, ty: TypeId) -> MappedTypeData {
+        match &self.tables.type_of(ty).data {
+            TypeData::Mapped(data) => data.clone(),
+            other => unreachable!("mapped object flag implies mapped payload, got {other:?}"),
+        }
+    }
+
+    /// tsrs-native: typed projection from the syntax-free raw NodeId in
+    /// MappedTypeData back into the checker syntax domain.
+    pub(crate) fn mapped_type_declaration(&self, ty: TypeId) -> NodeId {
+        NodeId(self.mapped_type_data(ty).declaration)
+    }
+
+    /// tsc-port: getTypeParameterFromMappedType @6.0.3
+    /// tsc-hash: 862f55be11ef9ae41cb003364cee351f697129137c29c3b1cf66ab9e550190ef
+    /// tsc-span: _tsc.js:58601-58603
+    pub(crate) fn get_type_parameter_from_mapped_type(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.links.ty(ty).mapped_type_parameter.resolved() {
+            return Ok(cached);
+        }
+        let declaration = self.mapped_type_declaration(ty);
+        let NodeData::MappedType(data) = self.data_of(declaration) else {
+            unreachable!("mapped payload declaration has MappedType syntax kind");
+        };
+        let parameter = data
+            .type_parameter
+            .expect("parser invariant: MappedType type_parameter always parsed");
+        let symbol = self.get_symbol_of_declaration(parameter)?;
+        let resolved = self.get_declared_type_of_type_parameter(symbol);
+        if let Some(cached) = self.links.ty(ty).mapped_type_parameter.resolved() {
+            return Ok(cached);
+        }
+        self.links
+            .set_mapped_type_parameter(self.speculation_depth, ty, resolved);
+        Ok(resolved)
+    }
+
+    /// tsc-port: getConstraintTypeFromMappedType @6.0.3
+    /// tsc-hash: dd26234b33d1947629ca15a57864ad6b5ead96260c052e2a7903f673ffd7b151
+    /// tsc-span: _tsc.js:58604-58606
+    pub(crate) fn get_constraint_type_from_mapped_type(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.links.ty(ty).mapped_constraint_type.resolved() {
+            return Ok(cached);
+        }
+        let parameter = self.get_type_parameter_from_mapped_type(ty)?;
+        let resolved = self
+            .get_constraint_of_type_parameter(parameter)?
+            .unwrap_or(self.tables.intrinsics.error);
+        if let Some(cached) = self.links.ty(ty).mapped_constraint_type.resolved() {
+            return Ok(cached);
+        }
+        self.links
+            .set_mapped_constraint_type(self.speculation_depth, ty, resolved);
+        Ok(resolved)
+    }
+
+    /// tsc-port: getNameTypeFromMappedType @6.0.3
+    /// tsc-hash: 5caabe1c47a1f453488bdec528ab824cd37166517b43e58bf060f16578306a47
+    /// tsc-span: _tsc.js:58607-58609
+    pub(crate) fn get_name_type_from_mapped_type(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        if let Some(cached) = self.links.ty(ty).mapped_name_type.resolved() {
+            return Ok(cached);
+        }
+        let mapped = self.mapped_type_data(ty);
+        let declaration = NodeId(mapped.declaration);
+        let NodeData::MappedType(data) = self.data_of(declaration) else {
+            unreachable!("mapped payload declaration has MappedType syntax kind");
+        };
+        let name_node = data.name_type;
+        let resolved = match name_node {
+            Some(name_node) => {
+                let name_type = self.get_type_from_type_node(name_node)?;
+                Some(self.instantiate_type(name_type, mapped.mapper)?)
+            }
+            None => None,
+        };
+        if let Some(cached) = self.links.ty(ty).mapped_name_type.resolved() {
+            return Ok(cached);
+        }
+        self.links
+            .set_mapped_name_type(self.speculation_depth, ty, resolved);
+        Ok(resolved)
+    }
+
+    /// tsc-port: getMappedTypeModifiers @6.0.3
+    /// tsc-hash: 2a5594e3b7cb9227e987d8559ee624baeda16736c64084262e10b7257e828ed0
+    /// tsc-span: _tsc.js:58638-58641
+    pub(crate) fn get_mapped_type_modifiers(&self, ty: TypeId) -> MappedTypeModifiers {
+        let declaration = self.mapped_type_declaration(ty);
+        let NodeData::MappedType(data) = self.data_of(declaration) else {
+            unreachable!("mapped payload declaration has MappedType syntax kind");
+        };
+        let readonly = match data.readonly_token.map(|token| self.kind_of(token)) {
+            None => MappedTypeModifiers::NONE,
+            Some(SyntaxKind::MinusToken) => MappedTypeModifiers::EXCLUDE_READONLY,
+            Some(_) => MappedTypeModifiers::INCLUDE_READONLY,
+        };
+        let optional = match data.question_token.map(|token| self.kind_of(token)) {
+            None => MappedTypeModifiers::NONE,
+            Some(SyntaxKind::MinusToken) => MappedTypeModifiers::EXCLUDE_OPTIONAL,
+            Some(_) => MappedTypeModifiers::INCLUDE_OPTIONAL,
+        };
+        readonly | optional
+    }
+
+    /// tsc-port: getTemplateTypeFromMappedType @6.0.3
+    /// tsc-hash: 02e8bed481d8ce476e2ebdf76c56462d5f48c545cd98c5d49ae769f478d34b8d
+    /// tsc-span: _tsc.js:58610-58617
+    pub(crate) fn get_template_type_from_mapped_type(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.links.ty(ty).mapped_template_type.resolved() {
+            return Ok(cached);
+        }
+        let mapped = self.mapped_type_data(ty);
+        let declaration = NodeId(mapped.declaration);
+        let NodeData::MappedType(data) = self.data_of(declaration) else {
+            unreachable!("mapped payload declaration has MappedType syntax kind");
+        };
+        let template_node = data.r#type;
+        let include_optional = self
+            .get_mapped_type_modifiers(ty)
+            .intersects(MappedTypeModifiers::INCLUDE_OPTIONAL);
+        let resolved = match template_node {
+            Some(template_node) => {
+                let template = self.get_type_from_type_node(template_node)?;
+                let template = self.tables.add_optionality(
+                    template,
+                    /*is_property*/ true,
+                    include_optional,
+                );
+                self.instantiate_type(template, mapped.mapper)?
+            }
+            None => self.tables.intrinsics.error,
+        };
+        if let Some(cached) = self.links.ty(ty).mapped_template_type.resolved() {
+            return Ok(cached);
+        }
+        self.links
+            .set_mapped_template_type(self.speculation_depth, ty, resolved);
+        Ok(resolved)
+    }
+
+    /// tsc-port: getHomomorphicTypeVariable @6.0.3
+    /// tsc-hash: 11afc5e3dc66aacf8543c1bc4975d7ee26f950cfea42c36d1a214947f1bf0df1
+    /// tsc-span: _tsc.js:63563-63572
+    pub(crate) fn get_homomorphic_type_variable(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let constraint = self.get_constraint_type_from_mapped_type(ty)?;
+        let TypeData::Index { ty: variable, .. } = self.tables.type_of(constraint).data else {
+            return Ok(None);
+        };
+        // getActualTypeVariable is identity until Substitution types
+        // become constructible in 9.6a.
+        Ok(self
+            .tables
+            .flags_of(variable)
+            .intersects(TypeFlags::TYPE_PARAMETER)
+            .then_some(variable))
+    }
+
+    /// tsc-port: getTypeFromMappedTypeNode @6.0.3
+    /// tsc-hash: 9e05ce48777372e904b79ee5425931016f67eb5a2b359955510d2e72f1610f98
+    /// tsc-span: _tsc.js:62619-62630
+    fn get_type_from_mapped_type_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        if let Some(cached) = self.links.node(node).resolved_type.resolved() {
+            return Ok(cached);
+        }
+        let symbol = self
+            .node_symbol(node)
+            .map(|symbol| self.get_merged_symbol(symbol));
+        let mapped = self.tables.create_mapped_type(node.0, None, None, symbol);
+        let alias_symbol = self.get_alias_symbol_for_type_node(node);
+        let alias_type_arguments = self.get_type_arguments_for_alias_symbol(alias_symbol);
+        let type_object = self.tables.type_mut(mapped);
+        type_object.alias_symbol = alias_symbol;
+        type_object.alias_type_arguments = alias_type_arguments.map(Vec::into_boxed_slice);
+
+        // Resolve the constraint eagerly like tsc, but publish the node
+        // cache only after a successful Rust result. An Unsupported
+        // unwind therefore cannot poison later queries with a partial
+        // shell.
+        self.get_constraint_type_from_mapped_type(mapped)?;
+        if let Some(cached) = self.links.node(node).resolved_type.resolved() {
+            return Ok(cached);
+        }
+        self.links
+            .set_node_resolved_type(self.speculation_depth, node, LinkSlot::Resolved(mapped));
+        Ok(mapped)
     }
 
     /// tsc-port: getTypeFromIndexedAccessTypeNode @6.0.3
@@ -3975,11 +4196,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isValidBaseType @6.0.3
     /// tsc-hash: 4efebd5c35e02f1f53bfcd54aa9955ee5eb856bb8adf1f3eb97fd73ea5c2e397
     /// tsc-span: _tsc.js:57310-57318
-    ///
-    /// isGenericMappedType stays false until mapped types are
-    /// constructible.
     pub(crate) fn is_valid_base_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
-        // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a; reason=isValidBaseType generic mapped branch
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
             if let Some(constraint) = self.get_base_constraint_of_type(ty)? {
@@ -5867,10 +6084,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: af4172bba24054af84a69a5df992b6bcffaab2b93b0faa85a33bdf84430b543a
     /// tsc-span: _tsc.js:60053-60055
     ///
-    /// The isGenericType exclusion in the intersection arm remains
-    /// false until generic conditional/mapped types are constructible.
-    pub(crate) fn is_valid_index_key_type(&self, key_type: TypeId) -> bool {
-        // tsc-dormant: canary=conditional_type_model_constructibility; owner=9.6a; reason=isValidIndexKeyType generic intersection exclusion
+    /// Generic intersections are not valid key types even when one
+    /// constituent is string/number/symbol-like.
+    pub(crate) fn is_valid_index_key_type(&mut self, key_type: TypeId) -> bool {
         let flags = self.tables.flags_of(key_type);
         if flags.intersects(TypeFlags::STRING | TypeFlags::NUMBER | TypeFlags::ES_SYMBOL) {
             return true;
@@ -5878,9 +6094,12 @@ impl<'a> CheckerState<'a> {
         if self.tables.is_pattern_literal_type(key_type) {
             return true;
         }
-        if flags.intersects(TypeFlags::INTERSECTION) {
+        if flags.intersects(TypeFlags::INTERSECTION) && !self.tables.is_generic_type(key_type) {
             if let TypeData::Intersection { types } = &self.tables.type_of(key_type).data {
-                return types.iter().any(|&t| self.is_valid_index_key_type(t));
+                let members = types.to_vec();
+                return members
+                    .into_iter()
+                    .any(|member| self.is_valid_index_key_type(member));
             }
         }
         false
@@ -10113,6 +10332,89 @@ mod generic_signature_tests {
 }
 
 // ---- enum declared types + values (M4 5.3b) ----
+#[cfg(test)]
+mod mapped_type_tests {
+    use tsrs2_syntax::NodeId;
+    use tsrs2_types::{CompilerOptions, ObjectFlags, TypeData, TypeFlags, TypeId};
+
+    use crate::relpin::find_probe_annotation;
+    use crate::state::test_support::with_program_state;
+    use crate::state::CheckerState;
+
+    fn annotation_type(state: &mut CheckerState, name: &str) -> (NodeId, TypeId) {
+        let annotation = find_probe_annotation(state.binder.source(0), name)
+            .expect("declared variable has an annotation");
+        let ty = state
+            .get_type_from_type_node(annotation)
+            .expect("mapped annotation resolves");
+        (annotation, ty)
+    }
+
+    #[test]
+    fn mapped_type_model_constructibility() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T>() {\n\
+                   let v: { [K in keyof T]: T[K] };\n\
+                   let w: { readonly [P in keyof T]?: P };\n\
+                   let x: { -readonly [Q in keyof T as `x${Q & string}`]-?: T[Q] };\n\
+                 }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let (declaration, mapped) = annotation_type(state, "v");
+                assert!(state.tables.flags_of(mapped).intersects(TypeFlags::OBJECT));
+                assert!(state
+                    .tables
+                    .object_flags_of(mapped)
+                    .intersects(ObjectFlags::MAPPED));
+                let TypeData::Mapped(data) = &state.tables.type_of(mapped).data else {
+                    panic!("mapped object flags require semantic mapped payload");
+                };
+                assert_eq!(data.declaration, declaration.0);
+                assert_eq!(data.target, None);
+                assert_eq!(data.mapper, None);
+                assert_eq!(
+                    state
+                        .get_type_from_type_node(declaration)
+                        .expect("node cache requery"),
+                    mapped
+                );
+                let constraint = state
+                    .get_constraint_type_from_mapped_type(mapped)
+                    .expect("mapped constraint");
+                assert!(matches!(
+                    state.tables.type_of(constraint).data,
+                    TypeData::Index { .. }
+                ));
+                assert_eq!(
+                    state
+                        .type_to_string_slice(mapped)
+                        .expect("every constructible mapped type renders"),
+                    "{ [K in keyof T]: T[K]; }"
+                );
+
+                let (_, optional) = annotation_type(state, "w");
+                assert_eq!(
+                    state
+                        .type_to_string_slice(optional)
+                        .expect("mapped modifiers render"),
+                    "{ readonly [P in keyof T]?: P | undefined; }"
+                );
+
+                let (_, remapped) = annotation_type(state, "x");
+                assert_eq!(
+                    state
+                        .type_to_string_slice(remapped)
+                        .expect("mapped key remap and subtractive modifiers render"),
+                    "{ -readonly [Q in keyof T as `x${Q & string}`]-?: T[Q]; }"
+                );
+            },
+        );
+    }
+}
+
 #[cfg(test)]
 mod enum_tests {
     use tsrs2_syntax::NodeId;

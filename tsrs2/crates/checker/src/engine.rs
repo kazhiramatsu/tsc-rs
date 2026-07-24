@@ -2941,10 +2941,10 @@ impl<'a> CheckerState<'a> {
         Ok(result.filter(|&r| r != unknown))
     }
 
-    /// Conservative pre-M8 isGenericMappedType gate. Every mapped type
-    /// is treated as generic until the mapped payload and the precise
-    /// constraint/name-type test land; this keeps the dormant mapped
-    /// branches fail-closed as soon as mapped objects become constructible.
+    /// Conservative phase-9.5a isGenericMappedType gate. Every mapped
+    /// type is treated as generic until 9.5b activates the precise
+    /// constraint/name-type predicate; downstream consumers therefore
+    /// fail closed at their named boundaries.
     pub(crate) fn is_generic_mapped_type_state(&self, ty: TypeId) -> bool {
         self.tables
             .object_flags_of(ty)
@@ -2962,7 +2962,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:67498-67506
     ///
     /// maxDepth defaults to 3 (greenfield §4.7's "5" was the audited
-    /// erratum). InstantiatedMapped unwrapping is dead until M4.
+    /// erratum). InstantiatedMapped target unwrapping lands with the
+    /// first instantiated mapped producer in 9.5b.
     pub fn is_deeply_nested_type(
         &self,
         ty: TypeId,

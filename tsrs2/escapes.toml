@@ -143,10 +143,9 @@ canary = "substitution_type_model_constructibility"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_conditional_flow_type_of_type"
-reason = "mapped conditional-flow substitution (homomorphic numeric-key constraint, M8-stub)"
-class = "dormant-assumption"
-owner = "9.5a"
-canary = "mapped_type_model_constructibility"
+reason = "mapped conditional-flow numeric-key substitution (Substitution type, 9.6a/M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -207,14 +206,6 @@ canary = "infer_type_model_constructibility"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_type_from_type_node_worker"
-reason = "mapped types (unported family, M8-stub)"
-class = "dormant-assumption"
-owner = "9.5a"
-canary = "mapped_type_model_constructibility"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_from_type_node_worker"
 reason = "type node kind {other:?} outside the M3 annotation slice (JSDoc-flavor bands, M8)"
 class = "stage"
 owner = "M8"
@@ -269,22 +260,6 @@ file = "crates/checker/src/annotate.rs"
 in = "get_type_of_variable_or_parameter_or_property"
 reason = "worker declaration kind {other:?} (Debug.fail transcription, parse recovery)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "is_valid_base_type"
-reason = "isValidBaseType generic mapped branch"
-class = "dormant-assumption"
-owner = "9.5a"
-canary = "mapped_type_model_constructibility"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "is_valid_index_key_type"
-reason = "isValidIndexKeyType generic intersection exclusion"
-class = "dormant-assumption"
-owner = "9.6a"
-canary = "conditional_type_model_constructibility"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -705,6 +680,13 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/constraints.rs"
 in = "compute_base_constraint"
+reason = "base constraint of a generic mapped indexed access (substituteIndexedMappedType, 9.5c/M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/constraints.rs"
+in = "compute_base_constraint"
 reason = "computeBaseConstraint for Conditional/Substitution (M8 — those TypeFlags are unconstructible before their type nodes land)"
 class = "stage"
 owner = "M8"
@@ -712,10 +694,9 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/constraints.rs"
 in = "get_constraint_from_indexed_access"
-reason = "indexed-access constraints over mapped types (unported family, M8-stub)"
-class = "dormant-assumption"
-owner = "9.5a"
-canary = "mapped_type_model_constructibility"
+reason = "indexed-access constraints over mapped types (substituteIndexedMappedType, 9.5c/M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/constraints.rs"
@@ -749,9 +730,8 @@ owner = "M8"
 file = "crates/checker/src/contextual.rs"
 in = "get_type_of_property_of_contextual_type"
 reason = "getIndexedMappedTypeSubstitutedTypeOfContextualType (mapped types, M8)"
-class = "dormant-assumption"
-owner = "9.5a"
-canary = "mapped_type_model_constructibility"
+class = "stage"
+owner = "M8"
 count = 2
 
 [[site]]
@@ -844,6 +824,13 @@ reason = "getNarrowableTypeForReference NoInfer substitution arm"
 class = "dormant-assumption"
 owner = "9.6a"
 canary = "substitution_type_model_constructibility"
+
+[[site]]
+file = "crates/checker/src/expr.rs"
+in = "is_const_type_variable"
+reason = "isConstMappedType (mapped inference/contextual constness, 9.5c/M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/expr.rs"
@@ -951,11 +938,17 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/indexed.rs"
+in = "get_index_type"
+reason = "getIndexTypeForMappedType (mapped members, 9.5b/M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/indexed.rs"
 in = "get_simplified_index_type"
-reason = "getSimplifiedIndexType for mapped types (unported family, M8-stub)"
-class = "dormant-assumption"
-owner = "9.5a"
-canary = "mapped_type_model_constructibility"
+reason = "getSimplifiedIndexType for mapped types (key remapping, 9.5b/M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/indexed.rs"
@@ -968,10 +961,9 @@ canary = "conditional_type_model_constructibility"
 [[site]]
 file = "crates/checker/src/indexed.rs"
 in = "simplified_indexed_access_worker"
-reason = "simplified indexed access over mapped types (unported family, M8-stub)"
-class = "dormant-assumption"
-owner = "9.5a"
-canary = "mapped_type_model_constructibility"
+reason = "simplified indexed access over mapped types (mapped instantiation, 9.5b/M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/inference.rs"
@@ -983,7 +975,7 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/inference.rs"
 in = "infer_from_generic_mapped_types"
-reason = "inferFromGenericMappedTypes body (M8 — Mapped object types are unconstructible before mapped type nodes land)"
+reason = "inferFromGenericMappedTypes body (mapped inference, 9.5c/M8)"
 class = "stage"
 owner = "M8"
 
@@ -996,7 +988,7 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/inference.rs"
 in = "infer_from_object_types"
-reason = "inferToMappedType + mapped-target declaration reads (M8 — Mapped object types are unconstructible before mapped type nodes land)"
+reason = "inferToMappedType (mapped inference, 9.5c/M8)"
 class = "stage"
 owner = "M8"
 
@@ -1040,7 +1032,7 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/instantiate.rs"
 in = "get_object_type_instantiation"
-reason = "mapped type instantiation (M8)"
+reason = "instantiateMappedType (mapped instantiation, 9.5b/M8)"
 class = "stage"
 owner = "M8"
 
@@ -1483,7 +1475,7 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/structural.rs"
 in = "get_apparent_type"
-reason = "mapped type apparent types (M8)"
+reason = "getApparentTypeOfMappedType (mapped apparent type, 9.5b/M8)"
 class = "stage"
 owner = "M8"
 
@@ -1522,10 +1514,16 @@ canary = "substitution_type_model_constructibility"
 [[site]]
 file = "crates/checker/src/structural.rs"
 in = "structured_type_related_to_worker"
-reason = "mapped-type targets (unported family, M8-stub)"
-class = "dormant-assumption"
-owner = "9.5a"
-canary = "mapped_type_model_constructibility"
+reason = "mapped-source to type-parameter relations (9.5c/M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/structural.rs"
+in = "structured_type_related_to_worker"
+reason = "mapped-type targets (mappedTypeRelatedTo, 9.5c/M8)"
+class = "stage"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/structural.rs"
