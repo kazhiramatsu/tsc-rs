@@ -2478,9 +2478,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 8aafbc240586103fe0d9771544e0eea8d9057c8726f39b56fe9f613add9aeb45
     /// tsc-span: _tsc.js:60263-60277
     ///
-    /// The NoInfer intrinsic escapes (getNoInferType mints Substitution
-    /// types, M8); Uppercase/Lowercase/Capitalize/Uncapitalize route to
-    /// getStringMappingType.
+    /// NoInfer routes through its target classifier and interned
+    /// substitution wrapper; Uppercase/Lowercase/Capitalize/
+    /// Uncapitalize route to getStringMappingType.
     pub(crate) fn get_type_alias_instantiation(
         &mut self,
         symbol: SymbolId,
@@ -2495,9 +2495,7 @@ impl<'a> CheckerState<'a> {
                 if let Some(arguments) = type_arguments {
                     if arguments.len() == 1 {
                         return if kind == crate::instantiate::IntrinsicTypeKind::NoInfer {
-                            Err(Unsupported::new(
-                                "NoInfer intrinsic production (getNoInferType, 9.6b/M8)",
-                            ))
+                            self.get_no_infer_type(arguments[0])
                         } else {
                             self.get_string_mapping_type(symbol, arguments[0])
                         };

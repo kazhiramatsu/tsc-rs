@@ -1707,6 +1707,13 @@ impl<'a> CheckerState<'a> {
             ));
         }
         if flags.intersects(TypeFlags::SUBSTITUTION) {
+            if self.tables.is_no_infer_type(ty) {
+                let TypeData::Substitution(data) = self.tables.type_of(ty).data.clone() else {
+                    unreachable!("NoInfer is a Substitution type");
+                };
+                let new_base = self.instantiate_type(data.base_type, Some(mapper))?;
+                return self.get_no_infer_type(new_base);
+            }
             return Err(Unsupported::new(
                 "substitution-type instantiation (9.6d/M8)",
             ));

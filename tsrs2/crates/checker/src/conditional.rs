@@ -10,6 +10,52 @@ use tsrs2_types::{IntersectionFlags, TypeData, TypeId};
 use crate::state::{CheckResult2, CheckerState};
 
 impl<'a> CheckerState<'a> {
+    /// tsc-port: getNoInferType @6.0.3
+    /// tsc-hash: 1dfcae3e626dbcf419c9b26d662b6fa4d15c0efb6f1eaacd87b06b85d14a04dd
+    /// tsc-span: _tsc.js:60421-60423
+    pub(crate) fn get_no_infer_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+        if self.is_no_infer_target_type(ty)? {
+            Ok(self
+                .tables
+                .get_or_create_substitution_type(ty, self.tables.intrinsics.unknown))
+        } else {
+            Ok(ty)
+        }
+    }
+
+    /// tsc-port: isNoInferTargetType @6.0.3
+    /// tsc-hash: 466180cf407380cd069742ed83680cbd4e7335791a8b76318d0f4369bdf42d84
+    /// tsc-span: _tsc.js:60424-60426
+    fn is_no_infer_target_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        let flags = self.tables.flags_of(ty);
+        if flags.intersects(tsrs2_types::TypeFlags::UNION_OR_INTERSECTION) {
+            let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
+                TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
+                _ => unreachable!("union/intersection flag implies member data"),
+            };
+            for member in members {
+                if self.is_no_infer_target_type(member)? {
+                    return Ok(true);
+                }
+            }
+            return Ok(false);
+        }
+        if flags.intersects(tsrs2_types::TypeFlags::SUBSTITUTION) {
+            if self.tables.is_no_infer_type(ty) {
+                return Ok(false);
+            }
+            let TypeData::Substitution(data) = self.tables.type_of(ty).data.clone() else {
+                unreachable!("Substitution flag implies substitution data");
+            };
+            return self.is_no_infer_target_type(data.base_type);
+        }
+        if flags.intersects(tsrs2_types::TypeFlags::OBJECT) {
+            return Ok(!self.is_empty_anonymous_object_type(ty)?);
+        }
+        Ok(flags.intersects(tsrs2_types::TypeFlags::INSTANTIABLE)
+            && !self.tables.is_pattern_literal_type(ty))
+    }
+
     /// tsc-port: getTrueTypeFromConditionalType @6.0.3
     /// tsc-hash: 3bc8c100391c728a2d646188cc6f497bfae8befb8364762df568410bdfbe630f
     /// tsc-span: _tsc.js:62746-62748
@@ -107,5 +153,73 @@ impl<'a> CheckerState<'a> {
         } else {
             self.get_intersection_type(&[data.constraint, data.base_type], IntersectionFlags::NONE)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use tsrs2_types::{CompilerOptions, SymbolFlags, TypeData, TypeFlags};
+
+    use crate::relpin::find_probe_annotation;
+    use crate::state::test_support::with_program_state;
+
+    #[test]
+    fn no_infer_type_production() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "type NoInfer<T> = intrinsic;\n\
+                 declare let primitive: NoInfer<string>;\n\
+                 declare let object: NoInfer<{ x: string }>;\n\
+                 function keys<T>() { let key: keyof NoInfer<T>; }\n\
+                 declare function choose<T extends string>(value: T, fallback: NoInfer<T>): T;\n\
+                 choose(\"foo\", \"bar\");\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let primitive_node =
+                    find_probe_annotation(state.binder.source(0), "primitive").expect("primitive");
+                let primitive = state
+                    .get_type_from_type_node(primitive_node)
+                    .expect("primitive NoInfer erases");
+                assert_eq!(primitive, state.tables.intrinsics.string);
+
+                let object_node =
+                    find_probe_annotation(state.binder.source(0), "object").expect("object");
+                let object = state
+                    .get_type_from_type_node(object_node)
+                    .expect("object NoInfer constructs");
+                assert!(state.tables.is_no_infer_type(object));
+                assert_eq!(
+                    state.type_to_string_slice(object).expect("NoInfer display"),
+                    "NoInfer<{ x: string; }>"
+                );
+
+                let key_node = find_probe_annotation(state.binder.source(0), "key").expect("key");
+                let key = state
+                    .get_type_from_type_node(key_node)
+                    .expect("keyof NoInfer constructs");
+                let TypeData::Substitution(key_data) = state.tables.type_of(key).data.clone()
+                else {
+                    panic!("keyof NoInfer<T> preserves the inference barrier");
+                };
+                assert!(state.tables.is_no_infer_type(key));
+                assert!(state
+                    .tables
+                    .flags_of(key_data.base_type)
+                    .intersects(TypeFlags::INDEX));
+
+                state.check_source_file(0);
+                assert!(state
+                    .diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code() == 2345));
+
+                let choose = state
+                    .resolve_file_scope_name("choose", SymbolFlags::FUNCTION)
+                    .expect("choose resolves");
+                assert!(state.get_type_of_symbol(choose).is_ok());
+            },
+        );
     }
 }

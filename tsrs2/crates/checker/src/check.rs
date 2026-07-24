@@ -3190,6 +3190,15 @@ impl<'a> CheckerState<'a> {
             }
             ty
         };
+        // isRelatedTo hands reportUnmatchedProperty its normalized
+        // pair. A NoInfer write target normalizes to its base type,
+        // so both the required-property walk and the 2741 display
+        // must see `T`, not the substitution wrapper.
+        let target = if self.tables.is_no_infer_type(target) {
+            self.get_normalized_type(target, /*writing*/ true)?
+        } else {
+            target
+        };
         let target = {
             let mut ty = target;
             while let Some(base) = self.get_single_base_for_non_augmenting_subtype(ty)? {
@@ -4474,6 +4483,18 @@ impl<'a> CheckerState<'a> {
             let TypeData::Substitution(data) = self.tables.type_of(ty).data.clone() else {
                 unreachable!("SUBSTITUTION flag implies Substitution data");
             };
+            if self.tables.is_no_infer_type(ty) {
+                let (argument, _) =
+                    self.type_to_string_slice_node(data.base_type, fully_qualified)?;
+                if let Some(symbol) = self.get_global_type_symbol("NoInfer", false) {
+                    let name = if fully_qualified {
+                        self.get_fully_qualified_name(symbol)
+                    } else {
+                        self.symbol_display_name(symbol)
+                    };
+                    return Ok((format!("{name}<{argument}>"), SliceTypeNodeKind::Reference));
+                }
+            }
             return self.type_to_string_slice_node(data.base_type, fully_qualified);
         }
         Err(Unsupported::new(
@@ -7837,7 +7858,7 @@ enum ScopeTableKey {
 /// node's KIND at each join; the string renderer carries the kind
 /// beside the text so the joins below apply the same rules. Only
 /// kinds the slice can produce are listed — the parenthesizer arms
-/// for the rest (conditional/infer heads) land with their shapes.
+/// for the rest (infer heads) land with their shapes.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SliceTypeNodeKind {
     /// KeywordTypeNode — intrinsics; no reachable rule wraps one.
@@ -7916,8 +7937,7 @@ struct SliceParameterFace {
 ///
 /// The fall-through (parenthesizeCheckTypeOfConditionalType,
 /// 20585-20593) wraps function/constructor/conditional heads — the
-/// signature rung produces the first two; conditional heads stay
-/// unproducible (M8).
+/// signature rung produces the first two.
 fn union_constituent_needs_parens(kind: SliceTypeNodeKind) -> bool {
     matches!(
         kind,
