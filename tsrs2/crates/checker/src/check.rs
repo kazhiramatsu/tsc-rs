@@ -1942,12 +1942,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkMappedType @6.0.3
     /// tsc-hash: 12a5060787f6d1849d7f77ba2d3beb1f786fb8263e2fcd929c49d5c9673375e4
     /// tsc-span: _tsc.js:81924-81940
-    ///
-    /// getTypeFromMappedTypeNode is the annotate.rs mapped-model
-    /// boundary: when the
-    /// resolver escapes, the nameType/constraint rows escape with it —
-    /// the grammar, recursion and reportImplicitAny rows above still
-    /// fire (§11 containment note).
     fn check_mapped_type(&mut self, node: NodeId) -> CheckResult2<()> {
         self.check_grammar_mapped_type(node);
         let NodeData::MappedType(data) = self.data_of(node) else {
@@ -1963,10 +1957,30 @@ impl<'a> CheckerState<'a> {
             self.report_implicit_any(node, any, None)?;
         }
         let ty = self.get_type_from_type_node(node)?;
-        let _ = ty;
-        Err(Unsupported::new(
-            "checkMappedType nameType/constraint rows (getNameTypeFromMappedType — mapped types M8)",
-        ))
+        let string_number_symbol = self.tables.intrinsics.string_number_symbol;
+        if let Some(resolved_name_type) = self.get_name_type_from_mapped_type(ty)? {
+            self.check_type_assignable_to(
+                resolved_name_type,
+                string_number_symbol,
+                name_type,
+                &diagnostics::Type_0_is_not_assignable_to_type_1,
+            )?;
+        } else {
+            let constraint = self.get_constraint_type_from_mapped_type(ty)?;
+            let constraint_node = type_parameter.and_then(|parameter| {
+                let NodeData::TypeParameter(data) = self.data_of(parameter) else {
+                    return None;
+                };
+                data.constraint
+            });
+            self.check_type_assignable_to(
+                constraint,
+                string_number_symbol,
+                constraint_node,
+                &diagnostics::Type_0_is_not_assignable_to_type_1,
+            )?;
+        }
+        Ok(())
     }
 
     /// tsc-port: checkGrammarMappedType @6.0.3
@@ -11552,6 +11566,19 @@ mod tests {
                 ),
             ]
         );
+    }
+
+    #[test]
+    fn mapped_name_type_and_readonly_index_write_are_checked() {
+        let rows = checked_diags(
+            "type Bad<T extends string> = { [K in T as {}]: T };\n\
+             function write<T, K extends keyof T>(\n\
+               target: { readonly [P in keyof T]: T[P] }, key: K, value: T[K]\n\
+             ) { target[key] = value; }\n",
+        );
+        let codes: Vec<u32> = rows.iter().map(|row| row.0).collect();
+        assert!(codes.contains(&2322), "{rows:?}");
+        assert!(codes.contains(&2542), "{rows:?}");
     }
 
     #[test]

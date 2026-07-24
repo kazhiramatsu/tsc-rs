@@ -2111,6 +2111,45 @@ unchanged. Ratchet artifacts contain exactly +55 all / +55 2xxx
 accepted identities; syntactic remains 2242/2246. Full
 `cargo xtask ci` exits 0, including every invariant.
 
+## 9.5c2a results (2026-07-24, mapped contextual/check consumers — DONE)
+
+The remaining 9.5c contextual/check owner is separate from reverse
+mapped inference, whose homomorphic inference path necessarily creates
+`ReverseMapped` semantic types. Generic non-remapping mapped contexts
+now substitute the requested property key after exclusion and
+constraint checks; intersection contexts retain the existing
+any-to-unknown constituent discipline. Conditional exclusion remains
+an exact 9.6a boundary. Circular mapped properties are detected against
+the type-resolution stack and are not forced recursively.
+
+`checkMappedType` validates either the instantiated `as` name type or
+the mapped constraint against `string | number | symbol`. Generic
+mapped indexed writes report readonly 2542 only when the mapped
+modifier includes readonly. Homomorphic mapped types now inherit const
+type-parameter status and request tuple-shaped array literals in
+context. Direct canaries cover contextual substitution, circular
+property suppression, mapped name validation plus readonly writes,
+constness, and tuple context. Checker tests are **981**.
+
+Six broad owned manifest rows containing seven call sites retired, and
+one narrower conditional-exclusion boundary landed: sites=**234**,
+stale=0, untagged=0, recovery=116, dormant=13. The exact ledger is
+**1803**/stale=0, and schema-2 closure declarations unaccounted by
+exact ports fell 4,036→**4,035**. Reverse-mapped construction, member
+resolution, symbol typing, instantiation, and homomorphic inference
+remain together in 9.5c2b.
+
+Band movement (tool-read): all T0 **59.5157%→59.5749%**
+(29177→29206, +29), FP=0; 2xxx T0 **87.7345%→87.8676%**
+(18469→18497, +28), FP=0; supported T0
+**90.0751%→90.2117%** (18497/20504), supported FN
+2,035→**2,007**. The exact 2xxx shadow gains are T1 +28,
+T2 +23, and T3 +17, with **zero lost identities** in every tier and
+both all/supported views. The supported universe is unchanged.
+Ratchet artifacts contain exactly +29 all / +28 2xxx accepted
+identities; syntactic remains 2242/2246. Full `cargo xtask ci` is the
+merge gate for the sub-row.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

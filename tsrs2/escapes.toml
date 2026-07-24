@@ -33,13 +33,6 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/access.rs"
-in = "check_indexed_access_index_type"
-reason = "mapped-readonly write 2542 (getMappedTypeModifiers — mapped family, M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/access.rs"
 in = "check_non_null_assertion"
 reason = "NonNullExpression recovery node"
 class = "recovery"
@@ -466,13 +459,6 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/check.rs"
-in = "check_mapped_type"
-reason = "checkMappedType nameType/constraint rows (getNameTypeFromMappedType — mapped types M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
 in = "check_type_reference_or_import"
 reason = "checkTypeArgumentConstraints under a ConditionalTypeM8"
 class = "stage"
@@ -700,18 +686,10 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/contextual.rs"
-in = "get_type_of_concrete_property_of_contextual_type"
-reason = "isCircularMappedProperty (mapped-type properties, M8)"
+in = "is_excluded_mapped_property_name"
+reason = "isExcludedMappedPropertyName conditional branch (Conditional type, 9.6a/M8)"
 class = "stage"
 owner = "M8"
-
-[[site]]
-file = "crates/checker/src/contextual.rs"
-in = "get_type_of_property_of_contextual_type"
-reason = "getIndexedMappedTypeSubstitutedTypeOfContextualType (mapped types, M8)"
-class = "stage"
-owner = "M8"
-count = 2
 
 [[site]]
 file = "crates/checker/src/engine.rs"
@@ -803,13 +781,6 @@ reason = "getNarrowableTypeForReference NoInfer substitution arm"
 class = "dormant-assumption"
 owner = "9.6a"
 canary = "substitution_type_model_constructibility"
-
-[[site]]
-file = "crates/checker/src/expr.rs"
-in = "is_const_type_variable"
-reason = "isConstMappedType (mapped inference/contextual constness, 9.5c/M8)"
-class = "stage"
-owner = "M8"
 
 [[site]]
 file = "crates/checker/src/expr.rs"
@@ -1147,13 +1118,6 @@ file = "crates/checker/src/literals.rs"
 in = "check_object_literal_members"
 reason = "unexpected object-literal member kind (parse recovery)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/literals.rs"
-in = "is_tuple_context_constituent"
-reason = "inTupleContext generic-mapped disjunct (getHomomorphicTypeVariable, M8)"
-class = "stage"
-owner = "M8"
 
 [[site]]
 file = "crates/checker/src/mapped.rs"

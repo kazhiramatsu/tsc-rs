@@ -168,8 +168,10 @@
 # classification with the constraint/name-type predicate. p9 9.5c1
 # adds +55 by substituting generic mapped indexed access and relating
 # mapped constraints, templates, name types, and optionality.
-rate = 0.595157
-matched = 29177
+# p9 9.5c2a adds +29 through mapped contextual-property substitution,
+# mapped validation/readonly writes, constness, and tuple context.
+rate = 0.595749
+matched = 29206
 total = 49024
 allowed_regression = 0.0
 
@@ -214,8 +216,9 @@ allowed_regression = 0.0
 # adds +7 mapped model/display rows; p9 9.5b1 adds +3 finite mapped
 # member rows; p9 9.5b2 adds +84 mapped instantiation/apparent rows.
 # p9 9.5c1 adds +55 mapped indexed-access/relation rows.
-rate = 0.877345
-matched = 18469
+# p9 9.5c2a adds +28 mapped contextual/check-consumer rows.
+rate = 0.878676
+matched = 18497
 total = 21051
 allowed_regression = 0.0
 

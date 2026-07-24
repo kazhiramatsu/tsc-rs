@@ -3519,8 +3519,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:58794-58797
     ///
     /// Conditional/Substitution remain unconstructible until 9.6.
-    /// Mapped constness is a named inference/contextual consumer for
-    /// 9.5c; IndexedAccess/generic-tuple recurse over the live kinds.
+    /// IndexedAccess/mapped/generic-tuple recurse over the live kinds.
     pub(crate) fn is_const_type_variable(
         &mut self,
         ty: Option<TypeId>,
@@ -3569,9 +3568,7 @@ impl<'a> CheckerState<'a> {
             .object_flags_of(ty)
             .intersects(ObjectFlags::MAPPED)
         {
-            return Err(Unsupported::new(
-                "isConstMappedType (mapped inference/contextual constness, 9.5c/M8)",
-            ));
+            return self.is_const_mapped_type(ty, depth);
         }
         if self.tables.is_tuple_type(ty) {
             let target = self.tables.reference_target(ty);
@@ -3594,6 +3591,16 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(false)
+    }
+
+    /// tsc-port: isConstMappedType @6.0.3
+    /// tsc-hash: c95d9b336da26ae8688cdd6480a325ba39aefa6705d7c77ab837a1e2d83dcf9e
+    /// tsc-span: _tsc.js:58790-58793
+    fn is_const_mapped_type(&mut self, ty: TypeId, depth: u32) -> CheckResult2<bool> {
+        let Some(variable) = self.get_homomorphic_type_variable(ty)? else {
+            return Ok(false);
+        };
+        self.is_const_type_variable(Some(variable), depth)
     }
 
     /// tsc-port: checkExpressionForMutableLocation @6.0.3
@@ -4598,6 +4605,26 @@ mod tests {
         assert_eq!(
             checked_rows("const r = require(\"m\");\nr;\n"),
             [(2591, 10, 7)]
+        );
+    }
+
+    #[test]
+    fn homomorphic_mapped_type_inherits_const_type_parameter() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<const T>(value: { [K in keyof T]: T[K] }) {}\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let mapped_node = find_node(state, SyntaxKind::MappedType, None);
+                let mapped = state
+                    .get_type_from_type_node(mapped_node)
+                    .expect("mapped type resolves");
+                assert!(state
+                    .is_const_type_variable(Some(mapped), 0)
+                    .expect("mapped constness resolves"));
+            },
         );
     }
 }
