@@ -2829,6 +2829,29 @@ Checker tests are **1,020**. Escape evidence is unchanged at
 sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
 Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9h results (2026-07-25, value-as-type alternates — DONE)
+
+The missing-name alternate ladder now ports
+`checkAndReportErrorForUsingValueAsType`: a symbol which resolves only
+in value meaning reports 2749 instead of being hidden by the
+all-meanings safety gate. Namespace-bearing values remain valid
+qualification roots. `resolveEntityName` also ports the qualified-name
+`typeof` suggestion path, requiring the complete qualified name to
+resolve as a value and reporting over that full name.
+
+This closes all **14** supported 2749 rows. 2xxx T0 grows to
+**20313/21051** (**96.4942%**) with FP=0; supported T0 is
+**20313/20504** (**99.0685%**) with supported FN=**191**. All-band T0
+is **31235/49024** (**63.7137%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**14** in both bands and both scope views. The
+accepted-set ratchet adds 14 T0 identities and 14
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,022**. Escape evidence is unchanged at
+sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
+Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

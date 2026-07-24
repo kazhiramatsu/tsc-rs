@@ -194,8 +194,9 @@
 # p9 9.9e adds +11 through authoritative in-program allowJs resolution.
 # p9 9.9f adds +24 through Node per-file CommonJS emit-format collisions.
 # p9 9.9g adds +67 through exact mixed-JS name-miss provenance.
-rate = 0.636851
-matched = 31221
+# p9 9.9h adds +14 value-as-type alternate diagnostics.
+rate = 0.637137
+matched = 31235
 total = 49024
 allowed_regression = 0.0
 
@@ -256,8 +257,9 @@ allowed_regression = 0.0
 # p9 9.9e adds +11 through authoritative in-program allowJs resolution.
 # p9 9.9f adds +24 Node per-file generated-name collision rows.
 # p9 9.9g adds +67 exact mixed-JS name-miss rows.
-rate = 0.964277
-matched = 20299
+# p9 9.9h adds +14 value-as-type alternate diagnostics.
+rate = 0.964942
+matched = 20313
 total = 21051
 allowed_regression = 0.0
 
