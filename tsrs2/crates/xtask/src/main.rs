@@ -14,6 +14,7 @@ use sha2::{Digest, Sha256};
 use tsrs2_checker::{CompilerOptions, InputFile};
 use tsrs2_diags::DiagnosticList;
 
+mod recovery_census;
 mod relpin;
 mod symbol_audit;
 
@@ -28,6 +29,7 @@ fn main() {
         Some("token-diff") => run_or_exit(token_diff(args)),
         Some("ast-dump") => run_or_exit(ast_dump(args)),
         Some("ast-diff") => run_or_exit(ast_diff(args)),
+        Some("recovery-census") => run_or_exit(recovery_census::run(args)),
         Some("symbol-diff") => run_or_exit(symbol_diff(args)),
         Some("lib-gate") => run_or_exit(lib_gate(args)),
         Some("bind-corpus") => run_or_exit(bind_corpus(args)),
@@ -5187,6 +5189,10 @@ fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
         &families_out,
         |summary| print_conformance_summary(summary, &conformance_out),
     )?;
+    // Phase 9.7a: the 2XXX summary already carries every reached F2
+    // partial-boundary identity. Reuse it to gate the recovery-shape
+    // census and its minimal fixtures without a duplicate corpus run.
+    recovery_census::check_with_summary(&workspace, &summaries.two_xxx)?;
     // The permanent syntactic gate (convergence invariant 3) is one
     // of the independently graded fixed views above.
     invariants(["--suite", "all"].into_iter().map(str::to_owned))?;
