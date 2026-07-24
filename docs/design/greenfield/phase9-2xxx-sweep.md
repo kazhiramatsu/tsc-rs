@@ -2742,6 +2742,41 @@ Checker tests are **1,017**. Escape evidence is unchanged at
 sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
 Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9e results (2026-07-25, in-program allowJs resolution — DONE)
+
+The three-way program resolver now treats a JavaScript-family file in
+the in-memory program set as authoritative when `allowJs` is enabled.
+For a written `.js/.jsx/.mjs/.cjs` specifier the existing TypeScript
+substitution group retains priority, followed by the written
+implementation file. Extensionless and directory probes similarly add
+`.js/.jsx` only after the TypeScript candidates. With `allowJs` off,
+the same host inputs remain on the suppressed side of the provenance
+boundary.
+
+Opening real JavaScript module symbols also makes the JS branch of
+`canHaveSyntheticDefault` live. Syntax-external JS remains ESM;
+CommonJS/script JS gains a synthetic default unless it exports
+`__esModule`. This removes the transient 2613 fabrication exposed by
+resolving `.cjs` inputs. Import-type misses use an exact-name JSDoc
+provenance shield for `@typedef`/`@callback` declaration slots, so an
+unmaterialized JSDoc type cannot fabricate 2694 while unrelated
+members remain diagnostic.
+
+The shared prerequisite closes **11** supported rows: seven 2694
+namespace-member rows in `moduleExportAssignment7` and four 2322
+assignment rows in `checkExportsObjectAssignProperty`. 2xxx T0 grows
+to **20208/21051** (**95.9954%**) with FP=0; supported T0 is
+**20208/20504** (**98.5564%**) with supported FN=**296**. All-band T0
+is **31130/49024** (**63.4995%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**11** in both bands and both scope views. The
+accepted-set ratchet adds 11 T0 identities and 11
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,018**. Escape evidence is unchanged at
+sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
+Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
