@@ -243,9 +243,9 @@ pub fn name_field_of(source: &SourceFile, id: NodeId) -> Option<NodeId> {
 /// tsc-span: _tsc.js:11517-11561
 ///
 /// JS-only: the CallExpression/BinaryExpression assignment-declaration
-/// arms and the bindable static ElementAccessExpression arm resolve via
-/// getAssignmentDeclarationKind — stage 3.4's JS subsystem; they return
-/// None here. JSDoc tag arms await JSDoc parsing.
+/// arms and the bindable static ElementAccessExpression arm are kept
+/// binder-local until the checker consumers activate in phase 9.8b.
+/// JSDoc tag arms await JSDoc parsing.
 pub fn get_non_assigned_name_of_declaration(source: &SourceFile, id: NodeId) -> Option<NodeId> {
     match kind_of(source, id) {
         SyntaxKind::Identifier => Some(id),
@@ -265,8 +265,6 @@ pub fn get_non_assigned_name_of_declaration(source: &SourceFile, id: NodeId) -> 
 /// tsc-hash: 16b3160d83ab91d6d9c08811b7d3ef66bce1a84ccdde30ee5cac09babbc2bab7
 /// tsc-span: _tsc.js:11566-11580
 ///
-/// JS-only: the access-expression left side resolves through
-/// getElementOrPropertyAccessArgumentExpressionOrName (stage 3.4).
 fn get_assigned_name(source: &SourceFile, id: NodeId) -> Option<NodeId> {
     let parent = parent_of(source, id)?;
     match &source.arena.node(parent).data {

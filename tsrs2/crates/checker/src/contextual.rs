@@ -1130,9 +1130,10 @@ impl<'a> CheckerState<'a> {
             unreachable!("kind/data agree");
         };
         let left = data.left.expect("assignment has a left side");
-        let kind = self.assignment_declaration_kind_ts(binary_expression);
+        let source = self.binder.source_of_node(binary_expression);
+        let kind = tsrs2_binder::get_assignment_declaration_kind(source, binary_expression);
         match kind {
-            TsAssignmentDeclarationKind::None => {
+            tsrs2_binder::AssignmentDeclarationKind::None => {
                 // The kind-0 head is shared with ThisProperty in tsc;
                 // only the TS-reachable half ports (`this.x = e` maps
                 // to kind 0 in TS files).
@@ -1166,7 +1167,7 @@ impl<'a> CheckerState<'a> {
                 }
                 Ok(Some(self.get_type_of_expression(left)?))
             }
-            TsAssignmentDeclarationKind::Property => {
+            tsrs2_binder::AssignmentDeclarationKind::Property => {
                 // isPossiblyAliasedThisProperty is JS-gated for kind 5
                 // (73053-73063) — false in TS. `left.symbol` is a
                 // declaration-site symbol; TS binary assignments never
@@ -1223,164 +1224,8 @@ impl<'a> CheckerState<'a> {
                     Some(self.get_type_of_expression(left)?)
                 })
             }
+            _ => unreachable!("JS assignment kinds are gated above"),
         }
-    }
-
-    /// tsc getAssignmentDeclarationKind (15055-15058) restricted to TS
-    /// files: `special === Property || isInJSFile ? special : None` —
-    /// callers gate JS files out, so only the worker's Property answer
-    /// survives. The worker (15095-15117): binary `=` with an access
-    /// LHS and a non-`void 0` RHS, classified by the LHS shape
-    /// (15146-15177); the Object.defineProperty call kinds and the
-    /// prototype/exports kinds all map to None in TS.
-    fn assignment_declaration_kind_ts(&self, expr: NodeId) -> TsAssignmentDeclarationKind {
-        let NodeData::BinaryExpression(data) = self.data_of(expr) else {
-            return TsAssignmentDeclarationKind::None;
-        };
-        let (Some(left), Some(op), Some(right)) = (data.left, data.operator_token, data.right)
-        else {
-            return TsAssignmentDeclarationKind::None;
-        };
-        if self.kind_of(op) != SyntaxKind::EqualsToken
-            || !matches!(
-                self.kind_of(left),
-                SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
-            )
-        {
-            return TsAssignmentDeclarationKind::None;
-        }
-        if self.is_void_zero(self.get_right_most_assigned_expression(right)) {
-            return TsAssignmentDeclarationKind::None;
-        }
-        // getAssignmentDeclarationPropertyAccessKind (15146): the
-        // Property answer requires a bindable static name expression
-        // LHS whose base chain is entity names (this-LHS is
-        // ThisProperty → None in TS; module/exports kinds → None).
-        let this_lhs = match self.data_of(left) {
-            NodeData::PropertyAccessExpression(data) => data
-                .expression
-                .is_some_and(|e| self.kind_of(e) == SyntaxKind::ThisKeyword),
-            NodeData::ElementAccessExpression(data) => data
-                .expression
-                .is_some_and(|e| self.kind_of(e) == SyntaxKind::ThisKeyword),
-            _ => false,
-        };
-        if this_lhs {
-            return TsAssignmentDeclarationKind::None;
-        }
-        let base = match self.data_of(left) {
-            NodeData::PropertyAccessExpression(data) => data.expression,
-            NodeData::ElementAccessExpression(data) => data.expression,
-            _ => None,
-        };
-        let Some(base) = base else {
-            return TsAssignmentDeclarationKind::None;
-        };
-        if !self.is_bindable_static_name_expression(base, /*exclude_this*/ true) {
-            return TsAssignmentDeclarationKind::None;
-        }
-        if self.is_prototype_access(base) {
-            // PrototypeProperty — None in TS.
-            return TsAssignmentDeclarationKind::None;
-        }
-        // The exports/module heads are None in TS regardless; the
-        // remaining test is isBindableStaticNameExpression(lhs, true)
-        // or a dynamic element access.
-        if self.is_bindable_static_name_expression(left, /*exclude_this*/ true)
-            || (self.kind_of(left) == SyntaxKind::ElementAccessExpression
-                && node_util::has_dynamic_name(self.binder.source_of_node(left), left))
-        {
-            return TsAssignmentDeclarationKind::Property;
-        }
-        TsAssignmentDeclarationKind::None
-    }
-
-    /// tsc getRightMostAssignedExpression (15037-15046).
-    fn get_right_most_assigned_expression(&self, mut node: NodeId) -> NodeId {
-        loop {
-            let NodeData::BinaryExpression(data) = self.data_of(node) else {
-                return node;
-            };
-            let is_plain_assignment = data
-                .operator_token
-                .is_some_and(|op| self.kind_of(op) == SyntaxKind::EqualsToken);
-            let Some(right) = data.right else {
-                return node;
-            };
-            if !is_plain_assignment {
-                return node;
-            }
-            node = right;
-        }
-    }
-
-    /// tsc isVoidZero (15118-15120).
-    fn is_void_zero(&self, node: NodeId) -> bool {
-        let NodeData::VoidExpression(data) = self.data_of(node) else {
-            return false;
-        };
-        data.expression.is_some_and(
-            |e| matches!(self.data_of(e), NodeData::NumericLiteral(data) if data.text == "0"),
-        )
-    }
-
-    /// tsc isBindableStaticNameExpression (15090-15092) =
-    /// isEntityNameExpression ‖ isBindableStaticAccessExpression; the
-    /// literal-like element-access recursion (15075-15089) folded in.
-    fn is_bindable_static_name_expression(&self, node: NodeId, exclude_this: bool) -> bool {
-        if self.is_entity_name_expression(node) {
-            return true;
-        }
-        self.is_bindable_static_access_expression(node, exclude_this)
-    }
-
-    /// tsc isBindableStaticAccessExpression (15075-15082).
-    fn is_bindable_static_access_expression(&self, node: NodeId, exclude_this: bool) -> bool {
-        match self.data_of(node) {
-            NodeData::PropertyAccessExpression(data) => {
-                let expression = data.expression;
-                let name = data.name;
-                let this_base =
-                    expression.is_some_and(|e| self.kind_of(e) == SyntaxKind::ThisKeyword);
-                if !exclude_this && this_base {
-                    return true;
-                }
-                name.is_some_and(|n| self.kind_of(n) == SyntaxKind::Identifier)
-                    && expression.is_some_and(|e| {
-                        self.is_bindable_static_name_expression(e, /*exclude_this*/ true)
-                    })
-            }
-            NodeData::ElementAccessExpression(data) => {
-                // isBindableStaticElementAccessExpression (15083-15089):
-                // literal-like argument + this/entity/bindable base.
-                let literal_like = data.argument_expression.is_some_and(|arg| {
-                    matches!(
-                        self.kind_of(arg),
-                        SyntaxKind::StringLiteral | SyntaxKind::NumericLiteral
-                    )
-                });
-                if !literal_like {
-                    return false;
-                }
-                let Some(expression) = data.expression else {
-                    return false;
-                };
-                let this_base = self.kind_of(expression) == SyntaxKind::ThisKeyword;
-                (!exclude_this && this_base)
-                    || self.is_entity_name_expression(expression)
-                    || self.is_bindable_static_access_expression(expression, true)
-            }
-            _ => false,
-        }
-    }
-
-    /// tsc isPrototypeAccess: bindable access whose name is
-    /// "prototype".
-    fn is_prototype_access(&self, node: NodeId) -> bool {
-        matches!(
-            self.kind_of(node),
-            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
-        ) && self.element_or_property_access_name(node).as_deref() == Some("prototype")
     }
 
     /// tsc getElementOrPropertyAccessName (15134-15145): the identifier
@@ -1420,14 +1265,6 @@ impl<'a> CheckerState<'a> {
             /*exclude_globals*/ false,
         )
     }
-}
-
-/// The TS-visible slice of tsc AssignmentDeclarationKind: everything
-/// except Property maps to None outside JS files (15055-15058).
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum TsAssignmentDeclarationKind {
-    None,
-    Property,
 }
 
 /// tsc FunctionFlags (15807): Normal 0, Generator 1, Async 2,
