@@ -1068,11 +1068,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// The subset-of head consults the synthesized empty anonymous
     /// type where tsc reads globalObjectType (an M3 noLib-probe
     /// stand-in that outlived M4 lib loading — the "until M4"
-    /// justification lapsed). KNOWN-GAP since M4 (m4-review B2): the
-    /// JSX arms (isComparingJsxAttributes + the JSX-flavored reports)
-    /// are missing while jsx.rs constructs JSX_ATTRIBUTES types and
-    /// feeds them to the relation machinery — the old "JSX arms are
-    /// dead" claim is false.
+    /// justification lapsed). JSX attribute sources preserve tsc's
+    /// hyphenated-name exemption in both excess and common-property
+    /// checks.
     fn has_excess_properties(&mut self, source: TypeId, target: TypeId) -> CheckResult2<bool> {
         Ok(!matches!(
             self.excess_properties_worker(source, target, None)?,
@@ -1131,9 +1129,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             });
         }
         let source_symbol = self.st.tables.type_of(source).symbol;
+        let is_comparing_jsx_attributes = self
+            .st
+            .tables
+            .object_flags_of(source)
+            .intersects(ObjectFlags::JSX_ATTRIBUTES);
         for prop in self.st.get_properties_of_type(source)? {
             if self.should_check_as_excess_property(prop, source_symbol) {
                 let name = self.st.binder.symbol(prop).escaped_name.clone();
+                if is_comparing_jsx_attributes && name.contains('-') {
+                    continue;
+                }
                 if !self.st.is_known_property(reduced_target, &name)? {
                     if let Some(error_node) = report_node {
                         self.report_excess_property(source, prop, reduced_target, error_node)?;
@@ -1164,8 +1170,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-span: _tsc.js:65366-65398
     ///
     /// The JSX half (isJsxAttributes errorNode / JSX-attribute name
-    /// suggestion, 65369-65380) rides the JSX relation-reporting band
-    /// — Unsupported keeps those rows contained. The non-JSX half:
+    /// suggestion, 65369-65380) reports at the bound JSX attribute
+    /// name and uses the ordinary property-spelling suggestion. The
+    /// non-JSX half:
     /// the row anchors at the excess property's own name when its
     /// declaration sits inside the source literal in the same file
     /// (65382-65389), an Identifier name probes the spelling
@@ -1189,20 +1196,45 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     | tsrs2_syntax::SyntaxKind::JsxSelfClosingElement
             )
         };
-        if is_jsx(self.st, error_node)
+        let comparing_jsx = is_jsx(self.st, error_node)
             || self
                 .st
                 .parent_of(error_node)
-                .is_some_and(|parent| is_jsx(self.st, parent))
-        {
-            return Err(Unsupported::new(
-                "JSX attributes relation reporting (elaborateJsxComponents / headless reportRelationError, T2)",
-            ));
-        }
+                .is_some_and(|parent| is_jsx(self.st, parent));
         let prop_symbol = self.st.binder.symbol(prop);
         let prop_declaration = prop_symbol.value_declaration;
         let prop_text =
             tsrs2_binder::unescape_leading_underscores(&prop_symbol.escaped_name).to_owned();
+        if comparing_jsx {
+            let mut report_node = error_node;
+            if let Some(prop_declaration) = prop_declaration {
+                if matches!(
+                    self.st.data_of(prop_declaration),
+                    tsrs2_syntax::NodeData::JsxAttribute(_)
+                ) {
+                    if let Some(name) = tsrs2_binder::node_util::get_name_of_declaration(
+                        self.st.binder.source_of_node(prop_declaration),
+                        prop_declaration,
+                    ) {
+                        report_node = name;
+                    }
+                }
+            }
+            // JSX excess-property rows do not use the object-literal
+            // parent-skipped protocol. tsc first chains the 2339/2551
+            // detail and then reportRelationError adds the generic
+            // 2322 as the diagnostic head. The relation tail is
+            // intentionally elided by the current T2 representation,
+            // so emit that canonical head directly at the attribute.
+            let source_text = self.st.type_to_string_slice(source)?;
+            let target_text = self.st.type_to_string_slice(error_target)?;
+            self.st.error_at(
+                Some(report_node),
+                &tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1,
+                &[&source_text, &target_text],
+            );
+            return Ok(());
+        }
         let object_literal_declaration = self
             .st
             .tables
@@ -2135,8 +2167,15 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: fa8485b4fc4b88a1b9d0c08aca138b7fb718b7a06b9cd790ad2e31d28cb70004
     /// tsc-span: _tsc.js:67298-67305
     pub fn has_common_properties(&mut self, source: TypeId, target: TypeId) -> CheckResult2<bool> {
+        let is_comparing_jsx_attributes = self
+            .tables
+            .object_flags_of(source)
+            .intersects(ObjectFlags::JSX_ATTRIBUTES);
         for prop in self.get_properties_of_type(source)? {
             let name = self.binder.symbol(prop).escaped_name.clone();
+            if is_comparing_jsx_attributes && name.contains('-') {
+                return Ok(true);
+            }
             if self.is_known_property(target, &name)? {
                 return Ok(true);
             }
@@ -2225,12 +2264,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c928c9606661159d5023fee7846acf04060c6eb8ce6e98256afb823214df19ba
     /// tsc-span: _tsc.js:74826-74843
     ///
-    /// KNOWN-GAP since M4 (m4-review B2): the
-    /// `isLateBoundName(name) && getIndexInfoOfType(target, string)`
-    /// disjunct, the isComparingJsxAttributes parameter (hyphenated
-    /// JSX names), and the Substitution recursion arm are missing —
-    /// late-bound names and JSX attribute types are constructible
-    /// since M4, so the old "dead in M3" claim is false.
+    /// The `isLateBoundName(name) && getIndexInfoOfType(target,
+    /// string)` disjunct is live. `isComparingJsxAttributes` is owned
+    /// by the callers because it depends on the source type; they
+    /// admit hyphenated JSX names before this target-only recursion.
+    /// The Substitution recursion arm remains dormant until 9.6.
     pub fn is_known_property(&mut self, target: TypeId, name: &str) -> CheckResult2<bool> {
         let flags = self.tables.flags_of(target);
         if flags.intersects(TypeFlags::OBJECT) {

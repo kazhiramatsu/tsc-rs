@@ -2290,6 +2290,46 @@ mod tests {
     }
 
     #[test]
+    fn jsx_attribute_elaboration_uses_2322_at_the_attribute_name() {
+        assert_eq!(
+            checked_rows_with(
+                "declare namespace JSX { interface Element {} interface IntrinsicElements { x: { n: number } } }\n\
+                 (<x n=\"s\" />);\n\
+                 (<x q={1} />);\n",
+                &jsx(1),
+            ),
+            [(2322, 100, 1), (2322, 115, 1)]
+        );
+    }
+
+    #[test]
+    fn multiple_jsx_children_elaborate_one_row_per_child() {
+        assert_eq!(
+            checked_rows_with(
+                "declare namespace JSX { interface Element {} interface ElementChildrenAttribute { children: any } }\n\
+                 declare function Comp(p: { children: [string, string] }): JSX.Element;\n\
+                 (<Comp>{1}{2}</Comp>);\n",
+                &jsx(1),
+            ),
+            [(2322, 178, 3), (2322, 181, 3)]
+        );
+    }
+
+    #[test]
+    fn required_intrinsic_attribute_selects_the_missing_property_head() {
+        assert_eq!(
+            checked_rows_with(
+                "declare namespace JSX { interface Element {} interface ElementClass { render: any } interface IntrinsicAttributes { key: string } interface IntrinsicClassAttributes<T> { ref: T } interface IntrinsicElements {} }\n\
+                 interface I { new(n: string): { x: number; render(): void } }\n\
+                 declare var E: I;\n\
+                 (<E x={10} />);\n",
+                &jsx(1),
+            ),
+            [(2741, 294, 1)]
+        );
+    }
+
+    #[test]
     fn jsx_text_inside_a_string_is_not_a_pragma() {
         let rows = checked_rows_with(
             "declare namespace JSX { interface Element {} interface IntrinsicElements { div: { id: string } } }\n\

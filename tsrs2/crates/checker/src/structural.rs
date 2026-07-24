@@ -2687,6 +2687,15 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             self.st.get_properties_of_object_type_owned(source)?
         };
         for prop in props {
+            if self
+                .st
+                .tables
+                .object_flags_of(source)
+                .intersects(ObjectFlags::JSX_ATTRIBUTES)
+                && self.st.binder.symbol(prop).escaped_name.contains('-')
+            {
+                continue;
+            }
             // 66968: include StringOrNumberLiteralOrUnique, non-public
             // members included.
             let name_type = self.st.get_literal_type_from_property(

@@ -1813,6 +1813,64 @@ identities; no A2 artifact changed. Checker tests 960→965.
 `cargo xtask ci` exits 0; ledger=1770/stale=0 and
 escapes=246/stale=0/untagged=0/recovery=116.
 
+## 9.4c results (2026-07-24, JSX/report heads — DONE)
+
+The remaining F4 curtain is closed. JSX applicability now routes
+through the common elaboration reporter and the source-level relation
+fallback; global `Object` relation failures select their real 2696 or
+2322 head. The selected reasons moved
+`JSX attributes relation reporting` 91→0,
+`elaborateJsxComponents` 14→0, and
+`Object-source relation head selection` 8→0.
+
+Decisions of record:
+
+1. **JSX applicability reuses the Report/Probe capture channel**:
+   after the silent verdict fails, `elaborateError(attributes, …)` is
+   captured first. A declined walk invokes the ordinary relation
+   reporter at the JSX tag name. Report mode retains complete
+   diagnostics; Probe mode retains span/related data for overload
+   2769 construction.
+2. **Attributes and children are elementwise data**: named attributes
+   use the common best-match indexed-access target selection, recurse
+   through JSX-expression initializers, remove optional missing types,
+   and report at the attribute name. Multiple semantic children build
+   the tsc-equivalent per-child array/tuple target view and report one
+   row per child; single-child/cardinality failures remain with the
+   source relation reporter.
+3. **JSX relation heads keep their distinct rules**: hyphenated
+   attributes are ignored by excess, common-property, and index-member
+   walks. JSX excess-property detail is represented by its canonical
+   outer 2322 head at the attribute (the 2339/2551 relation tail stays
+   elided at the current chain tier). Required
+   `IntrinsicAttributes`/`IntrinsicClassAttributes` members select
+   their constituent 2741 head without widening missing-property
+   selection for ordinary intersection targets.
+4. **Global `Object` head selection is source-derived**:
+   missing/incompatible required target properties are the flattened
+   `overrideNextErrorInfo` witness and select 2696; signature-only
+   failures keep 2322 with 2696 in the elided chain tail. Direct pins
+   cover the member-vs-call-signature pair.
+5. **Subsystem matrix**: model/construction/instantiation/inference/
+   display = unchanged; members = JSX named attributes and child
+   element views live; relations = JSX hyphen exemptions and intrinsic
+   constituent selection live; diagnostics = common capture carries
+   full Report diagnostics and Probe span/related data; cache-order =
+   no speculative or rollback-only writes added.
+
+Band movement (tool-read): all T0 **58.9752%→59.2057%**
+(28912→29025, +113), FP=0; 2xxx T0
+**86.4900%→87.0267%** (18207→18320, +113), FP=0;
+supported T0 **88.7973%→89.3484%** (18320/20504),
+supported FN 2,297→**2,184**. Exact 2xxx diff: T1 +113,
+T2 +108, T3 +41, with **zero lost identities** in all and
+supported views and an unchanged supported universe. Ratchet artifacts
+gained exactly the 113 accepted identities; no A2 artifact changed.
+Checker tests 965→969. Escapes 246→241 with
+stale=0/untagged=0/recovery=116; ledger remains 1770/stale=0.
+`cargo xtask ci` exits 0, including all three conformance bands and
+the full invariant suite.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
