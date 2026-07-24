@@ -16,12 +16,15 @@ use tsrs2_binder::SymbolId;
 use tsrs2_diags::gen as diagnostics;
 use tsrs2_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    CheckFlags, InferenceFlags, InferencePriority, IntersectionFlags, ObjectFlags, SignatureFlags,
-    SymbolFlags, TypeData, TypeFlags, TypeId, UnionReduction,
+    CheckFlags, ElementFlags, InferenceFlags, InferencePriority, IntersectionFlags,
+    MappedTypeModifiers, ObjectFlags, SignatureFlags, SymbolFlags, TypeData, TypeFacts, TypeFlags,
+    TypeId, TypeSystemPropertyName, UnionReduction,
 };
 
 use crate::links::LinkSlot;
-use crate::state::{CheckResult2, CheckerState, Signature, SignatureId, Unsupported};
+use crate::state::{
+    CheckResult2, CheckerState, ResolutionTarget, Signature, SignatureId, Unsupported,
+};
 
 pub use tsrs2_types::MapperId;
 
@@ -667,10 +670,16 @@ impl<'a> CheckerState<'a> {
                 .resolved()
                 .expect("deferred references are node-cached before instantiation")
         } else if object_flags.intersects(ObjectFlags::INSTANTIATED) {
-            self.links
-                .ty(ty)
-                .instantiated_target
-                .expect("Instantiated object flag implies links target")
+            match &self.tables.type_of(ty).data {
+                TypeData::Mapped(mapped) => mapped
+                    .target
+                    .expect("instantiated mapped types carry their target"),
+                _ => self
+                    .links
+                    .ty(ty)
+                    .instantiated_target
+                    .expect("Instantiated object flag implies links target"),
+            }
         } else {
             ty
         };
@@ -750,6 +759,8 @@ impl<'a> CheckerState<'a> {
         // references, the instantiation mapper for anonymous shells.
         let type_mapper = if is_reference {
             self.links.ty(ty).deferred_mapper
+        } else if let TypeData::Mapped(mapped) = &self.tables.type_of(ty).data {
+            mapped.mapper
         } else {
             self.links.ty(ty).instantiated_mapper
         };
@@ -818,9 +829,12 @@ impl<'a> CheckerState<'a> {
                 new_alias_type_arguments.as_deref(),
             )?
         } else if target_object_flags.intersects(ObjectFlags::MAPPED) {
-            return Err(Unsupported::new(
-                "instantiateMappedType (mapped instantiation, 9.5b/M8)",
-            ));
+            self.instantiate_mapped_type(
+                target,
+                new_mapper,
+                new_alias_symbol,
+                new_alias_type_arguments.as_deref(),
+            )?
         } else {
             self.instantiate_anonymous_type(
                 target,
@@ -1071,10 +1085,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: bde1b975a7540a89787ebe33ba5a6687d2d56e37688858dd76a35ab126603da9
     /// tsc-span: _tsc.js:63637-63657
     ///
-    /// Mapped targets route to the named instantiateMappedType 9.5b
-    /// boundary before this call. The
-    /// InstantiationExpressionType node copy (63648-63650) is dead
-    /// until M6; both asserted, not elided.
+    /// The InstantiationExpressionType node copy (63648-63650) is dead
+    /// until M6.
     fn instantiate_anonymous_type(
         &mut self,
         ty: TypeId,
@@ -1091,18 +1103,40 @@ impl<'a> CheckerState<'a> {
         let source_alias_symbol = source.alias_symbol;
         let source_alias_type_arguments = source.alias_type_arguments.clone();
         let source_object_flags = self.tables.object_flags_of(ty);
-        assert!(
-            !source_object_flags.intersects(ObjectFlags::MAPPED),
-            "mapped targets must route to instantiateMappedType"
-        );
-        let result = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+        let result = if source_object_flags.intersects(ObjectFlags::MAPPED) {
+            let type_parameter = self.get_type_parameter_from_mapped_type(ty)?;
+            let fresh_type_parameter = self.clone_type_parameter(type_parameter);
+            let fresh_mapper =
+                self.prepend_type_mapping(type_parameter, fresh_type_parameter, Some(mapper));
+            self.links.set_type_parameter_mapper(
+                self.speculation_depth,
+                fresh_type_parameter,
+                fresh_mapper,
+            );
+            let mapped = self.mapped_type_data(ty);
+            let result = self.tables.create_mapped_type(
+                mapped.declaration,
+                Some(ty),
+                Some(fresh_mapper),
+                source_symbol,
+            );
+            self.links.set_mapped_type_parameter(
+                self.speculation_depth,
+                result,
+                fresh_type_parameter,
+            );
+            result
+        } else {
+            let result = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
+            self.links
+                .set_type_instantiation_links(self.speculation_depth, result, ty, mapper);
+            result
+        };
         let mut object_flags = (source_object_flags.bits()
             & !(ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES_COMPUTED.bits()
                 | ObjectFlags::COULD_CONTAIN_TYPE_VARIABLES.bits()))
             | ObjectFlags::INSTANTIATED.bits();
         self.tables.type_mut(result).symbol = source_symbol;
-        self.links
-            .set_type_instantiation_links(self.speculation_depth, result, ty, mapper);
         if source_object_flags.intersects(ObjectFlags::INSTANTIATION_EXPRESSION_TYPE) {
             // 63649-63651: the Instantiated copy keeps the
             // instantiation-expression node — it stays the declaration
@@ -1140,6 +1174,296 @@ impl<'a> CheckerState<'a> {
             new_alias_type_arguments.map(|arguments| arguments.into_boxed_slice());
         result_type.object_flags = ObjectFlags::from_bits(object_flags);
         Ok(result)
+    }
+
+    /// tsc-port: instantiateMappedType @6.0.3
+    /// tsc-hash: 3cc26929826853fdea6c1e2e8232afd875339dda2eec65f68f085140cee4f80f
+    /// tsc-span: _tsc.js:63573-63600
+    fn instantiate_mapped_type(
+        &mut self,
+        ty: TypeId,
+        mapper: MapperId,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+    ) -> CheckResult2<TypeId> {
+        if let Some(type_variable) = self.get_homomorphic_type_variable(ty)? {
+            let mapped_type_variable = self.instantiate_type(type_variable, Some(mapper))?;
+            if type_variable != mapped_type_variable {
+                let reduced = self.get_reduced_type(mapped_type_variable)?;
+                return self.map_type_with_alias(
+                    reduced,
+                    &mut |state, constituent| {
+                        state.instantiate_mapped_type_constituent(
+                            constituent,
+                            ty,
+                            type_variable,
+                            mapper,
+                        )
+                    },
+                    alias_symbol,
+                    alias_type_arguments,
+                );
+            }
+        }
+        let constraint = self.get_constraint_type_from_mapped_type(ty)?;
+        if self.instantiate_type(constraint, Some(mapper))? == self.tables.intrinsics.wildcard {
+            return Ok(self.tables.intrinsics.wildcard);
+        }
+        self.instantiate_anonymous_type(ty, mapper, alias_symbol, alias_type_arguments)
+    }
+
+    fn instantiate_mapped_type_constituent(
+        &mut self,
+        constituent: TypeId,
+        mapped_type: TypeId,
+        type_variable: TypeId,
+        mapper: MapperId,
+    ) -> CheckResult2<TypeId> {
+        let flags = self.tables.flags_of(constituent);
+        let eligible = flags.intersects(
+            TypeFlags::ANY_OR_UNKNOWN
+                | TypeFlags::INSTANTIABLE_NON_PRIMITIVE
+                | TypeFlags::OBJECT
+                | TypeFlags::INTERSECTION,
+        ) && constituent != self.tables.intrinsics.wildcard
+            && !self.tables.is_error_type(constituent);
+        if !eligible {
+            return Ok(constituent);
+        }
+
+        if self.get_name_type_from_mapped_type(mapped_type)?.is_none() {
+            let is_array = self.is_array_type(constituent)?;
+            let any_with_array_constraint = if flags.intersects(TypeFlags::ANY)
+                && self
+                    .find_resolution_cycle_start_index(
+                        ResolutionTarget::Type(type_variable),
+                        TypeSystemPropertyName::IMMEDIATE_BASE_CONSTRAINT,
+                    )
+                    .is_none()
+            {
+                match self.get_constraint_of_type_parameter(type_variable)? {
+                    Some(constraint) => {
+                        let mut all_array_or_tuple = true;
+                        for member in self.union_members_or_self(constraint) {
+                            if !self.is_array_type(member)? && !self.tables.is_tuple_type(member) {
+                                all_array_or_tuple = false;
+                                break;
+                            }
+                        }
+                        all_array_or_tuple
+                    }
+                    None => false,
+                }
+            } else {
+                false
+            };
+            if is_array || any_with_array_constraint {
+                let mapped_mapper =
+                    self.prepend_type_mapping(type_variable, constituent, Some(mapper));
+                return self.instantiate_mapped_array_type(constituent, mapped_type, mapped_mapper);
+            }
+            if self.tables.is_tuple_type(constituent) {
+                return self.instantiate_mapped_tuple_type(
+                    constituent,
+                    mapped_type,
+                    type_variable,
+                    mapper,
+                );
+            }
+            if flags.intersects(TypeFlags::INTERSECTION) {
+                let TypeData::Intersection { types } = &self.tables.type_of(constituent).data
+                else {
+                    unreachable!("intersection flag implies intersection data");
+                };
+                let members = types.to_vec();
+                let mut instantiated = Vec::with_capacity(members.len());
+                for member in members {
+                    instantiated.push(self.instantiate_mapped_type_constituent(
+                        member,
+                        mapped_type,
+                        type_variable,
+                        mapper,
+                    )?);
+                }
+                return self.get_intersection_type(&instantiated, IntersectionFlags::NONE);
+            }
+        }
+
+        let mapped_mapper = self.prepend_type_mapping(type_variable, constituent, Some(mapper));
+        self.instantiate_anonymous_type(mapped_type, mapped_mapper, None, None)
+    }
+
+    fn modified_mapped_readonly_state(state: bool, modifiers: MappedTypeModifiers) -> bool {
+        if modifiers.intersects(MappedTypeModifiers::INCLUDE_READONLY) {
+            true
+        } else if modifiers.intersects(MappedTypeModifiers::EXCLUDE_READONLY) {
+            false
+        } else {
+            state
+        }
+    }
+
+    fn instantiate_mapped_array_type(
+        &mut self,
+        array_type: TypeId,
+        mapped_type: TypeId,
+        mapper: MapperId,
+    ) -> CheckResult2<TypeId> {
+        let number = self.tables.intrinsics.number;
+        let element_type =
+            self.instantiate_mapped_type_template(mapped_type, number, true, mapper)?;
+        if self.tables.is_error_type(element_type) {
+            return Ok(self.tables.intrinsics.error);
+        }
+        let readonly = Self::modified_mapped_readonly_state(
+            self.is_readonly_array_type(array_type)?,
+            self.get_mapped_type_modifiers(mapped_type),
+        );
+        self.create_array_type(element_type, readonly)
+    }
+
+    fn instantiate_mapped_tuple_type(
+        &mut self,
+        tuple_type: TypeId,
+        mapped_type: TypeId,
+        type_variable: TypeId,
+        mapper: MapperId,
+    ) -> CheckResult2<TypeId> {
+        let target = self.tables.reference_target(tuple_type);
+        let TypeData::TupleTarget(tuple) = self.tables.type_of(target).data.clone() else {
+            unreachable!("tuple type points at a tuple target");
+        };
+        let element_types = self.get_type_arguments(tuple_type)?;
+        let fixed_mapper = if tuple.fixed_length != 0 {
+            self.prepend_type_mapping(type_variable, tuple_type, Some(mapper))
+        } else {
+            mapper
+        };
+        let mut new_element_types = Vec::with_capacity(element_types.len());
+        for (i, &element_type) in element_types.iter().enumerate() {
+            let flags = tuple.element_flags[i];
+            let instantiated = if i < tuple.fixed_length {
+                let key = self.tables.get_string_literal_type(&i.to_string());
+                self.instantiate_mapped_type_template(
+                    mapped_type,
+                    key,
+                    flags.intersects(ElementFlags::OPTIONAL),
+                    fixed_mapper,
+                )?
+            } else if flags.intersects(ElementFlags::VARIADIC) {
+                let element_mapper =
+                    self.prepend_type_mapping(type_variable, element_type, Some(mapper));
+                self.instantiate_type(mapped_type, Some(element_mapper))?
+            } else {
+                let array = self.create_array_type(element_type, false)?;
+                let element_mapper = self.prepend_type_mapping(type_variable, array, Some(mapper));
+                let instantiated = self.instantiate_type(mapped_type, Some(element_mapper))?;
+                self.get_element_type_of_array_type(instantiated)?
+                    .unwrap_or(self.tables.intrinsics.unknown)
+            };
+            new_element_types.push(instantiated);
+        }
+        if new_element_types
+            .iter()
+            .any(|&element| self.tables.is_error_type(element))
+        {
+            return Ok(self.tables.intrinsics.error);
+        }
+
+        let modifiers = self.get_mapped_type_modifiers(mapped_type);
+        let new_element_flags: Vec<ElementFlags> = tuple
+            .element_flags
+            .iter()
+            .copied()
+            .map(|flags| {
+                if modifiers.intersects(MappedTypeModifiers::INCLUDE_OPTIONAL)
+                    && flags.intersects(ElementFlags::REQUIRED)
+                {
+                    ElementFlags::OPTIONAL
+                } else if modifiers.intersects(MappedTypeModifiers::EXCLUDE_OPTIONAL)
+                    && flags.intersects(ElementFlags::OPTIONAL)
+                {
+                    ElementFlags::REQUIRED
+                } else {
+                    flags
+                }
+            })
+            .collect();
+        let readonly = Self::modified_mapped_readonly_state(tuple.readonly, modifiers);
+        self.create_tuple_type_forced(
+            &new_element_types,
+            Some(&new_element_flags),
+            readonly,
+            tuple.labeled_element_declarations.as_deref(),
+        )
+    }
+
+    fn instantiate_mapped_type_template(
+        &mut self,
+        ty: TypeId,
+        key: TypeId,
+        is_optional: bool,
+        mapper: MapperId,
+    ) -> CheckResult2<TypeId> {
+        let type_parameter = self.get_type_parameter_from_mapped_type(ty)?;
+        let template_mapper = self.append_type_mapping(Some(mapper), type_parameter, key);
+        let target = self.mapped_type_data(ty).target.unwrap_or(ty);
+        let template = self.get_template_type_from_mapped_type(target)?;
+        let property_type = self.instantiate_type(template, Some(template_mapper))?;
+        let modifiers = self.get_mapped_type_modifiers(ty);
+        let strict_null_checks = self
+            .options
+            .strict_option_value(self.options.strict_null_checks);
+        if strict_null_checks
+            && modifiers.intersects(MappedTypeModifiers::INCLUDE_OPTIONAL)
+            && !self.maybe_type_of_kind(property_type, TypeFlags::UNDEFINED | TypeFlags::VOID)
+        {
+            self.get_optional_type(property_type, true)
+        } else if strict_null_checks
+            && modifiers.intersects(MappedTypeModifiers::EXCLUDE_OPTIONAL)
+            && is_optional
+        {
+            self.get_type_with_facts(property_type, TypeFacts::NE_UNDEFINED)
+        } else {
+            Ok(property_type)
+        }
+    }
+
+    /// tsc-port: mapTypeWithAlias @6.0.3
+    /// tsc-hash: 224ab5c11627768edcffaadb4a0315704e90c285a05b106593ae3aa5e39a78bb
+    /// tsc-span: _tsc.js:70052-70054
+    fn map_type_with_alias(
+        &mut self,
+        ty: TypeId,
+        mapper: &mut dyn FnMut(&mut Self, TypeId) -> CheckResult2<TypeId>,
+        alias_symbol: Option<SymbolId>,
+        alias_type_arguments: Option<&[TypeId]>,
+    ) -> CheckResult2<TypeId> {
+        if self.tables.flags_of(ty).intersects(TypeFlags::UNION) && alias_symbol.is_some() {
+            let TypeData::Union { types, .. } = &self.tables.type_of(ty).data else {
+                unreachable!("union flag implies union data");
+            };
+            let types = types.to_vec();
+            let mut mapped = Vec::with_capacity(types.len());
+            for member in types {
+                mapped.push(mapper(self, member)?);
+            }
+            self.get_union_type_ex_with_origin(
+                &mapped,
+                UnionReduction::Literal,
+                alias_symbol,
+                alias_type_arguments,
+                None,
+            )
+        } else {
+            Ok(self
+                .map_type(
+                    ty,
+                    &mut |state, member| mapper(state, member).map(Some),
+                    false,
+                )?
+                .unwrap_or(self.tables.intrinsics.never))
+        }
     }
 
     /// tsc-port: instantiateType @6.0.3
@@ -2428,7 +2752,7 @@ impl<'a> CheckerState<'a> {
             return Ok(ty);
         }
         if flags.intersects(TypeFlags::ANY | TypeFlags::STRING | TypeFlags::STRING_MAPPING)
-            || self.tables.is_generic_index_type(ty)
+            || self.is_generic_index_type_state(ty)?
         {
             return Ok(self
                 .tables

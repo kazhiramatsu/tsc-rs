@@ -2024,6 +2024,55 @@ dormant=13. Checker tests are 972. The exact ledger is
 ports fell 4,058→**4,048**. Full `cargo xtask ci` is the merge gate for
 the sub-row.
 
+## 9.5b2 results (2026-07-24, mapped instantiation/apparent — DONE)
+
+Mapped object instantiation now preserves the immutable root target
+and composes the mapped type parameter with the incoming mapper.
+`instantiateMappedType` follows the homomorphic type variable through
+reduced union/intersection constituents, preserves array and tuple
+containers, applies `+/-readonly` and `+/-?` to their container and
+element flags, instantiates fixed/variadic/rest element templates, and
+retains alias identity through `mapTypeWithAlias`. Instantiated mapped
+shells receive a fresh type parameter plus target/mapper payload;
+`getObjectTypeInstantiation` reads those payload fields instead of the
+anonymous-object links.
+
+`getResolvedApparentTypeOfMappedType` now transforms a homomorphic
+mapped type over an array/tuple base constraint by instantiating the
+mapped target with that base. The conservative classifier is gone:
+`isGenericMappedType` uses the resolved constraint and instantiated
+name type exactly, every checker-side generic object/index/type query
+routes through the fallible checker classifier, and the syntax-free
+types-layer fallback no longer declares all mapped objects generic.
+The optionality helpers needed by the 9.5c relation/indexed-access
+slice are exact ports but remain consumer-deferred to that row.
+
+Direct canaries pin readonly/optional tuple preservation, mutable array
+projection, required tuple projection, the apparent readonly-array
+base transformation, and both finite/non-generic and homomorphic/
+generic classifier verdicts. Checker tests are **974**. The two
+9.5b2-owned instantiation/apparent escapes retired: sites=**246**,
+stale=0, untagged=0, recovery=116, dormant=13.
+
+Band movement (tool-read): all T0 **59.2261%→59.4036%**
+(29035→29122, +87), FP=0; 2xxx T0 **87.0742%→87.4733%**
+(18330→18414, +84), FP=0; supported T0
+**89.3972%→89.8069%** (18414/20504), supported FN
+2,174→**2,090**. Relative to 9.5b1, the exact 2xxx shadow gains are
+T1 +84, T2 +72, and T3 +51, with **zero lost identities** in every
+tier and both all/supported views. The 84 T0 identities span 29
+fixtures; mapped-specific gains include `mappedTypeErrors`,
+`mappedTypeWithAny`, `mappedTypes6`, and `recursiveMappedTypes`, while
+container preservation also unlocks destructuring, rest/tuple,
+generator, `keyof`, and control-flow consumers. The all-band-only
+gains are three 18048 identities in `controlFlowGenericTypes.ts`.
+Ratchet artifacts contain exactly +87 all / +84 2xxx accepted
+identities; syntactic remains 2242/2246.
+
+The exact ledger is **1795**/stale=0, and schema-2 closure declarations
+unaccounted by exact ports fell 4,048→**4,041**. Full
+`cargo xtask ci` is the merge gate for the sub-row.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

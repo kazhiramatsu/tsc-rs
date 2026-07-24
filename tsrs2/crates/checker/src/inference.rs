@@ -1744,7 +1744,7 @@ impl InferTypesWalker<'_, '_> {
                         .tables
                         .flags_of(member)
                         .intersects(TypeFlags::OBJECT)
-                        && !self.st.is_generic_mapped_type_state(member);
+                        && !self.st.is_generic_mapped_type_state(member)?;
                     if !non_generic_object {
                         every_non_generic_object = false;
                         break;
@@ -2046,8 +2046,8 @@ impl InferTypesWalker<'_, '_> {
         } else {
             // 68798-68813: the reduced/apparent object tail.
             source = self.st.get_reduced_type(source)?;
-            if self.st.is_generic_mapped_type_state(source)
-                && self.st.is_generic_mapped_type_state(target)
+            if self.st.is_generic_mapped_type_state(source)?
+                && self.st.is_generic_mapped_type_state(target)?
             {
                 self.invoke_once(source, target, InferAction::FromGenericMappedTypes)?;
             }
@@ -2783,8 +2783,8 @@ impl InferTypesWalker<'_, '_> {
             self.infer_from_type_arguments(&source_arguments, &target_arguments, &variances)?;
             return Ok(());
         }
-        if self.st.is_generic_mapped_type_state(source)
-            && self.st.is_generic_mapped_type_state(target)
+        if self.st.is_generic_mapped_type_state(source)?
+            && self.st.is_generic_mapped_type_state(target)?
         {
             self.infer_from_generic_mapped_types(source, target)?;
         }

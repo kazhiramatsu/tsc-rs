@@ -3584,8 +3584,8 @@ impl<'a> CheckerState<'a> {
                 unspreadable_to_rest_keys.push(literal_type_from_property);
             }
         }
-        if self.tables.is_generic_object_type(source)
-            || self.tables.is_generic_index_type(omit_key_type)
+        if self.is_generic_object_type_state(source)?
+            || self.is_generic_index_type_state(omit_key_type)?
         {
             if !unspreadable_to_rest_keys.is_empty() {
                 let mut all = vec![omit_key_type];
@@ -4655,7 +4655,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(false);
         }
-        if self.tables.is_generic_object_type(ty) {
+        if self.is_generic_object_type_state(ty)? {
             let base_constraint = self.get_base_constraint_of_type(ty)?;
             match base_constraint {
                 Some(base) => {

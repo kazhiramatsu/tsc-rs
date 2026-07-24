@@ -225,7 +225,7 @@ impl<'a> CheckerState<'a> {
         else {
             unreachable!("indexed-access flag implies indexed-access data");
         };
-        if self.is_generic_mapped_type_state(object_type) {
+        if self.is_generic_mapped_type_state(object_type)? {
             return Err(Unsupported::new(
                 "indexed-access constraints over mapped types \
                  (substituteIndexedMappedType, 9.5c/M8)",
@@ -512,7 +512,7 @@ impl<'a> CheckerState<'a> {
             else {
                 unreachable!("indexed-access flag implies indexed-access data");
             };
-            if self.is_generic_mapped_type_state(object_type) {
+            if self.is_generic_mapped_type_state(object_type)? {
                 return Err(Unsupported::new(
                     "base constraint of a generic mapped indexed access \
                      (substituteIndexedMappedType, 9.5c/M8)",

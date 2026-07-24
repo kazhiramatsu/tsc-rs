@@ -128,7 +128,7 @@ impl<'a> CheckerState<'a> {
     /// getHomomorphicTypeVariable(...)` — the mapped disjunct is a
     /// named 9.5c contextual/inference boundary.
     fn is_tuple_context_constituent(&mut self, t: TypeId) -> CheckResult2<bool> {
-        if self.is_generic_mapped_type_state(t) {
+        if self.is_generic_mapped_type_state(t)? {
             return Err(Unsupported::new(
                 "inTupleContext generic-mapped disjunct (getHomomorphicTypeVariable, M8)",
             ));
@@ -1427,8 +1427,12 @@ impl<'a> CheckerState<'a> {
         ) {
             return Ok(left);
         }
-        let left_generic = self.tables.is_generic_object_type(left);
-        let right_generic = self.tables.is_generic_object_type(right);
+        let left_generic = self
+            .get_generic_object_flags(left)?
+            .intersects(ObjectFlags::IS_GENERIC_OBJECT_TYPE);
+        let right_generic = self
+            .get_generic_object_flags(right)?
+            .intersects(ObjectFlags::IS_GENERIC_OBJECT_TYPE);
         if left_generic || right_generic {
             if self.is_empty_object_type(left)? {
                 return Ok(right);
@@ -1443,8 +1447,8 @@ impl<'a> CheckerState<'a> {
                     _ => unreachable!("intersection flag implies intersection data"),
                 };
                 let last_left = *types.last().expect("intersections are non-empty");
-                if self.is_non_generic_object_type(last_left)
-                    && self.is_non_generic_object_type(right)
+                if self.is_non_generic_object_type(last_left)?
+                    && self.is_non_generic_object_type(right)?
                 {
                     let folded =
                         self.get_spread_type(last_left, right, symbol, object_flags, readonly)?;
@@ -1655,9 +1659,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc isNonGenericObjectType (62918-62920).
-    pub(crate) fn is_non_generic_object_type(&self, ty: TypeId) -> bool {
-        self.tables.flags_of(ty).intersects(TypeFlags::OBJECT)
-            && !self.is_generic_mapped_type_state(ty)
+    pub(crate) fn is_non_generic_object_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        Ok(self.tables.flags_of(ty).intersects(TypeFlags::OBJECT)
+            && !self.is_generic_mapped_type_state(ty)?)
     }
 }
 

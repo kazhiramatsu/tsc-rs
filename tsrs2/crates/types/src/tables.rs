@@ -2371,9 +2371,10 @@ impl TypeTables {
     /// tsc-span: _tsc.js:62440-62455
     ///
     /// The Substitution arm is unreachable until conditional types
-    /// land. Mapped types are conservatively generic in the model
-    /// slice; 9.5b narrows this through the resolved constraint/name
-    /// predicates when mapped members become constructible.
+    /// land. Mapped genericity depends on checker-owned constraint and
+    /// name-type resolution, so mapped callers route through
+    /// CheckerState::get_generic_object_flags instead of this
+    /// syntax-free fallback.
     fn get_generic_object_flags(&mut self, id: TypeId) -> ObjectFlags {
         let flags = self.flags_of(id);
         if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
@@ -2402,8 +2403,7 @@ impl TypeTables {
         if flags.intersects(TypeFlags::SUBSTITUTION) {
             unreachable!("substitution types are unconstructible before conditional types (M8)");
         }
-        let object = if self.object_flags_of(id).intersects(ObjectFlags::MAPPED)
-            || flags.intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
+        let object = if flags.intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
             || self.is_generic_tuple_type(id)
         {
             ObjectFlags::IS_GENERIC_OBJECT_TYPE.bits()

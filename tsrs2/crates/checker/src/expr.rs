@@ -1602,7 +1602,7 @@ impl<'a> CheckerState<'a> {
                     return Ok(true);
                 }
                 let argument_type = self.get_type_of_expression(argument)?;
-                Ok(!self.tables.is_generic_index_type(argument_type))
+                Ok(!self.is_generic_index_type_state(argument_type)?)
             }
             _ => Ok(false),
         }
@@ -1663,7 +1663,10 @@ impl<'a> CheckerState<'a> {
         } else {
             self.get_contextual_type(node, tsrs2_types::ContextFlags::NONE)?
         };
-        Ok(contextual_type.is_some_and(|t| !self.tables.is_generic_type(t)))
+        match contextual_type {
+            Some(contextual_type) => Ok(!self.is_generic_type(contextual_type)?),
+            None => Ok(false),
+        }
     }
 
     /// someType (66550) with a fallible predicate (the constraints.rs

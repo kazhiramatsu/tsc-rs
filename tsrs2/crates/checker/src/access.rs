@@ -1885,7 +1885,7 @@ impl<'a> CheckerState<'a> {
         } else {
             let use_index_info = !right_is_private
                 && (assignment_kind == crate::expr::AssignmentKind::None
-                    || !self.tables.is_generic_object_type(left_type)
+                    || !self.is_generic_object_type_state(left_type)?
                     || self.is_this_type_parameter(left_type));
             let index_info = if use_index_info {
                 self.get_applicable_index_info_for_name_info(apparent_type, &right_text)?
@@ -3550,7 +3550,7 @@ impl<'a> CheckerState<'a> {
             tsrs2_types::AccessFlags::EXPRESSION_POSITION
         } else {
             let mut bits = tsrs2_types::AccessFlags::WRITING.bits();
-            if self.tables.is_generic_object_type(object_type)
+            if self.is_generic_object_type_state(object_type)?
                 && !self.is_this_type_parameter(object_type)
             {
                 bits |= tsrs2_types::AccessFlags::NO_INDEX_SIGNATURES.bits();
@@ -3736,7 +3736,7 @@ impl<'a> CheckerState<'a> {
             }
             return Ok(ty);
         }
-        if self.tables.is_generic_object_type(object_type) {
+        if self.is_generic_object_type_state(object_type)? {
             if let Some(property_name) = self.property_name_from_type_usable(index_type) {
                 let apparent = self.get_apparent_type(object_type)?;
                 let apparent_members = self.union_members_or_self(apparent);

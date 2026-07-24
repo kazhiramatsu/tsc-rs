@@ -4743,7 +4743,7 @@ impl<'a> CheckerState<'a> {
                 TypeFlags::STRING_OR_NUMBER_LITERAL_OR_UNIQUE.bits(),
             ))
         });
-        if literal_or_unique || self.tables.is_generic_type(ty) {
+        if literal_or_unique || self.is_generic_type(ty)? {
             return Ok(self.grammar_error_on_node(
                 error_name,
                 &diagnostics::An_index_signature_parameter_type_cannot_be_a_literal_type_or_generic_type_Consider_using_a_mapped_object_type_instead,
@@ -4752,7 +4752,7 @@ impl<'a> CheckerState<'a> {
         }
         let mut every_valid_index_key = true;
         for member in self.union_members_or_self(ty) {
-            if !self.is_valid_index_key_type(member) {
+            if !self.is_valid_index_key_type(member)? {
                 every_valid_index_key = false;
                 break;
             }
