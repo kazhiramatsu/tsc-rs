@@ -1525,7 +1525,7 @@ impl<'a> CheckerState<'a> {
                         {
                             continue;
                         }
-                        if state.is_generic_mapped_type_state(constituent) {
+                        if state.is_generic_mapped_type_state(constituent)? {
                             return Err(Unsupported::new(
                                 "getIndexedMappedTypeSubstitutedTypeOfContextualType (mapped types, M8)",
                             ));
@@ -1560,7 +1560,7 @@ impl<'a> CheckerState<'a> {
                 if !state.tables.flags_of(t).intersects(TypeFlags::OBJECT) {
                     return Ok(None);
                 }
-                if state.is_generic_mapped_type_state(t) {
+                if state.is_generic_mapped_type_state(t)? {
                     return Err(Unsupported::new(
                         "getIndexedMappedTypeSubstitutedTypeOfContextualType (mapped types, M8)",
                     ));

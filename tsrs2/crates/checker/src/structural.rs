@@ -156,7 +156,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     result = ternary_and(result, index);
                 }
             } else if is_true(result)
-                && self.is_non_generic_object_type(target)
+                && self.st.is_non_generic_object_type(target)?
                 && !self.st.tables.is_tuple_type(target)
                 && self.flags(source).intersects(TypeFlags::INTERSECTION)
                 && self
@@ -184,10 +184,6 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         Ok(result)
-    }
-
-    fn is_non_generic_object_type(&self, ty: TypeId) -> bool {
-        self.flags(ty).intersects(TypeFlags::OBJECT)
     }
 
     /// tsc-port: structuredTypeRelatedToWorker @6.0.3
@@ -649,8 +645,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     .st
                     .get_base_constraint_of_type(target_index)?
                     .unwrap_or(target_index);
-                if !self.st.tables.is_generic_object_type(base_object)
-                    && !self.st.tables.is_generic_index_type(base_index)
+                if !self.st.is_generic_object_type_state(base_object)?
+                    && !self.st.is_generic_index_type_state(base_index)?
                 {
                     let access_flags = AccessFlags::from_bits(
                         AccessFlags::WRITING.bits()
@@ -4232,7 +4228,7 @@ impl<'a> CheckerState<'a> {
         let check_flags = self.get_check_flags(prop);
         let is_discriminant = if check_flags.contains(CheckFlags::DISCRIMINANT) {
             let prop_type = self.get_type_of_symbol(prop)?;
-            !self.tables.is_generic_type(prop_type)
+            !self.is_generic_type(prop_type)?
         } else {
             false
         };

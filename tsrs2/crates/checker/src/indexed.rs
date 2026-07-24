@@ -591,8 +591,24 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isGenericType @6.0.3
     /// tsc-hash: 24d5fea9e8bd61b2e658f4c5d9423ee7926ff364e97370617a604cd6e4b0f5c0
     /// tsc-span: _tsc.js:62431-62433
-    pub(crate) fn is_generic_type(&self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_generic_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
         Ok(!self.get_generic_object_flags(ty)?.is_empty())
+    }
+
+    /// tsrs-native: fallible checker-owned projection of
+    /// getGenericObjectFlags' object half.
+    pub(crate) fn is_generic_object_type_state(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        Ok(self
+            .get_generic_object_flags(ty)?
+            .intersects(ObjectFlags::IS_GENERIC_OBJECT_TYPE))
+    }
+
+    /// tsrs-native: fallible checker-owned projection of
+    /// getGenericObjectFlags' index half.
+    pub(crate) fn is_generic_index_type_state(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        Ok(self
+            .get_generic_object_flags(ty)?
+            .intersects(ObjectFlags::IS_GENERIC_INDEX_TYPE))
     }
 
     /// tsc-port: getGenericObjectFlags @6.0.3
@@ -605,7 +621,7 @@ impl<'a> CheckerState<'a> {
     /// The Substitution arm is an M8 escape like its neighbors above
     /// (the flag is unconstructible until substitution type nodes
     /// land).
-    pub(crate) fn get_generic_object_flags(&self, ty: TypeId) -> CheckResult2<ObjectFlags> {
+    pub(crate) fn get_generic_object_flags(&mut self, ty: TypeId) -> CheckResult2<ObjectFlags> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::UNION | TypeFlags::INTERSECTION) {
             let (TypeData::Union { types, .. } | TypeData::Intersection { types }) =
@@ -613,8 +629,9 @@ impl<'a> CheckerState<'a> {
             else {
                 unreachable!("UnionOrIntersection flag implies member data");
             };
+            let types = types.to_vec();
             let mut reduced = ObjectFlags::NONE;
-            for &member in types {
+            for member in types {
                 reduced |= self.get_generic_object_flags(member)?;
             }
             return Ok(reduced & ObjectFlags::IS_GENERIC_TYPE);
@@ -626,7 +643,7 @@ impl<'a> CheckerState<'a> {
             ));
         }
         let object_half = if flags.intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
-            || self.is_generic_mapped_type_state(ty)
+            || self.is_generic_mapped_type_state(ty)?
             || self.is_generic_tuple_type(ty)
         {
             ObjectFlags::IS_GENERIC_OBJECT_TYPE
@@ -876,7 +893,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(element);
             }
         }
-        if self.is_generic_mapped_type_state(object_type) {
+        if self.is_generic_mapped_type_state(object_type)? {
             return Err(Unsupported::new(
                 "simplified indexed access over mapped types (mapped instantiation, 9.5b/M8)",
             ));
@@ -978,7 +995,7 @@ impl<'a> CheckerState<'a> {
         }
         // 62576 deferral asymmetry: EXPRESSION access nodes defer only
         // generic TUPLES; type nodes defer any generic object.
-        let generic = self.tables.is_generic_index_type(index_type) || {
+        let generic = self.is_generic_index_type_state(index_type)? || {
             let expression_access =
                 access_node.is_some_and(|node| self.kind_of(node) != SyntaxKind::IndexedAccessType);
             let tuple_fixed_access = self.tables.is_tuple_type(object_type) && {
@@ -989,7 +1006,7 @@ impl<'a> CheckerState<'a> {
             if expression_access {
                 self.tables.is_generic_tuple_type(object_type) && !tuple_fixed_access
             } else {
-                let object_generic = self.tables.is_generic_object_type(object_type);
+                let object_generic = self.is_generic_object_type_state(object_type)?;
                 (object_generic && !tuple_fixed_access)
                     || self.is_generic_reducible_type(object_type)?
             }

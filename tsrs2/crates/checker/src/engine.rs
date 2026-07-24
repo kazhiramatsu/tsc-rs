@@ -2941,16 +2941,6 @@ impl<'a> CheckerState<'a> {
         Ok(result.filter(|&r| r != unknown))
     }
 
-    /// Conservative phase-9.5a isGenericMappedType gate. Every mapped
-    /// type is treated as generic until 9.5b activates the precise
-    /// constraint/name-type predicate; downstream consumers therefore
-    /// fail closed at their named boundaries.
-    pub(crate) fn is_generic_mapped_type_state(&self, ty: TypeId) -> bool {
-        self.tables
-            .object_flags_of(ty)
-            .intersects(ObjectFlags::MAPPED)
-    }
-
     // ---- recursion depth (checker-key §1.3) ----
 
     /// tsc-port: isDeeplyNestedType @6.0.3

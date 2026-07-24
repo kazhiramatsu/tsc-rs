@@ -9,8 +9,8 @@ use tsrs2_binder::{SymbolId, SymbolTable};
 use tsrs2_diags::gen as diagnostics;
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    CheckFlags, IndexFlags, MappedTypeModifiers, SymbolFlags, TypeData, TypeFlags, TypeId,
-    TypeSystemPropertyName, UnionReduction,
+    CheckFlags, IndexFlags, MappedTypeModifiers, ObjectFlags, SymbolFlags, TypeData, TypeFlags,
+    TypeId, TypeSystemPropertyName, UnionReduction,
 };
 
 use crate::links::LinkSlot;
@@ -27,6 +27,100 @@ enum MappedTypeNameTypeKind {
 }
 
 impl<'a> CheckerState<'a> {
+    /// tsc-port: isGenericMappedType @6.0.3
+    /// tsc-hash: 0de4059bb2606e0ea8b724e86d10d096d4e9fba0de0e0ee4b01cdd51d92b09a1
+    /// tsc-span: _tsc.js:58659-58671
+    pub(crate) fn is_generic_mapped_type_state(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        if !self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::MAPPED)
+        {
+            return Ok(false);
+        }
+        let constraint = self.get_constraint_type_from_mapped_type(ty)?;
+        if self
+            .get_generic_object_flags(constraint)?
+            .intersects(ObjectFlags::IS_GENERIC_INDEX_TYPE)
+        {
+            return Ok(true);
+        }
+        let Some(name_type) = self.get_name_type_from_mapped_type(ty)? else {
+            return Ok(false);
+        };
+        let type_parameter = self.get_type_parameter_from_mapped_type(ty)?;
+        let mapper = self.make_unary_type_mapper(type_parameter, constraint);
+        let instantiated_name = self.instantiate_type(name_type, Some(mapper))?;
+        Ok(self
+            .get_generic_object_flags(instantiated_name)?
+            .intersects(ObjectFlags::IS_GENERIC_INDEX_TYPE))
+    }
+
+    /// tsc-port: getMappedTypeOptionality @6.0.3
+    /// tsc-hash: f2ff51c93f2b27afb3a02a30de4d6fda4499f79aca0382e2d6abb0a8d4824987
+    /// tsc-span: _tsc.js:58642-58645
+    #[allow(dead_code)] // consumers land in 9.5c indexed substitution/relation fidelity
+    pub(crate) fn get_mapped_type_optionality(&self, ty: TypeId) -> i8 {
+        let modifiers = self.get_mapped_type_modifiers(ty);
+        if modifiers.intersects(MappedTypeModifiers::EXCLUDE_OPTIONAL) {
+            -1
+        } else if modifiers.intersects(MappedTypeModifiers::INCLUDE_OPTIONAL) {
+            1
+        } else {
+            0
+        }
+    }
+
+    /// tsc-port: getCombinedMappedTypeOptionality @6.0.3
+    /// tsc-hash: 1ecb4167362e790cb5a669db93477c0f13ebaa79454f26830f5d7f2157e71cbf
+    /// tsc-span: _tsc.js:58646-58655
+    #[allow(dead_code)] // consumers land in 9.5c indexed substitution/relation fidelity
+    pub(crate) fn get_combined_mapped_type_optionality(&mut self, ty: TypeId) -> CheckResult2<i8> {
+        if self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::MAPPED)
+        {
+            let direct = self.get_mapped_type_optionality(ty);
+            return if direct != 0 {
+                Ok(direct)
+            } else {
+                let modifiers = self.get_modifiers_type_from_mapped_type(ty)?;
+                self.get_combined_mapped_type_optionality(modifiers)
+            };
+        }
+        if self.tables.flags_of(ty).intersects(TypeFlags::INTERSECTION) {
+            let TypeData::Intersection { types } = &self.tables.type_of(ty).data else {
+                unreachable!("intersection flag implies intersection payload");
+            };
+            let types = types.to_vec();
+            let Some((&first, rest)) = types.split_first() else {
+                return Ok(0);
+            };
+            let optionality = self.get_combined_mapped_type_optionality(first)?;
+            for &member in rest {
+                if self.get_combined_mapped_type_optionality(member)? != optionality {
+                    return Ok(0);
+                }
+            }
+            return Ok(optionality);
+        }
+        Ok(0)
+    }
+
+    /// tsc-port: isPartialMappedType @6.0.3
+    /// tsc-hash: 85f48737a839d61c088c792e89dedb86340523a69587fde73d6c615a1697744e
+    /// tsc-span: _tsc.js:58656-58658
+    #[allow(dead_code)] // consumer lands in 9.5c relation fidelity
+    pub(crate) fn is_partial_mapped_type(&self, ty: TypeId) -> bool {
+        self.tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::MAPPED)
+            && self
+                .get_mapped_type_modifiers(ty)
+                .intersects(MappedTypeModifiers::INCLUDE_OPTIONAL)
+    }
+
     /// tsc-port: getConstraintDeclarationForMappedType @6.0.3
     /// tsc-hash: 2f1f4f5927df5e92dde6840178b5e9aea7a781a8d4c3fed38ea75823e8e90d2f
     /// tsc-span: _tsc.js:58618-58620
@@ -419,7 +513,7 @@ impl<'a> CheckerState<'a> {
         }
 
         let prop_name_flags = self.tables.flags_of(prop_name_type);
-        if self.is_valid_index_key_type(prop_name_type)
+        if self.is_valid_index_key_type(prop_name_type)?
             || prop_name_flags.intersects(TypeFlags::ANY | TypeFlags::ENUM)
         {
             let index_key_type = if prop_name_flags.intersects(TypeFlags::ANY | TypeFlags::STRING) {
@@ -541,24 +635,62 @@ impl<'a> CheckerState<'a> {
         Ok(resolved)
     }
 
-    /// 9.5b1's finite face of getResolvedApparentTypeOfMappedType.
-    /// The homomorphic array/tuple transformation is owned with mapped
-    /// instantiation in 9.5b2; every other mapped apparent type is
-    /// identity in tsc.
+    /// tsc-port: getResolvedApparentTypeOfMappedType @6.0.3
+    /// tsc-hash: 53d4ca8bed39f305d47dd19d644781edab281f036b776704cd1ecb745328aab9
+    /// tsc-span: _tsc.js:59074-59085
     fn get_resolved_apparent_type_of_mapped_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
         let mapped = self.mapped_type_data(ty);
         let target = mapped.target.unwrap_or(ty);
-        let homomorphic = self.get_homomorphic_type_variable(target)?;
+        let Some(type_variable) = self.get_homomorphic_type_variable(target)? else {
+            return Ok(ty);
+        };
         let declaration = self.mapped_type_declaration(target);
         let NodeData::MappedType(declaration) = self.data_of(declaration) else {
             unreachable!("mapped declaration has MappedType data");
         };
-        if homomorphic.is_some() && declaration.name_type.is_none() {
-            return Err(Unsupported::new(
-                "homomorphic mapped apparent array/tuple transformation (9.5b2/M8)",
-            ));
+        if declaration.name_type.is_some() {
+            return Ok(ty);
+        }
+        let modifiers_type = self.get_modifiers_type_from_mapped_type(ty)?;
+        let base_constraint = if self.is_generic_mapped_type_state(modifiers_type)? {
+            Some(self.get_apparent_type_of_mapped_type(modifiers_type)?)
+        } else {
+            self.get_base_constraint_of_type(modifiers_type)?
+        };
+        let Some(base_constraint) = base_constraint else {
+            return Ok(ty);
+        };
+        let mut array_or_tuple_domain = true;
+        for member in self.union_members_or_self(base_constraint) {
+            if !self.is_array_or_tuple_or_intersection(member)? {
+                array_or_tuple_domain = false;
+                break;
+            }
+        }
+        if array_or_tuple_domain {
+            let mapper = self.prepend_type_mapping(type_variable, base_constraint, mapped.mapper);
+            return self.instantiate_type(target, Some(mapper));
         }
         Ok(ty)
+    }
+
+    fn is_array_or_tuple_or_intersection(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        if self.is_array_type(ty)? || self.tables.is_tuple_type(ty) {
+            return Ok(true);
+        }
+        if !self.tables.flags_of(ty).intersects(TypeFlags::INTERSECTION) {
+            return Ok(false);
+        }
+        let TypeData::Intersection { types } = &self.tables.type_of(ty).data else {
+            unreachable!("intersection flag implies intersection payload");
+        };
+        let types = types.to_vec();
+        for member in types {
+            if !self.is_array_type(member)? && !self.tables.is_tuple_type(member) {
+                return Ok(false);
+            }
+        }
+        Ok(true)
     }
 
     /// tsc-port: getIndexTypeForMappedType @6.0.3
@@ -578,12 +710,12 @@ impl<'a> CheckerState<'a> {
             return Ok(constraint_type);
         }
 
-        if self.tables.is_generic_index_type(constraint_type)
+        if self.is_generic_index_type_state(constraint_type)?
             && self.is_mapped_type_with_keyof_constraint_declaration(ty)
         {
             return Ok(self.get_index_type_for_generic_type(ty, index_flags));
         }
-        let keys = if self.tables.is_generic_index_type(constraint_type) {
+        let keys = if self.is_generic_index_type_state(constraint_type)? {
             self.union_members_or_self(constraint_type)
         } else if self.is_mapped_type_with_keyof_constraint_declaration(ty) {
             let modifiers_raw = self.get_modifiers_type_from_mapped_type(ty)?;
@@ -638,7 +770,10 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_types::{CompilerOptions, IndexFlags, SymbolFlags, TypeData, TypeFlags, TypeId};
+    use tsrs2_syntax::NodeData;
+    use tsrs2_types::{
+        CompilerOptions, ElementFlags, IndexFlags, SymbolFlags, TypeData, TypeFlags, TypeId,
+    };
 
     use crate::relpin::find_probe_annotation;
     use crate::state::test_support::with_program_state;
@@ -659,6 +794,32 @@ mod tests {
             .expect("mapped property exists")
     }
 
+    fn parameter_annotation_type(state: &mut CheckerState, name: &str) -> TypeId {
+        let annotation = {
+            let source = state.binder.source(0);
+            (0..source.arena.len())
+                .find_map(|index| {
+                    let NodeData::Parameter(parameter) =
+                        &source.arena.node(tsrs2_syntax::NodeId(index as u32)).data
+                    else {
+                        return None;
+                    };
+                    let declared_name = parameter.name?;
+                    let NodeData::Identifier(identifier) = &source.arena.node(declared_name).data
+                    else {
+                        return None;
+                    };
+                    (identifier.text == name)
+                        .then_some(parameter.r#type)
+                        .flatten()
+                })
+                .expect("fixture parameter annotation")
+        };
+        state
+            .get_type_from_type_node(annotation)
+            .expect("parameter annotation resolves")
+    }
+
     #[test]
     fn finite_mapped_members_remap_duplicate_keys_and_instantiate_values() {
         with_program_state(
@@ -671,6 +832,9 @@ mod tests {
             &CompilerOptions::default(),
             |state| {
                 let finite = annotation_type(state, "finite");
+                assert!(!state
+                    .is_generic_mapped_type_state(finite)
+                    .expect("finite mapped classifier"));
                 let names: Vec<_> = state
                     .get_properties_of_type_full(finite)
                     .expect("finite properties")
@@ -747,6 +911,105 @@ mod tests {
                 let key_text = state.type_to_string_slice(keys).expect("key union renders");
                 assert!(key_text.contains("\"xa\""), "{key_text}");
                 assert!(key_text.contains("\"xb\""), "{key_text}");
+            },
+        );
+    }
+
+    #[test]
+    fn homomorphic_mapped_instantiation_preserves_array_and_tuple_shapes() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "interface Array<T> { [n: number]: T }\n\
+                 interface ReadonlyArray<T> { readonly [n: number]: T }\n\
+                 type Identity<T> = { [K in keyof T]: T[K] };\n\
+                 type Mutable<T> = { -readonly [K in keyof T]: T[K] };\n\
+                 type RequiredTuple<T> = { [K in keyof T]-?: T[K] };\n\
+                 declare let tuple: Identity<readonly [number, string?]>;\n\
+                 declare let mutable: Mutable<readonly number[]>;\n\
+                 declare let required: RequiredTuple<[number, string?]>;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let tuple = annotation_type(state, "tuple");
+                assert!(state.tables.is_tuple_type(tuple));
+                let tuple_target = state.tables.reference_target(tuple);
+                let TypeData::TupleTarget(tuple_data) =
+                    state.tables.type_of(tuple_target).data.clone()
+                else {
+                    panic!("tuple instantiation retains a tuple target");
+                };
+                assert!(tuple_data.readonly);
+                assert!(tuple_data.element_flags[1].intersects(ElementFlags::OPTIONAL));
+                let tuple_arguments = state.get_type_arguments(tuple).expect("tuple elements");
+                assert_eq!(tuple_arguments[0], state.tables.intrinsics.number);
+
+                let mutable = annotation_type(state, "mutable");
+                let mutable_text = state
+                    .type_to_string_slice(mutable)
+                    .expect("mutable renders");
+                assert!(
+                    state.is_array_type(mutable).expect("array predicate"),
+                    "{mutable_text}: {:?}",
+                    state.tables.type_of(mutable).data
+                );
+                assert!(!state
+                    .is_readonly_array_type(mutable)
+                    .expect("readonly predicate"));
+                assert_eq!(
+                    state
+                        .get_element_type_of_array_type(mutable)
+                        .expect("array element"),
+                    Some(state.tables.intrinsics.number)
+                );
+
+                let required = annotation_type(state, "required");
+                assert!(state.tables.is_tuple_type(required));
+                let required_target = state.tables.reference_target(required);
+                let TypeData::TupleTarget(required_data) =
+                    state.tables.type_of(required_target).data.clone()
+                else {
+                    panic!("required mapped tuple retains a tuple target");
+                };
+                assert!(required_data.element_flags[1].intersects(ElementFlags::REQUIRED));
+            },
+        );
+    }
+
+    #[test]
+    fn apparent_homomorphic_mapped_type_uses_array_base_constraint() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "interface Array<T> { [n: number]: T }\n\
+                 interface ReadonlyArray<T> { readonly [n: number]: T }\n\
+                 function f<T extends readonly string[]>(value: { [K in keyof T]: number }) {}\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let mapped = parameter_annotation_type(state, "value");
+                assert!(state
+                    .is_generic_mapped_type_state(mapped)
+                    .expect("generic mapped classifier"));
+                let apparent = state
+                    .get_apparent_type(mapped)
+                    .expect("mapped apparent type resolves");
+                let apparent_text = state
+                    .type_to_string_slice(apparent)
+                    .expect("apparent renders");
+                assert!(
+                    state
+                        .is_readonly_array_type(apparent)
+                        .expect("apparent readonly array"),
+                    "{apparent_text}: {:?}",
+                    state.tables.type_of(apparent).data
+                );
+                assert_eq!(
+                    state
+                        .get_element_type_of_array_type(apparent)
+                        .expect("apparent array element"),
+                    Some(state.tables.intrinsics.number)
+                );
             },
         );
     }

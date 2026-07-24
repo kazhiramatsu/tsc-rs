@@ -1017,13 +1017,6 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/instantiate.rs"
-in = "get_object_type_instantiation"
-reason = "instantiateMappedType (mapped instantiation, 9.5b/M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/instantiate.rs"
 in = "instantiate_type_worker"
 reason = "conditional-type instantiation (getConditionalTypeInstantiation, M8)"
 class = "stage"
@@ -1194,13 +1187,6 @@ owner = "M8"
 file = "crates/checker/src/mapped.rs"
 in = "get_lower_bound_of_key_type"
 reason = "getLowerBoundOfKeyType over conditional keys (9.6/M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/mapped.rs"
-in = "get_resolved_apparent_type_of_mapped_type"
-reason = "homomorphic mapped apparent array/tuple transformation (9.5b2/M8)"
 class = "stage"
 owner = "M8"
 

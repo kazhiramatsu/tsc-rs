@@ -791,7 +791,7 @@ impl<'a> CheckerState<'a> {
                         return_type = awaited;
                     }
                 }
-                Ok(self.tables.is_generic_type(return_type))
+                self.is_generic_type(return_type)
             }
             WideningKind::GENERATOR_YIELD => {
                 let yield_type = self.get_iteration_type_of_generator_function_return_type(
@@ -800,7 +800,7 @@ impl<'a> CheckerState<'a> {
                     is_async,
                 )?;
                 Ok(match yield_type {
-                    Some(yield_type) => self.tables.is_generic_type(yield_type),
+                    Some(yield_type) => self.is_generic_type(yield_type)?,
                     None => false,
                 })
             }
@@ -811,7 +811,7 @@ impl<'a> CheckerState<'a> {
                     is_async,
                 )?;
                 Ok(match next_type {
-                    Some(next_type) => self.tables.is_generic_type(next_type),
+                    Some(next_type) => self.is_generic_type(next_type)?,
                     None => false,
                 })
             }

@@ -770,7 +770,7 @@ impl<'a> CheckerState<'a> {
                         .tables
                         .flags_of(element_type)
                         .intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
-                        || self.is_generic_mapped_type_state(element_type)
+                        || self.is_generic_mapped_type_state(element_type)?
                     {
                         add_element(
                             self,
@@ -5974,7 +5974,7 @@ impl<'a> CheckerState<'a> {
                         vec![key_type]
                     };
                 for key_type in key_types {
-                    if self.is_valid_index_key_type(key_type)
+                    if self.is_valid_index_key_type(key_type)?
                         && !index_infos.iter().any(|info| info.key_type == key_type)
                     {
                         index_infos.push(IndexInfo {
@@ -6091,23 +6091,25 @@ impl<'a> CheckerState<'a> {
     ///
     /// Generic intersections are not valid key types even when one
     /// constituent is string/number/symbol-like.
-    pub(crate) fn is_valid_index_key_type(&mut self, key_type: TypeId) -> bool {
+    pub(crate) fn is_valid_index_key_type(&mut self, key_type: TypeId) -> CheckResult2<bool> {
         let flags = self.tables.flags_of(key_type);
         if flags.intersects(TypeFlags::STRING | TypeFlags::NUMBER | TypeFlags::ES_SYMBOL) {
-            return true;
+            return Ok(true);
         }
         if self.tables.is_pattern_literal_type(key_type) {
-            return true;
+            return Ok(true);
         }
-        if flags.intersects(TypeFlags::INTERSECTION) && !self.tables.is_generic_type(key_type) {
+        if flags.intersects(TypeFlags::INTERSECTION) && !self.is_generic_type(key_type)? {
             if let TypeData::Intersection { types } = &self.tables.type_of(key_type).data {
                 let members = types.to_vec();
-                return members
-                    .into_iter()
-                    .any(|member| self.is_valid_index_key_type(member));
+                for member in members {
+                    if self.is_valid_index_key_type(member)? {
+                        return Ok(true);
+                    }
+                }
             }
         }
-        false
+        Ok(false)
     }
 
     fn has_readonly_modifier(&self, modifiers: Option<NodeArrayId>) -> bool {

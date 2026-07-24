@@ -162,9 +162,12 @@
 # p9 9.4c adds +113 from JSX attributes/children applicability and
 # global Object relation-head selection. p9 9.5a adds +7 by admitting
 # declaration-preserving mapped-type construction and display. p9
-# 9.5b1 adds +3 through finite mapped member materialization.
-rate = 0.592261
-matched = 29035
+# 9.5b1 adds +3 through finite mapped member materialization. p9
+# 9.5b2 adds +87 by instantiating homomorphic mapped arrays/tuples,
+# completing their apparent type, and replacing conservative generic
+# classification with the constraint/name-type predicate.
+rate = 0.594036
+matched = 29122
 total = 49024
 allowed_regression = 0.0
 
@@ -207,9 +210,9 @@ allowed_regression = 0.0
 # byte-neutral in the 2xxx band. p9 9.4b adds +71 object/array/arrow
 # elaboration rows; p9 9.4c adds +113 JSX/report-head rows; p9 9.5a
 # adds +7 mapped model/display rows; p9 9.5b1 adds +3 finite mapped
-# member rows.
-rate = 0.870742
-matched = 18330
+# member rows; p9 9.5b2 adds +84 mapped instantiation/apparent rows.
+rate = 0.874733
+matched = 18414
 total = 21051
 allowed_regression = 0.0
 
