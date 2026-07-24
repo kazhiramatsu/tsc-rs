@@ -219,13 +219,6 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_type_of_symbol"
-reason = "mapped symbols (getTypeOfMappedSymbol, M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/annotate.rs"
-in = "get_type_of_symbol"
 reason = "reverse-mapped symbols (getTypeOfReverseMappedSymbol, M8)"
 class = "stage"
 owner = "M8"
@@ -264,7 +257,7 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "resolve_structured_type_members"
-reason = "member resolution for object flags {object_flags:?} (Mapped/ReverseMapped, M8)"
+reason = "member resolution for object flags {object_flags:?} (ReverseMapped, 9.5c/M8)"
 class = "stage"
 owner = "M8"
 
@@ -938,13 +931,6 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/indexed.rs"
-in = "get_index_type"
-reason = "getIndexTypeForMappedType (mapped members, 9.5b/M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/indexed.rs"
 in = "get_simplified_index_type"
 reason = "getSimplifiedIndexType for mapped types (key remapping, 9.5b/M8)"
 class = "stage"
@@ -1201,6 +1187,20 @@ class = "recovery"
 file = "crates/checker/src/literals.rs"
 in = "is_tuple_context_constituent"
 reason = "inTupleContext generic-mapped disjunct (getHomomorphicTypeVariable, M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/mapped.rs"
+in = "get_lower_bound_of_key_type"
+reason = "getLowerBoundOfKeyType over conditional keys (9.6/M8)"
+class = "stage"
+owner = "M8"
+
+[[site]]
+file = "crates/checker/src/mapped.rs"
+in = "get_resolved_apparent_type_of_mapped_type"
+reason = "homomorphic mapped apparent array/tuple transformation (9.5b2/M8)"
 class = "stage"
 owner = "M8"
 
@@ -1471,13 +1471,6 @@ file = "crates/checker/src/statements.rs"
 in = "check_variable_statement"
 reason = "VariableStatement recovery node"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/structural.rs"
-in = "get_apparent_type"
-reason = "getApparentTypeOfMappedType (mapped apparent type, 9.5b/M8)"
-class = "stage"
-owner = "M8"
 
 [[site]]
 file = "crates/checker/src/structural.rs"
