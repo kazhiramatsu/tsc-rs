@@ -2754,6 +2754,44 @@ impl<'a> CheckerState<'a> {
                 // parent-skipped 2353/2561 INSIDE the relation and no
                 // head lands, for ANY head message (argument excess
                 // rows are 2353 top-level too).
+                let generic_head = std::ptr::eq(
+                    head_message,
+                    &diagnostics::Type_0_is_not_assignable_to_type_1,
+                );
+                if generic_head
+                    && self
+                        .tables
+                        .object_flags_of(source)
+                        .intersects(ObjectFlags::JSX_ATTRIBUTES)
+                    && self
+                        .tables
+                        .flags_of(target)
+                        .intersects(TypeFlags::INTERSECTION)
+                {
+                    let constituents = match &self.tables.type_of(target).data {
+                        tsrs2_types::TypeData::Intersection { types } => types.to_vec(),
+                        _ => Vec::new(),
+                    };
+                    for constituent in constituents {
+                        let intrinsic = self
+                            .tables
+                            .type_of(constituent)
+                            .symbol
+                            .map(|symbol| self.binder.symbol(symbol).escaped_name.as_str())
+                            .is_some_and(|name| {
+                                matches!(name, "IntrinsicAttributes" | "IntrinsicClassAttributes")
+                            });
+                        if intrinsic
+                            && self.report_unmatched_property_head(
+                                source,
+                                constituent,
+                                error_node,
+                            )?
+                        {
+                            return Ok(related);
+                        }
+                    }
+                }
                 if self.report_excess_property_head(
                     source,
                     target,
@@ -2769,30 +2807,55 @@ impl<'a> CheckerState<'a> {
                 if self.report_no_common_properties_head(source, target, error_node)? {
                     return Ok(related);
                 }
-                let generic_head = std::ptr::eq(
-                    head_message,
-                    &diagnostics::Type_0_is_not_assignable_to_type_1,
-                );
                 // A failed relation whose SOURCE is the global
                 // Object type selects between a 2696 head (when an
                 // override-flavored deep incompatibility suppressed
                 // the generic head: missing props, method-return
                 // 2201-family) and a 2322 head with 2696 in the
                 // chain TAIL (signature mismatches). The selection
-                // needs the overrideNextErrorInfo tracking (T2 error
-                // machinery) — escape rather than guess (corpus:
-                // parserAutomaticSemicolonInsertion1 wants 2322,
-                // objectTypeHidingMembersOfObjectAssignmentCompat2
-                // wants 2696).
+                // is equivalent at this flattened reporting boundary
+                // to asking whether a required target property is
+                // missing or incompatible. Signature-only targets
+                // have no such property and keep the generic head.
                 if generic_head
                     && self.tables.flags_of(source).intersects(TypeFlags::OBJECT)
                     && self.tables.type_of(source).symbol.is_some()
                     && source == self.global_object_type()?
                 {
-                    return Err(Unsupported::new(
-                        "Object-source relation head selection \
-                         (overrideNextErrorInfo tracking, T2)",
-                    ));
+                    let mut override_flavored = false;
+                    for property in self.get_properties_of_type(target)? {
+                        if self
+                            .binder
+                            .symbol(property)
+                            .flags
+                            .intersects(tsrs2_types::SymbolFlags::OPTIONAL)
+                        {
+                            continue;
+                        }
+                        let name = self.binder.symbol(property).escaped_name.clone();
+                        let Some(source_property) =
+                            self.get_property_of_type_full(source, &name)?
+                        else {
+                            override_flavored = true;
+                            break;
+                        };
+                        let source_property_type = self.get_type_of_symbol(source_property)?;
+                        let target_property_type = self.get_type_of_symbol(property)?;
+                        if !self
+                            .is_type_assignable_to(source_property_type, target_property_type)?
+                        {
+                            override_flavored = true;
+                            break;
+                        }
+                    }
+                    if override_flavored {
+                        self.error_at(
+                            Some(error_node),
+                            &diagnostics::The_Object_type_is_assignable_to_very_few_other_types_Did_you_mean_to_use_the_any_type_instead,
+                            &[],
+                        );
+                        return Ok(related);
+                    }
                 }
                 if generic_head
                     && self.report_unmatched_property_head(source, target, error_node)?
@@ -8998,6 +9061,37 @@ mod tests {
                 "Type '{ kind: \"a\"; v: number; }' is not assignable to type '{ kind: \"a\"; v: string; } | { kind: \"b\"; v: number; }'."
                     .to_owned()
             )]
+        );
+    }
+
+    #[test]
+    fn global_object_head_selection_distinguishes_members_from_signatures() {
+        assert_eq!(
+            checked_diags(
+                "interface Object { toString(): string }\n\
+                 interface I { toString(): number }\n\
+                 interface Callable { (): void }\n\
+                 declare let o: Object;\n\
+                 declare let i: I;\n\
+                 declare let c: Callable;\n\
+                 i = o;\n\
+                 c = o;\n"
+            ),
+            [
+                (
+                    2696,
+                    173,
+                    1,
+                    "The 'Object' type is assignable to very few other types. Did you mean to use the 'any' type instead?"
+                        .to_owned()
+                ),
+                (
+                    2322,
+                    180,
+                    1,
+                    "Type 'Object' is not assignable to type 'Callable'.".to_owned()
+                )
+            ]
         );
     }
 

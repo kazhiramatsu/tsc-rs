@@ -281,13 +281,6 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/calls.rs"
 in = "check_applicable_signature_for_jsx_call_like_element"
-reason = "JSX attributes relation reporting (elaborateJsxComponents / headless reportRelationError, T2)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/calls.rs"
-in = "check_applicable_signature_for_jsx_call_like_element"
 reason = "JSX opening element without attributes (parse recovery)"
 class = "recovery"
 
@@ -435,13 +428,6 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/calls.rs"
-in = "resolve_jsx_opening_like_element"
-reason = "did-you-mean elaboration over JSX attributes (T2)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/calls.rs"
 in = "resolve_new_expression"
 reason = "isJSConstructor probe on a JS declaration (checkJs band, M8)"
 class = "stage"
@@ -492,13 +478,6 @@ owner = "M8"
 file = "crates/checker/src/check.rs"
 in = "check_mapped_type"
 reason = "checkMappedType nameType/constraint rows (getNameTypeFromMappedType — mapped types M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/check.rs"
-in = "check_type_assignable_to"
-reason = "Object-source relation head selection (overrideNextErrorInfo tracking, T2)"
 class = "stage"
 owner = "M8"
 
@@ -752,23 +731,9 @@ owner = "M8"
 count = 2
 
 [[site]]
-file = "crates/checker/src/elaboration.rs"
-in = "probe_jsx_elaboration_disposition"
-reason = "elaborateJsxComponents (elementwise elaboration, T2)"
-class = "stage"
-owner = "M8"
-
-[[site]]
 file = "crates/checker/src/engine.rs"
 in = "get_normalized_type"
 reason = "getNormalizedType for substitution types (unported family, M8-stub)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/engine.rs"
-in = "report_excess_property"
-reason = "JSX attributes relation reporting (elaborateJsxComponents / headless reportRelationError, T2)"
 class = "stage"
 owner = "M8"
 

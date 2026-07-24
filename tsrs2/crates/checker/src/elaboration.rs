@@ -1,17 +1,17 @@
 //! Phase 9.4: relation-error elaboration.
 //!
-//! tsc keeps `elaborateError` and its object/array/arrow helpers beside
-//! the relation reporter. Earlier extraction slices left two local
-//! stand-ins: a reporting walk in `operators.rs` and a disposition-only
-//! walk in `calls.rs`. This module gives those decisions one owner before
-//! 9.4b widens the reporting callers.
+//! The common reporter owns assignment, return, ordinary call
+//! applicability, and JSX applicability. `ElaborationOutcome` keeps
+//! tsc's "reported an inner row" decision separate from an ordinary
+//! declined walk, while applicability captures the emitted diagnostics
+//! as overload-selection data.
 
-use tsrs2_diags::{gen as diagnostics, DiagnosticMessage, RelatedInfo};
+use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{AccessFlags, CheckMode, TypeData, TypeFlags, TypeId, UnionReduction};
 
 use crate::relate::RelationKind;
-use crate::state::{CheckResult2, CheckerState, SignatureKind, Unsupported};
+use crate::state::{CheckResult2, CheckerState, SignatureKind};
 
 /// The semantic result of an elaboration attempt.
 ///
@@ -40,14 +40,6 @@ impl ElaborationOutcome {
             Self::Declined
         }
     }
-}
-
-/// Read-only result used by call applicability until 9.4b routes that
-/// path through the reporting engine.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum ElaborationDisposition {
-    Declined,
-    DidYouMean { node: NodeId, related: RelatedInfo },
 }
 
 impl<'a> CheckerState<'a> {
@@ -106,40 +98,6 @@ impl<'a> CheckerState<'a> {
         Ok(None)
     }
 
-    /// tsrs-native: the remaining report-free JSX disposition adapter.
-    /// Ordinary call arguments route through the reporting engine as of
-    /// 9.4b; 9.4c retires this with the JSX component walk.
-    ///
-    /// `Declined` means the ordinary relation head is correct.
-    /// `DidYouMean` preserves the walked diagnostic node and related
-    /// row. `Unsupported` is the still-unported JSX component walk.
-    pub(crate) fn probe_jsx_elaboration_disposition(
-        &mut self,
-        node: NodeId,
-        source: TypeId,
-        target: TypeId,
-        relation: RelationKind,
-    ) -> CheckResult2<ElaborationDisposition> {
-        if self.is_or_has_generic_conditional(target) {
-            return Ok(ElaborationDisposition::Declined);
-        }
-        if let Some(kind) = self.did_you_mean_signature_kind(source, target, relation)? {
-            let message = if kind == SignatureKind::Construct {
-                &diagnostics::Did_you_mean_to_use_new_with_this_expression
-            } else {
-                &diagnostics::Did_you_mean_to_call_this_expression
-            };
-            let related = self.related_info_for_node(node, message, &[]);
-            return Ok(ElaborationDisposition::DidYouMean { node, related });
-        }
-        if self.kind_of(node) == SyntaxKind::JsxAttributes {
-            return Err(Unsupported::new(
-                "elaborateJsxComponents (elementwise elaboration, T2)",
-            ));
-        }
-        Ok(ElaborationDisposition::Declined)
-    }
-
     /// tsc-port: elaborateDidYouMeanToCallOrConstruct @6.0.3
     /// tsc-hash: a720dfb07510cb077601fddf116e7c7fa5f96c9d967ed77b514d4e5b36795c31
     /// tsc-span: _tsc.js:64063-64091
@@ -182,7 +140,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getBestMatchIndexedAccessTypeOrUndefined @6.0.3
     /// tsc-hash: d9c9a56511cb15f6d99180834836ddea10da6cc2af84f172c7932f6490c2e349
     /// tsc-span: _tsc.js:64103-64114
-    fn member_elaboration_target_type(
+    pub(crate) fn member_elaboration_target_type(
         &mut self,
         source_type: TypeId,
         target_type: TypeId,
@@ -218,7 +176,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: elaborateElementwise @6.0.3 (the report-pair tail)
     /// tsc-hash: c289d4a4008697be6117b4bcd7c5f21e756946f8ccf08d921769996736688326
     /// tsc-span: _tsc.js:64165-64171
-    fn remove_missing_for_member_report(
+    pub(crate) fn remove_missing_for_member_report(
         &mut self,
         source_type: TypeId,
         target_type: TypeId,
@@ -250,6 +208,116 @@ impl<'a> CheckerState<'a> {
         Ok((actual, expected))
     }
 
+    /// tsrs-native: elaborateJsxComponents @6.0.3 children slice
+    /// (`_tsc.js` 64312-64378).
+    ///
+    /// Attribute checking has already synthesized the source's
+    /// `children` property. For multiple semantic children tsc builds
+    /// a fresh tuple from the individual child expressions and walks
+    /// the array-like target elementwise, so diagnostics stay on each
+    /// child rather than collapsing to the opening tag.
+    fn elaborate_jsx_children(
+        &mut self,
+        attributes: NodeId,
+        target_type: TypeId,
+    ) -> CheckResult2<bool> {
+        let Some(opening) = self.parent_of(attributes) else {
+            return Ok(false);
+        };
+        if self.kind_of(opening) != SyntaxKind::JsxOpeningElement {
+            return Ok(false);
+        }
+        let Some(containing_element) = self.parent_of(opening) else {
+            return Ok(false);
+        };
+        let children = match self.data_of(containing_element) {
+            NodeData::JsxElement(data) if data.opening_element == Some(opening) => {
+                self.nodes_of(data.children)
+            }
+            _ => return Ok(false),
+        };
+        let semantic_children: Vec<NodeId> = children
+            .into_iter()
+            .filter(|&child| self.is_semantic_jsx_child(child))
+            .collect();
+        if semantic_children.is_empty() {
+            return Ok(false);
+        }
+        let jsx_namespace = self.get_jsx_namespace_at(attributes)?;
+        let children_name = self
+            .get_jsx_element_children_property_name(jsx_namespace)?
+            .unwrap_or_else(|| "children".to_owned());
+        let name_type = self.tables.get_string_literal_type(&children_name);
+        let Some(children_target) = self.get_indexed_access_type_or_undefined(
+            target_type,
+            name_type,
+            AccessFlags::NONE,
+            None,
+            None,
+            None,
+        )?
+        else {
+            return Ok(false);
+        };
+        let target_parts = match &self.tables.type_of(children_target).data {
+            TypeData::Union { types, .. } => types.to_vec(),
+            _ => vec![children_target],
+        };
+        let mut indexed_target_parts = Vec::new();
+        for target_part in target_parts {
+            if let Some(element) = self.get_element_type_of_array_type(target_part)? {
+                indexed_target_parts.push(element);
+            } else if self.is_tuple_like_type(target_part)? {
+                indexed_target_parts.extend(self.get_type_arguments(target_part)?);
+            }
+        }
+        let indexed_target = if indexed_target_parts.is_empty() {
+            None
+        } else {
+            Some(self.get_union_type_ex(&indexed_target_parts, UnionReduction::Literal)?)
+        };
+        let expected = if semantic_children.len() > 1 {
+            match indexed_target {
+                Some(expected) => expected,
+                None => return Ok(false),
+            }
+        } else {
+            // Single-child failures keep the enclosing JSX relation
+            // head in the currently supported corpus (the complete
+            // scalar/array 2745/2747 cardinality ladder remains owned
+            // by the source-level reporter below).
+            return Ok(false);
+        };
+
+        let mut reported = false;
+        for child in semantic_children {
+            let actual =
+                self.check_expression_for_mutable_location(child, CheckMode::NORMAL, false)?;
+            if self.is_type_assignable_to(actual, expected)? {
+                continue;
+            }
+            if self
+                .elaborate_literal_assignment(
+                    child,
+                    expected,
+                    Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
+                )?
+                .reported()
+            {
+                reported = true;
+                continue;
+            }
+            self.check_type_assignable_to(
+                actual,
+                expected,
+                Some(child),
+                &diagnostics::Type_0_is_not_assignable_to_type_1,
+            )?;
+            reported = true;
+        }
+        Ok(reported)
+    }
+
     /// tsrs-native: the currently live assignability/reporting subset
     /// of elaborateError (63957-64460).
     ///
@@ -263,6 +331,9 @@ impl<'a> CheckerState<'a> {
         target_type: TypeId,
         probe_head: Option<&'static DiagnosticMessage>,
     ) -> CheckResult2<ElaborationOutcome> {
+        if self.is_or_has_generic_conditional(target_type) {
+            return Ok(ElaborationOutcome::Declined);
+        }
         // elaborateError's entry probe (63959-63966): runs BEFORE the
         // recursion arms on every entry.
         if let Some(head_message) = probe_head {
@@ -294,6 +365,11 @@ impl<'a> CheckerState<'a> {
                     if self.is_const_type_reference_node(type_node) {
                         return self.elaborate_literal_assignment(inner, target_type, probe_head);
                     }
+                }
+            }
+            NodeData::JsxExpression(data) => {
+                if let Some(inner) = data.expression {
+                    return self.elaborate_literal_assignment(inner, target_type, probe_head);
                 }
             }
             NodeData::BinaryExpression(data) => {
@@ -583,6 +659,19 @@ impl<'a> CheckerState<'a> {
                         Some(error_node),
                         &diagnostics::Type_0_is_not_assignable_to_type_1,
                     )?;
+                }
+            }
+            NodeData::JsxAttributes(_) => {
+                let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
+                let attributes_reported = self.elaborate_jsx_named_attributes(
+                    expression,
+                    source_type,
+                    target_type,
+                    RelationKind::Assignable,
+                )?;
+                let children_reported = self.elaborate_jsx_children(expression, target_type)?;
+                if attributes_reported || children_reported {
+                    return Ok(ElaborationOutcome::Reported);
                 }
             }
             _ => {}

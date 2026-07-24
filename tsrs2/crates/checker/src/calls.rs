@@ -33,7 +33,6 @@ use tsrs2_types::{
 use crate::inference::InferenceContextId;
 use crate::relate::RelationKind;
 
-use crate::elaboration::ElaborationDisposition;
 use crate::links::LinkSlot;
 use crate::operators::OuterExpressionKinds;
 use crate::state::{CheckResult2, CheckerState, Signature, SignatureId, Unsupported};
@@ -2752,12 +2751,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: ee3bdb8977701e194a71bc78bdf77e9f22b52d20800425ade1f126d340f6bd65
     /// tsc-span: _tsc.js:76088-76189
     ///
-    /// The reporting faces contain: elaborateError over the attributes
-    /// node is elementwise elaboration (elaborateJsxComponents — T2
-    /// machinery that moves code/span into the attribute values), and
-    /// the headless reportRelationError fallback at the tag renders
-    /// the anonymous attributes type (T2 display). The SILENT verdict
-    /// (selection) and the 6229 factory-arity probe are fully live.
+    /// Report/Probe capture the shared elaborateError diagnostics as
+    /// applicability data; a declined walk re-enters the source-level
+    /// relation reporter at the tag name. Silent mode remains a verdict
+    /// only, and the 6229 factory-arity probe is fully live.
     fn check_applicable_signature_for_jsx_call_like_element(
         &mut self,
         node: NodeId,
@@ -2768,6 +2765,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<Option<Vec<ApplicabilityError>>> {
         let param_type = self.get_effective_first_argument_for_jsx_signature(signature, node)?;
         let is_jsx_open_fragment = self.kind_of(node) == SyntaxKind::JsxOpeningFragment;
+        let mut attributes_node = None;
         let attributes_type = if is_jsx_open_fragment {
             self.create_jsx_attributes_type_from_attributes_property(node, CheckMode::NORMAL)?
         } else {
@@ -2779,6 +2777,7 @@ impl<'a> CheckerState<'a> {
             .ok_or_else(|| {
                 Unsupported::new("JSX opening element without attributes (parse recovery)")
             })?;
+            attributes_node = Some(attributes);
             self.check_expression_with_contextual_type(
                 attributes, param_type, /*inference_context*/ None, check_mode,
             )?
@@ -2799,9 +2798,32 @@ impl<'a> CheckerState<'a> {
         if mode == ApplicabilityMode::Silent {
             return Ok(Some(Vec::new()));
         }
-        Err(Unsupported::new(
-            "JSX attributes relation reporting \
-             (elaborateJsxComponents / headless reportRelationError, T2)",
+        let relation_error_node = match self.data_of(node) {
+            NodeData::JsxOpeningElement(data) => data.tag_name.unwrap_or(node),
+            NodeData::JsxSelfClosingElement(data) => data.tag_name.unwrap_or(node),
+            _ => node,
+        };
+        let before = self.diagnostics.len();
+        if let Some(attributes) = attributes_node {
+            let elaborated = self.elaborate_literal_assignment(
+                attributes,
+                param_type,
+                Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
+            )?;
+            if elaborated.reported() {
+                return Ok(Some(
+                    self.take_captured_applicability_errors(node, before, mode),
+                ));
+            }
+        }
+        self.check_type_assignable_to(
+            check_attributes_type,
+            param_type,
+            Some(relation_error_node),
+            &diagnostics::Type_0_is_not_assignable_to_type_1,
+        )?;
+        Ok(Some(
+            self.take_captured_applicability_errors(node, before, mode),
         ))
     }
 
@@ -5273,10 +5295,11 @@ impl<'a> CheckerState<'a> {
 
     // ---- JSX opening-like elements ----
 
-    /// tsc elaborateJsxComponents' named-attribute slice. Attribute
+    /// tsrs-native: generateJsxAttributes +
+    /// elaborateJsxComponents' named-attribute slice. Attribute
     /// mismatches are reported at the JSX attribute name (not at the
     /// enclosing tag), preserving the elementwise 2322 span.
-    fn elaborate_jsx_named_attributes(
+    pub(crate) fn elaborate_jsx_named_attributes(
         &mut self,
         attributes: NodeId,
         source: TypeId,
@@ -5295,6 +5318,7 @@ impl<'a> CheckerState<'a> {
             let Some(name_node) = data.name else {
                 continue;
             };
+            let initializer = data.initializer;
             let name = self.jsx_attribute_name_text(name_node);
             if name.contains('-') {
                 continue;
@@ -5302,14 +5326,34 @@ impl<'a> CheckerState<'a> {
             let Some(source_property) = self.get_property_of_type_full(source, &name)? else {
                 continue;
             };
-            let Some(target_property) = self.get_property_of_type_full(target, &name)? else {
+            let Some(target_type) = self.member_elaboration_target_type(source, target, &name)?
+            else {
                 continue;
             };
             let source_type = self.get_type_of_symbol(source_property)?;
-            let target_type = self.get_type_of_symbol(target_property)?;
             if self.check_type_related_to(source_type, target_type, relation)? {
                 continue;
             }
+            if let Some(initializer) = initializer {
+                if self
+                    .elaborate_literal_assignment(
+                        initializer,
+                        target_type,
+                        Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
+                    )?
+                    .reported()
+                {
+                    reported = true;
+                    continue;
+                }
+            }
+            let (source_type, target_type) = self.remove_missing_for_member_report(
+                source,
+                target,
+                &name,
+                source_type,
+                target_type,
+            )?;
             self.check_type_assignable_to(
                 source_type,
                 target_type,
@@ -5369,24 +5413,14 @@ impl<'a> CheckerState<'a> {
                 // checkTypeAssignableToAndOptionallyElaborate(attrType,
                 // result, errorNode=tagName, expr=attributes).
                 if !self.is_type_assignable_to(attr_type, result)?
-                    && !self.elaborate_jsx_named_attributes(
-                        attributes,
-                        attr_type,
-                        result,
-                        RelationKind::Assignable,
-                    )?
+                    && !self
+                        .elaborate_literal_assignment(
+                            attributes,
+                            result,
+                            Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
+                        )?
+                        .reported()
                 {
-                    if self.probe_jsx_elaboration_disposition(
-                        attributes,
-                        attr_type,
-                        result,
-                        RelationKind::Assignable,
-                    )? != ElaborationDisposition::Declined
-                    {
-                        return Err(Unsupported::new(
-                            "did-you-mean elaboration over JSX attributes (T2)",
-                        ));
-                    }
                     self.check_type_assignable_to(
                         attr_type,
                         result,
