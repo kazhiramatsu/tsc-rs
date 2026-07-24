@@ -2777,6 +2777,31 @@ Checker tests are **1,018**. Escape evidence is unchanged at
 sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
 Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9f results (2026-07-25, Node per-file emit-format collisions — DONE)
+
+The generated-name collision band now consumes the authoritative
+per-file emit format instead of the configured module kind alone.
+Under Node16/Node18/Node20/NodeNext, the nearest in-program
+`package.json` scope can therefore select CommonJS output for a nested
+`.ts` or `.js` file while its sibling remains ESM. The existing
+`require`/`exports` 2441 checks and the class-name `Object` 2725 check
+share that format decision. Checked-JS rows are published through the
+exact non-JSDoc diagnostic provenance path.
+
+This closes all **24** supported rows in the two generated-name
+collision fixtures: 2441×16 and 2725×8. 2xxx T0 grows to
+**20232/21051** (**96.1094%**) with FP=0; supported T0 is
+**20232/20504** (**98.6734%**) with supported FN=**272**. All-band T0
+is **31154/49024** (**63.5485%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**24** in both bands and both scope views. The
+accepted-set ratchet adds 24 T0 identities and 24
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,019**. Escape evidence is unchanged at
+sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
+Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

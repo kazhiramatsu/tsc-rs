@@ -1449,15 +1449,15 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 7585d27c2665e3531b6d8cfdc18e43f7a636fbebcab66fdf7dccbbfdedbd1277
     /// tsc-span: _tsc.js:83288-83302
     ///
-    /// host.getEmitModuleFormatOfFile reduces to the computed module
-    /// kind (impliedNodeFormat unported) — live for @module:commonjs/
-    /// amd/umd/system fixtures.
+    /// host.getEmitModuleFormatOfFile uses the per-file implied format
+    /// under Node-flavored module kinds. The in-memory host's nearest
+    /// package.json scope is authoritative for that format.
     fn check_collision_with_require_exports_in_generated_code(
         &mut self,
         node: NodeId,
         name: Option<NodeId>,
     ) {
-        if self.options.emit_module_kind() >= 5 {
+        if self.emit_module_format_of_file(node) >= 5 {
             return;
         }
         if !self.need_collision_check_for_identifier(node, name, "require")
@@ -1478,11 +1478,15 @@ impl<'a> CheckerState<'a> {
                 && self.binder.is_external_or_common_js_module_of_node(parent)
             {
                 let display = self.declaration_name_display(name);
+                let diagnostics_before = self.diagnostics.len();
                 self.error_skipped_on_no_emit(
                     Some(name),
                     &diagnostics::Duplicate_identifier_0_Compiler_reserves_name_1_in_top_level_scope_of_a_module,
                     &[&display, &display],
                 );
+                if self.is_in_js_file(name) {
+                    self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
+                }
             }
         }
     }
@@ -1676,20 +1680,48 @@ impl<'a> CheckerState<'a> {
             return;
         }
         let module_kind = self.options.emit_module_kind();
-        if module_kind < 5 {
+        if self.emit_module_format_of_file(name) < 5 {
             let module_name = match module_kind {
                 0 => "None",
                 1 => "CommonJS",
                 2 => "AMD",
                 3 => "UMD",
                 4 => "System",
+                100 => "Node16",
+                101 => "Node18",
+                102 => "Node20",
+                199 => "NodeNext",
                 _ => unreachable!("module kinds below ES2015"),
             };
+            let diagnostics_before = self.diagnostics.len();
             self.error_at(
                 Some(name),
                 &diagnostics::Class_name_cannot_be_Object_when_targeting_ES5_and_above_with_module_0,
                 &[module_name],
             );
+            if self.is_in_js_file(name) {
+                self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
+            }
+        }
+    }
+
+    /// tsc-port: getEmitModuleFormatOfFileWorker @6.0.3
+    /// tsc-hash: ffe7b58092e4af38c9484bef12201ef7524d2e3d26ba829ea59087f1a2c0d2a1
+    /// tsc-span: _tsc.js:125493-125495
+    ///
+    /// Only Node16..NodeNext can override the configured module kind
+    /// through this host's modeled implied-format input. Other module
+    /// kinds retain their configured emit format.
+    fn emit_module_format_of_file(&self, location: NodeId) -> i32 {
+        let module_kind = self.options.emit_module_kind();
+        if (100..=199).contains(&module_kind) {
+            match self.implied_node_format_for_file(location) {
+                crate::modules::ModuleResolutionMode::CommonJs => 1,
+                crate::modules::ModuleResolutionMode::EsNext => 99,
+                crate::modules::ModuleResolutionMode::Unknown => module_kind,
+            }
+        } else {
+            module_kind
         }
     }
 
@@ -3628,6 +3660,44 @@ mod tests {
     fn require_collision_reports_2441_and_no_emit_filters_it() {
         assert_eq!(commonjs_rows(None), [(2441, 15, 7)]);
         assert_eq!(commonjs_rows(Some(true)), []);
+    }
+
+    #[test]
+    fn node_commonjs_format_reports_generated_name_collisions() {
+        for (extension, allow_js, check_js) in [("ts", false, None), ("js", true, Some(true))] {
+            let result = check_program(
+                &[
+                    InputFile {
+                        name: format!("subfolder/index.{extension}"),
+                        text: "function require() {}\nconst exports = {};\nclass Object {}\nexport const __esModule = false;\nexport {require, exports, Object};\n"
+                            .to_owned(),
+                    },
+                    InputFile {
+                        name: "subfolder/package.json".to_owned(),
+                        text: "{\"type\":\"commonjs\"}".to_owned(),
+                    },
+                ],
+                &CompilerOptions {
+                    module: Some(100),
+                    target: Some(9),
+                    allow_js,
+                    check_js,
+                    ..CompilerOptions::default()
+                },
+            );
+            assert_eq!(
+                result
+                    .diagnostics
+                    .iter()
+                    .map(|diag| (
+                        diag.code(),
+                        diag.start.unwrap_or(u32::MAX),
+                        diag.length.unwrap_or(u32::MAX),
+                    ))
+                    .collect::<Vec<_>>(),
+                [(2441, 9, 7), (2441, 28, 7), (2725, 48, 6)]
+            );
+        }
     }
 
     // ---- §3 control statements (oracle p2/p3) ----

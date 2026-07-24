@@ -192,8 +192,9 @@
 # reference checks and the emitStandardClassFields scope-change seam.
 # p9 9.9d adds +35 recognized-extension and checked-JS require misses.
 # p9 9.9e adds +11 through authoritative in-program allowJs resolution.
-rate = 0.634995
-matched = 31130
+# p9 9.9f adds +24 through Node per-file CommonJS emit-format collisions.
+rate = 0.635485
+matched = 31154
 total = 49024
 allowed_regression = 0.0
 
@@ -252,8 +253,9 @@ allowed_regression = 0.0
 # p9 9.9c adds +77 parameter-initializer ordering rows.
 # p9 9.9d adds +35 recognized-extension and checked-JS require misses.
 # p9 9.9e adds +11 through authoritative in-program allowJs resolution.
-rate = 0.959954
-matched = 20208
+# p9 9.9f adds +24 Node per-file generated-name collision rows.
+rate = 0.961094
+matched = 20232
 total = 21051
 allowed_regression = 0.0
 
