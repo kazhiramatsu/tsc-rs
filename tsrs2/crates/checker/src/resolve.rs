@@ -1107,13 +1107,18 @@ impl<'a> CheckerState<'a> {
         //    globals (merge_module_augmentations pass 1), so failures
         //    in augmented programs are decidable again — the gate
         //    kept 2304 recovery hostage to the merge.
-        // 2b. JS program files can declare types via JSDoc (@typedef/
-        //     @callback — [JSDOC] unbound), so name-resolution
-        //     failures in mixed-JS programs are undecidable the same
-        //     way (typedefMultipleTypeParameters pins the TS-side
-        //     reference staying silent).
-        if (0..self.binder.file_count())
-            .any(|index| crate::is_js_file_name(&self.binder.source(index).file_name))
+        // 2b. Exact unmaterialized JavaScript declarations remain
+        //     undecidable: JSDoc typedef/callback names, the root of a
+        //     prototype assignment declaration, and JS's implicit
+        //     `require`. An unrelated JS file/name no longer shields
+        //     a definite miss.
+        if (0..self.binder.file_count()).any(|index| {
+            crate::is_js_file_name(&self.binder.source(index).file_name)
+                && self.source_has_jsdoc_type_name(index, name)
+        }) || error_location
+            .is_some_and(|location| self.is_js_prototype_assignment_declaration_root(location))
+            || name == "require"
+                && error_location.is_some_and(|location| self.is_in_js_file(location))
         {
             return;
         }
@@ -1123,6 +1128,7 @@ impl<'a> CheckerState<'a> {
         // the noLib bootstrap burns all 10 (run_init_global_type_probes)
         // — oracle-pinned via strictBindCallApply:false. Every failure
         // reaching this tail consumes one slot, suggestion or not.
+        let diagnostics_before = self.diagnostics.len();
         let display = tsrs2_binder::unescape_leading_underscores(name);
         let suggested_lib = get_suggested_lib_for_non_existent_name(name);
         if let Some(lib) = suggested_lib {
@@ -1190,7 +1196,36 @@ impl<'a> CheckerState<'a> {
                 self.error_at(error_location, message, &[display]);
             }
         }
+        if error_location.is_some_and(|location| self.is_in_js_file(location)) {
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, message.code);
+        }
         self.suggestion_count += 1;
+    }
+
+    /// A JS `C.prototype... =` assignment can synthesize the root
+    /// value declaration even when the binder has not materialized it.
+    fn is_js_prototype_assignment_declaration_root(&self, location: NodeId) -> bool {
+        if !self.is_in_js_file(location) || self.kind_of(location) != SyntaxKind::Identifier {
+            return false;
+        }
+        let mut current = location;
+        let mut saw_prototype = false;
+        while let Some(parent) = self.parent_of(current) {
+            let NodeData::PropertyAccessExpression(data) = self.data_of(parent) else {
+                break;
+            };
+            if data.expression != Some(current) {
+                break;
+            }
+            if data
+                .name
+                .is_some_and(|name| self.identifier_text_of(name) == Some("prototype"))
+            {
+                saw_prototype = true;
+            }
+            current = parent;
+        }
+        saw_prototype && self.get_assignment_target(current).is_some()
     }
 
     /// createError: node-anchored when a location exists, compiler-
@@ -2135,6 +2170,7 @@ mod tests {
 
     use crate::state::test_support::with_program_state;
     use crate::state::CheckerState;
+    use crate::{check_program, InputFile};
 
     /// First Identifier node whose text is `text`, in allocation order.
     fn identifier_named(state: &CheckerState, text: &str) -> NodeId {
@@ -2341,6 +2377,40 @@ mod tests {
                 let codes: Vec<u32> = state.diagnostics.iter().map(|d| d.code()).collect();
                 assert_eq!(codes, [2304]);
             },
+        );
+    }
+
+    #[test]
+    fn mixed_checked_js_keeps_value_misses_but_shields_jsdoc_type_misses() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "a.js".to_owned(),
+                    text: "missingValue;\n/** @typedef {{ nested: { value: number } }} Hidden */\nCtor.prototype = {};\n"
+                        .to_owned(),
+                },
+                InputFile {
+                    name: "b.ts".to_owned(),
+                    text: "type T = Hidden;\nmissingTs;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.file_name.as_deref().unwrap_or_default(),
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [("a.js", 2304, 0), ("b.ts", 2304, 17)]
         );
     }
 }

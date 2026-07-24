@@ -1577,6 +1577,30 @@ impl<'a> CheckerState<'a> {
         self.non_jsdoc_js_diagnostics.extend(keys);
     }
 
+    /// tsrs-native: publish only one exact diagnostic code from a
+    /// provenance-checked JavaScript path. Nested suggestion/module
+    /// probes may emit other diagnostics while the path runs; those
+    /// retain their own publication decision.
+    pub(crate) fn mark_non_jsdoc_js_diagnostics_since_with_code(
+        &mut self,
+        start: usize,
+        code: u32,
+    ) {
+        let keys: Vec<_> = self.diagnostics[start..]
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == code)
+            .filter_map(|diagnostic| {
+                Some((
+                    diagnostic.file_name.clone()?,
+                    diagnostic.start?,
+                    diagnostic.length?,
+                    diagnostic.code(),
+                ))
+            })
+            .collect();
+        self.non_jsdoc_js_diagnostics.extend(keys);
+    }
+
     // ---- out-of-band variance marker handler (M4 5.3b) ----
 
     /// The reporter-mapper closures' `t === markerSuperType || ...`
