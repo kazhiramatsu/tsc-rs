@@ -1662,6 +1662,48 @@ accepted identities are fixed in the ratchet artifacts. The
 premise-invalidation rule from §8 is now permanent house style in
 `docs/design/stall-playbook.md` §3.
 
+## 9.3c results (2026-07-24, shadow-tier identity diff — DONE)
+
+The report-only identity layer is live. `conformance --out-json` now
+serializes independently graded T1/T2/T3 matched-bucket identities for
+both the all-corpus and supported views. An identity is exactly
+fixture + matrix key + T0 key; this is the correct unit because the
+shadow grader awards one match per T0 bucket after independent
+multiset comparison at each tier. The aggregate counters and exact
+vectors are cross-checked when a report is consumed, and T3/T2/T1
+nesting plus sorted uniqueness are validated rather than trusted.
+
+Each observation also carries a SHA-256 fingerprint of its complete
+oracle universe: selected fixture/matrix cases (including zero-row
+cases) plus every exact in-band oracle record with multiplicity. The
+new `cargo xtask conformance-diff <before.json> <after.json>` command
+writes exact lost/gained identities and before/after matched counts
+for all six view/tier combinations. It rejects a band mismatch or an
+all-corpus universe mismatch. A supported-universe change is reported
+explicitly instead of rejected because §3.2 tombstones legitimately
+grow that view; the all-corpus universe remains the comparison anchor.
+Default output is `target/conformance/shadow-diff.json`, with
+`--out-json` available for PR evidence.
+
+Adversarial pins prove that equal aggregate counts cannot hide an
+identity swap (including a T3-only swap), different all-corpus
+universes cannot compare, and universe hashing is order-independent
+but multiplicity-sensitive. A live tuple-fixture replay also confirmed
+aggregate vs vector counts at T1/T2/T3 = 3/3/2. Replaying the full
+9.3 evidence is byte-neutral at every aggregate: all T0 28841/49024,
+T1/T2/T3 28839/27701/26016; 2xxx T0 18136/21051, T1/T2/T3
+18136/17853/16208; syntactic T0 2242/2246, T1/T2/T3
+2236/1401/1399; FP=0 throughout. A full 2xxx report self-diff yields
+zero lost/gained identities in every view/tier.
+
+No A1 accepted-state or ratchet artifact changed. `cargo xtask ci`
+exits 0; conformance tests 150 (including the three new adversarial
+tests), checker tests 960, xtask tests 25; scope/families/ratchet,
+ledger (1770/0 stale), and escapes (250/0 stale/0 untagged) are green.
+From 9.4b onward this command's exact diff is mandatory PR evidence,
+but remains deliberately non-gating until shared-prerequisite debt is
+machine-readable.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

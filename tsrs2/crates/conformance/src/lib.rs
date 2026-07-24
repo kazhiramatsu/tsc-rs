@@ -21,6 +21,7 @@ pub mod goldens_diff;
 mod identity;
 pub mod ratchet;
 mod scope;
+mod shadow_diff;
 
 pub use families::{
     check as families_check, report as families_report,
@@ -28,6 +29,10 @@ pub use families::{
 };
 pub use scope::audit as scope_audit;
 use scope::ScopeManifest;
+pub use shadow_diff::{
+    conformance_diff, ConformanceDiffReport, ShadowTierDiff, ShadowTierIdentity,
+    ShadowTierObservation, ShadowTierSetDiff,
+};
 
 pub type ConformanceResult<T> = Result<T, Box<dyn Error>>;
 
@@ -187,6 +192,9 @@ pub struct ConformanceSummary {
     pub shadow_t1_rate: f64,
     pub shadow_t2_rate: f64,
     pub shadow_t3_rate: f64,
+    /// Exact report-only identities for the all-corpus shadow tiers.
+    /// This observation is not an accepted-state or ratchet artifact.
+    pub shadow_tier_identities: ShadowTierObservation,
     pub exact_match_cases: usize,
     pub mismatch_cases: usize,
     pub false_positive_diagnostics: usize,
@@ -228,6 +236,8 @@ pub struct ConformanceSummary {
     pub supported_t1_rate: f64,
     pub supported_t2_rate: f64,
     pub supported_t3_rate: f64,
+    /// Exact report-only identities after applying the A2 scope view.
+    pub supported_shadow_tier_identities: ShadowTierObservation,
     pub supported_exact_match_cases: usize,
     pub supported_mismatch_cases: usize,
     pub supported_false_negative_diagnostics: usize,
@@ -700,6 +710,10 @@ fn run_conformance_inner(
     let mut shadow_t1_matched = 0usize;
     let mut shadow_t2_matched = 0usize;
     let mut shadow_t3_matched = 0usize;
+    let mut shadow_t1_identities = BTreeSet::new();
+    let mut shadow_t2_identities = BTreeSet::new();
+    let mut shadow_t3_identities = BTreeSet::new();
+    let mut shadow_oracle_records = Vec::new();
     let mut fp_count = 0usize;
     let mut fn_count = 0usize;
     let mut fn_with_partial_boundary_count = 0usize;
@@ -717,6 +731,10 @@ fn run_conformance_inner(
     let mut supported_t1_matched = 0usize;
     let mut supported_t2_matched = 0usize;
     let mut supported_t3_matched = 0usize;
+    let mut supported_t1_identities = BTreeSet::new();
+    let mut supported_t2_identities = BTreeSet::new();
+    let mut supported_t3_identities = BTreeSet::new();
+    let mut supported_shadow_oracle_records = Vec::new();
     let mut supported_exact_match_cases = 0usize;
     let mut supported_fn_count = 0usize;
 
@@ -824,6 +842,28 @@ fn run_conformance_inner(
                 .copied()
                 .filter(|index| options.band.matches_oracle(&golden_case.oracle[*index]))
                 .collect::<Vec<_>>();
+            // Include the selected case even when this band has zero
+            // oracle diagnostics. Otherwise two disjoint empty
+            // projections would share a universe hash and appear
+            // comparable to `conformance-diff`.
+            let case_record = serde_json::to_vec(&("case", &fixture_key, &program.matrix_key))?;
+            shadow_oracle_records.push(case_record.clone());
+            supported_shadow_oracle_records.push(case_record);
+            for (index, diagnostic) in golden_case.oracle.iter().enumerate() {
+                if !options.band.matches_oracle(diagnostic) {
+                    continue;
+                }
+                let record = serde_json::to_vec(&(
+                    "diagnostic",
+                    &fixture_key,
+                    &program.matrix_key,
+                    diagnostic,
+                ))?;
+                shadow_oracle_records.push(record.clone());
+                if !excluded_indices.contains(&index) {
+                    supported_shadow_oracle_records.push(record);
+                }
+            }
 
             let fp = actual.difference(&expected).cloned().collect::<Vec<_>>();
             let fn_ = expected.difference(&actual).cloned().collect::<Vec<_>>();
@@ -936,7 +976,7 @@ fn run_conformance_inner(
             }
 
             matched_t0_diagnostics += expected.intersection(&actual).count();
-            let (t1, t2, t3) = shadow_tier_matches(
+            let tier_matches = shadow_tier_matches(
                 current
                     .iter()
                     .filter(|diag| options.band.contains(diag.code)),
@@ -945,9 +985,27 @@ fn run_conformance_inner(
                     .iter()
                     .filter(|diag| options.band.matches_oracle(diag)),
             );
-            shadow_t1_matched += t1;
-            shadow_t2_matched += t2;
-            shadow_t3_matched += t3;
+            shadow_t1_matched += tier_matches.t1.len();
+            shadow_t2_matched += tier_matches.t2.len();
+            shadow_t3_matched += tier_matches.t3.len();
+            extend_shadow_identities(
+                &mut shadow_t1_identities,
+                &fixture_key,
+                &program.matrix_key,
+                tier_matches.t1,
+            );
+            extend_shadow_identities(
+                &mut shadow_t2_identities,
+                &fixture_key,
+                &program.matrix_key,
+                tier_matches.t2,
+            );
+            extend_shadow_identities(
+                &mut shadow_t3_identities,
+                &fixture_key,
+                &program.matrix_key,
+                tier_matches.t3,
+            );
             supported_matched_t0_diagnostics +=
                 supported_expected.intersection(&supported_actual).count();
             // Supported tiers remove exact oracle records; the tsrs
@@ -955,7 +1013,7 @@ fn run_conformance_inner(
             // carry no occurrence identity). A partially excluded
             // bucket therefore tier-matches only when tsrs emits
             // exactly the remaining records.
-            let (supported_t1, supported_t2, supported_t3) = shadow_tier_matches(
+            let supported_tier_matches = shadow_tier_matches(
                 current.iter().filter(|diagnostic| {
                     options.band.contains(diagnostic.code)
                         && !fully_excluded.contains(&t0_key(diagnostic))
@@ -969,9 +1027,27 @@ fn run_conformance_inner(
                     })
                     .map(|(_, diagnostic)| diagnostic),
             );
-            supported_t1_matched += supported_t1;
-            supported_t2_matched += supported_t2;
-            supported_t3_matched += supported_t3;
+            supported_t1_matched += supported_tier_matches.t1.len();
+            supported_t2_matched += supported_tier_matches.t2.len();
+            supported_t3_matched += supported_tier_matches.t3.len();
+            extend_shadow_identities(
+                &mut supported_t1_identities,
+                &fixture_key,
+                &program.matrix_key,
+                supported_tier_matches.t1,
+            );
+            extend_shadow_identities(
+                &mut supported_t2_identities,
+                &fixture_key,
+                &program.matrix_key,
+                supported_tier_matches.t2,
+            );
+            extend_shadow_identities(
+                &mut supported_t3_identities,
+                &fixture_key,
+                &program.matrix_key,
+                supported_tier_matches.t3,
+            );
             scope_excluded_diagnostics += excluded_records.len();
             scope_unresolved_diagnostics += unresolved_excluded;
             scope_resolved_t0_diagnostics += resolved_excluded;
@@ -1010,6 +1086,12 @@ fn run_conformance_inner(
         shadow_t1_rate: shadow_rate(shadow_t1_matched, oracle_diagnostics),
         shadow_t2_rate: shadow_rate(shadow_t2_matched, oracle_diagnostics),
         shadow_t3_rate: shadow_rate(shadow_t3_matched, oracle_diagnostics),
+        shadow_tier_identities: ShadowTierObservation::new(
+            shadow_oracle_records,
+            shadow_t1_identities,
+            shadow_t2_identities,
+            shadow_t3_identities,
+        ),
         exact_match_cases,
         mismatch_cases: case_count - exact_match_cases,
         false_positive_diagnostics: fp_count,
@@ -1037,6 +1119,12 @@ fn run_conformance_inner(
         supported_t1_rate: shadow_rate(supported_t1_matched, supported_oracle_diagnostics),
         supported_t2_rate: shadow_rate(supported_t2_matched, supported_oracle_diagnostics),
         supported_t3_rate: shadow_rate(supported_t3_matched, supported_oracle_diagnostics),
+        supported_shadow_tier_identities: ShadowTierObservation::new(
+            supported_shadow_oracle_records,
+            supported_t1_identities,
+            supported_t2_identities,
+            supported_t3_identities,
+        ),
         supported_exact_match_cases,
         supported_mismatch_cases: case_count - supported_exact_match_cases,
         supported_false_negative_diagnostics: supported_fn_count,
@@ -1176,10 +1264,17 @@ fn shadow_rate(matched: usize, total: usize) -> f64 {
 /// equal-T1, and per-key counting keeps the tiers nested under
 /// matched_t0's set semantics. tsrs-side related info flows through
 /// from_tsrs since pre-5.8a (it was dropped before).
+#[derive(Default)]
+struct ShadowTierMatches {
+    t1: BTreeSet<T0Key>,
+    t2: BTreeSet<T0Key>,
+    t3: BTreeSet<T0Key>,
+}
+
 fn shadow_tier_matches<'a>(
     actual: impl Iterator<Item = &'a GoldenDiag>,
     expected: impl Iterator<Item = &'a GoldenDiag>,
-) -> (usize, usize, usize) {
+) -> ShadowTierMatches {
     fn keyed<'a>(
         diags: impl Iterator<Item = &'a GoldenDiag>,
     ) -> BTreeMap<T0Key, Vec<&'a GoldenDiag>> {
@@ -1222,7 +1317,7 @@ fn shadow_tier_matches<'a>(
     }
     let actual = keyed(actual);
     let expected = keyed(expected);
-    let (mut t1, mut t2, mut t3) = (0usize, 0usize, 0usize);
+    let mut matches = ShadowTierMatches::default();
     for (key, expected_bucket) in &expected {
         let Some(actual_bucket) = actual.get(key) else {
             continue;
@@ -1230,16 +1325,33 @@ fn shadow_tier_matches<'a>(
         if !multiset_eq(actual_bucket, expected_bucket, t1_eq) {
             continue;
         }
-        t1 += 1;
+        matches.t1.insert(key.clone());
         if !multiset_eq(actual_bucket, expected_bucket, t2_eq) {
             continue;
         }
-        t2 += 1;
+        matches.t2.insert(key.clone());
         if multiset_eq(actual_bucket, expected_bucket, t3_eq) {
-            t3 += 1;
+            matches.t3.insert(key.clone());
         }
     }
-    (t1, t2, t3)
+    matches
+}
+
+fn extend_shadow_identities(
+    identities: &mut BTreeSet<ShadowTierIdentity>,
+    fixture: &str,
+    matrix_key: &str,
+    diagnostics: BTreeSet<T0Key>,
+) {
+    identities.extend(
+        diagnostics
+            .into_iter()
+            .map(|diagnostic| ShadowTierIdentity {
+                fixture: fixture.to_owned(),
+                matrix_key: matrix_key.to_owned(),
+                diagnostic,
+            }),
+    );
 }
 
 impl GoldenDiag {
@@ -2104,20 +2216,29 @@ mod tests {
         // warning per side, texts swapped across categories.
         let actual = [diag("error", 5, "A"), diag("warning", 5, "B")];
         let expected = [diag("error", 5, "B"), diag("warning", 5, "A")];
-        let (t1, t2, t3) = shadow_tier_matches(actual.iter(), expected.iter());
-        assert_eq!((t1, t2, t3), (1, 0, 0));
+        let matched = shadow_tier_matches(actual.iter(), expected.iter());
+        assert_eq!(
+            (matched.t1.len(), matched.t2.len(), matched.t3.len()),
+            (1, 0, 0)
+        );
 
         // Identical buckets → all tiers.
         let actual = [diag("error", 5, "A"), diag("warning", 5, "B")];
         let expected = [diag("warning", 5, "B"), diag("error", 5, "A")];
-        let (t1, t2, t3) = shadow_tier_matches(actual.iter(), expected.iter());
-        assert_eq!((t1, t2, t3), (1, 1, 1));
+        let matched = shadow_tier_matches(actual.iter(), expected.iter());
+        assert_eq!(
+            (matched.t1.len(), matched.t2.len(), matched.t3.len()),
+            (1, 1, 1)
+        );
 
         // Multiplicity difference on a shared key → no tier.
         let actual = [diag("error", 5, "A")];
         let expected = [diag("error", 5, "A"), diag("error", 5, "A")];
-        let (t1, t2, t3) = shadow_tier_matches(actual.iter(), expected.iter());
-        assert_eq!((t1, t2, t3), (0, 0, 0));
+        let matched = shadow_tier_matches(actual.iter(), expected.iter());
+        assert_eq!(
+            (matched.t1.len(), matched.t2.len(), matched.t3.len()),
+            (0, 0, 0)
+        );
 
         // Chain-tail divergence: T2 matches, T3 misses.
         let mut deep = diag("error", 5, "A");
@@ -2129,8 +2250,11 @@ mod tests {
         });
         let actual = [deep];
         let expected = [diag("error", 5, "A")];
-        let (t1, t2, t3) = shadow_tier_matches(actual.iter(), expected.iter());
-        assert_eq!((t1, t2, t3), (1, 1, 0));
+        let matched = shadow_tier_matches(actual.iter(), expected.iter());
+        assert_eq!(
+            (matched.t1.len(), matched.t2.len(), matched.t3.len()),
+            (1, 1, 0)
+        );
     }
 
     #[test]

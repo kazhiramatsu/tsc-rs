@@ -36,6 +36,7 @@ fn main() {
         Some("oracle-refresh") => run_or_exit(oracle_refresh(args)),
         Some("goldens-diff") => run_or_exit(goldens_diff(args)),
         Some("conformance") => run_or_exit(conformance(args)),
+        Some("conformance-diff") => run_or_exit(conformance_diff(args)),
         Some("invariants") => run_or_exit(invariants(args)),
         Some("m8") => match args.next().as_deref() {
             Some("readiness") => run_or_exit(m8_readiness(args)),
@@ -2039,6 +2040,61 @@ fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
     };
     print_conformance_summary(&summary, &out_json);
     Ok(())
+}
+
+fn conformance_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let workspace = find_tsrs2_root()?;
+    let mut positional = Vec::new();
+    let mut out_json = None;
+    let mut args = args.peekable();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--out-json" => {
+                out_json = Some(PathBuf::from(
+                    args.next().ok_or("missing value after --out-json")?,
+                ));
+            }
+            _ if arg.starts_with('-') => {
+                return Err(format!("unexpected conformance-diff argument: {arg}").into())
+            }
+            _ => positional.push(PathBuf::from(arg)),
+        }
+    }
+    if positional.len() != 2 {
+        return Err(
+            "usage: cargo xtask conformance-diff <before.json> <after.json> [--out-json <path>]"
+                .into(),
+        );
+    }
+
+    let report = tsrs2_conformance::conformance_diff(&positional[0], &positional[1])?;
+    let out_json =
+        out_json.unwrap_or_else(|| workspace.join("target/conformance/shadow-diff.json"));
+    if let Some(parent) = out_json.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(&out_json, serde_json::to_vec_pretty(&report)?)?;
+
+    println!(
+        "conformance diff band={} supported-universe-unchanged={}",
+        report.band, report.supported_oracle_universe_unchanged
+    );
+    print_shadow_tier_diff("all", &report.all_corpus);
+    print_shadow_tier_diff("supported", &report.supported);
+    println!("shadow diff json: {}", out_json.display());
+    Ok(())
+}
+
+fn print_shadow_tier_diff(view: &str, diff: &tsrs2_conformance::ShadowTierSetDiff) {
+    for (tier, tier_diff) in [("T1", &diff.t1), ("T2", &diff.t2), ("T3", &diff.t3)] {
+        println!(
+            "  {view} {tier}: {} -> {} lost={} gained={}",
+            tier_diff.before_matched,
+            tier_diff.after_matched,
+            tier_diff.lost.len(),
+            tier_diff.gained.len()
+        );
+    }
 }
 
 fn print_conformance_summary(summary: &tsrs2_conformance::ConformanceSummary, out_json: &Path) {

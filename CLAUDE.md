@@ -59,6 +59,11 @@ there.
   (every gating run also enforces the A1 accepted-set ratchet;
   partial `--files`/`--limit` runs gate the executed-fixture
   projection instead of the integer counts)
+- Shadow-tier before/after report: run conformance twice with distinct
+  `--out-json` paths, then `cargo xtask conformance-diff <before.json>
+  <after.json>` (optional `--out-json <path>`; default
+  `target/conformance/shadow-diff.json`). This is exact T1/T2/T3
+  review evidence only; it does not update or enforce a ratchet.
 - Accepted-set state: `cargo xtask ratchet check [--baseline
   origin/main]` verifies `ratchets/` artifacts + lineage;
   `cargo xtask ratchet update` re-measures and adds identities only
