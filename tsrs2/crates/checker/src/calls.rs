@@ -2133,7 +2133,7 @@ impl<'a> CheckerState<'a> {
         inference_context: Option<InferenceContextId>,
         check_mode: CheckMode,
     ) -> CheckResult2<TypeId> {
-        let in_const_context = self.is_const_type_variable(Some(rest_type), 0);
+        let in_const_context = self.is_const_type_variable(Some(rest_type), 0)?;
         if arg_count > 0 && index >= arg_count - 1 {
             let arg = &args[arg_count - 1];
             if self.is_spread_argument(arg) {

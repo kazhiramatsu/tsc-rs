@@ -280,6 +280,19 @@ pub struct TypeLinks {
     /// tsc TypeParameter.constraint (getConstraintFromTypeParameter
     /// 60103) — Resolved(noConstraintType sentinel) = computed, none.
     pub type_parameter_constraint: LinkSlot<TypeId>,
+    /// tsc MappedType.typeParameter (getTypeParameterFromMappedType
+    /// 58601): declaration-derived and computed once.
+    pub mapped_type_parameter: LinkSlot<TypeId>,
+    /// tsc MappedType.constraintType (58604).
+    pub mapped_constraint_type: LinkSlot<TypeId>,
+    /// tsc MappedType.nameType (58607). The inner None records a mapped
+    /// declaration without an `as` clause.
+    pub mapped_name_type: LinkSlot<Option<TypeId>>,
+    /// tsc MappedType.templateType (58610).
+    pub mapped_template_type: LinkSlot<TypeId>,
+    /// tsc MappedType.modifiersType (58625), consumed when mapped
+    /// members/instantiation land in 9.5b.
+    pub mapped_modifiers_type: LinkSlot<TypeId>,
     /// tsc type.resolvedBaseConstraint (getResolvedBaseConstraint
     /// 58916-58920).
     pub resolved_base_constraint: LinkSlot<TypeId>,
@@ -1259,6 +1272,66 @@ impl LinksTables {
         Self::assert_writable(speculation_depth);
         Self::write_slot(
             &mut self.ty.entry(id).or_default().type_parameter_constraint,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    /// tsrs-native: one-write TypeLinks setter for tsc
+    /// MappedType.typeParameter.
+    pub fn set_mapped_type_parameter(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.ty.entry(id).or_default().mapped_type_parameter,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    /// tsrs-native: one-write TypeLinks setter for tsc
+    /// MappedType.constraintType.
+    pub fn set_mapped_constraint_type(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: TypeId,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.ty.entry(id).or_default().mapped_constraint_type,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    /// tsrs-native: one-write TypeLinks setter for tsc
+    /// MappedType.nameType; None is a resolved absence.
+    pub fn set_mapped_name_type(
+        &mut self,
+        speculation_depth: u32,
+        id: TypeId,
+        value: Option<TypeId>,
+    ) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.ty.entry(id).or_default().mapped_name_type,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    /// tsrs-native: one-write TypeLinks setter for tsc
+    /// MappedType.templateType.
+    pub fn set_mapped_template_type(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.ty.entry(id).or_default().mapped_template_type,
+            LinkSlot::Resolved(value),
+        );
+    }
+
+    /// tsrs-native: one-write TypeLinks setter for tsc
+    /// MappedType.modifiersType.
+    pub fn set_mapped_modifiers_type(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
+        Self::assert_writable(speculation_depth);
+        Self::write_slot(
+            &mut self.ty.entry(id).or_default().mapped_modifiers_type,
             LinkSlot::Resolved(value),
         );
     }

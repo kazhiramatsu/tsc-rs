@@ -74,8 +74,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:62016-62019
     ///
     /// isNoInferType is constant false (Substitution types are
-    /// unconstructible before M8); the Mapped arm is asserted
-    /// unreachable the same way.
+    /// unconstructible before 9.6); mapped objects stop at the named
+    /// getIndexTypeForMappedType boundary below.
     pub fn get_index_type(&mut self, ty: TypeId, index_flags: IndexFlags) -> CheckResult2<TypeId> {
         let ty = self.get_reduced_type(ty)?;
         if self.should_defer_index_type(ty, index_flags)? {
@@ -101,13 +101,15 @@ impl<'a> CheckerState<'a> {
             }
             return self.get_union_type_ex(&index_types, UnionReduction::Literal);
         }
-        assert!(
-            !self
-                .tables
-                .object_flags_of(ty)
-                .intersects(ObjectFlags::MAPPED),
-            "mapped types are unconstructible before M8 (getIndexTypeForMappedType)"
-        );
+        if self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::MAPPED)
+        {
+            return Err(Unsupported::new(
+                "getIndexTypeForMappedType (mapped members, 9.5b/M8)",
+            ));
+        }
         if ty == self.tables.intrinsics.wildcard {
             return Ok(self.tables.intrinsics.wildcard);
         }
@@ -135,8 +137,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: da7fa1b903bc78d060f67772b13b9c45bec2c78f40fe0ea25bb0e47691bd763e
     /// tsc-span: _tsc.js:62013-62015
     ///
-    /// The generic-mapped-with-nameType disjunct is constant false
-    /// (mapped types unconstructible before M8).
+    /// The generic-mapped-with-nameType disjunct stays behind the named
+    /// getIndexTypeForMappedType 9.5b boundary below.
     fn should_defer_index_type(
         &mut self,
         ty: TypeId,
@@ -683,9 +685,8 @@ impl<'a> CheckerState<'a> {
             .object_flags_of(inner)
             .intersects(ObjectFlags::MAPPED)
         {
-            // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a
             return Err(Unsupported::new(
-                "getSimplifiedIndexType for mapped types (unported family, M8-stub)",
+                "getSimplifiedIndexType for mapped types (key remapping, 9.5b/M8)",
             ));
         }
         Ok(ty)
@@ -874,9 +875,8 @@ impl<'a> CheckerState<'a> {
             }
         }
         if self.is_generic_mapped_type_state(object_type) {
-            // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a
             return Err(Unsupported::new(
-                "simplified indexed access over mapped types (unported family, M8-stub)",
+                "simplified indexed access over mapped types (mapped instantiation, 9.5b/M8)",
             ));
         }
         Ok(ty)

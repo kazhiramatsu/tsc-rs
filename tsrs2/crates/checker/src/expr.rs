@@ -3409,7 +3409,7 @@ impl<'a> CheckerState<'a> {
         }
         if self.is_valid_const_assertion_argument(node)? {
             let contextual = self.get_contextual_type(node, tsrs2_types::ContextFlags::NONE)?;
-            if self.is_const_type_variable(contextual, 0) {
+            if self.is_const_type_variable(contextual, 0)? {
                 return Ok(true);
             }
         }
@@ -3515,20 +3515,24 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 93aac203ec4e0f4544652a04da816cd276af64c5b68e7b55573d80139bd3f6cc
     /// tsc-span: _tsc.js:58794-58797
     ///
-    /// The Conditional/Mapped arms ride M8 (unconstructible); the
-    /// Substitution/IndexedAccess/generic-tuple arms port over the
-    /// existing TypeData kinds.
-    pub(crate) fn is_const_type_variable(&mut self, ty: Option<TypeId>, depth: u32) -> bool {
+    /// Conditional/Substitution remain unconstructible until 9.6.
+    /// Mapped constness is a named inference/contextual consumer for
+    /// 9.5c; IndexedAccess/generic-tuple recurse over the live kinds.
+    pub(crate) fn is_const_type_variable(
+        &mut self,
+        ty: Option<TypeId>,
+        depth: u32,
+    ) -> CheckResult2<bool> {
         let Some(ty) = ty else {
-            return false;
+            return Ok(false);
         };
         if depth >= 5 {
-            return false;
+            return Ok(false);
         }
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
             let symbol = self.tables.type_of(ty).symbol;
-            return symbol.is_some_and(|s| {
+            return Ok(symbol.is_some_and(|s| {
                 self.binder.symbol(s).declarations.iter().any(|&d| {
                     node_util::has_syntactic_modifier(
                         self.binder.source_of_node(d),
@@ -3536,16 +3540,19 @@ impl<'a> CheckerState<'a> {
                         ModifierFlags::CONST,
                     )
                 })
-            });
+            }));
         }
         if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
             let types = match &self.tables.type_of(ty).data {
                 TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
-                _ => return false,
+                _ => return Ok(false),
             };
-            return types
-                .into_iter()
-                .any(|t| self.is_const_type_variable(Some(t), depth));
+            for member in types {
+                if self.is_const_type_variable(Some(member), depth)? {
+                    return Ok(true);
+                }
+            }
+            return Ok(false);
         }
         if flags.intersects(TypeFlags::INDEXED_ACCESS) {
             let object_type = match &self.tables.type_of(ty).data {
@@ -3554,24 +3561,36 @@ impl<'a> CheckerState<'a> {
             };
             return self.is_const_type_variable(object_type, depth + 1);
         }
+        if self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::MAPPED)
+        {
+            return Err(Unsupported::new(
+                "isConstMappedType (mapped inference/contextual constness, 9.5c/M8)",
+            ));
+        }
         if self.tables.is_tuple_type(ty) {
             let target = self.tables.reference_target(ty);
             let element_flags: Vec<tsrs2_types::ElementFlags> =
                 match &self.tables.type_of(target).data {
                     TypeData::TupleTarget(data) => data.element_flags.to_vec(),
-                    _ => return false,
+                    _ => return Ok(false),
                 };
             let Ok(type_arguments) = self.get_type_arguments(ty) else {
-                return false;
+                return Ok(false);
             };
-            return type_arguments.iter().enumerate().any(|(i, &t)| {
-                element_flags
+            for (i, &element) in type_arguments.iter().enumerate() {
+                if element_flags
                     .get(i)
-                    .is_some_and(|f| f.intersects(tsrs2_types::ElementFlags::VARIADIC))
-                    && self.is_const_type_variable(Some(t), depth)
-            });
+                    .is_some_and(|flags| flags.intersects(tsrs2_types::ElementFlags::VARIADIC))
+                    && self.is_const_type_variable(Some(element), depth)?
+                {
+                    return Ok(true);
+                }
+            }
         }
-        false
+        Ok(false)
     }
 
     /// tsc-port: checkExpressionForMutableLocation @6.0.3

@@ -226,9 +226,9 @@ impl<'a> CheckerState<'a> {
             unreachable!("indexed-access flag implies indexed-access data");
         };
         if self.is_generic_mapped_type_state(object_type) {
-            // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a
             return Err(Unsupported::new(
-                "indexed-access constraints over mapped types (unported family, M8-stub)",
+                "indexed-access constraints over mapped types \
+                 (substituteIndexedMappedType, 9.5c/M8)",
             ));
         }
         let index_constraint = self.get_simplified_type_or_constraint(index_type)?;
@@ -501,9 +501,9 @@ impl<'a> CheckerState<'a> {
             }));
         }
         if flags.intersects(TypeFlags::INDEXED_ACCESS) {
-            // 59000-59008: base constraints of both sides re-access;
-            // isMappedTypeGenericIndexedAccess is constant false
-            // (mapped types unconstructible before M8).
+            // 59000-59008: base constraints of both sides re-access.
+            // substituteIndexedMappedType is a 9.5c consumer and must
+            // not be skipped now that mapped objects are constructible.
             let TypeData::IndexedAccess {
                 object_type,
                 index_type,
@@ -512,6 +512,12 @@ impl<'a> CheckerState<'a> {
             else {
                 unreachable!("indexed-access flag implies indexed-access data");
             };
+            if self.is_generic_mapped_type_state(object_type) {
+                return Err(Unsupported::new(
+                    "base constraint of a generic mapped indexed access \
+                     (substituteIndexedMappedType, 9.5c/M8)",
+                ));
+            }
             let base_object = self.get_base_constraint_inner(object_type, stack)?;
             let base_index = self.get_base_constraint_inner(index_type, stack)?;
             let base_indexed_access = match (base_object, base_index) {

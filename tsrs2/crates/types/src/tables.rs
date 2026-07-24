@@ -14,7 +14,8 @@ use std::collections::HashMap;
 
 use crate::flags::{AccessFlags, ElementFlags, ObjectFlags, TypeFlags};
 use crate::ty::{
-    LiteralValue, PseudoBigInt, SymbolId, TemplateText, TupleTargetData, Type, TypeData, TypeId,
+    LiteralValue, MappedTypeData, MapperId, PseudoBigInt, SymbolId, TemplateText, TupleTargetData,
+    Type, TypeData, TypeId,
 };
 
 /// The named intrinsic/derived types created at checker construction,
@@ -226,6 +227,39 @@ impl TypeTables {
     pub fn create_type(&mut self, flags: TypeFlags, data: TypeData) -> TypeId {
         let id = TypeId(self.types.len() as u32);
         self.types.push(Type::new(flags, data));
+        id
+    }
+
+    /// tsc createObjectType(ObjectFlags::Mapped) plus the mapped-only
+    /// semantic fields. Root types carry neither target nor mapper;
+    /// instantiated mapped types carry both or neither.
+    pub fn create_mapped_type(
+        &mut self,
+        declaration: u32,
+        target: Option<TypeId>,
+        mapper: Option<MapperId>,
+        symbol: Option<SymbolId>,
+    ) -> TypeId {
+        assert_eq!(
+            target.is_some(),
+            mapper.is_some(),
+            "mapped target and mapper must be present together"
+        );
+        let id = self.create_type(
+            TypeFlags::OBJECT,
+            TypeData::Mapped(MappedTypeData {
+                declaration,
+                target,
+                mapper,
+            }),
+        );
+        let ty = self.type_mut(id);
+        ty.object_flags = if target.is_some() {
+            ObjectFlags::INSTANTIATED_MAPPED
+        } else {
+            ObjectFlags::MAPPED
+        };
+        ty.symbol = symbol;
         id
     }
 
@@ -2336,10 +2370,10 @@ impl TypeTables {
     /// tsc-hash: f3a4b640057f3aa5519de7fd4c29d117ae33ec29fb1c7618f8e4456782af7b02
     /// tsc-span: _tsc.js:62440-62455
     ///
-    /// The Substitution arm is unreachable (that TypeFlag is
-    /// unconstructible before conditional types, M8); isGenericMappedType
-    /// is constant false the same way (no Mapped ObjectFlags are ever
-    /// created before M8) — both guarded, not silently elided.
+    /// The Substitution arm is unreachable until conditional types
+    /// land. Mapped types are conservatively generic in the model
+    /// slice; 9.5b narrows this through the resolved constraint/name
+    /// predicates when mapped members become constructible.
     fn get_generic_object_flags(&mut self, id: TypeId) -> ObjectFlags {
         let flags = self.flags_of(id);
         if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
@@ -2368,11 +2402,8 @@ impl TypeTables {
         if flags.intersects(TypeFlags::SUBSTITUTION) {
             unreachable!("substitution types are unconstructible before conditional types (M8)");
         }
-        assert!(
-            !self.object_flags_of(id).intersects(ObjectFlags::MAPPED),
-            "mapped types are unconstructible before M8 (isGenericMappedType)"
-        );
-        let object = if flags.intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
+        let object = if self.object_flags_of(id).intersects(ObjectFlags::MAPPED)
+            || flags.intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
             || self.is_generic_tuple_type(id)
         {
             ObjectFlags::IS_GENERIC_OBJECT_TYPE.bits()
@@ -3059,6 +3090,34 @@ mod tests {
             TemplateText::from_utf16(&[0xD83D, 0xDE00]),
             TemplateText::from_utf8("😀")
         );
+    }
+
+    #[test]
+    fn mapped_types_carry_root_and_instantiation_identity() {
+        let mut t = tables();
+        let symbol = SymbolId(7);
+        let root = t.create_mapped_type(42, None, None, Some(symbol));
+        assert_eq!(t.flags_of(root), TypeFlags::OBJECT);
+        assert_eq!(t.object_flags_of(root), ObjectFlags::MAPPED);
+        assert_eq!(t.type_of(root).symbol, Some(symbol));
+        let TypeData::Mapped(root_data) = &t.type_of(root).data else {
+            panic!("mapped constructor must use mapped semantic payload");
+        };
+        assert_eq!(root_data.declaration, 42);
+        assert_eq!(root_data.target, None);
+        assert_eq!(root_data.mapper, None);
+
+        let mapper = MapperId(3);
+        let instance = t.create_mapped_type(42, Some(root), Some(mapper), Some(symbol));
+        assert_eq!(
+            t.object_flags_of(instance),
+            ObjectFlags::INSTANTIATED_MAPPED
+        );
+        let TypeData::Mapped(instance_data) = &t.type_of(instance).data else {
+            panic!("mapped instance must retain mapped semantic payload");
+        };
+        assert_eq!(instance_data.target, Some(root));
+        assert_eq!(instance_data.mapper, Some(mapper));
     }
 
     #[test]

@@ -4155,6 +4155,13 @@ impl<'a> CheckerState<'a> {
         if self
             .tables
             .object_flags_of(ty)
+            .intersects(ObjectFlags::MAPPED)
+        {
+            return self.mapped_type_to_string_slice_node(ty, fully_qualified);
+        }
+        if self
+            .tables
+            .object_flags_of(ty)
             .intersects(ObjectFlags::REFERENCE)
         {
             let target = self.tables.reference_target(ty);
@@ -4422,6 +4429,78 @@ impl<'a> CheckerState<'a> {
         }
         Err(Unsupported::new(
             "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
+        ))
+    }
+
+    /// tsc-port: createMappedTypeNodeFromType @6.0.3
+    /// tsc-hash: e98a9761331ba59c7dbe487ff1629d598ffb7f4725e2855177f89b6f824abccc
+    /// tsc-span: _tsc.js:51670-51724
+    ///
+    /// Phase 9.5a admits the declaration-preserving generic mapped face
+    /// for every constructible mapped object. The modifier-preserving
+    /// wrapper and non-homomorphic instantiated rewrites remain owned by
+    /// 9.5b, which is also the first producer of instantiated payloads.
+    fn mapped_type_to_string_slice_node(
+        &mut self,
+        ty: TypeId,
+        fully_qualified: bool,
+    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+        let declaration = self.mapped_type_declaration(ty);
+        let NodeData::MappedType(data) = self.data_of(declaration) else {
+            unreachable!("mapped payload declaration has MappedType syntax kind");
+        };
+        let readonly_token = data.readonly_token;
+        let question_token = data.question_token;
+        let has_name_type = data.name_type.is_some();
+
+        let type_parameter = self.get_type_parameter_from_mapped_type(ty)?;
+        let parameter_name = self
+            .tables
+            .type_of(type_parameter)
+            .symbol
+            .map(|symbol| self.symbol_display_name(symbol))
+            .unwrap_or_else(|| "?".to_owned());
+        let constraint = self.get_constraint_type_from_mapped_type(ty)?;
+        let constraint = self.type_to_string_slice_ex(constraint, fully_qualified)?;
+        let name_type = if has_name_type {
+            match self.get_name_type_from_mapped_type(ty)? {
+                Some(name_type) => Some(self.type_to_string_slice_ex(name_type, fully_qualified)?),
+                None => None,
+            }
+        } else {
+            None
+        };
+
+        let modifiers = self.get_mapped_type_modifiers(ty);
+        let template = self.get_template_type_from_mapped_type(ty)?;
+        let template = self.remove_missing_type(
+            template,
+            modifiers.intersects(tsrs2_types::MappedTypeModifiers::INCLUDE_OPTIONAL),
+        );
+        let template = self.type_to_string_slice_ex(template, fully_qualified)?;
+
+        let readonly = match readonly_token.map(|token| self.kind_of(token)) {
+            None => "",
+            Some(SyntaxKind::ReadonlyKeyword) => "readonly ",
+            Some(SyntaxKind::PlusToken) => "+readonly ",
+            Some(SyntaxKind::MinusToken) => "-readonly ",
+            Some(_) => unreachable!("parser mapped readonly token kinds are closed"),
+        };
+        let question = match question_token.map(|token| self.kind_of(token)) {
+            None => "",
+            Some(SyntaxKind::QuestionToken) => "?",
+            Some(SyntaxKind::PlusToken) => "+?",
+            Some(SyntaxKind::MinusToken) => "-?",
+            Some(_) => unreachable!("parser mapped question token kinds are closed"),
+        };
+        let name = name_type
+            .map(|name_type| format!(" as {name_type}"))
+            .unwrap_or_default();
+        Ok((
+            format!(
+                "{{ {readonly}[{parameter_name} in {constraint}{name}]{question}: {template}; }}"
+            ),
+            SliceTypeNodeKind::TypeLiteral,
         ))
     }
 
@@ -5607,8 +5686,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 1190da69649fad92283f6058fe227821ed7a562223b62b2e4193b555f06359bd
     /// tsc-span: _tsc.js:51894-51938
     ///
-    /// The mapped-type head (isGenericMappedType/containsError) cannot
-    /// be reached — no Mapped TypeData is minted before 9.5/M8. The
+    /// The mapped-type head is routed through
+    /// mapped_type_to_string_slice_node before this anonymous-object
+    /// fallback. The
     /// abstract-construct intersection re-derivation (51918-51928)
     /// needs an anonymous type mixing abstract construct signatures
     /// with other members: `abstract new` is grammatical only on

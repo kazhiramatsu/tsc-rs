@@ -1496,11 +1496,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: ec4d63f5248309d0acfd4a38b4b9e2e26840d7b409f04390cd5d3333d849d0cd
     /// tsc-span: _tsc.js:73112-73162
     ///
-    /// The generic-mapped-type arms ride is_generic_mapped_type (false
-    /// until mapped types are constructible), so
-    /// getIndexedMappedTypeSubstitutedTypeOfContextualType is
-    /// unreachable — the escape below keeps the arm honest if M8's
-    /// stub un-stubs first.
+    /// Generic mapped objects stop at the named
+    /// getIndexedMappedTypeSubstitutedTypeOfContextualType boundary
+    /// until 9.5c supplies the per-property substitution.
     pub(crate) fn get_type_of_property_of_contextual_type(
         &mut self,
         ty: TypeId,
@@ -1528,7 +1526,6 @@ impl<'a> CheckerState<'a> {
                             continue;
                         }
                         if state.is_generic_mapped_type_state(constituent) {
-                            // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a
                             return Err(Unsupported::new(
                                 "getIndexedMappedTypeSubstitutedTypeOfContextualType (mapped types, M8)",
                             ));
@@ -1564,7 +1561,6 @@ impl<'a> CheckerState<'a> {
                     return Ok(None);
                 }
                 if state.is_generic_mapped_type_state(t) {
-                    // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a
                     return Err(Unsupported::new(
                         "getIndexedMappedTypeSubstitutedTypeOfContextualType (mapped types, M8)",
                     ));
@@ -2264,8 +2260,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:73424-73440
     ///
     /// Mapped types are NOT apparent-ified (the L73430 comment: eager
-    /// evaluation would break per-position element contextual types) —
-    /// the ObjectFlags::MAPPED guard is dormant until M8. The
+    /// evaluation would break per-position element contextual types).
+    /// The
     /// JSX-attributes discrimination twin is [JSX → 5.5f].
     pub(crate) fn get_apparent_type_of_contextual_type(
         &mut self,

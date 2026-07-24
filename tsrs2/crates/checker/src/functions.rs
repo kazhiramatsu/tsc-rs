@@ -4750,7 +4750,14 @@ impl<'a> CheckerState<'a> {
                 &[],
             ));
         }
-        if !self.every_type(ty, |state, t| state.is_valid_index_key_type(t)) {
+        let mut every_valid_index_key = true;
+        for member in self.union_members_or_self(ty) {
+            if !self.is_valid_index_key_type(member) {
+                every_valid_index_key = false;
+                break;
+            }
+        }
+        if !every_valid_index_key {
             return Ok(self.grammar_error_on_node(
                 error_name,
                 &diagnostics::An_index_signature_parameter_type_must_be_string_number_symbol_or_a_template_literal_type,

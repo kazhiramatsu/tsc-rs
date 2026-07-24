@@ -13,6 +13,12 @@ use crate::flags::{AccessFlags, ElementFlags, IndexFlags, ObjectFlags, TypeFlags
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct TypeId(pub u32);
 
+/// tsc TypeMapper object identity. The mapper arena is checker-owned,
+/// but mapped-type semantic payloads retain this opaque identity
+/// without making the types crate depend on the checker.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct MapperId(pub u32);
+
 /// tsc Symbol id space. Lives in tsrs2-types so Type.symbol can point
 /// at binder/checker symbols without a dependency cycle; the binder
 /// re-exports it and owns the arena.
@@ -140,10 +146,56 @@ pub struct TupleTargetData {
     pub labeled_element_declarations: Option<Box<[Option<u32>]>>,
 }
 
+/// Immutable semantic identity of a mapped object type.
+///
+/// The declaration is a raw syntax NodeId because the types crate is
+/// intentionally syntax-free. Root mapped types have no target/mapper;
+/// instantiated mapped types retain both. Lazily resolved constraint,
+/// name, template, modifier-source, and member data live in the
+/// checker's TypeLinks rather than mutating this payload.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MappedTypeData {
+    pub declaration: u32,
+    pub target: Option<TypeId>,
+    pub mapper: Option<MapperId>,
+}
+
+/// tsc MappedTypeModifiers, bit-compatible with the checker source.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct MappedTypeModifiers(i32);
+
+impl MappedTypeModifiers {
+    pub const NONE: Self = Self(0);
+    pub const INCLUDE_READONLY: Self = Self(1);
+    pub const EXCLUDE_READONLY: Self = Self(2);
+    pub const INCLUDE_OPTIONAL: Self = Self(4);
+    pub const EXCLUDE_OPTIONAL: Self = Self(8);
+
+    pub const fn from_bits(bits: i32) -> Self {
+        Self(bits)
+    }
+
+    pub const fn bits(self) -> i32 {
+        self.0
+    }
+
+    pub const fn intersects(self, other: Self) -> bool {
+        self.0 & other.0 != 0
+    }
+}
+
+impl std::ops::BitOr for MappedTypeModifiers {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
 /// Per-kind payload (greenfield §4.2 TypeData). M3 carries the kinds
 /// the relation pins can construct; StringMapping landed with M4 5.2;
-/// IndexedAccess/Conditional/Mapped/Substitution arrive with the
-/// keyof/indexed-access follow-up and M8.
+/// IndexedAccess arrived with the keyof follow-up; Mapped is live from
+/// phase 9.5a; Conditional/Substitution follow in phase 9.6.
 #[derive(Clone, Debug, PartialEq)]
 pub enum TypeData {
     /// any/unknown/string/... incl. error/silentNever/wildcard/missing
@@ -235,6 +287,9 @@ pub enum TypeData {
         index_type: TypeId,
         access_flags: AccessFlags,
     },
+    /// createObjectType(ObjectFlags::Mapped): declaration identity is
+    /// intrinsic to the type; mutable resolutions stay in TypeLinks.
+    Mapped(MappedTypeData),
     /// tsc GenericType (InterfaceType & TypeReference): the declared
     /// type of a class, a generic interface, or a this-ful interface
     /// (getDeclaredTypeOfClassOrInterface 57387-57400). The target

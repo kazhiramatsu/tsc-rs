@@ -1925,6 +1925,53 @@ unaccounted for the later D2b disposition pass. `cargo xtask ci`
 exits 0; accepted conformance sets and match counts are unchanged, and
 FP remains 0.
 
+## 9.5a results (2026-07-24, mapped semantic model — DONE)
+
+Mapped type nodes now produce a real semantic type instead of stopping
+at the family stub. `TypeData::Mapped` owns the immutable declaration,
+target, and mapper identity; root types require both optional
+instantiation fields to be absent and future instantiated types require
+both to be present. `MapperId` moved to the syntax-free types layer as
+an opaque identity while its arena remains checker-owned. Mutable
+type-parameter, constraint, name, template, modifiers-source, and
+resolved-member state remains in one-write `TypeLinks` caches. The
+core-interface contract records that split.
+
+`getTypeFromMappedTypeNode` creates the mapped shell before resolving
+alias arguments, eagerly resolves its constraint, and publishes the
+node cache only after successful completion so an `Unsupported` unwind
+cannot expose a partial type. Declaration-preserving mapped display
+renders ordinary, additive/subtractive readonly/optional, and `as`
+key-remapping forms. The `mapped_type_model_constructibility` canary
+pins all three forms, semantic payload identity, cache identity,
+constraint shape, and an exact render for every constructed type.
+
+The producer audit retired all nine mapped canary assumptions plus the
+shared `isValidIndexKeyType` generic-intersection assumption. Live
+downstream work now stops only at named boundaries:
+mapped members/instantiation/apparent types in 9.5b,
+relations/inference/contextual indexed access (including
+`isConstMappedType`) in 9.5c, and the homomorphic numeric-key
+Substitution dependency in 9.6a. The conservative 9.5a generic-mapped
+classifier makes those branches fail closed rather than silently
+using anonymous-object behavior. Escape evidence is sites=**249**,
+stale=0, untagged=0, recovery=116, dormant=**13**; the dormant ceiling
+moved 23→13. The exact declaration inventory remains fresh at
+643 emitters / 2,411 references / 5,513 closure declarations, with
+ledger accounting reducing the unaccounted closure from 4,065 to
+**4,058**.
+
+Band movement (tool-read): all T0 **59.2057%→59.2200%**
+(29025→29032, +7), FP=0; 2xxx T0 **87.0267%→87.0600%**
+(18320→18327, +7), FP=0; supported T0
+**89.3484%→89.3826%** (18327/20504), supported FN
+2,184→**2,177**. Exact 2xxx diff: T1 +7, T2 +7, T3 +6,
+with **zero lost identities** in all and supported views and an
+unchanged supported universe. Ratchet artifacts gained exactly the
+seven accepted identities; syntactic remains 2242/2246. Checker tests
+are 970, types tests 21, and xtask tests 29; ledger=1778/stale=0.
+`cargo xtask ci` exits 0, including every invariant.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

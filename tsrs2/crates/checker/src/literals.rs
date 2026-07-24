@@ -13,8 +13,8 @@
 //!
 //! Stage escapes: [ITER] — non-array-like spreads escape to 5.5f
 //! (checkIteratedTypeOrElementType); the generic-mapped tuple-context
-//! disjunct escapes to M8 (currently dead — is_generic_mapped_type is
-//! constant false until mapped types construct); object-literal
+//! disjunct stops at the named 9.5c contextual/inference boundary;
+//! object-literal
 //! accessors defer to the 5.8-DECL escape arm in check_deferred_node;
 //! grammar walks (checkGrammarObjectLiteralExpression 89637,
 //! checkGrammarMethod 89943) are elided slices — 1117-family FN
@@ -125,8 +125,8 @@ impl<'a> CheckerState<'a> {
 
     /// The inTupleContext contextual disjunct (73969):
     /// `isTupleLikeType(t) || isGenericMappedType(t) && !t.nameType &&
-    /// getHomomorphicTypeVariable(...)` — the mapped disjunct is an M8
-    /// escape (dead while is_generic_mapped_type is constant false).
+    /// getHomomorphicTypeVariable(...)` — the mapped disjunct is a
+    /// named 9.5c contextual/inference boundary.
     fn is_tuple_context_constituent(&mut self, t: TypeId) -> CheckResult2<bool> {
         if self.is_generic_mapped_type_state(t) {
             return Err(Unsupported::new(

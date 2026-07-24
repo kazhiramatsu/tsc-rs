@@ -160,9 +160,10 @@
 # scope indicators. p9 9.4b adds +71 by routing call arguments through
 # object/array/arrow elaboration and force-tupleizing spread arrays.
 # p9 9.4c adds +113 from JSX attributes/children applicability and
-# global Object relation-head selection.
-rate = 0.592057
-matched = 29025
+# global Object relation-head selection. p9 9.5a adds +7 by admitting
+# declaration-preserving mapped-type construction and display.
+rate = 0.5922
+matched = 29032
 total = 49024
 allowed_regression = 0.0
 
@@ -203,9 +204,10 @@ allowed_regression = 0.0
 # p9 9.3b5: +285 with the display-special tail (see the T0 comment);
 # review r2 and its implicit-external-module completion are
 # byte-neutral in the 2xxx band. p9 9.4b adds +71 object/array/arrow
-# elaboration rows; p9 9.4c adds +113 JSX/report-head rows.
-rate = 0.870267
-matched = 18320
+# elaboration rows; p9 9.4c adds +113 JSX/report-head rows; p9 9.5a
+# adds +7 mapped model/display rows.
+rate = 0.8706
+matched = 18327
 total = 21051
 allowed_regression = 0.0
 
@@ -290,4 +292,8 @@ max_recovery = 116
 # names a test canary; once that test exists the annotation is stale
 # and its owning model slice must implement, remove, or narrow it.
 # Monotone non-increasing after this reviewed transition.
-max_dormant = 23
+# 9.5a: 23 -> 13 — mapped construction retired all nine mapped
+# canary assumptions and activated the shared generic-intersection
+# exclusion; downstream mapped member/relation/inference work now
+# stops at explicit M8-owned escape sites instead of dormant guards.
+max_dormant = 13

@@ -156,6 +156,24 @@ struct Type {
 }
 ```
 
+Mapped types use a real immutable semantic payload, not an
+`ObjectFlags::Mapped` convention plus ad-hoc side-table identity:
+
+```rust
+TypeData::Mapped(MappedTypeData {
+    declaration: u32,          // raw NodeId; the types crate is syntax-free
+    target: Option<TypeId>,    // both None on the declaration root
+    mapper: Option<MapperId>,  // both Some on an instantiated mapped type
+})
+```
+
+`MapperId` is an opaque types-layer identity whose arena remains
+checker-owned. The declaration/target/mapper triple is immutable after
+allocation. Lazily resolved `typeParameter`, `constraintType`,
+`nameType`, `templateType`, `modifiersType`, and structured members are
+mutable caches in checker `TypeLinks`; they are not part of semantic
+identity and must follow the one-write/speculation rules there.
+
 Audit notes on the tail variants: `EvolvingArray` is a REAL type
 kind (ObjectFlags.EvolvingArray — the `var a = []; a.push(x)` flow
 machinery, checker-key §4.9, needs a TypeData home, not a flow-local

@@ -926,7 +926,7 @@ impl<'a> CheckerState<'a> {
         let candidates = self.union_object_and_array_literal_candidates(raw_candidates)?;
         let type_parameter = self.inference_info(inference).type_parameter;
         let primitive_constraint = self.has_primitive_constraint(type_parameter)?
-            || self.is_const_type_variable(Some(type_parameter), 0);
+            || self.is_const_type_variable(Some(type_parameter), 0)?;
         let widen_literal_types = !primitive_constraint
             && self.inference_info(inference).top_level
             && (self.inference_info(inference).is_fixed
@@ -1392,7 +1392,7 @@ impl<'a> CheckerState<'a> {
         if let Some(target_rest_type) = target_rest_type {
             // 68215-68221: readonly when the rest variable is const
             // and nothing in it is a mutable array shape.
-            let readonly = self.is_const_type_variable(Some(target_rest_type), 0) && {
+            let readonly = self.is_const_type_variable(Some(target_rest_type), 0)? && {
                 let members = if self
                     .tables
                     .flags_of(target_rest_type)
@@ -2740,10 +2740,8 @@ impl InferTypesWalker<'_, '_> {
     /// tsc-hash: 43d46bba590ef8ed07cccef71609b0ec8b215d1343ac158b54caac6075f39580
     /// tsc-span: _tsc.js:69063-69069
     ///
-    /// DORMANT (doc 7.2 arm dispositions): both guards require
-    /// ObjectFlags::MAPPED, which no constructor sets before M8's
-    /// mapped type nodes — the constraint/template/name-type pairwise
-    /// reads get re-cut and pinned when they land.
+    /// Named 9.5c boundary: the constraint/template/name-type pairwise
+    /// inference body lands with the mapped inference consumers.
     fn infer_from_generic_mapped_types(
         &mut self,
         source: TypeId,
@@ -2751,8 +2749,7 @@ impl InferTypesWalker<'_, '_> {
     ) -> CheckResult2<()> {
         let _ = (source, target);
         Err(Unsupported::new(
-            "inferFromGenericMappedTypes body (M8 — Mapped object types are \
-             unconstructible before mapped type nodes land)",
+            "inferFromGenericMappedTypes body (mapped inference, 9.5c/M8)",
         ))
     }
 
@@ -2762,8 +2759,7 @@ impl InferTypesWalker<'_, '_> {
     ///
     /// The structural body behind the object-tail invokeOnce: matching
     /// references infer pairwise; the Mapped-target block is an M8
-    /// escape (inferToMappedType and the declaration.nameType read are
-    /// unconstructible); the tuple ladder ports the JS slice-bound
+    /// escape (inferToMappedType); the tuple ladder ports the JS slice-bound
     /// clamps observed by probe (probe-tuple.mjs, 2026-07-20 — incl.
     /// the recorded tsc-crash deviation on an undefined middle-slice
     /// source meeting a type-variable rest target, m8-readiness row 4).
@@ -2793,11 +2789,10 @@ impl InferTypesWalker<'_, '_> {
             self.infer_from_generic_mapped_types(source, target)?;
         }
         if target_object_flags.intersects(ObjectFlags::MAPPED) {
-            // 69078-69083: inferToMappedType + the declaration.nameType
-            // read — unconstructible with the type kind.
+            // 69078-69083: inferToMappedType is a named 9.5c
+            // inference consumer.
             return Err(Unsupported::new(
-                "inferToMappedType + mapped-target declaration reads (M8 — Mapped \
-                 object types are unconstructible before mapped type nodes land)",
+                "inferToMappedType (mapped inference, 9.5c/M8)",
             ));
         }
         if !self.st.types_definitely_unrelated(source, target)? {
@@ -3229,7 +3224,7 @@ impl InferTypesWalker<'_, '_> {
             // and nothing in it is a mutable array shape (someType
             // expanded — the port predicate is fallible).
             let mut some_mutable = false;
-            if self.st.is_const_type_variable(Some(target_rest_type), 0) {
+            if self.st.is_const_type_variable(Some(target_rest_type), 0)? {
                 let members = if self
                     .st
                     .tables
@@ -3308,8 +3303,8 @@ impl InferTypesWalker<'_, '_> {
     /// tsc-hash: d2c290c69b4d6765f25bc2fada5b162e904b4f299e8e46882a86d536e24657be
     /// tsc-span: _tsc.js:69204-69232
     ///
-    /// The Mapped&Mapped homomorphic priority is written 1:1 but
-    /// constant-None while ObjectFlags::MAPPED has no constructor.
+    /// The Mapped&Mapped homomorphic priority is written 1:1; mapped
+    /// member reads remain protected by their named 9.5b/9.5c gates.
     fn infer_from_index_types(&mut self, source: TypeId, target: TypeId) -> CheckResult2<()> {
         let priority2 = if self
             .st
