@@ -753,36 +753,8 @@ count = 2
 
 [[site]]
 file = "crates/checker/src/elaboration.rs"
-in = "elaborate_literal_assignment"
-reason = "failed array-literal relation with a spread element (elaborateArrayLiteral tupleization; M6 close -> phase-9 2xxx sweep, M7)"
-class = "stage"
-owner = "M7"
-
-[[site]]
-file = "crates/checker/src/elaboration.rs"
-in = "probe_elaboration_disposition"
-reason = "elaborateArrayLiteral (elementwise elaboration, T2)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/elaboration.rs"
-in = "probe_elaboration_disposition"
-reason = "elaborateArrowFunction (return-position elaboration, T2)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/elaboration.rs"
-in = "probe_elaboration_disposition"
+in = "probe_jsx_elaboration_disposition"
 reason = "elaborateJsxComponents (elementwise elaboration, T2)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/elaboration.rs"
-in = "probe_elaboration_disposition"
-reason = "elaborateObjectLiteral (elementwise elaboration, T2)"
 class = "stage"
 owner = "M8"
 
