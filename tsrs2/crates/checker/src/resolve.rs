@@ -1646,7 +1646,7 @@ impl<'a> CheckerState<'a> {
             _ => unreachable!("Unknown entity name kind."),
         };
         // The type-only alias marking on entity names (49380-49391;
-        // nodeIsSynthesized is constant-false — no synthesis).
+        // nodeIsSynthesized is always false — no synthesis).
         if matches!(
             self.kind_of(name),
             SyntaxKind::Identifier | SyntaxKind::QualifiedName

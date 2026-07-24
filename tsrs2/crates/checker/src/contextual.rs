@@ -1496,8 +1496,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: ec4d63f5248309d0acfd4a38b4b9e2e26840d7b409f04390cd5d3333d849d0cd
     /// tsc-span: _tsc.js:73112-73162
     ///
-    /// The generic-mapped-type arms ride is_generic_mapped_type (a
-    /// constant-false stub until M8), so
+    /// The generic-mapped-type arms ride is_generic_mapped_type (false
+    /// until mapped types are constructible), so
     /// getIndexedMappedTypeSubstitutedTypeOfContextualType is
     /// unreachable — the escape below keeps the arm honest if M8's
     /// stub un-stubs first.
@@ -1528,6 +1528,7 @@ impl<'a> CheckerState<'a> {
                             continue;
                         }
                         if state.is_generic_mapped_type_state(constituent) {
+                            // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a
                             return Err(Unsupported::new(
                                 "getIndexedMappedTypeSubstitutedTypeOfContextualType (mapped types, M8)",
                             ));
@@ -1563,6 +1564,7 @@ impl<'a> CheckerState<'a> {
                     return Ok(None);
                 }
                 if state.is_generic_mapped_type_state(t) {
+                    // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a
                     return Err(Unsupported::new(
                         "getIndexedMappedTypeSubstitutedTypeOfContextualType (mapped types, M8)",
                     ));

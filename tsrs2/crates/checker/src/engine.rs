@@ -409,6 +409,7 @@ impl<'a> CheckerState<'a> {
             } else if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
                 self.get_normalized_union_or_intersection_type(ty, writing)?
             } else if flags.intersects(TypeFlags::SUBSTITUTION) {
+                // tsc-dormant: canary=substitution_type_model_constructibility; owner=9.6a
                 return Err(Unsupported::new(
                     "getNormalizedType for substitution types (unported family, M8-stub)",
                 ));

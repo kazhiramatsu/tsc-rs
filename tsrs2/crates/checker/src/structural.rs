@@ -295,13 +295,18 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     }
                 }
             }
-            if source_flags.intersects(TypeFlags::from_bits(
-                TypeFlags::CONDITIONAL.bits() | TypeFlags::SUBSTITUTION.bits(),
-            )) {
+            if source_flags.intersects(TypeFlags::CONDITIONAL) {
                 // 65984-66039: those TypeFlags are unconstructible
                 // before their type nodes land.
+                // tsc-dormant: canary=conditional_type_model_constructibility; owner=9.6a
                 return Err(Unsupported::new(
-                    "identity for conditional/substitution types (unported family, M8-stub)",
+                    "identity for conditional types (unported family, M8-stub)",
+                ));
+            }
+            if source_flags.intersects(TypeFlags::SUBSTITUTION) {
+                // tsc-dormant: canary=substitution_type_model_constructibility; owner=9.6a
+                return Err(Unsupported::new(
+                    "identity for substitution types (unported family, M8-stub)",
                 ));
             }
             if source_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
@@ -669,11 +674,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         if self.is_generic_mapped_type(target) && self.relation != RelationKind::Identity {
+            // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a
             return Err(Unsupported::new(
                 "mapped-type targets (unported family, M8-stub)",
             ));
         }
         if target_flags.intersects(TypeFlags::CONDITIONAL) {
+            // tsc-dormant: canary=conditional_type_model_constructibility; owner=9.6a
             return Err(Unsupported::new(
                 "conditional targets (unported family, M8-stub)",
             ));
@@ -842,6 +849,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
             }
         } else if source_flags.intersects(TypeFlags::CONDITIONAL) {
+            // tsc-dormant: canary=conditional_type_model_constructibility; owner=9.6a
             return Err(Unsupported::new(
                 "conditional sources (unported family, M8-stub)",
             ));
@@ -4047,7 +4055,7 @@ impl<'a> CheckerState<'a> {
     /// readonly properties (through the 5.3e modifier-flags reader),
     /// const/using variables, get-only accessors, enum members.
     /// isReadonlyAssignmentDeclaration (Object.defineProperty shapes)
-    /// is the JS band — constant-false in TS files.
+    /// is the JS band and is always false for TS inputs.
     pub fn is_readonly_symbol(&self, symbol: SymbolId) -> bool {
         if self
             .get_check_flags(symbol)

@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::error::Error;
 use std::fmt::Write as _;
 use std::fs;
@@ -96,6 +96,7 @@ fn main() {
                 std::process::exit(2);
             }
         },
+        Some("port-plan") => run_or_exit(port_plan(args)),
         Some("ledger") => match args.next().as_deref() {
             Some("check") => run_or_exit(ledger_check()),
             Some("write-backlog") => run_or_exit(ledger_write_backlog()),
@@ -179,7 +180,8 @@ fn codegen_band_inventory(args: impl Iterator<Item = String>) -> Result<(), Box<
         )
         .into());
     }
-    let _: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    let generated: M8EmitterInventory = serde_json::from_slice(&output.stdout)?;
+    validate_d2_inventory(&generated)?;
     let target = out.unwrap_or_else(|| {
         if band == "all" {
             workspace.join("m8-emitter-inventory.json")
@@ -218,24 +220,683 @@ fn codegen_band_inventory(args: impl Iterator<Item = String>) -> Result<(), Box<
 #[derive(Debug, Deserialize)]
 struct M8EmitterInventory {
     schema: u32,
+    status: String,
+    source: String,
     source_sha256: String,
     band: String,
     summary: M8EmitterInventorySummary,
     functions: Vec<M8EmitterFunction>,
+    graph: M8EmitterGraph,
 }
 
 #[derive(Debug, Deserialize)]
 struct M8EmitterInventorySummary {
-    emitter_functions: usize,
+    source_declarations: usize,
+    emitter_declarations: usize,
     diagnostic_references: usize,
-    closure_functions: usize,
+    closure_declarations: usize,
+    sccs: usize,
+    nontrivial_sccs: usize,
+    static_edges: usize,
+    property_dispatch_edges: usize,
+    unresolved_calls: usize,
 }
 
 #[derive(Debug, Deserialize)]
 struct M8EmitterFunction {
     id: String,
     name: String,
+    kind: String,
+    lexical_owner: Option<String>,
+    lexical_path: String,
+    source_range: M8SourceRange,
+    source_slice_sha256: String,
     direct_emitter: bool,
+    #[serde(default)]
+    sites: Vec<M8DiagnosticSite>,
+    scc: String,
+    shortest_emitter_path: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8SourceRange {
+    start: M8SourcePosition,
+    end: M8SourcePosition,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8SourcePosition {
+    offset: usize,
+    line: usize,
+    character: usize,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8DiagnosticSite {
+    id: String,
+    line: usize,
+    character: usize,
+    offset: usize,
+    name: String,
+    code: Option<u32>,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8EmitterGraph {
+    edges: Vec<M8EmitterEdge>,
+    sccs: Vec<M8EmitterScc>,
+    unresolved_calls: Vec<M8UnresolvedCall>,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8EmitterEdge {
+    caller: String,
+    callee: String,
+    kind: String,
+    sites: Vec<M8CallSite>,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8CallSite {
+    line: usize,
+    character: usize,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8EmitterScc {
+    id: String,
+    members: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8UnresolvedCall {
+    caller: String,
+    expression: String,
+    kind: String,
+    line: usize,
+    character: usize,
+}
+
+fn validate_d2_inventory(inventory: &M8EmitterInventory) -> Result<(), Box<dyn Error>> {
+    if inventory.schema != 2 || inventory.status != "draft/report-only" {
+        return Err("generated emitter inventory must be schema 2 draft/report-only".into());
+    }
+    if inventory.source != "vendor/typescript-6.0.3/lib/_tsc.js" {
+        return Err(format!("unexpected D2 source {}", inventory.source).into());
+    }
+    let mut functions = BTreeMap::new();
+    for function in &inventory.functions {
+        if !function.id.starts_with("d2:") || function.id.len() != 67 {
+            return Err(format!("malformed exact D2 declaration id {}", function.id).into());
+        }
+        if functions.insert(function.id.as_str(), function).is_some() {
+            return Err(format!("duplicate exact D2 declaration id {}", function.id).into());
+        }
+        if function.kind.is_empty()
+            || function.lexical_path.is_empty()
+            || function
+                .lexical_owner
+                .as_deref()
+                .is_some_and(|owner| owner == function.id)
+            || function.source_range.start.offset >= function.source_range.end.offset
+            || function.source_range.start.line == 0
+            || function.source_range.end.line < function.source_range.start.line
+            || function.source_range.start.character == 0
+            || function.source_range.end.character == 0
+            || function.source_slice_sha256.len() != 64
+        {
+            return Err(format!("malformed D2 declaration {}", function.id).into());
+        }
+        if function.shortest_emitter_path.is_empty()
+            || function.shortest_emitter_path.last() != Some(&function.id)
+        {
+            return Err(format!(
+                "D2 declaration {} has no shortest direct-emitter path",
+                function.id
+            )
+            .into());
+        }
+        for site in &function.sites {
+            if site.id.is_empty()
+                || site.line == 0
+                || site.character == 0
+                || site.offset < function.source_range.start.offset
+                || site.offset > function.source_range.end.offset
+                || site.name.is_empty()
+                || site.code.is_none()
+            {
+                return Err(format!("malformed D2 diagnostic site in {}", function.id).into());
+            }
+        }
+    }
+    if functions.len() != inventory.summary.closure_declarations {
+        return Err(format!(
+            "D2 closure summary mismatch: {} functions vs {}",
+            functions.len(),
+            inventory.summary.closure_declarations
+        )
+        .into());
+    }
+    let direct = inventory
+        .functions
+        .iter()
+        .filter(|function| function.direct_emitter)
+        .count();
+    let references = inventory
+        .functions
+        .iter()
+        .map(|function| function.sites.len())
+        .sum::<usize>();
+    if direct != inventory.summary.emitter_declarations
+        || references != inventory.summary.diagnostic_references
+    {
+        return Err("D2 direct-emitter summary does not match exact declarations/sites".into());
+    }
+
+    let mut edge_keys = BTreeSet::new();
+    let mut edge_pairs = BTreeSet::new();
+    for edge in &inventory.graph.edges {
+        if !functions.contains_key(edge.caller.as_str())
+            || !functions.contains_key(edge.callee.as_str())
+            || !matches!(
+                edge.kind.as_str(),
+                "lexical" | "property-candidate" | "immediate"
+            )
+            || edge.sites.is_empty()
+            || edge
+                .sites
+                .iter()
+                .any(|site| site.line == 0 || site.character == 0)
+        {
+            return Err(format!(
+                "malformed D2 static edge {} -> {}",
+                edge.caller, edge.callee
+            )
+            .into());
+        }
+        if !edge_keys.insert((&edge.caller, &edge.callee, &edge.kind)) {
+            return Err(format!(
+                "duplicate D2 static edge {} -> {} ({})",
+                edge.caller, edge.callee, edge.kind
+            )
+            .into());
+        }
+        edge_pairs.insert((edge.caller.as_str(), edge.callee.as_str()));
+    }
+    if edge_keys.len() != inventory.summary.static_edges
+        || inventory
+            .graph
+            .edges
+            .iter()
+            .filter(|edge| edge.kind == "property-candidate")
+            .count()
+            != inventory.summary.property_dispatch_edges
+    {
+        return Err("D2 static-edge summary mismatch".into());
+    }
+
+    let mut scc_members = BTreeSet::new();
+    for scc in &inventory.graph.sccs {
+        if scc.id.is_empty() || scc.members.is_empty() {
+            return Err("empty D2 SCC".into());
+        }
+        for member in &scc.members {
+            if !functions.contains_key(member.as_str()) || !scc_members.insert(member.as_str()) {
+                return Err(format!("invalid/duplicate D2 SCC member {member}").into());
+            }
+            if functions[member.as_str()].scc != scc.id {
+                return Err(format!("D2 SCC back-reference mismatch for {member}").into());
+            }
+        }
+    }
+    if scc_members.len() != functions.len()
+        || inventory.graph.sccs.len() != inventory.summary.sccs
+        || inventory
+            .graph
+            .sccs
+            .iter()
+            .filter(|scc| scc.members.len() > 1)
+            .count()
+            != inventory.summary.nontrivial_sccs
+    {
+        return Err("D2 SCC summary/coverage mismatch".into());
+    }
+    if inventory.graph.unresolved_calls.len() != inventory.summary.unresolved_calls
+        || inventory.graph.unresolved_calls.iter().any(|call| {
+            !functions.contains_key(call.caller.as_str())
+                || call.expression.is_empty()
+                || !matches!(call.kind.as_str(), "identifier" | "property")
+                || call.line == 0
+                || call.character == 0
+        })
+    {
+        return Err("D2 unresolved-call summary/identity mismatch".into());
+    }
+    for function in &inventory.functions {
+        let first = &function.shortest_emitter_path[0];
+        if !functions
+            .get(first.as_str())
+            .is_some_and(|emitter| emitter.direct_emitter)
+        {
+            return Err(format!(
+                "D2 shortest path for {} does not start at a direct emitter",
+                function.id
+            )
+            .into());
+        }
+        for pair in function.shortest_emitter_path.windows(2) {
+            if !edge_pairs.contains(&(pair[0].as_str(), pair[1].as_str())) {
+                return Err(format!(
+                    "D2 shortest path contains a missing edge in {}",
+                    function.id
+                )
+                .into());
+            }
+        }
+    }
+    if inventory.summary.source_declarations < inventory.summary.closure_declarations {
+        return Err("D2 closure is larger than the source declaration census".into());
+    }
+    Ok(())
+}
+
+fn port_plan(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut declaration = None;
+    let mut diagnostic_json = None;
+    let mut out = None;
+    let mut args = args.peekable();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--declaration" => {
+                declaration = Some(args.next().ok_or("missing value after --declaration")?)
+            }
+            "--diagnostic-json" => {
+                diagnostic_json = Some(PathBuf::from(
+                    args.next().ok_or("missing value after --diagnostic-json")?,
+                ))
+            }
+            "--out" => {
+                out = Some(PathBuf::from(
+                    args.next().ok_or("missing value after --out")?,
+                ))
+            }
+            _ => return Err(format!("unexpected port-plan argument: {arg}").into()),
+        }
+    }
+    if declaration.is_some() == diagnostic_json.is_some() {
+        return Err(
+            "port-plan requires exactly one of --declaration <d2:id> or --diagnostic-json <path>"
+                .into(),
+        );
+    }
+
+    let workspace = find_tsrs2_root()?;
+    let inventory_path = workspace.join("m8-emitter-inventory.json");
+    let inventory: M8EmitterInventory = read_json(&inventory_path)?;
+    validate_d2_inventory(&inventory)?;
+    let expected_source_hash = sha256_file(&workspace.join("vendor/typescript-6.0.3/lib/_tsc.js"))?;
+    if inventory.source_sha256 != expected_source_hash {
+        return Err("D2 inventory is stale against the vendored _tsc.js".into());
+    }
+    let by_id = inventory
+        .functions
+        .iter()
+        .map(|function| (function.id.as_str(), function))
+        .collect::<BTreeMap<_, _>>();
+
+    let exact_diagnostic = diagnostic_json
+        .as_ref()
+        .map(|path| read_json::<tsrs2_conformance::ExactIdentity>(path))
+        .transpose()?;
+    let resolved_diagnostic = exact_diagnostic
+        .as_ref()
+        .map(|identity| tsrs2_conformance::resolve_exact_oracle_identity(&workspace, identity))
+        .transpose()?;
+    let selected = if let Some(id) = declaration.as_deref() {
+        if !by_id.contains_key(id) {
+            return Err(format!("unknown exact D2 declaration id {id}").into());
+        }
+        vec![id]
+    } else {
+        let diagnostic = resolved_diagnostic
+            .as_ref()
+            .expect("selector checked above");
+        let matches = inventory
+            .functions
+            .iter()
+            .filter(|function| {
+                function
+                    .sites
+                    .iter()
+                    .any(|site| site.code == Some(diagnostic.code))
+            })
+            .map(|function| function.id.as_str())
+            .collect::<Vec<_>>();
+        if matches.is_empty() {
+            return Err(format!(
+                "no direct D2 emitter declaration references diagnostic {}",
+                diagnostic.code
+            )
+            .into());
+        }
+        matches
+    };
+
+    let ledger_entries = collect_ledger_entries(&workspace)?;
+    let dispositions: M8EmitterDispositions =
+        read_json(&workspace.join("m8-emitter-dispositions.json"))?;
+    if dispositions.schema != 2 {
+        return Err("m8-emitter-dispositions.json must be schema 2".into());
+    }
+    let disposition_by_id = dispositions
+        .entries
+        .iter()
+        .map(|entry| (entry.declaration.as_str(), entry))
+        .collect::<BTreeMap<_, _>>();
+    let ledger_by_id = inventory
+        .functions
+        .iter()
+        .map(|function| {
+            (
+                function.id.as_str(),
+                exact_ledger_matches(function, &ledger_entries),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let manifest = parse_escape_manifest(&fs::read_to_string(workspace.join("escapes.toml"))?)?;
+
+    let mut codes = BTreeSet::new();
+    for id in &selected {
+        for site in &by_id[id].sites {
+            if let Some(code) = site.code {
+                codes.insert(code);
+            }
+        }
+    }
+    if let Some(diagnostic) = &resolved_diagnostic {
+        codes.insert(diagnostic.code);
+    }
+    let fixture_evidence = tsrs2_conformance::oracle_fixtures_for_codes(&workspace, &codes)?;
+    let pass = exact_diagnostic
+        .as_ref()
+        .map(|diagnostic| diagnostic.pass.as_str());
+    let family_rows = codes
+        .iter()
+        .map(|&code| mechanical_family_rows(&workspace, code, pass))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let declarations = selected
+        .iter()
+        .map(|id| {
+            let function = by_id[id];
+            let joins = ledger_by_id[id]
+                .iter()
+                .map(|entry| {
+                    serde_json::json!({
+                        "rust_file": display_relative(&workspace, &entry.rust_path),
+                        "rust_line": entry.rust_line,
+                        "rust_function": entry.rust_fn,
+                        "tsc_port": entry.port_name,
+                        "typescript_version": entry.version,
+                        "span": format!("{}:{}-{}", entry.span_file, entry.span_start, entry.span_end),
+                        "source_slice_sha256": entry.hash,
+                    })
+                })
+                .collect::<Vec<_>>();
+            let curtain_rows = ledger_by_id[id]
+                .iter()
+                .flat_map(|entry| {
+                    let rust_file = display_relative(&workspace, &entry.rust_path);
+                    let filter_file = rust_file.clone();
+                    manifest
+                        .iter()
+                        .filter(move |escape| {
+                            escape.file == filter_file && escape.containing_fn == entry.rust_fn
+                        })
+                        .map(move |escape| {
+                            serde_json::json!({
+                                "rust_file": rust_file,
+                                "rust_function": entry.rust_fn,
+                                "reason": escape.reason,
+                                "class": escape.class,
+                                "owner": escape.owner,
+                                "canary": escape.canary,
+                                "count": escape.count,
+                            })
+                        })
+                })
+                .collect::<Vec<_>>();
+            let callers = inventory
+                .graph
+                .edges
+                .iter()
+                .filter(|edge| edge.callee == *id)
+                .map(port_plan_edge_json)
+                .collect::<Vec<_>>();
+            let callees = inventory
+                .graph
+                .edges
+                .iter()
+                .filter(|edge| edge.caller == *id)
+                .map(port_plan_edge_json)
+                .collect::<Vec<_>>();
+            let scc = inventory
+                .graph
+                .sccs
+                .iter()
+                .find(|scc| scc.id == function.scc)
+                .expect("validated SCC back-reference");
+            let unresolved = inventory
+                .graph
+                .unresolved_calls
+                .iter()
+                .filter(|call| call.caller == *id)
+                .map(|call| {
+                    serde_json::json!({
+                        "expression": call.expression,
+                        "kind": call.kind,
+                        "line": call.line,
+                        "character": call.character,
+                    })
+                })
+                .collect::<Vec<_>>();
+            let nearest = nearest_planning_boundaries(
+                id,
+                &inventory,
+                &by_id,
+                &ledger_by_id,
+                &disposition_by_id,
+            );
+            serde_json::json!({
+                "id": function.id,
+                "name": function.name,
+                "kind": function.kind,
+                "lexical_owner": function.lexical_owner,
+                "lexical_path": function.lexical_path,
+                "source": inventory.source,
+                "source_range": {
+                    "start": {
+                        "offset": function.source_range.start.offset,
+                        "line": function.source_range.start.line,
+                        "character": function.source_range.start.character,
+                    },
+                    "end": {
+                        "offset": function.source_range.end.offset,
+                        "line": function.source_range.end.line,
+                        "character": function.source_range.end.character,
+                    },
+                },
+                "source_slice_sha256": function.source_slice_sha256,
+                "direct_diagnostic_sites": function.sites.iter().map(|site| serde_json::json!({
+                    "id": site.id,
+                    "code": site.code,
+                    "name": site.name,
+                    "line": site.line,
+                    "character": site.character,
+                    "offset": site.offset,
+                })).collect::<Vec<_>>(),
+                "shortest_emitter_path": function.shortest_emitter_path,
+                "scc": {"id": scc.id, "members": scc.members},
+                "static_callers": callers,
+                "static_callees": callees,
+                "unresolved_static_calls": unresolved,
+                "exact_rust_ledger_joins": joins,
+                "escape_and_dormant_rows": curtain_rows,
+                "nearest_ported_or_disposition_boundary": nearest,
+            })
+        })
+        .collect::<Vec<_>>();
+
+    let selector = if let Some(id) = declaration {
+        serde_json::json!({"kind": "declaration", "id": id})
+    } else {
+        serde_json::json!({
+            "kind": "exact-schema-2-diagnostic",
+            "identity": exact_diagnostic,
+        })
+    };
+    let report = serde_json::json!({
+        "schema": 2,
+        "status": "draft/report-only",
+        "inventory_sha256": sha256_file(&inventory_path)?,
+        "selector": selector,
+        "mechanical_family_owner": family_rows,
+        "fixture_evidence": fixture_evidence,
+        "declarations": declarations,
+        "manual_probe_recipes": {
+            "status": "unavailable",
+            "reason": "no exact selector-keyed manual probe recipe is recorded",
+            "recipes": [],
+        },
+        "unavailable": {
+            "automated_probe_synthesis": "unavailable until B2",
+            "diagnostic_stack_traces": "unavailable until B2",
+            "runtime_trace_coverage": "unavailable until B2",
+            "document_slice_assignment": "unavailable by contract",
+        },
+    });
+    let bytes = serde_json::to_vec_pretty(&report)?;
+    if let Some(path) = out {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&path, &bytes)?;
+        println!("port-plan written: {}", path.display());
+    } else {
+        std::io::stdout().write_all(&bytes)?;
+        println!();
+    }
+    Ok(())
+}
+
+fn port_plan_edge_json(edge: &M8EmitterEdge) -> serde_json::Value {
+    serde_json::json!({
+        "caller": edge.caller,
+        "callee": edge.callee,
+        "kind": edge.kind,
+        "sites": edge.sites.iter().map(|site| serde_json::json!({
+            "line": site.line,
+            "character": site.character,
+        })).collect::<Vec<_>>(),
+    })
+}
+
+fn nearest_planning_boundaries(
+    start: &str,
+    inventory: &M8EmitterInventory,
+    by_id: &BTreeMap<&str, &M8EmitterFunction>,
+    ledger_by_id: &BTreeMap<&str, Vec<&LedgerEntry>>,
+    disposition_by_id: &BTreeMap<&str, &M8EmitterDisposition>,
+) -> Vec<serde_json::Value> {
+    let mut adjacent: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+    for edge in &inventory.graph.edges {
+        adjacent
+            .entry(edge.caller.as_str())
+            .or_default()
+            .insert(edge.callee.as_str());
+        adjacent
+            .entry(edge.callee.as_str())
+            .or_default()
+            .insert(edge.caller.as_str());
+    }
+    let mut queue = VecDeque::from([(start, 0usize)]);
+    let mut seen = BTreeSet::from([start]);
+    let mut found_distance = None;
+    let mut found = Vec::new();
+    while let Some((id, distance)) = queue.pop_front() {
+        if found_distance.is_some_and(|found| distance > found) {
+            break;
+        }
+        let ledger = ledger_by_id
+            .get(id)
+            .is_some_and(|entries| !entries.is_empty());
+        let disposition = disposition_by_id.get(id);
+        if ledger || disposition.is_some() {
+            found_distance = Some(distance);
+            let function = by_id[id];
+            found.push(serde_json::json!({
+                "declaration": id,
+                "name": function.name,
+                "distance": distance,
+                "ported": ledger,
+                "disposition": disposition.map(|entry| serde_json::json!({
+                    "kind": entry.disposition,
+                    "evidence": entry.evidence,
+                })),
+            }));
+            continue;
+        }
+        for &neighbor in adjacent.get(id).into_iter().flatten() {
+            if seen.insert(neighbor) {
+                queue.push_back((neighbor, distance + 1));
+            }
+        }
+    }
+    found
+}
+
+fn mechanical_family_rows(
+    workspace: &Path,
+    code: u32,
+    pass: Option<&str>,
+) -> Result<serde_json::Value, Box<dyn Error>> {
+    let file: serde_json::Value = read_json(&workspace.join("diag-families.json"))?;
+    if (2000..3000).contains(&code) {
+        let partition = &file["band_partition"];
+        return Ok(serde_json::json!({
+            "code": code,
+            "pass": pass,
+            "family": partition["family"],
+            "owner": partition["owner"],
+            "note": partition["note"],
+            "mechanism": "2xxx-band partition",
+        }));
+    }
+    let matches = file["families"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|family| {
+            let rows = family["rows"].as_array()?;
+            rows.iter()
+                .any(|row| {
+                    row["code"].as_u64() == Some(code as u64)
+                        && pass.is_none_or(|pass| row["pass"].as_str() == Some(pass))
+                })
+                .then(|| {
+                    serde_json::json!({
+                        "family": family["name"],
+                        "owner": family["owner"],
+                        "note": family["note"],
+                    })
+                })
+        })
+        .collect::<Vec<_>>();
+    Ok(serde_json::json!({
+        "code": code,
+        "pass": pass,
+        "matches": matches,
+    }))
 }
 
 #[derive(Debug, Deserialize)]
@@ -249,7 +910,7 @@ struct M8EmitterDispositions {
 
 #[derive(Debug, Deserialize)]
 struct M8EmitterDisposition {
-    function: String,
+    declaration: String,
     disposition: String,
     evidence: String,
 }
@@ -366,8 +1027,10 @@ fn m8_readiness_inner(
 
     let inventory_path = workspace.join("m8-emitter-inventory.json");
     let inventory: M8EmitterInventory = read_json(&inventory_path)?;
-    if inventory.schema != 1 || inventory.band != "all" {
-        return Err("m8-emitter-inventory.json must be schema 1, band all".into());
+    if inventory.schema != 2 || inventory.status != "draft/report-only" || inventory.band != "all" {
+        return Err(
+            "m8-emitter-inventory.json must be schema 2, draft/report-only, band all".into(),
+        );
     }
     let bundle_hash = sha256_file(&workspace.join("vendor/typescript-6.0.3/lib/_tsc.js"))?;
     let inventory_fresh = inventory.source_sha256 == bundle_hash;
@@ -375,27 +1038,29 @@ fn m8_readiness_inner(
 
     let dispositions: M8EmitterDispositions =
         read_json(&workspace.join("m8-emitter-dispositions.json"))?;
-    if dispositions.schema != 1 {
-        return Err("m8-emitter-dispositions.json must be schema 1".into());
+    if dispositions.schema != 2 {
+        return Err("m8-emitter-dispositions.json must be schema 2".into());
     }
     let mut explicit = BTreeMap::new();
     for entry in &dispositions.entries {
         if !matches!(entry.disposition.as_str(), "deferred" | "not-applicable") {
             return Err(format!(
                 "invalid M8 emitter disposition for {}: {}",
-                entry.function, entry.disposition
+                entry.declaration, entry.disposition
             )
             .into());
         }
         if entry.evidence.trim().is_empty() {
             return Err(format!(
                 "M8 emitter disposition for {} has no evidence",
-                entry.function
+                entry.declaration
             )
             .into());
         }
-        if explicit.insert(entry.function.as_str(), entry).is_some() {
-            return Err(format!("duplicate M8 emitter disposition for {}", entry.function).into());
+        if explicit.insert(entry.declaration.as_str(), entry).is_some() {
+            return Err(
+                format!("duplicate M8 emitter disposition for {}", entry.declaration).into(),
+            );
         }
     }
     let inventory_ids = inventory
@@ -408,15 +1073,17 @@ fn m8_readiness_inner(
         .filter(|function| !inventory_ids.contains(**function))
         .count();
     let ledger_entries = collect_ledger_entries(&workspace)?;
-    let ported_names = ledger_entries
+    let ported_declarations = inventory
+        .functions
         .iter()
-        .map(|entry| entry.port_name.as_str())
+        .filter(|function| !exact_ledger_matches(function, &ledger_entries).is_empty())
+        .map(|function| function.id.as_str())
         .collect::<BTreeSet<_>>();
     let unaccounted_closure = inventory
         .functions
         .iter()
         .filter(|function| {
-            !ported_names.contains(function.name.as_str())
+            !ported_declarations.contains(function.id.as_str())
                 && !explicit.contains_key(function.id.as_str())
         })
         .count();
@@ -427,8 +1094,8 @@ fn m8_readiness_inner(
         && extra_dispositions == 0;
 
     let evidence: M8Evidence = read_json(&workspace.join("m8-evidence.json"))?;
-    if evidence.schema != 1 {
-        return Err("m8-evidence.json must be schema 1".into());
+    if evidence.schema != 2 {
+        return Err("m8-evidence.json must be schema 2".into());
     }
     let runtime = &evidence.runtime_coverage;
     let direct_emitter_ids = inventory
@@ -463,7 +1130,7 @@ fn m8_readiness_inner(
     let runtime_extra = runtime_accounted.difference(&direct_emitter_ids).count();
     let runtime_ready = runtime.status == "ready"
         && runtime.inventory_sha256 == inventory_hash
-        && direct_emitter_ids.len() == inventory.summary.emitter_functions
+        && direct_emitter_ids.len() == inventory.summary.emitter_declarations
         && !executed_emitters.is_empty()
         && runtime_missing == 0
         && runtime_extra == 0
@@ -554,9 +1221,9 @@ fn m8_readiness_inner(
         inventory_fresh,
         format!(
             "fresh={inventory_fresh} emitters={} diagnostic-refs={} closure={}",
-            inventory.summary.emitter_functions,
+            inventory.summary.emitter_declarations,
             inventory.summary.diagnostic_references,
-            inventory.summary.closure_functions
+            inventory.summary.closure_declarations
         ),
     );
     add_m8_gate(
@@ -579,7 +1246,7 @@ fn m8_readiness_inner(
             "status={} accounted={}/{} executed={} zero-hit={} missing={} extra={} duplicate={} overlap={} invalid-evidence={}",
             runtime.status,
             runtime_accounted.intersection(&direct_emitter_ids).count(),
-            inventory.summary.emitter_functions,
+            inventory.summary.emitter_declarations,
             executed_emitters.len(),
             zero_hit_emitters.len(),
             runtime_missing,
@@ -2741,6 +3408,26 @@ struct PublicFunction {
     name: String,
 }
 
+/// D2a's automatic Rust join is deliberately stricter than a name
+/// lookup: aliases are review labels, while the inclusive source-line
+/// span and its hash identify one exact vendored declaration.
+fn exact_ledger_matches<'a>(
+    declaration: &M8EmitterFunction,
+    entries: &'a [LedgerEntry],
+) -> Vec<&'a LedgerEntry> {
+    entries
+        .iter()
+        .filter(|entry| {
+            Path::new(&entry.span_file)
+                .file_name()
+                .is_some_and(|name| name == "_tsc.js")
+                && entry.span_start == declaration.source_range.start.line
+                && entry.span_end == declaration.source_range.end.line
+                && entry.hash == declaration.source_slice_sha256
+        })
+        .collect()
+}
+
 fn ledger_check() -> Result<(), Box<dyn Error>> {
     let workspace = find_tsrs2_root()?;
     let entries = collect_ledger_entries(&workspace)?;
@@ -2889,6 +3576,25 @@ struct EscapeSite {
     /// from these paths. Classification is strict:
     /// only reasons carrying an explicit recovery marker qualify.
     recovery: bool,
+    /// D1a constructibility debt. A dormant site is neither a stage
+    /// expiry nor an untagged containment row: its named canary makes
+    /// the annotation stale as soon as that producer becomes live.
+    dormant: Option<DormantMetadata>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct DormantMetadata {
+    canary: String,
+    review_owner: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+struct DormantAnnotation {
+    line: usize,
+    containing_fn: String,
+    canary: String,
+    review_owner: Option<String>,
+    reason: Option<String>,
 }
 
 /// The strict recovery-marker test: `(parse recovery)`,
@@ -2991,6 +3697,64 @@ fn escape_reason_after(text: &str, offset: usize) -> String {
     reason.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+fn parse_dormant_annotation(
+    line: &str,
+    line_number: usize,
+    containing_fn: String,
+) -> Result<Option<DormantAnnotation>, String> {
+    let Some(payload) = line
+        .trim_start()
+        .strip_prefix("// tsc-dormant:")
+        .map(str::trim)
+    else {
+        return Ok(None);
+    };
+    let mut canary = None;
+    let mut review_owner = None;
+    let mut reason = None;
+    for field in payload
+        .split(';')
+        .map(str::trim)
+        .filter(|field| !field.is_empty())
+    {
+        let Some((key, value)) = field.split_once('=') else {
+            return Err(format!(
+                "line {line_number}: dormant field must be key=value: {field}"
+            ));
+        };
+        let value = value.trim();
+        if value.is_empty() {
+            return Err(format!("line {line_number}: dormant {key} is empty"));
+        }
+        match key.trim() {
+            "canary" => canary = Some(value.to_owned()),
+            "owner" => review_owner = Some(value.to_owned()),
+            "reason" => reason = Some(value.to_owned()),
+            other => {
+                return Err(format!(
+                    "line {line_number}: unknown dormant annotation key {other}"
+                ))
+            }
+        }
+    }
+    let canary =
+        canary.ok_or_else(|| format!("line {line_number}: dormant annotation needs canary="))?;
+    if !canary.chars().enumerate().all(|(index, ch)| {
+        ch == '_' || ch.is_ascii_alphanumeric() && (index > 0 || !ch.is_ascii_digit())
+    }) {
+        return Err(format!(
+            "line {line_number}: dormant canary must be a Rust identifier: {canary}"
+        ));
+    }
+    Ok(Some(DormantAnnotation {
+        line: line_number,
+        containing_fn,
+        canary,
+        review_owner,
+        reason,
+    }))
+}
+
 /// Scan one file's text for escape sites. Wrapper constructors count
 /// too: expression_stub / source_element_stub carry (worker, owner)
 /// string pairs — source_element_stub is a SILENT Ok(()) stub,
@@ -3001,7 +3765,7 @@ fn escape_reason_after(text: &str, offset: usize) -> String {
 /// as milestone-stable RECOVERY guards (auditable through M7 and
 /// exempt from the untagged ratchet); everything else owner-less is
 /// untagged debt. The final gate still removes Unsupported here.
-fn scan_escape_text(path: &Path, text: &str) -> Vec<EscapeSite> {
+fn scan_escape_text(path: &Path, text: &str) -> Result<Vec<EscapeSite>, Box<dyn Error>> {
     // Line-indexed fn-definition table for containing-fn lookup: the
     // last `fn name(` at or before an escape's line encloses it
     // (closures don't match `fn `; nested named fns resolve to the
@@ -3034,6 +3798,16 @@ fn scan_escape_text(path: &Path, text: &str) -> Vec<EscapeSite> {
             None => "<module>".to_owned(),
         }
     };
+    let mut annotations = Vec::new();
+    for (index, line) in text.lines().enumerate() {
+        if let Some(annotation) =
+            parse_dormant_annotation(line, index + 1, containing_fn(index + 1))
+                .map_err(|error| format!("{}:{error}", path.display()))?
+        {
+            annotations.push(annotation);
+        }
+    }
+    let mut used_annotations = BTreeSet::new();
     let mut sites = Vec::new();
     for marker in [
         "Unsupported::new(",
@@ -3054,17 +3828,82 @@ fn scan_escape_text(path: &Path, text: &str) -> Vec<EscapeSite> {
             }
             let owner = parse_stage_key(&reason);
             let recovery = owner.is_none() && is_recovery_reason(&reason);
+            let containing_fn = containing_fn(line);
+            let attached = annotations
+                .iter()
+                .enumerate()
+                .filter(|(index, annotation)| {
+                    !used_annotations.contains(index)
+                        && annotation.containing_fn == containing_fn
+                        && annotation.line < line
+                        && line - annotation.line <= 4
+                })
+                .collect::<Vec<_>>();
+            if attached.len() > 1 {
+                return Err(format!(
+                    "{}:{line}: more than one tsc-dormant annotation can attach to this escape",
+                    path.display()
+                )
+                .into());
+            }
+            let dormant = attached
+                .first()
+                .map(|(index, annotation)| {
+                    used_annotations.insert(*index);
+                    if annotation
+                        .reason
+                        .as_deref()
+                        .is_some_and(|annotated| annotated != reason)
+                    {
+                        return Err(format!(
+                            "{}:{}: attached dormant reason does not match escape reason",
+                            path.display(),
+                            annotation.line
+                        ));
+                    }
+                    Ok(DormantMetadata {
+                        canary: annotation.canary.clone(),
+                        review_owner: annotation.review_owner.clone(),
+                    })
+                })
+                .transpose()
+                .map_err(|error: String| error)?;
             sites.push(EscapeSite {
                 path: path.to_owned(),
                 line,
-                containing_fn: containing_fn(line),
+                containing_fn,
                 reason,
                 owner,
                 recovery,
+                dormant,
             });
         }
     }
-    sites
+    for (index, annotation) in annotations.into_iter().enumerate() {
+        if used_annotations.contains(&index) {
+            continue;
+        }
+        let reason = annotation.reason.ok_or_else(|| {
+            format!(
+                "{}:{}: unattached tsc-dormant annotation needs reason=",
+                path.display(),
+                annotation.line
+            )
+        })?;
+        sites.push(EscapeSite {
+            path: path.to_owned(),
+            line: annotation.line,
+            containing_fn: annotation.containing_fn,
+            reason,
+            owner: None,
+            recovery: false,
+            dormant: Some(DormantMetadata {
+                canary: annotation.canary,
+                review_owner: annotation.review_owner,
+            }),
+        });
+    }
+    Ok(sites)
 }
 
 fn collect_escape_sites(workspace: &Path) -> Result<Vec<EscapeSite>, Box<dyn Error>> {
@@ -3076,7 +3915,7 @@ fn collect_escape_sites(workspace: &Path) -> Result<Vec<EscapeSite>, Box<dyn Err
             continue;
         }
         let text = fs::read_to_string(&path)?;
-        sites.extend(scan_escape_text(&path, &text));
+        sites.extend(scan_escape_text(&path, &text)?);
     }
     sites.sort_by(|left, right| {
         left.owner
@@ -3085,6 +3924,92 @@ fn collect_escape_sites(workspace: &Path) -> Result<Vec<EscapeSite>, Box<dyn Err
             .then_with(|| left.line.cmp(&right.line))
     });
     Ok(sites)
+}
+
+fn collect_test_function_names(workspace: &Path) -> Result<BTreeSet<String>, Box<dyn Error>> {
+    let mut tests = BTreeSet::new();
+    for path in collect_rs_paths(&workspace.join("crates"))? {
+        let text = fs::read_to_string(path)?;
+        let lines = text.lines().collect::<Vec<_>>();
+        for (index, line) in lines.iter().enumerate() {
+            let Some(name) = function_name(line.trim_start()) else {
+                continue;
+            };
+            let start = index.saturating_sub(8);
+            if lines[start..index]
+                .iter()
+                .rev()
+                .take_while(|line| {
+                    let trimmed = line.trim();
+                    trimmed.is_empty()
+                        || trimmed.starts_with("#[")
+                        || trimmed.starts_with("///")
+                        || trimmed.starts_with("//")
+                })
+                .any(|line| line.trim() == "#[test]")
+            {
+                tests.insert(name);
+            }
+        }
+    }
+    Ok(tests)
+}
+
+fn audit_legacy_dormant_markers(
+    workspace: &Path,
+    sites: &[EscapeSite],
+) -> Result<(), Box<dyn Error>> {
+    let mut violations = Vec::new();
+    for path in collect_rs_paths(&workspace.join("crates"))? {
+        if path.components().any(|part| part.as_os_str() == "xtask") {
+            continue;
+        }
+        let text = fs::read_to_string(&path)?;
+        for (index, line) in text.lines().enumerate() {
+            if !line.contains("M8-stub") && !line.contains("constant-false") {
+                continue;
+            }
+            let line_number = index + 1;
+            let exact = sites
+                .iter()
+                .filter(|site| {
+                    site.path == path && site.dormant.is_some() && site.line == line_number
+                })
+                .count();
+            let coverage = if exact > 0 {
+                exact
+            } else {
+                sites
+                    .iter()
+                    .filter(|site| {
+                        site.path == path
+                            && site.dormant.is_some()
+                            && site.line.abs_diff(line_number) <= 4
+                    })
+                    .count()
+            };
+            if coverage != 1 {
+                violations.push(format!(
+                    "{}:{line_number}: legacy dormant marker lacks exactly one nearby \
+                     tsc-dormant row (found {coverage})",
+                    display_relative(workspace, &path),
+                ));
+            }
+        }
+    }
+    if violations.is_empty() {
+        Ok(())
+    } else {
+        for violation in &violations {
+            println!("DORMANT-MARKER {violation}");
+        }
+        Err(format!(
+            "{} legacy M8-stub/constant-false marker(s) need dormant annotation or a reviewed \
+             non-dormant rewrite",
+            violations.len()
+        )
+        .into())
+    }
 }
 
 /// The expiry audit (stage-closing loop): list containment escapes
@@ -3110,8 +4035,10 @@ fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     }
     let workspace = find_tsrs2_root()?;
     let sites = collect_escape_sites(&workspace)?;
+    audit_legacy_dormant_markers(&workspace, &sites)?;
+    let test_functions = collect_test_function_names(&workspace)?;
     if write_manifest {
-        let entries = escape_manifest_from_sites(&workspace, &sites);
+        let entries = escape_manifest_from_sites(&workspace, &sites)?;
         fs::write(
             workspace.join("escapes.toml"),
             render_escape_manifest(&entries),
@@ -3127,8 +4054,26 @@ fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let mut stale = 0usize;
     let mut untagged = 0usize;
     let mut recovery = 0usize;
+    let mut dormant = 0usize;
+    let mut stale_dormant = 0usize;
     for site in &sites {
         let relative = display_relative(&workspace, &site.path);
+        if let Some(metadata) = &site.dormant {
+            dormant += 1;
+            if test_functions.contains(&metadata.canary) {
+                stale_dormant += 1;
+                println!(
+                    "STALE-DORMANT {relative}:{} {} canary={} now exists",
+                    site.line, site.reason, metadata.canary
+                );
+            } else if stale_before.is_none() {
+                println!(
+                    "DORMANT {relative}:{} {} canary={}",
+                    site.line, site.reason, metadata.canary
+                );
+            }
+            continue;
+        }
         match (site.owner, stale_before) {
             (Some(owner), Some(threshold)) if owner <= threshold => {
                 stale += 1;
@@ -3153,14 +4098,22 @@ fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
         }
     }
     println!(
-        "escapes: sites={} stale={} untagged={} recovery={}",
+        "escapes: sites={} stale={} untagged={} recovery={} dormant={}",
         sites.len(),
         stale,
         untagged,
-        recovery
+        recovery,
+        dormant
     );
     if stale_before.is_some() && stale > 0 {
         return Err(format!("{stale} escape(s) have an expired owner stage").into());
+    }
+    if stale_dormant > 0 {
+        return Err(format!(
+            "{stale_dormant} dormant assumption(s) have a live canary; remove, implement, or \
+             narrow the old annotation"
+        )
+        .into());
     }
     // The untagged/recovery-count ratchets (gate mode only): both
     // monotone non-increasing — new escapes must carry a parseable
@@ -3184,6 +4137,15 @@ fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
                      (a new `(parse recovery)`-marked guard needs review — real containment \
                      escapes must carry an owner stage instead; bump [escapes].max_recovery \
                      in ratchet.toml only for genuine malformed-tree guards)"
+                )
+                .into());
+            }
+        }
+        if let Some(ceiling) = read_ratchet_ceiling(&workspace, "escapes", "max_dormant")? {
+            if dormant > ceiling {
+                return Err(format!(
+                    "dormant-assumption ratchet regression: {dormant} > recorded ceiling \
+                     {ceiling} (new constructibility debt needs a reviewed census/ceiling diff)"
                 )
                 .into());
             }
@@ -3234,12 +4196,15 @@ struct EscapeManifestEntry {
     file: String,
     containing_fn: String,
     reason: String,
-    /// "stage" (owner-tagged deferral) | "recovery" (milestone-stable
-    /// malformed-tree guard through M7) | "untagged" (debt — 0 by M4
-    /// close).
+    /// "stage" (owner-tagged deferral) | "dormant-assumption"
+    /// (constructibility debt) | "recovery" (milestone-stable
+    /// malformed-tree guard through M7) | "untagged" (debt).
     class: String,
     /// Display owner for class == "stage" ("5.8", "5.7b", "M5"…).
     owner: Option<String>,
+    /// Required constructibility canary for class ==
+    /// "dormant-assumption".
+    canary: Option<String>,
     count: usize,
 }
 
@@ -3251,31 +4216,68 @@ fn stage_key_display(key: StageKey) -> String {
     }
 }
 
-fn escape_manifest_from_sites(workspace: &Path, sites: &[EscapeSite]) -> Vec<EscapeManifestEntry> {
+fn escape_manifest_from_sites(
+    workspace: &Path,
+    sites: &[EscapeSite],
+) -> Result<Vec<EscapeManifestEntry>, Box<dyn Error>> {
     let mut map: BTreeMap<(String, String, String), EscapeManifestEntry> = BTreeMap::new();
     for site in sites {
         let file = display_relative(workspace, &site.path);
-        let (class, owner) = match (site.owner, site.recovery) {
-            (Some(key), _) => ("stage", Some(stage_key_display(key))),
-            (None, true) => ("recovery", None),
-            (None, false) => ("untagged", None),
+        let (class, owner, canary) = match (&site.dormant, site.owner, site.recovery) {
+            (Some(metadata), _, _) => (
+                "dormant-assumption",
+                metadata.review_owner.clone(),
+                Some(metadata.canary.clone()),
+            ),
+            (None, Some(key), _) => ("stage", Some(stage_key_display(key)), None),
+            (None, None, true) => ("recovery", None, None),
+            (None, None, false) => ("untagged", None, None),
         };
-        map.entry((
+        let key = (
             file.clone(),
             site.containing_fn.clone(),
             site.reason.clone(),
-        ))
-        .or_insert_with(|| EscapeManifestEntry {
+        );
+        let candidate = EscapeManifestEntry {
             file,
             containing_fn: site.containing_fn.clone(),
             reason: site.reason.clone(),
             class: class.to_owned(),
             owner,
-            count: 0,
-        })
-        .count += 1;
+            canary,
+            count: 1,
+        };
+        match map.entry(key) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(candidate);
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get_mut();
+                if existing.class != candidate.class
+                    || existing.owner != candidate.owner
+                    || existing.canary != candidate.canary
+                {
+                    return Err(format!(
+                        "escape manifest identity ({}, {}, {:?}) mixes metadata: \
+                         class={:?} owner={:?} canary={:?} versus \
+                         class={:?} owner={:?} canary={:?}",
+                        existing.file,
+                        existing.containing_fn,
+                        existing.reason,
+                        existing.class,
+                        existing.owner,
+                        existing.canary,
+                        candidate.class,
+                        candidate.owner,
+                        candidate.canary,
+                    )
+                    .into());
+                }
+                existing.count += 1;
+            }
+        }
     }
-    map.into_values().collect()
+    Ok(map.into_values().collect())
 }
 
 fn toml_escape_string(text: &str) -> String {
@@ -3293,7 +4295,8 @@ fn render_escape_manifest(entries: &[EscapeManifestEntry]) -> String {
          # a same-reason site swap WITHIN one function at unchanged count\n\
          # (function-level debt tracking by design; per-site IDs were judged\n\
          # not worth the annotation churn). Line numbers deliberately omitted.\n\
-         # class: stage (owner-tagged deferral) | recovery (milestone-stable\n\
+         # class: stage (owner-tagged deferral) | dormant-assumption\n\
+         # (constructibility debt with required canary) | recovery (milestone-stable\n\
          # malformed-tree guard through M7; leaves Unsupported before Done) |\n\
          # untagged (debt; 0 by M4 close —\n\
          # ratchet.toml [escapes] ceilings still apply on top).\n",
@@ -3312,6 +4315,9 @@ fn render_escape_manifest(entries: &[EscapeManifestEntry]) -> String {
         out.push_str(&format!("class = \"{}\"\n", entry.class));
         if let Some(owner) = &entry.owner {
             out.push_str(&format!("owner = \"{}\"\n", toml_escape_string(owner)));
+        }
+        if let Some(canary) = &entry.canary {
+            out.push_str(&format!("canary = \"{}\"\n", toml_escape_string(canary)));
         }
         if entry.count != 1 {
             out.push_str(&format!("count = {}\n", entry.count));
@@ -3366,6 +4372,25 @@ fn parse_escape_manifest(text: &str) -> Result<Vec<EscapeManifestEntry>, Box<dyn
                 )
                 .into());
             }
+            match entry.class.as_str() {
+                "stage" if entry.owner.is_some() && entry.canary.is_none() => {}
+                "dormant-assumption" if entry.canary.is_some() => {}
+                "recovery" | "untagged" if entry.owner.is_none() && entry.canary.is_none() => {}
+                "stage" | "dormant-assumption" | "recovery" | "untagged" => {
+                    return Err(format!(
+                        "escapes.toml: invalid owner/canary fields for class {}: {entry:?}",
+                        entry.class
+                    )
+                    .into())
+                }
+                _ => {
+                    return Err(format!(
+                        "escapes.toml: unknown escape class {}: {entry:?}",
+                        entry.class
+                    )
+                    .into())
+                }
+            }
             entries.push(entry);
         }
         Ok(())
@@ -3384,6 +4409,7 @@ fn parse_escape_manifest(text: &str) -> Result<Vec<EscapeManifestEntry>, Box<dyn
                 reason: String::new(),
                 class: String::new(),
                 owner: None,
+                canary: None,
                 count: 1,
             });
             continue;
@@ -3400,6 +4426,7 @@ fn parse_escape_manifest(text: &str) -> Result<Vec<EscapeManifestEntry>, Box<dyn
             "reason" => entry.reason = parse_string(value, line_no)?,
             "class" => entry.class = parse_string(value, line_no)?,
             "owner" => entry.owner = Some(parse_string(value, line_no)?),
+            "canary" => entry.canary = Some(parse_string(value, line_no)?),
             "count" => entry.count = value.trim().parse::<usize>()?,
             other => {
                 return Err(format!("escapes.toml:{line_no}: unknown key {other}").into());
@@ -3422,7 +4449,7 @@ fn check_escape_manifest(workspace: &Path, sites: &[EscapeSite]) -> Result<(), B
         );
     }
     let recorded = parse_escape_manifest(&fs::read_to_string(&manifest_path)?)?;
-    let expected = escape_manifest_from_sites(workspace, sites);
+    let expected = escape_manifest_from_sites(workspace, sites)?;
     let key = |entry: &EscapeManifestEntry| {
         (
             entry.file.clone(),
@@ -3454,16 +4481,18 @@ fn check_escape_manifest(workspace: &Path, sites: &[EscapeSite]) -> Result<(), B
             Some(prior) if prior != entry => {
                 divergences += 1;
                 println!(
-                    "MANIFEST-CHANGED {} ({}): \"{}\" — recorded {}/{:?}/count {}, scanned \
-                     {}/{:?}/count {} — regenerate + review",
+                    "MANIFEST-CHANGED {} ({}): \"{}\" — recorded {}/{:?}/{:?}/count {}, scanned \
+                     {}/{:?}/{:?}/count {} — regenerate + review",
                     entry.file,
                     entry.containing_fn,
                     entry.reason,
                     prior.class,
                     prior.owner,
+                    prior.canary,
                     prior.count,
                     entry.class,
                     entry.owner,
+                    entry.canary,
                     entry.count,
                 );
             }
@@ -7735,7 +8764,7 @@ mod escape_scanner_tests {
     use super::*;
 
     fn scan(text: &str) -> Vec<EscapeSite> {
-        scan_escape_text(Path::new("test.rs"), text)
+        scan_escape_text(Path::new("test.rs"), text).expect("escape scan")
     }
 
     #[test]
@@ -7783,6 +8812,62 @@ mod escape_scanner_tests {
     }
 
     #[test]
+    fn dormant_annotation_reclassifies_an_escape_and_roundtrips_canary() {
+        let sites = scan(
+            r#"fn mapped() {
+                // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a
+                return Err(Unsupported::new("mapped types (unported family, M8-stub)"));
+            }"#,
+        );
+        assert_eq!(sites.len(), 1);
+        let metadata = sites[0].dormant.as_ref().expect("dormant metadata");
+        assert_eq!(metadata.canary, "mapped_type_model_constructibility");
+        assert_eq!(metadata.review_owner.as_deref(), Some("9.5a"));
+        let entries = escape_manifest_from_sites(Path::new(""), &sites).unwrap();
+        assert_eq!(entries[0].class, "dormant-assumption");
+        assert_eq!(
+            entries[0].canary.as_deref(),
+            Some("mapped_type_model_constructibility")
+        );
+        assert_eq!(
+            parse_escape_manifest(&render_escape_manifest(&entries)).unwrap(),
+            entries
+        );
+    }
+
+    #[test]
+    fn standalone_dormant_annotation_requires_an_exact_reason() {
+        let sites = scan(
+            r#"fn fold() {
+                // tsc-dormant: canary=utf16_fold_constructibility; owner=9.5a; reason=lossy UTF-16 fold
+                let value = 1;
+            }"#,
+        );
+        assert_eq!(sites.len(), 1);
+        assert_eq!(sites[0].reason, "lossy UTF-16 fold");
+        assert!(sites[0].dormant.is_some());
+    }
+
+    #[test]
+    fn manifest_rejects_mixed_metadata_for_one_identity() {
+        let sites = scan(
+            r#"fn mapped() {
+                // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a
+                if first {
+                    return Err(Unsupported::new("mapped types (M8)"));
+                }
+                return Err(Unsupported::new("mapped types (M8)"));
+            }"#,
+        );
+        assert_eq!(sites.len(), 2);
+        let error = escape_manifest_from_sites(Path::new(""), &sites).unwrap_err();
+        assert!(
+            error.to_string().contains("mixes metadata"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
     fn manifest_roundtrips_and_keys_on_file_reason() {
         let sites = scan(
             r#"Err(Unsupported::new("alias value types (getTypeOfAlias, 5.8)"));
@@ -7790,7 +8875,7 @@ mod escape_scanner_tests {
                Err(Unsupported::new("entityNameToString on recovery node"));
                Err(Unsupported::new("a reason with \"quotes\" and back\\slash"));"#,
         );
-        let entries = escape_manifest_from_sites(Path::new(""), &sites);
+        let entries = escape_manifest_from_sites(Path::new(""), &sites).unwrap();
         // Duplicate reasons fold into one entry with count 2; classes
         // derive from the reason text.
         assert_eq!(entries.len(), 3);
@@ -7935,6 +9020,31 @@ mod escape_scanner_tests {
         assert_eq!(sites.len(), 1);
         assert!(sites[0].owner.is_some());
         assert!(!sites[0].recovery);
+    }
+}
+
+#[cfg(test)]
+mod d2_inventory_tests {
+    use super::*;
+
+    #[test]
+    fn committed_schema_two_inventory_has_exact_graph_and_ledger_join() {
+        let workspace = find_tsrs2_root().expect("workspace");
+        let inventory: M8EmitterInventory =
+            read_json(&workspace.join("m8-emitter-inventory.json")).expect("inventory");
+        validate_d2_inventory(&inventory).expect("schema-2 graph");
+        let declaration = inventory
+            .functions
+            .iter()
+            .find(|function| {
+                function.source_range.start.line == 64103 && function.source_range.end.line == 64114
+            })
+            .expect("getBestMatchIndexedAccessTypeOrUndefined declaration");
+        assert_eq!(declaration.name, "getBestMatchIndexedAccessTypeOrUndefined");
+        let ledger = collect_ledger_entries(&workspace).expect("ledger");
+        let joins = exact_ledger_matches(declaration, &ledger);
+        assert_eq!(joins.len(), 1);
+        assert_eq!(joins[0].rust_fn, "member_elaboration_target_type");
     }
 }
 

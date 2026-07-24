@@ -656,6 +656,7 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::INDEXED_ACCESS) {
             self.get_simplified_indexed_access_type(ty, writing)
         } else if flags.intersects(TypeFlags::CONDITIONAL) {
+            // tsc-dormant: canary=conditional_type_model_constructibility; owner=9.6a
             Err(Unsupported::new(
                 "getSimplifiedConditionalType (unported family, M8-stub)",
             ))
@@ -682,6 +683,7 @@ impl<'a> CheckerState<'a> {
             .object_flags_of(inner)
             .intersects(ObjectFlags::MAPPED)
         {
+            // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a
             return Err(Unsupported::new(
                 "getSimplifiedIndexType for mapped types (unported family, M8-stub)",
             ));
@@ -872,6 +874,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         if self.is_generic_mapped_type_state(object_type) {
+            // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a
             return Err(Unsupported::new(
                 "simplified indexed access over mapped types (unported family, M8-stub)",
             ));

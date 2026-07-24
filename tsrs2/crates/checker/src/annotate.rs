@@ -107,6 +107,7 @@ impl<'a> CheckerState<'a> {
                             .get_implied_constraint(ty, check_type, extends_type)?
                             .is_some()
                         {
+                            // tsc-dormant: canary=substitution_type_model_constructibility; owner=9.6a
                             return Err(Unsupported::new(
                                 "conditional-flow substitution over the true branch \
                                  (getSubstitutionType — unported family, M8-stub)",
@@ -124,6 +125,7 @@ impl<'a> CheckerState<'a> {
                     unreachable!("kind/data agree");
                 };
                 if data.name_type.is_none() && data.r#type == Some(node) {
+                    // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a
                     return Err(Unsupported::new(
                         "mapped conditional-flow substitution (homomorphic numeric-key constraint, M8-stub)",
                     ));
@@ -263,12 +265,17 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::TypeQuery => self.get_type_from_type_query_node(node),
             SyntaxKind::IndexedAccessType => self.get_type_from_indexed_access_type_node(node),
             SyntaxKind::MappedType => {
+                // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a
                 Err(Unsupported::new("mapped types (unported family, M8-stub)"))
             }
-            SyntaxKind::ConditionalType => Err(Unsupported::new(
-                "conditional types (unported family, M8-stub)",
-            )),
+            SyntaxKind::ConditionalType => {
+                // tsc-dormant: canary=conditional_type_model_constructibility; owner=9.6a
+                Err(Unsupported::new(
+                    "conditional types (unported family, M8-stub)",
+                ))
+            }
             SyntaxKind::InferType => {
+                // tsc-dormant: canary=infer_type_model_constructibility; owner=9.6c
                 Err(Unsupported::new("infer types (unported family, M8-stub)"))
             }
             SyntaxKind::ImportType => self.get_type_from_import_type_node(node),
@@ -1342,7 +1349,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:63133-63159
     ///
     /// The JS prototype-assignment and JSDoc host arms are elided
-    /// project-wide; isJSConstructor is constant-false in TS files.
+    /// project-wide; isJSConstructor is always false in TS files.
     fn get_this_type(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         let source = self.binder.source_of_node(node);
         let container = tsrs2_binder::node_util::get_this_container(
@@ -3969,8 +3976,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4efebd5c35e02f1f53bfcd54aa9955ee5eb856bb8adf1f3eb97fd73ea5c2e397
     /// tsc-span: _tsc.js:57310-57318
     ///
-    /// isGenericMappedType is constant-false before M8 mapped types.
+    /// isGenericMappedType stays false until mapped types are
+    /// constructible.
     pub(crate) fn is_valid_base_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+        // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a; reason=isValidBaseType generic mapped branch
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
             if let Some(constraint) = self.get_base_constraint_of_type(ty)? {
@@ -5858,9 +5867,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: af4172bba24054af84a69a5df992b6bcffaab2b93b0faa85a33bdf84430b543a
     /// tsc-span: _tsc.js:60053-60055
     ///
-    /// The isGenericType exclusion in the intersection arm is
-    /// constant-false in M3 (no type variables).
+    /// The isGenericType exclusion in the intersection arm remains
+    /// false until generic conditional/mapped types are constructible.
     pub(crate) fn is_valid_index_key_type(&self, key_type: TypeId) -> bool {
+        // tsc-dormant: canary=conditional_type_model_constructibility; owner=9.6a; reason=isValidIndexKeyType generic intersection exclusion
         let flags = self.tables.flags_of(key_type);
         if flags.intersects(TypeFlags::STRING | TypeFlags::NUMBER | TypeFlags::ES_SYMBOL) {
             return true;

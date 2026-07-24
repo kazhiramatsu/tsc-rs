@@ -486,8 +486,8 @@ impl<'a> CheckerState<'a> {
             }
             return Ok(true);
         }
-        // TS source files (isSourceFileJS is constant-false: JS
-        // checking unmodeled).
+        // TS source files (isSourceFileJS is always false: JS checking
+        // remains unmodeled).
         Ok(self.has_export_assignment_symbol(module_symbol))
     }
 
@@ -5642,7 +5642,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 2d0f81291dd10b3cf351c83edab8f11522efad0f2939cece56fa438d6e8cec05
     /// tsc-span: _tsc.js:86505-86542
     ///
-    /// isDuplicatedCommonJSExport is JS-only (constant-false).
+    /// isDuplicatedCommonJSExport is JS-only and always false here.
     pub(crate) fn check_external_module_exports(&mut self, container: NodeId) -> CheckResult2<()> {
         let Some(module_symbol) = self.binder.node_symbol(container) else {
             return Ok(());

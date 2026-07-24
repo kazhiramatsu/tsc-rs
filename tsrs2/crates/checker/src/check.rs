@@ -148,8 +148,8 @@ impl<'a> CheckerState<'a> {
     /// - the PartiallyTypeChecked restore block: nodesToCheck path.
     /// - registerForUnusedIdentifiersCheck + the addLazyDiagnostic
     ///   unused-identifiers block: noUnusedLocals/noUnusedParameters
-    ///   are absent from CompilerOptions, so unusedIsError is
-    ///   constant-false — the band is inert until M7 models the
+    ///   are absent from CompilerOptions, so unusedIsError remains
+    ///   false — the band is inert until M7 models the
     ///   options. checkPotentialUncheckedRenamedBindingElementsInTypes
     ///   shares that addLazyDiagnostic block but is NOT option-gated —
     ///   live from 5.8a (eager identity keeps tsc's order: it runs
@@ -1943,7 +1943,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 12a5060787f6d1849d7f77ba2d3beb1f786fb8263e2fcd929c49d5c9673375e4
     /// tsc-span: _tsc.js:81924-81940
     ///
-    /// getTypeFromMappedTypeNode is the annotate.rs M8-stub: when the
+    /// getTypeFromMappedTypeNode is the annotate.rs mapped-model
+    /// boundary: when the
     /// resolver escapes, the nameType/constraint rows escape with it —
     /// the grammar, recursion and reportImplicitAny rows above still
     /// fire (§11 containment note).
@@ -2010,8 +2011,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 8b19e799fa6c783fd212472aae2cac4d26d0969e145ab225d79ef608e80dd573
     /// tsc-span: _tsc.js:81954-81956
     ///
-    /// forEachChild recursion ONLY — the M8-stub stays on the annotate
-    /// side, no self-force here.
+    /// forEachChild recursion ONLY — the conditional-model boundary
+    /// stays on the annotate side, with no self-force here.
     fn check_conditional_type(&mut self, node: NodeId) -> CheckResult2<()> {
         let source = self.binder.source_of_node(node);
         let mut children = Vec::new();

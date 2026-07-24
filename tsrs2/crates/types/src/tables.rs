@@ -2223,10 +2223,10 @@ impl TypeTables {
             return self.intrinsics.string;
         }
         if new_types.is_empty() {
-            // D1a dormant-assumption census candidate (9.4): this is a
-            // silent UTF-16 -> Rust String boundary. For example,
-            // `\uD800${"a"}` folds to a string literal containing U+FFFD.
-            // The related explicit M8 escape is structural::utf16_to_string.
+            // tsc-dormant: canary=template_literal_utf16_fold_constructibility; owner=M8; reason=template literal constant fold crosses a lossy UTF-16 to Rust String boundary
+            // For example, `\uD800${"a"}` folds to a string literal
+            // containing U+FFFD. The related explicit M8 escape is
+            // structural::utf16_to_string.
             return self.get_string_literal_type(&text.to_string_lossy());
         }
         new_texts.push(text);

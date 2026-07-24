@@ -42,6 +42,8 @@ Run:
 ```sh
 cargo xtask codegen band-inventory --by-function --band all
 cargo xtask codegen band-inventory --by-function --band all --check
+cargo xtask port-plan --declaration <d2:id>
+cargo xtask port-plan --diagnostic-json <exact-identity.json>
 ```
 
 `m8-emitter-inventory.json` pins the vendor and uses D2 exact declaration

@@ -27,6 +27,7 @@ pub use families::{
     check as families_check, report as families_report,
     verify_report_freshness as families_verify_report,
 };
+pub use identity::ExactIdentity;
 pub use scope::audit as scope_audit;
 use scope::ScopeManifest;
 pub use shadow_diff::{
@@ -35,6 +36,85 @@ pub use shadow_diff::{
 };
 
 pub type ConformanceResult<T> = Result<T, Box<dyn Error>>;
+
+/// Resolve one exact schema-2 oracle occurrence against the committed
+/// golden that owns it. D2a's `port-plan` consumes this rather than
+/// accepting a code-only selector that could conflate duplicate rows.
+pub fn resolve_exact_oracle_identity(
+    workspace: &Path,
+    identity: &ExactIdentity,
+) -> ConformanceResult<GoldenDiag> {
+    let golden = read_golden(&workspace.join("goldens"), &identity.fixture)?;
+    let case = golden
+        .cases
+        .iter()
+        .find(|case| case.matrix_key == identity.matrix_key)
+        .ok_or_else(|| {
+            format!(
+                "exact diagnostic {} has no golden matrix case",
+                identity.label()
+            )
+        })?;
+    let identities =
+        identity::assign_case_identities(&identity.fixture, &identity.matrix_key, &case.oracle)?;
+    let mut matches = identities
+        .iter()
+        .enumerate()
+        .filter(|(_, candidate)| *candidate == identity);
+    let Some((index, _)) = matches.next() else {
+        return Err(format!(
+            "stale exact diagnostic {}: no committed oracle occurrence carries it",
+            identity.label()
+        )
+        .into());
+    };
+    if matches.next().is_some() {
+        return Err(format!(
+            "ambiguous exact diagnostic {}: occurrence identity resolved more than once",
+            identity.label()
+        )
+        .into());
+    }
+    Ok(case.oracle[index].clone())
+}
+
+/// Complete, uncapped fixture evidence for a set of diagnostic codes.
+/// This is intentionally a human planning query rather than a CI path:
+/// it reads the committed schema-2 goldens and returns every fixture
+/// carrying at least one requested oracle row.
+pub fn oracle_fixtures_for_codes(
+    workspace: &Path,
+    codes: &BTreeSet<u32>,
+) -> ConformanceResult<BTreeMap<u32, Vec<String>>> {
+    let mut evidence = codes
+        .iter()
+        .map(|&code| (code, BTreeSet::new()))
+        .collect::<BTreeMap<_, _>>();
+    if codes.is_empty() {
+        return Ok(BTreeMap::new());
+    }
+    let fixtures = select_fixtures(&RefreshOptions {
+        workspace: workspace.to_owned(),
+        limit: None,
+        files: Vec::new(),
+    })?;
+    let goldens_root = workspace.join("goldens");
+    for fixture in fixtures {
+        let key = fixture_key(workspace, &fixture)?;
+        let golden = read_golden(&goldens_root, &key)?;
+        for case in golden.cases {
+            for diagnostic in case.oracle {
+                if let Some(fixtures) = evidence.get_mut(&diagnostic.code) {
+                    fixtures.insert(key.clone());
+                }
+            }
+        }
+    }
+    Ok(evidence
+        .into_iter()
+        .map(|(code, fixtures)| (code, fixtures.into_iter().collect()))
+        .collect())
+}
 
 /// The 2XXX diagnostic code range — the single source for the A1
 /// `2xxx` view and the A2 band pin/census code checks.

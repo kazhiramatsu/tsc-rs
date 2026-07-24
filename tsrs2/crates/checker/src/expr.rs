@@ -417,8 +417,8 @@ impl<'a> CheckerState<'a> {
     ///
     /// The 2748 ambient-const-enum arm is gated on `isolatedModules ||
     /// (verbatimModuleSyntax && ...)` — both options are absent from
-    /// CompilerOptions, so the whole second block is constant-false
-    /// and elided (its resolveName probe and redirect chase with it).
+    /// CompilerOptions, so the whole second block remains false and
+    /// is elided (its resolveName probe and redirect chase with it).
     /// Note tsc does NOT early-return after the 2475 emission.
     fn check_const_enum_access(&mut self, node: NodeId, _ty: TypeId) {
         let parent = self.parent_of(node);
@@ -1525,14 +1525,15 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 08613f8018f28889de94abc11ac1bde0cf82fcae244ea2813d7674cf36969b91
     /// tsc-span: _tsc.js:71640-71646
     ///
-    /// isNoInferType is constant-false (NoInfer substitution types are
-    /// unconstructible until M8).
+    /// isNoInferType remains false until NoInfer substitution types
+    /// are constructible.
     pub(crate) fn get_narrowable_type_for_reference(
         &mut self,
         ty: TypeId,
         reference: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult2<TypeId> {
+        // tsc-dormant: canary=substitution_type_model_constructibility; owner=9.6a; reason=getNarrowableTypeForReference NoInfer substitution arm
         let substitute_constraints = !check_mode.intersects(CheckMode::INFERENTIAL)
             && self.some_type_result(ty, |state, t| {
                 state.is_generic_type_with_union_constraint(t)
@@ -1799,7 +1800,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// findLast over the declarations with isAliasSymbolDeclaration.
     /// The JS arms (assignment-declaration/require shapes) are the M2
-    /// 3.4c residual — constant-false in TS files.
+    /// 3.4c residual and are always false in TS files.
     pub(crate) fn get_declaration_of_alias_symbol(&self, symbol: SymbolId) -> Option<NodeId> {
         let declarations = self.binder.symbol(symbol).declarations.clone();
         declarations
