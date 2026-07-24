@@ -670,10 +670,6 @@ name = "set_type_declared_members"
 
 [[fn]]
 file = "crates/checker/src/links.rs"
-name = "set_type_deferred_reference_links"
-
-[[fn]]
-file = "crates/checker/src/links.rs"
 name = "set_type_immediate_base_constraint"
 
 [[fn]]
@@ -703,10 +699,6 @@ name = "set_type_parameter_mapper"
 [[fn]]
 file = "crates/checker/src/links.rs"
 name = "set_type_parameter_target"
-
-[[fn]]
-file = "crates/checker/src/links.rs"
-name = "set_type_pattern"
 
 [[fn]]
 file = "crates/checker/src/links.rs"

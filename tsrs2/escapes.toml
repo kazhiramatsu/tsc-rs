@@ -776,27 +776,6 @@ reason = "tsc-crash deviation: undefined middle-slice source against a type-vari
 class = "recovery"
 
 [[site]]
-file = "crates/checker/src/inference.rs"
-in = "infer_from_types"
-reason = "inferFromTypes Substitution-source relation arm (9.6d/M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/inference.rs"
-in = "infer_to_conditional_type"
-reason = "inferToConditionalType relation body (9.6d/M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/inference.rs"
-in = "is_type_parameter_at_top_level"
-reason = "isTypeParameterAtTopLevel conditional relation walk (9.6d/M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
 file = "crates/checker/src/iterate.rs"
 in = "get_iterated_type_or_element_type"
 reason = "iteration face over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
@@ -986,13 +965,6 @@ file = "crates/checker/src/operators.rs"
 in = "check_array_literal_destructuring_element_assignment"
 reason = "spread element without expression (parse-recovery tree)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "check_assertion_deferred"
-reason = "assertion deferred without a stashed operand type (speculation-ADOPTION seam: zero production begin_speculation sites at M6 close; the stash joins the deferred_nodes survive-set when adoption lands, M8)"
-class = "stage"
-owner = "M8"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
@@ -1203,22 +1175,6 @@ file = "crates/checker/src/statements.rs"
 in = "check_variable_statement"
 reason = "VariableStatement recovery node"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/structural.rs"
-in = "structured_type_related_to_worker"
-reason = "conditional sources (relation/inference, 9.6d)"
-class = "dormant-assumption"
-owner = "9.6d"
-canary = "conditional_relation"
-
-[[site]]
-file = "crates/checker/src/structural.rs"
-in = "structured_type_related_to_worker"
-reason = "conditional targets (relation/inference, 9.6d)"
-class = "dormant-assumption"
-owner = "9.6d"
-canary = "conditional_relation"
 
 [[site]]
 file = "crates/checker/src/structural.rs"

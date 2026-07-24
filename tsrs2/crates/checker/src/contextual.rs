@@ -3042,11 +3042,8 @@ impl<'a> CheckerState<'a> {
             } else {
                 union_param_type
             };
-            self.links.set_symbol_type(
-                self.speculation_depth,
-                param_symbol,
-                crate::links::LinkSlot::Resolved(param_type),
-            );
+            self.links
+                .set_fresh_symbol_type(param_symbol, crate::links::LinkSlot::Resolved(param_type));
             params.push(param_symbol);
         }
         if needs_extra_rest_element {
@@ -3063,8 +3060,7 @@ impl<'a> CheckerState<'a> {
             if shorter == right {
                 rest_type = self.instantiate_type(rest_type, mapper)?;
             }
-            self.links.set_symbol_type(
-                self.speculation_depth,
+            self.links.set_fresh_symbol_type(
                 rest_param_symbol,
                 crate::links::LinkSlot::Resolved(rest_type),
             );

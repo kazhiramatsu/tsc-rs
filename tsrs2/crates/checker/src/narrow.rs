@@ -38,11 +38,8 @@ impl<'a> CheckerState<'a> {
     /// while speculation_depth is constant 0 — the M6 speculation
     /// transaction must trip HERE, not silently memoize a
     /// speculative value.
-    fn assert_narrow_cache_writable(&self) {
-        assert_eq!(
-            self.speculation_depth, 0,
-            "narrow-cache writes are forbidden during speculation (greenfield §4.3)"
-        );
+    fn narrow_cache_writable(&self) -> bool {
+        self.speculation_depth == 0
     }
 
     /// tsc-port: narrowType @6.0.3
@@ -1933,9 +1930,10 @@ impl<'a> CheckerState<'a> {
         for clause in clauses {
             types.push(self.get_type_of_switch_clause(clause)?);
         }
-        self.assert_narrow_cache_writable();
-        self.switch_types_cache
-            .insert(switch_statement, types.clone());
+        if self.narrow_cache_writable() {
+            self.switch_types_cache
+                .insert(switch_statement, types.clone());
+        }
         Ok(types)
     }
 
@@ -2346,20 +2344,24 @@ impl<'a> CheckerState<'a> {
             return Ok(cached);
         }
         if self.exhaustive_switch_computing.contains(&switch_statement) {
-            self.assert_narrow_cache_writable();
-            self.exhaustive_switch_cache.insert(switch_statement, false);
+            if self.narrow_cache_writable() {
+                self.exhaustive_switch_cache.insert(switch_statement, false);
+            }
             return Ok(false);
         }
         self.exhaustive_switch_computing.insert(switch_statement);
         let computed = self.compute_exhaustive_switch_statement(switch_statement);
         self.exhaustive_switch_computing.remove(&switch_statement);
         let computed = computed?;
-        self.assert_narrow_cache_writable();
-        let result = *self
-            .exhaustive_switch_cache
-            .entry(switch_statement)
-            .or_insert(computed);
-        Ok(result)
+        if self.narrow_cache_writable() {
+            let result = *self
+                .exhaustive_switch_cache
+                .entry(switch_statement)
+                .or_insert(computed);
+            Ok(result)
+        } else {
+            Ok(computed)
+        }
     }
 
     /// tsc-port: computeExhaustiveSwitchStatement @6.0.3
@@ -2842,8 +2844,9 @@ impl<'a> CheckerState<'a> {
                 result = Some(candidate);
             }
         }
-        self.assert_narrow_cache_writable();
-        self.effects_signature_cache.insert(node, result);
+        if self.narrow_cache_writable() {
+            self.effects_signature_cache.insert(node, result);
+        }
         Ok(result)
     }
 
@@ -3134,9 +3137,10 @@ impl<'a> CheckerState<'a> {
             return Ok(cached.clone());
         }
         let result = self.compute_type_predicate_of_signature(signature)?;
-        self.assert_narrow_cache_writable();
-        self.resolved_type_predicates
-            .insert(signature, result.clone());
+        if self.narrow_cache_writable() {
+            self.resolved_type_predicates
+                .insert(signature, result.clone());
+        }
         Ok(result)
     }
 
@@ -3214,8 +3218,9 @@ impl<'a> CheckerState<'a> {
         // body's own calls close the loop); the pre-seeded memo
         // answers "no predicate" instead of recursing. The outer
         // get_type_predicate_of_signature overwrites with the result.
-        self.assert_narrow_cache_writable();
-        self.resolved_type_predicates.insert(signature, None);
+        if self.narrow_cache_writable() {
+            self.resolved_type_predicates.insert(signature, None);
+        }
         self.get_type_predicate_from_body(declaration)
     }
 

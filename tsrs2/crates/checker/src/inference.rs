@@ -87,7 +87,7 @@ pub(crate) struct IntraExpressionInferenceSite {
 /// compareSignaturesRelated's relation-frame worker rides
 /// instantiateSignatureInContextOf (64507, the M6 7.5 head rebuild)
 /// and checkTypeRelatedTo's infer-source context passes its own
-/// isRelatedToWorker (66368, M8 conditionals).
+/// isRelatedToWorker (66368; conditional relation is live since 9.6d).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum CompareTypesFn {
     /// compareTypesAssignable — consumed by getInferredType's
@@ -591,8 +591,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 8fc9224bccca52f75df1302daf69a97ddcc67b5b7d4b5f132424c29be7b9a8d6
     /// tsc-span: _tsc.js:68349-68351
     ///
-    /// The depth<3 conditional-type probe is an M8 escape (the flag is
-    /// unconstructible until conditional types land).
     pub(crate) fn is_type_parameter_at_top_level(
         &mut self,
         ty: TypeId,
@@ -616,9 +614,12 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         if depth < 3 && flags.intersects(TypeFlags::CONDITIONAL) {
-            return Err(Unsupported::new(
-                "isTypeParameterAtTopLevel conditional relation walk (9.6d/M8)",
-            ));
+            let true_type = self.get_true_type_from_conditional_type(ty)?;
+            if self.is_type_parameter_at_top_level(true_type, tp, depth + 1)? {
+                return Ok(true);
+            }
+            let false_type = self.get_false_type_from_conditional_type(ty)?;
+            return self.is_type_parameter_at_top_level(false_type, tp, depth + 1);
         }
         Ok(false)
     }
@@ -696,8 +697,7 @@ impl<'a> CheckerState<'a> {
             let literal_prop = self
                 .binder
                 .create_symbol(SymbolFlags::PROPERTY, name.clone());
-            self.links.set_symbol_type(
-                self.speculation_depth,
+            self.links.set_fresh_symbol_type(
                 literal_prop,
                 LinkSlot::Resolved(self.tables.intrinsics.any),
             );
@@ -1816,7 +1816,8 @@ impl InferTypesWalker<'_, '_> {
     /// invokeOnce at 7.2b, inferToTemplateLiteralType is 7.2c, and the
     /// reduced/apparent object tail (inferFromObjectTypes) is 7.2d —
     /// each a named escape below until its commit. General
-    /// Substitution-source relation stays owned by 9.6d.
+    /// Substitution sources infer first from their base, then from the
+    /// base/constraint intersection at SubstituteSource priority.
     ///
     /// Load-bearing shape notes:
     /// - The TypeVariable block (68701-68769) returns ONLY when an
@@ -2236,12 +2237,15 @@ impl InferTypesWalker<'_, '_> {
                 self.infer_from_types(source_inner, target_inner)?;
             }
         } else if source_flags.intersects(TypeFlags::SUBSTITUTION) {
-            return Err(Unsupported::new(
-                "inferFromTypes Substitution-source relation arm (9.6d/M8)",
-            ));
+            let TypeData::Substitution(data) = self.st.tables.type_of(source).data.clone() else {
+                unreachable!("Substitution flag implies data");
+            };
+            self.infer_from_types(data.base_type, target)?;
+            let intersection = self.st.get_substitution_intersection(source)?;
+            self.infer_with_priority(intersection, target, InferencePriority::SUBSTITUTE_SOURCE)?;
         } else if target_flags.intersects(TypeFlags::CONDITIONAL) {
-            // 68786: routed through invokeOnce (the action body is the
-            // named 9.6d relation escape.
+            // 68786: routed through invokeOnce; conditional inference
+            // is live in infer_to_conditional_type.
             self.invoke_once(source, target, InferAction::ToConditionalType)?;
         } else if target_flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
             let member_types = self.types_of(target);
@@ -2334,7 +2338,6 @@ impl InferTypesWalker<'_, '_> {
     /// tsc-port: inferToMultipleTypesWithPriority @6.0.3
     /// tsc-hash: 4991227f792f48ec39032a10a770ce401747830dfff0986f12a0a54aac743480
     /// tsc-span: _tsc.js:68827-68832
-    #[allow(dead_code)] // sole consumer: inferToConditionalType (69019), owned by 9.6d
     fn infer_to_multiple_types_with_priority(
         &mut self,
         source: TypeId,
@@ -2667,15 +2670,45 @@ impl InferTypesWalker<'_, '_> {
     /// tsc-hash: bf377141643390f5d80731fa855630df43df7fee74e32c6d56c2fbb8fea2f7aa
     /// tsc-span: _tsc.js:69011-69021
     ///
-    /// Phase 9.6d owns the checkType/extendsType/true/false inference
-    /// reads and the ContravariantConditional split. The
-    /// inferToMultipleTypesWithPriority helper it dispatches through
-    /// is already ported above.
     fn infer_to_conditional_type(&mut self, source: TypeId, target: TypeId) -> CheckResult2<()> {
-        let _ = (source, target);
-        Err(Unsupported::new(
-            "inferToConditionalType relation body (9.6d/M8)",
-        ))
+        let TypeData::Conditional(target_data) = self.st.tables.type_of(target).data.clone() else {
+            unreachable!("Conditional target flag implies data");
+        };
+        if self
+            .st
+            .tables
+            .flags_of(source)
+            .intersects(TypeFlags::CONDITIONAL)
+        {
+            let TypeData::Conditional(source_data) = self.st.tables.type_of(source).data.clone()
+            else {
+                unreachable!("Conditional source flag implies data");
+            };
+            self.infer_from_types(source_data.check_type, target_data.check_type)?;
+            self.infer_from_types(source_data.extends_type, target_data.extends_type)?;
+            let source_true = self.st.get_true_type_from_conditional_type(source)?;
+            let target_true = self.st.get_true_type_from_conditional_type(target)?;
+            self.infer_from_types(source_true, target_true)?;
+            let source_false = self.st.get_false_type_from_conditional_type(source)?;
+            let target_false = self.st.get_false_type_from_conditional_type(target)?;
+            self.infer_from_types(source_false, target_false)
+        } else {
+            let targets = [
+                self.st.get_true_type_from_conditional_type(target)?,
+                self.st.get_false_type_from_conditional_type(target)?,
+            ];
+            let priority = if self.contravariant {
+                InferencePriority::CONTRAVARIANT_CONDITIONAL
+            } else {
+                InferencePriority::NONE
+            };
+            self.infer_to_multiple_types_with_priority(
+                source,
+                &targets,
+                self.st.tables.flags_of(target),
+                priority,
+            )
+        }
     }
 
     /// tsc-port: inferToTemplateLiteralType @6.0.3
@@ -4104,7 +4137,7 @@ mod tests {
     }
 
     #[test]
-    fn fixing_dispatch_mid_drain_unwind_keeps_sites_and_fix_pending() {
+    fn fixing_dispatch_drains_conditional_context_and_fixes() {
         with_program_state(
             &[(
                 "a.ts",
@@ -4118,25 +4151,17 @@ mod tests {
                 let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
                 state.add_intra_expression_inference_site(ctx, literal, string);
                 let fixing = state.inference_context(ctx).mapper;
-                // The annotated initializer HAS a contextual type
-                // whose inference unwinds (inferToConditionalType
-                // remains the 9.6d boundary), so the drain Errs
-                // mid-loop, BEFORE the 68297 clear and the 68265 fix.
-                // (A resolvable annotation no longer unwinds here:
-                // 7.2's inferTypes returns Ok for variable-free
-                // targets, so this pin rides the 9.6d escape until
-                // conditional inference lands — re-point it then.)
-                let err = state.get_mapped_type(t, fixing).expect_err("9.6d escape");
-                assert!(
-                    err.reason.contains("inferToConditionalType relation body"),
-                    "{}",
-                    err.reason
-                );
+                // 9.6d: the conditional target is a live inference
+                // shape, so the drain completes before fixing T.
+                let resolved = state
+                    .get_mapped_type(t, fixing)
+                    .expect("conditional inference drains");
+                assert_eq!(resolved, state.tables.intrinsics.unknown);
                 assert!(state
                     .inference_context(ctx)
                     .intra_expression_inference_sites
-                    .is_some());
-                assert!(!slot(state, ctx, 0).is_fixed);
+                    .is_none());
+                assert!(slot(state, ctx, 0).is_fixed);
             },
         );
     }
@@ -5214,6 +5239,120 @@ mod tests {
                 assert_eq!(
                     state.inference_info(info).candidates.as_deref(),
                     Some(&[string][..])
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn substitution_source_uses_its_intersection_at_substitute_priority() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T>() {\n\
+                 var base: { v: string };\n\
+                 var constraint: { w: number };\n\
+                 var target: { w: T };\n\
+                 }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let base_node = annotation_of_var(state, "base");
+                let constraint_node = annotation_of_var(state, "constraint");
+                let target_node = annotation_of_var(state, "target");
+                let base = state.get_type_from_type_node(base_node).expect("base");
+                let constraint = state
+                    .get_type_from_type_node(constraint_node)
+                    .expect("constraint");
+                let target = state.get_type_from_type_node(target_node).expect("target");
+                let source = state
+                    .tables
+                    .get_or_create_substitution_type(base, constraint);
+                let info = detached_info(state, t);
+
+                state
+                    .infer_types(&[info], source, target, InferencePriority::NONE, false)
+                    .expect("substitution inference");
+                let info = state.inference_info(info);
+                assert_eq!(
+                    info.candidates.as_deref(),
+                    Some(&[state.tables.intrinsics.number][..])
+                );
+                assert_eq!(
+                    info.priority,
+                    Some(InferencePriority::SUBSTITUTE_SOURCE),
+                    "only the substitution intersection contains target property `w`"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn conditional_pair_infers_from_both_branches() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T, U>() {\n\
+                 var source: U extends string ? { value: string } : { value: number };\n\
+                 var target: U extends string ? { value: T } : { value: T };\n\
+                 }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let source_node = annotation_of_var(state, "source");
+                let target_node = annotation_of_var(state, "target");
+                let source = state.get_type_from_type_node(source_node).expect("source");
+                let target = state.get_type_from_type_node(target_node).expect("target");
+                let info = detached_info(state, t);
+
+                state
+                    .infer_types(&[info], source, target, InferencePriority::NONE, false)
+                    .expect("conditional-pair inference");
+                let info = state.inference_info(info);
+                assert_eq!(
+                    info.candidates.as_deref(),
+                    Some(
+                        &[
+                            state.tables.intrinsics.string,
+                            state.tables.intrinsics.number
+                        ][..]
+                    )
+                );
+                assert_eq!(info.priority, Some(InferencePriority::NONE));
+            },
+        );
+    }
+
+    #[test]
+    fn contravariant_nonconditional_source_uses_conditional_priority() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T, U>() {\n\
+                 var target: U extends string ? T : T;\n\
+                 }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let t = declared_type_parameter(state, "T");
+                let target_node = annotation_of_var(state, "target");
+                let target = state.get_type_from_type_node(target_node).expect("target");
+                let info = detached_info(state, t);
+                let string = state.tables.intrinsics.string;
+
+                state
+                    .infer_types(&[info], string, target, InferencePriority::NONE, true)
+                    .expect("contravariant conditional inference");
+                let info = state.inference_info(info);
+                assert_eq!(info.contra_candidates.as_deref(), Some(&[string][..]));
+                assert_eq!(
+                    info.priority,
+                    Some(
+                        InferencePriority::CONTRAVARIANT_CONDITIONAL
+                            | InferencePriority::NAKED_TYPE_VARIABLE
+                    )
                 );
             },
         );

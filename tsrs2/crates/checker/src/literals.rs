@@ -896,11 +896,8 @@ impl<'a> CheckerState<'a> {
                         prop_symbol.value_declaration = Some(value_declaration);
                     }
                 }
-                self.links.set_symbol_type(
-                    self.speculation_depth,
-                    prop,
-                    crate::links::LinkSlot::Resolved(ty),
-                );
+                self.links
+                    .set_fresh_symbol_type(prop, crate::links::LinkSlot::Resolved(ty));
                 self.links
                     .set_symbol_target(self.speculation_depth, prop, member_sym);
                 member = prop;
@@ -1104,8 +1101,7 @@ impl<'a> CheckerState<'a> {
             object_flags,
         );
         if acc.in_destructuring_pattern {
-            self.links
-                .set_type_pattern(self.speculation_depth, id, node);
+            self.links.set_fresh_type_pattern(id, node);
         }
         Ok(id)
     }
@@ -1136,11 +1132,8 @@ impl<'a> CheckerState<'a> {
             construct_signatures: Vec::new(),
             index_infos,
         });
-        self.links.set_type_members(
-            self.speculation_depth,
-            id,
-            crate::links::LinkSlot::Resolved(members_id),
-        );
+        self.links
+            .set_fresh_type_members(id, crate::links::LinkSlot::Resolved(members_id));
         id
     }
 
@@ -1325,11 +1318,8 @@ impl<'a> CheckerState<'a> {
                     self.tables
                         .add_optionality(prop_type, /*is_property*/ true, true)
                 };
-                self.links.set_symbol_type(
-                    self.speculation_depth,
-                    result,
-                    crate::links::LinkSlot::Resolved(result_type),
-                );
+                self.links
+                    .set_fresh_symbol_type(result, crate::links::LinkSlot::Resolved(result_type));
                 let declarations = self.binder.symbol(prop).declarations.clone();
                 self.binder.symbol_mut(result).declarations = declarations;
                 let name_type = self.links.symbol(prop).name_type;
@@ -1515,8 +1505,7 @@ impl<'a> CheckerState<'a> {
                             UnionReduction::Subtype,
                         )?
                     };
-                    self.links.set_symbol_type(
-                        self.speculation_depth,
+                    self.links.set_fresh_symbol_type(
                         result,
                         crate::links::LinkSlot::Resolved(result_type),
                     );
@@ -1627,11 +1616,8 @@ impl<'a> CheckerState<'a> {
         } else {
             self.get_type_of_symbol(prop)?
         };
-        self.links.set_symbol_type(
-            self.speculation_depth,
-            result,
-            crate::links::LinkSlot::Resolved(result_type),
-        );
+        self.links
+            .set_fresh_symbol_type(result, crate::links::LinkSlot::Resolved(result_type));
         let declarations = self.binder.symbol(prop).declarations.clone();
         self.binder.symbol_mut(result).declarations = declarations;
         let name_type = self.links.symbol(prop).name_type;

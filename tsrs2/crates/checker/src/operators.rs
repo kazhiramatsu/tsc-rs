@@ -2428,14 +2428,7 @@ impl<'a> CheckerState<'a> {
             .links
             .node(node)
             .assertion_expression_type
-            .ok_or_else(|| {
-                Unsupported::new(
-                    "assertion deferred without a stashed operand type \
-                     (speculation-ADOPTION seam: zero production begin_speculation \
-                     sites at M6 close; the stash joins the deferred_nodes \
-                     survive-set when adoption lands, M8)",
-                )
-            })?;
+            .expect("every deferred assertion keeps its stashed operand type across trials");
         let base = self.get_base_type_of_literal_type(stashed)?;
         let expr_type = self.get_regular_type_of_object_literal(base)?;
         let target_type = self.get_type_from_type_node(type_node)?;
@@ -2751,23 +2744,16 @@ impl<'a> CheckerState<'a> {
                     construct_signatures: instantiated_construct,
                     index_infos,
                 });
-                self.links.set_type_members(
-                    self.speculation_depth,
-                    result,
-                    crate::links::LinkSlot::Resolved(members_id),
-                );
+                self.links
+                    .set_fresh_type_members(result, crate::links::LinkSlot::Resolved(members_id));
                 // tsc stamps result.node = node (77999): the same
                 // type.node field deferred references ride, so it
                 // shares the deferred_node slot —
                 // getObjectTypeInstantiation selects it as the
                 // declaration (63464) and instantiateAnonymousType
                 // propagates it to Instantiated copies (63649-63651).
-                self.links.set_type_deferred_reference_links(
-                    self.speculation_depth,
-                    result,
-                    node,
-                    None,
-                );
+                self.links
+                    .set_fresh_type_deferred_reference_links(result, node, None);
                 return Ok(result);
             }
             return Ok(ty);

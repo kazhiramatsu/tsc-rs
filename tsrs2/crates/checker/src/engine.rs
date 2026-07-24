@@ -22,8 +22,8 @@
 use std::collections::HashSet;
 
 use tsrs2_types::{
-    ExpandingFlags, IntersectionState, ObjectFlags, RecursionFlags, RelationComparisonResult,
-    SymbolFlags, Ternary, TypeData, TypeFlags, TypeId, UnionReduction,
+    ConditionalRootId, ExpandingFlags, IntersectionState, ObjectFlags, RecursionFlags,
+    RelationComparisonResult, SymbolFlags, Ternary, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
 use tsrs2_syntax::NodeId;
@@ -2544,11 +2544,8 @@ impl<'a> CheckerState<'a> {
         self.tables.type_mut(regular).object_flags = ObjectFlags::from_bits(object_flags);
         self.tables.type_mut(regular).symbol = symbol;
         self.tables.type_mut(regular).regular_type = Some(regular);
-        self.links.set_type_members(
-            self.speculation_depth,
-            regular,
-            crate::links::LinkSlot::Resolved(members_id),
-        );
+        self.links
+            .set_fresh_type_members(regular, crate::links::LinkSlot::Resolved(members_id));
         self.tables.type_mut(ty).regular_type = Some(regular);
         Ok(regular)
     }
@@ -3029,8 +3026,7 @@ impl<'a> CheckerState<'a> {
     /// (constraints.rs attaches them; the old "symbol-less
     /// synthetics" claim is false), so instantiation clones never
     /// unify and deep generic recursion can overflow into a wrong
-    /// False. The Conditional arm (type.root) stays out with
-    /// conditional types themselves.
+    /// False.
     pub(crate) fn get_recursion_identity(&self, ty: TypeId) -> RecursionIdentity {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::OBJECT) && !self.is_object_or_array_literal_type(ty) {
@@ -3070,6 +3066,12 @@ impl<'a> CheckerState<'a> {
                 current = object_type;
             }
             return RecursionIdentity::Type(current);
+        }
+        if flags.intersects(TypeFlags::CONDITIONAL) {
+            let TypeData::Conditional(data) = &self.tables.type_of(ty).data else {
+                unreachable!("conditional flag implies conditional data");
+            };
+            return RecursionIdentity::ConditionalRoot(data.root);
         }
         RecursionIdentity::Type(ty)
     }
@@ -3190,6 +3192,9 @@ impl<'a> CheckerState<'a> {
 pub(crate) enum RecursionIdentity {
     Symbol(tsrs2_binder::SymbolId),
     Type(TypeId),
+    /// Every mapper-carrying instance of one conditional root shares
+    /// the recursion identity used by inferTypes' expansion guard.
+    ConditionalRoot(ConditionalRootId),
     /// Deferred references key on their node (67509-67511): every
     /// mapper-carrying instance over the same annotation shares one
     /// identity, distinct nodes over the same interface do not.

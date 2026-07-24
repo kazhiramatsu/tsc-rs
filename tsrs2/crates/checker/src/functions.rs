@@ -526,8 +526,11 @@ impl<'a> CheckerState<'a> {
                 )
         });
         let mut ty = self.tables.add_optionality(base, false, is_optional);
-        self.links
-            .set_symbol_type(self.speculation_depth, parameter, LinkSlot::Resolved(ty));
+        self.links.set_symbol_type_contextual(
+            self.speculation_depth,
+            parameter,
+            LinkSlot::Resolved(ty),
+        );
         if let Some(declaration) = declaration {
             let name = match self.data_of(declaration) {
                 NodeData::Parameter(data) => data.name,
@@ -538,7 +541,7 @@ impl<'a> CheckerState<'a> {
                 if self.kind_of(name) != SyntaxKind::Identifier {
                     if ty == self.tables.intrinsics.unknown {
                         ty = self.get_type_from_binding_pattern(name, false, false)?;
-                        self.links.set_symbol_type(
+                        self.links.set_symbol_type_contextual(
                             self.speculation_depth,
                             parameter,
                             LinkSlot::Resolved(ty),
