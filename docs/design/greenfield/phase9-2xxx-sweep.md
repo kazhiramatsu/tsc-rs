@@ -2802,6 +2802,33 @@ Checker tests are **1,019**. Escape evidence is unchanged at
 sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
 Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9g results (2026-07-25, exact mixed-JS name misses — DONE)
+
+The name-resolution failure tail no longer treats the mere presence
+of any JavaScript program file as evidence that every missing name
+could be supplied by unmaterialized JSDoc. Suppression is now limited
+to exact JSDoc `@typedef`/`@callback` declaration names (including
+balanced nested type-literal braces), JS prototype-assignment roots,
+and the implicit JS `require` symbol. Definite misses in mixed JS/TS
+programs therefore reach the existing alternate-diagnostic ladder.
+Checked-JS publication selects only the final name diagnostic's code,
+so nested suggestion/module probes cannot leak unrelated rows.
+
+This closes **67** supported rows: 2304×57 (including all 50
+ArrowFunctionExpressions rows), 2591×7, 2503×2, and 2552×1. 2xxx T0
+grows to **20299/21051** (**96.4277%**) with FP=0; supported T0 is
+**20299/20504** (**99.0002%**) with supported FN=**205**. All-band T0
+is **31221/49024** (**63.6851%**) with FP=0. T1/T2 report lost=0,
+gained=**67** in both bands and both scope views; T3 reports lost=0,
+gained=**66** because the newly reached 2552 has pre-existing
+message-level drift. The accepted-set ratchet adds 67 T0 identities
+and 67 multiplicity-complete identities to both all and 2xxx;
+syntactic is unchanged.
+
+Checker tests are **1,020**. Escape evidence is unchanged at
+sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
+Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

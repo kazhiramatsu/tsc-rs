@@ -1837,12 +1837,13 @@ impl<'a> CheckerState<'a> {
         Ok(resolved)
     }
 
-    /// Exact-name provenance shield for JSDoc type declarations in a
-    /// JS source. The syntax arena does not materialize JSDoc nodes,
-    /// so this recognizes only the declaration-name slot of
-    /// `@typedef {T} Name` and `@callback Name`; it never treats names
-    /// appearing inside the type expression as declarations.
-    fn source_has_jsdoc_type_name(&self, file_index: usize, name: &str) -> bool {
+    /// tsrs-native: exact-name provenance shield for JSDoc type
+    /// declarations in a JS source. The syntax arena does not
+    /// materialize JSDoc nodes, so this recognizes only the
+    /// declaration-name slot of `@typedef {T} Name` and
+    /// `@callback Name`; it never treats names appearing inside the
+    /// type expression as declarations.
+    pub(crate) fn source_has_jsdoc_type_name(&self, file_index: usize, name: &str) -> bool {
         let text = &self.binder.source(file_index).text;
         let mut cursor = 0usize;
         while let Some(relative_start) = text[cursor..].find("/**") {
@@ -1862,7 +1863,22 @@ impl<'a> CheckerState<'a> {
                         character.is_whitespace() || character == '*'
                     });
                     if tag == "@typedef" && declaration_tail.starts_with('{') {
-                        let Some(close) = declaration_tail.find('}') else {
+                        let mut depth = 0usize;
+                        let mut close = None;
+                        for (offset, character) in declaration_tail.char_indices() {
+                            match character {
+                                '{' => depth += 1,
+                                '}' => {
+                                    depth = depth.saturating_sub(1);
+                                    if depth == 0 {
+                                        close = Some(offset);
+                                        break;
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                        let Some(close) = close else {
                             break;
                         };
                         declaration_tail = &declaration_tail[close + 1..];
