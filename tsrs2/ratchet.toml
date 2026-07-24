@@ -180,8 +180,8 @@
 # distributive constraints and homomorphic inference under real
 # rollback-capable overload candidate trials.
 # p9 9.7c adds +1304 by retiring the parser-recovery overload bail.
-rate = 0.625163
-matched = 30648
+rate = 0.62549
+matched = 30664
 total = 49024
 allowed_regression = 0.0
 
@@ -233,8 +233,8 @@ allowed_regression = 0.0
 # p9 9.6c adds +60 conditional-resolution/distribution rows.
 # p9 9.6d adds +43 conditional relation/inference rows.
 # p9 9.7c adds +1097 by retiring the parser-recovery overload bail.
-rate = 0.937248
-matched = 19730
+rate = 0.937818
+matched = 19742
 total = 21051
 allowed_regression = 0.0
 

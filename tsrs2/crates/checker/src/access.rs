@@ -2898,58 +2898,6 @@ impl<'a> CheckerState<'a> {
         containing_type: TypeId,
         is_unchecked_js: bool,
     ) -> CheckResult2<()> {
-        // Expando-member suppression: tsc's binder declares members
-        // for `foo.x = 1` on FUNCTION symbols even in .ts files
-        // (bindSpecialPropertyAssignment 44821), so a lookup of
-        // EXACTLY an assigned name resolves tsc-side while the port
-        // has not bound it (stage 3.4c) — a miss here fabricates
-        // 2339s (nullPropertyName, typeFromPropertyAssignment*;
-        // masked pre-9.3b2 by the fn-display curtain). The binder
-        // records (parent, assigned names); the consult is
-        // NAME-PRECISE — other names miss in tsc too and keep
-        // reporting (`foo.y` / `alias.q` rows are real). SUPPRESS the
-        // report and let the caller produce errorType instead of
-        // Err-containing: this reporter sits inside symbol TYPE
-        // RESOLUTION, and an Unsupported here unwinds through
-        // shared-symbol reads into NEIGHBORING statements (`var n`
-        // redeclared across expando and class statements lost its
-        // REAL class-side 2339s — the set-ratchet caught the 8-row
-        // regression live). errorType keeps tsc's own suppression
-        // semantics downstream; the divergence (tsc types the member
-        // from the assignment) is the recorded stage-3.4c residual —
-        // the ASSIGNMENT faces keep their operators.rs containment.
-        let missed_name = match self.data_of(prop_node) {
-            NodeData::Identifier(data) => Some(data.escaped_text.clone()),
-            _ => None,
-        };
-        if let Some(missed_name) = missed_name {
-            let receiver_symbol = self
-                .parent_of(prop_node)
-                .and_then(|access| match self.data_of(access) {
-                    NodeData::PropertyAccessExpression(data) => data.expression,
-                    NodeData::ElementAccessExpression(data) => data.expression,
-                    _ => None,
-                })
-                .and_then(|receiver| self.links.node(receiver).resolved_symbol.resolved());
-            // Value-flow faces (`f(true).s`, `new.target.marked`,
-            // aliased reads) carry the parent on the CONTAINING
-            // TYPE's symbol instead of the receiver node — consult
-            // both.
-            let candidates = [receiver_symbol, self.tables.type_of(containing_type).symbol];
-            for symbol in candidates.into_iter().flatten() {
-                let covered = self.symbol_expando_covers_merged(symbol, &missed_name)
-                    || self
-                        .binder
-                        .symbol(symbol)
-                        .export_symbol
-                        .is_some_and(|export| {
-                            self.symbol_expando_covers_merged(export, &missed_name)
-                        });
-                if covered {
-                    return Ok(());
-                }
-            }
-        }
         // 6.6f, consult rebuilt at m6 7.6: a NEVER receiver whose
         // reference DECLARES a non-never type went never through OUR
         // narrowing. Genuinely-never receivers (declared never)

@@ -390,6 +390,170 @@ pub fn is_prototype_access(source: &SourceFile, node: NodeId) -> bool {
         && get_element_or_property_access_name(source, node).as_deref() == Some("prototype")
 }
 
+/// tsc getAssignedExpandoInitializer / getExpandoInitializer family.
+///
+/// This is syntax-only and shared with the checker trampoline: for an
+/// assignment LHS it returns the expando initializer on the enclosing
+/// `=`, and for Object.defineProperty it returns a bindable `value`
+/// initializer.
+pub fn get_assigned_expando_initializer(source: &SourceFile, node: NodeId) -> Option<NodeId> {
+    if let Some(parent) = parent_of(source, node) {
+        if let NodeData::BinaryExpression(data) = &source.arena.node(parent).data {
+            let is_equals = data
+                .operator_token
+                .is_some_and(|token| kind_of(source, token) == SyntaxKind::EqualsToken);
+            if is_equals {
+                let name = data.left?;
+                let initializer = data.right?;
+                let is_prototype_assignment = is_prototype_access(source, name);
+                return get_expando_initializer(source, initializer, is_prototype_assignment)
+                    .or_else(|| {
+                        get_defaulted_expando_initializer(
+                            source,
+                            name,
+                            initializer,
+                            is_prototype_assignment,
+                        )
+                    });
+            }
+        }
+    }
+
+    if !is_bindable_object_define_property_call(source, node) {
+        return None;
+    }
+    let NodeData::CallExpression(data) = &source.arena.node(node).data else {
+        return None;
+    };
+    let arguments = data.arguments?;
+    let arguments = &source.arena.node_array(arguments).nodes;
+    let descriptor = *arguments.get(2)?;
+    let NodeData::ObjectLiteralExpression(data) = &source.arena.node(descriptor).data else {
+        return None;
+    };
+    let properties = data.properties?;
+    let initializer = source
+        .arena
+        .node_array(properties)
+        .nodes
+        .iter()
+        .find_map(|&property| match &source.arena.node(property).data {
+            NodeData::PropertyAssignment(data)
+                if data
+                    .name
+                    .is_some_and(|name| id_text(source, name) == Some("value")) =>
+            {
+                data.initializer
+            }
+            _ => None,
+        })?;
+    let is_prototype_assignment = literal_text_of(source, *arguments.get(1)?) == Some("prototype");
+    get_expando_initializer(source, initializer, is_prototype_assignment)
+}
+
+pub fn get_expando_initializer(
+    source: &SourceFile,
+    initializer: NodeId,
+    is_prototype_assignment: bool,
+) -> Option<NodeId> {
+    match &source.arena.node(initializer).data {
+        NodeData::CallExpression(data) => {
+            let expression = skip_parentheses_pub(source, data.expression?);
+            matches!(
+                kind_of(source, expression),
+                SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
+            )
+            .then_some(initializer)
+        }
+        NodeData::FunctionExpression(_)
+        | NodeData::ClassExpression(_)
+        | NodeData::ArrowFunction(_) => Some(initializer),
+        NodeData::ObjectLiteralExpression(data)
+            if is_prototype_assignment
+                || data.properties.is_none_or(|properties| {
+                    source.arena.node_array(properties).nodes.is_empty()
+                }) =>
+        {
+            Some(initializer)
+        }
+        _ => None,
+    }
+}
+
+fn get_defaulted_expando_initializer(
+    source: &SourceFile,
+    name: NodeId,
+    initializer: NodeId,
+    is_prototype_assignment: bool,
+) -> Option<NodeId> {
+    let NodeData::BinaryExpression(data) = &source.arena.node(initializer).data else {
+        return None;
+    };
+    let is_defaulting = data.operator_token.is_some_and(|token| {
+        matches!(
+            kind_of(source, token),
+            SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
+        )
+    });
+    let (Some(left), Some(right)) = (data.left, data.right) else {
+        return None;
+    };
+    if !is_defaulting || !is_same_entity_name(source, name, left) {
+        return None;
+    }
+    get_expando_initializer(source, right, is_prototype_assignment)
+}
+
+pub fn is_same_entity_name(source: &SourceFile, name: NodeId, initializer: NodeId) -> bool {
+    let name_text = identifier_or_literal_text(source, name);
+    let initializer_text = identifier_or_literal_text(source, initializer);
+    if name_text.is_some() && name_text == initializer_text {
+        return true;
+    }
+
+    if name_text.is_some() {
+        if let Some(receiver) = access_expression_of(source, initializer) {
+            let is_global_receiver = kind_of(source, receiver) == SyntaxKind::ThisKeyword
+                || id_text(source, receiver)
+                    .is_some_and(|text| matches!(text, "window" | "self" | "global"));
+            if is_global_receiver {
+                return get_element_or_property_access_argument_expression_or_name(
+                    source,
+                    initializer,
+                )
+                .is_some_and(|initializer_name| {
+                    is_same_entity_name(source, name, initializer_name)
+                });
+            }
+        }
+    }
+
+    let (Some(name_expression), Some(initializer_expression)) = (
+        access_expression_of(source, name),
+        access_expression_of(source, initializer),
+    ) else {
+        return false;
+    };
+    let (Some(name_property), Some(initializer_property)) = (
+        get_element_or_property_access_name(source, name),
+        get_element_or_property_access_name(source, initializer),
+    ) else {
+        return false;
+    };
+    name_property == initializer_property
+        && is_same_entity_name(source, name_expression, initializer_expression)
+}
+
+fn identifier_or_literal_text(source: &SourceFile, node: NodeId) -> Option<String> {
+    id_text(source, node).map(str::to_owned).or_else(|| {
+        if is_string_or_numeric_literal_like(source, node) {
+            literal_text_of(source, node).map(str::to_owned)
+        } else {
+            None
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

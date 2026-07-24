@@ -111,39 +111,6 @@ impl<'a> CheckerState<'a> {
             .push(source);
     }
 
-    /// tsrs-native: symbol_has_expando_assignment through checker
-    /// merges — a merged (cloned) symbol carries the stage-3.4c
-    /// expando record of any of its merge sources, transitively (tsc
-    /// binds the members into the merged table itself, so its
-    /// consults see them without indirection).
-    pub(crate) fn symbol_has_expando_assignment_merged(&self, symbol: SymbolId) -> bool {
-        if self.binder.symbol_has_expando_assignment(symbol) {
-            return true;
-        }
-        self.merged_symbol_sources
-            .get(&symbol)
-            .is_some_and(|sources| {
-                sources
-                    .iter()
-                    .any(|&source| self.symbol_has_expando_assignment_merged(source))
-            })
-    }
-
-    /// tsrs-native: symbol_expando_assignment_covers through checker
-    /// merges (the name-precise flavor of the consult above).
-    pub(crate) fn symbol_expando_covers_merged(&self, symbol: SymbolId, name: &str) -> bool {
-        if self.binder.symbol_expando_assignment_covers(symbol, name) {
-            return true;
-        }
-        self.merged_symbol_sources
-            .get(&symbol)
-            .is_some_and(|sources| {
-                sources
-                    .iter()
-                    .any(|&source| self.symbol_expando_covers_merged(source, name))
-            })
-    }
-
     /// tsc-port: cloneSymbol @6.0.3
     /// tsc-hash: 1a41af611deac3728405e13030e086a1fbdd56ccbeb7e8aea75c5489897c283c
     /// tsc-span: _tsc.js:47696-47706
@@ -169,6 +136,65 @@ impl<'a> CheckerState<'a> {
         cloned.exports = exports;
         self.record_merged_symbol(result, symbol);
         result
+    }
+
+    /// tsc-port: mergeJSSymbols @6.0.3
+    /// tsc-hash: 913f6a806dcbccd352b9d900c7c760c3e1e89f1f32357800b70fba18cbed9167
+    /// tsc-span: _tsc.js:77523-77542
+    ///
+    /// Function-expression types keep the callable target symbol but
+    /// acquire the exports/members bound on their containing variable
+    /// or assignment symbol. Unlike cloneSymbol/mergeSymbol, this is
+    /// an inferred, type-local merge and must not redirect the
+    /// checker-wide merged-symbol map.
+    pub(crate) fn merge_js_symbols(&mut self, target: SymbolId, source: SymbolId) -> SymbolId {
+        let original = self.binder.symbol(target);
+        let flags = original.flags;
+        let escaped_name = original.escaped_name.clone();
+        let declarations = original.declarations.clone();
+        let parent = original.parent;
+        let value_declaration = original.value_declaration;
+        let const_enum_only_module = original.const_enum_only_module;
+        let members = original.members.clone();
+        let exports = original.exports.clone();
+        let source_class_flags = self.binder.symbol(source).flags & SymbolFlags::CLASS;
+        let inferred = self.binder.create_symbol(flags, escaped_name);
+        {
+            let cloned = self.binder.symbol_mut(inferred);
+            cloned.declarations = declarations;
+            cloned.parent = parent;
+            cloned.value_declaration = value_declaration;
+            cloned.const_enum_only_module = const_enum_only_module;
+            cloned.members = members;
+            cloned.exports = exports;
+            cloned.flags |= source_class_flags;
+        }
+
+        let source_exports = self.binder.symbol(source).exports.clone();
+        if !source_exports.is_empty() {
+            let mut inferred_exports =
+                std::mem::take(&mut self.binder.symbol_mut(inferred).exports);
+            self.merge_symbol_table(
+                &mut inferred_exports,
+                &source_exports,
+                /*unidirectional*/ false,
+                Some(inferred),
+            );
+            self.binder.symbol_mut(inferred).exports = inferred_exports;
+        }
+        let source_members = self.binder.symbol(source).members.clone();
+        if !source_members.is_empty() {
+            let mut inferred_members =
+                std::mem::take(&mut self.binder.symbol_mut(inferred).members);
+            self.merge_symbol_table(
+                &mut inferred_members,
+                &source_members,
+                /*unidirectional*/ false,
+                None,
+            );
+            self.binder.symbol_mut(inferred).members = inferred_members;
+        }
+        inferred
     }
 
     /// tsc-port: setValueDeclaration @6.0.3

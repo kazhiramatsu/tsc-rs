@@ -2528,6 +2528,50 @@ full `cargo xtask ci` exits 0. The next slice is 9.8b: route all expando
 reads through these normal symbols/types, then remove the legacy
 name-level suppression and stale symbol-diff allowlist.
 
+## 9.8b results (2026-07-24, expando members — DONE)
+
+Expando reads and writes now use the ordinary symbol/type machinery.
+The binder's assignment symbols flow through `getExportsOfSymbol` and
+anonymous-type member resolution; function and arrow expressions use
+the tsc `getSymbolOfExpando` / `mergeJSSymbols` association so their
+callable symbol acquires members bound on the containing const variable
+or assignment. Assignment-member types also consult the corresponding
+property of a parent variable annotation. TypeScript function return
+annotations are deliberately excluded from that variable-like lookup,
+matching `getEffectiveTypeAnnotationNode`.
+
+The stage-3.4c `expando_assignment_targets` side table, its
+merge-source reverse consults, name-level 2339/7053 suppression, and
+the assignment/declaration relation containments are gone. The JS
+binary trampoline now skips only a real assigned expando initializer
+and otherwise runs the normal operator checker. Retiring that blanket
+curtain exposed and fixed the tsc rule that JavaScript object-literal
+comparisons receive 2839 only for strict equality, not `==` / `!=`.
+The three expando/binary escape sites retired; escape evidence is now
+sites=**196**, stale=0, untagged=0, recovery=**115**, dormant=1.
+
+The obsolete `symbol-diff-known.txt` allowlist is deleted. All ten
+formerly allowlisted fixtures compare directly with **0** differences;
+the full 5,908-fixture audit compares 9,367 program files with
+**differing=0** (655 parse-recovery exclusions, 1,916 non-TS skips).
+New pins cover const function-expression members, parent-annotated
+assignment members, the function-declaration control, and
+strict-vs-loose JavaScript object equality.
+
+The slice grows every shadow tier without loss. In the 2xxx band,
+T1/T2/T3 each report lost=0, gained=**12**; in the all band each
+reports lost=0, gained=**16**, for both all-corpus and supported views.
+2xxx T0 is **19742/21051** (**93.7818%**) with FP=0 and FN=1309;
+supported 2xxx is **19742/20504** (**96.2837%**) with FN=**762**.
+All-band T0 is **30664/49024** (**62.5490%**) with FP=0. The accepted
+set ratchet records +16 all and +12 2xxx identities; the syntactic set
+is unchanged.
+
+Binder tests are **52** and checker tests are **1,006**. The ledger has
+**1,841** fresh entries, and xtask tests are **34**. Ratchet, scope,
+family-map, recovery-census, and all invariant suites pass against
+`origin/main`; full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

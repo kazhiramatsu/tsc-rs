@@ -208,11 +208,10 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// onEnter (79817-79850): re-entry bumps the shared record; the JS
-    /// expando skip is isInJSFile-gated (risk #8 — plain-JS band
-    /// already gates whole files, so the arm stays latent for TS);
-    /// `=` with an object/array-literal LHS routes to the
-    /// destructuring family and skips the operand walk.
+    /// onEnter (79817-79850): re-entry bumps the shared record; a JS
+    /// expando initializer checks only its right side; `=` with an
+    /// object/array-literal LHS routes to the destructuring family and
+    /// skips the operand walk.
     fn binary_on_enter(
         &mut self,
         node: NodeId,
@@ -235,13 +234,19 @@ impl<'a> CheckerState<'a> {
                 });
             }
         }
-        if self.is_in_js_file(node) {
-            // getAssignedExpandoInitializer skip [JSDOC]: unmodeled
-            // with the plain-JS band; reaching here means a JS file
-            // slipped past the band gate.
-            return Err(Unsupported::new(
-                "binary expando analysis in a JS file (checkBinaryExpression onEnter [JSDOC] M8)",
-            ));
+        if self.is_in_js_file(node)
+            && tsrs2_binder::assignment::get_assigned_expando_initializer(
+                self.binder.source_of_node(node),
+                node,
+            )
+            .is_some()
+        {
+            let (_, _, right) = self.binary_parts(node)?;
+            let result = self.check_expression(right, check_mode)?;
+            let state = user.as_mut().expect("created above");
+            state.skip = true;
+            state.set_last_result(Some(result));
+            return Ok(());
         }
         self.check_nullish_coalesce_operands(node)?;
         let (left, operator_token, right) = self.binary_parts(node)?;
@@ -716,11 +721,17 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::EqualsEqualsEqualsToken
             | SyntaxKind::ExclamationEqualsEqualsToken => {
                 if !check_mode.intersects(CheckMode::TYPE_ONLY) {
-                    // The isInJSFile relaxation (== only reported for
-                    // === / !== in JS) is plain-JS-band gated: TS
-                    // files report all four flavors.
-                    if self.is_literal_expression_of_object(left)
-                        || self.is_literal_expression_of_object(right)
+                    // In JavaScript, tsc reports the object-reference
+                    // warning only for strict equality; TypeScript
+                    // reports all four equality operators.
+                    if (self.is_literal_expression_of_object(left)
+                        || self.is_literal_expression_of_object(right))
+                        && (!self.is_in_js_file(left)
+                            || matches!(
+                                operator,
+                                SyntaxKind::EqualsEqualsEqualsToken
+                                    | SyntaxKind::ExclamationEqualsEqualsToken
+                            ))
                     {
                         let eq = matches!(
                             operator,
@@ -1333,41 +1344,6 @@ impl<'a> CheckerState<'a> {
         Ok(true)
     }
 
-    /// checkAssignmentOperator (80306-80331): the addLazyDiagnostic
-    /// wrapper is the 5.4 eager identity.
-    /// tsc-port: isFunctionSymbol @6.0.3 (the assignment-target probe)
-    /// tsc-hash: 81424c00a5b21eec003332930f1112369fd4773988af1ac4e52dce10279bd172
-    /// tsc-span: _tsc.js:15196-15202
-    ///
-    /// True when the assignment target is `<fn>.<name>` with `<fn>`
-    /// resolving to a function declaration or a function-initialized
-    /// variable — the shapes bindSpecialPropertyAssignment accepts in
-    /// .ts files (expando functions).
-    fn assignment_target_is_expando_function_member(&self, left: NodeId) -> bool {
-        let NodeData::PropertyAccessExpression(data) = self.data_of(left) else {
-            return false;
-        };
-        let Some(receiver) = data.expression else {
-            return false;
-        };
-        if self.kind_of(receiver) != SyntaxKind::Identifier {
-            return false;
-        }
-        let Some(symbol) = self.links.node(receiver).resolved_symbol.resolved() else {
-            return false;
-        };
-        let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
-            return false;
-        };
-        match self.data_of(declaration) {
-            NodeData::FunctionDeclaration(_) => true,
-            NodeData::VariableDeclaration(data) => data.initializer.is_some_and(|initializer| {
-                node_util::is_function_like_kind(self.kind_of(initializer))
-            }),
-            _ => false,
-        }
-    }
-
     fn check_assignment_operator(
         &mut self,
         left: NodeId,
@@ -1425,19 +1401,6 @@ impl<'a> CheckerState<'a> {
                 return Err(Unsupported::new(
                     "failed assignment over a seam-reverted flow answer \
                      (unported narrowing dependency, M6/M8 seam)",
-                ));
-            }
-            // Expando-function member assignment: tsc's binder turns
-            // `foo.constructor = 1` on a FUNCTION symbol into a member
-            // declaration even in .ts files
-            // (bindSpecialPropertyAssignment's isFunctionSymbol arm) —
-            // the own member then shadows the apparent-type property,
-            // so relating against Function/Object members diverges
-            // (nullPropertyName, 5.8e lift FP). Contain until the
-            // binder grows assignment-declaration binding.
-            if self.assignment_target_is_expando_function_member(left) {
-                return Err(Unsupported::new(
-                    "expando-function member assignment (assignment-declaration binding, M8 checkJs band)",
                 ));
             }
             // checkTypeAssignableToAndOptionallyElaborate(valueType,

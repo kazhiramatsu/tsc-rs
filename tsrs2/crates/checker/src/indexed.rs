@@ -1577,32 +1577,6 @@ impl<'a> CheckerState<'a> {
             }
         }
         let object_symbol = self.tables.type_of(object_type).symbol;
-        // Expando-member suppression, the element-access flavor
-        // (`F["prop"] = 3`): tsc's binder declares the member on the
-        // function symbol (bindable static name), so the port's
-        // member-less lookup would fabricate the 7053/2339 faces —
-        // same disposition as report_nonexistent_property (errorType
-        // continues via the caller), and NAME-PRECISE like it:
-        // `foo["z"]` with no `z` assignment misses in tsc too and
-        // keeps its 7053. Both faces consult: the object TYPE's
-        // symbol (fn declarations) and the receiver's resolved symbol
-        // (`const f = function () {}` flags the VARIABLE — the type's
-        // symbol is the anonymous expression).
-        if let Some(name) = property_name {
-            let receiver_symbol = match self.data_of(access_expression) {
-                NodeData::ElementAccessExpression(data) => data
-                    .expression
-                    .and_then(|receiver| self.links.node(receiver).resolved_symbol.resolved()),
-                _ => None,
-            };
-            if [object_symbol, receiver_symbol]
-                .into_iter()
-                .flatten()
-                .any(|symbol| self.symbol_expando_covers_merged(symbol, name))
-            {
-                return Ok(None);
-            }
-        }
         let global_this_block_scoped = object_symbol == Some(self.global_this_symbol)
             && property_name.is_some_and(|name| {
                 self.globals.get(name).copied().is_some_and(|exported| {

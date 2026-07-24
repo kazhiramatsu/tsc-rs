@@ -7,7 +7,8 @@
 //! owned by 9.8b/9.8c.
 
 use crate::assignment::{
-    access_expression_of, get_assignment_declaration_kind, get_element_or_property_access_name,
+    access_expression_of, get_assigned_expando_initializer, get_assignment_declaration_kind,
+    get_element_or_property_access_name, get_expando_initializer,
     get_right_most_assigned_expression, is_bindable_object_define_property_call,
     is_bindable_static_access_expression, is_exports_identifier,
     is_module_exports_access_expression, is_prototype_access, AssignmentDeclarationKind,
@@ -24,8 +25,7 @@ use crate::node_util::{
     is_narrowable_operand, is_narrowable_reference, is_narrowing_expression,
     is_object_literal_method, is_object_literal_or_class_expression_method_or_accessor,
     is_parameter_property_declaration, is_part_of_parameter_declaration, is_part_of_type_query,
-    is_potentially_executable_node, is_string_or_numeric_literal_like, kind_of, literal_text_of,
-    name_field_of, parent_of, skip_parentheses_pub, statements_of,
+    is_potentially_executable_node, kind_of, name_field_of, parent_of, statements_of,
 };
 use crate::symbols::{InternalSymbolName, SymbolId};
 use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
@@ -723,7 +723,7 @@ impl<'a> Binder<'a> {
     /// tsc-hash: 4f9ece16f30dc33b03772113b03e5b4ac7f47c5767d2b4f214251e2706e1f194
     /// tsc-span: _tsc.js:45004-45020
     ///
-    /// JS-only: the bare-require alias arm awaits stage 3.4c.
+    /// JS-only: the bare-require alias arm remains for phase 9.8c.
     fn bind_variable_declaration_or_binding_element(&mut self, node: NodeId) {
         let name = name_field_of(self.source, node);
         if self.in_strict_mode {
@@ -1001,18 +1001,6 @@ impl<'a> Binder<'a> {
         let parent_symbol = self.lookup_symbol_for_property_access(left_expression);
         if !self.is_in_js_file() && !self.is_function_symbol(parent_symbol) {
             return;
-        }
-        if !self.is_in_js_file() {
-            if let Some(parent_symbol) = parent_symbol {
-                if let Some(name) = get_element_or_property_access_name(source, left) {
-                    // Kept through 9.8a so the diagnostic-side retirement in
-                    // 9.8b can be reviewed separately from the producer.
-                    self.expando_assignment_targets
-                        .entry(parent_symbol)
-                        .or_default()
-                        .insert(name);
-                }
-            }
         }
         let root = self.leftmost_access_expression(left);
         let root_is_alias = id_text(source, root).is_some_and(|name| {
@@ -1502,185 +1490,12 @@ impl<'a> Binder<'a> {
     }
 
     fn assigned_expando_initializer(&self, declaration: NodeId) -> Option<NodeId> {
-        let (name, initializer) = match &self.source.arena.node(declaration).data {
-            NodeData::BinaryExpression(data)
-                if data.operator_token.is_some_and(|token| {
-                    kind_of(self.source, token) == SyntaxKind::EqualsToken
-                }) =>
-            {
-                (data.left, data.right)
+        match &self.source.arena.node(declaration).data {
+            NodeData::BinaryExpression(data) => {
+                get_assigned_expando_initializer(self.source, data.left?)
             }
-            NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
-                let parent = parent_of(self.source, declaration)?;
-                match &self.source.arena.node(parent).data {
-                    NodeData::BinaryExpression(data)
-                        if data.left == Some(declaration)
-                            && data.operator_token.is_some_and(|token| {
-                                kind_of(self.source, token) == SyntaxKind::EqualsToken
-                            }) =>
-                    {
-                        (data.left, data.right)
-                    }
-                    _ => return None,
-                }
-            }
-            NodeData::CallExpression(_) => {
-                let descriptor = self.object_define_descriptor(declaration)?;
-                let NodeData::ObjectLiteralExpression(data) =
-                    &self.source.arena.node(descriptor).data
-                else {
-                    return None;
-                };
-                let properties = data.properties?;
-                let initializer = self
-                    .source
-                    .arena
-                    .node_array(properties)
-                    .nodes
-                    .iter()
-                    .find_map(|&property| match &self.source.arena.node(property).data {
-                        NodeData::PropertyAssignment(data)
-                            if data.name.is_some_and(|name| {
-                                id_text(self.source, name) == Some("value")
-                            }) =>
-                        {
-                            data.initializer
-                        }
-                        _ => None,
-                    })?;
-                let is_prototype_assignment = self
-                    .assignment_object_define_property_name(declaration)
-                    .as_deref()
-                    == Some("prototype");
-                return self.expando_initializer(initializer, is_prototype_assignment);
-            }
-            _ => return None,
-        };
-        let (Some(name), Some(initializer)) = (name, initializer) else {
-            return None;
-        };
-        let initializer = get_right_most_assigned_expression(self.source, initializer);
-        let is_prototype_assignment = is_prototype_access(self.source, name);
-        self.expando_initializer(initializer, is_prototype_assignment)
-            .or_else(|| {
-                self.defaulted_expando_initializer(name, initializer, is_prototype_assignment)
-            })
-    }
-
-    fn assignment_object_define_property_name(&self, declaration: NodeId) -> Option<String> {
-        let NodeData::CallExpression(data) = &self.source.arena.node(declaration).data else {
-            return None;
-        };
-        let arguments = data.arguments?;
-        let name = *self.source.arena.node_array(arguments).nodes.get(1)?;
-        literal_text_of(self.source, name).map(str::to_owned)
-    }
-
-    fn expando_initializer(
-        &self,
-        initializer: NodeId,
-        is_prototype_assignment: bool,
-    ) -> Option<NodeId> {
-        match &self.source.arena.node(initializer).data {
-            NodeData::CallExpression(data) => {
-                let expression = skip_parentheses_pub(self.source, data.expression?);
-                matches!(
-                    kind_of(self.source, expression),
-                    SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
-                )
-                .then_some(initializer)
-            }
-            NodeData::FunctionExpression(_)
-            | NodeData::ClassExpression(_)
-            | NodeData::ArrowFunction(_) => Some(initializer),
-            NodeData::ObjectLiteralExpression(data)
-                if is_prototype_assignment
-                    || data.properties.is_none_or(|properties| {
-                        self.source.arena.node_array(properties).nodes.is_empty()
-                    }) =>
-            {
-                Some(initializer)
-            }
-            _ => None,
+            _ => get_assigned_expando_initializer(self.source, declaration),
         }
-    }
-
-    fn defaulted_expando_initializer(
-        &self,
-        name: NodeId,
-        initializer: NodeId,
-        is_prototype_assignment: bool,
-    ) -> Option<NodeId> {
-        let NodeData::BinaryExpression(data) = &self.source.arena.node(initializer).data else {
-            return None;
-        };
-        let is_defaulting = data.operator_token.is_some_and(|token| {
-            matches!(
-                kind_of(self.source, token),
-                SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
-            )
-        });
-        let (Some(left), Some(right)) = (data.left, data.right) else {
-            return None;
-        };
-        if !is_defaulting || !self.is_same_entity_name(name, left) {
-            return None;
-        }
-        self.expando_initializer(right, is_prototype_assignment)
-    }
-
-    fn is_same_entity_name(&self, name: NodeId, initializer: NodeId) -> bool {
-        let name_text = id_text(self.source, name).map(str::to_owned).or_else(|| {
-            if is_string_or_numeric_literal_like(self.source, name) {
-                literal_text_of(self.source, name).map(str::to_owned)
-            } else {
-                None
-            }
-        });
-        let initializer_text = id_text(self.source, initializer)
-            .map(str::to_owned)
-            .or_else(|| {
-                if is_string_or_numeric_literal_like(self.source, initializer) {
-                    literal_text_of(self.source, initializer).map(str::to_owned)
-                } else {
-                    None
-                }
-            });
-        if name_text.is_some() && name_text == initializer_text {
-            return true;
-        }
-
-        if name_text.is_some() {
-            if let Some(receiver) = access_expression_of(self.source, initializer) {
-                let is_global_receiver = kind_of(self.source, receiver) == SyntaxKind::ThisKeyword
-                    || id_text(self.source, receiver)
-                        .is_some_and(|text| matches!(text, "window" | "self" | "global"));
-                if is_global_receiver {
-                    return crate::assignment::get_element_or_property_access_argument_expression_or_name(
-                        self.source,
-                        initializer,
-                    )
-                    .is_some_and(|initializer_name| {
-                        self.is_same_entity_name(name, initializer_name)
-                    });
-                }
-            }
-        }
-
-        let (Some(name_expression), Some(initializer_expression)) = (
-            access_expression_of(self.source, name),
-            access_expression_of(self.source, initializer),
-        ) else {
-            return false;
-        };
-        let (Some(name_property), Some(initializer_property)) = (
-            get_element_or_property_access_name(self.source, name),
-            get_element_or_property_access_name(self.source, initializer),
-        ) else {
-            return false;
-        };
-        name_property == initializer_property
-            && self.is_same_entity_name(name_expression, initializer_expression)
     }
 
     fn object_define_descriptor(&self, call: NodeId) -> Option<NodeId> {
@@ -1767,8 +1582,7 @@ impl<'a> Binder<'a> {
             }
             _ => initializer,
         };
-        self.expando_initializer(initializer, is_prototype_assignment)
-            .is_some()
+        get_expando_initializer(self.source, initializer, is_prototype_assignment).is_some()
     }
 
     fn bind_object_define_property_assignment(&mut self, node: NodeId) {
@@ -4718,9 +4532,8 @@ mod tests {
     /// valueDeclaration only in a JS file, and isInJSFile is
     /// flag-driven (root JavaScriptFile from ParseOptions), not
     /// extension-sniffed — the file NAME says .ts in both directions
-    /// here. Driven at the unit level: the expando symbol-producing
-    /// bodies that feed assignment declarations through
-    /// addDeclarationToSymbol are stage 3.4c.
+    /// here. The expando symbol-producing bodies that feed assignment
+    /// declarations through addDeclarationToSymbol are live.
     #[test]
     fn set_value_declaration_ambient_displacement_reads_root_js_flag() {
         let text = "f.x = 1;\ndeclare var d: number;\n";

@@ -936,13 +936,6 @@ owner = "M8"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
-in = "binary_on_enter"
-reason = "binary expando analysis in a JS file (checkBinaryExpression onEnter [JSDOC] M8)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
 in = "binary_parts"
 reason = "binary expression with missing operand (parse-recovery tree)"
 class = "recovery"
@@ -959,13 +952,6 @@ file = "crates/checker/src/operators.rs"
 in = "check_array_literal_destructuring_element_assignment"
 reason = "spread element without expression (parse-recovery tree)"
 class = "recovery"
-
-[[site]]
-file = "crates/checker/src/operators.rs"
-in = "check_assignment_operator"
-reason = "expando-function member assignment (assignment-declaration binding, M8 checkJs band)"
-class = "stage"
-owner = "M8"
 
 [[site]]
 file = "crates/checker/src/operators.rs"
@@ -1125,13 +1111,6 @@ class = "recovery"
 file = "crates/checker/src/statements.rs"
 in = "check_variable_like_declaration"
 reason = "empty-pattern non-null report over a seam-reverted flow answer (unported narrowing dependency, M6/M8 seam)"
-class = "stage"
-owner = "M8"
-
-[[site]]
-file = "crates/checker/src/statements.rs"
-in = "check_variable_like_declaration"
-reason = "expando-function member assignment (assignment-declaration binding, M8 checkJs band)"
 class = "stage"
 owner = "M8"
 
