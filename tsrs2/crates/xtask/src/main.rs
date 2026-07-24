@@ -5189,10 +5189,10 @@ fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
         &families_out,
         |summary| print_conformance_summary(summary, &conformance_out),
     )?;
-    // Phase 9.7a-9.7b: the 2XXX summary already carries every reached F2
-    // partial-boundary identity. Reuse it to gate the full recovery trees,
-    // exact syntactic diagnostics, and minimal fixtures without a duplicate
-    // corpus run.
+    // Phase 9.7: reuse the 2XXX summary to prove the former F2 bail remains
+    // retired. The census itself reads its fixed ranges from the manifest, so
+    // full recovery trees, exact syntactic diagnostics, and minimal fixtures
+    // remain gated without a duplicate corpus run or a live checker escape.
     recovery_census::check_with_summary(&workspace, &summaries.two_xxx)?;
     // The permanent syntactic gate (convergence invariant 3) is one
     // of the independently graded fixed views above.

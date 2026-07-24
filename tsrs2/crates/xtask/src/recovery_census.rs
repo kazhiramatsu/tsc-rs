@@ -1,8 +1,9 @@
-//! Phase 9.7a-9.7b: reproducible census of the parse-recovery overload curtain.
+//! Phase 9.7: reproducible census of parse-recovery overload trees.
 //!
-//! This starts from conformance's reached F2 boundary evidence, then compares
-//! the complete recovery subtree, exact syntactic diagnostics, declaration
-//! shape, and binder declaration order with the vendored tsc oracle.
+//! The exact ranges first observed at the F2 boundary are pinned independently
+//! of the checker, so the complete recovery subtree, exact syntactic
+//! diagnostics, declaration shape, and binder declaration order remain gated
+//! after the semantic bail is retired.
 
 use std::collections::BTreeSet;
 use std::error::Error;
@@ -14,7 +15,6 @@ use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use tsrs2_checker::{check_program_with_libs_at, InputFile, PartialCheck};
 use tsrs2_syntax::{NodeId, SourceFile, SyntaxKind};
 
 const F2_REASON: &str = "overload band over a parse-recovery tree (declaration boundaries diverge)";
@@ -28,11 +28,26 @@ struct Manifest {
     shapes: Vec<ManifestShape>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ManifestCase {
     fixture: String,
     #[serde(rename = "matrixKey")]
+    matrix_key: String,
+    regions: Vec<ManifestRegion>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd)]
+#[serde(deny_unknown_fields)]
+struct ManifestRegion {
+    file: String,
+    start: u32,
+    length: u32,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct CaseKey {
+    fixture: String,
     matrix_key: String,
 }
 
@@ -275,7 +290,7 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
         out_path = workspace.join(out_path);
     }
     let manifest: Manifest = serde_json::from_slice(&fs::read(&manifest_path)?)?;
-    if manifest.schema != 2 {
+    if manifest.schema != 3 {
         return Err(format!("unsupported recovery census schema {}", manifest.schema).into());
     }
 
@@ -303,7 +318,7 @@ pub fn check_with_summary(
     }
     let manifest: Manifest =
         serde_json::from_slice(&fs::read(workspace.join("pins/recovery.json"))?)?;
-    if manifest.schema != 2 {
+    if manifest.schema != 3 {
         return Err(format!("unsupported recovery census schema {}", manifest.schema).into());
     }
     run_census(
@@ -323,21 +338,31 @@ fn run_census(
     summary: &tsrs2_conformance::ConformanceSummary,
 ) -> Result<(), Box<dyn Error>> {
     let observed_cases = selected_cases(summary);
-    let expected_cases = manifest.cases.iter().cloned().collect::<BTreeSet<_>>();
+    let expected_cases = manifest
+        .cases
+        .iter()
+        .map(|case| CaseKey {
+            fixture: case.fixture.clone(),
+            matrix_key: case.matrix_key.clone(),
+        })
+        .collect::<BTreeSet<_>>();
     if expected_cases.len() != manifest.cases.len() {
         return Err("recovery census manifest contains duplicate cases".into());
     }
-    if check && observed_cases != expected_cases {
-        let added = observed_cases
-            .difference(&expected_cases)
-            .collect::<Vec<_>>();
-        let stale = expected_cases
-            .difference(&observed_cases)
-            .collect::<Vec<_>>();
-        return Err(format!(
-            "recovery census case manifest drift: added={added:?}, stale={stale:?}"
-        )
-        .into());
+    if check && !observed_cases.is_empty() {
+        return Err(
+            format!("retired F2 recovery bail is still reached by {observed_cases:?}").into(),
+        );
+    }
+    for case in &manifest.cases {
+        let regions = case.regions.iter().cloned().collect::<BTreeSet<_>>();
+        if case.regions.is_empty() || regions.len() != case.regions.len() {
+            return Err(format!(
+                "recovery census case requires unique pinned regions: {} [{}]",
+                case.fixture, case.matrix_key
+            )
+            .into());
+        }
     }
 
     let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
@@ -350,7 +375,7 @@ fn run_census(
     let mut oracle = RecoveryOracle::spawn(workspace)?;
     let mut reports = Vec::new();
     let mut shape_fingerprints = BTreeSet::new();
-    for (case_index, case) in observed_cases.iter().enumerate() {
+    for (case_index, case) in manifest.cases.iter().enumerate() {
         let fixture = workspace.join("ts-tests/tests/cases").join(&case.fixture);
         let programs = tsrs2_harness::expand_fixture_file(&fixture, &vendor_lib_dir)?;
         let program = programs
@@ -366,28 +391,20 @@ fn run_census(
         let paths = tsrs2_harness::write_program_jsons(std::slice::from_ref(program), &out_dir)?;
         let oracle_dump = oracle.dump(&paths[0])?;
         let rust_dump = rust_dump(program)?;
-        let partials = f2_partial_ranges(program, &vendor_lib_dir)?;
-        if check && partials.is_empty() {
-            return Err(format!(
-                "selected recovery case no longer reaches the F2 boundary: {} [{}]",
-                case.fixture, case.matrix_key
-            )
-            .into());
-        }
         let mut regions = Vec::new();
-        for partial in partials {
-            let rust_file = find_file(&rust_dump, &partial.file_name)?;
-            let oracle_file = find_file(&oracle_dump, &partial.file_name)?;
-            let rust_region = region_dump(rust_file, partial.start, partial.length)?;
-            let oracle_region = region_dump(oracle_file, partial.start, partial.length)?;
+        for pinned in &case.regions {
+            let rust_file = find_file(&rust_dump, &pinned.file)?;
+            let oracle_file = find_file(&oracle_dump, &pinned.file)?;
+            let rust_region = region_dump(rust_file, pinned.start, pinned.length)?;
+            let oracle_region = region_dump(oracle_file, pinned.start, pinned.length)?;
             let fingerprint = shape_fingerprint(&rust_region, &oracle_region)?;
             let tree_fingerprint = json_fingerprint(&rust_region.tree)?;
             let syntactic_fingerprint = json_fingerprint(&rust_region.parse_boundaries)?;
             shape_fingerprints.insert(fingerprint.clone());
             regions.push(RegionReport {
-                file: partial.file_name,
-                start: partial.start,
-                length: partial.length,
+                file: pinned.file.clone(),
+                start: pinned.start,
+                length: pinned.length,
                 fingerprint,
                 tree_fingerprint,
                 syntactic_fingerprint,
@@ -409,12 +426,12 @@ fn run_census(
         .filter(|region| region.exact)
         .count();
     let report = CensusReport {
-        schema: 2,
+        schema: 3,
         reason: F2_REASON,
         cases: reports,
         unique_shape_fingerprints: shape_fingerprints.iter().cloned().collect(),
         summary: CensusSummary {
-            selected_cases: observed_cases.len(),
+            selected_cases: manifest.cases.len(),
             partial_ranges,
             exact_regions,
             differing_regions: partial_ranges - exact_regions,
@@ -487,31 +504,26 @@ fn run_census(
                 tsrs2_harness::write_program_jsons(std::slice::from_ref(program), &out_dir)?;
             let oracle_dump = oracle.dump(&paths[0])?;
             let rust_dump = rust_dump(program)?;
-            let partials = f2_partial_ranges(program, &vendor_lib_dir)?;
             let mut reproduced = false;
-            for partial in partials {
-                let rust_region = region_dump(
-                    find_file(&rust_dump, &partial.file_name)?,
-                    partial.start,
-                    partial.length,
-                )?;
-                let oracle_region = region_dump(
-                    find_file(&oracle_dump, &partial.file_name)?,
-                    partial.start,
-                    partial.length,
-                )?;
-                if rust_region != oracle_region {
-                    return Err(format!(
-                        "minimal recovery fixture {} is not exact at {}:{}+{}",
-                        shape.id, partial.file_name, partial.start, partial.length
-                    )
-                    .into());
+            'files: for rust_file in &rust_dump.files {
+                let oracle_file = find_file(&oracle_dump, &rust_file.name)?;
+                for (start, end) in exact_region_ranges(rust_file, oracle_file) {
+                    let length = end - start;
+                    let rust_region = region_dump(rust_file, start, length)?;
+                    let oracle_region = region_dump(oracle_file, start, length)?;
+                    if rust_region != oracle_region {
+                        continue;
+                    }
+                    let fingerprint = shape_fingerprint(&rust_region, &oracle_region)?;
+                    if fingerprint == shape.fingerprint
+                        && json_fingerprint(&rust_region.tree)? == shape.tree_fingerprint
+                        && json_fingerprint(&rust_region.parse_boundaries)?
+                            == shape.syntactic_fingerprint
+                    {
+                        reproduced = true;
+                        break 'files;
+                    }
                 }
-                let fingerprint = shape_fingerprint(&rust_region, &oracle_region)?;
-                reproduced |= fingerprint == shape.fingerprint
-                    && json_fingerprint(&rust_region.tree)? == shape.tree_fingerprint
-                    && json_fingerprint(&rust_region.parse_boundaries)?
-                        == shape.syntactic_fingerprint;
             }
             if !reproduced {
                 return Err(format!(
@@ -555,40 +567,37 @@ fn probe_fixture(workspace: &Path, fixture: &Path) -> Result<(), Box<dyn Error>>
         let paths = tsrs2_harness::write_program_jsons(std::slice::from_ref(program), &out_dir)?;
         let oracle_dump = oracle.dump(&paths[0])?;
         let rust_dump = rust_dump(program)?;
-        for partial in f2_partial_ranges(program, &vendor_lib_dir)? {
-            let rust_region = region_dump(
-                find_file(&rust_dump, &partial.file_name)?,
-                partial.start,
-                partial.length,
-            )?;
-            let oracle_region = region_dump(
-                find_file(&oracle_dump, &partial.file_name)?,
-                partial.start,
-                partial.length,
-            )?;
-            println!(
-                "{} [{}] {}:{}+{} fingerprint={} exact={}",
-                fixture.display(),
-                program.matrix_key,
-                partial.file_name,
-                partial.start,
-                partial.length,
-                shape_fingerprint(&rust_region, &oracle_region)?,
-                rust_region == oracle_region,
-            );
-            println!(
-                "tree={} syntactic={}",
-                json_fingerprint(&rust_region.tree)?,
-                json_fingerprint(&rust_region.parse_boundaries)?,
-            );
-            println!("{}", serde_json::to_string(&shape_dump(&rust_region))?);
+        for rust_file in &rust_dump.files {
+            let oracle_file = find_file(&oracle_dump, &rust_file.name)?;
+            for (start, end) in exact_region_ranges(rust_file, oracle_file) {
+                let rust_region = region_dump(rust_file, start, end - start)?;
+                let oracle_region = region_dump(oracle_file, start, end - start)?;
+                if rust_region != oracle_region || rust_region.groups.is_empty() {
+                    continue;
+                }
+                println!(
+                    "{} [{}] {}:{}+{} fingerprint={} exact=true",
+                    fixture.display(),
+                    program.matrix_key,
+                    rust_file.name,
+                    start,
+                    end - start,
+                    shape_fingerprint(&rust_region, &oracle_region)?,
+                );
+                println!(
+                    "tree={} syntactic={}",
+                    json_fingerprint(&rust_region.tree)?,
+                    json_fingerprint(&rust_region.parse_boundaries)?,
+                );
+                println!("{}", serde_json::to_string(&shape_dump(&rust_region))?);
+            }
         }
     }
     fs::remove_dir_all(&temp_root)?;
     Ok(())
 }
 
-fn selected_cases(summary: &tsrs2_conformance::ConformanceSummary) -> BTreeSet<ManifestCase> {
+fn selected_cases(summary: &tsrs2_conformance::ConformanceSummary) -> BTreeSet<CaseKey> {
     summary
         .mismatches
         .iter()
@@ -600,57 +609,27 @@ fn selected_cases(summary: &tsrs2_conformance::ConformanceSummary) -> BTreeSet<M
                     .any(|reason| reason.as_str() == F2_REASON)
             })
         })
-        .map(|entry| ManifestCase {
+        .map(|entry| CaseKey {
             fixture: entry.fixture.clone(),
             matrix_key: entry.matrix_key.clone(),
         })
         .collect()
 }
 
-fn f2_partial_ranges(
-    program: &tsrs2_harness::ProgramJson,
-    vendor_lib_dir: &Path,
-) -> Result<Vec<PartialCheck>, Box<dyn Error>> {
-    let files = program
-        .files
+fn exact_region_ranges(rust_file: &FileDump, oracle_file: &FileDump) -> BTreeSet<(u32, u32)> {
+    let oracle_ranges = oracle_file
+        .tree
         .iter()
-        .map(|file| {
-            Ok(InputFile {
-                name: file.name.clone(),
-                text: String::from_utf8(BASE64.decode(&file.text_b64)?)?,
-            })
-        })
-        .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
-    let libs = program
-        .libs
+        .filter(|node| node.end > node.pos)
+        .map(|node| (node.pos, node.end))
+        .collect::<BTreeSet<_>>();
+    rust_file
+        .tree
         .iter()
-        .map(|name| {
-            Ok(InputFile {
-                name: name.clone(),
-                text: fs::read_to_string(vendor_lib_dir.join(name))?,
-            })
-        })
-        .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
-    let result = check_program_with_libs_at(
-        &libs,
-        &files,
-        &tsrs2_conformance::compiler_options_from_program(program),
-        &program.cwd,
-    );
-    let mut partials = result
-        .partial_checks
-        .into_iter()
-        .filter(|partial| partial.reason == F2_REASON)
-        .collect::<Vec<_>>();
-    partials.sort_by(|left, right| {
-        (&left.file_name, left.start, left.length).cmp(&(
-            &right.file_name,
-            right.start,
-            right.length,
-        ))
-    });
-    partials.dedup();
-    Ok(partials)
+        .filter(|node| node.end > node.pos)
+        .map(|node| (node.pos, node.end))
+        .filter(|range| oracle_ranges.contains(range))
+        .collect()
 }
 
 fn rust_dump(program: &tsrs2_harness::ProgramJson) -> Result<RecoveryDump, Box<dyn Error>> {
@@ -1227,5 +1206,23 @@ mod tests {
         assert!(is_fingerprint("ABCDEF0123456789"));
         assert!(!is_fingerprint("0123456789abcde"));
         assert!(!is_fingerprint("0123456789abcdeg"));
+    }
+
+    #[test]
+    fn shape_search_uses_only_shared_nonempty_tree_ranges() {
+        let node = |pos, end| TreeNodeRef {
+            kind: 80,
+            pos,
+            end,
+            missing: pos == end,
+            depth: 0,
+        };
+        let rust = tree_file(vec![node(0, 20), node(2, 12), node(4, 4)]);
+        let oracle = tree_file(vec![node(0, 20), node(3, 12), node(4, 4)]);
+
+        assert_eq!(
+            exact_region_ranges(&rust, &oracle),
+            BTreeSet::from([(0, 20)])
+        );
     }
 }

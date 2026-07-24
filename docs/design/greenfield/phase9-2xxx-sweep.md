@@ -2439,6 +2439,42 @@ Checker tests remain **1,001** and xtask tests are **33**.
 tree proof permits 9.7c to retire the blanket semantic bail directly,
 while preserving this census as the parser/binder regression gate.
 
+## 9.7c results (2026-07-25, overload bail retirement — DONE)
+
+`checkFunctionOrConstructorSymbol` no longer abandons every function,
+method, and constructor in a file with a parse diagnostic. The
+corresponding recovery escape is retired. Recovery manifest schema 3
+now owns the 67 fixture/matrix cases and all 328 exact ranges that
+originally reached F2, so the parser/binder proof remains non-vacuous
+after the checker stops emitting that partial boundary. Minimal shape
+pins are likewise reproduced by shared exact tree ranges rather than a
+live checker escape. The census remains **328/328** exact with **23**
+shapes, and the former F2 reason is absent from the full 2xxx result.
+
+The initial widening exposed two production differences rather than
+justifying a new containment. First, the final overload check must test
+whether the raw body slot is absent; a parser-inserted missing body node
+is not an absent implementation and must not emit 2389/2391. Second,
+an unresolved type reference now caches `unknownSymbol` and
+`errorType` together. Re-reading one annotation therefore no longer
+burns the checker-wide suggestion budget twice and degrade a later
+2552 to 2304. Direct tests pin both distinctions.
+
+Band movement (tool-read): all T0 **59.8564%→62.5163%**
+(29344→30648, +1,304), FP=0; 2xxx T0
+**88.5136%→93.7248%** (18633→19730, +1,097), FP=0; supported
+2xxx T0 **90.8750%→96.2251%** (19730/20504), supported FN
+1,871→**774**. Syntactic remains **2242/2246** with FP=0.
+The exact shadow diff has zero lost identities: 2xxx T1/T2 +1,097 and
+T3 +1,088; all T1 +1,304, T2 +1,300, and T3 +1,291. The supported
+universe is unchanged.
+
+Ratchet artifacts add exactly +1,304 all / +1,097 2xxx accepted
+identities; oracle inputs are byte-unchanged. Escape evidence is
+sites=**199**, stale=0, untagged=0, recovery=**115**, dormant=1.
+Checker tests are **1,002** and xtask tests are **34**. Full
+`cargo xtask ci` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

@@ -707,12 +707,6 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/functions.rs"
-in = "check_function_or_constructor_symbol"
-reason = "overload band over a parse-recovery tree (declaration boundaries diverge)"
-class = "recovery"
-
-[[site]]
-file = "crates/checker/src/functions.rs"
 in = "check_grammar_property"
 reason = "ambient-initializer row behind checkGrammarModifiers' decorator rows (M7)"
 class = "stage"

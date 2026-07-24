@@ -3238,20 +3238,6 @@ impl<'a> CheckerState<'a> {
             .symbol(symbol)
             .flags
             .intersects(SymbolFlags::CONSTRUCTOR);
-        // Parse-recovery gate: under parse errors our recovery tree's
-        // declaration/body boundaries diverge from tsc's, and the
-        // body-accounting rows (2389/2391/2392/2393-family) key on
-        // exactly those boundaries — contain rather than misreport.
-        // (tsc emits these as plain error() even in errored files; the
-        // divergence is OUR tree, not the suppression discipline.)
-        if declarations
-            .iter()
-            .any(|&declaration| self.has_parse_diagnostics(declaration))
-        {
-            return Err(Unsupported::new(
-                "overload band over a parse-recovery tree (declaration boundaries diverge)",
-            ));
-        }
         let mut duplicate_function_declaration = false;
         let mut multiple_constructor_implementation = false;
         let mut has_non_ambient_class = false;
@@ -3392,11 +3378,10 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(last) = last_seen_non_ambient {
             let source = self.binder.source_of_node(last);
-            let body_missing = match node_util::body_of(source, last) {
-                Some(body) => node_util::node_is_missing(source, Some(body)),
-                None => true,
-            };
-            if body_missing
+            // tsc deliberately tests the raw `body` slot here, not
+            // nodeIsPresent(body). A parser-inserted missing body is still a
+            // body node and must not produce the 2389/2391 family.
+            if node_util::body_of(source, last).is_none()
                 && !node_util::has_syntactic_modifier(
                     source,
                     last,
@@ -5629,6 +5614,7 @@ mod tests {
     use tsrs2_types::CompilerOptions;
 
     use crate::state::test_support::with_program_state;
+    use crate::{check_program, InputFile};
 
     /// Driver-level fixture check (operators.rs idiom): oracle-pinned
     /// rows (tsc 6.0.3, noLib, options {}) — scratchpad p.ts probes,
@@ -5675,6 +5661,37 @@ mod tests {
                 })
                 .collect()
         })
+    }
+
+    #[test]
+    fn recovered_missing_body_is_not_an_absent_implementation() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "function f() => 4;\n".to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+        assert_eq!(
+            result
+                .syntactic_diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.code())
+                .collect::<Vec<_>>(),
+            [1144]
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .all(|diagnostic| !matches!(diagnostic.code(), 2389 | 2391)),
+            "{:?}",
+            result.diagnostics
+        );
+        assert_eq!(
+            checked_rows("function f(): void;\nconst x = 1;\n"),
+            [(2391, 9, 1)]
+        );
     }
 
     // ---- checkTypePredicate tail (M5 close; rows oracle-pinned vs

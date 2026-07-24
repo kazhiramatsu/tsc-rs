@@ -1313,7 +1313,18 @@ impl<'a> CheckerState<'a> {
             None,
         )?
         else {
-            return Ok(self.tables.intrinsics.error);
+            // Cache unknownSymbol and errorType together, like
+            // getTypeFromTypeReference. Re-reading an unresolved annotation
+            // must not consume the checker-wide suggestion budget twice.
+            let error = self.tables.intrinsics.error;
+            let unknown = self.unknown_symbol;
+            self.links.overwrite_type_reference_resolution(
+                self.speculation_depth,
+                node,
+                unknown,
+                error,
+            );
+            return Ok(error);
         };
         let resolved = self.get_type_reference_type(node, symbol)?;
         // links.resolvedSymbol + links.resolvedType (60587-60588):
@@ -9051,10 +9062,27 @@ mod tests {
                 // reports 2304 and the reference types as errorType.
                 let annotation =
                     find_probe_annotation(state.binder.source(0), "c").expect("annotation");
+                let suggestion_count = state.suggestion_count;
                 let ty = state
                     .get_type_from_type_node(annotation)
                     .expect("unresolved names type as errorType");
                 assert_eq!(ty, state.tables.intrinsics.error);
+                assert_eq!(state.suggestion_count, suggestion_count + 1);
+                assert_eq!(
+                    state
+                        .get_type_from_type_node(annotation)
+                        .expect("negative type reference resolution is cached"),
+                    ty
+                );
+                assert_eq!(
+                    state.suggestion_count,
+                    suggestion_count + 1,
+                    "cached unresolved annotations do not reburn suggestion budget"
+                );
+                assert!(matches!(
+                    state.links.node(annotation).resolved_symbol,
+                    LinkSlot::Resolved(symbol) if symbol == state.unknown_symbol
+                ));
             },
         );
     }
