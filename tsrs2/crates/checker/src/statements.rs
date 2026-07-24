@@ -319,11 +319,13 @@ impl<'a> CheckerState<'a> {
                             ));
                         }
                         let elaborated = !self.is_type_assignable_to(initializer_type, target)?
-                            && self.elaborate_literal_assignment(
-                                initializer,
-                                target,
-                                Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
-                            )?;
+                            && self
+                                .elaborate_literal_assignment(
+                                    initializer,
+                                    target,
+                                    Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
+                                )?
+                                .reported();
                         if !elaborated {
                             self.check_type_assignable_to(
                                 initializer_type,
@@ -414,11 +416,13 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                     let elaborated = !self.is_type_assignable_to(initializer_type, ty)?
-                        && self.elaborate_literal_assignment(
-                            initializer,
-                            ty,
-                            Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
-                        )?;
+                        && self
+                            .elaborate_literal_assignment(
+                                initializer,
+                                ty,
+                                Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
+                            )?
+                            .reported();
                     if !elaborated {
                         self.check_type_assignable_to(
                             initializer_type,
@@ -584,11 +588,13 @@ impl<'a> CheckerState<'a> {
                 // Step-12 row: a literal initializer's member row
                 // replaces the merged head.
                 let elaborated = !self.is_type_assignable_to(initializer_type, declaration_type)?
-                    && self.elaborate_literal_assignment(
-                        initializer,
-                        declaration_type,
-                        Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
-                    )?;
+                    && self
+                        .elaborate_literal_assignment(
+                            initializer,
+                            declaration_type,
+                            Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
+                        )?
+                        .reported();
                 if !elaborated {
                     self.check_type_assignable_to(
                         initializer_type,
@@ -2579,11 +2585,13 @@ impl<'a> CheckerState<'a> {
                     // otherwise; the 2409 lands on EVERY failed
                     // relation, elaborated or not.
                     if !self.is_type_assignable_to(expr_type, return_type)? {
-                        let elaborated = self.elaborate_literal_assignment(
-                            expression,
-                            return_type,
-                            Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
-                        )?;
+                        let elaborated = self
+                            .elaborate_literal_assignment(
+                                expression,
+                                return_type,
+                                Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
+                            )?
+                            .reported();
                         if !elaborated {
                             self.check_type_assignable_to(
                                 expr_type,

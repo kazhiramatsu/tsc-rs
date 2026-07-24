@@ -1704,6 +1704,56 @@ From 9.4b onward this command's exact diff is mandatory PR evidence,
 but remains deliberately non-gating until shared-prerequisite debt is
 machine-readable.
 
+## 9.4a results (2026-07-24, elaboration core — DONE)
+
+The accepted-set-neutral extraction is complete. The reporting walk
+formerly owned by `operators.rs` and the report-free applicability
+probe formerly owned by `calls.rs` now live together in
+`checker/src/elaboration.rs`; their tsc declaration anchors and
+vendored hashes moved with them. The five existing elaboration escape
+sites moved to the same owner without changing their reasons, stage
+owners, or multiplicity.
+
+Decisions of record:
+
+1. **The result is typed, not overloaded onto `Unsupported`**:
+   `ElaborationOutcome::{Reported, Declined}` represents tsc's boolean
+   `elaborateError` result. `Reported` suppresses the caller's outer
+   relation head; `Declined` tells it to emit that head.
+   `Unsupported` remains reserved for an identified unported reporting
+   branch (object/array/arrow/JSX in the call-applicability channel and
+   spread tupleization in the live reporting channel). It is never the
+   ordinary "no elaboration" result.
+2. **The duplicated did-you-mean decision has one implementation**:
+   construct signatures win before call signatures, Any/Never returns
+   are skipped, and the selected return must satisfy the caller's
+   relation. The reporting path uses the result to emit and attach the
+   related row; the applicability probe uses the same result to move
+   the span without emitting.
+3. **Callers are behavior-preserving in 9.4a**: assignment, satisfies,
+   declaration initializer, return, and constructor-return sites consume
+   the typed outcome. Call applicability still uses the report-free
+   disposition adapter; 9.4b removes that adapter as object/array/arrow
+   callers route through the common reporting engine. Contextual
+   forced-tuple probing retains the same push/pop order and no new cache
+   writes.
+4. **Subsystem matrix**: model/construction/instantiation/inference/
+   display = N/A; members = existing object/array member walk moved
+   unchanged; relations = shared did-you-mean predicate plus unchanged
+   assignable/report probes; diagnostics = one module owns both
+   reporting and report-free disposition; cache-order = unchanged.
+   Consumer = 9.4b object/array/arrow.
+
+Evidence is byte-neutral. Band 2xxx remains T0
+**86.1527% (18136/21051)**, FP=0, supported T0
+**88.4510% (18136/20504)** with supported FN=2,368; T1/T2/T3 remain
+18136/17853/16208. `conformance-diff` reports lost=0 and gained=0 for
+all six all/supported T1-T3 views with an unchanged supported universe.
+Band all remains 28841/49024, syntactic remains 2242/2246, and every
+band has FP=0. Ratchet and A2 artifacts are unchanged. Checker tests
+remain 960; ledger=1770/stale=0; escapes=250/stale=0/untagged=0
+(recovery=116); `cargo xtask ci` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
