@@ -135,7 +135,7 @@ impl<'a> CheckerState<'a> {
     /// the two checkExternalEmitHelpers probes (module note), the
     /// JS require-alias arm (module note), and the JS object-literal
     /// initializer exemption (isJSObjectLiteralInitializer — JS files
-    /// route through the plain-JS allowlist, constant-false here).
+    /// route through the plain-JS allowlist, always false here).
     pub(crate) fn check_variable_like_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
         let node_kind = self.kind_of(node);
         let is_binding_element = node_kind == SyntaxKind::BindingElement;

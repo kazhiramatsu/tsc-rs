@@ -286,3 +286,8 @@ max_untagged = 0
 # m8-readiness.md deviation row 4; the differential classifier
 # consumes the row when M8 makes the shape corpus-visible.
 max_recovery = 116
+# D2a/D1a initial constructibility census: 23 exact rows. Each row
+# names a test canary; once that test exists the annotation is stale
+# and its owning model slice must implement, remove, or narrow it.
+# Monotone non-increasing after this reviewed transition.
+max_dormant = 23

@@ -226,6 +226,7 @@ impl<'a> CheckerState<'a> {
             unreachable!("indexed-access flag implies indexed-access data");
         };
         if self.is_generic_mapped_type_state(object_type) {
+            // tsc-dormant: canary=mapped_type_model_constructibility; owner=9.5a
             return Err(Unsupported::new(
                 "indexed-access constraints over mapped types (unported family, M8-stub)",
             ));

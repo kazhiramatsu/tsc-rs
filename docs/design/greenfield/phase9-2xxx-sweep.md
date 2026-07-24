@@ -1871,6 +1871,60 @@ stale=0/untagged=0/recovery=116; ledger remains 1770/stale=0.
 `cargo xtask ci` exits 0, including all three conformance bands and
 the full invariant suite.
 
+## D2a/D1a results (2026-07-24, exact declaration planning — DONE)
+
+The hard prerequisite immediately before 9.5a is landed. The old
+name-collapsed schema-1 inventory remains migration history only;
+`m8-emitter-inventory.json` is now a schema-2
+`draft/report-only` artifact whose declaration key hashes the lexical
+owner path, declaration kind, name-or-anonymous identity, UTF-16
+start/end offsets, and inclusive source-line-slice hash. Anonymous
+callbacks own their diagnostics, `<top>` is the one module-evaluation
+identity, and same-named declarations remain distinct.
+
+The migration is enumerated: source declarations=**10,900**, direct
+emitter declarations=**643**, diagnostic references=**2,411**
+(unchanged), closure declarations=**5,513** (schema-1 collapsed names
+were 6,587), static edges=**27,352**, conservative distinct
+property-dispatch edges=**9,681**, unresolved calls=**1,563**, and
+SCCs=**3,833** (**46** non-trivial). The closure-count decrease is the
+reviewed schema transition from global name expansion to lexical
+identifier resolution plus explicit property candidates, not a
+diagnostic-site loss: all 2,411 direct references remain present.
+Every closure declaration records one deterministic shortest emitter
+path; graph/SCC coverage and endpoint identity are checked by xtask.
+
+`cargo xtask port-plan` is the non-gating generated view over this
+artifact. It accepts exactly one
+`--declaration <d2:id>` or
+`--diagnostic-json <schema-2-identity.json>` selector and reports the
+source slice/hash, exact static callers/callees and property
+candidates, SCC, shortest emitter path, nearest ported/reviewed
+boundary, exact `tsc-span`+`tsc-hash` Rust ledger joins, mechanical
+family owner, complete fixture evidence, and joined escape rows.
+Automated probes, diagnostic stacks/runtime coverage, and
+document-level slice assignment are explicit `unavailable` fields;
+the view cannot disposition a declaration or satisfy readiness.
+Direct canaries cover graph integrity and the exact
+`getBestMatchIndexedAccessTypeOrUndefined` ledger join.
+
+D1a extends the existing escape ledger rather than creating another
+manifest. Structured `tsc-dormant` annotations require a named canary
+and optionally a review owner. A live test with that canary name makes
+the old annotation stale; legacy `M8-stub`/`constant-false` markers
+without exactly one dormant row fail. The initial adjudicated census
+is **23** exact dormant rows: 16 existing stage escape sites were
+reclassified, the combined conditional/substitution identity guard
+was split into two exact rows (+1 containment site), and six silent
+branch assumptions became standalone rows. Runtime containment is
+therefore 242 sites. The ceiling is armed at
+`[escapes].max_dormant=23`; escape totals are sites=248, stale=0,
+untagged=0, recovery=116, dormant=23.
+Exact ledger joins leave 4,065 schema-2 closure declarations
+unaccounted for the later D2b disposition pass. `cargo xtask ci`
+exits 0; accepted conformance sets and match counts are unchanged, and
+FP remains 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
@@ -1914,8 +1968,9 @@ activation seams: mapped and conditional construction turn previously
 dead branches live across several modules, and recovery bail retirement
 changes which semantic paths execute.
 
-Parallel infrastructure lane after 9.3b5: D2a may run beside any of
-9.4a-9.4c and has a hard landing deadline immediately before 9.5a.
+Parallel infrastructure lane after 9.3b5 (**landed 2026-07-24**):
+D2a could run beside any of 9.4a-9.4c and had a hard landing deadline
+immediately before 9.5a.
 It upgrades the existing inventory to schema 2, adds exact static
 closure/SCC + ledger joins, and exposes the non-gating `port-plan`
 display; automated probes/traces stay unavailable. The

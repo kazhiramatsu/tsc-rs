@@ -1346,8 +1346,8 @@ impl<'a> CheckerState<'a> {
     /// walk (and the flag), leaking the over-wide answer past the
     /// query-exit revert. The query-global flag over-approximates the
     /// fixpoint's own subtree, so the guard never caches a dirty
-    /// result; once 6.4 retires the flag it is constant-false and the
-    /// tsc shape is exact.
+    /// result; once 6.4 retires the flag it is permanently false and
+    /// the tsc shape is exact.
     fn get_type_at_flow_loop_label(
         &mut self,
         query: &mut FlowQuery,

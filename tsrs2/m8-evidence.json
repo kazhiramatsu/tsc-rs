@@ -1,8 +1,8 @@
 {
-  "schema": 1,
+  "schema": 2,
   "runtime_coverage": {
     "status": "draft",
-    "inventory_sha256": "25a8612d3b07a6459dc9e6fac201bf875caf1bdd278e2c90897c62c655e2998a",
+    "inventory_sha256": "77a1ab1dea3367cb6d913f158ee97932d8c256f5c907f7a3846a1a2fc99f6f38",
     "executed_emitters": [],
     "zero_hit_emitters": [],
     "artifact": null

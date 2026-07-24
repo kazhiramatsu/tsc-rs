@@ -1612,9 +1612,10 @@ impl InferTypesWalker<'_, '_> {
     fn infer_from_types(&mut self, source: TypeId, target: TypeId) -> CheckResult2<()> {
         let mut source = source;
         let mut target = target;
-        // 68647: `|| isNoInferType(target)` is constant-false — NoInfer
-        // Substitution types are unconstructible until M8 (the
+        // 68647: `|| isNoInferType(target)` stays false until NoInfer
+        // Substitution types are constructible (the
         // getIndexType precedent, indexed.rs).
+        // tsc-dormant: canary=substitution_type_model_constructibility; owner=9.6a; reason=inferFromTypes entry NoInfer target arm
         if !self.st.could_contain_type_variables(target) {
             return Ok(());
         }
@@ -1787,8 +1788,9 @@ impl InferTypesWalker<'_, '_> {
             .flags_of(target)
             .intersects(TypeFlags::INDEXED_ACCESS | TypeFlags::SUBSTITUTION)
         {
-            // 68695-68699: the isNoInferType guard is constant-false
-            // (M8, as at the entry gate).
+            // 68695-68699: the isNoInferType guard stays false until
+            // substitution types land, as at the entry gate.
+            // tsc-dormant: canary=substitution_type_model_constructibility; owner=9.6a; reason=inferFromTypes indexed/substitution NoInfer guard
             target = self.st.get_actual_type_variable(target)?;
         }
         if self
