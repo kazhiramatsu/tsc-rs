@@ -357,34 +357,11 @@ impl<'a> CheckerState<'a> {
     /// tsc reportMergeSymbolError (inside mergeSymbol, 47755-47775) +
     /// addDuplicateLocations (47776-47782).
     ///
-    /// isPlainJsFile slice: any JS-extension file (checkJs is not yet a
-    /// modeled option and checkJsDirective pragmas are not collected —
-    /// both make files NON-plain, so this slice only ever SUPPRESSES
-    /// more JS-side duplicate reports, matching the M2 plainJSErrors
-    /// filtering posture).
+    /// isPlainJsFile is evaluated from the file directive plus the
+    /// program checkJs option, matching the diagnostic collection
+    /// layer. Checked JavaScript participates in duplicate reporting;
+    /// only genuinely plain JavaScript omits its locations.
     fn report_merge_symbol_error(&mut self, target: SymbolId, source: SymbolId) {
-        // M2 3.4c residual guard: JS special-assignment binding
-        // (bindPropertyAssignment's entity-name declarations) does not
-        // yet stamp SymbolFlags::ASSIGNMENT, so a JS container merging
-        // with a TS declaration (tsc's silent Assignment path at 47708)
-        // is indistinguishable from a real duplicate here. Any JS-file
-        // involvement suppresses the report entirely — JS gaps must
-        // produce FNs, never FPs (tsc with checkJs off WOULD report the
-        // TS side; that report returns when JS assignment binding
-        // lands).
-        let side_is_js = |state: &Self, symbol: SymbolId| {
-            state
-                .binder
-                .symbol(symbol)
-                .declarations
-                .first()
-                .is_some_and(|&declaration| {
-                    is_js_file_name(&state.binder.source_of_node(declaration).file_name)
-                })
-        };
-        if side_is_js(self, target) || side_is_js(self, source) {
-            return;
-        }
         let target_flags = self.binder.symbol(target).flags;
         let source_flags = self.binder.symbol(source).flags;
         let is_either_enum = target_flags.intersects(SymbolFlags::ENUM)
@@ -410,8 +387,23 @@ impl<'a> CheckerState<'a> {
             .declarations
             .first()
             .map(|&declaration| self.binder.source_of_node(declaration).file_name.clone());
-        let is_source_plain_js = source_file.as_deref().is_some_and(is_js_file_name);
-        let is_target_plain_js = target_file.as_deref().is_some_and(is_js_file_name);
+        let is_plain_js_symbol = |state: &Self, symbol: SymbolId| {
+            state
+                .binder
+                .symbol(symbol)
+                .declarations
+                .first()
+                .is_some_and(|&declaration| {
+                    let source = state.binder.source_of_node(declaration);
+                    crate::is_plain_js_file(
+                        is_js_file_name(&source.file_name),
+                        crate::check_directive(&source.text),
+                        state.options,
+                    )
+                })
+        };
+        let is_source_plain_js = is_plain_js_symbol(self, source);
+        let is_target_plain_js = is_plain_js_symbol(self, target);
         let symbol_name = self.symbol_display_name(source);
         match (source_file, target_file) {
             // 47764: the defer arm requires the amalgamated map to be
@@ -1274,10 +1266,7 @@ mod tests {
     }
 
     #[test]
-    fn js_involvement_suppresses_duplicate_reporting() {
-        // M2 3.4c residual guard: JS containers merging with TS
-        // declarations must not produce FPs while JS Assignment-flag
-        // binding is unported.
+    fn plain_js_omits_only_its_own_duplicate_location() {
         let options = CompilerOptions {
             allow_js: true,
             ..CompilerOptions::default()
@@ -1289,7 +1278,45 @@ mod tests {
             ],
             &options,
             |state| {
-                assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);
+                let pins = state
+                    .diagnostics
+                    .iter()
+                    .map(|diagnostic| {
+                        (
+                            diagnostic.code(),
+                            diagnostic.file_name.as_deref().unwrap_or_default(),
+                            diagnostic.start.unwrap_or(u32::MAX),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(pins, [(2451, "a.d.ts", 14)]);
+            },
+        );
+    }
+
+    #[test]
+    fn checked_js_reports_cross_file_block_scoped_redeclarations() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        with_program_state(
+            &[("a.js", "class Bar {}\n"), ("b.js", "const Bar = 3;\n")],
+            &options,
+            |state| {
+                let pins = state
+                    .diagnostics
+                    .iter()
+                    .map(|diagnostic| {
+                        (
+                            diagnostic.code(),
+                            diagnostic.file_name.as_deref().unwrap_or_default(),
+                            diagnostic.start.unwrap_or(u32::MAX),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(pins, [(2451, "a.js", 6), (2451, "b.js", 6)]);
             },
         );
     }

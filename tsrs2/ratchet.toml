@@ -219,8 +219,9 @@
 # p9 9.9ac adds +1 checked-JS non-JSDoc operator diagnostic.
 # p9 9.9ad adds +1 checked-JS non-JSDoc base-constructor diagnostic.
 # p9 9.9ae adds +2 export-default use-before-assignment diagnostics.
-rate = 0.639218
-matched = 31337
+# p9 9.9af adds +2 checked-JS cross-file redeclaration diagnostics.
+rate = 0.639258
+matched = 31339
 total = 49024
 allowed_regression = 0.0
 
@@ -306,8 +307,9 @@ allowed_regression = 0.0
 # p9 9.9ac adds +1 checked-JS non-JSDoc operator diagnostic.
 # p9 9.9ad adds +1 checked-JS non-JSDoc base-constructor diagnostic.
 # p9 9.9ae adds +2 export-default use-before-assignment diagnostics.
-rate = 0.969788
-matched = 20415
+# p9 9.9af adds +2 checked-JS cross-file redeclaration diagnostics.
+rate = 0.969883
+matched = 20417
 total = 21051
 allowed_regression = 0.0
 
