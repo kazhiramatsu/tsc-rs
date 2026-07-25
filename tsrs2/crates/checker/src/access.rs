@@ -2754,6 +2754,30 @@ impl<'a> CheckerState<'a> {
 
     // ---- reportNonexistentProperty + the suggestion helpers ----
 
+    fn is_chained_this_property_assignment(&self, access_expression: NodeId) -> bool {
+        if self.kind_of(access_expression) != SyntaxKind::PropertyAccessExpression
+            || !self.is_in_js_file(access_expression)
+            || !node_util::is_assignment_target(
+                self.binder.source_of_node(access_expression),
+                access_expression,
+            )
+        {
+            return false;
+        }
+        let NodeData::PropertyAccessExpression(access) = self.data_of(access_expression) else {
+            return false;
+        };
+        access.expression.is_some_and(|receiver| {
+            matches!(
+                self.data_of(receiver),
+                NodeData::PropertyAccessExpression(inner)
+                    if inner
+                        .expression
+                        .is_some_and(|base| self.kind_of(base) == SyntaxKind::ThisKeyword)
+            )
+        })
+    }
+
     /// tsc-port: reportNonexistentProperty @6.0.3
     /// tsc-hash: 307d53095640744e1815787c33792c951a7a0c7fc169193870ec78298aca5f7c
     /// tsc-span: _tsc.js:75416-75470
@@ -2908,7 +2932,13 @@ impl<'a> CheckerState<'a> {
                     &[],
                 ));
             } else {
-                let container = if self.is_empty_anonymous_type_literal(containing_type)? {
+                let access_expression = self.parent_of(prop_node).unwrap_or(prop_node);
+                let render_chained_this_empty_object = self
+                    .is_chained_this_property_assignment(access_expression)
+                    && self.is_empty_anonymous_object_type(containing_type)?;
+                let container = if self.is_empty_anonymous_type_literal(containing_type)?
+                    || render_chained_this_empty_object
+                {
                     "{}".to_owned()
                 } else {
                     self.type_to_string_slice(containing_type)?
@@ -3071,12 +3101,19 @@ impl<'a> CheckerState<'a> {
             && is_actual_class
             && assignment_declaration_kind == tsrs2_binder::AssignmentDeclarationKind::Property
             && self.is_non_jsdoc_js_expression_type(access_expression, containing_type);
+        // Only the first access in `this.x = ...` is a JS assignment
+        // declaration. A chained `this.x.missing = ...` therefore has
+        // a final missing-member verdict even when `this` belongs to a
+        // JSDoc constructor.
+        let publish_chained_this_assignment =
+            self.is_chained_this_property_assignment(access_expression);
         let expose_non_jsdoc_js = publish_symbol_free_non_jsdoc
             || publish_declared_non_jsdoc
             || publish_module_read_non_jsdoc
             || publish_assignment_class_read_non_jsdoc
             || publish_direct_this_class_read_non_jsdoc
             || publish_class_alias_assignment_non_jsdoc
+            || publish_chained_this_assignment
             || containing_symbol.is_some_and(|symbol| {
                 self.non_jsdoc_js_module_exports_alias_targets
                     .contains(&symbol)
