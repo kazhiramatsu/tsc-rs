@@ -4320,6 +4320,37 @@ mod tests {
     }
 
     #[test]
+    fn checked_js_publishes_assignment_bearing_class_property_reads() {
+        let source = "class C { constructor() { this.p = 1; } }\n\
+                      C.prototype = { q: 2 };\n\
+                      const c = new C();\n\
+                      c.q;\n";
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [(2339, source.rfind('q').expect("missing property") as u32, 1,)]
+        );
+    }
+
+    #[test]
     fn checked_js_exposes_typed_declaration_arity_diagnostics() {
         let result = check_program(
             &[
