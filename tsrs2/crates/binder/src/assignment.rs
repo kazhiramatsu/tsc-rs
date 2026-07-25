@@ -145,7 +145,7 @@ fn get_assignment_declaration_kind_worker(
     get_assignment_declaration_property_access_kind(source, left)
 }
 
-fn get_assignment_declaration_property_access_kind(
+pub fn get_assignment_declaration_property_access_kind(
     source: &SourceFile,
     lhs: NodeId,
 ) -> AssignmentDeclarationKind {

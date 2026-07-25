@@ -224,8 +224,9 @@
 # p9 9.9ah adds +2 outer generic-reference display diagnostics.
 # p9 9.9ai adds +1 checked-JS class-container merge diagnostic.
 # p9 9.9aj adds +8 Object.defineProperty readonly diagnostics.
-rate = 0.639503
-matched = 31351
+# p9 9.9ak adds +3 function-expando use-before-assignment diagnostics.
+rate = 0.639564
+matched = 31354
 total = 49024
 allowed_regression = 0.0
 
@@ -316,8 +317,9 @@ allowed_regression = 0.0
 # p9 9.9ah adds +2 outer generic-reference display diagnostics.
 # p9 9.9ai adds +1 checked-JS class-container merge diagnostic.
 # p9 9.9aj adds +8 Object.defineProperty readonly diagnostics.
-rate = 0.970453
-matched = 20429
+# p9 9.9ak adds +3 function-expando use-before-assignment diagnostics.
+rate = 0.970595
+matched = 20432
 total = 21051
 allowed_regression = 0.0
 
