@@ -4453,6 +4453,54 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9bh results (2026-07-25, primitive module.exports members — DONE)
+
+The equals-assignment path now validates a direct
+`module.exports.missing = ...` declaration against the completed
+`export=` replacement type. During left-hand-side checking the
+receiver expression is temporarily `errorType`, so the validation
+reads the source-file `export=` symbol, widens its type, and reports
+2339 only when that type is primitive. An object-valued
+`module.exports = {}` remains an expando container.
+
+This is the checker-visible counterpart of the CommonJS declaration
+diagnostic produced after `module.exports = 1`: the assignment-bound
+member symbol cannot make a property exist on `number`. A multi-file
+unit pin covers the primitive positive face and a separate
+object-replacement no-diagnostic control.
+
+The primary D2 port plan is `checkAssignmentOperator`
+(`d2:1b6578dfdfac5aa79ba4591da0a47f4e424d25c03d188ff5eb51d266804d8498`,
+`scc:00405`, one member). It has no exact Rust ledger join, two static
+callees, one static caller, no unresolved static calls, and no escape
+rows. Its diagnostic delegates to the already-ported
+`checkPropertyAccessExpressionOrQualifiedName` report path
+(`d2:e4c636a2528888afc36a842509f7385de02f5176ed13bf2a9de4d8194da5f176`,
+`scc:00002`, 1,396 members), whose evidence remains one exact join,
+71 callees, three callers, no unresolved calls, and two existing
+escape rows.
+
+The target comprising `moduleExportWithExportPropertyAssignment2`
+and the object/function contrast
+`moduleExportWithExportPropertyAssignment4` grows from **7/8** to
+**8/8** at T0/T1 and from **5/8** to **6/8** at T2/T3; the recovered
+identity itself matches T0-T3 and FP remains zero.
+
+2xxx T0 grows to **20490/21051** (**97.3350%**) with FP=0; supported T0
+is **20489/20504** (**99.9268%**) with supported FN=**15**, all code
+2339. All-band T0 is **31412/49024** (**64.0747%**) with FP=0;
+supported all-band T0 is **31411/48477** (**64.7957%**). T1/T2/T3
+each report lost=0, gained=**1** in both bands and both scope views.
+The accepted-set ratchet adds one T0 identity and one
+multiplicity-complete identity to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,087**, binder tests are **55**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,865**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

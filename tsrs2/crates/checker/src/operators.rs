@@ -1539,6 +1539,66 @@ impl<'a> CheckerState<'a> {
             && !self.jsdoc_provenance_of_type(ty, &mut symbols, &mut types)
     }
 
+    fn report_primitive_module_exports_property_assignment(
+        &mut self,
+        access_expression: NodeId,
+    ) -> CheckResult2<()> {
+        if self.kind_of(access_expression) != SyntaxKind::PropertyAccessExpression
+            || !self.is_in_js_file(access_expression)
+            || !node_util::is_assignment_target(
+                self.binder.source_of_node(access_expression),
+                access_expression,
+            )
+        {
+            return Ok(());
+        }
+        let NodeData::PropertyAccessExpression(access) = self.data_of(access_expression) else {
+            return Ok(());
+        };
+        let (Some(receiver), Some(name)) = (access.expression, access.name) else {
+            return Ok(());
+        };
+        if !tsrs2_binder::assignment::is_module_exports_access_expression(
+            self.binder.source_of_node(receiver),
+            receiver,
+        ) {
+            return Ok(());
+        }
+
+        // The receiver expression is temporarily errorType while its
+        // assignment LHS is being checked. The source-file export=
+        // symbol owns the completed replacement type.
+        let receiver_type = self.get_type_of_expression(receiver)?;
+        let mut receiver_type = self.get_widened_type(receiver_type)?;
+        if receiver_type == self.tables.intrinsics.error {
+            let export_equals = {
+                let source = self.binder.source_of_node(access_expression);
+                self.binder
+                    .node_symbol(source.root)
+                    .map(|symbol| self.get_merged_symbol(symbol))
+                    .and_then(|symbol| {
+                        self.binder
+                            .symbol(symbol)
+                            .exports
+                            .get(tsrs2_types::InternalSymbolName::EXPORT_EQUALS)
+                            .copied()
+                    })
+            };
+            if let Some(export_equals) = export_equals {
+                receiver_type = self.get_type_of_symbol(export_equals)?;
+                receiver_type = self.get_widened_type(receiver_type)?;
+            }
+        }
+        if !self
+            .tables
+            .flags_of(receiver_type)
+            .intersects(TypeFlags::PRIMITIVE)
+        {
+            return Ok(());
+        }
+        self.report_nonexistent_property(name, receiver_type, false)
+    }
+
     fn check_assignment_operator(
         &mut self,
         left: NodeId,
@@ -1550,6 +1610,9 @@ impl<'a> CheckerState<'a> {
         let operator = self.operator_kind(operator_token);
         if !node_util::is_assignment_operator(operator) {
             return Ok(());
+        }
+        if operator == SyntaxKind::EqualsToken {
+            self.report_primitive_module_exports_property_assignment(left)?;
         }
         let mut assignee_type = left_type;
         if Self::is_compound_assignment(operator)
