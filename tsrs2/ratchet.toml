@@ -225,8 +225,9 @@
 # p9 9.9ai adds +1 checked-JS class-container merge diagnostic.
 # p9 9.9aj adds +8 Object.defineProperty readonly diagnostics.
 # p9 9.9ak adds +3 function-expando use-before-assignment diagnostics.
-rate = 0.639564
-matched = 31354
+# p9 9.9al adds +2 pure CommonJS export-flow/alias diagnostics.
+rate = 0.639605
+matched = 31356
 total = 49024
 allowed_regression = 0.0
 
@@ -318,8 +319,9 @@ allowed_regression = 0.0
 # p9 9.9ai adds +1 checked-JS class-container merge diagnostic.
 # p9 9.9aj adds +8 Object.defineProperty readonly diagnostics.
 # p9 9.9ak adds +3 function-expando use-before-assignment diagnostics.
-rate = 0.970595
-matched = 20432
+# p9 9.9al adds +2 pure CommonJS export-flow/alias diagnostics.
+rate = 0.97069
+matched = 20434
 total = 21051
 allowed_regression = 0.0
 

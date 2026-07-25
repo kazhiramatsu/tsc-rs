@@ -205,11 +205,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 162af5ad124b130bc6f80f131212585721d1d34d502fc735b9eaea94780b01d0
     /// tsc-span: _tsc.js:49071-49108
     ///
-    /// TS core kinds; the JS arms (VariableDeclaration/BindingElement
-    /// require shapes, Property/ShorthandPropertyAssignment, access
-    /// expressions, BinaryExpression module.exports) are unreachable
-    /// through isAliasSymbolDeclaration's TS arms — constant None here
-    /// (tsc Debug.fail on unknown kinds).
+    /// TS core kinds plus CommonJS access assignments. The remaining
+    /// JS require and object-literal alias shapes stay behind their
+    /// assignment-declaration slices.
     fn get_target_of_alias_declaration(
         &mut self,
         node: NodeId,
@@ -241,6 +239,27 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::BinaryExpression => {
                 self.get_target_of_export_assignment(node, dont_recursively_resolve)
+            }
+            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
+                let Some(parent) = self.parent_of(node) else {
+                    return Ok(None);
+                };
+                let expression = match self.data_of(parent) {
+                    NodeData::BinaryExpression(data)
+                        if data.left == Some(node)
+                            && data.operator_token.is_some_and(|operator| {
+                                self.kind_of(operator) == SyntaxKind::EqualsToken
+                            }) =>
+                    {
+                        data.right
+                    }
+                    _ => None,
+                };
+                match expression {
+                    Some(expression) => self
+                        .get_target_of_alias_like_expression(expression, dont_recursively_resolve),
+                    None => Ok(None),
+                }
             }
             SyntaxKind::NamespaceExportDeclaration => {
                 self.get_target_of_namespace_export_declaration(node, dont_recursively_resolve)
@@ -6776,6 +6795,44 @@ mod tests {
                     "module.exports.bothAfter".len() as u32,
                 ),
             ]
+        );
+    }
+
+    #[test]
+    fn checked_js_common_js_export_flow_reports_use_before_assignment() {
+        let source = "module.exports.a = module.exports.b;\nmodule.exports.b = function b() {}\n";
+        let b_read = source.find("module.exports.b").expect("fixture read") as u32
+            + "module.exports.".len() as u32;
+        assert_eq!(
+            program_rows(
+                &[("/mod.js", source)],
+                &CompilerOptions {
+                    allow_js: true,
+                    check_js: Some(true),
+                    strict: Some(true),
+                    ..CompilerOptions::default()
+                },
+            ),
+            [("/mod.js".to_owned(), 2565, b_read, 1)]
+        );
+    }
+
+    #[test]
+    fn export_equals_keeps_broader_common_js_source_type_contained() {
+        assert_eq!(
+            program_rows(
+                &[(
+                    "/mod.js",
+                    "module.exports = function x() {}\nmodule.exports()\n",
+                )],
+                &CompilerOptions {
+                    allow_js: true,
+                    check_js: Some(true),
+                    strict: Some(true),
+                    ..CompilerOptions::default()
+                },
+            ),
+            []
         );
     }
 

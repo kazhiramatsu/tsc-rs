@@ -6808,12 +6808,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c0e8266ebc58c3f705777885e0cbce9e9a3452ce61f033c5e075f8f739ef624e
     /// tsc-span: _tsc.js:56032-56141
     ///
-    /// Worker heads: Prototype symbols and accessor-kinded value
-    /// declarations route ahead of the resolution stack (56643/56670);
-    /// requireSymbol, ModuleExports and JSON-source heads are
-    /// JS/modules shapes elided project-wide. The declaration kind
-    /// dispatch is complete for the TS band since 5.9c (export=,
-    /// class/function/enum/enum-member re-routes).
+    /// Worker heads: Prototype symbols, bounded pure-named CommonJS
+    /// `ModuleExports`, JSON sources, and accessor-kinded value
+    /// declarations route ahead of the resolution stack. The broader
+    /// `ModuleExports` + export= source-type synthesis remains at the
+    /// CommonJS source-file boundary; requireSymbol is still elided.
+    /// The declaration-kind dispatch is complete for the TS band since
+    /// 5.9c (export=, class/function/enum/enum-member re-routes).
     fn get_type_of_variable_or_parameter_or_property(
         &mut self,
         symbol: SymbolId,
@@ -6837,6 +6838,56 @@ impl<'a> CheckerState<'a> {
             return Ok(resolved);
         }
         let declaration = self.binder.symbol(symbol).value_declaration;
+        if self
+            .symbol_flags(symbol)
+            .intersects(SymbolFlags::MODULE_EXPORTS)
+        {
+            if let Some(declaration) = declaration {
+                let source = self.binder.source_of_node(declaration);
+                if let Some(file_symbol) =
+                    self.binder.node_symbol(source.root).filter(|&file_symbol| {
+                        !self
+                            .binder
+                            .symbol(file_symbol)
+                            .exports
+                            .contains_key(InternalSymbolName::EXPORT_EQUALS)
+                    })
+                {
+                    let file = self.binder.symbol(file_symbol);
+                    let flags = file.flags;
+                    let declarations = file.declarations.clone();
+                    let value_declaration = file.value_declaration;
+                    let members = file.members.clone();
+                    let exports = file.exports.clone();
+                    let result = self.binder.create_symbol(flags, "exports".to_owned());
+                    {
+                        let result_symbol = self.binder.symbol_mut(result);
+                        result_symbol.declarations = declarations;
+                        result_symbol.parent = Some(symbol);
+                        result_symbol.value_declaration = value_declaration;
+                        result_symbol.members = members;
+                        result_symbol.exports = exports;
+                    }
+                    self.links
+                        .set_symbol_target(self.speculation_depth, result, file_symbol);
+                    let mut module_members = tsrs2_binder::SymbolTable::default();
+                    module_members.insert("exports".to_owned(), result);
+                    let resolved = self.make_resolved_anonymous_type(
+                        Some(symbol),
+                        module_members,
+                        vec![result],
+                        Vec::new(),
+                        ObjectFlags::ANONYMOUS,
+                    );
+                    self.links.set_symbol_type(
+                        self.speculation_depth,
+                        symbol,
+                        LinkSlot::Resolved(resolved),
+                    );
+                    return Ok(resolved);
+                }
+            }
+        }
         if let Some(declaration) = declaration {
             if self.kind_of(declaration) == SyntaxKind::SourceFile
                 && self
@@ -6918,10 +6969,10 @@ impl<'a> CheckerState<'a> {
                 )
             })?;
             // getTypeOfVariableOrParameterOrPropertyWorker dispatch
-            // (56680-56711): the Prototype/requireSymbol/ModuleExports
-            // heads and the JSON-source-file arm precede the resolution
-            // stack in tsc; those symbol shapes never take this route
-            // in the slice (modules 5.8, JS [JSDOC]).
+            // (56680-56711): Prototype, the bounded ModuleExports
+            // head, and JSON sources have already returned; the
+            // remaining requireSymbol/broader CommonJS shapes do not
+            // enter this declaration dispatch.
             match state.kind_of(declaration) {
                 SyntaxKind::ExportAssignment => {
                     // 56680-56681: `export =` types as the widened
