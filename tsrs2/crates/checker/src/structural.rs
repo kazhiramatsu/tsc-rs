@@ -2519,12 +2519,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if source_is_abstract && !target_is_abstract {
                 return Ok(Ternary::FALSE);
             }
-            // KNOWN-GAP since M4 (m4-review B4):
-            // constructorVisibilitiesAreCompatible is skipped —
-            // private/protected constructors are constructible class
-            // members since M4 (the "always public" claim is false),
-            // so a private-ctor class assigned to a construct
-            // signature misses its 2322 (probed).
+            if !self
+                .constructor_visibilities_are_compatible(source_signatures[0], target_signatures[0])
+            {
+                return Ok(Ternary::FALSE);
+            }
         }
         let mut result = Ternary::TRUE;
         let source_object_flags = self.st.tables.object_flags_of(source);
@@ -2590,6 +2589,55 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         Ok(result)
+    }
+
+    /// tsc-port: constructorVisibilitiesAreCompatible @6.0.3
+    /// tsc-hash: 71021a08f9755ceb3fe5e906186900287fc93015e0e6e11c26a09c2430c5275f
+    /// tsc-span: _tsc.js:67210-67229
+    ///
+    /// Verdict-complete decision table. tsc's `reportErrors` arm adds
+    /// 2672 as nested relation errorInfo; this port's relation frame
+    /// does not yet carry errorInfo, so the caller publishes the exact
+    /// 2322 head through its ordinary failed-assignability path while
+    /// the nested T3 row remains report-only debt.
+    fn constructor_visibilities_are_compatible(
+        &self,
+        source_signature: SignatureId,
+        target_signature: SignatureId,
+    ) -> bool {
+        let Some(source_declaration) = self.st.signature_of(source_signature).declaration else {
+            return true;
+        };
+        let Some(target_declaration) = self.st.signature_of(target_signature).declaration else {
+            return true;
+        };
+        let source_file = self.st.binder.source_of_node(source_declaration);
+        let target_file = self.st.binder.source_of_node(target_declaration);
+        let non_public = ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
+        let source_accessibility = ModifierFlags::from_bits(
+            tsrs2_binder::node_util::get_combined_modifier_flags(source_file, source_declaration)
+                .bits()
+                & non_public.bits(),
+        );
+        let target_accessibility = ModifierFlags::from_bits(
+            tsrs2_binder::node_util::get_combined_modifier_flags(target_file, target_declaration)
+                .bits()
+                & non_public.bits(),
+        );
+        if target_accessibility.intersects(ModifierFlags::PRIVATE) {
+            return true;
+        }
+        if target_accessibility.intersects(ModifierFlags::PROTECTED)
+            && !source_accessibility.intersects(ModifierFlags::PRIVATE)
+        {
+            return true;
+        }
+        if !target_accessibility.intersects(ModifierFlags::PROTECTED)
+            && source_accessibility == ModifierFlags::NONE
+        {
+            return true;
+        }
+        false
     }
 
     /// tsc-port: signatureRelatedTo @6.0.3
@@ -8070,6 +8118,42 @@ mod tests {
             .iter()
             .map(|d| (d.code(), d.start, d.length))
             .collect()
+    }
+
+    #[test]
+    fn constructor_visibility_participates_in_static_side_relations() {
+        let source = "class Pub { constructor() {} }\n\
+                      class Prot { protected constructor() {} }\n\
+                      class Priv { private constructor() {} }\n\
+                      let p = Pub;\n\
+                      p = Prot;\n\
+                      p = Priv;\n\
+                      let q = Prot;\n\
+                      q = Pub;\n\
+                      q = Priv;\n\
+                      let r = Priv;\n\
+                      r = Pub;\n\
+                      r = Prot;\n";
+        assert_eq!(
+            program_rows(source),
+            [
+                (
+                    2322,
+                    Some(source.find("p = Prot").expect("protected to public") as u32),
+                    Some(1),
+                ),
+                (
+                    2322,
+                    Some(source.find("p = Priv").expect("private to public") as u32),
+                    Some(1),
+                ),
+                (
+                    2322,
+                    Some(source.find("q = Priv").expect("private to protected") as u32),
+                    Some(1),
+                ),
+            ]
+        );
     }
 
     #[test]
