@@ -229,8 +229,9 @@
 # p9 9.9am adds +1 duplicated CommonJS export-flow diagnostic.
 # p9 9.9an adds +1 checked-JS not-a-module diagnostic.
 # p9 9.9ao adds +7 checked-JS CommonJS require-module diagnostics.
-rate = 0.639789
-matched = 31365
+# p9 9.9ap adds +2 checked-JS readonly enum-expando diagnostics.
+rate = 0.639829
+matched = 31367
 total = 49024
 allowed_regression = 0.0
 
@@ -326,8 +327,9 @@ allowed_regression = 0.0
 # p9 9.9am adds +1 duplicated CommonJS export-flow diagnostic.
 # p9 9.9an adds +1 checked-JS not-a-module diagnostic.
 # p9 9.9ao adds +7 checked-JS CommonJS require-module diagnostics.
-rate = 0.971118
-matched = 20443
+# p9 9.9ap adds +2 checked-JS readonly enum-expando diagnostics.
+rate = 0.971213
+matched = 20445
 total = 21051
 allowed_regression = 0.0
 

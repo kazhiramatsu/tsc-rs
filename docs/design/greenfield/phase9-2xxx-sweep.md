@@ -3708,6 +3708,40 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9ap results (2026-07-25, checked-JS readonly publication — DONE)
+
+The readonly-assignment branch in
+`checkPropertyAccessExpressionOrQualifiedName` now publishes its
+already-exact 2540 through the shared non-JSDoc checked-JS provenance
+gate. The require-module marker from 9.9ao remains an alternate narrow
+publication path for modules whose unrelated JSDoc would otherwise
+poison the whole module type. JSDoc-derived readonly declarations still
+stay behind the M8 scope boundary.
+
+The D2 port plans select
+`checkPropertyAccessExpressionOrQualifiedName`
+(`d2:e4c636a2528888afc36a842509f7385de02f5176ed13bf2a9de4d8194da5f176`,
+`scc:00002`) and `isReadonlySymbol`
+(`d2:bb6a96a8872755184fc1cd5334fbfc3d4d63cd806f8d560fb73eebd8292360b5`,
+`scc:02836`). Both are exact ledger joins with zero unresolved static
+calls; the selected boundary adds or widens no escape.
+
+This closes both supported 2540 rows in `enumMergeWithExpando`; the
+excluded 2540 in `jsdocReadonly` remains excluded and unmatched. 2xxx
+T0 grows to **20445/21051** (**97.1213%**) with FP=0; supported T0 is
+**20445/20504** (**99.7123%**) with supported FN=**59**. All-band T0
+is **31367/49024** (**63.9829%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**2** in both bands and both scope views. The
+accepted-set ratchet adds two T0 identities and two
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,065**, binder tests are **54**, and syntax tests
+are **106**. Ledger evidence is unchanged at entries=**1,860**,
+stale=0. Escape evidence is unchanged at sites=**192**, stale=0,
+untagged=0, recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
