@@ -205,8 +205,9 @@
 # p9 9.9p adds +4 declaration-extension substitution diagnostics.
 # p9 9.9q adds +3 rewrite-relative-import safety diagnostics.
 # p9 9.9r adds +3 external-module UMD-global diagnostics.
-rate = 0.638463
-matched = 31300
+# p9 9.9s adds +2 JSDoc-nullable type-node diagnostics.
+rate = 0.638504
+matched = 31302
 total = 49024
 allowed_regression = 0.0
 
@@ -278,8 +279,9 @@ allowed_regression = 0.0
 # p9 9.9p adds +4 declaration-extension substitution diagnostics.
 # p9 9.9q adds +3 rewrite-relative-import safety diagnostics.
 # p9 9.9r adds +3 external-module UMD-global diagnostics.
-rate = 0.96803
-matched = 20378
+# p9 9.9s adds +2 JSDoc-nullable type-node diagnostics.
+rate = 0.968125
+matched = 20380
 total = 21051
 allowed_regression = 0.0
 

@@ -3086,6 +3086,28 @@ Checker tests are **1,036**. Escape evidence is unchanged at
 sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
 Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9s results (2026-07-25, JSDoc-nullable type nodes — DONE)
+
+`getTypeFromTypeNodeWorker` now routes `JSDocNullableType` through the
+upstream `getTypeFromJSDocNullableTypeNode` owner. The worker resolves
+the operand and adds `null` only under strict null checking. This lets
+the existing tuple-rest array check inspect postfix-optional rest
+elements instead of stopping at the partial type-node boundary.
+
+This closes **2** supported rows: the 2574 tuple-rest row and the 2322
+assignment row reached by the same nullable-type owner. 2xxx T0 grows
+to **20380/21051** (**96.8125%**) with FP=0; supported T0 is
+**20380/20504** (**99.3952%**) with supported FN=**124**. All-band T0
+is **31302/49024** (**63.8504%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**2** in both bands and both scope views. The
+accepted-set ratchet adds 2 T0 identities and 2 multiplicity-complete
+identities to both all and 2xxx; syntactic is unchanged.
+
+Checker tests remain **1,036**; the tuple-order test now also pins the
+postfix-optional rest form. Escape evidence is unchanged at
+sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
+Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
