@@ -3231,6 +3231,30 @@ evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9y results (2026-07-25, checked-JS property initialization — DONE)
+
+`checkPropertyInitialization` now registers the exact diagnostic key
+when a JavaScript class property and its resolved type have no JSDoc
+provenance. The existing strict-initialization analysis already emits
+the correct 2564 row; this connects that source-syntax path to the
+checked-JS program filter without admitting JSDoc-derived type
+diagnostics or changing plain-JS behavior.
+
+This closes all **4** supported 2564 rows in the ES5 and ES2015
+variants of `jsDeclarationsClassesErr`. 2xxx T0 grows to
+**20404/21051** (**96.9265%**) with FP=0; supported T0 is
+**20404/20504** (**99.5123%**) with supported FN=**100**. All-band T0
+is **31326/49024** (**63.8993%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**4** in both bands and both scope views. The
+accepted-set ratchet adds 4 T0 identities and 4
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,042** and binder tests are **53**. Escape
+evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

@@ -2288,11 +2288,17 @@ impl<'a> CheckerState<'a> {
             };
             if !initialized {
                 let display = self.declaration_name_display(prop_name);
+                let expose_non_jsdoc_js =
+                    self.is_non_jsdoc_js_expression_type(prop_name, member_type);
+                let diagnostics_before = self.diagnostics.len();
                 self.error_at(
                     Some(prop_name),
                     &diagnostics::Property_0_has_no_initializer_and_is_not_definitely_assigned_in_the_constructor,
                     &[&display],
                 );
+                if expose_non_jsdoc_js {
+                    self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
+                }
             }
         }
         Ok(())
@@ -2318,10 +2324,12 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
+    use tsrs2_diags::DiagnosticCategory;
     use tsrs2_types::CompilerOptions;
 
     use crate::state::test_support::with_program_state;
     use crate::state::CheckerState;
+    use crate::{check_program, InputFile};
 
     /// Class-band pins (oracle: tsc 6.0.3 noLib, scratchpad probe.sh
     /// p2-p6, 2026-07-14).
@@ -2389,6 +2397,35 @@ mod tests {
         assert_eq!(
             checked_rows("class C { #p: string; constructor() { this.#p = \"x\"; } }\n"),
             []
+        );
+    }
+
+    #[test]
+    fn checked_js_typed_property_initialization_row_is_published() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "export class C { field: string; }\n".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 2564)
+                .map(|diagnostic| (
+                    diagnostic.code(),
+                    diagnostic.category(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [(2564, DiagnosticCategory::Error, 17)]
         );
     }
 
