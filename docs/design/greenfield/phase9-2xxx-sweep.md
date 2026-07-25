@@ -4243,6 +4243,46 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9bc results (2026-07-25, checked-JS assignment classes — DONE)
+
+The checked-JS 2339 publication boundary now admits non-assignment
+reads on a receiver symbol that carries both `CLASS` and `ASSIGNMENT`
+but not `FUNCTION`. This is the exact class side of the
+prototype-replacement twin: `class C; C.prototype = { q: 2 }` does not
+add `q` to `C` instances, while the equivalent constructor-function
+pattern does.
+
+The `FUNCTION` exclusion preserves the
+`typeFromPropertyAssignment27` control that the broader value-module
+probe exposed in 9.9bb. A unit pin covers the actual-class positive
+face; the function/prototype negative pin remains adjacent from 9.9bb.
+
+The D2 port plan again selects
+`checkPropertyAccessExpressionOrQualifiedName`
+(`d2:e4c636a2528888afc36a842509f7385de02f5176ed13bf2a9de4d8194da5f176`,
+`scc:00002`, 1,396 members). It has one exact Rust ledger join, 71
+static callees, three static callers, no unresolved static calls, and
+two pre-existing escape rows; this slice adds or widens none.
+
+The `typeFromPropertyAssignment28` target paired with its
+`typeFromPropertyAssignment27` function control grows from **1/2** to
+**2/2** at T0/T1/T2/T3, with FP=0.
+
+2xxx T0 grows to **20483/21051** (**97.3018%**) with FP=0; supported T0
+is **20482/20504** (**99.8927%**) with supported FN=**22**, all code
+2339. All-band T0 is **31405/49024** (**64.0605%**) with FP=0;
+supported all-band T0 is **31404/48477** (**64.7812%**). T1/T2/T3
+each report lost=0, gained=**1** in both bands and both scope views.
+The accepted-set ratchet adds one T0 identity and one
+multiplicity-complete identity to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,082**, binder tests are **55**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,865**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

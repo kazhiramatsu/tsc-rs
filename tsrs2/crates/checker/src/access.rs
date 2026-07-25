@@ -3019,9 +3019,19 @@ impl<'a> CheckerState<'a> {
         let publish_module_read_non_jsdoc = is_plain_value_module
             && assignment_declaration_kind == tsrs2_binder::AssignmentDeclarationKind::None
             && self.is_non_jsdoc_js_expression_type(access_expression, containing_type);
+        let is_assignment_class = containing_symbol.is_some_and(|symbol| {
+            let flags = self.binder.symbol(symbol).flags;
+            flags.intersects(SymbolFlags::CLASS)
+                && flags.intersects(SymbolFlags::ASSIGNMENT)
+                && !flags.intersects(SymbolFlags::FUNCTION)
+        });
+        let publish_assignment_class_read_non_jsdoc = is_assignment_class
+            && assignment_declaration_kind == tsrs2_binder::AssignmentDeclarationKind::None
+            && self.is_non_jsdoc_js_expression_type(access_expression, containing_type);
         let expose_non_jsdoc_js = publish_symbol_free_non_jsdoc
             || publish_declared_non_jsdoc
             || publish_module_read_non_jsdoc
+            || publish_assignment_class_read_non_jsdoc
             || containing_symbol.is_some_and(|symbol| {
                 self.non_jsdoc_js_module_exports_alias_targets
                     .contains(&symbol)
