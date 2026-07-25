@@ -232,8 +232,9 @@
 # p9 9.9ap adds +2 checked-JS readonly enum-expando diagnostics.
 # p9 9.9aq adds +3 complex cross-product union diagnostics.
 # p9 9.9ar adds +3 constructor-visibility relation diagnostics.
-rate = 0.639952
-matched = 31373
+# p9 9.9as adds +3 JSX excess-property diagnostics against empty props.
+rate = 0.640013
+matched = 31376
 total = 49024
 allowed_regression = 0.0
 
@@ -332,8 +333,9 @@ allowed_regression = 0.0
 # p9 9.9ap adds +2 checked-JS readonly enum-expando diagnostics.
 # p9 9.9aq adds +3 complex cross-product union diagnostics.
 # p9 9.9ar adds +3 constructor-visibility relation diagnostics.
-rate = 0.971498
-matched = 20451
+# p9 9.9as adds +3 JSX excess-property diagnostics against empty props.
+rate = 0.97164
+matched = 20454
 total = 21051
 allowed_regression = 0.0
 
