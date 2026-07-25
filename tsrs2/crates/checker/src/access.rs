@@ -1632,15 +1632,16 @@ impl<'a> CheckerState<'a> {
             )?;
             if self.is_assignment_to_readonly_entity(node, prop, assignment_kind)? {
                 let display = tsrs2_binder::unescape_leading_underscores(&right_text).to_owned();
-                let publish_checked_js = self.is_in_js_file(node)
-                    && self
-                        .tables
-                        .type_of(apparent_type)
-                        .symbol
-                        .map(|symbol| self.get_merged_symbol(symbol))
-                        .is_some_and(|symbol| {
-                            self.non_jsdoc_js_commonjs_require_targets.contains(&symbol)
-                        });
+                let publish_checked_js = self.is_non_jsdoc_js_expression_type(node, apparent_type)
+                    || self.is_in_js_file(node)
+                        && self
+                            .tables
+                            .type_of(apparent_type)
+                            .symbol
+                            .map(|symbol| self.get_merged_symbol(symbol))
+                            .is_some_and(|symbol| {
+                                self.non_jsdoc_js_commonjs_require_targets.contains(&symbol)
+                            });
                 let diagnostics_before = self.diagnostics.len();
                 self.error_at(
                     Some(right),

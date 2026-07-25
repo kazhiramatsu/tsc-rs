@@ -4106,6 +4106,58 @@ mod tests {
     }
 
     #[test]
+    fn checked_js_publishes_non_jsdoc_readonly_enum_expandos() {
+        let source = "lf.Order = {};\nlf.Order.DESC = 0;\nlf.Order.ASC = 1;\n";
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "types.d.ts".to_owned(),
+                    text: "declare namespace lf { export enum Order { ASC, DESC } }\n".to_owned(),
+                },
+                InputFile {
+                    name: "enums.js".to_owned(),
+                    text: source.to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                target: Some(2),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.file_name.as_deref(),
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                    diagnostic.message_text(),
+                ))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    Some("enums.js"),
+                    2540,
+                    source.find("DESC").expect("DESC assignment") as u32,
+                    "DESC".len() as u32,
+                    "Cannot assign to 'DESC' because it is a read-only property.",
+                ),
+                (
+                    Some("enums.js"),
+                    2540,
+                    source.find("ASC =").expect("ASC assignment") as u32,
+                    "ASC".len() as u32,
+                    "Cannot assign to 'ASC' because it is a read-only property.",
+                ),
+            ]
+        );
+    }
+
+    #[test]
     fn checked_js_jsdoc_type_checks_its_initializer() {
         let result = check_program(
             &[InputFile {
