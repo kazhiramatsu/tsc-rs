@@ -3041,6 +3041,29 @@ Checker tests are **1,034**. Escape evidence is unchanged at
 sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
 Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9q results (2026-07-25, rewrite-relative-import safety — DONE)
+
+`rewriteRelativeImportExtensions` is now represented in checker
+options and participates in `shouldAllowImportingTsExtension`.
+Relative TS-looking specifiers which resolve to a different in-program
+path without `resolvedUsingTsExtension` report 2876 when the import is
+value-bearing and non-ambient. The diagnostic path renders the
+resolved target relative to the importing file; type-only imports
+remain clean.
+
+This closes all **3** supported 2876 rows for the Node18, Node20, and
+NodeNext matrices. 2xxx T0 grows to **20375/21051** (**96.7888%**) with
+FP=0; supported T0 is **20375/20504** (**99.3709%**) with supported
+FN=**129**. All-band T0 is **31297/49024** (**63.8402%**) with FP=0.
+T1/T2/T3 each report lost=0, gained=**3** in both bands and both scope
+views. The accepted-set ratchet adds 3 T0 identities and 3
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,035**. Escape evidence is unchanged at
+sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
+Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

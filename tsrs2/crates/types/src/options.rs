@@ -143,6 +143,9 @@ pub struct CompilerOptions {
     /// extension row (shouldAllowImportingTsExtension) — a true value
     /// legalizes .ts-family specifiers.
     pub allow_importing_ts_extensions: Option<bool>,
+    /// Rewrites relative TypeScript-family specifiers during emit.
+    /// The checker consumes it for extension legality and 2876.
+    pub rewrite_relative_import_extensions: Option<bool>,
     /// tsc resolveJsonModule computed option. TS 6 enables it by
     /// default for Node20/NodeNext module kinds and Bundler resolution.
     pub resolve_json_module: Option<bool>,

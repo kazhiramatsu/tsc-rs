@@ -203,8 +203,9 @@
 # p9 9.9n adds +6 checked-JS typed-declaration arity diagnostics.
 # p9 9.9o adds +4 typed missing-namespace tail diagnostics.
 # p9 9.9p adds +4 declaration-extension substitution diagnostics.
-rate = 0.63834
-matched = 31294
+# p9 9.9q adds +3 rewrite-relative-import safety diagnostics.
+rate = 0.638402
+matched = 31297
 total = 49024
 allowed_regression = 0.0
 
@@ -274,8 +275,9 @@ allowed_regression = 0.0
 # p9 9.9n adds +6 checked-JS typed-declaration arity diagnostics.
 # p9 9.9o adds +4 typed missing-namespace tail diagnostics.
 # p9 9.9p adds +4 declaration-extension substitution diagnostics.
-rate = 0.967745
-matched = 20372
+# p9 9.9q adds +3 rewrite-relative-import safety diagnostics.
+rate = 0.967888
+matched = 20375
 total = 21051
 allowed_regression = 0.0
 

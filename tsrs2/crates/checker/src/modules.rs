@@ -2111,6 +2111,7 @@ impl<'a> CheckerState<'a> {
                 }
             } else if resolved.resolved_using_ts_extension
                 && self.options.allow_importing_ts_extensions != Some(true)
+                && self.options.rewrite_relative_import_extensions != Some(true)
                 && !self.binder.source_of_node(location).is_declaration_file
             {
                 // shouldAllowImportingTsExtension: the option OR a
@@ -2126,6 +2127,28 @@ impl<'a> CheckerState<'a> {
                             &[ts_extension],
                         );
                     }
+                }
+            } else if self.options.rewrite_relative_import_extensions == Some(true)
+                && !self
+                    .binder
+                    .flags_of(location)
+                    .intersects(tsrs2_types::NodeFlags::AMBIENT)
+                && !Self::is_declaration_file_name(module_reference)
+                && !self.import_location_is_type_only(location)
+                && Self::is_external_module_name_relative(module_reference)
+                && Self::try_extract_ts_extension(module_reference).is_some()
+                && !resolved.resolved_using_ts_extension
+            {
+                if let Some(error_node) = error_node {
+                    let resolved_path = Self::relative_path_from_importer(
+                        &self.binder.source_of_node(location).file_name,
+                        &resolved_file_name,
+                    );
+                    self.error_at(
+                        Some(error_node),
+                        &diagnostics::This_relative_import_path_is_unsafe_to_rewrite_because_it_looks_like_a_file_name_but_actually_resolves_to_0,
+                        &[&resolved_path],
+                    );
                 }
             }
             let root = source.root;
@@ -3217,6 +3240,38 @@ impl<'a> CheckerState<'a> {
             }
         }
         format!("/{}", segments.join("/"))
+    }
+
+    /// tsrs-native: lexical getRelativePathFromFile over normalized
+    /// in-program paths. Diagnostic module paths keep an explicit `./`
+    /// when the target is below the importing file's directory.
+    fn relative_path_from_importer(importer: &str, target: &str) -> String {
+        let importer = Self::normalize_program_path(importer, "");
+        let target = Self::normalize_program_path(target, "");
+        let importer_dir = importer
+            .rsplit_once('/')
+            .map_or("", |(directory, _)| directory);
+        let from: Vec<_> = importer_dir
+            .split('/')
+            .filter(|segment| !segment.is_empty())
+            .collect();
+        let to: Vec<_> = target
+            .split('/')
+            .filter(|segment| !segment.is_empty())
+            .collect();
+        let shared = from
+            .iter()
+            .zip(&to)
+            .take_while(|(left, right)| left == right)
+            .count();
+        let mut parts = vec![".."; from.len().saturating_sub(shared)];
+        parts.extend(to[shared..].iter().copied());
+        let relative = parts.join("/");
+        if relative.starts_with("../") || relative == ".." {
+            relative
+        } else {
+            format!("./{relative}")
+        }
     }
 
     fn is_declaration_file_name(name: &str) -> bool {
@@ -6460,6 +6515,31 @@ mod tests {
                 },
             ),
             [("/types.d.ts".to_owned(), 2846, 15, 10)]
+        );
+    }
+
+    #[test]
+    fn rewrite_relative_import_reports_file_looking_directory_resolution() {
+        let files = [
+            ("/foo.ts/index.ts", "export = {};\n"),
+            (
+                "/index.ts",
+                "import foo = require(\"./foo.ts\");\n\
+                 import type only = require(\"./foo.ts\");\n",
+            ),
+        ];
+        assert_eq!(
+            program_rows(
+                &files,
+                &CompilerOptions {
+                    target: Some(9),
+                    module: Some(102),
+                    verbatim_module_syntax: Some(true),
+                    rewrite_relative_import_extensions: Some(true),
+                    ..CompilerOptions::default()
+                },
+            ),
+            [("/index.ts".to_owned(), 2876, 21, 10)]
         );
     }
 
