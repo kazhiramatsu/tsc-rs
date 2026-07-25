@@ -3505,6 +3505,35 @@ Escape evidence is unchanged at sites=**192**, stale=0,
 untagged=0, recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9aj results (2026-07-25, JS expando property descriptors — DONE)
+
+The bounded `getJSContainerObjectType` producer now admits an empty JS
+variable when its binder symbol already owns a non-empty real export
+table. It materializes those assignment-declaration exports as the
+container's resolved members while keeping member-less/open-ended JS
+objects behind the existing curtain. `isReadonlySymbol` now also
+ports the syntax-decidable `Object.defineProperty` descriptor faces:
+`value` properties are readonly when `writable` is absent or literally
+false, and accessor properties are readonly when no setter exists.
+Dynamic `writable` expressions remain conservative.
+
+This closes eight supported 2540 rows across
+`checkObjectDefineProperty`, `checkExportsObjectAssignProperty`, and
+`checkExportsObjectAssignPrototypeProperty`. 2xxx T0 grows to
+**20429/21051** (**97.0453%**) with FP=0; supported T0 is
+**20429/20504** (**99.6342%**) with supported FN=**75**. All-band T0
+is **31351/49024** (**63.9503%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**8** in both bands and both scope views. The
+accepted-set ratchet adds eight T0 identities and eight
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,055**, binder tests are **54**, and syntax tests
+are **106**. Ledger evidence grows to entries=**1,858**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

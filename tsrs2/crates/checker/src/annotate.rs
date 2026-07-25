@@ -6711,7 +6711,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsrs-native: the bounded syntax/merge predicate shared by the
     /// producer, diagnostic display, and checked-JS publication gate.
-    pub(crate) fn get_closed_js_class_container_initializer(
+    pub(crate) fn get_bounded_js_container_initializer(
         &self,
         declaration: NodeId,
         symbol: SymbolId,
@@ -6723,15 +6723,19 @@ impl<'a> CheckerState<'a> {
             return None;
         }
         // Until the general JS open-ended-object path is live, admit
-        // only the closed merge face exercised here: a JS container
-        // merged into a non-JS class value. Ordinary JS objects,
-        // JSDoc globals, and enum/namespace expandos must retain their
-        // existing inference path.
-        let value_declaration = self.binder.symbol(symbol).value_declaration?;
-        if value_declaration == declaration
-            || self.is_in_js_file(value_declaration)
-            || self.kind_of(value_declaration) != SyntaxKind::ClassDeclaration
-        {
+        // only containers whose complete member set is already in a
+        // real binder export table, plus the closed non-JS class merge
+        // face. Ordinary member-less JS objects, JSDoc globals, and
+        // enum/namespace expandos retain their existing inference
+        // path.
+        let symbol_data = self.binder.symbol(symbol);
+        let value_declaration = symbol_data.value_declaration?;
+        let bound_expando_container =
+            value_declaration == declaration && !symbol_data.exports.is_empty();
+        let non_js_class_merge = value_declaration != declaration
+            && !self.is_in_js_file(value_declaration)
+            && self.kind_of(value_declaration) == SyntaxKind::ClassDeclaration;
+        if !bound_expando_container && !non_js_class_merge {
             return None;
         }
         let source = self.binder.source_of_node(declaration);
@@ -6769,7 +6773,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         initializer: NodeId,
     ) -> Option<TypeId> {
-        self.get_closed_js_class_container_initializer(declaration, symbol, initializer)?;
+        self.get_bounded_js_container_initializer(declaration, symbol, initializer)?;
         let members = self.binder.symbol(symbol).exports.clone();
         let properties = members.values().copied().collect();
         let ty = self.create_resolved_empty_anonymous_type(Some(symbol));
