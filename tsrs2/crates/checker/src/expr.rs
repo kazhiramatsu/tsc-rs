@@ -4354,6 +4354,14 @@ mod tests {
     }
 
     #[test]
+    fn export_default_identifier_flows_before_its_declaration() {
+        assert_eq!(
+            checked_rows("export default x;\nconst x = 'x';\n"),
+            [(2448, 15, 1), (2454, 15, 1)]
+        );
+    }
+
+    #[test]
     fn typeof_forces_its_operand() {
         assert_eq!(checked_rows("typeof missing;\n"), [(2304, 7, 7)]);
     }
