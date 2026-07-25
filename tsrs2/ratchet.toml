@@ -211,8 +211,9 @@
 # p9 9.9v adds +1 duplicate object-literal method diagnostic.
 # p9 9.9w adds +10 through module.exports alias resolution and
 # exact checked-JS property-miss publication.
-rate = 0.638769
-matched = 31315
+# p9 9.9x adds +7 unchecked-JS name/property spelling suggestions.
+rate = 0.638912
+matched = 31322
 total = 49024
 allowed_regression = 0.0
 
@@ -290,8 +291,9 @@ allowed_regression = 0.0
 # p9 9.9v adds +1 duplicate object-literal method row.
 # p9 9.9w adds +10 through module.exports alias resolution and
 # exact checked-JS property-miss publication.
-rate = 0.968743
-matched = 20393
+# p9 9.9x adds +7 unchecked-JS name/property spelling suggestions.
+rate = 0.969075
+matched = 20400
 total = 21051
 allowed_regression = 0.0
 
