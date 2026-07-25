@@ -4261,6 +4261,65 @@ mod tests {
     }
 
     #[test]
+    fn checked_js_publishes_plain_value_module_property_reads() {
+        let source = "exports.missing();\nexports.created = 1;\n";
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [(
+                2339,
+                source.find("missing").expect("missing property") as u32,
+                "missing".len() as u32,
+            )]
+        );
+    }
+
+    #[test]
+    fn checked_js_contains_assignment_bearing_value_module_property_misses() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "function C() { this.p = 1; }\n\
+                       C.prototype = { q: 2 };\n\
+                       const c = new C();\n\
+                       c.q;\n"
+                    .to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code() != 2339),
+            "{:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
     fn checked_js_exposes_typed_declaration_arity_diagnostics() {
         let result = check_program(
             &[
