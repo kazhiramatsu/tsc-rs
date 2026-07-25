@@ -4650,6 +4650,57 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9bl results (2026-07-25, prototype-object property misses — DONE)
+
+The checked-JS 2339 path now publishes a property-access miss for
+`Ctor.prototype.member = ...` when a JSDoc-semantic constructor has a
+prior structural `Ctor.prototype = { ... }` replacement. The receiver
+type is proven by the replacement object literal's value declaration;
+ordinary incremental prototype assignments and element-access
+expandos keep their existing inference paths.
+
+The anonymous-object display admits checked-JS function values only
+when `getClassNameFromPrototypeMethod` proves that they are members of
+the prototype replacement. This renders the exact
+`{ set: () => void; get(): void; }` container without opening the
+general JS-constructor display curtain. A unit pin covers the published
+miss and a plain incremental prototype control. Corpus controls
+`typeFromPropertyAssignment11/13` and
+`typeFromPrototypeAssignment3/4` remain exact.
+
+The primary D2 port plan is `reportNonexistentProperty`
+(`d2:681dc9d40f1bb3d69339aaabed7c5c7e02fc0bd5b498bb5eeee4eca60cd94001`,
+`scc:00002`, 1,396 members). It has no exact Rust ledger join, 24
+static callees, two static callers, no unresolved static calls, and no
+escape rows. The display plan is `createAnonymousTypeNode`
+(`d2:a126022942536b140af78e7db6b1aea001b0809c904582b4ed11b887f12ea745`,
+`scc:00046`, 58 members), with no exact Rust ledger join, 20 static
+callees, two static callers, no unresolved static calls, and no escape
+rows. `getClassNameFromPrototypeMethod`
+(`d2:84df2978937be95930cde1438767bc9440270e80f472ab2efa65acccb5d12899`,
+`scc:02004`, one member) has one exact Rust ledger join, seven static
+callees, one static caller, no unresolved static calls, and no escape
+rows.
+
+The two-fixture target `typeFromPrototypeAssignment/2` grows from
+**0/2** to **2/2** at T0/T1/T2/T3, with FP=0. Exact target and
+full-band diffs report T1/T2/T3 lost=0/gained=**2** in both scope
+views.
+
+2xxx T0 grows to **20497/21051** (**97.3683%**) with FP=0; supported T0
+is **20496/20504** (**99.9610%**) with supported FN=**8**, all code
+2339. All-band T0 is **31419/49024** (**64.0890%**) with FP=0;
+supported all-band T0 is **31418/48477** (**64.8101%**). The
+accepted-set ratchet adds two T0 identities and two
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,092**, binder tests are **55**, and syntax tests
+are **106**. Ledger evidence is entries=**1,866**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

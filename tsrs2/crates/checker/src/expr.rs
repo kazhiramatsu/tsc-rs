@@ -2400,9 +2400,12 @@ impl<'a> CheckerState<'a> {
         Ok(None)
     }
 
-    /// The non-JSDoc prototype-assignment shapes from
-    /// getClassNameFromPrototypeMethod (72483-72500).
-    fn get_class_name_from_prototype_method(&self, container: NodeId) -> Option<NodeId> {
+    /// tsc-port: getClassNameFromPrototypeMethod @6.0.3
+    /// tsc-hash: c63adc3e9d9af5fc6afa433ab8b87fe0f90556e1e2685b1bd80f536f19816f7c
+    /// tsc-span: _tsc.js:72483-72495
+    ///
+    /// The non-JSDoc prototype-assignment shapes.
+    pub(crate) fn get_class_name_from_prototype_method(&self, container: NodeId) -> Option<NodeId> {
         let source = self.binder.source_of_node(container);
         let access_receiver = |node: NodeId| match self.data_of(node) {
             NodeData::PropertyAccessExpression(data) => data.expression,

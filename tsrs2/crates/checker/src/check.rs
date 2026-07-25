@@ -4757,13 +4757,24 @@ impl<'a> CheckerState<'a> {
             // and render correctly; the arbitrary-extensions
             // declaration-vs-JSON winner is contained at the RESOLVER
             // instead.)
+            // Function values nested in a prototype replacement are
+            // ordinary structural members of that replacement. They
+            // must render when the replacement type appears in a
+            // later prototype-property assignment diagnostic. Other
+            // checked-JS function symbols retain the JS-constructor
+            // curtain.
             if symbol_flags
                 .intersects(tsrs2_types::SymbolFlags::FUNCTION | tsrs2_types::SymbolFlags::METHOD)
                 && self
                     .binder
                     .symbol(symbol)
                     .value_declaration
-                    .is_some_and(|declaration| self.is_in_js_file(declaration))
+                    .is_some_and(|declaration| {
+                        self.is_in_js_file(declaration)
+                            && self
+                                .get_class_name_from_prototype_method(declaration)
+                                .is_none()
+                    })
             {
                 return Err(Unsupported::new(
                     "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
