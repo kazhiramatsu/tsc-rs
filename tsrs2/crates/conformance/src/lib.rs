@@ -1703,6 +1703,7 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
         verbatim_module_syntax: bool_option("verbatimModuleSyntax"),
         base_url: string_option(program, "baseUrl"),
         allow_importing_ts_extensions: bool_option("allowImportingTsExtensions"),
+        rewrite_relative_import_extensions: bool_option("rewriteRelativeImportExtensions"),
         resolve_json_module: bool_option("resolveJsonModule"),
         skip_lib_check: bool_option("skipLibCheck"),
         jsx: program.options.iter().find_map(|(key, value)| {
