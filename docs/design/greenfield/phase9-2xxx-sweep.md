@@ -3561,6 +3561,41 @@ stale=0. Escape evidence is unchanged at sites=**192**, stale=0,
 untagged=0, recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9al results (2026-07-25, pure CommonJS export flow — DONE)
+
+The `ModuleExports` variable-type head now synthesizes tsc's
+`module.exports` object face for pure named CommonJS modules. The
+synthetic `exports` member targets the file symbol and carries its
+named-export table, so ordinary property lookup reaches the real
+assignment-declaration symbol. Files that also contain `module.exports
+= ...` remain on the existing CommonJS source-file boundary: opening
+that broader arm produced 19 false positives in the fabrication audit,
+so the safe producer is explicitly bounded to files without `export=`.
+
+CommonJS access-assignment aliases now participate in
+`isAliasSymbolDeclaration` and `getTargetOfAliasDeclaration`; their
+immediate-target memo is compute-only during speculation. The 2565
+publication gate is restricted to a non-JSDoc initializer on an
+`exports`/`module.exports` property, avoiding file-wide JSDoc
+provenance from hiding the diagnostic.
+
+This closes the remaining supported 2565 row in
+`jsDeclarationsFunctionsCjs` and the 2304 row in
+`exportPropertyAssignmentNameResolution`. 2xxx T0 grows to
+**20434/21051** (**97.0690%**) with FP=0; supported T0 is
+**20434/20504** (**99.6586%**) with supported FN=**70**. All-band T0
+is **31356/49024** (**63.9605%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**2** in both bands and both scope views. The
+accepted-set ratchet adds two T0 identities and two
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,058**, binder tests are **54**, and syntax tests
+are **106**. Ledger evidence is unchanged at entries=**1,858**,
+stale=0. Escape evidence is unchanged at sites=**192**, stale=0,
+untagged=0, recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

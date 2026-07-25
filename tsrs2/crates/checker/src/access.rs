@@ -2049,11 +2049,34 @@ impl<'a> CheckerState<'a> {
                 Some(prop) => self.symbol_display_name(prop),
                 None => String::new(),
             };
+            let common_js_kind = tsrs2_binder::get_assignment_declaration_property_access_kind(
+                self.binder.source_of_node(node),
+                node,
+            );
+            let declaration = prop.and_then(|prop| self.binder.symbol(prop).value_declaration);
+            let initializer = declaration
+                .and_then(|declaration| self.parent_of(declaration))
+                .and_then(|parent| match self.data_of(parent) {
+                    NodeData::BinaryExpression(data) if data.left == declaration => data.right,
+                    _ => None,
+                });
+            let non_jsdoc = self.is_in_js_file(node)
+                && initializer.is_some_and(|initializer| {
+                    !self.declaration_has_jsdoc_semantics(initializer)
+                        && !self.node_contains_jsdoc_semantics(initializer)
+                });
+            let publish_common_js = common_js_kind
+                == tsrs2_binder::AssignmentDeclarationKind::ExportsProperty
+                && non_jsdoc;
+            let diagnostics_before = self.diagnostics.len();
             self.error_at(
                 Some(error_node),
                 &tsrs2_diags::gen::Property_0_is_used_before_being_assigned,
                 &[&display],
             );
+            if publish_common_js {
+                self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 2565);
+            }
             return Ok(prop_type);
         }
         if assume_uninitialized && !self.contains_undefined_type(prop_type) && flow_query_inert {

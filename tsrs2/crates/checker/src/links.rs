@@ -3216,6 +3216,11 @@ impl LinksTables {
         id: SymbolId,
         value: Option<SymbolId>,
     ) {
+        // A speculative alias query may consume the freshly computed
+        // immediate target, but must not publish that memo globally.
+        if speculation_depth != 0 {
+            return;
+        }
         Self::assert_writable(speculation_depth);
         let slot = &mut self.symbol.entry(id).or_default().immediate_target;
         match slot {
