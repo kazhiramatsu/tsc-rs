@@ -1745,11 +1745,15 @@ impl<'a> CheckerState<'a> {
                     } else {
                         left_type
                     };
-                    let expose_non_jsdoc_js = right_is_private
-                        && self.is_non_jsdoc_js_expression_type(left, report_target);
+                    // Private names can only be declared by their
+                    // containing class. A JSDoc tag adjacent to an
+                    // access cannot synthesize that declaration, so a
+                    // completed private-name miss is publishable in
+                    // checked JS independently of type provenance.
+                    let expose_checked_js_private = right_is_private && self.is_in_js_file(left);
                     let diagnostics_before = self.diagnostics.len();
                     self.report_nonexistent_property(right, report_target, is_unchecked_js)?;
-                    if expose_non_jsdoc_js {
+                    if expose_checked_js_private {
                         self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
                     }
                 }

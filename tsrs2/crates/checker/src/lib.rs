@@ -4425,6 +4425,45 @@ mod tests {
     }
 
     #[test]
+    fn checked_js_publishes_jsdoc_adjacent_private_name_misses() {
+        let source = "class C {\n\
+                        #known;\n\
+                        method() {\n\
+                          /** @type {string} */\n\
+                          this.#missing;\n\
+                          this.#known;\n\
+                        }\n\
+                      }\n";
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [(
+                2339,
+                source.find("#missing").expect("missing private name") as u32,
+                "#missing".len() as u32,
+            )]
+        );
+    }
+
+    #[test]
     fn checked_js_exposes_typed_declaration_arity_diagnostics() {
         let result = check_program(
             &[

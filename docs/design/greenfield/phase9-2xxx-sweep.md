@@ -4368,6 +4368,47 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9bf results (2026-07-25, checked-JS private-name misses — DONE)
+
+The checked-JS private-property miss path now publishes its completed
+2339 verdict for JavaScript files even when a JSDoc comment is
+adjacent to the access. A private name can only be declared by its
+containing class; a JSDoc tag cannot synthesize that declaration, so
+the class private-name table is a stronger finality proof than the
+general expression/type provenance gate on this dedicated path.
+
+A unit pin places `this.#missing` immediately after a JSDoc type tag
+and keeps a declared `this.#known` access as the no-diagnostic
+control. The target additionally retains the excluded ordinary
+JSDoc `this.x` miss from `jsdocAugmentsMissingType`, proving that the
+override does not widen general checked-JS property publication.
+
+The D2 port plan again selects
+`checkPropertyAccessExpressionOrQualifiedName`
+(`d2:e4c636a2528888afc36a842509f7385de02f5176ed13bf2a9de4d8194da5f176`,
+`scc:00002`, 1,396 members). It has one exact Rust ledger join, 71
+static callees, three static callers, no unresolved static calls, and
+two pre-existing escape rows; this slice adds or widens none.
+
+The two-row target grows from **0/2** to **1/2** at T0/T1/T2/T3, with
+FP=0; its supported view grows from **0/1** to **1/1** while the
+excluded ordinary-JSDoc control remains unmatched.
+
+2xxx T0 grows to **20487/21051** (**97.3208%**) with FP=0; supported T0
+is **20486/20504** (**99.9122%**) with supported FN=**18**, all code
+2339. All-band T0 is **31409/49024** (**64.0686%**) with FP=0;
+supported all-band T0 is **31408/48477** (**64.7895%**). T1/T2/T3
+each report lost=0, gained=**1** in both bands and both scope views.
+The accepted-set ratchet adds one T0 identity and one
+multiplicity-complete identity to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,085**, binder tests are **55**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,865**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
