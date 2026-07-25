@@ -209,8 +209,10 @@
 # p9 9.9t adds +1 source-text JSDoc function-signature diagnostic.
 # p9 9.9u adds +1 checked-JS globalThis collision diagnostic.
 # p9 9.9v adds +1 duplicate object-literal method diagnostic.
-rate = 0.638565
-matched = 31305
+# p9 9.9w adds +10 through module.exports alias resolution and
+# exact checked-JS property-miss publication.
+rate = 0.638769
+matched = 31315
 total = 49024
 allowed_regression = 0.0
 
@@ -286,8 +288,10 @@ allowed_regression = 0.0
 # p9 9.9t adds +1 source-text JSDoc function-signature diagnostic.
 # p9 9.9u adds +1 checked-JS globalThis collision row.
 # p9 9.9v adds +1 duplicate object-literal method row.
-rate = 0.968268
-matched = 20383
+# p9 9.9w adds +10 through module.exports alias resolution and
+# exact checked-JS property-miss publication.
+rate = 0.968743
+matched = 20393
 total = 21051
 allowed_regression = 0.0
 

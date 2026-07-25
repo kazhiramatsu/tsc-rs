@@ -239,6 +239,9 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::ExportAssignment => {
                 self.get_target_of_export_assignment(node, dont_recursively_resolve)
             }
+            SyntaxKind::BinaryExpression => {
+                self.get_target_of_export_assignment(node, dont_recursively_resolve)
+            }
             SyntaxKind::NamespaceExportDeclaration => {
                 self.get_target_of_namespace_export_declaration(node, dont_recursively_resolve)
             }
@@ -1483,12 +1486,20 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<Option<SymbolId>> {
         let expression = match self.data_of(node) {
             NodeData::ExportAssignment(data) => data.expression,
+            NodeData::BinaryExpression(data) => data.right,
             _ => None,
         };
         let Some(expression) = expression else {
             return Ok(None);
         };
         let resolved = self.get_target_of_alias_like_expression(expression, dont_resolve_alias)?;
+        if self.kind_of(node) == SyntaxKind::BinaryExpression {
+            if let Some(symbol) = resolved {
+                let symbol = self.get_merged_symbol(symbol);
+                self.non_jsdoc_js_module_exports_alias_targets
+                    .insert(symbol);
+            }
+        }
         self.mark_symbol_of_alias_declaration_if_type_only(
             Some(node),
             /*immediate_target*/ None,
@@ -6438,6 +6449,47 @@ mod tests {
                 }
             ),
             []
+        );
+    }
+
+    #[test]
+    fn default_import_chases_module_exports_alias_without_adopting_expandos() {
+        let files = [
+            (
+                "/mod1.js",
+                "class Alias { bar() { return 1 } }\nmodule.exports = Alias;\n",
+            ),
+            (
+                "/main.js",
+                "import A from './mod1';\n\
+                 A.prototype.foo = 0;\n\
+                 A.prototype.func = function() { this._func = 0; };\n\
+                 new A().bar;\n\
+                 new A().foo;\n\
+                 new A().func();\n\
+                 new A().def;\n",
+            ),
+        ];
+        assert_eq!(
+            program_rows(
+                &files,
+                &CompilerOptions {
+                    allow_js: true,
+                    check_js: Some(true),
+                    no_emit: Some(true),
+                    es_module_interop: Some(true),
+                    target: Some(2),
+                    ..CompilerOptions::default()
+                }
+            ),
+            [
+                ("/main.js".to_owned(), 2339, 36, 3),
+                ("/main.js".to_owned(), 2339, 57, 4),
+                ("/main.js".to_owned(), 2339, 82, 5),
+                ("/main.js".to_owned(), 2339, 117, 3),
+                ("/main.js".to_owned(), 2339, 130, 4),
+                ("/main.js".to_owned(), 2339, 146, 3),
+            ]
         );
     }
 

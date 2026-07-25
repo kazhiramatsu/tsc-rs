@@ -3175,6 +3175,34 @@ evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9w results (2026-07-25, module.exports alias targets — DONE)
+
+Non-compound `module.exports = Alias` assignments now participate in
+the alias-declaration path when their right-hand side is an entity name
+or class expression. Default imports and import-equals aliases chase
+that target, while a dedicated target-symbol provenance set exposes
+only the checked-JS property diagnostics reached through this exact
+assignment shape. Nested `exports = module.exports = value` remains
+behind the assignment-declaration boundary because its outer write
+semantics are not yet modeled.
+
+This closes **10** supported rows: all six 2339 rows in
+`importAliasModuleExports`, three imported-constructor assignment rows
+in `checkExportsObjectAssignPrototypeProperty`, and the 2304 RHS miss
+in `moduleExportAliasUnknown`. 2xxx T0 grows to **20393/21051**
+(**96.8743%**) with FP=0; supported T0 is **20393/20504**
+(**99.4586%**) with supported FN=**111**. All-band T0 is
+**31315/49024** (**63.8769%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**10** in both bands and both scope views. The
+accepted-set ratchet adds 10 T0 identities and 10
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,040** and binder tests are **53**. Escape
+evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

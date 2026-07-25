@@ -2866,7 +2866,23 @@ impl<'a> CheckerState<'a> {
         if let Some(related) = related {
             diagnostic.related.push(related);
         }
+        let access_expression = self.parent_of(prop_node).unwrap_or(prop_node);
+        let containing_symbol = self
+            .tables
+            .type_of(containing_type)
+            .symbol
+            .or(self.tables.type_of(containing_type).alias_symbol)
+            .map(|symbol| self.get_merged_symbol(symbol));
+        let expose_non_jsdoc_js = containing_symbol.is_some_and(|symbol| {
+            self.non_jsdoc_js_module_exports_alias_targets
+                .contains(&symbol)
+        }) && self
+            .is_non_jsdoc_js_expression_type(access_expression, containing_type);
+        let diagnostics_before = self.diagnostics.len();
         self.push_error_diagnostic(diagnostic);
+        if expose_non_jsdoc_js {
+            self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
+        }
         Ok(())
     }
 
