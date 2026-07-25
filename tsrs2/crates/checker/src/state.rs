@@ -744,6 +744,11 @@ pub struct CheckerState<'a> {
     /// assignment/constructor paths opt in without opening unrelated
     /// JSDoc-dependent diagnostics.
     pub(crate) non_jsdoc_js_diagnostics: std::collections::HashSet<(String, u32, u32, u32)>,
+    /// Exact semantic provenance for checked-JS property-miss rows
+    /// whose receiver type came through a `module.exports = Alias`
+    /// declaration. The assignment alias target is trustworthy even
+    /// while general JS expando/member inference remains incomplete.
+    pub(crate) non_jsdoc_js_module_exports_alias_targets: std::collections::HashSet<SymbolId>,
     /// Lazy getGlobal*Type memos (deferredGlobal* pattern 60679 for the
     /// deferred ones; the core init block 88788+ is deliberately LAZY
     /// here — m4-checker-skeleton-steps.md 5.0 — so each global starts
@@ -967,6 +972,7 @@ impl<'a> CheckerState<'a> {
             jsx_implicit_import_containers: std::collections::HashMap::new(),
             jsdoc_typed_declarations: std::collections::HashSet::new(),
             non_jsdoc_js_diagnostics: std::collections::HashSet::new(),
+            non_jsdoc_js_module_exports_alias_targets: std::collections::HashSet::new(),
             global_type_memos: Default::default(),
             decorator_context_override_type_cache: Default::default(),
             relation_frame_loan: crate::engine::RelationFrameLoan::None,

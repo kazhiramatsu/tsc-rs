@@ -1818,8 +1818,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 56e340e6315f9514b9b10ee2da3e5255c009cf09db1260c3198ac6088db29832
     /// tsc-span: _tsc.js:48498-48500
     ///
-    /// TS arms only (the JS require/assignment shapes are constant-
-    /// false in TS files).
+    /// The TS arms plus the module.exports binary-assignment arm.
+    /// Other JS require/property assignment shapes remain owned by
+    /// their assignment-declaration slices.
     pub(crate) fn is_alias_symbol_declaration(&self, node: NodeId) -> bool {
         match self.kind_of(node) {
             SyntaxKind::ImportEqualsDeclaration
@@ -1842,6 +1843,34 @@ impl<'a> CheckerState<'a> {
                                 self.kind_of(expression),
                                 SyntaxKind::ClassExpression | SyntaxKind::FunctionExpression
                             )
+                    }),
+                    _ => false,
+                }
+            }
+            SyntaxKind::BinaryExpression => {
+                let source = self.binder.source_of_node(node);
+                if tsrs2_binder::get_assignment_declaration_kind(source, node)
+                    != tsrs2_binder::AssignmentDeclarationKind::ModuleExports
+                {
+                    return false;
+                }
+                // A nested `exports = module.exports = value` also
+                // changes the outer assignment's flow/type meaning.
+                // Keep that compound JS-assignment shape behind the
+                // existing assignment-declaration boundary until its
+                // outer write semantics are modeled.
+                if self.parent_of(node).is_some_and(|parent| {
+                    matches!(
+                        self.data_of(parent),
+                        NodeData::BinaryExpression(data) if data.right == Some(node)
+                    )
+                }) {
+                    return false;
+                }
+                match self.data_of(node) {
+                    NodeData::BinaryExpression(data) => data.right.is_some_and(|expression| {
+                        self.is_entity_name_expression(expression)
+                            || self.kind_of(expression) == SyntaxKind::ClassExpression
                     }),
                     _ => false,
                 }
