@@ -2986,12 +2986,20 @@ impl<'a> CheckerState<'a> {
             .symbol
             .or(self.tables.type_of(containing_type).alias_symbol)
             .map(|symbol| self.get_merged_symbol(symbol));
-        let expose_non_jsdoc_js = containing_symbol.is_some_and(|symbol| {
-            self.non_jsdoc_js_module_exports_alias_targets
-                .contains(&symbol)
-                && self.is_non_jsdoc_js_expression_type(access_expression, containing_type)
-                || self.non_jsdoc_js_commonjs_require_targets.contains(&symbol)
-        });
+        // A symbol-free primitive/union/intersection answer cannot
+        // acquire members from the still-incomplete checked-JS
+        // assignment-declaration producers. Symbol-bearing object and
+        // constructor types retain the narrow binder-proven paths
+        // below until those producers are complete.
+        let publish_symbol_free_non_jsdoc = containing_symbol.is_none()
+            && self.is_non_jsdoc_js_expression_type(access_expression, containing_type);
+        let expose_non_jsdoc_js = publish_symbol_free_non_jsdoc
+            || containing_symbol.is_some_and(|symbol| {
+                self.non_jsdoc_js_module_exports_alias_targets
+                    .contains(&symbol)
+                    && self.is_non_jsdoc_js_expression_type(access_expression, containing_type)
+                    || self.non_jsdoc_js_commonjs_require_targets.contains(&symbol)
+            });
         let diagnostics_before = self.diagnostics.len();
         if is_unchecked_js
             && diagnostic.code()

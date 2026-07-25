@@ -4110,6 +4110,87 @@ mod tests {
     }
 
     #[test]
+    fn checked_js_publishes_symbol_free_property_misses() {
+        let source = "const n = 1;\nn.missing;\n";
+        let result = check_program_with_libs(
+            &[es5_lib()],
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [(
+                2339,
+                source.find("missing").expect("missing property") as u32,
+                "missing".len() as u32,
+            )]
+        );
+    }
+
+    #[test]
+    fn checked_js_contains_symbol_bearing_expando_property_misses() {
+        let result = check_program_with_libs(
+            &[es5_lib()],
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "const value = {};\nvalue.added = 1;\nvalue.added;\n".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code() != 2339),
+            "{:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
+    fn checked_js_contains_jsdoc_symbol_free_property_misses() {
+        let result = check_program_with_libs(
+            &[es5_lib()],
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "/** @type {number} */\nconst n = 1;\nn.missing;\n".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code() != 2339),
+            "{:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
     fn checked_js_exposes_typed_declaration_arity_diagnostics() {
         let result = check_program(
             &[
