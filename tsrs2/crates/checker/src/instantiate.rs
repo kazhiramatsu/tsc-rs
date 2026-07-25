@@ -1665,9 +1665,7 @@ impl<'a> CheckerState<'a> {
                 _ => unreachable!("template flag implies template data"),
             };
             let new_types = self.instantiate_types(&types, mapper)?;
-            return Ok(self
-                .tables
-                .get_template_literal_type_from_texts(&texts, &new_types));
+            return Ok(self.get_template_literal_type_from_texts(&texts, &new_types));
         }
         if flags.intersects(TypeFlags::STRING_MAPPING) {
             let TypeData::StringMapping { ty: inner } = self.tables.type_of(ty).data else {
@@ -2806,9 +2804,7 @@ impl<'a> CheckerState<'a> {
             };
             let (new_texts, new_types) =
                 self.apply_template_string_mapping(symbol, texts, types)?;
-            return Ok(self
-                .tables
-                .get_template_literal_type_from_texts(&new_texts, &new_types));
+            return Ok(self.get_template_literal_type_from_texts(&new_texts, &new_types));
         }
         // Mapping<Mapping<T>> === Mapping<T>
         if flags.intersects(TypeFlags::STRING_MAPPING)
@@ -2825,9 +2821,7 @@ impl<'a> CheckerState<'a> {
         }
         // Mapping<`${number}`> / Mapping<`${bigint}`>
         if self.tables.is_pattern_literal_placeholder_type(ty) {
-            let template = self
-                .tables
-                .get_template_literal_type(&[String::new(), String::new()], &[ty]);
+            let template = self.get_template_literal_type(&[String::new(), String::new()], &[ty]);
             return Ok(self
                 .tables
                 .get_string_mapping_type_for_generic_type(symbol, template));

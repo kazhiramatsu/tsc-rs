@@ -230,8 +230,9 @@
 # p9 9.9an adds +1 checked-JS not-a-module diagnostic.
 # p9 9.9ao adds +7 checked-JS CommonJS require-module diagnostics.
 # p9 9.9ap adds +2 checked-JS readonly enum-expando diagnostics.
-rate = 0.639829
-matched = 31367
+# p9 9.9aq adds +3 complex cross-product union diagnostics.
+rate = 0.639891
+matched = 31370
 total = 49024
 allowed_regression = 0.0
 
@@ -328,8 +329,9 @@ allowed_regression = 0.0
 # p9 9.9an adds +1 checked-JS not-a-module diagnostic.
 # p9 9.9ao adds +7 checked-JS CommonJS require-module diagnostics.
 # p9 9.9ap adds +2 checked-JS readonly enum-expando diagnostics.
-rate = 0.971213
-matched = 20445
+# p9 9.9aq adds +3 complex cross-product union diagnostics.
+rate = 0.971355
+matched = 20448
 total = 21051
 allowed_regression = 0.0
 

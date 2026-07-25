@@ -672,8 +672,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             return Ok(Some(if constraints.len() == types.len() {
-                self.tables
-                    .get_template_literal_type_from_texts(&texts, &constraints)
+                self.get_template_literal_type_from_texts(&texts, &constraints)
             } else {
                 self.tables.intrinsics.string
             }));

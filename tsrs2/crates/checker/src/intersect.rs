@@ -475,7 +475,7 @@ impl<'a> CheckerState<'a> {
                 alias_type_arguments,
             );
         }
-        if !self.check_cross_product_union_guard(type_set) {
+        if !self.check_cross_product_union(type_set) {
             return Ok(self.tables.intrinsics.error);
         }
         let constituents = self.get_cross_product_intersections(type_set, flags)?;
@@ -535,12 +535,6 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(intersections)
-    }
-
-    /// checkCrossProductUnion (61874) for the intersection path — the
-    /// diagnostic (2799 family) is deferred with error reporting (T2).
-    fn check_cross_product_union_guard(&self, types: &[TypeId]) -> bool {
-        self.cross_product_union_size(types) < 100_000
     }
 
     pub(crate) fn cross_product_union_size(&self, types: &[TypeId]) -> usize {

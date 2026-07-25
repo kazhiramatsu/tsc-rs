@@ -2313,9 +2313,9 @@ impl TypeTables {
     /// tsc-hash: 8b75b60fe2a0a42ea0dbac6fc1a278f1707c3d540a076e246c5ffa452e8aa6b7
     /// tsc-span: _tsc.js:62057-62109
     ///
-    /// The >=1e5 cross-product guard reports a diagnostic in tsc and
-    /// yields errorType; the M3 port yields errorType silently (the
-    /// probe never constructs unions that large).
+    /// The checker-owned entry reports the >=1e5 cross-product 2590;
+    /// this diagnostic-free construction/cache twin still guards
+    /// recursive and types-only callers by yielding errorType.
     pub fn get_template_literal_type(&mut self, texts: &[String], types: &[TypeId]) -> TypeId {
         let texts = texts
             .iter()
