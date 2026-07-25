@@ -4556,6 +4556,85 @@ mod tests {
     }
 
     #[test]
+    fn checked_js_common_js_object_replacement_unions_direct_export_members() {
+        let source = "const mod1 = require('./mod1');\n\
+                      mod1.justExport.toFixed();\n\
+                      mod1.bothBefore.toFixed();\n\
+                      mod1.bothAfter.toFixed();\n\
+                      mod1.justProperty.length;\n";
+        let result = check_program_with_libs(
+            &[es5_lib()],
+            &[
+                InputFile {
+                    name: "requires.d.ts".to_owned(),
+                    text: "declare var module: { exports: any };\n\
+                           declare function require(name: string): any;\n"
+                        .to_owned(),
+                },
+                InputFile {
+                    name: "mod1.js".to_owned(),
+                    text: "module.exports.bothBefore = 'string';\n\
+                           module.exports = {\n\
+                               justExport: 1,\n\
+                               bothBefore: 2,\n\
+                               bothAfter: 3,\n\
+                           };\n\
+                           module.exports.bothAfter = 'string';\n\
+                           module.exports.justProperty = 'string';\n"
+                        .to_owned(),
+                },
+                InputFile {
+                    name: "a.js".to_owned(),
+                    text: source.to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.file_name.clone(),
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                    diagnostic.message_text().to_owned(),
+                    diagnostic
+                        .message
+                        .next
+                        .first()
+                        .map(|message| message.text.clone()),
+                ))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    Some("a.js".to_owned()),
+                    2339,
+                    source.find("bothBefore.toFixed").expect("before access") as u32
+                        + "bothBefore.".len() as u32,
+                    "toFixed".len() as u32,
+                    "Property 'toFixed' does not exist on type 'number | \"string\"'.".to_owned(),
+                    Some("Property 'toFixed' does not exist on type '\"string\"'.".to_owned()),
+                ),
+                (
+                    Some("a.js".to_owned()),
+                    2339,
+                    source.find("bothAfter.toFixed").expect("after access") as u32
+                        + "bothAfter.".len() as u32,
+                    "toFixed".len() as u32,
+                    "Property 'toFixed' does not exist on type 'number | \"string\"'.".to_owned(),
+                    Some("Property 'toFixed' does not exist on type '\"string\"'.".to_owned()),
+                ),
+            ]
+        );
+    }
+
+    #[test]
     fn checked_js_exposes_typed_declaration_arity_diagnostics() {
         let result = check_program(
             &[

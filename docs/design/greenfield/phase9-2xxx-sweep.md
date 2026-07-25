@@ -4501,6 +4501,57 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9bi results (2026-07-25, CommonJS object replacement unions — DONE)
+
+The assignment-declaration type producer now combines the checked
+members of `module.exports = { ... }` with the direct CommonJS export
+members attached to the merged `export=` symbol. A same-named value
+member on both sides receives the union of the object-property type and
+the direct export-assignment type; a member present only on one side is
+preserved. The resulting anonymous type retains the source call,
+construct, index, alias, and object-flag faces selected by tsc.
+
+Direct `exports.x = <literal>` and `module.exports.x = <literal>`
+initializers also take tsc's regular-literal branch instead of the
+ordinary widened-assignment branch. This is required for the exact
+`number | "string"` display and its nested 2339 constituent chain.
+A multi-file checked-JS unit pin covers assignments both before and
+after the object replacement, the object-only numeric control, and the
+direct-export-only string control.
+
+The primary D2 port plan is
+`getInitializerTypeFromAssignmentDeclaration`
+(`d2:929469bbe291272e814ca2c8dee7d23a6b5d15adf46b78930c8bb6ce45e3ef77`,
+`scc:00002`, 1,396 members). It has no exact Rust ledger join, 28
+static callees, one static caller, no unresolved static calls, and no
+escape rows. Its caller
+`getWidenedTypeForAssignmentDeclaration`
+(`d2:a14e60a64911356119d58ffce96d6c8bb3e68d70610b7af11d286ac6a43375c4`,
+the same SCC) has no exact Rust ledger join, 29 static callees, two
+static callers, no unresolved static calls, and no escape rows.
+
+The target
+`moduleExportWithExportPropertyAssignment3` grows from **0/2** to
+**2/2** at T0/T1/T2/T3, with FP=0. The literal-type correction also
+improves the two already-T0-matched rows in
+`moduleExportWithExportPropertyAssignment4` at T2/T3. Exact full-band
+diffs therefore report T1 lost=0/gained=**2** and T2/T3
+lost=0/gained=**4** in both scope views.
+
+2xxx T0 grows to **20492/21051** (**97.3445%**) with FP=0; supported T0
+is **20491/20504** (**99.9366%**) with supported FN=**13**, all code
+2339. All-band T0 is **31414/49024** (**64.0788%**) with FP=0;
+supported all-band T0 is **31413/48477** (**64.7998%**). The
+accepted-set ratchet adds two T0 identities and two
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,088**, binder tests are **55**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,865**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

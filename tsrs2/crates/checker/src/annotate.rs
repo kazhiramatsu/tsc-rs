@@ -8041,14 +8041,17 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// The 9.8a non-JSDoc initializer slice of tsc
+    /// The 9.8a/9.9bi non-JSDoc initializer slice of tsc
     /// getWidenedTypeForAssignmentDeclaration /
     /// getInitializerTypeFromAssignmentDeclaration. The binder now
     /// publishes assignment members, so resolving those real symbols
     /// must type their initializer instead of tripping the former
-    /// producer-missing curtain. JSDoc annotations and JS-constructor
-    /// classification remain owned by 9.8c and are intentionally not
-    /// consulted here.
+    /// producer-missing curtain. A `module.exports = { ... }`
+    /// replacement also combines the object's own members with direct
+    /// CommonJS export-property assignments; same-named value members
+    /// carry the union of both initializer types. JSDoc annotations and
+    /// JS-constructor classification remain owned by 9.8c and are
+    /// intentionally not consulted here.
     fn get_widened_type_for_assignment_declaration(
         &mut self,
         symbol: SymbolId,
@@ -8089,14 +8092,36 @@ impl<'a> CheckerState<'a> {
                         continue;
                     };
                     let checked = self.check_expression_cached(right, CheckMode::NORMAL)?;
-                    let widened = self.get_widened_literal_type(checked)?;
-                    if self.is_empty_array_literal_type(widened)? {
+                    let source = self.binder.source_of_node(expression);
+                    let is_direct_export = tsrs2_binder::assignment::get_assignment_declaration_kind(
+                        source, expression,
+                    )
+                        == tsrs2_binder::AssignmentDeclarationKind::ExportsProperty
+                        && data
+                            .left
+                            .and_then(|left| {
+                                tsrs2_binder::assignment::access_expression_of(source, left)
+                            })
+                            .is_some_and(|receiver| {
+                                tsrs2_binder::assignment::is_module_exports_access_expression(
+                                    source, receiver,
+                                ) || tsrs2_binder::assignment::is_exports_identifier(
+                                    source, receiver,
+                                )
+                            });
+                    let widened = if is_direct_export {
+                        self.tables.get_regular_type_of_literal_type(checked)
+                    } else {
+                        self.get_widened_literal_type(checked)?
+                    };
+                    let widened = if self.is_empty_array_literal_type(widened)? {
                         let any_array = self.any_array_type()?;
                         self.report_implicit_any(expression, any_array, None)?;
                         any_array
                     } else {
                         widened
-                    }
+                    };
+                    self.combine_common_js_export_members(widened, symbol, expression)?
                 }
                 NodeData::CallExpression(data) => {
                     let Some(arguments) = data.arguments else {
@@ -8181,6 +8206,124 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.intrinsics.any);
         }
         self.get_widened_type(ty)
+    }
+
+    /// tsc getInitializerTypeFromAssignmentDeclaration
+    /// (56378-56437): a `module.exports = <object>` export-equals
+    /// assignment exposes both the checked object's members and the
+    /// source file's direct CommonJS export-property assignments.
+    ///
+    /// The latter live on the merged export-equals symbol. When both
+    /// sides publish the same value member, tsc synthesizes a property
+    /// whose type is their union instead of letting either declaration
+    /// win by table insertion order.
+    fn combine_common_js_export_members(
+        &mut self,
+        ty: TypeId,
+        symbol: SymbolId,
+        expression: NodeId,
+    ) -> CheckResult2<TypeId> {
+        if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT)
+            || self.binder.symbol(symbol).escaped_name != InternalSymbolName::EXPORT_EQUALS
+            || tsrs2_binder::assignment::get_assignment_declaration_kind(
+                self.binder.source_of_node(expression),
+                expression,
+            ) != tsrs2_binder::AssignmentDeclarationKind::ModuleExports
+        {
+            return Ok(ty);
+        }
+
+        let resolved_id = self.resolve_structured_type_members(ty)?;
+        let resolved = self.members_of(resolved_id).clone();
+        let mut members = resolved.members;
+        let initial_size = members.len();
+        let exports = self.binder.symbol(symbol).exports.clone();
+        for (name, export_member) in exports {
+            let Some(object_member) = members.get(&name).copied() else {
+                members.insert(name, export_member);
+                continue;
+            };
+            if object_member == export_member
+                || self
+                    .symbol_flags(export_member)
+                    .intersects(SymbolFlags::ALIAS)
+            {
+                members.insert(name, export_member);
+                continue;
+            }
+            if self
+                .symbol_flags(export_member)
+                .intersects(SymbolFlags::VALUE)
+                && self
+                    .symbol_flags(object_member)
+                    .intersects(SymbolFlags::VALUE)
+            {
+                let flags = self.symbol_flags(export_member) | self.symbol_flags(object_member);
+                let union_member = self.binder.create_symbol(flags, name.clone());
+                let export_type = self.get_type_of_symbol(export_member)?;
+                let object_type = self.get_type_of_symbol(object_member)?;
+                let union_type =
+                    self.get_union_type_ex(&[export_type, object_type], UnionReduction::Literal)?;
+                let value_declaration = self.binder.symbol(object_member).value_declaration;
+                let mut declarations = self.binder.symbol(object_member).declarations.clone();
+                declarations.extend(
+                    self.binder
+                        .symbol(export_member)
+                        .declarations
+                        .iter()
+                        .copied(),
+                );
+                {
+                    let union = self.binder.symbol_mut(union_member);
+                    union.value_declaration = value_declaration;
+                    union.declarations = declarations;
+                }
+                self.links
+                    .set_fresh_symbol_type(union_member, LinkSlot::Resolved(union_type));
+                members.insert(name, union_member);
+            } else {
+                let merged =
+                    self.merge_symbol(export_member, object_member, /*unidirectional*/ false);
+                members.insert(name, merged);
+            }
+        }
+
+        let properties = self.get_named_members(&members)?;
+        let source_object_flags = self.tables.object_flags_of(ty);
+        let copied_object_flags = self
+            .tables
+            .get_propagating_flags_of_types(&[ty], TypeFlags::from_bits(0))
+            | ObjectFlags::from_bits(
+                source_object_flags.bits()
+                    & (ObjectFlags::JS_LITERAL.bits()
+                        | ObjectFlags::ARRAY_LITERAL.bits()
+                        | ObjectFlags::OBJECT_LITERAL.bits()),
+            );
+        let result = self.make_resolved_anonymous_type(
+            (initial_size == members.len())
+                .then_some(self.tables.type_of(ty).symbol)
+                .flatten(),
+            members,
+            properties,
+            resolved.index_infos,
+            copied_object_flags,
+        );
+        let result_members = self
+            .links
+            .ty(result)
+            .resolved_members
+            .resolved()
+            .expect("fresh anonymous type has resolved members");
+        let output = self.members_mut(result_members);
+        output.call_signatures = resolved.call_signatures;
+        output.construct_signatures = resolved.construct_signatures;
+        if initial_size == output.members.len() {
+            let alias_symbol = self.tables.type_of(ty).alias_symbol;
+            let alias_type_arguments = self.tables.type_of(ty).alias_type_arguments.clone();
+            self.tables.type_mut(result).alias_symbol = alias_symbol;
+            self.tables.type_mut(result).alias_type_arguments = alias_type_arguments;
+        }
+        Ok(result)
     }
 
     /// The non-JSDoc parent-annotation arm of tsc
