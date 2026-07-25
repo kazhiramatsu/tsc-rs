@@ -18,11 +18,6 @@
 //! - checkCollisionWithArgumentsInGeneratedCode (83229) — its only
 //!   caller is checkSignatureDeclarationDiagnostics (81315), a §5
 //!   worker; the fn ports with its caller in 5.8b.
-//! - checkAliasSymbol require-alias arm —
-//!   isVariableDeclarationInitializedToBareOrAccessedRequire shapes
-//!   are JS-only (M2 3.4c residual); TS-file variable symbols never
-//!   carry the Alias flag here.
-
 use tsrs2_binder::node_util;
 use tsrs2_diags::{gen as diagnostics, DiagnosticMessage, MessageChain};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
@@ -142,10 +137,9 @@ impl<'a> CheckerState<'a> {
     /// Property (§6, 5.8c) route here when their bands land — the
     /// kind-guarded arms below are already transcribed for them.
     /// Elisions, each with its owner note: checkDecorators (5.8c),
-    /// the two checkExternalEmitHelpers probes (module note), the
-    /// JS require-alias arm (module note), and the JS object-literal
-    /// initializer exemption (isJSObjectLiteralInitializer — JS files
-    /// route through the plain-JS allowlist, always false here).
+    /// the two checkExternalEmitHelpers probes (module note), and the
+    /// remaining JS object-literal initializer exemption outside the
+    /// bounded getJSContainerObjectType face.
     pub(crate) fn check_variable_like_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
         let node_kind = self.kind_of(node);
         let is_binding_element = node_kind == SyntaxKind::BindingElement;
@@ -362,9 +356,20 @@ impl<'a> CheckerState<'a> {
             }
             return Ok(());
         }
-        // Step 9: the JS require-alias arm is elided (module note);
-        // TS-file variable symbols never carry the Alias flag here.
         let symbol = self.get_symbol_of_declaration(node)?;
+        // Step 9: checked-JS bare/accessed require declarations are
+        // aliases, not ordinary variable initializers. Resolving the
+        // alias also applies Node20's `"module.exports"` target.
+        if self
+            .binder
+            .symbol(symbol)
+            .flags
+            .intersects(SymbolFlags::ALIAS)
+            && self.external_module_require_argument(node).is_some()
+        {
+            self.check_alias_symbol(node)?;
+            return Ok(());
+        }
         // Step 10: bigint property names (Property* callers).
         if self.kind_of(name) == SyntaxKind::BigIntLiteral {
             self.error_at(

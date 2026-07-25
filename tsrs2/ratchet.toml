@@ -238,8 +238,9 @@
 # p9 9.9av adds +1 checked-JS empty-object display diagnostic.
 # p9 9.9aw adds +2 recursive mapped-keyof constraint diagnostics.
 # p9 9.9ax adds +3 bindable computed-accessor return diagnostics.
-rate = 0.640278
-matched = 31389
+# p9 9.9ay adds +3 checked-JS require-alias diagnostics.
+rate = 0.640339
+matched = 31392
 total = 49024
 allowed_regression = 0.0
 
@@ -344,8 +345,9 @@ allowed_regression = 0.0
 # p9 9.9av adds +1 checked-JS empty-object display diagnostic.
 # p9 9.9aw adds +2 recursive mapped-keyof constraint diagnostics.
 # p9 9.9ax adds +3 bindable computed-accessor return diagnostics.
-rate = 0.972258
-matched = 20467
+# p9 9.9ay adds +3 checked-JS require-alias diagnostics.
+rate = 0.9724
+matched = 20470
 total = 21051
 allowed_regression = 0.0
 

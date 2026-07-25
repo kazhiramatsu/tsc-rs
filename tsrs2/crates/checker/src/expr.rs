@@ -1837,8 +1837,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:48495-48497
     ///
     /// findLast over the declarations with isAliasSymbolDeclaration.
-    /// The JS arms (assignment-declaration/require shapes) are the M2
-    /// 3.4c residual and are always false in TS files.
     pub(crate) fn get_declaration_of_alias_symbol(&self, symbol: SymbolId) -> Option<NodeId> {
         let declarations = self.binder.symbol(symbol).declarations.clone();
         declarations
@@ -1851,8 +1849,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 56e340e6315f9514b9b10ee2da3e5255c009cf09db1260c3198ac6088db29832
     /// tsc-span: _tsc.js:48498-48500
     ///
-    /// The TS arms plus the CommonJS module.exports and access-
-    /// assignment arms used by checked-JS export aliases.
+    /// The TS arms plus the CommonJS module.exports, access-assignment,
+    /// and bare/accessed-require arms used by checked-JS aliases.
     pub(crate) fn is_alias_symbol_declaration(&self, node: NodeId) -> bool {
         match self.kind_of(node) {
             SyntaxKind::ImportEqualsDeclaration
@@ -1927,6 +1925,9 @@ impl<'a> CheckerState<'a> {
                         || (self.kind_of(expression) == SyntaxKind::FunctionExpression
                             && self.is_js_constructor_without_jsdoc(expression) == Some(true))
                 })
+            }
+            SyntaxKind::VariableDeclaration => {
+                self.external_module_require_argument(node).is_some()
             }
             _ => false,
         }

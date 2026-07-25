@@ -205,16 +205,16 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 162af5ad124b130bc6f80f131212585721d1d34d502fc735b9eaea94780b01d0
     /// tsc-span: _tsc.js:49071-49108
     ///
-    /// TS core kinds plus CommonJS access assignments. The remaining
-    /// JS require and object-literal alias shapes stay behind their
-    /// assignment-declaration slices.
+    /// TS core kinds plus CommonJS access assignments and checked-JS
+    /// bare/accessed require aliases. Object-literal alias shapes stay
+    /// behind their assignment-declaration slices.
     fn get_target_of_alias_declaration(
         &mut self,
         node: NodeId,
         dont_recursively_resolve: bool,
     ) -> CheckResult2<Option<SymbolId>> {
         match self.kind_of(node) {
-            SyntaxKind::ImportEqualsDeclaration => {
+            SyntaxKind::ImportEqualsDeclaration | SyntaxKind::VariableDeclaration => {
                 self.get_target_of_import_equals_declaration(node, dont_recursively_resolve)
             }
             SyntaxKind::ImportClause => {
@@ -272,31 +272,78 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 0ef78eb1ab67c6129a32b5f56cb806263aec483a5ffbd38ecf3096c5a8b0b81a
     /// tsc-span: _tsc.js:48504-48534
     ///
-    /// The commonJSPropertyAccess/VariableDeclaration require arms are
-    /// JS-only (constant-dead in TS files); the Node20+ module.exports
-    /// arm is mode machinery (dead at the modeled defaults).
     fn get_target_of_import_equals_declaration(
         &mut self,
         node: NodeId,
         dont_resolve_alias: bool,
     ) -> CheckResult2<Option<SymbolId>> {
+        if self.kind_of(node) == SyntaxKind::VariableDeclaration {
+            let initializer = match self.data_of(node) {
+                NodeData::VariableDeclaration(data) => data.initializer,
+                _ => None,
+            };
+            if let Some(initializer) = initializer {
+                if let NodeData::PropertyAccessExpression(data) = self.data_of(initializer) {
+                    let mut root = data.expression;
+                    while let Some(candidate) = root {
+                        let expression = match self.data_of(candidate) {
+                            NodeData::PropertyAccessExpression(data) => data.expression,
+                            NodeData::ElementAccessExpression(data) => data.expression,
+                            _ => None,
+                        };
+                        let Some(expression) = expression else {
+                            break;
+                        };
+                        root = Some(expression);
+                    }
+                    if let (Some(root), Some(name)) = (root, data.name) {
+                        if self.is_require_call(root, true)
+                            && self.kind_of(name) == SyntaxKind::Identifier
+                        {
+                            let argument = match self.data_of(root) {
+                                NodeData::CallExpression(data) => {
+                                    self.nodes_of(data.arguments).first().copied()
+                                }
+                                _ => None,
+                            };
+                            if let Some(argument) = argument {
+                                let module_type =
+                                    self.resolve_external_module_type_by_literal(argument)?;
+                                let property_name = self.text_of_node(name)?;
+                                let property =
+                                    self.get_property_of_type_full(module_type, &property_name)?;
+                                return self.resolve_symbol_ex(property, dont_resolve_alias);
+                            }
+                        }
+                    }
+                }
+            }
+        }
         let module_reference = match self.data_of(node) {
             NodeData::ImportEqualsDeclaration(data) => data.module_reference,
             _ => None,
         };
-        let Some(module_reference) = module_reference else {
-            return Ok(None);
-        };
-        if self.kind_of(module_reference) == SyntaxKind::ExternalModuleReference {
-            let expression = match self.data_of(module_reference) {
+        let expression = if self.kind_of(node) == SyntaxKind::VariableDeclaration {
+            self.external_module_require_argument(node)
+        } else if module_reference.is_some_and(|module_reference| {
+            self.kind_of(module_reference) == SyntaxKind::ExternalModuleReference
+        }) {
+            module_reference.and_then(|module_reference| match self.data_of(module_reference) {
                 NodeData::ExternalModuleReference(data) => data.expression,
                 _ => None,
-            };
-            let Some(expression) = expression else {
-                return Ok(None);
-            };
+            })
+        } else {
+            None
+        };
+        if let Some(expression) = expression {
             let immediate = self.resolve_external_module_name(node, expression, false)?;
             let resolved = self.resolve_external_module_symbol(immediate, false)?;
+            if self.kind_of(node) == SyntaxKind::VariableDeclaration {
+                if let Some(resolved) = resolved {
+                    self.non_jsdoc_js_commonjs_require_targets
+                        .insert(self.get_merged_symbol(resolved));
+                }
+            }
             // 48516-48521: under node20..nodenext, `import x =
             // require(esm)` targets the module's `"module.exports"`
             // named export when one exists.
@@ -324,12 +371,39 @@ impl<'a> CheckerState<'a> {
             )?;
             return Ok(resolved);
         }
+        let Some(module_reference) = module_reference else {
+            return Ok(None);
+        };
         let resolved = self.get_symbol_of_part_of_right_hand_side_of_import_equals(
             module_reference,
             dont_resolve_alias,
         )?;
         self.check_and_report_error_for_resolving_import_alias_to_type_only_symbol(node, resolved)?;
         Ok(resolved)
+    }
+
+    /// tsc-port: getExternalModuleRequireArgument @6.0.3
+    /// tsc-hash: df9ae7461357c5238af9db4e5e91ed7115206205987d61e15485a6ab87b04405
+    /// tsc-span: _tsc.js:14874-14876
+    pub(crate) fn external_module_require_argument(&self, node: NodeId) -> Option<NodeId> {
+        let mut initializer = match self.data_of(node) {
+            NodeData::VariableDeclaration(data) => data.initializer?,
+            _ => return None,
+        };
+        loop {
+            initializer = match self.data_of(initializer) {
+                NodeData::PropertyAccessExpression(data) => data.expression?,
+                NodeData::ElementAccessExpression(data) => data.expression?,
+                _ => break,
+            };
+        }
+        if !self.is_require_call(initializer, true) {
+            return None;
+        }
+        match self.data_of(initializer) {
+            NodeData::CallExpression(data) => self.nodes_of(data.arguments).first().copied(),
+            _ => None,
+        }
     }
 
     /// tsc-port: checkAndReportErrorForResolvingImportAliasToTypeOnlySymbol @6.0.3
@@ -5110,13 +5184,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: f38114c6ed2d310327581d9af646d70544ff4e4ae3434764b00d8818bf197779
     /// tsc-span: _tsc.js:86029-86137
     ///
-    /// The JS arm is dead (TS files only); the isolatedModules/
-    /// verbatimModuleSyntax/Preserve-CJS/ambient-const-enum faces
+    /// Checked-JS require aliases use the shared conflict prefix. The
+    /// isolatedModules/verbatimModuleSyntax/Preserve-CJS/
+    /// ambient-const-enum faces
     /// (86074-86128) are all behind unmodeled options — dead with this
     /// note (getIsolatedModules = isolatedModules ||
     /// verbatimModuleSyntax, both absent). The ImportSpecifier
     /// deprecation walk is suggestion-band — skipped.
-    fn check_alias_symbol(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_alias_symbol(&mut self, node: NodeId) -> CheckResult2<()> {
         let symbol = self.get_symbol_of_declaration(node)?;
         let target = self.resolve_alias(symbol)?;
         if target == self.unknown_symbol {
