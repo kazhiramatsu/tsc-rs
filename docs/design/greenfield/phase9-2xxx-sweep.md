@@ -4602,6 +4602,54 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9bk results (2026-07-25, chained identifier assignment misses — DONE)
+
+The checked-JS 2339 path now recognizes the missing intermediate
+access in `let A; A = {}; A.prototype.b = {}`. The assignment target
+is the parent `A.prototype.b`, not the diagnostic-bearing
+`A.prototype` node, so the proof follows that parent edge and requires
+the direct receiver to resolve to an uninitialized variable
+declaration. The empty reassignment is therefore closed for this
+lookup, while initialized object/function containers keep their
+ordinary expando inference.
+
+The same exact predicate supplies the `{}` diagnostic display and the
+non-JSDoc publication decision. Private-name intermediate accesses are
+excluded. A unit pin covers the missing `prototype` row and a direct
+`B.member` expando control. Corpus fabrication controls
+`privateIdentifierExpando` and `typeFromPropertyAssignment14` remain
+exact.
+
+The primary D2 port plan is `reportNonexistentProperty`
+(`d2:681dc9d40f1bb3d69339aaabed7c5c7e02fc0bd5b498bb5eeee4eca60cd94001`,
+`scc:00002`, 1,396 members). It has no exact Rust ledger join, 24
+static callees, two static callers, no unresolved static calls, and no
+escape rows. Its property-access caller
+`checkPropertyAccessExpressionOrQualifiedName`
+(`d2:e4c636a2528888afc36a842509f7385de02f5176ed13bf2a9de4d8194da5f176`,
+the same SCC) has one exact Rust ledger join, 71 static callees, three
+static callers, no unresolved static calls, and two existing escape
+rows.
+
+The two-pass target `jsDeclarationsClassLikeHeuristic` grows from
+**0/2** to **2/2** at T0/T1/T2/T3, with FP=0. Exact target and
+full-band diffs report T1/T2/T3 lost=0/gained=**2** in both scope
+views.
+
+2xxx T0 grows to **20495/21051** (**97.3588%**) with FP=0; supported T0
+is **20494/20504** (**99.9512%**) with supported FN=**10**, all code
+2339. All-band T0 is **31417/49024** (**64.0849%**) with FP=0;
+supported all-band T0 is **31416/48477** (**64.8060%**). The
+accepted-set ratchet adds two T0 identities and two
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,091**, binder tests are **55**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,865**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
