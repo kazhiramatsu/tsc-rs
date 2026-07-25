@@ -3970,6 +3970,43 @@ evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9aw results (2026-07-25, recursive mapped-keyof relation — DONE)
+
+`structuredTypeRelatedToWorker` now preserves the two exact
+`=== True` tests in the `keyof` target arm. The Rust transcription had
+used the shared non-false `is_true` predicate at those sites, so a
+recursive relation's `Maybe` result was accepted as definite success.
+For `T extends { [K in keyof T]: string }`, stepping from `keyof T`
+through the mapped constraint revisits the active relation; neither
+`number` nor `string` is therefore assignable to `keyof T`.
+
+The D2 port plan selects `structuredTypeRelatedToWorker`
+(`d2:5a58148983e5851631490e9c47108f8247ff7c3a436b27d6e6a44d08ea0c15cc`,
+`scc:00002`, 1,396 members). It reports one exact Rust ledger join,
+77 static callees, one static caller, no unresolved static calls, and
+no escape rows. The change corrects two operators inside that exact
+ported boundary and adds no new static dependency or escape.
+
+The four-fixture target moves from 47/52 to **49/52** at
+T0/T1/T2, with FP=0; T3 moves from 31/52 to **33/52**. Both recovered
+rows are the supported 2322 assignments in
+`keyofAndIndexedAccessErrors`; the other three fixtures retain their
+separate 2322 rows.
+
+2xxx T0 grows to **20464/21051** (**97.2115%**) with FP=0; supported T0
+is **20464/20504** (**99.8049%**) with supported FN=**40**. All-band T0
+is **31386/49024** (**64.0217%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**2** in both bands and both scope views. The
+accepted-set ratchet adds two T0 identities and two
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,072**, binder tests are **54**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,863**, stale=0. Escape
+evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
