@@ -1687,6 +1687,7 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
         check_js: bool_option("checkJs"),
         no_unchecked_indexed_access: bool_option("noUncheckedIndexedAccess"),
         no_property_access_from_index_signature: bool_option("noPropertyAccessFromIndexSignature"),
+        no_unchecked_side_effect_imports: bool_option("noUncheckedSideEffectImports"),
         strict_property_initialization: bool_option("strictPropertyInitialization"),
         use_define_for_class_fields: bool_option("useDefineForClassFields"),
         use_unknown_in_catch_variables: bool_option("useUnknownInCatchVariables"),
