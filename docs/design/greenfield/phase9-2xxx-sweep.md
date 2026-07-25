@@ -3422,6 +3422,33 @@ evidence is unchanged at entries=**1,856**, stale=0. Escape evidence
 is unchanged at sites=**192**, stale=0, untagged=0, recovery=**115**,
 dormant=1. Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9ag results (2026-07-25, unresolved internal import-alias references — DONE)
+
+The any-like property-access path now ports the diagnostic-bearing
+subset of tsc's `markPropertyAliasReferenced` chain. When an unresolved
+internal import-equals alias is value-used by `alias.member`, the
+checker marks it referenced and checks the first identifier of its
+module reference. This preserves both diagnostics recovered from
+legacy `import rect = module("rect")` syntax: namespace resolution
+reports 2503 and the value-meaning lookup reports the Node-global 2591
+hint. Resolved aliases, external-module references, non-alias symbols,
+and already-referenced aliases remain unchanged.
+
+This closes the remaining supported 2591 row. 2xxx T0 grows to
+**20418/21051** (**96.9930%**) with FP=0; supported T0 is
+**20418/20504** (**99.5806%**) with supported FN=**86**. All-band T0
+is **31340/49024** (**63.9279%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**1** in both bands and both scope views. The
+accepted-set ratchet adds one T0 identity and one
+multiplicity-complete identity to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,051** and binder tests are **54**. A parser
+recovery pin records the legacy internal-reference tree shape. Ledger
+evidence is unchanged at entries=**1,856**, stale=0. Escape evidence
+is unchanged at sites=**192**, stale=0, untagged=0, recovery=**115**,
+dormant=1. Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
