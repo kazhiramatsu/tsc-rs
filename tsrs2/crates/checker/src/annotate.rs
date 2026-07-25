@@ -268,9 +268,10 @@ impl<'a> CheckerState<'a> {
                 self.get_type_from_type_node(inner)
             }
             SyntaxKind::RestType => self.get_type_from_rest_type_node(node),
-            SyntaxKind::FunctionType | SyntaxKind::ConstructorType | SyntaxKind::TypeLiteral => {
-                self.get_type_from_type_literal_or_fn_ctor_node(node)
-            }
+            SyntaxKind::FunctionType
+            | SyntaxKind::JSDocFunctionType
+            | SyntaxKind::ConstructorType
+            | SyntaxKind::TypeLiteral => self.get_type_from_type_literal_or_fn_ctor_node(node),
             SyntaxKind::TypeOperator => self.get_type_from_type_operator_node(node),
             SyntaxKind::TemplateLiteralType => self.get_type_from_template_type_node(node),
             SyntaxKind::ThisType | SyntaxKind::ThisKeyword => {
@@ -8641,8 +8642,9 @@ impl<'a> CheckerState<'a> {
     /// 59630); constructor declarations take the class's local type
     /// parameters, re-resolve parameter properties to the ctor-local
     /// variable, and flag ABSTRACT from the class modifier. The
-    /// IIFE arm rides the node_util walk; JS/JSDoc branches are
-    /// [JSDOC]-band.
+    /// IIFE arm rides the node_util walk. Source-text
+    /// JSDocFunctionType call/construct signatures are live; the
+    /// comment-tag JSDocSignature branch remains in [JSDOC].
     pub fn get_signature_from_declaration(
         &mut self,
         declaration: NodeId,
@@ -8652,6 +8654,7 @@ impl<'a> CheckerState<'a> {
         }
         let (type_parameters, parameter_list, modifiers) = match self.data_of(declaration) {
             NodeData::FunctionType(data) => (data.type_parameters, data.parameters, None),
+            NodeData::JSDocFunctionType(data) => (None, data.parameters, None),
             NodeData::ConstructorType(data) => {
                 (data.type_parameters, data.parameters, data.modifiers)
             }
@@ -8667,9 +8670,8 @@ impl<'a> CheckerState<'a> {
             NodeData::MethodDeclaration(data) => (data.type_parameters, data.parameters, None),
             NodeData::GetAccessor(data) => (data.type_parameters, data.parameters, None),
             NodeData::SetAccessor(data) => (data.type_parameters, data.parameters, None),
-            // 5.9c: Constructor landed above; the residue is the
-            // JSDoc signature family (JSDocFunctionType/JSDocSignature
-            // — JS-only declaration shapes).
+            // JSDocSignature is created by comment-tag parsing and
+            // remains in the JS-only declaration band.
             _ => {
                 return Err(Unsupported::new(format!(
                     "signature declaration kind {:?} ([JSDOC] M8)",
@@ -8700,7 +8702,16 @@ impl<'a> CheckerState<'a> {
         let mut parameters: Vec<SymbolId> = Vec::new();
         let mut this_parameter: Option<SymbolId> = None;
         let mut min_argument_count = 0u32;
-        for (i, &parameter) in self.nodes_of(parameter_list).iter().enumerate() {
+        let parameter_start = usize::from(node_util::is_jsdoc_construct_signature(
+            self.binder.source_of_node(declaration),
+            declaration,
+        ));
+        for (i, &parameter) in self
+            .nodes_of(parameter_list)
+            .iter()
+            .enumerate()
+            .skip(parameter_start)
+        {
             let NodeData::Parameter(data) = self.data_of(parameter).clone() else {
                 unreachable!("parser invariant: parameter lists carry only Parameter nodes");
             };
@@ -8909,6 +8920,21 @@ impl<'a> CheckerState<'a> {
         let declaration = self.signature_of(id).declaration;
         let annotation = declaration.and_then(|declaration| match self.data_of(declaration) {
             NodeData::FunctionType(data) => data.r#type,
+            NodeData::JSDocFunctionType(data) => {
+                if node_util::is_jsdoc_construct_signature(
+                    self.binder.source_of_node(declaration),
+                    declaration,
+                ) {
+                    self.nodes_of(data.parameters)
+                        .first()
+                        .and_then(|&parameter| match self.data_of(parameter) {
+                            NodeData::Parameter(data) => data.r#type,
+                            _ => None,
+                        })
+                } else {
+                    data.r#type
+                }
+            }
             NodeData::ConstructorType(data) => data.r#type,
             NodeData::CallSignature(data) => data.r#type,
             NodeData::ConstructSignature(data) => data.r#type,

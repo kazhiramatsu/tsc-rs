@@ -20,6 +20,30 @@ pub fn kind_of(source: &SourceFile, id: NodeId) -> SyntaxKind {
     source.arena.node(id).kind
 }
 
+/// tsc-port: isJSDocConstructSignature @6.0.3
+/// tsc-hash: 8f800e8468ab175a7b37510bd6af5a2527bfb269a775e24c299a6b547cb60982
+/// tsc-span: _tsc.js:15299-15303
+pub fn is_jsdoc_construct_signature(source: &SourceFile, node: NodeId) -> bool {
+    let NodeData::JSDocFunctionType(data) = &source.arena.node(node).data else {
+        return false;
+    };
+    let Some(parameter) = data
+        .parameters
+        .and_then(|parameters| source.arena.node_array(parameters).nodes.first().copied())
+    else {
+        return false;
+    };
+    let NodeData::Parameter(data) = &source.arena.node(parameter).data else {
+        return false;
+    };
+    data.name.is_some_and(|name| {
+        matches!(
+            &source.arena.node(name).data,
+            NodeData::Identifier(data) if data.escaped_text == "new"
+        )
+    })
+}
+
 /// tsc `node.modifiers` dynamic access: the modifiers array of any kind
 /// that can carry one (canHaveModifiers proxy — exactly the generated
 /// Data structs with a modifiers field).
@@ -668,6 +692,7 @@ pub fn is_function_like_kind(kind: SyntaxKind) -> bool {
             | SyntaxKind::ConstructSignature
             | SyntaxKind::IndexSignature
             | SyntaxKind::FunctionType
+            | SyntaxKind::JSDocFunctionType
             | SyntaxKind::ConstructorType
     ) || is_function_like_declaration_kind(kind)
 }

@@ -9,8 +9,9 @@ use crate::node_util::{
     get_escaped_text_of_identifier_or_literal, get_escaped_text_of_jsx_namespaced_name,
     get_name_of_declaration, get_text_of_identifier_or_literal, has_dynamic_name,
     has_syntactic_modifier, is_ambient_module, is_global_scope_augmentation,
-    is_property_name_literal, is_signed_numeric_literal, is_string_or_numeric_literal_like,
-    kind_of, literal_text_of, module_export_name_is_default, node_is_missing,
+    is_jsdoc_construct_signature, is_property_name_literal, is_signed_numeric_literal,
+    is_string_or_numeric_literal_like, kind_of, literal_text_of, module_export_name_is_default,
+    node_is_missing, parent_of,
 };
 use crate::symbols::{
     escape_leading_underscores, unescape_leading_underscores, InternalSymbolName, SymbolArena,
@@ -408,8 +409,7 @@ impl<'a> Binder<'a> {
     /// tsc-hash: d2af29f322058fe2e4f4a1064734eea28f25a726f6cbbbd5d8e19bf6d8dbd4bd
     /// tsc-span: _tsc.js:42534-42598
     ///
-    /// JS-only: the BinaryExpression module.exports arm and JSDoc
-    /// function-type/parameter arms land with stage 3.4 / JSDoc.
+    /// JS-only: the BinaryExpression module.exports arm.
     pub fn get_declaration_name(&mut self, node: NodeId) -> Option<String> {
         if kind_of(self.source, node) == SyntaxKind::ExportAssignment {
             let is_export_equals = match &self.source.arena.node(node).data {
@@ -494,8 +494,31 @@ impl<'a> Binder<'a> {
             SyntaxKind::FunctionType | SyntaxKind::CallSignature => {
                 Some(InternalSymbolName::CALL.to_owned())
             }
+            SyntaxKind::JSDocFunctionType => Some(
+                if is_jsdoc_construct_signature(self.source, node) {
+                    InternalSymbolName::NEW
+                } else {
+                    InternalSymbolName::CALL
+                }
+                .to_owned(),
+            ),
             SyntaxKind::ConstructorType | SyntaxKind::ConstructSignature => {
                 Some(InternalSymbolName::NEW.to_owned())
+            }
+            SyntaxKind::Parameter => {
+                let parent = parent_of(self.source, node)?;
+                let NodeData::JSDocFunctionType(data) = &self.source.arena.node(parent).data else {
+                    return None;
+                };
+                let index = data.parameters.and_then(|parameters| {
+                    self.source
+                        .arena
+                        .node_array(parameters)
+                        .nodes
+                        .iter()
+                        .position(|&parameter| parameter == node)
+                })?;
+                Some(format!("arg{index}"))
             }
             SyntaxKind::IndexSignature => Some(InternalSymbolName::INDEX.to_owned()),
             SyntaxKind::ExportDeclaration => Some(InternalSymbolName::EXPORT_STAR.to_owned()),
