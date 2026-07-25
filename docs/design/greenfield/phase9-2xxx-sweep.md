@@ -3329,6 +3329,28 @@ evidence is unchanged at entries=**1,856**, stale=0. Escape evidence
 is unchanged at sites=**192**, stale=0, untagged=0, recovery=**115**,
 dormant=1. Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9ac results (2026-07-25, checked-JS operator errors — DONE)
+
+`reportOperatorError` now publishes its exact diagnostic range only
+when both JavaScript operands and both resolved operand types are
+free of JSDoc provenance. This covers the common 2365/2367 operator
+emitter without admitting type errors whose verdict depends on JSDoc.
+Plain JavaScript remains filtered.
+
+This closes the supported 2365 row in `plainJSRedeclare2`. 2xxx T0
+grows to **20412/21051** (**96.9645%**) with FP=0; supported T0 is
+**20412/20504** (**99.5513%**) with supported FN=**92**. All-band T0
+is **31334/49024** (**63.9156%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**1** in both bands and both scope views. The
+accepted-set ratchet adds one T0 identity and one
+multiplicity-complete identity to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,047** and binder tests are **53**. Ledger
+evidence is unchanged at entries=**1,856**, stale=0. Escape evidence
+is unchanged at sites=**192**, stale=0, untagged=0, recovery=**115**,
+dormant=1. Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

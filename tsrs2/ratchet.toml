@@ -216,8 +216,9 @@
 # p9 9.9z adds +4 checked-JS mixed CommonJS export redeclarations.
 # p9 9.9aa adds +2 checked-JS syntactic truthiness rows.
 # p9 9.9ab adds +1 ambient const-enum access under verbatim syntax.
-rate = 0.639136
-matched = 31333
+# p9 9.9ac adds +1 checked-JS non-JSDoc operator diagnostic.
+rate = 0.639156
+matched = 31334
 total = 49024
 allowed_regression = 0.0
 
@@ -300,8 +301,9 @@ allowed_regression = 0.0
 # p9 9.9z adds +4 checked-JS mixed CommonJS export redeclarations.
 # p9 9.9aa adds +2 checked-JS syntactic truthiness rows.
 # p9 9.9ab adds +1 ambient const-enum access under verbatim syntax.
-rate = 0.969598
-matched = 20411
+# p9 9.9ac adds +1 checked-JS non-JSDoc operator diagnostic.
+rate = 0.969645
+matched = 20412
 total = 21051
 allowed_regression = 0.0
 
