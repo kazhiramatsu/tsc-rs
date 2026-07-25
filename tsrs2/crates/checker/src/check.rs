@@ -5853,7 +5853,7 @@ impl<'a> CheckerState<'a> {
                 // imports M7, checkJs object literals M8 —
                 // corpus-probed at 7.5: dropping the guard unmasked 5
                 // fabricated 2339/2322 rows in exactly those bands).
-                // 9.3b5 narrowing, two REAL-empty admits:
+                // 9.3b5/9.9bj narrowing, three REAL-empty admits:
                 // (1) the canonical emptyTypeLiteralType singleton —
                 // every empty source `{}` annotation resolves to it
                 // (getTypeFromTypeNode's members-empty collapse) and
@@ -5868,12 +5868,18 @@ impl<'a> CheckerState<'a> {
                 // JS-file declarations otherwise stay curtained:
                 // their members can live in unbound JSDoc/expando
                 // machinery (fixSignatureCaching band), the 7.5-probe
-                // fabrication flavor. One exact additional face is a
-                // syntactically empty literal assigned directly to a
-                // parameter: the literal has no declaration container
-                // that can gather later expando members, so its born-
-                // resolved empty set is tsc's `{}`. Other JS empty
-                // literals can still be open-ended. Lazily-resolved
+                // fabrication flavor. Two exact additional faces are:
+                // (a) a syntactically empty literal assigned directly
+                // to a parameter: the literal has no declaration
+                // container that can gather later expando members, so
+                // its born-resolved empty set is tsc's `{}`; and
+                // (b) an empty PropertyAssignment initializer in checked JS,
+                // which is a nested value rather than an expando root
+                // (oracle: assigning `outer.inner.x` still reports
+                // 2339 on `inner`). Plain-JS nested literals remain
+                // open-ended and can gather members for TS consumers.
+                // Other JS empty literals can still be open-ended.
+                // Lazily-resolved
                 // symbol-carrying empties (module-namespace faces,
                 // JSON module objects, instantiated literals) keep the
                 // guard.
@@ -5926,11 +5932,40 @@ impl<'a> CheckerState<'a> {
                                 self.kind_of(declaration) == SyntaxKind::Parameter
                             })
                     });
+                let js_empty_property_initializer = symbol
+                    .and_then(|symbol| self.binder.symbol(symbol).value_declaration)
+                    .is_some_and(|literal| {
+                        let syntax_empty = matches!(
+                            self.data_of(literal),
+                            NodeData::ObjectLiteralExpression(data)
+                                if self.nodes_of(data.properties).is_empty()
+                        );
+                        if !syntax_empty {
+                            return false;
+                        }
+                        let source = self.binder.source_of_node(literal);
+                        let checked_js_literal = !crate::is_plain_js_file(
+                            crate::is_js_file_name(&source.file_name),
+                            crate::check_directive(&source.text),
+                            self.options,
+                        );
+                        if !checked_js_literal {
+                            return false;
+                        }
+                        self.parent_of(literal).is_some_and(|parent| {
+                            matches!(
+                                self.data_of(parent),
+                                NodeData::PropertyAssignment(data)
+                                    if data.initializer == Some(literal)
+                            )
+                        })
+                    });
                 if symbol.is_none()
                     || ty == self.empty_type_literal_type
                     || (born_resolved && !js_declared)
                     || (born_resolved && bounded_js_container_literal.is_some())
                     || (born_resolved && js_declared && js_empty_parameter_assignment)
+                    || (born_resolved && js_declared && js_empty_property_initializer)
                 {
                     return Ok(("{}".to_owned(), SliceTypeNodeKind::TypeLiteral));
                 }

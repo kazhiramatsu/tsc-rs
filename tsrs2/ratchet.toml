@@ -249,8 +249,9 @@
 # p9 9.9bg adds +2 checked-JS chained-this assignment-miss diagnostics.
 # p9 9.9bh adds +1 primitive module.exports assignment-miss diagnostic.
 # p9 9.9bi adds +2 CommonJS object-replacement union property misses.
-rate = 0.640788
-matched = 31414
+# p9 9.9bj adds +1 checked-JS require-property-alias nested-object miss.
+rate = 0.640809
+matched = 31415
 total = 49024
 allowed_regression = 0.0
 
@@ -366,8 +367,9 @@ allowed_regression = 0.0
 # p9 9.9bg adds +2 checked-JS chained-this assignment-miss diagnostics.
 # p9 9.9bh adds +1 primitive module.exports assignment-miss diagnostic.
 # p9 9.9bi adds +2 CommonJS object-replacement union property misses.
-rate = 0.973445
-matched = 20492
+# p9 9.9bj adds +1 checked-JS require-property-alias nested-object miss.
+rate = 0.973493
+matched = 20493
 total = 21051
 allowed_regression = 0.0
 

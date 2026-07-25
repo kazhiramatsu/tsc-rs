@@ -6515,6 +6515,83 @@ let unrelated = \"\";\n",
     }
 
     #[test]
+    fn checked_js_commonjs_require_property_alias_publishes_nested_object_miss() {
+        let importer = "const x = require('./ch').x;\n\
+                        x;\n\
+                        x.grey;\n\
+                        x.x.grey;\n";
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "/ch.js".to_owned(),
+                    text: "const x = { grey: {} };\nexport { x };\n".to_owned(),
+                },
+                InputFile {
+                    name: "/main.js".to_owned(),
+                    text: importer.to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(true),
+                module: Some(1),
+                target: Some(2),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.file_name.as_deref(),
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                    diagnostic.message_text(),
+                ))
+                .collect::<Vec<_>>(),
+            [(
+                Some("/main.js"),
+                2339,
+                importer.find("x.x").expect("nested missing access") as u32 + 2,
+                1,
+                "Property 'x' does not exist on type '{ grey: {}; }'.",
+            )]
+        );
+    }
+
+    #[test]
+    fn plain_js_nested_object_remains_open_ended_for_typescript_consumers() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "/a.js".to_owned(),
+                    text: "var obj = { property: {} };\nobj.property.a = 0;\n".to_owned(),
+                },
+                InputFile {
+                    name: "/b.ts".to_owned(),
+                    text: "obj.property.a = 1;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                target: Some(2),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code() != 2339),
+            "{:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
     fn checked_js_local_require_function_is_not_commonjs_resolution() {
         let source =
             "function require() { return {}; }\nrequire('./missing-module-for-local-call');\n";

@@ -3088,6 +3088,55 @@ impl<'a> CheckerState<'a> {
         } else {
             false
         };
+        let publish_commonjs_require_property_alias_read_non_jsdoc = if assignment_declaration_kind
+            == tsrs2_binder::AssignmentDeclarationKind::None
+            && is_direct_alias_receiver
+        {
+            let alias = self
+                .get_resolved_symbol(access_receiver.expect("direct alias has a receiver"))?
+                .expect("direct alias has a symbol");
+            let alias_is_commonjs_require = self
+                .binder
+                .symbol(alias)
+                .declarations
+                .iter()
+                .any(|&declaration| self.external_module_require_argument(declaration).is_some());
+            let target = self.resolve_alias(alias)?;
+            // A `const value = require("./m").value` declaration is
+            // bound as an alias directly to the exported local; that
+            // local need not carry the module symbol as its parent.
+            // Resolve the required module's own export aliases instead
+            // of admitting every JS alias with the same object type.
+            let required_modules = self
+                .non_jsdoc_js_commonjs_require_targets
+                .iter()
+                .copied()
+                .collect::<Vec<_>>();
+            let mut is_required_export = false;
+            for module in required_modules {
+                let exports = self
+                    .binder
+                    .symbol(module)
+                    .exports
+                    .values()
+                    .copied()
+                    .collect::<Vec<_>>();
+                for export in exports {
+                    if self.resolve_symbol_ex(Some(export), false)? == Some(target) {
+                        is_required_export = true;
+                        break;
+                    }
+                }
+                if is_required_export {
+                    break;
+                }
+            }
+            alias_is_commonjs_require
+                && is_required_export
+                && self.is_non_jsdoc_js_expression_type(access_expression, containing_type)
+        } else {
+            false
+        };
         let is_actual_class = containing_symbol.is_some_and(|symbol| {
             let flags = self.binder.symbol(symbol).flags;
             flags.intersects(SymbolFlags::CLASS) && !flags.intersects(SymbolFlags::FUNCTION)
@@ -3113,6 +3162,7 @@ impl<'a> CheckerState<'a> {
             || publish_assignment_class_read_non_jsdoc
             || publish_direct_this_class_read_non_jsdoc
             || publish_class_alias_assignment_non_jsdoc
+            || publish_commonjs_require_property_alias_read_non_jsdoc
             || publish_chained_this_assignment
             || containing_symbol.is_some_and(|symbol| {
                 self.non_jsdoc_js_module_exports_alias_targets
