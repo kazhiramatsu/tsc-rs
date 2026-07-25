@@ -1085,6 +1085,19 @@ impl<'a> CheckerState<'a> {
                 return;
             }
         }
+        // checkAndReportErrorForUsingValueAsType is the final alternate
+        // in tsc's chain. A name that resolves only in the value-only
+        // meaning reports 2749 instead of the plain missing-type
+        // diagnostic. Namespace-bearing values remain valid type
+        // qualification roots and are deliberately excluded.
+        if let Some(error_location) = error_location {
+            match self.check_and_report_error_for_using_value_as_type(error_location, name, meaning)
+            {
+                Ok(true) => return,
+                Ok(false) => {}
+                Err(_) => return,
+            }
+        }
         // Failure-band gates, each an honest FN escape (no emission)
         // for a case where the plain form would be an un-tsc-like
         // diagnostic (the third 5.4-era gate — the lib_globals name
@@ -1200,6 +1213,45 @@ impl<'a> CheckerState<'a> {
             self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, message.code);
         }
         self.suggestion_count += 1;
+    }
+
+    /// tsc-port: checkAndReportErrorForUsingValueAsType @6.0.3
+    /// tsc-hash: 0e523a9d04c65234f9615c68bb47989bffc9d7b5379f68d822bb396529d149e5
+    /// tsc-span: _tsc.js:48316-48333
+    fn check_and_report_error_for_using_value_as_type(
+        &mut self,
+        error_location: NodeId,
+        name: &str,
+        meaning: SymbolFlags,
+    ) -> CheckResult2<bool> {
+        let non_namespace_type =
+            SymbolFlags::from_bits(SymbolFlags::TYPE.bits() & !SymbolFlags::NAMESPACE.bits());
+        if !meaning.intersects(non_namespace_type) {
+            return Ok(false);
+        }
+        let value_only =
+            SymbolFlags::from_bits(SymbolFlags::VALUE.bits() & !SymbolFlags::TYPE.bits());
+        let symbol =
+            self.resolve_name(Some(error_location), name, value_only, None, false, false)?;
+        let symbol = self.resolve_symbol_ex(symbol, false)?;
+        let Some(symbol) = symbol else {
+            return Ok(false);
+        };
+        if self
+            .binder
+            .symbol(symbol)
+            .flags
+            .intersects(SymbolFlags::NAMESPACE)
+        {
+            return Ok(false);
+        }
+        let display = tsrs2_binder::unescape_leading_underscores(name);
+        self.error_at(
+            Some(error_location),
+            &diagnostics::_0_refers_to_a_value_but_is_being_used_as_a_type_here_Did_you_mean_typeof_0,
+            &[display],
+        );
+        Ok(true)
     }
 
     /// A JS `C.prototype... =` assignment can synthesize the root
@@ -1601,11 +1653,10 @@ impl<'a> CheckerState<'a> {
     ///
     /// Slices, each ledgered: the JS prototype-assignment secondary
     /// lookup (JSDoc/expando — unmodeled), the CJS-require namespace
-    /// re-resolution (JS), and two suggestion alternates in the
-    /// missing-export path (typeof-suggestion + type-not-namespace —
-    /// the raw-hit silent-None carve-out below). The module-member
-    /// spelling suggestion, the type-only alias marking, and the final
-    /// resolveAlias hop are LIVE (M4 5.8d).
+    /// re-resolution (JS), and the type-not-namespace alternate in the
+    /// missing-export path. The qualified-name typeof suggestion, the
+    /// module-member spelling suggestion, the type-only alias marking,
+    /// and the final resolveAlias hop are LIVE (M4 5.8d).
     pub fn resolve_entity_name_ex(
         &mut self,
         name: NodeId,
@@ -1715,13 +1766,47 @@ impl<'a> CheckerState<'a> {
                             );
                             return Ok(None);
                         }
-                        // A raw table hit that failed only the MEANING
-                        // filter: tsc's ALTERNATE forms (typeof
-                        // suggestion / 2713 type-not-namespace) — M8
-                        // per the module note; plain-2694-vs-alternate
-                        // undecidable — silent None (parserharness
-                        // pins 2749, not 2694).
+                        // The qualified-name typeof alternate
+                        // (49353-49364): prove that the whole
+                        // containing qualified name resolves as a
+                        // value before replacing the missing member
+                        // report with 2749.
                         if exports.get(&right_text).is_some() {
+                            let mut containing = name;
+                            while let Some(parent) = self.parent_of(containing) {
+                                let NodeData::QualifiedName(parent_data) = self.data_of(parent)
+                                else {
+                                    break;
+                                };
+                                if parent_data.left != Some(containing) {
+                                    break;
+                                }
+                                containing = parent;
+                            }
+                            let in_type_query = self.parent_of(containing).is_some_and(|parent| {
+                                self.kind_of(parent) == SyntaxKind::TypeQuery
+                            });
+                            if meaning.intersects(SymbolFlags::TYPE)
+                                && self.kind_of(name) == SyntaxKind::QualifiedName
+                                && !in_type_query
+                                && self.globals.get("Object").is_some()
+                                && self
+                                    .resolve_entity_name_ex(
+                                        containing,
+                                        SymbolFlags::VALUE,
+                                        true,
+                                        location,
+                                        false,
+                                    )?
+                                    .is_some()
+                            {
+                                let display = self.entity_name_to_string(containing)?;
+                                self.error_at(
+                                    Some(containing),
+                                    &diagnostics::_0_refers_to_a_value_but_is_being_used_as_a_type_here_Did_you_mean_typeof_0,
+                                    &[&display],
+                                );
+                            }
                             return Ok(None);
                         }
                         self.error_at(
@@ -2377,6 +2462,54 @@ mod tests {
                 let codes: Vec<u32> = state.diagnostics.iter().map(|d| d.code()).collect();
                 assert_eq!(codes, [2304]);
             },
+        );
+    }
+
+    #[test]
+    fn value_only_symbol_reports_2749_in_type_position() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "const value = 1;\ntype Bad = value;\nclass Both {}\ntype Good = Both;\n"
+                    .to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [(2749, 28, 5)]
+        );
+    }
+
+    #[test]
+    fn qualified_value_only_symbol_reports_2749_for_the_full_name() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "interface Object {}\nnamespace N { export const value = 1; export interface Both {} }\ntype Bad = N.value;\ntype Good = N.Both;\n"
+                    .to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [(2749, 96, 7)]
         );
     }
 
