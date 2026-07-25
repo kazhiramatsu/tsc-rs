@@ -4152,6 +4152,51 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9ba results (2026-07-25, checked-JS declared-type property misses — DONE)
+
+The checked-JS 2339 publication boundary now also admits a receiver
+whose merged type symbol has at least one declaration and every
+declaration comes from a non-JavaScript file. Such a lib / `.d.ts`
+type cannot gain members from JavaScript assignment inference, so the
+existing non-JSDoc provenance proof is sufficient.
+
+The initial whole-boundary probe exposed one false 2339 on
+`C.prototype = {}` where `C` is a `.d.ts` namespace. The binder
+classifies that whole replacement as
+`AssignmentDeclarationKind::Prototype`; the landed gate contains
+exactly that declaration shape.
+The distinct `Event.prototype.removeChildren = ...` target is a
+`PrototypeProperty` and remains publishable. Unit pins cover both the
+non-JS-declared positive face and the prototype-replacement control.
+
+The D2 port plan again selects
+`checkPropertyAccessExpressionOrQualifiedName`
+(`d2:e4c636a2528888afc36a842509f7385de02f5176ed13bf2a9de4d8194da5f176`,
+`scc:00002`, 1,396 members). It has one exact Rust ledger join, 71
+static callees, three static callers, no unresolved static calls, and
+two pre-existing escape rows; this slice adds or widens none.
+
+The target pairing `typeFromPropertyAssignment21` with the
+`jsContainerMergeTsDeclaration2` fabrication control grows from
+**1/3** to **3/3** at T0/T1/T2/T3, with FP=0. The two recovered rows
+are the unsupported DOM prototype extension and its invalid
+`this.textContent` access.
+
+2xxx T0 grows to **20478/21051** (**97.2780%**) with FP=0; supported T0
+is **20477/20504** (**99.8683%**) with supported FN=**27**, all code
+2339. All-band T0 is **31400/49024** (**64.0503%**) with FP=0;
+supported all-band T0 is **31399/48477** (**64.7709%**). T1/T2/T3
+each report lost=0, gained=**2** in both bands and both scope views.
+The accepted-set ratchet adds two T0 identities and two
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,079**, binder tests are **55**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,865**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

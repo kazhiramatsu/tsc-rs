@@ -240,8 +240,9 @@
 # p9 9.9ax adds +3 bindable computed-accessor return diagnostics.
 # p9 9.9ay adds +3 checked-JS require-alias diagnostics.
 # p9 9.9az adds +6 checked-JS symbol-free property-miss diagnostics.
-rate = 0.640462
-matched = 31398
+# p9 9.9ba adds +2 checked-JS non-JS-declared property-miss diagnostics.
+rate = 0.640503
+matched = 31400
 total = 49024
 allowed_regression = 0.0
 
@@ -348,8 +349,9 @@ allowed_regression = 0.0
 # p9 9.9ax adds +3 bindable computed-accessor return diagnostics.
 # p9 9.9ay adds +3 checked-JS require-alias diagnostics.
 # p9 9.9az adds +6 checked-JS symbol-free property-miss diagnostics.
-rate = 0.972685
-matched = 20476
+# p9 9.9ba adds +2 checked-JS non-JS-declared property-miss diagnostics.
+rate = 0.97278
+matched = 20478
 total = 21051
 allowed_regression = 0.0
 

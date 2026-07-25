@@ -4191,6 +4191,76 @@ mod tests {
     }
 
     #[test]
+    fn checked_js_publishes_property_misses_on_non_js_declared_types() {
+        let source = "value.missing;\n";
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "types.d.ts".to_owned(),
+                    text: "interface Declared { known: number }\ndeclare const value: Declared;\n"
+                        .to_owned(),
+                },
+                InputFile {
+                    name: "a.js".to_owned(),
+                    text: source.to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.file_name.as_deref(),
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [(
+                Some("a.js"),
+                2339,
+                source.find("missing").expect("missing property") as u32,
+                "missing".len() as u32,
+            )]
+        );
+    }
+
+    #[test]
+    fn checked_js_contains_non_js_declared_prototype_replacements() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "types.d.ts".to_owned(),
+                    text: "declare namespace C { function bar(): void }\n".to_owned(),
+                },
+                InputFile {
+                    name: "a.js".to_owned(),
+                    text: "C.prototype = {};\nC.bar = 2;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code() != 2339),
+            "{:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
     fn checked_js_exposes_typed_declaration_arity_diagnostics() {
         let result = check_program(
             &[
