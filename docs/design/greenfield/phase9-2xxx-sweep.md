@@ -2996,6 +2996,28 @@ Checker tests are **1,032**. Escape evidence is unchanged at
 sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
 Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9o results (2026-07-25, typed missing-namespace tail — DONE)
+
+The typed missing-name resolver no longer suppresses its ordinary tail
+merely because the same spelling resolves under an unrelated symbol
+meaning. The fully ported alternate ladder gets first refusal; a typed
+fallthrough now emits the plain namespace diagnostic or its spelling
+suggestion. The all-meanings shield remains for JavaScript, where
+unmaterialized value/namespace merges still make that distinction
+unsafe.
+
+This closes all **3** supported 2503 rows plus the one supported 2833
+row. 2xxx T0 grows to **20368/21051** (**96.7555%**) with FP=0;
+supported T0 is **20368/20504** (**99.3367%**) with supported FN=**136**.
+All-band T0 is **31290/49024** (**63.8259%**) with FP=0. T1/T2/T3 each
+report lost=0, gained=**4** in both bands and both scope views. The
+accepted-set ratchet adds 4 T0 identities and 4 multiplicity-complete
+identities to both all and 2xxx; syntactic is unchanged.
+
+Checker tests are **1,033**. Escape evidence is unchanged at
+sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
+Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

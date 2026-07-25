@@ -1124,33 +1124,23 @@ impl<'a> CheckerState<'a> {
                 Err(_) => return,
             }
         }
-        // Failure-band gates, each an honest FN escape (no emission)
-        // for a case where the plain form would be an un-tsc-like
-        // diagnostic (the third 5.4-era gate — the lib_globals name
-        // table — RETIRED with lib loading: conformance programs carry
-        // their lib set, so a default-lib name either resolves or is
-        // genuinely missing, where tsc reports too):
-        // 1. tsc's remaining checkAndReportErrorFor* alternates
-        //    (value-as-type, type-as-value symbol arm,
-        //    namespace-as-type, 2749/2693/2503-family) and the
-        //    alias-resolving meaning criteria both key on a symbol
-        //    EXISTING under a different meaning; those arms are
-        //    unported (alias resolution 5.8, alternates M8), so a
-        //    quiet all-meanings re-probe finding anything means the
-        //    plain form would be the wrong code.
-        match self.resolve_name(error_location, name, SymbolFlags::ALL, None, false, false) {
-            Ok(Some(_)) | Err(_) => return,
-            Ok(None) => {}
+        // The alternate ladder above now owns typed symbols that exist
+        // under a different meaning. Falling through is tsc's ordinary
+        // missing-name/namespace tail even when an unrelated-meaning
+        // symbol exists (for example `import v = V` where V is a
+        // value). JavaScript still has unmaterialized value/namespace
+        // merges; preserve the old all-meanings shield there only.
+        if error_location.is_some_and(|location| self.is_in_js_file(location)) {
+            match self.resolve_name(error_location, name, SymbolFlags::ALL, None, false, false) {
+                Ok(Some(_)) | Err(_) => return,
+                Ok(None) => {}
+            }
         }
-        // 2. (RETIRED 5.8d) `declare global` exports now merge into
-        //    globals (merge_module_augmentations pass 1), so failures
-        //    in augmented programs are decidable again — the gate
-        //    kept 2304 recovery hostage to the merge.
-        // 2b. Exact unmaterialized JavaScript declarations remain
-        //     undecidable: JSDoc typedef/callback names, the root of a
-        //     prototype assignment declaration, and JS's implicit
-        //     `require`. An unrelated JS file/name no longer shields
-        //     a definite miss.
+        // Exact unmaterialized JavaScript declarations remain
+        // undecidable: JSDoc typedef/callback names, the root of a
+        // prototype assignment declaration, and JS's implicit
+        // `require`. An unrelated JS file/name no longer shields a
+        // definite miss.
         if (0..self.binder.file_count()).any(|index| {
             crate::is_js_file_name(&self.binder.source(index).file_name)
                 && self.source_has_jsdoc_type_name(index, name)
@@ -2810,6 +2800,32 @@ mod tests {
                 .map(|diagnostic| diagnostic.code())
                 .collect::<Vec<_>>(),
             [2702, 2702]
+        );
+    }
+
+    #[test]
+    fn value_only_namespace_roots_fall_through_to_2503() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "var V = 1;\n\
+                       import v = V;\n\
+                       declare namespace lf {\n\
+                         interface Transaction {\n\
+                           attach(query: query.Builder): void;\n\
+                         }\n\
+                       }\n"
+                .to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.code())
+                .collect::<Vec<_>>(),
+            [2503, 2503]
         );
     }
 
