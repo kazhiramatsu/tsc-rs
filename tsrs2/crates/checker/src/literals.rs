@@ -628,8 +628,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:74135-74299
     ///
     /// Elided/dead arms: checkGrammarObjectLiteralExpression (89637)
-    /// is a PARTIAL slice — the computed-property-name row is live
-    /// (5.8a §12), the rest stays elided (1117-family FN, pinned);
+    /// is a PARTIAL slice — the computed-property-name row (5.8a
+    /// §12) and rest-binding-pattern row are live; the rest stays
+    /// elided (1117-family FN, pinned);
     /// isInJavascript/enumTag/jsDocType/JSLiteral ride [JSDOC] (TS
     /// files answer false — plain-JS files gate earlier); the
     /// languageVersion ObjectAssign emit-helper gate is dead at
@@ -646,10 +647,11 @@ impl<'a> CheckerState<'a> {
         let in_destructuring_pattern = node_util::is_assignment_target(source, node);
         // checkGrammarObjectLiteralExpression(node, inDestructuring):
         // PARTIAL slice — the checkGrammarComputedPropertyName row is
-        // 5.8a-owned (§12; review find, PR #5: 1171); the remaining
-        // rows (rest-binding-pattern, shorthand-equals, private
-        // identifier, modifier and duplicate-kind tables) stay elided
-        // with their owners (1117-family FN, pinned).
+        // 5.8a-owned (§12; review find, PR #5: 1171) and the
+        // rest-binding-pattern row is 9.9l-owned; the remaining rows
+        // (shorthand-equals, private identifier, modifier and
+        // duplicate-kind tables) stay elided with their owners
+        // (1117-family FN, pinned).
         {
             let members = match self.data_of(node) {
                 NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties),
@@ -657,6 +659,29 @@ impl<'a> CheckerState<'a> {
             };
             for member in members {
                 if self.kind_of(member) == SyntaxKind::SpreadAssignment {
+                    if in_destructuring_pattern {
+                        let expression = match self.data_of(member) {
+                            NodeData::SpreadAssignment(data) => data.expression,
+                            _ => None,
+                        };
+                        if let Some(expression) = expression {
+                            let inner = node_util::skip_parentheses_pub(
+                                self.binder.source_of_node(expression),
+                                expression,
+                            );
+                            if matches!(
+                                self.kind_of(inner),
+                                SyntaxKind::ArrayLiteralExpression
+                                    | SyntaxKind::ObjectLiteralExpression
+                            ) {
+                                self.grammar_error_on_node(
+                                    expression,
+                                    &diagnostics::A_rest_element_cannot_contain_a_binding_pattern,
+                                    &[],
+                                );
+                            }
+                        }
+                    }
                     continue;
                 }
                 if let Some(name) = self.name_of_node(member) {
@@ -1780,6 +1805,15 @@ mod tests {
     }
 
     // ---- spreads: the 2698 validity band ----
+
+    #[test]
+    fn rest_binding_pattern_reports_2501_on_the_original_expression() {
+        assert_eq!(checked_rows("({...{}} = {});\n"), [(2501, 5, 2)]);
+        assert_eq!(
+            checked_rows("({...({})} = {});\n"),
+            [(2501, 5, 4), (2701, 5, 4)]
+        );
+    }
 
     #[test]
     fn spreading_a_number_reports_2698() {

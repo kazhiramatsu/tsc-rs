@@ -198,8 +198,9 @@
 # p9 9.9i adds +12 unchecked side-effect import misses.
 # p9 9.9j adds +12 type-as-value/type-as-namespace alternates.
 # p9 9.9k adds +5 namespace-as-value alternate diagnostics.
-rate = 0.637728
-matched = 31264
+# p9 9.9l adds +9 rest-binding-pattern grammar diagnostics.
+rate = 0.637912
+matched = 31273
 total = 49024
 allowed_regression = 0.0
 
@@ -264,8 +265,9 @@ allowed_regression = 0.0
 # p9 9.9i adds +12 unchecked side-effect import misses.
 # p9 9.9j adds +12 type-as-value/type-as-namespace alternates.
 # p9 9.9k adds +5 namespace-as-value alternate diagnostics.
-rate = 0.96632
-matched = 20342
+# p9 9.9l adds +9 rest-binding-pattern grammar diagnostics.
+rate = 0.966747
+matched = 20351
 total = 21051
 allowed_regression = 0.0
 
