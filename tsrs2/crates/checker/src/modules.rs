@@ -3736,6 +3736,40 @@ impl<'a> CheckerState<'a> {
         Ok(Some(exported.unwrap_or(module_symbol)))
     }
 
+    /// tsc-port: resolveExternalModuleTypeByLiteral @6.0.3
+    /// tsc-hash: e18087330b741e1884b695b9f89504bef2b10df26c2312d693c3db6f607fa926
+    /// tsc-span: _tsc.js:59750-59759
+    pub(crate) fn resolve_external_module_type_by_literal(
+        &mut self,
+        name: NodeId,
+    ) -> CheckResult2<TypeId> {
+        let module_symbol = self.resolve_external_module_name(name, name, false)?;
+        if let Some(resolved) = self.resolve_external_module_symbol(module_symbol, false)? {
+            let resolved = self.get_merged_symbol(resolved);
+            // A duplicated `exports.x = ...` symbol is typed through
+            // assignment flow. That flow is source-local today; using
+            // its auto/undefined seed through a cross-file require can
+            // fabricate nullable diagnostics in the importer. Preserve
+            // the former any boundary until the cross-file flow answer
+            // itself is ported.
+            if self
+                .binder
+                .symbol(resolved)
+                .exports
+                .values()
+                .any(|&export| {
+                    self.is_duplicated_common_js_export(&self.binder.symbol(export).declarations)
+                })
+            {
+                return Ok(self.tables.intrinsics.any);
+            }
+            self.non_jsdoc_js_commonjs_require_targets.insert(resolved);
+            let ty = self.get_type_of_symbol(resolved)?;
+            return Ok(ty);
+        }
+        Ok(self.tables.intrinsics.any)
+    }
+
     /// tsc-port: getCommonJsExportEquals @6.0.3
     /// tsc-hash: 396ba5dc8bf645b06b1a048e0ebabf2bac9dd3ae94b486d6e50cd2ccb0f72b5e
     /// tsc-span: _tsc.js:49691-49714
@@ -6340,6 +6374,110 @@ mod tests {
                 "'./lib'".len() as u32,
             )]
         );
+    }
+
+    #[test]
+    fn checked_js_commonjs_require_uses_module_members_and_readonly_exports() {
+        let importer = "const mod = require('./mod1');\nmod.missing;\nmod.readonly = 1;\n";
+        let files = [
+            (
+                "/globals.d.ts",
+                "declare var Object: { defineProperty(target: any, name: string, descriptor: any): any };\n",
+            ),
+            (
+                "/mod1.js",
+                "Object.defineProperty(exports, \"readonly\", { value: 1 });\n\
+/** @type {string} */\n\
+let unrelated = \"\";\n",
+            ),
+            ("/importer.js", importer),
+        ];
+        let result = check_program(
+            &files
+                .into_iter()
+                .map(|(name, text)| InputFile {
+                    name: name.to_owned(),
+                    text: text.to_owned(),
+                })
+                .collect::<Vec<_>>(),
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(true),
+                target: Some(2),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.file_name.as_deref(),
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                    diagnostic.message_text(),
+                ))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    Some("/importer.js"),
+                    2339,
+                    importer.find("missing").expect("missing access") as u32,
+                    "missing".len() as u32,
+                    "Property 'missing' does not exist on type 'typeof import(\"/mod1\")'.",
+                ),
+                (
+                    Some("/importer.js"),
+                    2540,
+                    importer.find("readonly =").expect("readonly assignment") as u32,
+                    "readonly".len() as u32,
+                    "Cannot assign to 'readonly' because it is a read-only property.",
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn checked_js_local_require_function_is_not_commonjs_resolution() {
+        let source =
+            "function require() { return {}; }\nrequire('./missing-module-for-local-call');\n";
+        assert!(program_rows(
+            &[("/main.js", source)],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        )
+        .iter()
+        .all(|(_, code, _, _)| *code != 2307));
+    }
+
+    #[test]
+    fn checked_js_require_contains_cross_file_duplicate_export_flow() {
+        let files = [
+            (
+                "/mod.js",
+                "exports.apply = undefined;\nexports.apply = function apply() {};\nexports.apply = 1;\n",
+            ),
+            (
+                "/main.js",
+                "const { apply } = require('./mod');\napply.toFixed();\n",
+            ),
+        ];
+        assert!(program_rows(
+            &files,
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        )
+        .iter()
+        .all(|(_, code, _, _)| *code != 18048));
     }
 
     #[test]

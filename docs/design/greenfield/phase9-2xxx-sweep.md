@@ -3662,6 +3662,52 @@ stale=0. Escape evidence is unchanged at sites=**192**, stale=0,
 untagged=0, recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9ao results (2026-07-25, checked-JS CommonJS require types — DONE)
+
+`checkCallExpression` now recognizes a real checked-JS CommonJS
+`require` call after ordinary signature resolution and returns the
+resolved external module type through
+`resolveExternalModuleTypeByLiteral`. The `isCommonJsRequire` port
+distinguishes the implicit checker `require` and explicit ambient
+function/variable declarations from aliases and local declarations, so
+a shadowing local function no longer triggers module resolution.
+
+Resolved require targets are tracked as a narrow checked-JS publication
+boundary. Property misses and readonly-property assignments on that
+exact module type can therefore publish even when an unrelated
+declaration elsewhere in the module carries JSDoc. Modules containing a
+duplicated `exports.x = ...` symbol retain the former `any` boundary:
+their property type depends on cross-file assignment flow that is not
+yet ported, and exposing its local `auto` seed fabricated an 18048 in
+`moduleExportDuplicateAlias3`. The targeted containment restores the
+all-corpus FP=0 gate without weakening ordinary require-module typing.
+
+The D2 port plans select `checkCallExpression`
+(`d2:561a601ba9b3cf08146dc0f9427ca5dba06befab5cc83dec48f269e3095f0e2d`,
+`scc:00002`), `isCommonJsRequire`
+(`d2:2bebbd183872f294f2af5f3dd9305feadc52bfe2176f52c20288388a7be02261`,
+`scc:00663`), and `resolveExternalModuleTypeByLiteral`
+(`d2:1d29021ac36c7f7b9cb6f7309e07d705c4941f12d9a3f80c64d4e6f7bd6065b6`,
+`scc:00002`). All three are exact ledger joins. The plans report zero,
+one, and zero unresolved static calls respectively; no selected
+boundary adds or widens an escape.
+
+This closes all seven supported rows in
+`checkOtherObjectAssignProperty`: four 2339 property misses and three
+2540 readonly assignments. 2xxx T0 grows to **20443/21051**
+(**97.1118%**) with FP=0; supported T0 is **20443/20504**
+(**99.7025%**) with supported FN=**61**. All-band T0 is
+**31365/49024** (**63.9789%**) with FP=0. T1/T2/T3 each report lost=0,
+gained=**7** in both bands and both scope views. The accepted-set
+ratchet adds seven T0 identities and seven multiplicity-complete
+identities to both all and 2xxx; syntactic is unchanged.
+
+Checker tests are **1,064**, binder tests are **54**, and syntax tests
+are **106**. Ledger evidence grows to entries=**1,860**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

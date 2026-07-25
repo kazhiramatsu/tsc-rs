@@ -6172,22 +6172,6 @@ impl<'a> CheckerState<'a> {
             NodeData::NewExpression(data) => (data.type_arguments, data.expression),
             _ => unreachable!("checkCallExpression serves call/new"),
         };
-        // tsc getSymbolAtLocation's string-literal arm resolves the
-        // argument of a syntactic JS require call. The ordinary call
-        // path still checks the callee/signature below; this additional
-        // read is what publishes a definite 2307 for
-        // `require("./missing")` under checkJs.
-        if self.is_in_js_file(node)
-            && self.is_require_call(node, /*require_string_literal_like_argument*/ true)
-        {
-            let argument = match self.data_of(node) {
-                NodeData::CallExpression(data) => self.nodes_of(data.arguments).first().copied(),
-                _ => None,
-            };
-            if let Some(argument) = argument {
-                self.resolve_external_module_name(node, argument, false)?;
-            }
-        }
         self.check_grammar_type_arguments(node, type_arguments);
         let signature = self.get_resolved_signature(node, check_mode)?;
         if signature == self.resolving_signature {
@@ -6233,6 +6217,19 @@ impl<'a> CheckerState<'a> {
                         return Ok(self.tables.intrinsics.any);
                     }
                 }
+            }
+        }
+        // 77632-77634: checked-JS CommonJS require calls return the
+        // resolved module's type. This is deliberately stricter than
+        // the syntactic isRequireCall probe: a local non-ambient
+        // function named `require` remains an ordinary call.
+        if self.is_in_js_file(node) && self.is_common_js_require(node)? {
+            let argument = match self.data_of(node) {
+                NodeData::CallExpression(data) => self.nodes_of(data.arguments).first().copied(),
+                _ => None,
+            };
+            if let Some(argument) = argument {
+                return self.resolve_external_module_type_by_literal(argument);
             }
         }
         let return_type = self.get_return_type_of_signature(signature)?;
@@ -6297,6 +6294,56 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(return_type)
+    }
+
+    /// tsc-port: isCommonJsRequire @6.0.3
+    /// tsc-hash: cbe4149bc7b8d5ed1d14b9e30a1eaa24c415995f183e60d0a57cc69a4e530abd
+    /// tsc-span: _tsc.js:77823-77853
+    ///
+    /// The upstream `requireSymbol` is represented by an unresolved
+    /// checked-JS `require` identifier in this checker. Explicit
+    /// ambient function/variable declarations are accepted too;
+    /// aliases and local declarations are not CommonJS require calls.
+    fn is_common_js_require(&mut self, node: NodeId) -> CheckResult2<bool> {
+        if !self.is_require_call(node, /*require_string_literal_like_argument*/ true) {
+            return Ok(false);
+        }
+        let callee = match self.data_of(node) {
+            NodeData::CallExpression(data) => data.expression,
+            _ => None,
+        };
+        let Some(callee) = callee else {
+            return Ok(false);
+        };
+        let resolved = self.resolve_name(
+            Some(callee),
+            "require",
+            SymbolFlags::VALUE,
+            None,
+            /*is_use*/ true,
+            /*exclude_globals*/ false,
+        )?;
+        let Some(resolved) = resolved else {
+            return Ok(true);
+        };
+        let flags = self.symbol_flags(resolved);
+        if flags.intersects(SymbolFlags::ALIAS) {
+            return Ok(false);
+        }
+        let declaration_kind = if flags.intersects(SymbolFlags::FUNCTION) {
+            Some(SyntaxKind::FunctionDeclaration)
+        } else if flags.intersects(SymbolFlags::VARIABLE) {
+            Some(SyntaxKind::VariableDeclaration)
+        } else {
+            None
+        };
+        let declaration =
+            declaration_kind.and_then(|kind| self.get_declaration_of_kind(resolved, kind));
+        Ok(declaration.is_some_and(|declaration| {
+            self.binder
+                .flags_of(declaration)
+                .intersects(NodeFlags::AMBIENT)
+        }))
     }
 
     /// tsc-port: isDottedName @6.0.3

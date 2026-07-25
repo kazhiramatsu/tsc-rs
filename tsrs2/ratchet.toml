@@ -228,8 +228,9 @@
 # p9 9.9al adds +2 pure CommonJS export-flow/alias diagnostics.
 # p9 9.9am adds +1 duplicated CommonJS export-flow diagnostic.
 # p9 9.9an adds +1 checked-JS not-a-module diagnostic.
-rate = 0.639646
-matched = 31358
+# p9 9.9ao adds +7 checked-JS CommonJS require-module diagnostics.
+rate = 0.639789
+matched = 31365
 total = 49024
 allowed_regression = 0.0
 
@@ -324,8 +325,9 @@ allowed_regression = 0.0
 # p9 9.9al adds +2 pure CommonJS export-flow/alias diagnostics.
 # p9 9.9am adds +1 duplicated CommonJS export-flow diagnostic.
 # p9 9.9an adds +1 checked-JS not-a-module diagnostic.
-rate = 0.970785
-matched = 20436
+# p9 9.9ao adds +7 checked-JS CommonJS require-module diagnostics.
+rate = 0.971118
+matched = 20443
 total = 21051
 allowed_regression = 0.0
 
