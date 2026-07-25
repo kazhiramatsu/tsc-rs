@@ -1927,9 +1927,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 5c80fbb8a3f77b883164000d53b9c225931e458723582d7eeb69e47b95ca997d
     /// tsc-span: _tsc.js:56864-56884
     ///
-    /// The commonJS duplicated-export and export=-type-annotation arms
-    /// are JS-only (dead in TS files): the live body is
-    /// resolveAlias → Value-flagged target's type, else errorType.
+    /// Duplicated CommonJS access exports use autoType so reads follow
+    /// their assignment flow. The export=-type-annotation arm remains
+    /// behind the broader JS source-type boundary.
     pub(crate) fn get_type_of_alias(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
             return Ok(cached);
@@ -1941,6 +1941,10 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.intrinsics.error);
         }
         let computed = (|state: &mut Self| -> CheckResult2<TypeId> {
+            let declarations = state.binder.symbol(symbol).declarations.clone();
+            if state.is_duplicated_common_js_export(&declarations) {
+                return Ok(state.tables.intrinsics.auto);
+            }
             let target_symbol = state.resolve_alias(symbol)?;
             let target_flags = state.get_symbol_flags_of(target_symbol)?;
             if target_flags.intersects(SymbolFlags::VALUE) {
@@ -6127,7 +6131,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isDuplicatedCommonJSExport @6.0.3
     /// tsc-hash: c8f1e229671e33b36726d797e987576d7efd64765b496872521ea563d6bf4437
     /// tsc-span: _tsc.js:86543-86545
-    fn is_duplicated_common_js_export(&self, declarations: &[NodeId]) -> bool {
+    pub(crate) fn is_duplicated_common_js_export(&self, declarations: &[NodeId]) -> bool {
         declarations.len() > 1
             && declarations.iter().all(|&declaration| {
                 if !self.is_in_js_file(declaration) {
@@ -6833,6 +6837,33 @@ mod tests {
                 },
             ),
             []
+        );
+    }
+
+    #[test]
+    fn duplicated_common_js_export_alias_uses_assignment_flow() {
+        let source = "exports.apply = undefined;\n\
+                      function a() {}\n\
+                      exports.apply()\n\
+                      exports.apply = a;\n\
+                      exports.apply()\n";
+        let first_call = source.find("exports.apply()").expect("fixture call") as u32;
+        assert_eq!(
+            program_rows(
+                &[("/mod.js", source)],
+                &CompilerOptions {
+                    allow_js: true,
+                    check_js: Some(true),
+                    strict: Some(true),
+                    ..CompilerOptions::default()
+                },
+            ),
+            [(
+                "/mod.js".to_owned(),
+                2722,
+                first_call,
+                "exports.apply".len() as u32,
+            )]
         );
     }
 

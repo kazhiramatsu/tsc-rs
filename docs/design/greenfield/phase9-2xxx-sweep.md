@@ -3596,6 +3596,33 @@ stale=0. Escape evidence is unchanged at sites=**192**, stale=0,
 untagged=0, recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9am results (2026-07-25, duplicated CommonJS export flow — DONE)
+
+Duplicated CommonJS access exports now retain tsc's evolving-flow
+semantics. `getTypeOfAlias` gives a symbol whose declarations are all
+`exports`/`module.exports` property assignments the `autoType`
+initial type, and `getFlowTypeOfAccessExpression` no longer returns
+early merely because that symbol carries only `Alias` flags. Ordinary
+aliases and non-duplicated CommonJS exports keep their existing paths.
+
+This closes the supported 2722 row in
+`moduleExportDuplicateAlias`: the call between an `undefined`
+assignment and a later function assignment is possibly undefined,
+while the call after the function assignment remains clean. 2xxx T0
+grows to **20435/21051** (**97.0738%**) with FP=0; supported T0 is
+**20435/20504** (**99.6635%**) with supported FN=**69**. All-band T0
+is **31357/49024** (**63.9625%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**1** in both bands and both scope views. The
+accepted-set ratchet adds one T0 identity and one
+multiplicity-complete identity to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,059**, binder tests are **54**, and syntax tests
+are **106**. Ledger evidence is unchanged at entries=**1,858**,
+stale=0. Escape evidence is unchanged at sites=**192**, stale=0,
+untagged=0, recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
