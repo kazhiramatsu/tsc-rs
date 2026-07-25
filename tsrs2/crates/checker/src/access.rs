@@ -2802,6 +2802,60 @@ impl<'a> CheckerState<'a> {
         })
     }
 
+    /// `Ctor.prototype.member = ...` after a structural
+    /// `Ctor.prototype = { ... }` replacement. The receiver type is
+    /// the replacement literal's complete member set. For a
+    /// JSDoc-semantic constructor, tsc publishes the property-access
+    /// miss on the later assignment; ordinary incremental and
+    /// element-access prototype expandos remain on their distinct
+    /// inference paths.
+    fn is_prototype_object_replacement_property_assignment(
+        &mut self,
+        access_expression: NodeId,
+        containing_symbol: Option<SymbolId>,
+        assignment_declaration_kind: tsrs2_binder::AssignmentDeclarationKind,
+    ) -> CheckResult2<bool> {
+        if self.kind_of(access_expression) != SyntaxKind::PropertyAccessExpression
+            || assignment_declaration_kind
+                != tsrs2_binder::AssignmentDeclarationKind::PrototypeProperty
+        {
+            return Ok(false);
+        }
+        let Some(replacement) = containing_symbol
+            .and_then(|symbol| self.binder.symbol(symbol).value_declaration)
+            .filter(|&declaration| self.kind_of(declaration) == SyntaxKind::ObjectLiteralExpression)
+            .and_then(|literal| self.parent_of(literal))
+        else {
+            return Ok(false);
+        };
+        if tsrs2_binder::get_assignment_declaration_kind(
+            self.binder.source_of_node(replacement),
+            replacement,
+        ) != tsrs2_binder::AssignmentDeclarationKind::Prototype
+        {
+            return Ok(false);
+        }
+        let prototype = match self.data_of(replacement) {
+            NodeData::BinaryExpression(data) => data.left,
+            _ => None,
+        };
+        let constructor = prototype.and_then(|prototype| match self.data_of(prototype) {
+            NodeData::PropertyAccessExpression(data) => data.expression,
+            NodeData::ElementAccessExpression(data) => data.expression,
+            _ => None,
+        });
+        let declaration = match constructor {
+            Some(constructor) => self
+                .get_resolved_symbol(constructor)?
+                .and_then(|symbol| self.binder.symbol(symbol).value_declaration),
+            None => None,
+        };
+        Ok(
+            declaration
+                .is_some_and(|declaration| self.declaration_has_jsdoc_semantics(declaration)),
+        )
+    }
+
     /// The missing intermediate access in
     /// `let A; A = {}; A.prototype.b = {}`. Its parent, not the
     /// `A.prototype` node itself, is the assignment target. Requiring
@@ -3219,6 +3273,12 @@ impl<'a> CheckerState<'a> {
         // JSDoc constructor.
         let publish_chained_this_assignment =
             self.is_chained_this_property_assignment(access_expression);
+        let publish_prototype_object_replacement_property_assignment = self
+            .is_prototype_object_replacement_property_assignment(
+                access_expression,
+                containing_symbol,
+                assignment_declaration_kind,
+            )?;
         // The binder cannot turn an intermediate access into a direct
         // expando declaration. Once the empty reassignment verdict is
         // complete, its missing member is safe to publish; initialized
@@ -3236,6 +3296,7 @@ impl<'a> CheckerState<'a> {
             || publish_class_alias_assignment_non_jsdoc
             || publish_commonjs_require_property_alias_read_non_jsdoc
             || publish_chained_this_assignment
+            || publish_prototype_object_replacement_property_assignment
             || publish_chained_uninitialized_identifier_empty_assignment
             || containing_symbol.is_some_and(|symbol| {
                 self.non_jsdoc_js_module_exports_alias_targets

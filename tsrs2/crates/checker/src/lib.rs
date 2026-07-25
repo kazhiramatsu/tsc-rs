@@ -4552,6 +4552,57 @@ mod tests {
     }
 
     #[test]
+    fn checked_js_publishes_prototype_object_property_assignment_misses() {
+        let source = "/** @constructor */\n\
+                      var Multimap = function() {\n\
+                        this._map = {};\n\
+                      };\n\
+                      Multimap.prototype = {\n\
+                        set: function() {},\n\
+                        get() {}\n\
+                      };\n\
+                      Multimap.prototype.addon = function() {\n\
+                        this._map;\n\
+                        this.set;\n\
+                        this.get;\n\
+                        this.addon;\n\
+                      };\n\
+                      var Plain = function() {};\n\
+                      Plain.prototype = { existing() {} };\n\
+                      Plain.prototype.incremental = function() {};\n";
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                    diagnostic.message_text(),
+                ))
+                .collect::<Vec<_>>(),
+            [(
+                2339,
+                source.find("addon").expect("missing prototype property") as u32,
+                "addon".len() as u32,
+                "Property 'addon' does not exist on type '{ set: () => void; get(): void; }'.",
+            )]
+        );
+    }
+
+    #[test]
     fn checked_js_publishes_primitive_module_exports_assignment_misses() {
         let primitive = "module.exports = 1;\nmodule.exports.missing = 1;\n";
         let result = check_program(

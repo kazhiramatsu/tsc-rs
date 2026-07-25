@@ -251,8 +251,9 @@
 # p9 9.9bi adds +2 CommonJS object-replacement union property misses.
 # p9 9.9bj adds +1 checked-JS require-property-alias nested-object miss.
 # p9 9.9bk adds +2 checked-JS chained-identifier assignment misses.
-rate = 0.640849
-matched = 31417
+# p9 9.9bl adds +2 JSDoc-constructor prototype-object property misses.
+rate = 0.64089
+matched = 31419
 total = 49024
 allowed_regression = 0.0
 
@@ -370,8 +371,9 @@ allowed_regression = 0.0
 # p9 9.9bi adds +2 CommonJS object-replacement union property misses.
 # p9 9.9bj adds +1 checked-JS require-property-alias nested-object miss.
 # p9 9.9bk adds +2 checked-JS chained-identifier assignment misses.
-rate = 0.973588
-matched = 20495
+# p9 9.9bl adds +2 JSDoc-constructor prototype-object property misses.
+rate = 0.973683
+matched = 20497
 total = 21051
 allowed_regression = 0.0
 
