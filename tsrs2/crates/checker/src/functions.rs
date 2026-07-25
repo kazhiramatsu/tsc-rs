@@ -5665,6 +5665,58 @@ mod tests {
         })
     }
 
+    fn checked_program_rows_with_file(
+        file_name: &str,
+        text: &str,
+        options: &CompilerOptions,
+    ) -> Vec<(u32, u32, u32)> {
+        check_program(
+            &[InputFile {
+                name: file_name.to_owned(),
+                text: text.to_owned(),
+            }],
+            options,
+        )
+        .diagnostics
+        .iter()
+        .filter(|diag| diag.file_name.is_some())
+        .map(|diag| {
+            (
+                diag.code(),
+                diag.start.unwrap_or(u32::MAX),
+                diag.length.unwrap_or(u32::MAX),
+            )
+        })
+        .collect()
+    }
+
+    #[test]
+    fn unrelated_jsdoc_does_not_hide_checked_js_parameter_assignments() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            no_implicit_any: Some(true),
+            strict_null_checks: Some(true),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            checked_program_rows_with_file(
+                "a.js",
+                "/** @type {number} */\n\
+                 var documented = 1;\n\
+                 function f(a = null) {\n\
+                     a = undefined;\n\
+                     a = null;\n\
+                     a = 1;\n\
+                     a = true;\n\
+                     a = 'ok';\n\
+                 }\n",
+                &options,
+            ),
+            [(2322, 65, 1), (2322, 90, 1), (2322, 97, 1), (2322, 107, 1),]
+        );
+    }
+
     #[test]
     fn recovered_missing_body_is_not_an_absent_implementation() {
         let result = check_program(

@@ -1359,6 +1359,13 @@ impl<'a> CheckerState<'a> {
             let mut cursor = Some(declaration);
             for _ in 0..5 {
                 let Some(current) = cursor else { break };
+                // A source file is only a declaration container, not
+                // provenance for every symbol it contains. Inspecting
+                // its whole subtree made one unrelated JSDoc tag hide
+                // all checked-JS assignment diagnostics in the file.
+                if self.kind_of(current) == SyntaxKind::SourceFile {
+                    break;
+                }
                 if self.jsdoc_typed_declarations.contains(&current)
                     || self.declaration_has_jsdoc_semantics(current)
                     || self.node_contains_jsdoc_semantics(current)
