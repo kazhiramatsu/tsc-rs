@@ -63,6 +63,9 @@ pub struct CompilerOptions {
     pub no_unchecked_indexed_access: Option<bool>,
     /// 4111 (property comes from an index signature) at 75304.
     pub no_property_access_from_index_signature: Option<bool>,
+    /// TS 6 checkImportDeclaration enables unresolved side-effect
+    /// import diagnostics unless this option is explicitly false.
+    pub no_unchecked_side_effect_imports: Option<bool>,
     /// strict-family; the assumeUninitialized this-property arm of
     /// getFlowTypeOfAccessExpression (75352).
     pub strict_property_initialization: Option<bool>,

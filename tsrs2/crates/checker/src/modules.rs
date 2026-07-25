@@ -5344,8 +5344,7 @@ impl<'a> CheckerState<'a> {
     /// The An_import_declaration_cannot_have_modifiers follower rides
     /// the M7-stub checkGrammarModifiers — contained (a real modifier
     /// error suppresses it in tsc; emitting alongside our stub would
-    /// swap codes). noUncheckedSideEffectImports is absent from the
-    /// modeled options.
+    /// swap codes).
     pub(crate) fn check_import_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
         if self.check_grammar_module_element_context(
             node,
@@ -5436,6 +5435,22 @@ impl<'a> CheckerState<'a> {
                             &[module_kind_name],
                         );
                     }
+                }
+            } else if self.options.no_unchecked_side_effect_imports != Some(false) {
+                let module_specifier = match self.data_of(node) {
+                    NodeData::ImportDeclaration(data) => data.module_specifier,
+                    _ => None,
+                };
+                if let Some(module_specifier) = module_specifier {
+                    self.resolve_external_module_name_worker(
+                        node,
+                        module_specifier,
+                        Some(
+                            &diagnostics::Cannot_find_module_or_type_declarations_for_side_effect_import_of_0,
+                        ),
+                        false,
+                        false,
+                    )?;
                 }
             }
         }
@@ -6079,6 +6094,20 @@ mod tests {
 
     fn rows(files: &[(&str, &str)]) -> Vec<(String, u32, u32, u32)> {
         program_rows(files, &CompilerOptions::default())
+    }
+
+    #[test]
+    fn unresolved_side_effect_import_reports_2882_unless_explicitly_disabled() {
+        let files = [("a.ts", "import \"x\";\n")];
+        assert_eq!(rows(&files), [("a.ts".to_owned(), 2882, 7, 3)]);
+        assert!(program_rows(
+            &files,
+            &CompilerOptions {
+                no_unchecked_side_effect_imports: Some(false),
+                ..CompilerOptions::default()
+            },
+        )
+        .is_empty());
     }
 
     fn node16_options() -> CompilerOptions {
