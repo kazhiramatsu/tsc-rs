@@ -196,8 +196,9 @@
 # p9 9.9g adds +67 through exact mixed-JS name-miss provenance.
 # p9 9.9h adds +14 value-as-type alternate diagnostics.
 # p9 9.9i adds +12 unchecked side-effect import misses.
-rate = 0.637382
-matched = 31247
+# p9 9.9j adds +12 type-as-value/type-as-namespace alternates.
+rate = 0.637626
+matched = 31259
 total = 49024
 allowed_regression = 0.0
 
@@ -260,8 +261,9 @@ allowed_regression = 0.0
 # p9 9.9g adds +67 exact mixed-JS name-miss rows.
 # p9 9.9h adds +14 value-as-type alternate diagnostics.
 # p9 9.9i adds +12 unchecked side-effect import misses.
-rate = 0.965512
-matched = 20325
+# p9 9.9j adds +12 type-as-value/type-as-namespace alternates.
+rate = 0.966082
+matched = 20337
 total = 21051
 allowed_regression = 0.0
 

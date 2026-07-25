@@ -2874,6 +2874,29 @@ Checker tests are **1,023**. Escape evidence is unchanged at
 sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
 Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9j results (2026-07-25, type-as-value alternates — DONE)
+
+The missing-name alternate ladder now ports the symbol arm of
+`checkAndReportErrorForUsingTypeAsValue`, including the ES2015-library
+hint and mapped-type spelling branch. Checked-JS publication selects
+the emitted alternate code exactly. The preceding
+`checkAndReportErrorForUsingTypeAsNamespace` branch is also live,
+including its qualified-property 2713 form, so namespace requests do
+not fall through to a false 2693.
+
+This closes **12** supported rows: all 10 remaining 2693 rows and both
+2702 rows. 2xxx T0 grows to **20337/21051** (**96.6082%**) with FP=0;
+supported T0 is **20337/20504** (**99.1855%**) with supported FN=**167**.
+All-band T0 is **31259/49024** (**63.7626%**) with FP=0. T1/T2/T3 each
+report lost=0, gained=**12** in both bands and both scope views. The
+accepted-set ratchet adds 12 T0 identities and 12
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,025**. Escape evidence is unchanged at
+sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
+Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

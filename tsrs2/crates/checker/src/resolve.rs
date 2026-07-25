@@ -15,7 +15,7 @@ use tsrs2_binder::node_util::{
 use tsrs2_binder::{SymbolId, SymbolTable};
 use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags};
+use tsrs2_types::{ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags, TypeFlags};
 
 use crate::state::{CheckResult2, CheckerState};
 
@@ -1085,6 +1085,23 @@ impl<'a> CheckerState<'a> {
                 return;
             }
         }
+        if let Some(error_location) = error_location {
+            match self.check_and_report_error_for_using_type_as_namespace(
+                error_location,
+                name,
+                meaning,
+            ) {
+                Ok(true) => return,
+                Ok(false) => {}
+                Err(_) => return,
+            }
+            match self.check_and_report_error_for_using_type_as_value(error_location, name, meaning)
+            {
+                Ok(true) => return,
+                Ok(false) => {}
+                Err(_) => return,
+            }
+        }
         // checkAndReportErrorForUsingValueAsType is the final alternate
         // in tsc's chain. A name that resolves only in the value-only
         // meaning reports 2749 instead of the plain missing-type
@@ -1213,6 +1230,186 @@ impl<'a> CheckerState<'a> {
             self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, message.code);
         }
         self.suggestion_count += 1;
+    }
+
+    /// tsc-port: checkAndReportErrorForUsingTypeAsNamespace @6.0.3
+    /// tsc-hash: 369552ff361606da3e4a270b246db042db3a5d20aac49b4c0302d3a227ac56d8
+    /// tsc-span: _tsc.js:48282-48315
+    fn check_and_report_error_for_using_type_as_namespace(
+        &mut self,
+        error_location: NodeId,
+        name: &str,
+        meaning: SymbolFlags,
+    ) -> CheckResult2<bool> {
+        let namespace_meaning = if self.is_in_js_file(error_location) {
+            SymbolFlags::NAMESPACE | SymbolFlags::VALUE
+        } else {
+            SymbolFlags::NAMESPACE
+        };
+        if meaning != namespace_meaning {
+            return Ok(false);
+        }
+        let type_only =
+            SymbolFlags::from_bits(SymbolFlags::TYPE.bits() & !namespace_meaning.bits());
+        let symbol =
+            self.resolve_name(Some(error_location), name, type_only, None, false, false)?;
+        let symbol = self.resolve_symbol_ex(symbol, false)?;
+        let Some(symbol) = symbol else {
+            return Ok(false);
+        };
+        let diagnostics_before = self.diagnostics.len();
+        let display = tsrs2_binder::unescape_leading_underscores(name);
+        let mut emitted_code =
+            diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_namespace_here.code;
+        let mut reported = false;
+        if let Some(parent) = self.parent_of(error_location) {
+            if let NodeData::QualifiedName(data) = self.data_of(parent) {
+                if data.left == Some(error_location) {
+                    if let Some(right) = data.right {
+                        if let Some(property_name) =
+                            self.identifier_text_of(right).map(str::to_owned)
+                        {
+                            let declared = self.get_declared_type_of_symbol_slice(symbol)?;
+                            if self
+                                .get_property_of_type_full(declared, &property_name)?
+                                .is_some()
+                            {
+                                self.error_at(
+                                    Some(parent),
+                                    &diagnostics::Cannot_access_0_1_because_0_is_a_type_but_not_a_namespace_Did_you_mean_to_retrieve_the_type_of_the_property_1_in_0_with_0_1,
+                                    &[display, &property_name],
+                                );
+                                emitted_code = diagnostics::Cannot_access_0_1_because_0_is_a_type_but_not_a_namespace_Did_you_mean_to_retrieve_the_type_of_the_property_1_in_0_with_0_1.code;
+                                reported = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if !reported {
+            self.error_at(
+                Some(error_location),
+                &diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_namespace_here,
+                &[display],
+            );
+        }
+        if self.is_in_js_file(error_location) {
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, emitted_code);
+        }
+        Ok(true)
+    }
+
+    /// tsc-port: checkAndReportErrorForUsingTypeAsValue @6.0.3
+    /// tsc-hash: 707908002b66e08db226aaa2a289d7a671dd2176022f0ec6ff5f22da16bd406a
+    /// tsc-span: _tsc.js:48344-48386
+    ///
+    /// The primitive-name arm is implemented by
+    /// report_primitive_type_name_used_as_value immediately before
+    /// this symbol arm in the caller.
+    fn check_and_report_error_for_using_type_as_value(
+        &mut self,
+        error_location: NodeId,
+        name: &str,
+        meaning: SymbolFlags,
+    ) -> CheckResult2<bool> {
+        if !meaning.intersects(SymbolFlags::VALUE) {
+            return Ok(false);
+        }
+        let type_only =
+            SymbolFlags::from_bits(SymbolFlags::TYPE.bits() & !SymbolFlags::VALUE.bits());
+        let symbol =
+            self.resolve_name(Some(error_location), name, type_only, None, false, false)?;
+        let symbol = self.resolve_symbol_ex(symbol, false)?;
+        let Some(symbol) = symbol else {
+            return Ok(false);
+        };
+        if self
+            .get_symbol_flags_of(symbol)?
+            .intersects(SymbolFlags::VALUE)
+        {
+            return Ok(false);
+        }
+        let diagnostics_before = self.diagnostics.len();
+        let display = tsrs2_binder::unescape_leading_underscores(name);
+        let emitted_code = if is_es2015_or_later_constructor_name(name) {
+            self.error_at(
+                Some(error_location),
+                &diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here_Do_you_need_to_change_your_target_library_Try_changing_the_lib_compiler_option_to_es2015_or_later,
+                &[display],
+            );
+            diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here_Do_you_need_to_change_your_target_library_Try_changing_the_lib_compiler_option_to_es2015_or_later.code
+        } else if self.maybe_mapped_type_for_value_error(error_location, symbol)? {
+            let replacement = if display == "K" { "P" } else { "K" };
+            self.error_at(
+                Some(error_location),
+                &diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here_Did_you_mean_to_use_1_in_0,
+                &[display, replacement],
+            );
+            diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here_Did_you_mean_to_use_1_in_0.code
+        } else {
+            self.error_at(
+                Some(error_location),
+                &diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here,
+                &[display],
+            );
+            diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here.code
+        };
+        if self.is_in_js_file(error_location) {
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, emitted_code);
+        }
+        Ok(true)
+    }
+
+    /// tsc-port: maybeMappedType @6.0.3
+    /// tsc-hash: f9721e06b1e4eca553aa6d59a0dd9b6969398abd308f2d7efb4d3761c4d0a898
+    /// tsc-span: _tsc.js:48387-48399
+    fn maybe_mapped_type_for_value_error(
+        &mut self,
+        node: NodeId,
+        symbol: SymbolId,
+    ) -> CheckResult2<bool> {
+        let mut current = self.parent_of(node);
+        let container = loop {
+            let Some(candidate) = current else {
+                break None;
+            };
+            match self.kind_of(candidate) {
+                SyntaxKind::ComputedPropertyName | SyntaxKind::PropertySignature => {
+                    current = self.parent_of(candidate);
+                }
+                SyntaxKind::TypeLiteral => break Some(candidate),
+                _ => break None,
+            }
+        };
+        let Some(container) = container else {
+            return Ok(false);
+        };
+        let members = match self.data_of(container) {
+            NodeData::TypeLiteral(data) => data.members,
+            _ => None,
+        };
+        if self.nodes_of(members).len() != 1 {
+            return Ok(false);
+        }
+        let ty = self.get_declared_type_of_symbol_slice(symbol)?;
+        if !self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
+            return Ok(false);
+        }
+        let constituents = match &self.tables.type_of(ty).data {
+            tsrs2_types::TypeData::Union { types, .. } => types.to_vec(),
+            _ => unreachable!("union flag implies union data"),
+        };
+        for constituent in constituents {
+            if !self.is_type_assignable_to_kind(
+                constituent,
+                TypeFlags::STRING_OR_NUMBER_LITERAL,
+                true,
+            )? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
     }
 
     /// tsc-port: checkAndReportErrorForUsingValueAsType @6.0.3
@@ -2248,6 +2445,16 @@ fn is_primitive_type_name(name: &str) -> bool {
     )
 }
 
+/// tsc-port: isES2015OrLaterConstructorName @6.0.3
+/// tsc-hash: a4d548ad3ba4c80e8c8d1b5e08e91b627c64f32f7fb4aa2ae8ea38f05c466ac5
+/// tsc-span: _tsc.js:48400-48411
+fn is_es2015_or_later_constructor_name(name: &str) -> bool {
+    matches!(
+        name,
+        "Promise" | "Symbol" | "Map" | "WeakMap" | "Set" | "WeakSet"
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
@@ -2486,6 +2693,45 @@ mod tests {
                 ))
                 .collect::<Vec<_>>(),
             [(2749, 28, 5)]
+        );
+    }
+
+    #[test]
+    fn type_only_symbol_reports_the_type_as_value_alternate() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "interface Only {}\nOnly;\nclass Both {}\nBoth;\ninterface Promise {}\nPromise;\n"
+                    .to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.code())
+                .collect::<Vec<_>>(),
+            [2693, 2585]
+        );
+    }
+
+    #[test]
+    fn class_and_interface_import_alias_targets_report_2702() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "class C {}\nimport c = C;\ninterface I {}\nimport i = I;\n".to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.code())
+                .collect::<Vec<_>>(),
+            [2702, 2702]
         );
     }
 
