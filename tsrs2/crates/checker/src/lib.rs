@@ -4512,6 +4512,46 @@ mod tests {
     }
 
     #[test]
+    fn checked_js_publishes_chained_identifier_empty_assignment_misses() {
+        let source = "let A;\n\
+                      A = {};\n\
+                      A.prototype.b = {};\n\
+                      let B;\n\
+                      B = {};\n\
+                      B.direct = {};\n\
+                      B.direct;\n";
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                    diagnostic.message_text(),
+                ))
+                .collect::<Vec<_>>(),
+            [(
+                2339,
+                source.find("prototype").expect("chained missing property") as u32,
+                "prototype".len() as u32,
+                "Property 'prototype' does not exist on type '{}'.",
+            )]
+        );
+    }
+
+    #[test]
     fn checked_js_publishes_primitive_module_exports_assignment_misses() {
         let primitive = "module.exports = 1;\nmodule.exports.missing = 1;\n";
         let result = check_program(

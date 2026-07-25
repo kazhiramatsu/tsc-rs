@@ -2778,6 +2778,62 @@ impl<'a> CheckerState<'a> {
         })
     }
 
+    fn is_chained_identifier_property_assignment(&self, access_expression: NodeId) -> bool {
+        if self.kind_of(access_expression) != SyntaxKind::PropertyAccessExpression
+            || !self.is_in_js_file(access_expression)
+        {
+            return false;
+        }
+        let NodeData::PropertyAccessExpression(access) = self.data_of(access_expression) else {
+            return false;
+        };
+        if access
+            .expression
+            .is_none_or(|receiver| self.kind_of(receiver) != SyntaxKind::Identifier)
+        {
+            return false;
+        }
+        self.parent_of(access_expression).is_some_and(|parent| {
+            matches!(
+                self.data_of(parent),
+                NodeData::PropertyAccessExpression(outer)
+                    if outer.expression == Some(access_expression)
+            ) && node_util::is_assignment_target(self.binder.source_of_node(parent), parent)
+        })
+    }
+
+    /// The missing intermediate access in
+    /// `let A; A = {}; A.prototype.b = {}`. Its parent, not the
+    /// `A.prototype` node itself, is the assignment target. Requiring
+    /// an uninitialized value declaration distinguishes this closed
+    /// reassignment from ordinary initialized JS expando containers.
+    fn is_chained_uninitialized_identifier_property_assignment(
+        &mut self,
+        access_expression: NodeId,
+    ) -> CheckResult2<bool> {
+        if !self.is_chained_identifier_property_assignment(access_expression) {
+            return Ok(false);
+        }
+        let receiver = match self.data_of(access_expression) {
+            NodeData::PropertyAccessExpression(data) => data.expression,
+            _ => None,
+        };
+        let Some(symbol) = receiver
+            .map(|receiver| self.get_resolved_symbol(receiver))
+            .transpose()?
+            .flatten()
+        else {
+            return Ok(false);
+        };
+        let declaration = self.binder.symbol(symbol).value_declaration;
+        Ok(declaration.is_some_and(|declaration| {
+            matches!(
+                self.data_of(declaration),
+                NodeData::VariableDeclaration(data) if data.initializer.is_none()
+            )
+        }))
+    }
+
     /// tsc-port: reportNonexistentProperty @6.0.3
     /// tsc-hash: 307d53095640744e1815787c33792c951a7a0c7fc169193870ec78298aca5f7c
     /// tsc-span: _tsc.js:75416-75470
@@ -2936,8 +2992,15 @@ impl<'a> CheckerState<'a> {
                 let render_chained_this_empty_object = self
                     .is_chained_this_property_assignment(access_expression)
                     && self.is_empty_anonymous_object_type(containing_type)?;
+                let render_chained_uninitialized_identifier_empty_object = self.kind_of(prop_node)
+                    != SyntaxKind::PrivateIdentifier
+                    && self.is_chained_uninitialized_identifier_property_assignment(
+                        access_expression,
+                    )?
+                    && self.is_empty_anonymous_object_type(containing_type)?;
                 let container = if self.is_empty_anonymous_type_literal(containing_type)?
                     || render_chained_this_empty_object
+                    || render_chained_uninitialized_identifier_empty_object
                 {
                     "{}".to_owned()
                 } else {
@@ -3156,6 +3219,15 @@ impl<'a> CheckerState<'a> {
         // JSDoc constructor.
         let publish_chained_this_assignment =
             self.is_chained_this_property_assignment(access_expression);
+        // The binder cannot turn an intermediate access into a direct
+        // expando declaration. Once the empty reassignment verdict is
+        // complete, its missing member is safe to publish; initialized
+        // object/function containers retain their expando inference.
+        let publish_chained_uninitialized_identifier_empty_assignment = self.kind_of(prop_node)
+            != SyntaxKind::PrivateIdentifier
+            && self.is_chained_uninitialized_identifier_property_assignment(access_expression)?
+            && self.is_empty_anonymous_object_type(containing_type)?
+            && self.is_non_jsdoc_js_expression_type(access_expression, containing_type);
         let expose_non_jsdoc_js = publish_symbol_free_non_jsdoc
             || publish_declared_non_jsdoc
             || publish_module_read_non_jsdoc
@@ -3164,6 +3236,7 @@ impl<'a> CheckerState<'a> {
             || publish_class_alias_assignment_non_jsdoc
             || publish_commonjs_require_property_alias_read_non_jsdoc
             || publish_chained_this_assignment
+            || publish_chained_uninitialized_identifier_empty_assignment
             || containing_symbol.is_some_and(|symbol| {
                 self.non_jsdoc_js_module_exports_alias_targets
                     .contains(&symbol)
