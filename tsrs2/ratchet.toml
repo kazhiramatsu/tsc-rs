@@ -212,8 +212,9 @@
 # p9 9.9w adds +10 through module.exports alias resolution and
 # exact checked-JS property-miss publication.
 # p9 9.9x adds +7 unchecked-JS name/property spelling suggestions.
-rate = 0.638912
-matched = 31322
+# p9 9.9y adds +4 checked-JS strict property-initialization rows.
+rate = 0.638993
+matched = 31326
 total = 49024
 allowed_regression = 0.0
 
@@ -292,8 +293,9 @@ allowed_regression = 0.0
 # p9 9.9w adds +10 through module.exports alias resolution and
 # exact checked-JS property-miss publication.
 # p9 9.9x adds +7 unchecked-JS name/property spelling suggestions.
-rate = 0.969075
-matched = 20400
+# p9 9.9y adds +4 checked-JS strict property-initialization rows.
+rate = 0.969265
+matched = 20404
 total = 21051
 allowed_regression = 0.0
 
