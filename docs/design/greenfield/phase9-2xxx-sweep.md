@@ -4103,6 +4103,55 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9az results (2026-07-25, checked-JS symbol-free property misses — DONE)
+
+`reportNonexistentProperty` now publishes its already-exact 2339 when
+the checked-JS receiver is non-JSDoc and its type carries no symbol.
+Primitive, union, and intersection answers in this shape cannot acquire
+members from the still-incomplete JavaScript assignment-declaration
+producers. Symbol-bearing object and constructor types remain behind
+the existing binder-proven `module.exports` / CommonJS require paths.
+
+The fabrication probe first tried the shared provenance gate over every
+receiver type. It recovered 19 supported rows but exposed 28 false
+2339s across ten salsa fixtures whose object, constructor, prototype,
+or nested-assignment members are not complete. The landed symbol-free
+boundary removes all 28. Its ten-fixture fabrication control has FP=0
+and supported T0/T1/T2/T3 **1/1**; the two all-corpus residual rows are
+existing scope exclusions. Unit pins cover the published number-type
+miss, a contained symbol-bearing expando, and a contained JSDoc-derived
+symbol-free miss.
+
+The D2 port plan selects
+`checkPropertyAccessExpressionOrQualifiedName`
+(`d2:e4c636a2528888afc36a842509f7385de02f5176ed13bf2a9de4d8194da5f176`,
+`scc:00002`, 1,396 members). It has one exact Rust ledger join, 71
+static callees, three static callers, and no unresolved static calls.
+Its two escape rows are pre-existing narrowing/module-augmentation
+containments; this slice adds or widens none.
+
+The five-fixture target grows from **5/13** to **11/13** at T0/T1 and
+to **9/13** at T2/T3, with FP=0. The six recovered supported rows are
+`globalThisPropertyAssignment`, `moduleExportAliasUnknown`,
+`moduleExportWithExportPropertyAssignment2`,
+`moduleExportWithExportPropertyAssignment4` (two), and
+`typeFromPropertyAssignment26`.
+
+2xxx T0 grows to **20476/21051** (**97.2685%**) with FP=0; supported T0
+is **20475/20504** (**99.8586%**) with supported FN=**29**, all code
+2339. All-band T0 is **31398/49024** (**64.0462%**) with FP=0;
+supported all-band T0 is **31397/48477** (**64.7668%**). T1 reports
+lost=0, gained=**6**, and T2/T3 each report lost=0, gained=**4** in
+both bands and both scope views. The accepted-set ratchet adds six T0
+identities and six multiplicity-complete identities to both all and
+2xxx; syntactic is unchanged.
+
+Checker tests are **1,077**, binder tests are **55**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,865**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
