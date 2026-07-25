@@ -5868,13 +5868,15 @@ impl<'a> CheckerState<'a> {
                 // JS-file declarations otherwise stay curtained:
                 // their members can live in unbound JSDoc/expando
                 // machinery (fixSignatureCaching band), the 7.5-probe
-                // fabrication flavor. A born-resolved object-literal
-                // symbol whose syntax has zero members is exactly
-                // `{}` even in JS; getJSContainerObjectType carries
-                // later expando exports on a separate target type.
-                // Lazily-resolved symbol-carrying empties
-                // (module-namespace faces, JSON module objects,
-                // instantiated literals) keep the guard.
+                // fabrication flavor. One exact additional face is a
+                // syntactically empty literal assigned directly to a
+                // parameter: the literal has no declaration container
+                // that can gather later expando members, so its born-
+                // resolved empty set is tsc's `{}`. Other JS empty
+                // literals can still be open-ended. Lazily-resolved
+                // symbol-carrying empties (module-namespace faces,
+                // JSON module objects, instantiated literals) keep the
+                // guard.
                 let symbol = self.tables.type_of(ty).symbol;
                 let js_declared = symbol.is_some_and(|symbol| {
                     self.binder
@@ -5893,10 +5895,42 @@ impl<'a> CheckerState<'a> {
                             literal,
                         )
                     });
+                let js_empty_parameter_assignment = symbol
+                    .and_then(|symbol| self.binder.symbol(symbol).value_declaration)
+                    .is_some_and(|literal| {
+                        let syntax_empty = matches!(
+                            self.data_of(literal),
+                            NodeData::ObjectLiteralExpression(data)
+                                if self.nodes_of(data.properties).is_empty()
+                        );
+                        if !syntax_empty {
+                            return false;
+                        }
+                        let Some(parent) = self.parent_of(literal) else {
+                            return false;
+                        };
+                        let NodeData::BinaryExpression(data) = self.data_of(parent) else {
+                            return false;
+                        };
+                        if data.right != Some(literal)
+                            || !data.operator_token.is_some_and(|operator| {
+                                self.kind_of(operator) == SyntaxKind::EqualsToken
+                            })
+                        {
+                            return false;
+                        }
+                        data.left
+                            .and_then(|left| self.links.node(left).resolved_symbol.resolved())
+                            .and_then(|symbol| self.binder.symbol(symbol).value_declaration)
+                            .is_some_and(|declaration| {
+                                self.kind_of(declaration) == SyntaxKind::Parameter
+                            })
+                    });
                 if symbol.is_none()
                     || ty == self.empty_type_literal_type
                     || (born_resolved && !js_declared)
                     || (born_resolved && bounded_js_container_literal.is_some())
+                    || (born_resolved && js_declared && js_empty_parameter_assignment)
                 {
                     return Ok(("{}".to_owned(), SliceTypeNodeKind::TypeLiteral));
                 }
@@ -8723,6 +8757,33 @@ mod tests {
                 1,
                 "Type 'number' is not assignable to type '{ m(): void; }'.".to_owned()
             )]
+        );
+    }
+
+    #[test]
+    fn checked_js_empty_object_literal_renders_the_empty_face() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            no_implicit_any: Some(true),
+            strict_null_checks: Some(true),
+            ..CompilerOptions::default()
+        };
+        with_program_state(
+            &[("a.js", "function f(a = null) { a = {}; }\n")],
+            &options,
+            |state| {
+                state.check_source_file(0);
+                assert_eq!(
+                    diag_rows(state),
+                    [(
+                        2322,
+                        23,
+                        1,
+                        "Type '{}' is not assignable to type 'null'.".to_owned()
+                    )]
+                );
+            },
         );
     }
 

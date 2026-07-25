@@ -235,8 +235,9 @@
 # p9 9.9as adds +3 JSX excess-property diagnostics against empty props.
 # p9 9.9at adds +3 generic-mapped identity diagnostics.
 # p9 9.9au adds +4 checked-JS assignment diagnostics hidden by file-wide JSDoc provenance.
-rate = 0.640156
-matched = 31383
+# p9 9.9av adds +1 checked-JS empty-object display diagnostic.
+rate = 0.640176
+matched = 31384
 total = 49024
 allowed_regression = 0.0
 
@@ -338,8 +339,9 @@ allowed_regression = 0.0
 # p9 9.9as adds +3 JSX excess-property diagnostics against empty props.
 # p9 9.9at adds +3 generic-mapped identity diagnostics.
 # p9 9.9au adds +4 checked-JS assignment diagnostics hidden by file-wide JSDoc provenance.
-rate = 0.971973
-matched = 20461
+# p9 9.9av adds +1 checked-JS empty-object display diagnostic.
+rate = 0.97202
+matched = 20462
 total = 21051
 allowed_regression = 0.0
 
