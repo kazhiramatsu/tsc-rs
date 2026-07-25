@@ -3534,6 +3534,33 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9ak results (2026-07-25, function-expando assignment flow — DONE)
+
+`getFlowTypeOfAccessExpression` now includes tsc's assignment-
+declaration `assumeUninitialized` branch. A property-access declaration
+in the same control-flow container starts from the optional form of
+its declared type; definite assignment edges remove that uncertainty,
+while a conditional-only assignment leaves the read reportable. The
+binder's existing assignment-property classifier is exposed to the
+checker rather than re-derived from syntax.
+
+This closes the three supported 2565 rows in
+`typeFromPropertyAssignment36`; the CommonJS export row with the same
+code takes a different access path and remains separate. 2xxx T0 grows
+to **20432/21051** (**97.0595%**) with FP=0; supported T0 is
+**20432/20504** (**99.6488%**) with supported FN=**72**. All-band T0
+is **31354/49024** (**63.9564%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**3** in both bands and both scope views. The
+accepted-set ratchet adds three T0 identities and three
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,056**, binder tests are **54**, and syntax tests
+are **106**. Ledger evidence is unchanged at entries=**1,858**,
+stale=0. Escape evidence is unchanged at sites=**192**, stale=0,
+untagged=0, recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

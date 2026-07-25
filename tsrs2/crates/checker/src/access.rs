@@ -2012,10 +2012,23 @@ impl<'a> CheckerState<'a> {
                     }
                 }
             }
+        } else if strict_null_checks {
+            let assignment_declaration = prop
+                .and_then(|prop| self.binder.symbol(prop).value_declaration)
+                .filter(|&declaration| {
+                    self.kind_of(declaration) == SyntaxKind::PropertyAccessExpression
+                })
+                .filter(|&declaration| {
+                    tsrs2_binder::get_assignment_declaration_property_access_kind(
+                        self.binder.source_of_node(declaration),
+                        declaration,
+                    ) != tsrs2_binder::AssignmentDeclarationKind::None
+                });
+            if let Some(declaration) = assignment_declaration {
+                assume_uninitialized = self.get_control_flow_container(node)
+                    == self.get_control_flow_container(declaration);
+            }
         }
-        // The JS assignment-declaration else-if arm requires
-        // prop.valueDeclaration to be a PropertyAccessExpression —
-        // impossible in TS files (JS band).
         // The assume-uninitialized initial type (2565's trigger):
         // live from 6.2 — the real assignment arm terminates walks
         // before the initial type can resurrect at assigned uses.
@@ -4424,6 +4437,22 @@ mod tests {
         assert_eq!(
             checked_rows("class G {\n    static b = 1;\n    static a = G.b;\n}\nG.a;\n"),
             []
+        );
+    }
+
+    #[test]
+    fn function_expando_uses_assignment_declaration_flow() {
+        let text = "function f(b: boolean) { function d() {} if (b) { d.q = false; } d.q; if (b) { d.r = 1; } else { d.r = 2; } d.r; }\n";
+        let options = CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            with_program_state(&[("a.ts", text)], &options, |state| {
+                state.check_source_file(0);
+                rows(state)
+            }),
+            [(2565, 67, 1)]
         );
     }
 
