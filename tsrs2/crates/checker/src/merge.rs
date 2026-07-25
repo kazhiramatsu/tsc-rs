@@ -653,20 +653,29 @@ impl<'a> CheckerState<'a> {
             let is_external_module = source.external_module_indicator.is_some()
                 || self.binder.file(index).common_js_module_indicator.is_some();
             if !is_external_module {
-                if let Some(locals) = self.binder.locals_of(source.root) {
+                if let Some(locals) = self.binder.locals_of(source.root).cloned() {
                     if let Some(&file_global_this) = locals.get("globalThis") {
                         let declarations =
                             self.binder.symbol(file_global_this).declarations.clone();
                         for declaration in declarations {
+                            let diagnostics_before = self.diagnostics.len();
                             let diagnostic = self.diagnostic_for_node(
                                 declaration,
                                 &diagnostics::Declaration_name_conflicts_with_built_in_global_identifier_0,
                                 &["globalThis"],
                             );
                             self.diagnostics.push(diagnostic);
+                            // The aggregate checked-JS publisher keeps
+                            // non-JSDoc semantic rows behind exact
+                            // provenance keys. This initialization-time
+                            // diagnostic is intrinsically tied to the
+                            // declaration, so publish its exact key just
+                            // like the later checker-owned JS paths.
+                            if self.is_in_js_file(declaration) {
+                                self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
+                            }
                         }
                     }
-                    let locals = locals.clone();
                     let mut globals = std::mem::take(&mut self.globals);
                     self.merge_symbol_table(&mut globals, &locals, false, None);
                     self.globals = globals;
@@ -1218,14 +1227,31 @@ mod tests {
 
     #[test]
     fn global_this_declaration_conflicts_with_builtin() {
-        with_program_state(
-            &[("a.ts", "var globalThis: number;\n")],
-            &CompilerOptions::default(),
-            |state| {
+        for (name, options) in [
+            ("a.ts", CompilerOptions::default()),
+            (
+                "a.js",
+                CompilerOptions {
+                    allow_js: true,
+                    check_js: Some(true),
+                    ..CompilerOptions::default()
+                },
+            ),
+        ] {
+            with_program_state(&[(name, "var globalThis;\n")], &options, |state| {
                 let codes: Vec<u32> = state.diagnostics.iter().map(|d| d.code()).collect();
                 assert_eq!(codes, [2397]);
-            },
-        );
+                if name.ends_with(".js") {
+                    let diagnostic = &state.diagnostics[0];
+                    assert!(state.non_jsdoc_js_diagnostics.contains(&(
+                        diagnostic.file_name.clone().expect("file diagnostic"),
+                        diagnostic.start.expect("diagnostic start"),
+                        diagnostic.length.expect("diagnostic length"),
+                        2397,
+                    )));
+                }
+            });
+        }
     }
 
     #[test]

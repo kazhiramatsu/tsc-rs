@@ -3132,6 +3132,27 @@ evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9u results (2026-07-25, checked-JS globalThis collision — DONE)
+
+The initialization-time `globalThis` redeclaration diagnostic now
+registers its exact checked-JS publication key when its declaration is
+in a JavaScript file. The checker already emitted 2397 with the correct
+span; this closes the aggregate program layer's provenance gap without
+widening the checked-JS publication allowlist.
+
+This closes the remaining supported **2397** row. 2xxx T0 grows to
+**20382/21051** (**96.8220%**) with FP=0; supported T0 is
+**20382/20504** (**99.4050%**) with supported FN=**122**. All-band T0
+is **31304/49024** (**63.8544%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**1** in both bands and both scope views. The
+accepted-set ratchet adds one T0 identity and one
+multiplicity-complete identity to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,038**. Escape evidence is unchanged at
+sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
+Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

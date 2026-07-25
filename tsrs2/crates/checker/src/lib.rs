@@ -1802,6 +1802,34 @@ mod tests {
     }
 
     #[test]
+    fn checked_js_global_this_collision_is_public() {
+        let result = check_program(
+            &[InputFile {
+                name: "globalThisCollision.js".to_owned(),
+                text: "var globalThis;".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                no_emit: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        let pins: Vec<(u32, u32, u32)> = result
+            .diagnostics
+            .iter()
+            .map(|diagnostic| {
+                (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                )
+            })
+            .collect();
+        assert_eq!(pins, [(2397, 4, 10)], "{:#?}", result.diagnostics);
+    }
+
+    #[test]
     fn checked_js_host_dependent_module_resolution_stays_suppressed() {
         let result = check_program(
             &[
