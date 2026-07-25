@@ -1768,6 +1768,9 @@ impl<'a> CheckerState<'a> {
         }
         let (left_str, right_str) =
             self.get_type_names_for_error_display(effective_left, effective_right)?;
+        let publish_checked_js = self.is_non_jsdoc_js_expression_type(left, left_type)
+            && self.is_non_jsdoc_js_expression_type(right, right_type);
+        let diagnostics_before = self.diagnostics.len();
         if !self.try_give_better_primary_error(
             operator_token,
             err_node,
@@ -1782,6 +1785,9 @@ impl<'a> CheckerState<'a> {
                 &tsrs2_diags::gen::Operator_0_cannot_be_applied_to_types_1_and_2,
                 &[token_text(operator), &left_str, &right_str],
             );
+        }
+        if publish_checked_js {
+            self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
         }
         Ok(())
     }
@@ -5243,6 +5249,33 @@ mod tests {
                 ))
                 .collect::<Vec<_>>(),
             [(2872, 22, 1)]
+        );
+    }
+
+    #[test]
+    fn checked_js_non_jsdoc_operator_row_is_published() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "const orbitol = 1;\nvar orbitol = 1 + false;\n".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diag| (
+                    diag.code(),
+                    diag.start.unwrap_or(u32::MAX),
+                    diag.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [(2451, 6, 7), (2451, 23, 7), (2365, 33, 9)]
         );
     }
 
