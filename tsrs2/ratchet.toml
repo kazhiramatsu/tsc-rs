@@ -243,8 +243,9 @@
 # p9 9.9ba adds +2 checked-JS non-JS-declared property-miss diagnostics.
 # p9 9.9bb adds +4 checked-JS plain-value-module property-miss diagnostics.
 # p9 9.9bc adds +1 checked-JS assignment-class property-miss diagnostic.
-rate = 0.640605
-matched = 31405
+# p9 9.9bd adds +2 checked-JS direct-this class property-miss diagnostics.
+rate = 0.640645
+matched = 31407
 total = 49024
 allowed_regression = 0.0
 
@@ -354,8 +355,9 @@ allowed_regression = 0.0
 # p9 9.9ba adds +2 checked-JS non-JS-declared property-miss diagnostics.
 # p9 9.9bb adds +4 checked-JS plain-value-module property-miss diagnostics.
 # p9 9.9bc adds +1 checked-JS assignment-class property-miss diagnostic.
-rate = 0.973018
-matched = 20483
+# p9 9.9bd adds +2 checked-JS direct-this class property-miss diagnostics.
+rate = 0.973113
+matched = 20485
 total = 21051
 allowed_regression = 0.0
 

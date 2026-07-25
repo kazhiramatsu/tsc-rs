@@ -3028,10 +3028,25 @@ impl<'a> CheckerState<'a> {
         let publish_assignment_class_read_non_jsdoc = is_assignment_class
             && assignment_declaration_kind == tsrs2_binder::AssignmentDeclarationKind::None
             && self.is_non_jsdoc_js_expression_type(access_expression, containing_type);
+        let access_receiver = match self.data_of(access_expression) {
+            NodeData::PropertyAccessExpression(data) => data.expression,
+            NodeData::ElementAccessExpression(data) => data.expression,
+            _ => None,
+        };
+        let is_direct_this_class = access_receiver
+            .is_some_and(|receiver| self.kind_of(receiver) == SyntaxKind::ThisKeyword)
+            && containing_symbol.is_some_and(|symbol| {
+                let flags = self.binder.symbol(symbol).flags;
+                flags.intersects(SymbolFlags::CLASS) && !flags.intersects(SymbolFlags::FUNCTION)
+            });
+        let publish_direct_this_class_read_non_jsdoc = is_direct_this_class
+            && assignment_declaration_kind == tsrs2_binder::AssignmentDeclarationKind::None
+            && self.is_non_jsdoc_js_expression_type(access_expression, containing_type);
         let expose_non_jsdoc_js = publish_symbol_free_non_jsdoc
             || publish_declared_non_jsdoc
             || publish_module_read_non_jsdoc
             || publish_assignment_class_read_non_jsdoc
+            || publish_direct_this_class_read_non_jsdoc
             || containing_symbol.is_some_and(|symbol| {
                 self.non_jsdoc_js_module_exports_alias_targets
                     .contains(&symbol)
