@@ -3934,6 +3934,42 @@ evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9av results (2026-07-25, checked-JS empty-object display — DONE)
+
+`createTypeNodeFromObjectType` now admits one additional proven-real
+empty face: a born-resolved, syntactically empty JS object literal
+assigned directly to a parameter. The first probe admitted every
+syntax-empty JS literal and exposed nine false positives in open-ended
+object/expando fixtures; the final guard also proves the assignment
+target is a parameter. Variable initializers, property assignments,
+module exports, returns, and other open-ended JS containers remain
+behind the existing symbol-carrying empty-resolution shield.
+
+The D2 port plan selects `createTypeNodeFromObjectType`
+(`d2:ee7995bc4e5652a5299738da4b7869ac293461786969421512ab19ec8e32628a`,
+`scc:00046`, 58 members). It reports no exact Rust ledger join, one
+unresolved local `restoreFlags` closure call, and no escape rows. The
+changed Rust renderer is the documented partial transcription of this
+upstream boundary; no new static dependency or escape is introduced.
+
+This closes the final supported 2322 row in `typeFromJSInitializer`,
+rendering `Type '{}' is not assignable to type 'null'.` exactly. The
+target fixture is now supported 5/5 at T0/T1/T2/T3; its sole remaining
+all-corpus row is the excluded JSDoc-derived `b = "error"` diagnostic.
+
+2xxx T0 grows to **20462/21051** (**97.2020%**) with FP=0; supported T0
+is **20462/20504** (**99.7952%**) with supported FN=**42**. All-band T0
+is **31384/49024** (**64.0176%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**1** in both bands and both scope views. The
+accepted-set ratchet adds one T0 identity and one multiplicity-complete
+identity to both all and 2xxx; syntactic is unchanged.
+
+Checker tests are **1,071**, binder tests are **54**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,863**, stale=0. Escape
+evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
