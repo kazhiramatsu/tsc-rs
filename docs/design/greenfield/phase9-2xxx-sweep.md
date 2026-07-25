@@ -3449,6 +3449,34 @@ evidence is unchanged at entries=**1,856**, stale=0. Escape evidence
 is unchanged at sites=**192**, stale=0, untagged=0, recovery=**115**,
 dormant=1. Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9ah results (2026-07-25, outer generic reference display — DONE)
+
+Reference display now ports the outer-type-parameter qualification
+loop from `typeReferenceToTypeNode`. Outer parameters are grouped by
+their declaration owner and render an enclosing reference only when
+the instantiated argument differs from the parameter itself. The
+final local reference then appends to that chain. The accompanying
+`getNameOfSymbolAsWritten` slice renders unnamed class/function
+expressions as `(Anonymous class)` / `(Anonymous function)` instead of
+leaking binder-internal names.
+
+This retires the last two 2xxx rows behind the outer-parameter display
+curtain: 2611 in `mixinAccessors3` and 2339 in
+`tsxGenericAttributesType9`. 2xxx T0 grows to **20420/21051**
+(**97.0025%**) with FP=0; supported T0 is **20420/20504**
+(**99.5903%**) with supported FN=**84**. All-band T0 is
+**31342/49024** (**63.9320%**) with FP=0. T1 reports lost=0,
+gained=**2** in both bands and both scope views. T2/T3 each report
+lost=0, gained=**6** in 2xxx and gained=**8** in all. The accepted-set
+ratchet adds two T0 identities and two multiplicity-complete
+identities to both all and 2xxx; syntactic is unchanged.
+
+Checker tests are **1,053**, binder tests are **54**, and syntax tests
+are **106**. Ledger evidence is unchanged at entries=**1,856**,
+stale=0. Escape evidence is unchanged at sites=**192**, stale=0,
+untagged=0, recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

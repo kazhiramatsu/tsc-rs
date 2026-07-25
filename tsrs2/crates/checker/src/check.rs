@@ -3772,6 +3772,51 @@ impl<'a> CheckerState<'a> {
         Ok(self.type_to_string_slice_node(ty, fully_qualified)?.0)
     }
 
+    /// tsc getNameOfSymbolAsWritten's anonymous class/function face.
+    /// Named symbols keep the slice's existing qualified/unqualified
+    /// spelling; the synthetic `__class`/`__function` names are never
+    /// user-facing when their declaration has no written name.
+    fn type_reference_symbol_name_slice(&self, symbol: SymbolId, fully_qualified: bool) -> String {
+        let declarations = &self.binder.symbol(symbol).declarations;
+        let has_written_name = declarations.iter().any(|&declaration| {
+            node_util::get_name_of_declaration(self.binder.source_of_node(declaration), declaration)
+                .is_some()
+        });
+        if !has_written_name {
+            if let Some(&declaration) = declarations.first() {
+                match self.kind_of(declaration) {
+                    SyntaxKind::ClassExpression => return "(Anonymous class)".to_owned(),
+                    SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction => {
+                        return "(Anonymous function)".to_owned();
+                    }
+                    _ => {}
+                }
+            }
+        }
+        if fully_qualified {
+            self.get_fully_qualified_name(symbol)
+        } else {
+            self.symbol_display_name(symbol)
+        }
+    }
+
+    /// The bounded non-JSDoc face of tsc
+    /// getParentSymbolOfTypeParameter: outer parameters synthesized
+    /// for a class/function-local generic retain a TypeParameter
+    /// declaration whose parent owns the qualification segment.
+    fn parent_symbol_of_type_parameter_slice(&self, parameter: TypeId) -> Option<SymbolId> {
+        let symbol = self.tables.type_of(parameter).symbol?;
+        let declaration = self
+            .binder
+            .symbol(symbol)
+            .declarations
+            .iter()
+            .copied()
+            .find(|&declaration| self.kind_of(declaration) == SyntaxKind::TypeParameter)?;
+        let host = self.parent_of(declaration)?;
+        self.get_symbol_of_declaration_opt(host)
+    }
+
     /// The kind-carrying face of the slice renderer: the nodeBuilder
     /// emits factory TypeNodes and the factory's parenthesizer rules
     /// branch on the CHILD node's kind at every join, so the string
@@ -4295,11 +4340,7 @@ impl<'a> CheckerState<'a> {
                     "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
                 ));
             };
-            let name = if fully_qualified {
-                self.get_fully_qualified_name(symbol)
-            } else {
-                self.symbol_display_name(symbol)
-            };
+            let name = self.type_reference_symbol_name_slice(symbol, fully_qualified);
             let arguments = self.get_type_arguments(ty)?;
             // typeReferenceToTypeNode's array sugar: references to the
             // global Array/ReadonlyArray print as element sugar (the
@@ -4319,32 +4360,73 @@ impl<'a> CheckerState<'a> {
                     (format!("readonly {array}"), SliceTypeNodeKind::TypeOperator)
                 });
             }
-            let local_parameter_count = match &self.tables.type_of(target).data {
-                TypeData::GenericType {
-                    type_parameters,
-                    outer_type_parameter_count,
-                    ..
-                } => {
-                    if *outer_type_parameter_count > 0 {
-                        // Outer parameters render as enclosing-declaration
-                        // qualification in the nodeBuilder — out of slice.
-                        return Err(Unsupported::new(
-                            "reference display with outer type parameters (nodeBuilder, T2 M8)",
-                        ));
+            let (type_parameters, outer_type_parameter_count) =
+                match &self.tables.type_of(target).data {
+                    TypeData::GenericType {
+                        type_parameters,
+                        outer_type_parameter_count,
+                        ..
+                    } => (type_parameters.to_vec(), *outer_type_parameter_count),
+                    _ => {
+                        unreachable!("reference targets are GenericType or symbol-less TupleTarget")
                     }
-                    type_parameters.len() - outer_type_parameter_count
+                };
+            let mut outer_reference: Option<String> = None;
+            let mut argument_start = 0;
+            while argument_start < outer_type_parameter_count {
+                let Some(parent) = self
+                    .parent_symbol_of_type_parameter_slice(type_parameters[argument_start])
+                    .filter(|_| arguments.len() >= outer_type_parameter_count)
+                else {
+                    return Err(Unsupported::new(
+                        "reference display with outer type parameters (nodeBuilder, T2 M8)",
+                    ));
+                };
+                let group_start = argument_start;
+                argument_start += 1;
+                while argument_start < outer_type_parameter_count
+                    && self.parent_symbol_of_type_parameter_slice(type_parameters[argument_start])
+                        == Some(parent)
+                {
+                    argument_start += 1;
                 }
-                _ => unreachable!("reference targets are GenericType or symbol-less TupleTarget"),
-            };
+                let argument_group = &arguments[group_start..argument_start];
+                if argument_group
+                    .iter()
+                    .copied()
+                    .ne(type_parameters[group_start..argument_start].iter().copied())
+                {
+                    let mut rendered = Vec::new();
+                    for argument in argument_group {
+                        rendered.push(self.type_to_string_slice_ex(*argument, fully_qualified)?);
+                    }
+                    let parent_name =
+                        self.type_reference_symbol_name_slice(parent, fully_qualified);
+                    let reference = format!("{parent_name}<{}>", rendered.join(", "));
+                    outer_reference = Some(match outer_reference {
+                        Some(root) => format!("{root}.{reference}"),
+                        None => reference,
+                    });
+                }
+            }
+            let type_parameter_count = type_parameters.len().min(arguments.len());
             let mut rendered = Vec::new();
-            for argument in arguments.iter().take(local_parameter_count) {
+            for argument in arguments
+                .iter()
+                .take(type_parameter_count)
+                .skip(outer_type_parameter_count)
+            {
                 rendered.push(self.type_to_string_slice_ex(*argument, fully_qualified)?);
             }
+            let reference = if rendered.is_empty() {
+                name
+            } else {
+                format!("{name}<{}>", rendered.join(", "))
+            };
             return Ok((
-                if rendered.is_empty() {
-                    name
-                } else {
-                    format!("{name}<{}>", rendered.join(", "))
+                match outer_reference {
+                    Some(root) => format!("{root}.{reference}"),
+                    None => reference,
                 },
                 SliceTypeNodeKind::Reference,
             ));
@@ -9390,6 +9472,51 @@ mod tests {
                 18,
                 2,
                 "Type 'typeof E3' is not assignable to type 'number'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn outer_generic_reference_qualifies_changed_arguments() {
+        let source = "interface Array<T> { length: number; [n: number]: T }\n\
+        function mixin<T extends { new (...args: any[]): {} }>(superclass: T) {\n\
+            return class extends superclass { get name() { return \"\"; } };\n\
+        }\n\
+        class BaseClass { set name(v: string) {} }\n\
+        class MyClass extends mixin(BaseClass) { get name() { return \"\"; } }\n";
+        let diagnostics = checked_diags(source);
+        assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+        assert_eq!(
+            (
+                diagnostics[0].0,
+                diagnostics[0].2,
+                diagnostics[0].3.as_str()
+            ),
+            (
+                2611,
+                4,
+                "'name' is defined as a property in class \
+                 'mixin<typeof BaseClass>.(Anonymous class) & BaseClass', but is overridden here \
+                 in 'MyClass' as an accessor."
+            )
+        );
+        assert_eq!(
+            diagnostics[0].1,
+            source.rfind("name").expect("derived accessor name") as u32
+        );
+    }
+
+    #[test]
+    fn outer_generic_reference_omits_unchanged_qualification() {
+        assert_eq!(
+            checked_diags(
+                "function make<P>() { return class { value!: P; method() { this.missing; } }; }\n"
+            ),
+            [(
+                2339,
+                63,
+                7,
+                "Property 'missing' does not exist on type '(Anonymous class)'.".to_owned()
             )]
         );
     }
