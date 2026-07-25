@@ -3895,6 +3895,45 @@ evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9au results (2026-07-25, checked-JS source-file provenance — DONE)
+
+The checked-JS publication overlay no longer treats a `SourceFile`
+container as JSDoc provenance for every symbol in that file. The
+assignment checker had already produced the correct null-initialized
+parameter diagnostics, but walking from each parameter declaration up
+through the source-file node made one unrelated JSDoc tag hide all four
+non-JSDoc rows at program assembly.
+
+The D2 output-boundary port plan selects
+`getBindAndCheckDiagnosticsForFileNoCache`
+(`d2:830233e9609ef298c3668f1905c73bd40a102d935878378eecc2976ea8e12d65`,
+`scc:01974`). It is an isolated static declaration with zero unresolved
+calls and no escape rows. It has no exact Rust ledger join because the
+changed provenance selector is the port's explicit checked-JS
+publication overlay around that upstream file-assembly boundary; the
+assignment emitter itself is unchanged.
+
+This closes four supported 2322 rows in `typeFromJSInitializer`: the
+`undefined`, number, boolean, and string assignments to the
+strict-null-checked `a = null` parameter. All four match T0/T1/T2/T3.
+The target fixture moves from supported 0/5 to 4/5; its remaining
+supported `{}` assignment is a separate relation/display boundary, and
+the JSDoc-derived `b = "error"` row remains excluded.
+
+2xxx T0 grows to **20461/21051** (**97.1973%**) with FP=0; supported T0
+is **20461/20504** (**99.7903%**) with supported FN=**43**. All-band T0
+is **31383/49024** (**64.0156%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**4** in both bands and both scope views. The
+accepted-set ratchet adds four T0 identities and four
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,070**, binder tests are **54**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,863**, stale=0. Escape
+evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
