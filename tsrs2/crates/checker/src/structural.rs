@@ -7426,8 +7426,7 @@ impl<'a> CheckerState<'a> {
         )) {
             ty
         } else {
-            self.tables
-                .get_template_literal_type(&["".to_owned(), "".to_owned()], &[ty])
+            self.get_template_literal_type(&["".to_owned(), "".to_owned()], &[ty])
         }
     }
 
@@ -7585,8 +7584,7 @@ impl<'a> CheckerState<'a> {
                     texts.extend(source_texts[seg + 1..s].iter().cloned());
                     texts.push(TemplateText::from_utf16(&get_source_units(s)[..p]));
                     let types = source_types[seg..s].to_vec();
-                    self.tables
-                        .get_template_literal_type_from_texts(&texts, &types)
+                    self.get_template_literal_type_from_texts(&texts, &types)
                 };
                 matches.push(match_type);
                 #[allow(unused_assignments)]

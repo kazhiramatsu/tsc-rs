@@ -1394,13 +1394,49 @@ impl<'a> CheckerState<'a> {
         ))
     }
 
+    /// tsc-port: getTemplateLiteralType @6.0.3
+    /// tsc-hash: 8b75b60fe2a0a42ea0dbac6fc1a278f1707c3d540a076e246c5ffa452e8aa6b7
+    /// tsc-span: _tsc.js:62057-62109
+    ///
+    /// Checker-owned entry for getTemplateLiteralType: TypeTables
+    /// owns the recursive construction/cache, while the checker must
+    /// publish checkCrossProductUnion's 2590 at currentNode before
+    /// entering that diagnostic-free twin.
+    pub(crate) fn get_template_literal_type(
+        &mut self,
+        texts: &[String],
+        types: &[TypeId],
+    ) -> TypeId {
+        if !self.check_cross_product_union(types) {
+            return self.tables.intrinsics.error;
+        }
+        self.tables.get_template_literal_type(texts, types)
+    }
+
+    /// tsc-port: getTemplateLiteralType @6.0.3
+    /// tsc-hash: 8b75b60fe2a0a42ea0dbac6fc1a278f1707c3d540a076e246c5ffa452e8aa6b7
+    /// tsc-span: _tsc.js:62057-62109
+    ///
+    /// Lossless UTF-16 checker entry; reporting semantics are identical
+    /// to the UTF-8 convenience entry above.
+    pub(crate) fn get_template_literal_type_from_texts(
+        &mut self,
+        texts: &[tsrs2_types::TemplateText],
+        types: &[TypeId],
+    ) -> TypeId {
+        if !self.check_cross_product_union(types) {
+            return self.tables.intrinsics.error;
+        }
+        self.tables
+            .get_template_literal_type_from_texts(texts, types)
+    }
+
     /// tsc-port: checkCrossProductUnion @6.0.3
     /// tsc-hash: c916448698615d4762a0b12b7b0759c757fa2c19dedd842bc9448d9731fe9da1
     /// tsc-span: _tsc.js:61874-61883
     ///
-    /// The error-reporting variant getSpreadType consumes (2590 at
-    /// currentNode); the intersection path keeps its silent guard
-    /// (intersect.rs) with the diagnostic deferred.
+    /// All checker-owned cross-product consumers use this reporting
+    /// entry; the tables twin remains diagnostic-free.
     pub(crate) fn check_cross_product_union(&mut self, types: &[TypeId]) -> bool {
         let size = self.cross_product_union_size(types);
         if size >= 100_000 {

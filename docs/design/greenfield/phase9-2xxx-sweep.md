@@ -3742,6 +3742,47 @@ stale=0. Escape evidence is unchanged at sites=**192**, stale=0,
 untagged=0, recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9aq results (2026-07-25, complex-union reporting — DONE)
+
+The checker now owns the diagnostic-bearing entry to
+`getTemplateLiteralType`. It runs the shared `checkCrossProductUnion`
+reporter at `currentNode` before delegating recursive construction and
+caching to the diagnostic-free `TypeTables` twin. Every checker-side
+template-literal consumer uses that entry, including instantiation,
+string mapping, contextual templates, constraints, and template
+inference. The intersection cross-product fallback now uses the same
+reporter instead of its former silent guard. The types-only twin keeps
+its silent error-type guard for recursive and unit-test callers.
+
+The D2 port plans select `checkCrossProductUnion`
+(`d2:b30f989266f4f2f5e06387571be694ffcfa16c7cadffb44f400c0db5cadd809c`,
+`scc:02700`), `getTemplateLiteralType`
+(`d2:7dac4fe252798669ad8e4bdea20d3386a63bd910604838a8cf7822a7b291410c`,
+`scc:00002`), and `getIntersectionType`
+(`d2:48d2c8780822882bde0bbb7dd97b35b832889e74795021129a7ea0e7fba71e90`,
+`scc:00002`). They have two, three, and one exact ledger joins and
+zero, two, and four unresolved static calls respectively; none of the
+selected boundaries adds or widens an escape.
+
+This closes the three remaining supported 2590 rows in
+`templateLiteralTypes1`: the 100,000-member intersection, direct
+template-literal product, and spacing-shorthand template product.
+Together with the already-live variadic-tuple reporter, the target
+fixture is 4/4 for 2590 and 6/6 across its supported 2xxx rows at
+T0/T1/T2. 2xxx T0 grows to **20448/21051** (**97.1355%**) with FP=0;
+supported T0 is **20448/20504** (**99.7269%**) with supported FN=**56**.
+All-band T0 is **31370/49024** (**63.9891%**) with FP=0. T1/T2/T3 each
+report lost=0, gained=**3** in both bands and both scope views. The
+accepted-set ratchet adds three T0 identities and three
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,066**, binder tests are **54**, and syntax tests
+are **106**. Ledger evidence grows to entries=**1,862**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

@@ -4158,6 +4158,37 @@ mod tests {
     }
 
     #[test]
+    fn complex_union_guards_report_across_intersection_template_and_tuple_paths() {
+        let ten_objects = |suffix: u8| {
+            ('a'..='j')
+                .map(|name| format!("{{{name}{suffix}: any}}"))
+                .collect::<Vec<_>>()
+                .join(" | ")
+        };
+        let source = format!(
+            "type U1 = {};\n\
+             type U2 = {};\n\
+             type U3 = {};\n\
+             type U4 = {};\n\
+             type U5 = {};\n\
+             type U100000 = U1 & U2 & U3 & U4 & U5;\n\
+             type D = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;\n\
+             type D100000 = `${{D}}${{D}}${{D}}${{D}}${{D}}`;\n\
+             type TD = [0] | [1] | [2] | [3] | [4] | [5] | [6] | [7] | [8] | [9];\n\
+             type T100000 = [...TD, ...TD, ...TD, ...TD, ...TD];\n\
+             type D20 = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20;\n\
+             type Spacing = `0` | `${{number}}px` | `${{number}}rem` | `s${{D20}}`;\n\
+             type SpacingShorthand = `${{Spacing}} ${{Spacing}} ${{Spacing}} ${{Spacing}}`;\n",
+            ten_objects(1),
+            ten_objects(2),
+            ten_objects(3),
+            ten_objects(4),
+            ten_objects(5),
+        );
+        assert_eq!(codes_of(&source), [2590, 2590, 2590, 2590]);
+    }
+
+    #[test]
     fn checked_js_jsdoc_type_checks_its_initializer() {
         let result = check_program(
             &[InputFile {
