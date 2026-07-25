@@ -1934,8 +1934,9 @@ impl<'a> CheckerState<'a> {
                 .intersects(SymbolFlags::VARIABLE | SymbolFlags::PROPERTY | SymbolFlags::ACCESSOR);
             let union_method = flags.intersects(SymbolFlags::METHOD)
                 && self.tables.flags_of(prop_type).intersects(TypeFlags::UNION);
-            // isDuplicatedCommonJSExport: JS band, false in TS.
-            if !narrowable_kind && !union_method {
+            let duplicated_common_js =
+                self.is_duplicated_common_js_export(&self.binder.symbol(prop_symbol).declarations);
+            if !narrowable_kind && !union_method && !duplicated_common_js {
                 return Ok(prop_type);
             }
         }
