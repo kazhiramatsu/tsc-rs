@@ -9503,11 +9503,10 @@ mod tests {
         // external-module property declaration) AND its module parent
         // (52996-52998, yieldModuleSymbol falsy on the
         // symbolToExpression path), leaving the bare '[s]'. related
-        // 2728 @a.ts:61 len 5 '[U.s]' is declared here. probe B (the
-        // repro minus @ts-ignore) adds 2686 at the `U` reference
-        // @a.ts:44 len 1 — directive-suppressed here and a resolve.rs
-        // stub on our side (accepted FN), plus 6133 suggestions the
-        // sink excludes.
+        // 2728 @a.ts:61 len 5 '[U.s]' is declared here. The raw
+        // checker stream also contains 2686 at the `U` reference
+        // @a.ts:62 len 1; the public program layer consumes it through
+        // @ts-ignore. Suggestions such as 6133 stay outside this sink.
         with_program_state(
             &[
                 (
@@ -9525,14 +9524,24 @@ mod tests {
                 state.check_source_file(1);
                 assert_eq!(
                     diag_rows(state),
-                    [(
-                        2741,
-                        34,
-                        1,
-                        "Property '[U.s]' is missing in type '{}' but required in type '{ [s]: \
-                         number; }'."
-                            .to_owned()
-                    )]
+                    [
+                        (
+                            2686,
+                            62,
+                            1,
+                            "'U' refers to a UMD global, but the current file is a module. \
+                             Consider adding an import instead."
+                                .to_owned()
+                        ),
+                        (
+                            2741,
+                            34,
+                            1,
+                            "Property '[U.s]' is missing in type '{}' but required in type '{ \
+                             [s]: number; }'."
+                                .to_owned()
+                        )
+                    ]
                 );
             },
         );
