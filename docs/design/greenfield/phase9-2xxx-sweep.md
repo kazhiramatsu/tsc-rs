@@ -3819,6 +3819,46 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9as results (2026-07-25, JSX excess properties against `{}` — DONE)
+
+`hasExcessProperties` now preserves the upstream JSX exception to the
+empty-target suppression: an ordinary fresh object literal remains
+assignable to an empty target without an excess-property error, while a
+fresh `JsxAttributes` source still checks its declared attributes. The
+former unconditional `isEmptyObjectType(target)` suppression skipped
+the component-props relation before JSX applicability could report its
+canonical 2322 head.
+
+The D2 port plan selects `hasExcessProperties`
+(`d2:d3fce4bad38bb560d128ede8d2f411acff3fdd23c100940ca9f0d5db85722cfe`,
+`scc:00002`). It has three exact ledger joins and zero unresolved static
+calls; the selected boundary adds or widens no escape.
+
+This closes all three supported 2322 rows in
+`checkJsxChildrenProperty15` at T0/T1. The two `key` rows also match T2.
+The explicit `children` row is blocked at T2 by the shared
+`typeToTypeNodeHelper` error-type display prerequisite: tsrs2 currently
+prints `{ children: error; }`, while the oracle prints
+`{ children: any; }`. All three rows remain blocked at T3 by the shared
+relation `errorInfo` chain prerequisite for the nested 2339 detail.
+Those exact rows are assigned to the subsequent display/chain residue
+rather than widening this verdict slice. The complete target fixture is
+4/4 at T0/T1, 3/4 at T2, and 1/4 at T3.
+
+2xxx T0 grows to **20454/21051** (**97.1640%**) with FP=0; supported T0
+is **20454/20504** (**99.7561%**) with supported FN=**50**. All-band T0
+is **31376/49024** (**64.0013%**) with FP=0. T1 reports lost=0,
+gained=**3**; T2 reports lost=0, gained=**2**; T3 reports lost=0,
+gained=0, in both bands and both scope views. The accepted-set ratchet
+adds three T0 identities and three multiplicity-complete identities to
+both all and 2xxx; syntactic is unchanged.
+
+Checker tests are **1,068**, binder tests are **54**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,863**, stale=0. Escape
+evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

@@ -1072,8 +1072,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// type where tsc reads globalObjectType (an M3 noLib-probe
     /// stand-in that outlived M4 lib loading — the "until M4"
     /// justification lapsed). JSX attribute sources preserve tsc's
-    /// hyphenated-name exemption in both excess and common-property
-    /// checks.
+    /// empty-target exception and hyphenated-name exemption in both
+    /// excess and common-property checks.
     fn has_excess_properties(&mut self, source: TypeId, target: TypeId) -> CheckResult2<bool> {
         Ok(!matches!(
             self.excess_properties_worker(source, target, None)?,
@@ -1110,11 +1110,16 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         {
             return Ok(ExcessPropertyOutcome::None);
         }
+        let is_comparing_jsx_attributes = self
+            .st
+            .tables
+            .object_flags_of(source)
+            .intersects(ObjectFlags::JSX_ATTRIBUTES);
         if (self.relation == RelationKind::Assignable || self.relation == RelationKind::Comparable)
             && (self
                 .st
                 .is_type_subset_of(self.st.empty_object_type, target)?
-                || self.st.is_empty_object_type(target)?)
+                || (!is_comparing_jsx_attributes && self.st.is_empty_object_type(target)?))
         {
             return Ok(ExcessPropertyOutcome::None);
         }
@@ -1132,11 +1137,6 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             });
         }
         let source_symbol = self.st.tables.type_of(source).symbol;
-        let is_comparing_jsx_attributes = self
-            .st
-            .tables
-            .object_flags_of(source)
-            .intersects(ObjectFlags::JSX_ATTRIBUTES);
         for prop in self.st.get_properties_of_type(source)? {
             if self.should_check_as_excess_property(prop, source_symbol) {
                 let name = self.st.binder.symbol(prop).escaped_name.clone();

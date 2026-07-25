@@ -2305,6 +2305,25 @@ mod tests {
     }
 
     #[test]
+    fn jsx_excess_properties_are_checked_against_empty_props() {
+        let rows = checked_rows_with(
+            "declare namespace JSX { interface Element {} interface ElementChildrenAttribute { children: {} } }\n\
+             declare function Tag(props: {}): JSX.Element;\n\
+             (<Tag children=\"x\" />);\n\
+             (<Tag key=\"1\">x</Tag>);\n",
+            &jsx(1),
+        );
+        assert_eq!(
+            rows.iter()
+                .filter(|row| row.0 == 2322)
+                .map(|row| (row.0, row.2))
+                .collect::<Vec<_>>(),
+            [(2322, 8), (2322, 3)],
+            "{rows:?}"
+        );
+    }
+
+    #[test]
     fn multiple_jsx_children_elaborate_one_row_per_child() {
         assert_eq!(
             checked_rows_with(
