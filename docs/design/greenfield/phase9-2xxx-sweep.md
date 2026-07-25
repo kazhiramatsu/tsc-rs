@@ -2944,6 +2944,34 @@ Checker tests are **1,027**. Escape evidence is unchanged at
 sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
 Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9m results (2026-07-25, selected global diagnostics — DONE)
+
+The provenance-checked global getters for typed property descriptors,
+generator/iteration fallbacks, disposables, and the dynamic-import
+Promise value now clone their file-less diagnostics into the public
+aggregate sink, following the existing ImportMeta precedent. The raw
+null-file sink remains private until each lazy noLib producer is
+reviewed. The driver also applies the `@ts-nocheck`/`checkJs:false`
+skip before entering the checker, so a file tsc skips cannot populate
+shared caches or manufacture a global row when selected diagnostics
+become visible.
+
+This closes all **6** supported 2318 identities plus the one supported
+2468 identity. The reached global names are
+`TypedPropertyDescriptor`, `IterableIterator`, `AsyncDisposable`,
+`Disposable`, `AsyncIterableIterator`, and the Promise value. 2xxx T0
+grows to **20358/21051** (**96.7080%**) with FP=0; supported T0 is
+**20358/20504** (**99.2879%**) with supported FN=**146**. All-band T0 is
+**31280/49024** (**63.8055%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**7** in both bands and both scope views. The
+accepted-set ratchet adds 7 T0 identities and 7
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,030**. Escape evidence is unchanged at
+sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
+Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

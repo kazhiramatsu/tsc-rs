@@ -5336,11 +5336,13 @@ impl<'a> CheckerState<'a> {
         if let Some(memo) = self.deferred_global_promise_constructor_symbol {
             return Ok(memo);
         }
+        let diagnostics_before = self.diagnostics.len();
         let symbol = self.get_global_symbol(
             "Promise",
             SymbolFlags::VALUE,
             report_errors.then_some(&diagnostics::Cannot_find_global_value_0),
         );
+        self.publish_visible_global_diagnostics_since(diagnostics_before);
         if symbol.is_some() || report_errors {
             self.deferred_global_promise_constructor_symbol = Some(symbol);
         }

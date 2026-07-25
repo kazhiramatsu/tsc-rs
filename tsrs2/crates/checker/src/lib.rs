@@ -855,7 +855,17 @@ pub fn check_program_with_libs_at(
         // resolves module names), BEFORE any file checks.
         state.merge_module_augmentations();
         for index in lib_count..state.binder.file_count() {
-            state.check_source_file(index);
+            let source = state.binder.source(index);
+            let javascript_file = is_js_file_name(&source.file_name);
+            let directive = check_directives
+                .get(source.file_name.as_str())
+                .copied()
+                .flatten();
+            let skip = options.skip_lib_check == Some(true) && source.is_declaration_file
+                || !can_include_bind_and_check_diagnostics(javascript_file, directive, options);
+            if !skip {
+                state.check_source_file(index);
+            }
         }
         let jsdoc_diagnostic_spans: std::collections::HashSet<(String, u32, u32)> = state
             .jsdoc_typed_declarations
@@ -877,17 +887,11 @@ pub fn check_program_with_libs_at(
         // 123717): plain JS files filter check diagnostics to the
         // plainJSErrors allowlist and skip the directive merge;
         // TypeScript and checked JS run the comment-directive filter.
-        // KNOWN-GAP since M4 (m4-review B30): file-less diagnostics
-        // are DROPPED below except the ImportMeta carve-out
-        // (visible_global_diagnostics) — tsc has no drop: its
-        // getDiagnosticsWorker merges global diagnostics into the
-        // per-file pull that first observes them (the
-        // previous/current global-snapshot compare, incl. the
-        // empty-previous concatenate arm; probed). M7-owned
-        // (m7-tail-steps.md 8.5 driver-band note); lands only
-        // together with the B31 skipTypeCheckingWorker arms —
-        // surfacing globals while @ts-nocheck files still run
-        // manufactures the file-less-2318 FP face.
+        // File-less checker diagnostics are global diagnostics in
+        // tsc. The provenance-checked global getters clone their
+        // observable rows into visible_global_diagnostics; the raw
+        // file-less sink remains private so unreviewed lazy noLib
+        // probes do not leak through this aggregate API.
         let mut checker_diagnostics_by_file: std::collections::BTreeMap<
             Option<String>,
             Vec<tsrs2_diags::Diagnostic>,
@@ -2020,6 +2024,33 @@ mod tests {
             ),
             [2318]
         );
+    }
+
+    #[test]
+    fn missing_generator_fallback_global_is_public_semantic_diagnostic() {
+        assert_eq!(codes_of("function* f() { yield 1; }\n"), [2318]);
+    }
+
+    #[test]
+    fn ts_nocheck_does_not_publish_missing_generator_globals() {
+        let codes = codes_of("// @ts-nocheck\nfunction* f() { yield 1; }\n");
+        assert!(codes.is_empty(), "{codes:?}");
+    }
+
+    #[test]
+    fn check_js_false_does_not_publish_missing_generator_globals() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "function* f() { yield 1; }\n".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(false),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     }
 
     #[test]

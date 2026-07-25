@@ -199,8 +199,9 @@
 # p9 9.9j adds +12 type-as-value/type-as-namespace alternates.
 # p9 9.9k adds +5 namespace-as-value alternate diagnostics.
 # p9 9.9l adds +9 rest-binding-pattern grammar diagnostics.
-rate = 0.637912
-matched = 31273
+# p9 9.9m adds +7 file-less global diagnostics.
+rate = 0.638055
+matched = 31280
 total = 49024
 allowed_regression = 0.0
 
@@ -266,8 +267,9 @@ allowed_regression = 0.0
 # p9 9.9j adds +12 type-as-value/type-as-namespace alternates.
 # p9 9.9k adds +5 namespace-as-value alternate diagnostics.
 # p9 9.9l adds +9 rest-binding-pattern grammar diagnostics.
-rate = 0.966747
-matched = 20351
+# p9 9.9m adds +7 file-less global diagnostics.
+rate = 0.96708
+matched = 20358
 total = 21051
 allowed_regression = 0.0
 

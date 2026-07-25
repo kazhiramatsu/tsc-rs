@@ -102,6 +102,18 @@ pub(crate) struct GlobalTypeMemos {
 }
 
 impl<'a> CheckerState<'a> {
+    /// tsrs-native: publish file-less rows from one
+    /// provenance-checked global getter through the aggregate program
+    /// API.
+    pub(crate) fn publish_visible_global_diagnostics_since(&mut self, start: usize) {
+        self.visible_global_diagnostics.extend(
+            self.diagnostics[start..]
+                .iter()
+                .filter(|diagnostic| diagnostic.file_name.is_none())
+                .cloned(),
+        );
+    }
+
     /// tsc-port: getGlobalSymbol @6.0.3
     /// tsc-hash: db19b41eed14644de0add1b20391729ac3cc3183a2349a58fd1c2a5c7d6102f0
     /// tsc-span: _tsc.js:60650-60662
@@ -353,9 +365,10 @@ impl<'a> CheckerState<'a> {
         if let Some(memo) = self.deferred_global_disposable_type {
             return Ok(memo);
         }
-        let resolved = self
-            .get_global_type("Disposable", /*arity*/ 0, report_errors)?
-            .unwrap_or(self.empty_object_type);
+        let diagnostics_before = self.diagnostics.len();
+        let resolved = self.get_global_type("Disposable", /*arity*/ 0, report_errors)?;
+        self.publish_visible_global_diagnostics_since(diagnostics_before);
+        let resolved = resolved.unwrap_or(self.empty_object_type);
         self.deferred_global_disposable_type = Some(resolved);
         Ok(resolved)
     }
@@ -370,9 +383,10 @@ impl<'a> CheckerState<'a> {
         if let Some(memo) = self.deferred_global_async_disposable_type {
             return Ok(memo);
         }
-        let resolved = self
-            .get_global_type("AsyncDisposable", /*arity*/ 0, report_errors)?
-            .unwrap_or(self.empty_object_type);
+        let diagnostics_before = self.diagnostics.len();
+        let resolved = self.get_global_type("AsyncDisposable", /*arity*/ 0, report_errors)?;
+        self.publish_visible_global_diagnostics_since(diagnostics_before);
+        let resolved = resolved.unwrap_or(self.empty_object_type);
         self.deferred_global_async_disposable_type = Some(resolved);
         Ok(resolved)
     }
@@ -672,9 +686,11 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.global_type_memos.typed_property_descriptor {
             return Ok(cached);
         }
-        let resolved = self
-            .get_global_type("TypedPropertyDescriptor", 1, /*report_errors*/ true)?
-            .unwrap_or(self.empty_generic_type);
+        let diagnostics_before = self.diagnostics.len();
+        let resolved =
+            self.get_global_type("TypedPropertyDescriptor", 1, /*report_errors*/ true)?;
+        self.publish_visible_global_diagnostics_since(diagnostics_before);
+        let resolved = resolved.unwrap_or(self.empty_generic_type);
         self.global_type_memos.typed_property_descriptor = Some(resolved);
         Ok(resolved)
     }
@@ -909,7 +925,9 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.global_type_memos.iterable_iterator {
             return Ok(cached);
         }
+        let diagnostics_before = self.diagnostics.len();
         let resolved = self.get_global_type("IterableIterator", 3, report_errors)?;
+        self.publish_visible_global_diagnostics_since(diagnostics_before);
         if let Some(resolved) = resolved {
             self.global_type_memos.iterable_iterator = Some(resolved);
             return Ok(resolved);
@@ -999,7 +1017,9 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.global_type_memos.async_iterable_iterator {
             return Ok(cached);
         }
+        let diagnostics_before = self.diagnostics.len();
         let resolved = self.get_global_type("AsyncIterableIterator", 3, report_errors)?;
+        self.publish_visible_global_diagnostics_since(diagnostics_before);
         if let Some(resolved) = resolved {
             self.global_type_memos.async_iterable_iterator = Some(resolved);
             return Ok(resolved);
