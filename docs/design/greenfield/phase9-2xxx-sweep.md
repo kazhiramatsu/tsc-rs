@@ -3203,6 +3203,34 @@ evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9x results (2026-07-25, unchecked-JS spelling suggestions — DONE)
+
+`isUncheckedJSSuggestion` now distinguishes plain JS from checked JS
+and TypeScript, rejects suggestions sourced from another global file,
+and applies the upstream class and `this`-property exclusions. Name
+and property spelling reports use the 2570/2568 suggestion-category
+forms in that band. Exact provenance admits those suggestion rows
+through the plain-JS program filter; checked-JS and ordinary error
+publication remain unchanged. The name path also preserves tsc's
+observable ordering quirk: unchecked 2570 is copied into the
+suggestion sink before related information is appended, so its
+published form has no related row.
+
+This closes all **7** supported unchecked-JS spelling rows: four 2570
+name suggestions and three 2568 property suggestions. 2xxx T0 grows
+to **20400/21051** (**96.9075%**) with FP=0; supported T0 is
+**20400/20504** (**99.4928%**) with supported FN=**104**. All-band T0
+is **31322/49024** (**63.8912%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**7** in both bands and both scope views. The
+accepted-set ratchet adds 7 T0 identities and 7
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,041** and binder tests are **53**. Escape
+evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

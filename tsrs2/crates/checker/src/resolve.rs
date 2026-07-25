@@ -1028,6 +1028,89 @@ impl<'a> CheckerState<'a> {
         true
     }
 
+    /// tsc-port: isUncheckedJSSuggestion @6.0.3
+    /// tsc-hash: f77f37511d0a62ad1d4853cc1874d267075f8b5965fd3a52399e704cfed3f61b
+    /// tsc-span: _tsc.js:75323-75338
+    pub(crate) fn is_unchecked_js_suggestion(
+        &self,
+        node: Option<NodeId>,
+        suggestion: Option<SymbolId>,
+        exclude_classes: bool,
+    ) -> bool {
+        let Some(node) = node else {
+            return false;
+        };
+        let source = self.binder.source_of_node(node);
+        if !crate::is_plain_js_file(
+            crate::is_js_file_name(&source.file_name),
+            crate::check_directive(&source.text),
+            self.options,
+        ) {
+            return false;
+        }
+
+        let Some(suggestion_id) = suggestion else {
+            return true;
+        };
+        let suggestion = self.binder.symbol(suggestion_id);
+        let declaration_file = suggestion
+            .declarations
+            .first()
+            .map(|&declaration| self.binder.source_of_node(declaration));
+        if declaration_file.is_some_and(|declaration_file| {
+            source.root != declaration_file.root
+                && !self
+                    .binder
+                    .is_external_or_common_js_module_of_node(declaration_file.root)
+        }) {
+            return false;
+        }
+
+        let suggestion_has_no_extends_or_decorators = match suggestion.value_declaration {
+            None => true,
+            Some(declaration) => match self.data_of(declaration) {
+                NodeData::ClassDeclaration(data) => {
+                    !self.nodes_of(data.heritage_clauses).is_empty()
+                        || self.class_has_decorator(declaration)
+                }
+                NodeData::ClassExpression(data) => {
+                    !self.nodes_of(data.heritage_clauses).is_empty()
+                        || self.class_has_decorator(declaration)
+                }
+                _ => true,
+            },
+        };
+        if exclude_classes
+            && suggestion.flags.intersects(SymbolFlags::CLASS)
+            && suggestion_has_no_extends_or_decorators
+        {
+            return false;
+        }
+        if exclude_classes
+            && matches!(
+                self.data_of(node),
+                NodeData::PropertyAccessExpression(data)
+                    if data.expression.is_some_and(|expression| {
+                        self.kind_of(expression) == SyntaxKind::ThisKeyword
+                    })
+            )
+            && suggestion_has_no_extends_or_decorators
+        {
+            return false;
+        }
+        true
+    }
+
+    fn class_has_decorator(&self, declaration: NodeId) -> bool {
+        node_util::modifiers_of(self.binder.source_of_node(declaration), declaration).is_some_and(
+            |modifiers| {
+                self.nodes_of(Some(modifiers))
+                    .into_iter()
+                    .any(|modifier| self.kind_of(modifier) == SyntaxKind::Decorator)
+            },
+        )
+    }
+
     /// tsc-port: onFailedToResolveSymbol @6.0.3 (PARTIAL)
     /// tsc-hash: 26a00d2e7d55d3d390e91be33ad3fa83b5e644a07fd724974bd352b3133829c5
     /// tsc-span: _tsc.js:48111-48155
@@ -1192,10 +1275,15 @@ impl<'a> CheckerState<'a> {
                 }
                 if let Some(suggested) = suggestion {
                     let suggestion_name = self.symbol_display_name(suggested);
-                    // Namespace meaning selects the 2833 flavor; the
-                    // unchecked-JS 2570 flavor is JS-band (TS: 2552).
+                    // Namespace meaning selects the 2833 flavor; plain
+                    // unchecked JS uses the suggestion-category 2570
+                    // flavor where checked JS/TS uses 2552.
+                    let is_unchecked_js =
+                        self.is_unchecked_js_suggestion(error_location, Some(suggested), false);
                     let did_you_mean = if meaning == SymbolFlags::NAMESPACE {
                         &diagnostics::Cannot_find_namespace_0_Did_you_mean_1
+                    } else if is_unchecked_js {
+                        &diagnostics::Could_not_find_name_0_Did_you_mean_1
                     } else {
                         &diagnostics::Cannot_find_name_0_Did_you_mean_1
                     };
@@ -1210,13 +1298,24 @@ impl<'a> CheckerState<'a> {
                         code: message.code,
                         text: tsrs2_diags::MessageChain::new(message, &[display.to_owned()]).text,
                     });
-                    if let Some(value_declaration) = self.binder.symbol(suggested).value_declaration
-                    {
-                        diagnostic.related.push(self.related_info_for_node(
-                            value_declaration,
-                            &diagnostics::_0_is_declared_here,
-                            &[&suggestion_name],
-                        ));
+                    if is_unchecked_js {
+                        diagnostic.message.category = DiagnosticCategory::Suggestion;
+                    }
+                    // addErrorOrSuggestion clones an unchecked-JS
+                    // suggestion into suggestionDiagnostics before
+                    // tsc appends related information to the original
+                    // diagnostic, so the published 2570 has no related
+                    // row.
+                    if !is_unchecked_js {
+                        if let Some(value_declaration) =
+                            self.binder.symbol(suggested).value_declaration
+                        {
+                            diagnostic.related.push(self.related_info_for_node(
+                                value_declaration,
+                                &diagnostics::_0_is_declared_here,
+                                &[&suggestion_name],
+                            ));
+                        }
                     }
                     self.push_error_diagnostic(diagnostic);
                 }
@@ -1226,7 +1325,12 @@ impl<'a> CheckerState<'a> {
             }
         }
         if error_location.is_some_and(|location| self.is_in_js_file(location)) {
-            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, message.code);
+            let emitted_code = self
+                .diagnostics
+                .get(diagnostics_before..)
+                .and_then(|diagnostics| diagnostics.last())
+                .map_or(message.code, |diagnostic| diagnostic.code());
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, emitted_code);
         }
         self.suggestion_count += 1;
     }
@@ -2569,7 +2673,7 @@ mod tests {
 
     use crate::state::test_support::with_program_state;
     use crate::state::CheckerState;
-    use crate::{check_program, InputFile};
+    use crate::{check_program, check_program_with_libs, InputFile};
 
     /// First Identifier node whose text is `text`, in allocation order.
     fn identifier_named(state: &CheckerState, text: &str) -> NodeId {
@@ -2776,6 +2880,47 @@ mod tests {
                 let codes: Vec<u32> = state.diagnostics.iter().map(|d| d.code()).collect();
                 assert_eq!(codes, [2304]);
             },
+        );
+    }
+
+    #[test]
+    fn unchecked_js_spelling_rows_publish_as_suggestions() {
+        let lib_path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../vendor/typescript-6.0.3/lib/lib.es5.d.ts"
+        );
+        let result = check_program_with_libs(
+            &[InputFile {
+                name: "lib.es5.d.ts".to_owned(),
+                text: std::fs::read_to_string(lib_path).expect("vendored lib.es5.d.ts"),
+            }],
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "export var inModule = 1;\n\
+                       inmodule.toFixed();\n\
+                       var object = { spaaace: 3 };\n\
+                       object.spaace;\n"
+                    .to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.code(),
+                    diagnostic.category(),
+                    diagnostic.related.len(),
+                ))
+                .collect::<Vec<_>>(),
+            [
+                (2570, DiagnosticCategory::Suggestion, 0),
+                (2568, DiagnosticCategory::Suggestion, 1),
+            ]
         );
     }
 

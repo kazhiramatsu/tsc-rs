@@ -44,7 +44,7 @@ pub mod unions;
 pub mod variance;
 pub mod widen;
 
-use tsrs2_diags::DiagnosticList;
+use tsrs2_diags::{Diagnostic, DiagnosticCategory, DiagnosticList};
 
 pub use tsrs2_types::CompilerOptions;
 
@@ -178,6 +178,19 @@ fn is_plain_js_file(
     options: &CompilerOptions,
 ) -> bool {
     javascript_file && directive.is_none() && options.check_js.is_none()
+}
+
+fn is_published_non_jsdoc_js_diagnostic(
+    state: &state::CheckerState<'_>,
+    diagnostic: &Diagnostic,
+) -> bool {
+    diagnostic
+        .file_name
+        .as_ref()
+        .zip(diagnostic.start)
+        .zip(diagnostic.length)
+        .map(|((file, start), length)| (file.clone(), start, length, diagnostic.code()))
+        .is_some_and(|key| state.non_jsdoc_js_diagnostics.contains(&key))
 }
 
 /// tsc-port: markPrecedingCommentDirectiveLine @6.0.3
@@ -939,6 +952,8 @@ pub fn check_program_with_libs_at(
                     if is_plain_js_file(true, directive, options) {
                         diagnostics.extend(file_diagnostics.into_iter().filter(|diagnostic| {
                             plain_js_errors::is_plain_js_error(diagnostic.code())
+                                || diagnostic.category() == DiagnosticCategory::Suggestion
+                                    && is_published_non_jsdoc_js_diagnostic(&state, diagnostic)
                         }));
                     } else {
                         let used = used_directive_lines
@@ -950,14 +965,6 @@ pub fn check_program_with_libs_at(
                             Some(used),
                         );
                         diagnostics.extend(filtered.into_iter().filter(|diagnostic| {
-                            let key = diagnostic
-                                .file_name
-                                .as_ref()
-                                .zip(diagnostic.start)
-                                .zip(diagnostic.length)
-                                .map(|((file, start), length)| {
-                                    (file.clone(), start, length, diagnostic.code())
-                                });
                             plain_js_errors::is_plain_js_error(diagnostic.code())
                                 || diagnostic.code() == 2349
                                 || (diagnostic.code() == 2322
@@ -973,9 +980,7 @@ pub fn check_program_with_libs_at(
                                                 length,
                                             ))
                                         }))
-                                || key.is_some_and(|key| {
-                                    state.non_jsdoc_js_diagnostics.contains(&key)
-                                })
+                                || is_published_non_jsdoc_js_diagnostic(&state, diagnostic)
                         }));
                     }
                 }

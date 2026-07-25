@@ -13,6 +13,7 @@
 //! variable-declaration sites, not arm 236).
 
 use tsrs2_binder::node_util;
+use tsrs2_diags::DiagnosticCategory;
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
     CheckMode, MappedTypeModifiers, ModifierFlags, NodeFlags, SymbolFlags, SymbolId, TypeFacts,
@@ -1478,8 +1479,6 @@ impl<'a> CheckerState<'a> {
     /// - markLinkedReferences (declaration-emit bookkeeping);
     /// - deprecation suggestions (addDeprecatedSuggestion — the
     ///   suggestion band rides JSDoc @deprecated, unmodeled);
-    /// - isUncheckedJSSuggestion / isPlainJsFile arms gate on JS files
-    ///   (plain-JS band);
     /// - getWidenedType is the 5.6 [WIDEN] identity (extraction §6).
     fn check_property_access_expression_or_qualified_name(
         &mut self,
@@ -1655,9 +1654,12 @@ impl<'a> CheckerState<'a> {
                 None
             };
             let Some(index_info) = index_info else {
-                // isUncheckedJSSuggestion: TS files → false (JS band).
-                let is_unchecked_js = false;
-                if self.is_js_literal_type(left_type)? {
+                let is_unchecked_js = self.is_unchecked_js_suggestion(
+                    Some(node),
+                    self.tables.type_of(left_type).symbol,
+                    true,
+                );
+                if !is_unchecked_js && self.is_js_literal_type(left_type)? {
                     return Ok(self.tables.intrinsics.any);
                 }
                 let left_symbol = self.tables.type_of(left_type).symbol;
@@ -2821,8 +2823,13 @@ impl<'a> CheckerState<'a> {
                             &self.binder.symbol(suggestion).escaped_name,
                         )
                         .to_owned();
+                        let message = if is_unchecked_js {
+                            &tsrs2_diags::gen::Property_0_may_not_exist_on_type_1_Did_you_mean_2
+                        } else {
+                            &tsrs2_diags::gen::Property_0_does_not_exist_on_type_1_Did_you_mean_2
+                        };
                         head = tsrs2_diags::MessageChain::new(
-                            &tsrs2_diags::gen::Property_0_does_not_exist_on_type_1_Did_you_mean_2,
+                            message,
                             &[missing_property.clone(), container, suggested_name.clone()],
                         );
                         if let Some(value_declaration) =
@@ -2879,8 +2886,14 @@ impl<'a> CheckerState<'a> {
         }) && self
             .is_non_jsdoc_js_expression_type(access_expression, containing_type);
         let diagnostics_before = self.diagnostics.len();
+        if is_unchecked_js
+            && diagnostic.code()
+                == tsrs2_diags::gen::Property_0_may_not_exist_on_type_1_Did_you_mean_2.code
+        {
+            diagnostic.message.category = DiagnosticCategory::Suggestion;
+        }
         self.push_error_diagnostic(diagnostic);
-        if expose_non_jsdoc_js {
+        if expose_non_jsdoc_js || is_unchecked_js {
             self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
         }
         Ok(())
