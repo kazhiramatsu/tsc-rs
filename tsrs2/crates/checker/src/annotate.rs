@@ -4976,6 +4976,9 @@ impl<'a> CheckerState<'a> {
             // above the heritage line consumes tsc's 2507, and without
             // the range the directive accounting fabricates 2578
             // (9.3b5 review r1; DR-F6 start-face rule).
+            let publish_checked_js =
+                self.is_non_jsdoc_js_expression_type(expression, base_constructor_type);
+            let diagnostics_before = self.diagnostics.len();
             let report = (|state: &mut Self| -> CheckResult2<()> {
                 let text = state.type_to_string_slice(base_constructor_type)?;
                 let mut related = Vec::new();
@@ -5022,8 +5025,14 @@ impl<'a> CheckerState<'a> {
                 );
                 Ok(())
             })(self);
-            if let Err(err) = report {
-                self.mark_partially_checked_node(expression, err.reason.clone());
+            match report {
+                Ok(()) if publish_checked_js => {
+                    self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 2507);
+                }
+                Ok(()) => {}
+                Err(err) => {
+                    self.mark_partially_checked_node(expression, err.reason.clone());
+                }
             }
             let error = self.tables.intrinsics.error;
             if self
@@ -9433,6 +9442,7 @@ mod tests {
     use crate::relpin::find_probe_annotation;
     use crate::speculate::SpeculationOutcome;
     use crate::state::CheckerState;
+    use crate::{check_program, InputFile};
 
     fn parse(text: &str) -> SourceFile {
         let source = parse_source_file(
@@ -9467,6 +9477,41 @@ mod tests {
         let binder = bind_source_file(&source, &options);
         let mut state = CheckerState::new(&source, &binder, &options);
         run(&mut state)
+    }
+
+    #[test]
+    fn checked_js_non_jsdoc_base_constructor_error_is_published() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "first.js".to_owned(),
+                    text: "class Drakkhen extends Dragon {}\n".to_owned(),
+                },
+                InputFile {
+                    name: "second.ts".to_owned(),
+                    text: "function Dragon(numberEaten: number) {}\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                target: Some(2),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diag| (
+                    diag.code(),
+                    diag.file_name.as_deref().unwrap_or_default(),
+                    diag.start.unwrap_or(u32::MAX),
+                    diag.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [(2507, "first.js", 23, 6)]
+        );
     }
 
     #[test]
