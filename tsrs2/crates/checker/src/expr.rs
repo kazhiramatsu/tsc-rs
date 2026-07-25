@@ -411,16 +411,16 @@ impl<'a> CheckerState<'a> {
             .intersects(SymbolFlags::CONST_ENUM)
     }
 
-    /// tsc-port: checkConstEnumAccess @6.0.3 (2475 slice)
+    /// tsc-port: checkConstEnumAccess @6.0.3
     /// tsc-hash: 6146127432061a4f34628e317f8d73bc8070bfb61cd3ce4e32c8fe76f1569690
     /// tsc-span: _tsc.js:80975-80999
     ///
-    /// The 2748 ambient-const-enum arm is gated on `isolatedModules ||
-    /// (verbatimModuleSyntax && ...)` — both options are absent from
-    /// CompilerOptions, so the whole second block remains false and
-    /// is elided (its resolveName probe and redirect chase with it).
-    /// Note tsc does NOT early-return after the 2475 emission.
-    fn check_const_enum_access(&mut self, node: NodeId, _ty: TypeId) {
+    /// Program inputs have no host output redirects, so the
+    /// getRedirectFromOutput tail is observably absent. The valid
+    /// type-only-use predicate is represented by the existing ambient
+    /// / type-node and type-query classifiers over this function's
+    /// expression-only call domain.
+    fn check_const_enum_access(&mut self, node: NodeId, ty: TypeId) {
         let parent = self.parent_of(node);
         let ok = parent.is_some_and(|parent| match self.data_of(parent) {
             NodeData::PropertyAccessExpression(data) => data.expression == Some(node),
@@ -437,6 +437,39 @@ impl<'a> CheckerState<'a> {
                 Some(node),
                 &diagnostics::const_enums_can_only_be_used_in_property_or_index_access_expressions_or_the_right_hand_side_of_an_import_declaration_or_export_assignment_or_type_query,
                 &[],
+            );
+        }
+        let isolated_modules_like = self.options.isolated_modules == Some(true)
+            || self.options.verbatim_module_syntax == Some(true);
+        if !isolated_modules_like {
+            return;
+        }
+        let Some(symbol) = self.tables.type_of(ty).symbol else {
+            return;
+        };
+        debug_assert!(
+            self.binder
+                .symbol(symbol)
+                .flags
+                .intersects(SymbolFlags::CONST_ENUM),
+            "const-enum object types carry a const-enum symbol"
+        );
+        let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
+            return;
+        };
+        let ambient = self.node_flags(declaration) & tsrs2_types::NodeFlags::AMBIENT.bits() != 0;
+        let valid_type_only_use =
+            self.is_in_type_query(node) || self.is_in_ambient_or_type_node(node);
+        if ambient && !valid_type_only_use {
+            let option_name = if self.options.verbatim_module_syntax == Some(true) {
+                "verbatimModuleSyntax"
+            } else {
+                "isolatedModules"
+            };
+            self.error_at(
+                Some(node),
+                &diagnostics::Cannot_access_ambient_const_enums_when_0_is_enabled,
+                &[option_name],
             );
         }
     }
@@ -4237,6 +4270,22 @@ mod tests {
             state.check_source_file(0);
             rows(state)
         })
+    }
+
+    #[test]
+    fn ambient_const_enum_access_reports_under_verbatim_module_syntax() {
+        let text = "declare const enum F { A }\nF.A;\n";
+        let start = text.find("F.A").expect("fixture access") as u32;
+        assert_eq!(
+            checked_rows_with(
+                text,
+                &CompilerOptions {
+                    verbatim_module_syntax: Some(true),
+                    ..CompilerOptions::default()
+                },
+            ),
+            [(2748, start, 1)]
+        );
     }
 
     fn rows(state: &CheckerState) -> Vec<(u32, u32, u32)> {
