@@ -3108,6 +3108,30 @@ postfix-optional rest form. Escape evidence is unchanged at
 sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
 Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9t results (2026-07-25, JSDoc function signatures — DONE)
+
+Source-text `JSDocFunctionType` nodes now bind as anonymous call or
+construct types. Their unnamed parameters receive stable `argN`
+symbols, `this` is removed from the callable arity, and the leading
+`new` parameter selects both the construct member and its return type.
+The checker routes these nodes through signature construction and
+recognizes a JSDoc construct declaration in the new-expression result
+consumer.
+
+This closes the remaining supported **2554** row. 2xxx T0 grows to
+**20381/21051** (**96.8173%**) with FP=0; supported T0 is
+**20381/20504** (**99.4001%**) with supported FN=**123**. All-band T0
+is **31303/49024** (**63.8524%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**1** in both bands and both scope views. The
+accepted-set ratchet adds one T0 identity and one
+multiplicity-complete identity to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,037** and binder tests are **53**. Escape
+evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

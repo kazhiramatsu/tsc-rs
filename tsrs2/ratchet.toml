@@ -206,8 +206,9 @@
 # p9 9.9q adds +3 rewrite-relative-import safety diagnostics.
 # p9 9.9r adds +3 external-module UMD-global diagnostics.
 # p9 9.9s adds +2 JSDoc-nullable type-node diagnostics.
-rate = 0.638504
-matched = 31302
+# p9 9.9t adds +1 source-text JSDoc function-signature diagnostic.
+rate = 0.638524
+matched = 31303
 total = 49024
 allowed_regression = 0.0
 
@@ -280,8 +281,9 @@ allowed_regression = 0.0
 # p9 9.9q adds +3 rewrite-relative-import safety diagnostics.
 # p9 9.9r adds +3 external-module UMD-global diagnostics.
 # p9 9.9s adds +2 JSDoc-nullable type-node diagnostics.
-rate = 0.968125
-matched = 20380
+# p9 9.9t adds +1 source-text JSDoc function-signature diagnostic.
+rate = 0.968173
+matched = 20381
 total = 21051
 allowed_regression = 0.0
 

@@ -67,8 +67,8 @@ impl ModuleInstanceState {
 /// tsc-hash: 762f60f62494f6fa1a80f5b3464b7c4bc552f5cda69ebddff47c8847eaed9a81
 /// tsc-span: _tsc.js:45143-45201
 ///
-/// JSDoc kinds (JSDocTypeLiteral/JSDocSignature/JSDocFunctionType/
-/// JSDocImportTag) await JSDoc parsing.
+/// JSDocTypeLiteral/JSDocSignature/JSDocImportTag await full JSDoc
+/// comment parsing; source-text JSDocFunctionType is live.
 pub fn get_container_flags(source: &SourceFile, node: NodeId) -> ContainerFlags {
     match kind_of(source, node) {
         SyntaxKind::ClassExpression
@@ -111,6 +111,7 @@ pub fn get_container_flags(source: &SourceFile, node: NodeId) -> ContainerFlags 
         }
         SyntaxKind::MethodSignature
         | SyntaxKind::CallSignature
+        | SyntaxKind::JSDocFunctionType
         | SyntaxKind::FunctionType
         | SyntaxKind::ConstructSignature
         | SyntaxKind::ConstructorType => {
@@ -419,6 +420,7 @@ impl<'a> Binder<'a> {
                 ))
             }
             SyntaxKind::FunctionType
+            | SyntaxKind::JSDocFunctionType
             | SyntaxKind::ConstructorType
             | SyntaxKind::CallSignature
             | SyntaxKind::ConstructSignature

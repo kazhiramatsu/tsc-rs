@@ -6209,6 +6209,9 @@ impl<'a> CheckerState<'a> {
                     SyntaxKind::Constructor
                         | SyntaxKind::ConstructSignature
                         | SyntaxKind::ConstructorType
+                ) && !node_util::is_jsdoc_construct_signature(
+                    self.binder.source_of_node(declaration),
+                    declaration,
                 ) {
                     let js_constructor = self.is_js_constructor_without_jsdoc(declaration);
                     if js_constructor != Some(true) {
@@ -7031,6 +7034,22 @@ mod tests {
         assert_eq!(
             checked_rows("declare function v(a: number): void;\nv(1, 2, 3);\n"),
             [(2554, 42, 4)]
+        );
+    }
+
+    #[test]
+    fn jsdoc_function_type_models_this_and_new_parameters() {
+        assert_eq!(
+            checked_rows(
+                "function hof2(f: function(this: number, string): string) {\n    return f(12, 'hullo');\n}\n"
+            ),
+            [(2554, 76, 7)]
+        );
+        assert_eq!(
+            checked_rows(
+                "function hof(ctor: function(new: number, string)) {\n    return new ctor('hi');\n}\n"
+            ),
+            []
         );
     }
 

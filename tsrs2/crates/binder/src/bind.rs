@@ -240,9 +240,9 @@ impl<'a> Binder<'a> {
                     SymbolFlags::SET_ACCESSOR_EXCLUDES,
                 );
             }
-            SyntaxKind::FunctionType | SyntaxKind::ConstructorType => {
-                self.bind_function_or_constructor_type(node)
-            }
+            SyntaxKind::FunctionType
+            | SyntaxKind::JSDocFunctionType
+            | SyntaxKind::ConstructorType => self.bind_function_or_constructor_type(node),
             SyntaxKind::TypeLiteral | SyntaxKind::MappedType => {
                 self.bind_anonymous_declaration(
                     node,
@@ -826,6 +826,7 @@ impl<'a> Binder<'a> {
             NodeData::ConstructSignature(data) => data.parameters,
             NodeData::IndexSignature(data) => data.parameters,
             NodeData::FunctionType(data) => data.parameters,
+            NodeData::JSDocFunctionType(data) => data.parameters,
             NodeData::ConstructorType(data) => data.parameters,
             _ => None,
         }?;
@@ -4009,6 +4010,30 @@ mod tests {
         let mut binder = Binder::new(source, options);
         binder.bind_source_file();
         binder
+    }
+
+    #[test]
+    fn jsdoc_function_type_binds_call_and_construct_members() {
+        for (text, member) in [
+            (
+                "let ctor: function(new: number, string);\n",
+                InternalSymbolName::NEW,
+            ),
+            (
+                "let call: function(this: number, string): string;\n",
+                InternalSymbolName::CALL,
+            ),
+        ] {
+            let source = parse(text);
+            let function_type = find_nodes(&source, SyntaxKind::JSDocFunctionType)[0];
+            assert_eq!(
+                crate::node_util::is_jsdoc_construct_signature(&source, function_type),
+                member == InternalSymbolName::NEW
+            );
+            let binder = bind(&source);
+            let symbol = binder.node_symbol[&function_type];
+            assert!(binder.symbols.symbol(symbol).members.contains_key(member));
+        }
     }
 
     fn find_nodes(source: &SourceFile, kind: SyntaxKind) -> Vec<NodeId> {
