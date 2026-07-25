@@ -4032,6 +4032,47 @@ mod tests {
     }
 
     #[test]
+    fn checked_js_exposes_typed_declaration_arity_diagnostics() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "defs.d.ts".to_owned(),
+                    text: "declare function f1(p: void): void;\n\
+                           declare function f2(p: undefined): void;\n\
+                           declare function f3(p: unknown): void;\n\
+                           declare function f4(p: any): void;\n\
+                           interface I<T> { m(p: T): void; }\n\
+                           declare const o1: I<void>;\n\
+                           declare const o2: I<undefined>;\n\
+                           declare const o3: I<unknown>;\n\
+                           declare const o4: I<any>;\n"
+                        .to_owned(),
+                },
+                InputFile {
+                    name: "a.js".to_owned(),
+                    text: "f1();\no1.m();\nf2();\nf3();\nf4();\no2.m();\no3.m();\no4.m();\n"
+                        .to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        let arity_rows = result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 2554)
+            .collect::<Vec<_>>();
+        assert_eq!(arity_rows.len(), 6, "{:#?}", result.diagnostics);
+        assert!(arity_rows
+            .iter()
+            .all(|diagnostic| { diagnostic.file_name.as_deref() == Some("a.js") }));
+    }
+
+    #[test]
     fn checked_js_jsdoc_type_checks_its_initializer() {
         let result = check_program(
             &[InputFile {

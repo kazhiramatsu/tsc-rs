@@ -2091,10 +2091,19 @@ impl<'a> CheckerState<'a> {
         if call_is_incomplete || arg_count >= effective_minimum_arguments {
             return Ok(true);
         }
+        let accepted_missing_types = if self.is_in_js_file(node)
+            && !self
+                .options
+                .strict_option_value(self.options.strict_null_checks)
+        {
+            TypeFlags::VOID | TypeFlags::UNDEFINED | TypeFlags::UNKNOWN | TypeFlags::ANY
+        } else {
+            TypeFlags::VOID
+        };
         for i in arg_count..effective_minimum_arguments {
             let ty = self.get_type_at_position(signature, i)?;
             let filtered = self.tables.filter_type(ty, |tables, t| {
-                tables.flags_of(t).intersects(TypeFlags::VOID)
+                tables.flags_of(t).intersects(accepted_missing_types)
             });
             if self.tables.flags_of(filtered).intersects(TypeFlags::NEVER) {
                 return Ok(false);
@@ -3849,7 +3858,13 @@ impl<'a> CheckerState<'a> {
             let args = ctx.args.clone();
             let diagnostic =
                 self.get_argument_arity_error(node, &[candidate], &args, head_message)?;
+            let publish_checked_js =
+                self.should_publish_typed_declaration_js_arity(node, &[candidate]);
+            let diagnostics_before = self.diagnostics.len();
             self.push_error_diagnostic(diagnostic);
+            if publish_checked_js {
+                self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 2554);
+            }
         } else if let Some(candidate) = ctx.candidate_for_type_argument_error {
             let type_argument_nodes = ctx.type_argument_nodes.clone();
             self.check_type_arguments(
@@ -3886,10 +3901,35 @@ impl<'a> CheckerState<'a> {
                     &args,
                     head_message,
                 )?;
+                let publish_checked_js = self.should_publish_typed_declaration_js_arity(
+                    node,
+                    &with_correct_type_argument_arity,
+                );
+                let diagnostics_before = self.diagnostics.len();
                 self.push_error_diagnostic(diagnostic);
+                if publish_checked_js {
+                    self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 2554);
+                }
             }
         }
         Ok(())
+    }
+
+    /// tsrs-native: checked JavaScript calls into typed declarations
+    /// retain their ordinary 2554 arity row. JSDoc-owned signatures
+    /// stay on the separate checked-JS/JSDoc boundary.
+    fn should_publish_typed_declaration_js_arity(
+        &self,
+        node: NodeId,
+        signatures: &[SignatureId],
+    ) -> bool {
+        self.is_in_js_file(node)
+            && !signatures.is_empty()
+            && signatures.iter().all(|&signature| {
+                self.signature_of(signature)
+                    .declaration
+                    .is_some_and(|declaration| !self.is_in_js_file(declaration))
+            })
     }
 
     /// addImplementationSuccessElaboration (76744-76762): when the
@@ -6664,6 +6704,69 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    #[test]
+    fn checked_js_missing_typed_arguments_reach_internal_arity_diagnostics() {
+        let files = [
+            (
+                "defs.d.ts",
+                "declare function f1(p: void): void;\n\
+                 declare function f2(p: undefined): void;\n\
+                 declare function f3(p: unknown): void;\n\
+                 declare function f4(p: any): void;\n\
+                 interface I<T> { m(p: T): void; }\n\
+                 declare const o1: I<void>;\n\
+                 declare const o2: I<undefined>;\n\
+                 declare const o3: I<unknown>;\n\
+                 declare const o4: I<any>;\n",
+            ),
+            (
+                "jsfile.js",
+                "f1();\no1.m();\nf2();\nf3();\nf4();\no2.m();\no3.m();\no4.m();\n",
+            ),
+        ];
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        };
+        let actual = with_program_state(&files, &options, |state| {
+            state.check_source_file(1);
+            state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 2554)
+                .map(|diagnostic| {
+                    (
+                        diagnostic.file_name.clone(),
+                        diagnostic.start,
+                        diagnostic.length,
+                    )
+                })
+                .collect::<Vec<_>>()
+        });
+        assert_eq!(actual.len(), 6);
+        assert!(actual
+            .iter()
+            .all(|(file_name, _, _)| { file_name.as_deref() == Some("jsfile.js") }));
+
+        let non_strict_options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(false),
+            ..CompilerOptions::default()
+        };
+        let non_strict_count = with_program_state(&files, &non_strict_options, |state| {
+            state.check_source_file(1);
+            state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 2554)
+                .count()
+        });
+        assert_eq!(non_strict_count, 0);
     }
 
     #[test]
