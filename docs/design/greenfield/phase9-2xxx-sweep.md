@@ -2897,6 +2897,30 @@ Checker tests are **1,025**. Escape evidence is unchanged at
 sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
 Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9k results (2026-07-25, namespace-as-value alternates — DONE)
+
+The missing-name alternate ladder now ports
+`checkAndReportErrorForUsingNamespaceAsTypeOrValue`. A value-only
+lookup which finds a namespace reports 2708, while a type-only lookup
+which finds a module reports 2709. Checked-JS publication selects the
+emitted alternate code exactly. JS property-assignment declaration
+roots retain their value face while that assignment form is being
+bound, so they are excluded at that exact root instead of suppressing
+neighboring namespace lookups.
+
+This closes all **5** supported 2708 rows. 2xxx T0 grows to
+**20342/21051** (**96.6320%**) with FP=0; supported T0 is
+**20342/20504** (**99.2099%**) with supported FN=**162**. All-band T0
+is **31264/49024** (**63.7728%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**5** in both bands and both scope views. The
+accepted-set ratchet adds 5 T0 identities and 5
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,026**. Escape evidence is unchanged at
+sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
+Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

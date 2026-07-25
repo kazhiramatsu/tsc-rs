@@ -1095,6 +1095,15 @@ impl<'a> CheckerState<'a> {
                 Ok(false) => {}
                 Err(_) => return,
             }
+            match self.check_and_report_error_for_using_namespace_as_type_or_value(
+                error_location,
+                name,
+                meaning,
+            ) {
+                Ok(true) => return,
+                Ok(false) => {}
+                Err(_) => return,
+            }
             match self.check_and_report_error_for_using_type_as_value(error_location, name, meaning)
             {
                 Ok(true) => return,
@@ -1298,6 +1307,75 @@ impl<'a> CheckerState<'a> {
             self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, emitted_code);
         }
         Ok(true)
+    }
+
+    /// tsc-port: checkAndReportErrorForUsingNamespaceAsTypeOrValue @6.0.3
+    /// tsc-hash: 8e92afc3394351510ffdd3494015a3467fc26145c2f6015bc451387fc58f7a12
+    /// tsc-span: _tsc.js:48412-48447
+    fn check_and_report_error_for_using_namespace_as_type_or_value(
+        &mut self,
+        error_location: NodeId,
+        name: &str,
+        meaning: SymbolFlags,
+    ) -> CheckResult2<bool> {
+        let value_only =
+            SymbolFlags::from_bits(SymbolFlags::VALUE.bits() & !SymbolFlags::TYPE.bits());
+        let type_only =
+            SymbolFlags::from_bits(SymbolFlags::TYPE.bits() & !SymbolFlags::VALUE.bits());
+        let (lookup_meaning, message) = if meaning.intersects(value_only) {
+            (
+                SymbolFlags::NAMESPACE_MODULE,
+                &diagnostics::Cannot_use_namespace_0_as_a_value,
+            )
+        } else if meaning.intersects(type_only) {
+            (
+                SymbolFlags::MODULE,
+                &diagnostics::Cannot_use_namespace_0_as_a_type,
+            )
+        } else {
+            return Ok(false);
+        };
+        if self.is_js_property_assignment_declaration_root(error_location) {
+            return Ok(false);
+        }
+        let symbol = self.resolve_name(
+            Some(error_location),
+            name,
+            lookup_meaning,
+            None,
+            false,
+            false,
+        )?;
+        if self.resolve_symbol_ex(symbol, false)?.is_none() {
+            return Ok(false);
+        }
+        let diagnostics_before = self.diagnostics.len();
+        let display = tsrs2_binder::unescape_leading_underscores(name);
+        self.error_at(Some(error_location), message, &[display]);
+        if self.is_in_js_file(error_location) {
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, message.code);
+        }
+        Ok(true)
+    }
+
+    /// A checked-JS property assignment can supply the root's value
+    /// face even when the assignment-declaration binder has not
+    /// materialized that face yet.
+    fn is_js_property_assignment_declaration_root(&self, location: NodeId) -> bool {
+        if !self.is_in_js_file(location) || self.kind_of(location) != SyntaxKind::Identifier {
+            return false;
+        }
+        let mut current = location;
+        while let Some(parent) = self.parent_of(current) {
+            let NodeData::PropertyAccessExpression(data) = self.data_of(parent) else {
+                break;
+            };
+            if data.expression != Some(current) {
+                break;
+            }
+            current = parent;
+        }
+        current != location && self.get_assignment_target(current).is_some()
     }
 
     /// tsc-port: checkAndReportErrorForUsingTypeAsValue @6.0.3
@@ -2732,6 +2810,25 @@ mod tests {
                 .map(|diagnostic| diagnostic.code())
                 .collect::<Vec<_>>(),
             [2702, 2702]
+        );
+    }
+
+    #[test]
+    fn namespace_used_directly_reports_value_and_type_alternates() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "namespace N { export interface I {} }\nN;\ntype T = N;\n".to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.code())
+                .collect::<Vec<_>>(),
+            [2708, 2709]
         );
     }
 
