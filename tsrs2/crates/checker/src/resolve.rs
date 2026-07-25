@@ -13,7 +13,7 @@ use tsrs2_binder::node_util::{
     is_function_like_declaration_kind, is_function_like_kind, is_part_of_parameter_declaration,
 };
 use tsrs2_binder::{SymbolId, SymbolTable};
-use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
+use tsrs2_diags::{gen as diagnostics, DiagnosticCategory, DiagnosticMessage};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags, TypeFlags};
 
@@ -1759,6 +1759,44 @@ impl<'a> CheckerState<'a> {
                 let _ = self.check_resolved_block_scoped_variable(export_or_local, error_location);
             }
         }
+        if self
+            .binder
+            .is_external_or_common_js_module_of_node(error_location)
+            && meaning.contains(SymbolFlags::VALUE)
+        {
+            let merged = self.get_merged_symbol(result);
+            let declarations = self.binder.symbol(merged).declarations.clone();
+            let name = self.binder.symbol(merged).escaped_name.clone();
+            let is_umd_global = !declarations.is_empty()
+                && declarations.iter().all(|&declaration| {
+                    if self.kind_of(declaration) == SyntaxKind::NamespaceExportDeclaration {
+                        return true;
+                    }
+                    if self.kind_of(declaration) != SyntaxKind::SourceFile {
+                        return false;
+                    }
+                    self.binder
+                        .node_symbol(declaration)
+                        .is_some_and(|file_symbol| {
+                            self.binder
+                                .symbol(file_symbol)
+                                .global_exports
+                                .contains_key(&name)
+                        })
+                });
+            if is_umd_global {
+                let display = tsrs2_binder::unescape_leading_underscores(&name);
+                let mut diagnostic = self.diagnostic_for_node(
+                    error_location,
+                    &diagnostics::_0_refers_to_a_UMD_global_but_the_current_file_is_a_module_Consider_adding_an_import_instead,
+                    &[display],
+                );
+                if self.options.allow_umd_global_access == Some(true) {
+                    diagnostic.message.category = DiagnosticCategory::Suggestion;
+                }
+                self.push_error_diagnostic(diagnostic);
+            }
+        }
         if let Some(associated_declaration) = associated_declaration
             .filter(|_| !within_deferred_context && meaning.contains(SymbolFlags::VALUE))
         {
@@ -2525,6 +2563,7 @@ fn is_es2015_or_later_constructor_name(name: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use tsrs2_diags::DiagnosticCategory;
     use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
     use tsrs2_types::{CompilerOptions, SymbolFlags, TypeFlags};
 
@@ -2846,6 +2885,56 @@ mod tests {
                 .collect::<Vec<_>>(),
             [2708, 2709]
         );
+    }
+
+    #[test]
+    fn external_module_umd_value_reference_is_error_or_suggestion() {
+        let files = [
+            InputFile {
+                name: "umd.d.ts".to_owned(),
+                text: "export as namespace Foo;\nexport const value: number;\n".to_owned(),
+            },
+            InputFile {
+                name: "a.ts".to_owned(),
+                text: "export {};\nconst value = Foo;\n".to_owned(),
+            },
+        ];
+        let categories = |options: &CompilerOptions| {
+            check_program(&files, options)
+                .diagnostics
+                .into_iter()
+                .filter(|diagnostic| diagnostic.code() == 2686)
+                .map(|diagnostic| diagnostic.category())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            categories(&CompilerOptions::default()),
+            [DiagnosticCategory::Error]
+        );
+        assert_eq!(
+            categories(&CompilerOptions {
+                allow_umd_global_access: Some(true),
+                ..CompilerOptions::default()
+            }),
+            [DiagnosticCategory::Suggestion]
+        );
+        let suppressed = check_program(
+            &[
+                InputFile {
+                    name: "umd.d.ts".to_owned(),
+                    text: "export as namespace Foo;\nexport const value: number;\n".to_owned(),
+                },
+                InputFile {
+                    name: "a.ts".to_owned(),
+                    text: "export {};\n// @ts-ignore\nconst value = Foo;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions::default(),
+        );
+        assert!(!suppressed
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code() == 2686));
     }
 
     #[test]

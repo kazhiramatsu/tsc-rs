@@ -1701,6 +1701,7 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
         preserve_const_enums: bool_option("preserveConstEnums"),
         isolated_modules: bool_option("isolatedModules"),
         verbatim_module_syntax: bool_option("verbatimModuleSyntax"),
+        allow_umd_global_access: bool_option("allowUmdGlobalAccess"),
         base_url: string_option(program, "baseUrl"),
         allow_importing_ts_extensions: bool_option("allowImportingTsExtensions"),
         rewrite_relative_import_extensions: bool_option("rewriteRelativeImportExtensions"),

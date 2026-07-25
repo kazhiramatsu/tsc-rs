@@ -204,8 +204,9 @@
 # p9 9.9o adds +4 typed missing-namespace tail diagnostics.
 # p9 9.9p adds +4 declaration-extension substitution diagnostics.
 # p9 9.9q adds +3 rewrite-relative-import safety diagnostics.
-rate = 0.638402
-matched = 31297
+# p9 9.9r adds +3 external-module UMD-global diagnostics.
+rate = 0.638463
+matched = 31300
 total = 49024
 allowed_regression = 0.0
 
@@ -276,8 +277,9 @@ allowed_regression = 0.0
 # p9 9.9o adds +4 typed missing-namespace tail diagnostics.
 # p9 9.9p adds +4 declaration-extension substitution diagnostics.
 # p9 9.9q adds +3 rewrite-relative-import safety diagnostics.
-rate = 0.967888
-matched = 20375
+# p9 9.9r adds +3 external-module UMD-global diagnostics.
+rate = 0.96803
+matched = 20378
 total = 21051
 allowed_regression = 0.0
 

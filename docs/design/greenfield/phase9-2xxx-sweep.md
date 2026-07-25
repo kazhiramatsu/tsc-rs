@@ -3064,6 +3064,28 @@ Checker tests are **1,035**. Escape evidence is unchanged at
 sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
 Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9r results (2026-07-25, external-module UMD globals — DONE)
+
+`onSuccessfullyResolvedSymbol` now recognizes a resolved value whose
+merged declarations are UMD namespace exports when referenced from an
+external/CommonJS module. It reports 2686 at the reference. The newly
+modeled `allowUmdGlobalAccess` option changes that row from error to
+suggestion without suppressing it, matching tsc's
+`errorOrSuggestion` behavior.
+
+This closes all **3** supported 2686 rows: two error-pass identities
+and the `allowUmdGlobalAccess` suggestion identity. 2xxx T0 grows to
+**20378/21051** (**96.8030%**) with FP=0; supported T0 is
+**20378/20504** (**99.3855%**) with supported FN=**126**. All-band T0 is
+**31300/49024** (**63.8463%**) with FP=0. T1/T2/T3 each report lost=0,
+gained=**3** in both bands and both scope views. The accepted-set
+ratchet adds 3 T0 identities and 3 multiplicity-complete identities to
+both all and 2xxx; syntactic is unchanged.
+
+Checker tests are **1,036**. Escape evidence is unchanged at
+sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
+Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

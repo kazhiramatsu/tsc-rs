@@ -134,6 +134,9 @@ pub struct CompilerOptions {
     /// 6.6 review: second disjunct of tsc's computed isolatedModules
     /// (18160-18162). Its own diagnostic band stays unmodeled.
     pub verbatim_module_syntax: Option<bool>,
+    /// Downgrades external-module references to UMD globals from an
+    /// error to a suggestion (onSuccessfullyResolvedSymbol, 2686).
+    pub allow_umd_global_access: Option<bool>,
     /// M4 5.8d: carried for the module resolver's suppression gate
     /// (baseUrl-relative candidates probe the program set; a miss
     /// under baseUrl is tsc-undecidable → no 2307). Full baseUrl
