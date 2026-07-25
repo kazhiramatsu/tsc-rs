@@ -21,11 +21,11 @@ use crate::node_util::{
     has_dynamic_name, id_text, is_assignment_expression_simple, is_assignment_operator,
     is_async_function, is_auto_accessor_property_declaration, is_binding_pattern,
     is_block_or_catch_scoped, is_destructuring_assignment, is_entity_name_expression,
-    is_expression_node, is_function_like_kind, is_identifier_name, is_in_top_level_context,
-    is_narrowable_operand, is_narrowable_reference, is_narrowing_expression,
-    is_object_literal_method, is_object_literal_or_class_expression_method_or_accessor,
-    is_parameter_property_declaration, is_part_of_parameter_declaration, is_part_of_type_query,
-    is_potentially_executable_node, kind_of, name_field_of, parent_of, statements_of,
+    is_function_like_kind, is_identifier_name, is_in_top_level_context, is_narrowable_operand,
+    is_narrowable_reference, is_narrowing_expression, is_object_literal_method,
+    is_object_literal_or_class_expression_method_or_accessor, is_parameter_property_declaration,
+    is_part_of_parameter_declaration, is_part_of_type_query, is_potentially_executable_node,
+    kind_of, name_field_of, parent_of, statements_of,
 };
 use crate::symbols::{InternalSymbolName, SymbolId};
 use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
@@ -92,13 +92,12 @@ impl<'a> Binder<'a> {
                     self.seen_this_keyword = true;
                 }
                 if let Some(current_flow) = self.current_flow {
-                    let in_expression = is_expression_node(self.source, node)
-                        || parent_of(self.source, node).is_some_and(|parent| {
-                            kind_of(self.source, parent) == SyntaxKind::ShorthandPropertyAssignment
-                        });
-                    if in_expression {
-                        self.node_flow.insert(node, current_flow);
-                    }
+                    // tsc bindWorker calls isExpression here, the
+                    // syntax-kind predicate. Identifier and `this`
+                    // are both left-hand-side expression kinds, so
+                    // every occurrence carries currentFlow, including
+                    // an identifier directly under export default.
+                    self.node_flow.insert(node, current_flow);
                 }
                 self.check_contextual_identifier(node);
             }
@@ -4185,6 +4184,18 @@ mod tests {
         let source = parse("export default 1;\nexport default 2;");
         let binder = bind(&source);
         assert_eq!(diag_pins(&binder), [(2528, 0, 17), (2528, 18, 17)]);
+    }
+
+    #[test]
+    fn export_default_identifier_keeps_current_flow() {
+        let source = parse("export default x;\nconst x = 'x';\n");
+        let export = find_nodes(&source, SyntaxKind::ExportAssignment)[0];
+        let expression = match &source.arena.node(export).data {
+            NodeData::ExportAssignment(data) => data.expression.expect("export expression"),
+            _ => unreachable!(),
+        };
+        let binder = bind(&source);
+        assert!(binder.node_flow.contains_key(&expression));
     }
 
     #[test]

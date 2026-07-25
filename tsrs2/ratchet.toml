@@ -218,8 +218,9 @@
 # p9 9.9ab adds +1 ambient const-enum access under verbatim syntax.
 # p9 9.9ac adds +1 checked-JS non-JSDoc operator diagnostic.
 # p9 9.9ad adds +1 checked-JS non-JSDoc base-constructor diagnostic.
-rate = 0.639177
-matched = 31335
+# p9 9.9ae adds +2 export-default use-before-assignment diagnostics.
+rate = 0.639218
+matched = 31337
 total = 49024
 allowed_regression = 0.0
 
@@ -304,8 +305,9 @@ allowed_regression = 0.0
 # p9 9.9ab adds +1 ambient const-enum access under verbatim syntax.
 # p9 9.9ac adds +1 checked-JS non-JSDoc operator diagnostic.
 # p9 9.9ad adds +1 checked-JS non-JSDoc base-constructor diagnostic.
-rate = 0.969693
-matched = 20413
+# p9 9.9ae adds +2 export-default use-before-assignment diagnostics.
+rate = 0.969788
+matched = 20415
 total = 21051
 allowed_regression = 0.0
 
