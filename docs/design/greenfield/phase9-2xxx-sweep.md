@@ -2921,6 +2921,29 @@ Checker tests are **1,026**. Escape evidence is unchanged at
 sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
 Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9l results (2026-07-25, rest binding-pattern grammar — DONE)
+
+The live `checkGrammarObjectLiteralExpression` slice now ports its
+rest-binding-pattern row. In an object destructuring assignment, a
+spread whose parenthesis-stripped expression is an array or object
+literal reports 2501 over the original expression span. This keeps
+parenthesized rows aligned with tsc while leaving ordinary object
+literal spreads unchanged. The checked-JS row publishes through the
+existing exact grammar-code allowlist.
+
+This closes all **9** supported 2501 rows. 2xxx T0 grows to
+**20351/21051** (**96.6747%**) with FP=0; supported T0 is
+**20351/20504** (**99.2538%**) with supported FN=**153**. All-band T0
+is **31273/49024** (**63.7912%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**9** in both bands and both scope views. The
+accepted-set ratchet adds 9 T0 identities and 9
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,027**. Escape evidence is unchanged at
+sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
+Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
