@@ -3153,6 +3153,28 @@ Checker tests are **1,038**. Escape evidence is unchanged at
 sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
 Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9v results (2026-07-25, duplicate object methods — DONE)
+
+The live subset of `checkGrammarObjectLiteralExpression` now tracks
+effective names for object-literal methods and reports 2300 on a second
+method with the same name. Property and accessor duplicate tables
+remain behind their existing grammar owner; the change does not route
+object methods through overload implementation diagnostics.
+
+This closes the remaining supported **2300** row. 2xxx T0 grows to
+**20383/21051** (**96.8268%**) with FP=0; supported T0 is
+**20383/20504** (**99.4099%**) with supported FN=**121**. All-band T0
+is **31305/49024** (**63.8565%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**1** in both bands and both scope views. The
+accepted-set ratchet adds one T0 identity and one
+multiplicity-complete identity to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,039** and binder tests are **53**. Escape
+evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

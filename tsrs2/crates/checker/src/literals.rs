@@ -629,8 +629,8 @@ impl<'a> CheckerState<'a> {
     ///
     /// Elided/dead arms: checkGrammarObjectLiteralExpression (89637)
     /// is a PARTIAL slice — the computed-property-name row (5.8a
-    /// §12) and rest-binding-pattern row are live; the rest stays
-    /// elided (1117-family FN, pinned);
+    /// §12), rest-binding-pattern row, and duplicate-method row are
+    /// live; the rest stays elided (1117-family FN, pinned);
     /// isInJavascript/enumTag/jsDocType/JSLiteral ride [JSDOC] (TS
     /// files answer false — plain-JS files gate earlier); the
     /// languageVersion ObjectAssign emit-helper gate is dead at
@@ -648,15 +648,17 @@ impl<'a> CheckerState<'a> {
         // checkGrammarObjectLiteralExpression(node, inDestructuring):
         // PARTIAL slice — the checkGrammarComputedPropertyName row is
         // 5.8a-owned (§12; review find, PR #5: 1171) and the
-        // rest-binding-pattern row is 9.9l-owned; the remaining rows
-        // (shorthand-equals, private identifier, modifier and
-        // duplicate-kind tables) stay elided with their owners
-        // (1117-family FN, pinned).
+        // rest-binding-pattern row is 9.9l-owned; the duplicate-method
+        // table is 9.9v-owned. The remaining rows (shorthand-equals,
+        // private identifier, modifier, property/accessor duplicate
+        // tables) stay elided with their owners (1117-family FN,
+        // pinned).
         {
             let members = match self.data_of(node) {
                 NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties),
                 _ => Vec::new(),
             };
+            let mut seen_methods = std::collections::HashSet::new();
             for member in members {
                 if self.kind_of(member) == SyntaxKind::SpreadAssignment {
                     if in_destructuring_pattern {
@@ -687,6 +689,22 @@ impl<'a> CheckerState<'a> {
                 if let Some(name) = self.name_of_node(member) {
                     if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
                         self.check_grammar_computed_property_name(name);
+                    }
+                    if !in_destructuring_pattern
+                        && self.kind_of(member) == SyntaxKind::MethodDeclaration
+                    {
+                        if let Some(effective_name) =
+                            self.effective_property_name_for_property_name_node(name)?
+                        {
+                            if !seen_methods.insert(effective_name) {
+                                let display = self.text_of_node(name)?;
+                                self.grammar_error_on_node(
+                                    name,
+                                    &diagnostics::Duplicate_identifier_0,
+                                    &[&display],
+                                );
+                            }
+                        }
                     }
                 }
             }
@@ -1940,6 +1958,14 @@ mod tests {
         // Oracle: 1117 (9,1) — checkGrammarObjectLiteralExpression is
         // an elided slice.
         assert_eq!(checked_rows("({ a: 1, a: 2 });\n"), []);
+    }
+
+    #[test]
+    fn duplicate_object_methods_report_2300_on_the_second_name() {
+        assert_eq!(
+            checked_rows("({ foo(x: 'hi') {}, foo(x: 'a') {} });\n"),
+            [(2300, 20, 3)]
+        );
     }
 
     #[test]
