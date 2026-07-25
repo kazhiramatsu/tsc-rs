@@ -3042,11 +3042,37 @@ impl<'a> CheckerState<'a> {
         let publish_direct_this_class_read_non_jsdoc = is_direct_this_class
             && assignment_declaration_kind == tsrs2_binder::AssignmentDeclarationKind::None
             && self.is_non_jsdoc_js_expression_type(access_expression, containing_type);
+        let is_direct_alias_receiver = if let Some(receiver) =
+            access_receiver.filter(|&receiver| self.kind_of(receiver) == SyntaxKind::Identifier)
+        {
+            self.get_resolved_symbol(receiver)?.is_some_and(|symbol| {
+                self.binder
+                    .symbol(symbol)
+                    .flags
+                    .intersects(SymbolFlags::ALIAS)
+            })
+        } else {
+            false
+        };
+        let is_actual_class = containing_symbol.is_some_and(|symbol| {
+            let flags = self.binder.symbol(symbol).flags;
+            flags.intersects(SymbolFlags::CLASS) && !flags.intersects(SymbolFlags::FUNCTION)
+        });
+        // An imported class alias cannot acquire an expando member
+        // through `Alias.missing = ...`: the binder deliberately
+        // declines that declaration. Keep ordinary object aliases and
+        // local class-member inference behind their existing
+        // assignment-declaration producers.
+        let publish_class_alias_assignment_non_jsdoc = is_direct_alias_receiver
+            && is_actual_class
+            && assignment_declaration_kind == tsrs2_binder::AssignmentDeclarationKind::Property
+            && self.is_non_jsdoc_js_expression_type(access_expression, containing_type);
         let expose_non_jsdoc_js = publish_symbol_free_non_jsdoc
             || publish_declared_non_jsdoc
             || publish_module_read_non_jsdoc
             || publish_assignment_class_read_non_jsdoc
             || publish_direct_this_class_read_non_jsdoc
+            || publish_class_alias_assignment_non_jsdoc
             || containing_symbol.is_some_and(|symbol| {
                 self.non_jsdoc_js_module_exports_alias_targets
                     .contains(&symbol)

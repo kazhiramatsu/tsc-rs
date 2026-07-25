@@ -4325,6 +4325,49 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9be results (2026-07-25, checked-JS imported class aliases — DONE)
+
+The checked-JS 2339 publication boundary now admits a direct property
+assignment whose receiver resolves to an import alias and whose
+containing symbol is an actual class rather than a constructor
+function. TypeScript does not treat `Alias.missing = ...` as an
+expando declaration on the imported class, so the missing-property
+diagnostic is final even though ordinary checked-JS property
+assignment producers remain incomplete.
+
+The gate also requires `AssignmentDeclarationKind::Property`, direct
+identifier receiver syntax, and the shared non-JSDoc provenance proof.
+Consequently, ordinary imported object aliases and the existing
+`self = this` class-member inference shapes remain contained. A
+multi-file unit pin covers the imported-class positive face and an
+ordinary imported-object assignment control.
+
+The D2 port plan again selects
+`checkPropertyAccessExpressionOrQualifiedName`
+(`d2:e4c636a2528888afc36a842509f7385de02f5176ed13bf2a9de4d8194da5f176`,
+`scc:00002`, 1,396 members). It has one exact Rust ledger join, 71
+static callees, three static callers, no unresolved static calls, and
+two pre-existing escape rows; this slice adds or widens none.
+
+The target comprising `expandoOnAlias` and the
+`inferringClassMembersFromAssignments7` fabrication control grows
+from **0/1** to **1/1** at T0/T1/T2/T3, with FP=0.
+
+2xxx T0 grows to **20486/21051** (**97.3160%**) with FP=0; supported T0
+is **20485/20504** (**99.9073%**) with supported FN=**19**, all code
+2339. All-band T0 is **31408/49024** (**64.0666%**) with FP=0;
+supported all-band T0 is **31407/48477** (**64.7874%**). T1/T2/T3
+each report lost=0, gained=**1** in both bands and both scope views.
+The accepted-set ratchet adds one T0 identity and one
+multiplicity-complete identity to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,084**, binder tests are **55**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,865**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

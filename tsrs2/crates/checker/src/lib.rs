@@ -4383,6 +4383,48 @@ mod tests {
     }
 
     #[test]
+    fn checked_js_publishes_imported_class_alias_expando_misses() {
+        let source = "import { C, value } from \"./defs\";\n\
+                      C.missing = 1;\n\
+                      value.added = 1;\n";
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "defs.js".to_owned(),
+                    text: "export class C {}\nexport const value = {};\n".to_owned(),
+                },
+                InputFile {
+                    name: "main.js".to_owned(),
+                    text: source.to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.file_name.as_deref(),
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [(
+                Some("main.js"),
+                2339,
+                source.find("missing").expect("missing property") as u32,
+                "missing".len() as u32,
+            )]
+        );
+    }
+
+    #[test]
     fn checked_js_exposes_typed_declaration_arity_diagnostics() {
         let result = check_program(
             &[
