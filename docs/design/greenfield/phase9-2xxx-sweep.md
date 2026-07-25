@@ -4283,6 +4283,48 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9bd results (2026-07-25, checked-JS direct-this classes — DONE)
+
+The checked-JS 2339 publication boundary now admits non-assignment
+reads whose receiver syntax is directly `this` and whose containing
+symbol is an actual class rather than a constructor function. This
+keeps `self = this` alias inference behind its incomplete assignment
+producer while allowing a class method's own missing-member verdict.
+
+The target also recovers `jsdocAugments_noExtends`: its `@augments`
+tag supplies no real heritage, so the independent `this.x` miss
+remains non-JSDoc by the shared provenance proof. The excluded
+`jsdocAugmentsMissingType` contrast is still blocked by provenance.
+A unit pin covers the direct-`this` positive face; the
+`inferringClassMembersFromAssignments7` alias control remains clean.
+
+The D2 port plan again selects
+`checkPropertyAccessExpressionOrQualifiedName`
+(`d2:e4c636a2528888afc36a842509f7385de02f5176ed13bf2a9de4d8194da5f176`,
+`scc:00002`, 1,396 members). It has one exact Rust ledger join, 71
+static callees, three static callers, no unresolved static calls, and
+two pre-existing escape rows; this slice adds or widens none.
+
+The target comprising `typeFromPropertyAssignment26`,
+`jsdocAugments_noExtends`, and the
+`inferringClassMembersFromAssignments7` fabrication control grows from
+**1/3** to **3/3** at T0/T1/T2/T3, with FP=0.
+
+2xxx T0 grows to **20485/21051** (**97.3113%**) with FP=0; supported T0
+is **20484/20504** (**99.9025%**) with supported FN=**20**, all code
+2339. All-band T0 is **31407/49024** (**64.0645%**) with FP=0;
+supported all-band T0 is **31406/48477** (**64.7854%**). T1/T2/T3
+each report lost=0, gained=**2** in both bands and both scope views.
+The accepted-set ratchet adds two T0 identities and two
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,083**, binder tests are **55**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,865**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
