@@ -5017,6 +5017,21 @@ impl<'a> CheckerState<'a> {
             } else {
                 self.diag_span_of_node(error_target)
             };
+        // tsrs-native: the binder admits only non-JSDoc checked-JS
+        // bare/accessed-require aliases. A call/construct failure on
+        // that exact alias is therefore safe to publish without
+        // opening arbitrary checked-JS callees.
+        let publish_checked_js_require = self.is_in_js_file(error_target)
+            && matches!(
+                self.links.node(error_target).resolved_symbol,
+                LinkSlot::Resolved(symbol)
+                    if self.symbol_flags(symbol).intersects(SymbolFlags::ALIAS)
+                        && self
+                            .get_declaration_of_alias_symbol(symbol)
+                            .is_some_and(|declaration| {
+                                self.external_module_require_argument(declaration).is_some()
+                            })
+            );
         let mut diagnostic = self.diagnostic_at_span(&span, MessageChain::new(head, &[]));
         if maybe_missing_await {
             diagnostic.related.push(self.related_info_for_node(
@@ -5028,7 +5043,11 @@ impl<'a> CheckerState<'a> {
         if let Some(related) = related_information {
             diagnostic.related.push(related);
         }
+        let diagnostics_before = self.diagnostics.len();
         self.push_error_diagnostic(diagnostic);
+        if publish_checked_js_require {
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, head.code);
+        }
         Ok(())
     }
 

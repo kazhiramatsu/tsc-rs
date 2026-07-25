@@ -4043,6 +4043,66 @@ evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9ay results (2026-07-25, checked-JS require aliases — DONE)
+
+`bindVariableDeclarationOrBindingElement` now binds a non-exported,
+non-JSDoc checked-JS variable initialized from a bare or accessed
+`require()` as an alias, matching tsc. The alias-declaration and
+variable-check paths now recognize that shape, resolve accessed
+properties normally, and apply Node20's special `"module.exports"`
+target. The raw JSDoc attachment guard preserves tsc's
+`!getJSDocTypeTag(node)` condition while JSDoc nodes remain absent from
+the syntax arena.
+
+This distinction is required by the three `esmModuleExports` sibling
+fixtures: a `"module.exports"` class is constructable, a string is not,
+and a type-only class alias retains its existing type-only diagnostic.
+`invocationError` publishes its call/construct head only when the
+callee is the exact binder-proven require alias, so arbitrary checked-JS
+callees remain behind the existing provenance gate. The existing
+require-target marker is also populated during alias resolution,
+preserving the previously accepted property-miss and readonly rows.
+
+The D2 port plans select
+`bindVariableDeclarationOrBindingElement`
+(`d2:9279f1e11bc615d45349172e4d05f4d0e42622a70213aeddb10837251bed7ef9`,
+`scc:02200`, one member),
+`getTargetOfAliasDeclaration`
+(`d2:4926da5c19f02b8a585c8de7d2c2436adc8f3924470b5ee0610f803b97774cb0`),
+`getTargetOfImportEqualsDeclaration`
+(`d2:5abe56295e5de90a358454b847828ef746729b92152e2494d15be6ff5120209c`),
+`checkVariableLikeDeclaration`
+(`d2:3856fb2442401fe5e1f92a79f7a8d39b5c11f4313c355b8f788b8b428331258f`),
+and `invocationError`
+(`d2:fec0730d1c9bbedc074a74c514deea1cba9daa343fc9030d8752855e36751da3`);
+the latter four are in `scc:00002`. The first four have exact Rust
+ledger joins; `invocationError` has no exact join because the Rust
+boundary already folds `invocationErrorDetails`. The plans report
+10/12/15/55/10 static callees, 1/3/1/5/3 static callers, and no
+unresolved static calls. Only `checkVariableLikeDeclaration` carries
+escape rows (five existing rows); this slice adds or widens none.
+
+The `esmModuleExports2` target is now **9/9** at T0/T1, **7/9** at T2,
+and 0/9 at T3, with FP=0 and FN=0. The three-fixture fabrication audit
+is **11/11** at T0/T1 with FP=0. The two supported 2351 rows are
+recovered; correct require-alias typing also recovers one excluded
+JSDoc-corpus 2322 at all tiers.
+
+2xxx T0 grows to **20470/21051** (**97.2400%**) with FP=0; supported T0
+is **20469/20504** (**99.8293%**) with supported FN=**35**, all code
+2339. All-band T0 is **31392/49024** (**64.0339%**) with FP=0. T1/T2
+each report lost=0, gained=**3** in both bands for the all-corpus view
+and gained=**2** for the supported view; T3 reports lost=0, gained=1
+all-corpus and gained=0 supported. The accepted-set ratchet adds three
+T0 identities and three multiplicity-complete identities to both all
+and 2xxx; syntactic is unchanged.
+
+Checker tests are **1,074**, binder tests are **55**, and syntax tests
+are **106**. Ledger evidence grows to entries=**1,865**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

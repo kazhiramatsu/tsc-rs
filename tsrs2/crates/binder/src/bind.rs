@@ -722,7 +722,6 @@ impl<'a> Binder<'a> {
     /// tsc-hash: 4f9ece16f30dc33b03772113b03e5b4ac7f47c5767d2b4f214251e2706e1f194
     /// tsc-span: _tsc.js:45004-45020
     ///
-    /// JS-only: the bare-require alias arm remains for phase 9.8c.
     fn bind_variable_declaration_or_binding_element(&mut self, node: NodeId) {
         let name = name_field_of(self.source, node);
         if self.in_strict_mode {
@@ -739,7 +738,20 @@ impl<'a> Binder<'a> {
             return;
         };
         if !is_binding_pattern(self.source, name) {
-            if is_block_or_catch_scoped(self.source, node) {
+            let bind_as_require_alias = self.is_in_js_file()
+                && self
+                    .bare_or_accessed_require_call_for_variable(node)
+                    .is_some()
+                && !self.variable_declaration_has_jsdoc_type_tag(node)
+                && !crate::node_util::get_combined_modifier_flags(self.source, node)
+                    .intersects(ModifierFlags::EXPORT);
+            if bind_as_require_alias {
+                self.declare_symbol_and_add_to_symbol_table(
+                    node,
+                    SymbolFlags::ALIAS,
+                    SymbolFlags::ALIAS_EXCLUDES,
+                );
+            } else if is_block_or_catch_scoped(self.source, node) {
                 self.bind_block_scoped_declaration(
                     node,
                     SymbolFlags::BLOCK_SCOPED_VARIABLE,
@@ -759,6 +771,75 @@ impl<'a> Binder<'a> {
                 );
             }
         }
+    }
+
+    /// tsc-port: isVariableDeclarationInitializedWithRequireHelper @6.0.3
+    /// tsc-hash: 74a374493fdda8473ef9b2e1af5faef50f254e32608b55e9abaa08b2558f0a43
+    /// tsc-span: _tsc.js:14948-14954
+    fn bare_or_accessed_require_call_for_variable(&self, node: NodeId) -> Option<NodeId> {
+        let mut initializer = match &self.source.arena.node(node).data {
+            NodeData::VariableDeclaration(data) => data.initializer?,
+            _ => return None,
+        };
+        while let Some(expression) = access_expression_of(self.source, initializer) {
+            initializer = expression;
+        }
+        let NodeData::CallExpression(data) = &self.source.arena.node(initializer).data else {
+            return None;
+        };
+        if data
+            .expression
+            .and_then(|expression| id_text(self.source, expression))
+            != Some("require")
+        {
+            return None;
+        }
+        let arguments = data.arguments?;
+        let arguments = &self.source.arena.node_array(arguments).nodes;
+        if arguments.len() != 1
+            || !matches!(
+                kind_of(self.source, arguments[0]),
+                SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral
+            )
+        {
+            return None;
+        }
+        Some(initializer)
+    }
+
+    /// The syntax arena does not retain JSDoc attachment nodes yet.
+    /// Preserve tsc's `!getJSDocTypeTag(node)` require-alias guard
+    /// using the same nearest-leading-comment convention as the
+    /// checker-side JSDoc type reader.
+    fn variable_declaration_has_jsdoc_type_tag(&self, node: NodeId) -> bool {
+        let Some(name) = name_field_of(self.source, node) else {
+            return false;
+        };
+        let anchor_pos = self.source.arena.node(name).pos as usize;
+        let prefix = &self.source.text[..anchor_pos.min(self.source.text.len())];
+        let Some(comment_start) = prefix.rfind("/**") else {
+            return false;
+        };
+        let after_start = &prefix[comment_start + 3..];
+        let Some(relative_end) = after_start.find("*/") else {
+            return false;
+        };
+        let comment_end = comment_start + 3 + relative_end + 2;
+        let between = prefix[comment_end..].trim();
+        if !matches!(between, "" | "let" | "const" | "var")
+            && !between.ends_with(" let")
+            && !between.ends_with(" const")
+            && !between.ends_with(" var")
+        {
+            return false;
+        }
+        let comment = prefix[comment_start + 3..comment_end - 2].to_ascii_lowercase();
+        comment.match_indices("@type").any(|(index, _)| {
+            comment[index + "@type".len()..]
+                .chars()
+                .next()
+                .is_none_or(|character| character.is_whitespace() || character == '{')
+        })
     }
 
     /// tsc-port: bindParameter @6.0.3
@@ -4761,6 +4842,28 @@ module.exports = imported;
         let binder = bind(&source);
         assert!(binder.common_js_module_indicator.is_some());
         assert!(binder.node_symbol.contains_key(&source.root));
+    }
+
+    #[test]
+    fn checked_js_require_variables_bind_as_aliases_except_jsdoc_type_tags() {
+        let source = parse_named(
+            "a.js",
+            "const bare = require('./m');\n\
+             const accessed = require('./m').value;\n\
+             /** @type {number} */ const typed = require('./m');\n",
+            true,
+        );
+        let binder = bind(&source);
+        let declarations = find_nodes(&source, SyntaxKind::VariableDeclaration);
+        assert_eq!(declarations.len(), 3);
+        let flags: Vec<_> = declarations
+            .iter()
+            .map(|declaration| binder.symbols.symbol(binder.node_symbol[declaration]).flags)
+            .collect();
+        assert_eq!(flags[0], SymbolFlags::ALIAS);
+        assert_eq!(flags[1], SymbolFlags::ALIAS);
+        assert!(flags[2].intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE));
+        assert!(!flags[2].intersects(SymbolFlags::ALIAS));
     }
 
     #[test]

@@ -2421,6 +2421,51 @@ mod tests {
     }
 
     #[test]
+    fn checked_cjs_require_of_node20_esm_namespace_is_not_constructable() {
+        for es_module_interop in [true, false] {
+            let result = check_program(
+                &[
+                    InputFile {
+                        name: "/exporter.mts".to_owned(),
+                        text: "export default class Foo {}\n\
+                               const oops = \"oops\";\n\
+                               export { oops as \"module.exports\" };\n"
+                            .to_owned(),
+                    },
+                    InputFile {
+                        name: "/importer.cjs".to_owned(),
+                        text: "const Foo = require(\"./exporter.mjs\");\nnew Foo();\n".to_owned(),
+                    },
+                ],
+                &CompilerOptions {
+                    allow_js: true,
+                    check_js: Some(true),
+                    module: Some(102),
+                    module_resolution: Some(3),
+                    es_module_interop: Some(es_module_interop),
+                    ..CompilerOptions::default()
+                },
+            );
+            let errors: Vec<&tsrs2_diags::Diagnostic> = result
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 2351)
+                .collect();
+            assert_eq!(
+                errors.len(),
+                1,
+                "diagnostics={:#?}\npartial={:#?}",
+                result.diagnostics,
+                result.partial_checks
+            );
+            assert_eq!(
+                errors[0].message_text(),
+                "This expression is not constructable."
+            );
+        }
+    }
+
+    #[test]
     fn node20_namespace_import_uses_distinct_module_exports_export() {
         let result = check_program(
             &[
