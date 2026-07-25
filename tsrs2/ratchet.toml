@@ -236,8 +236,9 @@
 # p9 9.9at adds +3 generic-mapped identity diagnostics.
 # p9 9.9au adds +4 checked-JS assignment diagnostics hidden by file-wide JSDoc provenance.
 # p9 9.9av adds +1 checked-JS empty-object display diagnostic.
-rate = 0.640176
-matched = 31384
+# p9 9.9aw adds +2 recursive mapped-keyof constraint diagnostics.
+rate = 0.640217
+matched = 31386
 total = 49024
 allowed_regression = 0.0
 
@@ -340,8 +341,9 @@ allowed_regression = 0.0
 # p9 9.9at adds +3 generic-mapped identity diagnostics.
 # p9 9.9au adds +4 checked-JS assignment diagnostics hidden by file-wide JSDoc provenance.
 # p9 9.9av adds +1 checked-JS empty-object display diagnostic.
-rate = 0.97202
-matched = 20462
+# p9 9.9aw adds +2 recursive mapped-keyof constraint diagnostics.
+rate = 0.972115
+matched = 20464
 total = 21051
 allowed_regression = 0.0
 

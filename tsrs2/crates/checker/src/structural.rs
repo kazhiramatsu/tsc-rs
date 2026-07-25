@@ -710,13 +710,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         target_index_flags.bits() | IndexFlags::NO_REDUCIBLE_CHECK.bits(),
                     );
                     let keyof_constraint = self.st.get_index_type(constraint, index_flags)?;
-                    if is_true(self.is_related_to(
+                    if self.is_related_to(
                         source,
                         keyof_constraint,
                         RecursionFlags::TARGET,
                         report_errors,
                         IntersectionState::NONE,
-                    )?) {
+                    )? == Ternary::TRUE
+                    {
                         return Ok(Ternary::TRUE);
                     }
                 } else if self.st.is_generic_mapped_type_state(target_type)? {
@@ -740,13 +741,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         Some(name_type) => name_type,
                         None => constraint_type,
                     };
-                    if is_true(self.is_related_to(
+                    if self.is_related_to(
                         source,
                         target_keys,
                         RecursionFlags::TARGET,
                         report_errors,
                         IntersectionState::NONE,
-                    )?) {
+                    )? == Ternary::TRUE
+                    {
                         return Ok(Ternary::TRUE);
                     }
                 }
@@ -8045,6 +8047,20 @@ mod tests {
                 (rows, state.partial_check_records.len())
             },
         )
+    }
+
+    #[test]
+    fn recursive_mapped_keyof_constraint_requires_a_definite_relation() {
+        // 66144's `=== True` is intentional: stepping from `keyof T`
+        // into T's self-referential mapped constraint revisits the
+        // active relation and yields Maybe. That speculative result
+        // cannot make number or string assignable to `keyof T`.
+        assert_eq!(
+            rows_and_partials(
+                "function f4<T extends { [K in keyof T]: string }>(k: keyof T) {\n    k = 42;\n    k = \"hello\";\n}\n"
+            ),
+            (vec![(2322, 68, 1), (2322, 80, 1)], 0)
+        );
     }
 
     #[test]
