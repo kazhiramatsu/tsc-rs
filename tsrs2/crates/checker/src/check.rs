@@ -5865,12 +5865,16 @@ impl<'a> CheckerState<'a> {
                 // and the widening clone computed the complete member
                 // set through live machinery, so resolving empty IS
                 // tsc's `{}` (the all-consumed object rest pins).
-                // JS-file declarations stay curtained: their members
-                // can live in unbound JSDoc/expando machinery
-                // (fixSignatureCaching band), the 7.5-probe
-                // fabrication flavor. Lazily-resolved symbol-carrying
-                // empties (module-namespace faces, JSON module
-                // objects, instantiated literals) keep the guard.
+                // JS-file declarations otherwise stay curtained:
+                // their members can live in unbound JSDoc/expando
+                // machinery (fixSignatureCaching band), the 7.5-probe
+                // fabrication flavor. A born-resolved object-literal
+                // symbol whose syntax has zero members is exactly
+                // `{}` even in JS; getJSContainerObjectType carries
+                // later expando exports on a separate target type.
+                // Lazily-resolved symbol-carrying empties
+                // (module-namespace faces, JSON module objects,
+                // instantiated literals) keep the guard.
                 let symbol = self.tables.type_of(ty).symbol;
                 let js_declared = symbol.is_some_and(|symbol| {
                     self.binder
@@ -5878,9 +5882,21 @@ impl<'a> CheckerState<'a> {
                         .value_declaration
                         .is_some_and(|declaration| self.is_in_js_file(declaration))
                 });
+                let closed_js_class_container_literal = symbol
+                    .and_then(|symbol| self.binder.symbol(symbol).value_declaration)
+                    .and_then(|literal| {
+                        let declaration = self.parent_of(literal)?;
+                        let declaration_symbol = self.get_symbol_of_declaration_opt(declaration)?;
+                        self.get_closed_js_class_container_initializer(
+                            declaration,
+                            declaration_symbol,
+                            literal,
+                        )
+                    });
                 if symbol.is_none()
                     || ty == self.empty_type_literal_type
                     || (born_resolved && !js_declared)
+                    || (born_resolved && closed_js_class_container_literal.is_some())
                 {
                     return Ok(("{}".to_owned(), SliceTypeNodeKind::TypeLiteral));
                 }

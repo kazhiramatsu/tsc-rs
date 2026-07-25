@@ -507,18 +507,24 @@ impl<'a> CheckerState<'a> {
                 self.convert_auto_to_any(widened)?
             };
             let error_type = self.tables.intrinsics.error;
-            // [JSDOC] gate: a merged declaration living in a JS file
-            // takes its type from @type tags (unmodeled) — comparing
-            // against our annotation-less read fabricates 2403/2717.
-            let any_js_declaration =
-                self.binder
-                    .symbol(symbol)
-                    .declarations
-                    .iter()
-                    .any(|&declaration| {
-                        crate::is_js_file_name(&self.binder.source_of_node(declaration).file_name)
-                    });
-            if any_js_declaration {
+            // [JSDOC]/open-ended-JS gate: merged declarations living
+            // in JS need the unmodeled JSDoc/open-object machinery.
+            // The one closed face modeled by getJSContainerObjectType
+            // is safe to publish: an empty JS object merged into a
+            // non-JS class value.
+            let any_js_declaration = self
+                .binder
+                .symbol(symbol)
+                .declarations
+                .iter()
+                .any(|&declaration| self.is_in_js_file(declaration));
+            let closed_js_class_container = self
+                .only_expression_initializer_of(node)
+                .and_then(|initializer| {
+                    self.get_closed_js_class_container_initializer(node, symbol, initializer)
+                })
+                .is_some();
+            if any_js_declaration && !closed_js_class_container {
                 return Err(Unsupported::new(
                     "merged declaration typed from a JS file (@type tags [JSDOC], M8 checkJs band)",
                 ));
@@ -579,6 +585,10 @@ impl<'a> CheckerState<'a> {
                 // checkTypeAssignableToAndOptionallyElaborate like the
                 // Step-12 row: a literal initializer's member row
                 // replaces the merged head.
+                let publish_checked_js = self
+                    .is_non_jsdoc_js_expression_type(initializer, initializer_type)
+                    && self.is_non_jsdoc_js_expression_type(initializer, declaration_type);
+                let diagnostics_before = self.diagnostics.len();
                 let elaborated = !self.is_type_assignable_to(initializer_type, declaration_type)?
                     && self
                         .elaborate_literal_assignment(
@@ -594,6 +604,9 @@ impl<'a> CheckerState<'a> {
                         Some(node),
                         &diagnostics::Type_0_is_not_assignable_to_type_1,
                     )?;
+                }
+                if publish_checked_js {
+                    self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
                 }
             }
             if let Some(value_declaration) = value_declaration {
@@ -3121,6 +3134,48 @@ mod tests {
                 "interface T { a: string }\nfunction isObj(x: T | null) { return x !== null; }\ndeclare const w: T | null;\nfunction h() { if (isObj(w)) { var v: T; var v = w; } }\n"
             ),
             []
+        );
+    }
+
+    #[test]
+    fn checked_js_empty_container_includes_later_expando_exports() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "a.d.ts".to_owned(),
+                    text: "declare class A {}\n".to_owned(),
+                },
+                InputFile {
+                    name: "b.js".to_owned(),
+                    text: "const A = { };\nA.d = { };\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                target: Some(2),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.file_name.as_deref(),
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                    diagnostic.message_text(),
+                ))
+                .collect::<Vec<_>>(),
+            [(
+                Some("b.js"),
+                2739,
+                6,
+                1,
+                "Type '{}' is missing the following properties from type 'typeof A': prototype, d",
+            )]
         );
     }
 
