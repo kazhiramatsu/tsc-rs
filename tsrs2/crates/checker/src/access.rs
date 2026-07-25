@@ -1632,11 +1632,24 @@ impl<'a> CheckerState<'a> {
             )?;
             if self.is_assignment_to_readonly_entity(node, prop, assignment_kind)? {
                 let display = tsrs2_binder::unescape_leading_underscores(&right_text).to_owned();
+                let publish_checked_js = self.is_in_js_file(node)
+                    && self
+                        .tables
+                        .type_of(apparent_type)
+                        .symbol
+                        .map(|symbol| self.get_merged_symbol(symbol))
+                        .is_some_and(|symbol| {
+                            self.non_jsdoc_js_commonjs_require_targets.contains(&symbol)
+                        });
+                let diagnostics_before = self.diagnostics.len();
                 self.error_at(
                     Some(right),
                     &tsrs2_diags::gen::Cannot_assign_to_0_because_it_is_a_read_only_property,
                     &[&display],
                 );
+                if publish_checked_js {
+                    self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
+                }
                 return Ok(self.tables.intrinsics.error);
             }
             // 75319: the this-property-in-constructor arm selects
@@ -2975,8 +2988,9 @@ impl<'a> CheckerState<'a> {
         let expose_non_jsdoc_js = containing_symbol.is_some_and(|symbol| {
             self.non_jsdoc_js_module_exports_alias_targets
                 .contains(&symbol)
-        }) && self
-            .is_non_jsdoc_js_expression_type(access_expression, containing_type);
+                && self.is_non_jsdoc_js_expression_type(access_expression, containing_type)
+                || self.non_jsdoc_js_commonjs_require_targets.contains(&symbol)
+        });
         let diagnostics_before = self.diagnostics.len();
         if is_unchecked_js
             && diagnostic.code()
