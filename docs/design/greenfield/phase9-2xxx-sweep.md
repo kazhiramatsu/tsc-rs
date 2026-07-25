@@ -2972,6 +2972,30 @@ Checker tests are **1,030**. Escape evidence is unchanged at
 sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
 Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9n results (2026-07-25, checked-JS typed arity — DONE)
+
+The missing-argument check now ports the non-strict JavaScript
+`acceptsVoidUndefinedUnknownOrAny` predicate in `hasCorrectArity`.
+Strict checked-JS calls into typed declarations publish their 2554
+rows through the exact non-JSDoc diagnostic-key sink. Signatures owned
+by JavaScript/JSDoc declarations remain on their separate excluded
+boundary.
+
+This closes all **6** supported 2554 rows owned by typed declarations:
+the three direct calls and three interface-method calls in
+`callWithMissingVoidUndefinedUnknownAnyInJs.ts` under `strict=true`.
+The `strict=false` matrix remains clean. 2xxx T0 grows to
+**20364/21051** (**96.7365%**) with FP=0; supported T0 is
+**20364/20504** (**99.3172%**) with supported FN=**140**. All-band T0 is
+**31286/49024** (**63.8177%**) with FP=0. T1/T2/T3 each report lost=0,
+gained=**6** in both bands and both scope views. The accepted-set
+ratchet adds 6 T0 identities and 6 multiplicity-complete identities to
+both all and 2xxx; syntactic is unchanged.
+
+Checker tests are **1,032**. Escape evidence is unchanged at
+sites=**192**, stale=0, untagged=0, recovery=**115**, dormant=1.
+Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
