@@ -3281,6 +3281,29 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9aa results (2026-07-25, checked-JS syntactic truthiness — DONE)
+
+`checkTruthinessOfType` now publishes the exact diagnostic key when
+its `getSyntacticTruthySemantics` result alone proves a JavaScript
+expression always truthy or falsy. The void/type-derived branch stays
+outside this publication path, so JSDoc type provenance cannot admit
+neighboring diagnostics; plain JavaScript remains filtered.
+
+This closes both supported 2872 rows in `checkJsdocReturnTag1` and
+`checkJsdocReturnTag2`. 2xxx T0 grows to **20410/21051**
+(**96.9550%**) with FP=0; supported T0 is **20410/20504**
+(**99.5416%**) with supported FN=**94**. All-band T0 is
+**31332/49024** (**63.9116%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**2** in both bands and both scope views. The
+accepted-set ratchet adds 2 T0 identities and 2
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,045** and binder tests are **53**. Ledger
+evidence is unchanged at entries=**1,856**, stale=0. Escape evidence
+is unchanged at sites=**192**, stale=0, untagged=0, recovery=**115**,
+dormant=1. Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
