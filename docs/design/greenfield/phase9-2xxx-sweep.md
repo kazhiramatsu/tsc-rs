@@ -4701,6 +4701,47 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9bm results (2026-07-25, JSDoc satisfies literal misses — DONE)
+
+The checked-JS 2339 publication path now recognizes a non-assignment
+property read from the source object retained by an inline JSDoc
+`@satisfies` tag. The proof requires an identifier receiver, a
+variable-declaration initializer that strips directly to an object
+literal, the exact inline tag in that declaration, and identity
+between the containing type's value declaration and that literal.
+Satisfies preserves the expression type, so this member set is
+complete independently of the still-excluded satisfies relation.
+
+A unit pin covers the published miss, an existing-member read, and an
+inline `@type` counterexample. The two 2353 rows in
+`checkJsdocSatisfiesTag7/10` remain excluded and unimplemented; this
+slice changes only the three supported downstream 2339 rows.
+
+The D2 port plan is `reportNonexistentProperty`
+(`d2:681dc9d40f1bb3d69339aaabed7c5c7e02fc0bd5b498bb5eeee4eca60cd94001`,
+`scc:00002`, 1,396 members). It has no exact Rust ledger join, 24
+static callees, two static callers, no unresolved static calls, and no
+escape rows.
+
+The three-fixture target `checkJsdocSatisfiesTag6/7/10` grows from
+**0/5** to **3/5** at T0/T1/T2/T3, with FP=0; its supported view grows
+from **0/3** to **3/3**. Exact target and full-band diffs report
+T1/T2/T3 lost=0/gained=**3** in both scope views.
+
+2xxx T0 grows to **20500/21051** (**97.3825%**) with FP=0; supported T0
+is **20499/20504** (**99.9756%**) with supported FN=**5**, all code
+2339. All-band T0 is **31422/49024** (**64.0951%**) with FP=0;
+supported all-band T0 is **31421/48477** (**64.8163%**). The
+accepted-set ratchet adds three T0 identities and three
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,093**, binder tests are **55**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,866**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
