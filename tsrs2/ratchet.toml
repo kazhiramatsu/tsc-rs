@@ -217,8 +217,9 @@
 # p9 9.9aa adds +2 checked-JS syntactic truthiness rows.
 # p9 9.9ab adds +1 ambient const-enum access under verbatim syntax.
 # p9 9.9ac adds +1 checked-JS non-JSDoc operator diagnostic.
-rate = 0.639156
-matched = 31334
+# p9 9.9ad adds +1 checked-JS non-JSDoc base-constructor diagnostic.
+rate = 0.639177
+matched = 31335
 total = 49024
 allowed_regression = 0.0
 
@@ -302,8 +303,9 @@ allowed_regression = 0.0
 # p9 9.9aa adds +2 checked-JS syntactic truthiness rows.
 # p9 9.9ab adds +1 ambient const-enum access under verbatim syntax.
 # p9 9.9ac adds +1 checked-JS non-JSDoc operator diagnostic.
-rate = 0.969645
-matched = 20412
+# p9 9.9ad adds +1 checked-JS non-JSDoc base-constructor diagnostic.
+rate = 0.969693
+matched = 20413
 total = 21051
 allowed_regression = 0.0
 

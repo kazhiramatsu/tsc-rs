@@ -3351,6 +3351,30 @@ evidence is unchanged at entries=**1,856**, stale=0. Escape evidence
 is unchanged at sites=**192**, stale=0, untagged=0, recovery=**115**,
 dormant=1. Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9ad results (2026-07-25, checked-JS base constructor — DONE)
+
+The non-constructable base-class branch now publishes its exact 2507
+diagnostic only when both the JavaScript heritage expression and its
+resolved base-constructor type are free of JSDoc provenance. Existing
+JavaScript constructor declarations still take the earlier
+`isJSConstructor` path, so valid constructor-function inheritance is
+unchanged.
+
+This closes the supported 2507 row in
+`classCanExtendConstructorFunction`. 2xxx T0 grows to
+**20413/21051** (**96.9693%**) with FP=0; supported T0 is
+**20413/20504** (**99.5562%**) with supported FN=**91**. All-band T0
+is **31335/49024** (**63.9177%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**1** in both bands and both scope views. The
+accepted-set ratchet adds one T0 identity and one
+multiplicity-complete identity to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,048** and binder tests are **53**. Ledger
+evidence is unchanged at entries=**1,856**, stale=0. Escape evidence
+is unchanged at sites=**192**, stale=0, untagged=0, recovery=**115**,
+dormant=1. Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
