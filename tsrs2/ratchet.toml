@@ -241,8 +241,9 @@
 # p9 9.9ay adds +3 checked-JS require-alias diagnostics.
 # p9 9.9az adds +6 checked-JS symbol-free property-miss diagnostics.
 # p9 9.9ba adds +2 checked-JS non-JS-declared property-miss diagnostics.
-rate = 0.640503
-matched = 31400
+# p9 9.9bb adds +4 checked-JS plain-value-module property-miss diagnostics.
+rate = 0.640584
+matched = 31404
 total = 49024
 allowed_regression = 0.0
 
@@ -350,8 +351,9 @@ allowed_regression = 0.0
 # p9 9.9ay adds +3 checked-JS require-alias diagnostics.
 # p9 9.9az adds +6 checked-JS symbol-free property-miss diagnostics.
 # p9 9.9ba adds +2 checked-JS non-JS-declared property-miss diagnostics.
-rate = 0.97278
-matched = 20478
+# p9 9.9bb adds +4 checked-JS plain-value-module property-miss diagnostics.
+rate = 0.97297
+matched = 20482
 total = 21051
 allowed_regression = 0.0
 

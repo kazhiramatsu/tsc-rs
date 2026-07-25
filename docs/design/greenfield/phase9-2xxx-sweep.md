@@ -4197,6 +4197,52 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9bb results (2026-07-25, checked-JS value-module reads — DONE)
+
+The checked-JS 2339 publication boundary now admits non-assignment
+accesses whose merged receiver symbol flags are exactly
+`SymbolFlags::VALUE_MODULE`. This covers reads and nested accesses on
+the plain `exports` source-file module while direct assignment
+declarations remain contained.
+
+The initial bit-membership probe also admitted assignment-composed
+constructor symbols and exposed one false 2339 in
+`typeFromPropertyAssignment27`; it additionally recovered one real
+class miss that belongs to the next class-specific boundary. Requiring
+the exact plain value-module flag removes both from this slice. Unit
+pins cover a published `exports.missing()` read, a contained direct
+`exports.created = ...` declaration, and the assignment-bearing
+function/prototype fabrication control.
+
+The D2 port plan again selects
+`checkPropertyAccessExpressionOrQualifiedName`
+(`d2:e4c636a2528888afc36a842509f7385de02f5176ed13bf2a9de4d8194da5f176`,
+`scc:00002`, 1,396 members). It has one exact Rust ledger join, 71
+static callees, three static callers, no unresolved static calls, and
+two pre-existing escape rows; this slice adds or widens none.
+
+The target comprising `exportNestedNamespaces2`,
+`moduleExportsAliasLoop1`, `moduleExportsAliasLoop2`, and the
+`typeFromPropertyAssignment27` fabrication control grows from **0/4**
+to **4/4** at T0/T1/T2/T3, with FP=0. The four recovered rows are the
+two nested `exports.formatters` misses and the two missing `exports.fn1`
+reads.
+
+2xxx T0 grows to **20482/21051** (**97.2970%**) with FP=0; supported T0
+is **20481/20504** (**99.8878%**) with supported FN=**23**, all code
+2339. All-band T0 is **31404/49024** (**64.0584%**) with FP=0;
+supported all-band T0 is **31403/48477** (**64.7792%**). T1/T2/T3
+each report lost=0, gained=**4** in both bands and both scope views.
+The accepted-set ratchet adds four T0 identities and four
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,081**, binder tests are **55**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,865**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

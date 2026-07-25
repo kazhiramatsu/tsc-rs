@@ -3000,18 +3000,28 @@ impl<'a> CheckerState<'a> {
                     .iter()
                     .all(|&declaration| !self.is_in_js_file(declaration))
         });
-        let is_prototype_replacement_declaration =
-            self.parent_of(access_expression).is_some_and(|parent| {
+        let assignment_declaration_kind = self
+            .parent_of(access_expression)
+            .map(|parent| {
                 tsrs2_binder::get_assignment_declaration_kind(
                     self.binder.source_of_node(parent),
                     parent,
-                ) == tsrs2_binder::AssignmentDeclarationKind::Prototype
-            });
+                )
+            })
+            .unwrap_or(tsrs2_binder::AssignmentDeclarationKind::None);
+        let is_prototype_replacement_declaration =
+            assignment_declaration_kind == tsrs2_binder::AssignmentDeclarationKind::Prototype;
         let publish_declared_non_jsdoc = has_only_non_js_declarations
             && !is_prototype_replacement_declaration
             && self.is_non_jsdoc_js_expression_type(access_expression, containing_type);
+        let is_plain_value_module = containing_symbol
+            .is_some_and(|symbol| self.binder.symbol(symbol).flags == SymbolFlags::VALUE_MODULE);
+        let publish_module_read_non_jsdoc = is_plain_value_module
+            && assignment_declaration_kind == tsrs2_binder::AssignmentDeclarationKind::None
+            && self.is_non_jsdoc_js_expression_type(access_expression, containing_type);
         let expose_non_jsdoc_js = publish_symbol_free_non_jsdoc
             || publish_declared_non_jsdoc
+            || publish_module_read_non_jsdoc
             || containing_symbol.is_some_and(|symbol| {
                 self.non_jsdoc_js_module_exports_alias_targets
                     .contains(&symbol)
