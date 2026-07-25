@@ -256,6 +256,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::OptionalType => self.get_type_from_optional_type_node(node),
             SyntaxKind::UnionType => self.get_type_from_union_type_node(node),
             SyntaxKind::IntersectionType => self.get_type_from_intersection_type_node(node),
+            SyntaxKind::JSDocNullableType => self.get_type_from_jsdoc_nullable_type_node(node),
             SyntaxKind::NamedTupleMember => self.get_type_from_named_tuple_type_node(node),
             SyntaxKind::ParenthesizedType => {
                 let NodeData::ParenthesizedType(data) = self.data_of(node) else {
@@ -1033,6 +1034,24 @@ impl<'a> CheckerState<'a> {
         Ok(self
             .tables
             .add_optionality(inner_type, /*is_property*/ true, true))
+    }
+
+    /// tsc-port: getTypeFromJSDocNullableTypeNode @6.0.3
+    /// tsc-hash: 27b010970c110f8e8112f6e8e7721dbb3ac7cf23dff972eec00fa61a020e44e4
+    /// tsc-span: _tsc.js:60553-60556
+    fn get_type_from_jsdoc_nullable_type_node(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        let NodeData::JSDocNullableType(data) = self.data_of(node) else {
+            unreachable!("JSDocNullableType kind implies payload");
+        };
+        let inner = data
+            .r#type
+            .expect("parser invariant: JSDocNullableType operand always parsed");
+        let ty = self.get_type_from_type_node(inner)?;
+        Ok(if self.tables.strict_null_checks {
+            self.get_nullable_type(ty, TypeFlags::NULL.bits())
+        } else {
+            ty
+        })
     }
 
     /// tsc-port: getTypeFromRestTypeNode @6.0.3

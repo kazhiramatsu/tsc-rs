@@ -3828,6 +3828,10 @@ mod tests {
             ),
             [(1266, 62, 7), (1257, 92, 6), (2574, 112, 9)]
         );
+        assert_eq!(
+            checked_rows("interface Array<T> { length: number }\ntype T4 = [...string?];\n"),
+            [(2574, 49, 10)]
+        );
     }
 
     // ---- m4-review B28: checkGrammarVariableDeclaration's ambient
