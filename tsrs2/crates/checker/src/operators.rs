@@ -4042,7 +4042,15 @@ impl<'a> CheckerState<'a> {
                 } else {
                     &tsrs2_diags::gen::This_kind_of_expression_is_always_falsy
                 };
+                let publish_checked_js = self.is_in_js_file(node);
+                let diagnostics_before = self.diagnostics.len();
                 self.error_at(Some(node), message, &[]);
+                if publish_checked_js {
+                    self.mark_non_jsdoc_js_diagnostics_since_with_code(
+                        diagnostics_before,
+                        message.code,
+                    );
+                }
             }
         }
         Ok(ty)
@@ -4965,6 +4973,7 @@ mod tests {
 
     use crate::state::test_support::with_program_state;
     use crate::state::CheckerState;
+    use crate::{check_program, InputFile};
 
     /// Driver-level fixture check (access.rs idiom): oracle-pinned
     /// rows (tsc 6.0.3, noLib, options {} unless stated) — scratchpad
@@ -5208,6 +5217,33 @@ mod tests {
     #[test]
     fn always_truthy_literal_condition_reports_2872() {
         assert_eq!(checked_rows("2 && 1;\n"), [(2872, 0, 1)]);
+    }
+
+    #[test]
+    fn checked_js_syntactic_truthiness_row_is_published() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "function f() { return 5 || true; }\n".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diag| (
+                    diag.code(),
+                    diag.start.unwrap_or(u32::MAX),
+                    diag.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [(2872, 22, 1)]
+        );
     }
 
     #[test]
