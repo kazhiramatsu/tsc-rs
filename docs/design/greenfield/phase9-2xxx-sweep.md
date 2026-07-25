@@ -3783,6 +3783,42 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9ar results (2026-07-25, constructor visibility relations — DONE)
+
+`signaturesRelatedTo` now applies the upstream
+`constructorVisibilitiesAreCompatible` decision table after its
+abstract-constructor check. A private target accepts every source; a
+protected target rejects only private sources; a public target accepts
+only public sources. Missing signature declarations remain compatible,
+matching upstream recovery behavior.
+
+The D2 port plans select `constructorVisibilitiesAreCompatible`
+(`d2:1a725e23f2a447f8e2cfe80976d1cd11e46fe716a4b1b466b5925582632fa191`,
+`scc:00002`) and `signaturesRelatedTo`
+(`d2:e19e148130457754ca9a6c84cad2e0df74b5754a694ffb7e5b853d4aeff5f636`,
+`scc:00002`). Both have one exact ledger join; they report zero and
+three unresolved static calls respectively, and neither selected
+boundary adds or widens an escape.
+
+This closes all three supported 2322 rows in
+`classConstructorAccessibility3` at T0/T1/T2. The nested 2672 chain is
+still absent at T3 because this relation frame does not yet carry
+upstream `errorInfo`; that exact chain producer remains report-only
+debt, while the verdict, span, and head message are exact. 2xxx T0
+grows to **20451/21051** (**97.1498%**) with FP=0; supported T0 is
+**20451/20504** (**99.7415%**) with supported FN=**53**. All-band T0 is
+**31373/49024** (**63.9952%**) with FP=0. T1/T2 report lost=0,
+gained=**3**, while T3 reports lost=0, gained=0, in both bands and both
+scope views. The accepted-set ratchet adds three T0 identities and
+three multiplicity-complete identities to both all and 2xxx; syntactic
+is unchanged.
+
+Checker tests are **1,067**, binder tests are **54**, and syntax tests
+are **106**. Ledger evidence grows to entries=**1,863**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
