@@ -4552,6 +4552,56 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9bj results (2026-07-25, require-property alias object misses — DONE)
+
+The checked-JS 2339 publication boundary now follows a direct
+identifier alias whose own declaration is a
+`require("./module").property` chain. The resolved alias target must
+also be one of the resolved required module's own exports; comparing
+the resolved export aliases avoids admitting an unrelated JS alias
+merely because it has the same object type. The read remains
+non-assignment and non-JSDoc gated.
+
+The object display slice now renders a syntactically empty
+`PropertyAssignment` initializer as `{}` when its source is checked
+JS. This nested value is not an open-ended expando root. Plain-JS
+nested literals remain behind the existing curtain because later
+assignments can add members that are observable from a TypeScript
+consumer. Unit pins cover the exact multi-file require/export miss,
+its existing-member read control, and the plain-JS open-ended
+counterexample.
+
+The primary D2 port plan is `reportNonexistentProperty`
+(`d2:681dc9d40f1bb3d69339aaabed7c5c7e02fc0bd5b498bb5eeee4eca60cd94001`,
+`scc:00002`, 1,396 members). It has no exact Rust ledger join, 24
+static callees, two static callers, no unresolved static calls, and no
+escape rows. The display-side plan is
+`createTypeNodeFromObjectType`
+(`d2:ee7995bc4e5652a5299738da4b7869ac293461786969421512ab19ec8e32628a`,
+`scc:00046`, 58 members). It has no exact Rust ledger join, 17 static
+callees, one static caller, one unresolved `restoreFlags` call, and no
+escape rows.
+
+The target `requireOfESWithPropertyAccess` grows from **0/1** to
+**1/1** at T0/T1/T2/T3, with FP=0. The
+`jsObjectsMarkedAsOpenEnded` plain-JS counterexample remains exact.
+Exact target and full-band diffs report T1/T2/T3
+lost=0/gained=**1** in both scope views.
+
+2xxx T0 grows to **20493/21051** (**97.3493%**) with FP=0; supported T0
+is **20492/20504** (**99.9415%**) with supported FN=**12**, all code
+2339. All-band T0 is **31415/49024** (**64.0809%**) with FP=0;
+supported all-band T0 is **31414/48477** (**64.8019%**). The
+accepted-set ratchet adds one T0 identity and one
+multiplicity-complete identity to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,090**, binder tests are **55**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,865**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
