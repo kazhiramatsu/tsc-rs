@@ -233,8 +233,9 @@
 # p9 9.9aq adds +3 complex cross-product union diagnostics.
 # p9 9.9ar adds +3 constructor-visibility relation diagnostics.
 # p9 9.9as adds +3 JSX excess-property diagnostics against empty props.
-rate = 0.640013
-matched = 31376
+# p9 9.9at adds +3 generic-mapped identity diagnostics.
+rate = 0.640074
+matched = 31379
 total = 49024
 allowed_regression = 0.0
 
@@ -334,8 +335,9 @@ allowed_regression = 0.0
 # p9 9.9aq adds +3 complex cross-product union diagnostics.
 # p9 9.9ar adds +3 constructor-visibility relation diagnostics.
 # p9 9.9as adds +3 JSX excess-property diagnostics against empty props.
-rate = 0.97164
-matched = 20454
+# p9 9.9at adds +3 generic-mapped identity diagnostics.
+rate = 0.971783
+matched = 20457
 total = 21051
 allowed_regression = 0.0
 

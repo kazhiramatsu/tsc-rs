@@ -11714,6 +11714,27 @@ mod mapped_type_tests {
             },
         );
     }
+
+    #[test]
+    fn mapped_type_modifiers_participate_in_identity() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<T>() {\n\
+                   let a: { [P in keyof T]: T[P] };\n\
+                   let b: { [P in keyof T]?: T[P] };\n\
+                 }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let (_, plain) = annotation_type(state, "a");
+                let (_, optional) = annotation_type(state, "b");
+                assert!(!state
+                    .is_type_identical_to(plain, optional)
+                    .expect("mapped modifiers participate in identity"));
+            },
+        );
+    }
 }
 
 #[cfg(test)]

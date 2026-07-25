@@ -3859,6 +3859,42 @@ evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9at results (2026-07-25, generic-mapped emptiness and identity — DONE)
+
+`isEmptyObjectType` now preserves upstream's
+`!isGenericMappedType(type)` object guard. Without it, unresolved
+generic mapped sources appeared structurally empty, so the
+`structuredTypeRelatedToWorker` partial-mapped fast path accepted a
+plain mapped source against an optional mapped target before
+`mappedTypeRelatedTo` could compare modifier identity.
+
+The D2 port plans select `isEmptyObjectType`
+(`d2:27482fef3967f3809d5e6483dcabec368a36bd1a3c6135a027cf436e3addf7f6`,
+`scc:00002`) and `structuredTypeRelatedToWorker`
+(`d2:5a58148983e5851631490e9c47108f8247ff7c3a436b27d6e6a44d08ea0c15cc`,
+`scc:00002`). Each has one exact ledger join and zero unresolved static
+calls; neither selected boundary adds or widens an escape.
+
+This closes both remaining supported 2403 rows in `mappedTypeErrors`
+and the same-root supported 2322 row in `mappedTypeRelationships`.
+All three rows match T0/T1/T2/T3, and the target `mappedTypeErrors`
+fixture is 27/27 at T0/T1/T2 (16/27 at T3, with the unrelated existing
+chain tail unchanged).
+
+2xxx T0 grows to **20457/21051** (**97.1783%**) with FP=0; supported T0
+is **20457/20504** (**99.7708%**) with supported FN=**47**. All-band T0
+is **31379/49024** (**64.0074%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**3** in both bands and both scope views. The
+accepted-set ratchet adds three T0 identities and three
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,069**, binder tests are **54**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,863**, stale=0. Escape
+evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

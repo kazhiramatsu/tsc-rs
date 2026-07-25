@@ -2426,6 +2426,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:64647-64649
     pub fn is_empty_object_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
         let flags = self.tables.flags_of(ty);
+        if flags.intersects(TypeFlags::OBJECT) && self.is_generic_mapped_type_state(ty)? {
+            return Ok(false);
+        }
         // Tuples carry at least the `length` property — never empty
         // (member resolution for references is M4 5.3).
         if self.tables.is_tuple_type(ty) {
