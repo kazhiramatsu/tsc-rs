@@ -6709,6 +6709,89 @@ impl<'a> CheckerState<'a> {
         Ok(instantiated)
     }
 
+    /// tsrs-native: the bounded syntax/merge predicate shared by the
+    /// producer, diagnostic display, and checked-JS publication gate.
+    pub(crate) fn get_closed_js_class_container_initializer(
+        &self,
+        declaration: NodeId,
+        symbol: SymbolId,
+        initializer: NodeId,
+    ) -> Option<NodeId> {
+        if self.kind_of(declaration) != SyntaxKind::VariableDeclaration
+            || !self.is_in_js_file(declaration)
+        {
+            return None;
+        }
+        // Until the general JS open-ended-object path is live, admit
+        // only the closed merge face exercised here: a JS container
+        // merged into a non-JS class value. Ordinary JS objects,
+        // JSDoc globals, and enum/namespace expandos must retain their
+        // existing inference path.
+        let value_declaration = self.binder.symbol(symbol).value_declaration?;
+        if value_declaration == declaration
+            || self.is_in_js_file(value_declaration)
+            || self.kind_of(value_declaration) != SyntaxKind::ClassDeclaration
+        {
+            return None;
+        }
+        let source = self.binder.source_of_node(declaration);
+        let name = self.name_of_node(declaration)?;
+        let initializer = tsrs2_binder::assignment::get_expando_initializer(
+            source,
+            initializer,
+            tsrs2_binder::assignment::is_prototype_access(source, name),
+        )?;
+        let NodeData::ObjectLiteralExpression(data) = self.data_of(initializer) else {
+            return None;
+        };
+        if data
+            .properties
+            .is_some_and(|properties| !source.arena.node_array(properties).nodes.is_empty())
+        {
+            return None;
+        }
+        Some(initializer)
+    }
+
+    /// tsc-port: getJSContainerObjectType @6.0.3
+    /// tsc-hash: 6201f248dd5b3faeff53f29dca564a141a1707283aacd2d8f5fb008c0967aa95
+    /// tsc-span: _tsc.js:56296-56314
+    ///
+    /// Variable-declaration face. The program binder has already
+    /// merged the declaration/assignment symbol and its export table,
+    /// so the upstream node-symbol ancestor merge is represented by
+    /// the merged symbol's exports. An empty checked-JS object
+    /// initializer is a container whose apparent members include
+    /// later expando assignments and merged class exports.
+    fn get_js_container_object_type(
+        &mut self,
+        declaration: NodeId,
+        symbol: SymbolId,
+        initializer: NodeId,
+    ) -> Option<TypeId> {
+        self.get_closed_js_class_container_initializer(declaration, symbol, initializer)?;
+        let members = self.binder.symbol(symbol).exports.clone();
+        let properties = members.values().copied().collect();
+        let ty = self.create_resolved_empty_anonymous_type(Some(symbol));
+        self.tables.type_mut(ty).object_flags = ObjectFlags::from_bits(
+            self.tables.object_flags_of(ty).bits() | ObjectFlags::JS_LITERAL.bits(),
+        );
+        let members_id = self
+            .links
+            .ty(ty)
+            .resolved_members
+            .resolved()
+            .expect("fresh anonymous type has resolved members");
+        *self.members_mut(members_id) = ResolvedMembers {
+            members,
+            properties,
+            call_signatures: Vec::new(),
+            construct_signatures: Vec::new(),
+            index_infos: Vec::new(),
+        };
+        Some(ty)
+    }
+
     /// tsc-port: getTypeOfVariableOrParameterOrProperty @6.0.3
     /// tsc-hash: 3401237074b42af69c2ceace5255cc0e405c373c4ab621f0c3e9f253791356bd
     /// tsc-span: _tsc.js:56631-56641
@@ -7681,11 +7764,17 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::EnumMember
         ) && self.initializer_of(declaration).is_some();
         if has_expression_initializer {
-            // getJSContainerObjectType may refine this through JSDoc
-            // declarations. In their absence, the ordinary
-            // initializer inference path is the same observable
-            // fallback and keeps checked-JS declarations fully
-            // checked.
+            if kind == SyntaxKind::VariableDeclaration && self.is_in_js_file(declaration) {
+                let symbol = self.get_symbol_of_declaration(declaration)?;
+                let initializer = self
+                    .initializer_of(declaration)
+                    .expect("has_expression_initializer checked above");
+                if let Some(container) =
+                    self.get_js_container_object_type(declaration, symbol, initializer)
+                {
+                    return Ok(Some(container));
+                }
+            }
             let initializer_type =
                 self.check_declaration_initializer(declaration, check_mode, None)?;
             let widened =

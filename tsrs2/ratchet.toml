@@ -222,8 +222,9 @@
 # p9 9.9af adds +2 checked-JS cross-file redeclaration diagnostics.
 # p9 9.9ag adds +1 unresolved internal import-alias reference diagnostic.
 # p9 9.9ah adds +2 outer generic-reference display diagnostics.
-rate = 0.63932
-matched = 31342
+# p9 9.9ai adds +1 checked-JS class-container merge diagnostic.
+rate = 0.63934
+matched = 31343
 total = 49024
 allowed_regression = 0.0
 
@@ -312,8 +313,9 @@ allowed_regression = 0.0
 # p9 9.9af adds +2 checked-JS cross-file redeclaration diagnostics.
 # p9 9.9ag adds +1 unresolved internal import-alias reference diagnostic.
 # p9 9.9ah adds +2 outer generic-reference display diagnostics.
-rate = 0.970025
-matched = 20420
+# p9 9.9ai adds +1 checked-JS class-container merge diagnostic.
+rate = 0.970073
+matched = 20421
 total = 21051
 allowed_regression = 0.0
 

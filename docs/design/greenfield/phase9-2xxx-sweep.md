@@ -3477,6 +3477,34 @@ stale=0. Escape evidence is unchanged at sites=**192**, stale=0,
 untagged=0, recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9ai results (2026-07-25, checked-JS class-container merges — DONE)
+
+The variable-like declaration producer now ports the closed
+`getJSContainerObjectType` face needed when an empty checked-JS object
+is merged into a non-JS class value. The produced anonymous type takes
+its members from the merged symbol's export table, so later expando
+assignments and the class `prototype` participate in the initializer
+relation. The merged-declaration checker and empty-object display
+curtain admit only this exact syntax/merge shape; ordinary open-ended
+JavaScript objects, JSDoc globals, and enum/namespace expandos retain
+their existing containment.
+
+This closes the remaining supported 2739 row in
+`jsContainerMergeTsDeclaration3`. 2xxx T0 grows to
+**20421/21051** (**97.0073%**) with FP=0; supported T0 is
+**20421/20504** (**99.5952%**) with supported FN=**83**. All-band T0
+is **31343/49024** (**63.9340%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**1** in both bands and both scope views. The
+accepted-set ratchet adds one T0 identity and one
+multiplicity-complete identity to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,054**, binder tests are **54**, and syntax tests
+are **106**. Ledger evidence grows to entries=**1,857**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0,
+untagged=0, recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
