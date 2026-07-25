@@ -3130,10 +3130,11 @@ impl<'a> CheckerState<'a> {
             (".cjs", &[".cts", ".d.cts"][..]),
         ] {
             if let Some(base) = candidate.strip_suffix(known) {
+                let resolved_using_ts_extension = TS_EXTENSIONS.contains(&known);
                 for extension in subs {
                     let probed = format!("{base}{extension}");
                     if let Some(index) = lookup(&probed) {
-                        return Some(make(index, false, &probed));
+                        return Some(make(index, resolved_using_ts_extension, &probed));
                     }
                 }
                 break;
@@ -6438,6 +6439,27 @@ mod tests {
                     "An import path can only end with a '.cts' extension when 'allowImportingTsExtensions' is enabled.".to_owned(),
                 ),
             ]
+        );
+    }
+
+    #[test]
+    fn declaration_extension_substitution_preserves_ts_extension_provenance() {
+        let files = [
+            (
+                "/types.d.ts",
+                "import {} from \"./a.d.ts\";\nimport type {} from \"./a.d.ts\";\n",
+            ),
+            ("/a.ts", "export {};\n"),
+        ];
+        assert_eq!(
+            program_rows(
+                &files,
+                &CompilerOptions {
+                    allow_importing_ts_extensions: Some(true),
+                    ..CompilerOptions::default()
+                },
+            ),
+            [("/types.d.ts".to_owned(), 2846, 15, 10)]
         );
     }
 

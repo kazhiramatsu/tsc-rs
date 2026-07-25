@@ -202,8 +202,9 @@
 # p9 9.9m adds +7 file-less global diagnostics.
 # p9 9.9n adds +6 checked-JS typed-declaration arity diagnostics.
 # p9 9.9o adds +4 typed missing-namespace tail diagnostics.
-rate = 0.638259
-matched = 31290
+# p9 9.9p adds +4 declaration-extension substitution diagnostics.
+rate = 0.63834
+matched = 31294
 total = 49024
 allowed_regression = 0.0
 
@@ -272,8 +273,9 @@ allowed_regression = 0.0
 # p9 9.9m adds +7 file-less global diagnostics.
 # p9 9.9n adds +6 checked-JS typed-declaration arity diagnostics.
 # p9 9.9o adds +4 typed missing-namespace tail diagnostics.
-rate = 0.967555
-matched = 20368
+# p9 9.9p adds +4 declaration-extension substitution diagnostics.
+rate = 0.967745
+matched = 20372
 total = 21051
 allowed_regression = 0.0
 
