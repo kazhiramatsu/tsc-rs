@@ -5882,12 +5882,12 @@ impl<'a> CheckerState<'a> {
                         .value_declaration
                         .is_some_and(|declaration| self.is_in_js_file(declaration))
                 });
-                let closed_js_class_container_literal = symbol
+                let bounded_js_container_literal = symbol
                     .and_then(|symbol| self.binder.symbol(symbol).value_declaration)
                     .and_then(|literal| {
                         let declaration = self.parent_of(literal)?;
                         let declaration_symbol = self.get_symbol_of_declaration_opt(declaration)?;
-                        self.get_closed_js_class_container_initializer(
+                        self.get_bounded_js_container_initializer(
                             declaration,
                             declaration_symbol,
                             literal,
@@ -5896,7 +5896,7 @@ impl<'a> CheckerState<'a> {
                 if symbol.is_none()
                     || ty == self.empty_type_literal_type
                     || (born_resolved && !js_declared)
-                    || (born_resolved && closed_js_class_container_literal.is_some())
+                    || (born_resolved && bounded_js_container_literal.is_some())
                 {
                     return Ok(("{}".to_owned(), SliceTypeNodeKind::TypeLiteral));
                 }

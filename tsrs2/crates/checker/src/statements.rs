@@ -509,22 +509,22 @@ impl<'a> CheckerState<'a> {
             let error_type = self.tables.intrinsics.error;
             // [JSDOC]/open-ended-JS gate: merged declarations living
             // in JS need the unmodeled JSDoc/open-object machinery.
-            // The one closed face modeled by getJSContainerObjectType
-            // is safe to publish: an empty JS object merged into a
-            // non-JS class value.
+            // The bounded faces modeled by getJSContainerObjectType
+            // are safe to publish: an empty JS variable with real
+            // binder exports, or one merged into a non-JS class value.
             let any_js_declaration = self
                 .binder
                 .symbol(symbol)
                 .declarations
                 .iter()
                 .any(|&declaration| self.is_in_js_file(declaration));
-            let closed_js_class_container = self
+            let bounded_js_container = self
                 .only_expression_initializer_of(node)
                 .and_then(|initializer| {
-                    self.get_closed_js_class_container_initializer(node, symbol, initializer)
+                    self.get_bounded_js_container_initializer(node, symbol, initializer)
                 })
                 .is_some();
-            if any_js_declaration && !closed_js_class_container {
+            if any_js_declaration && !bounded_js_container {
                 return Err(Unsupported::new(
                     "merged declaration typed from a JS file (@type tags [JSDOC], M8 checkJs band)",
                 ));
@@ -3176,6 +3176,80 @@ mod tests {
                 1,
                 "Type '{}' is missing the following properties from type 'typeof A': prototype, d",
             )]
+        );
+    }
+
+    #[test]
+    fn checked_js_define_property_container_preserves_readonly_descriptors() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "globals.d.ts".to_owned(),
+                    text: "declare var Object: { defineProperty(target: any, name: string, descriptor: any): any };\n"
+                        .to_owned(),
+                },
+                InputFile {
+                    name: "a.js".to_owned(),
+                    text: "const x = {};\n\
+Object.defineProperty(x, \"writable\", { value: \"\", writable: true });\n\
+Object.defineProperty(x, \"implicit\", { value: \"\" });\n\
+Object.defineProperty(x, \"explicit\", { value: \"\", writable: false });\n\
+Object.defineProperty(x, \"getter\", { get() { return 1; } });\n\
+Object.defineProperty(x, \"accessor\", { get() { return 1; }, set(v) {} });\n"
+                        .to_owned(),
+                },
+                InputFile {
+                    name: "b.ts".to_owned(),
+                    text: "x.writable = \"\";\n\
+x.implicit = \"\";\n\
+x.explicit = \"\";\n\
+x.getter = 1;\n\
+x.accessor = 1;\n"
+                        .to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                target: Some(2),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.file_name.as_deref(),
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                    diagnostic.message_text(),
+                ))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    Some("b.ts"),
+                    2540,
+                    19,
+                    8,
+                    "Cannot assign to 'implicit' because it is a read-only property.",
+                ),
+                (
+                    Some("b.ts"),
+                    2540,
+                    36,
+                    8,
+                    "Cannot assign to 'explicit' because it is a read-only property.",
+                ),
+                (
+                    Some("b.ts"),
+                    2540,
+                    53,
+                    6,
+                    "Cannot assign to 'getter' because it is a read-only property.",
+                ),
+            ]
         );
     }
 

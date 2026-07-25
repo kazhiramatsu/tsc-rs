@@ -4728,9 +4728,8 @@ impl<'a> CheckerState<'a> {
     /// Full port (the M3 property-modifier slice widened at 5.5a with
     /// its checkIdentifier/delete consumers): readonly check flags,
     /// readonly properties (through the 5.3e modifier-flags reader),
-    /// const/using variables, get-only accessors, enum members.
-    /// isReadonlyAssignmentDeclaration (Object.defineProperty shapes)
-    /// is the JS band and is always false for TS inputs.
+    /// const/using variables, get-only accessors, enum members, and
+    /// the syntax-decidable Object.defineProperty assignment faces.
     pub fn is_readonly_symbol(&self, symbol: SymbolId) -> bool {
         if self
             .get_check_flags(symbol)
@@ -4757,6 +4756,78 @@ impl<'a> CheckerState<'a> {
             return true;
         }
         flags.intersects(SymbolFlags::ENUM_MEMBER)
+            || self
+                .binder
+                .symbol(symbol)
+                .declarations
+                .iter()
+                .any(|&declaration| self.is_readonly_assignment_declaration(declaration))
+    }
+
+    /// tsc-port: isReadonlyAssignmentDeclaration @6.0.3
+    /// tsc-hash: b24314da6ed2383d7effcd36e7298f7bfc7a28b6ac97beaecf56c41759ef0c4c
+    /// tsc-span: _tsc.js:79226-79252
+    ///
+    /// The literal-descriptor subset. A `value`
+    /// descriptor is readonly when `writable` is absent or literally
+    /// false; an accessor descriptor is readonly when it has no
+    /// setter. Dynamic `writable` expressions remain conservative
+    /// until their full type query is needed by the corpus.
+    fn is_readonly_assignment_declaration(&self, declaration: NodeId) -> bool {
+        if self.kind_of(declaration) != SyntaxKind::CallExpression {
+            return false;
+        }
+        let source = self.binder.source_of_node(declaration);
+        if !matches!(
+            tsrs2_binder::get_assignment_declaration_kind(source, declaration),
+            tsrs2_binder::AssignmentDeclarationKind::ObjectDefinePropertyValue
+                | tsrs2_binder::AssignmentDeclarationKind::ObjectDefinePropertyExports
+                | tsrs2_binder::AssignmentDeclarationKind::ObjectDefinePrototypeProperty
+        ) {
+            return false;
+        }
+        let NodeData::CallExpression(call) = self.data_of(declaration) else {
+            return false;
+        };
+        let Some(descriptor) = call
+            .arguments
+            .and_then(|arguments| self.nodes_of(Some(arguments)).get(2).copied())
+        else {
+            return false;
+        };
+        let NodeData::ObjectLiteralExpression(descriptor) = self.data_of(descriptor) else {
+            return false;
+        };
+        let mut has_value = false;
+        let mut has_set = false;
+        let mut writable = None;
+        for property in self.nodes_of(descriptor.properties) {
+            let Some(name) = tsrs2_binder::node_util::get_name_of_declaration(source, property)
+            else {
+                continue;
+            };
+            let name = tsrs2_binder::node_util::declaration_name_to_string(source, Some(name));
+            match name.as_str() {
+                "value" => has_value = true,
+                "set" => has_set = true,
+                "writable" => {
+                    writable = match self.data_of(property) {
+                        NodeData::PropertyAssignment(data) => data
+                            .initializer
+                            .map(|initializer| self.kind_of(initializer)),
+                        _ => Some(SyntaxKind::Unknown),
+                    };
+                }
+                _ => {}
+            }
+        }
+        if has_value {
+            return match writable {
+                None | Some(SyntaxKind::FalseKeyword) => true,
+                Some(_) => false,
+            };
+        }
+        !has_set
     }
 
     /// tsc getDeclarationNodeFlagsFromSymbol (13712): combined node
