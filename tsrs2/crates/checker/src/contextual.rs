@@ -3689,27 +3689,26 @@ impl<'a> CheckerState<'a> {
         if let Some(type_node) = type_node {
             return Ok(Some(self.get_type_from_type_node(type_node)?));
         }
-        if self.kind_of(declaration) == SyntaxKind::GetAccessor {
-            let source = self.binder.source_of_node(declaration);
-            if !node_util::has_dynamic_name(source, declaration) {
-                let symbol = self.get_symbol_of_declaration(declaration)?;
-                let setter = self
-                    .binder
-                    .symbol(symbol)
-                    .declarations
-                    .iter()
-                    .copied()
-                    .find(|&d| self.kind_of(d) == SyntaxKind::SetAccessor);
-                if let Some(setter) = setter {
-                    // getAnnotatedAccessorType(setter) rides
-                    // getSetAccessorValueParameter — a leading `this`
-                    // parameter is skipped (the A2-exposed FP root).
-                    let annotated = self
-                        .set_accessor_value_parameter(setter)
-                        .and_then(|p| self.effective_type_annotation_node(p));
-                    if let Some(annotated) = annotated {
-                        return Ok(Some(self.get_type_from_type_node(annotated)?));
-                    }
+        if self.kind_of(declaration) == SyntaxKind::GetAccessor
+            && self.has_bindable_name(declaration)?
+        {
+            let symbol = self.get_symbol_of_declaration(declaration)?;
+            let setter = self
+                .binder
+                .symbol(symbol)
+                .declarations
+                .iter()
+                .copied()
+                .find(|&d| self.kind_of(d) == SyntaxKind::SetAccessor);
+            if let Some(setter) = setter {
+                // getAnnotatedAccessorType(setter) rides
+                // getSetAccessorValueParameter — a leading `this`
+                // parameter is skipped (the A2-exposed FP root).
+                let annotated = self
+                    .set_accessor_value_parameter(setter)
+                    .and_then(|p| self.effective_type_annotation_node(p));
+                if let Some(annotated) = annotated {
+                    return Ok(Some(self.get_type_from_type_node(annotated)?));
                 }
             }
         }
@@ -4017,5 +4016,42 @@ mod tests {
                 state.pop_type_resolution();
             },
         );
+    }
+
+    #[test]
+    fn computed_getters_borrow_their_bindable_setter_type() {
+        let text = "declare const key: unique symbol;\nclass A {\n    get [key]() { return \"\"; }\n    set [key](value: number) {}\n}\nconst enum E { Key = 1 }\nclass B {\n    get [E.Key]() { return true; }\n    set [E.Key](value: number) {}\n}\n";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            assert_eq!(
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| diagnostic.file_name.is_some())
+                    .map(|diagnostic| {
+                        (
+                            diagnostic.code(),
+                            diagnostic.start,
+                            diagnostic.length,
+                            diagnostic.message_text(),
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+                [
+                    (
+                        2322,
+                        Some(62),
+                        Some(6),
+                        "Type 'string' is not assignable to type 'number'."
+                    ),
+                    (
+                        2322,
+                        Some(164),
+                        Some(6),
+                        "Type 'boolean' is not assignable to type 'number'."
+                    )
+                ]
+            );
+        });
     }
 }

@@ -4007,6 +4007,42 @@ evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9ax results (2026-07-25, bindable computed accessors — DONE)
+
+`getReturnTypeFromAnnotation` now uses the upstream
+`hasBindableName` predicate when an unannotated getter borrows its
+setter's annotated value type. The Rust transcription had used only
+`!hasDynamicName`, excluding late-bindable computed names even after
+their const-enum or unique-symbol property key was proven. As a
+result, the getter inferred its own return type and missed the
+getter/setter incompatibility.
+
+The D2 port plan selects `getReturnTypeFromAnnotation`
+(`d2:413d3e5cb4e3e0dfae6f37936e74f03e5bcf3bd326af755c74c73b4cf3fb72ee`,
+`scc:00002`, 1,396 members). It reports one exact Rust ledger join,
+15 static callees, seven static callers, no unresolved static calls,
+and no escape rows. The change corrects one predicate inside that exact
+ported boundary and adds no new static dependency or escape.
+
+The three-fixture target (`constEnumPropertyAccess1`,
+`symbolDeclarationEmit12`, and `symbolProperty47`) is now **8/8** at
+T0/T1/T2/T3 with FP=0 and FN=0. This recovers all three remaining
+supported 2322 rows; supported 2xxx now has no 2322 residual.
+
+2xxx T0 grows to **20467/21051** (**97.2258%**) with FP=0; supported T0
+is **20467/20504** (**99.8195%**) with supported FN=**37**. The
+remaining supported rows are 2339 ×35 and 2351 ×2. All-band T0 is
+**31389/49024** (**64.0278%**) with FP=0. T1/T2/T3 each report lost=0,
+gained=**3** in both bands and both scope views. The accepted-set
+ratchet adds three T0 identities and three multiplicity-complete
+identities to both all and 2xxx; syntactic is unchanged.
+
+Checker tests are **1,073**, binder tests are **54**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,863**, stale=0. Escape
+evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
