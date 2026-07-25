@@ -215,8 +215,9 @@
 # p9 9.9y adds +4 checked-JS strict property-initialization rows.
 # p9 9.9z adds +4 checked-JS mixed CommonJS export redeclarations.
 # p9 9.9aa adds +2 checked-JS syntactic truthiness rows.
-rate = 0.639116
-matched = 31332
+# p9 9.9ab adds +1 ambient const-enum access under verbatim syntax.
+rate = 0.639136
+matched = 31333
 total = 49024
 allowed_regression = 0.0
 
@@ -298,8 +299,9 @@ allowed_regression = 0.0
 # p9 9.9y adds +4 checked-JS strict property-initialization rows.
 # p9 9.9z adds +4 checked-JS mixed CommonJS export redeclarations.
 # p9 9.9aa adds +2 checked-JS syntactic truthiness rows.
-rate = 0.96955
-matched = 20410
+# p9 9.9ab adds +1 ambient const-enum access under verbatim syntax.
+rate = 0.969598
+matched = 20411
 total = 21051
 allowed_regression = 0.0
 

@@ -3304,6 +3304,31 @@ evidence is unchanged at entries=**1,856**, stale=0. Escape evidence
 is unchanged at sites=**192**, stale=0, untagged=0, recovery=**115**,
 dormant=1. Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9ab results (2026-07-25, ambient const-enum access — DONE)
+
+`checkConstEnumAccess` now restores its `isolatedModules` /
+`verbatimModuleSyntax` block for the in-memory program host. Ambient
+const-enum value access reports 2748 with the option-name flavor,
+while ambient and type-query use sites remain valid. Output redirects
+are absent from the program host, matching the upstream no-redirect
+branch.
+
+This closes the supported F.A 2748 row in
+`verbatimModuleSyntaxAmbientConstEnum`; the import/export 2748 rows
+remain owned by their separate module-specifier emitter. 2xxx T0
+grows to **20411/21051** (**96.9598%**) with FP=0; supported T0 is
+**20411/20504** (**99.5464%**) with supported FN=**93**. All-band T0
+is **31333/49024** (**63.9136%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**1** in both bands and both scope views. The
+accepted-set ratchet adds one T0 identity and one
+multiplicity-complete identity to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,046** and binder tests are **53**. Ledger
+evidence is unchanged at entries=**1,856**, stale=0. Escape evidence
+is unchanged at sites=**192**, stale=0, untagged=0, recovery=**115**,
+dormant=1. Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
