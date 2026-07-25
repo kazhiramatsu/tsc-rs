@@ -1442,7 +1442,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getEffectivePropertyNameForPropertyNameNode @6.0.3
     /// tsc-hash: 97f6f84e70231a6c4759b95c1d8a145c2b66f88aef026d2d50db8cc0c83d8132
     /// tsc-span: _tsc.js:90537-90540
-    fn effective_property_name_for_property_name_node(
+    pub(crate) fn effective_property_name_for_property_name_node(
         &mut self,
         name: NodeId,
     ) -> CheckResult2<Option<String>> {

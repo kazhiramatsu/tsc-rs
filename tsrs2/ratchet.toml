@@ -208,8 +208,9 @@
 # p9 9.9s adds +2 JSDoc-nullable type-node diagnostics.
 # p9 9.9t adds +1 source-text JSDoc function-signature diagnostic.
 # p9 9.9u adds +1 checked-JS globalThis collision diagnostic.
-rate = 0.638544
-matched = 31304
+# p9 9.9v adds +1 duplicate object-literal method diagnostic.
+rate = 0.638565
+matched = 31305
 total = 49024
 allowed_regression = 0.0
 
@@ -284,8 +285,9 @@ allowed_regression = 0.0
 # p9 9.9s adds +2 JSDoc-nullable type-node diagnostics.
 # p9 9.9t adds +1 source-text JSDoc function-signature diagnostic.
 # p9 9.9u adds +1 checked-JS globalThis collision row.
-rate = 0.96822
-matched = 20382
+# p9 9.9v adds +1 duplicate object-literal method row.
+rate = 0.968268
+matched = 20383
 total = 21051
 allowed_regression = 0.0
 
