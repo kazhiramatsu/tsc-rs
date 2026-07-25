@@ -213,8 +213,9 @@
 # exact checked-JS property-miss publication.
 # p9 9.9x adds +7 unchecked-JS name/property spelling suggestions.
 # p9 9.9y adds +4 checked-JS strict property-initialization rows.
-rate = 0.638993
-matched = 31326
+# p9 9.9z adds +4 checked-JS mixed CommonJS export redeclarations.
+rate = 0.639075
+matched = 31330
 total = 49024
 allowed_regression = 0.0
 
@@ -294,8 +295,9 @@ allowed_regression = 0.0
 # exact checked-JS property-miss publication.
 # p9 9.9x adds +7 unchecked-JS name/property spelling suggestions.
 # p9 9.9y adds +4 checked-JS strict property-initialization rows.
-rate = 0.969265
-matched = 20404
+# p9 9.9z adds +4 checked-JS mixed CommonJS export redeclarations.
+rate = 0.969455
+matched = 20408
 total = 21051
 allowed_regression = 0.0
 

@@ -3255,6 +3255,32 @@ evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9z results (2026-07-25, CommonJS export redeclarations — DONE)
+
+`isDuplicatedCommonJSExport` now recognizes the upstream suppression
+boundary: multiple JavaScript declarations made exclusively through
+`exports.x` or `module.exports.x` are one CommonJS export and do not
+report 2323. When an arbitrary export-object declaration is mixed
+with a `module.exports` property declaration, the existing
+`checkExternalModuleExports` 2323 rows are published through exact
+checked-JS diagnostic keys. Plain JavaScript remains filtered.
+
+This closes all **4** supported 2323 rows in
+`moduleExportWithExportPropertyAssignment4`. 2xxx T0 grows to
+**20408/21051** (**96.9455%**) with FP=0; supported T0 is
+**20408/20504** (**99.5318%**) with supported FN=**96**. All-band T0
+is **31330/49024** (**63.9075%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**4** in both bands and both scope views. The
+accepted-set ratchet adds 4 T0 identities and 4
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,044** and binder tests are **53**. The exact
+upstream helper adds one ledger entry (entries=**1,856**, stale=0).
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

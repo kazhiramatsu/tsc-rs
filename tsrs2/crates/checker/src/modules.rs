@@ -6027,8 +6027,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkExternalModuleExports @6.0.3
     /// tsc-hash: 2d0f81291dd10b3cf351c83edab8f11522efad0f2939cece56fa438d6e8cec05
     /// tsc-span: _tsc.js:86505-86542
-    ///
-    /// isDuplicatedCommonJSExport is JS-only and always false here.
     pub(crate) fn check_external_module_exports(&mut self, container: NodeId) -> CheckResult2<()> {
         let Some(module_symbol) = self.binder.node_symbol(container) else {
             return Ok(());
@@ -6080,14 +6078,24 @@ impl<'a> CheckerState<'a> {
             if flags.intersects(SymbolFlags::TYPE_ALIAS) && exported_declarations_count <= 2 {
                 continue;
             }
-            if exported_declarations_count > 1 {
+            if exported_declarations_count > 1
+                && !self.is_duplicated_common_js_export(&declarations)
+            {
                 for &declaration in &declarations {
                     if self.is_not_overload(declaration) {
+                        let publish_checked_js = self.is_in_js_file(declaration);
+                        let diagnostics_before = self.diagnostics.len();
                         self.error_at(
                             Some(declaration),
                             &diagnostics::Cannot_redeclare_exported_variable_0,
                             &[unescape_leading_underscores(id)],
                         );
+                        if publish_checked_js {
+                            self.mark_non_jsdoc_js_diagnostics_since_with_code(
+                                diagnostics_before,
+                                2323,
+                            );
+                        }
                     }
                 }
             }
@@ -6095,6 +6103,30 @@ impl<'a> CheckerState<'a> {
         self.links
             .set_symbol_exports_checked(self.speculation_depth, module_symbol);
         Ok(())
+    }
+
+    /// tsc-port: isDuplicatedCommonJSExport @6.0.3
+    /// tsc-hash: c8f1e229671e33b36726d797e987576d7efd64765b496872521ea563d6bf4437
+    /// tsc-span: _tsc.js:86543-86545
+    fn is_duplicated_common_js_export(&self, declarations: &[NodeId]) -> bool {
+        declarations.len() > 1
+            && declarations.iter().all(|&declaration| {
+                if !self.is_in_js_file(declaration) {
+                    return false;
+                }
+                let expression = match self.data_of(declaration) {
+                    NodeData::PropertyAccessExpression(data) => data.expression,
+                    NodeData::ElementAccessExpression(data) => data.expression,
+                    _ => None,
+                };
+                expression.is_some_and(|expression| {
+                    let source = self.binder.source_of_node(expression);
+                    tsrs2_binder::assignment::is_exports_identifier(source, expression)
+                        || tsrs2_binder::assignment::is_module_exports_access_expression(
+                            source, expression,
+                        )
+                })
+            })
     }
 
     /// tsc-port: hasExportedMembers @6.0.3
@@ -6687,5 +6719,84 @@ mod tests {
                 "A declaration file cannot be imported without 'import type'. Did you mean to import an implementation file './foo.mjs' instead?".to_owned(),
             )]
         );
+    }
+
+    #[test]
+    fn checked_js_mixed_common_js_exports_publish_redeclarations() {
+        let source = "module.exports.bothBefore = 'string';\n\
+                      A.justExport = 4;\n\
+                      A.bothBefore = 2;\n\
+                      A.bothAfter = 3;\n\
+                      module.exports = A;\n\
+                      function A() { this.p = 1; }\n\
+                      module.exports.bothAfter = 'string';\n\
+                      module.exports.justProperty = 'string';\n";
+        let files = [
+            (
+                "/requires.d.ts",
+                "declare var module: { exports: any };\n\
+                 declare var exports: any;\n",
+            ),
+            ("/mod1.js", source),
+        ];
+        let offset = |needle: &str| source.find(needle).expect("fixture needle") as u32;
+        assert_eq!(
+            program_rows(
+                &files,
+                &CompilerOptions {
+                    allow_js: true,
+                    check_js: Some(true),
+                    target: Some(2),
+                    ..CompilerOptions::default()
+                },
+            ),
+            [
+                (
+                    "/mod1.js".to_owned(),
+                    2323,
+                    offset("module.exports.bothBefore"),
+                    "module.exports.bothBefore".len() as u32,
+                ),
+                (
+                    "/mod1.js".to_owned(),
+                    2323,
+                    offset("A.bothBefore"),
+                    "A.bothBefore".len() as u32,
+                ),
+                (
+                    "/mod1.js".to_owned(),
+                    2323,
+                    offset("A.bothAfter"),
+                    "A.bothAfter".len() as u32,
+                ),
+                (
+                    "/mod1.js".to_owned(),
+                    2323,
+                    offset("module.exports.bothAfter"),
+                    "module.exports.bothAfter".len() as u32,
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn duplicated_pure_common_js_exports_do_not_redeclare() {
+        let files = [
+            (
+                "/requires.d.ts",
+                "declare var module: { exports: any };\n\
+                 declare var exports: any;\n",
+            ),
+            ("/mod.js", "exports.same = 1;\nmodule.exports.same = 2;\n"),
+        ];
+        assert!(program_rows(
+            &files,
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        )
+        .is_empty());
     }
 }
