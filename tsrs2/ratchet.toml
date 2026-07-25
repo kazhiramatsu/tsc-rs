@@ -221,8 +221,9 @@
 # p9 9.9ae adds +2 export-default use-before-assignment diagnostics.
 # p9 9.9af adds +2 checked-JS cross-file redeclaration diagnostics.
 # p9 9.9ag adds +1 unresolved internal import-alias reference diagnostic.
-rate = 0.639279
-matched = 31340
+# p9 9.9ah adds +2 outer generic-reference display diagnostics.
+rate = 0.63932
+matched = 31342
 total = 49024
 allowed_regression = 0.0
 
@@ -310,8 +311,9 @@ allowed_regression = 0.0
 # p9 9.9ae adds +2 export-default use-before-assignment diagnostics.
 # p9 9.9af adds +2 checked-JS cross-file redeclaration diagnostics.
 # p9 9.9ag adds +1 unresolved internal import-alias reference diagnostic.
-rate = 0.96993
-matched = 20418
+# p9 9.9ah adds +2 outer generic-reference display diagnostics.
+rate = 0.970025
+matched = 20420
 total = 21051
 allowed_regression = 0.0
 
