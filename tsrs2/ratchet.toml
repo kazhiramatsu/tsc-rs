@@ -227,8 +227,9 @@
 # p9 9.9ak adds +3 function-expando use-before-assignment diagnostics.
 # p9 9.9al adds +2 pure CommonJS export-flow/alias diagnostics.
 # p9 9.9am adds +1 duplicated CommonJS export-flow diagnostic.
-rate = 0.639625
-matched = 31357
+# p9 9.9an adds +1 checked-JS not-a-module diagnostic.
+rate = 0.639646
+matched = 31358
 total = 49024
 allowed_regression = 0.0
 
@@ -322,8 +323,9 @@ allowed_regression = 0.0
 # p9 9.9ak adds +3 function-expando use-before-assignment diagnostics.
 # p9 9.9al adds +2 pure CommonJS export-flow/alias diagnostics.
 # p9 9.9am adds +1 duplicated CommonJS export-flow diagnostic.
-rate = 0.970738
-matched = 20435
+# p9 9.9an adds +1 checked-JS not-a-module diagnostic.
+rate = 0.970785
+matched = 20436
 total = 21051
 allowed_regression = 0.0
 

@@ -3623,6 +3623,45 @@ stale=0. Escape evidence is unchanged at sites=**192**, stale=0,
 untagged=0, recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9an results (2026-07-25, checked-JS not-a-module flow — DONE)
+
+The JS-container probe in `getTypeForVariableLikeDeclaration` now
+treats the declaration symbol as optional. A binding-pattern variable
+has no declaration-level symbol because its symbols live on the binding
+elements; it therefore skips the empty-object container producer and
+continues through ordinary initializer checking, matching tsc.
+
+That continuation reaches `resolveExternalModule` for destructured
+`require` calls. Its resolved-script 2306 is now published through the
+checked-JS non-JSDoc gate, and the resolved file name is normalized to
+the host-absolute path used by tsc's message. This also repairs T2/T3
+for the previously matched 2306 in `importNonExternalModule`.
+
+The D2 port plans select
+`getTypeForVariableLikeDeclaration`
+(`d2:c39f341f1cc52f3344115071d3023df36d57d750309e23c87d66180289da25a8`)
+and `resolveExternalModule`
+(`d2:58affa056a8868001624fd3f98caed569d985fe09acd96da15ae894ab49e97a4`);
+both are exact ledger joins in `scc:00002`. The former has no unresolved
+static calls, while the latter has two; neither selected boundary adds
+or widens an escape.
+
+This closes the supported 2306 row in
+`jsDeclarationsReexportedCjsAlias`. 2xxx T0 grows to
+**20436/21051** (**97.0785%**) with FP=0; supported T0 is
+**20436/20504** (**99.6684%**) with supported FN=**68**. All-band T0
+is **31358/49024** (**63.9646%**) with FP=0. T1 reports lost=0,
+gained=**1** and T2/T3 each report lost=0, gained=**2** in both bands
+and both scope views. The accepted-set ratchet adds one T0 identity and
+one multiplicity-complete identity to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,061**, binder tests are **54**, and syntax tests
+are **106**. Ledger evidence is unchanged at entries=**1,858**,
+stale=0. Escape evidence is unchanged at sites=**192**, stale=0,
+untagged=0, recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

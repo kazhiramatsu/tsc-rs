@@ -2191,11 +2191,16 @@ impl<'a> CheckerState<'a> {
             }
             if let (Some(error_node), Some(_)) = (error_node, module_not_found_error) {
                 if !self.is_side_effect_import(error_node) {
+                    let diagnostics_before = self.diagnostics.len();
+                    let resolved_file_path = Self::normalize_program_path(&resolved_file_name, "");
                     self.error_at(
                         Some(error_node),
                         &diagnostics::File_0_is_not_a_module,
-                        &[&resolved_file_name],
+                        &[&resolved_file_path],
                     );
+                    if self.is_in_js_file(error_node) {
+                        self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
+                    }
                 }
             }
             return Ok(None);
@@ -6182,7 +6187,7 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{check_program, CompilerOptions, InputFile};
+    use crate::{check_program, check_program_with_libs_at, CompilerOptions, InputFile};
 
     /// Driver-level multi-file rows: (file, code, start, length) for
     /// located diagnostics (noLib artifacts are locationless and drop
@@ -6261,6 +6266,79 @@ mod tests {
                 ("main.ts".to_owned(), 2306, 44, 10),
                 ("main.ts".to_owned(), 2305, 65, 4),
             ]
+        );
+    }
+
+    #[test]
+    fn js_binding_pattern_checks_require_after_optional_container_symbol_probe() {
+        let source = "const { SomeClass } = require('./missing');\n";
+        assert_eq!(
+            program_rows(
+                &[("/main.js", source)],
+                &CompilerOptions {
+                    allow_js: true,
+                    check_js: Some(true),
+                    ..CompilerOptions::default()
+                },
+            ),
+            [(
+                "/main.js".to_owned(),
+                2307,
+                source.find("'./missing'").expect("module specifier") as u32,
+                "'./missing'".len() as u32,
+            )]
+        );
+    }
+
+    #[test]
+    fn checked_js_publishes_not_a_module_from_default_lib_collision() {
+        let source = "const { SomeClass } = require('./lib');\n";
+        let libs = [InputFile {
+            name: "lib.d.ts".to_owned(),
+            text: "interface DefaultLibraryFace {}\n".to_owned(),
+        }];
+        let files = [
+            InputFile {
+                name: "lib.js".to_owned(),
+                text: "class SomeClass {}\nmodule.exports = { SomeClass };\n".to_owned(),
+            },
+            InputFile {
+                name: "main.js".to_owned(),
+                text: source.to_owned(),
+            },
+        ];
+        let result = check_program_with_libs_at(
+            &libs,
+            &files,
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+            "/",
+        );
+        assert_eq!(
+            result.diagnostics[0].message_text(),
+            "File '/lib.d.ts' is not a module."
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.file_name.is_some())
+                .map(|diagnostic| (
+                    diagnostic.file_name.clone().expect("filtered"),
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [(
+                "main.js".to_owned(),
+                2306,
+                source.find("'./lib'").expect("module specifier") as u32,
+                "'./lib'".len() as u32,
+            )]
         );
     }
 

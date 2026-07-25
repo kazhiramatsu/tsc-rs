@@ -7820,14 +7820,21 @@ impl<'a> CheckerState<'a> {
         ) && self.initializer_of(declaration).is_some();
         if has_expression_initializer {
             if kind == SyntaxKind::VariableDeclaration && self.is_in_js_file(declaration) {
-                let symbol = self.get_symbol_of_declaration(declaration)?;
-                let initializer = self
-                    .initializer_of(declaration)
-                    .expect("has_expression_initializer checked above");
-                if let Some(container) =
-                    self.get_js_container_object_type(declaration, symbol, initializer)
-                {
-                    return Ok(Some(container));
+                // A binding-pattern variable has no declaration symbol:
+                // the binder hangs symbols from its binding elements.
+                // Upstream passes that optional symbol only to the
+                // empty-object JS-container producer, so a pattern
+                // initializer must skip the producer and continue
+                // through ordinary initializer checking.
+                if let Some(symbol) = self.get_symbol_of_declaration_opt(declaration) {
+                    let initializer = self
+                        .initializer_of(declaration)
+                        .expect("has_expression_initializer checked above");
+                    if let Some(container) =
+                        self.get_js_container_object_type(declaration, symbol, initializer)
+                    {
+                        return Ok(Some(container));
+                    }
                 }
             }
             let initializer_type =
