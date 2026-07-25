@@ -6799,4 +6799,19 @@ mod tests {
         )
         .is_empty());
     }
+
+    #[test]
+    fn legacy_module_call_import_equals_reports_node_global_hint() {
+        let rows = program_rows(
+            &[(
+                "/main.ts",
+                "import rect = module(\"rect\"); var bar = new rect.Rect();",
+            )],
+            &CompilerOptions {
+                target: Some(2),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(rows.iter().any(|row| row.1 == 2591 && row.2 == 14));
+    }
 }

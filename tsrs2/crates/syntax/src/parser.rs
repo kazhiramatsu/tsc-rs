@@ -11792,6 +11792,38 @@ mod tests {
     }
 
     #[test]
+    fn legacy_module_call_import_equals_recovers_as_internal_reference() {
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            "import rect = module(\"rect\"); var bar = new rect.Rect();".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        let statements = statement_nodes(&source);
+        assert_eq!(
+            statements
+                .iter()
+                .map(|&node| source.arena.node(node).kind)
+                .collect::<Vec<_>>(),
+            [
+                SyntaxKind::ImportEqualsDeclaration,
+                SyntaxKind::ExpressionStatement,
+                SyntaxKind::VariableStatement,
+            ]
+        );
+        let NodeData::ImportEqualsDeclaration(import) = &source.arena.node(statements[0]).data
+        else {
+            unreachable!()
+        };
+        let reference = import.module_reference.expect("module reference");
+        let NodeData::Identifier(identifier) = &source.arena.node(reference).data else {
+            panic!("expected recovered identifier module reference")
+        };
+        assert_eq!(identifier.escaped_text, "module");
+        assert_eq!(source.parse_diagnostics.len(), 1);
+    }
+
+    #[test]
     fn missing_semicolon_reports_spelling_suggestions() {
         let source = parse_source_file(
             "a.ts".to_owned(),
