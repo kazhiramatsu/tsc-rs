@@ -3398,6 +3398,30 @@ evidence is unchanged at entries=**1,856**, stale=0. Escape evidence
 is unchanged at sites=**192**, stale=0, untagged=0, recovery=**115**,
 dormant=1. Full `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9af results (2026-07-25, checked-JS global duplicates — DONE)
+
+`reportMergeSymbolError` now uses the same per-file `isPlainJsFile`
+decision as diagnostic collection: the file's check directive and the
+program `checkJs` option decide whether a JavaScript declaration
+location is omitted. This retires the older any-JS-involvement
+suppression while retaining tsc's one-sided reporting when only the
+other declaration is plain JavaScript.
+
+This closes both supported 2451 rows in `typedefCrossModule5`; the two
+JSDoc-dependent 2300 rows remain excluded. 2xxx T0 grows to
+**20417/21051** (**96.9883%**) with FP=0; supported T0 is
+**20417/20504** (**99.5757%**) with supported FN=**87**. All-band T0
+is **31339/49024** (**63.9258%**) with FP=0. T1/T2/T3 each report
+lost=0, gained=**2** in both bands and both scope views. The
+accepted-set ratchet adds two T0 identities and two
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,050** and binder tests are **54**. Ledger
+evidence is unchanged at entries=**1,856**, stale=0. Escape evidence
+is unchanged at sites=**192**, stale=0, untagged=0, recovery=**115**,
+dormant=1. Full `cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
