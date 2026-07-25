@@ -4409,6 +4409,50 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9bg results (2026-07-25, checked-JS chained-this assignments — DONE)
+
+The checked-JS 2339 path now recognizes a property assignment chained
+one level beyond a direct `this` member. TypeScript treats
+`this.x = ...` as an assignment declaration, but does not synthesize
+the outer member in `this.x.missing = ...`; the latter missing-member
+verdict is therefore final in both ordinary scripts and JSDoc
+constructors.
+
+These rows previously reached the missing-property head but stopped
+at the generic type-display curtain. The receiver is an empty
+anonymous object whose symbol is not the `TYPE_LITERAL` shape covered
+by the existing `{}` spelling. The new fallback uses the already
+ported `isEmptyAnonymousObjectType` proof only when the exact
+chained-direct-`this` assignment syntax holds, and the same syntax
+publishes the completed diagnostic. Element-access chains and
+`self = this` inference remain unchanged.
+
+The D2 port plan again selects
+`checkPropertyAccessExpressionOrQualifiedName`
+(`d2:e4c636a2528888afc36a842509f7385de02f5176ed13bf2a9de4d8194da5f176`,
+`scc:00002`, 1,396 members). It has one exact Rust ledger join, 71
+static callees, three static callers, no unresolved static calls, and
+two pre-existing escape rows; this slice adds or widens none.
+
+The target comprising `thisPropertyAssignment` and the
+`inferringClassMembersFromAssignments7` fabrication control grows
+from **0/2** to **2/2** at T0/T1/T2/T3, with FP=0.
+
+2xxx T0 grows to **20489/21051** (**97.3303%**) with FP=0; supported T0
+is **20488/20504** (**99.9220%**) with supported FN=**16**, all code
+2339. All-band T0 is **31411/49024** (**64.0727%**) with FP=0;
+supported all-band T0 is **31410/48477** (**64.7936%**). T1/T2/T3
+each report lost=0, gained=**2** in both bands and both scope views.
+The accepted-set ratchet adds two T0 identities and two
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,086**, binder tests are **55**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,865**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

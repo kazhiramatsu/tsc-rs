@@ -246,8 +246,9 @@
 # p9 9.9bd adds +2 checked-JS direct-this class property-miss diagnostics.
 # p9 9.9be adds +1 checked-JS imported-class-alias expando-miss diagnostic.
 # p9 9.9bf adds +1 checked-JS private-name property-miss diagnostic.
-rate = 0.640686
-matched = 31409
+# p9 9.9bg adds +2 checked-JS chained-this assignment-miss diagnostics.
+rate = 0.640727
+matched = 31411
 total = 49024
 allowed_regression = 0.0
 
@@ -360,8 +361,9 @@ allowed_regression = 0.0
 # p9 9.9bd adds +2 checked-JS direct-this class property-miss diagnostics.
 # p9 9.9be adds +1 checked-JS imported-class-alias expando-miss diagnostic.
 # p9 9.9bf adds +1 checked-JS private-name property-miss diagnostic.
-rate = 0.973208
-matched = 20487
+# p9 9.9bg adds +2 checked-JS chained-this assignment-miss diagnostics.
+rate = 0.973303
+matched = 20489
 total = 21051
 allowed_regression = 0.0
 

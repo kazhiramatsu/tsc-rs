@@ -4464,6 +4464,54 @@ mod tests {
     }
 
     #[test]
+    fn checked_js_publishes_chained_this_assignment_misses() {
+        let source = "this.x = {};\n\
+                      this.x.missing = {};\n\
+                      /** @constructor */\n\
+                      function F() {\n\
+                        this.x = {};\n\
+                        this.x.alsoMissing = {};\n\
+                      }\n";
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    2339,
+                    source.find("missing").expect("global chained miss") as u32,
+                    "missing".len() as u32,
+                ),
+                (
+                    2339,
+                    source
+                        .find("alsoMissing")
+                        .expect("constructor chained miss") as u32,
+                    "alsoMissing".len() as u32,
+                ),
+            ]
+        );
+    }
+
+    #[test]
     fn checked_js_exposes_typed_declaration_arity_diagnostics() {
         let result = check_program(
             &[
