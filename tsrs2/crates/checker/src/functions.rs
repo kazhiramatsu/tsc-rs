@@ -4832,7 +4832,26 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 09bfdcd3a387a1c410d86c288e0a97aa1ef3fc7241a296c0a0cdcfb9f11d0c99
     /// tsc-span: _tsc.js:89415-89442
     fn check_grammar_parameter_list(&mut self, node: NodeId) -> CheckResult2<bool> {
-        let parameters = self.parameters_of_function(node);
+        // tsc receives `node.parameters` directly. Keep that read in
+        // this grammar owner: the contextual helper intentionally has
+        // a narrower expression/declaration surface and omits
+        // signature-only nodes.
+        let parameter_array = match self.data_of(node) {
+            NodeData::FunctionDeclaration(data) => data.parameters,
+            NodeData::FunctionExpression(data) => data.parameters,
+            NodeData::ArrowFunction(data) => data.parameters,
+            NodeData::MethodDeclaration(data) => data.parameters,
+            NodeData::MethodSignature(data) => data.parameters,
+            NodeData::Constructor(data) => data.parameters,
+            NodeData::GetAccessor(data) => data.parameters,
+            NodeData::SetAccessor(data) => data.parameters,
+            NodeData::CallSignature(data) => data.parameters,
+            NodeData::ConstructSignature(data) => data.parameters,
+            NodeData::FunctionType(data) => data.parameters,
+            NodeData::ConstructorType(data) => data.parameters,
+            _ => None,
+        };
+        let parameters = self.nodes_of(parameter_array);
         let mut seen_optional_parameter = false;
         let parameter_count = parameters.len();
         for (i, &parameter) in parameters.iter().enumerate() {
@@ -4849,8 +4868,7 @@ impl<'a> CheckerState<'a> {
                 }
                 if !NodeFlags::from_bits(self.node_flags(parameter)).intersects(NodeFlags::AMBIENT)
                 {
-                    let array = self.parameter_array_of_function(node);
-                    if let Some(array) = array {
+                    if let Some(array) = parameter_array {
                         self.check_grammar_for_disallowed_trailing_comma(
                             Some(array),
                             &diagnostics::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma,
@@ -5089,20 +5107,6 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(widened)
-    }
-
-    /// The parameter NodeArray of a function-like (for trailing-comma
-    /// grammar spans).
-    fn parameter_array_of_function(&self, node: NodeId) -> Option<tsrs2_syntax::NodeArrayId> {
-        match self.data_of(node) {
-            NodeData::FunctionExpression(data) => data.parameters,
-            NodeData::ArrowFunction(data) => data.parameters,
-            NodeData::MethodDeclaration(data) => data.parameters,
-            NodeData::FunctionDeclaration(data) => data.parameters,
-            NodeData::GetAccessor(data) => data.parameters,
-            NodeData::SetAccessor(data) => data.parameters,
-            _ => None,
-        }
     }
 
     /// tsc-port: isParameterOrMutableLocalVariable @6.0.3
@@ -5666,6 +5670,28 @@ mod tests {
             )
         })
         .collect()
+    }
+
+    #[test]
+    fn signature_parameter_grammar_reads_each_nodes_own_parameter_array() {
+        // tsc 6.0.3, noLib: grammar 1015 precedes the ordinary
+        // signature-only initializer diagnostic for every declaration.
+        assert_eq!(
+            checked_rows(
+                "interface I { (x? = 1): void; m(x? = 1): void; }\n\
+                 type T = { (x? = 1): void; m(x? = 1): void; };\n"
+            ),
+            [
+                (1015, 15, 1),
+                (2371, 15, 6),
+                (1015, 32, 1),
+                (2371, 32, 6),
+                (1015, 61, 1),
+                (2371, 61, 6),
+                (1015, 78, 1),
+                (2371, 78, 6),
+            ]
+        );
     }
 
     #[test]

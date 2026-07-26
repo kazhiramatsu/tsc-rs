@@ -260,8 +260,10 @@
 # modifier/decorator + async helpers, with exact follower suppression.
 # m7 8.1b adds +116 through checkGrammarObjectLiteralExpression and
 # the object-literal checkGrammarMethod dispatch.
-rate = 0.653721
-matched = 32048
+# m7 8.1c.1 adds +10 through checkGrammarParameterList's direct read
+# of every routed signature node's parameter array.
+rate = 0.653925
+matched = 32058
 total = 49024
 allowed_regression = 0.0
 

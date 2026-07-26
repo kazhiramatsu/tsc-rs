@@ -56,12 +56,13 @@ zero while the all-corpus false-positive gate remains zero.
 Work is underway in M7, which covers grammar, unused, suggestion,
 program/options, and remaining non-2XXX diagnostics. Its first
 checker-grammar owner slices now cover modifier/decorator grammar and
-object-literal grammar. M7 reuses the approach that made the 2XXX sweep
-effective: measure exact oracle rows first, group them into
-`(diagnostic code, pass)` owner families, trace each family through the
-emitting `tsc` function and its Rust implementation boundary, then port one
-bounded producer slice at a time. See the
-[M7 band and owner strategy](docs/design/greenfield/m7-band-and-owner-strategy.md).
+object-literal grammar, followed by the signature parameter-list grammar
+owner. M7 reuses the approach that made the 2XXX sweep effective: measure
+exact oracle rows first, group them into `(diagnostic code, pass)` owner
+families, trace each family through the emitting `tsc` function and its Rust
+implementation boundary, then port one bounded producer slice at a time. See
+the [M7 band and owner
+strategy](docs/design/greenfield/m7-band-and-owner-strategy.md).
 
 The stage marker remains `M6` while M7 is active and advances only when the
 milestone closes; this keeps M7-owned escape deadlines live during its
@@ -74,7 +75,7 @@ artifacts by every `cargo xtask ci` run:
 
 | View | Exact diagnostic match (T0) |
 | --- | --- |
-| All bands | **65.3721%** (32,048 / 49,024) |
+| All bands | **65.3925%** (32,058 / 49,024) |
 | 2xxx band | **97.4063%** (20,505 / 21,051) |
 | Syntactic | **99.8219%** (2,242 / 2,246) |
 

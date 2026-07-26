@@ -158,7 +158,7 @@ The 8.1 sub-slices are therefore:
 |---|---|---|---|
 | 8.1a | modifier/decorator ordering and placement: `checkGrammarModifiers`, obvious modifier/decorator reporters, async modifier | 1206 (129), 1029 (66), 1044 (32), 1275 (32), 1042 (30) | selected modifier/decorator exact rows close through live tiers; no follower diagnostic leaks past tsc's first-error ordering |
 | 8.1b | object-literal grammar: `checkGrammarObjectLiteralExpression` plus object-member dispatch to `checkGrammarMethod` | 1117 (53), 1119 (36), 1118 (6), 1042/1162/1184/1255/1312 tail | frozen object-literal producer queue closes through T1/T2/T3 with no target-external gains |
-| 8.1c | declaration/function/accessor/heritage grammar: parameter and type-argument lists, computed names, accessor declarations, heritage clauses | owner-mine after 8.1b | selected declaration shapes and their suppression order match; owning micro-canaries green |
+| 8.1c | declaration/function/accessor/heritage grammar: parameter and type-argument lists, computed names, accessor declarations, heritage clauses | 8.1c.1 parameter-list TS1014 (6) + TS1015 (4); 8.1c.2 source-file TS1046 (7); re-mine after each producer | selected declaration shapes and their suppression order match; owning micro-canaries green |
 | 8.1d | statement/expression/target grammar: break/continue and labels, await/yield/for-await, `this`/`super` ordering, meta-properties, regex rescan and flag gates | 17009 (58), 17011 (11), 1501 (19), 1309 (16) | target/statement rows close with scanner and semantic pass provenance preserved |
 | 8.1e | module/import/export and format: tri-state implied format, Node sync-import rows, import/export-type usage, export-assignment decisive extension | 1479 (143), 1340 (72), 1471 (68), 1361 (33), 1362 (31), 1203 (4) | A10 → B16 → A11 dependency order holds; module-format canary and selected exact rows close |
 | 8.1f | strict/private/JSDoc/ES-target grammar: private-name placement, strict-mode-only checks, JSDoc type syntax that belongs to semantic grammar | 18016 (31), 18010 (24), 17019/17020 (12), 18028 (2) | no JSDoc-semantics exclusion is confused with an in-scope grammar row; private/target canary green |
@@ -175,7 +175,11 @@ Accepted progress on 2026-07-26:
   cluster, with no loss or false positive;
 - the 8.1b entry survey split object-literal grammar from the broader
   declaration queue, then closed its frozen 116-row queue across
-  T1/T2/T3. The family moved to 2,329/3,013 with supported FN 684.
+  T1/T2/T3. The family moved to 2,329/3,013 with supported FN 684;
+- the 8.1c owner survey then separated ordinary signature parameter
+  grammar from declaration-file source grammar. 8.1c.1 closed its
+  frozen TS1014 x6 + TS1015 x4 queue at all three live tiers, moving
+  the family to 2,339/3,013 with supported FN 674.
 
 ## 6. M7 virtual-band order
 
