@@ -308,8 +308,8 @@
 # highest-priority CommonJS/verbatim dynamic-import diagnostic.
 # m7 8.1g.9 adds +1 through checkModuleDeclarationDiagnostics'
 # instantiated-namespace CommonJS/verbatim diagnostic.
-rate = 0.666225
-matched = 32661
+rate = 0.666245
+matched = 32662
 total = 49024
 allowed_regression = 0.0
 

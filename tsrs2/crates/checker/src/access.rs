@@ -1572,7 +1572,25 @@ impl<'a> CheckerState<'a> {
                     )? {
                         return Ok(self.tables.intrinsics.error);
                     }
-                    // Plain-JS 1111 arm is isPlainJsFile-gated.
+                    let containing_class =
+                        self.get_containing_class_excluding_class_decorators(right);
+                    let is_plain_js_class = containing_class.is_some_and(|class| {
+                        let source = self.binder.source_of_node(class);
+                        crate::is_plain_js_file(
+                            crate::is_js_file_name(&source.file_name),
+                            crate::check_directive(&source.text),
+                            self.options,
+                        )
+                    });
+                    if is_plain_js_class {
+                        let display =
+                            tsrs2_binder::unescape_leading_underscores(&right_text).to_owned();
+                        self.grammar_error_on_node(
+                            right,
+                            &tsrs2_diags::gen::Private_field_0_must_be_declared_in_an_enclosing_class,
+                            &[&display],
+                        );
+                    }
                 }
                 Some(prop_symbol) => {
                     let flags = self.binder.symbol(prop_symbol).flags;
@@ -4482,6 +4500,7 @@ mod tests {
 
     use crate::state::test_support::with_program_state;
     use crate::state::CheckerState;
+    use crate::{check_program, InputFile};
 
     /// Driver-level fixture check (literals.rs idiom): oracle-pinned
     /// rows (tsc 6.0.3, noLib, options {} unless stated) — scratchpad
@@ -4521,6 +4540,46 @@ mod tests {
             state.check_source_file(0);
             rows(state)
         })
+    }
+
+    fn checked_js_rows(text: &str, check_js: Option<bool>) -> Vec<(u32, u32, u32)> {
+        with_program_state(
+            &[("a.js", text)],
+            &CompilerOptions {
+                allow_js: true,
+                check_js,
+                ..CompilerOptions::default()
+            },
+            |state| {
+                state.check_source_file(0);
+                rows(state)
+            },
+        )
+    }
+
+    fn published_js_rows(text: &str, check_js: Option<bool>) -> Vec<(u32, u32, u32)> {
+        check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: text.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js,
+                ..CompilerOptions::default()
+            },
+        )
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.file_name.is_some())
+        .map(|diagnostic| {
+            (
+                diagnostic.code(),
+                diagnostic.start.unwrap_or(u32::MAX),
+                diagnostic.length.unwrap_or(u32::MAX),
+            )
+        })
+        .collect()
     }
 
     fn rows(state: &CheckerState) -> Vec<(u32, u32, u32)> {
@@ -5131,5 +5190,32 @@ mod tests {
             ),
             []
         );
+    }
+
+    #[test]
+    fn undeclared_private_field_in_plain_js_reports_1111() {
+        let text = "class A {\n    #a;\n    m() {\n        this.#a;\n        this.#b;\n    }\n}\n";
+        assert_eq!(
+            published_js_rows(text, None),
+            [(
+                1111,
+                text.find("#b").expect("undeclared private field") as u32,
+                2,
+            )]
+        );
+    }
+
+    #[test]
+    fn checked_js_does_not_use_plain_js_private_field_row() {
+        let text = "class A { m() { this.#b; } }\n";
+        for diagnostics in [
+            checked_js_rows(text, Some(true)),
+            checked_js_rows(&format!("// @ts-check\n{text}"), None),
+        ] {
+            assert!(
+                diagnostics.iter().all(|(code, _, _)| *code != 1111),
+                "{diagnostics:?}"
+            );
+        }
     }
 }
