@@ -317,8 +317,10 @@
 # type projection and exact TS1196 first-token rows.
 # m7 8.1m adds +2 through checkGrammarTypeOperatorNode's checked-JS
 # JSDoc unique-symbol property host projection and exact TS1331 rows.
-rate = 0.666653
-matched = 32682
+# m7 8.1n adds +2 through checkGrammarTypeArguments' checked-JS
+# JSDoc @param type-argument projection and exact TS1099/TS1009 rows.
+rate = 0.666694
+matched = 32684
 total = 49024
 allowed_regression = 0.0
 
