@@ -1613,7 +1613,7 @@ impl<'a> CheckerState<'a> {
                         && target_ok;
                     if is_node_module_kind
                         && self.implied_node_format_for_file(node)
-                            == crate::modules::ModuleResolutionMode::CommonJs
+                            == Some(crate::modules::ModuleResolutionMode::CommonJs)
                     {
                         let diagnostics_before = self.diagnostics.len();
                         self.error_at_span(

@@ -20,7 +20,7 @@ use tsrs2_syntax::{
 use tsrs2_types::{CheckMode, InternalSymbolName, ObjectFlags, SymbolFlags, TypeFlags};
 
 use crate::links::LinkSlot;
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState, PackageJsonModuleType, Unsupported};
 use tsrs2_types::TypeId;
 
 /// The export-star collision tracker (getExportsOfModuleWorker's
@@ -540,16 +540,16 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<bool> {
         if let (Some(file_index), Some(usage)) = (file_index, usage) {
             let usage_mode = self.resolution_mode_for_usage(usage);
-            let target_mode = self.implied_node_format_for_file_index(file_index);
+            let target_mode = self.implied_node_format_for_emit_file_index(file_index);
             let module_kind = self.options.emit_module_kind();
             if usage_mode == ModuleResolutionMode::EsNext
-                && target_mode == ModuleResolutionMode::CommonJs
+                && target_mode == Some(ModuleResolutionMode::CommonJs)
                 && (100..=199).contains(&module_kind)
             {
                 return Ok(true);
             }
             if usage_mode == ModuleResolutionMode::EsNext
-                && target_mode == ModuleResolutionMode::EsNext
+                && target_mode == Some(ModuleResolutionMode::EsNext)
             {
                 return Ok(false);
             }
@@ -691,8 +691,8 @@ impl<'a> CheckerState<'a> {
             if let (Some(file_index), Some(specifier)) = (file_index, specifier) {
                 if (102..=199).contains(&self.options.emit_module_kind())
                     && self.resolution_mode_for_usage(specifier) == ModuleResolutionMode::CommonJs
-                    && self.implied_node_format_for_file_index(file_index)
-                        == ModuleResolutionMode::EsNext
+                    && self.implied_node_format_for_emit_file_index(file_index)
+                        == Some(ModuleResolutionMode::EsNext)
                 {
                     if let Some(module_exports) = self.resolve_export_by_name(
                         module_symbol,
@@ -3098,7 +3098,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn emit_module_format_is_pre_system(&self, location: NodeId) -> bool {
         let module_kind = self.options.emit_module_kind();
         if (100..=199).contains(&module_kind) {
-            self.implied_node_format_for_file(location) == ModuleResolutionMode::CommonJs
+            self.implied_node_format_for_emit(location) == Some(ModuleResolutionMode::CommonJs)
         } else {
             module_kind < 4
         }
@@ -3493,38 +3493,58 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsrs-native: in-memory host seam for tsc's
-    /// host.getImpliedNodeFormatForEmit.
-    ///
-    /// tsc host.getImpliedNodeFormatForEmit for the in-memory host:
-    /// explicit module extensions win; otherwise Node-flavored module
-    /// kinds use the nearest package.json scope and default to CommonJS.
-    pub(crate) fn implied_node_format_for_file(&self, location: NodeId) -> ModuleResolutionMode {
-        if let Some(mode) = self.implied_resolution_mode_from_extension(location) {
-            return mode;
-        }
+    /// tsc-port: getImpliedNodeFormatForFileWorker @6.0.3
+    /// tsc-hash: f2b4540a6c9d401895757eaf20f9c67f32866ef1c837f8dbd4edd408fe9ea8e6
+    /// tsc-span: _tsc.js:122500-122513
+    pub(crate) fn implied_node_format_for_file(
+        &self,
+        location: NodeId,
+    ) -> Option<ModuleResolutionMode> {
         self.implied_node_format_for_file_name(&self.binder.source_of_node(location).file_name)
     }
 
-    fn implied_node_format_for_file_index(&self, file_index: usize) -> ModuleResolutionMode {
-        self.implied_node_format_for_file_name(&self.binder.source(file_index).file_name)
-    }
-
-    fn implied_node_format_for_file_name(&self, file_name: &str) -> ModuleResolutionMode {
+    fn implied_node_format_for_file_name(&self, file_name: &str) -> Option<ModuleResolutionMode> {
         if file_name.ends_with(".mts") || file_name.ends_with(".mjs") {
-            return ModuleResolutionMode::EsNext;
+            return Some(ModuleResolutionMode::EsNext);
         }
         if file_name.ends_with(".cts") || file_name.ends_with(".cjs") {
-            return ModuleResolutionMode::CommonJs;
+            return Some(ModuleResolutionMode::CommonJs);
         }
-        self.package_scope_node_format_for_file_name(file_name)
-            .unwrap_or(ModuleResolutionMode::CommonJs)
+        let normalized = Self::normalize_program_path(file_name, "");
+        let should_lookup_from_package_json = (3..=99)
+            .contains(&self.options.emit_module_resolution_kind())
+            || normalized
+                .split('/')
+                .any(|segment| segment == "node_modules");
+        let package_eligible = [".ts", ".tsx", ".js", ".jsx"]
+            .iter()
+            .any(|extension| file_name.ends_with(extension));
+        if !should_lookup_from_package_json || !package_eligible {
+            return None;
+        }
+        Some(
+            self.package_scope_node_format_for_file_name(file_name)
+                .unwrap_or(ModuleResolutionMode::CommonJs),
+        )
     }
 
     fn package_scope_node_format_for_file_name(
         &self,
         file_name: &str,
     ) -> Option<ModuleResolutionMode> {
+        self.package_scope_module_type_for_file_name(file_name)
+            .map(|module_type| match module_type {
+                PackageJsonModuleType::Module => ModuleResolutionMode::EsNext,
+                PackageJsonModuleType::CommonJs
+                | PackageJsonModuleType::Other
+                | PackageJsonModuleType::Missing => ModuleResolutionMode::CommonJs,
+            })
+    }
+
+    fn package_scope_module_type_for_file_name(
+        &self,
+        file_name: &str,
+    ) -> Option<PackageJsonModuleType> {
         let file_name = Self::normalize_program_path(file_name, "");
         let mut directory = file_name
             .rsplit_once('/')
@@ -3536,12 +3556,8 @@ impl<'a> CheckerState<'a> {
             } else {
                 format!("{directory}/package.json")
             };
-            if let Some(&is_module) = self.host_package_json_module_types.get(&package_json) {
-                return Some(if is_module {
-                    ModuleResolutionMode::EsNext
-                } else {
-                    ModuleResolutionMode::CommonJs
-                });
+            if let Some(&module_type) = self.host_package_json_module_types.get(&package_json) {
+                return Some(module_type);
             }
             let Some((parent, _)) = directory.rsplit_once('/') else {
                 break;
@@ -3560,10 +3576,59 @@ impl<'a> CheckerState<'a> {
             ModuleResolutionMode::CommonJs
         } else if (100..=199).contains(&module_kind) {
             self.implied_node_format_for_file(location)
+                .unwrap_or(ModuleResolutionMode::Unknown)
         } else if (5..=99).contains(&module_kind) || module_kind == 200 {
             ModuleResolutionMode::EsNext
         } else {
             ModuleResolutionMode::Unknown
+        }
+    }
+
+    /// tsc-port: getImpliedNodeFormatForEmitWorker @6.0.3
+    /// tsc-hash: 765b9d66f854668f6f9326de2a8e3659af532be224d3a2546fdec84855bbe69c
+    /// tsc-span: _tsc.js:125496-125509
+    ///
+    pub(crate) fn implied_node_format_for_emit(
+        &self,
+        location: NodeId,
+    ) -> Option<ModuleResolutionMode> {
+        self.implied_node_format_for_emit_file_name(&self.binder.source_of_node(location).file_name)
+    }
+
+    fn implied_node_format_for_emit_file_index(
+        &self,
+        file_index: usize,
+    ) -> Option<ModuleResolutionMode> {
+        self.implied_node_format_for_emit_file_name(&self.binder.source(file_index).file_name)
+    }
+
+    fn implied_node_format_for_emit_file_name(
+        &self,
+        file_name: &str,
+    ) -> Option<ModuleResolutionMode> {
+        let implied = self.implied_node_format_for_file_name(file_name)?;
+        let module_kind = self.options.emit_module_kind();
+        if (100..=199).contains(&module_kind) {
+            return Some(implied);
+        }
+        match implied {
+            ModuleResolutionMode::CommonJs
+                if file_name.ends_with(".cts")
+                    || file_name.ends_with(".cjs")
+                    || self.package_scope_module_type_for_file_name(file_name)
+                        == Some(PackageJsonModuleType::CommonJs) =>
+            {
+                Some(ModuleResolutionMode::CommonJs)
+            }
+            ModuleResolutionMode::EsNext
+                if file_name.ends_with(".mts")
+                    || file_name.ends_with(".mjs")
+                    || self.package_scope_module_type_for_file_name(file_name)
+                        == Some(PackageJsonModuleType::Module) =>
+            {
+                Some(ModuleResolutionMode::EsNext)
+            }
+            _ => None,
         }
     }
 
@@ -3576,25 +3641,14 @@ impl<'a> CheckerState<'a> {
     /// import-equals / require-call / import-call heads cannot be its
     /// parents. Composes getEmitModuleFormatOfFileWorker /
     /// getImpliedNodeFormatForEmitWorker: under the Node module kinds
-    /// the file's implied format decides; outside them only decisive
-    /// extension evidence keeps the implied format for emit — the
-    /// explicit package `"type": "commonjs"` arm needs a tri-state
-    /// package model the host does not carry, and omitting it only
-    /// under-fires the CommonJS grammar row (FN, never FP).
+    /// the file's implied format decides; outside them the modeled
+    /// decisive emit evidence is preserved.
     fn emit_syntax_for_declaration_specifier(
         &self,
         specifier: NodeId,
     ) -> Option<ModuleResolutionMode> {
         let module_kind = self.options.emit_module_kind();
-        let implied_for_emit = if (100..=199).contains(&module_kind) {
-            Some(self.implied_node_format_for_file(specifier))
-        } else if self.import_syntax_affects_module_resolution() {
-            self.implied_resolution_mode_from_extension(specifier)
-        } else {
-            // No implied node format is computed at all outside the
-            // syntax-sensitive resolution modes.
-            None
-        };
+        let implied_for_emit = self.implied_node_format_for_emit(specifier);
         match implied_for_emit {
             Some(mode) => Some(mode),
             // fileEmitMode falls back to the emit module kind.
@@ -3984,8 +4038,8 @@ impl<'a> CheckerState<'a> {
                 {
                     if (102..=199).contains(&self.options.emit_module_kind())
                         && usage_mode == ModuleResolutionMode::CommonJs
-                        && self.implied_node_format_for_file_index(target_file)
-                            == ModuleResolutionMode::EsNext
+                        && self.implied_node_format_for_emit_file_index(target_file)
+                            == Some(ModuleResolutionMode::EsNext)
                     {
                         if let Some(module_exports) = self.resolve_export_by_name(
                             symbol,
@@ -4018,8 +4072,8 @@ impl<'a> CheckerState<'a> {
                 }
                 let is_esm_cjs_ref = target_file.is_some_and(|target_file| {
                     usage_mode == ModuleResolutionMode::EsNext
-                        && self.implied_node_format_for_file_index(target_file)
-                            == ModuleResolutionMode::CommonJs
+                        && self.implied_node_format_for_emit_file_index(target_file)
+                            == Some(ModuleResolutionMode::CommonJs)
                 });
                 if self.options.es_module_interop_effective() || is_esm_cjs_ref {
                     let has_default_property = self
@@ -6138,9 +6192,9 @@ impl<'a> CheckerState<'a> {
             let implied_node_format = self.implied_node_format_for_file(node);
             let invalid_esm_export_assignment = if ambient {
                 (100..=199).contains(&module_kind)
-                    && implied_node_format == ModuleResolutionMode::EsNext
+                    && implied_node_format == Some(ModuleResolutionMode::EsNext)
             } else if (100..=199).contains(&module_kind) {
-                implied_node_format != ModuleResolutionMode::CommonJs
+                implied_node_format != Some(ModuleResolutionMode::CommonJs)
             } else {
                 true
             };
