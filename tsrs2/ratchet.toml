@@ -264,8 +264,10 @@
 # of every routed signature node's parameter array.
 # m7 8.1c.2 adds +7 through checkGrammarSourceFile's ambient
 # top-level declare/export-modifier producer.
-rate = 0.654067
-matched = 32065
+# m7 8.1d.1 adds +69 through checkThisBeforeSuper and the
+# isPostSuperFlowNode all-reaching-path flow walk (17009/17011).
+rate = 0.655475
+matched = 32134
 total = 49024
 allowed_regression = 0.0
 
