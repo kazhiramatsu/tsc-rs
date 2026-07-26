@@ -112,8 +112,11 @@ supported FN 136 and canaries 4/4. Exact position review then corrected
 the TS18028 reconnaissance split: both residual rows are accessors, not
 one method plus one accessor. Publishing the two
 `checkGrammarAccessor` rows closes that fixture at 16/16 and moves the
-family to 2,879/3,013 with supported FN 134. JSDoc
-nullable/non-nullable syntax is next.
+family to 2,879/3,013 with supported FN 134. The next
+`checkJSDocTypeIsInJsFile` slice closes all 12 TS17019/TS17020
+nullable/non-nullable rows with +12 at every live tier, no loss, and
+FP=0. The family is now 2,891/3,013 with supported FN 122 and canaries
+4/4. JSDoc accessibility modifiers are next.
 
 The binding 8.1a-g producer clusters, current reconnaissance anchors,
 and per-slice exits are in

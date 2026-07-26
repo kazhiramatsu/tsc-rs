@@ -286,8 +286,10 @@
 # checkGrammarObjectLiteralExpression.
 # m7 8.1f.2 adds +2 by publishing the checked-JavaScript private
 # accessor ES5 rows from checkGrammarAccessor.
-rate = 0.66494
-matched = 32598
+# m7 8.1f.3 adds +12 through checkJSDocTypeIsInJsFile's
+# nullable/non-nullable TypeScript-syntax pair.
+rate = 0.665184
+matched = 32610
 total = 49024
 allowed_regression = 0.0
 
