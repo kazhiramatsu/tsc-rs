@@ -447,7 +447,18 @@ Accepted progress on 2026-07-26:
   0/4 to 4/4; full-corpus T1/T2/T3 each gained exactly four identities
   with no loss, target-external movement, or FP. All-corpus T0 is
   32,640/49,024, supported T0 is 32,639/48,477, and checker-grammar is
-  2,921/3,013 with supported FN 92 and canaries 4/4.
+  2,921/3,013 with supported FN 92 and canaries 4/4;
+- 8.1g.4 closed the single plain-JavaScript TS1473 identity owned by
+  `checkImportDeclaration`. The shared module-element grammar predicate
+  was already exact, but its caller always supplied the TypeScript
+  TS1232 message; the plain-JS filter then correctly discarded that
+  wrong code. The caller now selects tsc's JavaScript-specific message,
+  while an adjacent TypeScript nested-import control retains TS1232.
+  The target moved from 98/156 to 99/156; full-corpus T1/T2/T3 each
+  gained exactly one identity with no loss, target-external movement,
+  or FP. All-corpus T0 is 32,641/49,024, supported T0 is
+  32,640/48,477, and checker-grammar is 2,922/3,013 with supported FN
+  91 and canaries 4/4.
 
 ## 6. M7 virtual-band order
 
