@@ -96,8 +96,11 @@ Current 2026-07-26 state: A10, B16, and A11 are accepted. B16 closed its
 exact TS1471/1479/1541/1542 queue with 213 gains at T0/T1/T2/T3. A11
 then closed `checkExportAssignment` with TS1203 x4 and one each of
 TS1282/1283/1284/1285/1289: nine gains at every live tier, no loss,
-no target-external movement, and all-corpus FP=0. The next
-module-format owner is the TS1340 import-type usage worker.
+no target-external movement, and all-corpus FP=0. The following
+`getTypeFromImportTypeNode` slice closed all 72 TS1340 identities with
+the same no-loss/FP0 boundary and raised the module-format canary set
+to 3/4. The next module-format owner is the TS1361/TS1362 type-only
+alias use worker.
 
 The binding 8.1a-g producer clusters, current reconnaissance anchors,
 and per-slice exits are in

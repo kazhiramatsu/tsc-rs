@@ -77,8 +77,11 @@ type-only resolution-mode attributes, nested conversion details, and the
 diagnostic-only package `exports`/`imports`/self-name target projection.
 The separate A11 `checkExportAssignment` producer is now complete as
 well: checked-JavaScript `export =` uses the decisive emit format, and
-the exact verbatim/isolated type-only export rules are live. The next
-module-format owner is the TS1340 import-type usage worker. M7 reuses the approach
+the exact verbatim/isolated type-only export rules are live. The TS1340
+`getTypeFromImportTypeNode` owner is now complete too, using a
+diagnostic-only package-module meaning projection without publishing
+package symbols or members generally. The next module-format owner is
+the TS1361/TS1362 type-only alias use worker. M7 reuses the approach
 that made the 2XXX sweep effective: measure exact oracle rows first, group
 them into `(diagnostic code, pass)` owner families, trace each family
 through the emitting `tsc` function and its Rust implementation boundary,
@@ -96,7 +99,7 @@ artifacts by every `cargo xtask ci` run:
 
 | View | Exact diagnostic match (T0) |
 | --- | --- |
-| All bands | **66.1492%** (32,429 / 49,024) |
+| All bands | **66.2961%** (32,501 / 49,024) |
 | 2xxx band | **97.4063%** (20,505 / 21,051) |
 | Syntactic | **99.8219%** (2,242 / 2,246) |
 

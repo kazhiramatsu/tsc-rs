@@ -3104,6 +3104,44 @@ impl<'a> CheckerState<'a> {
         Some(self.binder.source(resolved.file_index).root)
     }
 
+    /// tsrs-native: diagnostic-only package target projection for the
+    /// bare, recovered ImportType face of getTypeFromImportTypeNode.
+    ///
+    /// Ordinary package resolution deliberately remains Suppressed:
+    /// this helper exposes only the target module's own SymbolFlags so
+    /// the direct TS1340 producer can decide whether `import("pkg")`
+    /// refers to a type. It never publishes package exports, members,
+    /// or a general resolver success.
+    pub(crate) fn resolve_bare_import_type_module_for_diagnostic(
+        &self,
+        node: NodeId,
+        module_reference: &str,
+    ) -> Option<SymbolId> {
+        let NodeData::ImportType(data) = self.data_of(node) else {
+            return None;
+        };
+        if data.is_type_of
+            || data.qualifier.is_some_and(|qualifier| {
+                !node_util::node_is_missing(self.binder.source_of_node(node), Some(qualifier))
+            })
+            || Self::is_external_module_name_relative(module_reference)
+            || module_reference.starts_with('/')
+            || !matches!(
+                self.resolve_program_module(node, module_reference),
+                ProgramModuleResolution::Suppressed
+            )
+        {
+            return None;
+        }
+        let importer =
+            Self::normalize_program_path(&self.binder.source_of_node(node).file_name, "");
+        let resolved = self.resolve_node_package_target(&importer, node, module_reference)?;
+        let root = self.binder.source(resolved.file_index).root;
+        self.binder
+            .node_symbol(root)
+            .map(|symbol| self.get_merged_symbol(symbol))
+    }
+
     /// tsrs-native: the in-memory host half of Node package
     /// `exports`, `imports`, and self-name resolution. The checker
     /// consumes only targets that resolve to an actual program source;
@@ -7410,6 +7448,44 @@ let unrelated = \"\";\n",
                 ("main.cts".to_owned(), 2835, 23, 7),
                 ("main.mts".to_owned(), 2305, 14, 7),
             ]
+        );
+    }
+
+    #[test]
+    fn recovered_bare_import_type_reads_only_package_module_meaning() {
+        let bad =
+            "type Bad = import(\"pkg\", {\"resolution-mode\": \"require\"}).RequireInterface;\n";
+        let good = "type Good = import(\"pkg\", { with: {\"resolution-mode\": \"require\"} }).RequireInterface;\n";
+        let rows = program_rows(
+            &[
+                (
+                    "/node_modules/pkg/package.json",
+                    "{ \"name\": \"pkg\", \"exports\": { \"import\": \"./import.js\", \"require\": \"./require.js\" } }\n",
+                ),
+                (
+                    "/node_modules/pkg/import.d.ts",
+                    "export interface ImportInterface {}\n",
+                ),
+                (
+                    "/node_modules/pkg/require.d.ts",
+                    "export interface RequireInterface {}\n",
+                ),
+                ("/bad.ts", bad),
+                ("/good.ts", good),
+            ],
+            &node16_options(),
+        )
+        .into_iter()
+        .filter(|(_, code, _, _)| *code == 1340)
+        .collect::<Vec<_>>();
+        assert_eq!(
+            rows,
+            [(
+                "/bad.ts".to_owned(),
+                1340,
+                bad.find("import").expect("recovered import type") as u32,
+                "import(\"pkg\", {".len() as u32,
+            )]
         );
     }
 

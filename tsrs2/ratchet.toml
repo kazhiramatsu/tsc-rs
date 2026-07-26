@@ -278,8 +278,10 @@
 # 1479 x143, 1541 x1, and 1542 x1.
 # m7 8.1e A11 adds +9 through checkExportAssignment: 1203 x4 plus
 # the exact 1282/1283/1284/1285/1289 type-only export rows.
-rate = 0.661492
-matched = 32429
+# m7 8.1e TS1340 adds +72 through getTypeFromImportTypeNode's
+# diagnostic-only bare recovered package-module meaning projection.
+rate = 0.662961
+matched = 32501
 total = 49024
 allowed_regression = 0.0
 
