@@ -319,8 +319,10 @@
 # JSDoc unique-symbol property host projection and exact TS1331 rows.
 # m7 8.1n adds +2 through checkGrammarTypeArguments' checked-JS
 # JSDoc @param type-argument projection and exact TS1099/TS1009 rows.
-rate = 0.666694
-matched = 32684
+# m7 8.1o adds +2 by publishing bindNamespaceExportDeclaration's
+# exact checked-JS TS1315 row in the ES5/ES2015 matrix.
+rate = 0.666735
+matched = 32686
 total = 49024
 allowed_regression = 0.0
 

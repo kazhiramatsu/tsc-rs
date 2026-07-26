@@ -193,6 +193,16 @@ fn is_published_non_jsdoc_js_diagnostic(
         .is_some_and(|key| state.non_jsdoc_js_diagnostics.contains(&key))
 }
 
+/// tsrs-native: checked-JS publication frontier for diagnostics whose
+/// direct producer is the binder rather than CheckerState.
+///
+/// bindNamespaceExportDeclaration already produces the exact tsc
+/// diagnostic. Publish its declaration-file guard only when the JS
+/// file is checked; plain JS retains the closed plainJSErrors surface.
+fn is_published_checked_js_bind_diagnostic(diagnostic: &Diagnostic) -> bool {
+    diagnostic.code() == 1315
+}
+
 /// tsc-port: markPrecedingCommentDirectiveLine @6.0.3
 /// tsc-hash: 5fd3ed53a22559eabfbc34ecee39efa38b2df133d5cc00e86dcd42ecae6ea88b
 /// tsc-span: _tsc.js:123766-123784
@@ -806,6 +816,7 @@ pub fn check_program_with_libs_at(
                     );
                     diagnostics.extend(filtered.into_iter().filter(|diagnostic| {
                         plain_js_errors::is_plain_js_error(diagnostic.code())
+                            || is_published_checked_js_bind_diagnostic(diagnostic)
                     }));
                 }
             } else {
@@ -1884,6 +1895,66 @@ mod tests {
             })
             .collect();
         assert_eq!(pins, [(2397, 4, 10)], "{:#?}", result.diagnostics);
+    }
+
+    #[test]
+    fn checked_js_publishes_namespace_export_declaration_bind_diagnostic() {
+        let files = [
+            InputFile {
+                name: "cls.js".to_owned(),
+                text: "export class Foo {}\n".to_owned(),
+            },
+            InputFile {
+                name: "globalNs.js".to_owned(),
+                text: "export * from \"./cls\";\nexport as namespace GLO;\n".to_owned(),
+            },
+        ];
+        let checked = check_program(
+            &files,
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                module: Some(1),
+                ..CompilerOptions::default()
+            },
+        );
+        let pins = checked
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 1315)
+            .map(|diagnostic| {
+                (
+                    diagnostic.file_name.as_deref(),
+                    diagnostic.start,
+                    diagnostic.length,
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            pins,
+            [(
+                Some("globalNs.js"),
+                Some(files[1].text.find("export as").expect("namespace export") as u32),
+                Some("export as namespace GLO;".len() as u32),
+            )]
+        );
+
+        let plain = check_program(
+            &files,
+            &CompilerOptions {
+                allow_js: true,
+                module: Some(1),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(
+            plain
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code() != 1315),
+            "plain JS must retain the plainJSErrors publication surface: {:#?}",
+            plain.diagnostics
+        );
     }
 
     #[test]
