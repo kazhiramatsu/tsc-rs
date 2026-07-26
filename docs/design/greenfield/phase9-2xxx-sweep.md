@@ -4822,6 +4822,47 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9bp results (2026-07-26, JSDoc-tagged arrow lexical `this` miss — DONE)
+
+The checked-JS 2339 publication path now recognizes a direct
+`this.member` read inside a class-field arrow whose property declaration
+carries an attached JSDoc `@this` tag. The tag is invalid on an arrow
+and cannot replace its lexical class `this`, so the class instance
+member table remains the complete lookup surface.
+
+The proof additionally requires a non-assignment property read, an
+actual `CLASS` but non-`FUNCTION` containing symbol, the nearest
+function to be an `ArrowFunction`, and that arrow to be the direct
+property initializer. The trivia probe accepts `@this` only at the
+start of an attached JSDoc line. A unit pin covers the exact lexical
+class miss and its `C` container display.
+
+The D2 port plan is `reportNonexistentProperty`
+(`d2:681dc9d40f1bb3d69339aaabed7c5c7e02fc0bd5b498bb5eeee4eca60cd94001`,
+`scc:00002`, 1,396 members). It has no exact Rust ledger join, 24
+static callees, two static callers, no unresolved static calls, and no
+escape rows.
+
+The target `thisTag3` grows from **0/2** to **1/2** at T0/T1/T2/T3,
+with FP=0; its supported view grows from **0/1** to **1/1**. The
+remaining 2730 row is excluded JSDoc grammar. Exact target and
+full-band diffs report T1/T2/T3 lost=0/gained=**1** in both scope
+views.
+
+2xxx T0 grows to **20505/21051** (**97.4063%**) with FP=0; supported
+T0 is **20504/20504** (**100.0000%**) with supported FN=**0**.
+All-band T0 is **31427/49024** (**64.1053%**) with FP=0; supported
+all-band T0 is **31426/48477** (**64.8266%**). The accepted-set
+ratchet adds one T0 identity and one multiplicity-complete identity to
+both all and 2xxx; syntactic is unchanged.
+
+Checker tests are **1,096**, binder tests are **55**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,866**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. The phase contract is now closed:
+supported T0-2xxx is 100% and all-corpus FP remains zero. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is

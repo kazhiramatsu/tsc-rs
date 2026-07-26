@@ -2962,6 +2962,95 @@ impl<'a> CheckerState<'a> {
             })
     }
 
+    /// A direct `this.member` read in a class-field arrow whose
+    /// declaration carries `@this`. The tag is invalid for an arrow
+    /// and does not replace its lexical class `this`; the class member
+    /// table therefore remains the complete lookup surface.
+    fn is_jsdoc_this_annotated_arrow_class_field_read(
+        &self,
+        access_expression: NodeId,
+        containing_symbol: Option<SymbolId>,
+        assignment_declaration_kind: tsrs2_binder::AssignmentDeclarationKind,
+    ) -> bool {
+        if self.kind_of(access_expression) != SyntaxKind::PropertyAccessExpression
+            || assignment_declaration_kind != tsrs2_binder::AssignmentDeclarationKind::None
+            || node_util::is_assignment_target(
+                self.binder.source_of_node(access_expression),
+                access_expression,
+            )
+        {
+            return false;
+        }
+        let direct_this = matches!(
+            self.data_of(access_expression),
+            NodeData::PropertyAccessExpression(data)
+                if data
+                    .expression
+                    .is_some_and(|receiver| self.kind_of(receiver) == SyntaxKind::ThisKeyword)
+        );
+        let is_class_instance = containing_symbol.is_some_and(|symbol| {
+            let flags = self.binder.symbol(symbol).flags;
+            flags.intersects(SymbolFlags::CLASS) && !flags.intersects(SymbolFlags::FUNCTION)
+        });
+        if !direct_this || !is_class_instance {
+            return false;
+        }
+        let Some(arrow) = self
+            .get_containing_function(access_expression)
+            .filter(|&function| self.kind_of(function) == SyntaxKind::ArrowFunction)
+        else {
+            return false;
+        };
+        let Some(property) = self.parent_of(arrow) else {
+            return false;
+        };
+        if !matches!(
+            self.data_of(property),
+            NodeData::PropertyDeclaration(data) if data.initializer == Some(arrow)
+        ) {
+            return false;
+        }
+        self.declaration_has_attached_jsdoc_this_tag(property)
+    }
+
+    /// JSDoc is trivia in the syntax arena. Recognize only an attached
+    /// tag at the start of a JSDoc line; prose mentions and completed
+    /// declarations do not prove the invalid-arrow-tag shape above.
+    fn declaration_has_attached_jsdoc_this_tag(&self, declaration: NodeId) -> bool {
+        if !self.is_in_js_file(declaration) {
+            return false;
+        }
+        let source = self.binder.source_of_node(declaration);
+        let anchor = self.name_of_node(declaration).unwrap_or(declaration);
+        let anchor_pos =
+            tsrs2_syntax::skip_trivia(&source.text, source.arena.node(anchor).pos as usize);
+        let prefix = &source.text[..anchor_pos.min(source.text.len())];
+        let Some(comment_start) = prefix.rfind("/**") else {
+            return false;
+        };
+        let Some(relative_end) = prefix[comment_start + 3..].find("*/") else {
+            return false;
+        };
+        let comment_end = comment_start + 3 + relative_end + 2;
+        if prefix[comment_end..]
+            .chars()
+            .any(|character| matches!(character, ';' | '{' | '}' | '='))
+        {
+            return false;
+        }
+        prefix[comment_start + 3..comment_end - 2]
+            .lines()
+            .any(|line| {
+                let line = line.trim_start();
+                let line = line.strip_prefix('*').unwrap_or(line).trim_start();
+                line.strip_prefix("@this").is_some_and(|tail| {
+                    tail.chars()
+                        .next()
+                        .is_none_or(|character| character.is_whitespace() || character == '{')
+                })
+            })
+    }
+
     /// A direct `this.member` read inside the RHS of
     /// `Ctor.s = Ctor.t = function ...` when the outer static
     /// assignment carries JSDoc semantics. Both assignment receivers
@@ -3486,6 +3575,12 @@ impl<'a> CheckerState<'a> {
                 containing_symbol,
                 assignment_declaration_kind,
             );
+        let publish_jsdoc_this_annotated_arrow_class_field_read = self
+            .is_jsdoc_this_annotated_arrow_class_field_read(
+                access_expression,
+                containing_symbol,
+                assignment_declaration_kind,
+            );
         let publish_jsdoc_chained_static_assignment_this_read = self
             .is_jsdoc_chained_static_assignment_this_read(
                 access_expression,
@@ -3512,6 +3607,7 @@ impl<'a> CheckerState<'a> {
             || publish_prototype_object_replacement_property_assignment
             || publish_jsdoc_satisfies_object_literal_property_read
             || publish_this_prototype_class_property_read
+            || publish_jsdoc_this_annotated_arrow_class_field_read
             || publish_jsdoc_chained_static_assignment_this_read
             || publish_chained_uninitialized_identifier_empty_assignment
             || containing_symbol.is_some_and(|symbol| {
