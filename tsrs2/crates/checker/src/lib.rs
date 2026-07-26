@@ -552,7 +552,10 @@ pub fn check_program_with_libs_at(
     // getImpliedNodeFormatForFileWorker's package-scope input. Build it
     // before parsing because getSetExternalModuleIndicator's Auto mode
     // consults the implied format while SourceFiles are created.
-    let host_package_json_module_types: std::collections::HashMap<String, bool> = files
+    let host_package_json_module_types: std::collections::HashMap<
+        String,
+        state::PackageJsonModuleType,
+    > = files
         .iter()
         .filter(|file| {
             file.name
@@ -561,18 +564,22 @@ pub fn check_program_with_libs_at(
                 .is_some_and(|name| name == "package.json")
         })
         .map(|file| {
-            let is_module = serde_json::from_str::<serde_json::Value>(&file.text)
+            let module_type = serde_json::from_str::<serde_json::Value>(&file.text)
                 .ok()
                 .and_then(|value| {
                     value
                         .get("type")
                         .and_then(serde_json::Value::as_str)
-                        .map(|value| value == "module")
+                        .map(|value| match value {
+                            "module" => state::PackageJsonModuleType::Module,
+                            "commonjs" => state::PackageJsonModuleType::CommonJs,
+                            _ => state::PackageJsonModuleType::Other,
+                        })
                 })
-                .unwrap_or(false);
+                .unwrap_or(state::PackageJsonModuleType::Other);
             (
                 state::CheckerState::normalize_program_path(&file.name, ""),
-                is_module,
+                module_type,
             )
         })
         .collect();
@@ -676,10 +683,10 @@ pub fn check_program_with_libs_at(
                                 } else {
                                     format!("{directory}/package.json")
                                 };
-                                if let Some(&is_module) =
+                                if let Some(&module_type) =
                                     host_package_json_module_types.get(&package_json)
                                 {
-                                    break is_module;
+                                    break module_type == state::PackageJsonModuleType::Module;
                                 }
                                 let Some((parent, _)) = directory.rsplit_once('/') else {
                                     break false;
@@ -2193,6 +2200,100 @@ mod tests {
                 .any(|diagnostic| diagnostic.code() == 1192),
             "package-scoped CommonJS target should have a synthetic default: {:#?}",
             result.diagnostics
+        );
+    }
+
+    #[test]
+    fn bundler_does_not_infer_plain_target_format_from_package_scope() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "/package.json".to_owned(),
+                    text: "{\"type\":\"module\"}\n".to_owned(),
+                },
+                InputFile {
+                    name: "/plain.ts".to_owned(),
+                    text: "declare const plain: number;\nexport = plain;\n".to_owned(),
+                },
+                InputFile {
+                    name: "/decisive.mts".to_owned(),
+                    text: "declare const decisive: number;\nexport = decisive;\n".to_owned(),
+                },
+                InputFile {
+                    name: "/consumer.ts".to_owned(),
+                    text: "import plain from \"./plain\";\nimport decisive from \"./decisive.mts\";\nplain;\ndecisive;\n"
+                        .to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                module: Some(99),
+                module_resolution: Some(100),
+                target: Some(tsrs2_types::ScriptTarget::ES2022.bits()),
+                allow_synthetic_default_imports: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        let rows: Vec<(String, u32, u32, u32)> = result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 1192)
+            .map(|diagnostic| {
+                (
+                    diagnostic.file_name.clone().expect("located diagnostic"),
+                    diagnostic.code(),
+                    diagnostic.start.expect("located diagnostic"),
+                    diagnostic.length.expect("located diagnostic"),
+                )
+            })
+            .collect();
+        assert_eq!(rows, [("/consumer.ts".to_owned(), 1192, 36, 8)]);
+    }
+
+    #[test]
+    fn emit_format_distinguishes_explicit_commonjs_from_missing_package_type() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "/node_modules/cjs/package.json".to_owned(),
+                    text: "{\"type\":\"commonjs\"}\n".to_owned(),
+                },
+                InputFile {
+                    name: "/node_modules/cjs/index.ts".to_owned(),
+                    text: "export const value = 1;\n".to_owned(),
+                },
+                InputFile {
+                    name: "/node_modules/other/package.json".to_owned(),
+                    text: "{}\n".to_owned(),
+                },
+                InputFile {
+                    name: "/node_modules/other/index.ts".to_owned(),
+                    text: "export const value = 1;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                module: Some(99),
+                module_resolution: Some(100),
+                target: Some(tsrs2_types::ScriptTarget::ES2022.bits()),
+                verbatim_module_syntax: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        let rows: Vec<(String, u32, u32, u32)> = result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 1287)
+            .map(|diagnostic| {
+                (
+                    diagnostic.file_name.clone().expect("located diagnostic"),
+                    diagnostic.code(),
+                    diagnostic.start.expect("located diagnostic"),
+                    diagnostic.length.expect("located diagnostic"),
+                )
+            })
+            .collect();
+        assert_eq!(
+            rows,
+            [("/node_modules/cjs/index.ts".to_owned(), 1287, 0, 6)]
         );
     }
 

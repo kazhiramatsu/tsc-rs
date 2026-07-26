@@ -1706,14 +1706,10 @@ impl<'a> CheckerState<'a> {
     /// kinds retain their configured emit format.
     pub(crate) fn emit_module_format_of_file(&self, location: NodeId) -> i32 {
         let module_kind = self.options.emit_module_kind();
-        if (100..=199).contains(&module_kind) {
-            match self.implied_node_format_for_file(location) {
-                crate::modules::ModuleResolutionMode::CommonJs => 1,
-                crate::modules::ModuleResolutionMode::EsNext => 99,
-                crate::modules::ModuleResolutionMode::Unknown => module_kind,
-            }
-        } else {
-            module_kind
+        match self.implied_node_format_for_emit(location) {
+            Some(crate::modules::ModuleResolutionMode::CommonJs) => 1,
+            Some(crate::modules::ModuleResolutionMode::EsNext) => 99,
+            Some(crate::modules::ModuleResolutionMode::Unknown) | None => module_kind,
         }
     }
 
@@ -2317,7 +2313,7 @@ impl<'a> CheckerState<'a> {
                                     && target_ok;
                             if is_node_module_kind
                                 && self.implied_node_format_for_file(node)
-                                    == crate::modules::ModuleResolutionMode::CommonJs
+                                    == Some(crate::modules::ModuleResolutionMode::CommonJs)
                             {
                                 let diagnostics_before = self.diagnostics.len();
                                 self.error_at(

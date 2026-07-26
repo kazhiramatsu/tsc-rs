@@ -208,6 +208,47 @@ snapshot also retained `parser579071.ts` TS1005 as an initially overlooked
 false negative from the same validator producer; it is reviewed as a
 same-owner target-external closure gain, not a second slice.
 
+### 5.2 Module-format owner sequence: A10 then B16 then A11
+
+The fresh post-regex survey keeps the design dependency order
+**A10 → B16 → A11**. The 8.1e code-level cluster is not one producer:
+TS1471/1479/1541/1542 are emitted by `resolveExternalModule`, while
+TS1203 is emitted by `checkExportAssignment`; TS1340 and TS1361/1362
+belong to two further import-type usage workers.
+
+A10 is the accepted-set-neutral prerequisite. Its direct owners are:
+
+- `getImpliedNodeFormatForFileWorker`
+  (`d2:e6f65ad86b4e675208b7b4ff66493081e4c4833bc69cb73e194933283d4bbc60`,
+  `_tsc.js:122500-122513`);
+- `getImpliedNodeFormatForEmitWorker`
+  (`d2:58ff154ca300f5354a06782c109a8a6198133c233192a14d72b11b7890cd2dc8`,
+  `_tsc.js:125496-125509`).
+
+The file format is tri-state: decisive MTS/MJS and CTS/CJS extensions
+win; ordinary TS/JS extensions consult package scope only for
+Node16-through-NodeNext resolution or a `node_modules` path; every
+other case remains undefined. The emit worker separately preserves
+decisive extensions and explicit package `"type"` evidence, so an
+explicit `"commonjs"` scope is not collapsed with an absent `type`.
+The oracle pin uses `module=esnext`, `moduleResolution=bundler`, and a
+root package `"type":"module"`: a plain `.ts` export-assignment target
+keeps an undefined format and remains default-importable when synthetic
+defaults are allowed, while the adjacent `.mts` target reports TS1192.
+
+The A10 immutable target is the complete next-owner fixture set: 24
+fixtures / 83 matrix cases / 1,222 oracle diagnostics, initially
+600 exact matches, zero false positives, and 550 supported false
+negatives. This deliberately broad target makes A10 prove no movement
+before B16 changes the same module-format surface.
+
+B16 then owns the full `resolveExternalModule` mode-mismatch queue:
+TS1471 x68, TS1479 x143, TS1541 x1, and TS1542 x1 (213 exact
+identities). The two type-only rows are part of the same conditional
+branch and may not be omitted from the frozen queue. A11 follows only
+after B16 and changes `checkExportAssignment` to use the decisive emit
+format for TS1203.
+
 Accepted progress on 2026-07-26:
 
 - 8.1a landed 505 exact matches through the modifier/decorator owner
@@ -257,6 +298,15 @@ Accepted progress on 2026-07-26:
   gained 57 identities with no loss or false positive: the frozen 56
   plus the reviewed `parser579071.ts` TS1005 same-owner closure. The
   family is now 2,488/3,013 with supported FN 525 and canaries 2/4.
+- 8.1e A10 ported both implied-format workers and upgraded the
+  in-memory package host input from a boolean to the required
+  module/CommonJS/other distinction. All existing consumers now
+  preserve undefined format explicitly; `checkExportAssignment` keeps
+  its pre-A11 decision boundary. The 24-fixture target remained
+  600/1,222 and the full corpus remained 32,207/49,024, with zero
+  false positives, no T1/T2/T3 gain or loss, and unchanged oracle
+  universes. This closes the accepted-set-neutral prerequisite for
+  B16 without claiming diagnostic parity.
 
 ## 6. M7 virtual-band order
 

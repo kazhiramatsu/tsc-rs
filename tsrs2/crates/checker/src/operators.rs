@@ -3236,7 +3236,7 @@ impl<'a> CheckerState<'a> {
         let module_kind = self.options.emit_module_kind();
         if (100..=199).contains(&module_kind) {
             if self.implied_node_format_for_file(node)
-                == crate::modules::ModuleResolutionMode::CommonJs
+                == Some(crate::modules::ModuleResolutionMode::CommonJs)
             {
                 self.error_at(
                     Some(node),

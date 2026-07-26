@@ -20,6 +20,13 @@ use crate::links::{LinkSlot, LinksTables};
 use crate::program::ProgramBinder;
 use crate::relate::RelationCaches;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum PackageJsonModuleType {
+    Module,
+    CommonJs,
+    Other,
+}
+
 /// A query the M3 slice cannot answer yet; carries the blocking
 /// machinery's name so relpin failures read as scoping facts, not bugs.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -717,10 +724,12 @@ pub struct CheckerState<'a> {
     /// normalization stays "/"-rooted: all internal paths share that
     /// base, and the two worlds never compare paths with each other.
     pub host_current_directory: String,
-    /// Normalized package.json path → whether its `"type"` is
-    /// `"module"`. Node16/NodeNext use the nearest package scope to
-    /// determine the implied emit format of plain .ts/.js files.
-    pub host_package_json_module_types: std::collections::HashMap<String, bool>,
+    /// Normalized package.json path → its tri-state `"type"` field.
+    /// `Other` preserves the distinction between an absent/unknown
+    /// value and an explicit `"commonjs"` value for
+    /// getImpliedNodeFormatForEmitWorker.
+    pub(crate) host_package_json_module_types:
+        std::collections::HashMap<String, PackageJsonModuleType>,
     /// Normalized package.json path → its non-empty `"name"` field.
     /// Bare self-name imports are undecidable only inside a matching
     /// package scope; an unrelated package.json must not hide 2307.

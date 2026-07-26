@@ -65,9 +65,13 @@ at its real boundary: target-aware scanner/parser plumbing (including ES5
 identifier tables, recovery rescan, and unterminated-literal state) is
 complete as an accepted-set-neutral prerequisite, and the complete UTF-16
 regex validator now follows it with generated Unicode-property data, exact
-target gates, and primary/related diagnostic grouping. The next
-checker-grammar producer is selected from a fresh residual owner survey
-rather than the pre-regex ranking. M7 reuses the approach
+target gates, and primary/related diagnostic grouping. The fresh residual
+survey selected the module-format sequence next. Its A10 prerequisite now
+keeps implied Node format tri-state, distinguishes explicit package
+`"commonjs"` from a missing package type, and preserves decisive extension
+evidence for emit. The next diagnostic-producing slice is B16, the
+`resolveExternalModule` Node16/Node18 synchronous-import owner, before the
+separate A11 export-assignment producer. M7 reuses the approach
 that made the 2XXX sweep effective: measure exact oracle rows first, group
 them into `(diagnostic code, pass)` owner families, trace each family
 through the emitting `tsc` function and its Rust implementation boundary,
