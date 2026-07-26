@@ -7519,7 +7519,9 @@ impl<'a> CheckerState<'a> {
             .any(|tag| text.contains(tag))
     }
 
-    fn get_type_from_jsdoc_text(
+    /// tsrs-native: resolve the bounded source-text JSDoc type
+    /// projection used while JSDoc nodes are absent from the arena.
+    pub(crate) fn get_type_from_jsdoc_text(
         &mut self,
         location: NodeId,
         text: &str,

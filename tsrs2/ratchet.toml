@@ -313,8 +313,10 @@
 # exact 1055/1064/1065 head, chain, and related-information rows.
 # m7 8.1k adds +3 through reportNonDefaultExport's exact checked-CJS
 # TS1192 publication in the Node18, Node20, and NodeNext matrix.
-rate = 0.666531
-matched = 32676
+# m7 8.1l adds +4 through checkTryStatement's checked-JS JSDoc catch
+# type projection and exact TS1196 first-token rows.
+rate = 0.666612
+matched = 32680
 total = 49024
 allowed_regression = 0.0
 
