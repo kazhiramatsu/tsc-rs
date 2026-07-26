@@ -266,8 +266,10 @@
 # top-level declare/export-modifier producer.
 # m7 8.1d.1 adds +69 through checkThisBeforeSuper and the
 # isPostSuperFlowNode all-reaching-path flow walk (17009/17011).
-rate = 0.655475
-matched = 32134
+# m7 8.1d.2a adds +8 through checkAwaitGrammar's Node16..NodeNext
+# CommonJS-format arm (1309; TS and checked-JS publication).
+rate = 0.655638
+matched = 32142
 total = 49024
 allowed_regression = 0.0
 
