@@ -25,7 +25,7 @@ there.
    base, conformance all + 2xxx + syntactic with FP=0 and
    set/integer-ratchet non-regression, the A5 families rollup,
    invariants, ledger check, `escapes --stale $(cat tsrs2/STAGE)`
-   incl. the untagged ceiling).
+   incl. the untagged ceiling, and generated README-status freshness).
 4. **Merge via GitHub PR** (`gh` CLI): when the slice is done and
    gates are green, push the branch and open a PR whose body carries
    the gate summary (conformance rates + FP=0, escapes, tests). The

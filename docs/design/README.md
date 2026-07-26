@@ -55,6 +55,10 @@ stage step docs referenced there.
 - [greenfield/non-2xxx-first-order.md](greenfield/non-2xxx-first-order.md):
   the non-2XXX family map — owner-based decomposition of the bands
   outside 2000-2999; feeds the A5 family rollup and M7 stage gates.
+- [greenfield/m7-band-and-owner-strategy.md](greenfield/m7-band-and-owner-strategy.md):
+  the M7 pre-implementation survey and virtual-band strategy — exact
+  `(code, pass)` family queues, D2 owner tracing, and the 8.1a-f
+  checker-grammar split.
 
 ## Reference (v1-era, kept in place)
 

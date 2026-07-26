@@ -965,6 +965,22 @@ struct M8PerformanceEvidence {
     artifact: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+struct M8FamiliesReport {
+    schema: u32,
+    map_status: String,
+    families: Vec<M8FamilyReadiness>,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8FamilyReadiness {
+    name: String,
+    owner: String,
+    supported_false_negative: usize,
+    canaries_passed: usize,
+    canaries_total: usize,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 struct M8ReadinessGate {
     name: String,
@@ -998,6 +1014,7 @@ fn m8_readiness_inner(
     let workspace = find_tsrs2_root()?;
     let out_dir = workspace.join("target/m8");
     fs::create_dir_all(&out_dir)?;
+    let families_report_path = workspace.join("target/families/report.json");
     if !prerequisites_already_checked {
         ledger_check()?;
         codegen_band_inventory(
@@ -1007,7 +1024,7 @@ fn m8_readiness_inner(
         )?;
     }
     let measured_conformance = if reused_conformance.is_none() {
-        Some(tsrs2_conformance::run_conformance(
+        Some(tsrs2_conformance::run_conformance_with_families_report(
             &tsrs2_conformance::ConformanceOptions {
                 workspace: workspace.clone(),
                 limit: None,
@@ -1015,6 +1032,7 @@ fn m8_readiness_inner(
                 out_json: out_dir.join("conformance.json"),
                 band: tsrs2_conformance::DiagnosticBand::All,
             },
+            &families_report_path,
         )?)
     } else {
         None
@@ -1027,6 +1045,11 @@ fn m8_readiness_inner(
             out_dir.join("conformance.json"),
             serde_json::to_string_pretty(conformance)?,
         )?;
+    }
+    tsrs2_conformance::families_verify_report(&workspace, &families_report_path)?;
+    let families_report: M8FamiliesReport = read_json(&families_report_path)?;
+    if families_report.schema != 1 {
+        return Err("families readiness report must be schema 1".into());
     }
 
     let inventory_path = workspace.join("m8-emitter-inventory.json");
@@ -1286,6 +1309,7 @@ fn m8_readiness_inner(
             performance.ceiling_rss_bytes
         ),
     );
+    gates.push(m7_family_readiness_gate(&families_report));
 
     let ready = gates.iter().all(|gate| gate.ready);
     let report = M8ReadinessReport {
@@ -1323,6 +1347,46 @@ fn add_m8_gate(gates: &mut Vec<M8ReadinessGate>, name: &str, ready: bool, detail
         ready,
         detail,
     });
+}
+
+fn m7_family_readiness_gate(report: &M8FamiliesReport) -> M8ReadinessGate {
+    let owned = report
+        .families
+        .iter()
+        .filter(|family| family.owner == "M7" || family.owner.starts_with("M7 "))
+        .collect::<Vec<_>>();
+    let incomplete = owned
+        .iter()
+        .filter(|family| {
+            family.supported_false_negative != 0 || family.canaries_passed != family.canaries_total
+        })
+        .map(|family| {
+            format!(
+                "{}(FN={},canaries={}/{})",
+                family.name,
+                family.supported_false_negative,
+                family.canaries_passed,
+                family.canaries_total
+            )
+        })
+        .collect::<Vec<_>>();
+    let ready = report.map_status == "frozen" && !owned.is_empty() && incomplete.is_empty();
+    let detail = format!(
+        "map-status={} complete={}/{}{}",
+        report.map_status,
+        owned.len().saturating_sub(incomplete.len()),
+        owned.len(),
+        if incomplete.is_empty() {
+            String::new()
+        } else {
+            format!(" red={}", incomplete.join(","))
+        }
+    );
+    M8ReadinessGate {
+        name: "m7-family-rollup".to_owned(),
+        ready,
+        detail,
+    }
 }
 
 fn read_json<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, Box<dyn Error>> {
@@ -5261,6 +5325,11 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
     // Reuse the all-band summary and the already-run inventory/ledger
     // checks instead of launching a fourth full-corpus checker pass.
     m8_readiness_inner(false, Some(&summaries.all), true)?;
+    // E2 current-documentation gate: readiness above produces the
+    // same-workspace report consumed by the generated README block.
+    // A semantic ratchet or readiness-row change may not leave the
+    // public status pointing at an older milestone.
+    readme_status(["--check"].into_iter().map(str::to_owned))?;
     Ok(())
 }
 
@@ -9167,6 +9236,83 @@ mod escapes_ceiling_tests {
             None
         );
         fs::remove_dir_all(&dir).ok();
+    }
+}
+
+#[cfg(test)]
+mod m8_readiness_tests {
+    use super::*;
+
+    fn family(
+        name: &str,
+        owner: &str,
+        supported_false_negative: usize,
+        canaries_passed: usize,
+        canaries_total: usize,
+    ) -> M8FamilyReadiness {
+        M8FamilyReadiness {
+            name: name.to_owned(),
+            owner: owner.to_owned(),
+            supported_false_negative,
+            canaries_passed,
+            canaries_total,
+        }
+    }
+
+    #[test]
+    fn aggregate_m7_gate_cannot_hide_a_red_owned_family() {
+        let mut gates = vec![M8ReadinessGate {
+            name: "m7-gate".to_owned(),
+            ready: true,
+            detail: "T0=99% FP=0 T1-ratchet-active=true".to_owned(),
+        }];
+        let report = M8FamiliesReport {
+            schema: 1,
+            map_status: "frozen".to_owned(),
+            families: vec![
+                family("checker-grammar", "M7 8.1", 1, 3, 4),
+                family("m8-tail", "M8", 9, 0, 1),
+            ],
+        };
+
+        gates.push(m7_family_readiness_gate(&report));
+
+        assert!(gates[0].ready);
+        assert!(!gates[1].ready);
+        assert_eq!(gates[1].name, "m7-family-rollup");
+        assert!(gates[1]
+            .detail
+            .contains("checker-grammar(FN=1,canaries=3/4)"));
+        assert!(!gates[1].detail.contains("m8-tail"));
+    }
+
+    #[test]
+    fn m7_family_gate_requires_a_frozen_nonempty_complete_rollup() {
+        let complete = vec![
+            family("checker-grammar", "M7 8.1", 0, 4, 4),
+            family("unused", "M7 8.3+8.4", 0, 3, 3),
+        ];
+        let ready = m7_family_readiness_gate(&M8FamiliesReport {
+            schema: 1,
+            map_status: "frozen".to_owned(),
+            families: complete,
+        });
+        assert!(ready.ready);
+        assert_eq!(ready.detail, "map-status=frozen complete=2/2");
+
+        let draft = m7_family_readiness_gate(&M8FamiliesReport {
+            schema: 1,
+            map_status: "draft".to_owned(),
+            families: vec![family("checker-grammar", "M7 8.1", 0, 4, 4)],
+        });
+        assert!(!draft.ready);
+
+        let empty = m7_family_readiness_gate(&M8FamiliesReport {
+            schema: 1,
+            map_status: "frozen".to_owned(),
+            families: vec![family("m8-tail", "M8", 0, 1, 1)],
+        });
+        assert!(!empty.ready);
     }
 }
 
