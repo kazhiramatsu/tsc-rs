@@ -16,6 +16,7 @@ use tsrs2_diags::DiagnosticList;
 
 mod recovery_census;
 mod relpin;
+mod slice_evidence;
 mod symbol_audit;
 
 fn main() {
@@ -39,6 +40,7 @@ fn main() {
         Some("goldens-diff") => run_or_exit(goldens_diff(args)),
         Some("conformance") => run_or_exit(conformance(args)),
         Some("conformance-diff") => run_or_exit(conformance_diff(args)),
+        Some("slice-evidence") => run_or_exit(slice_evidence::run(args)),
         Some("invariants") => run_or_exit(invariants(args)),
         Some("m8") => match args.next().as_deref() {
             Some("readiness") => run_or_exit(m8_readiness(args)),
