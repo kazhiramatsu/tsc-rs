@@ -274,6 +274,17 @@ the B16 package target module's own flags. That projection exists only
 to decide TS1340; it does not expose the package symbol, exports, or
 members to general checking.
 
+TS1361/TS1362 stay with the lazy callback inside
+`onSuccessfullyResolvedSymbol`
+(`d2:7727a05897150ebcee38a45f37636edcf5fcf3863bc5672843cca9ae0f4bc5c9`,
+`_tsc.js:48157-48204`). The producer reads the raw alias flags before
+following the target, applies the complete non-JSDoc
+`isValidTypeOnlyAliasUseSite` predicate, and attaches TS1376/TS1377
+related information from the exact import/export-type declaration.
+The checked-JavaScript export-namespace row is published through the
+exact non-JSDoc diagnostic marker rather than the global JavaScript
+allowlist.
+
 Accepted progress on 2026-07-26:
 
 - 8.1a landed 505 exact matches through the modifier/decorator owner
@@ -355,8 +366,15 @@ Accepted progress on 2026-07-26:
   T1/T2/T3 each gained exactly 72 identities with no loss or
   target-external movement; all-corpus T0 is 32,501/49,024 and
   supported T0 is 32,500/48,477. The checker-grammar family is now
-  2,782/3,013 with supported FN 231 and canaries 3/4. The next
-  module-format owner is the TS1361/TS1362 type-only alias use worker.
+  2,782/3,013 with supported FN 231 and canaries 3/4;
+- 8.1e TS1361/TS1362 closed the frozen 64-row type-only alias value-use
+  queue: TS1361 x33 and TS1362 x31 across 29 fixtures. The target moved
+  from 28/150 to 92/150, with every targeted type-only-alias FN closed
+  and FP=0. Full-corpus T1/T2/T3 each gained exactly 64 identities with
+  no loss or target-external movement; all-corpus T0 is 32,565/49,024
+  and supported T0 is 32,564/48,477. The checker-grammar family is now
+  2,846/3,013 with supported FN 167 and canaries 3/4. The next frozen
+  owner group is 8.1f strict/private/JSDoc/ES-target grammar.
 
 ## 6. M7 virtual-band order
 

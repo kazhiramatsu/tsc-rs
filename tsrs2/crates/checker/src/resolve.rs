@@ -1827,16 +1827,100 @@ impl<'a> CheckerState<'a> {
         );
     }
 
-    /// tsc-port: onSuccessfullyResolvedSymbol @6.0.3
-    /// tsc-hash: acc9b965f1efc2a1b2b86a42dfcd0415aa683933fb79d87a0a4a9db0c34ec7af
-    /// tsc-span: _tsc.js:48156-48205
+    /// tsc-port: isValidTypeOnlyAliasUseSite @6.0.3
+    /// tsc-hash: 3b58ba6af9dbe593bc4519ffebbef0c9eeea8004014ecc966f9f7287a85f7471
+    /// tsc-span: _tsc.js:18991-19024
+    ///
+    /// Complete non-JSDoc face. JSDoc nodes are not constructible in
+    /// the current arena, so the remaining arms preserve the exact
+    /// ambient, type-query, heritage, computed-name, expression, and
+    /// shorthand-property distinctions.
+    fn is_valid_type_only_alias_use_site(&self, use_site: NodeId) -> bool {
+        if self.node_flags(use_site) & NodeFlags::AMBIENT.bits() != 0
+            || self.is_in_type_query(use_site)
+        {
+            return true;
+        }
+
+        if self.kind_of(use_site) == SyntaxKind::Identifier {
+            let mut current = self.parent_of(use_site);
+            while let Some(node) = current {
+                match self.kind_of(node) {
+                    SyntaxKind::HeritageClause => {
+                        let implements = matches!(
+                            self.data_of(node),
+                            NodeData::HeritageClause(data)
+                                if data.token == SyntaxKind::ImplementsKeyword
+                        );
+                        let interface_extends = self.parent_of(node).is_some_and(|parent| {
+                            self.kind_of(parent) == SyntaxKind::InterfaceDeclaration
+                        });
+                        if implements || interface_extends {
+                            return true;
+                        }
+                        break;
+                    }
+                    SyntaxKind::PropertyAccessExpression
+                    | SyntaxKind::ExpressionWithTypeArguments => {
+                        current = self.parent_of(node);
+                    }
+                    _ => break,
+                }
+            }
+        }
+
+        let mut computed_ancestor = use_site;
+        while matches!(
+            self.kind_of(computed_ancestor),
+            SyntaxKind::Identifier | SyntaxKind::PropertyAccessExpression
+        ) {
+            let Some(parent) = self.parent_of(computed_ancestor) else {
+                break;
+            };
+            computed_ancestor = parent;
+        }
+        if self.kind_of(computed_ancestor) == SyntaxKind::ComputedPropertyName {
+            if let Some(member) = self.parent_of(computed_ancestor) {
+                if has_syntactic_modifier(
+                    self.binder.source_of_node(member),
+                    member,
+                    ModifierFlags::ABSTRACT,
+                ) {
+                    return true;
+                }
+                if self.parent_of(member).is_some_and(|container| {
+                    matches!(
+                        self.kind_of(container),
+                        SyntaxKind::InterfaceDeclaration | SyntaxKind::TypeLiteral
+                    )
+                }) {
+                    return true;
+                }
+            }
+        }
+
+        let shorthand_property_name = self.kind_of(use_site) == SyntaxKind::Identifier
+            && self.parent_of(use_site).is_some_and(|parent| {
+                matches!(
+                    self.data_of(parent),
+                    NodeData::ShorthandPropertyAssignment(data) if data.name == Some(use_site)
+                )
+            });
+        !node_util::is_expression_node(self.binder.source_of_node(use_site), use_site)
+            && !shorthand_property_name
+    }
+
+    /// tsc-port: onSuccessfullyResolvedSymbolCallback @6.0.3
+    /// tsc-hash: 6211274979d7706fc68ba0495d89289b5d23019693acc5ac2a0bdd82c7949dbb
+    /// tsc-span: _tsc.js:48157-48204
+    /// d2: d2:7727a05897150ebcee38a45f37636edcf5fcf3863bc5672843cca9ae0f4bc5c9
     ///
     /// Live arms: checkResolvedBlockScopedVariable (2448/2449/2450)
-    /// and the parameter-initializer ordering checks (2372/2373).
+    /// parameter-initializer ordering checks (2372/2373), UMD-global
+    /// access (2686), and type-only alias value uses (1361/1362).
     /// addLazyDiagnostic is eager by the checker-wide identity
-    /// decision. The UMD-global, type-only-alias, and
-    /// isolatedModules tails remain owned by their option/module
-    /// prerequisites.
+    /// decision. The isolatedModules tail remains owned by its option
+    /// prerequisite.
     fn on_successfully_resolved_symbol(
         &mut self,
         error_location: Option<NodeId>,
@@ -1954,6 +2038,51 @@ impl<'a> CheckerState<'a> {
                             );
                         }
                     }
+                }
+            }
+        }
+        let result_flags = self.binder.symbol(result).flags;
+        if meaning.intersects(SymbolFlags::VALUE)
+            && result_flags.intersects(SymbolFlags::ALIAS)
+            && !result_flags.intersects(SymbolFlags::VALUE)
+            && !self.is_valid_type_only_alias_use_site(error_location)
+        {
+            if let Some(type_only_declaration) =
+                self.get_type_only_alias_declaration_ex(result, Some(SymbolFlags::VALUE))?
+            {
+                let exported = matches!(
+                    self.kind_of(type_only_declaration),
+                    SyntaxKind::ExportSpecifier
+                        | SyntaxKind::ExportDeclaration
+                        | SyntaxKind::NamespaceExport
+                );
+                let message = if exported {
+                    &diagnostics::_0_cannot_be_used_as_a_value_because_it_was_exported_using_export_type
+                } else {
+                    &diagnostics::_0_cannot_be_used_as_a_value_because_it_was_imported_using_import_type
+                };
+                let related_message = if exported {
+                    &diagnostics::_0_was_exported_here
+                } else {
+                    &diagnostics::_0_was_imported_here
+                };
+                let name = self.binder.symbol(result).escaped_name.clone();
+                let display = tsrs2_binder::unescape_leading_underscores(&name);
+                let related =
+                    self.related_info_for_node(type_only_declaration, related_message, &[display]);
+                let publish_checked_js = self.is_in_js_file(error_location);
+                let diagnostics_before = self.diagnostics.len();
+                self.error_at_with_related(
+                    Some(error_location),
+                    message,
+                    &[display],
+                    vec![related],
+                );
+                if publish_checked_js {
+                    self.mark_non_jsdoc_js_diagnostics_since_with_code(
+                        diagnostics_before,
+                        message.code,
+                    );
                 }
             }
         }
@@ -3080,6 +3209,92 @@ mod tests {
             .diagnostics
             .iter()
             .any(|diagnostic| diagnostic.code() == 2686));
+    }
+
+    #[test]
+    fn type_only_alias_value_uses_report_origin_and_preserve_type_sites() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "/a.ts".to_owned(),
+                    text: "export class A {}\n".to_owned(),
+                },
+                InputFile {
+                    name: "/b.ts".to_owned(),
+                    text: "import type { A } from './a';\n\
+                           new A();\n\
+                           const shorthand = { A };\n\
+                           type T = A;\n\
+                           type Q = typeof A;\n\
+                           interface I extends A {}\n\
+                           class C implements A {}\n"
+                        .to_owned(),
+                },
+            ],
+            &CompilerOptions::default(),
+        );
+        let diagnostics = result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 1361)
+            .collect::<Vec<_>>();
+        assert_eq!(diagnostics.len(), 2);
+        assert!(diagnostics.iter().all(|diagnostic| {
+            diagnostic.file_name.as_deref() == Some("/b.ts")
+                && diagnostic.message_text()
+                    == "'A' cannot be used as a value because it was imported using 'import type'."
+                && diagnostic.related.len() == 1
+                && diagnostic.related[0].file_name.as_deref() == Some("/b.ts")
+                && diagnostic.related[0].message.code == 1376
+        }));
+    }
+
+    #[test]
+    fn checked_js_type_only_export_value_use_is_explicitly_published() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "/a.js".to_owned(),
+                    text: "export class A {}\n".to_owned(),
+                },
+                InputFile {
+                    name: "/b.js".to_owned(),
+                    text: "export type * from './a';\n".to_owned(),
+                },
+                InputFile {
+                    name: "/c.js".to_owned(),
+                    text: "import { A } from './b';\nA;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                module: Some(1),
+                target: Some(2),
+                ..CompilerOptions::default()
+            },
+        );
+        let diagnostic = result
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code() == 1362)
+            .expect("checked-JS TS1362");
+        assert_eq!(
+            (
+                diagnostic.file_name.as_deref(),
+                diagnostic.message_text(),
+                diagnostic.related.len(),
+                diagnostic.related[0].file_name.as_deref(),
+                diagnostic.related[0].message.code,
+            ),
+            (
+                Some("/c.js"),
+                "'A' cannot be used as a value because it was exported using 'export type'.",
+                1,
+                Some("/b.js"),
+                1377,
+            )
+        );
     }
 
     #[test]
