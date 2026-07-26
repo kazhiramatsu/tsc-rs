@@ -179,7 +179,10 @@ Accepted progress on 2026-07-26:
 - the 8.1c owner survey then separated ordinary signature parameter
   grammar from declaration-file source grammar. 8.1c.1 closed its
   frozen TS1014 x6 + TS1015 x4 queue at all three live tiers, moving
-  the family to 2,339/3,013 with supported FN 674.
+  the family to 2,339/3,013 with supported FN 674;
+- 8.1c.2 closed the frozen declaration-file TS1046 x7 queue through
+  `checkGrammarSourceFile` at all three live tiers, with no target-external
+  gain or loss. The family moved to 2,346/3,013 with supported FN 667.
 
 ## 6. M7 virtual-band order
 

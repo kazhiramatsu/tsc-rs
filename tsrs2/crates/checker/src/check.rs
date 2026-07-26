@@ -12,7 +12,7 @@
 //! Grammar checks: checkGrammarStatementInAmbientContext is LIVE from
 //! 5.5a (checkExpressionStatement's head; the EmptyStatement/Debugger
 //! and checkBlock routes share it); checkGrammarModifiers is LIVE from
-//! M7 8.1a; checkGrammarSourceFile remains an M7-stub hook.
+//! M7 8.1a; declaration-file source grammar is LIVE from M7 8.1c.2.
 //!
 //! The unreachable-code slice (checkSourceElementUnreachable 86763 +
 //! the withinUnreachableCode save/restore) is elided whole: its
@@ -283,9 +283,81 @@ impl<'a> CheckerState<'a> {
             && self.binder.source_of_node(root).is_declaration_file
     }
 
-    /// checkGrammarSourceFile (90323) — M7-stub grammar hook (ambient
-    /// top-level declare-modifier grammar).
-    fn check_grammar_source_file(&mut self, _root: NodeId) {}
+    /// tsc-port: checkGrammarTopLevelElementForRequiredDeclareModifier @6.0.3
+    /// tsc-hash: 029880ee66b0dc833ebf2b1ce77fd314851abc4ed46c1840ffb2c5c0c343fa37
+    /// tsc-span: _tsc.js:90307-90312
+    /// d2: d2:058d3174aacd6253cc00e5f75311c8bc20cf7ac706d18600c03c20a932cf9dbe
+    fn check_grammar_top_level_element_for_required_declare_modifier(
+        &mut self,
+        node: NodeId,
+    ) -> bool {
+        if matches!(
+            self.kind_of(node),
+            SyntaxKind::InterfaceDeclaration
+                | SyntaxKind::TypeAliasDeclaration
+                | SyntaxKind::ImportDeclaration
+                | SyntaxKind::ImportEqualsDeclaration
+                | SyntaxKind::ExportDeclaration
+                | SyntaxKind::ExportAssignment
+                | SyntaxKind::NamespaceExportDeclaration
+        ) {
+            return false;
+        }
+        let source = self.binder.source_of_node(node);
+        let allowed_modifiers = ModifierFlags::from_bits(
+            ModifierFlags::AMBIENT.bits()
+                | ModifierFlags::EXPORT.bits()
+                | ModifierFlags::DEFAULT.bits(),
+        );
+        if node_util::has_syntactic_modifier(source, node, allowed_modifiers) {
+            return false;
+        }
+        self.grammar_error_on_first_token(
+            node,
+            &diagnostics::Top_level_declarations_in_d_ts_files_must_start_with_either_a_declare_or_export_modifier,
+            &[],
+        )
+    }
+
+    /// tsc-port: checkGrammarTopLevelElementsForRequiredDeclareModifier @6.0.3
+    /// tsc-hash: 8948bed73a676d0742e0587e8a8807d89c5a72cfecf478343c25b5d4df26aa15
+    /// tsc-span: _tsc.js:90313-90322
+    /// d2: d2:922f3734d14bf87fb62c3d7ef6ffcf89e41b19c3e53569122f8d3dcc9737eff7
+    fn check_grammar_top_level_elements_for_required_declare_modifier(
+        &mut self,
+        root: NodeId,
+    ) -> bool {
+        let NodeData::SourceFile(data) = self.data_of(root) else {
+            return false;
+        };
+        for declaration in self.nodes_of(data.statements) {
+            if matches!(
+                self.kind_of(declaration),
+                SyntaxKind::FunctionDeclaration
+                    | SyntaxKind::ClassDeclaration
+                    | SyntaxKind::InterfaceDeclaration
+                    | SyntaxKind::TypeAliasDeclaration
+                    | SyntaxKind::EnumDeclaration
+                    | SyntaxKind::ModuleDeclaration
+                    | SyntaxKind::ImportEqualsDeclaration
+                    | SyntaxKind::NamespaceExportDeclaration
+                    | SyntaxKind::VariableStatement
+            ) && self.check_grammar_top_level_element_for_required_declare_modifier(declaration)
+            {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// tsc-port: checkGrammarSourceFile @6.0.3
+    /// tsc-hash: 4927fc26371ca77477c792d6e9a2d5faa19f9d8baa9947030e85cb98c610bf7d
+    /// tsc-span: _tsc.js:90323-90325
+    /// d2: d2:d0812accb6a2508527ea4d9a6a3c0363228d252a5b201bb14d6a2d73680e95b6
+    fn check_grammar_source_file(&mut self, root: NodeId) -> bool {
+        self.node_flags(root) & tsrs2_types::NodeFlags::AMBIENT.bits() != 0
+            && self.check_grammar_top_level_elements_for_required_declare_modifier(root)
+    }
 
     /// tsc-port: checkGrammarModifiers @6.0.3
     /// tsc-hash: 4ae83b985bfc4d9c367541290d29b207ce34af46a4b465b0e36cae2056847f03
@@ -8770,7 +8842,15 @@ mod tests {
     }
 
     fn checked_diags_with(text: &str, options: &CompilerOptions) -> Vec<(u32, u32, u32, String)> {
-        with_program_state(&[("a.ts", text)], options, |state| {
+        checked_file_diags_with("a.ts", text, options)
+    }
+
+    fn checked_file_diags_with(
+        file_name: &str,
+        text: &str,
+        options: &CompilerOptions,
+    ) -> Vec<(u32, u32, u32, String)> {
+        with_program_state(&[(file_name, text)], options, |state| {
             state.check_source_file(0);
             diag_rows(state)
         })
@@ -8794,6 +8874,38 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    // ---- M7 8.1c.2 declaration-file source grammar (oracle-pinned) ----
+
+    #[test]
+    fn declaration_file_requires_declare_or_export_on_value_declarations() {
+        assert_eq!(
+            checked_file_diags_with(
+                "a.d.ts",
+                "enum E {}\nfunction f(): void;\nclass C {}\n",
+                &CompilerOptions::default(),
+            ),
+            [(
+                1046,
+                0,
+                4,
+                "Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn declaration_file_allows_type_declarations_and_explicit_value_modifiers() {
+        assert_eq!(
+            checked_file_diags_with(
+                "a.d.ts",
+                "interface I {}\ntype T = string;\ndeclare enum E {}\nexport class C {}\nexport default function f(): void;\n",
+                &CompilerOptions::default(),
+            ),
+            []
+        );
     }
 
     // ---- M7 8.1a modifier/decorator grammar (oracle-pinned) ----

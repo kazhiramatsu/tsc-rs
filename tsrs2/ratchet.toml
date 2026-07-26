@@ -262,8 +262,10 @@
 # the object-literal checkGrammarMethod dispatch.
 # m7 8.1c.1 adds +10 through checkGrammarParameterList's direct read
 # of every routed signature node's parameter array.
-rate = 0.653925
-matched = 32058
+# m7 8.1c.2 adds +7 through checkGrammarSourceFile's ambient
+# top-level declare/export-modifier producer.
+rate = 0.654067
+matched = 32065
 total = 49024
 allowed_regression = 0.0
 
