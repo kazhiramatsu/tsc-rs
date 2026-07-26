@@ -298,8 +298,10 @@
 # CommonJS-format row in checked JavaScript.
 # m7 8.1g.4 adds +1 through checkImportDeclaration's JavaScript-
 # specific top-level-context message selection.
-rate = 0.665817
-matched = 32641
+# m7 8.1g.5 adds +1 through checkExportDeclaration's separate
+# JavaScript-specific top-level-context message selection.
+rate = 0.665837
+matched = 32642
 total = 49024
 allowed_regression = 0.0
 

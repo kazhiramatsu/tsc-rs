@@ -147,7 +147,12 @@ JavaScript-specific TS1473 message for a nested plain-JS import while
 retaining TS1232 for the TypeScript sibling. The target moved from
 98/156 to 99/156; every live tier gained one identity with no loss,
 target-external movement, or FP. The family is now 2,922/3,013 with
-supported FN 91 and canaries 4/4.
+supported FN 91 and canaries 4/4. Its separate
+`checkExportDeclaration` counterpart then selected TS1474 for the
+plain-JavaScript nested export while retaining TS1233 for TypeScript.
+The target moved from 99/156 to 100/156; every live tier gained one
+identity with no loss, target-external movement, or FP. The family is
+now 2,923/3,013 with supported FN 90 and canaries 4/4.
 
 The binding 8.1a-g producer clusters, current reconnaissance anchors,
 and per-slice exits are in

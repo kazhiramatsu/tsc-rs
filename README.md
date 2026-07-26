@@ -106,11 +106,13 @@ CommonJS-format TS1470 rows in checked JavaScript, completing the
 TypeScript/JavaScript matrix without broadening JSDoc checking. The
 following `checkImportDeclaration` slice now selects the JavaScript-
 specific TS1473 top-level-context diagnostic while retaining TS1232
-for the TypeScript sibling. M7 reuses the approach that made the 2XXX
-sweep effective: measure exact oracle rows first, group them into
-`(diagnostic code, pass)` owner families, trace each family through the
-emitting `tsc` function and its Rust implementation boundary, then port
-one bounded producer slice at a time. See the
+for the TypeScript sibling. Its separate `checkExportDeclaration`
+counterpart now does the same for TS1474 versus TS1233. M7 reuses the
+approach that made the 2XXX sweep effective: measure exact oracle rows
+first, group them into `(diagnostic code, pass)` owner families, trace
+each family through the emitting `tsc` function and its Rust
+implementation boundary, then port one bounded producer slice at a
+time. See the
 [M7 band and owner strategy](docs/design/greenfield/m7-band-and-owner-strategy.md).
 
 The stage marker remains `M6` while M7 is active and advances only when the
@@ -124,7 +126,7 @@ artifacts by every `cargo xtask ci` run:
 
 | View | Exact diagnostic match (T0) |
 | --- | --- |
-| All bands | **66.5817%** (32,641 / 49,024) |
+| All bands | **66.5837%** (32,642 / 49,024) |
 | 2xxx band | **97.4063%** (20,505 / 21,051) |
 | Syntactic | **99.8219%** (2,242 / 2,246) |
 
