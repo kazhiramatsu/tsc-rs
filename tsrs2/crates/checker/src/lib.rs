@@ -4603,6 +4603,44 @@ mod tests {
     }
 
     #[test]
+    fn checked_js_publishes_jsdoc_satisfies_object_literal_property_reads() {
+        let source = "const value = /** @satisfies {{ present: number }} */ ({ present: 1 });\n\
+                      value.present;\n\
+                      value.missing;\n\
+                      const asserted = /** @type {{ present: number }} */ ({ present: 1 });\n\
+                      asserted.hidden;\n";
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                    diagnostic.message_text(),
+                ))
+                .collect::<Vec<_>>(),
+            [(
+                2339,
+                source.find("missing").expect("satisfies-backed miss") as u32,
+                "missing".len() as u32,
+                "Property 'missing' does not exist on type '{ present: number; }'.",
+            )]
+        );
+    }
+
+    #[test]
     fn checked_js_publishes_primitive_module_exports_assignment_misses() {
         let primitive = "module.exports = 1;\nmodule.exports.missing = 1;\n";
         let result = check_program(

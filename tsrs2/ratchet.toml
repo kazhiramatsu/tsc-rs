@@ -252,8 +252,9 @@
 # p9 9.9bj adds +1 checked-JS require-property-alias nested-object miss.
 # p9 9.9bk adds +2 checked-JS chained-identifier assignment misses.
 # p9 9.9bl adds +2 JSDoc-constructor prototype-object property misses.
-rate = 0.64089
-matched = 31419
+# p9 9.9bm adds +3 JSDoc-satisfies object-literal property misses.
+rate = 0.640951
+matched = 31422
 total = 49024
 allowed_regression = 0.0
 
@@ -372,8 +373,9 @@ allowed_regression = 0.0
 # p9 9.9bj adds +1 checked-JS require-property-alias nested-object miss.
 # p9 9.9bk adds +2 checked-JS chained-identifier assignment misses.
 # p9 9.9bl adds +2 JSDoc-constructor prototype-object property misses.
-rate = 0.973683
-matched = 20497
+# p9 9.9bm adds +3 JSDoc-satisfies object-literal property misses.
+rate = 0.973825
+matched = 20500
 total = 21051
 allowed_regression = 0.0
 

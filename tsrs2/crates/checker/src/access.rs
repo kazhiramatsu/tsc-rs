@@ -2856,6 +2856,69 @@ impl<'a> CheckerState<'a> {
         )
     }
 
+    /// A missing read from the source object retained by an inline
+    /// JSDoc `@satisfies` tag. Satisfies preserves the expression
+    /// type, so the object literal's own complete member set decides
+    /// the later access even while the independent satisfies-relation
+    /// diagnostic remains in the JSDoc band.
+    fn is_jsdoc_satisfies_object_literal_property_read(
+        &mut self,
+        access_expression: NodeId,
+        containing_type: TypeId,
+        assignment_declaration_kind: tsrs2_binder::AssignmentDeclarationKind,
+    ) -> CheckResult2<bool> {
+        if self.kind_of(access_expression) != SyntaxKind::PropertyAccessExpression
+            || assignment_declaration_kind != tsrs2_binder::AssignmentDeclarationKind::None
+            || node_util::is_assignment_target(
+                self.binder.source_of_node(access_expression),
+                access_expression,
+            )
+        {
+            return Ok(false);
+        }
+        let receiver = match self.data_of(access_expression) {
+            NodeData::PropertyAccessExpression(data) => data.expression,
+            _ => None,
+        };
+        let Some(receiver) =
+            receiver.filter(|&receiver| self.kind_of(receiver) == SyntaxKind::Identifier)
+        else {
+            return Ok(false);
+        };
+        let declaration = self
+            .get_resolved_symbol(receiver)?
+            .and_then(|symbol| self.binder.symbol(symbol).value_declaration);
+        let Some(declaration) = declaration
+            .filter(|&declaration| self.kind_of(declaration) == SyntaxKind::VariableDeclaration)
+        else {
+            return Ok(false);
+        };
+        let Some(initializer) = self.initializer_of(declaration) else {
+            return Ok(false);
+        };
+        let literal = self.skip_parentheses(initializer);
+        if self.kind_of(literal) != SyntaxKind::ObjectLiteralExpression {
+            return Ok(false);
+        }
+        let source = self.binder.source_of_node(declaration);
+        let raw = source.arena.node(declaration);
+        let start = raw.pos as usize;
+        let end = (raw.end as usize).min(source.text.len());
+        if start >= end {
+            return Ok(false);
+        }
+        let declaration_text = source.text[start..end].to_ascii_lowercase();
+        if !declaration_text.contains("/**") || !declaration_text.contains("@satisfies") {
+            return Ok(false);
+        }
+        let type_literal = self
+            .tables
+            .type_of(containing_type)
+            .symbol
+            .and_then(|symbol| self.binder.symbol(symbol).value_declaration);
+        Ok(type_literal == Some(literal))
+    }
+
     /// The missing intermediate access in
     /// `let A; A = {}; A.prototype.b = {}`. Its parent, not the
     /// `A.prototype` node itself, is the assignment target. Requiring
@@ -3279,6 +3342,12 @@ impl<'a> CheckerState<'a> {
                 containing_symbol,
                 assignment_declaration_kind,
             )?;
+        let publish_jsdoc_satisfies_object_literal_property_read = self
+            .is_jsdoc_satisfies_object_literal_property_read(
+                access_expression,
+                containing_type,
+                assignment_declaration_kind,
+            )?;
         // The binder cannot turn an intermediate access into a direct
         // expando declaration. Once the empty reassignment verdict is
         // complete, its missing member is safe to publish; initialized
@@ -3297,6 +3366,7 @@ impl<'a> CheckerState<'a> {
             || publish_commonjs_require_property_alias_read_non_jsdoc
             || publish_chained_this_assignment
             || publish_prototype_object_replacement_property_assignment
+            || publish_jsdoc_satisfies_object_literal_property_read
             || publish_chained_uninitialized_identifier_empty_assignment
             || containing_symbol.is_some_and(|symbol| {
                 self.non_jsdoc_js_module_exports_alias_targets
