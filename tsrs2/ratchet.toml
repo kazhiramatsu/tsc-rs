@@ -311,8 +311,10 @@
 # m7 8.1j adds +11 through checkSignatureDeclaration's checked-JS
 # async JSDoc return-type producer and checkAsyncFunctionReturnType's
 # exact 1055/1064/1065 head, chain, and related-information rows.
-rate = 0.666469
-matched = 32673
+# m7 8.1k adds +3 through reportNonDefaultExport's exact checked-CJS
+# TS1192 publication in the Node18, Node20, and NodeNext matrix.
+rate = 0.666531
+matched = 32676
 total = 49024
 allowed_regression = 0.0
 
