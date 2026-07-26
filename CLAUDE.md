@@ -27,18 +27,27 @@ there.
    invariants, ledger check, `escapes --stale $(cat tsrs2/STAGE)`
    incl. the untagged ceiling, and generated README-status freshness).
 4. **Merge via GitHub PR** (`gh` CLI): when the slice is done and
-   gates are green, push the branch and open a PR whose body carries
-   the gate summary (conformance rates + FP=0, escapes, tests). The
-   user runs their external review against the PR; fixes land as
-   additional commits on the same branch. On approval, merge with
-   `gh pr merge --merge --delete-branch` — **merge commit ONLY,
-   never squash/rebase**: commit hashes are cross-referenced from
-   design docs, memory, and commit bodies, and must survive.
-5. Bump `tsrs2/ratchet.toml` and `tsrs2/STAGE` as part of the slice,
+   local `cargo xtask ci --baseline origin/main` is green, push the
+   branch and open a PR whose body carries the gate summary
+   (conformance rates + FP=0, escapes, tests). Monitor the PR and fix
+   failures as additional commits on the same branch. As soon as all
+   required GitHub Actions checks are successful and the PR is
+   mergeable, merge automatically with
+   `gh pr merge --merge --delete-branch` — do not wait for a separate
+   user approval. Use a **merge commit ONLY, never squash/rebase**:
+   commit hashes are cross-referenced from design docs, memory, and
+   commit bodies, and must survive.
+5. **Explicit user approval is exceptional.** Pause for approval only
+   when the slice requires a substantial design change from the
+   authoritative design docs or a comparable expansion of project
+   scope/architecture. Ordinary producer-owned implementation,
+   evidence/ratchet updates, PR creation, CI fixes, and green-PR
+   merges do not require approval.
+6. Bump `tsrs2/ratchet.toml` and `tsrs2/STAGE` as part of the slice,
    not the merge. Pull `main` after merging.
-6. Trivial process/docs-only changes may land directly on `main`
+7. Trivial process/docs-only changes may land directly on `main`
    and be pushed.
-7. Pushing to `origin` is allowed and expected: push the slice branch
+8. Pushing to `origin` is allowed and expected: push the slice branch
    with `-u` while working. PR Actions runs the same full gate as
    parallel `rust` and `semantic` lanes, with the latter receiving the
    immutable PR-base SHA; the final `gates` job requires both. Local
