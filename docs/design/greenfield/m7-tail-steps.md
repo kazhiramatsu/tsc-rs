@@ -142,7 +142,12 @@ CommonJS-format TS1470 rows in checked JavaScript across the complete
 Node16-through-NodeNext matrix. The target moved from 0/4 to 4/4; every
 live tier gained four identities with no loss, target-external
 movement, or FP. The family is now 2,921/3,013 with supported FN 92 and
-canaries 4/4.
+canaries 4/4. The next `checkImportDeclaration` slice then selected the
+JavaScript-specific TS1473 message for a nested plain-JS import while
+retaining TS1232 for the TypeScript sibling. The target moved from
+98/156 to 99/156; every live tier gained one identity with no loss,
+target-external movement, or FP. The family is now 2,922/3,013 with
+supported FN 91 and canaries 4/4.
 
 The binding 8.1a-g producer clusters, current reconnaissance anchors,
 and per-slice exits are in

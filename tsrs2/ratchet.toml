@@ -296,8 +296,10 @@
 # package-exports JSON target projection.
 # m7 8.1g.3 adds +4 by publishing checkImportMetaProperty's exact
 # CommonJS-format row in checked JavaScript.
-rate = 0.665796
-matched = 32640
+# m7 8.1g.4 adds +1 through checkImportDeclaration's JavaScript-
+# specific top-level-context message selection.
+rate = 0.665817
+matched = 32641
 total = 49024
 allowed_regression = 0.0
 
