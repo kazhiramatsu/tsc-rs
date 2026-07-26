@@ -423,7 +423,21 @@ Accepted progress on 2026-07-26:
   eight identities with no loss, target-external movement, or FP.
   All-corpus T0 is 32,630/49,024, supported T0 is 32,629/48,477, and
   checker-grammar is 2,911/3,013 with supported FN 102 and canaries
-  4/4.
+  4/4;
+- 8.1g.2 closed the six package-`exports` TS1543 identities owned
+  directly by `checkImportDeclaration` across Node18, Node20, and
+  NodeNext. The existing predicate already handled relative JSON
+  modules; package imports had no module symbol because ordinary
+  node_modules resolution correctly remains `Suppressed`. The slice
+  reuses the existing diagnostic-only package-target projection to read
+  only the resolved program file name, without publishing a resolver
+  success, package symbol, exports, or members. The attributed import
+  and Node16 mode remain negative controls, while the three existing
+  relative JSON rows stay matched. The target moved from 27/81 to
+  33/81; full-corpus T1/T2/T3 each gained exactly six identities with
+  no loss, target-external movement, or FP. All-corpus T0 is
+  32,636/49,024, supported T0 is 32,635/48,477, and checker-grammar is
+  2,917/3,013 with supported FN 96 and canaries 4/4.
 
 ## 6. M7 virtual-band order
 

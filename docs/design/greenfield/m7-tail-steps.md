@@ -129,7 +129,14 @@ global module kind now uses the existing per-file emit-format seam for
 Node CommonJS package files. The TypeScript and checked-JavaScript
 fixtures moved from 24/32 to 32/32; every live tier gained eight
 identities with no loss, target-external movement, or FP. The family is
-now 2,911/3,013 with supported FN 102 and canaries 4/4.
+now 2,911/3,013 with supported FN 102 and canaries 4/4. The next direct
+owner slice closed all six package-`exports` TS1543 rows in
+`checkImportDeclaration`. It projects only the resolved JSON target
+file name through the existing diagnostic-only package path, leaving
+ordinary package resolution suppressed. The target moved from 27/81 to
+33/81; every live tier gained six identities with no loss,
+target-external movement, or FP. The family is now 2,917/3,013 with
+supported FN 96 and canaries 4/4.
 
 The binding 8.1a-g producer clusters, current reconnaissance anchors,
 and per-slice exits are in
