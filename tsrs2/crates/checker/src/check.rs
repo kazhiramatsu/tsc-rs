@@ -167,6 +167,7 @@ impl<'a> CheckerState<'a> {
         }
         self.check_grammar_source_file(root);
         self.check_jsdoc_import_tag_resolution_mode_attributes(root);
+        self.check_jsdoc_parameter_type_argument_grammar(root);
         // 87010-87014: the five per-file accumulators clear at worker
         // entry (the PartiallyTypeChecked restore stays elided).
         self.potential_this_collisions.clear();
@@ -1888,6 +1889,20 @@ impl<'a> CheckerState<'a> {
 
     fn jsdoc_import_tag_bare_with_spans(&self, root: NodeId) -> Vec<(usize, usize)> {
         let source = self.binder.source_of_node(root);
+        let mut spans = std::collections::BTreeSet::new();
+        for (body_start, comment_close) in self.jsdoc_comment_body_ranges(root) {
+            self.collect_jsdoc_import_tag_bare_with_spans(
+                &source.text,
+                body_start,
+                comment_close,
+                &mut spans,
+            );
+        }
+        spans.into_iter().collect()
+    }
+
+    fn jsdoc_comment_body_ranges(&self, root: NodeId) -> Vec<(usize, usize)> {
+        let source = self.binder.source_of_node(root);
         let mut trivia_ranges = std::collections::BTreeSet::new();
         let mut stack = vec![root];
         while let Some(node) = stack.pop() {
@@ -1904,7 +1919,7 @@ impl<'a> CheckerState<'a> {
             });
         }
 
-        let mut spans = std::collections::BTreeSet::new();
+        let mut comments = std::collections::BTreeSet::new();
         for (trivia_start, trivia_end) in trivia_ranges {
             let mut cursor = trivia_start;
             while cursor < trivia_end {
@@ -1917,16 +1932,11 @@ impl<'a> CheckerState<'a> {
                     break;
                 };
                 let comment_close = body_start + relative_close;
-                self.collect_jsdoc_import_tag_bare_with_spans(
-                    &source.text,
-                    body_start,
-                    comment_close,
-                    &mut spans,
-                );
+                comments.insert((body_start, comment_close));
                 cursor = comment_close + 2;
             }
         }
-        spans.into_iter().collect()
+        comments.into_iter().collect()
     }
 
     fn collect_jsdoc_import_tag_bare_with_spans(
@@ -1987,6 +1997,117 @@ impl<'a> CheckerState<'a> {
             spans.insert((with_start, with_start + "with".len()));
             line_offset += line.len();
         }
+    }
+
+    /// tsrs-native: project checkGrammarTypeArguments over the
+    /// JSDocParameterTag type-expression face while JSDoc nodes are
+    /// absent from the syntax arena.
+    ///
+    /// The residual producer is the legacy JSDoc-dot generic spelling
+    /// (`C.<...>`) inside a braced `@param` tag. Return/type-alias tags
+    /// have different source-element reachability in tsc and are not
+    /// inferred from matching comment text.
+    fn check_jsdoc_parameter_type_argument_grammar(&mut self, root: NodeId) {
+        if !self.is_in_js_file(root) {
+            return;
+        }
+        let spans = self.jsdoc_parameter_type_argument_grammar_spans(root);
+        for (start, end, code) in spans {
+            let diagnostics_before = self.diagnostics.len();
+            let message = match code {
+                1009 => &diagnostics::Trailing_comma_not_allowed,
+                1099 => &diagnostics::Type_argument_list_cannot_be_empty,
+                _ => unreachable!("bounded JSDoc type-argument grammar code"),
+            };
+            self.error_at_byte_range(root, start, end, message);
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, code);
+        }
+    }
+
+    fn jsdoc_parameter_type_argument_grammar_spans(
+        &self,
+        root: NodeId,
+    ) -> Vec<(usize, usize, u32)> {
+        let source = self.binder.source_of_node(root);
+        let mut diagnostics = std::collections::BTreeSet::new();
+        for (body_start, comment_close) in self.jsdoc_comment_body_ranges(root) {
+            let body = &source.text[body_start..comment_close];
+            let mut line_offset = 0usize;
+            for line in body.split_inclusive('\n') {
+                let line_without_lf = line.strip_suffix('\n').unwrap_or(line);
+                let line_without_break = line_without_lf
+                    .strip_suffix('\r')
+                    .unwrap_or(line_without_lf);
+                let leading = line_without_break.len()
+                    - line_without_break
+                        .trim_start_matches(char::is_whitespace)
+                        .len();
+                let mut candidate = &line_without_break[leading..];
+                let mut candidate_offset = leading;
+                if let Some(after_star) = candidate.strip_prefix('*') {
+                    candidate_offset += 1;
+                    let star_space =
+                        after_star.len() - after_star.trim_start_matches(char::is_whitespace).len();
+                    candidate_offset += star_space;
+                    candidate = &after_star[star_space..];
+                }
+                let Some(param_tail) = candidate.strip_prefix("@param") else {
+                    line_offset += line.len();
+                    continue;
+                };
+                if !param_tail
+                    .chars()
+                    .next()
+                    .is_some_and(|character| character.is_whitespace() || character == '{')
+                {
+                    line_offset += line.len();
+                    continue;
+                }
+                let Some(open_brace) = candidate.find('{') else {
+                    line_offset += line.len();
+                    continue;
+                };
+                let Some(close_brace) = candidate[open_brace + 1..].find('}') else {
+                    line_offset += line.len();
+                    continue;
+                };
+                let type_start = open_brace + 1;
+                let type_end = type_start + close_brace;
+                let type_text = &candidate[type_start..type_end];
+                let mut type_cursor = 0usize;
+                while let Some(relative_open) = type_text[type_cursor..].find(".<") {
+                    let less_than = type_cursor + relative_open + 1;
+                    let arguments_start = less_than + 1;
+                    let Some(relative_close) = type_text[arguments_start..].find('>') else {
+                        break;
+                    };
+                    let greater_than = arguments_start + relative_close;
+                    let arguments = &type_text[arguments_start..greater_than];
+                    let absolute_type_start =
+                        body_start + line_offset + candidate_offset + type_start;
+                    if arguments.trim().is_empty() {
+                        diagnostics.insert((
+                            absolute_type_start + less_than,
+                            absolute_type_start + greater_than + 1,
+                            1099,
+                        ));
+                    } else {
+                        let trimmed = arguments.trim_end();
+                        if trimmed.ends_with(',') {
+                            let comma = arguments_start + trimmed.len() - 1;
+                            diagnostics.insert((
+                                absolute_type_start + comma,
+                                absolute_type_start + comma + 1,
+                                1009,
+                            ));
+                        }
+                    }
+                    type_cursor = greater_than + 1;
+                }
+                line_offset += line.len();
+            }
+        }
+        diagnostics.into_iter().collect()
     }
 
     /// tsc-port: checkBlock @6.0.3
@@ -9350,6 +9471,72 @@ mod tests {
                 )));
             }
         });
+    }
+
+    // ---- M7 8.1n JSDoc parameter type-argument grammar ----
+
+    #[test]
+    fn jsdoc_parameter_dot_type_arguments_report_empty_and_trailing_comma() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/** @param {C.<>} x\n\
+                     * @param {C.<number,>} y */\n\
+                    function f(x, y) {}\n";
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let diagnostics = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| matches!(diagnostic.code(), 1009 | 1099))
+                .map(|diagnostic| {
+                    (
+                        diagnostic.code(),
+                        diagnostic.start.expect("grammar diagnostic start"),
+                        diagnostic.length.expect("grammar diagnostic length"),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let empty = text.find("<>").expect("empty type arguments") as u32;
+            let comma = text.find(",>").expect("trailing comma") as u32;
+            assert_eq!(diagnostics, [(1099, empty, 2), (1009, comma, 1)]);
+            for (code, start, length) in diagnostics {
+                assert!(state.non_jsdoc_js_diagnostics.contains(&(
+                    "a.js".to_owned(),
+                    start,
+                    length,
+                    code
+                )));
+            }
+        });
+    }
+
+    #[test]
+    fn jsdoc_parameter_type_argument_projection_rejects_other_comment_faces() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/** @return {(Array.<> | null)} */\n\
+                    function returns() {}\n\
+                    /** prose @param {C.<>} x */\n\
+                    function prose(x) {}\n\
+                    /** @parameter {C.<number,>} x */\n\
+                    function otherTag(x) {}\n\
+                    const text = \"/** @param {C.<>} x */\";\n\
+                    /** @param {C.<number>} x */\n\
+                    function valid(x) {}\n";
+        let diagnostics = checked_file_diags_with("a.js", text, &options);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| !matches!(diagnostic.0, 1009 | 1099)),
+            "non-parameter/valid faces must not produce type-argument grammar diagnostics: \
+             {diagnostics:?}"
+        );
     }
 
     // ---- M7 8.1f JSDoc nullable/non-nullable grammar ----
