@@ -650,10 +650,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:89637-89727
     /// d2: d2:05827e9a5c76ae100472c617286f76faf867600725482c2ec026a79d8e76309a
     ///
-    /// M7 8.1b owns the object-literal grammar producer except for two
-    /// deliberately split rows: private-name placement (TS18016) is
-    /// 8.1f-owned, and the large-integer suggestion (TS80008) is
-    /// suggestion-band 8.4-owned.
+    /// M7 8.1b owns the main object-literal grammar table; M7 8.1f
+    /// completes its private-name placement row (TS18016). The
+    /// large-integer suggestion (TS80008) remains suggestion-band
+    /// 8.4-owned.
     fn check_grammar_object_literal_expression(
         &mut self,
         node: NodeId,
@@ -726,8 +726,18 @@ impl<'a> CheckerState<'a> {
                 }
             }
 
-            // `name.kind === PrivateIdentifier` is intentionally
-            // deferred to the M7 8.1f private-name-placement owner.
+            if self.kind_of(name) == SyntaxKind::PrivateIdentifier {
+                let publish_checked_js = self.is_in_js_file(name);
+                let diagnostics_before = self.diagnostics.len();
+                self.grammar_error_on_node(
+                    name,
+                    &diagnostics::Private_identifiers_are_not_allowed_outside_class_bodies,
+                    &[],
+                );
+                if publish_checked_js {
+                    self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 18016);
+                }
+            }
 
             for modifier in self.nodes_of(node_util::modifiers_of(source, member)) {
                 let modifier_kind = self.kind_of(modifier);
@@ -1898,6 +1908,7 @@ mod tests {
 
     use crate::state::test_support::with_program_state;
     use crate::state::CheckerState;
+    use crate::{check_program, InputFile};
 
     /// Driver-level fixture check (expr.rs idiom): full
     /// check_source_file, checker-sink rows as (code, start, length).
@@ -2172,6 +2183,35 @@ mod tests {
         assert_eq!(
             checked_rows("({ static m() {} });\n"),
             [(1042, 3, 6), (1184, 3, 6)]
+        );
+    }
+
+    #[test]
+    fn private_object_literal_names_report_18016_in_ts_and_checked_js() {
+        assert_eq!(checked_rows("({ #name: 1 });\n"), [(18016, 3, 5)]);
+
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "({ #name: 1 });\n".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [(18016, 3, 5)]
         );
     }
 
