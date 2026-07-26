@@ -8830,9 +8830,11 @@ fn string_literal_name_slice(name: &str, single_quote: bool) -> CheckResult2<Str
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_types::CompilerOptions;
+    use tsrs2_types::{CompilerOptions, ScriptTarget};
 
-    use crate::state::test_support::with_program_state;
+    use crate::state::test_support::{
+        with_program_state, with_program_state_allow_parse_diagnostics,
+    };
     use crate::state::CheckerState;
 
     /// Drive the check driver over a single-file program and return
@@ -8994,6 +8996,96 @@ mod tests {
                 assert_eq!((related.start, related.length), (Some(39), Some(4)));
             },
         );
+    }
+
+    // ---- M7 8.1d.3v regular-expression validator (oracle-pinned) ----
+
+    #[test]
+    fn regex_validator_preserves_utf16_positions_and_target_gates() {
+        let options = CompilerOptions {
+            target: Some(ScriptTarget::ES5.bits()),
+            ..CompilerOptions::default()
+        };
+        let rows = checked_diags_with("const r = /😀{/u;", &options);
+        assert!(rows.iter().any(|row| {
+            row.0 == 1508
+                && row.1 == 13
+                && row.2 == 1
+                && row.3 == "Unexpected '{'. Did you mean to escape it with backslash?"
+        }));
+        assert!(rows.iter().any(|row| {
+            row.0 == 1501
+                && row.1 == 15
+                && row.2 == 1
+                && row.3
+                    == "This regular expression flag is only available when targeting 'es6' or later."
+        }));
+    }
+
+    #[test]
+    fn regex_spelling_message_is_related_to_the_primary() {
+        with_program_state(
+            &[("a.ts", "const r = /\\p{General_Categor=Letter}/u;")],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                let primary = state
+                    .diagnostics
+                    .iter()
+                    .find(|diagnostic| diagnostic.code() == 1524)
+                    .expect("TS1524");
+                assert_eq!((primary.start, primary.length), (Some(14), Some(15)));
+                assert_eq!(primary.related.len(), 1);
+                let related = &primary.related[0];
+                assert_eq!(related.message.code, 1369);
+                assert_eq!(related.message.text, "Did you mean 'General_Category'?");
+                assert_eq!(related.file_name, None);
+                assert_eq!((related.start, related.length), (Some(14), Some(15)));
+            },
+        );
+    }
+
+    #[test]
+    fn regex_validator_is_suppressed_by_any_file_parse_diagnostic() {
+        with_program_state_allow_parse_diagnostics(
+            &[("a.ts", "const broken = ; const r = /a/z;")],
+            &CompilerOptions::default(),
+            |state| {
+                assert!(!state.binder.source(0).parse_diagnostics.is_empty());
+                state.check_source_file(0);
+                assert!(
+                    state
+                        .diagnostics
+                        .iter()
+                        .all(|diagnostic| diagnostic.code() != 1499),
+                    "the unrelated parse diagnostic suppresses regex validation"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn regex_validator_publishes_checked_javascript_diagnostics() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        with_program_state(&[("a.js", "const r = /a/z;")], &options, |state| {
+            state.check_source_file(0);
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 1499)
+                .expect("TS1499");
+            let key = (
+                "a.js".to_owned(),
+                diagnostic.start.expect("file diagnostic start"),
+                diagnostic.length.expect("file diagnostic length"),
+                1499,
+            );
+            assert!(state.non_jsdoc_js_diagnostics.contains(&key));
+        });
     }
 
     // ---- deferred containment (tsrs-native, 7.4 review rework) ----

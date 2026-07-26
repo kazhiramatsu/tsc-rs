@@ -967,10 +967,6 @@ name = "node_symbol"
 
 [[fn]]
 file = "crates/checker/src/state.rs"
-name = "parse_program"
-
-[[fn]]
-file = "crates/checker/src/state.rs"
 name = "push_error_diagnostic"
 
 [[fn]]

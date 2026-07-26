@@ -63,8 +63,11 @@ by its two actual emitters; both `checkAwaitGrammar` and the separate
 `for await` grammar producer are complete. The regex work is likewise split
 at its real boundary: target-aware scanner/parser plumbing (including ES5
 identifier tables, recovery rescan, and unterminated-literal state) is
-complete as an accepted-set-neutral prerequisite; the full regex validator
-producer is next. M7 reuses the approach
+complete as an accepted-set-neutral prerequisite, and the complete UTF-16
+regex validator now follows it with generated Unicode-property data, exact
+target gates, and primary/related diagnostic grouping. The next
+checker-grammar producer is selected from a fresh residual owner survey
+rather than the pre-regex ranking. M7 reuses the approach
 that made the 2XXX sweep effective: measure exact oracle rows first, group
 them into `(diagnostic code, pass)` owner families, trace each family
 through the emitting `tsc` function and its Rust implementation boundary,
@@ -82,7 +85,7 @@ artifacts by every `cargo xtask ci` run:
 
 | View | Exact diagnostic match (T0) |
 | --- | --- |
-| All bands | **65.5801%** (32,150 / 49,024) |
+| All bands | **65.6964%** (32,207 / 49,024) |
 | 2xxx band | **97.4063%** (20,505 / 21,051) |
 | Syntactic | **99.8219%** (2,242 / 2,246) |
 

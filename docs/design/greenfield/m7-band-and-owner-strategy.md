@@ -200,11 +200,13 @@ The exact TypeScript owners are:
   `_tsc.js:10839-10844`.
 
 The post-8.1d.2b queue contains 21 fixtures / 40 matrix cases and 87 oracle
-diagnostics. Current exact matches are 31 and supported FN is 56:
+diagnostics. Its fresh post-8.1d.3p immutable snapshot confirmed 31 exact
+matches and supported FN 56:
 TS1125 x17, TS1198 x4, TS1199 x3, TS1499 x1, TS1501 x19, and TS1508 x12.
-All are semantic `checker-grammar` rows. These counts are the entry
-reconnaissance for 8.1d.3v; its branch must take a fresh immutable snapshot
-after 8.1d.3p merges.
+All are semantic `checker-grammar` rows. The full-corpus side of that same
+snapshot also retained `parser579071.ts` TS1005 as an initially overlooked
+false negative from the same validator producer; it is reviewed as a
+same-owner target-external closure gain, not a second slice.
 
 Accepted progress on 2026-07-26:
 
@@ -246,6 +248,15 @@ Accepted progress on 2026-07-26:
   represented. This prerequisite is accepted-set neutral: all-corpus
   T0/T1/T2/T3, the 21-fixture regex queue, supported views, and oracle
   universes are unchanged, with zero false positives.
+- 8.1d.3v ported the complete `reScanSlashToken(reportErrors=true)`
+  validator closure into a dedicated UTF-16 syntax module. Scanner
+  codegen now derives the ordered Unicode-property maps and sets from
+  vendored `_tsc.js`; the checker publishes exact target gates and
+  primary/related/same-start groupings, including checked JavaScript.
+  The frozen queue moved 31/87 to 87/87. Full all-corpus T1/T2/T3 each
+  gained 57 identities with no loss or false positive: the frozen 56
+  plus the reviewed `parser579071.ts` TS1005 same-owner closure. The
+  family is now 2,488/3,013 with supported FN 525 and canaries 2/4.
 
 ## 6. M7 virtual-band order
 

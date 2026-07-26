@@ -7,6 +7,8 @@ mod keywords;
 pub mod kind;
 pub mod nodes;
 mod parser;
+pub mod regex;
+mod regex_unicode;
 pub mod scanner;
 pub mod tokens;
 

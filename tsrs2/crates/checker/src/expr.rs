@@ -24,8 +24,11 @@
 //!   are live since 5.5b (contextual.rs owns the band).
 
 use tsrs2_binder::{node_util, SymbolId};
-use tsrs2_diags::{gen as diagnostics, DiagnosticMessage, MessageChain, RelatedInfo};
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
+use tsrs2_diags::{
+    gen as diagnostics, Diagnostic, DiagnosticCategory, DiagnosticMessage, MessageChain,
+    RelatedInfo,
+};
+use tsrs2_syntax::{regex::validate_regular_expression_literal, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
     CheckMode, ContextFlags, ModifierFlags, NodeCheckFlags, ObjectFlags, PseudoBigInt,
     ScriptTarget, SymbolFlags, TypeData, TypeFlags, TypeId,
@@ -688,14 +691,9 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc-port: checkRegularExpressionLiteral @6.0.3 (once-flag slice)
+    /// tsc-port: checkRegularExpressionLiteral @6.0.3
     /// tsc-hash: e3904ad22a4b7597eead67ad00b86377b9ca72c3975bc95f5577df577a518be9
     /// tsc-span: _tsc.js:73931-73938
-    ///
-    /// The lazy checkGrammarRegularExpressionLiteral body (the regex
-    /// validator, 1501-family) is an elided slice — the once-flag
-    /// (TypeChecked on the literal's links) is wired so the validator
-    /// drops in behind it; until then annotation-flag errors are FN.
     fn check_regular_expression_literal(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         if !self
             .links
@@ -708,9 +706,89 @@ impl<'a> CheckerState<'a> {
                 node,
                 NodeCheckFlags::TYPE_CHECKED,
             );
-            // checkGrammarRegularExpressionLiteral: elided (ledger).
+            self.check_grammar_regular_expression_literal(node);
         }
         self.global_regexp_type()
+    }
+
+    /// tsc-port: checkGrammarRegularExpressionLiteral @6.0.3
+    /// tsc-hash: c6a83ea0fe877784bc2ee4e40d2e3ccf9281f8c9c4878a5eefb675e3a8a164bf
+    /// tsc-span: _tsc.js:73891-73930
+    ///
+    /// The syntax validator reports token-relative UTF-16 positions.
+    /// This adapter supplies the file base and preserves tsc's
+    /// primary/related/same-start publication rule exactly.
+    fn check_grammar_regular_expression_literal(&mut self, node: NodeId) -> bool {
+        if self.has_parse_diagnostics(node) {
+            return false;
+        }
+        let (
+            literal_text,
+            is_unterminated,
+            target,
+            file_name,
+            token_start_utf16,
+            publish_checked_js,
+        ) = {
+            let source = self.binder.source_of_node(node);
+            let raw = source.arena.node(node);
+            let Some(data) = raw.data.as_regular_expression_literal() else {
+                return false;
+            };
+            let literal_text = data.text.clone();
+            let token_start_byte = (raw.end as usize).saturating_sub(literal_text.len());
+            let token_start_utf16 = source
+                .line_map
+                .byte_to_utf16
+                .get(token_start_byte)
+                .copied()
+                .unwrap_or(token_start_byte as u32);
+            (
+                literal_text,
+                data.is_unterminated == Some(true),
+                source.language_version,
+                source.file_name.clone(),
+                token_start_utf16,
+                self.is_in_js_file(node),
+            )
+        };
+        if is_unterminated {
+            return false;
+        }
+
+        let regex_diagnostics = validate_regular_expression_literal(&literal_text, target);
+        let diagnostics_before = self.diagnostics.len();
+        let mut last_primary: Option<(u32, u32, usize)> = None;
+        for regex_diagnostic in regex_diagnostics {
+            let start = token_start_utf16.saturating_add(regex_diagnostic.start_utf16);
+            let length = regex_diagnostic.length_utf16;
+            if regex_diagnostic.message.category == DiagnosticCategory::Message
+                && last_primary.is_some_and(|(last_start, last_length, _)| {
+                    last_start == start && last_length == length
+                })
+            {
+                let (_, _, primary_index) = last_primary.expect("last primary was checked");
+                self.diagnostics[primary_index].related.push(RelatedInfo {
+                    file_name: None,
+                    start: Some(start),
+                    length: Some(length),
+                    message: MessageChain::new(regex_diagnostic.message, &regex_diagnostic.args),
+                });
+            } else if last_primary.is_none_or(|(last_start, _, _)| last_start != start) {
+                let diagnostic = Diagnostic::new(
+                    Some(file_name.clone()),
+                    Some(start),
+                    Some(length),
+                    MessageChain::new(regex_diagnostic.message, &regex_diagnostic.args),
+                );
+                let index = self.push_error_diagnostic(diagnostic);
+                last_primary = Some((start, length, index));
+            }
+        }
+        if publish_checked_js {
+            self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
+        }
+        last_primary.is_some()
     }
 
     /// tsc grammarErrorOnNode (90253): node-span grammar error, gated

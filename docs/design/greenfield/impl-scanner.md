@@ -272,7 +272,7 @@ impl Truthy for SyntaxKind { fn is_truthy(&self) -> bool { *self != SyntaxKind::
 | 6 | `scanTemplateAndSetTokenValue` | 9017 | CRLF→LF in cooked value; unterminated 1160 |
 | 7 | `scanIdentifier` + parts + keyword table | 8030 | codegen table; escapes set UNICODE_ESCAPE flag |
 | 8 | `reScanGreaterToken` | 9866 | [COPY] above |
-| 9 | `reScanSlashToken` | 9893 | extent-only at this phase (regex WORKER = phase 6 grammar); unterminated 1161 |
+| 9 | `reScanSlashToken` | 9893 | parser scanner remains extent-only; M7 8.1d.3v supplies the complete error-reporting closure in `syntax::regex`; unterminated 1161 |
 | 10 | `reScanTemplateToken` | 10871 | called by parser at `}` in substitution |
 | 11 | `reScanLessThanToken`, `reScanHashToken` | grep | trivial re-splits |
 | 12 | JSX: `scanJsxToken`, `reScanJsxToken`, `scanJsxIdentifier`, `scanJsxAttributeValue` | grep | .tsx only; gate with token-diff on jsx fixtures |

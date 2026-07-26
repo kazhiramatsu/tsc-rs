@@ -122,8 +122,9 @@ Commit: `m1 1.5: template literals`.
 Port per syntax-and-binder §1.3: `reScanGreaterToken` (9866),
 `reScanSlashToken` (9893) — at M1 only the EXTENT scan matters (find
 the end of `/.../flags` or fall back to div/div-assign); the
-error-reporting regex WORKER is a checker-side port that arrives with
-grammar checks in M4 — plus `reScanLessThanToken`, `reScanHashToken`,
+error-reporting regex WORKER is a checker-side port (landed in M7
+8.1d.3v as a dedicated UTF-16 validator) — plus `reScanLessThanToken`,
+`reScanHashToken`,
 and the JSX token scanners (`scanJsxToken`, `reScanJsxToken`,
 `scanJsxIdentifier`, `scanJsxAttributeValue`) for `.tsx`.
 
