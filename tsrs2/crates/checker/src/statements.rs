@@ -4017,7 +4017,7 @@ x.accessor = 1;\n"
         );
         assert_eq!(
             checked_rows("interface Array<T> { length: number }\ntype T4 = [...string?];\n"),
-            [(2574, 49, 10)]
+            [(2574, 49, 10), (17019, 52, 7)]
         );
     }
 

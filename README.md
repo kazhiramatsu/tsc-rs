@@ -87,12 +87,15 @@ publication. The first 8.1f producer is complete as well: object-literal
 private-name placement now closes all 31 TS18016 rows and brings the
 checker-grammar canaries to 4/4. Exact position review corrected the
 remaining TS18028 split: both checked-JavaScript rows belong to
-`checkGrammarAccessor`, and both are now complete. The next frozen
-producer is JSDoc nullable/non-nullable syntax. M7 reuses the approach
-that made the 2XXX sweep effective: measure exact oracle rows first,
-group them into `(diagnostic code, pass)` owner families, trace each
-family through the emitting `tsc` function and its Rust implementation
-boundary, then port one bounded producer slice at a time. See the
+`checkGrammarAccessor`, and both are now complete. The following
+`checkJSDocTypeIsInJsFile` slice closes all 12 nullable/non-nullable
+TypeScript-syntax rows (TS17019/TS17020); JSDoc-only M8 diagnostics
+remain closed. JSDoc accessibility modifiers are next. M7 reuses the
+approach that made the 2XXX sweep effective: measure exact oracle rows
+first, group them into `(diagnostic code, pass)` owner families, trace
+each family through the emitting `tsc` function and its Rust
+implementation boundary, then port one bounded producer slice at a
+time. See the
 [M7 band and owner strategy](docs/design/greenfield/m7-band-and-owner-strategy.md).
 
 The stage marker remains `M6` while M7 is active and advances only when the
@@ -106,7 +109,7 @@ artifacts by every `cargo xtask ci` run:
 
 | View | Exact diagnostic match (T0) |
 | --- | --- |
-| All bands | **66.4940%** (32,598 / 49,024) |
+| All bands | **66.5184%** (32,610 / 49,024) |
 | 2xxx band | **97.4063%** (20,505 / 21,051) |
 | Syntactic | **99.8219%** (2,242 / 2,246) |
 

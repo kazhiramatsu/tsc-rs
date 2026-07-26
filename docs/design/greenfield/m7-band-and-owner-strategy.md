@@ -389,7 +389,17 @@ Accepted progress on 2026-07-26:
   moving the fixture from 14/16 to 16/16 and adding two identities at
   T1/T2/T3 with no loss. All-corpus T0 is 32,598/49,024, supported T0
   is 32,597/48,477, and checker-grammar is 2,879/3,013 with supported
-  FN 134. The JSDoc nullable/non-nullable syntax owner is next.
+  FN 134;
+- 8.1f.3 closes all 12 TS17019/TS17020 identities owned by
+  `checkJSDocTypeIsInJsFile` across four fixtures and five matrix
+  cases. The target moves from 21/44 to 33/44; its 11 residual rows
+  remain in the separately owned M8 JSDoc surface. The prerequisite
+  type projection mirrors tsc for JSDoc non-nullable and all/unknown
+  nodes without opening the TS8020 arm. Full-corpus T1/T2/T3 each gain
+  12 with no loss, target-external movement, or FP. All-corpus T0 is
+  32,610/49,024, supported T0 is 32,609/48,477, and checker-grammar is
+  2,891/3,013 with supported FN 122 and canaries 4/4. JSDoc
+  accessibility modifiers are next.
 
 ## 6. M7 virtual-band order
 

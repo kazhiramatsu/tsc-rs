@@ -26,7 +26,7 @@ use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
 use tsrs2_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
     ElementFlags, ModifierFlags, NodeCheckFlags, ObjectFlags, SymbolFlags, TypeData, TypeFacts,
-    TypeFlags, TypeId,
+    TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::state::{CheckResult2, CheckerState, SignatureId, SignatureKind, Unsupported};
@@ -1596,8 +1596,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:86557-86762
     ///
     /// Head elisions: the PartiallyTypeChecked gate (nodesToCheck path
-    /// unported), the canHaveJSDoc comment/tag walk and every JSDoc*
-    /// kind arm (JS/JSDoc checking is the M2 3.4c residual), and the
+    /// unported), the canHaveJSDoc comment/tag walk and the JSDoc*
+    /// kind arms outside the M7 nullable/non-nullable grammar pair
+    /// (JS/JSDoc checking is the M2 3.4c residual), and the
     /// cancellationToken arms. The unreachable-code gate (86582) is
     /// LIVE since 6.6b. Kind arms are in tsc switch order; stubs name
     /// their tsc worker and owner stage.
@@ -1665,6 +1666,16 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::TemplateLiteralType => self.check_template_literal_type(node),
             SyntaxKind::ImportType => self.check_import_type(node),
             SyntaxKind::NamedTupleMember => self.check_named_tuple_member(node),
+            SyntaxKind::JSDocNonNullableType | SyntaxKind::JSDocNullableType => {
+                self.check_jsdoc_nullable_or_non_nullable_type_is_in_js_file(node)?;
+                let inner = match self.data_of(node) {
+                    NodeData::JSDocNonNullableType(data) => data.r#type,
+                    NodeData::JSDocNullableType(data) => data.r#type,
+                    _ => unreachable!("kind/data agree"),
+                };
+                self.check_source_element(inner);
+                Ok(())
+            }
             SyntaxKind::IndexedAccessType => self.check_indexed_access_type(node),
             SyntaxKind::MappedType => self.check_mapped_type(node),
             SyntaxKind::FunctionDeclaration => self.check_function_declaration(node),
@@ -1707,6 +1718,57 @@ impl<'a> CheckerState<'a> {
             // outside tsc's switch: fall through with no work.
             _ => Ok(()),
         }
+    }
+
+    /// tsc-port: checkJSDocTypeIsInJsFile @6.0.3
+    /// tsc-hash: 7444e9c93db2af328f6a313bfe8c6d8316b03b06017c82d42c38603ad1b52440
+    /// tsc-span: _tsc.js:86832-86851
+    ///
+    /// M7 owns only the nullable/non-nullable TS17019/TS17020 pair.
+    /// The sibling JSDoc-only TS8020 arm stays closed for M8. The
+    /// parser preserves tsc's `postfix` observable as equal wrapper
+    /// and operand starts, so no parallel syntax model is needed.
+    fn check_jsdoc_nullable_or_non_nullable_type_is_in_js_file(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult2<()> {
+        if self.is_in_js_file(node) {
+            return Ok(());
+        }
+        let kind = self.kind_of(node);
+        let inner = match self.data_of(node) {
+            NodeData::JSDocNonNullableType(data) => data.r#type,
+            NodeData::JSDocNullableType(data) => data.r#type,
+            _ => unreachable!("kind/data agree"),
+        }
+        .expect("parser invariant: JSDoc nullable operand always parsed");
+        let postfix = self.pos_of(node) == self.pos_of(inner);
+        let diagnostic = if postfix {
+            &diagnostics::_0_at_the_end_of_a_type_is_not_valid_TypeScript_syntax_Did_you_mean_to_write_1
+        } else {
+            &diagnostics::_0_at_the_start_of_a_type_is_not_valid_TypeScript_syntax_Did_you_mean_to_write_1
+        };
+        let token = if kind == SyntaxKind::JSDocNonNullableType {
+            "!"
+        } else {
+            "?"
+        };
+        let ty = self.get_type_from_type_node(inner)?;
+        let suggestion_type = if kind == SyntaxKind::JSDocNullableType
+            && ty != self.tables.intrinsics.never
+            && ty != self.tables.intrinsics.void
+        {
+            let mut types = vec![ty, self.tables.intrinsics.undefined];
+            if !postfix {
+                types.push(self.tables.intrinsics.null);
+            }
+            self.get_union_type_ex(&types, UnionReduction::Literal)?
+        } else {
+            ty
+        };
+        let suggestion = self.type_to_string_slice(suggestion_type)?;
+        self.grammar_error_on_node(node, diagnostic, &[token, &suggestion]);
+        Ok(())
     }
 
     /// tsc-port: checkBlock @6.0.3
@@ -8876,6 +8938,63 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    // ---- M7 8.1f JSDoc nullable/non-nullable grammar ----
+
+    #[test]
+    fn jsdoc_nullable_and_non_nullable_types_report_typescript_suggestions() {
+        let options = CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            checked_diags_with(
+                "var a: ?number;\n\
+                 var b: number?;\n\
+                 var c: !string;\n\
+                 var d: string!;\n\
+                 var e: ?void;\n",
+                &options,
+            ),
+            [
+                (
+                    17020,
+                    7,
+                    7,
+                    "'?' at the start of a type is not valid TypeScript syntax. Did you mean to write 'number | null | undefined'?"
+                        .to_owned()
+                ),
+                (
+                    17019,
+                    23,
+                    7,
+                    "'?' at the end of a type is not valid TypeScript syntax. Did you mean to write 'number | undefined'?"
+                        .to_owned()
+                ),
+                (
+                    17020,
+                    39,
+                    7,
+                    "'!' at the start of a type is not valid TypeScript syntax. Did you mean to write 'string'?"
+                        .to_owned()
+                ),
+                (
+                    17019,
+                    55,
+                    7,
+                    "'!' at the end of a type is not valid TypeScript syntax. Did you mean to write 'string'?"
+                        .to_owned()
+                ),
+                (
+                    17020,
+                    71,
+                    5,
+                    "'?' at the start of a type is not valid TypeScript syntax. Did you mean to write 'void'?"
+                        .to_owned()
+                ),
+            ]
+        );
     }
 
     // ---- M7 8.1c.2 declaration-file source grammar (oracle-pinned) ----

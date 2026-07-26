@@ -223,7 +223,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:63199-63297
     fn get_type_from_type_node_worker(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         match self.kind_of(node) {
-            SyntaxKind::AnyKeyword => Ok(self.tables.intrinsics.any),
+            SyntaxKind::AnyKeyword | SyntaxKind::JSDocAllType | SyntaxKind::JSDocUnknownType => {
+                Ok(self.tables.intrinsics.any)
+            }
             SyntaxKind::UnknownKeyword => Ok(self.tables.intrinsics.unknown),
             SyntaxKind::StringKeyword => Ok(self.tables.intrinsics.string),
             SyntaxKind::NumberKeyword => Ok(self.tables.intrinsics.number),
@@ -258,13 +260,13 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::IntersectionType => self.get_type_from_intersection_type_node(node),
             SyntaxKind::JSDocNullableType => self.get_type_from_jsdoc_nullable_type_node(node),
             SyntaxKind::NamedTupleMember => self.get_type_from_named_tuple_type_node(node),
-            SyntaxKind::ParenthesizedType => {
-                let NodeData::ParenthesizedType(data) = self.data_of(node) else {
-                    unreachable!("ParenthesizedType kind implies payload");
+            SyntaxKind::ParenthesizedType | SyntaxKind::JSDocNonNullableType => {
+                let inner = match self.data_of(node) {
+                    NodeData::ParenthesizedType(data) => data.r#type,
+                    NodeData::JSDocNonNullableType(data) => data.r#type,
+                    _ => unreachable!("kind/data agree"),
                 };
-                let inner = data
-                    .r#type
-                    .expect("parser invariant: ParenthesizedType operand always parsed");
+                let inner = inner.expect("parser invariant: unary type operand always parsed");
                 self.get_type_from_type_node(inner)
             }
             SyntaxKind::RestType => self.get_type_from_rest_type_node(node),
