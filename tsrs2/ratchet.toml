@@ -280,8 +280,10 @@
 # the exact 1282/1283/1284/1285/1289 type-only export rows.
 # m7 8.1e TS1340 adds +72 through getTypeFromImportTypeNode's
 # diagnostic-only bare recovered package-module meaning projection.
-rate = 0.662961
-matched = 32501
+# m7 8.1e TS1361/TS1362 adds +64 through the exact type-only-alias
+# value-use callback, including related origin information.
+rate = 0.664266
+matched = 32565
 total = 49024
 allowed_regression = 0.0
 

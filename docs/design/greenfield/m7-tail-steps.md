@@ -99,8 +99,13 @@ TS1282/1283/1284/1285/1289: nine gains at every live tier, no loss,
 no target-external movement, and all-corpus FP=0. The following
 `getTypeFromImportTypeNode` slice closed all 72 TS1340 identities with
 the same no-loss/FP0 boundary and raised the module-format canary set
-to 3/4. The next module-format owner is the TS1361/TS1362 type-only
-alias use worker.
+to 3/4. The following lazy `onSuccessfullyResolvedSymbol` callback
+slice closed TS1361 x33 and TS1362 x31, including exact TS1376/TS1377
+related origins and the checked-JavaScript export-namespace row.
+T0/T1/T2/T3 each gained 64 identities with no loss, target-external
+movement, or false positive. The checker-grammar family is now
+2,846/3,013 with supported FN 167 and canaries 3/4; 8.1f
+strict/private/JSDoc/ES-target grammar is next.
 
 The binding 8.1a-g producer clusters, current reconnaissance anchors,
 and per-slice exits are in
