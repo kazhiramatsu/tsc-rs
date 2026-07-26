@@ -14,9 +14,10 @@
 //! Stage escapes: [ITER] — non-array-like spreads escape to 5.5f
 //! (checkIteratedTypeOrElementType); object-literal
 //! accessors defer to the 5.8-DECL escape arm in check_deferred_node;
-//! grammar walks (checkGrammarObjectLiteralExpression 89637,
-//! checkGrammarMethod 89943) are elided slices — 1117-family FN
-//! documented by pin fixtures until they land.
+//! grammar walks checkGrammarObjectLiteralExpression (89637) and the
+//! object-member dispatch to checkGrammarMethod (89943) are live from
+//! M7 8.1b. Private-name placement remains with 8.1f and the numeric
+//! literal suggestion remains with 8.4.
 
 use tsrs2_binder::{node_util, SymbolId, SymbolTable};
 use tsrs2_diags::gen as diagnostics;
@@ -622,15 +623,230 @@ struct ObjectLiteralAcc {
     in_destructuring_pattern: bool,
 }
 
+fn is_object_literal_modifier(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::AbstractKeyword
+            | SyntaxKind::AccessorKeyword
+            | SyntaxKind::AsyncKeyword
+            | SyntaxKind::ConstKeyword
+            | SyntaxKind::DeclareKeyword
+            | SyntaxKind::DefaultKeyword
+            | SyntaxKind::ExportKeyword
+            | SyntaxKind::InKeyword
+            | SyntaxKind::OutKeyword
+            | SyntaxKind::OverrideKeyword
+            | SyntaxKind::PrivateKeyword
+            | SyntaxKind::ProtectedKeyword
+            | SyntaxKind::PublicKeyword
+            | SyntaxKind::ReadonlyKeyword
+            | SyntaxKind::StaticKeyword
+    )
+}
+
 impl<'a> CheckerState<'a> {
+    /// tsc-port: checkGrammarObjectLiteralExpression @6.0.3
+    /// tsc-hash: d085eaa514ed568b60dd764c7bb4460cfe440ce59bb3489b36e5b81b2581b228
+    /// tsc-span: _tsc.js:89637-89727
+    /// d2: d2:05827e9a5c76ae100472c617286f76faf867600725482c2ec026a79d8e76309a
+    ///
+    /// M7 8.1b owns the object-literal grammar producer except for two
+    /// deliberately split rows: private-name placement (TS18016) is
+    /// 8.1f-owned, and the large-integer suggestion (TS80008) is
+    /// suggestion-band 8.4-owned.
+    fn check_grammar_object_literal_expression(
+        &mut self,
+        node: NodeId,
+        in_destructuring_pattern: bool,
+    ) -> CheckResult2<bool> {
+        const GET_ACCESSOR: u8 = 1;
+        const SET_ACCESSOR: u8 = 2;
+        const GET_OR_SET_ACCESSOR: u8 = GET_ACCESSOR | SET_ACCESSOR;
+        const PROPERTY_ASSIGNMENT: u8 = 4;
+        const METHOD: u8 = 8;
+
+        let source = self.binder.source_of_node(node);
+        let members = match self.data_of(node) {
+            NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties),
+            _ => Vec::new(),
+        };
+        let mut seen = std::collections::HashMap::<String, u8>::new();
+        for member in members {
+            if self.kind_of(member) == SyntaxKind::SpreadAssignment {
+                if in_destructuring_pattern {
+                    let expression = match self.data_of(member) {
+                        NodeData::SpreadAssignment(data) => data.expression,
+                        _ => None,
+                    };
+                    if let Some(expression) = expression {
+                        let inner = node_util::skip_parentheses_pub(
+                            self.binder.source_of_node(expression),
+                            expression,
+                        );
+                        if matches!(
+                            self.kind_of(inner),
+                            SyntaxKind::ArrayLiteralExpression
+                                | SyntaxKind::ObjectLiteralExpression
+                        ) {
+                            return Ok(self.grammar_error_on_node(
+                                expression,
+                                &diagnostics::A_rest_element_cannot_contain_a_binding_pattern,
+                                &[],
+                            ));
+                        }
+                    }
+                }
+                continue;
+            }
+
+            let Some(name) = self.name_of_node(member) else {
+                continue;
+            };
+            if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
+                self.check_grammar_computed_property_name(name);
+            }
+
+            if self.kind_of(member) == SyntaxKind::ShorthandPropertyAssignment
+                && !in_destructuring_pattern
+            {
+                let (equals_token, initializer) = match self.data_of(member) {
+                    NodeData::ShorthandPropertyAssignment(data) => {
+                        (data.equals_token, data.object_assignment_initializer)
+                    }
+                    _ => (None, None),
+                };
+                if initializer.is_some() {
+                    if let Some(equals_token) = equals_token {
+                        self.grammar_error_on_node(
+                            equals_token,
+                            &diagnostics::Did_you_mean_to_use_a_An_can_only_follow_a_property_name_when_the_containing_object_literal_is_part_of_a_destructuring_pattern,
+                            &[],
+                        );
+                    }
+                }
+            }
+
+            // `name.kind === PrivateIdentifier` is intentionally
+            // deferred to the M7 8.1f private-name-placement owner.
+
+            for modifier in self.nodes_of(node_util::modifiers_of(source, member)) {
+                let modifier_kind = self.kind_of(modifier);
+                if is_object_literal_modifier(modifier_kind)
+                    && (modifier_kind != SyntaxKind::AsyncKeyword
+                        || self.kind_of(member) != SyntaxKind::MethodDeclaration)
+                {
+                    let modifier_text = self.text_of_node(modifier)?;
+                    self.grammar_error_on_node(
+                        modifier,
+                        &diagnostics::_0_modifier_cannot_be_used_here,
+                        &[&modifier_text],
+                    );
+                }
+            }
+
+            let current_kind = match self.kind_of(member) {
+                SyntaxKind::PropertyAssignment => {
+                    let (question_token, exclamation_token) = match self.data_of(member) {
+                        NodeData::PropertyAssignment(data) => {
+                            (data.question_token, data.exclamation_token)
+                        }
+                        _ => (None, None),
+                    };
+                    self.check_grammar_for_invalid_exclamation_token(
+                        exclamation_token,
+                        &diagnostics::A_definite_assignment_assertion_is_not_permitted_in_this_context,
+                    );
+                    self.check_grammar_for_invalid_question_mark(
+                        question_token,
+                        &diagnostics::An_object_member_cannot_be_declared_optional,
+                    );
+                    PROPERTY_ASSIGNMENT
+                }
+                SyntaxKind::ShorthandPropertyAssignment => {
+                    let (question_token, exclamation_token) = match self.data_of(member) {
+                        NodeData::ShorthandPropertyAssignment(data) => {
+                            (data.question_token, data.exclamation_token)
+                        }
+                        _ => (None, None),
+                    };
+                    self.check_grammar_for_invalid_exclamation_token(
+                        exclamation_token,
+                        &diagnostics::A_definite_assignment_assertion_is_not_permitted_in_this_context,
+                    );
+                    self.check_grammar_for_invalid_question_mark(
+                        question_token,
+                        &diagnostics::An_object_member_cannot_be_declared_optional,
+                    );
+                    PROPERTY_ASSIGNMENT
+                }
+                SyntaxKind::MethodDeclaration => METHOD,
+                SyntaxKind::GetAccessor => GET_ACCESSOR,
+                SyntaxKind::SetAccessor => SET_ACCESSOR,
+                _ => continue,
+            };
+
+            // checkGrammarNumericLiteral is the TS80008 suggestion
+            // producer and remains with M7 8.4.
+            if self.kind_of(name) == SyntaxKind::BigIntLiteral {
+                self.error_at(
+                    Some(name),
+                    &diagnostics::A_bigint_literal_cannot_be_used_as_a_property_name,
+                    &[],
+                );
+            }
+
+            if in_destructuring_pattern {
+                continue;
+            }
+            let Some(effective_name) = self.effective_property_name_for_property_name_node(name)?
+            else {
+                continue;
+            };
+            let Some(existing_kind) = seen.get(&effective_name).copied() else {
+                seen.insert(effective_name, current_kind);
+                continue;
+            };
+            if current_kind & METHOD != 0 && existing_kind & METHOD != 0 {
+                let display = self.text_of_node(name)?;
+                self.grammar_error_on_node(name, &diagnostics::Duplicate_identifier_0, &[&display]);
+            } else if current_kind & PROPERTY_ASSIGNMENT != 0
+                && existing_kind & PROPERTY_ASSIGNMENT != 0
+            {
+                self.grammar_error_on_node(
+                    name,
+                    &diagnostics::An_object_literal_cannot_have_multiple_properties_with_the_same_name,
+                    &[],
+                );
+            } else if current_kind & GET_OR_SET_ACCESSOR != 0
+                && existing_kind & GET_OR_SET_ACCESSOR != 0
+            {
+                if existing_kind != GET_OR_SET_ACCESSOR && current_kind != existing_kind {
+                    seen.insert(effective_name, current_kind | existing_kind);
+                } else {
+                    return Ok(self.grammar_error_on_node(
+                        name,
+                        &diagnostics::An_object_literal_cannot_have_multiple_get_set_accessors_with_the_same_name,
+                        &[],
+                    ));
+                }
+            } else {
+                return Ok(self.grammar_error_on_node(
+                    name,
+                    &diagnostics::An_object_literal_cannot_have_property_and_accessor_with_the_same_name,
+                    &[],
+                ));
+            }
+        }
+        Ok(false)
+    }
+
     /// tsc-port: checkObjectLiteral @6.0.3
     /// tsc-hash: c78231c4fb699497a2e5eaf135a9a290add889608f13083434a3d68a31b03d78
     /// tsc-span: _tsc.js:74135-74299
     ///
     /// Elided/dead arms: checkGrammarObjectLiteralExpression (89637)
-    /// is a PARTIAL slice — the computed-property-name row (5.8a
-    /// §12), rest-binding-pattern row, and duplicate-method row are
-    /// live; the rest stays elided (1117-family FN, pinned);
+    /// is live through the M7 8.1b owner slice, with only its
+    /// private-name and suggestion rows split to 8.1f/8.4;
     /// isInJavascript/enumTag/jsDocType/JSLiteral ride [JSDOC] (TS
     /// files answer false — plain-JS files gate earlier); the
     /// languageVersion ObjectAssign emit-helper gate is dead at
@@ -645,70 +861,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<TypeId> {
         let source = self.binder.source_of_node(node);
         let in_destructuring_pattern = node_util::is_assignment_target(source, node);
-        // checkGrammarObjectLiteralExpression(node, inDestructuring):
-        // PARTIAL slice — the checkGrammarComputedPropertyName row is
-        // 5.8a-owned (§12; review find, PR #5: 1171) and the
-        // rest-binding-pattern row is 9.9l-owned; the duplicate-method
-        // table is 9.9v-owned. The remaining rows (shorthand-equals,
-        // private identifier, modifier, property/accessor duplicate
-        // tables) stay elided with their owners (1117-family FN,
-        // pinned).
-        {
-            let members = match self.data_of(node) {
-                NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties),
-                _ => Vec::new(),
-            };
-            let mut seen_methods = std::collections::HashSet::new();
-            for member in members {
-                if self.kind_of(member) == SyntaxKind::SpreadAssignment {
-                    if in_destructuring_pattern {
-                        let expression = match self.data_of(member) {
-                            NodeData::SpreadAssignment(data) => data.expression,
-                            _ => None,
-                        };
-                        if let Some(expression) = expression {
-                            let inner = node_util::skip_parentheses_pub(
-                                self.binder.source_of_node(expression),
-                                expression,
-                            );
-                            if matches!(
-                                self.kind_of(inner),
-                                SyntaxKind::ArrayLiteralExpression
-                                    | SyntaxKind::ObjectLiteralExpression
-                            ) {
-                                self.grammar_error_on_node(
-                                    expression,
-                                    &diagnostics::A_rest_element_cannot_contain_a_binding_pattern,
-                                    &[],
-                                );
-                            }
-                        }
-                    }
-                    continue;
-                }
-                if let Some(name) = self.name_of_node(member) {
-                    if self.kind_of(name) == SyntaxKind::ComputedPropertyName {
-                        self.check_grammar_computed_property_name(name);
-                    }
-                    if !in_destructuring_pattern
-                        && self.kind_of(member) == SyntaxKind::MethodDeclaration
-                    {
-                        if let Some(effective_name) =
-                            self.effective_property_name_for_property_name_node(name)?
-                        {
-                            if !seen_methods.insert(effective_name) {
-                                let display = self.text_of_node(name)?;
-                                self.grammar_error_on_node(
-                                    name,
-                                    &diagnostics::Duplicate_identifier_0,
-                                    &[&display],
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        self.check_grammar_object_literal_expression(node, in_destructuring_pattern)?;
         let strict_null_checks = self.tables.strict_null_checks;
         let mut acc = ObjectLiteralAcc {
             all_properties_table: strict_null_checks.then(SymbolTable::default),
@@ -1987,13 +2140,39 @@ mod tests {
         assert_eq!(checked_rows("declare const a: number;\n({ a });\n"), []);
     }
 
-    // ---- documented FN at 5.5c (oracle rows exist; ours stay []) ----
+    // ---- M7 8.1b: object-literal grammar owner cluster ----
 
     #[test]
-    fn duplicate_object_props_are_fn_until_the_grammar_slice() {
-        // Oracle: 1117 (9,1) — checkGrammarObjectLiteralExpression is
-        // an elided slice.
-        assert_eq!(checked_rows("({ a: 1, a: 2 });\n"), []);
+    fn duplicate_object_props_report_1117_on_the_second_name() {
+        assert_eq!(checked_rows("({ a: 1, a: 2 });\n"), [(1117, 9, 1)]);
+        assert_eq!(checked_rows("({ a: 1, b: 2 });\n"), []);
+    }
+
+    #[test]
+    fn duplicate_object_accessors_match_the_grammar_table() {
+        // tsc also reports separately owned TS2300 rows on both
+        // names; those remain outside this producer-owned 8.1b slice.
+        assert_eq!(
+            checked_rows("({ get a() { return 1; }, get a() { return 2; } });\n"),
+            [(1118, 30, 1)]
+        );
+        assert_eq!(
+            checked_rows("({ a: 1, get a() { return 2; } });\n"),
+            [(1119, 13, 1)]
+        );
+    }
+
+    #[test]
+    fn object_literal_modifier_and_method_grammar_order_matches_oracle() {
+        assert_eq!(
+            checked_rows("({ public get a() { return 1; } });\n"),
+            [(1042, 3, 6)]
+        );
+        assert_eq!(checked_rows("({ get a() { return 1; } });\n"), []);
+        assert_eq!(
+            checked_rows("({ static m() {} });\n"),
+            [(1042, 3, 6), (1184, 3, 6)]
+        );
     }
 
     #[test]

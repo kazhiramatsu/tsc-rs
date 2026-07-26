@@ -258,8 +258,10 @@
 # p9 9.9bp adds +1 class-field arrow lexical-this miss.
 # m7 8.1a adds +505 through checkGrammarModifiers and its obvious
 # modifier/decorator + async helpers, with exact follower suppression.
-rate = 0.651354
-matched = 31932
+# m7 8.1b adds +116 through checkGrammarObjectLiteralExpression and
+# the object-literal checkGrammarMethod dispatch.
+rate = 0.653721
+matched = 32048
 total = 49024
 allowed_regression = 0.0
 
