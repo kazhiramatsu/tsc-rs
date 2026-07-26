@@ -2919,6 +2919,49 @@ impl<'a> CheckerState<'a> {
         Ok(type_literal == Some(literal))
     }
 
+    /// A non-assignment `this.prototype.member` read whose containing
+    /// type is a real class instance. The class member table is
+    /// complete independently of JSDoc attached to an outer function
+    /// or class, so that outer provenance must not hide the miss.
+    fn is_this_prototype_class_property_read(
+        &self,
+        access_expression: NodeId,
+        containing_symbol: Option<SymbolId>,
+        assignment_declaration_kind: tsrs2_binder::AssignmentDeclarationKind,
+    ) -> bool {
+        if self.kind_of(access_expression) != SyntaxKind::PropertyAccessExpression
+            || assignment_declaration_kind != tsrs2_binder::AssignmentDeclarationKind::None
+            || node_util::is_assignment_target(
+                self.binder.source_of_node(access_expression),
+                access_expression,
+            )
+        {
+            return false;
+        }
+        let receiver = match self.data_of(access_expression) {
+            NodeData::PropertyAccessExpression(data) => data.expression,
+            _ => None,
+        };
+        let this_prototype = receiver.is_some_and(|receiver| {
+            matches!(
+                self.data_of(receiver),
+                NodeData::PropertyAccessExpression(inner)
+                    if inner
+                        .expression
+                        .is_some_and(|base| self.kind_of(base) == SyntaxKind::ThisKeyword)
+                        && inner
+                            .name
+                            .and_then(|name| self.identifier_text_of(name))
+                            == Some("prototype")
+            )
+        });
+        this_prototype
+            && containing_symbol.is_some_and(|symbol| {
+                let flags = self.binder.symbol(symbol).flags;
+                flags.intersects(SymbolFlags::CLASS) && !flags.intersects(SymbolFlags::FUNCTION)
+            })
+    }
+
     /// The missing intermediate access in
     /// `let A; A = {}; A.prototype.b = {}`. Its parent, not the
     /// `A.prototype` node itself, is the assignment target. Requiring
@@ -3348,6 +3391,12 @@ impl<'a> CheckerState<'a> {
                 containing_type,
                 assignment_declaration_kind,
             )?;
+        let publish_this_prototype_class_property_read = self
+            .is_this_prototype_class_property_read(
+                access_expression,
+                containing_symbol,
+                assignment_declaration_kind,
+            );
         // The binder cannot turn an intermediate access into a direct
         // expando declaration. Once the empty reassignment verdict is
         // complete, its missing member is safe to publish; initialized
@@ -3367,6 +3416,7 @@ impl<'a> CheckerState<'a> {
             || publish_chained_this_assignment
             || publish_prototype_object_replacement_property_assignment
             || publish_jsdoc_satisfies_object_literal_property_read
+            || publish_this_prototype_class_property_read
             || publish_chained_uninitialized_identifier_empty_assignment
             || containing_symbol.is_some_and(|symbol| {
                 self.non_jsdoc_js_module_exports_alias_targets

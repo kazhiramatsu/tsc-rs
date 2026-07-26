@@ -4742,6 +4742,46 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9bn results (2026-07-26, nested-class prototype reads — DONE)
+
+The checked-JS 2339 publication path now recognizes a non-assignment
+`this.prototype.member` read when the containing type carries a real
+class symbol. The nested class's instance member table is complete
+independently of JSDoc attached to an outer function or class, so that
+outer provenance no longer hides the missing member.
+
+The proof requires the exact two-link `this.prototype` receiver,
+assignment-declaration kind `None`, and a `CLASS` but non-`FUNCTION`
+containing symbol. Direct assignments retain their class-member
+producer. A unit pin covers the nested-class shape under an outer
+`@template` declaration.
+
+The D2 port plan is `reportNonexistentProperty`
+(`d2:681dc9d40f1bb3d69339aaabed7c5c7e02fc0bd5b498bb5eeee4eca60cd94001`,
+`scc:00002`, 1,396 members). It has no exact Rust ledger join, 24
+static callees, two static callers, no unresolved static calls, and no
+escape rows.
+
+The three-fixture target `jsdocOuterTypeParameters1/2/3` grows from
+**0/7** to **3/7** at T0/T1/T2/T3, with FP=0; its supported view grows
+from **0/3** to **3/3**. The four remaining fixture rows are excluded
+JSDoc syntax/type diagnostics. Exact target and full-band diffs report
+T1/T2/T3 lost=0/gained=**3** in both scope views.
+
+2xxx T0 grows to **20503/21051** (**97.3968%**) with FP=0; supported T0
+is **20502/20504** (**99.9902%**) with supported FN=**2**, both code
+2339. All-band T0 is **31425/49024** (**64.1013%**) with FP=0;
+supported all-band T0 is **31424/48477** (**64.8225%**). The
+accepted-set ratchet adds three T0 identities and three
+multiplicity-complete identities to both all and 2xxx; syntactic is
+unchanged.
+
+Checker tests are **1,094**, binder tests are **55**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,866**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
