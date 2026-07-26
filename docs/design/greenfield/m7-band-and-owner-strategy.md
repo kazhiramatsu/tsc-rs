@@ -390,16 +390,28 @@ Accepted progress on 2026-07-26:
   T1/T2/T3 with no loss. All-corpus T0 is 32,598/49,024, supported T0
   is 32,597/48,477, and checker-grammar is 2,879/3,013 with supported
   FN 134;
-- 8.1f.3 closes all 12 TS17019/TS17020 identities owned by
+- 8.1f.3 closed all 12 TS17019/TS17020 identities owned by
   `checkJSDocTypeIsInJsFile` across four fixtures and five matrix
-  cases. The target moves from 21/44 to 33/44; its 11 residual rows
+  cases. The target moved from 21/44 to 33/44; its 11 residual rows
   remain in the separately owned M8 JSDoc surface. The prerequisite
   type projection mirrors tsc for JSDoc non-nullable and all/unknown
-  nodes without opening the TS8020 arm. Full-corpus T1/T2/T3 each gain
+  nodes without opening the TS8020 arm. Full-corpus T1/T2/T3 each gained
   12 with no loss, target-external movement, or FP. All-corpus T0 is
   32,610/49,024, supported T0 is 32,609/48,477, and checker-grammar is
-  2,891/3,013 with supported FN 122 and canaries 4/4. JSDoc
-  accessibility modifiers are next.
+  2,891/3,013 with supported FN 122 and canaries 4/4;
+- 8.1f.4 closed all 12 residual TS18010 identities owned by
+  `checkJSDocAccessibilityModifiers` in the expanded checked-JavaScript
+  fixture. Because attached JSDoc tags are not syntax-arena nodes, the
+  implementation projects only `@public`, `@private`, and `@protected`
+  from the nearest attached `/** ... */` comment on private class
+  elements and publishes the exact oracle tag-node span. Prose,
+  ordinary comments, non-private members, and intervening declarations
+  remain negative. The two-fixture target moved from 23/70 to 35/70;
+  full-corpus T1/T2/T3 each gained exactly 12 identities with no loss,
+  target-external movement, or FP. All-corpus T0 is 32,622/49,024,
+  supported T0 is 32,621/48,477, and checker-grammar is 2,903/3,013
+  with supported FN 110 and canaries 4/4. This completes all 57 planned
+  8.1f identities; 8.1g begins with a fresh residual owner survey.
 
 ## 6. M7 virtual-band order
 
