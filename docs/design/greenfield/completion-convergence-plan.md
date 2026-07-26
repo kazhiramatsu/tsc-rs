@@ -210,6 +210,12 @@ never the aggregate 63% calibration point:
 - 8.4 suggestion rows plus T1 activation;
 - 8.5 program/resolution rows plus A3 formatter structure.
 
+Before each stage's first semantic slice, run the mandatory A5
+virtual-band and D2 producer-owner survey in
+[m7-band-and-owner-strategy.md](m7-band-and-owner-strategy.md). Numeric
+code ranges are reporting views outside 2XXX; `(code, pass)` family
+ownership and exact emitter paths decide implementation slices.
+
 M7 closes only when A2 is globally frozen, A3 structure is live, B1-B4
 evidence is current, D1-D3 are complete, every M7-owned family has
 supported FN=0, and all ten

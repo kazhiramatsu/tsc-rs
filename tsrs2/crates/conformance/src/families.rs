@@ -1369,6 +1369,7 @@ pub(crate) fn grade(
             let vacuous = !family_rows.is_empty() && scoped_buckets == 0;
             let passed = !vacuous
                 && family_false_negative == 0
+                && multiplicity_incomplete == 0
                 && (!family_rows.is_empty() || case.false_positives == 0);
             canaries.push(CanaryReport {
                 fixture: canary.fixture.clone(),
@@ -2378,6 +2379,35 @@ mod tests {
         let suppression = &report.families[2];
         assert!(!suppression.canaries[0].passed);
         assert_eq!(suppression.canaries[0].family_false_negative, 1);
+    }
+
+    #[test]
+    fn duplicate_canary_requires_multiplicity_complete_output() {
+        let mut file = draft_file(vec![family("a", "M7 8.1", &[(7027, "semantic")])]);
+        file.families[0].canaries.push(Canary {
+            fixture: "conformance/a.ts".to_owned(),
+            matrix_key: String::new(),
+        });
+        let mut duplicate = bucket(7027, "semantic", 2, 0, true);
+        duplicate.tsrs_multiplicity = 1;
+        let observation = Observation {
+            fixtures_total: 1,
+            cases: vec![CaseObservation {
+                fixture: "conformance/a.ts".to_owned(),
+                matrix_key: String::new(),
+                false_positives: 0,
+                // T0 set membership alone matches, but one of the two
+                // duplicate occurrences is still missing.
+                buckets: vec![duplicate],
+            }],
+        };
+
+        let report = grade(&file, &observation, dummy_inputs()).unwrap();
+        let canary = &report.families[0].canaries[0];
+        assert_eq!(canary.family_false_negative, 0);
+        assert_eq!(canary.multiplicity_incomplete, 1);
+        assert!(!canary.passed);
+        assert_eq!(report.families[0].canaries_passed, 0);
     }
 
     #[test]

@@ -89,6 +89,10 @@ keyed by (code, pass), records their measured baselines, and defines
 the per-family acceptance that C4/M7 stage gates and the M8 residual
 snapshot consume. The convergence plan's A5 slice turns it into a
 machine map + rollup.
+[m7-band-and-owner-strategy.md](m7-band-and-owner-strategy.md) adapts
+the successful 2XXX survey/mining method to those A5 virtual bands:
+mandatory pre-implementation owner reconnaissance, immutable slice
+evidence, and the concrete 8.1a-f checker-grammar producer split.
 
 This is a FROM-SCRATCH build (workspace `tsrs2/`). Nothing in the
 existing `src/` is consulted; the only implementation references are

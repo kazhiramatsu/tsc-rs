@@ -40,6 +40,21 @@ An upper tier may be deferred only to a named shared prerequisite with
 exact affected rows, an owner, and a retirement stage. "T4 in M8" by
 itself is not sufficient evidence.
 
+## Required pre-implementation survey and band strategy
+
+M7 does not begin a stage from aggregate FN codes alone. Before each
+stage's first semantic edit, follow
+[m7-band-and-owner-strategy.md](m7-band-and-owner-strategy.md):
+use the A5 `(code, pass)` family as the virtual band, enumerate its
+exact rows, trace representative rows through D2 emitter/dependency
+owners and the current Rust boundary, oracle-probe positive/negative
+shapes, and freeze one producer-owned slice queue with
+`slice-evidence`.
+
+This is the phase-9 method adapted to non-2XXX. A numeric band is only a
+display grouping here; A5 family ownership and pass provenance decide
+implementation scope.
+
 ## Stage 8.1: grammar checks [M]
 
 Fill the driver's grammar slot (M4 stage 5.4 hook): port the
@@ -77,7 +92,12 @@ probed; the oracle-correction epoch verified the node matrix only).
 Related ladder sites already annotated: statements.rs
 for-await 1309/1432, functions.rs checkAwaitGrammar 2856-family.
 
-One commit per family; each with oracle-probed micro pins.
+The binding 8.1a-f producer clusters, current reconnaissance anchors,
+and per-slice exits are in
+[the M7 band strategy](m7-band-and-owner-strategy.md#5-checker-grammar-entry-reconnaissance).
+One producer owner per branch/PR; an A5 family may require several
+producer slices and closes only after its full rollup and canaries are
+green. Each slice carries oracle-probed micro pins.
 
 Commit(s): `m7 8.1a-f: grammar check families (+rate)`.
 

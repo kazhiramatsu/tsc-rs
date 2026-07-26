@@ -118,7 +118,7 @@ Document map:
   flow-graph construction, strict mode). The two ports that DELETE
   downstream work: the parse-error flag (retires parse-error-gate.md)
   and the declareSymbol merge (retires the overload-merge family).
-- **[type-checking-2xxx-roadmap.md](../type-checking-2xxx-roadmap.md)** —
+- **[type-checking-2xxx-roadmap.md](workstreams/type-checking-2xxx-roadmap.md)** —
   the cross-workstream design for the 2XXX diagnostic band. Read before
   broad work on relation, member access, call/overload resolution,
   inference, flow/operator checks, or type identity. It answers which
@@ -156,8 +156,8 @@ Document map:
 | 3 | lib-gap axis (2304) | [lib-gap-2304.md](workstreams/lib-gap-2304.md) | [steps](workstreams/lib-gap-2304-steps.md) | 2304 = FN #1 (1,622 raw; partially excluded from the gate-filtered metric) | raw-metric heavy; moderate filtered yield |
 | 4 | U6: unused-FP finish | [u6-unused-fp.md](workstreams/u6-unused-fp.md) (buckets + root causes A/B/C inside) | FP 6133 = 156 | small, self-contained; best FIRST workstream for a new agent | ~100 FPs |
 | 5 | Architectural debt (do only when a workstream is blocked on it) | [architectural-debt.md](../architectural-debt.md) | anon-`{}` identity, StringMapping kind, inference widen ordering, 2403 mapped-identity (276) | unblocks documented FNs |
-| 6 | TS7031 destructuring parameter implicit-any | [destructuring-parameter-implicit-any.md](../destructuring-parameter-implicit-any.md) | [steps](../destructuring-parameter-implicit-any-steps.md) | leaf defaults, parameter initializers, contextual parameter types, signature/member coverage | small but FP-sensitive |
-| 7 | 2XXX type-checking roadmap (read before broad 2XXX work) | [type-checking-2xxx-roadmap.md](../type-checking-2xxx-roadmap.md) | n/a | 2322/2339/2345/2554/2769 and related deep type-checker families | design gate for local-vs-architecture decisions |
+| 6 | TS7031 destructuring parameter implicit-any | [destructuring-parameter-implicit-any.md](workstreams/destructuring-parameter-implicit-any.md) | [steps](workstreams/destructuring-parameter-implicit-any-steps.md) | leaf defaults, parameter initializers, contextual parameter types, signature/member coverage | small but FP-sensitive |
+| 7 | 2XXX type-checking roadmap (read before broad 2XXX work) | [type-checking-2xxx-roadmap.md](workstreams/type-checking-2xxx-roadmap.md) | n/a | 2322/2339/2345/2554/2769 and related deep type-checker families | design gate for local-vs-architecture decisions |
 
 ## Working protocol (MANDATORY)
 
