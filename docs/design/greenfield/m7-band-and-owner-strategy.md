@@ -505,7 +505,20 @@ Accepted progress on 2026-07-26:
   target-external movement, or FP. All-corpus T0 is 32,657/49,024,
   supported T0 is 32,656/48,477, and checker-grammar is 2,938/3,013
   with supported FN 75 and canaries 4/4. TS1295 now has no
-  checker-grammar residue.
+  checker-grammar residue;
+- 8.1g.9 closed the final TS1287 namespace identity at the nested
+  `checkModuleDeclarationDiagnostics` owner. Fresh D2 and source
+  review corrected the preliminary assignment to
+  `checkGrammarModifiers`: tsc deliberately excludes
+  `ModuleDeclaration` there and emits later only when
+  `isInstantiatedModule` is true. The folded Rust
+  `check_module_declaration` boundary now preserves that split, with
+  the type-only namespace and ES module kind as negative controls. The
+  one-fixture target moved from 10/15 to 11/15; full-corpus T1/T2/T3
+  each gained exactly one identity with no loss, target-external
+  movement, or FP. All-corpus T0 is 32,658/49,024, supported T0 is
+  32,657/48,477, and checker-grammar is 2,939/3,013 with supported FN
+  74 and canaries 4/4.
 
 ## 6. M7 virtual-band order
 

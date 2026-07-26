@@ -175,7 +175,16 @@ and retains ES module kind as a negative control. The target moved
 from 9/15 to 10/15; every live tier gained one identity with no loss,
 target-external movement, or FP. TS1295 now has no checker-grammar
 residue. The family is now 2,938/3,013 with supported FN 75 and
-canaries 4/4.
+canaries 4/4. Fresh owner review then corrected the preliminary
+placement of the final TS1287 namespace row: tsc excludes module
+declarations from `checkGrammarModifiers` and emits from nested
+`checkModuleDeclarationDiagnostics` only after
+`isInstantiatedModule`. The folded Rust
+`check_module_declaration` boundary now follows that split, keeping
+the type-only namespace and ES module kind clean. The target moved
+from 10/15 to 11/15; every live tier gained one identity with no loss,
+target-external movement, or FP. The family is now 2,939/3,013 with
+supported FN 74 and canaries 4/4.
 
 The binding 8.1a-g producer clusters, current reconnaissance anchors,
 and per-slice exits are in

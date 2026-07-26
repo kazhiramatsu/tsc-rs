@@ -5124,13 +5124,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: fd08e6535aca4619488e996c96744781fbed038c3af10dcd3cc1da26b11b8ec1
     /// tsc-span: _tsc.js:85840-85924
     ///
-    /// addLazyDiagnostic = eager identity (5.4). Dead rows at the
-    /// modeled defaults: erasableSyntaxOnly / isolatedModules /
-    /// verbatimModuleSyntax (options unmodeled). The M7
+    /// addLazyDiagnostic = eager identity (5.4). The
+    /// verbatimModuleSyntax/CommonJS row is live for instantiated
+    /// namespaces; erasableSyntaxOnly and the isolatedModules
+    /// global-script row remain outside this slice. The M7
     /// registerForUnusedIdentifiersCheck registration is inert.
     pub(crate) fn check_module_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
-        let (name, body) = match self.data_of(node) {
-            NodeData::ModuleDeclaration(data) => (data.name, data.body),
+        let (name, body, modifiers) = match self.data_of(node) {
+            NodeData::ModuleDeclaration(data) => (data.name, data.body, data.modifiers),
             _ => return Ok(()),
         };
         if let Some(body) = body {
@@ -5245,7 +5246,24 @@ impl<'a> CheckerState<'a> {
                     }
                 }
             }
-            // verbatimModuleSyntax CJS export-modifier row: dead.
+            if self.options.verbatim_module_syntax == Some(true)
+                && self
+                    .parent_of(node)
+                    .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::SourceFile)
+                && self.emit_module_format_of_file(node) == 1
+            {
+                if let Some(export_modifier) = self
+                    .nodes_of(modifiers)
+                    .into_iter()
+                    .find(|&modifier| self.kind_of(modifier) == SyntaxKind::ExportKeyword)
+                {
+                    self.error_at(
+                        Some(export_modifier),
+                        &diagnostics::A_top_level_export_modifier_cannot_be_used_on_value_declarations_in_a_CommonJS_module_when_verbatimModuleSyntax_is_enabled,
+                        &[],
+                    );
+                }
+            }
         }
         if is_ambient_external_module {
             let source = self.binder.source_of_node(node);
@@ -7500,6 +7518,49 @@ let unrelated = \"\";\n",
                 "ECMAScript imports and exports cannot be written in a CommonJS file under 'verbatimModuleSyntax'. Adjust the 'type' field in the nearest 'package.json' to make this file an ECMAScript module, or adjust your 'verbatimModuleSyntax', 'module', and 'moduleResolution' settings in TypeScript.".to_owned(),
             )]
         );
+    }
+
+    #[test]
+    fn verbatim_commonjs_only_reports_instantiated_namespace_export() {
+        let source = "export namespace JustTypes {\n    export type T = number;\n}\n\
+                      export namespace Values {\n    export const x = 1;\n}\n";
+        let commonjs = CompilerOptions {
+            module: Some(1),
+            target: Some(99),
+            module_resolution: Some(100),
+            verbatim_module_syntax: Some(true),
+            ..CompilerOptions::default()
+        };
+        let result = check_program(
+            &[InputFile {
+                name: "/main.ts".to_owned(),
+                text: source.to_owned(),
+            }],
+            &commonjs,
+        );
+        assert_eq!(
+            targeted_rows(&result, &[1287]),
+            [(
+                "/main.ts".to_owned(),
+                1287,
+                source.rfind("export namespace").expect("value namespace") as u32,
+                "export".len() as u32,
+                "A top-level 'export' modifier cannot be used on value declarations in a CommonJS module when 'verbatimModuleSyntax' is enabled.".to_owned(),
+            )]
+        );
+
+        let esm = CompilerOptions {
+            module: Some(99),
+            ..commonjs
+        };
+        let esm_result = check_program(
+            &[InputFile {
+                name: "/main.ts".to_owned(),
+                text: source.to_owned(),
+            }],
+            &esm,
+        );
+        assert!(targeted_rows(&esm_result, &[1287]).is_empty());
     }
 
     #[test]
