@@ -276,8 +276,10 @@
 # m7 8.1e B16 adds +213 through resolveExternalModule's complete
 # Node16/Node18 synchronous-import mode-mismatch queue: 1471 x68,
 # 1479 x143, 1541 x1, and 1542 x1.
-rate = 0.661309
-matched = 32420
+# m7 8.1e A11 adds +9 through checkExportAssignment: 1203 x4 plus
+# the exact 1282/1283/1284/1285/1289 type-only export rows.
+rate = 0.661492
+matched = 32429
 total = 49024
 allowed_regression = 0.0
 

@@ -92,9 +92,12 @@ probed; the oracle-correction epoch verified the node matrix only).
 Related ladder sites already annotated: statements.rs
 for-await 1309/1432, functions.rs checkAwaitGrammar 2856-family.
 
-Current 2026-07-26 state: A10 and B16 are accepted. B16 closed its exact
-TS1471/1479/1541/1542 queue with 213 gains at T0/T1/T2/T3, no loss, and
-all-corpus FP=0. A11 is the next module-format owner.
+Current 2026-07-26 state: A10, B16, and A11 are accepted. B16 closed its
+exact TS1471/1479/1541/1542 queue with 213 gains at T0/T1/T2/T3. A11
+then closed `checkExportAssignment` with TS1203 x4 and one each of
+TS1282/1283/1284/1285/1289: nine gains at every live tier, no loss,
+no target-external movement, and all-corpus FP=0. The next
+module-format owner is the TS1340 import-type usage worker.
 
 The binding 8.1a-g producer clusters, current reconnaissance anchors,
 and per-slice exits are in

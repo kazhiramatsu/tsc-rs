@@ -6458,13 +6458,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 2481cb70fb33663829bfdf493fafea233783acafbd6069e1e83a2f85c5cf1a19
     /// tsc-span: _tsc.js:86391-86501
     ///
-    /// Dead rows at the modeled defaults: erasableSyntaxOnly,
-    /// verbatimModuleSyntax faces, the isolatedModules type-only
-    /// re-export band, collectLinkedAliases (emit). The JSDoc type
-    /// annotation arm is JS-only. The export= tails read the modeled
-    /// module option (impliedNodeFormat reduces: non-ambient files
-    /// carry no format, so `!== CommonJS` holds and the ES2015+ row
-    /// fires; the ambient ESNext face never does).
+    /// erasableSyntaxOnly, collectLinkedAliases (emit), and the JSDoc
+    /// type-annotation arm remain outside the modeled option/syntax
+    /// surface. The verbatimModuleSyntax and isolatedModules
+    /// type-only faces are live. The export= tail must use
+    /// getImpliedNodeFormatForEmit: package.json `type` affects
+    /// Node-format JS publication even when no ordinary module
+    /// resolution is performed by this declaration.
     pub(crate) fn check_export_assignment(&mut self, node: NodeId) -> CheckResult2<()> {
         let is_export_equals = match self.data_of(node) {
             NodeData::ExportAssignment(data) => data.is_export_equals == Some(true),
@@ -6516,6 +6516,10 @@ impl<'a> CheckerState<'a> {
             .binder
             .flags_of(node)
             .intersects(tsrs2_types::NodeFlags::AMBIENT);
+        let is_illegal_export_default_in_cjs = !is_export_equals
+            && !ambient
+            && self.options.verbatim_module_syntax == Some(true)
+            && self.emit_module_format_of_file(node) == 1;
         if self.kind_of(expression) == SyntaxKind::Identifier {
             let sym = self.resolve_entity_name_ex(
                 expression,
@@ -6526,13 +6530,104 @@ impl<'a> CheckerState<'a> {
             )?;
             let sym = sym.map(|sym| self.get_export_symbol_of_value_symbol_if_exported(sym));
             if let Some(sym) = sym {
-                if self
-                    .get_symbol_flags_of(sym)?
-                    .intersects(SymbolFlags::VALUE)
-                {
+                let type_only_declaration =
+                    self.get_type_only_alias_declaration_ex(sym, Some(SymbolFlags::VALUE))?;
+                let symbol_flags = self.get_symbol_flags_of(sym)?;
+                let display = self.module_export_name_text_unescaped(expression);
+                if symbol_flags.intersects(SymbolFlags::VALUE) {
                     // A pure-type export= does NOT check the
                     // expression (no 2693 here).
                     self.check_expression_cached(expression, CheckMode::NORMAL)?;
+                    if !is_illegal_export_default_in_cjs
+                        && !ambient
+                        && self.options.verbatim_module_syntax == Some(true)
+                        && type_only_declaration.is_some()
+                    {
+                        self.error_at(
+                            Some(expression),
+                            if is_export_equals {
+                                &diagnostics::An_export_declaration_must_reference_a_real_value_when_verbatimModuleSyntax_is_enabled_but_0_resolves_to_a_type_only_declaration
+                            } else {
+                                &diagnostics::An_export_default_must_reference_a_real_value_when_verbatimModuleSyntax_is_enabled_but_0_resolves_to_a_type_only_declaration
+                            },
+                            &[&display],
+                        );
+                    }
+                } else if !is_illegal_export_default_in_cjs
+                    && !ambient
+                    && self.options.verbatim_module_syntax == Some(true)
+                {
+                    self.error_at(
+                        Some(expression),
+                        if is_export_equals {
+                            &diagnostics::An_export_declaration_must_reference_a_value_when_verbatimModuleSyntax_is_enabled_but_0_only_refers_to_a_type
+                        } else {
+                            &diagnostics::An_export_default_must_reference_a_value_when_verbatimModuleSyntax_is_enabled_but_0_only_refers_to_a_type
+                        },
+                        &[&display],
+                    );
+                }
+                let isolated_modules_like = self.options.isolated_modules == Some(true)
+                    || self.options.verbatim_module_syntax == Some(true);
+                if !is_illegal_export_default_in_cjs
+                    && !ambient
+                    && isolated_modules_like
+                    && !self.binder.symbol(sym).flags.intersects(SymbolFlags::VALUE)
+                {
+                    let non_local_meanings = self.get_symbol_flags_full(
+                        sym, /*exclude_type_only_meanings*/ false,
+                        /*exclude_local_meanings*/ true,
+                    )?;
+                    let type_only_is_external = type_only_declaration.is_some_and(|declaration| {
+                        self.binder.file_index_of_node(declaration)
+                            != self.binder.file_index_of_node(node)
+                    });
+                    let resolves_to_unmarked_type =
+                        self.binder.symbol(sym).flags.intersects(SymbolFlags::ALIAS)
+                            && non_local_meanings.intersects(SymbolFlags::TYPE)
+                            && !non_local_meanings.intersects(SymbolFlags::VALUE)
+                            && (type_only_declaration.is_none() || type_only_is_external);
+                    let option_name = if self.options.verbatim_module_syntax == Some(true) {
+                        "verbatimModuleSyntax"
+                    } else {
+                        "isolatedModules"
+                    };
+                    if resolves_to_unmarked_type {
+                        self.error_at(
+                            Some(expression),
+                            if is_export_equals {
+                                &diagnostics::_0_resolves_to_a_type_and_must_be_marked_type_only_in_this_file_before_re_exporting_when_1_is_enabled_Consider_using_import_type_where_0_is_imported
+                            } else {
+                                &diagnostics::_0_resolves_to_a_type_and_must_be_marked_type_only_in_this_file_before_re_exporting_when_1_is_enabled_Consider_using_export_type_0_as_default
+                            },
+                            &[&display, option_name],
+                        );
+                    } else if type_only_is_external {
+                        let declaration =
+                            type_only_declaration.expect("external type-only declaration exists");
+                        let related_message = if matches!(
+                            self.kind_of(declaration),
+                            SyntaxKind::ExportSpecifier
+                                | SyntaxKind::ExportDeclaration
+                                | SyntaxKind::NamespaceExport
+                        ) {
+                            &diagnostics::_0_was_exported_here
+                        } else {
+                            &diagnostics::_0_was_imported_here
+                        };
+                        let related =
+                            self.related_info_for_node(declaration, related_message, &[&display]);
+                        self.error_at_with_related(
+                            Some(expression),
+                            if is_export_equals {
+                                &diagnostics::_0_resolves_to_a_type_only_declaration_and_must_be_marked_type_only_in_this_file_before_re_exporting_when_1_is_enabled_Consider_using_import_type_where_0_is_imported
+                            } else {
+                                &diagnostics::_0_resolves_to_a_type_only_declaration_and_must_be_marked_type_only_in_this_file_before_re_exporting_when_1_is_enabled_Consider_using_export_type_0_as_default
+                            },
+                            &[&display, option_name],
+                            vec![related],
+                        );
+                    }
                 }
             } else {
                 self.check_expression_cached(expression, CheckMode::NORMAL)?;
@@ -6550,21 +6645,22 @@ impl<'a> CheckerState<'a> {
         }
         if is_export_equals {
             let module_kind = self.options.emit_module_kind();
-            let implied_node_format = self.implied_node_format_for_file(node);
+            let implied_node_format = self.implied_node_format_for_emit(node);
             let invalid_esm_export_assignment = if ambient {
-                (100..=199).contains(&module_kind)
-                    && implied_node_format == Some(ModuleResolutionMode::EsNext)
-            } else if (100..=199).contains(&module_kind) {
-                implied_node_format != Some(ModuleResolutionMode::CommonJs)
+                implied_node_format == Some(ModuleResolutionMode::EsNext)
             } else {
-                true
+                implied_node_format != Some(ModuleResolutionMode::CommonJs)
             };
             if module_kind >= 5 && module_kind != 200 && invalid_esm_export_assignment {
+                let diagnostics_before = self.diagnostics.len();
                 self.grammar_error_on_node(
                     node,
                     &diagnostics::Export_assignment_cannot_be_used_when_targeting_ECMAScript_modules_Consider_using_export_default_or_another_module_format_instead,
                     &[],
                 );
+                if self.is_in_js_file(node) {
+                    self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1203);
+                }
             } else if module_kind == 4 && !ambient {
                 self.grammar_error_on_node(
                     node,
@@ -7059,6 +7155,151 @@ let unrelated = \"\";\n",
                 ("m.ts".to_owned(), 1203, 13, 11),
                 ("m.ts".to_owned(), 2309, 13, 11),
                 ("main.ts".to_owned(), 1202, 0, 26),
+            ]
+        );
+    }
+
+    #[test]
+    fn verbatim_export_assignments_distinguish_type_and_type_only_values() {
+        let common_js_files = [
+            ("/a.ts", "interface I {}\nexport = I;\n"),
+            (
+                "/c.ts",
+                "interface I {}\nnamespace I { export const x = 1; }\nexport = I;\n",
+            ),
+            (
+                "/d.ts",
+                "import I = require(\"./c\");\nimport type J = require(\"./c\");\nexport = J;\n",
+            ),
+        ];
+        assert_eq!(
+            program_rows(
+                &common_js_files,
+                &CompilerOptions {
+                    module: Some(1),
+                    target: Some(99),
+                    module_resolution: Some(100),
+                    verbatim_module_syntax: Some(true),
+                    ..CompilerOptions::default()
+                },
+            ),
+            [
+                ("/a.ts".to_owned(), 1282, 24, 1),
+                ("/d.ts".to_owned(), 1283, 68, 1),
+            ]
+        );
+
+        let es_module_files = [
+            ("/main5.ts", "export default class C {}\n"),
+            ("/main6.ts", "interface I {}\nexport default I;\n"),
+            (
+                "/main7.ts",
+                "import type C from \"./main5\";\nexport default C;\n",
+            ),
+        ];
+        assert_eq!(
+            program_rows(
+                &es_module_files,
+                &CompilerOptions {
+                    module: Some(99),
+                    target: Some(2),
+                    module_resolution: Some(100),
+                    verbatim_module_syntax: Some(true),
+                    ..CompilerOptions::default()
+                },
+            ),
+            [
+                ("/main6.ts".to_owned(), 1284, 30, 1),
+                ("/main7.ts".to_owned(), 1285, 45, 1),
+            ]
+        );
+    }
+
+    #[test]
+    fn isolated_export_assignment_reports_external_type_only_origin() {
+        let inputs = [
+            InputFile {
+                name: "/a.ts".to_owned(),
+                text: "class A {}\nexport type { A };\n".to_owned(),
+            },
+            InputFile {
+                name: "/d.ts".to_owned(),
+                text: "import { A } from \"./a\";\nexport = A;\n".to_owned(),
+            },
+        ];
+        let result = check_program(
+            &inputs,
+            &CompilerOptions {
+                module: Some(1),
+                target: Some(2),
+                isolated_modules: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        let diagnostic = result
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code() == 1289)
+            .expect("TS1289");
+        assert_eq!(
+            (
+                diagnostic.file_name.as_deref(),
+                diagnostic.start,
+                diagnostic.length,
+                diagnostic.message_text(),
+            ),
+            (
+                Some("/d.ts"),
+                Some(34),
+                Some(1),
+                "'A' resolves to a type-only declaration and must be marked type-only in this file before re-exporting when 'isolatedModules' is enabled. Consider using 'import type' where 'A' is imported.",
+            )
+        );
+        assert_eq!(diagnostic.related.len(), 1);
+        assert_eq!(
+            (
+                diagnostic.related[0].file_name.as_deref(),
+                diagnostic.related[0].start,
+                diagnostic.related[0].length,
+                diagnostic.related[0].message.code,
+            ),
+            (Some("/a.ts"), Some(25), Some(1), 1377)
+        );
+    }
+
+    #[test]
+    fn checked_js_export_assignment_uses_package_emit_format() {
+        let source = "const a = {};\nexport = a;\n";
+        assert_eq!(
+            program_rows(
+                &[
+                    ("/index.js", source),
+                    (
+                        "/package.json",
+                        "{ \"name\": \"package\", \"private\": true, \"type\": \"module\" }\n",
+                    ),
+                ],
+                &CompilerOptions {
+                    allow_js: true,
+                    check_js: Some(true),
+                    module: Some(100),
+                    target: Some(9),
+                    ..CompilerOptions::default()
+                },
+            ),
+            [
+                (
+                    "/index.js".to_owned(),
+                    1203,
+                    source.find("export = a").expect("export assignment") as u32,
+                    "export = a;".len() as u32,
+                ),
+                (
+                    "/index.js".to_owned(),
+                    8003,
+                    source.find("export = a").expect("export assignment") as u32,
+                    "export = a;".len() as u32,
+                ),
             ]
         );
     }
