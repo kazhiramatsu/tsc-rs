@@ -46,6 +46,9 @@ stage step docs referenced there.
 - [greenfield/evidence-and-steady-state.md](greenfield/evidence-and-steady-state.md):
   the B1-B4 evidence contracts, required CI topology, and the M9
   steady-state window.
+- [greenfield/terminal-residue-protocol.md](greenfield/terminal-residue-protocol.md):
+  the last-mile parity-sweep protocol — pipeline-layer classification,
+  exact shape/provenance proof, and terminal identity-diff gates.
 - [greenfield/2xxx-first-order.md](greenfield/2xxx-first-order.md):
   first-order decomposition of the 2XXX band with measured baselines;
   owns the M5/M6-before-sweep phase plan.
