@@ -113,10 +113,17 @@ the TS18028 reconnaissance split: both residual rows are accessors, not
 one method plus one accessor. Publishing the two
 `checkGrammarAccessor` rows closes that fixture at 16/16 and moves the
 family to 2,879/3,013 with supported FN 134. The next
-`checkJSDocTypeIsInJsFile` slice closes all 12 TS17019/TS17020
+`checkJSDocTypeIsInJsFile` slice closed all 12 TS17019/TS17020
 nullable/non-nullable rows with +12 at every live tier, no loss, and
 FP=0. The family is now 2,891/3,013 with supported FN 122 and canaries
-4/4. JSDoc accessibility modifiers are next.
+4/4. The final 8.1f slice then closed all 12 residual TS18010 rows
+owned by `checkJSDocAccessibilityModifiers`. Its producer-local
+nearest-attached-comment projection reports the oracle tag-node span
+without opening the general JSDoc checking surface. The two-fixture
+target moved from 23/70 to 35/70; every live tier gained 12 identities
+with no loss or FP. The family is now 2,903/3,013 with supported FN 110
+and canaries 4/4. All 57 planned 8.1f identities are complete; a fresh
+8.1g residual survey is next.
 
 The binding 8.1a-g producer clusters, current reconnaissance anchors,
 and per-slice exits are in

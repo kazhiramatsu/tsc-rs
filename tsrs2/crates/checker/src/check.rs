@@ -1596,13 +1596,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:86557-86762
     ///
     /// Head elisions: the PartiallyTypeChecked gate (nodesToCheck path
-    /// unported), the canHaveJSDoc comment/tag walk and the JSDoc*
-    /// kind arms outside the M7 nullable/non-nullable grammar pair
-    /// (JS/JSDoc checking is the M2 3.4c residual), and the
-    /// cancellationToken arms. The unreachable-code gate (86582) is
-    /// LIVE since 6.6b. Kind arms are in tsc switch order; stubs name
-    /// their tsc worker and owner stage.
+    /// unported), the general canHaveJSDoc comment/tag walk and the
+    /// JSDoc* kind arms outside the M7 nullable/non-nullable grammar
+    /// and accessibility-tag pairs (JS/JSDoc checking is the M2 3.4c
+    /// residual), and the cancellationToken arms. The unreachable-code
+    /// gate (86582) is LIVE since 6.6b. Kind arms are in tsc switch
+    /// order; stubs name their tsc worker and owner stage.
     fn check_source_element_worker(&mut self, node: NodeId) -> CheckResult2<()> {
+        self.check_jsdoc_accessibility_modifiers(node);
         if self.options.allow_unreachable_code != Some(true)
             && !self.within_unreachable_code
             && self.check_source_element_unreachable(node)?
@@ -1769,6 +1770,90 @@ impl<'a> CheckerState<'a> {
         let suggestion = self.type_to_string_slice(suggestion_type)?;
         self.grammar_error_on_node(node, diagnostic, &[token, &suggestion]);
         Ok(())
+    }
+
+    /// tsc-port: checkJSDocAccessibilityModifiers @6.0.3
+    /// tsc-hash: 8f6c5add520fd318d80853065eedd5d538e71dc176a67afd17360c3686578e9d
+    /// tsc-span: _tsc.js:82883-82888
+    ///
+    /// Attached JSDoc tags are not materialized in the syntax arena.
+    /// Project only this producer's three accessibility tags over the
+    /// same nearest-attached-comment boundary as the existing JSDoc
+    /// type/this projections. The returned byte range is the oracle
+    /// tag-node span: `@` through the trivia immediately before `*/`.
+    fn check_jsdoc_accessibility_modifiers(&mut self, host: NodeId) {
+        if !self.is_in_js_file(host)
+            || !matches!(
+                self.kind_of(host),
+                SyntaxKind::PropertyDeclaration
+                    | SyntaxKind::MethodDeclaration
+                    | SyntaxKind::GetAccessor
+                    | SyntaxKind::SetAccessor
+            )
+            || self
+                .name_of_node(host)
+                .is_none_or(|name| self.kind_of(name) != SyntaxKind::PrivateIdentifier)
+        {
+            return;
+        }
+        let Some((start_byte, end_byte)) = self.attached_jsdoc_accessibility_tag_span(host) else {
+            return;
+        };
+        let diagnostics_before = self.diagnostics.len();
+        self.error_at_byte_range(
+            host,
+            start_byte,
+            end_byte,
+            &diagnostics::An_accessibility_modifier_cannot_be_used_with_a_private_identifier,
+        );
+        self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 18010);
+    }
+
+    fn attached_jsdoc_accessibility_tag_span(&self, host: NodeId) -> Option<(usize, usize)> {
+        let source = self.binder.source_of_node(host);
+        let raw = source.arena.node(host);
+        let declaration_start =
+            tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize).min(source.text.len());
+        let prefix = &source.text[..declaration_start];
+        let comment_start = prefix.rfind("/**")?;
+        let comment_close = comment_start + 3 + prefix[comment_start + 3..].find("*/")?;
+        let comment_end = comment_close + 2;
+        if !prefix[comment_end..].chars().all(char::is_whitespace) {
+            return None;
+        }
+        let body_start = comment_start + 3;
+        let body = &source.text[body_start..comment_close];
+        let mut line_offset = 0usize;
+        for line in body.split_inclusive('\n') {
+            let line_without_lf = line.strip_suffix('\n').unwrap_or(line);
+            let line_without_break = line_without_lf
+                .strip_suffix('\r')
+                .unwrap_or(line_without_lf);
+            let leading = line_without_break.len()
+                - line_without_break
+                    .trim_start_matches(char::is_whitespace)
+                    .len();
+            let mut candidate = &line_without_break[leading..];
+            let mut candidate_offset = leading;
+            if let Some(after_star) = candidate.strip_prefix('*') {
+                candidate_offset += 1;
+                let star_space =
+                    after_star.len() - after_star.trim_start_matches(char::is_whitespace).len();
+                candidate_offset += star_space;
+                candidate = &after_star[star_space..];
+            }
+            for tag in ["@public", "@private", "@protected"] {
+                if candidate.strip_prefix(tag).is_some_and(|tail| {
+                    tail.chars()
+                        .next()
+                        .is_none_or(|character| character.is_whitespace())
+                }) {
+                    return Some((body_start + line_offset + candidate_offset, comment_close));
+                }
+            }
+            line_offset += line.len();
+        }
+        None
     }
 
     /// tsc-port: checkBlock @6.0.3
@@ -8994,6 +9079,55 @@ mod tests {
                         .to_owned()
                 ),
             ]
+        );
+    }
+
+    #[test]
+    fn jsdoc_accessibility_on_private_name_uses_tag_span_and_publishes_checked_js() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "\r\nclass A {\r\n    /**\r\n     * @public\r\n     */\r\n    #a = 1;\r\n}\r\n";
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 18010)
+                .expect("TS18010");
+            assert_eq!((diagnostic.start, diagnostic.length), (Some(29), Some(14)));
+            assert!(state
+                .non_jsdoc_js_diagnostics
+                .contains(&("a.js".to_owned(), 29, 14, 18010)));
+        });
+    }
+
+    #[test]
+    fn jsdoc_accessibility_projection_rejects_non_attached_and_non_tag_comments() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/** @public */\n\
+                    class A {\n\
+                      #unattached = 1;\n\
+                      /** prose @public */\n\
+                      #prose = 1;\n\
+                      /* @private */\n\
+                      #ordinary = 1;\n\
+                      /** @publicized */\n\
+                      #boundary = 1;\n\
+                      /** @protected */\n\
+                      visible = 1;\n\
+                      #intervening = 1;\n\
+                    }\n";
+        let diagnostics = checked_file_diags_with("a.js", text, &options);
+        assert!(
+            diagnostics.iter().all(|diagnostic| diagnostic.0 != 18010),
+            "negative attachment probes must not produce TS18010: {diagnostics:?}"
         );
     }
 
