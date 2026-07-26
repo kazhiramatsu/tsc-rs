@@ -192,6 +192,27 @@ Required PR CI:
   readiness in that workspace;
 - uploads mismatch, readiness, completion, and fuzz artifacts on failure.
 
+The hosted implementation may place the independent Rust
+format/clippy/build/test gates and the semantic evidence gates on two
+standard runners. The boundary is fixed:
+
+- `cargo xtask ci --lane rust` owns only format, clippy, build, and
+  workspace tests;
+- `cargo xtask ci --lane semantic --baseline <trusted-sha>` owns every
+  recursive/trusted-base audit, all fixed conformance views, recovery
+  census, invariant/ledger/escape gates, and readiness production and
+  consumption;
+- a final job named `gates` succeeds only when both lanes succeed.
+
+Thus no evidence producer/consumer or A1/A2/A5 ordering crosses a job
+boundary. The ordinary local `cargo xtask ci` remains the sequential
+union of both lanes and is still the required pre-PR/pre-merge gate.
+Main-branch runs populate the cache scope that later pull requests may
+restore. Lockfile-keyed Cargo caches contain dependency archives only;
+a pinned content-addressed compiler cache handles build outputs without
+trusting checkout timestamps. Neither cache contains conformance,
+readiness, or other semantic evidence artifacts.
+
 Scheduled CI runs the two-hour/100,000-case fuzz window and retains raw
 output. A reviewed aggregation verifies and appends it without rewriting
 history.

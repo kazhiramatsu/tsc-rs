@@ -2,66 +2,163 @@ name: ci
 
 on:
   pull_request:
+  # Default-branch runs populate caches that pull requests are allowed
+  # to restore. Caches produced on a PR's merge ref are intentionally
+  # isolated by GitHub and cannot warm the next PR.
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
 
+# A newer commit makes an older run irrelevant. Cancelling it frees a
+# standard hosted-runner slot immediately and avoids spending public
+# repository capacity on stale evidence.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_INCREMENTAL: "0"
+  CARGO_TERM_COLOR: always
+  RUSTC_WRAPPER: sccache
+  SCCACHE_GHA_ENABLED: "true"
+
 jobs:
-  gates:
+  rust:
+    name: rust
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # Oracle driver tests must use the producer's pinned Node
+      # runtime, even though this lane does not run the full corpus.
+      - name: Pin the oracle Node runtime
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: tsrs2/.node-version
+          package-manager-cache: false
+
+      # Dependency archives are safe to restore by lockfile. Cargo
+      # target directories are deliberately excluded: checkout mtimes
+      # make a raw target cache rebuild workspace crates anyway.
+      - name: Restore Cargo dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-v2-${{ runner.os }}-rust-${{ hashFiles('tsrs2/Cargo.lock', 'tsrs2/rust-toolchain.toml') }}
+          restore-keys: |
+            cargo-v2-${{ runner.os }}-rust-
+
+      # Pin both the action commit (v0.0.10) and compiler-cache binary.
+      # sccache keys compiler outputs by their actual inputs, so it can
+      # reuse workspace crates safely across fresh checkouts.
+      - name: Configure compiler cache
+        uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696
+        with:
+          version: v0.16.0
+
+      # Gate composition stays in xtask so local and hosted execution
+      # cannot drift. The lane boundary only lets the two independent
+      # halves run on separate standard hosted runners.
+      - name: Run Rust gates
+        working-directory: tsrs2
+        run: cargo xtask ci --lane rust
+
+  semantic:
+    name: semantic
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout full lineage
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
 
-      # The oracle producer's Node contract: every oracle launch
-      # (driver tests, refresh) must run the pinned version — the
-      # runner's default Node is whatever the image ships and would
-      # skew golden regeneration silently.
+      # Every full-corpus oracle launch must use the producer's pinned
+      # Node version; the runner image's default would skew evidence.
       - name: Pin the oracle Node runtime
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: tsrs2/.node-version
+          package-manager-cache: false
 
-      # Full-corpus passes once peaked at ~11.5 GB RSS (option-keyed
-      # lib-bundle multiplication — since fixed; ~1.7 GB now) and the
-      # pressure spike made systemd-oomd kill the runner agent
-      # ("runner has received a shutdown signal"). The headroom stays
-      # as defense in depth: checker working sets grow with every
-      # milestone, and this failure signature is expensive to
-      # rediagnose. /swapfile already exists on the image, hence the
-      # distinct path.
+      - name: Restore Cargo dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-v2-${{ runner.os }}-semantic-${{ hashFiles('tsrs2/Cargo.lock', 'tsrs2/rust-toolchain.toml') }}
+          restore-keys: |
+            cargo-v2-${{ runner.os }}-semantic-
+
+      - name: Configure compiler cache
+        uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696
+        with:
+          version: v0.16.0
+
+      # Full-corpus passes once peaked at ~11.5 GB RSS. The underlying
+      # multiplication bug is fixed (~1.7 GB now), but the headroom
+      # remains a cheap guard against runner-agent OOM termination.
       - name: Provision memory headroom for full-corpus passes
         run: |
           sudo systemctl stop systemd-oomd.service systemd-oomd.socket || true
-          sudo fallocate -l 8G /swap-gates
-          sudo chmod 600 /swap-gates
-          sudo mkswap /swap-gates
-          sudo swapon /swap-gates
+          sudo fallocate -l 8G /swap-semantic
+          sudo chmod 600 /swap-semantic
+          sudo mkswap /swap-semantic
+          sudo swapon /swap-semantic
           free -h
           df -h /
 
-      - name: Run merge gates against trusted PR base
+      # A1/A2/A5 checks, conformance's three views, recovery census,
+      # readiness production/consumption, ledger, and escapes remain
+      # in one workspace. Only the independent Rust compiler/test
+      # gates run on the parallel runner.
+      - name: Run semantic gates against trusted baseline
         working-directory: tsrs2
-        run: cargo xtask ci --baseline "${{ github.event.pull_request.base.sha }}"
+        env:
+          BASELINE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: cargo xtask ci --lane semantic --baseline "$BASELINE_SHA"
 
-      # E1 topology (evidence-and-steady-state.md §5): when a gate
-      # fails, the run's mismatch/readiness/rollup output leaves the
-      # runner for diagnosis instead of dying with the workspace.
-      # Completion and fuzz artifacts join this list when their
-      # producers land (B-track); the scheduled fuzz-window job and
-      # the approved-runner release job likewise land with B3/B4 —
-      # a schedule without its producer would be a standing red.
-      - name: Upload gate artifacts on failure
+      - name: Upload semantic artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: gate-artifacts
+          name: semantic-gate-artifacts
           if-no-files-found: ignore
           path: |
             tsrs2/target/conformance/mismatches.json
             tsrs2/target/families/report.json
             tsrs2/target/m8/
+            tsrs2/target/recovery-census.json
+
+  # Preserve the historical required-check name. Branch protection
+  # needs only `gates`; this job turns either parallel lane's failure,
+  # cancellation, or timeout into one deterministic final result.
+  gates:
+    name: gates
+    if: always()
+    needs:
+      - rust
+      - semantic
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every lane
+        env:
+          RUST_RESULT: ${{ needs.rust.result }}
+          SEMANTIC_RESULT: ${{ needs.semantic.result }}
+        run: |
+          test "$RUST_RESULT" = success
+          test "$SEMANTIC_RESULT" = success
