@@ -188,7 +188,15 @@ Accepted progress on 2026-07-26:
   all-reaching-path `isPostSuperFlowNode` walk. All three live tiers
   gained the same 69 identities with no loss or false positive. The
   family moved to 2,415/3,013 with supported FN 598 and its constructor
-  default-value canary passed.
+  default-value canary passed;
+- the 8.1d.2 exact-row survey corrected the initial code-level grouping:
+  TS1309 x16 is split evenly between `checkAwaitGrammar` and
+  `checkGrammarForInOrForOfStatement`. 8.1d.2a closed the first
+  producer's TS1309 x8 Node CommonJS queue, including checked-JavaScript
+  publication. T0/T1/T2/T3 each gained the same eight identities with
+  no loss or false positive, moving the family to 2,423/3,013 with
+  supported FN 590. The remaining TS1309 x8 stays frozen under the
+  separate 8.1d.2b `for await` producer.
 
 ## 6. M7 virtual-band order
 
