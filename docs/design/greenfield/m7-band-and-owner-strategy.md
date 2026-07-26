@@ -195,8 +195,13 @@ Accepted progress on 2026-07-26:
   producer's TS1309 x8 Node CommonJS queue, including checked-JavaScript
   publication. T0/T1/T2/T3 each gained the same eight identities with
   no loss or false positive, moving the family to 2,423/3,013 with
-  supported FN 590. The remaining TS1309 x8 stays frozen under the
-  separate 8.1d.2b `for await` producer.
+  supported FN 590;
+- 8.1d.2b then closed the second producer's TS1309 x8 `for await`
+  Node CommonJS queue through `checkGrammarForInOrForOfStatement`.
+  T0/T1/T2/T3 again gained the same eight identities, with no
+  target-external gain, loss, or false positive. The family moved to
+  2,431/3,013 with supported FN 582, completing the frozen TS1309
+  queue across both exact emitters.
 
 ## 6. M7 virtual-band order
 

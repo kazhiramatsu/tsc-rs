@@ -2280,13 +2280,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 112c35d2e30e5202b18a4ba5e9304743e63fd5a059c5d4cae87ee0fefebde9f0
     /// tsc-span: _tsc.js:89761-89842
     ///
-    /// The Node16..NodeNext moduleKind arms need impliedNodeFormat
-    /// (module resolution — m4-review B16/A10 tri-state) and are
-    /// treated as the non-CommonJS fallthrough. True-CJS node-flavor
-    /// fixtures lose the 1309 CommonJS-top-level-await row: silently
-    /// at target >= ES2017, and as an ALTERNATIVE ISSUANCE below that
-    /// (the default-arm 1432 fires in 1309's place — not a plain FN);
-    /// same disposition as checkAwaitGrammar's ladder (functions.rs).
+    /// Node16..NodeNext select on impliedNodeFormat before the
+    /// ES2022-family target-gated fallthrough. CommonJS reports 1309
+    /// and stops the switch; ESM retains the target gate. This is the
+    /// for-await producer corresponding to checkAwaitGrammar's
+    /// ordinary-await ladder (functions.rs).
     fn check_grammar_for_in_or_for_of_statement(&mut self, node: NodeId) -> CheckResult2<bool> {
         if self.check_grammar_statement_in_ambient_context_reported(node) {
             return Ok(true);
@@ -2313,15 +2311,27 @@ impl<'a> CheckerState<'a> {
                             let module_kind = self.options.emit_module_kind();
                             let target_ok = self.options.emit_script_target()
                                 >= tsrs2_types::ScriptTarget::ES2017;
-                            let ladder_ok = match module_kind {
-                                // Node16/18/20/NodeNext: impliedNodeFormat
-                                // unported — non-CJS fallthrough.
-                                100 | 101 | 102 | 199 => target_ok,
-                                // ES2022/ESNext/Preserve/System.
-                                7 | 99 | 200 | 4 => target_ok,
-                                _ => false,
-                            };
-                            if !ladder_ok {
+                            let is_node_module_kind = matches!(module_kind, 100 | 101 | 102 | 199);
+                            let ladder_ok =
+                                matches!(module_kind, 100 | 101 | 102 | 199 | 7 | 99 | 200 | 4)
+                                    && target_ok;
+                            if is_node_module_kind
+                                && self.implied_node_format_for_file(node)
+                                    == crate::modules::ModuleResolutionMode::CommonJs
+                            {
+                                let diagnostics_before = self.diagnostics.len();
+                                self.error_at(
+                                    Some(await_modifier),
+                                    &diagnostics::The_current_file_is_a_CommonJS_module_and_cannot_use_await_at_the_top_level,
+                                    &[],
+                                );
+                                if self.is_in_js_file(node) {
+                                    self.mark_non_jsdoc_js_diagnostics_since_with_code(
+                                        diagnostics_before,
+                                        1309,
+                                    );
+                                }
+                            } else if !ladder_ok {
                                 self.error_at(
                                     Some(await_modifier),
                                     &diagnostics::Top_level_for_await_loops_are_only_allowed_when_the_module_option_is_set_to_es2022_esnext_system_node16_node18_node20_nodenext_or_preserve_and_the_target_option_is_set_to_es2017_or_higher,
@@ -3879,12 +3889,20 @@ x.accessor = 1;\n"
             target: Some(target),
             ..CompilerOptions::default()
         };
+        program_rows_with_file("a.ts", text, &options)
+    }
+
+    fn program_rows_with_file(
+        name: &str,
+        text: &str,
+        options: &CompilerOptions,
+    ) -> Vec<(u32, u32, u32)> {
         let result = check_program(
             &[InputFile {
-                name: "a.ts".to_owned(),
+                name: name.to_owned(),
                 text: text.to_owned(),
             }],
-            &options,
+            options,
         );
         result
             .diagnostics
@@ -3898,6 +3916,71 @@ x.accessor = 1;\n"
                 )
             })
             .collect()
+    }
+
+    #[test]
+    fn top_level_for_await_in_node_commonjs_reports_1309() {
+        for module in [100, 101, 102, 199] {
+            for (extension, allow_js, check_js) in [("cts", false, None), ("cjs", true, Some(true))]
+            {
+                let options = CompilerOptions {
+                    module: Some(module),
+                    target: Some(tsrs2_types::ScriptTarget::ES2022.bits()),
+                    allow_js,
+                    check_js,
+                    ..CompilerOptions::default()
+                };
+                assert_eq!(
+                    program_rows_with_file(
+                        &format!("a.{extension}"),
+                        "export {};\nfor await (const x of []) { x; }\n",
+                        &options,
+                    ),
+                    [(1309, 15, 5)]
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn top_level_for_await_in_node_esm_remains_allowed() {
+        for module in [100, 101, 102, 199] {
+            for (extension, allow_js, check_js) in [("mts", false, None), ("mjs", true, Some(true))]
+            {
+                let options = CompilerOptions {
+                    module: Some(module),
+                    target: Some(tsrs2_types::ScriptTarget::ES2022.bits()),
+                    allow_js,
+                    check_js,
+                    ..CompilerOptions::default()
+                };
+                assert_eq!(
+                    program_rows_with_file(
+                        &format!("a.{extension}"),
+                        "export {};\nfor await (const x of []) { x; }\n",
+                        &options,
+                    ),
+                    []
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn top_level_for_await_node_commonjs_stops_before_target_gate() {
+        let options = CompilerOptions {
+            module: Some(100),
+            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            program_rows_with_file(
+                "a.cts",
+                "export {};\nfor await (const x of []) { x; }\n",
+                &options,
+            ),
+            [(1309, 15, 5)]
+        );
     }
 
     #[test]
