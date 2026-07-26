@@ -255,8 +255,9 @@
 # p9 9.9bm adds +3 JSDoc-satisfies object-literal property misses.
 # p9 9.9bn adds +3 nested-class this.prototype property misses.
 # p9 9.9bo adds +1 JSDoc chained-static-assignment this miss.
-rate = 0.641033
-matched = 31426
+# p9 9.9bp adds +1 class-field arrow lexical-this miss.
+rate = 0.641053
+matched = 31427
 total = 49024
 allowed_regression = 0.0
 
@@ -378,8 +379,9 @@ allowed_regression = 0.0
 # p9 9.9bm adds +3 JSDoc-satisfies object-literal property misses.
 # p9 9.9bn adds +3 nested-class this.prototype property misses.
 # p9 9.9bo adds +1 JSDoc chained-static-assignment this miss.
-rate = 0.974015
-matched = 20504
+# p9 9.9bp adds +1 class-field arrow lexical-this miss.
+rate = 0.974063
+matched = 20505
 total = 21051
 allowed_regression = 0.0
 
