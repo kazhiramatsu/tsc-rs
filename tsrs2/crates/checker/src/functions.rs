@@ -3121,6 +3121,7 @@ impl<'a> CheckerState<'a> {
                 self.check_grammar_computed_property_name(name);
             }
         }
+        self.check_jsdoc_unique_symbol_property_grammar(node);
         self.check_variable_like_declaration(node)?;
         self.set_node_links_for_private_identifier_scope(node);
         let source = self.binder.source_of_node(node);

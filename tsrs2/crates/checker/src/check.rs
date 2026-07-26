@@ -3000,7 +3000,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 1d1ac27cc886851d1df8f00399ac752d935cdc56b0eda59d59fd918de563d38f
     /// tsc-span: _tsc.js:89894-89937
     ///
-    /// The JSDoc host arms are JS-only (elided).
+    /// JSDoc type nodes are not represented in the syntax arena. The
+    /// PropertyDeclaration host arm is projected separately by
+    /// `check_jsdoc_unique_symbol_property_grammar`.
     fn check_grammar_type_operator_node(&mut self, node: NodeId) -> bool {
         let NodeData::TypeOperator(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
@@ -3120,6 +3122,77 @@ impl<'a> CheckerState<'a> {
             }
         }
         false
+    }
+
+    /// tsrs-native: project checkGrammarTypeOperatorNode's
+    /// PropertyDeclaration JSDoc host arm while JSDoc nodes are absent
+    /// from the syntax arena.
+    ///
+    /// This deliberately recognizes only an attached `@type {unique
+    /// symbol}` tag. The property name remains the error node, and
+    /// `@readonly` participates in the effective-readonly test just as
+    /// it does in tsc's JSDoc host path.
+    pub(crate) fn check_jsdoc_unique_symbol_property_grammar(&mut self, node: NodeId) -> bool {
+        if !self.is_in_js_file(node) || self.kind_of(node) != SyntaxKind::PropertyDeclaration {
+            return false;
+        }
+        let Some(jsdoc_readonly) = self.jsdoc_unique_symbol_property_projection(node) else {
+            return false;
+        };
+        let source = self.binder.source_of_node(node);
+        let is_static = node_util::has_syntactic_modifier(source, node, ModifierFlags::STATIC);
+        let is_readonly = jsdoc_readonly
+            || node_util::has_syntactic_modifier(source, node, ModifierFlags::READONLY);
+        if is_static && is_readonly {
+            return false;
+        }
+        let diagnostics_before = self.diagnostics.len();
+        let name = self.name_of_node(node);
+        let reported = self.grammar_error_on_node(
+            name.unwrap_or(node),
+            &diagnostics::A_property_of_a_class_whose_type_is_a_unique_symbol_type_must_be_both_static_and_readonly,
+            &[],
+        );
+        self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1331);
+        reported
+    }
+
+    fn jsdoc_unique_symbol_property_projection(&self, node: NodeId) -> Option<bool> {
+        let source = self.binder.source_of_node(node);
+        let raw = source.arena.node(node);
+        let declaration_start =
+            tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize).min(source.text.len());
+        let prefix = &source.text[..declaration_start];
+        let comment_start = prefix.rfind("/**")?;
+        let relative_end = prefix[comment_start + 3..].find("*/")?;
+        let comment_close = comment_start + 3 + relative_end;
+        let comment_end = comment_close + 2;
+        if !prefix[comment_end..].chars().all(char::is_whitespace) {
+            return None;
+        }
+        let body = &prefix[comment_start + 3..comment_close];
+        let type_tail = jsdoc_tag_tail(body, "@type")?;
+        let open = type_tail.find('{')?;
+        if type_tail[..open]
+            .chars()
+            .any(|character| !character.is_whitespace() && character != '*')
+        {
+            return None;
+        }
+        let close = type_tail[open + 1..].find('}')?;
+        let type_text = &type_tail[open + 1..open + 1 + close];
+        let compact = type_text
+            .lines()
+            .flat_map(|line| {
+                line.trim_start()
+                    .strip_prefix('*')
+                    .unwrap_or(line)
+                    .trim_start()
+                    .chars()
+            })
+            .filter(|character| !character.is_whitespace())
+            .collect::<String>();
+        (compact == "uniquesymbol").then(|| jsdoc_tag_tail(body, "@readonly").is_some())
     }
 
     // ---- deferred nodes ----
@@ -9141,6 +9214,38 @@ fn string_literal_name_slice(name: &str, single_quote: bool) -> CheckResult2<Str
     }
 }
 
+fn jsdoc_tag_tail<'a>(comment: &'a str, tag: &str) -> Option<&'a str> {
+    let mut offset = 0usize;
+    for line in comment.split_inclusive('\n') {
+        let line_without_lf = line.strip_suffix('\n').unwrap_or(line);
+        let line_without_break = line_without_lf
+            .strip_suffix('\r')
+            .unwrap_or(line_without_lf);
+        let leading = line_without_break.len()
+            - line_without_break
+                .trim_start_matches(char::is_whitespace)
+                .len();
+        let mut candidate = &line_without_break[leading..];
+        let mut candidate_offset = leading;
+        if let Some(after_star) = candidate.strip_prefix('*') {
+            candidate_offset += 1;
+            let star_space =
+                after_star.len() - after_star.trim_start_matches(char::is_whitespace).len();
+            candidate_offset += star_space;
+            candidate = &after_star[star_space..];
+        }
+        if candidate.strip_prefix(tag).is_some_and(|tail| {
+            tail.chars()
+                .next()
+                .is_none_or(|character| character.is_whitespace() || character == '{')
+        }) {
+            return Some(&comment[offset + candidate_offset + tag.len()..]);
+        }
+        offset += line.len();
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use tsrs2_types::{CompilerOptions, ScriptTarget};
@@ -9189,6 +9294,62 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    // ---- M7 8.1m JSDoc unique-symbol property grammar ----
+
+    #[test]
+    fn jsdoc_unique_symbol_properties_require_static_and_effective_readonly() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "class C {\n\
+                      /** @type {unique symbol} */\n\
+                      static missingReadonly;\n\
+                      /**\n\
+                       * @type {unique symbol}\n\
+                       * @readonly\n\
+                       */\n\
+                      instance;\n\
+                      /** @type {unique symbol}\n\
+                       * @readonly */\n\
+                      static valid;\n\
+                      /** prose @type {unique symbol} */\n\
+                      static prose;\n\
+                      /** @type {unique symbolic} */\n\
+                      static other;\n\
+                    }\n";
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let diagnostics = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 1331)
+                .map(|diagnostic| {
+                    (
+                        diagnostic.start.expect("TS1331 start"),
+                        diagnostic.length.expect("TS1331 length"),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let expected = ["missingReadonly", "instance"].map(|name| {
+                (
+                    text.find(name).expect("property name") as u32,
+                    name.len() as u32,
+                )
+            });
+            assert_eq!(diagnostics, expected);
+            for (start, length) in expected {
+                assert!(state.non_jsdoc_js_diagnostics.contains(&(
+                    "a.js".to_owned(),
+                    start,
+                    length,
+                    1331
+                )));
+            }
+        });
     }
 
     // ---- M7 8.1f JSDoc nullable/non-nullable grammar ----

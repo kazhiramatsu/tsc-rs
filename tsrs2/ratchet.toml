@@ -315,8 +315,10 @@
 # TS1192 publication in the Node18, Node20, and NodeNext matrix.
 # m7 8.1l adds +4 through checkTryStatement's checked-JS JSDoc catch
 # type projection and exact TS1196 first-token rows.
-rate = 0.666612
-matched = 32680
+# m7 8.1m adds +2 through checkGrammarTypeOperatorNode's checked-JS
+# JSDoc unique-symbol property host projection and exact TS1331 rows.
+rate = 0.666653
+matched = 32682
 total = 49024
 allowed_regression = 0.0
 
