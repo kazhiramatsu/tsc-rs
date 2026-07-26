@@ -2194,9 +2194,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4bb1d606ce7add8c32a4814bc6aa54920c45065ab7d23907e88804c33da36d27
     /// tsc-span: _tsc.js:72348-72421
     ///
-    /// checkThisBeforeSuper's isPostSuperFlowNode stays unported (M7,
-    /// checker-grammar 8.1) — the stub answers "past super" so 17009
-    /// stays FN.
     pub(crate) fn check_this_expression(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         let is_node_in_type_query = self.is_in_type_query(node);
         let mut container = get_this_container_full(self, node, true, true)
@@ -2204,7 +2201,11 @@ impl<'a> CheckerState<'a> {
         let mut captured_by_arrow_function = false;
         let mut this_in_computed_property_name = false;
         if self.kind_of(container) == SyntaxKind::Constructor {
-            self.check_this_before_super_stub(node, container);
+            self.check_this_before_super(
+                node,
+                container,
+                &diagnostics::super_must_be_called_before_accessing_this_in_the_constructor_of_a_derived_class,
+            )?;
         }
         loop {
             if self.kind_of(container) == SyntaxKind::ArrowFunction {
@@ -2563,11 +2564,32 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// checkThisBeforeSuper (72330-72342): needs isPostSuperFlowNode
-    /// (flowNodePostSuper — deliberately unported at M5: its only
-    /// consumer is this check). 17009/17011 stay FN, family-mapped
-    /// under checker-grammar, owner M7 stage 8.1 (diag-families.json).
-    fn check_this_before_super_stub(&mut self, _node: NodeId, _container: NodeId) {}
+    /// tsc-port: checkThisBeforeSuper @6.0.3
+    /// tsc-hash: daed1244a44f70594e7c958f240dffe730bafc433465674adbff32232cfd58c1
+    /// tsc-span: _tsc.js:72330-72342
+    fn check_this_before_super(
+        &mut self,
+        node: NodeId,
+        container: NodeId,
+        diagnostic_message: &'static DiagnosticMessage,
+    ) -> CheckResult2<()> {
+        let containing_class_declaration = self
+            .parent_of(container)
+            .expect("Constructor nodes have a containing class");
+        if self
+            .get_class_extends_heritage_element(containing_class_declaration)
+            .is_some()
+            && !self.class_declaration_extends_null(containing_class_declaration)?
+        {
+            if let Some(flow) = self.flow_node_of(node) {
+                let file = self.binder.file_index_of_node(node);
+                if !self.is_post_super_flow_node(file, flow, false) {
+                    self.error_at(Some(node), diagnostic_message, &[]);
+                }
+            }
+        }
+        Ok(())
+    }
 
     /// tsc checkThisInStaticClassFieldInitializerInDecoratedClass
     /// (72344) → 2816. legacyDecorators == experimentalDecorators.
@@ -2657,9 +2679,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 1ae95b07cee37ec0b0386cf047154d3231182898c2cd277558053b83c446f5be
     /// tsc-span: _tsc.js:72509-72611
     ///
-    /// checkThisBeforeSuper (17011) rides the [FLOW] M5 stub. The
-    /// NodeCheckFlags writes happen BEFORE the later error returns —
-    /// tsc order preserved.
+    /// The NodeCheckFlags writes happen BEFORE the later error returns
+    /// — tsc order preserved.
     pub(crate) fn check_super_expression(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         let is_call_expression = self.parent_of(node).is_some_and(|parent| {
             matches!(self.data_of(parent), NodeData::CallExpression(data)
@@ -2747,7 +2768,11 @@ impl<'a> CheckerState<'a> {
         let container = container.expect("legality implies a container");
         let immediate_container = immediate_container.expect("legality implies a container");
         if !is_call_expression && self.kind_of(immediate_container) == SyntaxKind::Constructor {
-            self.check_this_before_super_stub(node, container);
+            self.check_this_before_super(
+                node,
+                container,
+                &diagnostics::super_must_be_called_before_accessing_a_property_of_super_in_the_constructor_of_a_derived_class,
+            )?;
         }
         let node_check_flag = if self.is_static_element(container) || is_call_expression {
             // The ES2015..ES2021 static-initializer
@@ -4329,6 +4354,13 @@ mod tests {
             .collect()
     }
 
+    fn super_ordering_rows(text: &str) -> Vec<(u32, u32, u32)> {
+        checked_rows(text)
+            .into_iter()
+            .filter(|(code, _, _)| matches!(code, 17009 | 17011))
+            .collect()
+    }
+
     /// The first node of `kind` whose parent satisfies `parent_kind`
     /// (None = any parent) — for direct check_expression probes of
     /// arms the 5.5a driver cannot reach (assignment operands route
@@ -4366,6 +4398,35 @@ mod tests {
     }
 
     // ---- driver forcing (checkExpressionStatement) — oracle-pinned ----
+
+    #[test]
+    fn this_and_super_property_before_super_call_are_reported() {
+        let text =
+            "class B {}\nclass C extends B { constructor() { this.x; super.x; super(); } x = 0; }\n";
+        assert_eq!(super_ordering_rows(text), [(17009, 47, 4), (17011, 55, 5)]);
+    }
+
+    #[test]
+    fn super_ordering_requires_every_reaching_branch_and_ignores_extends_null() {
+        assert_eq!(
+            super_ordering_rows(
+                "class B {}\nclass C extends B { constructor(ok: boolean) { if (ok) super(); this.x; } x = 0; }\n"
+            ),
+            [(17009, 75, 4)]
+        );
+        assert_eq!(
+            super_ordering_rows(
+                "class B {}\nclass C extends B { constructor(ok: boolean) { if (ok) super(); else super(); this.x; super.x; } x = 0; }\n"
+            ),
+            []
+        );
+        assert_eq!(
+            super_ordering_rows(
+                "class C extends null { constructor() { this.x; super.x; super(); } x = 0; }\n"
+            ),
+            []
+        );
+    }
 
     #[test]
     fn expression_statements_force_identifier_resolution() {

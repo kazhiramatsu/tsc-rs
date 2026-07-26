@@ -1950,6 +1950,95 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsc-port: isPostSuperFlowNode @6.0.3
+    /// tsc-hash: 0edceaee699e7100a0c8ce874b9f936b8ae50780e955f687f0a82a5a1975dd8b
+    /// tsc-span: _tsc.js:70328-70373
+    ///
+    /// A path is post-super only when every branch reaching the
+    /// reference has crossed a `super()` call. Straight-line nodes
+    /// iterate, BranchLabel recursively requires every antecedent,
+    /// and LoopLabel follows only its entry edge. ReduceLabel uses the
+    /// same immutable-arena override as the reachability/type walks.
+    pub(crate) fn is_post_super_flow_node(
+        &mut self,
+        file: usize,
+        mut flow: FlowId,
+        mut no_cache_check: bool,
+    ) -> bool {
+        loop {
+            let flags = self.flow_flags_of(file, flow);
+            if flags.intersects(FlowFlags::SHARED) {
+                if !no_cache_check {
+                    if let Some(&post_super) = self.flow_node_post_super.get(&(file, flow)) {
+                        return post_super;
+                    }
+                    let post_super = self.is_post_super_flow_node(file, flow, true);
+                    self.flow_node_post_super.insert((file, flow), post_super);
+                    return post_super;
+                }
+                no_cache_check = false;
+            }
+            if flags.intersects(
+                FlowFlags::ASSIGNMENT
+                    | FlowFlags::CONDITION
+                    | FlowFlags::ARRAY_MUTATION
+                    | FlowFlags::SWITCH_CLAUSE,
+            ) {
+                flow = self.flow_antecedent(file, flow);
+            } else if flags.intersects(FlowFlags::CALL) {
+                let call = self
+                    .flow_payload_node(file, flow)
+                    .expect("CALL flow nodes carry a node payload (binder flow.rs)");
+                let is_super_call = matches!(
+                    self.data_of(call),
+                    NodeData::CallExpression(data)
+                        if data.expression.is_some_and(|expression| {
+                            self.kind_of(expression) == SyntaxKind::SuperKeyword
+                        })
+                );
+                if is_super_call {
+                    return true;
+                }
+                flow = self.flow_antecedent(file, flow);
+            } else if flags.intersects(FlowFlags::BRANCH_LABEL) {
+                for antecedent in self.flow_label_antecedents(file, flow) {
+                    if !self.is_post_super_flow_node(file, antecedent, false) {
+                        return false;
+                    }
+                }
+                return true;
+            } else if flags.intersects(FlowFlags::LOOP_LABEL) {
+                flow = *self
+                    .flow_label_antecedents(file, flow)
+                    .first()
+                    .expect("LOOP_LABEL flow nodes carry an entry antecedent");
+            } else if flags.intersects(FlowFlags::REDUCE_LABEL) {
+                let FlowPayload::ReduceLabel {
+                    target,
+                    ref antecedents,
+                } = self.binder.file(file).flow.flow(flow).payload
+                else {
+                    unreachable!("REDUCE_LABEL flag implies ReduceLabel payload");
+                };
+                let swapped = antecedents.clone();
+                let antecedent = self.flow_antecedent(file, flow);
+                let saved = self.reduce_label_overrides.insert((file, target), swapped);
+                let result = self.is_post_super_flow_node(file, antecedent, false);
+                match saved {
+                    Some(previous) => {
+                        self.reduce_label_overrides.insert((file, target), previous);
+                    }
+                    None => {
+                        self.reduce_label_overrides.remove(&(file, target));
+                    }
+                }
+                return result;
+            } else {
+                return flags.intersects(FlowFlags::UNREACHABLE);
+            }
+        }
+    }
+
     // ---- initial/assigned types (the assignment arm's inputs) ----
 
     /// tsc-port: getInitialOrAssignedType @6.0.3

@@ -426,9 +426,12 @@ pub struct CheckerState<'a> {
     /// memo (a getFlowNodeId-indexed sparse array there; (file, FlowId)
     /// here like flowLoopCaches). Lives across queries. Err unwinds
     /// leave it unwritten — no undecided verdict outlives its walk.
-    /// (flowNodePostSuper 47435 is the super()-ordering family's twin
-    /// cache — unported with isPostSuperFlowNode, no M5 consumer.)
     pub(crate) flow_node_reachable:
+        std::collections::HashMap<(usize, tsrs2_binder::flow::FlowId), bool>,
+    /// tsc flowNodePostSuper (47435): the per-SHARED-node memo for
+    /// constructor `super()` ordering. Like flowNodeReachable, the
+    /// stable key is the owning file plus its arena-local FlowId.
+    pub(crate) flow_node_post_super:
         std::collections::HashMap<(usize, tsrs2_binder::flow::FlowId), bool>,
     /// tsc withinUnreachableCode (46457): once one 7027 range is
     /// reported, elements checked INSIDE it stay silent; saved and
@@ -905,6 +908,7 @@ impl<'a> CheckerState<'a> {
             last_flow_node: None,
             last_flow_node_reachable: false,
             flow_node_reachable: std::collections::HashMap::new(),
+            flow_node_post_super: std::collections::HashMap::new(),
             within_unreachable_code: false,
             reported_unreachable_nodes: std::collections::HashSet::new(),
             flow_inert_answer_nodes: std::collections::HashSet::new(),

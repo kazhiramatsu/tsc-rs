@@ -182,7 +182,13 @@ Accepted progress on 2026-07-26:
   the family to 2,339/3,013 with supported FN 674;
 - 8.1c.2 closed the frozen declaration-file TS1046 x7 queue through
   `checkGrammarSourceFile` at all three live tiers, with no target-external
-  gain or loss. The family moved to 2,346/3,013 with supported FN 667.
+  gain or loss. The family moved to 2,346/3,013 with supported FN 667;
+- 8.1d.1 closed the frozen `this`/`super` ordering queue,
+  TS17009 x58 + TS17011 x11, through `checkThisBeforeSuper` and the
+  all-reaching-path `isPostSuperFlowNode` walk. All three live tiers
+  gained the same 69 identities with no loss or false positive. The
+  family moved to 2,415/3,013 with supported FN 598 and its constructor
+  default-value canary passed.
 
 ## 6. M7 virtual-band order
 
