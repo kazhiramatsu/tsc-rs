@@ -123,7 +123,13 @@ without opening the general JSDoc checking surface. The two-fixture
 target moved from 23/70 to 35/70; every live tier gained 12 identities
 with no loss or FP. The family is now 2,903/3,013 with supported FN 110
 and canaries 4/4. All 57 planned 8.1f identities are complete; a fresh
-8.1g residual survey is next.
+8.1g residual survey follows. Its first slice closed all eight TS1216
+rows owned by `checkESModuleMarker`: the stale caller reduction to the
+global module kind now uses the existing per-file emit-format seam for
+Node CommonJS package files. The TypeScript and checked-JavaScript
+fixtures moved from 24/32 to 32/32; every live tier gained eight
+identities with no loss, target-external movement, or FP. The family is
+now 2,911/3,013 with supported FN 102 and canaries 4/4.
 
 The binding 8.1a-g producer clusters, current reconnaissance anchors,
 and per-slice exits are in

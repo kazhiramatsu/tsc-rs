@@ -290,8 +290,10 @@
 # nullable/non-nullable TypeScript-syntax pair.
 # m7 8.1f.4 adds +12 through checkJSDocAccessibilityModifiers'
 # exact checked-JavaScript accessibility-tag projection.
-rate = 0.665429
-matched = 32622
+# m7 8.1g.1 adds +8 through checkESModuleMarker's per-file
+# Node CommonJS emit-format gate and exact checked-JS publication.
+rate = 0.665592
+matched = 32630
 total = 49024
 allowed_regression = 0.0
 
