@@ -679,13 +679,6 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/functions.rs"
-in = "check_grammar_property"
-reason = "ambient-initializer row behind checkGrammarModifiers' decorator rows (M7)"
-class = "stage"
-owner = "M7"
-
-[[site]]
-file = "crates/checker/src/functions.rs"
 in = "check_parameter"
 reason = "parameter outside a function (parse recovery)"
 class = "recovery"

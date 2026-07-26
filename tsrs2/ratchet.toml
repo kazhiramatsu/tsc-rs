@@ -256,8 +256,10 @@
 # p9 9.9bn adds +3 nested-class this.prototype property misses.
 # p9 9.9bo adds +1 JSDoc chained-static-assignment this miss.
 # p9 9.9bp adds +1 class-field arrow lexical-this miss.
-rate = 0.641053
-matched = 31427
+# m7 8.1a adds +505 through checkGrammarModifiers and its obvious
+# modifier/decorator + async helpers, with exact follower suppression.
+rate = 0.651354
+matched = 31932
 total = 49024
 allowed_regression = 0.0
 

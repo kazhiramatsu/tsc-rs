@@ -34,8 +34,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: e7419e774165d50c50d16fcfd9254d411142d9a3d29ee577d86f5c34cfaacea6
     /// tsc-span: _tsc.js:83618-83621
     ///
-    /// checkGrammarModifiers stays the M7-stub hook — its false return
-    /// feeds the && chain so the grammar workers sit in tsc's slots.
+    /// checkGrammarModifiers feeds the && chain so the grammar workers
+    /// sit in tsc's slots.
     pub(crate) fn check_variable_statement(&mut self, node: NodeId) -> CheckResult2<()> {
         let NodeData::VariableStatement(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
@@ -43,33 +43,7 @@ impl<'a> CheckerState<'a> {
         let Some(declaration_list) = data.declaration_list else {
             return Err(Unsupported::new("VariableStatement recovery node"));
         };
-        // checkGrammarModifiers gate approximation: in a position
-        // where block declarations are disallowed, ANY modifier on a
-        // variable statement is illegal — tsc's modifier grammar
-        // reports 1184-family and short-circuits the whole ladder.
-        // The M7-stub returns false, so mirror that face here (the
-        // 1184 row itself stays the M7 FN).
-        let has_modifiers = matches!(
-            self.data_of(node),
-            NodeData::VariableStatement(data) if data.modifiers.is_some()
-        );
-        let list_block_scope = self.node_flags(declaration_list) & NodeFlags::BLOCK_SCOPED.bits();
-        let modifiers_would_report = (has_modifiers
-            && self
-                .parent_of(node)
-                .is_some_and(|parent| !self.allow_block_declarations(parent)))
-            // `declare using` / `declare await using`: the modifier
-            // grammar owns the report (1044-family) and short-circuits
-            // the ladder — our ambient row would double-fire (the
-            // usingDeclarations.13 pin).
-            || (node_util::has_syntactic_modifier(
-                self.binder.source_of_node(node),
-                node,
-                ModifierFlags::AMBIENT,
-            ) && (list_block_scope == NodeFlags::USING.bits()
-                || list_block_scope == NodeFlags::AWAIT_USING.bits()));
-        if !modifiers_would_report
-            && !self.check_grammar_modifiers(node)
+        if !self.check_grammar_modifiers(node)
             && !self.check_grammar_variable_declaration_list(declaration_list)?
         {
             self.check_grammar_for_disallowed_block_scoped_variable_statement(
@@ -1730,7 +1704,7 @@ impl<'a> CheckerState<'a> {
     /// Only Node16..NodeNext can override the configured module kind
     /// through this host's modeled implied-format input. Other module
     /// kinds retain their configured emit format.
-    fn emit_module_format_of_file(&self, location: NodeId) -> i32 {
+    pub(crate) fn emit_module_format_of_file(&self, location: NodeId) -> i32 {
         let module_kind = self.options.emit_module_kind();
         if (100..=199).contains(&module_kind) {
             match self.implied_node_format_for_file(location) {

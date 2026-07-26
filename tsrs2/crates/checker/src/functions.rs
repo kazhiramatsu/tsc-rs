@@ -1862,8 +1862,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 1efd72b631aa59c1a5c9b853f95ad970dd43af2b03a95cb20024b2da103444da
     /// tsc-span: _tsc.js:81170-81205
     ///
-    /// checkGrammarModifiers rides the M7-stub hook; the
-    /// erasableSyntaxOnly row is option-absent (dead, §13 audit).
+    /// checkGrammarModifiers is live; the erasableSyntaxOnly row is
+    /// option-absent (dead, §13 audit).
     pub(crate) fn check_parameter(&mut self, node: NodeId) -> CheckResult2<()> {
         self.check_grammar_modifiers(node);
         self.check_variable_like_declaration(node)?;
@@ -4004,14 +4004,12 @@ impl<'a> CheckerState<'a> {
     ///
     /// checkGrammarModifiers heads tsc's `||` ladder — a modifier
     /// grammar error suppresses EVERY follower (type-parameter list,
-    /// parameter list, arrow 1200, use-strict 1347). The would-report
-    /// skeleton supplies the verdict; the modifier row itself stays
-    /// the M7 FN.
+    /// parameter list, arrow 1200, use-strict 1347).
     pub(crate) fn check_grammar_function_like_declaration(
         &mut self,
         node: NodeId,
     ) -> CheckResult2<bool> {
-        if self.check_grammar_modifiers_would_report(node) {
+        if self.check_grammar_modifiers(node) {
             return Ok(true);
         }
         let type_parameters = match self.data_of(node) {
@@ -4396,26 +4394,6 @@ impl<'a> CheckerState<'a> {
             }
         }
         if NodeFlags::from_bits(self.node_flags(node)).intersects(NodeFlags::AMBIENT) {
-            // tsc reaches this through `!checkGrammarModifiers(node) &&
-            // !checkGrammarProperty(node)` — a decorator on an ambient
-            // property reports 1206 in checkGrammarModifiers (M7 stub
-            // here) and SHORT-CIRCUITS this row; contain that shape
-            // rather than fabricate 1039 beside tsc's 1206.
-            let has_decorator = {
-                let modifiers = match self.data_of(node) {
-                    NodeData::PropertyDeclaration(data) => data.modifiers,
-                    NodeData::PropertySignature(data) => data.modifiers,
-                    _ => None,
-                };
-                self.nodes_of(modifiers)
-                    .iter()
-                    .any(|&modifier| self.kind_of(modifier) == SyntaxKind::Decorator)
-            };
-            if has_decorator {
-                return Err(Unsupported::new(
-                    "ambient-initializer row behind checkGrammarModifiers' decorator rows (M7)",
-                ));
-            }
             self.check_ambient_initializer(node)?;
         }
         if self.kind_of(node) == SyntaxKind::PropertyDeclaration {
@@ -6092,13 +6070,13 @@ mod tests {
     #[test]
     fn method_modifier_error_suppresses_type_parameter_grammar() {
         // m4-review S7 (oracle: vendored tsc 6.0.3, noLib, strict,
-        // 2026-07-19): tsc 1031 @10 (the M7-FN modifier row) + 1183
-        // @30 — the declare verdict heads the `||` ladder and
+        // 2026-07-19): tsc 1031 @10 + 1183 @30 — the live declare
+        // verdict heads the `||` ladder and
         // suppresses the empty-type-parameter-list 1098 the port
         // reported pre-fix.
         assert_eq!(
             checked_rows("class C { declare m<>(): void {} }\n"),
-            [(1183, 30, 1)]
+            [(1031, 10, 7), (1183, 30, 1)]
         );
     }
 
