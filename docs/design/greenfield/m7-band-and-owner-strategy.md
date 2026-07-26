@@ -468,7 +468,22 @@ Accepted progress on 2026-07-26:
   from 99/156 to 100/156; full-corpus T1/T2/T3 each gained exactly one
   identity with no loss, target-external movement, or FP. All-corpus T0
   is 32,642/49,024, supported T0 is 32,641/48,477, and
-  checker-grammar is 2,923/3,013 with supported FN 90 and canaries 4/4.
+  checker-grammar is 2,923/3,013 with supported FN 90 and canaries 4/4;
+- 8.1g.6 closed the complete live `checkAliasSymbol` producer queue:
+  TS1205 x3, TS1288 x1, TS1295 x3, TS1448 x1, TS1484 x2, and TS1485
+  x1. The producer now applies the existing `isolatedModules` and
+  `verbatimModuleSyntax` options to raw alias/value flags, preserves
+  the import-vs-export type-only distinction, and attaches the exact
+  TS1377 origin for type-only value aliases. Its direct
+  `getVerbatimModuleSyntaxErrorMessage` prerequisite distinguishes
+  `.cts`/`.cjs` TS1286 from package-adjustable TS1295; TS1286 has a
+  micro pin but no corpus row. Only the three TS1295 import-alias rows
+  belong to this producer—the dynamic-import and export-assignment
+  rows remain in their own queues. The five-fixture target moved from
+  8/58 to 19/58; full-corpus T1/T2/T3 each gained exactly 11
+  identities with no loss, target-external movement, or FP.
+  All-corpus T0 is 32,653/49,024, supported T0 is 32,652/48,477, and
+  checker-grammar is 2,934/3,013 with supported FN 79 and canaries 4/4.
 
 ## 6. M7 virtual-band order
 
