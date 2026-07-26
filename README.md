@@ -59,8 +59,8 @@ checker-grammar owner slices now cover modifier/decorator grammar and
 object-literal grammar, followed by the signature parameter-list grammar
 owner, declaration-file top-level source grammar, and derived-constructor
 `this`/`super` ordering. The Node CommonJS top-level-`await` work is split
-by its two actual emitters; `checkAwaitGrammar` is complete and the
-`for await` grammar producer follows separately. M7 reuses the approach
+by its two actual emitters; both `checkAwaitGrammar` and the separate
+`for await` grammar producer are complete. M7 reuses the approach
 that made the 2XXX sweep effective: measure exact oracle rows first, group
 them into `(diagnostic code, pass)` owner families, trace each family
 through the emitting `tsc` function and its Rust implementation boundary,
@@ -78,7 +78,7 @@ artifacts by every `cargo xtask ci` run:
 
 | View | Exact diagnostic match (T0) |
 | --- | --- |
-| All bands | **65.5638%** (32,142 / 49,024) |
+| All bands | **65.5801%** (32,150 / 49,024) |
 | 2xxx band | **97.4063%** (20,505 / 21,051) |
 | Syntactic | **99.8219%** (2,242 / 2,246) |
 
