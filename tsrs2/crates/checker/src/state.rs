@@ -1739,6 +1739,19 @@ impl<'a> CheckerState<'a> {
         end_byte: usize,
         message: &'static DiagnosticMessage,
     ) -> usize {
+        self.error_at_byte_range_with_args(node_for_file, start_byte, end_byte, message, &[])
+    }
+
+    /// tsrs-native: explicit-span diagnostic twin with message
+    /// substitution arguments.
+    pub fn error_at_byte_range_with_args(
+        &mut self,
+        node_for_file: NodeId,
+        start_byte: usize,
+        end_byte: usize,
+        message: &'static DiagnosticMessage,
+        args: &[&str],
+    ) -> usize {
         let source = self.binder.source_of_node(node_for_file);
         let to_utf16 = |byte: usize| -> u32 {
             source
@@ -1750,11 +1763,15 @@ impl<'a> CheckerState<'a> {
         };
         let start_utf16 = to_utf16(start_byte);
         let end_utf16 = to_utf16(end_byte);
+        let args = args
+            .iter()
+            .map(|argument| (*argument).to_owned())
+            .collect::<Vec<_>>();
         let diagnostic = Diagnostic::new(
             Some(source.file_name.clone()),
             Some(start_utf16),
             Some(end_utf16.saturating_sub(start_utf16)),
-            MessageChain::new(message, &[]),
+            MessageChain::new(message, &args),
         );
         self.push_error_diagnostic(diagnostic)
     }

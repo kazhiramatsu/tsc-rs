@@ -321,8 +321,10 @@
 # JSDoc @param type-argument projection and exact TS1099/TS1009 rows.
 # m7 8.1o adds +2 by publishing bindNamespaceExportDeclaration's
 # exact checked-JS TS1315 row in the ES5/ES2015 matrix.
-rate = 0.666735
-matched = 32686
+# m7 8.1p adds +3 through checkGrammarModifiers' checked-JS JSDoc
+# template effective-host projection and exact TS1273/TS1274/TS1277 rows.
+rate = 0.666796
+matched = 32689
 total = 49024
 allowed_regression = 0.0
 
