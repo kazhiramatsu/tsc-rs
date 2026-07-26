@@ -2913,7 +2913,7 @@ impl<'a> CheckerState<'a> {
                 // Per-declaration containment keeps the catch block
                 // checked when the variable check escapes.
                 let _ = self.check_variable_like_declaration(declaration);
-                let type_node = self.type_annotation_of(declaration);
+                let type_node = self.effective_type_annotation_node(declaration);
                 if let Some(type_node) = type_node {
                     let ty = self.get_type_from_type_node(type_node)?;
                     if !self
@@ -2925,6 +2925,34 @@ impl<'a> CheckerState<'a> {
                             type_node,
                             &diagnostics::Catch_clause_variable_type_annotation_must_be_any_or_unknown_if_specified,
                             &[],
+                        );
+                    }
+                } else if let Some((type_text, type_span)) =
+                    self.jsdoc_catch_type_annotation_projection(declaration)
+                {
+                    let ty = self.get_type_from_jsdoc_text(declaration, &type_text)?;
+                    if ty.is_some_and(|ty| {
+                        !self
+                            .tables
+                            .flags_of(ty)
+                            .intersects(TypeFlags::ANY | TypeFlags::UNKNOWN)
+                    }) {
+                        let source = self.binder.source_of_node(declaration);
+                        let (token_start, token_end) =
+                            node_util::get_span_of_token_at_position(source, type_span.0);
+                        let start = self.utf16_position(declaration, token_start);
+                        let end = self.utf16_position(declaration, token_end);
+                        let diagnostics_before = self.diagnostics.len();
+                        self.grammar_error_at_pos(
+                            declaration,
+                            start,
+                            end.saturating_sub(start),
+                            &diagnostics::Catch_clause_variable_type_annotation_must_be_any_or_unknown_if_specified,
+                            &[],
+                        );
+                        self.mark_non_jsdoc_js_diagnostics_since_with_code(
+                            diagnostics_before,
+                            1196,
                         );
                     }
                 } else if let Some(initializer) = self.initializer_of_node(declaration) {
@@ -2974,6 +3002,56 @@ impl<'a> CheckerState<'a> {
             self.check_block(finally_block)?;
         }
         Ok(())
+    }
+
+    /// getEffectiveTypeAnnotationNode's JSDoc half for a catch
+    /// variable declaration. The syntax arena does not materialize
+    /// JSDoc nodes, so retain this projection inside checkTryStatement:
+    /// it accepts only the inline `@type {T}` attachment and returns
+    /// the source range of the type node tsc would have produced.
+    fn jsdoc_catch_type_annotation_projection(
+        &self,
+        declaration: NodeId,
+    ) -> Option<(String, (usize, usize))> {
+        if !self.is_in_js_file(declaration) {
+            return None;
+        }
+        let source = self.binder.source_of_node(declaration);
+        let anchor = self.name_of_node(declaration).unwrap_or(declaration);
+        let anchor_start = node_util::get_span_of_token_at_position(
+            source,
+            source.arena.node(anchor).pos as usize,
+        )
+        .0;
+        let prefix = &source.text[..anchor_start.min(source.text.len())];
+        let comment_start = prefix.rfind("/**")?;
+        let relative_end = prefix[comment_start + 3..].find("*/")?;
+        let comment_end = comment_start + 3 + relative_end + 2;
+        if !prefix[comment_end..].trim().is_empty() {
+            return None;
+        }
+        let comment_body_start = comment_start + 3;
+        let comment = &prefix[comment_body_start..comment_end - 2];
+        let lower = comment.to_ascii_lowercase();
+        let tag = lower.match_indices("@type").find_map(|(index, _)| {
+            lower[index + "@type".len()..]
+                .chars()
+                .next()
+                .is_none_or(|character| character.is_whitespace() || character == '{')
+                .then_some(index)
+        })?;
+        let tail = &comment[tag + "@type".len()..];
+        let open = tail.find('{')?;
+        let close = tail[open + 1..].find('}')?;
+        let raw = &tail[open + 1..open + 1 + close];
+        let type_text = raw.trim();
+        if type_text.is_empty() {
+            return None;
+        }
+        let raw_start = comment_body_start + tag + "@type".len() + open + 1;
+        let type_start = raw_start + raw.len().saturating_sub(raw.trim_start().len());
+        let type_end = type_start + type_text.len();
+        Some((type_text.to_owned(), (type_start, type_end)))
     }
 }
 
@@ -3862,6 +3940,57 @@ x.accessor = 1;\n"
             checked_rows("try {} catch (q) { let q: number; }\n"),
             [(2492, 23, 1)]
         );
+    }
+
+    #[test]
+    fn checked_js_catch_type_tags_require_any_or_unknown() {
+        let source = "class Error {}\n\
+                      /** @typedef {any} Any */\n\
+                      /** @typedef {unknown} Unknown */\n\
+                      try {} catch (/** @type {any} */ err) {}\n\
+                      try {} catch (/** @type {unknown} */ err) {}\n\
+                      try {} catch (/** @type {Any} */ err) {}\n\
+                      try {} catch (/** @type {Unknown} */ err) {}\n\
+                      try {} catch (/** @type {Error} */ err) {}\n\
+                      try {} catch (/** @type {object} */ err) {}\n\
+                      try {} catch (/** @type {Error} */ { x }) {}\n\
+                      try {} catch (/** @type {object} */ { x }) {}\n";
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                target: Some(99),
+                use_unknown_in_catch_variables: Some(false),
+                ..CompilerOptions::default()
+            },
+        );
+        let rows = result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 1196)
+            .map(|diagnostic| {
+                (
+                    diagnostic.start.expect("TS1196 has a start"),
+                    diagnostic.length.expect("TS1196 has a length"),
+                )
+            })
+            .collect::<Vec<_>>();
+        let expected = ["Error", "object", "Error", "object"]
+            .into_iter()
+            .scan(0usize, |cursor, name| {
+                let relative = source[*cursor..]
+                    .find(&format!("@type {{{name}}}"))
+                    .expect("invalid catch type exists");
+                let start = *cursor + relative + "@type {".len();
+                *cursor = start + name.len();
+                Some((start as u32, name.len() as u32))
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(rows, expected);
     }
 
     #[test]
