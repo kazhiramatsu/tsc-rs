@@ -104,8 +104,12 @@ slice closed TS1361 x33 and TS1362 x31, including exact TS1376/TS1377
 related origins and the checked-JavaScript export-namespace row.
 T0/T1/T2/T3 each gained 64 identities with no loss, target-external
 movement, or false positive. The checker-grammar family is now
-2,846/3,013 with supported FN 167 and canaries 3/4; 8.1f
-strict/private/JSDoc/ES-target grammar is next.
+2,846/3,013 with supported FN 167 and canaries 3/4. The first 8.1f
+slice then closed all 31 object-literal TS18016 rows through
+`checkGrammarObjectLiteralExpression`; each live tier gained 31 with
+no loss or external movement. The family is now 2,877/3,013 with
+supported FN 136 and canaries 4/4. The two checked-JavaScript TS18028
+publication owners, method then accessor, are next.
 
 The binding 8.1a-g producer clusters, current reconnaissance anchors,
 and per-slice exits are in

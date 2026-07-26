@@ -373,8 +373,15 @@ Accepted progress on 2026-07-26:
   and FP=0. Full-corpus T1/T2/T3 each gained exactly 64 identities with
   no loss or target-external movement; all-corpus T0 is 32,565/49,024
   and supported T0 is 32,564/48,477. The checker-grammar family is now
-  2,846/3,013 with supported FN 167 and canaries 3/4. The next frozen
-  owner group is 8.1f strict/private/JSDoc/ES-target grammar.
+  2,846/3,013 with supported FN 167 and canaries 3/4;
+- 8.1f.1 closed all 31 TS18016 private-name placement identities owned
+  by `checkGrammarObjectLiteralExpression`. Its seven-fixture target
+  moved from 256/353 to 287/353. Full-corpus T1/T2/T3 each gained 31
+  identities with no loss or target-external movement; all-corpus T0
+  is 32,596/49,024 and supported T0 is 32,595/48,477. The
+  checker-grammar family is now 2,877/3,013 with supported FN 136, and
+  all four canaries are green. The next owners are the separately
+  frozen checked-JavaScript method and accessor TS18028 producers.
 
 ## 6. M7 virtual-band order
 

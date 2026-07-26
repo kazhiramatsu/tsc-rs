@@ -83,12 +83,15 @@ diagnostic-only package-module meaning projection without publishing
 package symbols or members generally. The module-format sequence now
 also includes the complete TS1361/TS1362 type-only alias value-use
 worker, with exact import/export related information and checked-JavaScript
-publication. The next frozen group is 8.1f
-strict/private/JSDoc/ES-target grammar. M7 reuses the approach that made
-the 2XXX sweep effective: measure exact oracle rows first, group them
-into `(diagnostic code, pass)` owner families, trace each family through
-the emitting `tsc` function and its Rust implementation boundary, then
-port one bounded producer slice at a time. See the
+publication. The first 8.1f producer is complete as well: object-literal
+private-name placement now closes all 31 TS18016 rows and brings the
+checker-grammar canaries to 4/4. The next frozen producers are the
+separate checked-JavaScript method and accessor TS18028 rows. M7 reuses
+the approach that made the 2XXX sweep effective: measure exact oracle
+rows first, group them into `(diagnostic code, pass)` owner families,
+trace each family through the emitting `tsc` function and its Rust
+implementation boundary, then port one bounded producer slice at a
+time. See the
 [M7 band and owner strategy](docs/design/greenfield/m7-band-and-owner-strategy.md).
 
 The stage marker remains `M6` while M7 is active and advances only when the
@@ -102,7 +105,7 @@ artifacts by every `cargo xtask ci` run:
 
 | View | Exact diagnostic match (T0) |
 | --- | --- |
-| All bands | **66.4266%** (32,565 / 49,024) |
+| All bands | **66.4899%** (32,596 / 49,024) |
 | 2xxx band | **97.4063%** (20,505 / 21,051) |
 | Syntactic | **99.8219%** (2,242 / 2,246) |
 
