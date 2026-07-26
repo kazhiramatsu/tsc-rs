@@ -166,6 +166,7 @@ impl<'a> CheckerState<'a> {
             return;
         }
         self.check_grammar_source_file(root);
+        self.check_jsdoc_import_tag_resolution_mode_attributes(root);
         // 87010-87014: the five per-file accumulators clear at worker
         // entry (the PartiallyTypeChecked restore stays elided).
         self.potential_this_collisions.clear();
@@ -1854,6 +1855,138 @@ impl<'a> CheckerState<'a> {
             line_offset += line.len();
         }
         None
+    }
+
+    /// tsc-port: checkJSDocImportTag @6.0.3
+    /// tsc-hash: d5bedc1e5d403ebe956b54ea38ea0d9ab0726319180f4e24c61b1422882e258c
+    /// tsc-span: _tsc.js:82854-82856
+    ///
+    /// The syntax arena does not yet materialize JSDocImportTag nodes.
+    /// Project the one live producer face over parser-owned leading
+    /// trivia: a declaration-shaped `@import ... from "..." with`
+    /// whose attribute keyword has no object. The trivia boundary
+    /// excludes comment-shaped text in strings/templates/regexes; the
+    /// tag/`from`/quoted-specifier boundaries exclude prose. Full
+    /// JSDoc tag parsing and the other import-attribute shapes remain
+    /// owned by M8.
+    fn check_jsdoc_import_tag_resolution_mode_attributes(&mut self, root: NodeId) {
+        if !self.is_in_js_file(root) {
+            return;
+        }
+        let spans = self.jsdoc_import_tag_bare_with_spans(root);
+        for (start_byte, end_byte) in spans {
+            let diagnostics_before = self.diagnostics.len();
+            self.error_at_byte_range(
+                root,
+                start_byte,
+                end_byte,
+                &diagnostics::Type_import_attributes_should_have_exactly_one_key_resolution_mode_with_value_import_or_require,
+            );
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1464);
+        }
+    }
+
+    fn jsdoc_import_tag_bare_with_spans(&self, root: NodeId) -> Vec<(usize, usize)> {
+        let source = self.binder.source_of_node(root);
+        let mut trivia_ranges = std::collections::BTreeSet::new();
+        let mut stack = vec![root];
+        while let Some(node) = stack.pop() {
+            let raw = source.arena.node(node);
+            let full_start = (raw.pos as usize).min(source.text.len());
+            let token_start =
+                tsrs2_syntax::skip_trivia(&source.text, full_start).min(source.text.len());
+            if token_start > full_start {
+                trivia_ranges.insert((full_start, token_start));
+            }
+            for_each_child(&source.arena, raw, |child| {
+                stack.push(child);
+                false
+            });
+        }
+
+        let mut spans = std::collections::BTreeSet::new();
+        for (trivia_start, trivia_end) in trivia_ranges {
+            let mut cursor = trivia_start;
+            while cursor < trivia_end {
+                let Some(relative_start) = source.text[cursor..trivia_end].find("/**") else {
+                    break;
+                };
+                let comment_start = cursor + relative_start;
+                let body_start = comment_start + 3;
+                let Some(relative_close) = source.text[body_start..trivia_end].find("*/") else {
+                    break;
+                };
+                let comment_close = body_start + relative_close;
+                self.collect_jsdoc_import_tag_bare_with_spans(
+                    &source.text,
+                    body_start,
+                    comment_close,
+                    &mut spans,
+                );
+                cursor = comment_close + 2;
+            }
+        }
+        spans.into_iter().collect()
+    }
+
+    fn collect_jsdoc_import_tag_bare_with_spans(
+        &self,
+        text: &str,
+        body_start: usize,
+        comment_close: usize,
+        spans: &mut std::collections::BTreeSet<(usize, usize)>,
+    ) {
+        let body = &text[body_start..comment_close];
+        let mut line_offset = 0usize;
+        for line in body.split_inclusive('\n') {
+            let line_without_lf = line.strip_suffix('\n').unwrap_or(line);
+            let line_without_break = line_without_lf
+                .strip_suffix('\r')
+                .unwrap_or(line_without_lf);
+            let leading = line_without_break.len()
+                - line_without_break
+                    .trim_start_matches(char::is_whitespace)
+                    .len();
+            let mut candidate = &line_without_break[leading..];
+            let mut candidate_offset = leading;
+            if let Some(after_star) = candidate.strip_prefix('*') {
+                candidate_offset += 1;
+                let star_space =
+                    after_star.len() - after_star.trim_start_matches(char::is_whitespace).len();
+                candidate_offset += star_space;
+                candidate = &after_star[star_space..];
+            }
+            let Some(import_tail) = candidate.strip_prefix("@import") else {
+                line_offset += line.len();
+                continue;
+            };
+            if !import_tail.chars().next().is_some_and(char::is_whitespace) {
+                line_offset += line.len();
+                continue;
+            }
+            let trimmed = candidate.trim_end_matches(char::is_whitespace);
+            let Some(before_with) = trimmed.strip_suffix("with") else {
+                line_offset += line.len();
+                continue;
+            };
+            if !before_with
+                .chars()
+                .next_back()
+                .is_some_and(char::is_whitespace)
+                || !jsdoc_import_prefix_has_from_quoted_specifier(
+                    before_with
+                        .strip_prefix("@import")
+                        .expect("candidate has @import prefix"),
+                )
+            {
+                line_offset += line.len();
+                continue;
+            }
+            let with_start_in_candidate = trimmed.len() - "with".len();
+            let with_start = body_start + line_offset + candidate_offset + with_start_in_candidate;
+            spans.insert((with_start, with_start + "with".len()));
+            line_offset += line.len();
+        }
     }
 
     /// tsc-port: checkBlock @6.0.3
@@ -8804,6 +8937,39 @@ fn optional_type_operand_needs_parens(kind: SliceTypeNodeKind) -> bool {
     non_array_postfix_operand_needs_parens(kind)
 }
 
+fn jsdoc_import_prefix_has_from_quoted_specifier(prefix: &str) -> bool {
+    let prefix = prefix.trim_end_matches(char::is_whitespace);
+    let Some(quote) = prefix.as_bytes().last().copied() else {
+        return false;
+    };
+    if !matches!(quote, b'"' | b'\'') {
+        return false;
+    }
+    let bytes = prefix.as_bytes();
+    let Some(opening_quote) = (0..bytes.len().saturating_sub(1)).rev().find(|&index| {
+        if bytes[index] != quote {
+            return false;
+        }
+        let preceding_backslashes = bytes[..index]
+            .iter()
+            .rev()
+            .take_while(|&&byte| byte == b'\\')
+            .count();
+        preceding_backslashes % 2 == 0
+    }) else {
+        return false;
+    };
+    let before_specifier = prefix[..opening_quote].trim_end_matches(char::is_whitespace);
+    let Some(before_from) = before_specifier.strip_suffix("from") else {
+        return false;
+    };
+    before_from
+        .chars()
+        .next_back()
+        .is_some_and(char::is_whitespace)
+        && !before_from.trim().is_empty()
+}
+
 /// tsc-port: getLiteralText @6.0.3 (synthesized template branch)
 /// tsc-hash: e09a970bf93f42fa341190e5980f0adbc970e1d809299edf94e843729db22090
 /// tsc-span: _tsc.js:13660-13677
@@ -9128,6 +9294,60 @@ mod tests {
         assert!(
             diagnostics.iter().all(|diagnostic| diagnostic.0 != 18010),
             "negative attachment probes must not produce TS18010: {diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn jsdoc_import_tag_bare_with_reports_1464_and_publishes_checked_js() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/** @import * as f from \"./foo\" with */";
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 1464)
+                .expect("TS1464");
+            assert_eq!((diagnostic.start, diagnostic.length), (Some(32), Some(4)));
+            assert!(state
+                .non_jsdoc_js_diagnostics
+                .contains(&("a.js".to_owned(), 32, 4, 1464)));
+        });
+    }
+
+    #[test]
+    fn jsdoc_import_tag_projection_rejects_valid_attributes_prose_and_source_text() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        for text in [
+            "/** @import * as f from \"./foo\" with { \"resolution-mode\": \"import\" } */",
+            "/** prose @import * as f from \"./foo\" with */",
+            "/** @imported * as f from \"./foo\" with */",
+            "/** @import \"./foo\" with */",
+            "/* @import * as f from \"./foo\" with */",
+            "const text = '/** @import * as f from \"./foo\" with */';",
+        ] {
+            let diagnostics = checked_file_diags_with("a.js", text, &options);
+            assert!(
+                diagnostics.iter().all(|diagnostic| diagnostic.0 != 1464),
+                "negative JSDoc import probe must not produce TS1464: {text:?}: {diagnostics:?}"
+            );
+        }
+        let diagnostics = checked_file_diags_with(
+            "a.ts",
+            "/** @import * as f from \"./foo\" with */",
+            &CompilerOptions::default(),
+        );
+        assert!(
+            diagnostics.iter().all(|diagnostic| diagnostic.0 != 1464),
+            "the source projection is JS-only: {diagnostics:?}"
         );
     }
 
