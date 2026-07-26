@@ -2962,6 +2962,95 @@ impl<'a> CheckerState<'a> {
             })
     }
 
+    /// A direct `this.member` read inside the RHS of
+    /// `Ctor.s = Ctor.t = function ...` when the outer static
+    /// assignment carries JSDoc semantics. Both assignment receivers
+    /// must resolve to the containing static-side symbol; the
+    /// constructor's instance-only members therefore cannot satisfy
+    /// this lookup.
+    fn is_jsdoc_chained_static_assignment_this_read(
+        &mut self,
+        access_expression: NodeId,
+        containing_symbol: Option<SymbolId>,
+        assignment_declaration_kind: tsrs2_binder::AssignmentDeclarationKind,
+    ) -> CheckResult2<bool> {
+        if self.kind_of(access_expression) != SyntaxKind::PropertyAccessExpression
+            || assignment_declaration_kind != tsrs2_binder::AssignmentDeclarationKind::None
+            || node_util::is_assignment_target(
+                self.binder.source_of_node(access_expression),
+                access_expression,
+            )
+        {
+            return Ok(false);
+        }
+        let direct_this = matches!(
+            self.data_of(access_expression),
+            NodeData::PropertyAccessExpression(data)
+                if data
+                    .expression
+                    .is_some_and(|receiver| self.kind_of(receiver) == SyntaxKind::ThisKeyword)
+        );
+        if !direct_this {
+            return Ok(false);
+        }
+        let Some(function) = self
+            .get_containing_function(access_expression)
+            .filter(|&function| self.kind_of(function) == SyntaxKind::FunctionExpression)
+        else {
+            return Ok(false);
+        };
+        let Some(inner_assignment) = self.parent_of(function) else {
+            return Ok(false);
+        };
+        let inner_receiver = match self.data_of(inner_assignment) {
+            NodeData::BinaryExpression(data)
+                if data.right == Some(function)
+                    && tsrs2_binder::get_assignment_declaration_kind(
+                        self.binder.source_of_node(inner_assignment),
+                        inner_assignment,
+                    ) == tsrs2_binder::AssignmentDeclarationKind::Property =>
+            {
+                data.left.and_then(|left| match self.data_of(left) {
+                    NodeData::PropertyAccessExpression(access) => access.expression,
+                    _ => None,
+                })
+            }
+            _ => None,
+        };
+        let Some(outer_assignment) = self.parent_of(inner_assignment) else {
+            return Ok(false);
+        };
+        let outer_receiver = match self.data_of(outer_assignment) {
+            NodeData::BinaryExpression(data)
+                if data.right == Some(inner_assignment)
+                    && tsrs2_binder::get_assignment_declaration_kind(
+                        self.binder.source_of_node(outer_assignment),
+                        outer_assignment,
+                    ) == tsrs2_binder::AssignmentDeclarationKind::Property =>
+            {
+                data.left.and_then(|left| match self.data_of(left) {
+                    NodeData::PropertyAccessExpression(access) => access.expression,
+                    _ => None,
+                })
+            }
+            _ => None,
+        };
+        let (Some(inner_receiver), Some(outer_receiver), Some(containing_symbol)) =
+            (inner_receiver, outer_receiver, containing_symbol)
+        else {
+            return Ok(false);
+        };
+        let inner_symbol = self.get_resolved_symbol(inner_receiver)?;
+        let outer_symbol = self.get_resolved_symbol(outer_receiver)?;
+        let containing_symbol = self.get_merged_symbol(containing_symbol);
+        Ok(
+            inner_symbol.is_some_and(|symbol| self.get_merged_symbol(symbol) == containing_symbol)
+                && outer_symbol
+                    .is_some_and(|symbol| self.get_merged_symbol(symbol) == containing_symbol)
+                && self.declaration_has_jsdoc_semantics(outer_assignment),
+        )
+    }
+
     /// The missing intermediate access in
     /// `let A; A = {}; A.prototype.b = {}`. Its parent, not the
     /// `A.prototype` node itself, is the assignment target. Requiring
@@ -3397,6 +3486,12 @@ impl<'a> CheckerState<'a> {
                 containing_symbol,
                 assignment_declaration_kind,
             );
+        let publish_jsdoc_chained_static_assignment_this_read = self
+            .is_jsdoc_chained_static_assignment_this_read(
+                access_expression,
+                containing_symbol,
+                assignment_declaration_kind,
+            )?;
         // The binder cannot turn an intermediate access into a direct
         // expando declaration. Once the empty reassignment verdict is
         // complete, its missing member is safe to publish; initialized
@@ -3417,6 +3512,7 @@ impl<'a> CheckerState<'a> {
             || publish_prototype_object_replacement_property_assignment
             || publish_jsdoc_satisfies_object_literal_property_read
             || publish_this_prototype_class_property_read
+            || publish_jsdoc_chained_static_assignment_this_read
             || publish_chained_uninitialized_identifier_empty_assignment
             || containing_symbol.is_some_and(|symbol| {
                 self.non_jsdoc_js_module_exports_alias_targets

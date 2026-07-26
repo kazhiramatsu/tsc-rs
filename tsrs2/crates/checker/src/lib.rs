@@ -4684,6 +4684,49 @@ mod tests {
     }
 
     #[test]
+    fn checked_js_publishes_jsdoc_chained_static_assignment_this_reads() {
+        let source = "function A() {\n\
+                        this.instanceOnly = 1;\n\
+                      }\n\
+                      /** @param {number} n */\n\
+                      A.s = A.t = function g(n) {\n\
+                        return n + this.instanceOnly;\n\
+                      };\n";
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                no_implicit_any: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                    diagnostic.message_text(),
+                ))
+                .collect::<Vec<_>>(),
+            [(
+                2339,
+                source
+                    .rfind("instanceOnly")
+                    .expect("static-side instance miss") as u32,
+                "instanceOnly".len() as u32,
+                "Property 'instanceOnly' does not exist on type 'typeof A'.",
+            )]
+        );
+    }
+
+    #[test]
     fn checked_js_publishes_primitive_module_exports_assignment_misses() {
         let primitive = "module.exports = 1;\nmodule.exports.missing = 1;\n";
         let result = check_program(
