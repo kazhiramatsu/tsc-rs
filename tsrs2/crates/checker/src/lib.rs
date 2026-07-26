@@ -709,6 +709,7 @@ pub fn check_program_with_libs_at(
             file.name.clone(),
             file.text.clone(),
             tsrs2_syntax::ParseOptions {
+                script_target: options.emit_script_target(),
                 language_variant,
                 javascript_file,
                 force_external_module,
@@ -1070,10 +1071,12 @@ struct LibBundle {
 }
 
 /// The per-lib-set bundle cache. Keyed by the ordered (name, text)
-/// list plus the projection of CompilerOptions onto the binder's three
-/// option observables — the only fields a cached bundle can ever
-/// expose. The binder crate reads exactly `emit_script_target()`
-/// (declare.rs language_version, bind.rs ES2015 gate),
+/// list plus the projection of CompilerOptions onto the parser target
+/// and binder's three option observables — the only option fields a
+/// cached bundle can expose. Parsing reads `emit_script_target()` for
+/// scanner classification and SourceFile.language_version. The binder
+/// reads that same computed target (declare.rs language_version,
+/// bind.rs ES2015 gate),
 /// `always_strict_effective()` (bind.rs use-strict prologue) and
 /// `no_fallthrough_cases_in_switch == Some(true)` (bindCaseBlock), and
 /// `Binder.options` is read nowhere outside the binder crate. Keying
@@ -1155,6 +1158,7 @@ fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static 
             lib.name.clone(),
             lib.text.clone(),
             tsrs2_syntax::ParseOptions {
+                script_target: options.emit_script_target(),
                 language_variant: tsrs2_syntax::LanguageVariant::Standard,
                 javascript_file: false,
                 force_external_module: false,
@@ -1338,6 +1342,7 @@ mod tests {
         let libs = [&lib];
         let base = CompilerOptions::default();
         let shared = lib_bundle(&libs, &base);
+        assert_eq!(shared.sources[0].language_version, ScriptTarget::ES2025);
 
         // Bind-inert options reuse the bundle: the checker consumes
         // them per program, never through the cached prefix.
@@ -1363,7 +1368,9 @@ mod tests {
             target: Some(ScriptTarget::ES5.bits()),
             ..base.clone()
         };
-        assert!(!std::ptr::eq(shared, lib_bundle(&libs, &es5)));
+        let es5_bundle = lib_bundle(&libs, &es5);
+        assert!(!std::ptr::eq(shared, es5_bundle));
+        assert_eq!(es5_bundle.sources[0].language_version, ScriptTarget::ES5);
         let loose = CompilerOptions {
             always_strict: Some(false),
             ..base.clone()
@@ -1374,6 +1381,37 @@ mod tests {
             ..base.clone()
         };
         assert!(!std::ptr::eq(shared, lib_bundle(&libs, &fallthrough)));
+    }
+
+    #[test]
+    fn program_parser_receives_the_effective_script_target() {
+        let files = [InputFile {
+            name: "a.ts".to_owned(),
+            text: "foo.\u{08a1};\n".to_owned(),
+        }];
+        let es5 = check_program(
+            &files,
+            &CompilerOptions {
+                target: Some(tsrs2_types::ScriptTarget::ES5.bits()),
+                ..CompilerOptions::default()
+            },
+        );
+        let es2015 = check_program(
+            &files,
+            &CompilerOptions {
+                target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+                ..CompilerOptions::default()
+            },
+        );
+
+        assert_eq!(
+            es5.syntactic_diagnostics
+                .iter()
+                .map(|diagnostic| (diagnostic.code(), diagnostic.start, diagnostic.length))
+                .collect::<Vec<_>>(),
+            vec![(1127, Some(4), Some(1))]
+        );
+        assert!(es2015.syntactic_diagnostics.is_empty());
     }
 
     #[test]

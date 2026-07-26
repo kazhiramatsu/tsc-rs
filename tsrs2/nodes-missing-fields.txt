@@ -59,7 +59,6 @@ NoSubstitutionTemplateLiteral.isUnterminated type=Bool optional=true
 NumericLiteral.hasExtendedUnicodeEscape type=Bool optional=true
 NumericLiteral.isUnterminated type=Bool optional=true
 RegularExpressionLiteral.hasExtendedUnicodeEscape type=Bool optional=true
-RegularExpressionLiteral.isUnterminated type=Bool optional=true
 SetAccessor.asteriskToken type=Node optional=true
 SetAccessor.exclamationToken type=Node optional=true
 SetAccessor.questionToken type=Node optional=true

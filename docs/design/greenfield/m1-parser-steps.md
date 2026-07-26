@@ -28,6 +28,12 @@ Commit: `m1 2.0: AST arena + NodeData`.
 
 Port, in this order (all in `crates/syntax/src/parser/`):
 
+0. Thread the effective `ScriptTarget` into `Parser` and `Scanner`, and
+   store it on `SourceFile`. Program/lib parses use
+   `getEmitScriptTarget(options)`, parse-only callers use ES2025, and
+   JSON uses ES2015. `createIdentifier` includes tsc's guarded
+   `reScanInvalidIdentifier` ESNext retry so target-rejected names remain
+   in recovery trees.
 1. `parseErrorAtPosition` (29467): the SAME-START DEDUP — no two parse
    errors at one start position — and
    `parseErrorBeforeNextFinishedNode = true`.
@@ -100,7 +106,9 @@ In dependency order, each its own commit if large:
    expressions (bodies parse but their productions may still be
    partial), template expressions (reScanTemplateToken),
    regex via `reScanSlashToken`, `new` (incl. `new.target` meta
-   property — parse it as a REAL MetaProperty node).
+   property — parse it as a REAL MetaProperty node). Capture the
+   scanner's optional `isUnterminated` value on
+   `RegularExpressionLiteral` before advancing to the next token.
 2. Member/call chains: property/element access, optional chaining,
    call arguments, tagged templates, type arguments in expressions
    (`lookAhead` disambiguation vs relational `<`).

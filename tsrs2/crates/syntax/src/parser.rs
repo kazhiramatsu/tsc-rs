@@ -46,10 +46,13 @@ use crate::scanner::{LanguageVariant, Scanner};
 use crate::{SourceFile, SyntaxKind};
 use tsrs2_diags::MessageChain;
 use tsrs2_diags::{compute_line_map, gen, Diagnostic, DiagnosticList, DiagnosticMessage, LineMap};
-use tsrs2_types::NodeFlags;
+use tsrs2_types::{NodeFlags, ScriptTarget};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ParseOptions {
+    /// tsc languageVersion. Parse-only callers default to the latest
+    /// standard target; program callers pass getEmitScriptTarget(options).
+    pub script_target: ScriptTarget,
     pub language_variant: LanguageVariant,
     /// tsc ContextFlags.JavaScriptFile (subset: the parse-steering uses).
     pub javascript_file: bool,
@@ -72,6 +75,7 @@ pub struct ParseOptions {
 impl Default for ParseOptions {
     fn default() -> Self {
         Self {
+            script_target: ScriptTarget::ES2025,
             language_variant: LanguageVariant::Standard,
             javascript_file: false,
             force_external_module: false,
@@ -179,6 +183,7 @@ struct Parser<'text> {
     scanner: Scanner<'text>,
     arena: NodeArena,
     file_name: String,
+    language_version: ScriptTarget,
     language_variant: LanguageVariant,
     javascript_file: bool,
     is_declaration_file: bool,
@@ -207,6 +212,7 @@ enum Tristate {
 
 struct FinishedParse {
     file_name: String,
+    language_version: ScriptTarget,
     language_variant: LanguageVariant,
     is_declaration_file: bool,
     line_map: LineMap,
@@ -220,6 +226,22 @@ impl<'text> Parser<'text> {
     fn new(
         file_name: String,
         text: &'text str,
+        language_variant: LanguageVariant,
+        javascript_file: bool,
+    ) -> Self {
+        Self::new_with_target(
+            file_name,
+            text,
+            ScriptTarget::ES2025,
+            language_variant,
+            javascript_file,
+        )
+    }
+
+    fn new_with_target(
+        file_name: String,
+        text: &'text str,
+        language_version: ScriptTarget,
         language_variant: LanguageVariant,
         javascript_file: bool,
     ) -> Self {
@@ -249,9 +271,10 @@ impl<'text> Parser<'text> {
             source_flags |= NodeFlags::AMBIENT;
         }
         Self {
-            scanner: Scanner::new(text, language_variant),
+            scanner: Scanner::new_with_target(text, language_variant, language_version),
             arena: NodeArena::new(),
             file_name,
+            language_version,
             language_variant,
             javascript_file,
             is_declaration_file,
@@ -469,9 +492,10 @@ impl<'text> Parser<'text> {
         self.finish_node_at(id, pos, pos)
     }
 
-    /// tsc createIdentifier: the real-identifier path is parse_identifier;
-    /// this is the private-identifier/missing tail. (The Unknown-token
-    /// reScanInvalidIdentifier retry is not surfaced by the scanner yet.)
+    /// tsc createIdentifier: after the ordinary identifier/private paths,
+    /// an Unknown token gets one speculative ESNext rescan. This preserves
+    /// a target-rejected Unicode identifier in the recovery AST while
+    /// retaining the original scanner diagnostic.
     fn create_identifier_node(
         &mut self,
         is_identifier: bool,
@@ -487,6 +511,9 @@ impl<'text> Parser<'text> {
                     .unwrap_or(&gen::Private_identifiers_are_not_allowed_outside_class_bodies),
                 &[],
             );
+            return self.create_identifier_node(true, None, None);
+        }
+        if self.token() == SyntaxKind::Unknown && self.scanner.try_re_scan_invalid_identifier() {
             return self.create_identifier_node(true, None, None);
         }
         let report_at_current_position = self.token() == SyntaxKind::EndOfFileToken;
@@ -6192,8 +6219,12 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let end = self.scanner.pos();
         let text = self.current_token_text();
+        let is_unterminated = self.scanner.is_unterminated().then_some(true);
         let id = self.arena.alloc_node(
-            NodeData::RegularExpressionLiteral(RegularExpressionLiteralData { text }),
+            NodeData::RegularExpressionLiteral(RegularExpressionLiteralData {
+                text,
+                is_unterminated,
+            }),
             pos,
             end,
             NodeFlags::NONE,
@@ -7723,7 +7754,9 @@ impl<'text> Parser<'text> {
             NodeData::Identifier(data) => Some(data.text.clone()),
             _ => None,
         };
-        let Some(expression_text) = expression_text.filter(|text| is_identifier_text(text)) else {
+        let Some(expression_text) = expression_text
+            .filter(|text| is_identifier_text_for_target(text, self.language_version))
+        else {
             self.parse_error_at_current_token(
                 &gen::_0_expected,
                 &[&token_to_string(SyntaxKind::SemicolonToken)],
@@ -8451,6 +8484,7 @@ impl<'text> Parser<'text> {
         let comment_directives = self.scanner.take_comment_directives();
         FinishedParse {
             file_name: self.file_name,
+            language_version: self.language_version,
             language_variant: self.language_variant,
             is_declaration_file: self.is_declaration_file,
             line_map: self.line_map,
@@ -8517,9 +8551,10 @@ pub fn parse_source_file(
     options: ParseOptions,
     _cursor: Option<&SyntaxCursor>,
 ) -> SourceFile {
-    let mut parser = Parser::new(
+    let mut parser = Parser::new_with_target(
         file_name,
         &text,
+        options.script_target,
         options.language_variant,
         options.javascript_file,
     );
@@ -8563,6 +8598,7 @@ pub fn parse_source_file(
     SourceFile {
         file_name: finished.file_name,
         text,
+        language_version: finished.language_version,
         language_variant: finished.language_variant,
         is_declaration_file: finished.is_declaration_file,
         line_map: finished.line_map,
@@ -8586,7 +8622,13 @@ pub fn parse_json_text_with_bases(
     node_id_base: u32,
     node_array_id_base: u32,
 ) -> SourceFile {
-    let mut parser = Parser::new(file_name, &text, LanguageVariant::Standard, false);
+    let mut parser = Parser::new_with_target(
+        file_name,
+        &text,
+        ScriptTarget::ES2015,
+        LanguageVariant::Standard,
+        false,
+    );
     if node_id_base != 0 || node_array_id_base != 0 {
         debug_assert!(parser.arena.is_empty());
         parser.arena = NodeArena::with_bases(node_id_base, node_array_id_base);
@@ -8669,6 +8711,7 @@ pub fn parse_json_text_with_bases(
     SourceFile {
         file_name: finished.file_name,
         text,
+        language_version: finished.language_version,
         language_variant: finished.language_variant,
         is_declaration_file: finished.is_declaration_file,
         line_map: finished.line_map,
@@ -8870,11 +8913,19 @@ fn is_class_member_modifier(kind: SyntaxKind) -> bool {
 }
 
 pub fn is_identifier_text(text: &str) -> bool {
+    is_identifier_text_for_target(text, ScriptTarget::ES2025)
+}
+
+/// tsc-port: isIdentifierText @6.0.3
+/// tsc-hash: ce44c13a3f2ea2f826209e812605d2e30c3ff5a4e9a6925a0683821d18048b5d
+/// tsc-span: _tsc.js:8676-8687
+pub fn is_identifier_text_for_target(text: &str, language_version: ScriptTarget) -> bool {
     let mut chars = text.chars();
     let Some(first) = chars.next() else {
         return false;
     };
-    crate::chars::is_identifier_start(first) && chars.all(crate::chars::is_identifier_part)
+    crate::chars::is_identifier_start(first, language_version)
+        && chars.all(|ch| crate::chars::is_identifier_part(ch, language_version))
 }
 
 /// tsc getSpellingSuggestion.
@@ -8987,6 +9038,131 @@ mod tests {
             .map(NodeId)
             .filter(|&id| source.arena.node(id).kind == kind)
             .collect()
+    }
+
+    fn parse_with_target(text: &str, target: ScriptTarget) -> SourceFile {
+        parse_source_file(
+            "a.ts".to_owned(),
+            text.to_owned(),
+            ParseOptions {
+                script_target: target,
+                ..ParseOptions::default()
+            },
+            None,
+        )
+    }
+
+    #[test]
+    fn source_file_stores_default_explicit_and_json_language_versions() {
+        let default_source = parse_source_file(
+            "a.ts".to_owned(),
+            String::new(),
+            ParseOptions::default(),
+            None,
+        );
+        assert_eq!(default_source.language_version, ScriptTarget::ES2025);
+
+        let es5_source = parse_with_target("", ScriptTarget::ES5);
+        assert_eq!(es5_source.language_version, ScriptTarget::ES5);
+
+        let json_source = parse_json_text("a.json".to_owned(), "{}".to_owned());
+        assert_eq!(json_source.language_version, ScriptTarget::ES2015);
+    }
+
+    #[test]
+    fn regex_flag_extent_is_target_aware() {
+        let es5 = parse_with_target("/a/\u{08a1};", ScriptTarget::ES5);
+        let es2015 = parse_with_target("/a/\u{08a1};", ScriptTarget::ES2015);
+
+        let es5_regex = nodes_of_kind(&es5, SyntaxKind::RegularExpressionLiteral);
+        let es2015_regex = nodes_of_kind(&es2015, SyntaxKind::RegularExpressionLiteral);
+        let NodeData::RegularExpressionLiteral(es5_data) = &es5.arena.node(es5_regex[0]).data
+        else {
+            unreachable!()
+        };
+        let NodeData::RegularExpressionLiteral(es2015_data) =
+            &es2015.arena.node(es2015_regex[0]).data
+        else {
+            unreachable!()
+        };
+
+        assert_eq!(es5_data.text, "/a/");
+        assert_eq!(es5.arena.node(es5_regex[0]).end, 3);
+        assert_eq!(es2015_data.text, "/a/\u{08a1}");
+        assert_eq!(
+            es2015.arena.node(es2015_regex[0]).end,
+            "/a/\u{08a1}".len() as u32
+        );
+        assert_eq!(
+            es5.parse_diagnostics
+                .iter()
+                .map(|diagnostic| (diagnostic.code(), diagnostic.start, diagnostic.length))
+                .collect::<Vec<_>>(),
+            vec![(gen::Invalid_character.code, Some(3), Some(1))]
+        );
+        assert!(es2015.parse_diagnostics.is_empty());
+    }
+
+    #[test]
+    fn invalid_identifier_rescan_preserves_target_rejected_property_name() {
+        let source = parse_with_target("foo.\u{08a1};", ScriptTarget::ES5);
+        let recovered = nodes_of_kind(&source, SyntaxKind::Identifier)
+            .into_iter()
+            .find(|&node| {
+                source
+                    .arena
+                    .node(node)
+                    .data
+                    .as_identifier()
+                    .is_some_and(|data| data.text == "\u{08a1}")
+            })
+            .expect("ESNext retry preserves the property identifier");
+        let recovered = source.arena.node(recovered);
+
+        assert_eq!((recovered.pos, recovered.end), (4, 7));
+        assert!(is_identifier_text("\u{08a1}"));
+        assert!(!is_identifier_text_for_target(
+            "\u{08a1}",
+            ScriptTarget::ES5
+        ));
+        assert!(is_identifier_text_for_target(
+            "\u{08a1}",
+            ScriptTarget::ES2015
+        ));
+        assert_eq!(
+            source
+                .parse_diagnostics
+                .iter()
+                .map(|diagnostic| (diagnostic.code(), diagnostic.start, diagnostic.length))
+                .collect::<Vec<_>>(),
+            vec![(gen::Invalid_character.code, Some(4), Some(1))]
+        );
+    }
+
+    #[test]
+    fn regex_literal_stores_only_true_unterminated_state() {
+        let terminated = parse_with_target("/a/;", ScriptTarget::ES5);
+        let unterminated = parse_with_target("/a", ScriptTarget::ES5);
+        let terminated_regex = nodes_of_kind(&terminated, SyntaxKind::RegularExpressionLiteral)[0];
+        let unterminated_regex =
+            nodes_of_kind(&unterminated, SyntaxKind::RegularExpressionLiteral)[0];
+        let NodeData::RegularExpressionLiteral(terminated_data) =
+            &terminated.arena.node(terminated_regex).data
+        else {
+            unreachable!()
+        };
+        let NodeData::RegularExpressionLiteral(unterminated_data) =
+            &unterminated.arena.node(unterminated_regex).data
+        else {
+            unreachable!()
+        };
+
+        assert_eq!(terminated_data.is_unterminated, None);
+        assert_eq!(unterminated_data.is_unterminated, Some(true));
+        assert_eq!(
+            unterminated.parse_diagnostics[0].code(),
+            gen::Unterminated_regular_expression_literal.code
+        );
     }
 
     /// tsc parseHeritageClause (34277): the clause token is stored on

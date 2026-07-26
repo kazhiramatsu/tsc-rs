@@ -85,10 +85,14 @@ fail codegen.
   `identifierToKeywordKind` — several grammar checks read it).
 - **SourceFile is a node** with the fields the pipeline reads:
   `statements`, `end_of_file_token` (the driver checks it),
-  `file_name`, `text`, `language_variant`, `script_kind`,
+  `file_name`, `text`, `language_version`, `language_variant`, `script_kind`,
   `is_declaration_file`, `line_starts` (see §3),
   `external_module_indicator` (see §4), `parse_diagnostics`,
   `node_count`/`identifier_count` (free from the arena).
+- **Literal scanner state is stored before advancing.**
+  `RegularExpressionLiteral.is_unterminated` is `Some(true)` only when
+  tsc would materialize the optional `isUnterminated` field; a terminated
+  literal leaves it `None`.
 - **JSDoc**: NOT parsed in the first goal (2XXX on .ts fixtures does
   not consume it). The schema generator still emits the JSDoc node
   kinds (they cost nothing); the parser skips JSDoc comment BODIES as
@@ -134,6 +138,11 @@ function dump(n, depth) {
 }
 dump(sf, 0);
 ```
+
+The AST-diff oracle deliberately stays at ESNext, and the Rust parse-only
+side's ES2025 default selects the same identifier tables. Program parsing is
+separately target-aware through `ParseOptions.script_target`; target-matrix
+pins cover the ES5/ES2015 split.
 
 `cargo xtask ast-dump <file>` prints the same
 (kind, pos-utf16, end-utf16) indented tree via the generated

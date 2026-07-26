@@ -22,6 +22,9 @@ Option<&SyntaxCursor>) -> SourceFile` — `SyntaxCursor` is an empty
 placeholder until the L-track; batch always passes `None`. tsc's own
 parser takes the cursor as its fourth parameter (`_tsc.js` 29014);
 reserving it now is what keeps incremental reparse additive.
+`ParseOptions.script_target` is the effective tsc `languageVersion`:
+program/lib callers pass `getEmitScriptTarget(options)`, parse-only
+callers default to ES2025, and JSON parsing uses ES2015.
 
 ## [COPY] Parser state + error infrastructure (stage 2.1)
 
@@ -30,6 +33,7 @@ pub struct Parser<'t> {
     pub scanner: Scanner<'t>,
     pub arena: NodeArena,                 // stage 2.0
     pub file_index: usize,
+    pub language_version: ScriptTarget,   // shared with Scanner
     pub context_flags: NodeFlags,         // DisallowIn/Yield/Await/Decorator/Ambient bits
     pub parse_diagnostics: Vec<Diagnostic>,
     pub parse_error_before_next_finished_node: bool,

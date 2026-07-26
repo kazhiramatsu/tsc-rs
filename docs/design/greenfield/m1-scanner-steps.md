@@ -65,7 +65,11 @@ identifier-start/part classification tsc uses, then the keyword table
 (`textToKeywordObj`, 8030) mapping identifier text to keyword
 SyntaxKinds. EVERY entry of the keyword table ports — a missing entry
 means a reserved word scans as an identifier (the parent repo shipped
-that bug for `debugger`).
+that bug for `debugger`). The production scanner receives the parser's
+effective `ScriptTarget`: codegen supplies both ES5 and ESNext
+start/part maps, with the exact `< ES2015` selector. The token-diff
+harness remains intentionally ESNext/latest-standard; target-specific
+classification is pinned separately.
 
 Verify: token-diff over the whole `parser/` corpus subtree. Expect:
 remaining diffs only in literals/templates (stages 1.3-1.5).

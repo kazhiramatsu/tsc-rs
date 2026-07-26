@@ -1940,7 +1940,8 @@
       "kindName": "RegularExpressionLiteral",
       "dataName": "RegularExpressionLiteralData",
       "fields": [
-        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false}
+        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false},
+        {"name": "isUnterminated", "rustName": "is_unterminated", "type": "Bool", "optional": true, "child": false}
       ],
       "children": [
       ]
