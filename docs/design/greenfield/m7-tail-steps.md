@@ -162,7 +162,13 @@ helper; the helper's `.cts`/`.cjs` TS1286 arm is micro-pinned even
 though it has no corpus row. The five-fixture target moved from 8/58
 to 19/58, with +11 at every live tier, no loss, no target-external
 movement, and FP=0. The family is now 2,934/3,013 with supported FN 79
-and canaries 4/4.
+and canaries 4/4. The following `checkExportAssignment` slice published
+the three CommonJS export-default TS1295 rows using the same helper;
+its decisive predicate was already live for the neighboring
+type-only branches. The target moved from 6/15 to 9/15 and every live
+tier gained three identities with no loss, target-external movement,
+or FP. The separate dynamic-import TS1295 row remains queued. The
+family is now 2,937/3,013 with supported FN 76 and canaries 4/4.
 
 The binding 8.1a-g producer clusters, current reconnaissance anchors,
 and per-slice exits are in

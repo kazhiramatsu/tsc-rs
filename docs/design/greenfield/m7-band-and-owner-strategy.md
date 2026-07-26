@@ -483,7 +483,18 @@ Accepted progress on 2026-07-26:
   8/58 to 19/58; full-corpus T1/T2/T3 each gained exactly 11
   identities with no loss, target-external movement, or FP.
   All-corpus T0 is 32,653/49,024, supported T0 is 32,652/48,477, and
-  checker-grammar is 2,934/3,013 with supported FN 79 and canaries 4/4.
+  checker-grammar is 2,934/3,013 with supported FN 79 and canaries 4/4;
+- 8.1g.7 closed the three CommonJS export-default TS1295 identities
+  owned by `checkExportAssignment`. The producer already computed the
+  exact `isIllegalExportDefaultInCJS` predicate to suppress its
+  type-only branches; it now publishes the whole-assignment diagnostic
+  through the extension-sensitive helper landed in 8.1g.6. The
+  dynamic-import TS1295 row remains with
+  `checkGrammarImportCallExpression`. The one-fixture target moved
+  from 6/15 to 9/15; full-corpus T1/T2/T3 each gained exactly three
+  identities with no loss, target-external movement, or FP.
+  All-corpus T0 is 32,656/49,024, supported T0 is 32,655/48,477, and
+  checker-grammar is 2,937/3,013 with supported FN 76 and canaries 4/4.
 
 ## 6. M7 virtual-band order
 
