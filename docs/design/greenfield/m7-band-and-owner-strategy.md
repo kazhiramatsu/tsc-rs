@@ -257,8 +257,14 @@ Package `exports`, `imports`, and self-name targets are resolved only as a
 format-evidence projection when the ordinary resolver verdict remains
 `Suppressed`; their symbols and members are not published into general
 checking. This boundary is required for producer ownership and preserves
-the all-corpus FP=0 invariant. A11 follows only after B16 and changes
-`checkExportAssignment` to use the decisive emit format for TS1203.
+the all-corpus FP=0 invariant.
+
+A11 then owns `checkExportAssignment`
+(`d2:fa6db14850191332391b180605df6635041f4d72ad223c01a4900e4413c64e5f`,
+`_tsc.js:86391-86501`). It uses the decisive emit format for TS1203,
+publishes that grammar row in checked JavaScript, and ports the live
+verbatim/isolated type-only branches without absorbing the adjacent
+import/export usage producers.
 
 Accepted progress on 2026-07-26:
 
@@ -326,8 +332,15 @@ Accepted progress on 2026-07-26:
   32,420/49,024 and supported T0 is 32,419/48,477. The implementation
   keeps package target lookup diagnostic-only, so no downstream
   type/member diagnostic moved. The checker-grammar family is now
-  2,701/3,013 with supported FN 312 and canaries 2/4. A11 is now the
-  next owner.
+  2,701/3,013 with supported FN 312 and canaries 2/4;
+- 8.1e A11 closed the exact `checkExportAssignment` queue: TS1203 x4
+  plus TS1282/1283/1284/1285/1289 x1 each. Its four-fixture target
+  moved from 16/41 to 25/41 with FP=0 and supported FN 25→16.
+  Full-corpus T1/T2/T3 each gained exactly nine identities with no
+  target-external movement or loss; all-corpus T0 is 32,429/49,024 and
+  supported T0 is 32,428/48,477. The checker-grammar family is now
+  2,710/3,013 with supported FN 303 and canaries 2/4. The next
+  module-format owner is the TS1340 import-type usage worker.
 
 ## 6. M7 virtual-band order
 
