@@ -304,8 +304,10 @@
 # type-only aliases and its CommonJS-format import-alias diagnostics.
 # m7 8.1g.7 adds +3 through checkExportAssignment's CommonJS
 # export-default diagnostic.
-rate = 0.666123
-matched = 32656
+# m7 8.1g.8 adds +1 through checkGrammarImportCallExpression's
+# highest-priority CommonJS/verbatim dynamic-import diagnostic.
+rate = 0.666143
+matched = 32657
 total = 49024
 allowed_regression = 0.0
 

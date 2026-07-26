@@ -167,8 +167,15 @@ the three CommonJS export-default TS1295 rows using the same helper;
 its decisive predicate was already live for the neighboring
 type-only branches. The target moved from 6/15 to 9/15 and every live
 tier gained three identities with no loss, target-external movement,
-or FP. The separate dynamic-import TS1295 row remains queued. The
-family is now 2,937/3,013 with supported FN 76 and canaries 4/4.
+or FP. The final TS1295 slice then closed the separate dynamic-import
+row at `checkGrammarImportCallExpression`: its CommonJS/verbatim
+branch now runs before all ordinary import-call grammar, publishes the
+whole-call diagnostic through the shared extension-sensitive helper,
+and retains ES module kind as a negative control. The target moved
+from 9/15 to 10/15; every live tier gained one identity with no loss,
+target-external movement, or FP. TS1295 now has no checker-grammar
+residue. The family is now 2,938/3,013 with supported FN 75 and
+canaries 4/4.
 
 The binding 8.1a-g producer clusters, current reconnaissance anchors,
 and per-slice exits are in
