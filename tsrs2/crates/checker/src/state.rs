@@ -1838,7 +1838,11 @@ pub(crate) mod test_support {
 
     /// Multi-file program construction mirroring check_program's parse/
     /// bind base chaining (M4 5.0).
-    pub(crate) fn parse_program(files: &[(&str, &str)]) -> Vec<SourceFile> {
+    fn parse_program_with_target(
+        files: &[(&str, &str)],
+        script_target: tsrs2_types::ScriptTarget,
+        require_clean_parse: bool,
+    ) -> Vec<SourceFile> {
         let mut sources: Vec<SourceFile> = Vec::new();
         for (name, text) in files {
             let (node_id_base, node_array_id_base) = match sources.last() {
@@ -1851,6 +1855,7 @@ pub(crate) mod test_support {
                 (*name).to_owned(),
                 (*text).to_owned(),
                 ParseOptions {
+                    script_target,
                     language_variant: if javascript_file || jsx_file {
                         LanguageVariant::Jsx
                     } else {
@@ -1863,11 +1868,13 @@ pub(crate) mod test_support {
                 },
                 None,
             );
-            assert!(
-                source.parse_diagnostics.is_empty(),
-                "test source must parse cleanly: {:?}",
-                source.parse_diagnostics
-            );
+            if require_clean_parse {
+                assert!(
+                    source.parse_diagnostics.is_empty(),
+                    "test source must parse cleanly: {:?}",
+                    source.parse_diagnostics
+                );
+            }
             sources.push(source);
         }
         sources
@@ -1878,7 +1885,27 @@ pub(crate) mod test_support {
         options: &CompilerOptions,
         run: impl FnOnce(&mut CheckerState) -> R,
     ) -> R {
-        let sources = parse_program(files);
+        with_program_state_impl(files, options, true, run)
+    }
+
+    /// tsrs-native: test-only checker construction for grammar
+    /// suppression canaries whose source intentionally has parse errors.
+    pub(crate) fn with_program_state_allow_parse_diagnostics<R>(
+        files: &[(&str, &str)],
+        options: &CompilerOptions,
+        run: impl FnOnce(&mut CheckerState) -> R,
+    ) -> R {
+        with_program_state_impl(files, options, false, run)
+    }
+
+    fn with_program_state_impl<R>(
+        files: &[(&str, &str)],
+        options: &CompilerOptions,
+        require_clean_parse: bool,
+        run: impl FnOnce(&mut CheckerState) -> R,
+    ) -> R {
+        let sources =
+            parse_program_with_target(files, options.emit_script_target(), require_clean_parse);
         let mut binders: Vec<Binder<'_>> = Vec::new();
         for source in &sources {
             let (seed, base) = match binders.last() {
