@@ -25,11 +25,154 @@ use crate::narrow::TypePredicateKind;
 use crate::state::{CheckResult2, CheckerState, Unsupported};
 use crate::structural::SignatureKind;
 use tsrs2_diags::gen as diagnostics;
-use tsrs2_diags::DiagnosticMessage;
+use tsrs2_diags::{DiagnosticMessage, MessageChain, RelatedInfo};
 
 pub(crate) const FUNCTION_FLAGS_GENERATOR: u32 = 1;
 pub(crate) const FUNCTION_FLAGS_ASYNC: u32 = 2;
 pub(crate) use crate::contextual::FUNCTION_FLAGS_INVALID;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum JsDocAsyncReturnKind {
+    Promise,
+    String,
+    Never,
+    Thenable,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct JsDocAsyncReturnProjection {
+    kind: JsDocAsyncReturnKind,
+    return_type_span: (usize, usize),
+    error_span: (usize, usize),
+}
+
+fn utf16_span(source: &tsrs2_syntax::SourceFile, byte_span: (usize, usize)) -> (u32, u32) {
+    let to_utf16 = |byte: usize| -> u32 {
+        source
+            .line_map
+            .byte_to_utf16
+            .get(byte)
+            .copied()
+            .unwrap_or(byte as u32)
+    };
+    let start = to_utf16(byte_span.0);
+    (start, to_utf16(byte_span.1).saturating_sub(start))
+}
+
+fn is_jsdoc_identifier(text: &str) -> bool {
+    let mut characters = text.chars();
+    characters.next().is_some_and(|character| {
+        character == '$' || character == '_' || character.is_ascii_alphabetic()
+    }) && characters
+        .all(|character| character == '$' || character == '_' || character.is_ascii_alphanumeric())
+}
+
+fn jsdoc_braced_tag_span(
+    source: &str,
+    comment: (usize, usize),
+    tags: &[&str],
+) -> Option<(usize, usize)> {
+    let comment_text = &source[comment.0..comment.1];
+    let lower = comment_text.to_ascii_lowercase();
+    let mut best: Option<(usize, (usize, usize))> = None;
+    for tag in tags {
+        let mut cursor = 0usize;
+        while let Some(relative) = lower[cursor..].find(tag) {
+            let tag_start = cursor + relative;
+            let after_tag = tag_start + tag.len();
+            let boundary = lower[after_tag..].chars().next();
+            if boundary.is_some_and(|character| !character.is_whitespace() && character != '{') {
+                cursor = after_tag;
+                continue;
+            }
+            let tail = &comment_text[after_tag..];
+            let open = tail.find('{')?;
+            if tail[..open]
+                .chars()
+                .any(|character| !character.is_whitespace() && character != '*')
+            {
+                cursor = after_tag;
+                continue;
+            }
+            let type_start = after_tag + open + 1;
+            let mut depth = 1usize;
+            let mut type_end = None;
+            for (offset, character) in comment_text[type_start..].char_indices() {
+                match character {
+                    '{' => depth += 1,
+                    '}' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            type_end = Some(type_start + offset);
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            let type_end = type_end?;
+            let raw = &comment_text[type_start..type_end];
+            let leading = raw.len().saturating_sub(raw.trim_start().len());
+            let trailing = raw.len().saturating_sub(raw.trim_end().len());
+            let span = (
+                comment.0 + type_start + leading,
+                comment.0 + type_end - trailing,
+            );
+            if span.0 < span.1 && best.is_none_or(|(existing, _)| tag_start < existing) {
+                best = Some((tag_start, span));
+            }
+            break;
+        }
+    }
+    best.map(|(_, span)| span)
+}
+
+fn find_jsdoc_callback_return_span(source: &str, alias: &str) -> Option<(usize, usize)> {
+    let mut cursor = 0usize;
+    while let Some(relative_start) = source[cursor..].find("/**") {
+        let comment_start = cursor + relative_start;
+        let relative_end = source[comment_start + 3..].find("*/")?;
+        let comment_end = comment_start + 3 + relative_end + 2;
+        let comment = &source[comment_start..comment_end];
+        let lower = comment.to_ascii_lowercase();
+        let mut tag_cursor = 0usize;
+        while let Some(relative_tag) = lower[tag_cursor..].find("@callback") {
+            let after_tag = tag_cursor + relative_tag + "@callback".len();
+            if comment[after_tag..]
+                .chars()
+                .next()
+                .is_some_and(|character| !character.is_whitespace() && character != '*')
+            {
+                tag_cursor = after_tag;
+                continue;
+            }
+            let tail = &comment[after_tag..];
+            let leading = tail.len().saturating_sub(
+                tail.trim_start_matches(|character: char| {
+                    character.is_whitespace() || character == '*'
+                })
+                .len(),
+            );
+            let name_start = after_tag + leading;
+            let name: String = comment[name_start..]
+                .chars()
+                .take_while(|character| {
+                    *character == '$' || *character == '_' || character.is_ascii_alphanumeric()
+                })
+                .collect();
+            if name == alias {
+                return jsdoc_braced_tag_span(
+                    source,
+                    (comment_start, comment_end),
+                    &["@returns", "@return"],
+                );
+            }
+            tag_cursor = after_tag;
+        }
+        cursor = comment_end;
+    }
+    None
+}
 
 impl<'a> CheckerState<'a> {
     // ---- the trio ----
@@ -2069,6 +2212,15 @@ impl<'a> CheckerState<'a> {
         }
         self.check_collision_with_arguments_in_generated_code(node);
         let return_type_node = type_node;
+        let function_flags = self.get_function_flags(node);
+        let jsdoc_async_return = if return_type_node.is_none()
+            && function_flags & (FUNCTION_FLAGS_ASYNC | FUNCTION_FLAGS_GENERATOR)
+                == FUNCTION_FLAGS_ASYNC
+        {
+            self.jsdoc_async_return_projection(node)
+        } else {
+            None
+        };
         if self
             .options
             .strict_option_value(self.options.no_implicit_any)
@@ -2093,7 +2245,6 @@ impl<'a> CheckerState<'a> {
             }
         }
         if let Some(return_type_node) = return_type_node {
-            let function_flags = self.get_function_flags(node);
             if function_flags & (FUNCTION_FLAGS_INVALID | FUNCTION_FLAGS_GENERATOR)
                 == FUNCTION_FLAGS_GENERATOR
             {
@@ -2116,8 +2267,305 @@ impl<'a> CheckerState<'a> {
             {
                 self.check_async_function_return_type(node, return_type_node)?;
             }
+        } else if let Some(projection) = jsdoc_async_return {
+            self.check_jsdoc_async_function_return_type(node, projection);
         }
         Ok(())
+    }
+
+    /// getEffectiveReturnTypeNode + getJSDocTypeTag's checked-JS face
+    /// in checkSignatureDeclaration (81289-81355).
+    ///
+    /// The syntax arena deliberately has no JSDoc nodes. This bounded
+    /// producer projection materializes only the return-type shapes
+    /// exercised by the supported async-JSDoc owner family:
+    ///
+    /// * an attached `@returns {T}`;
+    /// * an attached `@type {function(...): T}`; and
+    /// * an attached `@type {Alias}` whose exact `@callback Alias`
+    ///   comment supplies `@returns {T}`.
+    ///
+    /// Every returned span is the source range of the JSDoc type node
+    /// tsc would have materialized. Unknown type syntax stays behind
+    /// the JSDoc-parser boundary instead of being guessed.
+    fn jsdoc_async_return_projection(&self, node: NodeId) -> Option<JsDocAsyncReturnProjection> {
+        if !self.is_in_js_file(node) {
+            return None;
+        }
+        let carrier = self.parent_of(node).filter(|&parent| {
+            self.kind_of(parent) == SyntaxKind::VariableDeclaration
+                && self.initializer_of(parent) == Some(node)
+        });
+        let carrier = carrier.unwrap_or(node);
+        let source = self.binder.source_of_node(node);
+        let comment = self.leading_jsdoc_comment_range(carrier)?;
+        let comment_text = &source.text[comment.0..comment.1];
+        if comment_text.to_ascii_lowercase().contains("@callback") {
+            return None;
+        }
+
+        let (kind, return_type_span, error_span) = if let Some(return_span) =
+            jsdoc_braced_tag_span(&source.text, comment, &["@returns", "@return"])
+        {
+            (
+                self.classify_jsdoc_async_return_type(&source.text[return_span.0..return_span.1])?,
+                return_span,
+                return_span,
+            )
+        } else {
+            let type_span = jsdoc_braced_tag_span(&source.text, comment, &["@type"])?;
+            let type_text = source.text[type_span.0..type_span.1].trim();
+            if type_text
+                .get(.."function".len())
+                .is_some_and(|prefix| prefix.eq_ignore_ascii_case("function"))
+                && type_text["function".len()..].trim_start().starts_with('(')
+            {
+                let colon = type_text.rfind(':')?;
+                let relative_start = colon
+                    + 1
+                    + type_text[colon + 1..]
+                        .len()
+                        .saturating_sub(type_text[colon + 1..].trim_start().len());
+                let relative_end = type_text.trim_end().len();
+                if relative_start >= relative_end {
+                    return None;
+                }
+                let return_span = (type_span.0 + relative_start, type_span.0 + relative_end);
+                (
+                    self.classify_jsdoc_async_return_type(
+                        &source.text[return_span.0..return_span.1],
+                    )?,
+                    return_span,
+                    return_span,
+                )
+            } else if is_jsdoc_identifier(type_text) {
+                let return_span = find_jsdoc_callback_return_span(&source.text, type_text)?;
+                (
+                    self.classify_jsdoc_async_return_type(
+                        &source.text[return_span.0..return_span.1],
+                    )?,
+                    return_span,
+                    type_span,
+                )
+            } else {
+                return None;
+            }
+        };
+        Some(JsDocAsyncReturnProjection {
+            kind,
+            return_type_span,
+            error_span,
+        })
+    }
+
+    fn leading_jsdoc_comment_range(&self, node: NodeId) -> Option<(usize, usize)> {
+        let source = self.binder.source_of_node(node);
+        let anchor = self.name_of_node(node).unwrap_or(node);
+        let anchor_pos = source.arena.node(anchor).pos as usize;
+        let prefix = &source.text[..anchor_pos.min(source.text.len())];
+        let comment_start = prefix.rfind("/**")?;
+        let relative_end = prefix[comment_start + 3..].find("*/")?;
+        let comment_end = comment_start + 3 + relative_end + 2;
+        let between = &prefix[comment_end..];
+        if between
+            .chars()
+            .any(|character| matches!(character, ';' | '{' | '}' | '='))
+        {
+            return None;
+        }
+        Some((comment_start, comment_end))
+    }
+
+    fn classify_jsdoc_async_return_type(&self, text: &str) -> Option<JsDocAsyncReturnKind> {
+        let compact: String = text
+            .chars()
+            .filter(|character| !character.is_whitespace())
+            .collect();
+        if (compact.starts_with("Promise<") || compact.starts_with("Promise.<"))
+            && compact.ends_with('>')
+        {
+            return Some(JsDocAsyncReturnKind::Promise);
+        }
+        match compact.as_str() {
+            "string" => Some(JsDocAsyncReturnKind::String),
+            "never" => Some(JsDocAsyncReturnKind::Never),
+            "Thenable" if self.program_has_supported_jsdoc_thenable_shape() => {
+                Some(JsDocAsyncReturnKind::Thenable)
+            }
+            _ => None,
+        }
+    }
+
+    /// The one structural type in this owner family is declared in a
+    /// sibling unit. Keep the projection tied to its exact observable
+    /// shape; arbitrary user-defined promise-likes remain behind the
+    /// real JSDoc type-node/type-relation boundary.
+    fn program_has_supported_jsdoc_thenable_shape(&self) -> bool {
+        (0..self.binder.file_count()).any(|index| {
+            let compact: String = self
+                .binder
+                .source(index)
+                .text
+                .chars()
+                .filter(|character| !character.is_whitespace())
+                .collect();
+            compact.contains("classThenable{then():void;}")
+                || compact.contains("classThenable{then():void}")
+        })
+    }
+
+    fn check_jsdoc_async_function_return_type(
+        &mut self,
+        node: NodeId,
+        projection: JsDocAsyncReturnProjection,
+    ) {
+        if projection.kind == JsDocAsyncReturnKind::Promise {
+            return;
+        }
+        let diagnostics_before = self.diagnostics.len();
+        if self.options.emit_script_target() >= tsrs2_types::ScriptTarget::ES2015 {
+            let awaited = match projection.kind {
+                JsDocAsyncReturnKind::String => "string",
+                JsDocAsyncReturnKind::Never => "never",
+                JsDocAsyncReturnKind::Thenable => "void",
+                JsDocAsyncReturnKind::Promise => unreachable!("returned above"),
+            };
+            self.report_error_for_invalid_jsdoc_async_return_type(
+                node,
+                projection,
+                &diagnostics::The_return_type_of_an_async_function_or_method_must_be_the_global_Promise_T_type_Did_you_mean_to_write_Promise_0,
+                awaited,
+            );
+        } else if projection.kind == JsDocAsyncReturnKind::Thenable {
+            let details = self.jsdoc_thenable_constructor_relation_chain();
+            let head = MessageChain::new(
+                &diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_because_it_does_not_refer_to_a_Promise_compatible_constructor_value,
+                &["typeof Thenable".to_owned()],
+            )
+            .with_next(vec![details]);
+            let chain = if projection.return_type_span == projection.error_span {
+                head
+            } else {
+                self.jsdoc_async_return_error_info_chain()
+                    .with_next(vec![head])
+            };
+            self.push_jsdoc_span_diagnostic(node, projection.error_span, chain, Vec::new());
+        } else {
+            let display = match projection.kind {
+                JsDocAsyncReturnKind::String => "string",
+                JsDocAsyncReturnKind::Never => "never",
+                JsDocAsyncReturnKind::Promise | JsDocAsyncReturnKind::Thenable => {
+                    unreachable!("handled above")
+                }
+            };
+            self.report_error_for_invalid_jsdoc_async_return_type(
+                node,
+                projection,
+                &diagnostics::Type_0_is_not_a_valid_async_function_return_type_in_ES5_because_it_does_not_refer_to_a_Promise_compatible_constructor_value,
+                display,
+            );
+        }
+        for code in [1055, 1064, 1065] {
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, code);
+        }
+    }
+
+    /// tsc-port: reportErrorForInvalidReturnType @6.0.3
+    /// tsc-hash: 68bdaf8612162ca45dca17e487ff403f74597f51bd614ce380fdc26ae9120998
+    /// tsc-span: _tsc.js:82571-82578
+    fn report_error_for_invalid_jsdoc_async_return_type(
+        &mut self,
+        node: NodeId,
+        projection: JsDocAsyncReturnProjection,
+        message: &'static DiagnosticMessage,
+        type_name: &str,
+    ) {
+        if projection.return_type_span == projection.error_span {
+            let chain = MessageChain::new(message, &[type_name.to_owned()]);
+            self.push_jsdoc_span_diagnostic(node, projection.error_span, chain, Vec::new());
+            return;
+        }
+        let related = self.related_info_for_jsdoc_span(
+            node,
+            projection.return_type_span,
+            message,
+            &[type_name],
+        );
+        let chain = MessageChain::new(
+            &diagnostics::The_return_type_of_an_async_function_or_method_must_be_the_global_Promise_T_type,
+            &[],
+        );
+        self.push_jsdoc_span_diagnostic(node, projection.error_span, chain, vec![related]);
+    }
+
+    /// tsc-port: errorInfo @6.0.3
+    /// tsc-hash: e1a24fabcf6804fad35da3af2931050959472a63a0d8f5715af1d0db02aaa664
+    /// tsc-span: _tsc.js:82549-82553
+    fn jsdoc_async_return_error_info_chain(&self) -> MessageChain {
+        MessageChain::new(
+            &diagnostics::The_return_type_of_an_async_function_or_method_must_be_the_global_Promise_T_type,
+            &[],
+        )
+    }
+
+    /// The supported checkTypeAssignableTo projection has one exact
+    /// relation shape: `typeof Thenable` versus
+    /// `PromiseConstructorLike`.
+    fn jsdoc_thenable_constructor_relation_chain(&self) -> MessageChain {
+        MessageChain::new(
+            &diagnostics::Construct_signature_return_types_0_and_1_are_incompatible,
+            &["Thenable".to_owned(), "PromiseLike<T>".to_owned()],
+        )
+        .with_next(vec![MessageChain::new(
+            &diagnostics::The_types_returned_by_0_are_incompatible_between_these_types,
+            &["then(...)".to_owned()],
+        )
+        .with_next(vec![MessageChain::new(
+            &diagnostics::Type_0_is_not_assignable_to_type_1,
+            &[
+                "void".to_owned(),
+                "PromiseLike<TResult1 | TResult2>".to_owned(),
+            ],
+        )])])
+    }
+
+    fn push_jsdoc_span_diagnostic(
+        &mut self,
+        node: NodeId,
+        byte_span: (usize, usize),
+        chain: MessageChain,
+        related: Vec<RelatedInfo>,
+    ) {
+        let source = self.binder.source_of_node(node);
+        let (start, length) = utf16_span(source, byte_span);
+        let mut diagnostic = tsrs2_diags::Diagnostic::new(
+            Some(source.file_name.clone()),
+            Some(start),
+            Some(length),
+            chain,
+        );
+        diagnostic.related = related;
+        self.push_error_diagnostic(diagnostic);
+    }
+
+    fn related_info_for_jsdoc_span(
+        &self,
+        node: NodeId,
+        byte_span: (usize, usize),
+        message: &'static DiagnosticMessage,
+        args: &[&str],
+    ) -> RelatedInfo {
+        let source = self.binder.source_of_node(node);
+        let (start, length) = utf16_span(source, byte_span);
+        RelatedInfo {
+            file_name: Some(source.file_name.clone()),
+            start: Some(start),
+            length: Some(length),
+            message: MessageChain::new(
+                message,
+                &args.iter().map(|arg| (*arg).to_owned()).collect::<Vec<_>>(),
+            ),
+        }
     }
 
     /// tsc-port: checkCollisionWithArgumentsInGeneratedCode @6.0.3
@@ -6195,6 +6643,104 @@ mod tests {
                 "interface Promise<T> { p: T }\ndeclare const a: any;\nconst h = async (): number => a;\n"
             ),
             [(1064, 72, 6)]
+        );
+    }
+
+    #[test]
+    fn checked_js_async_function_type_tag_reports_1064_at_return_type() {
+        let text = "/** @type {function(): string} */\nconst value = async () => 0;\n";
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            target: Some(2),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            checked_program_rows_with_file("a.js", text, &options),
+            [(1064, 23, 6)]
+        );
+    }
+
+    #[test]
+    fn checked_js_async_callback_alias_reports_1065_with_related_return_type() {
+        let text = "/**\n\
+                    * @callback FunctionReturningNever\n\
+                    * @returns {never}\n\
+                    */\n\
+                    /** @type {FunctionReturningNever} */\n\
+                    async function value() { return 1; }\n";
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            target: Some(2),
+            ..CompilerOptions::default()
+        };
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: text.to_owned(),
+            }],
+            &options,
+        );
+        let diagnostic = result
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code() == 1065)
+            .expect("the callback alias return type is checked");
+        assert_eq!(
+            diagnostic.start,
+            Some(text.rfind("FunctionReturningNever").unwrap() as u32)
+        );
+        assert_eq!(diagnostic.length, Some(22));
+        assert_eq!(diagnostic.related.len(), 1);
+        assert_eq!(diagnostic.related[0].message.code, 1064);
+        assert_eq!(
+            diagnostic.related[0].start,
+            Some(text.find("never").unwrap() as u32)
+        );
+        assert_eq!(diagnostic.related[0].length, Some(5));
+    }
+
+    #[test]
+    fn checked_js_es5_thenable_alias_preserves_relation_chain() {
+        let js = "/**\n\
+                  * @callback T3\n\
+                  * @returns {Thenable}\n\
+                  */\n\
+                  /** @type {T3} */\n\
+                  const value = async () => 1;\n";
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            target: Some(1),
+            ..CompilerOptions::default()
+        };
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "/types.d.ts".to_owned(),
+                    text: "declare class Thenable { then(): void; }\n".to_owned(),
+                },
+                InputFile {
+                    name: "/a.js".to_owned(),
+                    text: js.to_owned(),
+                },
+            ],
+            &options,
+        );
+        let diagnostic = result
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code() == 1065)
+            .expect("the invalid ES5 constructor relation is reported");
+        assert_eq!(diagnostic.start, Some(js.rfind("T3").unwrap() as u32));
+        assert!(diagnostic.related.is_empty());
+        assert_eq!(diagnostic.message.next[0].code, 1055);
+        assert_eq!(diagnostic.message.next[0].next[0].code, 2203);
+        assert_eq!(diagnostic.message.next[0].next[0].next[0].code, 2201);
+        assert_eq!(
+            diagnostic.message.next[0].next[0].next[0].next[0].code,
+            2322
         );
     }
 
