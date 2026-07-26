@@ -25,6 +25,7 @@ pub(crate) enum PackageJsonModuleType {
     Module,
     CommonJs,
     Other,
+    Missing,
 }
 
 /// A query the M3 slice cannot answer yet; carries the blocking
@@ -724,10 +725,12 @@ pub struct CheckerState<'a> {
     /// normalization stays "/"-rooted: all internal paths share that
     /// base, and the two worlds never compare paths with each other.
     pub host_current_directory: String,
-    /// Normalized package.json path → its tri-state `"type"` field.
-    /// `Other` preserves the distinction between an absent/unknown
-    /// value and an explicit `"commonjs"` value for
-    /// getImpliedNodeFormatForEmitWorker.
+    /// Normalized package.json path → its four-way `"type"` evidence.
+    /// Explicit `module`, `commonjs`, another string, and a missing
+    /// value remain distinct: implied-format consumers collapse only
+    /// the states their tsc worker collapses, while
+    /// createModeMismatchDetails distinguishes a missing value from
+    /// any explicit value.
     pub(crate) host_package_json_module_types:
         std::collections::HashMap<String, PackageJsonModuleType>,
     /// Normalized package.json path → its non-empty `"name"` field.

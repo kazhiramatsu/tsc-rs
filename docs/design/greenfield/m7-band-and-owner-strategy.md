@@ -300,7 +300,7 @@ Accepted progress on 2026-07-26:
   family is now 2,488/3,013 with supported FN 525 and canaries 2/4.
 - 8.1e A10 ported both implied-format workers and upgraded the
   in-memory package host input from a boolean to the required
-  module/CommonJS/other distinction. All existing consumers now
+  module/CommonJS/other/missing distinction. All existing consumers now
   preserve undefined format explicitly; `checkExportAssignment` keeps
   its pre-A11 decision boundary. The 24-fixture target remained
   600/1,222 and the full corpus remained 32,207/49,024, with zero

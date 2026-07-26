@@ -576,7 +576,7 @@ pub fn check_program_with_libs_at(
                             _ => state::PackageJsonModuleType::Other,
                         })
                 })
-                .unwrap_or(state::PackageJsonModuleType::Other);
+                .unwrap_or(state::PackageJsonModuleType::Missing);
             (
                 state::CheckerState::normalize_program_path(&file.name, ""),
                 module_type,

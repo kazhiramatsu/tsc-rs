@@ -3535,9 +3535,9 @@ impl<'a> CheckerState<'a> {
         self.package_scope_module_type_for_file_name(file_name)
             .map(|module_type| match module_type {
                 PackageJsonModuleType::Module => ModuleResolutionMode::EsNext,
-                PackageJsonModuleType::CommonJs | PackageJsonModuleType::Other => {
-                    ModuleResolutionMode::CommonJs
-                }
+                PackageJsonModuleType::CommonJs
+                | PackageJsonModuleType::Other
+                | PackageJsonModuleType::Missing => ModuleResolutionMode::CommonJs,
             })
     }
 
