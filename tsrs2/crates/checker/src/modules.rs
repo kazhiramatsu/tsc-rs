@@ -6340,10 +6340,12 @@ impl<'a> CheckerState<'a> {
     /// import flavor). Import/export helper availability follows the
     /// source file's effective emit format.
     pub(crate) fn check_export_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
-        if self.check_grammar_module_element_context(
-            node,
-            &diagnostics::An_export_declaration_can_only_be_used_at_the_top_level_of_a_namespace_or_module,
-        ) {
+        let context_diagnostic = if self.is_in_js_file(node) {
+            &diagnostics::An_export_declaration_can_only_be_used_at_the_top_level_of_a_module
+        } else {
+            &diagnostics::An_export_declaration_can_only_be_used_at_the_top_level_of_a_namespace_or_module
+        };
+        if self.check_grammar_module_element_context(node, context_diagnostic) {
             return Ok(());
         }
         let _ = self.check_grammar_modifiers(node);
@@ -7551,6 +7553,42 @@ let unrelated = \"\";\n",
                     1232,
                     source.find("import").expect("nested import") as u32,
                     "import".len() as u32,
+                ),
+            ]
+        );
+    }
+
+    /// Oracle pin (tsc 6.0.3, plainJSGrammarErrors.ts, 2026-07-26):
+    /// the same nested export declaration selects TS1474 in JavaScript
+    /// and TS1233 in TypeScript.
+    #[test]
+    fn nested_export_declaration_selects_javascript_context_diagnostic() {
+        let source = "function f() {\n  export { };\n}\n";
+        assert_eq!(
+            program_rows(
+                &[("/a.js", source), ("/b.ts", source)],
+                &CompilerOptions {
+                    allow_js: true,
+                    module: Some(99),
+                    target: Some(99),
+                    ..CompilerOptions::default()
+                },
+            )
+            .into_iter()
+            .filter(|(_, code, _, _)| matches!(*code, 1233 | 1474))
+            .collect::<Vec<_>>(),
+            [
+                (
+                    "/a.js".to_owned(),
+                    1474,
+                    source.find("export").expect("nested export") as u32,
+                    "export".len() as u32,
+                ),
+                (
+                    "/b.ts".to_owned(),
+                    1233,
+                    source.find("export").expect("nested export") as u32,
+                    "export".len() as u32,
                 ),
             ]
         );

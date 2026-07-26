@@ -458,7 +458,17 @@ Accepted progress on 2026-07-26:
   gained exactly one identity with no loss, target-external movement,
   or FP. All-corpus T0 is 32,641/49,024, supported T0 is
   32,640/48,477, and checker-grammar is 2,922/3,013 with supported FN
-  91 and canaries 4/4.
+  91 and canaries 4/4;
+- 8.1g.5 closed the separate plain-JavaScript TS1474 identity owned by
+  `checkExportDeclaration`. Its caller had the same stale unconditional
+  TypeScript message selection as the import producer, so the
+  JavaScript row was generated internally as TS1233 and filtered. The
+  caller now selects TS1474 for JavaScript while the adjacent
+  TypeScript nested-export control retains TS1233. The target moved
+  from 99/156 to 100/156; full-corpus T1/T2/T3 each gained exactly one
+  identity with no loss, target-external movement, or FP. All-corpus T0
+  is 32,642/49,024, supported T0 is 32,641/48,477, and
+  checker-grammar is 2,923/3,013 with supported FN 90 and canaries 4/4.
 
 ## 6. M7 virtual-band order
 
