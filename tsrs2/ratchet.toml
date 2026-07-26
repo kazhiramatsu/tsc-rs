@@ -294,8 +294,10 @@
 # Node CommonJS emit-format gate and exact checked-JS publication.
 # m7 8.1g.2 adds +6 through checkImportDeclaration's diagnostic-only
 # package-exports JSON target projection.
-rate = 0.665715
-matched = 32636
+# m7 8.1g.3 adds +4 by publishing checkImportMetaProperty's exact
+# CommonJS-format row in checked JavaScript.
+rate = 0.665796
+matched = 32640
 total = 49024
 allowed_regression = 0.0
 

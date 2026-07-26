@@ -437,7 +437,17 @@ Accepted progress on 2026-07-26:
   33/81; full-corpus T1/T2/T3 each gained exactly six identities with
   no loss, target-external movement, or FP. All-corpus T0 is
   32,636/49,024, supported T0 is 32,635/48,477, and checker-grammar is
-  2,917/3,013 with supported FN 96 and canaries 4/4.
+  2,917/3,013 with supported FN 96 and canaries 4/4;
+- 8.1g.3 closed the four checked-JavaScript TS1470 identities owned
+  directly by `checkImportMetaProperty` across Node16, Node18, Node20,
+  and NodeNext. The producer's package-scope format verdict, span, and
+  renderer were already exact—the matching TypeScript sibling supplied
+  the control—and only the checked-JS publication boundary was closed.
+  The ES-module package sibling remains negative. The target moved from
+  0/4 to 4/4; full-corpus T1/T2/T3 each gained exactly four identities
+  with no loss, target-external movement, or FP. All-corpus T0 is
+  32,640/49,024, supported T0 is 32,639/48,477, and checker-grammar is
+  2,921/3,013 with supported FN 92 and canaries 4/4.
 
 ## 6. M7 virtual-band order
 

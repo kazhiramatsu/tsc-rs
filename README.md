@@ -100,12 +100,15 @@ and closes all eight TS1216 rows across TypeScript and checked
 JavaScript. The following direct `checkImportDeclaration` slice closes
 the six package-`exports` TS1543 rows as well: it reuses the bounded
 diagnostic-only package-target projection to inspect JSON target file
-names while ordinary package resolution remains suppressed. M7 reuses
-the approach that made the 2XXX sweep effective: measure exact oracle
-rows first, group them into `(diagnostic code, pass)` owner families,
-trace each family through the emitting `tsc` function and its Rust
-implementation boundary, then port one bounded producer slice at a
-time. See the
+names while ordinary package resolution remains suppressed. The next
+direct `checkImportMetaProperty` slice publishes its four already-exact
+CommonJS-format TS1470 rows in checked JavaScript, completing the
+TypeScript/JavaScript matrix without broadening JSDoc checking. M7
+reuses the approach that made the 2XXX sweep effective: measure exact
+oracle rows first, group them into `(diagnostic code, pass)` owner
+families, trace each family through the emitting `tsc` function and its
+Rust implementation boundary, then port one bounded producer slice at
+a time. See the
 [M7 band and owner strategy](docs/design/greenfield/m7-band-and-owner-strategy.md).
 
 The stage marker remains `M6` while M7 is active and advances only when the
@@ -119,7 +122,7 @@ artifacts by every `cargo xtask ci` run:
 
 | View | Exact diagnostic match (T0) |
 | --- | --- |
-| All bands | **66.5715%** (32,636 / 49,024) |
+| All bands | **66.5796%** (32,640 / 49,024) |
 | 2xxx band | **97.4063%** (20,505 / 21,051) |
 | Syntactic | **99.8219%** (2,242 / 2,246) |
 
