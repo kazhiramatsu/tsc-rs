@@ -92,14 +92,14 @@ probed; the oracle-correction epoch verified the node matrix only).
 Related ladder sites already annotated: statements.rs
 for-await 1309/1432, functions.rs checkAwaitGrammar 2856-family.
 
-The binding 8.1a-f producer clusters, current reconnaissance anchors,
+The binding 8.1a-g producer clusters, current reconnaissance anchors,
 and per-slice exits are in
 [the M7 band strategy](m7-band-and-owner-strategy.md#5-checker-grammar-entry-reconnaissance).
 One producer owner per branch/PR; an A5 family may require several
 producer slices and closes only after its full rollup and canaries are
 green. Each slice carries oracle-probed micro pins.
 
-Commit(s): `m7 8.1a-f: grammar check families (+rate)`.
+Commit(s): `m7 8.1a-g: grammar check families (+rate)`.
 
 Gate: the checker-grammar family rows (semantic-pass 1XXX plus the
 grammar rows of 17XXX/18XXX) reach their family-map acceptance.

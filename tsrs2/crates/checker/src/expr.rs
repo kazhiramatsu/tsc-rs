@@ -3828,16 +3828,16 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 52451fa471d9dde73e875e1db438439f637100b04997f3405fc87170de59b386
     /// tsc-span: _tsc.js:80743-80750
     ///
-    /// checkGrammarMethod (89943) is an elided slice (M7 modifier
-    /// band). instantiateTypeWithSingleGenericCallSignature already
-    /// rides as the checkExpression wrapper's 5.5a gate slice —
-    /// invoked here directly, matching tsc's explicit tail call.
+    /// checkGrammarMethod (89943) is live for object-literal methods
+    /// from M7 8.1b. instantiateTypeWithSingleGenericCallSignature
+    /// already rides as the checkExpression wrapper's 5.5a gate slice
+    /// — invoked here directly, matching tsc's explicit tail call.
     pub(crate) fn check_object_literal_method(
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult2<TypeId> {
-        // checkGrammarMethod(node): elided slice.
+        self.check_grammar_method(node)?;
         if let Some(name) = match self.data_of(node) {
             NodeData::MethodDeclaration(data) => data.name,
             _ => None,

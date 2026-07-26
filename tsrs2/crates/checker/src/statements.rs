@@ -3013,11 +3013,11 @@ mod tests {
 
     #[test]
     fn duplicate_literal_members_resolve_last_wins() {
-        // tsc: only the 1117 grammar row (an M7-band FN here); the
-        // RELATION must see the table's last-wins member — the stale
-        // first duplicate in resolved.properties was the 6.6f
-        // objectLiteralErrors 2322 FP face.
-        assert_eq!(checked_rows("var e3 = { a: 0, a: '' };\n"), []);
+        // The M7 8.1b grammar producer now reports tsc's 1117 row.
+        // The RELATION must still see the table's last-wins member —
+        // the stale first duplicate in resolved.properties was the
+        // 6.6f objectLiteralErrors 2322 FP face.
+        assert_eq!(checked_rows("var e3 = { a: 0, a: '' };\n"), [(1117, 17, 1)]);
     }
 
     #[test]
@@ -3847,7 +3847,7 @@ x.accessor = 1;\n"
     #[test]
     fn comma_in_computed_property_name_reports_1171() {
         // checkGrammarObjectLiteralExpression's computed-name row
-        // (partial slice) + the 5.5e comma-operator 2695.
+        // (live in the 8.1b producer) + the 5.5e comma-operator 2695.
         let rows = checked_rows("const a = { [0, 1]: {} };\n");
         assert!(rows.contains(&(1171, 13, 4)), "{rows:?}");
         assert!(rows.contains(&(2695, 13, 1)), "{rows:?}");

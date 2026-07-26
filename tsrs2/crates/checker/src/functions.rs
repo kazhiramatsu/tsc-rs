@@ -4078,7 +4078,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkGrammarForInvalidQuestionMark @6.0.3
     /// tsc-hash: ecbb4add9b568ce8b186de774851c5795ea842ace6c2c2fa9541e70f8545b8c0
     /// tsc-span: _tsc.js:89631-89633
-    fn check_grammar_for_invalid_question_mark(
+    pub(crate) fn check_grammar_for_invalid_question_mark(
         &mut self,
         question_token: Option<NodeId>,
         message: &'static tsrs2_diags::DiagnosticMessage,
@@ -4092,7 +4092,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkGrammarForInvalidExclamationToken @6.0.3
     /// tsc-hash: 11b6e35393603887b71a5bea8e64697e42ca22bd858b3fe12d6d2bfe92d8ad4c
     /// tsc-span: _tsc.js:89634-89636
-    fn check_grammar_for_invalid_exclamation_token(
+    pub(crate) fn check_grammar_for_invalid_exclamation_token(
         &mut self,
         exclamation_token: Option<NodeId>,
         message: &'static tsrs2_diags::DiagnosticMessage,

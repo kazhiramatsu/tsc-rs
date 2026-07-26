@@ -53,12 +53,14 @@ narrowing, inference, and overload resolution are in place. The phase-9
 2XXX sweep is also complete: its supported-scope T0 false-negative residue is
 zero while the all-corpus false-positive gate remains zero.
 
-Work is now entering M7, which covers grammar, unused, suggestion,
-program/options, and remaining non-2XXX diagnostics. M7 reuses the approach
-that made the 2XXX sweep effective: measure exact oracle rows first, group
-them into `(diagnostic code, pass)` owner families, trace each family through
-the emitting `tsc` function and its Rust implementation boundary, then port
-one bounded producer slice at a time. See the
+Work is underway in M7, which covers grammar, unused, suggestion,
+program/options, and remaining non-2XXX diagnostics. Its first
+checker-grammar owner slices now cover modifier/decorator grammar and
+object-literal grammar. M7 reuses the approach that made the 2XXX sweep
+effective: measure exact oracle rows first, group them into
+`(diagnostic code, pass)` owner families, trace each family through the
+emitting `tsc` function and its Rust implementation boundary, then port one
+bounded producer slice at a time. See the
 [M7 band and owner strategy](docs/design/greenfield/m7-band-and-owner-strategy.md).
 
 The stage marker remains `M6` while M7 is active and advances only when the
@@ -72,7 +74,7 @@ artifacts by every `cargo xtask ci` run:
 
 | View | Exact diagnostic match (T0) |
 | --- | --- |
-| All bands | **65.1354%** (31,932 / 49,024) |
+| All bands | **65.3721%** (32,048 / 49,024) |
 | 2xxx band | **97.4063%** (20,505 / 21,051) |
 | Syntactic | **99.8219%** (2,242 / 2,246) |
 
@@ -123,10 +125,10 @@ freshness, and escape inventories are separate mandatory gates.
 M7 is more heterogeneous than the 2XXX band even if no single remaining
 family is as broad. To retain a useful denominator and a clear owner, the
 machine-readable A5 family map acts as a set of **virtual bands**. The first
-checker-grammar sweep is split by producer—modifier/decorator,
-declaration/function/object grammar, statement/expression/target,
-module/import/export/format, and strict/private/JSDoc/ES-target—before a
-terminal residue pass.
+checker-grammar sweep is split by producer—modifier/decorator, object
+literal, declaration/function/accessor/heritage,
+statement/expression/target, module/import/export/format, and
+strict/private/JSDoc/ES-target—before a terminal residue pass.
 
 ## Getting Started
 

@@ -157,22 +157,31 @@ The 8.1 sub-slices are therefore:
 | Slice | Producer cluster | Current anchor rows | Required exit |
 |---|---|---|---|
 | 8.1a | modifier/decorator ordering and placement: `checkGrammarModifiers`, obvious modifier/decorator reporters, async modifier | 1206 (129), 1029 (66), 1044 (32), 1275 (32), 1042 (30) | selected modifier/decorator exact rows close through live tiers; no follower diagnostic leaks past tsc's first-error ordering |
-| 8.1b | declaration/function/object grammar: parameter/type-argument lists, computed names, accessors, heritage, object-literal duplicates | 1117 (53), 1119 (36), parameter/accessor/computed-name tail | selected declaration shapes and their suppression order match; owning micro-canaries green |
-| 8.1c | statement/expression/target grammar: break/continue and labels, await/yield/for-await, `this`/`super` ordering, meta-properties, regex rescan and flag gates | 17009 (58), 17011 (11), 1501 (19), 1309 (16) | target/statement rows close with scanner and semantic pass provenance preserved |
-| 8.1d | module/import/export and format: tri-state implied format, Node sync-import rows, import/export-type usage, export-assignment decisive extension | 1479 (143), 1340 (72), 1471 (68), 1361 (33), 1362 (31), 1203 (4) | A10 → B16 → A11 dependency order holds; module-format canary and selected exact rows close |
-| 8.1e | strict/private/JSDoc/ES-target grammar: private-name placement, strict-mode-only checks, JSDoc type syntax that belongs to semantic grammar | 18016 (31), 18010 (24), 17019/17020 (12), 18028 (2) | no JSDoc-semantics exclusion is confused with an in-scope grammar row; private/target canary green |
-| 8.1f | owner-mined checker-grammar residue and family close | re-snapshot after 8.1a-e | supported FN=0, all four A5 canaries green, FP=0, exact T1/T2/T3 losses=0 |
+| 8.1b | object-literal grammar: `checkGrammarObjectLiteralExpression` plus object-member dispatch to `checkGrammarMethod` | 1117 (53), 1119 (36), 1118 (6), 1042/1162/1184/1255/1312 tail | frozen object-literal producer queue closes through T1/T2/T3 with no target-external gains |
+| 8.1c | declaration/function/accessor/heritage grammar: parameter and type-argument lists, computed names, accessor declarations, heritage clauses | owner-mine after 8.1b | selected declaration shapes and their suppression order match; owning micro-canaries green |
+| 8.1d | statement/expression/target grammar: break/continue and labels, await/yield/for-await, `this`/`super` ordering, meta-properties, regex rescan and flag gates | 17009 (58), 17011 (11), 1501 (19), 1309 (16) | target/statement rows close with scanner and semantic pass provenance preserved |
+| 8.1e | module/import/export and format: tri-state implied format, Node sync-import rows, import/export-type usage, export-assignment decisive extension | 1479 (143), 1340 (72), 1471 (68), 1361 (33), 1362 (31), 1203 (4) | A10 → B16 → A11 dependency order holds; module-format canary and selected exact rows close |
+| 8.1f | strict/private/JSDoc/ES-target grammar: private-name placement, strict-mode-only checks, JSDoc type syntax that belongs to semantic grammar | 18016 (31), 18010 (24), 17019/17020 (12), 18028 (2) | no JSDoc-semantics exclusion is confused with an in-scope grammar row; private/target canary green |
+| 8.1g | owner-mined checker-grammar residue and family close | re-snapshot after 8.1a-f | supported FN=0, all four A5 canaries green, FP=0, exact T1/T2/T3 losses=0 |
 
 The table fixes content identity, not permission to combine all rows in
 one PR. Split a sub-slice further when the exact-row D2 survey finds
 more than one producer owner. The A5 `checker-grammar` family closes
-only at 8.1f; earlier sub-slices close their frozen target queues.
+only at 8.1g; earlier sub-slices close their frozen target queues.
+
+Accepted progress on 2026-07-26:
+
+- 8.1a landed 505 exact matches through the modifier/decorator owner
+  cluster, with no loss or false positive;
+- the 8.1b entry survey split object-literal grammar from the broader
+  declaration queue, then closed its frozen 116-row queue across
+  T1/T2/T3. The family moved to 2,329/3,013 with supported FN 684.
 
 ## 6. M7 virtual-band order
 
 Landing order remains:
 
-1. `checker-grammar` — 8.1a-f above;
+1. `checker-grammar` — 8.1a-g above;
 2. `suppression-surfaces` — audit/canary band, allowed to have no code
    rows;
 3. `unused` semantic error surface — reference-marking prerequisite,
