@@ -22,6 +22,8 @@ concurrency:
 env:
   CARGO_INCREMENTAL: "0"
   CARGO_TERM_COLOR: always
+  RUSTC_WRAPPER: sccache
+  SCCACHE_GHA_ENABLED: "true"
 
 jobs:
   rust:
@@ -30,32 +32,39 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
       # Oracle driver tests must use the producer's pinned Node
       # runtime, even though this lane does not run the full corpus.
       - name: Pin the oracle Node runtime
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: tsrs2/.node-version
+          package-manager-cache: false
 
-      # Keep build outputs separate from the semantic lane: both jobs
-      # may save concurrently, and neither can restore artifacts built
-      # under the other's Cargo command/profile mix. Default-branch
-      # caches warm later PRs; PR caches only warm reruns of that PR.
-      - name: Restore Rust build cache
-        uses: actions/cache@v4
+      # Dependency archives are safe to restore by lockfile. Cargo
+      # target directories are deliberately excluded: checkout mtimes
+      # make a raw target cache rebuild workspace crates anyway.
+      - name: Restore Cargo dependencies
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             ~/.cargo/git/db
-            tsrs2/target/debug
-          key: cargo-v1-${{ runner.os }}-rust-${{ hashFiles('tsrs2/Cargo.lock', 'tsrs2/rust-toolchain.toml') }}
+          key: cargo-v2-${{ runner.os }}-rust-${{ hashFiles('tsrs2/Cargo.lock', 'tsrs2/rust-toolchain.toml') }}
           restore-keys: |
-            cargo-v1-${{ runner.os }}-rust-
+            cargo-v2-${{ runner.os }}-rust-
+
+      # Pin both the action commit (v0.0.10) and compiler-cache binary.
+      # sccache keys compiler outputs by their actual inputs, so it can
+      # reuse workspace crates safely across fresh checkouts.
+      - name: Configure compiler cache
+        uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696
+        with:
+          version: v0.16.0
 
       # Gate composition stays in xtask so local and hosted execution
       # cannot drift. The lane boundary only lets the two independent
@@ -70,7 +79,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout full lineage
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -78,21 +87,26 @@ jobs:
       # Every full-corpus oracle launch must use the producer's pinned
       # Node version; the runner image's default would skew evidence.
       - name: Pin the oracle Node runtime
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: tsrs2/.node-version
+          package-manager-cache: false
 
-      - name: Restore semantic build cache
-        uses: actions/cache@v4
+      - name: Restore Cargo dependencies
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             ~/.cargo/git/db
-            tsrs2/target/debug
-          key: cargo-v1-${{ runner.os }}-semantic-${{ hashFiles('tsrs2/Cargo.lock', 'tsrs2/rust-toolchain.toml') }}
+          key: cargo-v2-${{ runner.os }}-semantic-${{ hashFiles('tsrs2/Cargo.lock', 'tsrs2/rust-toolchain.toml') }}
           restore-keys: |
-            cargo-v1-${{ runner.os }}-semantic-
+            cargo-v2-${{ runner.os }}-semantic-
+
+      - name: Configure compiler cache
+        uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696
+        with:
+          version: v0.16.0
 
       # Full-corpus passes once peaked at ~11.5 GB RSS. The underlying
       # multiplication bug is fixed (~1.7 GB now), but the headroom

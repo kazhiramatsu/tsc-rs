@@ -207,10 +207,11 @@ standard runners. The boundary is fixed:
 Thus no evidence producer/consumer or A1/A2/A5 ordering crosses a job
 boundary. The ordinary local `cargo xtask ci` remains the sequential
 union of both lanes and is still the required pre-PR/pre-merge gate.
-The two lanes use separate Cargo build caches; main-branch runs populate
-the cache scope that later pull requests may restore. Cache entries
-contain only Cargo registry/git data and `target/debug`, never
-conformance, readiness, or other semantic evidence artifacts.
+Main-branch runs populate the cache scope that later pull requests may
+restore. Lockfile-keyed Cargo caches contain dependency archives only;
+a pinned content-addressed compiler cache handles build outputs without
+trusting checkout timestamps. Neither cache contains conformance,
+readiness, or other semantic evidence artifacts.
 
 Scheduled CI runs the two-hour/100,000-case fuzz window and retains raw
 output. A reviewed aggregation verifies and appends it without rewriting
