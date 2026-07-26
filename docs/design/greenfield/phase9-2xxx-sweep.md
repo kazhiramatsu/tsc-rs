@@ -4862,6 +4862,8 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. The phase contract is now closed:
 supported T0-2xxx is 100% and all-corpus FP remains zero. Full
 `cargo xtask ci --baseline origin/main` exits 0.
+The reusable last-mile method extracted from this close is
+[terminal-residue-protocol.md](terminal-residue-protocol.md).
 
 ## Remaining implementation sequence after 9.3b2
 

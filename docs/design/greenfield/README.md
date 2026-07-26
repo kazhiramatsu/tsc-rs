@@ -39,6 +39,13 @@ schemas, anchors, and identities, and
 producers and M9. Read the plan first; open a support contract only when
 implementing or reviewing that mechanism.
 
+**Terminal residue protocol:**
+[terminal-residue-protocol.md](terminal-residue-protocol.md) — the
+last-mile method used after a supported FN sweep becomes a small,
+heterogeneous tail. It classifies exact rows by producer, verdict,
+renderer, publication, and grading layers; defines JSDoc/trivia proof
+rules; and requires target/full identity-diff evidence before close.
+
 **Band strategy (2XXX first):**
 [2xxx-first-order.md](2xxx-first-order.md) — the build is ordered
 around one goal: complete 2XXX-band parity first (phases 0-9,
