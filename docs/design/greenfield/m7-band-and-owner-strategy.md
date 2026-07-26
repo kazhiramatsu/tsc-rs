@@ -266,6 +266,14 @@ publishes that grammar row in checked JavaScript, and ports the live
 verbatim/isolated type-only branches without absorbing the adjacent
 import/export usage producers.
 
+TS1340 then stays with `getTypeFromImportTypeNode`
+(`d2:6be6bf7180e57fbc1816b64ac99cd952c2800cfc585f40763dff9fee6dadc508`,
+`_tsc.js:62821-62880`). When ordinary package resolution remains
+`Suppressed`, only a bare recovered ImportType in type meaning may read
+the B16 package target module's own flags. That projection exists only
+to decide TS1340; it does not expose the package symbol, exports, or
+members to general checking.
+
 Accepted progress on 2026-07-26:
 
 - 8.1a landed 505 exact matches through the modifier/decorator owner
@@ -339,8 +347,16 @@ Accepted progress on 2026-07-26:
   Full-corpus T1/T2/T3 each gained exactly nine identities with no
   target-external movement or loss; all-corpus T0 is 32,429/49,024 and
   supported T0 is 32,428/48,477. The checker-grammar family is now
-  2,710/3,013 with supported FN 303 and canaries 2/4. The next
-  module-format owner is the TS1340 import-type usage worker.
+  2,710/3,013 with supported FN 303 and canaries 2/4;
+- 8.1e TS1340 closed all 72 supported identities owned by
+  `getTypeFromImportTypeNode` across the two Node import-type
+  attribute fixtures and four module modes. The target moved from
+  560/664 to 632/664, with its supported view at 632/632. Full-corpus
+  T1/T2/T3 each gained exactly 72 identities with no loss or
+  target-external movement; all-corpus T0 is 32,501/49,024 and
+  supported T0 is 32,500/48,477. The checker-grammar family is now
+  2,782/3,013 with supported FN 231 and canaries 3/4. The next
+  module-format owner is the TS1361/TS1362 type-only alias use worker.
 
 ## 6. M7 virtual-band order
 

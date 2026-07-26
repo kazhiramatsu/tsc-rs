@@ -1717,7 +1717,15 @@ impl<'a> CheckerState<'a> {
         } else {
             SymbolFlags::TYPE
         };
-        let inner_module_symbol = self.resolve_external_module_name(node, literal, false)?;
+        let module_reference = match self.data_of(literal) {
+            NodeData::StringLiteral(data) => data.text.clone(),
+            _ => String::new(),
+        };
+        let inner_module_symbol = self
+            .resolve_external_module_name(node, literal, false)?
+            .or_else(|| {
+                self.resolve_bare_import_type_module_for_diagnostic(node, &module_reference)
+            });
         let Some(inner_module_symbol) = inner_module_symbol else {
             let unknown = self.unknown_symbol;
             self.links
@@ -1840,11 +1848,7 @@ impl<'a> CheckerState<'a> {
             } else {
                 &diagnostics::Module_0_does_not_refer_to_a_type_but_is_used_as_a_type_here_Did_you_mean_typeof_import_0
             };
-            let text = match self.data_of(literal) {
-                NodeData::StringLiteral(data) => data.text.clone(),
-                _ => String::new(),
-            };
-            self.error_at(Some(node), message, &[&text]);
+            self.error_at(Some(node), message, &[&module_reference]);
             let unknown = self.unknown_symbol;
             self.links
                 .overwrite_import_type_resolved_symbol(self.speculation_depth, node, unknown);
