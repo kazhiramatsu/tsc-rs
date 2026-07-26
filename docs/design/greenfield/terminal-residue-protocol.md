@@ -265,6 +265,9 @@ fake ledger join to make the report look complete.
 
 Run the sequence below without piping a gate through `head`, `tail`, or
 `grep`. Before/after JSON paths are immutable evidence for the slice.
+The `slice-evidence` commands in §7 automate the observations, exact
+diffs, and read-only repository checks. The individual commands remain
+documented here both as the contract and as a diagnostic fallback.
 
 ### 6.1 Before implementation
 
@@ -354,36 +357,72 @@ Every terminal PR body and result section records:
 - D2 plan summary;
 - the full CI command and exit status.
 
-## 7. Evidence automation backlog
+## 7. Evidence automation
 
-The repeated command sequence above should eventually become a
-report-only command such as:
+`slice-evidence` implements the repeated report-only sequence as two
+explicit lifecycle operations. Before editing behavior, capture the
+immutable baseline:
 
 ```text
-cargo xtask slice-evidence \
+cargo xtask slice-evidence snapshot \
   --slice <name> \
   --targets <comma-separated-targets> \
   --band <active-band> \
-  --before-dir <immutable-before-snapshots> \
+  --out-dir /tmp/<slice>-before
+```
+
+After the unit pin and implementation, verify against that snapshot:
+
+```text
+cargo xtask slice-evidence verify \
+  --before-dir /tmp/<slice>-before \
+  --out-dir /tmp/<slice>-after \
   --baseline <trusted-ref>
 ```
 
-This command does not exist yet. Until it lands, the manual sequence in
-§6 is normative.
+Both output paths must be new directories outside the Git worktree.
+The command refuses to overwrite an existing directory. Keeping the
+two lifecycle operations separate prevents an implementation-time run
+from silently replacing its own baseline.
 
-The future command must:
+The before manifest records the slice, sorted target set, active band,
+Git commit and worktree fingerprint, controlled-input hashes, three
+observation summaries, per-step exit codes, artifact hashes, and
+complete stdout/stderr logs. `verify` first checks every before report
+and log hash, then writes target, active-band, and all-band after
+observations and exact T1/T2/T3 diffs. When the active band is `all`,
+the identical active/all full-corpus observation is executed once and
+copied with a separately hashed reuse log.
 
-- write one manifest containing commands, exit codes, input hashes,
-  summary metrics, and artifact paths;
-- produce target, active-band, and all-band exact tier diffs;
-- fail on FP, lost identities, changed supported universe, or stale
-  before-snapshot hashes;
-- run ledger/escape/scope/family checks or record their independently
-  verified artifacts;
-- remain report-only and never update ratchets, scope, goldens, or
-  exclusions automatically;
-- preserve complete logs so a shell pipeline cannot hide a failed
-  gate.
+The final after manifest embeds the before manifest path and hash plus
+its Git/input fingerprints, steps, and observation summaries. It is
+therefore the single PR evidence index; the referenced before
+directory still remains immutable and supplies the original reports
+and logs.
+
+Verification fails and preserves its partial manifest on:
+
+- a non-zero observation, diff, or repository-check exit;
+- any false positive;
+- any lost T1/T2/T3 identity in either scope view;
+- a changed supported oracle universe;
+- a stale or modified before report or log;
+- mutation of the controlled inputs or Git worktree while the command
+  runs.
+
+On clean diffs it runs `ratchet check`, `scope audit`, `families
+check`, `ledger check`, the current-stage `escapes` audit, and the
+invariant suite, each in its own logged child process. It never runs
+`ratchet update` and never writes scope, golden, family, exclusion, or
+ratchet state. Full `cargo xtask ci` remains the final merge gate
+because repeating CI inside this report would duplicate the
+full-corpus checker work already captured here.
+
+Gains outside the target do not represent a mechanical regression, so
+the command does not approve or reject them. It writes
+`status = "review-required"` plus per-tier counts in the after manifest;
+the implementer reviews the exact identities in the diff artifacts and
+records the disposition in the PR evidence.
 
 Automation reduces transcription and waiting overhead. It does not
 choose the semantic owner, disposition a row, or approve a gain.

@@ -64,6 +64,15 @@ there.
   <after.json>` (optional `--out-json <path>`; default
   `target/conformance/shadow-diff.json`). This is exact T1/T2/T3
   review evidence only; it does not update or enforce a ratchet.
+- Terminal-slice evidence: before editing, run `cargo xtask
+  slice-evidence snapshot --slice <name> --targets <csv> --band
+  <all|2xxx|syntactic> --out-dir </tmp/new-before-dir>`; after the
+  implementation, run `cargo xtask slice-evidence verify --before-dir
+  </tmp/before-dir> --out-dir </tmp/new-after-dir> --baseline
+  origin/main`. Both directories must be new and outside the Git
+  worktree. The report-only command hashes inputs/snapshots/logs,
+  rejects FP, tier losses, universe drift, or stale before evidence,
+  and runs the read-only repository evidence gates.
 - Accepted-set state: `cargo xtask ratchet check [--baseline
   origin/main]` verifies `ratchets/` artifacts + lineage;
   `cargo xtask ratchet update` re-measures and adds identities only
