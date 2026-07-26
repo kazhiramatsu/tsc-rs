@@ -273,8 +273,11 @@
 # m7 8.1d.3v adds +57 through the complete UTF-16 regular-expression
 # validator: the frozen 21-fixture queue contributes 56 and the
 # same-owner full-corpus closure contributes parser579071 TS1005.
-rate = 0.656964
-matched = 32207
+# m7 8.1e B16 adds +213 through resolveExternalModule's complete
+# Node16/Node18 synchronous-import mode-mismatch queue: 1471 x68,
+# 1479 x143, 1541 x1, and 1542 x1.
+rate = 0.661309
+matched = 32420
 total = 49024
 allowed_regression = 0.0
 

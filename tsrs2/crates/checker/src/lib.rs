@@ -853,7 +853,7 @@ pub fn check_program_with_libs_at(
             .map(|file| state::CheckerState::normalize_program_path(&file.name, ""))
             .collect();
         state.host_package_json_module_types = host_package_json_module_types;
-        state.host_package_json_names = files
+        state.host_package_json_values = files
             .iter()
             .filter_map(|file| {
                 let file_name = file.name.rsplit(['/', '\\']).next()?;
@@ -861,14 +861,21 @@ pub fn check_program_with_libs_at(
                     return None;
                 }
                 let value = serde_json::from_str::<serde_json::Value>(&file.text).ok()?;
+                Some((
+                    state::CheckerState::normalize_program_path(&file.name, ""),
+                    value,
+                ))
+            })
+            .collect();
+        state.host_package_json_names = state
+            .host_package_json_values
+            .iter()
+            .filter_map(|(path, value)| {
                 let name = value.get("name")?.as_str()?.trim();
                 if name.is_empty() {
                     return None;
                 }
-                Some((
-                    state::CheckerState::normalize_program_path(&file.name, ""),
-                    name.to_owned(),
-                ))
+                Some((path.clone(), name.to_owned()))
             })
             .collect();
         // initializeTypeChecker's augmentation passes (88769/88874)
@@ -2199,6 +2206,173 @@ mod tests {
                 .iter()
                 .any(|diagnostic| diagnostic.code() == 1192),
             "package-scoped CommonJS target should have a synthetic default: {:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
+    fn node16_mode_mismatch_details_preserve_package_type_evidence() {
+        let run = |package_json: &str| {
+            check_program(
+                &[
+                    InputFile {
+                        name: "/package.json".to_owned(),
+                        text: package_json.to_owned(),
+                    },
+                    InputFile {
+                        name: "/module.mts".to_owned(),
+                        text: "export const value = 1;\n".to_owned(),
+                    },
+                    InputFile {
+                        name: "/common.cts".to_owned(),
+                        text: "import { value } from \"./module.mjs\";\nvalue;\n".to_owned(),
+                    },
+                    InputFile {
+                        name: "/common.js".to_owned(),
+                        text: "import { value } from \"./module.mjs\";\nvalue;\n".to_owned(),
+                    },
+                    InputFile {
+                        name: "/common.ts".to_owned(),
+                        text: "import { value } from \"./module.mjs\";\nvalue;\n".to_owned(),
+                    },
+                    InputFile {
+                        name: "/common.tsx".to_owned(),
+                        text: "import { value } from \"./module.mjs\";\nvalue;\n".to_owned(),
+                    },
+                ],
+                &CompilerOptions {
+                    allow_js: true,
+                    check_js: Some(true),
+                    module: Some(100),
+                    module_resolution: Some(3),
+                    target: Some(tsrs2_types::ScriptTarget::ES2022.bits()),
+                    ..CompilerOptions::default()
+                },
+            )
+        };
+        let detail_codes = |result: &CheckResult| {
+            result
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 1479)
+                .map(|diagnostic| {
+                    (
+                        diagnostic
+                            .file_name
+                            .as_deref()
+                            .expect("mode mismatch is located")
+                            .to_owned(),
+                        diagnostic.message.next.first().map(|detail| detail.code),
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+
+        assert_eq!(
+            detail_codes(&run("{}\n")),
+            [
+                ("/common.cts".to_owned(), None),
+                ("/common.js".to_owned(), Some(1481)),
+                ("/common.ts".to_owned(), Some(1481)),
+                ("/common.tsx".to_owned(), Some(1482)),
+            ]
+        );
+        assert_eq!(
+            detail_codes(&run("{\"type\":\"commonjs\"}\n")),
+            [
+                ("/common.cts".to_owned(), None),
+                ("/common.js".to_owned(), Some(1480)),
+                ("/common.ts".to_owned(), Some(1480)),
+                ("/common.tsx".to_owned(), Some(1483)),
+            ]
+        );
+    }
+
+    #[test]
+    fn node16_mode_mismatch_selects_construct_and_honors_overrides() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "/module.mts".to_owned(),
+                    text: "export type T = number;\n".to_owned(),
+                },
+                InputFile {
+                    name: "/common.cts".to_owned(),
+                    text: "import value = require(\"./module.mjs\");\n\
+                           import type {} from \"./module.mjs\";\n\
+                           import type {} from \"./module.mjs\" with { \"resolution-mode\": \"import\" };\n\
+                           type Plain = typeof import(\"./module.mjs\");\n\
+                           type Overridden = typeof import(\"./module.mjs\", { with: { \"resolution-mode\": \"import\" } });\n\
+                           const dynamic = import(\"./module.mjs\");\n\
+                           void value;\nvoid dynamic;\n"
+                        .to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                module: Some(100),
+                module_resolution: Some(3),
+                target: Some(tsrs2_types::ScriptTarget::ES2022.bits()),
+                ..CompilerOptions::default()
+            },
+        );
+        let mismatch_codes = result
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .filter(|code| matches!(code, 1471 | 1479 | 1541 | 1542))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            mismatch_codes,
+            [1471, 1541, 1542],
+            "{:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
+    fn node16_mode_mismatch_resolves_package_conditions_and_patterns_without_publishing_symbols() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "/node_modules/pkg/package.json".to_owned(),
+                    text: "{\"exports\":{\"./exact\":{\"require\":\"./esm.mjs\",\"import\":\"./cjs.cjs\"},\"./pattern/*\":\"./*.mjs\"}}\n".to_owned(),
+                },
+                InputFile {
+                    name: "/node_modules/pkg/esm.mts".to_owned(),
+                    text: "export const exact = 1;\n".to_owned(),
+                },
+                InputFile {
+                    name: "/node_modules/pkg/value.mts".to_owned(),
+                    text: "export const pattern = 1;\n".to_owned(),
+                },
+                InputFile {
+                    name: "/consumer.cts".to_owned(),
+                    text: "import { exact } from \"pkg/exact\";\n\
+                           import { pattern } from \"pkg/pattern/value\";\n\
+                           exact;\npattern;\n"
+                        .to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                module: Some(100),
+                module_resolution: Some(3),
+                target: Some(tsrs2_types::ScriptTarget::ES2022.bits()),
+                ..CompilerOptions::default()
+            },
+        );
+        let mismatch_codes = result
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .filter(|code| *code == 1479)
+            .collect::<Vec<_>>();
+        assert_eq!(mismatch_codes, [1479, 1479], "{:#?}", result.diagnostics);
+        assert!(
+            !result
+                .diagnostics
+                .iter()
+                .any(|diagnostic| matches!(diagnostic.code(), 2305 | 2551)),
+            "diagnostic-only package resolution must not publish target members: {:#?}",
             result.diagnostics
         );
     }

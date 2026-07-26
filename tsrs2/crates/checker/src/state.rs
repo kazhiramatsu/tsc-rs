@@ -733,6 +733,11 @@ pub struct CheckerState<'a> {
     /// any explicit value.
     pub(crate) host_package_json_module_types:
         std::collections::HashMap<String, PackageJsonModuleType>,
+    /// Normalized package.json path → parsed host JSON. The
+    /// resolver seam reads `exports`/`imports` targets and must retain
+    /// object insertion order because Node condition objects are
+    /// first-match, not unordered maps.
+    pub(crate) host_package_json_values: std::collections::HashMap<String, serde_json::Value>,
     /// Normalized package.json path → its non-empty `"name"` field.
     /// Bare self-name imports are undecidable only inside a matching
     /// package scope; an unrelated package.json must not hide 2307.
@@ -988,6 +993,7 @@ impl<'a> CheckerState<'a> {
             host_file_paths: std::collections::HashSet::new(),
             host_current_directory: "/".to_owned(),
             host_package_json_module_types: std::collections::HashMap::new(),
+            host_package_json_values: std::collections::HashMap::new(),
             host_package_json_names: std::collections::HashMap::new(),
             external_helpers_modules: std::collections::HashMap::new(),
             requested_external_emit_helpers: std::collections::HashMap::new(),
