@@ -169,6 +169,43 @@ one PR. Split a sub-slice further when the exact-row D2 survey finds
 more than one producer owner. The A5 `checker-grammar` family closes
 only at 8.1g; earlier sub-slices close their frozen target queues.
 
+### 5.1 Regex owner split: 8.1d.3p then 8.1d.3v
+
+The regex queue crosses a representation boundary and is therefore two
+separate producer-owned slices:
+
+1. **8.1d.3p — scanner/parser prerequisite.** Thread the effective
+   `ScriptTarget` through parser and scanner, generate the ES5 and ESNext
+   identifier tables, make every identifier decision target-aware, port
+   `reScanInvalidIdentifier`, store `SourceFile.language_version`, and
+   materialize `RegularExpressionLiteral.isUnterminated`. This closes M1
+   review debt item 1 but claims no regex diagnostic parity.
+2. **8.1d.3v — validator producer.** Port the complete
+   `reScanSlashToken(reportErrors=true)` validator closure and publish it
+   through `checkGrammarRegularExpressionLiteral`, including UTF-16
+   positions, Unicode-property data, target gates, and tsc's
+   primary/related/same-start suppression.
+
+The exact TypeScript owners are:
+
+- checker entry `checkRegularExpressionLiteral`,
+  `d2:d4bfabf885ae6a20b8a8ccc55181fa1872cce2cc2798117d75c15750f07aa520`,
+  `_tsc.js:73931-73938`;
+- scanner producer `reScanSlashToken`,
+  `d2:98b428bbf97e88486c3282ee5c4c025822cf7e23c433c628421df49f2355953b`,
+  `_tsc.js:9893-9996`, followed by its validator closure through line
+  10844;
+- target gate `checkRegularExpressionFlagAvailability`,
+  `d2:5247dc69f8f6c6f5b2df9dea65489091d4df24630eda94801ff11ac0375eeea8`,
+  `_tsc.js:10839-10844`.
+
+The post-8.1d.2b queue contains 21 fixtures / 40 matrix cases and 87 oracle
+diagnostics. Current exact matches are 31 and supported FN is 56:
+TS1125 x17, TS1198 x4, TS1199 x3, TS1499 x1, TS1501 x19, and TS1508 x12.
+All are semantic `checker-grammar` rows. These counts are the entry
+reconnaissance for 8.1d.3v; its branch must take a fresh immutable snapshot
+after 8.1d.3p merges.
+
 Accepted progress on 2026-07-26:
 
 - 8.1a landed 505 exact matches through the modifier/decorator owner
@@ -201,7 +238,14 @@ Accepted progress on 2026-07-26:
   T0/T1/T2/T3 again gained the same eight identities, with no
   target-external gain, loss, or false positive. The family moved to
   2,431/3,013 with supported FN 582, completing the frozen TS1309
-  queue across both exact emitters.
+  queue across both exact emitters;
+- 8.1d.3p closed M1 review debt item 1 before activating the regex
+  validator. ES5/ESNext identifier tables, effective-target threading,
+  the guarded ESNext invalid-identifier recovery retry,
+  `SourceFile.language_version`, and regex unterminated state are now
+  represented. This prerequisite is accepted-set neutral: all-corpus
+  T0/T1/T2/T3, the 21-fixture regex queue, supported views, and oracle
+  universes are unchanged, with zero false positives.
 
 ## 6. M7 virtual-band order
 

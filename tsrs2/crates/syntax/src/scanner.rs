@@ -1,5 +1,6 @@
 use crate::{chars, keywords, SyntaxKind};
 use tsrs2_diags::{gen, DiagnosticMessage};
+use tsrs2_types::ScriptTarget;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum LanguageVariant {
@@ -127,6 +128,7 @@ pub(crate) struct Scanner<'text> {
     token: SyntaxKind,
     token_value: String,
     token_flags: TokenFlags,
+    language_version: ScriptTarget,
     language_variant: LanguageVariant,
     errors: Vec<ScanError>,
     /// Deliberately NOT captured by save()/restore(): tsc's
@@ -161,6 +163,14 @@ impl Truthy for SyntaxKind {
 
 impl<'text> Scanner<'text> {
     pub(crate) fn new(text: &'text str, language_variant: LanguageVariant) -> Self {
+        Self::new_with_target(text, language_variant, ScriptTarget::ES2025)
+    }
+
+    pub(crate) fn new_with_target(
+        text: &'text str,
+        language_variant: LanguageVariant,
+        language_version: ScriptTarget,
+    ) -> Self {
         Self {
             text,
             end: text.len(),
@@ -170,6 +180,7 @@ impl<'text> Scanner<'text> {
             token: SyntaxKind::Unknown,
             token_value: String::new(),
             token_flags: TokenFlags::empty(),
+            language_version,
             language_variant,
             errors: Vec::new(),
             comment_directives: Vec::new(),
@@ -383,7 +394,7 @@ impl<'text> Scanner<'text> {
                     return self.token;
                 }
                 _ => {
-                    if chars::is_identifier_start(ch) {
+                    if chars::is_identifier_start(ch, self.language_version) {
                         return self.scan_identifier();
                     }
                     self.error_at(self.pos, ch.len_utf8(), &gen::Invalid_character);
@@ -603,20 +614,31 @@ impl<'text> Scanner<'text> {
     }
 
     fn scan_identifier(&mut self) -> SyntaxKind {
+        self.scan_identifier_with_target(self.language_version)
+            .expect("scan_identifier requires an identifier start")
+    }
+
+    fn scan_identifier_with_target(
+        &mut self,
+        language_version: ScriptTarget,
+    ) -> Option<SyntaxKind> {
         self.token_value.clear();
         let first = self
             .current_char()
             .expect("scan_identifier requires a current character");
+        if !chars::is_identifier_start(first, language_version) {
+            return None;
+        }
         self.token_value.push(first);
         self.advance_char();
-        self.scan_identifier_parts();
-        self.finish_identifier_token()
+        self.scan_identifier_parts_with_target(language_version);
+        Some(self.finish_identifier_token())
     }
 
     fn scan_identifier_escape_start(&mut self) -> Option<SyntaxKind> {
         let start = self.pos;
         let ch = self.scan_unicode_escape()?;
-        if !chars::is_identifier_start(ch) {
+        if !chars::is_identifier_start(ch, self.language_version) {
             self.pos = start;
             return None;
         }
@@ -627,14 +649,18 @@ impl<'text> Scanner<'text> {
     }
 
     fn scan_identifier_parts(&mut self) {
+        self.scan_identifier_parts_with_target(self.language_version);
+    }
+
+    fn scan_identifier_parts_with_target(&mut self, language_version: ScriptTarget) {
         while let Some(ch) = self.current_char() {
-            if chars::is_identifier_part(ch) {
+            if chars::is_identifier_part(ch, language_version) {
                 self.token_value.push(ch);
                 self.advance_char();
             } else if ch == '\\' {
                 let start = self.pos;
                 if let Some(ch) = self.scan_unicode_escape() {
-                    if chars::is_identifier_part(ch) {
+                    if chars::is_identifier_part(ch, language_version) {
                         self.token_value.push(ch);
                         continue;
                     }
@@ -669,7 +695,7 @@ impl<'text> Scanner<'text> {
         self.token_value.push('#');
 
         match self.current_char() {
-            Some(ch) if chars::is_identifier_start(ch) => {
+            Some(ch) if chars::is_identifier_start(ch, self.language_version) => {
                 self.token_value.push(ch);
                 self.advance_char();
                 self.scan_identifier_parts();
@@ -677,7 +703,7 @@ impl<'text> Scanner<'text> {
             Some('\\') => {
                 let escape_start = self.pos;
                 match self.scan_unicode_escape() {
-                    Some(ch) if chars::is_identifier_start(ch) => {
+                    Some(ch) if chars::is_identifier_start(ch, self.language_version) => {
                         self.token_value.push(ch);
                         self.scan_identifier_parts();
                     }
@@ -1075,6 +1101,38 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
+    /// tsc-port: reScanInvalidIdentifier @6.0.3
+    /// tsc-hash: 068189a72955edaa28413940b9f41389cad096155a51c9124869b141c45ab8bd
+    /// tsc-span: _tsc.js:9842-9853
+    ///
+    /// A target-rejected identifier is retried with ESNext solely for
+    /// recovery-tree fidelity. The original target-aware scan error is
+    /// retained by the parser.
+    fn re_scan_invalid_identifier(&mut self) -> SyntaxKind {
+        debug_assert_eq!(
+            self.token,
+            SyntaxKind::Unknown,
+            "re_scan_invalid_identifier requires an Unknown token"
+        );
+        self.pos = self.full_start_pos;
+        self.token_start = self.full_start_pos;
+        self.token_flags = TokenFlags::empty();
+        if self
+            .scan_identifier_with_target(ScriptTarget::ES_NEXT)
+            .is_some()
+        {
+            return self.token;
+        }
+        if self.current_char().is_some() {
+            self.advance_char();
+        }
+        self.token
+    }
+
+    pub(crate) fn try_re_scan_invalid_identifier(&mut self) -> bool {
+        self.try_scan(|scanner| scanner.re_scan_invalid_identifier()) == SyntaxKind::Identifier
+    }
+
     #[allow(dead_code)]
     pub(crate) fn re_scan_slash_token(&mut self, _report_errors: bool) -> SyntaxKind {
         if !matches!(
@@ -1123,7 +1181,7 @@ impl<'text> Scanner<'text> {
         } else {
             self.pos += 1;
             while let Some(ch) = self.current_char() {
-                if !chars::is_identifier_part(ch) {
+                if !chars::is_identifier_part(ch, self.language_version) {
                     break;
                 }
                 self.advance_char();
@@ -1735,7 +1793,7 @@ impl<'text> Scanner<'text> {
         let Some(ch) = self.current_char() else {
             return;
         };
-        if !chars::is_identifier_start(ch) {
+        if !chars::is_identifier_start(ch, self.language_version) {
             return;
         }
 
@@ -1769,12 +1827,12 @@ impl<'text> Scanner<'text> {
     fn scan_identifier_part_length_worker(&mut self) -> usize {
         let start = self.pos;
         while let Some(ch) = self.current_char() {
-            if chars::is_identifier_part(ch) {
+            if chars::is_identifier_part(ch, self.language_version) {
                 self.advance_char();
             } else if ch == '\\' {
                 let escape_start = self.pos;
                 if let Some(ch) = self.scan_unicode_escape() {
-                    if chars::is_identifier_part(ch) {
+                    if chars::is_identifier_part(ch, self.language_version) {
                         continue;
                     }
                 }
@@ -2245,6 +2303,43 @@ fn token_is_identifier_or_keyword(kind: SyntaxKind) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn identifier_tables_follow_script_target_for_bmp_and_supplementary_code_points() {
+        // U+08A1 is an ESNext identifier start/part but is absent from
+        // the ES5 tables. U+10400 proves the same selection above the
+        // BMP, where Rust still advances one scalar but diagnostics are
+        // later projected to two UTF-16 code units.
+        for text in ["\u{08a1}", "\u{10400}"] {
+            let mut es5 =
+                Scanner::new_with_target(text, LanguageVariant::Standard, ScriptTarget::ES5);
+            assert_eq!(es5.scan(), SyntaxKind::Unknown, "{text:?}");
+            assert_eq!(es5.errors().len(), 1, "{text:?}");
+
+            let mut es2015 =
+                Scanner::new_with_target(text, LanguageVariant::Standard, ScriptTarget::ES2015);
+            assert_eq!(es2015.scan(), SyntaxKind::Identifier, "{text:?}");
+            assert_eq!(es2015.pos(), text.len(), "{text:?}");
+            assert!(es2015.errors().is_empty(), "{text:?}");
+
+            let with_prefix = format!("a{text}");
+            let mut es5_part = Scanner::new_with_target(
+                &with_prefix,
+                LanguageVariant::Standard,
+                ScriptTarget::ES5,
+            );
+            assert_eq!(es5_part.scan(), SyntaxKind::Identifier, "{text:?}");
+            assert_eq!(es5_part.pos(), 1, "{text:?}");
+
+            let mut es2015_part = Scanner::new_with_target(
+                &with_prefix,
+                LanguageVariant::Standard,
+                ScriptTarget::ES2015,
+            );
+            assert_eq!(es2015_part.scan(), SyntaxKind::Identifier, "{text:?}");
+            assert_eq!(es2015_part.pos(), with_prefix.len(), "{text:?}");
+        }
+    }
 
     #[test]
     fn comment_only_input_has_no_tokens() {

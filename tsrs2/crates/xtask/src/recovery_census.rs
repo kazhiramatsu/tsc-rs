@@ -647,6 +647,7 @@ fn rust_dump(program: &tsrs2_harness::ProgramJson) -> Result<RecoveryDump, Box<d
             file.name.clone(),
             text,
             tsrs2_syntax::ParseOptions {
+                script_target: options.emit_script_target(),
                 language_variant: if file.name.ends_with(".tsx") || is_js {
                     tsrs2_syntax::LanguageVariant::Jsx
                 } else {

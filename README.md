@@ -60,7 +60,11 @@ object-literal grammar, followed by the signature parameter-list grammar
 owner, declaration-file top-level source grammar, and derived-constructor
 `this`/`super` ordering. The Node CommonJS top-level-`await` work is split
 by its two actual emitters; both `checkAwaitGrammar` and the separate
-`for await` grammar producer are complete. M7 reuses the approach
+`for await` grammar producer are complete. The regex work is likewise split
+at its real boundary: target-aware scanner/parser plumbing (including ES5
+identifier tables, recovery rescan, and unterminated-literal state) is
+complete as an accepted-set-neutral prerequisite; the full regex validator
+producer is next. M7 reuses the approach
 that made the 2XXX sweep effective: measure exact oracle rows first, group
 them into `(diagnostic code, pass)` owner families, trace each family
 through the emitting `tsc` function and its Rust implementation boundary,

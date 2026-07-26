@@ -29,6 +29,9 @@ pub struct Scanner<'t> {
     pub token: SyntaxKind,
     pub token_value: String,
     pub token_flags: TokenFlags,
+    /// effective parser target; `< ES2015` selects the vendored ES5
+    /// identifier tables, otherwise the vendored ESNext tables
+    pub language_version: ScriptTarget,
     /// JSX vs Standard — set per file extension
     pub language_variant: LanguageVariant,
     /// diagnostics sink: the PARSER owns dedup (impl-parser §1);
@@ -122,7 +125,7 @@ impl<'t> Scanner<'t> {
                 c::OPEN_BRACE => { self.pos += 1; self.token = SyntaxKind::OpenBraceToken; return self.token; }
                 // ... ~40 more punctuation arms: todo_port!("scan() punctuation, _tsc.js 9368 switch")
                 _ => {
-                    if is_identifier_start(ch) {
+                    if is_identifier_start(ch, self.language_version) {
                         return self.scan_identifier(ch);
                     }
                     todo_port!("unicode whitespace / invalid character error 1127 arm");
@@ -143,10 +146,12 @@ impl<'t> Scanner<'t> {
 
 `chars.rs`: the `c::` constants come from M0 codegen's
 `CharacterCodes`. `is_identifier_start`/`is_identifier_part` port
-tsc's ASCII fast path + Unicode table lookup
-(`isUnicodeIdentifierStart` — the tables are data; extract them with
-codegen too, do not re-derive from unicode crates: version drift is a
-divergence source).
+tsc's ASCII fast path + Unicode table lookup. Codegen extracts all four
+vendored tables (`unicodeES5IdentifierStart/Part` and
+`unicodeESNextIdentifierStart/Part`); the exact tsc switch is
+`language_version < ES2015 ? ES5 : ESNext`. Do not re-derive these tables
+from Unicode crates: version drift is a divergence source. The scanner's
+`re_scan_invalid_identifier` recovery is the sole explicit ESNext retry.
 
 ## [COPY] Escape scanning (stage 1.3)
 

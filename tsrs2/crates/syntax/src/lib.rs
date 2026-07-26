@@ -11,12 +11,13 @@ pub mod scanner;
 pub mod tokens;
 
 use tsrs2_diags::{DiagnosticList, LineMap};
+use tsrs2_types::ScriptTarget;
 
 pub use arena::NodeArena;
 pub use for_each_child::{for_each_child, NodeLookup};
 pub use kind::SyntaxKind;
 pub use nodes::{Node, NodeArray, NodeArrayId, NodeData, NodeId, NodePayload, SourceFileData};
-pub use parser::{is_identifier_text, ParseOptions, SyntaxCursor};
+pub use parser::{is_identifier_text, is_identifier_text_for_target, ParseOptions, SyntaxCursor};
 pub use scanner::{
     is_js_whitespace, is_line_break, is_whitespace_like, js_trim_start, scan_big_int_string,
     scan_tokens, skip_trivia, template_text_utf16, BigIntStringScan, CommentDirective,
@@ -27,6 +28,9 @@ pub use scanner::{
 pub struct SourceFile {
     pub file_name: String,
     pub text: String,
+    /// tsc SourceFile.languageVersion: the effective target used by the
+    /// parser and scanner for this file.
+    pub language_version: ScriptTarget,
     pub language_variant: LanguageVariant,
     pub is_declaration_file: bool,
     pub line_map: LineMap,

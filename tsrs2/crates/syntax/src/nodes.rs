@@ -1014,6 +1014,7 @@ pub struct QualifiedNameData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct RegularExpressionLiteralData {
     pub text: String,
+    pub is_unterminated: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -2328,6 +2329,7 @@ impl NodeData {
             SyntaxKind::RegularExpressionLiteral => {
                 Self::RegularExpressionLiteral(RegularExpressionLiteralData {
                     text: String::new(),
+                    is_unterminated: None,
                 })
             }
             SyntaxKind::RestType => Self::RestType(RestTypeData { r#type: None }),
