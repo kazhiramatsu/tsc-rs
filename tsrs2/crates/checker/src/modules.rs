@@ -641,10 +641,39 @@ impl<'a> CheckerState<'a> {
             Some(symbol) => Some(symbol),
             None => self.resolve_external_module_name(usage, usage, true)?,
         };
-        let Some(file_index) =
-            resolved_module.and_then(|symbol| self.source_file_index_of_symbol(symbol))
-        else {
-            return Ok(false);
+        let file_index =
+            resolved_module.and_then(|symbol| self.source_file_index_of_symbol(symbol));
+        let file_index = match file_index {
+            Some(file_index) => file_index,
+            None => {
+                // Ordinary node_modules resolution deliberately stays
+                // Suppressed, so package `exports` targets do not have
+                // a module symbol. checkImportDeclaration still needs
+                // the resolved file name for tsc's JSON-attribute
+                // predicate; project only that existing diagnostic
+                // target without publishing a general resolver hit.
+                let NodeData::StringLiteral(data) = self.data_of(usage) else {
+                    return Ok(false);
+                };
+                let module_reference = data.text.clone();
+                if Self::is_external_module_name_relative(&module_reference)
+                    || module_reference.starts_with('/')
+                    || !matches!(
+                        self.resolve_program_module(usage, &module_reference),
+                        ProgramModuleResolution::Suppressed
+                    )
+                {
+                    return Ok(false);
+                }
+                let importer =
+                    Self::normalize_program_path(&self.binder.source_of_node(usage).file_name, "");
+                let Some(resolved) =
+                    self.resolve_node_package_target(&importer, usage, &module_reference)
+                else {
+                    return Ok(false);
+                };
+                resolved.file_index
+            }
         };
         let file_name = &self.binder.source(file_index).file_name;
         Ok(file_name.ends_with(".json") || file_name.ends_with(".d.json.ts"))
@@ -7487,6 +7516,77 @@ let unrelated = \"\";\n",
                 "import(\"pkg\", {".len() as u32,
             )]
         );
+    }
+
+    /// Oracle pins (tsc 6.0.3, nodeModulesJson.ts, 2026-07-26).
+    #[test]
+    fn node18_json_attribute_predicate_projects_suppressed_package_targets() {
+        let source = "import root from \"pkg\";\n\
+                      import typed from \"pkg/typed\";\n\
+                      import attributed from \"pkg\" with { type: \"json\" };\n\
+                      import relative from \"./config.json\";\n\
+                      root; typed; attributed; relative;\n";
+        let files = [
+            (
+                "/node_modules/pkg/package.json",
+                "{ \"name\": \"pkg\", \"type\": \"module\", \"exports\": { \".\": \"./index.json\", \"./typed\": \"./typed.d.json.ts\" } }\n",
+            ),
+            ("/node_modules/pkg/index.json", "{}\n"),
+            (
+                "/node_modules/pkg/typed.d.json.ts",
+                "declare const value: {};\nexport default value;\n",
+            ),
+            ("/config.json", "{}\n"),
+            ("/main.mts", source),
+        ];
+        let node18 = CompilerOptions {
+            module: Some(101),
+            target: Some(9),
+            resolve_json_module: Some(true),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            program_rows(&files, &node18)
+                .into_iter()
+                .filter(|(_, code, _, _)| *code == 1543)
+                .collect::<Vec<_>>(),
+            [
+                (
+                    "/main.mts".to_owned(),
+                    1543,
+                    source.find("\"pkg\"").expect("root package specifier") as u32,
+                    "\"pkg\"".len() as u32,
+                ),
+                (
+                    "/main.mts".to_owned(),
+                    1543,
+                    source
+                        .find("\"pkg/typed\"")
+                        .expect("typed package specifier") as u32,
+                    "\"pkg/typed\"".len() as u32,
+                ),
+                (
+                    "/main.mts".to_owned(),
+                    1543,
+                    source
+                        .find("\"./config.json\"")
+                        .expect("relative JSON specifier") as u32,
+                    "\"./config.json\"".len() as u32,
+                ),
+            ]
+        );
+
+        assert!(program_rows(
+            &files,
+            &CompilerOptions {
+                module: Some(100),
+                target: Some(9),
+                resolve_json_module: Some(true),
+                ..CompilerOptions::default()
+            },
+        )
+        .into_iter()
+        .all(|(_, code, _, _)| code != 1543));
     }
 
     #[test]
