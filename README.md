@@ -32,8 +32,10 @@ The supported compatibility target covers:
 The following are deliberately out of scope:
 
 - JavaScript or declaration-file emission;
-- host-backed module resolution such as `node_modules`, `package.json`,
-  `paths`/`baseUrl`, project references, and triple-slash redirects;
+- general host-backed module resolution such as filesystem
+  `node_modules`, `paths`/`baseUrl`, project references, and triple-slash
+  redirects; the in-memory checker models only the package metadata needed
+  by supported diagnostic producers;
 - LSP, watch, and incremental operation;
 - a public `TypeChecker` API;
 - deep JSDoc-driven checking of JavaScript files;
@@ -69,9 +71,12 @@ target gates, and primary/related diagnostic grouping. The fresh residual
 survey selected the module-format sequence next. Its A10 prerequisite now
 keeps implied Node format tri-state, distinguishes explicit package
 `"commonjs"` from a missing package type, and preserves decisive extension
-evidence for emit. The next diagnostic-producing slice is B16, the
-`resolveExternalModule` Node16/Node18 synchronous-import owner, before the
-separate A11 export-assignment producer. M7 reuses the approach
+evidence for emit. B16 now completes the `resolveExternalModule`
+Node16/Node18 synchronous-import owner, including import-equals,
+type-only resolution-mode attributes, nested conversion details, and the
+diagnostic-only package `exports`/`imports`/self-name target projection.
+The next module-format slice is the separate A11 export-assignment
+producer. M7 reuses the approach
 that made the 2XXX sweep effective: measure exact oracle rows first, group
 them into `(diagnostic code, pass)` owner families, trace each family
 through the emitting `tsc` function and its Rust implementation boundary,
@@ -89,7 +94,7 @@ artifacts by every `cargo xtask ci` run:
 
 | View | Exact diagnostic match (T0) |
 | --- | --- |
-| All bands | **65.6964%** (32,207 / 49,024) |
+| All bands | **66.1309%** (32,420 / 49,024) |
 | 2xxx band | **97.4063%** (20,505 / 21,051) |
 | Syntactic | **99.8219%** (2,242 / 2,246) |
 

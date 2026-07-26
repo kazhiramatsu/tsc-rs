@@ -245,9 +245,20 @@ before B16 changes the same module-format surface.
 B16 then owns the full `resolveExternalModule` mode-mismatch queue:
 TS1471 x68, TS1479 x143, TS1541 x1, and TS1542 x1 (213 exact
 identities). The two type-only rows are part of the same conditional
-branch and may not be omitted from the frozen queue. A11 follows only
-after B16 and changes `checkExportAssignment` to use the decisive emit
-format for TS1203.
+branch and may not be omitted from the frozen queue. Its direct owner is
+`resolveExternalModule`
+(`d2:58affa056a8868001624fd3f98caed569d985fe09acd96da15ae894ab49e97a4`,
+`_tsc.js:49473-49663`); the exact direct prerequisites are
+`createModeMismatchDetails`
+(`d2:dcf9f742c5c48599c686a369e4ca8dbc5396c12acf295c32aa8bad4a125f0b3d`)
+and `hasResolutionModeOverride`
+(`d2:de5a2190d2bb781f0d83d5c5128bbf8b27d19fd63ef4e41b011062f5f1313d3d`).
+Package `exports`, `imports`, and self-name targets are resolved only as a
+format-evidence projection when the ordinary resolver verdict remains
+`Suppressed`; their symbols and members are not published into general
+checking. This boundary is required for producer ownership and preserves
+the all-corpus FP=0 invariant. A11 follows only after B16 and changes
+`checkExportAssignment` to use the decisive emit format for TS1203.
 
 Accepted progress on 2026-07-26:
 
@@ -306,7 +317,17 @@ Accepted progress on 2026-07-26:
   600/1,222 and the full corpus remained 32,207/49,024, with zero
   false positives, no T1/T2/T3 gain or loss, and unchanged oracle
   universes. This closes the accepted-set-neutral prerequisite for
-  B16 without claiming diagnostic parity.
+  B16 without claiming diagnostic parity;
+- 8.1e B16 closed the complete `resolveExternalModule` mode-mismatch
+  queue: TS1471 x68, TS1479 x143, TS1541 x1, and TS1542 x1. The
+  24-fixture target moved from 600/1,222 to 813/1,222 with FP=0 and
+  supported FN 550→337. Full-corpus T1/T2/T3 each gained exactly the
+  same 213 identities with no loss or false positive; all-corpus T0 is
+  32,420/49,024 and supported T0 is 32,419/48,477. The implementation
+  keeps package target lookup diagnostic-only, so no downstream
+  type/member diagnostic moved. The checker-grammar family is now
+  2,701/3,013 with supported FN 312 and canaries 2/4. A11 is now the
+  next owner.
 
 ## 6. M7 virtual-band order
 

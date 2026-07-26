@@ -9,11 +9,13 @@
 //! through the resolver. The program-layer resolver
 //! (`resolve_program_module`) is the host.getResolvedModule seam:
 //! tsrs-native over the in-memory file set per program-and-modules.md
-//! §2 (no node_modules; package.json `type` is interpreted for implied
-//! Node format, while exports/imports resolution remains suppressed).
+//! §2 (no general node_modules resolution; package.json `type` is
+//! interpreted for implied Node format, and exports/imports targets
+//! are projected only for mode-mismatch diagnostics while their
+//! ordinary resolver verdict remains suppressed).
 
 use tsrs2_binder::{node_util, SymbolId, SymbolTable};
-use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
+use tsrs2_diags::{gen as diagnostics, DiagnosticMessage, MessageChain};
 use tsrs2_syntax::{
     escape_leading_underscores, unescape_leading_underscores, NodeData, NodeId, SyntaxKind,
 };
@@ -2144,14 +2146,10 @@ impl<'a> CheckerState<'a> {
     /// and the alternateResult chain all reduce to nothing — the
     /// program resolver never produces those shapes
     /// (program-and-modules.md §2).
-    /// KNOWN-GAP since M4 (m4-review B16): the mode machinery
-    /// (impliedNodeFormat, the Node16..Node18 sync-import 1471/1479
-    /// rows, resolution-mode overrides) does NOT reduce — the old
-    /// "resolver never makes that shape" claim was false
-    /// (probe_module_candidates resolves .mts/.cts; tsc probed).
-    /// M7-owned, sequenced AFTER the impliedNodeFormat tri-state
-    /// (review A10: today's CommonJs fallback becomes
-    /// Option<mode>) — m7-tail-steps.md 8.1 module-band note.
+    /// The Node16/Node18 synchronous-import mismatch arm is live over
+    /// the in-program resolver: implied formats, import-equals and
+    /// dynamic-import ancestry, resolution-mode overrides, and the
+    /// nested 1480-1483 conversion details are preserved exactly.
     /// LIVE rows: @types/ redirect,
     /// ambient modules, in-program resolution + getResolutionDiagnostic
     /// jsx row, ts-extension rows (5097/2846 family), File_0_is_not_a_
@@ -2261,6 +2259,9 @@ impl<'a> CheckerState<'a> {
             }
             let root = source.root;
             if let Some(file_symbol) = self.binder.node_symbol(root) {
+                if let Some(error_node) = error_node {
+                    self.report_node_format_mismatch(location, error_node, root, module_reference);
+                }
                 return Ok(Some(self.get_merged_symbol(file_symbol)));
             }
             if let (Some(error_node), Some(_)) = (error_node, module_not_found_error) {
@@ -2333,6 +2334,16 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         if matches!(resolution, ProgramModuleResolution::Suppressed) {
+            if let Some(resolved_source_root) =
+                self.resolve_node_format_mismatch_source(location, module_reference)
+            {
+                self.report_node_format_mismatch(
+                    location,
+                    error_node,
+                    resolved_source_root,
+                    module_reference,
+                );
+            }
             // tsrs-native FP=0 rule: the miss sits behind unmodeled
             // resolution machinery (node_modules/baseUrl-paths/allowJs
             // targets) — tsc may resolve, so the 2307 tail stays
@@ -2368,6 +2379,156 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(None)
+    }
+
+    /// The live Node16/Node18 arm inside resolveExternalModule
+    /// (_tsc.js:49556-49575). It remains a helper here so the enclosing
+    /// port keeps its existing resolver control-flow readable; all
+    /// diagnostics are still direct products of resolveExternalModule.
+    fn report_node_format_mismatch(
+        &mut self,
+        location: NodeId,
+        error_node: NodeId,
+        resolved_source_root: NodeId,
+        module_reference: &str,
+    ) {
+        let module_kind = self.options.emit_module_kind();
+        if !matches!(module_kind, 100 | 101) {
+            return;
+        }
+        let is_import_equals =
+            self.has_ancestor_kind(location, SyntaxKind::ImportEqualsDeclaration);
+        let is_sync_import = (self.implied_node_format_for_file(location)
+            == Some(ModuleResolutionMode::CommonJs)
+            && !self.has_import_call_ancestor(location))
+            || is_import_equals;
+        if !is_sync_import
+            || self.implied_node_format_for_file(resolved_source_root)
+                != Some(ModuleResolutionMode::EsNext)
+        {
+            return;
+        }
+        let override_host = self.mode_mismatch_override_host(location);
+        if self.has_resolution_mode_override(override_host) {
+            return;
+        }
+
+        let diagnostics_before = self.diagnostics.len();
+        if is_import_equals {
+            self.error_at(
+                Some(error_node),
+                &diagnostics::Module_0_cannot_be_imported_using_this_construct_The_specifier_only_resolves_to_an_ES_module_which_cannot_be_imported_with_require_Use_an_ECMAScript_import_instead,
+                &[module_reference],
+            );
+        } else {
+            let message = match override_host.map(|node| self.data_of(node)) {
+                Some(NodeData::ImportDeclaration(data))
+                    if data.import_clause.is_some_and(|clause| {
+                        matches!(
+                            self.data_of(clause),
+                            NodeData::ImportClause(data) if data.is_type_only
+                        )
+                    }) =>
+                {
+                    &diagnostics::Type_only_import_of_an_ECMAScript_module_from_a_CommonJS_module_must_have_a_resolution_mode_attribute
+                }
+                Some(NodeData::ImportType(_)) => {
+                    &diagnostics::Type_import_of_an_ECMAScript_module_from_a_CommonJS_module_must_have_a_resolution_mode_attribute
+                }
+                _ => {
+                    &diagnostics::The_current_file_is_a_CommonJS_module_whose_imports_will_produce_require_calls_however_the_referenced_file_is_an_ECMAScript_module_and_cannot_be_imported_with_require_Consider_writing_a_dynamic_import_0_call_instead
+                }
+            };
+            let mut chain = MessageChain::new(message, &[module_reference.to_owned()]);
+            if let Some(details) = self.create_mode_mismatch_details(location) {
+                chain = chain.with_next(vec![details]);
+            }
+            let span = self.diag_span_of_node(error_node);
+            let diagnostic = self.diagnostic_at_span(&span, chain);
+            self.push_error_diagnostic(diagnostic);
+        }
+        if self.is_in_js_file(error_node) {
+            self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
+        }
+    }
+
+    fn mode_mismatch_override_host(&self, location: NodeId) -> Option<NodeId> {
+        let mut current = Some(location);
+        while let Some(node) = current {
+            if matches!(
+                self.kind_of(node),
+                SyntaxKind::ImportType
+                    | SyntaxKind::ExportDeclaration
+                    | SyntaxKind::ImportDeclaration
+                    | SyntaxKind::JSDocImportTag
+            ) {
+                return Some(node);
+            }
+            current = self.parent_of(node);
+        }
+        None
+    }
+
+    /// tsc-port: hasResolutionModeOverride @6.0.3
+    /// tsc-hash: 9b7e51ccefb095936443f0a9cbaba9c4ae649a5f1fcef7b87f2da19842f749b9
+    /// tsc-span: _tsc.js:19366-19371
+    fn has_resolution_mode_override(&self, node: Option<NodeId>) -> bool {
+        let attributes = node.and_then(|node| match self.data_of(node) {
+            NodeData::ImportType(data) => data.attributes,
+            NodeData::ExportDeclaration(data) => data.attributes,
+            NodeData::ImportDeclaration(data) => data.attributes,
+            NodeData::JSDocImportTag(data) => data.attributes,
+            _ => None,
+        });
+        attributes.is_some_and(|attributes| {
+            matches!(
+                self.parse_resolution_mode_override(attributes),
+                ResolutionModeOverrideParse::Valid(_)
+            )
+        })
+    }
+
+    /// tsc-port: createModeMismatchDetails @6.0.3
+    /// tsc-hash: fcc0b2a6e90d3a12c9a0eb0a1d0e78a765066f98c64ff50a024640eaabe1102e
+    /// tsc-span: _tsc.js:12801-12828
+    fn create_mode_mismatch_details(&self, location: NodeId) -> Option<MessageChain> {
+        let file_name = &self.binder.source_of_node(location).file_name;
+        let target_extension = if file_name.ends_with(".tsx") || file_name.ends_with(".jsx") {
+            None
+        } else if Self::try_extract_ts_extension(file_name) == Some(".ts")
+            && !Self::is_declaration_file_name(file_name)
+        {
+            Some(".mts")
+        } else if file_name.ends_with(".js")
+            && !file_name.ends_with(".mjs")
+            && !file_name.ends_with(".cjs")
+        {
+            Some(".mjs")
+        } else {
+            return None;
+        };
+        let package_scope = self.package_scope_module_type_and_path_for_file_name(file_name);
+        let untyped_scope = package_scope
+            .as_ref()
+            .filter(|(_, module_type)| *module_type == PackageJsonModuleType::Missing);
+        match (untyped_scope, target_extension) {
+            (Some((package_json, _)), Some(target_extension)) => Some(MessageChain::new(
+                &diagnostics::To_convert_this_file_to_an_ECMAScript_module_change_its_file_extension_to_0_or_add_the_field_type_module_to_1,
+                &[target_extension.to_owned(), package_json.clone()],
+            )),
+            (Some((package_json, _)), None) => Some(MessageChain::new(
+                &diagnostics::To_convert_this_file_to_an_ECMAScript_module_add_the_field_type_module_to_0,
+                std::slice::from_ref(package_json),
+            )),
+            (None, Some(target_extension)) => Some(MessageChain::new(
+                &diagnostics::To_convert_this_file_to_an_ECMAScript_module_change_its_file_extension_to_0_or_create_a_local_package_json_file_with_type_module,
+                &[target_extension.to_owned()],
+            )),
+            (None, None) => Some(MessageChain::new(
+                &diagnostics::To_convert_this_file_to_an_ECMAScript_module_create_a_local_package_json_file_with_type_module,
+                &[],
+            )),
+        }
     }
 
     /// tsrs-native: containment scope for a resolver-suppressed module
@@ -2917,6 +3078,198 @@ impl<'a> CheckerState<'a> {
             }
             ProgramModuleResolution::Missed
         }
+    }
+
+    fn resolve_node_format_mismatch_source(
+        &self,
+        location: NodeId,
+        module_reference: &str,
+    ) -> Option<NodeId> {
+        if !matches!(self.options.emit_module_kind(), 100 | 101) {
+            return None;
+        }
+        let importer =
+            Self::normalize_program_path(&self.binder.source_of_node(location).file_name, "");
+        let importer_dir = importer
+            .rsplit_once('/')
+            .map_or("", |(directory, _)| directory);
+        let resolved = if Self::is_external_module_name_relative(module_reference)
+            || module_reference.starts_with('/')
+        {
+            let candidate = Self::normalize_program_path(module_reference, importer_dir);
+            self.probe_module_candidates(&candidate, /*is_classic*/ false)
+        } else {
+            self.resolve_node_package_target(&importer, location, module_reference)
+        }?;
+        Some(self.binder.source(resolved.file_index).root)
+    }
+
+    /// tsrs-native: the in-memory host half of Node package
+    /// `exports`, `imports`, and self-name resolution. The checker
+    /// consumes only targets that resolve to an actual program source;
+    /// every unsupported or absent face remains in the resolver's
+    /// Suppressed channel.
+    fn resolve_node_package_target(
+        &self,
+        importer: &str,
+        location: NodeId,
+        module_reference: &str,
+    ) -> Option<ResolvedProgramModule> {
+        let resolution_mode = self.resolution_mode_for_usage(location);
+        if module_reference.starts_with('#') {
+            let package_json = self.nearest_package_json_for_file(importer)?;
+            let package_root = package_json.strip_suffix("/package.json").unwrap_or("");
+            let value = self.host_package_json_values.get(&package_json)?;
+            let imports = value.get("imports")?;
+            let target = Self::package_map_target(
+                imports,
+                module_reference,
+                resolution_mode,
+                /*exports*/ false,
+            )?;
+            return self.resolve_package_target_path(package_root, &target);
+        }
+
+        let (package, subpath) = Self::bare_package_parts(module_reference);
+        let scoped_package_json = self.nearest_package_json_for_file(importer);
+        let self_package_json = scoped_package_json.as_ref().filter(|path| {
+            self.host_package_json_names
+                .get(*path)
+                .is_some_and(|name| name == &package)
+        });
+        let package_root = if let Some(package_json) = self_package_json {
+            package_json
+                .strip_suffix("/package.json")
+                .unwrap_or("")
+                .to_owned()
+        } else {
+            self.nearest_visible_package_root(importer, &package)?
+        };
+        let package_json = format!("{package_root}/package.json");
+        let value = self.host_package_json_values.get(&package_json)?;
+        let exports = value.get("exports")?;
+        let export_key = if subpath.is_empty() {
+            ".".to_owned()
+        } else {
+            format!("./{subpath}")
+        };
+        let target =
+            Self::package_map_target(exports, &export_key, resolution_mode, /*exports*/ true)?;
+        self.resolve_package_target_path(&package_root, &target)
+    }
+
+    fn nearest_package_json_for_file(&self, file_name: &str) -> Option<String> {
+        let file_name = Self::normalize_program_path(file_name, "");
+        let mut directory = file_name
+            .rsplit_once('/')
+            .map(|(directory, _)| directory)
+            .unwrap_or("");
+        loop {
+            let package_json = if directory.is_empty() {
+                "/package.json".to_owned()
+            } else {
+                format!("{directory}/package.json")
+            };
+            if self.host_package_json_values.contains_key(&package_json) {
+                return Some(package_json);
+            }
+            let Some((parent, _)) = directory.rsplit_once('/') else {
+                break;
+            };
+            directory = parent;
+        }
+        None
+    }
+
+    fn package_map_target(
+        map: &serde_json::Value,
+        key: &str,
+        resolution_mode: ModuleResolutionMode,
+        exports: bool,
+    ) -> Option<String> {
+        if exports
+            && key == "."
+            && !map.as_object().is_some_and(|object| {
+                object
+                    .keys()
+                    .any(|candidate| candidate == "." || candidate.starts_with("./"))
+            })
+        {
+            return Self::conditional_package_target(map, resolution_mode, None);
+        }
+        let object = map.as_object()?;
+        if let Some(value) = object.get(key) {
+            return Self::conditional_package_target(value, resolution_mode, None);
+        }
+        let mut patterns = object
+            .iter()
+            .filter_map(|(pattern, value)| {
+                let star = pattern.find('*')?;
+                let (prefix, suffix_with_star) = pattern.split_at(star);
+                let suffix = &suffix_with_star[1..];
+                let capture = key
+                    .strip_prefix(prefix)
+                    .and_then(|rest| rest.strip_suffix(suffix))?;
+                Some((prefix.len(), suffix.len(), value, capture))
+            })
+            .collect::<Vec<_>>();
+        patterns.sort_by(|left, right| right.0.cmp(&left.0).then_with(|| right.1.cmp(&left.1)));
+        patterns
+            .into_iter()
+            .next()
+            .and_then(|(_, _, value, capture)| {
+                Self::conditional_package_target(value, resolution_mode, Some(capture))
+            })
+    }
+
+    fn conditional_package_target(
+        value: &serde_json::Value,
+        resolution_mode: ModuleResolutionMode,
+        capture: Option<&str>,
+    ) -> Option<String> {
+        match value {
+            serde_json::Value::String(target) => Some(match capture {
+                Some(capture) => target.replace('*', capture),
+                None => target.clone(),
+            }),
+            serde_json::Value::Array(targets) => targets.iter().find_map(|target| {
+                Self::conditional_package_target(target, resolution_mode, capture)
+            }),
+            serde_json::Value::Object(conditions) => {
+                conditions.iter().find_map(|(condition, target)| {
+                    let matches = condition == "types"
+                        || condition == "node"
+                        || condition == "default"
+                        || (condition == "import"
+                            && resolution_mode == ModuleResolutionMode::EsNext)
+                        || (condition == "require"
+                            && resolution_mode == ModuleResolutionMode::CommonJs);
+                    matches.then(|| {
+                        Self::conditional_package_target(target, resolution_mode, capture)
+                    })?
+                })
+            }
+            _ => None,
+        }
+    }
+
+    fn resolve_package_target_path(
+        &self,
+        package_root: &str,
+        target: &str,
+    ) -> Option<ResolvedProgramModule> {
+        if !target.starts_with("./") {
+            return None;
+        }
+        let candidate = Self::normalize_program_path(target, package_root);
+        self.probe_module_candidates(&candidate, /*is_classic*/ false)
+            .map(|mut resolved| {
+                // resolvedUsingTsExtension describes the written module
+                // specifier, not an extension selected behind a package
+                // exports/imports target.
+                resolved.resolved_using_ts_extension = false;
+                resolved
+            })
     }
 
     /// tsc-port: checkExternalEmitHelpers @6.0.3
@@ -3545,6 +3898,14 @@ impl<'a> CheckerState<'a> {
         &self,
         file_name: &str,
     ) -> Option<PackageJsonModuleType> {
+        self.package_scope_module_type_and_path_for_file_name(file_name)
+            .map(|(_, module_type)| module_type)
+    }
+
+    fn package_scope_module_type_and_path_for_file_name(
+        &self,
+        file_name: &str,
+    ) -> Option<(String, PackageJsonModuleType)> {
         let file_name = Self::normalize_program_path(file_name, "");
         let mut directory = file_name
             .rsplit_once('/')
@@ -3557,7 +3918,7 @@ impl<'a> CheckerState<'a> {
                 format!("{directory}/package.json")
             };
             if let Some(&module_type) = self.host_package_json_module_types.get(&package_json) {
-                return Some(module_type);
+                return Some((package_json, module_type));
             }
             let Some((parent, _)) = directory.rsplit_once('/') else {
                 break;
