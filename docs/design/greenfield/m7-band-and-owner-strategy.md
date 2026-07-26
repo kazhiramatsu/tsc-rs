@@ -411,7 +411,19 @@ Accepted progress on 2026-07-26:
   target-external movement, or FP. All-corpus T0 is 32,622/49,024,
   supported T0 is 32,621/48,477, and checker-grammar is 2,903/3,013
   with supported FN 110 and canaries 4/4. This completes all 57 planned
-  8.1f identities; 8.1g begins with a fresh residual owner survey.
+  8.1f identities; 8.1g begins with a fresh residual owner survey;
+- 8.1g.1 closed all eight TS1216 identities owned by
+  `checkESModuleMarker` across the TypeScript and checked-JavaScript
+  generated-name-collision fixtures. The emitter was already ported,
+  but its caller still reduced `getEmitModuleFormatOfFile` to the
+  global module kind and therefore skipped Node CommonJS package
+  files. Routing that gate through the existing per-file emit-format
+  seam preserves the ESM sibling as a negative control. The target
+  moved from 24/32 to 32/32; full-corpus T1/T2/T3 each gained exactly
+  eight identities with no loss, target-external movement, or FP.
+  All-corpus T0 is 32,630/49,024, supported T0 is 32,629/48,477, and
+  checker-grammar is 2,911/3,013 with supported FN 102 and canaries
+  4/4.
 
 ## 6. M7 virtual-band order
 

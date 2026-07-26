@@ -1047,10 +1047,10 @@ impl<'a> CheckerState<'a> {
                 return Ok(self.grammar_error_on_node(exclamation_token, message, &[]));
             }
         }
-        // host.getEmitModuleFormatOfFile < System: impliedNodeFormat
-        // is unported, so the per-file format reduces to the computed
-        // module kind.
-        if self.options.emit_module_kind() < 4 {
+        // host.getEmitModuleFormatOfFile < System: Node-flavored
+        // module kinds use the per-file implied emit format, so a
+        // CommonJS package file still reaches this marker check.
+        if self.emit_module_format_of_file(node) < 4 {
             let parent_parent_ambient = self
                 .parent_of(node)
                 .and_then(|parent| self.parent_of(parent))
@@ -1068,7 +1068,10 @@ impl<'a> CheckerState<'a> {
                     )
                 });
             if !parent_parent_ambient && parent_parent_exported {
-                self.check_es_module_marker(name);
+                let diagnostics_before = self.diagnostics.len();
+                if self.check_es_module_marker(name) && self.is_in_js_file(node) {
+                    self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1216);
+                }
             }
         }
         if block_scope_kind != 0 {
@@ -3778,13 +3781,13 @@ x.accessor = 1;\n"
 
     #[test]
     fn node_commonjs_format_reports_generated_name_collisions() {
+        let text = "function require() {}\nconst exports = {};\nclass Object {}\nexport const __esModule = false;\nexport {require, exports, Object};\n";
         for (extension, allow_js, check_js) in [("ts", false, None), ("js", true, Some(true))] {
             let result = check_program(
                 &[
                     InputFile {
                         name: format!("subfolder/index.{extension}"),
-                        text: "function require() {}\nconst exports = {};\nclass Object {}\nexport const __esModule = false;\nexport {require, exports, Object};\n"
-                            .to_owned(),
+                        text: text.to_owned(),
                     },
                     InputFile {
                         name: "subfolder/package.json".to_owned(),
@@ -3809,8 +3812,29 @@ x.accessor = 1;\n"
                         diag.length.unwrap_or(u32::MAX),
                     ))
                     .collect::<Vec<_>>(),
-                [(2441, 9, 7), (2441, 28, 7), (2725, 48, 6)]
+                [(2441, 9, 7), (2441, 28, 7), (2725, 48, 6), (1216, 71, 10),]
             );
+
+            let esm_result = check_program(
+                &[
+                    InputFile {
+                        name: format!("index.{extension}"),
+                        text: text.to_owned(),
+                    },
+                    InputFile {
+                        name: "package.json".to_owned(),
+                        text: "{\"type\":\"module\"}".to_owned(),
+                    },
+                ],
+                &CompilerOptions {
+                    module: Some(100),
+                    target: Some(9),
+                    allow_js,
+                    check_js,
+                    ..CompilerOptions::default()
+                },
+            );
+            assert_eq!(esm_result.diagnostics, []);
         }
     }
 
