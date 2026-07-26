@@ -6057,8 +6057,8 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: getResolutionModeOverride @6.0.3
-    /// tsc-hash: cb7d87d78b2941af6b52f61b119f071d490a99d91dba856caa43f0e60ca37f34
-    /// tsc-span: _tsc.js:122309-122334
+    /// tsc-hash: f0ea3a3d8ef697c105c16f448009971c3a984cfd14a871dbee5d15e5d18c597d
+    /// tsc-span: _tsc.js:122309-122333
     ///
     /// Returns whether a valid resolution-mode override is present;
     /// the same parser feeds host resolution so grammar checking and
