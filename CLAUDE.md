@@ -39,9 +39,10 @@ there.
 6. Trivial process/docs-only changes may land directly on `main`
    and be pushed.
 7. Pushing to `origin` is allowed and expected: push the slice branch
-   with `-u` while working. PR Actions runs the same full gate with the
-   immutable PR-base SHA; local `cargo xtask ci` remains required before
-   opening and before merging.
+   with `-u` while working. PR Actions runs the same full gate as
+   parallel `rust` and `semantic` lanes, with the latter receiving the
+   immutable PR-base SHA; the final `gates` job requires both. Local
+   `cargo xtask ci` remains required before opening and before merging.
 
 ## Verification quick reference
 
@@ -55,6 +56,10 @@ there.
   `ledger check`, `invariants`).
 - Full gate suite: `cargo xtask ci [--baseline <trusted-ref-or-sha>]`
   (from `tsrs2/`; PR Actions supplies the immutable base SHA)
+- Hosted-lane diagnostic: `cargo xtask ci --lane <rust|semantic>
+  [--baseline <trusted-ref-or-sha>]`. This is for reproducing one
+  Actions lane; slice acceptance still requires the unsplit local
+  command above.
 - Conformance single band: `cargo xtask conformance [--band 2xxx]`
   (every gating run also enforces the A1 accepted-set ratchet;
   partial `--files`/`--limit` runs gate the executed-fixture

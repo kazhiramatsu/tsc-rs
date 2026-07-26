@@ -5114,18 +5114,63 @@ fn decode_base64_value(byte: u8) -> Result<u8, Box<dyn Error>> {
     }
 }
 
-fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CiLane {
+    All,
+    Rust,
+    Semantic,
+}
+
+impl CiLane {
+    fn parse(value: &str) -> Result<Self, Box<dyn Error>> {
+        match value {
+            "all" => Ok(Self::All),
+            "rust" => Ok(Self::Rust),
+            "semantic" => Ok(Self::Semantic),
+            _ => Err(format!("unknown ci lane: {value}").into()),
+        }
+    }
+
+    fn includes(self, lane: Self) -> bool {
+        self == Self::All || self == lane
+    }
+}
+
+struct CiArgs {
+    baseline: String,
+    lane: CiLane,
+}
+
+fn parse_ci_args(args: impl Iterator<Item = String>) -> Result<CiArgs, Box<dyn Error>> {
     let mut baseline = "origin/main".to_owned();
+    let mut lane = CiLane::All;
     let mut args = args.peekable();
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--baseline" => {
                 baseline = args.next().ok_or("missing value after --baseline")?;
             }
+            "--lane" => {
+                lane = CiLane::parse(&args.next().ok_or("missing value after --lane")?)?;
+            }
             _ => return Err(format!("unexpected ci argument: {arg}").into()),
         }
     }
+    Ok(CiArgs { baseline, lane })
+}
 
+fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let args = parse_ci_args(args)?;
+    if args.lane.includes(CiLane::Rust) {
+        ci_rust_gates()?;
+    }
+    if args.lane.includes(CiLane::Semantic) {
+        ci_semantic_gates(&args.baseline)?;
+    }
+    Ok(())
+}
+
+fn ci_rust_gates() -> Result<(), Box<dyn Error>> {
     run_command(
         Command::new("cargo")
             .arg("fmt")
@@ -5144,6 +5189,10 @@ fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     )?;
     run_command(Command::new("cargo").arg("build").arg("--workspace"))?;
     run_command(Command::new("cargo").arg("test").arg("--workspace"))?;
+    Ok(())
+}
+
+fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
     let workspace = find_tsrs2_root()?;
     // The remaining gates are Rust functions in this binary. Keep
     // them in-process: spawning `cargo xtask` for every phase only
@@ -5170,16 +5219,16 @@ fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     // origin/main convenience ref. The direct compare prevents a
     // rewritten branch from replacing the accepted set with a smaller
     // self-consistent chain.
-    tsrs2_conformance::ratchet::check(&workspace, Some(&baseline))?;
+    tsrs2_conformance::ratchet::check(&workspace, Some(baseline))?;
     // A2 exact scope coherence: manifest identities, encoder
     // cross-check, snapshot anchors, and tombstone proofs verify
     // against the same trusted base before the supported view that
     // depends on them gates anything.
-    tsrs2_conformance::scope_audit(&workspace, Some(&baseline))?;
+    tsrs2_conformance::scope_audit(&workspace, Some(baseline))?;
     // A5 family-map coherence: the exactly-once (code, pass) domain,
     // freeze/extension anchors, and the trusted-base compare — before
     // the rollup below reads the map as a verified input.
-    tsrs2_conformance::families_check(&workspace, Some(&baseline))?;
+    tsrs2_conformance::families_check(&workspace, Some(baseline))?;
     // One checker execution per expanded case feeds all three fixed
     // views. Grading remains sequential, preserving the independent
     // ratchet/FP/scope gates without increasing CPU concurrency.
@@ -5221,6 +5270,36 @@ fn run_command(command: &mut Command) -> Result<(), Box<dyn Error>> {
         return Err(format!("command failed with status {status:?}").into());
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod ci_lane_tests {
+    use super::*;
+
+    #[test]
+    fn defaults_to_the_full_local_gate() {
+        let args = parse_ci_args(std::iter::empty()).unwrap();
+        assert_eq!(args.baseline, "origin/main");
+        assert_eq!(args.lane, CiLane::All);
+    }
+
+    #[test]
+    fn parses_hosted_semantic_lane_and_baseline_in_either_order() {
+        for arguments in [
+            ["--lane", "semantic", "--baseline", "base-sha"],
+            ["--baseline", "base-sha", "--lane", "semantic"],
+        ] {
+            let args = parse_ci_args(arguments.into_iter().map(str::to_owned)).unwrap();
+            assert_eq!(args.baseline, "base-sha");
+            assert_eq!(args.lane, CiLane::Semantic);
+        }
+    }
+
+    #[test]
+    fn rejects_unknown_or_incomplete_lane_arguments() {
+        assert!(parse_ci_args(["--lane", "fast"].into_iter().map(str::to_owned)).is_err());
+        assert!(parse_ci_args(["--lane"].into_iter().map(str::to_owned)).is_err());
+    }
 }
 
 const README_STATUS_BEGIN: &str =
