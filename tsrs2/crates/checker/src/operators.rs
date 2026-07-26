@@ -3238,11 +3238,16 @@ impl<'a> CheckerState<'a> {
             if self.implied_node_format_for_file(node)
                 == Some(crate::modules::ModuleResolutionMode::CommonJs)
             {
+                let publish_checked_js = self.is_in_js_file(node);
+                let diagnostics_before = self.diagnostics.len();
                 self.error_at(
                     Some(node),
                     &tsrs2_diags::gen::The_import_meta_meta_property_is_not_allowed_in_files_which_will_build_into_CommonJS_output,
                     &[],
                 );
+                if publish_checked_js {
+                    self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1470);
+                }
             }
         } else if module_kind < 6 && module_kind != 4 {
             self.error_at(
@@ -5344,6 +5349,62 @@ mod tests {
                 ))
                 .collect::<Vec<_>>(),
             [(2451, 6, 7), (2451, 23, 7), (2365, 33, 9)]
+        );
+    }
+
+    /// Oracle pin (tsc 6.0.3, nodeModulesAllowJsImportMeta.ts,
+    /// 2026-07-26): the CommonJS package file reports TS1470 while
+    /// its ES-module package sibling remains clean.
+    #[test]
+    fn checked_js_import_meta_commonjs_row_is_published() {
+        let source = "const x = import.meta.url;\nexport {x};\n";
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "/package.json".to_owned(),
+                    text: "{\"type\":\"module\"}\n".to_owned(),
+                },
+                InputFile {
+                    name: "/index.js".to_owned(),
+                    text: source.to_owned(),
+                },
+                InputFile {
+                    name: "/subfolder/package.json".to_owned(),
+                    text: "{\"type\":\"commonjs\"}\n".to_owned(),
+                },
+                InputFile {
+                    name: "/subfolder/index.js".to_owned(),
+                    text: source.to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                module: Some(100),
+                target: Some(9),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 1470)
+                .map(|diagnostic| (
+                    diagnostic.file_name.as_deref(),
+                    diagnostic.code(),
+                    diagnostic.start,
+                    diagnostic.length,
+                    diagnostic.message_text(),
+                ))
+                .collect::<Vec<_>>(),
+            [(
+                Some("/subfolder/index.js"),
+                1470,
+                Some(source.find("import.meta").expect("import.meta") as u32),
+                Some("import.meta".len() as u32),
+                "The 'import.meta' meta-property is not allowed in files which will build into CommonJS output.",
+            )]
         );
     }
 

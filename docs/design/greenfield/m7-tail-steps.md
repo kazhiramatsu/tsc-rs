@@ -136,7 +136,13 @@ file name through the existing diagnostic-only package path, leaving
 ordinary package resolution suppressed. The target moved from 27/81 to
 33/81; every live tier gained six identities with no loss,
 target-external movement, or FP. The family is now 2,917/3,013 with
-supported FN 96 and canaries 4/4.
+supported FN 96 and canaries 4/4. The following
+`checkImportMetaProperty` slice then published the four already-exact
+CommonJS-format TS1470 rows in checked JavaScript across the complete
+Node16-through-NodeNext matrix. The target moved from 0/4 to 4/4; every
+live tier gained four identities with no loss, target-external
+movement, or FP. The family is now 2,921/3,013 with supported FN 92 and
+canaries 4/4.
 
 The binding 8.1a-g producer clusters, current reconnaissance anchors,
 and per-slice exits are in
