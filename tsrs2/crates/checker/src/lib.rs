@@ -4641,6 +4641,49 @@ mod tests {
     }
 
     #[test]
+    fn checked_js_publishes_this_prototype_class_property_reads() {
+        let source = "/** @template T */\n\
+                      class Outer {\n\
+                        method() {\n\
+                          class Inner {\n\
+                            static check() {\n\
+                              this.prototype.missing;\n\
+                            }\n\
+                          }\n\
+                        }\n\
+                      }\n";
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                    diagnostic.message_text(),
+                ))
+                .collect::<Vec<_>>(),
+            [(
+                2339,
+                source.find("missing").expect("class prototype miss") as u32,
+                "missing".len() as u32,
+                "Property 'missing' does not exist on type 'Inner'.",
+            )]
+        );
+    }
+
+    #[test]
     fn checked_js_publishes_primitive_module_exports_assignment_misses() {
         let primitive = "module.exports = 1;\nmodule.exports.missing = 1;\n";
         let result = check_program(
