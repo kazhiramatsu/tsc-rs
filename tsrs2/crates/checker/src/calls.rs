@@ -5974,12 +5974,16 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 0e938b6a66eadcf72e4bb7f476d2e86b30ea2619d168352eff47d39deed635d5
     /// tsc-span: _tsc.js:90428-90458
     ///
-    /// The verbatimModuleSyntax row is dead (option unmodeled, and it
-    /// also needs CommonJS moduleKind). Every other row gates on the
-    /// MODELED module kind (CompilerOptions::emit_module_kind — the
-    /// `module` directive maps through the conformance runner).
+    /// The verbatimModuleSyntax/CommonJS row is live and returns before
+    /// every ordinary dynamic-import grammar check. Every row gates on
+    /// the modeled module kind (CompilerOptions::emit_module_kind —
+    /// the `module` directive maps through the conformance runner).
     fn check_grammar_import_call_expression(&mut self, node: NodeId) -> bool {
         let module_kind = self.options.emit_module_kind();
+        if self.options.verbatim_module_syntax == Some(true) && module_kind == 1 {
+            let message = self.get_verbatim_module_syntax_error_message(node);
+            return self.grammar_error_on_node(node, message, &[]);
+        }
         let NodeData::CallExpression(data) = self.data_of(node) else {
             unreachable!("import calls are call expressions");
         };
@@ -7510,6 +7514,34 @@ mod tests {
         assert_eq!(
             checked_rows_with("import(\"./m\");\n", &options),
             [(1323, 0, 13), (2307, 7, 5), (2711, 0, 13)]
+        );
+    }
+
+    #[test]
+    fn verbatim_commonjs_import_call_reports_the_whole_call() {
+        let text = "import(\"./m\");\n";
+        let commonjs = CompilerOptions {
+            module: Some(1),
+            target: Some(99),
+            module_resolution: Some(100),
+            verbatim_module_syntax: Some(true),
+            ..CompilerOptions::default()
+        };
+        let commonjs_rows = checked_rows_with(text, &commonjs)
+            .into_iter()
+            .filter(|row| row.0 == 1295)
+            .collect::<Vec<_>>();
+        assert_eq!(commonjs_rows, [(1295, 0, 13)]);
+
+        let esm = CompilerOptions {
+            module: Some(99),
+            ..commonjs
+        };
+        assert!(
+            checked_rows_with(text, &esm)
+                .into_iter()
+                .all(|row| row.0 != 1295),
+            "ES module kind is the adjacent negative control"
         );
     }
 

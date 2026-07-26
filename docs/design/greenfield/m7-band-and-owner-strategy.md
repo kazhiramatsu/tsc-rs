@@ -494,7 +494,18 @@ Accepted progress on 2026-07-26:
   from 6/15 to 9/15; full-corpus T1/T2/T3 each gained exactly three
   identities with no loss, target-external movement, or FP.
   All-corpus T0 is 32,656/49,024, supported T0 is 32,655/48,477, and
-  checker-grammar is 2,937/3,013 with supported FN 76 and canaries 4/4.
+  checker-grammar is 2,937/3,013 with supported FN 76 and canaries 4/4;
+- 8.1g.8 closed the final dynamic-import TS1295 identity at its direct
+  `checkGrammarImportCallExpression` owner. The producer now preserves
+  tsc's highest-priority `verbatimModuleSyntax` + CommonJS branch,
+  reports the whole call through the shared extension-sensitive
+  message helper, and leaves ES module kinds as the adjacent negative
+  control. The one-fixture target moved from 9/15 to 10/15;
+  full-corpus T1/T2/T3 each gained exactly one identity with no loss,
+  target-external movement, or FP. All-corpus T0 is 32,657/49,024,
+  supported T0 is 32,656/48,477, and checker-grammar is 2,938/3,013
+  with supported FN 75 and canaries 4/4. TS1295 now has no
+  checker-grammar residue.
 
 ## 6. M7 virtual-band order
 
