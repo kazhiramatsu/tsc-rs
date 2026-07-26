@@ -11,9 +11,8 @@
 //!
 //! Grammar checks: checkGrammarStatementInAmbientContext is LIVE from
 //! 5.5a (checkExpressionStatement's head; the EmptyStatement/Debugger
-//! and checkBlock routes share it); checkGrammarSourceFile and
-//! checkGrammarModifiers remain M7-stub hooks (slots exist, emit
-//! nothing).
+//! and checkBlock routes share it); checkGrammarModifiers is LIVE from
+//! M7 8.1a; checkGrammarSourceFile remains an M7-stub hook.
 //!
 //! The unreachable-code slice (checkSourceElementUnreachable 86763 +
 //! the withinUnreachableCode save/restore) is elided whole: its
@@ -288,157 +287,27 @@ impl<'a> CheckerState<'a> {
     /// top-level declare-modifier grammar).
     fn check_grammar_source_file(&mut self, _root: NodeId) {}
 
-    /// checkGrammarModifiers (89010) — M7-stub grammar hook; the
-    /// false return feeds callers' && chains (checkVariableStatement's
-    /// grammar ladder sits in tsc's slots). Callers whose FOLLOWERS
-    /// tsc suppresses behind a true verdict consult
-    /// check_grammar_modifiers_would_report instead.
-    pub(crate) fn check_grammar_modifiers(&mut self, _node: NodeId) -> bool {
-        false
-    }
-
-    /// tsrs-native: checkGrammarModifiers (89010-89325) — the
-    /// WOULD-REPORT boolean skeleton: tsc's exact verdict with every
-    /// diagnostic elided.
-    /// The reported modifier rows themselves stay M7 FNs; this twin
-    /// only keeps follower grammar checks in tsc's `||` slots
-    /// (heritage-clause walk, type-parameter/parameter lists). Elided
-    /// faces, each impossible or options-dead in the conformance
-    /// domain: the JSDoc in/out host hop (TS band), and export's
-    /// verbatimModuleSyntax-CJS arm (needs the emit-format surface;
-    /// a miss there under-suppresses only when the same node ALSO
-    /// carries a follower grammar error).
-    pub(crate) fn check_grammar_modifiers_would_report(&mut self, node: NodeId) -> bool {
+    /// tsc-port: checkGrammarModifiers @6.0.3
+    /// tsc-hash: 4ae83b985bfc4d9c367541290d29b207ce34af46a4b465b0e36cae2056847f03
+    /// tsc-span: _tsc.js:89010-89325
+    /// d2: d2:984775a91d6ec0d2e27b820a9d34a31328ef5845e0fd5dd8a5e751f3040d2ca8
+    ///
+    /// The JSDocTemplateTag effective-host hops in the const/in/out
+    /// arms remain behind the 8.1e JSDoc parser/host prerequisite:
+    /// comments do not yet materialize template-tag nodes. The
+    /// TypeScript-syntax producer queue takes the exact path here.
+    pub(crate) fn check_grammar_modifiers(&mut self, node: NodeId) -> bool {
         let source = self.binder.source_of_node(node);
         let node_kind = self.kind_of(node);
         let parent = self.parent_of(node);
         let parent_kind = parent.map(|parent| self.kind_of(parent));
-        let modifiers: Vec<NodeId> = self.nodes_of(node_util::modifiers_of(source, node));
-        // reportObviousDecoratorErrors (89384): kinds that can never
-        // be decorated report on the first decorator.
-        let can_have_illegal_decorators = matches!(
-            node_kind,
-            SyntaxKind::PropertyAssignment
-                | SyntaxKind::ShorthandPropertyAssignment
-                | SyntaxKind::FunctionDeclaration
-                | SyntaxKind::Constructor
-                | SyntaxKind::IndexSignature
-                | SyntaxKind::ClassStaticBlockDeclaration
-                | SyntaxKind::MissingDeclaration
-                | SyntaxKind::VariableStatement
-                | SyntaxKind::InterfaceDeclaration
-                | SyntaxKind::TypeAliasDeclaration
-                | SyntaxKind::EnumDeclaration
-                | SyntaxKind::ModuleDeclaration
-                | SyntaxKind::ImportEqualsDeclaration
-                | SyntaxKind::ImportDeclaration
-                | SyntaxKind::NamespaceExportDeclaration
-                | SyntaxKind::ExportDeclaration
-                | SyntaxKind::ExportAssignment
-        );
-        if can_have_illegal_decorators
-            && modifiers
-                .iter()
-                .any(|&modifier| self.kind_of(modifier) == SyntaxKind::Decorator)
-        {
+        if self.report_obvious_decorator_errors(node) == Some(true) {
             return true;
         }
-        // reportObviousModifierErrors (89326): no modifier list →
-        // false without the walk; an obviously-illegal first modifier
-        // reports; otherwise fall through.
-        if modifiers.is_empty() {
-            // `!node.modifiers` and the empty array behave alike: the
-            // walk below has nothing to do and every tail check needs
-            // a flag.
-            return false;
+        if let Some(result) = self.report_obvious_modifier_errors(node) {
+            return result;
         }
-        let modifier_kinds: Vec<SyntaxKind> = modifiers
-            .iter()
-            .map(|&modifier| self.kind_of(modifier))
-            .collect();
-        // findFirstModifierExcept (89164): the FIRST plain modifier
-        // decides — a leading allowed modifier defers to the walk even
-        // when an illegal one follows.
-        let first_plain_modifier = |except: Option<SyntaxKind>| -> bool {
-            modifier_kinds
-                .iter()
-                .copied()
-                .find(|&kind| kind != SyntaxKind::Decorator)
-                .is_some_and(|kind| Some(kind) != except)
-        };
-        match node_kind {
-            SyntaxKind::GetAccessor
-            | SyntaxKind::SetAccessor
-            | SyntaxKind::Constructor
-            | SyntaxKind::PropertyDeclaration
-            | SyntaxKind::PropertySignature
-            | SyntaxKind::MethodDeclaration
-            | SyntaxKind::MethodSignature
-            | SyntaxKind::IndexSignature
-            | SyntaxKind::ModuleDeclaration
-            | SyntaxKind::ImportDeclaration
-            | SyntaxKind::ImportEqualsDeclaration
-            | SyntaxKind::ExportDeclaration
-            | SyntaxKind::ExportAssignment
-            | SyntaxKind::FunctionExpression
-            | SyntaxKind::ArrowFunction
-            | SyntaxKind::Parameter
-            | SyntaxKind::TypeParameter => {}
-            SyntaxKind::ClassStaticBlockDeclaration
-            | SyntaxKind::PropertyAssignment
-            | SyntaxKind::ShorthandPropertyAssignment
-            | SyntaxKind::NamespaceExportDeclaration
-            | SyntaxKind::MissingDeclaration => {
-                if first_plain_modifier(None) {
-                    return true;
-                }
-            }
-            _ => {
-                if !matches!(
-                    parent_kind,
-                    Some(SyntaxKind::ModuleBlock) | Some(SyntaxKind::SourceFile)
-                ) {
-                    let illegal = match node_kind {
-                        SyntaxKind::FunctionDeclaration => {
-                            first_plain_modifier(Some(SyntaxKind::AsyncKeyword))
-                        }
-                        SyntaxKind::ClassDeclaration | SyntaxKind::ConstructorType => {
-                            first_plain_modifier(Some(SyntaxKind::AbstractKeyword))
-                        }
-                        SyntaxKind::ClassExpression
-                        | SyntaxKind::InterfaceDeclaration
-                        | SyntaxKind::TypeAliasDeclaration => first_plain_modifier(None),
-                        SyntaxKind::VariableStatement => {
-                            let using = match self.data_of(node) {
-                                NodeData::VariableStatement(data) => {
-                                    data.declaration_list.is_some_and(|list| {
-                                        self.node_flags(list) & tsrs2_types::NodeFlags::USING.bits()
-                                            != 0
-                                    })
-                                }
-                                _ => false,
-                            };
-                            if using {
-                                first_plain_modifier(Some(SyntaxKind::AwaitKeyword))
-                            } else {
-                                first_plain_modifier(None)
-                            }
-                        }
-                        SyntaxKind::EnumDeclaration => {
-                            first_plain_modifier(Some(SyntaxKind::ConstKeyword))
-                        }
-                        // Debug.assertNever domain — parse-recovery
-                        // shapes answer "no obvious error" and take
-                        // the walk.
-                        _ => false,
-                    };
-                    if illegal {
-                        return true;
-                    }
-                }
-            }
-        }
-        // isParameter(node) && parameterIsThisKeyword(node) (89016).
+        let modifiers = self.nodes_of(node_util::modifiers_of(source, node));
         if node_kind == SyntaxKind::Parameter {
             let is_this = match self.data_of(node) {
                 NodeData::Parameter(data) => data
@@ -447,7 +316,11 @@ impl<'a> CheckerState<'a> {
                 _ => false,
             };
             if is_this {
-                return true;
+                return self.grammar_error_on_first_token(
+                    node,
+                    &diagnostics::Neither_decorators_nor_modifiers_may_be_applied_to_this_parameters,
+                    &[],
+                );
             }
         }
         let block_scope_kind = if node_kind == SyntaxKind::VariableStatement {
@@ -469,12 +342,23 @@ impl<'a> CheckerState<'a> {
             parent_kind,
             Some(SyntaxKind::ClassDeclaration) | Some(SyntaxKind::ClassExpression)
         );
-        let name_is_private_identifier = self
+        let is_private_identifier_class_element = matches!(
+            node_kind,
+            SyntaxKind::PropertyDeclaration
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::SetAccessor
+        ) && self
             .name_of_node(node)
             .is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier);
         let parent_is_ambient = parent.is_some_and(|parent| {
             self.node_flags(parent) & tsrs2_types::NodeFlags::AMBIENT.bits() != 0
         });
+        let mut last_static = None;
+        let mut last_declare = None;
+        let mut last_async = None;
+        let mut last_override = None;
+        let mut first_decorator = None;
         let mut flags = ModifierFlags::from_bits(0);
         let mut has_leading_decorators = false;
         let mut saw_export_before_decorators = false;
@@ -488,9 +372,17 @@ impl<'a> CheckerState<'a> {
                     parent,
                     grandparent,
                 ) {
-                    // Both message flavors (overload 1249 / 1206)
-                    // report.
-                    return true;
+                    let is_method_overload = node_kind == SyntaxKind::MethodDeclaration
+                        && node_util::node_is_missing(source, node_util::body_of(source, node));
+                    return self.grammar_error_on_first_token(
+                        node,
+                        if is_method_overload {
+                            &diagnostics::A_decorator_can_only_decorate_a_method_implementation_not_an_overload
+                        } else {
+                            &diagnostics::Decorators_are_not_valid_here
+                        },
+                        &[],
+                    );
                 }
                 if self.options.experimental_decorators
                     && matches!(node_kind, SyntaxKind::GetAccessor | SyntaxKind::SetAccessor)
@@ -519,7 +411,11 @@ impl<'a> CheckerState<'a> {
                                 .iter()
                                 .any(|&m| self.kind_of(m) == SyntaxKind::Decorator);
                             if first_has_decorators {
-                                return true;
+                                return self.grammar_error_on_first_token(
+                                    node,
+                                    &diagnostics::Decorators_cannot_be_applied_to_multiple_get_set_accessors_of_the_same_name,
+                                    &[],
+                                );
                             }
                         }
                     }
@@ -528,12 +424,29 @@ impl<'a> CheckerState<'a> {
                     & !(ModifierFlags::EXPORT_DEFAULT.bits() | ModifierFlags::DECORATOR.bits())
                     != 0
                 {
-                    return true;
+                    return self.grammar_error_on_node(
+                        modifier,
+                        &diagnostics::Decorators_are_not_valid_here,
+                        &[],
+                    );
                 }
                 if has_leading_decorators && flags.intersects(ModifierFlags::MODIFIER) {
-                    // Decorators before AND after export: reports only
-                    // when the file has no parse diagnostics.
-                    return !self.has_parse_diagnostics(node);
+                    if self.has_parse_diagnostics(modifier) {
+                        return false;
+                    }
+                    let first = first_decorator.expect("leading decorator was recorded");
+                    let related = self.related_info_for_node(
+                        first,
+                        &diagnostics::Decorator_used_before_export_here,
+                        &[],
+                    );
+                    self.error_at_with_related(
+                        Some(modifier),
+                        &diagnostics::Decorators_may_not_appear_after_export_or_export_default_if_they_also_appear_before_export,
+                        &[],
+                        vec![related],
+                    );
+                    return true;
                 }
                 flags |= ModifierFlags::DECORATOR;
                 if !flags.intersects(ModifierFlags::MODIFIER) {
@@ -541,19 +454,29 @@ impl<'a> CheckerState<'a> {
                 } else if flags.intersects(ModifierFlags::EXPORT) {
                     saw_export_before_decorators = true;
                 }
+                first_decorator.get_or_insert(modifier);
                 continue;
             }
+            let modifier_text = tsrs2_syntax::tokens::token_to_string(modifier_kind).unwrap_or("?");
             if modifier_kind != SyntaxKind::ReadonlyKeyword {
                 if matches!(
                     node_kind,
                     SyntaxKind::PropertySignature | SyntaxKind::MethodSignature
                 ) {
-                    return true;
+                    return self.grammar_error_on_node(
+                        modifier,
+                        &diagnostics::_0_modifier_cannot_appear_on_a_type_member,
+                        &[modifier_text],
+                    );
                 }
                 if node_kind == SyntaxKind::IndexSignature
                     && (modifier_kind != SyntaxKind::StaticKeyword || !parent_is_class_like)
                 {
-                    return true;
+                    return self.grammar_error_on_node(
+                        modifier,
+                        &diagnostics::_0_modifier_cannot_appear_on_an_index_signature,
+                        &[modifier_text],
+                    );
                 }
             }
             if !matches!(
@@ -561,7 +484,11 @@ impl<'a> CheckerState<'a> {
                 SyntaxKind::InKeyword | SyntaxKind::OutKeyword | SyntaxKind::ConstKeyword
             ) && node_kind == SyntaxKind::TypeParameter
             {
-                return true;
+                return self.grammar_error_on_node(
+                    modifier,
+                    &diagnostics::_0_modifier_cannot_appear_on_a_type_parameter,
+                    &[modifier_text],
+                );
             }
             match modifier_kind {
                 SyntaxKind::ConstKeyword => {
@@ -569,7 +496,11 @@ impl<'a> CheckerState<'a> {
                         node_kind,
                         SyntaxKind::EnumDeclaration | SyntaxKind::TypeParameter
                     ) {
-                        return true;
+                        return self.grammar_error_on_node(
+                            node,
+                            &diagnostics::A_class_member_cannot_have_the_0_keyword,
+                            &["const"],
+                        );
                     }
                     if node_kind == SyntaxKind::TypeParameter
                         && !matches!(
@@ -590,111 +521,298 @@ impl<'a> CheckerState<'a> {
                                 | Some(SyntaxKind::MethodSignature)
                         )
                     {
-                        return true;
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_can_only_appear_on_a_type_parameter_of_a_function_method_or_class,
+                            &["const"],
+                        );
                     }
                 }
                 SyntaxKind::OverrideKeyword => {
-                    if flags.intersects(
-                        ModifierFlags::OVERRIDE
-                            | ModifierFlags::AMBIENT
-                            | ModifierFlags::READONLY
-                            | ModifierFlags::ACCESSOR
-                            | ModifierFlags::ASYNC,
-                    ) {
-                        return true;
+                    if flags.intersects(ModifierFlags::OVERRIDE) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_already_seen,
+                            &["override"],
+                        );
+                    } else if flags.intersects(ModifierFlags::AMBIENT) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_be_used_with_1_modifier,
+                            &["override", "declare"],
+                        );
+                    } else if flags.intersects(ModifierFlags::READONLY) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_must_precede_1_modifier,
+                            &["override", "readonly"],
+                        );
+                    } else if flags.intersects(ModifierFlags::ACCESSOR) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_must_precede_1_modifier,
+                            &["override", "accessor"],
+                        );
+                    } else if flags.intersects(ModifierFlags::ASYNC) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_must_precede_1_modifier,
+                            &["override", "async"],
+                        );
                     }
                     flags |= ModifierFlags::OVERRIDE;
+                    last_override = Some(modifier);
                 }
                 SyntaxKind::PublicKeyword
                 | SyntaxKind::ProtectedKeyword
                 | SyntaxKind::PrivateKeyword => {
-                    if flags.intersects(
-                        ModifierFlags::ACCESSIBILITY_MODIFIER
-                            | ModifierFlags::OVERRIDE
-                            | ModifierFlags::STATIC
-                            | ModifierFlags::ACCESSOR
-                            | ModifierFlags::READONLY
-                            | ModifierFlags::ASYNC
-                            | ModifierFlags::ABSTRACT,
-                    ) {
-                        return true;
+                    if flags.intersects(ModifierFlags::ACCESSIBILITY_MODIFIER) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::Accessibility_modifier_already_seen,
+                            &[],
+                        );
+                    } else if flags.intersects(ModifierFlags::OVERRIDE) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_must_precede_1_modifier,
+                            &[modifier_text, "override"],
+                        );
+                    } else if flags.intersects(ModifierFlags::STATIC) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_must_precede_1_modifier,
+                            &[modifier_text, "static"],
+                        );
+                    } else if flags.intersects(ModifierFlags::ACCESSOR) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_must_precede_1_modifier,
+                            &[modifier_text, "accessor"],
+                        );
+                    } else if flags.intersects(ModifierFlags::READONLY) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_must_precede_1_modifier,
+                            &[modifier_text, "readonly"],
+                        );
+                    } else if flags.intersects(ModifierFlags::ASYNC) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_must_precede_1_modifier,
+                            &[modifier_text, "async"],
+                        );
                     }
                     if matches!(
                         parent_kind,
                         Some(SyntaxKind::ModuleBlock) | Some(SyntaxKind::SourceFile)
                     ) {
-                        return true;
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_appear_on_a_module_or_namespace_element,
+                            &[modifier_text],
+                        );
                     }
-                    if name_is_private_identifier {
-                        return true;
+                    if flags.intersects(ModifierFlags::ABSTRACT) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            if modifier_kind == SyntaxKind::PrivateKeyword {
+                                &diagnostics::_0_modifier_cannot_be_used_with_1_modifier
+                            } else {
+                                &diagnostics::_0_modifier_must_precede_1_modifier
+                            },
+                            &[modifier_text, "abstract"],
+                        );
                     }
-                    flags |= match modifier_kind {
-                        SyntaxKind::PublicKeyword => ModifierFlags::PUBLIC,
-                        SyntaxKind::ProtectedKeyword => ModifierFlags::PROTECTED,
-                        _ => ModifierFlags::PRIVATE,
-                    };
+                    if is_private_identifier_class_element {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::An_accessibility_modifier_cannot_be_used_with_a_private_identifier,
+                            &[],
+                        );
+                    }
+                    flags |= node_util::modifier_to_flag(modifier_kind);
                 }
                 SyntaxKind::StaticKeyword => {
-                    if flags.intersects(
-                        ModifierFlags::STATIC
-                            | ModifierFlags::READONLY
-                            | ModifierFlags::ASYNC
-                            | ModifierFlags::ACCESSOR
-                            | ModifierFlags::ABSTRACT
-                            | ModifierFlags::OVERRIDE,
-                    ) {
-                        return true;
+                    if flags.intersects(ModifierFlags::STATIC) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_already_seen,
+                            &["static"],
+                        );
+                    } else if flags.intersects(ModifierFlags::READONLY) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_must_precede_1_modifier,
+                            &["static", "readonly"],
+                        );
+                    } else if flags.intersects(ModifierFlags::ASYNC) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_must_precede_1_modifier,
+                            &["static", "async"],
+                        );
+                    } else if flags.intersects(ModifierFlags::ACCESSOR) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_must_precede_1_modifier,
+                            &["static", "accessor"],
+                        );
                     }
                     if matches!(
                         parent_kind,
                         Some(SyntaxKind::ModuleBlock) | Some(SyntaxKind::SourceFile)
-                    ) || node_kind == SyntaxKind::Parameter
-                    {
-                        return true;
+                    ) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_appear_on_a_module_or_namespace_element,
+                            &["static"],
+                        );
+                    } else if node_kind == SyntaxKind::Parameter {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_appear_on_a_parameter,
+                            &["static"],
+                        );
+                    } else if flags.intersects(ModifierFlags::ABSTRACT) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_be_used_with_1_modifier,
+                            &["static", "abstract"],
+                        );
+                    } else if flags.intersects(ModifierFlags::OVERRIDE) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_must_precede_1_modifier,
+                            &["static", "override"],
+                        );
                     }
                     flags |= ModifierFlags::STATIC;
+                    last_static = Some(modifier);
                 }
                 SyntaxKind::AccessorKeyword => {
-                    if flags.intersects(
-                        ModifierFlags::ACCESSOR | ModifierFlags::READONLY | ModifierFlags::AMBIENT,
-                    ) || node_kind != SyntaxKind::PropertyDeclaration
-                    {
-                        return true;
+                    if flags.intersects(ModifierFlags::ACCESSOR) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_already_seen,
+                            &["accessor"],
+                        );
+                    } else if flags.intersects(ModifierFlags::READONLY) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_be_used_with_1_modifier,
+                            &["accessor", "readonly"],
+                        );
+                    } else if flags.intersects(ModifierFlags::AMBIENT) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_be_used_with_1_modifier,
+                            &["accessor", "declare"],
+                        );
+                    } else if node_kind != SyntaxKind::PropertyDeclaration {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::accessor_modifier_can_only_appear_on_a_property_declaration,
+                            &[],
+                        );
                     }
                     flags |= ModifierFlags::ACCESSOR;
                 }
                 SyntaxKind::ReadonlyKeyword => {
-                    if flags.intersects(ModifierFlags::READONLY | ModifierFlags::ACCESSOR) {
-                        return true;
-                    }
-                    if !matches!(
+                    if flags.intersects(ModifierFlags::READONLY) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_already_seen,
+                            &["readonly"],
+                        );
+                    } else if !matches!(
                         node_kind,
                         SyntaxKind::PropertyDeclaration
                             | SyntaxKind::PropertySignature
                             | SyntaxKind::IndexSignature
                             | SyntaxKind::Parameter
                     ) {
-                        return true;
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::readonly_modifier_can_only_appear_on_a_property_declaration_or_index_signature,
+                            &[],
+                        );
+                    } else if flags.intersects(ModifierFlags::ACCESSOR) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_be_used_with_1_modifier,
+                            &["readonly", "accessor"],
+                        );
                     }
                     flags |= ModifierFlags::READONLY;
                 }
                 SyntaxKind::ExportKeyword => {
-                    // The verbatimModuleSyntax CommonJS arm is elided
-                    // (emit-format surface); see the fn header.
-                    if flags.intersects(
-                        ModifierFlags::EXPORT
-                            | ModifierFlags::AMBIENT
-                            | ModifierFlags::ABSTRACT
-                            | ModifierFlags::ASYNC,
-                    ) {
-                        return true;
-                    }
-                    if parent_is_class_like
-                        || node_kind == SyntaxKind::Parameter
-                        || block_scope_kind == using_kinds.0
-                        || block_scope_kind == using_kinds.1
+                    if self.options.verbatim_module_syntax == Some(true)
+                        && self.node_flags(node) & tsrs2_types::NodeFlags::AMBIENT.bits() == 0
+                        && !matches!(
+                            node_kind,
+                            SyntaxKind::TypeAliasDeclaration
+                                | SyntaxKind::InterfaceDeclaration
+                                | SyntaxKind::ModuleDeclaration
+                        )
+                        && parent_kind == Some(SyntaxKind::SourceFile)
+                        && self.emit_module_format_of_file(node) == 1
                     {
-                        return true;
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::A_top_level_export_modifier_cannot_be_used_on_value_declarations_in_a_CommonJS_module_when_verbatimModuleSyntax_is_enabled,
+                            &[],
+                        );
+                    }
+                    if flags.intersects(ModifierFlags::EXPORT) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_already_seen,
+                            &["export"],
+                        );
+                    } else if flags.intersects(ModifierFlags::AMBIENT) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_must_precede_1_modifier,
+                            &["export", "declare"],
+                        );
+                    } else if flags.intersects(ModifierFlags::ABSTRACT) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_must_precede_1_modifier,
+                            &["export", "abstract"],
+                        );
+                    } else if flags.intersects(ModifierFlags::ASYNC) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_must_precede_1_modifier,
+                            &["export", "async"],
+                        );
+                    }
+                    if parent_is_class_like {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_appear_on_class_elements_of_this_kind,
+                            &["export"],
+                        );
+                    } else if node_kind == SyntaxKind::Parameter {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_appear_on_a_parameter,
+                            &["export"],
+                        );
+                    } else if block_scope_kind == using_kinds.0 {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_appear_on_a_using_declaration,
+                            &["export"],
+                        );
+                    } else if block_scope_kind == using_kinds.1 {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_appear_on_an_await_using_declaration,
+                            &["export"],
+                        );
                     }
                     flags |= ModifierFlags::EXPORT;
                 }
@@ -710,49 +828,112 @@ impl<'a> CheckerState<'a> {
                                 container,
                             )
                         {
-                            return true;
+                            return self.grammar_error_on_node(
+                                modifier,
+                                &diagnostics::A_default_export_can_only_be_used_in_an_ECMAScript_style_module,
+                                &[],
+                            );
                         }
                     }
-                    if block_scope_kind == using_kinds.0 || block_scope_kind == using_kinds.1 {
-                        return true;
-                    }
-                    if !flags.intersects(ModifierFlags::EXPORT) {
-                        return true;
-                    }
-                    if saw_export_before_decorators {
-                        return true;
+                    if block_scope_kind == using_kinds.0 {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_appear_on_a_using_declaration,
+                            &["default"],
+                        );
+                    } else if block_scope_kind == using_kinds.1 {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_appear_on_an_await_using_declaration,
+                            &["default"],
+                        );
+                    } else if !flags.intersects(ModifierFlags::EXPORT) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_must_precede_1_modifier,
+                            &["export", "default"],
+                        );
+                    } else if saw_export_before_decorators {
+                        return self.grammar_error_on_node(
+                            first_decorator.expect("decorator before default was recorded"),
+                            &diagnostics::Decorators_are_not_valid_here,
+                            &[],
+                        );
                     }
                     flags |= ModifierFlags::DEFAULT;
                 }
                 SyntaxKind::DeclareKeyword => {
-                    if flags.intersects(
-                        ModifierFlags::AMBIENT
-                            | ModifierFlags::ASYNC
-                            | ModifierFlags::OVERRIDE
-                            | ModifierFlags::ACCESSOR,
-                    ) {
-                        return true;
-                    }
-                    if parent_is_class_like && node_kind != SyntaxKind::PropertyDeclaration {
-                        return true;
-                    }
-                    if node_kind == SyntaxKind::Parameter
-                        || block_scope_kind == using_kinds.0
-                        || block_scope_kind == using_kinds.1
-                    {
-                        return true;
-                    }
-                    if parent_is_ambient && parent_kind == Some(SyntaxKind::ModuleBlock) {
-                        return true;
-                    }
-                    if parent_is_class_like && name_is_private_identifier {
-                        return true;
+                    if flags.intersects(ModifierFlags::AMBIENT) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_already_seen,
+                            &["declare"],
+                        );
+                    } else if flags.intersects(ModifierFlags::ASYNC) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_be_used_in_an_ambient_context,
+                            &["async"],
+                        );
+                    } else if flags.intersects(ModifierFlags::OVERRIDE) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_be_used_in_an_ambient_context,
+                            &["override"],
+                        );
+                    } else if parent_is_class_like && node_kind != SyntaxKind::PropertyDeclaration {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_appear_on_class_elements_of_this_kind,
+                            &["declare"],
+                        );
+                    } else if node_kind == SyntaxKind::Parameter {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_appear_on_a_parameter,
+                            &["declare"],
+                        );
+                    } else if block_scope_kind == using_kinds.0 {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_appear_on_a_using_declaration,
+                            &["declare"],
+                        );
+                    } else if block_scope_kind == using_kinds.1 {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_appear_on_an_await_using_declaration,
+                            &["declare"],
+                        );
+                    } else if parent_is_ambient && parent_kind == Some(SyntaxKind::ModuleBlock) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::A_declare_modifier_cannot_be_used_in_an_already_ambient_context,
+                            &[],
+                        );
+                    } else if is_private_identifier_class_element {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_be_used_with_a_private_identifier,
+                            &["declare"],
+                        );
+                    } else if flags.intersects(ModifierFlags::ACCESSOR) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_be_used_with_1_modifier,
+                            &["declare", "accessor"],
+                        );
                     }
                     flags |= ModifierFlags::AMBIENT;
+                    last_declare = Some(modifier);
                 }
                 SyntaxKind::AbstractKeyword => {
                     if flags.intersects(ModifierFlags::ABSTRACT) {
-                        return true;
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_already_seen,
+                            &["abstract"],
+                        );
                     }
                     if !matches!(
                         node_kind,
@@ -765,7 +946,11 @@ impl<'a> CheckerState<'a> {
                                 | SyntaxKind::GetAccessor
                                 | SyntaxKind::SetAccessor
                         ) {
-                            return true;
+                            return self.grammar_error_on_node(
+                                modifier,
+                                &diagnostics::abstract_modifier_can_only_appear_on_a_class_method_or_property_declaration,
+                                &[],
+                            );
                         }
                         let parent_is_abstract_class = parent.is_some_and(|parent| {
                             self.kind_of(parent) == SyntaxKind::ClassDeclaration
@@ -776,36 +961,93 @@ impl<'a> CheckerState<'a> {
                                 )
                         });
                         if !parent_is_abstract_class {
-                            return true;
+                            return self.grammar_error_on_node(
+                                modifier,
+                                if node_kind == SyntaxKind::PropertyDeclaration {
+                                    &diagnostics::Abstract_properties_can_only_appear_within_an_abstract_class
+                                } else {
+                                    &diagnostics::Abstract_methods_can_only_appear_within_an_abstract_class
+                                },
+                                &[],
+                            );
                         }
-                        if flags.intersects(
-                            ModifierFlags::STATIC
-                                | ModifierFlags::PRIVATE
-                                | ModifierFlags::ASYNC
-                                | ModifierFlags::OVERRIDE
-                                | ModifierFlags::ACCESSOR,
-                        ) {
-                            return true;
+                        if flags.intersects(ModifierFlags::STATIC) {
+                            return self.grammar_error_on_node(
+                                modifier,
+                                &diagnostics::_0_modifier_cannot_be_used_with_1_modifier,
+                                &["static", "abstract"],
+                            );
+                        }
+                        if flags.intersects(ModifierFlags::PRIVATE) {
+                            return self.grammar_error_on_node(
+                                modifier,
+                                &diagnostics::_0_modifier_cannot_be_used_with_1_modifier,
+                                &["private", "abstract"],
+                            );
+                        }
+                        if flags.intersects(ModifierFlags::ASYNC) {
+                            return self.grammar_error_on_node(
+                                last_async.expect("async flag records its modifier"),
+                                &diagnostics::_0_modifier_cannot_be_used_with_1_modifier,
+                                &["async", "abstract"],
+                            );
+                        }
+                        if flags.intersects(ModifierFlags::OVERRIDE) {
+                            return self.grammar_error_on_node(
+                                modifier,
+                                &diagnostics::_0_modifier_must_precede_1_modifier,
+                                &["abstract", "override"],
+                            );
+                        }
+                        if flags.intersects(ModifierFlags::ACCESSOR) {
+                            return self.grammar_error_on_node(
+                                modifier,
+                                &diagnostics::_0_modifier_must_precede_1_modifier,
+                                &["abstract", "accessor"],
+                            );
                         }
                     }
-                    if name_is_private_identifier {
-                        return true;
+                    if self
+                        .name_of_node(node)
+                        .is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier)
+                    {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_be_used_with_a_private_identifier,
+                            &["abstract"],
+                        );
                     }
                     flags |= ModifierFlags::ABSTRACT;
                 }
                 SyntaxKind::AsyncKeyword => {
-                    if flags.intersects(ModifierFlags::ASYNC | ModifierFlags::AMBIENT)
-                        || parent_is_ambient
-                    {
-                        return true;
-                    }
-                    if node_kind == SyntaxKind::Parameter {
-                        return true;
+                    if flags.intersects(ModifierFlags::ASYNC) {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_already_seen,
+                            &["async"],
+                        );
+                    } else if flags.intersects(ModifierFlags::AMBIENT) || parent_is_ambient {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_be_used_in_an_ambient_context,
+                            &["async"],
+                        );
+                    } else if node_kind == SyntaxKind::Parameter {
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_appear_on_a_parameter,
+                            &["async"],
+                        );
                     }
                     if flags.intersects(ModifierFlags::ABSTRACT) {
-                        return true;
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_cannot_be_used_with_1_modifier,
+                            &["async", "abstract"],
+                        );
                     }
                     flags |= ModifierFlags::ASYNC;
+                    last_async = Some(modifier);
                 }
                 SyntaxKind::InKeyword | SyntaxKind::OutKeyword => {
                     let in_out_flag = if modifier_kind == SyntaxKind::InKeyword {
@@ -826,13 +1068,33 @@ impl<'a> CheckerState<'a> {
                             )
                         })
                     {
-                        return true;
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_can_only_appear_on_a_type_parameter_of_a_class_interface_or_type_alias,
+                            &[if modifier_kind == SyntaxKind::InKeyword {
+                                "in"
+                            } else {
+                                "out"
+                            }],
+                        );
                     }
                     if flags.intersects(in_out_flag) {
-                        return true;
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_already_seen,
+                            &[if modifier_kind == SyntaxKind::InKeyword {
+                                "in"
+                            } else {
+                                "out"
+                            }],
+                        );
                     }
                     if in_out_flag == ModifierFlags::IN && flags.intersects(ModifierFlags::OUT) {
-                        return true;
+                        return self.grammar_error_on_node(
+                            modifier,
+                            &diagnostics::_0_modifier_must_precede_1_modifier,
+                            &["in", "out"],
+                        );
                     }
                     flags |= in_out_flag;
                 }
@@ -840,16 +1102,39 @@ impl<'a> CheckerState<'a> {
             }
         }
         if node_kind == SyntaxKind::Constructor {
-            return flags.intersects(
-                ModifierFlags::STATIC | ModifierFlags::OVERRIDE | ModifierFlags::ASYNC,
-            );
+            if flags.intersects(ModifierFlags::STATIC) {
+                return self.grammar_error_on_node(
+                    last_static.expect("static flag records its modifier"),
+                    &diagnostics::_0_modifier_cannot_appear_on_a_constructor_declaration,
+                    &["static"],
+                );
+            }
+            if flags.intersects(ModifierFlags::OVERRIDE) {
+                return self.grammar_error_on_node(
+                    last_override.expect("override flag records its modifier"),
+                    &diagnostics::_0_modifier_cannot_appear_on_a_constructor_declaration,
+                    &["override"],
+                );
+            }
+            if flags.intersects(ModifierFlags::ASYNC) {
+                return self.grammar_error_on_node(
+                    last_async.expect("async flag records its modifier"),
+                    &diagnostics::_0_modifier_cannot_appear_on_a_constructor_declaration,
+                    &["async"],
+                );
+            }
+            return false;
         }
         if matches!(
             node_kind,
             SyntaxKind::ImportDeclaration | SyntaxKind::ImportEqualsDeclaration
         ) && flags.intersects(ModifierFlags::AMBIENT)
         {
-            return true;
+            return self.grammar_error_on_node(
+                last_declare.expect("declare flag records its modifier"),
+                &diagnostics::A_0_modifier_cannot_be_used_with_an_import_declaration,
+                &["declare"],
+            );
         }
         if node_kind == SyntaxKind::Parameter
             && flags.intersects(ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
@@ -866,22 +1151,170 @@ impl<'a> CheckerState<'a> {
                 ),
                 _ => (false, false),
             };
-            if name_is_pattern || has_dot_dot_dot {
-                return true;
+            if name_is_pattern {
+                return self.grammar_error_on_node(
+                    node,
+                    &diagnostics::A_parameter_property_may_not_be_declared_using_a_binding_pattern,
+                    &[],
+                );
+            }
+            if has_dot_dot_dot {
+                return self.grammar_error_on_node(
+                    node,
+                    &diagnostics::A_parameter_property_cannot_be_declared_using_a_rest_parameter,
+                    &[],
+                );
             }
         }
         if flags.intersects(ModifierFlags::ASYNC) {
-            // checkGrammarAsyncModifier (89391): async is legal only
-            // on these four kinds.
-            return !matches!(
-                node_kind,
-                SyntaxKind::MethodDeclaration
-                    | SyntaxKind::FunctionDeclaration
-                    | SyntaxKind::FunctionExpression
-                    | SyntaxKind::ArrowFunction
+            return self.check_grammar_async_modifier(
+                node,
+                last_async.expect("async flag records its modifier"),
             );
         }
         false
+    }
+
+    /// tsc-port: reportObviousModifierErrors @6.0.3
+    /// tsc-hash: 1253f02e67c0d9dc5a5d8bc962446417abdabf9f6836e69e20ca13383781592e
+    /// tsc-span: _tsc.js:89326-89330
+    /// d2: d2:89d6695aecb00ac6fe50a0fd96b200447b88716016cdbe55f33ead8ee910e089
+    fn report_obvious_modifier_errors(&mut self, node: NodeId) -> Option<bool> {
+        let source = self.binder.source_of_node(node);
+        let Some(modifiers) = node_util::modifiers_of(source, node) else {
+            return Some(false);
+        };
+        let modifiers = self.binder.node_array(modifiers).nodes.clone();
+        let first_modifier_except = |allowed: Option<SyntaxKind>| {
+            modifiers
+                .iter()
+                .copied()
+                .find(|&modifier| self.kind_of(modifier) != SyntaxKind::Decorator)
+                .filter(|&modifier| Some(self.kind_of(modifier)) != allowed)
+        };
+        let parent_kind = self.parent_of(node).map(|parent| self.kind_of(parent));
+        let illegal = match self.kind_of(node) {
+            SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::Constructor
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::MethodSignature
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::ModuleDeclaration
+            | SyntaxKind::ImportDeclaration
+            | SyntaxKind::ImportEqualsDeclaration
+            | SyntaxKind::ExportDeclaration
+            | SyntaxKind::ExportAssignment
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::ArrowFunction
+            | SyntaxKind::Parameter
+            | SyntaxKind::TypeParameter => None,
+            SyntaxKind::ClassStaticBlockDeclaration
+            | SyntaxKind::PropertyAssignment
+            | SyntaxKind::ShorthandPropertyAssignment
+            | SyntaxKind::NamespaceExportDeclaration
+            | SyntaxKind::MissingDeclaration => first_modifier_except(None),
+            _ if matches!(
+                parent_kind,
+                Some(SyntaxKind::ModuleBlock) | Some(SyntaxKind::SourceFile)
+            ) =>
+            {
+                None
+            }
+            SyntaxKind::FunctionDeclaration => {
+                first_modifier_except(Some(SyntaxKind::AsyncKeyword))
+            }
+            SyntaxKind::ClassDeclaration | SyntaxKind::ConstructorType => {
+                first_modifier_except(Some(SyntaxKind::AbstractKeyword))
+            }
+            SyntaxKind::ClassExpression
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::TypeAliasDeclaration => first_modifier_except(None),
+            SyntaxKind::VariableStatement => {
+                let using = match self.data_of(node) {
+                    NodeData::VariableStatement(data) => {
+                        data.declaration_list.is_some_and(|list| {
+                            self.node_flags(list) & tsrs2_types::NodeFlags::USING.bits() != 0
+                        })
+                    }
+                    _ => false,
+                };
+                first_modifier_except(using.then_some(SyntaxKind::AwaitKeyword))
+            }
+            SyntaxKind::EnumDeclaration => first_modifier_except(Some(SyntaxKind::ConstKeyword)),
+            _ => None,
+        };
+        illegal.map(|modifier| {
+            self.grammar_error_on_first_token(
+                modifier,
+                &diagnostics::Modifiers_cannot_appear_here,
+                &[],
+            )
+        })
+    }
+
+    /// tsc-port: reportObviousDecoratorErrors @6.0.3
+    /// tsc-hash: 6d7dc7cfc009f9a1a3a358fcc89a00cb93c909d2d7862e95ac462d258192fc38
+    /// tsc-span: _tsc.js:89384-89387
+    /// d2: d2:55c15520a95ac1344d3d7821855541d5399e383a7f086017cba15c88381e54f9
+    fn report_obvious_decorator_errors(&mut self, node: NodeId) -> Option<bool> {
+        let can_have_illegal_decorators = matches!(
+            self.kind_of(node),
+            SyntaxKind::PropertyAssignment
+                | SyntaxKind::ShorthandPropertyAssignment
+                | SyntaxKind::FunctionDeclaration
+                | SyntaxKind::Constructor
+                | SyntaxKind::IndexSignature
+                | SyntaxKind::ClassStaticBlockDeclaration
+                | SyntaxKind::MissingDeclaration
+                | SyntaxKind::VariableStatement
+                | SyntaxKind::InterfaceDeclaration
+                | SyntaxKind::TypeAliasDeclaration
+                | SyntaxKind::EnumDeclaration
+                | SyntaxKind::ModuleDeclaration
+                | SyntaxKind::ImportEqualsDeclaration
+                | SyntaxKind::ImportDeclaration
+                | SyntaxKind::NamespaceExportDeclaration
+                | SyntaxKind::ExportDeclaration
+                | SyntaxKind::ExportAssignment
+        );
+        if !can_have_illegal_decorators {
+            return None;
+        }
+        let source = self.binder.source_of_node(node);
+        self.nodes_of(node_util::modifiers_of(source, node))
+            .into_iter()
+            .find(|&modifier| self.kind_of(modifier) == SyntaxKind::Decorator)
+            .map(|decorator| {
+                self.grammar_error_on_first_token(
+                    decorator,
+                    &diagnostics::Decorators_are_not_valid_here,
+                    &[],
+                )
+            })
+    }
+
+    /// tsc-port: checkGrammarAsyncModifier @6.0.3
+    /// tsc-hash: 24cae4dbfb53b55566767e7afe44557b79096ed1d2c346f2176d00afbc384716
+    /// tsc-span: _tsc.js:89391-89400
+    /// d2: d2:af3c695b7f591048514cd42492ae7f9dc689c40d3ecfe82de03d20f97eb0d22c
+    fn check_grammar_async_modifier(&mut self, node: NodeId, async_modifier: NodeId) -> bool {
+        if matches!(
+            self.kind_of(node),
+            SyntaxKind::MethodDeclaration
+                | SyntaxKind::FunctionDeclaration
+                | SyntaxKind::FunctionExpression
+                | SyntaxKind::ArrowFunction
+        ) {
+            return false;
+        }
+        self.grammar_error_on_node(
+            async_modifier,
+            &diagnostics::_0_modifier_cannot_be_used_here,
+            &["async"],
+        )
     }
 
     /// tsc-port: checkGrammarStatementInAmbientContext @6.0.3
@@ -1426,9 +1859,8 @@ impl<'a> CheckerState<'a> {
     /// name (parse recovery) skips the name-anchored lazy block.
     fn check_interface_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
         // A modifier grammar error suppresses the interface grammar
-        // walk (duplicate-extends family) — the would-report skeleton
-        // supplies tsc's verdict (the modifier row stays the M7 FN).
-        if !self.check_grammar_modifiers_would_report(node) {
+        // walk (duplicate-extends family).
+        if !self.check_grammar_modifiers(node) {
             self.check_grammar_interface_declaration(node);
         }
         let NodeData::InterfaceDeclaration(data) = self.data_of(node) else {
@@ -8334,7 +8766,11 @@ mod tests {
     /// Drive the check driver over a single-file program and return
     /// the checker sink as (code, start, length, head message) rows.
     fn checked_diags(text: &str) -> Vec<(u32, u32, u32, String)> {
-        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        checked_diags_with(text, &CompilerOptions::default())
+    }
+
+    fn checked_diags_with(text: &str, options: &CompilerOptions) -> Vec<(u32, u32, u32, String)> {
+        with_program_state(&[("a.ts", text)], options, |state| {
             state.check_source_file(0);
             diag_rows(state)
         })
@@ -8358,6 +8794,94 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    // ---- M7 8.1a modifier/decorator grammar (oracle-pinned) ----
+
+    #[test]
+    fn modifier_order_reports_the_oracle_span_and_message() {
+        assert_eq!(
+            checked_diags("abstract class C { abstract public p: string; }"),
+            [(
+                1029,
+                28,
+                6,
+                "'public' modifier must precede 'abstract' modifier.".to_owned()
+            )]
+        );
+        assert_eq!(
+            checked_diags("abstract class C { public abstract p: string; }"),
+            []
+        );
+    }
+
+    #[test]
+    fn illegal_static_block_decorator_reports_at_the_at_token() {
+        let options = CompilerOptions {
+            experimental_decorators: true,
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            checked_diags_with(
+                "declare function dec(...args: any[]): any; class C { @dec static {} }",
+                &options,
+            ),
+            [(1206, 53, 1, "Decorators are not valid here.".to_owned())]
+        );
+        assert_eq!(
+            checked_diags_with(
+                "declare function dec(...args: any[]): any; class C { static {} }",
+                &options,
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn modifier_error_suppresses_function_grammar_followers() {
+        let diagnostics = checked_diags("public function f<>() {}");
+        assert_eq!(
+            diagnostics,
+            [(
+                1044,
+                0,
+                6,
+                "'public' modifier cannot appear on a module or namespace element.".to_owned()
+            )]
+        );
+        assert_eq!(
+            checked_diags("function f<>() {}"),
+            [(
+                1098,
+                10,
+                2,
+                "Type parameter list cannot be empty.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn decorators_split_by_export_carry_related_information() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "declare function dec(value: any): any; @dec export @dec class C {}",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                let diagnostic = state
+                    .diagnostics
+                    .iter()
+                    .find(|diagnostic| diagnostic.code() == 8038)
+                    .expect("TS8038");
+                assert_eq!((diagnostic.start, diagnostic.length), (Some(51), Some(4)));
+                assert_eq!(diagnostic.related.len(), 1);
+                let related = &diagnostic.related[0];
+                assert_eq!(related.message.code, 1486);
+                assert_eq!((related.start, related.length), (Some(39), Some(4)));
+            },
+        );
     }
 
     // ---- deferred containment (tsrs-native, 7.4 review rework) ----

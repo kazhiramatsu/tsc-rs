@@ -4680,7 +4680,7 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         };
         if !self.check_grammar_modifiers(node) {
-            // The M7-stub interplay (m4-58 §0): a REAL modifier error
+            // A modifier error
             // suppresses this follower in tsc — contain when modifiers
             // are present.
             let has_modifiers = match self.data_of(node) {
@@ -5546,7 +5546,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:86220-86261
     ///
     /// The An_import_declaration_cannot_have_modifiers follower rides
-    /// the M7-stub checkGrammarModifiers — contained (a real modifier
+    /// checkGrammarModifiers — contained (a modifier
     /// error suppresses it in tsc; emitting alongside our stub would
     /// swap codes).
     pub(crate) fn check_import_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
@@ -5852,7 +5852,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:86303-86339
     ///
     /// The An_export_declaration_cannot_have_modifiers follower rides
-    /// the M7-stub checkGrammarModifiers — contained (same as the
+    /// checkGrammarModifiers — contained (same as the
     /// import flavor). Import/export helper availability follows the
     /// source file's effective emit format.
     pub(crate) fn check_export_declaration(&mut self, node: NodeId) -> CheckResult2<()> {

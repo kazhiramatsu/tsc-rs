@@ -930,10 +930,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a0759d7c8c63919858e1b9c255d6cc22fe5f49d9c205c5c86812e43655ac0765
     /// tsc-span: _tsc.js:89563-89589
     ///
-    /// The modifier gate consults the would-report skeleton
-    /// (check_grammar_modifiers_would_report): a modifier grammar
-    /// error suppresses the heritage walk in tsc exactly like this
-    /// `if` (the modifier row itself stays the M7 FN). NOTE tsc's
+    /// The live modifier producer suppresses the heritage walk in tsc
+    /// exactly like this `if`. NOTE tsc's
     /// suppression covers ONLY the walk — the fn returns undefined
     /// (falsy) either way, so checkGrammarTypeParameterList still
     /// runs after a modifier error.
@@ -945,7 +943,7 @@ impl<'a> CheckerState<'a> {
             NodeData::ClassExpression(data) => data.heritage_clauses,
             _ => None,
         };
-        if !self.check_grammar_modifiers_would_report(node) {
+        if !self.check_grammar_modifiers(node) {
             for clause in self.nodes_of(heritage_clauses) {
                 let NodeData::HeritageClause(clause_data) = self.data_of(clause) else {
                     continue;
@@ -2515,11 +2513,11 @@ mod tests {
         // m4-review S7 (oracle: vendored tsc 6.0.3, noLib, strict,
         // 2026-07-19): tsc reports 1042 ONLY — checkGrammarModifiers'
         // async verdict suppresses the duplicate-extends walk (1172).
-        // The 1042 row itself stays the M7 FN, so the port answers
-        // clean; pre-fix it reported the 1172.
+        // The live 1042 producer now reports the owning row while the
+        // duplicate-extends follower stays suppressed.
         assert_eq!(
             checked_rows("declare const A: any, B: any;\nasync class C extends A extends B {}\n"),
-            []
+            [(1042, 30, 5)]
         );
     }
 }

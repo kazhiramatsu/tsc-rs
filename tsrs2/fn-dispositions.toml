@@ -94,10 +94,6 @@ name = "diagnostic_at_span"
 
 [[fn]]
 file = "crates/checker/src/check.rs"
-name = "check_grammar_modifiers"
-
-[[fn]]
-file = "crates/checker/src/check.rs"
 name = "check_source_file"
 
 [[fn]]
