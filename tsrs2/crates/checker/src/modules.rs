@@ -6203,10 +6203,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: fdfed72af1f7631d13e0d945b5dce6c52fe41b4df2e38cdd7f7146bfd1c0f3e6
     /// tsc-span: _tsc.js:86220-86261
     ///
-    /// The An_import_declaration_cannot_have_modifiers follower rides
-    /// checkGrammarModifiers — contained (a modifier
-    /// error suppresses it in tsc; emitting alongside our stub would
-    /// swap codes).
+    /// The modifier follower is conditional on checkGrammarModifiers:
+    /// an earlier specific modifier error suppresses TS1191, while a
+    /// syntactic modifier list left otherwise valid reports on the
+    /// declaration's first token.
     pub(crate) fn check_import_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
         let context_diagnostic = if self.is_in_js_file(node) {
             &diagnostics::An_import_declaration_can_only_be_used_at_the_top_level_of_a_module
@@ -6216,7 +6216,15 @@ impl<'a> CheckerState<'a> {
         if self.check_grammar_module_element_context(node, context_diagnostic) {
             return Ok(());
         }
-        let _ = self.check_grammar_modifiers(node);
+        let has_modifiers =
+            node_util::modifiers_of(self.binder.source_of_node(node), node).is_some();
+        if !self.check_grammar_modifiers(node) && has_modifiers {
+            self.grammar_error_on_first_token(
+                node,
+                &diagnostics::An_import_declaration_cannot_have_modifiers,
+                &[],
+            );
+        }
         if self.check_external_import_or_export_declaration(node)? {
             let mut resolved_module = None;
             let import_clause = match self.data_of(node) {
@@ -6511,10 +6519,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: f4ecd02d9c128e962482b8cf3e24b113cbf7b2cf3f377c26f9b05684f0fef49d
     /// tsc-span: _tsc.js:86303-86339
     ///
-    /// The An_export_declaration_cannot_have_modifiers follower rides
-    /// checkGrammarModifiers — contained (same as the
-    /// import flavor). Import/export helper availability follows the
-    /// source file's effective emit format.
+    /// TS1193 has the same checkGrammarModifiers suppression contract
+    /// as the import flavor. Import/export helper availability follows
+    /// the source file's effective emit format.
     pub(crate) fn check_export_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
         let context_diagnostic = if self.is_in_js_file(node) {
             &diagnostics::An_export_declaration_can_only_be_used_at_the_top_level_of_a_module
@@ -6524,7 +6531,15 @@ impl<'a> CheckerState<'a> {
         if self.check_grammar_module_element_context(node, context_diagnostic) {
             return Ok(());
         }
-        let _ = self.check_grammar_modifiers(node);
+        let has_syntactic_modifiers =
+            node_util::modifiers_of(self.binder.source_of_node(node), node).is_some();
+        if !self.check_grammar_modifiers(node) && has_syntactic_modifiers {
+            self.grammar_error_on_first_token(
+                node,
+                &diagnostics::An_export_declaration_cannot_have_modifiers,
+                &[],
+            );
+        }
         self.check_grammar_export_declaration(node)?;
         let (module_specifier, export_clause) = match self.data_of(node) {
             NodeData::ExportDeclaration(data) => (data.module_specifier, data.export_clause),
@@ -7132,6 +7147,69 @@ mod tests {
             },
         )
         .is_empty());
+    }
+
+    #[test]
+    fn import_and_export_declaration_modifiers_report_dedicated_grammar_rows() {
+        let source = "export import 'fs'\nexport export { C }\n";
+        assert_eq!(
+            program_rows(
+                &[("a.js", source)],
+                &CompilerOptions {
+                    allow_js: true,
+                    ..CompilerOptions::default()
+                },
+            ),
+            [
+                ("a.js".to_owned(), 1191, 0, 6),
+                (
+                    "a.js".to_owned(),
+                    1193,
+                    source.find("export export").expect("export modifier") as u32,
+                    6,
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn specific_modifier_error_suppresses_import_and_export_follower_rows() {
+        let source = "async import 'assert'\nasync export { C }\n";
+        assert_eq!(
+            program_rows(
+                &[("a.js", source)],
+                &CompilerOptions {
+                    allow_js: true,
+                    ..CompilerOptions::default()
+                },
+            ),
+            [
+                ("a.js".to_owned(), 1042, 0, 5),
+                (
+                    "a.js".to_owned(),
+                    1042,
+                    source.find("async export").expect("export modifier") as u32,
+                    5,
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn unmodified_import_and_export_declarations_do_not_report_modifier_rows() {
+        let diagnostics = program_rows(
+            &[("a.js", "import 'present';\nexport {};\n")],
+            &CompilerOptions {
+                allow_js: true,
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(
+            diagnostics
+                .iter()
+                .all(|(_, code, _, _)| !matches!(code, 1191 | 1193)),
+            "{diagnostics:?}"
+        );
     }
 
     fn node16_options() -> CompilerOptions {
