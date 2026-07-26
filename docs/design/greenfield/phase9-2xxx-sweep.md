@@ -4782,6 +4782,46 @@ Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
 recovery=**115**, dormant=1. Full
 `cargo xtask ci --baseline origin/main` exits 0.
 
+## 9.9bo results (2026-07-26, chained static-assignment `this` miss — DONE)
+
+The checked-JS 2339 publication path now recognizes a direct
+`this.member` read inside the function RHS of a JSDoc-semantic chained
+static assignment such as `Ctor.s = Ctor.t = function ...`. Both
+assignment receivers must resolve to the containing static-side
+symbol, so constructor instance-only members cannot satisfy the
+lookup.
+
+The proof additionally requires the function to be the inner
+assignment RHS, that inner assignment to be the outer assignment RHS,
+both declaration kinds to be `Property`, and the outer assignment to
+carry attached JSDoc semantics. A unit pin covers the exact
+static-side/instance-side mismatch.
+
+The D2 port plan is `reportNonexistentProperty`
+(`d2:681dc9d40f1bb3d69339aaabed7c5c7e02fc0bd5b498bb5eeee4eca60cd94001`,
+`scc:00002`, 1,396 members). It has no exact Rust ledger join, 24
+static callees, two static callers, no unresolved static calls, and no
+escape rows.
+
+The target `jsdocTypeFromChainedAssignment` grows from **0/6** to
+**1/6** at T0/T1/T2/T3, with FP=0; its supported view grows from
+**0/1** to **1/1**. The five remaining fixture rows are excluded
+JSDoc call/assignment diagnostics. Exact target and full-band diffs
+report T1/T2/T3 lost=0/gained=**1** in both scope views.
+
+2xxx T0 grows to **20504/21051** (**97.4015%**) with FP=0; supported T0
+is **20503/20504** (**99.9951%**) with supported FN=**1**, code 2339.
+All-band T0 is **31426/49024** (**64.1033%**) with FP=0; supported
+all-band T0 is **31425/48477** (**64.8246%**). The accepted-set ratchet
+adds one T0 identity and one multiplicity-complete identity to both all
+and 2xxx; syntactic is unchanged.
+
+Checker tests are **1,095**, binder tests are **55**, and syntax tests
+are **106**. Ledger evidence remains entries=**1,866**, stale=0.
+Escape evidence is unchanged at sites=**192**, stale=0, untagged=0,
+recovery=**115**, dormant=1. Full
+`cargo xtask ci --baseline origin/main` exits 0.
+
 ## Remaining implementation sequence after 9.3b2
 
 The table in §Slice plan remains the phase contract. The following is
