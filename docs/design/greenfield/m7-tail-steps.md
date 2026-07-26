@@ -108,8 +108,12 @@ movement, or false positive. The checker-grammar family is now
 slice then closed all 31 object-literal TS18016 rows through
 `checkGrammarObjectLiteralExpression`; each live tier gained 31 with
 no loss or external movement. The family is now 2,877/3,013 with
-supported FN 136 and canaries 4/4. The two checked-JavaScript TS18028
-publication owners, method then accessor, are next.
+supported FN 136 and canaries 4/4. Exact position review then corrected
+the TS18028 reconnaissance split: both residual rows are accessors, not
+one method plus one accessor. Publishing the two
+`checkGrammarAccessor` rows closes that fixture at 16/16 and moves the
+family to 2,879/3,013 with supported FN 134. JSDoc
+nullable/non-nullable syntax is next.
 
 The binding 8.1a-g producer clusters, current reconnaissance anchors,
 and per-slice exits are in

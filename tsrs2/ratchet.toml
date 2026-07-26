@@ -284,8 +284,10 @@
 # value-use callback, including related origin information.
 # m7 8.1f.1 adds +31 through private-name placement in
 # checkGrammarObjectLiteralExpression.
-rate = 0.664899
-matched = 32596
+# m7 8.1f.2 adds +2 by publishing the checked-JavaScript private
+# accessor ES5 rows from checkGrammarAccessor.
+rate = 0.66494
+matched = 32598
 total = 49024
 allowed_regression = 0.0
 

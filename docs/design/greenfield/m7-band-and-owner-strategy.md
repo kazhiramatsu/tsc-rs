@@ -380,8 +380,16 @@ Accepted progress on 2026-07-26:
   identities with no loss or target-external movement; all-corpus T0
   is 32,596/49,024 and supported T0 is 32,595/48,477. The
   checker-grammar family is now 2,877/3,013 with supported FN 136, and
-  all four canaries are green. The next owners are the separately
-  frozen checked-JavaScript method and accessor TS18028 producers.
+  all four canaries are green;
+- the post-8.1f.1 exact-position audit corrected the reconnaissance
+  split: both remaining `privateNameJsBadDeclaration.ts` TS18028 rows
+  are getters owned by `checkGrammarAccessor`; opening
+  `checkGrammarMethod` produced two method-position FPs and was
+  discarded without a commit. 8.1f.2 publishes the two accessor rows,
+  moving the fixture from 14/16 to 16/16 and adding two identities at
+  T1/T2/T3 with no loss. All-corpus T0 is 32,598/49,024, supported T0
+  is 32,597/48,477, and checker-grammar is 2,879/3,013 with supported
+  FN 134. The JSDoc nullable/non-nullable syntax owner is next.
 
 ## 6. M7 virtual-band order
 

@@ -4498,11 +4498,17 @@ impl<'a> CheckerState<'a> {
             if self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES2015
                 && self.kind_of(name) == SyntaxKind::PrivateIdentifier
             {
-                return Ok(self.grammar_error_on_node(
+                let publish_checked_js = self.is_in_js_file(name);
+                let diagnostics_before = self.diagnostics.len();
+                let reported = self.grammar_error_on_node(
                     name,
                     &diagnostics::Private_identifiers_are_only_available_when_targeting_ECMAScript_2015_and_higher,
                     &[],
-                ));
+                );
+                if publish_checked_js {
+                    self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 18028);
+                }
+                return Ok(reported);
             }
             if body.is_none() && !has_abstract {
                 let end = source.arena.node(accessor).end;
