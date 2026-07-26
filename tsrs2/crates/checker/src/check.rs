@@ -293,7 +293,7 @@ impl<'a> CheckerState<'a> {
     /// d2: d2:984775a91d6ec0d2e27b820a9d34a31328ef5845e0fd5dd8a5e751f3040d2ca8
     ///
     /// The JSDocTemplateTag effective-host hops in the const/in/out
-    /// arms remain behind the 8.1e JSDoc parser/host prerequisite:
+    /// arms remain behind the 8.1f JSDoc parser/host prerequisite:
     /// comments do not yet materialize template-tag nodes. The
     /// TypeScript-syntax producer queue takes the exact path here.
     pub(crate) fn check_grammar_modifiers(&mut self, node: NodeId) -> bool {

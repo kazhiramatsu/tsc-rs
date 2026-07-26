@@ -16,7 +16,7 @@
 //! accessors defer to the 5.8-DECL escape arm in check_deferred_node;
 //! grammar walks checkGrammarObjectLiteralExpression (89637) and the
 //! object-member dispatch to checkGrammarMethod (89943) are live from
-//! M7 8.1b. Private-name placement remains with 8.1e and the numeric
+//! M7 8.1b. Private-name placement remains with 8.1f and the numeric
 //! literal suggestion remains with 8.4.
 
 use tsrs2_binder::{node_util, SymbolId, SymbolTable};
@@ -652,7 +652,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// M7 8.1b owns the object-literal grammar producer except for two
     /// deliberately split rows: private-name placement (TS18016) is
-    /// 8.1e-owned, and the large-integer suggestion (TS80008) is
+    /// 8.1f-owned, and the large-integer suggestion (TS80008) is
     /// suggestion-band 8.4-owned.
     fn check_grammar_object_literal_expression(
         &mut self,
@@ -727,7 +727,7 @@ impl<'a> CheckerState<'a> {
             }
 
             // `name.kind === PrivateIdentifier` is intentionally
-            // deferred to the M7 8.1e private-name-placement owner.
+            // deferred to the M7 8.1f private-name-placement owner.
 
             for modifier in self.nodes_of(node_util::modifiers_of(source, member)) {
                 let modifier_kind = self.kind_of(modifier);
@@ -846,7 +846,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// Elided/dead arms: checkGrammarObjectLiteralExpression (89637)
     /// is live through the M7 8.1b owner slice, with only its
-    /// private-name and suggestion rows split to 8.1e/8.4;
+    /// private-name and suggestion rows split to 8.1f/8.4;
     /// isInJavascript/enumTag/jsDocType/JSLiteral ride [JSDOC] (TS
     /// files answer false — plain-JS files gate earlier); the
     /// languageVersion ObjectAssign emit-helper gate is dead at
