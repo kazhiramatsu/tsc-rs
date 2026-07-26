@@ -152,7 +152,17 @@ supported FN 91 and canaries 4/4. Its separate
 plain-JavaScript nested export while retaining TS1233 for TypeScript.
 The target moved from 99/156 to 100/156; every live tier gained one
 identity with no loss, target-external movement, or FP. The family is
-now 2,923/3,013 with supported FN 90 and canaries 4/4.
+now 2,923/3,013 with supported FN 90 and canaries 4/4. The next
+`checkAliasSymbol` slice closed its complete live producer queue:
+TS1205 x3, TS1288 x1, the three TS1295 import-alias rows, TS1448 x1,
+TS1484 x2, and TS1485 x1. The port reads the existing
+isolated/verbatim options and alias metadata, keeps exact type-only
+related origins, and uses the extension-sensitive CommonJS message
+helper; the helper's `.cts`/`.cjs` TS1286 arm is micro-pinned even
+though it has no corpus row. The five-fixture target moved from 8/58
+to 19/58, with +11 at every live tier, no loss, no target-external
+movement, and FP=0. The family is now 2,934/3,013 with supported FN 79
+and canaries 4/4.
 
 The binding 8.1a-g producer clusters, current reconnaissance anchors,
 and per-slice exits are in

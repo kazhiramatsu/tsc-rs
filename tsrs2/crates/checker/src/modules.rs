@@ -5662,17 +5662,31 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsc-port: getVerbatimModuleSyntaxErrorMessage @6.0.3
+    /// tsc-hash: daa18595b5e95db10d25a209fe142c8f1920e7a11fa74cb180d4700bd856508c
+    /// tsc-span: _tsc.js:47588-47596
+    pub(crate) fn get_verbatim_module_syntax_error_message(
+        &self,
+        node: NodeId,
+    ) -> &'static DiagnosticMessage {
+        let file_name = &self.binder.source_of_node(node).file_name;
+        if file_name.ends_with(".cts") || file_name.ends_with(".cjs") {
+            &diagnostics::ECMAScript_imports_and_exports_cannot_be_written_in_a_CommonJS_file_under_verbatimModuleSyntax
+        } else {
+            &diagnostics::ECMAScript_imports_and_exports_cannot_be_written_in_a_CommonJS_file_under_verbatimModuleSyntax_Adjust_the_type_field_in_the_nearest_package_json_to_make_this_file_an_ECMAScript_module_or_adjust_your_verbatimModuleSyntax_module_and_moduleResolution_settings_in_TypeScript
+        }
+    }
+
     /// tsc-port: checkAliasSymbol @6.0.3
     /// tsc-hash: f38114c6ed2d310327581d9af646d70544ff4e4ae3434764b00d8818bf197779
     /// tsc-span: _tsc.js:86029-86137
     ///
-    /// Checked-JS require aliases use the shared conflict prefix. The
-    /// isolatedModules/verbatimModuleSyntax/Preserve-CJS/
-    /// ambient-const-enum faces
-    /// (86074-86128) are all behind unmodeled options — dead with this
-    /// note (getIsolatedModules = isolatedModules ||
-    /// verbatimModuleSyntax, both absent). The ImportSpecifier
-    /// deprecation walk is suggestion-band — skipped.
+    /// The live isolatedModules/verbatimModuleSyntax type-only and
+    /// CommonJS-format faces are ported here. Checked-JS alias
+    /// diagnostics, isolated import/local-value conflicts, exported
+    /// import-equals, ambient const enums, and ImportSpecifier
+    /// deprecation remain with their separately owned producer
+    /// slices.
     pub(crate) fn check_alias_symbol(&mut self, node: NodeId) -> CheckResult2<()> {
         let symbol = self.get_symbol_of_declaration(node)?;
         let target = self.resolve_alias(symbol)?;
@@ -5701,6 +5715,150 @@ impl<'a> CheckerState<'a> {
             };
             let display = self.symbol_display_name(symbol);
             self.error_at(Some(node), message, &[&display]);
+        }
+
+        let isolated_modules_like = self.options.isolated_modules == Some(true)
+            || self.options.verbatim_module_syntax == Some(true);
+        let is_type_only_declaration = self.is_type_only_import_or_export_declaration(node);
+        let ambient = self
+            .binder
+            .flags_of(node)
+            .intersects(tsrs2_types::NodeFlags::AMBIENT);
+        if isolated_modules_like && !is_type_only_declaration && !ambient {
+            let type_only_alias = self.get_type_only_alias_declaration(symbol)?;
+            let is_type = !target_flags.intersects(SymbolFlags::VALUE);
+            if is_type || type_only_alias.is_some() {
+                match self.kind_of(node) {
+                    SyntaxKind::ImportClause
+                    | SyntaxKind::ImportSpecifier
+                    | SyntaxKind::ImportEqualsDeclaration => {
+                        if self.options.verbatim_module_syntax == Some(true) {
+                            let imported_name = match self.data_of(node) {
+                                NodeData::ImportClause(data) => data.name,
+                                NodeData::ImportSpecifier(data) => data.property_name.or(data.name),
+                                NodeData::ImportEqualsDeclaration(data) => data.name,
+                                _ => None,
+                            };
+                            let display = imported_name
+                                .map(|name| self.module_export_name_text_unescaped(name))
+                                .unwrap_or_default();
+                            let message = if self.is_internal_module_import_equals_declaration(node)
+                            {
+                                &diagnostics::An_import_alias_cannot_resolve_to_a_type_or_type_only_declaration_when_verbatimModuleSyntax_is_enabled
+                            } else if is_type {
+                                &diagnostics::_0_is_a_type_and_must_be_imported_using_a_type_only_import_when_verbatimModuleSyntax_is_enabled
+                            } else {
+                                &diagnostics::_0_resolves_to_a_type_only_declaration_and_must_be_imported_using_a_type_only_import_when_verbatimModuleSyntax_is_enabled
+                            };
+                            if let Some(declaration) =
+                                (!is_type).then_some(type_only_alias).flatten()
+                            {
+                                let related_message = if matches!(
+                                    self.kind_of(declaration),
+                                    SyntaxKind::ExportSpecifier
+                                        | SyntaxKind::ExportDeclaration
+                                        | SyntaxKind::NamespaceExport
+                                ) {
+                                    &diagnostics::_0_was_exported_here
+                                } else {
+                                    &diagnostics::_0_was_imported_here
+                                };
+                                let related = self.related_info_for_node(
+                                    declaration,
+                                    related_message,
+                                    &[&display],
+                                );
+                                self.error_at_with_related(
+                                    Some(node),
+                                    message,
+                                    &[&display],
+                                    vec![related],
+                                );
+                            } else {
+                                self.error_at(Some(node), message, &[&display]);
+                            }
+                        }
+                    }
+                    SyntaxKind::ExportSpecifier => {
+                        let type_only_alias_is_external =
+                            type_only_alias.is_some_and(|declaration| {
+                                self.binder.file_index_of_node(declaration)
+                                    != self.binder.file_index_of_node(node)
+                            });
+                        if self.options.verbatim_module_syntax == Some(true)
+                            || type_only_alias.is_none()
+                            || type_only_alias_is_external
+                        {
+                            let exported_name = match self.data_of(node) {
+                                NodeData::ExportSpecifier(data) => data.property_name.or(data.name),
+                                _ => None,
+                            };
+                            let display = exported_name
+                                .map(|name| self.module_export_name_text_unescaped(name))
+                                .unwrap_or_default();
+                            let message = if is_type {
+                                &diagnostics::Re_exporting_a_type_when_0_is_enabled_requires_using_export_type
+                            } else {
+                                &diagnostics::_0_resolves_to_a_type_only_declaration_and_must_be_re_exported_using_a_type_only_re_export_when_1_is_enabled
+                            };
+                            let option_name = if self.options.verbatim_module_syntax == Some(true) {
+                                "verbatimModuleSyntax"
+                            } else {
+                                "isolatedModules"
+                            };
+                            if let Some(declaration) =
+                                (!is_type).then_some(type_only_alias).flatten()
+                            {
+                                let related_message = if matches!(
+                                    self.kind_of(declaration),
+                                    SyntaxKind::ExportSpecifier
+                                        | SyntaxKind::ExportDeclaration
+                                        | SyntaxKind::NamespaceExport
+                                ) {
+                                    &diagnostics::_0_was_exported_here
+                                } else {
+                                    &diagnostics::_0_was_imported_here
+                                };
+                                let related = self.related_info_for_node(
+                                    declaration,
+                                    related_message,
+                                    &[&display],
+                                );
+                                self.error_at_with_related(
+                                    Some(node),
+                                    message,
+                                    &[&display, option_name],
+                                    vec![related],
+                                );
+                            } else if is_type {
+                                self.error_at(Some(node), message, &[option_name]);
+                            } else {
+                                self.error_at(Some(node), message, &[&display, option_name]);
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            if self.options.verbatim_module_syntax == Some(true)
+                && self.kind_of(node) != SyntaxKind::ImportEqualsDeclaration
+                && !self.is_in_js_file(node)
+                && self.emit_module_format_of_file(node) == 1
+            {
+                let message = self.get_verbatim_module_syntax_error_message(node);
+                self.error_at(Some(node), message, &[]);
+            } else if self.options.emit_module_kind() == 200
+                && self.kind_of(node) != SyntaxKind::ImportEqualsDeclaration
+                && self.kind_of(node) != SyntaxKind::VariableDeclaration
+                && self.emit_module_format_of_file(node) == 1
+            {
+                self.error_at(
+                    Some(node),
+                    &diagnostics::ECMAScript_module_syntax_is_not_allowed_in_a_CommonJS_module_when_module_is_set_to_preserve,
+                    &[],
+                );
+            }
         }
         Ok(())
     }
@@ -6914,6 +7072,31 @@ mod tests {
         program_rows(files, &CompilerOptions::default())
     }
 
+    fn targeted_rows(
+        result: &crate::CheckResult,
+        codes: &[u32],
+    ) -> Vec<(String, u32, u32, u32, String)> {
+        let mut rows = result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| codes.contains(&diagnostic.code()))
+            .map(|diagnostic| {
+                (
+                    diagnostic
+                        .file_name
+                        .clone()
+                        .expect("targeted row is located"),
+                    diagnostic.code(),
+                    diagnostic.start.expect("targeted row has a start"),
+                    diagnostic.length.expect("targeted row has a length"),
+                    diagnostic.message_text().to_owned(),
+                )
+            })
+            .collect::<Vec<_>>();
+        rows.sort();
+        rows
+    }
+
     #[test]
     fn unresolved_side_effect_import_reports_2882_unless_explicitly_disabled() {
         let files = [("a.ts", "import \"x\";\n")];
@@ -7335,6 +7518,242 @@ let unrelated = \"\";\n",
                 diagnostic.related[0].message.code,
             ),
             (Some("/a.ts"), Some(25), Some(1), 1377)
+        );
+    }
+
+    #[test]
+    fn isolated_alias_exports_distinguish_types_from_type_only_values() {
+        let a = "export type A = {};\n";
+        let b = "class B {}\nexport type { B };\n";
+        let d = "export { A as AA } from \"./a\";\nexport { B as BB } from \"./b\";\n";
+        let inputs = [
+            InputFile {
+                name: "/a.ts".to_owned(),
+                text: a.to_owned(),
+            },
+            InputFile {
+                name: "/b.ts".to_owned(),
+                text: b.to_owned(),
+            },
+            InputFile {
+                name: "/d.ts".to_owned(),
+                text: d.to_owned(),
+            },
+        ];
+        let result = check_program(
+            &inputs,
+            &CompilerOptions {
+                module: Some(99),
+                target: Some(2),
+                isolated_modules: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            targeted_rows(&result, &[1205, 1448]),
+            [
+                (
+                    "/d.ts".to_owned(),
+                    1205,
+                    d.find("A as AA").expect("type export") as u32,
+                    "A as AA".len() as u32,
+                    "Re-exporting a type when 'isolatedModules' is enabled requires using 'export type'.".to_owned(),
+                ),
+                (
+                    "/d.ts".to_owned(),
+                    1448,
+                    d.find("B as BB").expect("type-only value export") as u32,
+                    "B as BB".len() as u32,
+                    "'B' resolves to a type-only declaration and must be re-exported using a type-only re-export when 'isolatedModules' is enabled.".to_owned(),
+                ),
+            ]
+        );
+        let diagnostic = result
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code() == 1448)
+            .expect("TS1448");
+        assert_eq!(
+            diagnostic
+                .related
+                .iter()
+                .map(|related| (
+                    related.file_name.as_deref(),
+                    related.start,
+                    related.length,
+                    related.message.code,
+                    related.message.text.as_str(),
+                ))
+                .collect::<Vec<_>>(),
+            [(
+                Some("/b.ts"),
+                Some(b.rfind('B').expect("type-only export name") as u32),
+                Some(1),
+                1377,
+                "'B' was exported here.",
+            )]
+        );
+    }
+
+    #[test]
+    fn verbatim_alias_imports_distinguish_type_only_origins() {
+        let a = "export type A = {};\nexport class C {}\n";
+        let b = "import { A } from \"./a\";\nexport type { C } from \"./a\";\n";
+        let c = "import { C } from \"./b\";\n";
+        let internal = "export {};\nnamespace Foo { export type T = any; }\nimport f = Foo.T;\n";
+        let inputs = [
+            InputFile {
+                name: "/a.ts".to_owned(),
+                text: a.to_owned(),
+            },
+            InputFile {
+                name: "/b.ts".to_owned(),
+                text: b.to_owned(),
+            },
+            InputFile {
+                name: "/c.ts".to_owned(),
+                text: c.to_owned(),
+            },
+            InputFile {
+                name: "/internal.ts".to_owned(),
+                text: internal.to_owned(),
+            },
+        ];
+        let result = check_program(
+            &inputs,
+            &CompilerOptions {
+                module: Some(99),
+                target: Some(2),
+                module_resolution: Some(100),
+                verbatim_module_syntax: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            targeted_rows(&result, &[1288, 1484, 1485]),
+            [
+                (
+                    "/b.ts".to_owned(),
+                    1484,
+                    b.find('A').expect("type import") as u32,
+                    1,
+                    "'A' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.".to_owned(),
+                ),
+                (
+                    "/c.ts".to_owned(),
+                    1485,
+                    c.find('C').expect("type-only value import") as u32,
+                    1,
+                    "'C' resolves to a type-only declaration and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.".to_owned(),
+                ),
+                (
+                    "/internal.ts".to_owned(),
+                    1288,
+                    internal.find("import f").expect("internal import equals") as u32,
+                    "import f = Foo.T;".len() as u32,
+                    "An import alias cannot resolve to a type or type-only declaration when 'verbatimModuleSyntax' is enabled.".to_owned(),
+                ),
+            ]
+        );
+        let diagnostic = result
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code() == 1485)
+            .expect("TS1485");
+        assert_eq!(
+            diagnostic
+                .related
+                .iter()
+                .map(|related| (
+                    related.file_name.as_deref(),
+                    related.start,
+                    related.length,
+                    related.message.code,
+                ))
+                .collect::<Vec<_>>(),
+            [(
+                Some("/b.ts"),
+                Some(b.find("C }").expect("type-only export name") as u32),
+                Some(1),
+                1377,
+            )]
+        );
+    }
+
+    #[test]
+    fn verbatim_commonjs_aliases_select_the_extension_specific_message() {
+        let declaration = "export default function f() {}\nexport function named() {}\n";
+        let main = "import f from \"./decl\";\nimport * as ns from \"./decl\";\nimport { named as g } from \"./decl\";\n";
+        let options = CompilerOptions {
+            module: Some(1),
+            target: Some(99),
+            module_resolution: Some(100),
+            verbatim_module_syntax: Some(true),
+            ..CompilerOptions::default()
+        };
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "/decl.ts".to_owned(),
+                    text: declaration.to_owned(),
+                },
+                InputFile {
+                    name: "/main.ts".to_owned(),
+                    text: main.to_owned(),
+                },
+            ],
+            &options,
+        );
+        let message = "ECMAScript imports and exports cannot be written in a CommonJS file under 'verbatimModuleSyntax'. Adjust the 'type' field in the nearest 'package.json' to make this file an ECMAScript module, or adjust your 'verbatimModuleSyntax', 'module', and 'moduleResolution' settings in TypeScript.";
+        assert_eq!(
+            targeted_rows(&result, &[1295]),
+            [
+                (
+                    "/main.ts".to_owned(),
+                    1295,
+                    main.find("f from").expect("default import") as u32,
+                    1,
+                    message.to_owned(),
+                ),
+                (
+                    "/main.ts".to_owned(),
+                    1295,
+                    main.find("ns from").expect("namespace import") as u32,
+                    2,
+                    message.to_owned(),
+                ),
+                (
+                    "/main.ts".to_owned(),
+                    1295,
+                    main.find("named as g").expect("named import") as u32,
+                    "named as g".len() as u32,
+                    message.to_owned(),
+                ),
+            ]
+        );
+
+        let cts_result = check_program(
+            &[
+                InputFile {
+                    name: "/decl.ts".to_owned(),
+                    text: declaration.to_owned(),
+                },
+                InputFile {
+                    name: "/main.cts".to_owned(),
+                    text: "import f from \"./decl\";\n".to_owned(),
+                },
+            ],
+            &options,
+        );
+        assert_eq!(
+            targeted_rows(&cts_result, &[1286, 1295]),
+            [(
+                "/main.cts".to_owned(),
+                1286,
+                7,
+                1,
+                "ECMAScript imports and exports cannot be written in a CommonJS file under 'verbatimModuleSyntax'.".to_owned(),
+            )]
         );
     }
 
