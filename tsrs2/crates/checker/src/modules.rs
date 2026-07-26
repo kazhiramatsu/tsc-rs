@@ -959,12 +959,17 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
+        let diagnostics_before = self.diagnostics.len();
         self.error_at_with_related(
             name.or(Some(node)),
             &diagnostics::Module_0_has_no_default_export,
             &[&module_name],
             related,
         );
+        // `reportNonDefaultExport` depends only on the module symbol and
+        // import clause. Publish its exact checked-JS row without opening
+        // unrelated JSDoc-backed semantic diagnostics.
+        self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1192);
         Ok(())
     }
 
@@ -7217,6 +7222,53 @@ mod tests {
             module: Some(100),
             target: Some(9),
             ..CompilerOptions::default()
+        }
+    }
+
+    #[test]
+    fn checked_cjs_default_import_reports_non_default_export_in_node_modes() {
+        let files = [
+            ("/1.cjs", "module.exports = {};\n"),
+            ("/2.cjs", "exports.foo = 0;\n"),
+            ("/3.cjs", "import \"foo\";\nexports.foo = {};\n"),
+            ("/4.cjs", ";\n"),
+            (
+                "/5.cjs",
+                "import two from \"./2.cjs\";   // ok\n\
+                 import three from \"./3.cjs\"; // error\n\
+                 two.foo;\n\
+                 three.foo;\n",
+            ),
+        ];
+        for module in [101, 102, 199] {
+            let inputs: Vec<InputFile> = files
+                .iter()
+                .map(|(name, text)| InputFile {
+                    name: (*name).to_owned(),
+                    text: (*text).to_owned(),
+                })
+                .collect();
+            let result = check_program(
+                &inputs,
+                &CompilerOptions {
+                    allow_js: true,
+                    check_js: Some(true),
+                    target: Some(9),
+                    module: Some(module),
+                    ..CompilerOptions::default()
+                },
+            );
+            assert_eq!(
+                targeted_rows(&result, &[1192]),
+                [(
+                    "/5.cjs".to_owned(),
+                    1192,
+                    42,
+                    5,
+                    "Module '\"/3\"' has no default export.".to_owned(),
+                )],
+                "module={module}"
+            );
         }
     }
 
