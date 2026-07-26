@@ -114,11 +114,14 @@ TS1484, and TS1485), including exact TS1377 related origins. It also
 uses the exact extension-sensitive CommonJS message helper for the
 three TS1295 alias rows owned by this producer; the remaining TS1295
 rows stay with their separate dynamic-import and export-assignment
-producers. M7 reuses the approach that made the 2XXX sweep effective:
-measure exact oracle rows first, group them into `(diagnostic code,
-pass)` owner families, trace each family through the emitting `tsc`
-function and its Rust implementation boundary, then port one bounded
-producer slice at a time. See the
+producers. The following `checkExportAssignment` slice then publishes
+the three CommonJS export-default TS1295 rows through that shared
+helper; the dynamic-import row remains separate. M7 reuses the
+approach that made the 2XXX sweep effective: measure exact oracle rows
+first, group them into `(diagnostic code, pass)` owner families, trace
+each family through the emitting `tsc` function and its Rust
+implementation boundary, then port one bounded producer slice at a
+time. See the
 [M7 band and owner strategy](docs/design/greenfield/m7-band-and-owner-strategy.md).
 
 The stage marker remains `M6` while M7 is active and advances only when the
@@ -132,7 +135,7 @@ artifacts by every `cargo xtask ci` run:
 
 | View | Exact diagnostic match (T0) |
 | --- | --- |
-| All bands | **66.6062%** (32,653 / 49,024) |
+| All bands | **66.6123%** (32,656 / 49,024) |
 | 2xxx band | **97.4063%** (20,505 / 21,051) |
 | Syntactic | **99.8219%** (2,242 / 2,246) |
 

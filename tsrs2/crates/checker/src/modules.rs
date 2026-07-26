@@ -6690,7 +6690,8 @@ impl<'a> CheckerState<'a> {
     /// erasableSyntaxOnly, collectLinkedAliases (emit), and the JSDoc
     /// type-annotation arm remain outside the modeled option/syntax
     /// surface. The verbatimModuleSyntax and isolatedModules
-    /// type-only faces are live. The export= tail must use
+    /// type-only faces are live, including the CommonJS
+    /// export-default diagnostic. The export= tail must use
     /// getImpliedNodeFormatForEmit: package.json `type` affects
     /// Node-format JS publication even when no ordinary module
     /// resolution is performed by this declaration.
@@ -6863,6 +6864,10 @@ impl<'a> CheckerState<'a> {
             }
         } else {
             self.check_expression_cached(expression, CheckMode::NORMAL)?;
+        }
+        if is_illegal_export_default_in_cjs {
+            let message = self.get_verbatim_module_syntax_error_message(node);
+            self.error_at(Some(node), message, &[]);
         }
         self.check_external_module_exports(container)?;
         if ambient && !self.is_entity_name_expression(expression) {
@@ -7466,6 +7471,34 @@ let unrelated = \"\";\n",
                 ("/main6.ts".to_owned(), 1284, 30, 1),
                 ("/main7.ts".to_owned(), 1285, 45, 1),
             ]
+        );
+    }
+
+    #[test]
+    fn verbatim_commonjs_export_default_reports_the_whole_assignment() {
+        let source = "interface I {}\nexport default I;\n";
+        let result = check_program(
+            &[InputFile {
+                name: "/main.ts".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions {
+                module: Some(1),
+                target: Some(99),
+                module_resolution: Some(100),
+                verbatim_module_syntax: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            targeted_rows(&result, &[1284, 1295]),
+            [(
+                "/main.ts".to_owned(),
+                1295,
+                source.find("export default").expect("export default") as u32,
+                "export default I;".len() as u32,
+                "ECMAScript imports and exports cannot be written in a CommonJS file under 'verbatimModuleSyntax'. Adjust the 'type' field in the nearest 'package.json' to make this file an ECMAScript module, or adjust your 'verbatimModuleSyntax', 'module', and 'moduleResolution' settings in TypeScript.".to_owned(),
+            )]
         );
     }
 

@@ -302,8 +302,10 @@
 # JavaScript-specific top-level-context message selection.
 # m7 8.1g.6 adds +11 through checkAliasSymbol's isolated/verbatim
 # type-only aliases and its CommonJS-format import-alias diagnostics.
-rate = 0.666062
-matched = 32653
+# m7 8.1g.7 adds +3 through checkExportAssignment's CommonJS
+# export-default diagnostic.
+rate = 0.666123
+matched = 32656
 total = 49024
 allowed_regression = 0.0
 
