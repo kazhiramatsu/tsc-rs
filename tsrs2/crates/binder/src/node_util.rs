@@ -266,21 +266,31 @@ pub fn name_field_of(source: &SourceFile, id: NodeId) -> Option<NodeId> {
 /// tsc-hash: 382ebe3aca3c5b65c264f1177b6f9ed47454cdc918c228f8469456fb504d617b
 /// tsc-span: _tsc.js:11517-11561
 ///
-/// JS-only: the CallExpression/BinaryExpression assignment-declaration
-/// arms and the bindable static ElementAccessExpression arm are kept
-/// binder-local until the checker consumers activate in phase 9.8b.
-/// JSDoc tag arms await JSDoc parsing.
+/// JS assignment declarations reuse the binder's authoritative
+/// assignment-kind classifier. This became a checker prerequisite when
+/// M7 activated unused-local diagnostics for function owners. JSDoc
+/// tag arms await JSDoc parsing.
 pub fn get_non_assigned_name_of_declaration(source: &SourceFile, id: NodeId) -> Option<NodeId> {
     match kind_of(source, id) {
         SyntaxKind::Identifier => Some(id),
-        SyntaxKind::CallExpression | SyntaxKind::BinaryExpression => None,
+        SyntaxKind::CallExpression | SyntaxKind::BinaryExpression => {
+            crate::assignment::get_assignment_declaration_name(source, id)
+        }
         SyntaxKind::ExportAssignment => match &source.arena.node(id).data {
             NodeData::ExportAssignment(data) => data
                 .expression
                 .filter(|&expression| kind_of(source, expression) == SyntaxKind::Identifier),
             _ => None,
         },
-        SyntaxKind::ElementAccessExpression => None,
+        SyntaxKind::ElementAccessExpression => {
+            crate::assignment::is_bindable_static_element_access_expression(source, id, false)
+                .then(|| {
+                    crate::assignment::get_element_or_property_access_argument_expression_or_name(
+                        source, id,
+                    )
+                })
+                .flatten()
+        }
         _ => name_field_of(source, id),
     }
 }

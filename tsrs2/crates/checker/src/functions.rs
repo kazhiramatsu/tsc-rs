@@ -2159,7 +2159,9 @@ impl<'a> CheckerState<'a> {
     /// === returnTypeNode in TS files);
     /// The lazy tail runs eager (the 5.4 addLazyDiagnostic decision).
     /// M7 activates registration one declaration owner at a time;
-    /// FunctionDeclaration is the current producer-owned slice.
+    /// FunctionDeclaration and ArrowFunction value locals/parameters
+    /// are the current producer-owned slices. Type-parameter
+    /// diagnostics remain on their separate worker boundary.
     pub(crate) fn check_signature_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
         let kind = self.kind_of(node);
         if kind == SyntaxKind::IndexSignature {
@@ -2271,7 +2273,10 @@ impl<'a> CheckerState<'a> {
         } else if let Some(projection) = jsdoc_async_return {
             self.check_jsdoc_async_function_return_type(node, projection);
         }
-        if kind == SyntaxKind::FunctionDeclaration {
+        if matches!(
+            kind,
+            SyntaxKind::FunctionDeclaration | SyntaxKind::ArrowFunction
+        ) {
             self.register_for_unused_identifiers_check(node);
         }
         Ok(())
