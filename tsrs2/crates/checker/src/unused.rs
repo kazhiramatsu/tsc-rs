@@ -1426,6 +1426,41 @@ export {};
         );
     }
 
+    #[test]
+    fn unused_module_instantiation_alias_does_not_reference_assignment_target() {
+        let text = "declare namespace pack1 {
+  const test1: string;
+  export { test1 };
+}
+declare namespace pack2 {
+  import test1 = pack1.test1;
+  export { test1 };
+}
+export import test1 = pack2.test1;
+declare namespace mod1 {
+  type test1 = string;
+  export { test1 };
+}
+declare namespace mod2 {
+  import test1 = mod1.test1;
+  export { test1 };
+}
+const test2 = mod2;
+";
+        let rows = unused_rows(text, &CompilerOptions::default());
+        let start = text.find("test2 =").expect("test2 declaration") as u32;
+        assert_eq!(
+            rows,
+            vec![(
+                6133,
+                DiagnosticCategory::Suggestion,
+                start,
+                "test2".len() as u32,
+                "'test2' is declared but its value is never read.".to_owned(),
+            )]
+        );
+    }
+
     const CLASS_PROBE: &str = "class C {
   #used = 0;
   #unused = 0;
