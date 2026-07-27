@@ -170,6 +170,7 @@ impl<'a> CheckerState<'a> {
         self.check_jsdoc_parameter_type_argument_grammar(root);
         self.check_jsdoc_template_tag_modifier_grammar(root);
         self.check_jsdoc_satisfies_tag_duplicates(root);
+        self.check_jsdoc_cast_type_predicate_grammar(root);
         // 87010-87014: the five per-file accumulators clear at worker
         // entry (the PartiallyTypeChecked restore stays elided).
         self.potential_this_collisions.clear();
@@ -2355,6 +2356,105 @@ impl<'a> CheckerState<'a> {
             cursor = comment_close + 2;
         }
         comments
+    }
+
+    /// tsrs-native: project checkTypePredicate's invalid-parent face
+    /// over a JSDoc `@type` cast while JSDoc type nodes are absent
+    /// from the syntax arena.
+    ///
+    /// tsc-port: checkTypePredicate @6.0.3
+    /// tsc-hash: a9cf25130ba9b91453a845c17be5e5baea7d97023a327b90cc68d9b070610950
+    /// tsc-span: _tsc.js:81206-81253
+    /// d2: d2:ebf91a3ad98a58a59e4bd316718d05b9b673b7e240c93ec79dd4948636258d87
+    ///
+    /// A type predicate in a cast has no function-return parent, so
+    /// tsc reports TS1228 on the complete predicate node and performs
+    /// no narrowing. This slice recognizes the live single-line
+    /// identifier-predicate face only; it does not publish a type or
+    /// narrowing fact.
+    fn check_jsdoc_cast_type_predicate_grammar(&mut self, root: NodeId) {
+        if !self.is_in_js_file(root) {
+            return;
+        }
+        for (start, end) in self.jsdoc_cast_type_predicate_spans(root) {
+            let diagnostics_before = self.diagnostics.len();
+            self.error_at_byte_range(
+                root,
+                start,
+                end,
+                &diagnostics::A_type_predicate_is_only_allowed_in_return_type_position_for_functions_and_methods,
+            );
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1228);
+        }
+    }
+
+    fn jsdoc_cast_type_predicate_spans(&self, root: NodeId) -> Vec<(usize, usize)> {
+        let source = self.binder.source_of_node(root);
+        let mut spans = std::collections::BTreeSet::new();
+        for (body_start, comment_close) in self.jsdoc_comment_body_ranges(root) {
+            if !source.text[comment_close + 2..]
+                .trim_start()
+                .starts_with('(')
+            {
+                continue;
+            }
+            let body = &source.text[body_start..comment_close];
+            let mut line_offset = 0usize;
+            for line in body.split_inclusive('\n') {
+                let line_without_lf = line.strip_suffix('\n').unwrap_or(line);
+                let line_without_break = line_without_lf
+                    .strip_suffix('\r')
+                    .unwrap_or(line_without_lf);
+                let leading = line_without_break.len()
+                    - line_without_break
+                        .trim_start_matches(char::is_whitespace)
+                        .len();
+                let mut candidate = &line_without_break[leading..];
+                let mut candidate_offset = leading;
+                if let Some(after_star) = candidate.strip_prefix('*') {
+                    candidate_offset += 1;
+                    let star_space =
+                        after_star.len() - after_star.trim_start_matches(char::is_whitespace).len();
+                    candidate_offset += star_space;
+                    candidate = &after_star[star_space..];
+                }
+                let Some(type_tail) = candidate.strip_prefix("@type") else {
+                    line_offset += line.len();
+                    continue;
+                };
+                if !type_tail
+                    .chars()
+                    .next()
+                    .is_some_and(|character| character.is_whitespace() || character == '{')
+                {
+                    line_offset += line.len();
+                    continue;
+                }
+                let Some(open_brace) = candidate.find('{') else {
+                    line_offset += line.len();
+                    continue;
+                };
+                let Some(close_brace) = candidate[open_brace + 1..].find('}') else {
+                    line_offset += line.len();
+                    continue;
+                };
+                let raw_type_start = open_brace + 1;
+                let raw_type_end = raw_type_start + close_brace;
+                let raw_type = &candidate[raw_type_start..raw_type_end];
+                let type_leading =
+                    raw_type.len() - raw_type.trim_start_matches(char::is_whitespace).len();
+                let predicate = raw_type.trim();
+                if !is_jsdoc_identifier_type_predicate(predicate) {
+                    line_offset += line.len();
+                    continue;
+                }
+                let start =
+                    body_start + line_offset + candidate_offset + raw_type_start + type_leading;
+                spans.insert((start, start + predicate.len()));
+                line_offset += line.len();
+            }
+        }
+        spans.into_iter().collect()
     }
 
     /// tsc-port: checkBlock @6.0.3
@@ -9637,6 +9737,17 @@ fn source_starts_keyword(text: &str, keyword: &str) -> bool {
     })
 }
 
+fn is_jsdoc_identifier_type_predicate(text: &str) -> bool {
+    let mut parts = text.split_whitespace();
+    let Some(parameter) = parts.next() else {
+        return false;
+    };
+    if !tsrs2_syntax::is_identifier_text(parameter) || parts.next() != Some("is") {
+        return false;
+    }
+    parts.next().is_some()
+}
+
 #[cfg(test)]
 mod tests {
     use tsrs2_types::{CompilerOptions, ScriptTarget};
@@ -9992,6 +10103,68 @@ mod tests {
             diagnostics.iter().all(|diagnostic| diagnostic.0 != 1223),
             "distinct-host/non-tag faces must not produce duplicate-tag diagnostics: \
              {diagnostics:?}"
+        );
+    }
+
+    // ---- M7 8.1r JSDoc cast type-predicate grammar ----
+
+    #[test]
+    fn jsdoc_cast_type_predicate_reports_invalid_return_type_position() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "let value;\n\
+                    if (/** @type {value is string} */ (value)) {}\n";
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 1228)
+                .expect("TS1228");
+            let start = text.find("value is string").expect("type predicate text") as u32;
+            assert_eq!(
+                (
+                    diagnostic.start,
+                    diagnostic.length,
+                    diagnostic.message_text(),
+                ),
+                (
+                    Some(start),
+                    Some("value is string".len() as u32),
+                    "A type predicate is only allowed in return type position for functions and methods.",
+                )
+            );
+            assert!(state.non_jsdoc_js_diagnostics.contains(&(
+                "a.js".to_owned(),
+                start,
+                "value is string".len() as u32,
+                1228,
+            )));
+        });
+    }
+
+    #[test]
+    fn jsdoc_cast_type_predicate_projection_preserves_other_type_faces() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "let value;\n\
+                    const normal = /** @type {string} */ (value);\n\
+                    const boundary = /** @type {value isomorphic} */ (value);\n\
+                    const object = /** @type {{ is: string }} */ ({ is: \"\" });\n\
+                    const otherTag = /** @types {value is string} */ (value);\n\
+                    const text = \"/** @type {value is string} */ (value)\";\n\
+                    const prose = /** prose @type {value is string} */ (value);\n\
+                    const ordinary = /* @type {value is string} */ (value);\n";
+        let diagnostics = checked_file_diags_with("a.js", text, &options);
+        assert!(
+            diagnostics.iter().all(|diagnostic| diagnostic.0 != 1228),
+            "non-predicate/non-tag faces must not produce TS1228: {diagnostics:?}"
         );
     }
 
