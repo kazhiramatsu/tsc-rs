@@ -14,6 +14,7 @@ use sha2::{Digest, Sha256};
 use tsrs2_checker::{CompilerOptions, InputFile};
 use tsrs2_diags::DiagnosticList;
 
+mod m8_evidence;
 mod recovery_census;
 mod relpin;
 mod slice_evidence;
@@ -44,12 +45,48 @@ fn main() {
         Some("invariants") => run_or_exit(invariants(args)),
         Some("m8") => match args.next().as_deref() {
             Some("readiness") => run_or_exit(m8_readiness(args)),
+            Some("evidence") => run_or_exit(m8_evidence::evidence(args)),
             Some(other) => {
                 eprintln!("unknown m8 command: {other}");
                 std::process::exit(2);
             }
             None => {
-                eprintln!("missing m8 command (readiness)");
+                eprintln!("missing m8 command (readiness|evidence)");
+                std::process::exit(2);
+            }
+        },
+        Some("coverage") => match args.next().as_deref() {
+            Some("emitters") => run_or_exit(m8_evidence::coverage_emitters(args)),
+            Some(other) => {
+                eprintln!("unknown coverage command: {other}");
+                std::process::exit(2);
+            }
+            None => {
+                eprintln!("missing coverage command (emitters)");
+                std::process::exit(2);
+            }
+        },
+        Some("fuzz") => match args.next().as_deref() {
+            Some("run") => run_or_exit(m8_evidence::fuzz_run(args)),
+            Some("replay") => run_or_exit(m8_evidence::fuzz_replay(args)),
+            Some("reduce") => run_or_exit(m8_evidence::fuzz_reduce(args)),
+            Some(other) => {
+                eprintln!("unknown fuzz command: {other}");
+                std::process::exit(2);
+            }
+            None => {
+                eprintln!("missing fuzz command (run|replay|reduce)");
+                std::process::exit(2);
+            }
+        },
+        Some("perf") => match args.next().as_deref() {
+            Some("conformance") => run_or_exit(m8_evidence::perf_conformance(args)),
+            Some(other) => {
+                eprintln!("unknown perf command: {other}");
+                std::process::exit(2);
+            }
+            None => {
+                eprintln!("missing perf command (conformance)");
                 std::process::exit(2);
             }
         },
@@ -920,52 +957,6 @@ struct M8EmitterDisposition {
 }
 
 #[derive(Debug, Deserialize)]
-struct M8Evidence {
-    schema: u32,
-    runtime_coverage: M8RuntimeCoverageEvidence,
-    fuzzer: M8FuzzerEvidence,
-    performance: M8PerformanceEvidence,
-}
-
-#[derive(Debug, Deserialize)]
-struct M8RuntimeCoverageEvidence {
-    status: String,
-    inventory_sha256: String,
-    #[serde(default)]
-    executed_emitters: Vec<String>,
-    #[serde(default)]
-    zero_hit_emitters: Vec<M8ZeroHitEmitter>,
-    artifact: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct M8ZeroHitEmitter {
-    function: String,
-    evidence: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct M8FuzzerEvidence {
-    status: String,
-    ci_command: Option<String>,
-    generated_cases: usize,
-    oracle_comparisons: usize,
-    reducer_smoke: bool,
-    signature_dedupe: bool,
-    artifact: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct M8PerformanceEvidence {
-    status: String,
-    wall_seconds: Option<f64>,
-    max_rss_bytes: Option<u64>,
-    ceiling_wall_seconds: Option<f64>,
-    ceiling_rss_bytes: Option<u64>,
-    artifact: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
 struct M8FamiliesReport {
     schema: u32,
     map_status: String,
@@ -1120,82 +1111,14 @@ fn m8_readiness_inner(
         && unaccounted_closure == 0
         && extra_dispositions == 0;
 
-    let evidence: M8Evidence = read_json(&workspace.join("m8-evidence.json"))?;
-    if evidence.schema != 2 {
-        return Err("m8-evidence.json must be schema 2".into());
-    }
-    let runtime = &evidence.runtime_coverage;
     let direct_emitter_ids = inventory
         .functions
         .iter()
         .filter(|function| function.direct_emitter)
         .map(|function| function.id.as_str())
         .collect::<BTreeSet<_>>();
-    let executed_emitters = runtime
-        .executed_emitters
-        .iter()
-        .map(String::as_str)
-        .collect::<BTreeSet<_>>();
-    let mut zero_hit_emitters = BTreeSet::new();
-    let mut zero_hit_invalid_evidence = 0usize;
-    for emitter in &runtime.zero_hit_emitters {
-        if emitter.evidence.trim().is_empty()
-            || !zero_hit_emitters.insert(emitter.function.as_str())
-        {
-            zero_hit_invalid_evidence += 1;
-        }
-    }
-    let runtime_duplicates = runtime.executed_emitters.len() - executed_emitters.len()
-        + runtime.zero_hit_emitters.len()
-        - zero_hit_emitters.len();
-    let runtime_overlap = executed_emitters.intersection(&zero_hit_emitters).count();
-    let runtime_accounted = executed_emitters
-        .union(&zero_hit_emitters)
-        .copied()
-        .collect::<BTreeSet<_>>();
-    let runtime_missing = direct_emitter_ids.difference(&runtime_accounted).count();
-    let runtime_extra = runtime_accounted.difference(&direct_emitter_ids).count();
-    let runtime_ready = runtime.status == "ready"
-        && runtime.inventory_sha256 == inventory_hash
-        && direct_emitter_ids.len() == inventory.summary.emitter_declarations
-        && !executed_emitters.is_empty()
-        && runtime_missing == 0
-        && runtime_extra == 0
-        && runtime_duplicates == 0
-        && runtime_overlap == 0
-        && zero_hit_invalid_evidence == 0
-        && artifact_exists(&workspace, runtime.artifact.as_deref());
-    let fuzzer = &evidence.fuzzer;
-    let fuzzer_ready = fuzzer.status == "ready"
-        && fuzzer
-            .ci_command
-            .as_deref()
-            .is_some_and(|command| !command.trim().is_empty())
-        && fuzzer.generated_cases > 0
-        && fuzzer.oracle_comparisons == fuzzer.generated_cases
-        && fuzzer.reducer_smoke
-        && fuzzer.signature_dedupe
-        && artifact_exists(&workspace, fuzzer.artifact.as_deref());
-    let performance = &evidence.performance;
-    let performance_ready = match (
-        performance.wall_seconds,
-        performance.max_rss_bytes,
-        performance.ceiling_wall_seconds,
-        performance.ceiling_rss_bytes,
-    ) {
-        (Some(wall), Some(rss), Some(wall_ceiling), Some(rss_ceiling)) => {
-            performance.status == "ready"
-                && wall >= 0.0
-                && wall <= wall_ceiling
-                && wall_ceiling > 0.0
-                && wall_ceiling <= 60.0
-                && rss > 0
-                && rss <= rss_ceiling
-                && rss_ceiling > 0
-                && artifact_exists(&workspace, performance.artifact.as_deref())
-        }
-        _ => false,
-    };
+    let produced_evidence =
+        m8_evidence::verify_for_readiness(&workspace, &inventory_hash, &direct_emitter_ids)?;
 
     let t1_active = ratchet_section_has_exact_counts(&workspace.join("ratchet.toml"), "t1")?;
     let undispositioned = collect_undispositioned_checker_fns(&workspace)?.len();
@@ -1268,46 +1191,20 @@ fn m8_readiness_inner(
     add_m8_gate(
         &mut gates,
         "runtime-coverage",
-        runtime_ready,
-        format!(
-            "status={} accounted={}/{} executed={} zero-hit={} missing={} extra={} duplicate={} overlap={} invalid-evidence={}",
-            runtime.status,
-            runtime_accounted.intersection(&direct_emitter_ids).count(),
-            inventory.summary.emitter_declarations,
-            executed_emitters.len(),
-            zero_hit_emitters.len(),
-            runtime_missing,
-            runtime_extra,
-            runtime_duplicates,
-            runtime_overlap,
-            zero_hit_invalid_evidence
-        ),
+        produced_evidence.runtime_ready,
+        produced_evidence.runtime_detail,
     );
     add_m8_gate(
         &mut gates,
         "differential-fuzzer",
-        fuzzer_ready,
-        format!(
-            "status={} generated={} compared={} reducer-smoke={} signature-dedupe={}",
-            fuzzer.status,
-            fuzzer.generated_cases,
-            fuzzer.oracle_comparisons,
-            fuzzer.reducer_smoke,
-            fuzzer.signature_dedupe
-        ),
+        produced_evidence.fuzzer_ready,
+        produced_evidence.fuzzer_detail,
     );
     add_m8_gate(
         &mut gates,
         "performance-baseline",
-        performance_ready,
-        format!(
-            "status={} wall={:?}/{:?}s rss={:?}/{:?}",
-            performance.status,
-            performance.wall_seconds,
-            performance.ceiling_wall_seconds,
-            performance.max_rss_bytes,
-            performance.ceiling_rss_bytes
-        ),
+        produced_evidence.performance_ready,
+        produced_evidence.performance_detail,
     );
     gates.push(m7_family_readiness_gate(&families_report));
 
@@ -1397,31 +1294,6 @@ fn sha256_file(path: &Path) -> Result<String, Box<dyn Error>> {
     let mut hasher = Sha256::new();
     hasher.update(fs::read(path)?);
     Ok(format!("{:x}", hasher.finalize()))
-}
-
-fn artifact_exists(workspace: &Path, artifact: Option<&str>) -> bool {
-    artifact.is_some_and(|artifact| {
-        let path = PathBuf::from(artifact);
-        if path.is_absolute()
-            || path.components().any(|component| {
-                matches!(
-                    component,
-                    std::path::Component::ParentDir
-                        | std::path::Component::RootDir
-                        | std::path::Component::Prefix(_)
-                )
-            })
-        {
-            return false;
-        }
-        let Ok(workspace) = workspace.canonicalize() else {
-            return false;
-        };
-        let Ok(path) = workspace.join(path).canonicalize() else {
-            return false;
-        };
-        path.starts_with(&workspace) && path.is_file()
-    })
 }
 
 fn ratchet_section_has_exact_counts(path: &Path, section: &str) -> Result<bool, Box<dyn Error>> {
@@ -5324,6 +5196,7 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
     // every gate run — never split across jobs where one side can go
     // stale. Report-only until M7 close arms --require-ready
     // (landing order row 14).
+    m8_evidence::produce_all()?;
     // Reuse the all-band summary and the already-run inventory/ledger
     // checks instead of launching a fourth full-corpus checker pass.
     m8_readiness_inner(false, Some(&summaries.all), true)?;

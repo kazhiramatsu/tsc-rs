@@ -42,8 +42,12 @@ export function absoluteProgramFileName(fileName, cwd) {
 }
 
 export function compilerOptionsFromProgram(program) {
+  return compilerOptionsFromProgramWithTs(ts, program);
+}
+
+export function compilerOptionsFromProgramWithTs(tsApi, program) {
   const declarations = new Map(
-    (ts.optionDeclarations ?? []).map((option) => [option.name.toLowerCase(), option])
+    (tsApi.optionDeclarations ?? []).map((option) => [option.name.toLowerCase(), option])
   );
   const options = {};
 
@@ -70,14 +74,18 @@ export function compilerOptionsFromProgram(program) {
 }
 
 export function createHost(options, files, cwd) {
-  const languageVersion = options.target ?? ts.ScriptTarget.Latest;
+  return createHostWithTs(ts, options, files, cwd);
+}
+
+export function createHostWithTs(tsApi, options, files, cwd) {
+  const languageVersion = options.target ?? tsApi.ScriptTarget.Latest;
   return {
     getSourceFile(fileName, languageVersionOrOptions = languageVersion) {
       const normalized = absoluteProgramFileName(fileName, cwd);
       const text = files.get(normalized);
       return text === undefined
         ? undefined
-        : ts.createSourceFile(normalized, text, languageVersionOrOptions, true);
+        : tsApi.createSourceFile(normalized, text, languageVersionOrOptions, true);
     },
     getDefaultLibFileName() {
       return "lib.d.ts";
@@ -108,14 +116,18 @@ export function createHost(options, files, cwd) {
 }
 
 export function createProgramFromJsonPath(programJsonPath) {
+  return createProgramFromJsonPathWithTs(ts, programJsonPath);
+}
+
+export function createProgramFromJsonPathWithTs(tsApi, programJsonPath) {
   const { program: programJson, cwd, files, publicNames } = decodeProgram(programJsonPath);
-  const options = compilerOptionsFromProgram(programJson);
+  const options = compilerOptionsFromProgramWithTs(tsApi, programJson);
   const rootNames = [
     ...(programJson.libs ?? []).map((fileName) => absoluteProgramFileName(fileName, cwd)),
     ...(programJson.files ?? []).map((file) => absoluteProgramFileName(file.name, cwd)),
   ];
-  const host = createHost(options, files, cwd);
-  const program = ts.createProgram(rootNames, options, host);
+  const host = createHostWithTs(tsApi, options, files, cwd);
+  const program = tsApi.createProgram(rootNames, options, host);
   return { program, programJson, cwd, files, publicNames };
 }
 

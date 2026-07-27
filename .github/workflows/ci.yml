@@ -129,6 +129,7 @@ jobs:
         working-directory: tsrs2
         env:
           BASELINE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          TSRS_M8_RUNNER_PROFILE: github-ubuntu-x64-standard
         run: cargo xtask ci --lane semantic --baseline "$BASELINE_SHA"
 
       - name: Upload semantic artifacts on failure

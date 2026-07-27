@@ -177,9 +177,14 @@ most 60 seconds. The first RSS ceiling comes from measured evidence plus
 a reviewed margin. Readiness and completion require the observations,
 not only configured ceilings, to pass on an approved profile.
 
-Also run with `TSRS_LIB_BUNDLE_CACHE=0`, and give fuzz workers explicit
-process lifetimes so option/lib combinations cannot grow the cache
-without bound.
+The ceiling-bearing full-corpus observation uses the normal bounded
+lib-bundle cache. Also run a separately recorded
+`TSRS_LIB_BUNDLE_CACHE=0` smoke in a short-lived child with an explicit
+fixture limit; its purpose is to exercise the no-reuse path without
+letting the batch checker's intentionally leaked lib bundles grow once
+per corpus case. The smoke cannot replace the full-corpus wall/RSS
+observation. Give fuzz and coverage workers explicit process lifetimes
+for the same reason.
 
 ## 5. Required CI topology
 
