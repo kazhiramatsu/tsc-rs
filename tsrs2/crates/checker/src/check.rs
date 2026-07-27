@@ -169,6 +169,7 @@ impl<'a> CheckerState<'a> {
         self.check_jsdoc_import_tag_resolution_mode_attributes(root);
         self.check_jsdoc_parameter_type_argument_grammar(root);
         self.check_jsdoc_template_tag_modifier_grammar(root);
+        self.check_jsdoc_satisfies_tag_duplicates(root);
         // 87010-87014: the five per-file accumulators clear at worker
         // entry (the PartiallyTypeChecked restore stays elided).
         self.potential_this_collisions.clear();
@@ -2217,6 +2218,143 @@ impl<'a> CheckerState<'a> {
             }
         }
         diagnostics.into_iter().collect()
+    }
+
+    /// tsrs-native: project checkJSDocSatisfiesTag's duplicate-tag
+    /// producer while JSDoc nodes are absent from the syntax arena.
+    ///
+    /// tsc-port: checkJSDocSatisfiesTag @6.0.3
+    /// tsc-hash: 06ba243cd86ac0b5ccf0af74f1537067992744abd80f186d85d8ae427648070a
+    /// tsc-span: _tsc.js:82811-82823
+    /// d2: d2:a0d5efc8706d3014c474e12d750522d852dadfb75272bf4701582f365764be4b
+    ///
+    /// The live residual has two equivalent host shapes: repeated
+    /// tags in a variable declaration's leading JSDoc, and one
+    /// leading tag plus one on its initializer. Grouping per
+    /// declaration preserves tsc's effective-host boundary for
+    /// comma-separated declarations.
+    fn check_jsdoc_satisfies_tag_duplicates(&mut self, root: NodeId) {
+        if !self.is_in_js_file(root) {
+            return;
+        }
+        for (start, end) in self.jsdoc_satisfies_tag_duplicate_spans(root) {
+            let diagnostics_before = self.diagnostics.len();
+            self.error_at_byte_range_with_args(
+                root,
+                start,
+                end,
+                &diagnostics::_0_tag_already_specified,
+                &["satisfies"],
+            );
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1223);
+        }
+    }
+
+    fn jsdoc_satisfies_tag_duplicate_spans(&self, root: NodeId) -> Vec<(usize, usize)> {
+        let source = self.binder.source_of_node(root);
+        let mut duplicates = std::collections::BTreeSet::new();
+        let mut stack = vec![root];
+        while let Some(node) = stack.pop() {
+            let raw = source.arena.node(node);
+            if let NodeData::VariableStatement(data) = &raw.data {
+                let leading = self.jsdoc_satisfies_tag_name_spans_in_leading_trivia(node);
+                let declarations = data
+                    .declaration_list
+                    .and_then(|list| match self.data_of(list) {
+                        NodeData::VariableDeclarationList(data) => data.declarations,
+                        _ => None,
+                    })
+                    .map(|array| self.nodes_of(Some(array)))
+                    .unwrap_or_default();
+                for (index, declaration) in declarations.into_iter().enumerate() {
+                    let mut tags = Vec::new();
+                    if let NodeData::VariableDeclaration(data) = self.data_of(declaration) {
+                        if let Some(initializer) = data.initializer {
+                            tags.extend(
+                                self.jsdoc_satisfies_tag_name_spans_in_leading_trivia(initializer),
+                            );
+                        }
+                    }
+                    // getAllJSDocTags' host walk observes the
+                    // initializer tag before declaration-leading
+                    // tags even though the latter appears first in
+                    // source order.
+                    if index == 0 {
+                        tags.extend(leading.iter().copied());
+                    }
+                    duplicates.extend(tags.into_iter().skip(1));
+                }
+            }
+            for_each_child(&source.arena, raw, |child| {
+                stack.push(child);
+                false
+            });
+        }
+        duplicates.into_iter().collect()
+    }
+
+    fn jsdoc_satisfies_tag_name_spans_in_leading_trivia(
+        &self,
+        node: NodeId,
+    ) -> Vec<(usize, usize)> {
+        let source = self.binder.source_of_node(node);
+        let mut spans = std::collections::BTreeSet::new();
+        for (body_start, comment_close) in self.jsdoc_comment_body_ranges_in_leading_trivia(node) {
+            let body = &source.text[body_start..comment_close];
+            let mut line_offset = 0usize;
+            for line in body.split_inclusive('\n') {
+                let line_without_lf = line.strip_suffix('\n').unwrap_or(line);
+                let line_without_break = line_without_lf
+                    .strip_suffix('\r')
+                    .unwrap_or(line_without_lf);
+                let leading = line_without_break.len()
+                    - line_without_break
+                        .trim_start_matches(char::is_whitespace)
+                        .len();
+                let mut candidate = &line_without_break[leading..];
+                let mut candidate_offset = leading;
+                if let Some(after_star) = candidate.strip_prefix('*') {
+                    candidate_offset += 1;
+                    let star_space =
+                        after_star.len() - after_star.trim_start_matches(char::is_whitespace).len();
+                    candidate_offset += star_space;
+                    candidate = &after_star[star_space..];
+                }
+                if candidate.strip_prefix("@satisfies").is_some_and(|tail| {
+                    tail.chars()
+                        .next()
+                        .is_none_or(|character| character.is_whitespace() || character == '{')
+                }) {
+                    let start = body_start + line_offset + candidate_offset + 1;
+                    spans.insert((start, start + "satisfies".len()));
+                }
+                line_offset += line.len();
+            }
+        }
+        spans.into_iter().collect()
+    }
+
+    fn jsdoc_comment_body_ranges_in_leading_trivia(&self, node: NodeId) -> Vec<(usize, usize)> {
+        let source = self.binder.source_of_node(node);
+        let raw = source.arena.node(node);
+        let trivia_start = (raw.pos as usize).min(source.text.len());
+        let trivia_end =
+            tsrs2_syntax::skip_trivia(&source.text, trivia_start).min(source.text.len());
+        let mut comments = Vec::new();
+        let mut cursor = trivia_start;
+        while cursor < trivia_end {
+            let Some(relative_start) = source.text[cursor..trivia_end].find("/**") else {
+                break;
+            };
+            let body_start = cursor + relative_start + 3;
+            let Some(relative_close) = source.text[body_start..trivia_end].find("*/") else {
+                break;
+            };
+            let comment_close = body_start + relative_close;
+            comments.push((body_start, comment_close));
+            cursor = comment_close + 2;
+        }
+        comments
     }
 
     /// tsc-port: checkBlock @6.0.3
@@ -9768,6 +9906,91 @@ mod tests {
                 .iter()
                 .all(|diagnostic| !matches!(diagnostic.0, 1273 | 1274 | 1277)),
             "valid/non-tag faces must not produce template-modifier grammar diagnostics: \
+             {diagnostics:?}"
+        );
+    }
+
+    // ---- M7 8.1q JSDoc satisfies-tag duplicate grammar ----
+
+    #[test]
+    fn jsdoc_satisfies_duplicates_report_every_tag_after_the_first_per_host() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/** @satisfies {number}\n\
+                     * @satisfies {number} */\n\
+                    const first = 1;\n\
+                    /** @satisfies {number} */\n\
+                    const second = /** @satisfies {number} */ (1);\n\
+                    /** @satisfies {number}\n\
+                     * @satisfies {number}\n\
+                     * @satisfies {number} */\n\
+                    const third = 1;\n";
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let tags = text
+                .match_indices("@satisfies")
+                .map(|(start, _)| ((start + 1) as u32, "satisfies".len() as u32))
+                .collect::<Vec<_>>();
+            let expected = [tags[1], tags[2], tags[5], tags[6]];
+            let diagnostics = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 1223)
+                .map(|diagnostic| {
+                    (
+                        diagnostic.start.expect("duplicate tag start"),
+                        diagnostic.length.expect("duplicate tag length"),
+                        diagnostic.message_text().to_owned(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                diagnostics,
+                expected
+                    .map(|(start, length)| (
+                        start,
+                        length,
+                        "'satisfies' tag already specified.".to_owned(),
+                    ))
+                    .to_vec()
+            );
+            for (start, length) in expected {
+                assert!(state.non_jsdoc_js_diagnostics.contains(&(
+                    "a.js".to_owned(),
+                    start,
+                    length,
+                    1223,
+                )));
+            }
+        });
+    }
+
+    #[test]
+    fn jsdoc_satisfies_duplicate_projection_preserves_distinct_hosts_and_non_tags() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/** @satisfies {number} */\n\
+                    const first = 1;\n\
+                    const inline = /** @satisfies {number} */ (1);\n\
+                    /** @satisfies {number} */\n\
+                    const left = 1, right = /** @satisfies {number} */ (2);\n\
+                    /** prose @satisfies {number} */\n\
+                    const prose = 1;\n\
+                    /** @satisfiesElse {number} */\n\
+                    const boundary = 1;\n\
+                    const text = \"/** @satisfies {number} */\";\n\
+                    /* @satisfies {number} */\n\
+                    const ordinary = 1;\n";
+        let diagnostics = checked_file_diags_with("a.js", text, &options);
+        assert!(
+            diagnostics.iter().all(|diagnostic| diagnostic.0 != 1223),
+            "distinct-host/non-tag faces must not produce duplicate-tag diagnostics: \
              {diagnostics:?}"
         );
     }

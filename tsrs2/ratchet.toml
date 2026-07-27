@@ -323,8 +323,10 @@
 # exact checked-JS TS1315 row in the ES5/ES2015 matrix.
 # m7 8.1p adds +3 through checkGrammarModifiers' checked-JS JSDoc
 # template effective-host projection and exact TS1273/TS1274/TS1277 rows.
-rate = 0.666796
-matched = 32689
+# m7 8.1q adds +2 through checkJSDocSatisfiesTag's checked-JS
+# effective-host duplicate projection and exact TS1223 rows.
+rate = 0.666837
+matched = 32691
 total = 49024
 allowed_regression = 0.0
 
