@@ -1665,8 +1665,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:79408-79426
     ///
     /// addLazyDiagnostic = eager (5.4 decision) — the grammar closure
-    /// runs inline. The no-op-await 80007 tail is suggestion-category
-    /// (unmodeled band) — skipped.
+    /// runs inline. The no-op-await tail preserves tsc's strict TypeId
+    /// identity check and excludes error/any/unknown operands.
     pub(crate) fn check_await_expression(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         self.check_await_grammar(node)?;
         let expression = match self.data_of(node) {
@@ -1682,6 +1682,23 @@ impl<'a> CheckerState<'a> {
             node,
             &diagnostics::Type_of_await_operand_must_either_be_a_valid_promise_or_must_not_contain_a_callable_then_member,
         )?;
+        if awaited_type == operand_type
+            && !self.tables.is_error_type(awaited_type)
+            && !self
+                .tables
+                .flags_of(operand_type)
+                .intersects(TypeFlags::ANY_OR_UNKNOWN)
+        {
+            let diagnostics_before = self.diagnostics.len();
+            self.error_at(
+                Some(node),
+                &diagnostics::await_has_no_effect_on_the_type_of_this_expression,
+                &[],
+            );
+            if self.is_in_js_file(node) {
+                self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 80007);
+            }
+        }
         Ok(awaited_type)
     }
 
@@ -6087,9 +6104,9 @@ mod tests {
 
     /// Driver-level fixture check (operators.rs idiom): oracle-pinned
     /// rows (tsc 6.0.3, noLib, options {}) — scratchpad p.ts probes,
-    /// 2026-07-13. Suggestion-band rows (6133/80007) are unmodeled and
-    /// absent throughout; null-span global 2318 rows are file-less and
-    /// filtered by the harness.
+    /// 2026-07-13. Suggestion-band 6133 and 80007 rows coexist with
+    /// grammar/error rows where tsc reports both; null-span global 2318
+    /// rows are file-less and filtered by the harness.
     #[test]
     fn setter_return_annotation_feeds_the_bare_return_7030() {
         // getEffectiveReturnTypeNode reads a set accessor's parsed
@@ -6503,7 +6520,7 @@ mod tests {
 
     #[test]
     fn top_level_await_in_non_module_reports_1375() {
-        assert_eq!(checked_rows("await 1;\n"), [(1375, 0, 5)]);
+        assert_eq!(checked_rows("await 1;\n"), [(1375, 0, 5), (80007, 0, 7)]);
     }
 
     #[test]
@@ -6511,7 +6528,7 @@ mod tests {
         // related 1356 (mark the function async) rides on the 1308 row.
         assert_eq!(
             checked_rows("(function f2() { return await 2; });\n"),
-            [(1308, 24, 5)]
+            [(1308, 24, 5), (80007, 24, 7)]
         );
     }
 
@@ -6533,7 +6550,7 @@ mod tests {
                         "const x = await 1;\nexport { x };\n",
                         &options
                     ),
-                    [(1309, 10, 5)]
+                    [(1309, 10, 5), (80007, 10, 7)]
                 );
             }
         }
@@ -6555,9 +6572,88 @@ mod tests {
                     "const x = await 1;\nexport { x };\n",
                     &options
                 ),
-                []
+                [(80007, 10, 7)]
             );
         }
+    }
+
+    #[test]
+    fn no_effect_await_suggestion_excludes_changed_error_any_and_unknown_types() {
+        let text = "declare const n: number;
+declare const p: { then(cb: (value: number) => void): void };
+declare const a: any;
+declare const u: unknown;
+(async () => {
+    await n;
+    await p;
+    await a;
+    await u;
+    await missing;
+})();
+";
+        let rows = with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 80007)
+                .map(|diagnostic| {
+                    (
+                        diagnostic.code(),
+                        diagnostic.category(),
+                        diagnostic.start,
+                        diagnostic.length,
+                        diagnostic.message.text.clone(),
+                        diagnostic.related.len(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        });
+        assert_eq!(
+            rows,
+            [(
+                80007,
+                tsrs2_diags::DiagnosticCategory::Suggestion,
+                Some(text.find("await n").expect("positive await") as u32),
+                Some(7),
+                "'await' has no effect on the type of this expression.".to_owned(),
+                0,
+            )]
+        );
+
+        let js = "(async () => { await 1; })();\n";
+        let js_rows = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: js.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        )
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.code() == 80007)
+        .map(|diagnostic| {
+            (
+                diagnostic.category(),
+                diagnostic.start,
+                diagnostic.length,
+                diagnostic.message.text.clone(),
+            )
+        })
+        .collect::<Vec<_>>();
+        assert_eq!(
+            js_rows,
+            [(
+                tsrs2_diags::DiagnosticCategory::Suggestion,
+                Some(js.find("await 1").expect("checked-JS await") as u32),
+                Some(7),
+                "'await' has no effect on the type of this expression.".to_owned(),
+            )]
+        );
     }
 
     #[test]
@@ -6622,7 +6718,7 @@ mod tests {
             checked_rows(
                 "declare const th: { then: number };\ndeclare let r: () => void;\nr = async () => { await th; };\n"
             ),
-            [(2697, 67, 25)]
+            [(2697, 67, 25), (80007, 81, 8)]
         );
     }
 
