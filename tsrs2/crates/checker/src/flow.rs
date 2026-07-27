@@ -4936,7 +4936,12 @@ mod tests {
         assert_eq!(checked_rows(text), [(7008, 10, 2)]);
         with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
             state.check_source_file(0);
-            let message = &state.diagnostics.last().expect("7008 row").message;
+            let message = &state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.category() == tsrs2_diags::DiagnosticCategory::Error)
+                .expect("7008 row")
+                .message;
             assert!(
                 message.text.contains("'#p'"),
                 "declaration-name display: {}",
@@ -4951,7 +4956,10 @@ mod tests {
             state
                 .diagnostics
                 .iter()
-                .filter(|diag| diag.file_name.is_some())
+                .filter(|diag| {
+                    diag.file_name.is_some()
+                        && diag.category() == tsrs2_diags::DiagnosticCategory::Error
+                })
                 .map(|diag| {
                     (
                         diag.code(),

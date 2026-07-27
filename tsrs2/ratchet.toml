@@ -351,8 +351,13 @@
 # JSDoc close-brace recovery and exact TS1005 rows.
 # m7 8.1ad adds +1 through parseExpected's checked-JS JSDoc
 # bracketed-template missing-equals recovery and exact TS1005 row.
-rate = 0.667673
-matched = 32732
+# m7 8.3c accepted-set catch-up adds +10 from the SourceFile unused
+# error-mode producer that landed without updating the stored set.
+# m7 8.4a adds +3538 by surfacing the registered SourceFile/Class
+# unused producers as suggestions, including checked-JS JSDoc and
+# CommonJS reference prerequisites; all-corpus FP remains zero.
+rate = 0.740046
+matched = 36280
 total = 49024
 allowed_regression = 0.0
 

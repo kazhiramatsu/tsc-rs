@@ -5,7 +5,7 @@
 //! same registrations feed the suggestion surface in 8.4.
 
 use tsrs2_binder::node_util;
-use tsrs2_diags::gen as diagnostics;
+use tsrs2_diags::{gen as diagnostics, DiagnosticCategory};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{ModifierFlags, NodeFlags, SymbolFlags};
 
@@ -24,16 +24,23 @@ impl<'a> CheckerState<'a> {
         self.potentially_unused_identifiers.push(node);
     }
 
-    /// tsrs-native: incremental error-mode projection of tsc
-    /// checkUnusedIdentifiers. Only registered producers can reach
-    /// this match; later 8.3 slices add their registrations and arms.
-    pub(crate) fn check_unused_identifiers_error_mode(&mut self) {
+    /// tsc-port: checkUnusedIdentifiers @6.0.3
+    /// tsc-hash: dcbee129b87b48f266b1bc1836718003e82f6b483b3d639b06b2ca7de12cd6df
+    /// tsc-span: _tsc.js:82954-82991
+    ///
+    /// Suggestion/category projection additionally mirrors
+    /// getSuggestionDiagnostics (46868-46878) and unusedIsError
+    /// (86987-86998).
+    ///
+    /// Only registered producers can reach this match. The current
+    /// SourceFile and Class producers emit Local-kind diagnostics, so
+    /// noUnusedLocals selects Error versus Suggestion for the complete
+    /// range. Later mixed local/parameter producers must preserve the
+    /// callback's per-diagnostic kind when their registrations land.
+    pub(crate) fn check_registered_unused_identifiers(&mut self) {
         let nodes = std::mem::take(&mut self.potentially_unused_identifiers);
         for node in nodes {
-            if self.contains_parse_error_for_unused(node)
-                || self.is_ambient_for_unused(node)
-                || self.options.no_unused_locals != Some(true)
-            {
+            if self.contains_parse_error_for_unused(node) {
                 continue;
             }
             let diagnostics_before = self.diagnostics.len();
@@ -42,17 +49,152 @@ impl<'a> CheckerState<'a> {
                     self.check_unused_class_members(node)
                 }
                 SyntaxKind::SourceFile => {
-                    self.mark_jsdoc_link_references_for_unused(node);
+                    self.mark_jsdoc_references_for_unused(node);
+                    self.mark_checked_js_source_references_for_unused(node);
                     self.check_unused_locals_and_parameters(node)
                 }
                 _ => Ok(()),
             };
+            if self.is_ambient_for_unused(node) || self.options.no_unused_locals != Some(true) {
+                for diagnostic in &mut self.diagnostics[diagnostics_before..] {
+                    diagnostic.message.category = DiagnosticCategory::Suggestion;
+                }
+            }
             if self.is_in_js_file(node) {
                 self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
             }
             if let Err(unsupported) = result {
                 self.mark_partially_checked_node(node, unsupported.reason);
             }
+        }
+    }
+
+    /// Checked-JS CommonJS declarations can bind as aliases or ordinary
+    /// destructured variables. Some expression paths consume their
+    /// resolved module type or shorthand export without forcing
+    /// checkIdentifier on the receiver; tsc's linked-reference pass
+    /// still marks the local. Project only matching read sites whose
+    /// nearest locals table resolves to that source local, preserving
+    /// destructuring, shadowing, and write-only rules.
+    fn mark_checked_js_source_references_for_unused(&mut self, root: NodeId) {
+        if !self.is_in_js_file(root) {
+            return;
+        }
+        let candidates = self
+            .binder
+            .locals_of(root)
+            .into_iter()
+            .flat_map(|locals| locals.values().copied())
+            .filter_map(|symbol| {
+                let raw = self.binder.symbol(symbol);
+                let declaration = if raw.flags.intersects(SymbolFlags::ALIAS) {
+                    self.get_declaration_of_alias_symbol(symbol)?
+                } else {
+                    let declaration = raw.declarations.iter().copied().find(|&declaration| {
+                        self.kind_of(declaration) == SyntaxKind::BindingElement
+                    })?;
+                    let variable =
+                        std::iter::successors(Some(declaration), |&node| self.parent_of(node))
+                            .find(|&node| self.kind_of(node) == SyntaxKind::VariableDeclaration)?;
+                    let initializer = match self.data_of(variable) {
+                        NodeData::VariableDeclaration(data) => data.initializer?,
+                        _ => return None,
+                    };
+                    if !self.is_require_call(initializer, true) {
+                        return None;
+                    }
+                    declaration
+                };
+                if !matches!(
+                    self.kind_of(declaration),
+                    SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement
+                ) {
+                    return None;
+                }
+                Some((raw.escaped_name.clone(), symbol, declaration))
+            })
+            .collect::<Vec<_>>();
+        if candidates.is_empty() {
+            return;
+        }
+
+        let mut stack = vec![root];
+        let mut identifiers = Vec::new();
+        while let Some(node) = stack.pop() {
+            if self.kind_of(node) == SyntaxKind::Identifier {
+                identifiers.push(node);
+            }
+            stack.extend(self.children_of(node));
+        }
+        for (name, symbol, declaration) in candidates {
+            let declaration_name = self.name_of_node(declaration);
+            for &identifier in &identifiers {
+                if Some(identifier) == declaration_name
+                    || self.identifier_text_of(identifier) != Some(name.as_str())
+                    || self.is_non_reference_identifier_name_for_unused(identifier)
+                    || self.is_write_only_access(identifier)
+                    || !self.identifier_resolves_to_source_local_for_unused(
+                        identifier, &name, symbol, root,
+                    )
+                {
+                    continue;
+                }
+                self.links
+                    .set_symbol_is_referenced(self.speculation_depth, symbol);
+                break;
+            }
+        }
+    }
+
+    fn identifier_resolves_to_source_local_for_unused(
+        &self,
+        node: NodeId,
+        escaped_name: &str,
+        source_symbol: tsrs2_types::SymbolId,
+        root: NodeId,
+    ) -> bool {
+        let mut current = self.parent_of(node);
+        while let Some(scope) = current {
+            if let Some(symbol) = self
+                .binder
+                .locals_of(scope)
+                .and_then(|locals| locals.get(escaped_name))
+            {
+                return *symbol == source_symbol;
+            }
+            if scope == root {
+                break;
+            }
+            current = self.parent_of(scope);
+        }
+        false
+    }
+
+    fn is_non_reference_identifier_name_for_unused(&self, node: NodeId) -> bool {
+        let Some(parent) = self.parent_of(node) else {
+            return false;
+        };
+        match self.data_of(parent) {
+            NodeData::PropertyAccessExpression(data) => data.name == Some(node),
+            NodeData::PropertyAssignment(data) => data.name == Some(node),
+            NodeData::MethodDeclaration(data) => data.name == Some(node),
+            NodeData::GetAccessor(data) => data.name == Some(node),
+            NodeData::SetAccessor(data) => data.name == Some(node),
+            NodeData::PropertyDeclaration(data) => data.name == Some(node),
+            NodeData::PropertySignature(data) => data.name == Some(node),
+            NodeData::MethodSignature(data) => data.name == Some(node),
+            NodeData::ClassDeclaration(data) => data.name == Some(node),
+            NodeData::ClassExpression(data) => data.name == Some(node),
+            NodeData::FunctionDeclaration(data) => data.name == Some(node),
+            NodeData::FunctionExpression(data) => data.name == Some(node),
+            NodeData::InterfaceDeclaration(data) => data.name == Some(node),
+            NodeData::TypeAliasDeclaration(data) => data.name == Some(node),
+            NodeData::EnumDeclaration(data) => data.name == Some(node),
+            NodeData::EnumMember(data) => data.name == Some(node),
+            NodeData::ModuleDeclaration(data) => data.name == Some(node),
+            NodeData::Parameter(data) => data.name == Some(node),
+            NodeData::BindingElement(data) => data.name == Some(node),
+            _ => false,
         }
     }
 
@@ -163,30 +305,52 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:82824-82832
     /// d2: d2:7af838c0f26203b767a593b87d8fd7b70f904695e93e35e87d432846ed7799f5
     ///
+    /// This also projects checked-JS JSDoc type resolution effects.
     /// The syntax arena does not materialize JSDocLink nodes yet.
-    /// Project their root entity names over the existing
-    /// parser-owned JSDoc trivia ranges, then apply the same
-    /// resolveJSDocMemberName reference effect to source-file locals.
-    /// A qualified link marks only its root (`ns` in `ns.Member`),
-    /// exactly the symbol the unused-import worker consumes.
-    fn mark_jsdoc_link_references_for_unused(&mut self, root: NodeId) {
+    /// Project their root entity names over the existing parser-owned
+    /// JSDoc trivia ranges, then apply the same reference effect to
+    /// source-file locals. Besides link-like tags, checked-JS `typeof`
+    /// type queries and the value declaration paired with a same-name
+    /// `@typedef` are observable prerequisites of the unused worker.
+    /// Qualified references mark only their root.
+    fn mark_jsdoc_references_for_unused(&mut self, root: NodeId) {
         let ranges = self.jsdoc_comment_body_ranges(root);
-        let names = {
+        let (names, typedef_names) = {
             let source = self.binder.source_of_node(root);
-            jsdoc_link_root_names(&source.text, &ranges)
+            let mut names = jsdoc_link_root_names(&source.text, &ranges);
+            let mut typedef_names = Vec::new();
+            if self.is_in_js_file(root) {
+                names.extend(jsdoc_type_reference_root_names(&source.text, &ranges));
+                typedef_names = jsdoc_typedef_names(&source.text, &ranges);
+            }
+            (names, typedef_names)
         };
         let symbols = {
             let Some(locals) = self.binder.locals_of(root) else {
                 return;
             };
-            names
+            let mut symbols = names
                 .into_iter()
                 .filter_map(|name| {
                     locals
                         .get(&tsrs2_binder::escape_leading_underscores(&name))
                         .copied()
                 })
-                .collect::<Vec<_>>()
+                .collect::<Vec<_>>();
+            symbols.extend(typedef_names.into_iter().filter_map(|name| {
+                let symbol = locals
+                    .get(&tsrs2_binder::escape_leading_underscores(&name))
+                    .copied()?;
+                self.binder
+                    .symbol(symbol)
+                    .declarations
+                    .iter()
+                    .any(|&declaration| {
+                        self.kind_of(declaration) == SyntaxKind::VariableDeclaration
+                    })
+                    .then_some(symbol)
+            }));
+            symbols
         };
         for symbol in symbols {
             self.links
@@ -642,8 +806,193 @@ fn jsdoc_link_root_names(text: &str, ranges: &[(usize, usize)]) -> Vec<String> {
 }
 
 #[cfg(test)]
+fn jsdoc_type_query_root_names(text: &str, ranges: &[(usize, usize)]) -> Vec<String> {
+    let mut names = Vec::new();
+    for &(start, end) in ranges {
+        let Some(body) = text.get(start..end) else {
+            continue;
+        };
+
+        // JSDoc type expressions are brace-delimited. Resolve the root
+        // of each `typeof Name` query, matching TypeQuery's value-use
+        // side effect without manufacturing names from prose.
+        let mut cursor = 0;
+        while let Some(open_relative) = body[cursor..].find('{') {
+            let open = cursor + open_relative + 1;
+            let Some(close_relative) = body[open..].find('}') else {
+                break;
+            };
+            let close = open + close_relative;
+            let type_text = &body[open..close];
+            let mut type_cursor = 0;
+            while let Some(typeof_relative) = type_text[type_cursor..].find("typeof") {
+                let typeof_start = type_cursor + typeof_relative;
+                let before_ok = typeof_start == 0
+                    || !is_jsdoc_identifier_part(
+                        type_text[..typeof_start]
+                            .chars()
+                            .next_back()
+                            .expect("nonzero has a previous char"),
+                    );
+                let after_keyword = typeof_start + "typeof".len();
+                let after_ok = type_text[after_keyword..]
+                    .chars()
+                    .next()
+                    .is_none_or(|character| !is_jsdoc_identifier_part(character));
+                if before_ok && after_ok {
+                    let tail = type_text[after_keyword..].trim_start_matches(char::is_whitespace);
+                    if let Some(name) = jsdoc_root_identifier(tail) {
+                        names.push(name.to_owned());
+                    }
+                }
+                type_cursor = after_keyword;
+            }
+            cursor = close + 1;
+        }
+    }
+    names
+}
+
+fn jsdoc_type_reference_root_names(text: &str, ranges: &[(usize, usize)]) -> Vec<String> {
+    let mut names = Vec::new();
+    for &(start, end) in ranges {
+        let Some(body) = text.get(start..end) else {
+            continue;
+        };
+        let mut cursor = 0;
+        let mut brace_depth = 0_u32;
+        let mut quote = None;
+        while cursor < body.len() {
+            let Some(character) = body[cursor..].chars().next() else {
+                break;
+            };
+            let character_len = character.len_utf8();
+            if let Some(delimiter) = quote {
+                if character == '\\' {
+                    cursor += character_len;
+                    if let Some(escaped) = body[cursor..].chars().next() {
+                        cursor += escaped.len_utf8();
+                    }
+                    continue;
+                }
+                if character == delimiter {
+                    quote = None;
+                }
+                cursor += character_len;
+                continue;
+            }
+            match character {
+                '\'' | '"' | '`' if brace_depth > 0 => {
+                    quote = Some(character);
+                    cursor += character_len;
+                    continue;
+                }
+                '{' => {
+                    brace_depth += 1;
+                    cursor += character_len;
+                    continue;
+                }
+                '}' => {
+                    brace_depth = brace_depth.saturating_sub(1);
+                    cursor += character_len;
+                    continue;
+                }
+                _ => {}
+            }
+            if brace_depth == 0 || !is_jsdoc_identifier_start(character) {
+                cursor += character_len;
+                continue;
+            }
+
+            let identifier_start = cursor;
+            cursor += character_len;
+            while cursor < body.len() {
+                let Some(next) = body[cursor..].chars().next() else {
+                    break;
+                };
+                if !is_jsdoc_identifier_part(next) {
+                    break;
+                }
+                cursor += next.len_utf8();
+            }
+            let previous = body[..identifier_start]
+                .chars()
+                .rev()
+                .find(|candidate| !candidate.is_whitespace());
+            let next = body[cursor..]
+                .chars()
+                .find(|candidate| !candidate.is_whitespace());
+            // A name after `.` is a qualified member, and a name
+            // before `:` is a record property. Neither resolves
+            // independently in the source-file locals table.
+            if previous != Some('.') && next != Some(':') {
+                names.push(body[identifier_start..cursor].to_owned());
+            }
+        }
+    }
+    names
+}
+
+fn jsdoc_typedef_names(text: &str, ranges: &[(usize, usize)]) -> Vec<String> {
+    let mut names = Vec::new();
+    for &(start, end) in ranges {
+        let Some(body) = text.get(start..end) else {
+            continue;
+        };
+        let mut cursor = 0;
+        while let Some(tag_relative) = body[cursor..].find("@typedef") {
+            let tag_start = cursor + tag_relative;
+            let after_tag = tag_start + "@typedef".len();
+            let tag_tail = &body[after_tag..];
+            let tag_tail = tag_tail.trim_start_matches(char::is_whitespace);
+            let name_tail = if let Some(type_tail) = tag_tail.strip_prefix('{') {
+                type_tail
+                    .find('}')
+                    .map(|close| &type_tail[close + 1..])
+                    .unwrap_or("")
+            } else {
+                tag_tail
+            };
+            if let Some(name) =
+                jsdoc_root_identifier(name_tail.trim_start_matches(char::is_whitespace))
+            {
+                names.push(name.to_owned());
+            }
+            cursor = after_tag;
+        }
+    }
+    names
+}
+
+fn jsdoc_root_identifier(text: &str) -> Option<&str> {
+    let mut chars = text.char_indices();
+    let (_, first) = chars.next()?;
+    if !is_jsdoc_identifier_start(first) {
+        return None;
+    }
+    let end = chars
+        .take_while(|(_, character)| is_jsdoc_identifier_part(*character))
+        .last()
+        .map_or(first.len_utf8(), |(index, character)| {
+            index + character.len_utf8()
+        });
+    text.get(..end)
+}
+
+fn is_jsdoc_identifier_start(character: char) -> bool {
+    character == '_' || character == '$' || character.is_alphabetic()
+}
+
+fn is_jsdoc_identifier_part(character: char) -> bool {
+    is_jsdoc_identifier_start(character) || character.is_alphanumeric()
+}
+
+#[cfg(test)]
 mod tests {
-    use super::jsdoc_link_root_names;
+    use super::{
+        jsdoc_link_root_names, jsdoc_type_query_root_names, jsdoc_type_reference_root_names,
+        jsdoc_typedef_names,
+    };
     use crate::{check_program, CompilerOptions, InputFile};
     use tsrs2_diags::DiagnosticCategory;
 
@@ -744,16 +1093,20 @@ mod tests {
     }
 
     #[test]
-    fn unused_class_member_errors_require_no_unused_locals() {
-        assert!(unused_rows(CLASS_PROBE, &CompilerOptions::default()).is_empty());
-        assert!(unused_rows(
-            CLASS_PROBE,
-            &CompilerOptions {
+    fn unused_class_members_are_suggestions_without_no_unused_locals() {
+        for options in [
+            CompilerOptions::default(),
+            CompilerOptions {
                 no_unused_parameters: Some(true),
                 ..CompilerOptions::default()
             },
-        )
-        .is_empty());
+        ] {
+            let rows = unused_rows(CLASS_PROBE, &options);
+            assert_eq!(rows.len(), 4);
+            assert!(rows
+                .iter()
+                .all(|(_, category, _, _, _)| *category == DiagnosticCategory::Suggestion));
+        }
     }
 
     #[test]
@@ -825,6 +1178,42 @@ mod tests {
     }
 
     #[test]
+    fn source_file_locals_are_suggestions_by_default() {
+        let rows = unused_rows("export {};\nconst dead = 1;\n", &CompilerOptions::default());
+        assert_eq!(
+            rows,
+            [(
+                6133,
+                DiagnosticCategory::Suggestion,
+                17,
+                4,
+                "'dead' is declared but its value is never read.".to_owned(),
+            )]
+        );
+    }
+
+    #[test]
+    fn declaration_file_unused_locals_are_ambient_suggestions() {
+        let rows = unused_rows_for_files(
+            &[("a.d.ts", "export {};\ndeclare const dead: number;\n")],
+            &CompilerOptions {
+                no_unused_locals: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            rows,
+            [(
+                6133,
+                DiagnosticCategory::Suggestion,
+                25,
+                4,
+                "'dead' is declared but its value is never read.".to_owned(),
+            )]
+        );
+    }
+
+    #[test]
     fn jsdoc_links_mark_direct_and_qualified_import_roots_as_referenced() {
         let rows = unused_rows_for_files(
             &[
@@ -847,11 +1236,102 @@ mod tests {
     }
 
     #[test]
+    fn checked_js_type_queries_and_typedef_merges_mark_source_locals() {
+        let rows = unused_rows_for_files(
+            &[(
+                "a.js",
+                "const exemplar = () => 1;\n\
+                 /** @param {typeof exemplar} value */\n\
+                 export function consume(value) {}\n\
+                 /** @typedef {number} Local */\n\
+                 var Local = 1;\n",
+            )],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(rows.is_empty(), "{rows:?}");
+    }
+
+    #[test]
+    fn checked_js_require_alias_reads_mark_the_source_local() {
+        let rows = unused_rows_for_files(
+            &[
+                (
+                    "dep.js",
+                    "function Exported() {}\nmodule.exports = Exported;\n",
+                ),
+                (
+                    "index.js",
+                    "const Exported = require('./dep');\nExported.member;\nnew Exported;\n",
+                ),
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(rows.is_empty(), "{rows:?}");
+    }
+
+    #[test]
+    fn checked_js_jsdoc_types_and_destructured_alias_exports_mark_source_locals() {
+        let rows = unused_rows_for_files(
+            &[
+                (
+                    "lib.js",
+                    "class SomeClass {}\nmodule.exports = { SomeClass };\n",
+                ),
+                (
+                    "main.js",
+                    "const { SomeClass, SomeClass: Another } = require('./lib');\n\
+                     /** @param {SomeClass} value */\n\
+                     export function consume(value) {}\n\
+                     module.exports = { SomeClass, Another };\n",
+                ),
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(rows.is_empty(), "{rows:?}");
+    }
+
+    #[test]
     fn jsdoc_link_projection_rejects_similar_text_and_keeps_root_names() {
         let text = "{@link A} {@linkcode ns.Member label} {@linkplain $value} {@linkish Wrong}";
         assert_eq!(
             jsdoc_link_root_names(text, &[(0, text.len())]),
             ["A", "ns", "$value"]
+        );
+    }
+
+    #[test]
+    fn jsdoc_type_projection_keeps_type_query_and_typedef_roots() {
+        let text = "@param {typeof exemplar.Member} x prose typeof Wrong\n@typedef {number} Local";
+        assert_eq!(
+            jsdoc_type_query_root_names(text, &[(0, text.len())]),
+            ["exemplar"]
+        );
+        assert_eq!(
+            jsdoc_type_reference_root_names(text, &[(0, text.len())]),
+            ["typeof", "exemplar", "number"]
+        );
+        assert_eq!(jsdoc_typedef_names(text, &[(0, text.len())]), ["Local"]);
+    }
+
+    #[test]
+    fn jsdoc_type_reference_projection_skips_members_and_record_properties() {
+        let text = "/** @typedef {{field: Local} | ns.Member | typeof Value} Result */";
+        assert_eq!(
+            jsdoc_type_reference_root_names(text, &[(3, text.len() - 2)]),
+            ["Local", "ns", "typeof", "Value"]
         );
     }
 }

@@ -8035,7 +8035,10 @@ mod tests {
                 let rows = state
                     .diagnostics
                     .iter()
-                    .filter(|diag| diag.file_name.is_some())
+                    .filter(|diag| {
+                        diag.file_name.is_some()
+                            && diag.category() == tsrs2_diags::DiagnosticCategory::Error
+                    })
                     .map(|diag| {
                         (
                             diag.code(),

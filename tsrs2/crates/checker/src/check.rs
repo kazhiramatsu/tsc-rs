@@ -215,11 +215,13 @@ impl<'a> CheckerState<'a> {
         if self.binder.is_external_or_common_js_module_of_node(root) {
             self.register_for_unused_identifiers_check(root);
         }
-        // 87028-87040 addLazyDiagnostic block (eager identity): unused
-        // errors precede the renamed-binding drain and never run in
-        // declaration files.
+        // 87028-87040 addLazyDiagnostic block (eager identity): the
+        // registered unused producers feed semantic errors or the
+        // suggestion pass according to unusedIsError. Suggestions also
+        // run for declaration files; only the semantic renamed-binding
+        // drain is excluded there.
+        self.check_registered_unused_identifiers();
         if !is_declaration_file {
-            self.check_unused_identifiers_error_mode();
             self.check_potential_unchecked_renamed_binding_elements_in_types();
         }
         // 87041: external/CJS module → checkExternalModuleExports
@@ -11660,7 +11662,10 @@ mod tests {
             // 2318 band these no-lib fixtures trip on Array probes)
             // are excluded from per-file output — same rule as
             // check_program's assembly.
-            .filter(|diag| diag.file_name.is_some())
+            .filter(|diag| {
+                diag.file_name.is_some()
+                    && diag.category() == tsrs2_diags::DiagnosticCategory::Error
+            })
             .map(|diag| {
                 (
                     diag.code(),
@@ -15550,7 +15555,10 @@ mod tests {
             state
                 .diagnostics
                 .iter()
-                .filter(|diag| diag.file_name.is_some())
+                .filter(|diag| {
+                    diag.file_name.is_some()
+                        && diag.category() == tsrs2_diags::DiagnosticCategory::Error
+                })
                 .map(|diag| {
                     (
                         diag.file_name.clone().unwrap(),
