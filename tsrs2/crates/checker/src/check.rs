@@ -187,6 +187,7 @@ impl<'a> CheckerState<'a> {
         self.check_jsdoc_optional_parameter_order(root);
         self.check_jsdoc_template_tag_curly_name_grammar(root);
         self.check_jsdoc_type_reference_recovery_grammar(root);
+        self.check_jsdoc_expected_close_brace_grammar(root);
         self.check_jsdoc_identifier_name_grammar(root);
         self.check_jsdoc_satisfies_type_expression_grammar(root);
         self.check_jsdoc_template_tag_modifier_grammar(root);
@@ -2816,6 +2817,92 @@ impl<'a> CheckerState<'a> {
                     }
                     property_line = type_line + 1;
                 }
+            }
+        }
+        diagnostics.into_iter().collect()
+    }
+
+    /// tsrs-native: project parseExpectedJSDoc's required closing
+    /// brace diagnostic while JSDoc type nodes are absent from the arena.
+    ///
+    /// tsc-port: parseExpectedJSDoc @6.0.3
+    /// tsc-hash: 5752be124f97a11a7e2f7e6af19208ddc36ddd9a127d2921c9018a0111f6a185
+    /// tsc-span: _tsc.js:29678-29686
+    /// d2: d2:f734756314d2535619516fd4d1feef44e92506df26798d86fbaa59b0f8ae9c09
+    ///
+    /// Its sole static caller is parseJSDocTypeExpression. The bounded
+    /// residual reaches it when an ambiguous postfix `?` is followed
+    /// by another type-start token (`[` or `!`), or when an inner
+    /// namepath's `~` remains after the parsed entity name. In both
+    /// cases the current token is the one-byte recovery span.
+    fn check_jsdoc_expected_close_brace_grammar(&mut self, root: NodeId) {
+        if !self.is_in_js_file(root) {
+            return;
+        }
+        for (start, end) in self.jsdoc_expected_close_brace_spans(root) {
+            let diagnostics_before = self.diagnostics.len();
+            self.error_at_byte_range_with_args(root, start, end, &diagnostics::_0_expected, &["}"]);
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1005);
+        }
+    }
+
+    fn jsdoc_expected_close_brace_spans(&self, root: NodeId) -> Vec<(usize, usize)> {
+        let source = self.binder.source_of_node(root);
+        let mut diagnostics = std::collections::BTreeSet::new();
+        for (body_start, comment_close) in self.jsdoc_comment_body_ranges(root) {
+            let body = &source.text[body_start..comment_close];
+            let mut line_offset = 0usize;
+            for line in body.split_inclusive('\n') {
+                let line_without_break = jsdoc_raw_line(line);
+                let leading = line_without_break.len()
+                    - line_without_break
+                        .trim_start_matches(char::is_whitespace)
+                        .len();
+                let mut candidate = &line_without_break[leading..];
+                let mut candidate_offset = leading;
+                if let Some(after_star) = candidate.strip_prefix('*') {
+                    candidate_offset += 1;
+                    let star_space =
+                        after_star.len() - after_star.trim_start_matches(char::is_whitespace).len();
+                    candidate_offset += star_space;
+                    candidate = &after_star[star_space..];
+                }
+
+                let Some((tag, tag_tail)) =
+                    jsdoc_candidate_tag_tail(candidate, &["@param", "@typedef"])
+                else {
+                    line_offset += line.len();
+                    continue;
+                };
+                let whitespace =
+                    tag_tail.len() - tag_tail.trim_start_matches(char::is_whitespace).len();
+                let braced = &tag_tail[whitespace..];
+                let Some((payload, _)) = jsdoc_braced_payload(braced) else {
+                    line_offset += line.len();
+                    continue;
+                };
+                let payload_leading =
+                    payload.len() - payload.trim_start_matches(char::is_whitespace).len();
+                let payload = payload.trim();
+                let payload_start = body_start
+                    + line_offset
+                    + candidate_offset
+                    + tag.len()
+                    + whitespace
+                    + 1
+                    + payload_leading;
+
+                if tag == "@param" {
+                    if let Some(question) = jsdoc_invalid_postfix_question_offset(payload) {
+                        let start = payload_start + question;
+                        diagnostics.insert((start, start + 1));
+                    }
+                }
+                if let Some(tilde) = jsdoc_inner_namepath_tilde_offset(payload) {
+                    let start = payload_start + tilde;
+                    diagnostics.insert((start, start + 1));
+                }
+                line_offset += line.len();
             }
         }
         diagnostics.into_iter().collect()
@@ -11131,6 +11218,23 @@ fn jsdoc_raw_line(line: &str) -> &str {
     line.strip_suffix('\r').unwrap_or(line)
 }
 
+fn jsdoc_invalid_postfix_question_offset(text: &str) -> Option<usize> {
+    let type_text = text.strip_prefix("...").unwrap_or(text);
+    let question = type_text.find('?')?;
+    if !is_jsdoc_identifier(&type_text[..question])
+        || !matches!(&type_text[question + 1..], "!" | "[]" | "[]!")
+    {
+        return None;
+    }
+    Some(text.len() - type_text.len() + question)
+}
+
+fn jsdoc_inner_namepath_tilde_offset(text: &str) -> Option<usize> {
+    let tilde = text.find('~')?;
+    (is_jsdoc_identifier(&text[..tilde]) && is_jsdoc_identifier(&text[tilde + 1..]))
+        .then_some(tilde)
+}
+
 fn is_well_formed_jsdoc_variadic_type(text: &str) -> bool {
     let Some(element) = text.trim().strip_prefix("...") else {
         return false;
@@ -12527,6 +12631,125 @@ mod tests {
         );
         assert!(
             ts_diagnostics.iter().all(|diagnostic| diagnostic.0 != 1110),
+            "JSDoc parser projection is JavaScript-only: {ts_diagnostics:?}"
+        );
+    }
+
+    // ---- M7 8.1ac JSDoc expected-close-brace recovery grammar ----
+
+    #[test]
+    fn jsdoc_expected_close_brace_reports_exact_recovery_tokens() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = concat!(
+            "/**\n",
+            " * @param {number?[]} a\n",
+            " * @param {...number?!} b\n",
+            " * @param {...number?[]!} c\n",
+            " * @typedef {C~A} C_B\n",
+            " * @param {C~A} d\n",
+            " */\n",
+            "function f(a, b, c, d) {}\n",
+        );
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let mut diagnostics = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 1005)
+                .map(|diagnostic| {
+                    (
+                        diagnostic.start.expect("TS1005 start"),
+                        diagnostic.length.expect("TS1005 length"),
+                        diagnostic.message_text().to_owned(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            diagnostics.sort_by_key(|diagnostic| diagnostic.0);
+            let expected = [
+                (
+                    text.find("{number?[]}").expect("postfix nullable array") + "{number".len(),
+                    1,
+                ),
+                (
+                    text.find("{...number?!}")
+                        .expect("nullable before non-null")
+                        + "{...number".len(),
+                    1,
+                ),
+                (
+                    text.find("{...number?[]!}")
+                        .expect("nullable before non-null array")
+                        + "{...number".len(),
+                    1,
+                ),
+                (
+                    text.find("{C~A}").expect("typedef inner namepath") + "{C".len(),
+                    1,
+                ),
+                (
+                    text.rfind("{C~A}").expect("parameter inner namepath") + "{C".len(),
+                    1,
+                ),
+            ];
+            assert_eq!(
+                diagnostics,
+                expected
+                    .map(|(start, length)| { (start as u32, length, "'}' expected.".to_owned()) })
+                    .to_vec()
+            );
+            for (start, length) in expected {
+                assert!(state.non_jsdoc_js_diagnostics.contains(&(
+                    "a.js".to_owned(),
+                    start as u32,
+                    length,
+                    1005,
+                )));
+            }
+        });
+    }
+
+    #[test]
+    fn jsdoc_expected_close_brace_preserves_valid_and_non_tag_faces() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = concat!(
+            "/**\n",
+            " * @param {?number[]} a\n",
+            " * @param {number?} b\n",
+            " * @param {!number[]} c\n",
+            " * @param {number!} d\n",
+            " * @param {(number[])?} e\n",
+            " * @param {[number, number?]} f\n",
+            " * @param {T extends U ? [] : T} g\n",
+            " * @param {Foo.Bar} h\n",
+            " * @typedef {C.A} C_A\n",
+            " * @params {number?[]} prose\n",
+            " * prose @param {number?[]} prose\n",
+            " */\n",
+            "function valid(a, b, c, d, e, f, g, h) {}\n",
+            "/* @param {number?[]} ordinary */\n",
+            "const text = '/** @param {number?[]} string */';\n",
+        );
+        let diagnostics = checked_file_diags_with("a.js", text, &options);
+        assert!(
+            diagnostics.iter().all(|diagnostic| diagnostic.0 != 1005),
+            "valid/non-tag close-brace faces must not produce TS1005: {diagnostics:?}"
+        );
+
+        let ts_diagnostics = checked_file_diags_with(
+            "a.ts",
+            "/** @param {number?[]} value */\nfunction f(value: number) {}\n",
+            &options,
+        );
+        assert!(
+            ts_diagnostics.iter().all(|diagnostic| diagnostic.0 != 1005),
             "JSDoc parser projection is JavaScript-only: {ts_diagnostics:?}"
         );
     }
