@@ -5132,9 +5132,10 @@ fn ci_rust_gates() -> Result<(), Box<dyn Error>> {
 
 fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
     let workspace = find_tsrs2_root()?;
-    // The remaining gates are Rust functions in this binary. Keep
-    // them in-process: spawning `cargo xtask` for every phase only
-    // repeats Cargo startup and discards reusable conformance state.
+    // Keep the reusable checker/conformance phases in-process. The
+    // history-heavy trusted audits below use this already-built binary
+    // as short-lived children so their allocator pages cannot overlap
+    // B2 coverage workers on the standard hosted runner.
     codegen_band_inventory(
         ["--by-function", "--band", "all", "--check"]
             .into_iter()
@@ -5147,33 +5148,46 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
     codegen_nodes(true)?;
     schema_audit(std::iter::empty())?;
     relpin::run(std::iter::empty())?;
-    // Parse+bind smoke over the full corpus (~1s): the cheap panic
-    // net for the parser/binder invariants the 5.9a dead-guard
-    // conversions lean on (m4-end-sweep-steps.md dead-guard policy).
-    bind_corpus(std::iter::empty())?;
     // A1 accepted-state coherence: artifact/inputs/lineage verify
     // before the behavior runs that gate against them. Hosted PR CI
     // supplies GitHub's immutable base SHA; local runs default to the
     // origin/main convenience ref. The direct compare prevents a
     // rewritten branch from replacing the accepted set with a smaller
     // self-consistent chain.
-    tsrs2_conformance::ratchet::check(&workspace, Some(baseline))?;
+    let executable = std::env::current_exe()?;
+    run_command(
+        Command::new(&executable)
+            .args(["ratchet", "check", "--baseline"])
+            .arg(baseline),
+    )?;
     // A2 exact scope coherence: manifest identities, encoder
     // cross-check, snapshot anchors, and tombstone proofs verify
     // against the same trusted base before the supported view that
     // depends on them gates anything.
-    tsrs2_conformance::scope_audit(&workspace, Some(baseline))?;
+    run_command(
+        Command::new(&executable)
+            .args(["scope", "audit", "--baseline"])
+            .arg(baseline),
+    )?;
     // A5 family-map coherence: the exactly-once (code, pass) domain,
     // freeze/extension anchors, and the trusted-base compare — before
     // the rollup below reads the map as a verified input.
-    tsrs2_conformance::families_check(&workspace, Some(baseline))?;
+    run_command(
+        Command::new(&executable)
+            .args(["families", "check", "--baseline"])
+            .arg(baseline),
+    )?;
     // E1 topology (evidence-and-steady-state.md §5): produce B2-B4
-    // after their A1/A2/A5 inputs verify but BEFORE the in-process
-    // checker run builds and retains its lib-bundle cache. The
-    // coverage workers otherwise overlap that cache and force the
+    // after their A1/A2/A5 inputs verify but BEFORE full-corpus
+    // parse/bind/check runs retain allocator and lib-bundle pages. The
+    // coverage workers otherwise overlap that RSS and force the
     // standard hosted runner into avoidable swap thrash. All repo
     // inputs remain byte-identical through the later consumer.
     m8_evidence::produce_all()?;
+    // Parse+bind smoke over the full corpus (~1s): the cheap panic
+    // net for the parser/binder invariants the 5.9a dead-guard
+    // conversions lean on (m4-end-sweep-steps.md dead-guard policy).
+    bind_corpus(std::iter::empty())?;
     // One checker execution per expanded case feeds all three fixed
     // views. Grading remains sequential, preserving the independent
     // ratchet/FP/scope gates without increasing CPU concurrency.
