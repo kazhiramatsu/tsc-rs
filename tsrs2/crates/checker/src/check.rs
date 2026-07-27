@@ -182,6 +182,7 @@ impl<'a> CheckerState<'a> {
         self.check_jsdoc_parameter_type_argument_grammar(root);
         self.check_jsdoc_variadic_parameter_grammar(root);
         self.check_jsdoc_optional_parameter_order(root);
+        self.check_jsdoc_template_tag_curly_name_grammar(root);
         self.check_jsdoc_template_tag_modifier_grammar(root);
         self.check_jsdoc_satisfies_tag_duplicates(root);
         self.check_jsdoc_cast_type_predicate_grammar(root);
@@ -2332,6 +2333,109 @@ impl<'a> CheckerState<'a> {
             });
         }
         diagnostics
+    }
+
+    /// tsrs-native: project parseTemplateTagTypeParameter's missing
+    /// name diagnostic while JSDoc nodes are absent from the arena.
+    ///
+    /// tsc-port: parseTemplateTagTypeParameter @6.0.3
+    /// tsc-hash: 82c21472fa8bd61beebc2c4a8bd5db6d41831197899023a26eee489f11c8f3d2
+    /// tsc-span: _tsc.js:35712-35742
+    /// d2: d2:624f6ae3e504b80c275345b2fe8f9e150962ade1f6a4932a070a86909f5d8051
+    ///
+    /// A leading braced payload is the template constraint, not the
+    /// parameter name. When it reaches the next tag or comment end
+    /// without a name, tsc reports on the recovery token's full-start
+    /// byte: the following line's `*`, or the inline whitespace before
+    /// `*/`.
+    fn check_jsdoc_template_tag_curly_name_grammar(&mut self, root: NodeId) {
+        if !self.is_in_js_file(root) {
+            return;
+        }
+        for (start, end) in self.jsdoc_template_tag_missing_name_spans(root) {
+            let diagnostics_before = self.diagnostics.len();
+            self.error_at_byte_range(
+                root,
+                start,
+                end,
+                &diagnostics::Unexpected_token_A_type_parameter_name_was_expected_without_curly_braces,
+            );
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1069);
+        }
+    }
+
+    fn jsdoc_template_tag_missing_name_spans(&self, root: NodeId) -> Vec<(usize, usize)> {
+        let source = self.binder.source_of_node(root);
+        let mut diagnostics = std::collections::BTreeSet::new();
+        for (body_start, comment_close) in self.jsdoc_comment_body_ranges(root) {
+            let body = &source.text[body_start..comment_close];
+            let lines = body.split_inclusive('\n').collect::<Vec<_>>();
+            let mut line_offset = 0usize;
+            for (line_index, line) in lines.iter().enumerate() {
+                let line_without_lf = line.strip_suffix('\n').unwrap_or(line);
+                let line_without_break = line_without_lf
+                    .strip_suffix('\r')
+                    .unwrap_or(line_without_lf);
+                let leading = line_without_break.len()
+                    - line_without_break
+                        .trim_start_matches(char::is_whitespace)
+                        .len();
+                let mut candidate = &line_without_break[leading..];
+                let mut candidate_offset = leading;
+                if let Some(after_star) = candidate.strip_prefix('*') {
+                    candidate_offset += 1;
+                    let star_space =
+                        after_star.len() - after_star.trim_start_matches(char::is_whitespace).len();
+                    candidate_offset += star_space;
+                    candidate = &after_star[star_space..];
+                }
+                let Some(template_tail) = candidate.strip_prefix("@template") else {
+                    line_offset += line.len();
+                    continue;
+                };
+                if !template_tail
+                    .chars()
+                    .next()
+                    .is_some_and(|character| character.is_whitespace() || character == '{')
+                {
+                    line_offset += line.len();
+                    continue;
+                }
+                let whitespace = template_tail.len()
+                    - template_tail.trim_start_matches(char::is_whitespace).len();
+                let type_tail = &template_tail[whitespace..];
+                let Some((_, consumed)) = jsdoc_braced_payload(type_tail) else {
+                    line_offset += line.len();
+                    continue;
+                };
+                let remainder = &type_tail[consumed..];
+                if !remainder.trim().is_empty() {
+                    line_offset += line.len();
+                    continue;
+                }
+
+                let recovery_start = if !remainder.is_empty() {
+                    Some(
+                        body_start
+                            + line_offset
+                            + candidate_offset
+                            + "@template".len()
+                            + whitespace
+                            + consumed,
+                    )
+                } else {
+                    lines
+                        .get(line_index + 1)
+                        .and_then(|next_line| jsdoc_next_tag_recovery_offset(next_line))
+                        .map(|next_offset| body_start + line_offset + line.len() + next_offset)
+                };
+                if let Some(start) = recovery_start {
+                    diagnostics.insert((start, start + 1));
+                }
+                line_offset += line.len();
+            }
+        }
+        diagnostics.into_iter().collect()
     }
 
     /// tsrs-native: project the live JSDocTemplateTag type-parameter
@@ -10622,6 +10726,26 @@ fn is_jsdoc_optional_type_text(text: &str) -> bool {
     !text.is_empty() && text.ends_with('=')
 }
 
+fn jsdoc_next_tag_recovery_offset(line: &str) -> Option<usize> {
+    let line_without_lf = line.strip_suffix('\n').unwrap_or(line);
+    let line_without_break = line_without_lf
+        .strip_suffix('\r')
+        .unwrap_or(line_without_lf);
+    let leading = line_without_break.len()
+        - line_without_break
+            .trim_start_matches(char::is_whitespace)
+            .len();
+    let candidate = &line_without_break[leading..];
+    if let Some(after_star) = candidate.strip_prefix('*') {
+        if after_star.trim_start().starts_with('@') {
+            return Some(leading);
+        }
+    } else if candidate.starts_with('@') {
+        return Some(leading);
+    }
+    None
+}
+
 fn parse_jsdoc_typedef_name(comment: &str) -> Option<(&str, &str)> {
     for line in comment.lines() {
         let candidate = line
@@ -11249,6 +11373,92 @@ mod tests {
         assert!(
             ts_diagnostics.iter().all(|diagnostic| diagnostic.0 != 1016),
             "JSDoc optionality is a JavaScript-only effective token: {ts_diagnostics:?}"
+        );
+    }
+
+    // ---- M7 8.1v JSDoc template missing-name grammar ----
+
+    #[test]
+    fn jsdoc_template_constraint_requires_a_parameter_name() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/** @template {T} */\n\
+                    function inline() {}\n\
+                    /**\n\
+                     * @template {NoLongerAllowed}\n\
+                     * @template U\n\
+                     */\n\
+                    function multiline() {}\n";
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let mut diagnostics = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 1069)
+                .map(|diagnostic| {
+                    (
+                        diagnostic.start.expect("TS1069 start"),
+                        diagnostic.length.expect("TS1069 length"),
+                        diagnostic.message_text().to_owned(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            diagnostics.sort_by_key(|diagnostic| diagnostic.0);
+            let inline_start = text.find("{T}").expect("inline constraint") + "{T}".len();
+            let next_tag_start =
+                text.find("\n* @template U").expect("next template tag") + "\n".len();
+            let expected = [inline_start, next_tag_start].map(|start| {
+                (
+                    start as u32,
+                    1,
+                    "Unexpected token. A type parameter name was expected without curly braces."
+                        .to_owned(),
+                )
+            });
+            assert_eq!(diagnostics, expected);
+            for (start, length, _) in expected {
+                assert!(state.non_jsdoc_js_diagnostics.contains(&(
+                    "a.js".to_owned(),
+                    start,
+                    length,
+                    1069,
+                )));
+            }
+        });
+    }
+
+    #[test]
+    fn jsdoc_template_missing_name_projection_preserves_valid_and_non_tag_faces() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/** @template {{ value: number }} T,U */\n\
+                    function constrained() {}\n\
+                    /** @template {number} [T=number] */\n\
+                    function defaulted() {}\n\
+                    /** @template T */\n\
+                    function plain() {}\n\
+                    /** prose @template {T} */\n\
+                    function prose() {}\n";
+        let diagnostics = checked_file_diags_with("a.js", text, &options);
+        assert!(
+            diagnostics.iter().all(|diagnostic| diagnostic.0 != 1069),
+            "valid/non-tag template faces must not produce TS1069: {diagnostics:?}"
+        );
+
+        let ts_diagnostics = checked_file_diags_with(
+            "a.ts",
+            "/** @template {T} */\nfunction typed() {}\n",
+            &options,
+        );
+        assert!(
+            ts_diagnostics.iter().all(|diagnostic| diagnostic.0 != 1069),
+            "JSDoc parser projection is JavaScript-only: {ts_diagnostics:?}"
         );
     }
 

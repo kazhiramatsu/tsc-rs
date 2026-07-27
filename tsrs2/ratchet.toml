@@ -333,8 +333,10 @@
 # non-final parameter projection and exact TS1014 rows.
 # m7 8.1u adds +2 through checkGrammarParameterList's checked-JS
 # effective JSDoc optionality projection and exact TS1016 rows.
-rate = 0.667081
-matched = 32703
+# m7 8.1v adds +3 through parseTemplateTagTypeParameter's checked-JS
+# missing-name projection and exact TS1069 rows.
+rate = 0.667143
+matched = 32706
 total = 49024
 allowed_regression = 0.0
 
