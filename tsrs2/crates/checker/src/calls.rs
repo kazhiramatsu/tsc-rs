@@ -6889,7 +6889,7 @@ mod tests {
                  });\n",
                 &options,
             ),
-            []
+            [(6133, 141, 3)]
         );
     }
 
@@ -7022,7 +7022,7 @@ mod tests {
     fn single_signature_typearg_arity_reports_2558_on_the_range() {
         assert_eq!(
             checked_rows("declare function t<T, U>(x: T): void;\nt<number>(1);\n"),
-            [(2558, 40, 6)]
+            [(2558, 40, 6), (6133, 22, 1)]
         );
     }
 
@@ -7032,7 +7032,7 @@ mod tests {
             checked_rows(
                 "declare function ta<T>(x: T): void;\ndeclare function ta<T, U, V>(x: T): void;\nta<string, number>(\"a\");\n"
             ),
-            [(2743, 81, 14)]
+            [(2743, 81, 14), (6133, 59, 1), (6133, 62, 1)]
         );
     }
 
@@ -7675,7 +7675,7 @@ mod tests {
     #[test]
     fn es_decorator_arrow_receives_contextual_call_signature() {
         let text = "@((value, context) => { context.nonexistent; return value; })\nclass C {}\ninterface ClassDecoratorContext<T> {}\n";
-        assert_eq!(checked_rows(text), [(2339, 32, 11)]);
+        assert_eq!(checked_rows(text), [(2339, 32, 11), (6133, 104, 3)]);
     }
 
     #[test]
@@ -7725,7 +7725,7 @@ mod tests {
             state.check_source_file(0);
             rows(state)
         });
-        assert_eq!(actual, [(2339, 32, 11)]);
+        assert_eq!(actual, [(2339, 32, 11), (6133, 104, 3)]);
     }
 
     // ---- m4-review S6/A12 pins (oracle: vendored tsc 6.0.3, noLib,

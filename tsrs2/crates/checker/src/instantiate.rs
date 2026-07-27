@@ -2042,10 +2042,14 @@ impl<'a> CheckerState<'a> {
         type_parameters
     }
 
-    /// getEffectiveTypeParameterDeclarations, TS-declaration slice
-    /// (JSDoc template tags are elided project-wide).
-    pub(crate) fn type_parameter_declarations_of(&self, node: NodeId) -> Vec<NodeId> {
-        let list = match self.data_of(node) {
+    /// tsrs-native: list-identity twin for the existing
+    /// getEffectiveTypeParameterDeclarations TS slice. JSDoc template
+    /// tags are elided project-wide.
+    pub(crate) fn type_parameter_declaration_list_of(
+        &self,
+        node: NodeId,
+    ) -> Option<tsrs2_syntax::NodeArrayId> {
+        match self.data_of(node) {
             NodeData::ClassDeclaration(data) => data.type_parameters,
             NodeData::ClassExpression(data) => data.type_parameters,
             NodeData::InterfaceDeclaration(data) => data.type_parameters,
@@ -2059,9 +2063,17 @@ impl<'a> CheckerState<'a> {
             NodeData::ConstructorType(data) => data.type_parameters,
             NodeData::FunctionExpression(data) => data.type_parameters,
             NodeData::ArrowFunction(data) => data.type_parameters,
+            NodeData::Constructor(data) => data.type_parameters,
+            NodeData::GetAccessor(data) => data.type_parameters,
+            NodeData::SetAccessor(data) => data.type_parameters,
             _ => None,
-        };
-        self.nodes_of(list)
+        }
+    }
+
+    /// getEffectiveTypeParameterDeclarations, TS-declaration slice
+    /// (JSDoc template tags are elided project-wide).
+    pub(crate) fn type_parameter_declarations_of(&self, node: NodeId) -> Vec<NodeId> {
+        self.nodes_of(self.type_parameter_declaration_list_of(node))
     }
 
     /// tsc-port: getOuterTypeParameters @6.0.3

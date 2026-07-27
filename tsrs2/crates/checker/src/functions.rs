@@ -2158,12 +2158,10 @@ impl<'a> CheckerState<'a> {
     /// return-location indirection is JS-only (returnTypeErrorLocation
     /// === returnTypeNode in TS files);
     /// The lazy tail runs eager (the 5.4 addLazyDiagnostic decision).
-    /// M7 activates registration one declaration owner at a time;
-    /// FunctionDeclaration, FunctionExpression, ArrowFunction,
-    /// MethodDeclaration, GetAccessor, SetAccessor, and Constructor
-    /// value locals/parameters are the current producer-owned slices.
-    /// Type-parameter diagnostics remain on their separate worker
-    /// boundary.
+    /// M7 activates registration one declaration owner at a time. The
+    /// value-local function owners and the TS type-parameter owners
+    /// are now live; IndexSignature remains excluded exactly as in
+    /// tsc.
     pub(crate) fn check_signature_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
         let kind = self.kind_of(node);
         if kind == SyntaxKind::IndexSignature {
@@ -2277,13 +2275,18 @@ impl<'a> CheckerState<'a> {
         }
         if matches!(
             kind,
-            SyntaxKind::FunctionDeclaration
+            SyntaxKind::FunctionType
+                | SyntaxKind::FunctionDeclaration
+                | SyntaxKind::ConstructorType
+                | SyntaxKind::CallSignature
+                | SyntaxKind::Constructor
+                | SyntaxKind::ConstructSignature
                 | SyntaxKind::FunctionExpression
                 | SyntaxKind::ArrowFunction
                 | SyntaxKind::MethodDeclaration
+                | SyntaxKind::MethodSignature
                 | SyntaxKind::GetAccessor
                 | SyntaxKind::SetAccessor
-                | SyntaxKind::Constructor
         ) {
             self.register_for_unused_identifiers_check(node);
         }
@@ -6771,7 +6774,12 @@ mod tests {
             checked_rows(
                 "interface Array<T> { length: number }\ninterface ReadonlyArray<T> { length: number }\ninterface ConcatArray<T> { length: number }\nconst f = (...r: number) => r;\n"
             ),
-            [(2370, 139, 12)]
+            [
+                (2370, 139, 12),
+                (6133, 15, 3),
+                (6133, 61, 3),
+                (6133, 105, 3),
+            ]
         );
     }
 

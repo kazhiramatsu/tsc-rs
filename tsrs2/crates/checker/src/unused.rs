@@ -50,9 +50,9 @@ impl<'a> CheckerState<'a> {
             }
             let diagnostics_before = self.diagnostics.len();
             let result = match self.kind_of(node) {
-                SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
-                    self.check_unused_class_members(node)
-                }
+                SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => self
+                    .check_unused_class_members(node)
+                    .and_then(|()| self.check_unused_type_parameters(node)),
                 SyntaxKind::SourceFile => {
                     self.mark_jsdoc_references_for_unused(node);
                     self.mark_checked_js_source_references_for_unused(node);
@@ -71,12 +71,21 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::GetAccessor
                 | SyntaxKind::SetAccessor
                 | SyntaxKind::Constructor => {
-                    if node_util::body_of(self.binder.source_of_node(node), node).is_some() {
-                        self.check_unused_locals_and_parameters(node)
-                    } else {
-                        Ok(())
-                    }
+                    let locals =
+                        if node_util::body_of(self.binder.source_of_node(node), node).is_some() {
+                            self.check_unused_locals_and_parameters(node)
+                        } else {
+                            Ok(())
+                        };
+                    locals.and_then(|()| self.check_unused_type_parameters(node))
                 }
+                SyntaxKind::MethodSignature
+                | SyntaxKind::CallSignature
+                | SyntaxKind::ConstructSignature
+                | SyntaxKind::FunctionType
+                | SyntaxKind::ConstructorType
+                | SyntaxKind::TypeAliasDeclaration
+                | SyntaxKind::InterfaceDeclaration => self.check_unused_type_parameters(node),
                 _ => Ok(()),
             };
             if self.is_in_js_file(node) {
@@ -257,6 +266,27 @@ impl<'a> CheckerState<'a> {
         self.push_error_diagnostic(diagnostic);
     }
 
+    fn add_unused_diagnostic_at_byte_range(
+        &mut self,
+        containing_node: NodeId,
+        kind: UnusedIdentifierKind,
+        start_byte: usize,
+        end_byte: usize,
+        message: &'static tsrs2_diags::DiagnosticMessage,
+        args: &[&str],
+    ) {
+        let index = self.error_at_byte_range_with_args(
+            containing_node,
+            start_byte,
+            end_byte,
+            message,
+            args,
+        );
+        if !self.unused_is_error(containing_node, kind) {
+            self.diagnostics[index].message.category = DiagnosticCategory::Suggestion;
+        }
+    }
+
     /// tsc-port: checkUnusedClassMembers @6.0.3
     /// tsc-hash: b5c9ae6d244cc4bb01e39b9b4fd715a5417bb06e780f0a33cbb49b96ff1f65af
     /// tsc-span: _tsc.js:83008-83038
@@ -346,6 +376,117 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(())
+    }
+
+    /// tsc-port: checkUnusedTypeParameters @6.0.3
+    /// tsc-hash: c6294c45ceb55de9dfec242db2e34ba86ac499530e73b118fbefe0e41acf73fe
+    /// tsc-span: _tsc.js:83045-83066
+    /// d2: d2:6cbef847d0eda39c3a2178516c958e766146c3da957e1c890aacaecb5e78c48c
+    ///
+    /// Effective JSDoc template declarations are elided with the
+    /// project-wide JSDoc-node boundary. Every supported TS owner has
+    /// one concrete type-parameter list, so tsc's parent set reduces
+    /// to one aggregated diagnostic when the whole list is unused.
+    fn check_unused_type_parameters(&mut self, node: NodeId) -> CheckResult2<()> {
+        let symbol = self.get_symbol_of_declaration(node)?;
+        let declarations = self.binder.symbol(symbol).declarations.clone();
+        if declarations.last().copied() != Some(node) {
+            return Ok(());
+        }
+
+        let Some(list) = self.type_parameter_declaration_list_of(node) else {
+            return Ok(());
+        };
+        let type_parameters = self.nodes_of(Some(list));
+        if type_parameters.is_empty() {
+            return Ok(());
+        }
+
+        let mut unused = Vec::with_capacity(type_parameters.len());
+        for &type_parameter in &type_parameters {
+            if self.is_type_parameter_unused(type_parameter)? {
+                unused.push(type_parameter);
+            }
+        }
+        if unused.is_empty() {
+            return Ok(());
+        }
+
+        if unused.len() == type_parameters.len() {
+            let (start_byte, end_byte) = self.range_of_type_parameters(node, list);
+            if type_parameters.len() == 1 {
+                let name = self
+                    .name_of_node(type_parameters[0])
+                    .and_then(|name| self.identifier_text_of(name))
+                    .unwrap_or_default()
+                    .to_owned();
+                self.add_unused_diagnostic_at_byte_range(
+                    node,
+                    UnusedIdentifierKind::Parameter,
+                    start_byte,
+                    end_byte,
+                    &diagnostics::_0_is_declared_but_its_value_is_never_read,
+                    &[&name],
+                );
+            } else {
+                self.add_unused_diagnostic_at_byte_range(
+                    node,
+                    UnusedIdentifierKind::Parameter,
+                    start_byte,
+                    end_byte,
+                    &diagnostics::All_type_parameters_are_unused,
+                    &[],
+                );
+            }
+            return Ok(());
+        }
+
+        for type_parameter in unused {
+            let name = self
+                .name_of_node(type_parameter)
+                .and_then(|name| self.identifier_text_of(name))
+                .unwrap_or_default()
+                .to_owned();
+            self.add_unused_diagnostic_at(
+                node,
+                UnusedIdentifierKind::Parameter,
+                Some(type_parameter),
+                &diagnostics::_0_is_declared_but_its_value_is_never_read,
+                &[&name],
+            );
+        }
+        Ok(())
+    }
+
+    /// tsc-port: rangeOfTypeParameters @6.0.3
+    /// tsc-hash: 201db1995ff249c9a5f5edd046bc4a5992d8ca3a0d3615ed541f48a9ffa3af66
+    /// tsc-span: _tsc.js:18872-18876
+    /// d2: d2:63108413387c5421cc26a36984cfc811a2f88a143617830fcd738599c0238ad5
+    fn range_of_type_parameters(
+        &self,
+        node: NodeId,
+        list: tsrs2_syntax::NodeArrayId,
+    ) -> (usize, usize) {
+        let source = self.binder.source_of_node(node);
+        let array = source.arena.node_array(list);
+        let start = (array.pos as usize).saturating_sub(1);
+        let end = tsrs2_syntax::skip_trivia(&source.text, array.end as usize)
+            .saturating_add(1)
+            .min(source.text.len());
+        (start, end)
+    }
+
+    /// tsc-port: isTypeParameterUnused @6.0.3
+    /// tsc-hash: d4cc4fc46164e7575e1f9964fbc87191270877a3ab40825f641d9c379c47e8fe
+    /// tsc-span: _tsc.js:83067-83069
+    /// d2: d2:94ef9c9390a0c96872a6bdc750aa0024387233d4c00c6d7b0c91fcd2a7049e60
+    fn is_type_parameter_unused(&mut self, type_parameter: NodeId) -> CheckResult2<bool> {
+        let Some(name) = self.name_of_node(type_parameter) else {
+            return Ok(false);
+        };
+        let symbol = self.get_symbol_of_declaration(type_parameter)?;
+        Ok(!self.links.symbol(symbol).is_referenced
+            && !self.identifier_starts_with_underscore(name))
     }
 
     /// tsc-port: checkJSDocLinkLikeTag @6.0.3
@@ -1132,7 +1273,10 @@ mod tests {
             .diagnostics
             .into_iter()
             .filter(|diagnostic| {
-                matches!(diagnostic.code(), 6133 | 6138 | 6192 | 6196 | 6198 | 6199)
+                matches!(
+                    diagnostic.code(),
+                    6133 | 6138 | 6192 | 6196 | 6198 | 6199 | 6205
+                )
             })
             .map(|diagnostic| {
                 (
@@ -1163,6 +1307,129 @@ mod tests {
   }
 }
 ";
+
+    #[test]
+    fn unused_type_parameters_cover_every_ts_owner_and_exact_spans() {
+        let text = "export class ClassSingle<T> {}\n\
+                    export class ClassMultiple<T, U> {}\n\
+                    export class ClassPartial<T, U> { value!: T; }\n\
+                    export const ClassExpression = class<T, U> { value!: T; };\n\
+                    export interface InterfaceSingle<T> {}\n\
+                    export interface InterfaceMultiple<T, U> {}\n\
+                    export interface InterfacePartial<T, U> { value: T; }\n\
+                    export type AliasSingle<T> = number;\n\
+                    export type AliasMultiple<T, U> = number;\n\
+                    export type AliasPartial<T, U> = T;\n\
+                    export function declaration<T, U>(value: T): T { return value; }\n\
+                    export const expression = function<T, U>(value: T): T { return value; };\n\
+                    export const arrow = <T, U>(value: T): T => value;\n\
+                    export class Members { method<T, U>(value: T): T { return value; } }\n\
+                    export type FunctionShape = <T, U>(value: T) => T;\n\
+                    export type ConstructorShape = new <T, U>(value: T) => T;\n\
+                    export interface Signatures {\n\
+                        <T, U>(value: T): T;\n\
+                        new<T, U>(value: T): T;\n\
+                        method<T, U>(value: T): T;\n\
+                    }\n\
+                    export const Underscore = <_T>(value: number): number => value;\n";
+
+        let rows = unused_rows(text, &CompilerOptions::default());
+        assert_eq!(rows.len(), 19);
+        assert_eq!(rows.iter().filter(|row| row.0 == 6205).count(), 3);
+        assert_eq!(rows.iter().filter(|row| row.0 == 6133).count(), 16);
+        assert!(rows
+            .iter()
+            .all(|row| row.1 == DiagnosticCategory::Suggestion));
+
+        let single_start = text.find("<T> {}").expect("single class list") as u32;
+        assert!(rows.iter().any(|row| {
+            row.0 == 6133
+                && row.2 == single_start
+                && row.3 == 3
+                && row.4 == "'T' is declared but its value is never read."
+        }));
+        let multiple_start = text.find("<T, U> {}").expect("multiple class list") as u32;
+        assert!(rows.iter().any(|row| {
+            row.0 == 6205
+                && row.2 == multiple_start
+                && row.3 == 6
+                && row.4 == "All type parameters are unused."
+        }));
+        let partial_start =
+            text.find("ClassPartial<T, U>").expect("partial class") + "ClassPartial<T, ".len();
+        assert!(rows.iter().any(|row| {
+            row.0 == 6133
+                && row.2 == partial_start as u32
+                && row.3 == 1
+                && row.4 == "'U' is declared but its value is never read."
+        }));
+
+        let local_mode_rows = unused_rows(
+            text,
+            &CompilerOptions {
+                no_unused_locals: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(local_mode_rows
+            .iter()
+            .all(|row| row.1 == DiagnosticCategory::Suggestion));
+
+        let parameter_mode_rows = unused_rows(
+            text,
+            &CompilerOptions {
+                no_unused_parameters: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(parameter_mode_rows.len(), 19);
+        assert!(parameter_mode_rows
+            .iter()
+            .all(|row| row.1 == DiagnosticCategory::Error));
+    }
+
+    #[test]
+    fn unused_type_parameters_honor_trivia_underscores_and_last_merged_declaration() {
+        let text = "export class Trivia<T /* kept in aggregate span */> {}\n\
+                    export interface LastUnused<T> { value: T; }\n\
+                    export interface LastUnused<T> { other: number; }\n\
+                    export interface LastUsed<T> { other: number; }\n\
+                    export interface LastUsed<T> { value: T; }\n\
+                    export function OverloadLastUnused<T>(value: T): T;\n\
+                    export function OverloadLastUnused<T>(value: number): number { return value; }\n\
+                    export function OverloadLastUsed<T>(value: number): number;\n\
+                    export function OverloadLastUsed<T>(value: T): T { return value; }\n\
+                    export type Ignored<_T, _U> = number;\n";
+        let rows = unused_rows(text, &CompilerOptions::default());
+        assert_eq!(rows.len(), 2);
+
+        let trivia = "<T /* kept in aggregate span */>";
+        let trivia_start = text.find(trivia).expect("trivia type parameter list") as u32;
+        assert_eq!(
+            (&rows[0].0, &rows[0].2, &rows[0].3, rows[0].4.as_str()),
+            (
+                &6133,
+                &trivia_start,
+                &(trivia.len() as u32),
+                "'T' is declared but its value is never read.",
+            )
+        );
+
+        let last_unused = "OverloadLastUnused<T>(value: number)";
+        let last_unused_start = text
+            .find(last_unused)
+            .expect("last merged overload declaration")
+            + "OverloadLastUnused".len();
+        assert_eq!(
+            (&rows[1].0, &rows[1].2, &rows[1].3, rows[1].4.as_str()),
+            (
+                &6133,
+                &(last_unused_start as u32),
+                &3,
+                "'T' is declared but its value is never read.",
+            )
+        );
+    }
 
     #[test]
     fn unused_private_class_members_follow_reference_and_accessor_anchors() {

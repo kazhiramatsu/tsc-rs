@@ -4287,6 +4287,7 @@ impl<'a> CheckerState<'a> {
             self.check_source_element(Some(member));
         }
         self.check_type_for_duplicate_index_signatures(node)?;
+        self.register_for_unused_identifiers_check(node);
         Ok(())
     }
 
@@ -4343,6 +4344,7 @@ impl<'a> CheckerState<'a> {
             }
         } else {
             self.check_source_element(Some(alias_type));
+            self.register_for_unused_identifiers_check(node);
         }
         Ok(())
     }
