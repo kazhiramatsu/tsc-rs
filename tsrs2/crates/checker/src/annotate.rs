@@ -5,7 +5,7 @@
 //! with the full getTypeFromTypeNode port.
 
 use tsrs2_binder::{node_util, InternalSymbolName, SymbolId};
-use tsrs2_diags::gen as diagnostics;
+use tsrs2_diags::{gen as diagnostics, DiagnosticCategory};
 use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
     CheckFlags, CheckMode, ConditionalRootData, ElementFlags, IntersectionFlags, LiteralValue,
@@ -5539,27 +5539,86 @@ impl<'a> CheckerState<'a> {
         Ok(None)
     }
 
-    /// tsrs-native: symbolToString's late-bound face for the accessor
-    /// reports — a late symbol displays as its declaration name's
-    /// SOURCE TEXT (`[Symbol.iterator]`), matching tsc's
-    /// declarationNameToString route; everything else keeps the
-    /// unescaped symbol name.
+    /// tsrs-native: symbolToString's source-spelled property-name faces
+    /// for accessor reports. Late computed names, private names, and
+    /// literal names retain their declaration text (`[Symbol.iterator]`,
+    /// `#x`, `"x"`); ordinary identifiers keep the symbol display.
     fn accessor_symbol_display_name(&self, symbol: SymbolId) -> String {
-        let computed_name_text = self
+        let source_name_text = self
             .binder
             .symbol(symbol)
             .value_declaration
             .and_then(|declaration| self.name_of_node(declaration))
             .and_then(|name| {
-                if self.kind_of(name) != SyntaxKind::ComputedPropertyName {
+                let kind = self.kind_of(name);
+                if !matches!(
+                    kind,
+                    SyntaxKind::ComputedPropertyName
+                        | SyntaxKind::PrivateIdentifier
+                        | SyntaxKind::StringLiteral
+                ) {
                     return None;
                 }
                 let source = self.binder.source_of_node(name);
                 let raw = source.arena.node(name);
                 let start = tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize);
-                Some(source.text[start..raw.end as usize].to_owned())
+                let end = if matches!(
+                    kind,
+                    SyntaxKind::PrivateIdentifier | SyntaxKind::StringLiteral
+                ) {
+                    tsrs2_syntax::scan_tokens(&source.text[start..], source.language_variant)
+                        .first()
+                        .map_or(raw.end as usize, |token| start + token.end as usize)
+                } else {
+                    raw.end as usize
+                };
+                Some(source.text[start..end].to_owned())
             });
-        computed_name_text.unwrap_or_else(|| self.symbol_display_name(symbol))
+        source_name_text.unwrap_or_else(|| self.symbol_display_name(symbol))
+    }
+
+    /// tsc's getErrorSpanForNode receives the accessor declaration and
+    /// reports the complete property-name token. The syntax arena's
+    /// PrivateIdentifier/StringLiteral name nodes currently retain only
+    /// their value-text end, so recover those two token extents locally
+    /// instead of changing every declaration diagnostic in this slice.
+    fn accessor_implicit_any_diagnostic(
+        &self,
+        declaration: NodeId,
+        message: &'static tsrs2_diags::DiagnosticMessage,
+        args: &[&str],
+        is_error: bool,
+    ) -> tsrs2_diags::Diagnostic {
+        let mut diagnostic = self.create_error(Some(declaration), message, args);
+        if let Some(name) = self.name_of_node(declaration).filter(|&name| {
+            matches!(
+                self.kind_of(name),
+                SyntaxKind::PrivateIdentifier | SyntaxKind::StringLiteral
+            )
+        }) {
+            let source = self.binder.source_of_node(name);
+            let raw = source.arena.node(name);
+            let start = tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize);
+            if let Some(token) =
+                tsrs2_syntax::scan_tokens(&source.text[start..], source.language_variant).first()
+            {
+                let end = start + token.end as usize;
+                let to_utf16 = |byte: usize| {
+                    source
+                        .line_map
+                        .byte_to_utf16
+                        .get(byte)
+                        .copied()
+                        .unwrap_or(byte as u32)
+                };
+                diagnostic.start = Some(to_utf16(start));
+                diagnostic.length = Some(to_utf16(end).saturating_sub(to_utf16(start)));
+            }
+        }
+        if !is_error {
+            diagnostic.message.category = DiagnosticCategory::Suggestion;
+        }
+        diagnostic
     }
 
     /// tsc-port: getTypeOfAccessors @6.0.3
@@ -5570,7 +5629,8 @@ impl<'a> CheckerState<'a> {
     /// (live since 5.5f); the auto-accessor PropertyDeclaration arms
     /// (annotation / widened-initializer / implicit-any — m4-review
     /// A6) are live; the getter JSDoc head is JS-only.
-    /// errorOrSuggestion runs error-only (suggestions unported).
+    /// errorOrSuggestion preserves the noImplicitAny-dependent
+    /// error/suggestion category while sharing one producer path.
     pub(crate) fn get_type_of_accessors(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
             return Ok(cached);
@@ -5657,36 +5717,40 @@ impl<'a> CheckerState<'a> {
                 // symbol as its declaration name's source text
                 // (`[Symbol.iterator]`, never the internal
                 // `__@iterator@n`).
-                if self
+                let no_implicit_any = self
                     .options
-                    .strict_option_value(self.options.no_implicit_any)
+                    .strict_option_value(self.options.no_implicit_any);
+                let name = self.accessor_symbol_display_name(symbol);
+                if let Some(setter) =
+                    setter.filter(|&setter| !self.is_private_within_ambient(setter))
                 {
-                    let name = self.accessor_symbol_display_name(symbol);
-                    if let Some(setter) =
-                        setter.filter(|&setter| !self.is_private_within_ambient(setter))
-                    {
-                        self.error_at(
-                            Some(setter),
-                            &diagnostics::Property_0_implicitly_has_type_any_because_its_set_accessor_lacks_a_parameter_type_annotation,
-                            &[&name],
-                        );
-                    } else if let Some(getter) =
-                        getter.filter(|&getter| !self.is_private_within_ambient(getter))
-                    {
-                        self.error_at(
-                            Some(getter),
-                            &diagnostics::Property_0_implicitly_has_type_any_because_its_get_accessor_lacks_a_return_type_annotation,
-                            &[&name],
-                        );
-                    } else if let Some(accessor) =
-                        accessor.filter(|&accessor| !self.is_private_within_ambient(accessor))
-                    {
-                        self.error_at(
-                            Some(accessor),
-                            &diagnostics::Member_0_implicitly_has_an_1_type,
-                            &[&name, "any"],
-                        );
-                    }
+                    let diagnostic = self.accessor_implicit_any_diagnostic(
+                        setter,
+                        &diagnostics::Property_0_implicitly_has_type_any_because_its_set_accessor_lacks_a_parameter_type_annotation,
+                        &[&name],
+                        no_implicit_any,
+                    );
+                    self.push_error_diagnostic(diagnostic);
+                } else if let Some(getter) =
+                    getter.filter(|&getter| !self.is_private_within_ambient(getter))
+                {
+                    let diagnostic = self.accessor_implicit_any_diagnostic(
+                        getter,
+                        &diagnostics::Property_0_implicitly_has_type_any_because_its_get_accessor_lacks_a_return_type_annotation,
+                        &[&name],
+                        no_implicit_any,
+                    );
+                    self.push_error_diagnostic(diagnostic);
+                } else if let Some(accessor) =
+                    accessor.filter(|&accessor| !self.is_private_within_ambient(accessor))
+                {
+                    let diagnostic = self.accessor_implicit_any_diagnostic(
+                        accessor,
+                        &diagnostics::Member_0_implicitly_has_an_1_type,
+                        &[&name, "any"],
+                        no_implicit_any,
+                    );
+                    self.push_error_diagnostic(diagnostic);
                 }
                 self.tables.intrinsics.any
             }
@@ -12416,9 +12480,11 @@ mod late_binding_tests {
 
 #[cfg(test)]
 mod accessor_ladder_tests {
+    use tsrs2_diags::DiagnosticCategory;
     use tsrs2_types::CompilerOptions;
 
     use crate::state::test_support::with_program_state;
+    use crate::{check_program, InputFile};
 
     // m4-review A6 (oracle: vendored tsc 6.0.3, noLib, strict,
     // 2026-07-19): the auto-accessor arms of the getTypeOfAccessors
@@ -12492,6 +12558,101 @@ mod accessor_ladder_tests {
     fn ambient_private_setter_suppresses_implicit_any() {
         // m4-review B21: tsc's isPrivateWithinAmbient guard — no 7032.
         assert_eq!(checked_rows("declare class A { private set x(v); }\n"), []);
+    }
+
+    #[test]
+    fn accessor_implicit_any_is_an_error_or_suggestion_with_the_same_identity() {
+        // Oracle: vendored tsc 6.0.3, noLib. Under strict:false the
+        // accessor heads are suggestion-pass/category; noImplicitAny
+        // true changes only the pass/category. The annotated and
+        // ambient-private controls stay absent in both modes.
+        let text = "class C { set x(value) {} }\n\
+                    abstract class G { abstract get y(); }\n\
+                    class P { set #p(value) {} }\n\
+                    class L { set \"a\"(value) {} }\n\
+                    declare class A { private set z(value); }\n\
+                    class T { set typed(value: number) {} }\n";
+        let rows = |options: CompilerOptions| {
+            check_program(
+                &[InputFile {
+                    name: "a.ts".to_owned(),
+                    text: text.to_owned(),
+                }],
+                &options,
+            )
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| matches!(diagnostic.code(), 7032 | 7033))
+            .map(|diagnostic| {
+                (
+                    diagnostic.code(),
+                    diagnostic.category(),
+                    diagnostic.start,
+                    diagnostic.length,
+                    diagnostic.message.text.clone(),
+                    diagnostic.related.len(),
+                )
+            })
+            .collect::<Vec<_>>()
+        };
+
+        let expected = [
+            (
+                7032,
+                Some(text.find("x(value)").expect("setter name") as u32),
+                "Property 'x' implicitly has type 'any', because its set accessor lacks a parameter type annotation.",
+                1,
+            ),
+            (
+                7033,
+                Some(text.find("y();").expect("getter name") as u32),
+                "Property 'y' implicitly has type 'any', because its get accessor lacks a return type annotation.",
+                1,
+            ),
+            (
+                7032,
+                Some(text.find("#p(value)").expect("private setter name") as u32),
+                "Property '#p' implicitly has type 'any', because its set accessor lacks a parameter type annotation.",
+                2,
+            ),
+            (
+                7032,
+                Some(text.find("\"a\"(value)").expect("literal setter name") as u32),
+                "Property '\"a\"' implicitly has type 'any', because its set accessor lacks a parameter type annotation.",
+                3,
+            ),
+        ];
+        for (options, category) in [
+            (
+                CompilerOptions {
+                    strict: Some(false),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Suggestion,
+            ),
+            (
+                CompilerOptions {
+                    no_implicit_any: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Error,
+            ),
+        ] {
+            assert_eq!(
+                rows(options),
+                expected
+                    .iter()
+                    .map(|(code, start, message, length)| (
+                        *code,
+                        category,
+                        *start,
+                        Some(*length),
+                        (*message).to_owned(),
+                        0,
+                    ))
+                    .collect::<Vec<_>>()
+            );
+        }
     }
 
     #[test]
