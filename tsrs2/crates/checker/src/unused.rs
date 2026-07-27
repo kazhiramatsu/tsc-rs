@@ -64,7 +64,7 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::ForStatement
                 | SyntaxKind::ForInStatement
                 | SyntaxKind::ForOfStatement => self.check_unused_locals_and_parameters(node),
-                SyntaxKind::FunctionDeclaration => {
+                SyntaxKind::FunctionDeclaration | SyntaxKind::ArrowFunction => {
                     if node_util::body_of(self.binder.source_of_node(node), node).is_some() {
                         self.check_unused_locals_and_parameters(node)
                     } else {
@@ -593,7 +593,7 @@ impl<'a> CheckerState<'a> {
                 } else if binding_elements.len() == 1 {
                     let display = self
                         .name_of_node(binding_elements[0])
-                        .map(|name| self.declaration_name_display(name))
+                        .map(|name| self.unused_binding_name_text(name))
                         .unwrap_or_default();
                     self.add_unused_diagnostic_at(
                         node,
@@ -615,7 +615,7 @@ impl<'a> CheckerState<'a> {
                 for element in binding_elements {
                     let display = self
                         .name_of_node(element)
-                        .map(|name| self.declaration_name_display(name))
+                        .map(|name| self.unused_binding_name_text(name))
                         .unwrap_or_default();
                     self.add_unused_diagnostic_at(
                         node,
@@ -640,7 +640,7 @@ impl<'a> CheckerState<'a> {
                 if declarations.len() == 1 {
                     let name = self.name_of_node(declarations[0]);
                     let display = name
-                        .map(|name| self.declaration_name_display(name))
+                        .map(|name| self.unused_binding_name_text(name))
                         .unwrap_or_default();
                     self.add_unused_diagnostic_at(
                         node,
@@ -666,7 +666,7 @@ impl<'a> CheckerState<'a> {
                 for declaration in declarations {
                     let display = self
                         .name_of_node(declaration)
-                        .map(|name| self.declaration_name_display(name))
+                        .map(|name| self.unused_binding_name_text(name))
                         .unwrap_or_default();
                     self.add_unused_diagnostic_at(
                         node,
@@ -691,7 +691,11 @@ impl<'a> CheckerState<'a> {
         declaration: NodeId,
         symbol: tsrs2_types::SymbolId,
     ) {
-        let node = self.name_of_node(declaration).unwrap_or(declaration);
+        let node = node_util::get_name_of_declaration(
+            self.binder.source_of_node(declaration),
+            declaration,
+        )
+        .unwrap_or(declaration);
         let display =
             tsrs2_binder::unescape_leading_underscores(&self.binder.symbol(symbol).escaped_name)
                 .to_owned();
@@ -829,6 +833,22 @@ impl<'a> CheckerState<'a> {
             NodeData::ObjectBindingPattern(data) => self.nodes_of(data.elements),
             NodeData::ArrayBindingPattern(data) => self.nodes_of(data.elements),
             _ => Vec::new(),
+        }
+    }
+
+    /// tsc `bindingNameText` (83196-83205): grouped unused-variable
+    /// diagnostics name the first bound identifier recursively rather
+    /// than rendering the surrounding binding pattern.
+    fn unused_binding_name_text(&self, name: NodeId) -> String {
+        match self.kind_of(name) {
+            SyntaxKind::Identifier => self.declaration_name_display(name),
+            SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern => self
+                .unused_binding_pattern_elements(name)
+                .into_iter()
+                .find_map(|element| self.name_of_node(element))
+                .map(|nested| self.unused_binding_name_text(nested))
+                .unwrap_or_else(|| self.declaration_name_display(name)),
+            _ => self.declaration_name_display(name),
         }
     }
 }
@@ -1529,6 +1549,130 @@ mod tests {
                 (6133, DiagnosticCategory::Suggestion, 282, 1),
                 (6133, DiagnosticCategory::Suggestion, 301, 3),
                 (6133, DiagnosticCategory::Suggestion, 343, 3),
+            ]
+        );
+    }
+
+    #[test]
+    fn arrow_function_locals_and_parameters_use_independent_modes() {
+        let text = "export const mixed = (deadParameter: number, usedParameter: number) => {\n    const deadLocal = 1;\n    return usedParameter;\n};\n";
+        for (options, parameter_category, local_category) in [
+            (
+                CompilerOptions::default(),
+                DiagnosticCategory::Suggestion,
+                DiagnosticCategory::Suggestion,
+            ),
+            (
+                CompilerOptions {
+                    no_unused_parameters: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Error,
+                DiagnosticCategory::Suggestion,
+            ),
+            (
+                CompilerOptions {
+                    no_unused_locals: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Suggestion,
+                DiagnosticCategory::Error,
+            ),
+            (
+                CompilerOptions {
+                    no_unused_locals: Some(true),
+                    no_unused_parameters: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Error,
+                DiagnosticCategory::Error,
+            ),
+        ] {
+            assert_eq!(
+                unused_rows(text, &options)
+                    .iter()
+                    .map(|(code, category, _, _, message)| { (*code, *category, message.as_str()) })
+                    .collect::<Vec<_>>(),
+                [
+                    (
+                        6133,
+                        parameter_category,
+                        "'deadParameter' is declared but its value is never read.",
+                    ),
+                    (
+                        6133,
+                        local_category,
+                        "'deadLocal' is declared but its value is never read.",
+                    ),
+                ]
+            );
+        }
+    }
+
+    #[test]
+    fn arrow_function_registration_preserves_expression_bodies_and_parameter_exemptions() {
+        assert!(unused_rows(
+            "export const expression = (_ignoredParameter: number, usedParameter: number) => usedParameter;\n\
+             export const block = (usedParameter: number) => {\n\
+                 const usedLocal = 1;\n\
+                 return usedParameter + usedLocal;\n\
+             };\n",
+            &CompilerOptions {
+                no_unused_locals: Some(true),
+                no_unused_parameters: Some(true),
+                ..CompilerOptions::default()
+            },
+        )
+        .is_empty());
+    }
+
+    #[test]
+    fn arrow_function_checked_js_assignment_local_uses_property_name_anchor() {
+        let text = "class D {}\nD.prototype.foo = () => {\n    this.n = 1;\n};\n";
+        let expected_start = text.find("n = 1").expect("property name") as u32;
+        assert_eq!(
+            unused_rows_for_files(
+                &[("a.js", text)],
+                &CompilerOptions {
+                    allow_js: true,
+                    check_js: Some(true),
+                    ..CompilerOptions::default()
+                },
+            ),
+            [(
+                6133,
+                DiagnosticCategory::Suggestion,
+                expected_start,
+                1,
+                "'n' is declared but its value is never read.".to_owned(),
+            )]
+        );
+    }
+
+    #[test]
+    fn arrow_function_shadowed_parameter_and_local_keep_distinct_kinds() {
+        assert_eq!(
+            unused_rows(
+                "export const shadowed = (value: number) => {\n    var [value] = [1];\n    return 0;\n};\n",
+                &CompilerOptions {
+                    no_unused_parameters: Some(true),
+                    ..CompilerOptions::default()
+                },
+            )
+            .iter()
+            .map(|(code, category, _, _, message)| { (*code, *category, message.as_str()) })
+            .collect::<Vec<_>>(),
+            [
+                (
+                    6133,
+                    DiagnosticCategory::Error,
+                    "'value' is declared but its value is never read.",
+                ),
+                (
+                    6133,
+                    DiagnosticCategory::Suggestion,
+                    "'value' is declared but its value is never read.",
+                ),
             ]
         );
     }

@@ -4390,7 +4390,7 @@ mod tests {
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
-                text: "declare function f(cb: (...args: [\"a\", number] | [\"b\", string]) => void): void;\ndeclare function takeAB(x: \"a\" | \"b\"): void;\nf((kind, data) => { takeAB(kind); });\n".to_owned(),
+                text: "declare function f(cb: (...args: [\"a\", number] | [\"b\", string]) => void): void;\ndeclare function takeAB(x: \"a\" | \"b\"): void;\nf((kind, _data) => { takeAB(kind); });\n".to_owned(),
             }],
             &CompilerOptions {
                 strict: Some(true),

@@ -6633,7 +6633,7 @@ mod tests {
         // privateNamesAssertion 2775 FP face.
         assert_eq!(
             checked_rows(
-                "class Foo {\n    #p1: (v: any) => asserts v is string = (v) => {};\n    m1(v: unknown) {\n        this.#p1(v);\n        v;\n    }\n}\nclass Foo2 {\n    #p2(v: any): asserts v is string {}\n    m1(v: unknown) {\n        this.#p2(v);\n        v;\n    }\n}\n"
+                "class Foo {\n    #p1: (v: any) => asserts v is string = (_v) => {};\n    m1(v: unknown) {\n        this.#p1(v);\n        v;\n    }\n}\nclass Foo2 {\n    #p2(v: any): asserts v is string {}\n    m1(v: unknown) {\n        this.#p2(v);\n        v;\n    }\n}\n"
             ),
             []
         );
@@ -6945,7 +6945,7 @@ mod tests {
             checked_rows(
                 "declare function g<T>(f: (x: T) => void): void;\ng((x: number) => {});\n"
             ),
-            []
+            [(6133, 51, 1)]
         );
     }
 
@@ -7612,7 +7612,7 @@ mod tests {
         // band). Un-escaped by the isContextSensitive replay arm.
         assert_eq!(
             checked_rows(
-                "declare function take(f: (x: number) => void): void;\ntake((y) => { type L = typeof y; let z: L; z = \"s\"; });\n"
+                "declare function take(f: (x: number) => void): void;\ntake((y) => { type L = typeof y; let z: L; z = \"s\"; void z; });\n"
             ),
             [(2322, 96, 1)]
         );
