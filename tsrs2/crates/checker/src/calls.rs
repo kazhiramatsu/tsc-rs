@@ -6633,7 +6633,7 @@ mod tests {
         // privateNamesAssertion 2775 FP face.
         assert_eq!(
             checked_rows(
-                "class Foo {\n    #p1: (v: any) => asserts v is string = (_v) => {};\n    m1(v: unknown) {\n        this.#p1(v);\n        v;\n    }\n}\nclass Foo2 {\n    #p2(v: any): asserts v is string {}\n    m1(v: unknown) {\n        this.#p2(v);\n        v;\n    }\n}\n"
+                "class Foo {\n    #p1: (v: any) => asserts v is string = (_v) => {};\n    m1(v: unknown) {\n        this.#p1(v);\n        v;\n    }\n}\nclass Foo2 {\n    #p2(_v: any): asserts _v is string {}\n    m1(v: unknown) {\n        this.#p2(v);\n        v;\n    }\n}\n"
             ),
             []
         );
@@ -6649,7 +6649,7 @@ mod tests {
         // this shape reported 2775 + a downstream 2322.
         assert_eq!(
             checked_rows(
-                "class S {\n    static #check(v: unknown): asserts v is string {}\n    static m(v: unknown) {\n        S.#check(v);\n        const s: string = v;\n    }\n}\n"
+                "class S {\n    static #check(_v: unknown): asserts _v is string {}\n    static m(v: unknown) {\n        S.#check(v);\n        const s: string = v;\n        s;\n    }\n}\n"
             ),
             []
         );
