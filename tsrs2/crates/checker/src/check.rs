@@ -186,6 +186,7 @@ impl<'a> CheckerState<'a> {
         self.check_jsdoc_variadic_parameter_grammar(root);
         self.check_jsdoc_optional_parameter_order(root);
         self.check_jsdoc_template_tag_curly_name_grammar(root);
+        self.check_jsdoc_template_tag_missing_equals_grammar(root);
         self.check_jsdoc_type_reference_recovery_grammar(root);
         self.check_jsdoc_expected_close_brace_grammar(root);
         self.check_jsdoc_identifier_name_grammar(root);
@@ -2653,6 +2654,90 @@ impl<'a> CheckerState<'a> {
                         .map(|next_offset| body_start + line_offset + line.len() + next_offset)
                 };
                 if let Some(start) = recovery_start {
+                    diagnostics.insert((start, start + 1));
+                }
+                line_offset += line.len();
+            }
+        }
+        diagnostics.into_iter().collect()
+    }
+
+    /// tsrs-native: project parseExpected's missing equals token for a
+    /// bracketed JSDoc template parameter while JSDoc nodes are absent
+    /// from the arena.
+    ///
+    /// tsc-port: parseExpected @6.0.3
+    /// tsc-hash: 6bdef5de4e667c786cab20a05aa70e307d1ec2f77aa38a5c8dff953632c843ca
+    /// tsc-span: _tsc.js:29578-29591
+    /// d2: d2:628509734c564024831c390c8dbbf7f8d458f30e2b325ef0c724efaa60117cf9
+    ///
+    /// parseTemplateTagTypeParameter calls this producer for `=` after
+    /// every bracketed name. The bounded residual is a simple `[T]`
+    /// following an optional braced constraint, so the closing `]` is
+    /// the exact one-byte recovery token.
+    fn check_jsdoc_template_tag_missing_equals_grammar(&mut self, root: NodeId) {
+        if !self.is_in_js_file(root) {
+            return;
+        }
+        for (start, end) in self.jsdoc_template_tag_missing_equals_spans(root) {
+            let diagnostics_before = self.diagnostics.len();
+            self.error_at_byte_range_with_args(root, start, end, &diagnostics::_0_expected, &["="]);
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1005);
+        }
+    }
+
+    fn jsdoc_template_tag_missing_equals_spans(&self, root: NodeId) -> Vec<(usize, usize)> {
+        let source = self.binder.source_of_node(root);
+        let mut diagnostics = std::collections::BTreeSet::new();
+        for (body_start, comment_close) in self.jsdoc_comment_body_ranges(root) {
+            let body = &source.text[body_start..comment_close];
+            let mut line_offset = 0usize;
+            for line in body.split_inclusive('\n') {
+                let line_without_break = jsdoc_raw_line(line);
+                let leading = line_without_break.len()
+                    - line_without_break
+                        .trim_start_matches(char::is_whitespace)
+                        .len();
+                let mut candidate = &line_without_break[leading..];
+                let mut candidate_offset = leading;
+                if let Some(after_star) = candidate.strip_prefix('*') {
+                    candidate_offset += 1;
+                    let star_space =
+                        after_star.len() - after_star.trim_start_matches(char::is_whitespace).len();
+                    candidate_offset += star_space;
+                    candidate = &after_star[star_space..];
+                }
+
+                let Some(template_tail) = candidate.strip_prefix("@template").filter(|tail| {
+                    tail.chars()
+                        .next()
+                        .is_some_and(|character| character.is_whitespace() || character == '{')
+                }) else {
+                    line_offset += line.len();
+                    continue;
+                };
+                let whitespace = template_tail.len()
+                    - template_tail.trim_start_matches(char::is_whitespace).len();
+                let mut parameter = &template_tail[whitespace..];
+                let mut parameter_offset = candidate_offset + "@template".len() + whitespace;
+                if let Some((_, consumed)) = jsdoc_braced_payload(parameter) {
+                    parameter = &parameter[consumed..];
+                    parameter_offset += consumed;
+                    let constraint_space =
+                        parameter.len() - parameter.trim_start_matches(char::is_whitespace).len();
+                    parameter = &parameter[constraint_space..];
+                    parameter_offset += constraint_space;
+                }
+                let Some(bracket_tail) = parameter.strip_prefix('[') else {
+                    line_offset += line.len();
+                    continue;
+                };
+                let Some(close_relative) = bracket_tail.find(']') else {
+                    line_offset += line.len();
+                    continue;
+                };
+                if is_jsdoc_identifier(bracket_tail[..close_relative].trim()) {
+                    let start = body_start + line_offset + parameter_offset + 1 + close_relative;
                     diagnostics.insert((start, start + 1));
                 }
                 line_offset += line.len();
@@ -12748,6 +12833,82 @@ mod tests {
             "/** @param {number?[]} value */\nfunction f(value: number) {}\n",
             &options,
         );
+        assert!(
+            ts_diagnostics.iter().all(|diagnostic| diagnostic.0 != 1005),
+            "JSDoc parser projection is JavaScript-only: {ts_diagnostics:?}"
+        );
+    }
+
+    // ---- M7 8.1ad JSDoc template missing-equals recovery grammar ----
+
+    #[test]
+    fn jsdoc_template_missing_equals_reports_the_closing_bracket() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = concat!(
+            "/**\n",
+            " * @template {string | number} [T]\n",
+            " * @typedef {[T]} MissingDefault\n",
+            " */\n",
+        );
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let diagnostics = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 1005)
+                .map(|diagnostic| {
+                    (
+                        diagnostic.start.expect("TS1005 start"),
+                        diagnostic.length.expect("TS1005 length"),
+                        diagnostic.message_text().to_owned(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let start = text.find("[T]").expect("bracketed template parameter") + "[T".len();
+            assert_eq!(
+                diagnostics,
+                vec![(start as u32, 1, "'=' expected.".to_owned())]
+            );
+            assert!(state.non_jsdoc_js_diagnostics.contains(&(
+                "a.js".to_owned(),
+                start as u32,
+                1,
+                1005,
+            )));
+        });
+    }
+
+    #[test]
+    fn jsdoc_template_missing_equals_preserves_other_template_faces() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = concat!(
+            "/** @template T */\n",
+            "/** @template {number} U */\n",
+            "/** @template [T=string] */\n",
+            "/** @template {number} [U=number] */\n",
+            "/** @template [T=] */\n",
+            "/** @template [] */\n",
+            "/** @template [const T] */\n",
+            "/** @templates [T] */\n",
+            "/** prose @template [T] */\n",
+            "/* @template [T] */\n",
+            "const text = '/** @template [T] */';\n",
+        );
+        let diagnostics = checked_file_diags_with("a.js", text, &options);
+        assert!(
+            diagnostics.iter().all(|diagnostic| diagnostic.0 != 1005),
+            "valid/non-tag template faces must not produce TS1005: {diagnostics:?}"
+        );
+
+        let ts_diagnostics = checked_file_diags_with("a.ts", "/** @template [T] */\n", &options);
         assert!(
             ts_diagnostics.iter().all(|diagnostic| diagnostic.0 != 1005),
             "JSDoc parser projection is JavaScript-only: {ts_diagnostics:?}"
