@@ -30,6 +30,54 @@ impl<'a> CheckerState<'a> {
         self.potentially_unused_identifiers.push(node);
     }
 
+    /// tsrs-native: recovery adapter for a checked-JS expression statement
+    /// whose assignment LHS hits an `Unsupported` boundary before the
+    /// RHS function reaches `checkSignatureDeclaration`.
+    ///
+    /// tsc has no failure channel, so its RHS reaches the ordinary
+    /// function checker, which marks parameter reads and then reaches
+    /// the registerForUnusedIdentifiersCheck tail. Resume that bounded
+    /// RHS check after Rust contains the LHS failure. Recover only the
+    /// direct `=` function/arrow shape, and avoid a duplicate when the
+    /// RHS registered before a later failure.
+    pub(crate) fn recover_contained_js_assignment_function_for_unused(&mut self, node: NodeId) {
+        if !self.is_in_js_file(node) {
+            return;
+        }
+        let expression = match self.data_of(node) {
+            NodeData::ExpressionStatement(data) => data.expression,
+            _ => None,
+        };
+        let Some(expression) = expression else {
+            return;
+        };
+        let (operator_token, right) = match self.data_of(expression) {
+            NodeData::BinaryExpression(data) => (data.operator_token, data.right),
+            _ => (None, None),
+        };
+        if operator_token.is_none_or(|token| self.kind_of(token) != SyntaxKind::EqualsToken) {
+            return;
+        }
+        let Some(right) = right else {
+            return;
+        };
+        if !matches!(
+            self.kind_of(right),
+            SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
+        ) {
+            return;
+        }
+        if self
+            .check_expression(right, tsrs2_types::CheckMode::NORMAL)
+            .is_err()
+        {
+            return;
+        }
+        if !self.potentially_unused_identifiers.contains(&right) {
+            self.register_for_unused_identifiers_check(right);
+        }
+    }
+
     /// tsc-port: checkUnusedIdentifiers @6.0.3
     /// tsc-hash: dcbee129b87b48f266b1bc1836718003e82f6b483b3d639b06b2ca7de12cd6df
     /// tsc-span: _tsc.js:82954-82991
@@ -2928,6 +2976,55 @@ const test2 = mod2;
             },
         );
         assert!(rows.is_empty(), "{rows:?}");
+    }
+
+    #[test]
+    fn checked_js_property_assignment_function_parameters_remain_unused() {
+        let usage = "/** @constructor */
+Outer.Pos = function (line, ch) {};
+Outer.Used = function (used) { return used; };
+/** @type {number} */
+Outer.Pos.prototype.line;
+var pos = new Outer.Pos(1, 'x');
+pos.line;
+";
+        let rows = unused_rows_for_files(
+            &[
+                ("module.js", "var Outer = function(element, config) {};\n"),
+                ("usage.js", usage),
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            rows.iter()
+                .filter(|row| {
+                    row.4.starts_with("'line'")
+                        || row.4.starts_with("'ch'")
+                        || row.4.starts_with("'used'")
+                })
+                .map(|row| (row.0, row.1, row.2, row.3, row.4.as_str()))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    6133,
+                    DiagnosticCategory::Suggestion,
+                    usage.find("line,").expect("line parameter") as u32,
+                    4,
+                    "'line' is declared but its value is never read.",
+                ),
+                (
+                    6133,
+                    DiagnosticCategory::Suggestion,
+                    usage.find("ch)").expect("ch parameter") as u32,
+                    2,
+                    "'ch' is declared but its value is never read.",
+                ),
+            ]
+        );
     }
 
     #[test]
