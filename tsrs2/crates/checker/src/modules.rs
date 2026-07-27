@@ -7521,7 +7521,10 @@ mod tests {
         result
             .diagnostics
             .iter()
-            .filter(|diagnostic| diagnostic.file_name.is_some())
+            .filter(|diagnostic| {
+                diagnostic.file_name.is_some()
+                    && diagnostic.category() == tsrs2_diags::DiagnosticCategory::Error
+            })
             .map(|diagnostic| {
                 (
                     diagnostic.file_name.clone().expect("filtered"),
@@ -7767,14 +7770,24 @@ mod tests {
             "/",
         );
         assert_eq!(
-            result.diagnostics[0].message_text(),
+            result
+                .diagnostics
+                .iter()
+                .find(|diagnostic| {
+                    diagnostic.category() == tsrs2_diags::DiagnosticCategory::Error
+                })
+                .expect("semantic module diagnostic")
+                .message_text(),
             "File '/lib.d.ts' is not a module."
         );
         assert_eq!(
             result
                 .diagnostics
                 .iter()
-                .filter(|diagnostic| diagnostic.file_name.is_some())
+                .filter(|diagnostic| {
+                    diagnostic.file_name.is_some()
+                        && diagnostic.category() == tsrs2_diags::DiagnosticCategory::Error
+                })
                 .map(|diagnostic| (
                     diagnostic.file_name.clone().expect("filtered"),
                     diagnostic.code(),
@@ -7827,6 +7840,9 @@ let unrelated = \"\";\n",
             result
                 .diagnostics
                 .iter()
+                .filter(|diagnostic| {
+                    diagnostic.category() == tsrs2_diags::DiagnosticCategory::Error
+                })
                 .map(|diagnostic| (
                     diagnostic.file_name.as_deref(),
                     diagnostic.code(),

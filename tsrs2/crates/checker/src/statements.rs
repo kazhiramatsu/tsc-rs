@@ -3068,7 +3068,10 @@ mod tests {
             state
                 .diagnostics
                 .iter()
-                .filter(|diag| diag.file_name.is_some())
+                .filter(|diag| {
+                    diag.file_name.is_some()
+                        && diag.category() == tsrs2_diags::DiagnosticCategory::Error
+                })
                 .map(|diag| {
                     (
                         diag.code(),
@@ -3086,7 +3089,10 @@ mod tests {
             state
                 .diagnostics
                 .iter()
-                .filter(|diag| diag.file_name.is_some())
+                .filter(|diag| {
+                    diag.file_name.is_some()
+                        && diag.category() == tsrs2_diags::DiagnosticCategory::Error
+                })
                 .map(|diag| {
                     (
                         diag.code(),
@@ -3841,6 +3847,7 @@ x.accessor = 1;\n"
         result
             .diagnostics
             .iter()
+            .filter(|diag| diag.category() == tsrs2_diags::DiagnosticCategory::Error)
             .map(|diag| {
                 (
                     diag.code(),
@@ -4056,7 +4063,10 @@ x.accessor = 1;\n"
         result
             .diagnostics
             .iter()
-            .filter(|diag| diag.file_name.is_some())
+            .filter(|diag| {
+                diag.file_name.is_some()
+                    && diag.category() == tsrs2_diags::DiagnosticCategory::Error
+            })
             .map(|diag| {
                 (
                     diag.code(),

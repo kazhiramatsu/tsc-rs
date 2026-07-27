@@ -280,6 +280,14 @@ fn filter_by_comment_directives_and_mark_used(
     let utf16_line_starts: &[u32] = &source.line_map.line_starts;
     let mut result = Vec::new();
     for diagnostic in diagnostics {
+        // Suggestion diagnostics come from getSuggestionDiagnostics,
+        // outside getMergedBindAndCheckDiagnostics' comment-directive
+        // filter. They neither consume @ts-ignore/@ts-expect-error nor
+        // disappear behind one.
+        if diagnostic.category() == DiagnosticCategory::Suggestion {
+            result.push(diagnostic);
+            continue;
+        }
         let Some(start) = diagnostic.start else {
             result.push(diagnostic);
             continue;
@@ -1505,7 +1513,12 @@ mod tests {
             }],
             options,
         );
-        result.diagnostics.iter().map(|d| d.code()).collect()
+        result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.category() == DiagnosticCategory::Error)
+            .map(|d| d.code())
+            .collect()
     }
 
     fn strict_options() -> CompilerOptions {
@@ -3523,7 +3536,10 @@ mod tests {
             ],
             &CompilerOptions::default(),
         )
-        .diagnostics;
+        .diagnostics
+        .into_iter()
+        .filter(|diagnostic| diagnostic.category() == DiagnosticCategory::Error)
+        .collect::<Vec<_>>();
         assert!(diagnostics.is_empty(), "{diagnostics:#?}");
     }
 
@@ -3547,7 +3563,10 @@ mod tests {
             ],
             &CompilerOptions::default(),
         )
-        .diagnostics;
+        .diagnostics
+        .into_iter()
+        .filter(|diagnostic| diagnostic.category() == DiagnosticCategory::Error)
+        .collect::<Vec<_>>();
         assert!(diagnostics.is_empty(), "{diagnostics:#?}");
     }
 
@@ -3573,7 +3592,10 @@ mod tests {
             ],
             &CompilerOptions::default(),
         )
-        .diagnostics;
+        .diagnostics
+        .into_iter()
+        .filter(|diagnostic| diagnostic.category() == DiagnosticCategory::Error)
+        .collect::<Vec<_>>();
         assert!(diagnostics.is_empty(), "{diagnostics:#?}");
     }
 
@@ -3602,7 +3624,10 @@ mod tests {
             ],
             &CompilerOptions::default(),
         )
-        .diagnostics;
+        .diagnostics
+        .into_iter()
+        .filter(|diagnostic| diagnostic.category() == DiagnosticCategory::Error)
+        .collect::<Vec<_>>();
         assert_eq!(
             diagnostics
                 .iter()
@@ -3637,7 +3662,10 @@ mod tests {
             ],
             &CompilerOptions::default(),
         )
-        .diagnostics;
+        .diagnostics
+        .into_iter()
+        .filter(|diagnostic| diagnostic.category() == DiagnosticCategory::Error)
+        .collect::<Vec<_>>();
         assert_eq!(
             diagnostics
                 .iter()
@@ -3672,7 +3700,10 @@ mod tests {
             ],
             &CompilerOptions::default(),
         )
-        .diagnostics;
+        .diagnostics
+        .into_iter()
+        .filter(|diagnostic| diagnostic.category() == DiagnosticCategory::Error)
+        .collect::<Vec<_>>();
         assert_eq!(
             diagnostics
                 .iter()
@@ -4378,6 +4409,28 @@ mod tests {
     #[test]
     fn unused_expect_error_reports_2578() {
         assert_eq!(codes_of("// @ts-expect-error\nconst x = 1;\n"), [2578]);
+    }
+
+    #[test]
+    fn suggestion_does_not_consume_or_hide_expect_error() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "export {};\n// @ts-expect-error\nconst dead = 1;\n".to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (diagnostic.code(), diagnostic.category()))
+                .collect::<Vec<_>>(),
+            [
+                (2578, DiagnosticCategory::Error),
+                (6133, DiagnosticCategory::Suggestion),
+            ]
+        );
     }
 
     #[test]

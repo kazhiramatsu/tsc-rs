@@ -2344,7 +2344,7 @@ mod tests {
         state
             .diagnostics
             .iter()
-            .filter(|diag| diag.file_name.is_some())
+            .filter(|diag| diag.file_name.is_some() && diag.category() == DiagnosticCategory::Error)
             .map(|diag| {
                 (
                     diag.code(),
