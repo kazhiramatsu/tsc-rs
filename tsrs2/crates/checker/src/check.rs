@@ -212,6 +212,9 @@ impl<'a> CheckerState<'a> {
         self.check_source_element(end_of_file_token);
         self.check_deferred_nodes(root);
         self.check_jsdoc_satisfies_semantics(root);
+        if self.binder.is_external_or_common_js_module_of_node(root) {
+            self.register_for_unused_identifiers_check(root);
+        }
         // 87028-87040 addLazyDiagnostic block (eager identity): unused
         // errors precede the renamed-binding drain and never run in
         // declaration files.
@@ -2144,7 +2147,9 @@ impl<'a> CheckerState<'a> {
         spans.into_iter().collect()
     }
 
-    fn jsdoc_comment_body_ranges(&self, root: NodeId) -> Vec<(usize, usize)> {
+    /// tsrs-native: shared parser-owned leading-trivia projection for
+    /// JSDoc producers whose nodes are not materialized in the arena.
+    pub(crate) fn jsdoc_comment_body_ranges(&self, root: NodeId) -> Vec<(usize, usize)> {
         let source = self.binder.source_of_node(root);
         let mut trivia_ranges = std::collections::BTreeSet::new();
         let mut stack = vec![root];
