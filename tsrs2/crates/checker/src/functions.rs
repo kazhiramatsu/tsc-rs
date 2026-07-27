@@ -6445,7 +6445,10 @@ mod tests {
             checked_rows(
                 "function f12(x: number, fail: (message?: string) => never): number {\n    if (x >= 0) return x;\n    fail(\"negative number\");\n    x;\n}\n"
             ),
-            []
+            // The implicit-return 2366 remains suppressed; the final
+            // expression is independently unreachable and carries
+            // checkSourceElementUnreachable's default suggestion.
+            [(7027, 128, 2)]
         );
     }
 
