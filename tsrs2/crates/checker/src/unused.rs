@@ -45,9 +45,6 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_registered_unused_identifiers(&mut self) {
         let nodes = std::mem::take(&mut self.potentially_unused_identifiers);
         for node in nodes {
-            if self.contains_parse_error_for_unused(node) {
-                continue;
-            }
             let diagnostics_before = self.diagnostics.len();
             let result = match self.kind_of(node) {
                 SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => self
@@ -227,11 +224,6 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn contains_parse_error_for_unused(&self, node: NodeId) -> bool {
-        NodeFlags::from_bits(self.node_flags(node))
-            .intersects(NodeFlags::THIS_NODE_OR_ANY_SUB_NODES_HAS_ERROR)
-    }
-
     fn is_ambient_for_unused(&self, node: NodeId) -> bool {
         self.binder.flags_of(node).intersects(NodeFlags::AMBIENT)
             || NodeFlags::from_bits(self.node_flags(node)).intersects(NodeFlags::AMBIENT)
@@ -240,6 +232,11 @@ impl<'a> CheckerState<'a> {
                 node,
                 ModifierFlags::AMBIENT,
             )
+    }
+
+    fn is_recovery_only_unused_declaration(&self, node: NodeId) -> bool {
+        NodeFlags::from_bits(self.node_flags(node))
+            .intersects(NodeFlags::THIS_NODE_OR_ANY_SUB_NODES_HAS_ERROR)
     }
 
     fn unused_is_error(&self, node: NodeId, kind: UnusedIdentifierKind) -> bool {
@@ -299,6 +296,9 @@ impl<'a> CheckerState<'a> {
             _ => return Ok(()),
         };
         for member in self.nodes_of(members) {
+            if self.is_recovery_only_unused_declaration(member) {
+                continue;
+            }
             match self.kind_of(member) {
                 SyntaxKind::MethodDeclaration
                 | SyntaxKind::PropertyDeclaration
@@ -515,6 +515,11 @@ impl<'a> CheckerState<'a> {
         let Some(name) = self.name_of_node(type_parameter) else {
             return Ok(false);
         };
+        if self.is_recovery_only_unused_declaration(name)
+            || self.identifier_text_of(name).is_none_or(str::is_empty)
+        {
+            return Ok(false);
+        }
         let symbol = self.get_symbol_of_declaration(type_parameter)?;
         Ok(!self.links.symbol(symbol).is_referenced
             && !self.identifier_starts_with_underscore(name))
@@ -610,6 +615,18 @@ impl<'a> CheckerState<'a> {
             }
             let declarations = symbol.declarations.clone();
             for declaration in declarations {
+                // Rust recovery can retain a declaration symbol whose own
+                // subtree contains a missing-node parse error (for example
+                // `const broken = ;`). tsc does not put that recovery-only
+                // symbol in the unused worker's locals table. Keep valid
+                // bound siblings visible without manufacturing a diagnostic
+                // for the recovery declaration itself.
+                if self.is_recovery_only_unused_declaration(declaration) {
+                    continue;
+                }
+                if self.is_recovery_only_imported_declaration(declaration) {
+                    continue;
+                }
                 if self.is_valid_unused_local_declaration(declaration) {
                     continue;
                 }
@@ -978,6 +995,33 @@ impl<'a> CheckerState<'a> {
         )
     }
 
+    fn is_recovery_only_imported_declaration(&self, declaration: NodeId) -> bool {
+        let Some(import_clause) = self.import_clause_from_imported_declaration(declaration) else {
+            return false;
+        };
+        if matches!(
+            self.data_of(import_clause),
+            NodeData::ImportClause(data)
+                if data.phase_modifier == Some(SyntaxKind::DeferKeyword)
+                    && data
+                        .name
+                        .and_then(|name| self.identifier_text_of(name))
+                        == Some("type")
+        ) {
+            return true;
+        }
+        let Some(import_declaration) = self.parent_of(import_clause) else {
+            return false;
+        };
+        matches!(
+            self.data_of(import_declaration),
+            NodeData::ImportDeclaration(data)
+                if data.attributes.is_some_and(|attributes| {
+                    self.is_recovery_only_unused_declaration(attributes)
+                })
+        )
+    }
+
     fn import_clause_from_imported_declaration(&self, declaration: NodeId) -> Option<NodeId> {
         match self.kind_of(declaration) {
             SyntaxKind::ImportClause => Some(declaration),
@@ -1019,7 +1063,9 @@ impl<'a> CheckerState<'a> {
     /// than rendering the surrounding binding pattern.
     fn unused_binding_name_text(&self, name: NodeId) -> String {
         match self.kind_of(name) {
-            SyntaxKind::Identifier => self.declaration_name_display(name),
+            SyntaxKind::Identifier => node_util::id_text(self.binder.source_of_node(name), name)
+                .map(str::to_owned)
+                .unwrap_or_else(|| self.declaration_name_display(name)),
             SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern => self
                 .unused_binding_pattern_elements(name)
                 .into_iter()
@@ -1319,6 +1365,65 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    #[test]
+    fn unused_identifier_drain_preserves_bound_siblings_of_parse_errors() {
+        let text = "export {}; const unused = 1; const used = 2; used; const broken = ;";
+        let rows = unused_rows(text, &CompilerOptions::default());
+        let start = text.find("unused").expect("unused declaration") as u32;
+        assert_eq!(
+            rows,
+            vec![(
+                6133,
+                DiagnosticCategory::Suggestion,
+                start,
+                "unused".len() as u32,
+                "'unused' is declared but its value is never read.".to_owned(),
+            )]
+        );
+
+        assert!(unused_rows(
+            "const globalUnused = 1; const broken = ;",
+            &CompilerOptions::default(),
+        )
+        .is_empty());
+    }
+
+    #[test]
+    fn unused_identifier_recovery_preserves_unicode_escape_spans() {
+        let text = r"var \u0061wait = 12;
+var \u0079ield = 12;
+type typ\u0065 = 12;
+export {};
+";
+        let rows = unused_rows(text, &CompilerOptions::default());
+        assert_eq!(
+            rows,
+            vec![
+                (
+                    6133,
+                    DiagnosticCategory::Suggestion,
+                    text.find(r"\u0061wait").expect("escaped await") as u32,
+                    r"\u0061wait".len() as u32,
+                    "'await' is declared but its value is never read.".to_owned(),
+                ),
+                (
+                    6133,
+                    DiagnosticCategory::Suggestion,
+                    text.find(r"\u0079ield").expect("escaped yield") as u32,
+                    r"\u0079ield".len() as u32,
+                    "'yield' is declared but its value is never read.".to_owned(),
+                ),
+                (
+                    6196,
+                    DiagnosticCategory::Suggestion,
+                    text.find(r"typ\u0065").expect("escaped type") as u32,
+                    r"typ\u0065".len() as u32,
+                    "'type' is declared but never used.".to_owned(),
+                ),
+            ]
+        );
     }
 
     const CLASS_PROBE: &str = "class C {

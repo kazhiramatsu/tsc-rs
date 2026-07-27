@@ -416,8 +416,15 @@
 # node keeps its whole-node span (including repeated symbols), underscore
 # exemptions, and noUnusedParameters category projection; T1-T3 gain the
 # same identities with no losses, external gains, or false positives.
-rate = 0.964181
-matched = 47268
+# m7 8.4n adds +68 by matching checkUnusedIdentifiers' recovery boundary:
+# valid bound siblings remain eligible when their owner also contains a
+# parse error, while malformed declarations, imports, members, and missing
+# type-parameter names remain suppressed locally. Source-file registration
+# keeps TS global scripts out, and grouped Unicode-escaped names use cooked
+# identifier text; T1-T3 gain the same identities with no losses, external
+# gains, or false positives.
+rate = 0.965568
+matched = 47336
 total = 49024
 allowed_regression = 0.0
 
