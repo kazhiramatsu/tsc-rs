@@ -183,6 +183,7 @@ impl<'a> CheckerState<'a> {
         self.check_jsdoc_variadic_parameter_grammar(root);
         self.check_jsdoc_optional_parameter_order(root);
         self.check_jsdoc_template_tag_curly_name_grammar(root);
+        self.check_jsdoc_identifier_name_grammar(root);
         self.check_jsdoc_template_tag_modifier_grammar(root);
         self.check_jsdoc_satisfies_tag_duplicates(root);
         self.check_jsdoc_cast_type_predicate_grammar(root);
@@ -2431,6 +2432,104 @@ impl<'a> CheckerState<'a> {
                 };
                 if let Some(start) = recovery_start {
                     diagnostics.insert((start, start + 1));
+                }
+                line_offset += line.len();
+            }
+        }
+        diagnostics.into_iter().collect()
+    }
+
+    /// tsrs-native: project parseJSDocIdentifierName's missing-node
+    /// diagnostic while JSDoc nodes are absent from the arena.
+    ///
+    /// tsc-port: parseJSDocIdentifierName @6.0.3
+    /// tsc-hash: 78215969ec15ba75b198cf8c0bb5d05364314b74a24edc2ab3673fe6da3f454f
+    /// tsc-span: _tsc.js:35782-35799
+    /// d2: d2:e9f169197af45c251fa2e5f2e93467061c25ff6cfeba65771e6fda87350e6d4f
+    ///
+    /// Augments/implements tags require an entity name immediately
+    /// after the tag. Parameter/property tags reach the same producer
+    /// when their name token is `#` or `*`; the latter may be the
+    /// first token on a wrapped continuation line. tsc creates a
+    /// zero-width missing identifier at that recovery token.
+    fn check_jsdoc_identifier_name_grammar(&mut self, root: NodeId) {
+        if !self.is_in_js_file(root) {
+            return;
+        }
+        for start in self.jsdoc_identifier_name_recovery_spans(root) {
+            let diagnostics_before = self.diagnostics.len();
+            self.error_at_byte_range(root, start, start, &diagnostics::Identifier_expected);
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1003);
+        }
+    }
+
+    fn jsdoc_identifier_name_recovery_spans(&self, root: NodeId) -> Vec<usize> {
+        let source = self.binder.source_of_node(root);
+        let mut diagnostics = std::collections::BTreeSet::new();
+        for (body_start, comment_close) in self.jsdoc_comment_body_ranges(root) {
+            let body = &source.text[body_start..comment_close];
+            let mut line_offset = 0usize;
+            let mut awaiting_parameter_or_property_name = false;
+            for line in body.split_inclusive('\n') {
+                let line_without_lf = line.strip_suffix('\n').unwrap_or(line);
+                let line_without_break = line_without_lf
+                    .strip_suffix('\r')
+                    .unwrap_or(line_without_lf);
+                let leading = line_without_break.len()
+                    - line_without_break
+                        .trim_start_matches(char::is_whitespace)
+                        .len();
+                let mut candidate = &line_without_break[leading..];
+                let mut candidate_offset = leading;
+                if let Some(after_star) = candidate.strip_prefix('*') {
+                    candidate_offset += 1;
+                    let star_space =
+                        after_star.len() - after_star.trim_start_matches(char::is_whitespace).len();
+                    candidate_offset += star_space;
+                    candidate = &after_star[star_space..];
+                }
+
+                if awaiting_parameter_or_property_name && !candidate.is_empty() {
+                    awaiting_parameter_or_property_name = false;
+                    if candidate.starts_with('*') {
+                        diagnostics.insert(body_start + line_offset + candidate_offset);
+                        line_offset += line.len();
+                        continue;
+                    }
+                }
+
+                if let Some((tag, tail)) =
+                    jsdoc_candidate_tag_tail(candidate, &["@augments", "@extends", "@implements"])
+                {
+                    if tail.trim().is_empty() {
+                        diagnostics.insert(body_start + line_offset + candidate_offset + tag.len());
+                    }
+                    line_offset += line.len();
+                    continue;
+                }
+
+                let Some((tag, tail)) = jsdoc_candidate_tag_tail(
+                    candidate,
+                    &["@param", "@arg", "@argument", "@property", "@prop"],
+                ) else {
+                    line_offset += line.len();
+                    continue;
+                };
+                let leading_tail = tail.len() - tail.trim_start_matches(char::is_whitespace).len();
+                let mut name_tail = &tail[leading_tail..];
+                let mut name_offset = tag.len() + leading_tail;
+                if let Some((_, consumed)) = jsdoc_braced_payload(name_tail) {
+                    name_tail = &name_tail[consumed..];
+                    name_offset += consumed;
+                    let whitespace =
+                        name_tail.len() - name_tail.trim_start_matches(char::is_whitespace).len();
+                    name_tail = &name_tail[whitespace..];
+                    name_offset += whitespace;
+                }
+                if name_tail.starts_with(['#', '*']) {
+                    diagnostics.insert(body_start + line_offset + candidate_offset + name_offset);
+                } else if name_tail.is_empty() {
+                    awaiting_parameter_or_property_name = true;
                 }
                 line_offset += line.len();
             }
@@ -10541,6 +10640,20 @@ fn jsdoc_braced_payload(text: &str) -> Option<(&str, usize)> {
     None
 }
 
+fn jsdoc_candidate_tag_tail<'a>(
+    candidate: &'a str,
+    tags: &[&'static str],
+) -> Option<(&'static str, &'a str)> {
+    tags.iter().find_map(|&tag| {
+        candidate.strip_prefix(tag).and_then(|tail| {
+            tail.chars()
+                .next()
+                .is_none_or(|character| character.is_whitespace() || character == '{')
+                .then_some((tag, tail))
+        })
+    })
+}
+
 fn is_well_formed_jsdoc_variadic_type(text: &str) -> bool {
     let Some(element) = text.trim().strip_prefix("...") else {
         return false;
@@ -11458,6 +11571,111 @@ mod tests {
         );
         assert!(
             ts_diagnostics.iter().all(|diagnostic| diagnostic.0 != 1069),
+            "JSDoc parser projection is JavaScript-only: {ts_diagnostics:?}"
+        );
+    }
+
+    // ---- M7 8.1w JSDoc identifier-name recovery grammar ----
+
+    #[test]
+    fn jsdoc_identifier_name_recovery_reports_missing_and_invalid_names() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/** @augments */\n\
+                    class Augments {}\n\
+                    /** @implements */\n\
+                    class Implements {}\n\
+                    /**\n\
+                     * @property {string} #id\n\
+                     * @param *\n\
+                     * @param {number}\n\
+                     * * y\n\
+                     * @param {number} * z\n\
+                     */\n\
+                    function invalid(x, y, z) {}\n";
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let mut diagnostics = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 1003)
+                .map(|diagnostic| {
+                    (
+                        diagnostic.start.expect("TS1003 start"),
+                        diagnostic.length.expect("TS1003 length"),
+                        diagnostic.message_text().to_owned(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            diagnostics.sort_by_key(|diagnostic| diagnostic.0);
+            let expected_starts = [
+                text.find("@augments").expect("augments tag") + "@augments".len(),
+                text.find("@implements").expect("implements tag") + "@implements".len(),
+                text.find("#id").expect("private name"),
+                text.find("@param *").expect("inline star parameter") + "@param ".len(),
+                text.find("\n* * y").expect("wrapped star parameter") + "\n* ".len(),
+                text.find("@param {number} * z")
+                    .expect("typed star parameter")
+                    + "@param {number} ".len(),
+            ];
+            assert_eq!(
+                diagnostics,
+                expected_starts
+                    .map(|start| (start as u32, 0, "Identifier expected.".to_owned()))
+                    .to_vec()
+            );
+            for start in expected_starts {
+                assert!(state.non_jsdoc_js_diagnostics.contains(&(
+                    "a.js".to_owned(),
+                    start as u32,
+                    0,
+                    1003,
+                )));
+            }
+        });
+    }
+
+    #[test]
+    fn jsdoc_identifier_name_recovery_preserves_valid_wrapping_and_non_tags() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/** @augments {Base} */\n\
+                    class Augments {}\n\
+                    /** @implements Base */\n\
+                    class Implements {}\n\
+                    /**\n\
+                     * @property {string} id\n\
+                     * @param\n\
+                     * {number} x\n\
+                     * @param {number}\n\
+                     * y\n\
+                     * @param {number} z\n\
+                     * argument z\n\
+                     */\n\
+                    function valid(x, y, z) {}\n\
+                    /** prose @param * */\n\
+                    function prose(value) {}\n\
+                    /** @parameter * */\n\
+                    function boundary(value) {}\n";
+        let diagnostics = checked_file_diags_with("a.js", text, &options);
+        assert!(
+            diagnostics.iter().all(|diagnostic| diagnostic.0 != 1003),
+            "valid/non-tag JSDoc faces must not produce TS1003: {diagnostics:?}"
+        );
+
+        let ts_diagnostics = checked_file_diags_with(
+            "a.ts",
+            "/** @implements */\nclass Typed {}\n/** @param * */\nfunction f(x: number) {}\n",
+            &options,
+        );
+        assert!(
+            ts_diagnostics.iter().all(|diagnostic| diagnostic.0 != 1003),
             "JSDoc parser projection is JavaScript-only: {ts_diagnostics:?}"
         );
     }

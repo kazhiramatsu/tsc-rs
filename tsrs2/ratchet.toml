@@ -335,8 +335,10 @@
 # effective JSDoc optionality projection and exact TS1016 rows.
 # m7 8.1v adds +3 through parseTemplateTagTypeParameter's checked-JS
 # missing-name projection and exact TS1069 rows.
-rate = 0.667143
-matched = 32706
+# m7 8.1w adds +6 through parseJSDocIdentifierName's checked-JS
+# missing/invalid entity-name recovery and exact zero-width TS1003 rows.
+rate = 0.667265
+matched = 32712
 total = 49024
 allowed_regression = 0.0
 
