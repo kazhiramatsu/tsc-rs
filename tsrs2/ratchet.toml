@@ -362,8 +362,11 @@
 # m7 8.4c adds +859 by surfacing ModuleDeclaration-owned unused
 # locals while excluding global augmentations; T1-T3 gain the same
 # exact identities with no losses, and all-corpus FP remains zero.
-rate = 0.769215
-matched = 37710
+# m7 8.4d adds +213 from CaseBlock and for/for-in/for-of local
+# owners, including destructuring/grouping rows; T1-T3 gain the
+# same exact identities with no losses, and all-corpus FP remains zero.
+rate = 0.77356
+matched = 37923
 total = 49024
 allowed_regression = 0.0
 

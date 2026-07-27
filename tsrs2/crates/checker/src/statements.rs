@@ -2065,7 +2065,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 856acc0f28558cdfa2066735ebf036025b3617b8443b9a2576c083024403149c
     /// tsc-span: _tsc.js:83799-83818
     ///
-    /// registerForUnusedIdentifiersCheck is M7-inert.
+    /// Loop-local unused identifiers are registered after the body
+    /// walk, preserving tsc's deferred producer order.
     pub(crate) fn check_for_statement(&mut self, node: NodeId) -> CheckResult2<()> {
         let NodeData::ForStatement(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
@@ -2097,6 +2098,9 @@ impl<'a> CheckerState<'a> {
             self.check_expression(incrementor, CheckMode::NORMAL)?;
         }
         self.check_source_element(statement);
+        if self.binder.locals_of(node).is_some() {
+            self.register_for_unused_identifiers_check(node);
+        }
         Ok(())
     }
 
@@ -2168,6 +2172,9 @@ impl<'a> CheckerState<'a> {
             }
         }
         self.check_source_element(statement);
+        if self.binder.locals_of(node).is_some() {
+            self.register_for_unused_identifiers_check(node);
+        }
         Ok(())
     }
 
@@ -2272,6 +2279,9 @@ impl<'a> CheckerState<'a> {
             );
         }
         self.check_source_element(statement);
+        if self.binder.locals_of(node).is_some() {
+            self.register_for_unused_identifiers_check(node);
+        }
         Ok(())
     }
 
@@ -2710,8 +2720,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:84603-84642
     ///
     /// noFallthroughCasesInSwitch is modeled but its arm needs M5's
-    /// isReachableFlowNode — dead until then (§0 note). caseBlock
-    /// locals registration is M7-inert.
+    /// isReachableFlowNode — dead until then (§0 note). CaseBlock
+    /// locals register after all clauses are checked.
     pub(crate) fn check_switch_statement(&mut self, node: NodeId) -> CheckResult2<()> {
         self.check_grammar_statement_in_ambient_context(node);
         let NodeData::SwitchStatement(data) = self.data_of(node) else {
@@ -2786,6 +2796,11 @@ impl<'a> CheckerState<'a> {
                         self.error_at(Some(clause), &diagnostics::Fallthrough_case_in_switch, &[]);
                     }
                 }
+            }
+        }
+        if let Some(case_block) = case_block {
+            if self.binder.locals_of(case_block).is_some() {
+                self.register_for_unused_identifiers_check(case_block);
             }
         }
         Ok(())
