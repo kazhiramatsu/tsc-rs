@@ -381,8 +381,13 @@
 # underscore parameters, independent Local/Parameter modes, and
 # shadowed-binding anchors remain oracle-exact; T1-T3 gain the same
 # identities with no losses, external gains, or false positives.
-rate = 0.926607
-matched = 45426
+# m7 8.4h adds +600 from SetAccessor-owned value locals and
+# parameters across class, class-expression, and object-literal
+# setters. Body presence, underscore exemptions, independent modes,
+# and shadowed-binding anchors remain oracle-exact; T1-T3 gain the
+# same identities with no losses, external gains, or false positives.
+rate = 0.938846
+matched = 46026
 total = 49024
 allowed_regression = 0.0
 

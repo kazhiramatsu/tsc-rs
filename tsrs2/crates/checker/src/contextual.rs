@@ -4020,7 +4020,7 @@ mod tests {
 
     #[test]
     fn computed_getters_borrow_their_bindable_setter_type() {
-        let text = "declare const key: unique symbol;\nclass A {\n    get [key]() { return \"\"; }\n    set [key](value: number) {}\n}\nconst enum E { Key = 1 }\nclass B {\n    get [E.Key]() { return true; }\n    set [E.Key](value: number) {}\n}\n";
+        let text = "declare const key: unique symbol;\nclass A {\n    get [key]() { return \"\"; }\n    set [key](_alue: number) {}\n}\nconst enum E { Key = 1 }\nclass B {\n    get [E.Key]() { return true; }\n    set [E.Key](_alue: number) {}\n}\n";
         with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
             state.check_source_file(0);
             assert_eq!(
