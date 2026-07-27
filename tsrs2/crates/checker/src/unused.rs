@@ -53,9 +53,12 @@ impl<'a> CheckerState<'a> {
                     self.mark_checked_js_source_references_for_unused(node);
                     self.check_unused_locals_and_parameters(node)
                 }
-                SyntaxKind::ModuleDeclaration | SyntaxKind::Block => {
-                    self.check_unused_locals_and_parameters(node)
-                }
+                SyntaxKind::ModuleDeclaration
+                | SyntaxKind::Block
+                | SyntaxKind::CaseBlock
+                | SyntaxKind::ForStatement
+                | SyntaxKind::ForInStatement
+                | SyntaxKind::ForOfStatement => self.check_unused_locals_and_parameters(node),
                 _ => Ok(()),
             };
             if self.is_ambient_for_unused(node) || self.options.no_unused_locals != Some(true) {
@@ -1284,6 +1287,61 @@ mod tests {
                 no_unused_locals: Some(true),
                 ..CompilerOptions::default()
             },
+        )
+        .is_empty());
+    }
+
+    #[test]
+    fn loop_and_case_locals_follow_suggestion_and_error_modes() {
+        let text = "export {};\nfor (let deadFor = 0; false;) {}\nfor (const deadOf of [1]) {}\nfor (const deadIn in { key: 1 }) {}\nswitch (0) { case 0: const deadCase = 1; break; }\n";
+        for (options, category) in [
+            (CompilerOptions::default(), DiagnosticCategory::Suggestion),
+            (
+                CompilerOptions {
+                    no_unused_locals: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Error,
+            ),
+        ] {
+            assert_eq!(
+                unused_rows(text, &options)
+                    .iter()
+                    .map(|(code, row_category, _, _, message)| {
+                        (*code, *row_category, message.as_str())
+                    })
+                    .collect::<Vec<_>>(),
+                [
+                    (
+                        6133,
+                        category,
+                        "'deadFor' is declared but its value is never read.",
+                    ),
+                    (
+                        6133,
+                        category,
+                        "'deadOf' is declared but its value is never read.",
+                    ),
+                    (
+                        6133,
+                        category,
+                        "'deadIn' is declared but its value is never read.",
+                    ),
+                    (
+                        6133,
+                        category,
+                        "'deadCase' is declared but its value is never read.",
+                    ),
+                ]
+            );
+        }
+    }
+
+    #[test]
+    fn loop_and_case_registration_preserves_reads_and_iteration_underscores() {
+        assert!(unused_rows(
+            "export {};\nfor (let usedFor = 0; usedFor < 1; usedFor++) {}\nfor (const usedOf of [1]) { void usedOf; }\nfor (const usedIn in { key: 1 }) { void usedIn; }\nfor (const _ignored of [1]) {}\nswitch (0) { case 0: const usedCase = 1; void usedCase; }\n",
+            &CompilerOptions::default(),
         )
         .is_empty());
     }
