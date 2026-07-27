@@ -181,6 +181,7 @@ impl<'a> CheckerState<'a> {
         self.check_jsdoc_import_tag_resolution_mode_attributes(root);
         self.check_jsdoc_parameter_type_argument_grammar(root);
         self.check_jsdoc_variadic_parameter_grammar(root);
+        self.check_jsdoc_optional_parameter_order(root);
         self.check_jsdoc_template_tag_modifier_grammar(root);
         self.check_jsdoc_satisfies_tag_duplicates(root);
         self.check_jsdoc_cast_type_predicate_grammar(root);
@@ -2243,6 +2244,94 @@ impl<'a> CheckerState<'a> {
             });
         }
         diagnostics.into_iter().collect()
+    }
+
+    /// tsrs-native: project the JSDoc half of
+    /// checkGrammarParameterList's effective-question-token test while
+    /// JSDoc nodes are absent from the arena.
+    ///
+    /// tsc-port: checkGrammarParameterList @6.0.3
+    /// tsc-hash: 09bfdcd3a387a1c410d86c288e0a97aa1ef3fc7241a296c0a0cdcfb9f11d0c99
+    /// tsc-span: _tsc.js:89415-89442
+    /// d2: d2:dcd54c9562bbadb1f4af221f69961b7ae125bbfe79c341c71f1ba85e13fe28f8
+    ///
+    /// A JavaScript host parameter is effectively optional when its
+    /// matching `@param` tag has a bracketed name or an outer
+    /// JSDocOptionalType (`{T=}`). The ordinary parameter-list port
+    /// already owns TypeScript question tokens, initializers, and rest
+    /// ordering; this projection supplies only the checked-JavaScript
+    /// tag state needed by its TS1016 arm.
+    fn check_jsdoc_optional_parameter_order(&mut self, root: NodeId) {
+        if !self.is_in_js_file(root) {
+            return;
+        }
+        for parameter_name in self.jsdoc_required_after_optional_parameter_names(root) {
+            let diagnostics_before = self.diagnostics.len();
+            self.grammar_error_on_node(
+                parameter_name,
+                &diagnostics::A_required_parameter_cannot_follow_an_optional_parameter,
+                &[],
+            );
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1016);
+        }
+    }
+
+    fn jsdoc_required_after_optional_parameter_names(&self, root: NodeId) -> Vec<NodeId> {
+        let source = self.binder.source_of_node(root);
+        let mut diagnostics = Vec::new();
+        let mut stack = vec![root];
+        while let Some(node) = stack.pop() {
+            let raw = source.arena.node(node);
+            if let NodeData::FunctionDeclaration(data) = &raw.data {
+                let parameters = self.nodes_of(data.parameters);
+                if parameters.len() >= 2
+                    && !parameters.iter().any(|&parameter| {
+                        matches!(
+                            self.data_of(parameter),
+                            NodeData::Parameter(data)
+                                if data.dot_dot_dot_token.is_some()
+                                    || data.question_token.is_some()
+                        )
+                    })
+                {
+                    let optional_tags = self
+                        .jsdoc_comment_body_ranges_in_leading_trivia(node)
+                        .into_iter()
+                        .flat_map(|(body_start, comment_close)| {
+                            parse_jsdoc_parameter_optionalities(
+                                &source.text[body_start..comment_close],
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    let mut seen_optional_parameter = false;
+                    for &parameter in &parameters {
+                        let NodeData::Parameter(data) = self.data_of(parameter) else {
+                            continue;
+                        };
+                        let Some(name) = data.name else {
+                            continue;
+                        };
+                        let Some(parameter_name) = self.identifier_text_of(name) else {
+                            continue;
+                        };
+                        let optional = optional_tags
+                            .iter()
+                            .any(|(tag_name, optional)| *optional && tag_name == parameter_name);
+                        if optional {
+                            seen_optional_parameter = true;
+                        } else if seen_optional_parameter && data.initializer.is_none() {
+                            diagnostics.push(name);
+                            break;
+                        }
+                    }
+                }
+            }
+            for_each_child(&source.arena, raw, |child| {
+                stack.push(child);
+                false
+            });
+        }
+        diagnostics
     }
 
     /// tsrs-native: project the live JSDocTemplateTag type-parameter
@@ -10462,6 +10551,77 @@ fn parse_jsdoc_parameter_annotations(comment: &str) -> Vec<(String, String)> {
     annotations
 }
 
+fn parse_jsdoc_parameter_optionalities(comment: &str) -> Vec<(String, bool)> {
+    let mut parameters = Vec::new();
+    for line in comment.lines() {
+        let candidate = line
+            .trim_start()
+            .strip_prefix('*')
+            .unwrap_or(line.trim_start())
+            .trim_start();
+        let Some(tail) = candidate.strip_prefix("@param") else {
+            continue;
+        };
+        if !tail
+            .chars()
+            .next()
+            .is_some_and(|character| character.is_whitespace() || character == '{')
+        {
+            continue;
+        }
+        let tail = tail.trim_start();
+        let (name_tail, optional_type) = if let Some((ty, consumed)) = jsdoc_braced_payload(tail) {
+            (&tail[consumed..], is_jsdoc_optional_type_text(ty))
+        } else {
+            (tail, false)
+        };
+        let Some((name, bracketed, consumed)) = parse_jsdoc_parameter_name(name_tail) else {
+            continue;
+        };
+        let optional_type = if optional_type {
+            true
+        } else {
+            let type_tail = name_tail[consumed..].trim_start();
+            jsdoc_braced_payload(type_tail).is_some_and(|(ty, _)| is_jsdoc_optional_type_text(ty))
+        };
+        parameters.push((name.to_owned(), bracketed || optional_type));
+    }
+    parameters
+}
+
+fn parse_jsdoc_parameter_name(text: &str) -> Option<(&str, bool, usize)> {
+    let leading = text.len() - text.trim_start().len();
+    let text = &text[leading..];
+    if let Some(inner) = text.strip_prefix('[') {
+        let close = inner.find(']')?;
+        let name = inner[..close].split('=').next()?.trim();
+        if is_jsdoc_identifier(name) {
+            return Some((name, true, leading + close + 2));
+        }
+        return None;
+    }
+    if let Some(inner) = text.strip_prefix('`') {
+        let close = inner.find('`')?;
+        let name = &inner[..close];
+        if is_jsdoc_identifier(name) {
+            return Some((name, false, leading + close + 2));
+        }
+        return None;
+    }
+    let end = text.find(char::is_whitespace).unwrap_or(text.len());
+    let name = &text[..end];
+    if is_jsdoc_identifier(name) {
+        Some((name, false, leading + end))
+    } else {
+        None
+    }
+}
+
+fn is_jsdoc_optional_type_text(text: &str) -> bool {
+    let text = text.trim();
+    !text.is_empty() && text.ends_with('=')
+}
+
 fn parse_jsdoc_typedef_name(comment: &str) -> Option<(&str, &str)> {
     for line in comment.lines() {
         let candidate = line
@@ -10993,6 +11153,102 @@ mod tests {
         assert!(
             diagnostics.iter().all(|diagnostic| diagnostic.0 != 1014),
             "last/malformed/non-tag faces must not produce TS1014: {diagnostics:?}"
+        );
+    }
+
+    // ---- M7 8.1u JSDoc effective optional-parameter grammar ----
+
+    #[test]
+    fn jsdoc_optional_parameters_reject_a_following_required_parameter() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/**\n\
+                     * @param {number} a\n\
+                     * @param {number} [b]\n\
+                     * @param {number} c\n\
+                     */\n\
+                    function first(a, b, c) {}\n\
+                    /**\n\
+                     * @param {string=} `args`\n\
+                     * @param `bwarg` {?number?}\n\
+                     */\n\
+                    function second(args, bwarg) {}\n";
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let mut diagnostics = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 1016)
+                .map(|diagnostic| {
+                    (
+                        diagnostic.start.expect("TS1016 start"),
+                        diagnostic.length.expect("TS1016 length"),
+                        diagnostic.message_text().to_owned(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            diagnostics.sort_by_key(|diagnostic| diagnostic.0);
+            let expected = [
+                ("function first(a, b, c)", "c"),
+                ("function second(args, bwarg)", "bwarg"),
+            ]
+            .map(|(signature, name)| {
+                let signature_start = text.find(signature).expect("host signature");
+                let relative_name = signature.rfind(name).expect("parameter name");
+                (
+                    (signature_start + relative_name) as u32,
+                    name.len() as u32,
+                    "A required parameter cannot follow an optional parameter.".to_owned(),
+                )
+            });
+            assert_eq!(diagnostics, expected);
+            for (start, length, _) in expected {
+                assert!(state.non_jsdoc_js_diagnostics.contains(&(
+                    "a.js".to_owned(),
+                    start,
+                    length,
+                    1016,
+                )));
+            }
+        });
+    }
+
+    #[test]
+    fn jsdoc_optional_parameter_projection_preserves_adjacent_negative_faces() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/** @param {number} a\n\
+                     * @param {number} [b] */\n\
+                    function ordered(a, b) {}\n\
+                    /** @param {number} [a]\n\
+                     * @param {number} b */\n\
+                    function initialized(a, b = 0) {}\n\
+                    /** @param {object} opts\n\
+                     * @param {number} [opts.value]\n\
+                     * @param {number} tail */\n\
+                    function property(opts, tail) {}\n\
+                    /** prose @param {number} [a] */\n\
+                    function prose(a, b) {}\n";
+        let diagnostics = checked_file_diags_with("a.js", text, &options);
+        assert!(
+            diagnostics.iter().all(|diagnostic| diagnostic.0 != 1016),
+            "ordered/initialized/property/prose faces must not produce TS1016: {diagnostics:?}"
+        );
+
+        let ts_diagnostics = checked_file_diags_with(
+            "a.ts",
+            "/** @param {number} [a] */\nfunction typed(a: number, b: number) {}\n",
+            &options,
+        );
+        assert!(
+            ts_diagnostics.iter().all(|diagnostic| diagnostic.0 != 1016),
+            "JSDoc optionality is a JavaScript-only effective token: {ts_diagnostics:?}"
         );
     }
 

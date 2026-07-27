@@ -331,8 +331,10 @@
 # JSDoc host/type projections and exact TS1360 rows.
 # m7 8.1t adds +5 through checkJSDocVariadicType's checked-JS
 # non-final parameter projection and exact TS1014 rows.
-rate = 0.667041
-matched = 32701
+# m7 8.1u adds +2 through checkGrammarParameterList's checked-JS
+# effective JSDoc optionality projection and exact TS1016 rows.
+rate = 0.667081
+matched = 32703
 total = 49024
 allowed_regression = 0.0
 
