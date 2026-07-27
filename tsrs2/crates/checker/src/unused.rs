@@ -65,6 +65,7 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::ForInStatement
                 | SyntaxKind::ForOfStatement => self.check_unused_locals_and_parameters(node),
                 SyntaxKind::FunctionDeclaration
+                | SyntaxKind::FunctionExpression
                 | SyntaxKind::ArrowFunction
                 | SyntaxKind::MethodDeclaration
                 | SyntaxKind::SetAccessor
@@ -1554,6 +1555,142 @@ mod tests {
                 (6133, DiagnosticCategory::Suggestion, 301, 3),
                 (6133, DiagnosticCategory::Suggestion, 343, 3),
             ]
+        );
+    }
+
+    #[test]
+    fn function_expression_locals_and_parameters_use_independent_modes() {
+        let text = "export const assigned = function (deadParameter: number) {\n    const deadLocal = 1;\n};\n\
+                    (function (deadIifeParameter: number) {\n    const deadIifeLocal = 1;\n})();\n";
+        for (options, parameter_category, local_category) in [
+            (
+                CompilerOptions::default(),
+                DiagnosticCategory::Suggestion,
+                DiagnosticCategory::Suggestion,
+            ),
+            (
+                CompilerOptions {
+                    no_unused_parameters: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Error,
+                DiagnosticCategory::Suggestion,
+            ),
+            (
+                CompilerOptions {
+                    no_unused_locals: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Suggestion,
+                DiagnosticCategory::Error,
+            ),
+            (
+                CompilerOptions {
+                    no_unused_locals: Some(true),
+                    no_unused_parameters: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Error,
+                DiagnosticCategory::Error,
+            ),
+        ] {
+            assert_eq!(
+                unused_rows(text, &options)
+                    .iter()
+                    .map(|(code, category, _, _, message)| { (*code, *category, message.as_str()) })
+                    .collect::<Vec<_>>(),
+                [
+                    (
+                        6133,
+                        parameter_category,
+                        "'deadParameter' is declared but its value is never read.",
+                    ),
+                    (
+                        6133,
+                        local_category,
+                        "'deadLocal' is declared but its value is never read.",
+                    ),
+                    (
+                        6133,
+                        parameter_category,
+                        "'deadIifeParameter' is declared but its value is never read.",
+                    ),
+                    (
+                        6133,
+                        local_category,
+                        "'deadIifeLocal' is declared but its value is never read.",
+                    ),
+                ]
+            );
+        }
+    }
+
+    #[test]
+    fn function_expression_registration_preserves_names_reads_and_parameter_exemptions() {
+        assert!(unused_rows(
+            "export const assigned = function named(\n\
+                 _ignoredParameter: number,\n\
+                 usedParameter: number,\n\
+             ) {\n\
+                 const usedLocal = usedParameter;\n\
+                 return named && usedLocal;\n\
+             };\n\
+             (function (_ignoredIifeParameter: number) {})();\n",
+            &CompilerOptions {
+                no_unused_locals: Some(true),
+                no_unused_parameters: Some(true),
+                ..CompilerOptions::default()
+            },
+        )
+        .is_empty());
+    }
+
+    #[test]
+    fn function_expression_shadowed_parameter_and_local_keep_distinct_kinds() {
+        assert_eq!(
+            unused_rows(
+                "export const shadowed = function (value: number) {\n    var [value] = [1];\n};\n",
+                &CompilerOptions {
+                    no_unused_parameters: Some(true),
+                    ..CompilerOptions::default()
+                },
+            )
+            .iter()
+            .map(|(code, category, _, _, message)| { (*code, *category, message.as_str()) })
+            .collect::<Vec<_>>(),
+            [
+                (
+                    6133,
+                    DiagnosticCategory::Error,
+                    "'value' is declared but its value is never read.",
+                ),
+                (
+                    6133,
+                    DiagnosticCategory::Suggestion,
+                    "'value' is declared but its value is never read.",
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn function_expression_nested_class_uses_the_local_mode() {
+        assert_eq!(
+            unused_rows(
+                "export const nested = function () {\n    class DeadClass {}\n};\n",
+                &CompilerOptions {
+                    no_unused_locals: Some(true),
+                    ..CompilerOptions::default()
+                },
+            )
+            .iter()
+            .map(|(code, category, _, _, message)| { (*code, *category, message.as_str()) })
+            .collect::<Vec<_>>(),
+            [(
+                6196,
+                DiagnosticCategory::Error,
+                "'DeadClass' is declared but never used.",
+            )]
         );
     }
 

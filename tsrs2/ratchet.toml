@@ -392,8 +392,14 @@
 # exclusion, independent modes, and shadowed-binding anchors remain
 # oracle-exact; T1-T3 gain the same identities with no losses,
 # external gains, or false positives.
-rate = 0.948066
-matched = 46478
+# m7 8.4j adds +362 from FunctionExpression-owned value locals and
+# parameters, including named/anonymous assignments and IIFEs.
+# Underscore exemptions, independent modes, destructuring, nested
+# locals, and shadowed-binding anchors remain oracle-exact; T1-T3
+# gain the same identities with no losses, external gains, or false
+# positives.
+rate = 0.95545
+matched = 46840
 total = 49024
 allowed_regression = 0.0
 

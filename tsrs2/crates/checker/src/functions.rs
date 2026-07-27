@@ -2159,10 +2159,11 @@ impl<'a> CheckerState<'a> {
     /// === returnTypeNode in TS files);
     /// The lazy tail runs eager (the 5.4 addLazyDiagnostic decision).
     /// M7 activates registration one declaration owner at a time;
-    /// FunctionDeclaration, ArrowFunction, MethodDeclaration,
-    /// SetAccessor, and Constructor value locals/parameters are the
-    /// current producer-owned slices. Type-parameter diagnostics
-    /// remain on their separate worker boundary.
+    /// FunctionDeclaration, FunctionExpression, ArrowFunction,
+    /// MethodDeclaration, SetAccessor, and Constructor value
+    /// locals/parameters are the current producer-owned slices.
+    /// Type-parameter diagnostics remain on their separate worker
+    /// boundary.
     pub(crate) fn check_signature_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
         let kind = self.kind_of(node);
         if kind == SyntaxKind::IndexSignature {
@@ -2277,6 +2278,7 @@ impl<'a> CheckerState<'a> {
         if matches!(
             kind,
             SyntaxKind::FunctionDeclaration
+                | SyntaxKind::FunctionExpression
                 | SyntaxKind::ArrowFunction
                 | SyntaxKind::MethodDeclaration
                 | SyntaxKind::SetAccessor
@@ -6469,7 +6471,7 @@ mod tests {
     fn required_after_optional_reports_1016() {
         assert_eq!(
             checked_rows("(function (a?: number, b: string) {});\n"),
-            [(1016, 23, 1)]
+            [(1016, 23, 1), (6133, 11, 1), (6133, 23, 1)]
         );
     }
 
@@ -6477,11 +6479,11 @@ mod tests {
     fn optional_rest_reports_1047() {
         // Both oracle rows since the A3 wiring: the grammar 1047 and
         // checkSignatureDeclaration's 2370 (`number[] | undefined`
-        // fails the readonly-array relation) — the recorded FN is
-        // resolved.
+        // fails the readonly-array relation), plus the function-
+        // expression-owned unused suggestion.
         assert_eq!(
             checked_rows("(function (...rest?: number[]) {});\n"),
-            [(1047, 18, 1), (2370, 11, 18)]
+            [(1047, 18, 1), (2370, 11, 18), (6133, 14, 4)]
         );
     }
 
@@ -6489,7 +6491,7 @@ mod tests {
     fn use_strict_with_non_simple_parameters_reports_1346_1347() {
         assert_eq!(
             checked_rows("(function (a = 2) { \"use strict\"; });\n"),
-            [(1346, 11, 5), (1347, 20, 13)]
+            [(1346, 11, 5), (1347, 20, 13), (6133, 11, 1)]
         );
     }
 
