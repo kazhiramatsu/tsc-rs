@@ -345,8 +345,10 @@
 # JSDoc bare-`with` required-brace projection and exact TS1005 row.
 # m7 8.1aa adds +3 through parsePrimaryExpression's checked-JS
 # JSDoc import module-specifier recovery and exact TS1109 rows.
-rate = 0.667489
-matched = 32723
+# m7 8.1ab adds +3 through parseEntityNameOfTypeReference's
+# checked-JS JSDoc missing-type recovery and exact TS1110 rows.
+rate = 0.667551
+matched = 32726
 total = 49024
 allowed_regression = 0.0
 
