@@ -37,8 +37,11 @@ pub(crate) struct ResolvedProgramModule {
     /// TS-family extension and resolved as written.
     pub resolved_using_ts_extension: bool,
     /// The resolved file ends `.tsx` (getResolutionDiagnostic's jsx
-    /// row is the only extension read the modeled subset needs).
+    /// row).
     pub is_tsx: bool,
+    /// The host resolved an unknown written extension through its
+    /// `.d.<extension>.ts` declaration twin.
+    pub is_arbitrary_extension: bool,
 }
 
 /// The resolver's three-way verdict: `Suppressed` marks a miss that
@@ -2508,6 +2511,19 @@ impl<'a> CheckerState<'a> {
         )
     }
 
+    /// tsc-port: needAllowArbitraryExtensions @6.0.3
+    /// tsc-hash: 218db975c24f70e1412394af9b0edcaaa36921aac70037002e2cd662e533af6e
+    /// tsc-span: _tsc.js:125718-125720
+    fn needs_allow_arbitrary_extensions(
+        &self,
+        location: NodeId,
+        resolved: ResolvedProgramModule,
+    ) -> bool {
+        resolved.is_arbitrary_extension
+            && !self.binder.source_of_node(location).is_declaration_file
+            && self.options.allow_arbitrary_extensions != Some(true)
+    }
+
     /// tsc-port: resolveExternalModule @6.0.3
     /// tsc-hash: c60386d4343175ebc820e0dbc23c0c2fde8196c47265af66b3023e05432cc820
     /// tsc-span: _tsc.js:49473-49663
@@ -2551,10 +2567,13 @@ impl<'a> CheckerState<'a> {
         let resolution = self.resolve_program_module(location, module_reference);
         if let ProgramModuleResolution::Resolved(resolved) = resolution {
             let source = self.binder.source(resolved.file_index);
-            let resolution_diagnostic = if error_node.is_some() && resolved.is_tsx {
-                // getResolutionDiagnostic (12708-region) reduced: the
-                // program set is .ts/.tsx/.d.ts only, so the jsx row is
-                // the single live arm.
+            let arbitrary_extension_diagnostic =
+                error_node.is_some() && self.needs_allow_arbitrary_extensions(location, resolved);
+            let resolution_diagnostic = if arbitrary_extension_diagnostic {
+                Some(
+                    &diagnostics::Module_0_was_resolved_to_1_but_allowArbitraryExtensions_is_not_set,
+                )
+            } else if error_node.is_some() && resolved.is_tsx {
                 if self.options.jsx.unwrap_or(0) == 0 {
                     Some(&diagnostics::Module_0_was_resolved_to_1_but_jsx_is_not_set)
                 } else {
@@ -2565,11 +2584,22 @@ impl<'a> CheckerState<'a> {
             };
             let resolved_file_name = source.file_name.clone();
             if let Some(resolution_diagnostic) = resolution_diagnostic {
+                let diagnostic_file_name = if arbitrary_extension_diagnostic {
+                    Self::normalize_program_path(&resolved_file_name, "")
+                } else {
+                    resolved_file_name.clone()
+                };
                 self.error_at(
                     error_node,
                     resolution_diagnostic,
-                    &[module_reference, &resolved_file_name],
+                    &[module_reference, &diagnostic_file_name],
                 );
+            }
+            // resolveExternalModule only loads a source behind the JSX
+            // diagnostic. Every other getResolutionDiagnostic result
+            // reports at the specifier and leaves the alias unresolved.
+            if arbitrary_extension_diagnostic {
+                return Ok(None);
             }
             if resolved.resolved_using_ts_extension
                 && Self::is_declaration_file_name(module_reference)
@@ -3343,6 +3373,7 @@ impl<'a> CheckerState<'a> {
                                 file_index: index,
                                 resolved_using_ts_extension: false,
                                 is_tsx: probed.ends_with(".tsx"),
+                                is_arbitrary_extension: false,
                             });
                         }
                     }
@@ -3355,6 +3386,7 @@ impl<'a> CheckerState<'a> {
                                     file_index: index,
                                     resolved_using_ts_extension: false,
                                     is_tsx: probed.ends_with(".jsx"),
+                                    is_arbitrary_extension: false,
                                 });
                             }
                         }
@@ -3942,29 +3974,6 @@ impl<'a> CheckerState<'a> {
         {
             return true;
         }
-        // Arbitrary-extension declaration twin (allowArbitraryExtensions
-        // .d.<ext>.ts): "./file.html" may resolve to file.d.html.ts.
-        // The arbitrary-extension branch is NOT entered for the
-        // resolver's recognized TS/JS extension groups: "./file.js"
-        // must not be hidden by file.d.js.ts, nor "./file.d.mts" by
-        // file.d.d.mts.ts. In those groups tryAddingExtensions already
-        // made the complete authoritative probe above.
-        let recognized_ts_js_extension =
-            [".ts", ".tsx", ".js", ".jsx", ".mts", ".mjs", ".cts", ".cjs"]
-                .iter()
-                .any(|extension| base.ends_with(extension));
-        if !recognized_ts_js_extension {
-            if let Some(dot) = base.rfind('.') {
-                let slash = base.rfind('/').map_or(0, |position| position + 1);
-                if dot > slash {
-                    let (stem, extension) = base.split_at(dot);
-                    let twin = format!("{stem}.d{extension}.ts");
-                    if self.host_file_paths.contains(&twin) {
-                        return true;
-                    }
-                }
-            }
-        }
         false
     }
 
@@ -3984,22 +3993,37 @@ impl<'a> CheckerState<'a> {
                 resolved_using_ts_extension,
                 is_tsx: (path.ends_with(".tsx") && !path.ends_with(".d.tsx"))
                     || path.ends_with(".jsx"),
+                is_arbitrary_extension: false,
             }
         };
-        if self.options.resolve_json_module_effective() && candidate.ends_with(".json") {
-            // allowArbitraryExtensions declaration twin: tsc's TYPES
-            // extension group tries <stem>.d.json.ts BEFORE the JSON
-            // file wins, and the option is unmodeled here — with a
-            // twin present the winner is undecidable, so fall through
-            // and let miss_is_undecidable route the import to the
-            // Suppressed channel (its arbitrary-extension arm already
-            // matches the twin). Rendering the JSON shape in that
-            // world fabricated a 2322 (FP-gate catch #7).
-            let twin = format!("{}.d.json.ts", candidate.trim_end_matches(".json"));
-            if !self.program_path_index.contains_key(&twin) {
-                if let Some(index) = lookup(candidate) {
-                    return Some(make(index, false, candidate));
+        // tsc-port: tryAddingExtensions' arbitrary-extension declaration
+        // probe @6.0.3. Unknown written extensions resolve through
+        // `<stem>.d<extension>.ts`; recognized TS/JS groups retain their
+        // fixed substitution tables below.
+        let recognized_ts_js_extension =
+            [".ts", ".tsx", ".js", ".jsx", ".mts", ".mjs", ".cts", ".cjs"]
+                .iter()
+                .any(|extension| candidate.ends_with(extension));
+        if !recognized_ts_js_extension {
+            if let Some(dot) = candidate.rfind('.') {
+                let slash = candidate.rfind('/').map_or(0, |position| position + 1);
+                if dot > slash {
+                    let (stem, extension) = candidate.split_at(dot);
+                    let twin = format!("{stem}.d{extension}.ts");
+                    if let Some(index) = lookup(&twin) {
+                        return Some(ResolvedProgramModule {
+                            file_index: index,
+                            resolved_using_ts_extension: false,
+                            is_tsx: false,
+                            is_arbitrary_extension: true,
+                        });
+                    }
                 }
+            }
+        }
+        if self.options.resolve_json_module_effective() && candidate.ends_with(".json") {
+            if let Some(index) = lookup(candidate) {
+                return Some(make(index, false, candidate));
             }
         }
         // Exact name with a recognized TS-family extension.
@@ -8756,6 +8780,104 @@ let unrelated = \"\";\n",
         assert_eq!(
             program_rows(&files, &node16_options()),
             [("/src/main.mts".to_owned(), 2307, 14, 15)]
+        );
+    }
+
+    #[test]
+    fn arbitrary_extension_declaration_twin_reports_exact_6263() {
+        let source = "import * as mod from \"./component.html\";\nmod.value;\n";
+        let files = [
+            ("/component.d.html.ts", "export const value: number;\n"),
+            ("/file.ts", source),
+        ];
+        let inputs: Vec<InputFile> = files
+            .iter()
+            .map(|(name, text)| InputFile {
+                name: (*name).to_owned(),
+                text: (*text).to_owned(),
+            })
+            .collect();
+        let result = check_program(
+            &inputs,
+            &CompilerOptions {
+                allow_arbitrary_extensions: Some(false),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            targeted_rows(&result, &[6263]),
+            [(
+                "/file.ts".to_owned(),
+                6263,
+                21,
+                18,
+                "Module './component.html' was resolved to '/component.d.html.ts', but '--allowArbitraryExtensions' is not set.".to_owned(),
+            )]
+        );
+        assert_eq!(
+            program_rows(
+                &files,
+                &CompilerOptions {
+                    allow_arbitrary_extensions: Some(true),
+                    ..CompilerOptions::default()
+                },
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn arbitrary_extension_twin_option_gate_uses_the_importing_file() {
+        let files = [
+            (
+                "/dir/native.d.node.ts",
+                "export function doNativeThing(flag: string): unknown;\n",
+            ),
+            ("/main.d.ts", "export * from \"./dir/native.node\";\n"),
+        ];
+        assert_eq!(
+            program_rows(
+                &files,
+                &CompilerOptions {
+                    allow_arbitrary_extensions: Some(false),
+                    ..CompilerOptions::default()
+                },
+            ),
+            [],
+            "a declaration-file importer suppresses needAllowArbitraryExtensions"
+        );
+
+        let source = "import mod = require(\"./dir/native.node\");\nmod.doNativeThing(\"good\");\n";
+        let files = [
+            (
+                "/dir/native.d.node.ts",
+                "export function doNativeThing(flag: string): unknown;\n",
+            ),
+            ("/main.ts", source),
+        ];
+        let inputs: Vec<InputFile> = files
+            .iter()
+            .map(|(name, text)| InputFile {
+                name: (*name).to_owned(),
+                text: (*text).to_owned(),
+            })
+            .collect();
+        let result = check_program(
+            &inputs,
+            &CompilerOptions {
+                allow_arbitrary_extensions: Some(false),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            targeted_rows(&result, &[6263]),
+            [(
+                "/main.ts".to_owned(),
+                6263,
+                21,
+                19,
+                "Module './dir/native.node' was resolved to '/dir/native.d.node.ts', but '--allowArbitraryExtensions' is not set.".to_owned(),
+            )]
         );
     }
 

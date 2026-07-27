@@ -16622,30 +16622,28 @@ mod tests {
     }
 
     #[test]
-    fn json_declaration_twin_suppresses_the_json_resolution() {
-        // A present <stem>.d.json.ts twin makes the
-        // resolveJsonModule-vs-arbitrary-extensions winner undecidable
-        // — the import routes to the Suppressed channel (no 2307, no
-        // fabricated 2322); without the twin the JSON literal shape
-        // resolves and relates.
-        let options = CompilerOptions {
+    fn json_declaration_twin_precedes_the_json_resolution() {
+        // A present <stem>.d.json.ts twin wins the TYPES probe. The
+        // false option reports getResolutionDiagnostic's 6263 without
+        // loading the declaration; true loads its string default.
+        // Without the twin the JSON literal shape resolves and relates.
+        let base_options = CompilerOptions {
             resolve_json_module: Some(true),
             // ModuleKind.CommonJS
             module: Some(1),
             ..CompilerOptions::default()
         };
-        let run = |files: &[(&str, &str)]| -> Vec<(u32, u32, u32, String)> {
-            let names: Vec<String> = files.iter().map(|(name, _)| (*name).to_owned()).collect();
-            with_program_state(files, &options, |state| {
-                // The unit harness has no ProgramJson host — seed the
-                // resolver's host paths (the Suppressed channel keys
-                // on them) from the program list.
-                state.host_file_paths = names.iter().cloned().collect();
-                state.check_source_file(0);
-                diag_rows(state)
-            })
-        };
-        let with_twin = run(&[
+        let run =
+            |files: &[(&str, &str)], options: &CompilerOptions| -> Vec<(u32, u32, u32, String)> {
+                let names: Vec<String> = files.iter().map(|(name, _)| (*name).to_owned()).collect();
+                with_program_state(files, options, |state| {
+                    // The unit harness has no ProgramJson host.
+                    state.host_file_paths = names.iter().cloned().collect();
+                    state.check_source_file(0);
+                    diag_rows(state)
+                })
+            };
+        let with_twin = [
             (
                 "/main.ts",
                 "import data from \"./data.json\";\nlet x: string = data;\n",
@@ -16655,15 +16653,42 @@ mod tests {
                 "/data.d.json.ts",
                 "declare var val: string;\nexport default val;\n",
             ),
-        ]);
-        assert_eq!(with_twin, []);
-        let without_twin = run(&[
-            (
-                "/main.ts",
-                "import data from \"./data.json\";\nlet x: string = data;\n",
+        ];
+        assert_eq!(
+            run(
+                &with_twin,
+                &CompilerOptions {
+                    allow_arbitrary_extensions: Some(false),
+                    ..base_options.clone()
+                },
             ),
-            ("/data.json", "{}"),
-        ]);
+            [(
+                6263,
+                17,
+                13,
+                "Module './data.json' was resolved to '/data.d.json.ts', but '--allowArbitraryExtensions' is not set.".to_owned(),
+            )]
+        );
+        assert_eq!(
+            run(
+                &with_twin,
+                &CompilerOptions {
+                    allow_arbitrary_extensions: Some(true),
+                    ..base_options.clone()
+                },
+            ),
+            []
+        );
+        let without_twin = run(
+            &[
+                (
+                    "/main.ts",
+                    "import data from \"./data.json\";\nlet x: string = data;\n",
+                ),
+                ("/data.json", "{}"),
+            ],
+            &base_options,
+        );
         assert_eq!(
             without_twin,
             [(
