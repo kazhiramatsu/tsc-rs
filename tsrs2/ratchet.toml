@@ -343,8 +343,10 @@
 # JSDoc default-import `from` projection and exact TS1005 rows.
 # m7 8.1z adds +1 through parseImportAttributes' checked-JS
 # JSDoc bare-`with` required-brace projection and exact TS1005 row.
-rate = 0.667428
-matched = 32720
+# m7 8.1aa adds +3 through parsePrimaryExpression's checked-JS
+# JSDoc import module-specifier recovery and exact TS1109 rows.
+rate = 0.667489
+matched = 32723
 total = 49024
 allowed_regression = 0.0
 
