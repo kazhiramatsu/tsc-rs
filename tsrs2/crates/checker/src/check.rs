@@ -168,6 +168,7 @@ impl<'a> CheckerState<'a> {
         self.check_grammar_source_file(root);
         self.check_jsdoc_import_tag_resolution_mode_attributes(root);
         self.check_jsdoc_parameter_type_argument_grammar(root);
+        self.check_jsdoc_template_tag_modifier_grammar(root);
         // 87010-87014: the five per-file accumulators clear at worker
         // entry (the PartiallyTypeChecked restore stays elided).
         self.potential_this_collisions.clear();
@@ -366,10 +367,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:89010-89325
     /// d2: d2:984775a91d6ec0d2e27b820a9d34a31328ef5845e0fd5dd8a5e751f3040d2ca8
     ///
-    /// The JSDocTemplateTag effective-host hops in the const/in/out
-    /// arms remain behind the 8.1f JSDoc parser/host prerequisite:
-    /// comments do not yet materialize template-tag nodes. The
-    /// TypeScript-syntax producer queue takes the exact path here.
+    /// Comments still do not materialize JSDocTemplateTag nodes. The
+    /// ordinary TypeScript-syntax producer queue takes the exact path
+    /// here; the live checked-JavaScript effective-host faces are
+    /// projected by check_jsdoc_template_tag_modifier_grammar.
     pub(crate) fn check_grammar_modifiers(&mut self, node: NodeId) -> bool {
         let source = self.binder.source_of_node(node);
         let node_kind = self.kind_of(node);
@@ -2103,6 +2104,114 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                     type_cursor = greater_than + 1;
+                }
+                line_offset += line.len();
+            }
+        }
+        diagnostics.into_iter().collect()
+    }
+
+    /// tsrs-native: project the live JSDocTemplateTag type-parameter
+    /// faces of tsc's checkGrammarModifiers while JSDoc nodes are
+    /// absent from the syntax arena.
+    ///
+    /// tsc-port: checkGrammarModifiers @6.0.3
+    /// tsc-hash: 4ae83b985bfc4d9c367541290d29b207ce34af46a4b465b0e36cae2056847f03
+    /// tsc-span: _tsc.js:89010-89325
+    /// d2: d2:984775a91d6ec0d2e27b820a9d34a31328ef5845e0fd5dd8a5e751f3040d2ca8
+    ///
+    /// The projection is deliberately bounded to the three remaining
+    /// checked-JavaScript producer faces: a non-type-parameter
+    /// `private` modifier on a function template, `const` on a typedef
+    /// template, and variance (`in`/`out`) on a function template.
+    /// Class `const` and typedef variance remain valid. Full JSDoc
+    /// template-node materialization and constrained/multi-line tag
+    /// syntax stay with M8.
+    fn check_jsdoc_template_tag_modifier_grammar(&mut self, root: NodeId) {
+        if !self.is_in_js_file(root) {
+            return;
+        }
+        let spans = self.jsdoc_template_tag_modifier_grammar_spans(root);
+        for (start, end, code, modifier) in spans {
+            let message = match code {
+                1273 => &diagnostics::_0_modifier_cannot_appear_on_a_type_parameter,
+                1274 => {
+                    &diagnostics::_0_modifier_can_only_appear_on_a_type_parameter_of_a_class_interface_or_type_alias
+                }
+                1277 => {
+                    &diagnostics::_0_modifier_can_only_appear_on_a_type_parameter_of_a_function_method_or_class
+                }
+                _ => unreachable!("bounded JSDoc template-modifier grammar code"),
+            };
+            let diagnostics_before = self.diagnostics.len();
+            self.error_at_byte_range_with_args(root, start, end, message, &[modifier]);
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, code);
+        }
+    }
+
+    fn jsdoc_template_tag_modifier_grammar_spans(
+        &self,
+        root: NodeId,
+    ) -> Vec<(usize, usize, u32, &'static str)> {
+        let source = self.binder.source_of_node(root);
+        let mut diagnostics = std::collections::BTreeSet::new();
+        for (body_start, comment_close) in self.jsdoc_comment_body_ranges(root) {
+            let body = &source.text[body_start..comment_close];
+            let has_typedef_tag = jsdoc_has_line_tag(body, "@typedef");
+            let following = source.text[comment_close + 2..].trim_start();
+            let has_function_host = source_starts_keyword(following, "function");
+            let mut line_offset = 0usize;
+            for line in body.split_inclusive('\n') {
+                let line_without_lf = line.strip_suffix('\n').unwrap_or(line);
+                let line_without_break = line_without_lf
+                    .strip_suffix('\r')
+                    .unwrap_or(line_without_lf);
+                let leading = line_without_break.len()
+                    - line_without_break
+                        .trim_start_matches(char::is_whitespace)
+                        .len();
+                let mut candidate = &line_without_break[leading..];
+                let mut candidate_offset = leading;
+                if let Some(after_star) = candidate.strip_prefix('*') {
+                    candidate_offset += 1;
+                    let star_space =
+                        after_star.len() - after_star.trim_start_matches(char::is_whitespace).len();
+                    candidate_offset += star_space;
+                    candidate = &after_star[star_space..];
+                }
+                let Some(template_tail) = candidate.strip_prefix("@template") else {
+                    line_offset += line.len();
+                    continue;
+                };
+                if !template_tail
+                    .chars()
+                    .next()
+                    .is_some_and(char::is_whitespace)
+                {
+                    line_offset += line.len();
+                    continue;
+                }
+                let whitespace = template_tail.len()
+                    - template_tail.trim_start_matches(char::is_whitespace).len();
+                let parameter = &template_tail[whitespace..];
+                let Some(modifier) = parameter.split_whitespace().next() else {
+                    line_offset += line.len();
+                    continue;
+                };
+                let diagnostic = match modifier {
+                    "private" if has_function_host => Some((1273, "private")),
+                    "const" if has_typedef_tag => Some((1277, "const")),
+                    "in" if has_function_host && !has_typedef_tag => Some((1274, "in")),
+                    "out" if has_function_host && !has_typedef_tag => Some((1274, "out")),
+                    _ => None,
+                };
+                if let Some((code, modifier)) = diagnostic {
+                    let start = body_start
+                        + line_offset
+                        + candidate_offset
+                        + "@template".len()
+                        + whitespace;
+                    diagnostics.insert((start, start + modifier.len(), code, modifier));
                 }
                 line_offset += line.len();
             }
@@ -9367,6 +9476,29 @@ fn jsdoc_tag_tail<'a>(comment: &'a str, tag: &str) -> Option<&'a str> {
     None
 }
 
+fn jsdoc_has_line_tag(comment: &str, tag: &str) -> bool {
+    comment.lines().any(|line| {
+        let candidate = line
+            .trim_start()
+            .strip_prefix('*')
+            .unwrap_or(line.trim_start())
+            .trim_start();
+        candidate.strip_prefix(tag).is_some_and(|tail| {
+            tail.chars()
+                .next()
+                .is_none_or(|character| character.is_whitespace() || character == '{')
+        })
+    })
+}
+
+fn source_starts_keyword(text: &str, keyword: &str) -> bool {
+    text.strip_prefix(keyword).is_some_and(|tail| {
+        tail.chars().next().is_none_or(|character| {
+            !(character.is_alphanumeric() || matches!(character, '_' | '$' | '\\'))
+        })
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use tsrs2_types::{CompilerOptions, ScriptTarget};
@@ -9535,6 +9667,107 @@ mod tests {
                 .iter()
                 .all(|diagnostic| !matches!(diagnostic.0, 1009 | 1099)),
             "non-parameter/valid faces must not produce type-argument grammar diagnostics: \
+             {diagnostics:?}"
+        );
+    }
+
+    // ---- M7 8.1p JSDoc template-modifier grammar ----
+
+    #[test]
+    fn jsdoc_template_modifiers_follow_effective_host_grammar() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/**\n\
+                     * @template const T\n\
+                     * @typedef {[T]} X\n\
+                     */\n\
+                    /** @template private T */\n\
+                    function f() {}\n\
+                    /** @template in T */\n\
+                    function g() {}\n";
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let diagnostics = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| matches!(diagnostic.code(), 1273 | 1274 | 1277))
+                .map(|diagnostic| {
+                    (
+                        diagnostic.code(),
+                        diagnostic.start.expect("template modifier start"),
+                        diagnostic.length.expect("template modifier length"),
+                        diagnostic.message_text().to_owned(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                diagnostics,
+                [
+                    (
+                        1277,
+                        text.find("const").expect("const modifier") as u32,
+                        "const".len() as u32,
+                        "'const' modifier can only appear on a type parameter of a function, method or class"
+                            .to_owned(),
+                    ),
+                    (
+                        1273,
+                        text.find("private").expect("private modifier") as u32,
+                        "private".len() as u32,
+                        "'private' modifier cannot appear on a type parameter".to_owned(),
+                    ),
+                    (
+                        1274,
+                        text.find("@template in").expect("variance tag") as u32
+                            + "@template ".len() as u32,
+                        "in".len() as u32,
+                        "'in' modifier can only appear on a type parameter of a class, interface or type alias"
+                            .to_owned(),
+                    ),
+                ]
+            );
+            for (code, start, length, _) in diagnostics {
+                assert!(state.non_jsdoc_js_diagnostics.contains(&(
+                    "a.js".to_owned(),
+                    start,
+                    length,
+                    code,
+                )));
+            }
+        });
+    }
+
+    #[test]
+    fn jsdoc_template_modifier_projection_preserves_valid_and_non_tag_faces() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/** @template const T */\n\
+                    class C {}\n\
+                    /** @template in T\n\
+                     * @typedef {Object} In */\n\
+                    /** @template out T\n\
+                     * @typedef {Object} Out */\n\
+                    /** @template T */\n\
+                    function valid() {}\n\
+                    /** prose @template private T */\n\
+                    function prose() {}\n\
+                    /** @templates private T */\n\
+                    function otherTag() {}\n\
+                    const text = \"/** @template private T */\";\n\
+                    /** @template privateish T */\n\
+                    function boundary() {}\n";
+        let diagnostics = checked_file_diags_with("a.js", text, &options);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| !matches!(diagnostic.0, 1273 | 1274 | 1277)),
+            "valid/non-tag faces must not produce template-modifier grammar diagnostics: \
              {diagnostics:?}"
         );
     }
