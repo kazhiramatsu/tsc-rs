@@ -433,8 +433,14 @@
 # accessor recovery pair that tsc still checks without weakening the
 # broader effective-ambient rules of other unused owners; T1-T3 gain
 # the same identity with no losses, external gains, or false positives.
-rate = 0.965609
-matched = 47338
+# m7 8.4q adds +2 by resuming the direct function/arrow RHS of a
+# checked-JS property assignment after its LHS hits Rust's display
+# containment. This reaches the ordinary checkSignatureDeclaration
+# unused-registration tail and preserves parameter-read marking; the
+# adjacent used-parameter canary remains clean. T1-T3 gain the same
+# two identities with no losses, external gains, or false positives.
+rate = 0.965649
+matched = 47340
 total = 49024
 allowed_regression = 0.0
 
