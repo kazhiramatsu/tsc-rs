@@ -428,8 +428,13 @@
 # external-module indicator even though its module reference is not a
 # `require()` call. The unexported form remains a global script; T1-T3
 # gain the same identity with no losses, external gains, or false positives.
-rate = 0.965588
-matched = 47337
+# m7 8.4p adds +1 by using the direct member NodeFlags.Ambient predicate
+# at checkUnusedClassMembers. This preserves the invalid `declare`
+# accessor recovery pair that tsc still checks without weakening the
+# broader effective-ambient rules of other unused owners; T1-T3 gain
+# the same identity with no losses, external gains, or false positives.
+rate = 0.965609
+matched = 47338
 total = 49024
 allowed_regression = 0.0
 

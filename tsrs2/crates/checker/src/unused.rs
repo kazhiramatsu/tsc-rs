@@ -325,7 +325,8 @@ impl<'a> CheckerState<'a> {
                         || self.kind_of(name) == SyntaxKind::PrivateIdentifier;
                     if !self.links.symbol(symbol).is_referenced
                         && private
-                        && !self.is_ambient_for_unused(member)
+                        && !NodeFlags::from_bits(self.node_flags(member))
+                            .intersects(NodeFlags::AMBIENT)
                     {
                         let display = self.declaration_name_display(name);
                         self.add_unused_diagnostic_at(
@@ -1457,6 +1458,27 @@ const test2 = mod2;
                 start,
                 "test2".len() as u32,
                 "'test2' is declared but its value is never read.".to_owned(),
+            )]
+        );
+    }
+
+    #[test]
+    fn unused_invalid_declare_accessor_uses_member_ambient_flag() {
+        let text = "class C {
+    declare get #pair()
+    declare set #pair(value: number)
+}
+";
+        let rows = unused_rows(text, &CompilerOptions::default());
+        let start = text.find("#pair").expect("private getter name") as u32;
+        assert_eq!(
+            rows,
+            vec![(
+                6133,
+                DiagnosticCategory::Suggestion,
+                start,
+                "#pair".len() as u32,
+                "'#pair' is declared but its value is never read.".to_owned(),
             )]
         );
     }
