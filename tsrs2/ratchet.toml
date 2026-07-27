@@ -347,8 +347,10 @@
 # JSDoc import module-specifier recovery and exact TS1109 rows.
 # m7 8.1ab adds +3 through parseEntityNameOfTypeReference's
 # checked-JS JSDoc missing-type recovery and exact TS1110 rows.
-rate = 0.667551
-matched = 32726
+# m7 8.1ac adds +5 through parseExpectedJSDoc's checked-JS
+# JSDoc close-brace recovery and exact TS1005 rows.
+rate = 0.667653
+matched = 32731
 total = 49024
 allowed_regression = 0.0
 
