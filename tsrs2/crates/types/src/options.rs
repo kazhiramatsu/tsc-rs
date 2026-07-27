@@ -46,6 +46,13 @@ pub struct CompilerOptions {
     /// (79096) and checkReturnStatement's bare-return face (84546).
     /// NOT strict-family (plain option read).
     pub no_implicit_returns: Option<bool>,
+    /// M7 8.3: publish unused local/class-member/import diagnostics as
+    /// errors. When absent or false, the same producer belongs to the
+    /// suggestion pass landed in 8.4.
+    pub no_unused_locals: Option<bool>,
+    /// M7 8.3: publish unused parameter/type-parameter diagnostics as
+    /// errors. The false/absent suggestion surface lands in 8.4.
+    pub no_unused_parameters: Option<bool>,
     /// tsc allowUnreachableCode: undefined = warn-as-suggestion for
     /// unreachable statements, but the comma-operator 2695 gate reads
     /// plain falsiness (`!compilerOptions.allowUnreachableCode`).
