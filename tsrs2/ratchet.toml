@@ -329,8 +329,10 @@
 # cast projection and exact TS1228 row.
 # m7 8.1s adds +4 through checkSatisfiesExpressionWorker's checked-JS
 # JSDoc host/type projections and exact TS1360 rows.
-rate = 0.666939
-matched = 32696
+# m7 8.1t adds +5 through checkJSDocVariadicType's checked-JS
+# non-final parameter projection and exact TS1014 rows.
+rate = 0.667041
+matched = 32701
 total = 49024
 allowed_regression = 0.0
 

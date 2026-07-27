@@ -180,6 +180,7 @@ impl<'a> CheckerState<'a> {
         self.check_grammar_source_file(root);
         self.check_jsdoc_import_tag_resolution_mode_attributes(root);
         self.check_jsdoc_parameter_type_argument_grammar(root);
+        self.check_jsdoc_variadic_parameter_grammar(root);
         self.check_jsdoc_template_tag_modifier_grammar(root);
         self.check_jsdoc_satisfies_tag_duplicates(root);
         self.check_jsdoc_cast_type_predicate_grammar(root);
@@ -2122,6 +2123,124 @@ impl<'a> CheckerState<'a> {
                 }
                 line_offset += line.len();
             }
+        }
+        diagnostics.into_iter().collect()
+    }
+
+    /// tsrs-native: project checkJSDocVariadicType's non-final
+    /// parameter face while JSDoc nodes are absent from the arena.
+    ///
+    /// tsc-port: checkJSDocVariadicType @6.0.3
+    /// tsc-hash: 80b3b4021eb1511dec9f975d4cf804983d70c8578727f1c38bf3b5b29948ed53
+    /// tsc-span: _tsc.js:86852-86878
+    /// d2: d2:66824c65ac25cd273486927fbd03a20d82043c5deb01cc58b2e2607984bbc53b
+    ///
+    /// A variadic `@param` type is a rest parameter only when its tag
+    /// resolves to the host signature's final parameter. The live
+    /// residual is the attached function-declaration face; malformed
+    /// postfix nullable/non-nullable types remain owned by their
+    /// parser diagnostics and must not also gain TS1014.
+    fn check_jsdoc_variadic_parameter_grammar(&mut self, root: NodeId) {
+        if !self.is_in_js_file(root) {
+            return;
+        }
+        for (start, end) in self.jsdoc_non_final_variadic_parameter_spans(root) {
+            let diagnostics_before = self.diagnostics.len();
+            self.error_at_byte_range(
+                root,
+                start,
+                end,
+                &diagnostics::A_rest_parameter_must_be_last_in_a_parameter_list,
+            );
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1014);
+        }
+    }
+
+    fn jsdoc_non_final_variadic_parameter_spans(&self, root: NodeId) -> Vec<(usize, usize)> {
+        let source = self.binder.source_of_node(root);
+        let mut diagnostics = std::collections::BTreeSet::new();
+        let mut stack = vec![root];
+        while let Some(node) = stack.pop() {
+            let raw = source.arena.node(node);
+            if let NodeData::FunctionDeclaration(data) = &raw.data {
+                let last_parameter = self
+                    .nodes_of(data.parameters)
+                    .last()
+                    .copied()
+                    .and_then(|parameter| match self.data_of(parameter) {
+                        NodeData::Parameter(data) => data.name,
+                        _ => None,
+                    })
+                    .and_then(|name| self.identifier_text_of(name));
+                if let Some(last_parameter) = last_parameter {
+                    for (body_start, comment_close) in
+                        self.jsdoc_comment_body_ranges_in_leading_trivia(node)
+                    {
+                        let body = &source.text[body_start..comment_close];
+                        let mut line_offset = 0usize;
+                        for line in body.split_inclusive('\n') {
+                            let line_without_lf = line.strip_suffix('\n').unwrap_or(line);
+                            let line_without_break = line_without_lf
+                                .strip_suffix('\r')
+                                .unwrap_or(line_without_lf);
+                            let leading = line_without_break.len()
+                                - line_without_break
+                                    .trim_start_matches(char::is_whitespace)
+                                    .len();
+                            let mut candidate = &line_without_break[leading..];
+                            let mut candidate_offset = leading;
+                            if let Some(after_star) = candidate.strip_prefix('*') {
+                                candidate_offset += 1;
+                                let star_space = after_star.len()
+                                    - after_star.trim_start_matches(char::is_whitespace).len();
+                                candidate_offset += star_space;
+                                candidate = &after_star[star_space..];
+                            }
+                            let Some(param_tail) = candidate.strip_prefix("@param") else {
+                                line_offset += line.len();
+                                continue;
+                            };
+                            if !param_tail.chars().next().is_some_and(|character| {
+                                character.is_whitespace() || character == '{'
+                            }) {
+                                line_offset += line.len();
+                                continue;
+                            }
+                            let whitespace = param_tail.len()
+                                - param_tail.trim_start_matches(char::is_whitespace).len();
+                            let type_tail = &param_tail[whitespace..];
+                            let Some((type_text, consumed)) = jsdoc_braced_payload(type_tail)
+                            else {
+                                line_offset += line.len();
+                                continue;
+                            };
+                            let parameter_name = type_tail[consumed..]
+                                .split_whitespace()
+                                .next()
+                                .unwrap_or_default()
+                                .trim_matches(|character| matches!(character, '[' | ']'));
+                            if parameter_name == last_parameter
+                                || !is_well_formed_jsdoc_variadic_type(type_text)
+                            {
+                                line_offset += line.len();
+                                continue;
+                            }
+                            let start = body_start
+                                + line_offset
+                                + candidate_offset
+                                + "@param".len()
+                                + whitespace
+                                + 1;
+                            diagnostics.insert((start, start + type_text.len()));
+                            line_offset += line.len();
+                        }
+                    }
+                }
+            }
+            for_each_child(&source.arena, raw, |child| {
+                stack.push(child);
+                false
+            });
         }
         diagnostics.into_iter().collect()
     }
@@ -10229,6 +10348,18 @@ fn jsdoc_braced_payload(text: &str) -> Option<(&str, usize)> {
     None
 }
 
+fn is_well_formed_jsdoc_variadic_type(text: &str) -> bool {
+    let Some(element) = text.trim().strip_prefix("...") else {
+        return false;
+    };
+    if element.is_empty() {
+        return false;
+    }
+    element
+        .match_indices('?')
+        .all(|(index, _)| index == 0 || index + '?'.len_utf8() == element.len())
+}
+
 fn split_top_level_commas(text: &str) -> Option<Vec<&str>> {
     let mut parts = Vec::new();
     let mut start = 0usize;
@@ -10778,6 +10909,90 @@ mod tests {
             diagnostics.iter().all(|diagnostic| diagnostic.0 != 1223),
             "distinct-host/non-tag faces must not produce duplicate-tag diagnostics: \
              {diagnostics:?}"
+        );
+    }
+
+    // ---- M7 8.1t JSDoc variadic-parameter grammar ----
+
+    #[test]
+    fn jsdoc_variadic_types_require_the_final_host_parameter() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/**\n\
+                     * @param {...?number} e\n\
+                     * @param {...number?} f\n\
+                     * @param {...number!?} g\n\
+                     * @param {...number?!} h\n\
+                     * @param {...number[]} i\n\
+                     * @param {...number![]?} j\n\
+                     * @param {...number?[]!} k\n\
+                     * @param {...number} m\n\
+                     */\n\
+                    function f(e, f, g, h, i, j, k, m) {}\n";
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let diagnostics = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 1014)
+                .map(|diagnostic| {
+                    (
+                        diagnostic.start.expect("TS1014 start"),
+                        diagnostic.length.expect("TS1014 length"),
+                        diagnostic.message_text().to_owned(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let expected = [
+                "...?number",
+                "...number?",
+                "...number!?",
+                "...number[]",
+                "...number![]?",
+            ]
+            .map(|variadic| {
+                (
+                    text.find(variadic).expect("variadic type") as u32,
+                    variadic.len() as u32,
+                    "A rest parameter must be last in a parameter list.".to_owned(),
+                )
+            });
+            assert_eq!(diagnostics, expected);
+            for (start, length, _) in expected {
+                assert!(state.non_jsdoc_js_diagnostics.contains(&(
+                    "a.js".to_owned(),
+                    start,
+                    length,
+                    1014,
+                )));
+            }
+        });
+    }
+
+    #[test]
+    fn jsdoc_variadic_projection_preserves_last_malformed_and_non_tag_faces() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/** @param {...number} value */\n\
+                    function last(value) {}\n\
+                    /** @param {...number?!} bad\n\
+                     * @param {...number?[]!} alsoBad\n\
+                     * @param {number} final */\n\
+                    function malformed(bad, alsoBad, final) {}\n\
+                    /** prose @param {...number} value */\n\
+                    function prose(value) {}\n\
+                    /** @parameter {...number} value */\n\
+                    function other(value) {}\n";
+        let diagnostics = checked_file_diags_with("a.js", text, &options);
+        assert!(
+            diagnostics.iter().all(|diagnostic| diagnostic.0 != 1014),
+            "last/malformed/non-tag faces must not produce TS1014: {diagnostics:?}"
         );
     }
 
