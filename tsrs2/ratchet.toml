@@ -404,8 +404,15 @@
 # independent modes, and shadowed-binding anchors remain oracle-exact;
 # T1-T3 gain the same identities with no losses, external gains, or
 # false positives.
-rate = 0.956103
-matched = 46872
+# m7 8.4l adds +373 from checkUnusedTypeParameters across class,
+# interface, type-alias, function-like, and signature-only owners:
+# TS6133 x353 and every residual TS6205 row (x20). Whole-list versus
+# per-parameter spans, underscore exemptions, merged-declaration
+# gating, and noUnusedParameters category projection are oracle-exact;
+# T1-T3 gain the same identities with no losses, external gains, or
+# false positives.
+rate = 0.963712
+matched = 47245
 total = 49024
 allowed_regression = 0.0
 
