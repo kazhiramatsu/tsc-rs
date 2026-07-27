@@ -67,7 +67,8 @@ impl<'a> CheckerState<'a> {
                 SyntaxKind::FunctionDeclaration
                 | SyntaxKind::ArrowFunction
                 | SyntaxKind::MethodDeclaration
-                | SyntaxKind::SetAccessor => {
+                | SyntaxKind::SetAccessor
+                | SyntaxKind::Constructor => {
                     if node_util::body_of(self.binder.source_of_node(node), node).is_some() {
                         self.check_unused_locals_and_parameters(node)
                     } else {
@@ -1919,6 +1920,153 @@ mod tests {
                     "'value' is declared but its value is never read.",
                 ),
             ]
+        );
+    }
+
+    #[test]
+    fn constructor_locals_and_parameters_use_independent_modes() {
+        let text = "export class Container {\n    constructor(deadParameter: number) {\n        const deadLocal = 1;\n    }\n}\n\
+                    export const Expression = class {\n    constructor(deadExpressionParameter: number) {\n        const deadExpressionLocal = 1;\n    }\n};\n";
+        for (options, parameter_category, local_category) in [
+            (
+                CompilerOptions::default(),
+                DiagnosticCategory::Suggestion,
+                DiagnosticCategory::Suggestion,
+            ),
+            (
+                CompilerOptions {
+                    no_unused_parameters: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Error,
+                DiagnosticCategory::Suggestion,
+            ),
+            (
+                CompilerOptions {
+                    no_unused_locals: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Suggestion,
+                DiagnosticCategory::Error,
+            ),
+            (
+                CompilerOptions {
+                    no_unused_locals: Some(true),
+                    no_unused_parameters: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Error,
+                DiagnosticCategory::Error,
+            ),
+        ] {
+            assert_eq!(
+                unused_rows(text, &options)
+                    .iter()
+                    .map(|(code, category, _, _, message)| { (*code, *category, message.as_str()) })
+                    .collect::<Vec<_>>(),
+                [
+                    (
+                        6133,
+                        parameter_category,
+                        "'deadParameter' is declared but its value is never read.",
+                    ),
+                    (
+                        6133,
+                        local_category,
+                        "'deadLocal' is declared but its value is never read.",
+                    ),
+                    (
+                        6133,
+                        parameter_category,
+                        "'deadExpressionParameter' is declared but its value is never read.",
+                    ),
+                    (
+                        6133,
+                        local_category,
+                        "'deadExpressionLocal' is declared but its value is never read.",
+                    ),
+                ]
+            );
+        }
+    }
+
+    #[test]
+    fn constructor_registration_preserves_overloads_reads_and_parameter_properties() {
+        assert!(unused_rows(
+            "export class Container {\n\
+                 constructor(\n\
+                     public publicProperty: number,\n\
+                     _ignoredParameter: number,\n\
+                     usedParameter: number,\n\
+                 ) {\n\
+                     const usedLocal = usedParameter;\n\
+                     usedLocal;\n\
+                 }\n\
+             }\n\
+             export class Overloaded {\n\
+                 constructor(deadSignatureParameter: number);\n\
+                 constructor(_ignoredImplementationParameter: number) {}\n\
+             }\n\
+             export const Expression = class {\n\
+                 constructor(usedParameter: number) {\n\
+                     usedParameter;\n\
+                 }\n\
+             };\n",
+            &CompilerOptions {
+                no_unused_locals: Some(true),
+                no_unused_parameters: Some(true),
+                ..CompilerOptions::default()
+            },
+        )
+        .is_empty());
+    }
+
+    #[test]
+    fn constructor_shadowed_parameter_and_local_keep_distinct_kinds() {
+        assert_eq!(
+            unused_rows(
+                "export class Container {\n    constructor(value: number) {\n        var [value] = [1];\n    }\n}\n",
+                &CompilerOptions {
+                    no_unused_parameters: Some(true),
+                    ..CompilerOptions::default()
+                },
+            )
+            .iter()
+            .map(|(code, category, _, _, message)| { (*code, *category, message.as_str()) })
+            .collect::<Vec<_>>(),
+            [
+                (
+                    6133,
+                    DiagnosticCategory::Error,
+                    "'value' is declared but its value is never read.",
+                ),
+                (
+                    6133,
+                    DiagnosticCategory::Suggestion,
+                    "'value' is declared but its value is never read.",
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn constructor_nested_class_uses_the_local_mode() {
+        assert_eq!(
+            unused_rows(
+                "export class Container {\n    constructor() {\n        class DeadClass {}\n    }\n}\n",
+                &CompilerOptions {
+                    no_unused_locals: Some(true),
+                    ..CompilerOptions::default()
+                },
+            )
+            .iter()
+            .map(|(code, category, _, _, message)| { (*code, *category, message.as_str()) })
+            .collect::<Vec<_>>(),
+            [(
+                6196,
+                DiagnosticCategory::Error,
+                "'DeadClass' is declared but never used.",
+            )]
         );
     }
 

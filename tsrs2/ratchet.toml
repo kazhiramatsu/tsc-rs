@@ -386,8 +386,14 @@
 # setters. Body presence, underscore exemptions, independent modes,
 # and shadowed-binding anchors remain oracle-exact; T1-T3 gain the
 # same identities with no losses, external gains, or false positives.
-rate = 0.938846
-matched = 46026
+# m7 8.4i adds +452 from Constructor-owned value locals and
+# parameters across class declarations and class expressions. Body
+# presence, overload and underscore exemptions, parameter-property
+# exclusion, independent modes, and shadowed-binding anchors remain
+# oracle-exact; T1-T3 gain the same identities with no losses,
+# external gains, or false positives.
+rate = 0.948066
+matched = 46478
 total = 49024
 allowed_regression = 0.0
 
