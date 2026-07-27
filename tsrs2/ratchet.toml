@@ -356,8 +356,11 @@
 # m7 8.4a adds +3538 by surfacing the registered SourceFile/Class
 # unused producers as suggestions, including checked-JS JSDoc and
 # CommonJS reference prerequisites; all-corpus FP remains zero.
-rate = 0.740046
-matched = 36280
+# m7 8.4b adds +571 by surfacing Block-owned unused locals after
+# checkBlock's deferred registration; T1-T3 have no losses and
+# all-corpus FP remains zero.
+rate = 0.751693
+matched = 36851
 total = 49024
 allowed_regression = 0.0
 
