@@ -2395,7 +2395,9 @@ impl<'a> CheckerState<'a> {
         })
     }
 
-    fn leading_jsdoc_comment_range(&self, node: NodeId) -> Option<(usize, usize)> {
+    /// tsrs-native: shared attached-JSDoc trivia range projection for
+    /// checked-JS producer provenance; JSDoc nodes are not materialized.
+    pub(crate) fn leading_jsdoc_comment_range(&self, node: NodeId) -> Option<(usize, usize)> {
         let source = self.binder.source_of_node(node);
         let anchor = self.name_of_node(node).unwrap_or(node);
         let anchor_pos = source.arena.node(anchor).pos as usize;

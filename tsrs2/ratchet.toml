@@ -450,8 +450,15 @@
 # property names recover their complete source-spelled token for exact
 # span/message identity; T1-T3 gain the same identities with no losses,
 # external gains, or false positives.
-rate = 0.973156
-matched = 47708
+# m7 8.4t adds +81 from reportImplicitAny's checked-JS loose parameter
+# suggestion face. Exact publication excludes parameters whose effective
+# context rides JSDoc @param/@type/@overload semantics (including inline
+# and assignment carriers), while unresolved legacy C~A namepaths remain
+# implicit-any like tsc. Fourteen tag-owned TS7044/7045 identities move
+# to the existing M8 jsdoc-semantics boundary; T1-T3 gain the same 81
+# identities with no losses, external gains, or false positives.
+rate = 0.974808
+matched = 47789
 total = 49024
 allowed_regression = 0.0
 
