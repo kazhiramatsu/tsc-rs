@@ -473,8 +473,13 @@
 # allowUnreachableCode suggestion/error/disabled projection and plain-JS
 # publication land. T1-T3 gain the same identities with no losses or
 # false positives, closing flow-derived-suggestions at 149/149.
-rate = 0.978337
-matched = 47962
+# m7 8.5a adds all 142 residual TS6053 identities owned by
+# getSourceFileFromReferenceWorker. The program layer now extracts leading
+# triple-slash path pragmas, resolves explicit supported extensions against
+# the host file set, and reports exact missing-file spans/messages. T1-T3
+# gain the same identities with no losses, external gains, or false positives.
+rate = 0.981234
+matched = 48104
 total = 49024
 allowed_regression = 0.0
 

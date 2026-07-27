@@ -536,6 +536,199 @@ fn resolve_host_current_directory(current_directory: &str) -> String {
     resolved.replace('\\', "/")
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct PathReference {
+    file_name: String,
+    start: usize,
+    end: usize,
+}
+
+/// tsc-port: processCommentPragmas/processPragmasIntoFields(reference) @6.0.3
+/// tsc-hash: 1b63813a23c1caa22bb88c100f69ae4253dd3bc888161c212e173d7f341d7201
+/// tsc-span: _tsc.js:36215-36354
+///
+/// Only the `path` face is projected here: M7 8.5a owns the
+/// getSourceFileFromReferenceWorker missing-file diagnostic, while
+/// type/lib directives and malformed/unsupported references retain
+/// their own producers. Like getLeadingCommentRanges(text, 0), this
+/// stops at the first token and ignores triple-slash-looking text in
+/// later comments, strings, and program bodies.
+fn leading_path_references(text: &str) -> Vec<PathReference> {
+    fn skip_white_space(text: &str, mut offset: usize) -> usize {
+        while let Some(ch) = text[offset..].chars().next() {
+            if !ch.is_whitespace() && ch != '\u{FEFF}' {
+                break;
+            }
+            offset += ch.len_utf8();
+        }
+        offset
+    }
+
+    fn named_xml_attribute(comment: &str, name: &str) -> Option<(String, usize, usize)> {
+        let mut search = 0;
+        while search < comment.len() {
+            let ch = comment[search..].chars().next()?;
+            if !ch.is_whitespace() {
+                search += ch.len_utf8();
+                continue;
+            }
+            let mut cursor = search + ch.len_utf8();
+            if comment
+                .get(cursor..cursor + name.len())
+                .is_some_and(|candidate| candidate.eq_ignore_ascii_case(name))
+            {
+                cursor += name.len();
+                cursor = skip_white_space(comment, cursor);
+                if comment.as_bytes().get(cursor) != Some(&b'=') {
+                    search += ch.len_utf8();
+                    continue;
+                }
+                cursor += 1;
+                cursor = skip_white_space(comment, cursor);
+                let quote = *comment.as_bytes().get(cursor)?;
+                if quote != b'\'' && quote != b'"' {
+                    search += ch.len_utf8();
+                    continue;
+                }
+                let value_start = cursor + 1;
+                let relative_end = comment[value_start..]
+                    .bytes()
+                    .position(|byte| byte == quote)?;
+                let value_end = value_start + relative_end;
+                return Some((
+                    comment[value_start..value_end].to_owned(),
+                    value_start,
+                    value_end,
+                ));
+            }
+            search += ch.len_utf8();
+        }
+        None
+    }
+
+    fn path_from_comment(comment: &str, comment_start: usize) -> Option<PathReference> {
+        let after_slashes = comment.strip_prefix("///")?;
+        let after_space = after_slashes.trim_start_matches(char::is_whitespace);
+        let after_open = after_space.strip_prefix('<')?;
+        let name_end = after_open.find(char::is_whitespace)?;
+        if !after_open[..name_end].eq_ignore_ascii_case("reference")
+            || !after_open[name_end..].contains("/>")
+        {
+            return None;
+        }
+        // processPragmasIntoFields gives these attributes precedence
+        // over `path`, even if a path attribute is also present.
+        if named_xml_attribute(comment, "no-default-lib")
+            .is_some_and(|(value, _, _)| value == "true")
+            || named_xml_attribute(comment, "types").is_some()
+            || named_xml_attribute(comment, "lib").is_some()
+        {
+            return None;
+        }
+        let (file_name, start, end) = named_xml_attribute(comment, "path")?;
+        Some(PathReference {
+            file_name,
+            start: comment_start + start,
+            end: comment_start + end,
+        })
+    }
+
+    let mut offset = 0;
+    if text.starts_with("#!") {
+        offset = text
+            .find(['\n', '\r', '\u{2028}', '\u{2029}'])
+            .unwrap_or(text.len());
+    }
+    let mut references = Vec::new();
+    loop {
+        offset = skip_white_space(text, offset);
+        let rest = &text[offset..];
+        if rest.starts_with("//") {
+            let length = rest
+                .find(['\n', '\r', '\u{2028}', '\u{2029}'])
+                .unwrap_or(rest.len());
+            let comment = &rest[..length];
+            if let Some(reference) = path_from_comment(comment, offset) {
+                references.push(reference);
+            }
+            offset += length;
+            continue;
+        }
+        if let Some(after_open) = rest.strip_prefix("/*") {
+            let Some(end) = after_open.find("*/") else {
+                break;
+            };
+            offset += 2 + end + 2;
+            continue;
+        }
+        break;
+    }
+    references
+}
+
+fn is_supported_path_reference(file_name: &str, options: &CompilerOptions) -> bool {
+    [".ts", ".tsx", ".mts", ".cts"]
+        .iter()
+        .any(|extension| file_name.ends_with(extension))
+        || (options.allow_js && is_js_file_name(file_name))
+        || (options.resolve_json_module_effective() && file_name.ends_with(".json"))
+}
+
+/// tsc-port: createProgram/getSourceFileFromReferenceWorker @6.0.3
+/// tsc-hash: 7bf2d246bac2296b6c17a46308c9c67109a0318702c78b61b086fa4bb353581f
+/// tsc-span: _tsc.js:124173-124211
+///
+/// Producer-owned M7 8.5a face: a leading `/// <reference path=... />`
+/// with an explicit supported extension reaches the host lookup and
+/// reports 6053 when absent. Extensionless, unsupported-extension,
+/// redirect, config, and project-reference faces remain outside this
+/// slice.
+fn missing_path_reference_diagnostics(
+    sources: &[tsrs2_syntax::SourceFile],
+    host_files: impl Iterator<Item = String>,
+    options: &CompilerOptions,
+    current_directory: &str,
+) -> DiagnosticList {
+    let known_paths: std::collections::HashSet<String> = host_files.collect();
+    let mut diagnostics = Vec::new();
+    for source in sources {
+        let source_path =
+            state::CheckerState::normalize_program_path(&source.file_name, current_directory);
+        let source_directory = source_path
+            .rsplit_once('/')
+            .map_or("/", |(directory, _)| directory);
+        for reference in leading_path_references(&source.text) {
+            if !is_supported_path_reference(&reference.file_name, options) {
+                continue;
+            }
+            let resolved =
+                state::CheckerState::normalize_program_path(&reference.file_name, source_directory);
+            if known_paths.contains(&resolved) {
+                continue;
+            }
+            let start = source
+                .line_map
+                .byte_to_utf16
+                .get(reference.start)
+                .copied()
+                .unwrap_or(reference.start as u32);
+            let end = source
+                .line_map
+                .byte_to_utf16
+                .get(reference.end)
+                .copied()
+                .unwrap_or(reference.end as u32);
+            diagnostics.push(Diagnostic::new(
+                Some(source.file_name.clone()),
+                Some(start),
+                Some(end.saturating_sub(start)),
+                tsrs2_diags::MessageChain::new(&tsrs2_diags::gen::File_0_not_found, &[resolved]),
+            ));
+        }
+    }
+    diagnostics
+}
+
 /// tsrs-native: the cwd-carrying entry — `current_directory` is the
 /// harness ProgramJson `cwd` (tsc host.getCurrentDirectory), which the
 /// oracle host uses to absolutize every program fileName. It follows
@@ -760,6 +953,16 @@ pub fn check_program_with_libs_at(
         program_sources.push(source_file);
     }
 
+    let host_current_directory = resolve_host_current_directory(current_directory);
+    diagnostics.extend(missing_path_reference_diagnostics(
+        &program_sources,
+        libs.iter().chain(files.iter()).map(|file| {
+            state::CheckerState::normalize_program_path(&file.name, &host_current_directory)
+        }),
+        options,
+        &host_current_directory,
+    ));
+
     // Fixture bind pass: per-file binders with contiguous SymbolId
     // bases continuing from the lib prefix (tsc bindSourceFile per
     // file over one heap).
@@ -863,7 +1066,7 @@ pub fn check_program_with_libs_at(
         // untouched on POSIX; on Windows backslashes flipped and
         // everything before the first "/" (the drive) dropped. ""
         // (the old "/"-rooted world) is the no-cwd degenerate fallback.
-        state.host_current_directory = resolve_host_current_directory(current_directory);
+        state.host_current_directory = host_current_directory;
         // The resolver's host view (M4 5.8d): every INPUT path, incl.
         // files the program dropped (.json bodies, .js without
         // allowJs) — the suppression probes need them to keep 2307
@@ -1227,6 +1430,110 @@ mod tests {
     fn empty_engine_returns_no_diagnostics() {
         let result = check_program(&[], &CompilerOptions::default());
         assert!(result.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn missing_leading_path_reference_reports_exact_6053() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "/// <reference path=\"/missing.d.ts\" />\n".to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+        assert_eq!(result.diagnostics.len(), 1, "{:?}", result.diagnostics);
+        let diagnostic = &result.diagnostics[0];
+        assert_eq!(
+            (
+                diagnostic.file_name.as_deref(),
+                diagnostic.code(),
+                diagnostic.category(),
+                diagnostic.start,
+                diagnostic.length,
+                diagnostic.message_text(),
+            ),
+            (
+                Some("a.ts"),
+                6053,
+                DiagnosticCategory::Error,
+                Some(21),
+                Some(13),
+                "File '/missing.d.ts' not found.",
+            )
+        );
+        assert!(result.syntactic_diagnostics.is_empty());
+    }
+
+    #[test]
+    fn relative_single_quoted_path_reference_resolves_against_the_source() {
+        let result = check_program(
+            &[InputFile {
+                name: "src/a.ts".to_owned(),
+                text: "///<reference path='../typescript.ts' />\n".to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+        assert_eq!(result.diagnostics.len(), 1, "{:?}", result.diagnostics);
+        let diagnostic = &result.diagnostics[0];
+        assert_eq!(
+            (
+                diagnostic.code(),
+                diagnostic.start,
+                diagnostic.length,
+                diagnostic.message_text(),
+            ),
+            (6053, Some(20), Some(16), "File '/typescript.ts' not found.",)
+        );
+    }
+
+    #[test]
+    fn existing_path_reference_is_loaded_without_a_missing_file_diagnostic() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "src/a.ts".to_owned(),
+                    text: "/// <reference path=\"./dep.d.ts\" />\n".to_owned(),
+                },
+                InputFile {
+                    name: "src/dep.d.ts".to_owned(),
+                    text: "declare const dep: number;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions::default(),
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code() != 6053),
+            "{:?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
+    fn path_reference_projection_stays_on_its_owned_pragma_face() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: concat!(
+                    "/// <reference types=\"node\" path=\"/not-a-path-ref.d.ts\" />\n",
+                    "/// <reference path=\"/unsupported.html\" />\n",
+                    "const text = '/// <reference path=\"/inside-string.d.ts\" />';\n",
+                    "/// <reference path=\"/after-token.d.ts\" />\n",
+                )
+                .to_owned(),
+            }],
+            &CompilerOptions::default(),
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code() != 6053),
+            "{:?}",
+            result.diagnostics
+        );
     }
 
     /// Node posixCwd — path.posix.resolve's implicit base: the process
