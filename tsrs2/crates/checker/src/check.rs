@@ -179,6 +179,7 @@ impl<'a> CheckerState<'a> {
         }
         self.check_grammar_source_file(root);
         self.check_jsdoc_import_clause_from_grammar(root);
+        self.check_jsdoc_import_attributes_grammar(root);
         self.check_jsdoc_import_tag_resolution_mode_attributes(root);
         self.check_jsdoc_parameter_type_argument_grammar(root);
         self.check_jsdoc_variadic_parameter_grammar(root);
@@ -1980,6 +1981,43 @@ impl<'a> CheckerState<'a> {
         diagnostics.into_iter().collect()
     }
 
+    /// tsrs-native: project parseImportAttributes' required opening
+    /// brace over the terminal bare-`with` face of a JSDoc import tag
+    /// while JSDoc nodes are absent from the arena.
+    ///
+    /// tsc-port: parseImportAttributes @6.0.3
+    /// tsc-hash: fa198931880f0285c230e25010b2b3d434b98f087ce3a4a8074627df45f43539
+    /// tsc-span: _tsc.js:34481-34521
+    /// d2: d2:7c190a58fbe71c4d59dedb56bf569cfed8d766c1957ccab0ae083bc6c47109f2
+    ///
+    /// tryParseImportAttributes consumes `with`, then
+    /// parseImportAttributes expects `{`. At the terminal JSDoc face,
+    /// its recovery token is the comment close and the diagnostic is
+    /// zero-width at that token.
+    fn check_jsdoc_import_attributes_grammar(&mut self, root: NodeId) {
+        if !self.is_in_js_file(root) {
+            return;
+        }
+        let source = self.binder.source_of_node(root);
+        for (_, with_end, comment_close) in self.jsdoc_import_tag_bare_with_faces(root) {
+            if !source.text[with_end..comment_close]
+                .chars()
+                .all(char::is_whitespace)
+            {
+                continue;
+            }
+            let diagnostics_before = self.diagnostics.len();
+            self.error_at_byte_range_with_args(
+                root,
+                comment_close,
+                comment_close,
+                &diagnostics::_0_expected,
+                &["{"],
+            );
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1005);
+        }
+    }
+
     /// tsc-port: checkJSDocImportTag @6.0.3
     /// tsc-hash: d5bedc1e5d403ebe956b54ea38ea0d9ab0726319180f4e24c61b1422882e258c
     /// tsc-span: _tsc.js:82854-82856
@@ -1996,8 +2034,8 @@ impl<'a> CheckerState<'a> {
         if !self.is_in_js_file(root) {
             return;
         }
-        let spans = self.jsdoc_import_tag_bare_with_spans(root);
-        for (start_byte, end_byte) in spans {
+        let faces = self.jsdoc_import_tag_bare_with_faces(root);
+        for (start_byte, end_byte, _) in faces {
             let diagnostics_before = self.diagnostics.len();
             self.error_at_byte_range(
                 root,
@@ -2009,7 +2047,7 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn jsdoc_import_tag_bare_with_spans(&self, root: NodeId) -> Vec<(usize, usize)> {
+    fn jsdoc_import_tag_bare_with_faces(&self, root: NodeId) -> Vec<(usize, usize, usize)> {
         let source = self.binder.source_of_node(root);
         let mut spans = std::collections::BTreeSet::new();
         for (body_start, comment_close) in self.jsdoc_comment_body_ranges(root) {
@@ -2066,7 +2104,7 @@ impl<'a> CheckerState<'a> {
         text: &str,
         body_start: usize,
         comment_close: usize,
-        spans: &mut std::collections::BTreeSet<(usize, usize)>,
+        spans: &mut std::collections::BTreeSet<(usize, usize, usize)>,
     ) {
         let body = &text[body_start..comment_close];
         let mut line_offset = 0usize;
@@ -2116,7 +2154,7 @@ impl<'a> CheckerState<'a> {
             }
             let with_start_in_candidate = trimmed.len() - "with".len();
             let with_start = body_start + line_offset + candidate_offset + with_start_in_candidate;
-            spans.insert((with_start, with_start + "with".len()));
+            spans.insert((with_start, with_start + "with".len(), comment_close));
             line_offset += line.len();
         }
     }
@@ -12307,7 +12345,7 @@ mod tests {
     }
 
     #[test]
-    fn jsdoc_import_tag_bare_with_reports_1464_and_publishes_checked_js() {
+    fn jsdoc_import_tag_bare_with_reports_parser_and_checker_diagnostics() {
         let options = CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -12325,6 +12363,22 @@ mod tests {
             assert!(state
                 .non_jsdoc_js_diagnostics
                 .contains(&("a.js".to_owned(), 32, 4, 1464)));
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 1005)
+                .expect("TS1005");
+            assert_eq!(
+                (
+                    diagnostic.start,
+                    diagnostic.length,
+                    diagnostic.message_text()
+                ),
+                (Some(37), Some(0), "'{' expected.")
+            );
+            assert!(state
+                .non_jsdoc_js_diagnostics
+                .contains(&("a.js".to_owned(), 37, 0, 1005)));
         });
     }
 
@@ -12345,8 +12399,10 @@ mod tests {
         ] {
             let diagnostics = checked_file_diags_with("a.js", text, &options);
             assert!(
-                diagnostics.iter().all(|diagnostic| diagnostic.0 != 1464),
-                "negative JSDoc import probe must not produce TS1464: {text:?}: {diagnostics:?}"
+                diagnostics
+                    .iter()
+                    .all(|diagnostic| !matches!(diagnostic.0, 1005 | 1464)),
+                "negative JSDoc import probe must not produce TS1005/TS1464: {text:?}: {diagnostics:?}"
             );
         }
         let diagnostics = checked_file_diags_with(
@@ -12355,7 +12411,9 @@ mod tests {
             &CompilerOptions::default(),
         );
         assert!(
-            diagnostics.iter().all(|diagnostic| diagnostic.0 != 1464),
+            diagnostics
+                .iter()
+                .all(|diagnostic| !matches!(diagnostic.0, 1005 | 1464)),
             "the source projection is JS-only: {diagnostics:?}"
         );
     }

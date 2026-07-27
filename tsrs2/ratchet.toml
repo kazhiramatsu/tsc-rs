@@ -341,8 +341,10 @@
 # satisfies-tag required-brace projection and exact TS1005 rows.
 # m7 8.1y adds +3 through tryParseImportClause's checked-JS
 # JSDoc default-import `from` projection and exact TS1005 rows.
-rate = 0.667408
-matched = 32719
+# m7 8.1z adds +1 through parseImportAttributes' checked-JS
+# JSDoc bare-`with` required-brace projection and exact TS1005 row.
+rate = 0.667428
+matched = 32720
 total = 49024
 allowed_regression = 0.0
 
