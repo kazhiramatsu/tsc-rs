@@ -505,7 +505,7 @@ mod tests {
         crate::state::test_support::with_program_state(
             &[(
                 "a.ts",
-                "interface Box<T> { value: T }\nfunction pair<T extends string, V extends T, U extends number>(a: Box<V>, b: Box<U>) {\n  const good: Box<T> = a;\n  const bad: Box<T> = b;\n}\n",
+                "interface Box<T> { value: T }\nfunction pair<T extends string, V extends T, U extends number>(a: Box<V>, b: Box<U>) {\n  const good: Box<T> = a;\n  const bad: Box<T> = b;\n  void good;\n  void bad;\n}\n",
             )],
             &CompilerOptions::default(),
             |state| {

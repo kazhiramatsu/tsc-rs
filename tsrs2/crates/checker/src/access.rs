@@ -5135,7 +5135,7 @@ mod tests {
         // the walk escaped past Inner to Outer's decorator → 18013.
         assert_eq!(
             checked_rows(
-                "function dec(x: any): any { return undefined; }\n@dec(class Inner { #p = 1; m() { return this.#p; } })\nclass Outer {}\n"
+                "function dec(x: any): any { return x; }\n@dec(class Inner { #p = 1; m() { return this.#p; } })\nclass Outer {}\n"
             ),
             []
         );

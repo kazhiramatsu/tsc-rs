@@ -9789,7 +9789,7 @@ mod tests {
                 },
                 InputFile {
                     name: "second.ts".to_owned(),
-                    text: "function Dragon(numberEaten: number) {}\n".to_owned(),
+                    text: "function Dragon(numberEaten: number) { void numberEaten; }\n".to_owned(),
                 },
             ],
             &CompilerOptions {

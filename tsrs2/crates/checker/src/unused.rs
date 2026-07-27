@@ -11,6 +11,12 @@ use tsrs2_types::{ModifierFlags, NodeFlags, SymbolFlags};
 
 use crate::state::{CheckResult2, CheckerState, Unsupported};
 
+#[derive(Clone, Copy)]
+enum UnusedIdentifierKind {
+    Local,
+    Parameter,
+}
+
 impl<'a> CheckerState<'a> {
     /// tsc-port: registerForUnusedIdentifiersCheck @6.0.3
     /// tsc-hash: bd4d966695b8aae018cbaea7cf4462c968f8d9672dc8812f6a7b06cbf76fa16f
@@ -32,11 +38,10 @@ impl<'a> CheckerState<'a> {
     /// getSuggestionDiagnostics (46868-46878) and unusedIsError
     /// (86987-86998).
     ///
-    /// Only registered producers can reach this match. The current
-    /// SourceFile and Class producers emit Local-kind diagnostics, so
-    /// noUnusedLocals selects Error versus Suggestion for the complete
-    /// range. Later mixed local/parameter producers must preserve the
-    /// callback's per-diagnostic kind when their registrations land.
+    /// Only registered producers can reach this match. Publication is
+    /// kind-aware at each addDiagnostic call so mixed function owners
+    /// preserve the independent noUnusedLocals/noUnusedParameters
+    /// gates.
     pub(crate) fn check_registered_unused_identifiers(&mut self) {
         let nodes = std::mem::take(&mut self.potentially_unused_identifiers);
         for node in nodes {
@@ -59,13 +64,15 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::ForStatement
                 | SyntaxKind::ForInStatement
                 | SyntaxKind::ForOfStatement => self.check_unused_locals_and_parameters(node),
+                SyntaxKind::FunctionDeclaration => {
+                    if node_util::body_of(self.binder.source_of_node(node), node).is_some() {
+                        self.check_unused_locals_and_parameters(node)
+                    } else {
+                        Ok(())
+                    }
+                }
                 _ => Ok(()),
             };
-            if self.is_ambient_for_unused(node) || self.options.no_unused_locals != Some(true) {
-                for diagnostic in &mut self.diagnostics[diagnostics_before..] {
-                    diagnostic.message.category = DiagnosticCategory::Suggestion;
-                }
-            }
             if self.is_in_js_file(node) {
                 self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
             }
@@ -219,6 +226,31 @@ impl<'a> CheckerState<'a> {
             )
     }
 
+    fn unused_is_error(&self, node: NodeId, kind: UnusedIdentifierKind) -> bool {
+        if self.is_ambient_for_unused(node) {
+            return false;
+        }
+        match kind {
+            UnusedIdentifierKind::Local => self.options.no_unused_locals == Some(true),
+            UnusedIdentifierKind::Parameter => self.options.no_unused_parameters == Some(true),
+        }
+    }
+
+    fn add_unused_diagnostic_at(
+        &mut self,
+        containing_node: NodeId,
+        kind: UnusedIdentifierKind,
+        location: Option<NodeId>,
+        message: &'static tsrs2_diags::DiagnosticMessage,
+        args: &[&str],
+    ) {
+        let mut diagnostic = self.create_error(location, message, args);
+        if !self.unused_is_error(containing_node, kind) {
+            diagnostic.message.category = DiagnosticCategory::Suggestion;
+        }
+        self.push_error_diagnostic(diagnostic);
+    }
+
     /// tsc-port: checkUnusedClassMembers @6.0.3
     /// tsc-hash: b5c9ae6d244cc4bb01e39b9b4fd715a5417bb06e780f0a33cbb49b96ff1f65af
     /// tsc-span: _tsc.js:83008-83038
@@ -259,7 +291,9 @@ impl<'a> CheckerState<'a> {
                         && !self.is_ambient_for_unused(member)
                     {
                         let display = self.declaration_name_display(name);
-                        self.error_at(
+                        self.add_unused_diagnostic_at(
+                            node,
+                            UnusedIdentifierKind::Local,
                             Some(name),
                             &diagnostics::_0_is_declared_but_its_value_is_never_read,
                             &[&display],
@@ -286,7 +320,9 @@ impl<'a> CheckerState<'a> {
                             continue;
                         };
                         let display = self.declaration_name_display(name);
-                        self.error_at(
+                        self.add_unused_diagnostic_at(
+                            node,
+                            UnusedIdentifierKind::Local,
                             Some(name),
                             &diagnostics::Property_0_is_declared_but_its_value_is_never_read,
                             &[&display],
@@ -445,14 +481,14 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                 } else {
-                    let source = self.binder.source_of_node(declaration);
-                    let parameter = node_util::get_root_declaration(source, declaration);
-                    let name = self
-                        .binder
-                        .symbol(local)
-                        .value_declaration
-                        .and_then(|value| self.name_of_node(value));
-                    if self.kind_of(parameter) == SyntaxKind::Parameter {
+                    let value_declaration = self.binder.symbol(local).value_declaration;
+                    let parameter = value_declaration.map(|value| {
+                        node_util::get_root_declaration(self.binder.source_of_node(value), value)
+                    });
+                    let name = value_declaration.and_then(|value| self.name_of_node(value));
+                    if let Some(parameter) = parameter
+                        .filter(|parameter| self.kind_of(*parameter) == SyntaxKind::Parameter)
+                    {
                         if let Some(name) = name {
                             if !self.is_parameter_property_declaration(parameter)
                                 && !self.parameter_is_this_keyword(parameter)
@@ -475,7 +511,9 @@ impl<'a> CheckerState<'a> {
                                         &self.binder.symbol(local).escaped_name,
                                     )
                                     .to_owned();
-                                    self.error_at(
+                                    self.add_unused_diagnostic_at(
+                                        node,
+                                        UnusedIdentifierKind::Parameter,
                                         Some(name),
                                         &diagnostics::_0_is_declared_but_its_value_is_never_read,
                                         &[&display],
@@ -484,7 +522,7 @@ impl<'a> CheckerState<'a> {
                             }
                         }
                     } else {
-                        self.error_unused_local(declaration, local);
+                        self.error_unused_local(node, declaration, local);
                     }
                 }
             }
@@ -505,13 +543,17 @@ impl<'a> CheckerState<'a> {
                         .name_of_node(unused)
                         .map(|name| self.declaration_name_display(name))
                         .unwrap_or_default();
-                    self.error_at(
+                    self.add_unused_diagnostic_at(
+                        node,
+                        UnusedIdentifierKind::Local,
                         Some(import_decl),
                         &diagnostics::_0_is_declared_but_its_value_is_never_read,
                         &[&display],
                     );
                 } else {
-                    self.error_at(
+                    self.add_unused_diagnostic_at(
+                        node,
+                        UnusedIdentifierKind::Local,
                         Some(import_decl),
                         &diagnostics::All_imports_in_import_declaration_are_unused,
                         &[],
@@ -522,7 +564,7 @@ impl<'a> CheckerState<'a> {
                     let Some(symbol) = self.binder.node_symbol(unused) else {
                         continue;
                     };
-                    self.error_unused_local(unused, symbol);
+                    self.error_unused_local(node, unused, symbol);
                 }
             }
         }
@@ -534,6 +576,7 @@ impl<'a> CheckerState<'a> {
             if binding_elements.is_empty() {
                 continue;
             }
+            let kind = self.unused_binding_pattern_kind(binding_pattern);
             let elements = self.unused_binding_pattern_elements(binding_pattern);
             if elements.len() == binding_elements.len() {
                 let single_variable = binding_elements.len() == 1
@@ -552,13 +595,17 @@ impl<'a> CheckerState<'a> {
                         .name_of_node(binding_elements[0])
                         .map(|name| self.declaration_name_display(name))
                         .unwrap_or_default();
-                    self.error_at(
+                    self.add_unused_diagnostic_at(
+                        node,
+                        kind,
                         Some(binding_pattern),
                         &diagnostics::_0_is_declared_but_its_value_is_never_read,
                         &[&display],
                     );
                 } else {
-                    self.error_at(
+                    self.add_unused_diagnostic_at(
+                        node,
+                        kind,
                         Some(binding_pattern),
                         &diagnostics::All_destructured_elements_are_unused,
                         &[],
@@ -570,7 +617,9 @@ impl<'a> CheckerState<'a> {
                         .name_of_node(element)
                         .map(|name| self.declaration_name_display(name))
                         .unwrap_or_default();
-                    self.error_at(
+                    self.add_unused_diagnostic_at(
+                        node,
+                        kind,
                         Some(element),
                         &diagnostics::_0_is_declared_but_its_value_is_never_read,
                         &[&display],
@@ -593,7 +642,9 @@ impl<'a> CheckerState<'a> {
                     let display = name
                         .map(|name| self.declaration_name_display(name))
                         .unwrap_or_default();
-                    self.error_at(
+                    self.add_unused_diagnostic_at(
+                        node,
+                        UnusedIdentifierKind::Local,
                         name,
                         &diagnostics::_0_is_declared_but_its_value_is_never_read,
                         &[&display],
@@ -603,7 +654,13 @@ impl<'a> CheckerState<'a> {
                         .parent_of(declaration_list)
                         .filter(|parent| self.kind_of(*parent) == SyntaxKind::VariableStatement)
                         .unwrap_or(declaration_list);
-                    self.error_at(Some(range), &diagnostics::All_variables_are_unused, &[]);
+                    self.add_unused_diagnostic_at(
+                        node,
+                        UnusedIdentifierKind::Local,
+                        Some(range),
+                        &diagnostics::All_variables_are_unused,
+                        &[],
+                    );
                 }
             } else {
                 for declaration in declarations {
@@ -611,7 +668,9 @@ impl<'a> CheckerState<'a> {
                         .name_of_node(declaration)
                         .map(|name| self.declaration_name_display(name))
                         .unwrap_or_default();
-                    self.error_at(
+                    self.add_unused_diagnostic_at(
+                        node,
+                        UnusedIdentifierKind::Local,
                         Some(declaration),
                         &diagnostics::_0_is_declared_but_its_value_is_never_read,
                         &[&display],
@@ -626,7 +685,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a0859bf31f12b34a4d97492b714654753bd5d7f9b198bfa8529d878e28eb06d3
     /// tsc-span: _tsc.js:83000-83004
     /// d2: d2:435cd87c2bcdcc3eb69b3135503cdb119fce2de337927782eb67ee038afe8576
-    fn error_unused_local(&mut self, declaration: NodeId, symbol: tsrs2_types::SymbolId) {
+    fn error_unused_local(
+        &mut self,
+        containing_node: NodeId,
+        declaration: NodeId,
+        symbol: tsrs2_types::SymbolId,
+    ) {
         let node = self.name_of_node(declaration).unwrap_or(declaration);
         let display =
             tsrs2_binder::unescape_leading_underscores(&self.binder.symbol(symbol).escaped_name)
@@ -636,7 +700,25 @@ impl<'a> CheckerState<'a> {
         } else {
             &diagnostics::_0_is_declared_but_its_value_is_never_read
         };
-        self.error_at(Some(node), message, &[&display]);
+        self.add_unused_diagnostic_at(
+            containing_node,
+            UnusedIdentifierKind::Local,
+            Some(node),
+            message,
+            &[&display],
+        );
+    }
+
+    fn unused_binding_pattern_kind(&self, binding_pattern: NodeId) -> UnusedIdentifierKind {
+        let source = self.binder.source_of_node(binding_pattern);
+        let root = self
+            .parent_of(binding_pattern)
+            .map(|parent| node_util::get_root_declaration(source, parent));
+        if root.is_some_and(|root| self.kind_of(root) == SyntaxKind::Parameter) {
+            UnusedIdentifierKind::Parameter
+        } else {
+            UnusedIdentifierKind::Local
+        }
     }
 
     fn is_type_declaration_for_unused(&self, declaration: NodeId) -> bool {
@@ -1347,6 +1429,111 @@ mod tests {
     }
 
     #[test]
+    fn function_declaration_locals_and_parameters_use_independent_modes() {
+        let text = "export function mixed(deadParameter: number, usedParameter: number) {\n    const deadLocal = 1;\n    return usedParameter;\n}\n";
+        for (options, parameter_category, local_category) in [
+            (
+                CompilerOptions::default(),
+                DiagnosticCategory::Suggestion,
+                DiagnosticCategory::Suggestion,
+            ),
+            (
+                CompilerOptions {
+                    no_unused_parameters: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Error,
+                DiagnosticCategory::Suggestion,
+            ),
+            (
+                CompilerOptions {
+                    no_unused_locals: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Suggestion,
+                DiagnosticCategory::Error,
+            ),
+            (
+                CompilerOptions {
+                    no_unused_locals: Some(true),
+                    no_unused_parameters: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Error,
+                DiagnosticCategory::Error,
+            ),
+        ] {
+            assert_eq!(
+                unused_rows(text, &options)
+                    .iter()
+                    .map(|(code, category, _, _, message)| { (*code, *category, message.as_str()) })
+                    .collect::<Vec<_>>(),
+                [
+                    (
+                        6133,
+                        parameter_category,
+                        "'deadParameter' is declared but its value is never read.",
+                    ),
+                    (
+                        6133,
+                        local_category,
+                        "'deadLocal' is declared but its value is never read.",
+                    ),
+                ]
+            );
+        }
+    }
+
+    #[test]
+    fn function_declaration_registration_preserves_body_and_parameter_exemptions() {
+        assert!(unused_rows(
+            "export declare function declared(deadParameter: number): void;\n\
+             export function implemented(_ignoredParameter: number, usedParameter: number) {\n\
+                 const usedLocal = 1;\n\
+                 return usedParameter + usedLocal;\n\
+             }\n",
+            &CompilerOptions {
+                no_unused_locals: Some(true),
+                no_unused_parameters: Some(true),
+                ..CompilerOptions::default()
+            },
+        )
+        .is_empty());
+    }
+
+    #[test]
+    fn function_declaration_shadowed_array_bindings_keep_tsc_spans() {
+        let rows = unused_rows(
+            "export declare const y: any;\n\
+             export function first(x: any) {\n    var [x] = y;\n}\n\
+             export function initialized(x: any) {\n    var [x = y] = y;\n}\n\
+             export function rest(x: any) {\n    var [...x] = y;\n}\n\
+             export function nested(x: any) {\n    var [[x]] = y;\n}\n\
+             export function nestedInitialized(x: any) {\n    var [[x] = y] = y;\n}\n\
+             export function parameter([x]: [any]) {\n}\n",
+            &CompilerOptions::default(),
+        );
+        assert_eq!(
+            rows.iter()
+                .map(|(code, category, start, length, _)| { (*code, *category, *start, *length) })
+                .collect::<Vec<_>>(),
+            [
+                (6133, DiagnosticCategory::Suggestion, 51, 1),
+                (6133, DiagnosticCategory::Suggestion, 69, 3),
+                (6133, DiagnosticCategory::Suggestion, 108, 1),
+                (6133, DiagnosticCategory::Suggestion, 126, 7),
+                (6133, DiagnosticCategory::Suggestion, 162, 1),
+                (6133, DiagnosticCategory::Suggestion, 180, 6),
+                (6133, DiagnosticCategory::Suggestion, 217, 1),
+                (6133, DiagnosticCategory::Suggestion, 236, 3),
+                (6133, DiagnosticCategory::Suggestion, 282, 1),
+                (6133, DiagnosticCategory::Suggestion, 301, 3),
+                (6133, DiagnosticCategory::Suggestion, 343, 3),
+            ]
+        );
+    }
+
+    #[test]
     fn declaration_file_unused_locals_are_ambient_suggestions() {
         let rows = unused_rows_for_files(
             &[("a.d.ts", "export {};\ndeclare const dead: number;\n")],
@@ -1396,7 +1583,7 @@ mod tests {
                 "a.js",
                 "const exemplar = () => 1;\n\
                  /** @param {typeof exemplar} value */\n\
-                 export function consume(value) {}\n\
+                 export function consume(value) { void value; }\n\
                  /** @typedef {number} Local */\n\
                  var Local = 1;\n",
             )],
@@ -1443,7 +1630,7 @@ mod tests {
                     "main.js",
                     "const { SomeClass, SomeClass: Another } = require('./lib');\n\
                      /** @param {SomeClass} value */\n\
-                     export function consume(value) {}\n\
+                     export function consume(value) { void value; }\n\
                      module.exports = { SomeClass, Another };\n",
                 ),
             ],

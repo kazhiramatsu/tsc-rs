@@ -2157,8 +2157,9 @@ impl<'a> CheckerState<'a> {
     /// checkUnmatchedJSDocParameters is JS-only; the JSDoc type-tag
     /// return-location indirection is JS-only (returnTypeErrorLocation
     /// === returnTypeNode in TS files);
-    /// registerForUnusedIdentifiersCheck is M7-inert. The lazy tail
-    /// runs eager (the 5.4 addLazyDiagnostic decision).
+    /// The lazy tail runs eager (the 5.4 addLazyDiagnostic decision).
+    /// M7 activates registration one declaration owner at a time;
+    /// FunctionDeclaration is the current producer-owned slice.
     pub(crate) fn check_signature_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
         let kind = self.kind_of(node);
         if kind == SyntaxKind::IndexSignature {
@@ -2269,6 +2270,9 @@ impl<'a> CheckerState<'a> {
             }
         } else if let Some(projection) = jsdoc_async_return {
             self.check_jsdoc_async_function_return_type(node, projection);
+        }
+        if kind == SyntaxKind::FunctionDeclaration {
+            self.register_for_unused_identifiers_check(node);
         }
         Ok(())
     }
@@ -6179,6 +6183,7 @@ mod tests {
                      a = 1;\n\
                      a = true;\n\
                      a = 'ok';\n\
+                     void a;\n\
                  }\n",
                 &options,
             ),
@@ -6224,7 +6229,9 @@ mod tests {
     fn type_predicate_type_must_be_assignable_to_its_parameter() {
         // 2677 at node.type; the chain tail is elided (T2).
         assert_eq!(
-            checked_rows("function f(x: string): x is number {\n    return true;\n}\n"),
+            checked_rows(
+                "function f(x: string): x is number {\n    void x;\n    return true;\n}\n"
+            ),
             [(2677, 28, 6)]
         );
         // The containingMessageChain wrap (64890-64896) folds the
