@@ -6619,7 +6619,7 @@ mod tests {
         // (2776).
         assert_eq!(
             checked_rows(
-                "function assert(value: unknown): asserts value {}\nconst helpers = { assert };\nfunction g(x: unknown) {\n    helpers.assert(typeof x === \"string\");\n    (0, assert)(typeof x === \"string\");\n}\n"
+                "function assert(_alue: unknown): asserts _alue {}\nconst helpers = { assert };\nfunction g(x: unknown) {\n    helpers.assert(typeof x === \"string\");\n    (0, assert)(typeof x === \"string\");\n}\n"
             ),
             [(2775, 107, 14), (2695, 151, 1), (2776, 150, 11)]
         );

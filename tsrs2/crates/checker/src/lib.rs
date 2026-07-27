@@ -3236,7 +3236,7 @@ mod tests {
     fn shadowed_array_function_does_not_trigger_evolving_array_containment() {
         assert_eq!(
             lib_codes_of_with_options(
-                "function f(){function Array():number{return 1};var x=[];var x=Array();}",
+                "function f(){function Array():number{return 1};var x=[];var x=Array();return x;}",
                 &strict_options(),
             ),
             [2403]
@@ -4365,7 +4365,7 @@ mod tests {
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
-                text: "function isNum(x: unknown) { return typeof x === \"number\"; }\nfunction g(u: string | number) {\n    let t: { p: number };\n    if (isNum(u)) {\n        t = { p: u };\n    }\n}\n".to_owned(),
+                text: "function isNum(x: unknown) { return typeof x === \"number\"; }\nfunction g(u: string | number) {\n    let t: { p: number };\n    if (isNum(u)) {\n        t = { p: u };\n        void t;\n    }\n}\n".to_owned(),
             }],
             &CompilerOptions::default(),
         );
