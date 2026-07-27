@@ -2159,10 +2159,10 @@ impl<'a> CheckerState<'a> {
     /// === returnTypeNode in TS files);
     /// The lazy tail runs eager (the 5.4 addLazyDiagnostic decision).
     /// M7 activates registration one declaration owner at a time;
-    /// FunctionDeclaration, ArrowFunction, MethodDeclaration, and
-    /// SetAccessor value locals/parameters are the current
-    /// producer-owned slices. Type-parameter diagnostics remain on
-    /// their separate worker boundary.
+    /// FunctionDeclaration, ArrowFunction, MethodDeclaration,
+    /// SetAccessor, and Constructor value locals/parameters are the
+    /// current producer-owned slices. Type-parameter diagnostics
+    /// remain on their separate worker boundary.
     pub(crate) fn check_signature_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
         let kind = self.kind_of(node);
         if kind == SyntaxKind::IndexSignature {
@@ -2280,6 +2280,7 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::ArrowFunction
                 | SyntaxKind::MethodDeclaration
                 | SyntaxKind::SetAccessor
+                | SyntaxKind::Constructor
         ) {
             self.register_for_unused_identifiers_check(node);
         }
