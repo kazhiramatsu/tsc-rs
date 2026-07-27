@@ -5167,6 +5167,13 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
     // freeze/extension anchors, and the trusted-base compare — before
     // the rollup below reads the map as a verified input.
     tsrs2_conformance::families_check(&workspace, Some(baseline))?;
+    // E1 topology (evidence-and-steady-state.md §5): produce B2-B4
+    // after their A1/A2/A5 inputs verify but BEFORE the in-process
+    // checker run builds and retains its lib-bundle cache. The
+    // coverage workers otherwise overlap that cache and force the
+    // standard hosted runner into avoidable swap thrash. All repo
+    // inputs remain byte-identical through the later consumer.
+    m8_evidence::produce_all()?;
     // One checker execution per expanded case feeds all three fixed
     // views. Grading remains sequential, preserving the independent
     // ratchet/FP/scope gates without increasing CPU concurrency.
@@ -5191,14 +5198,9 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
     // marker file) has passed must be implemented or re-marked.
     let stage = fs::read_to_string(workspace.join("STAGE"))?;
     escapes(["--stale", stage.trim()].into_iter().map(str::to_owned))?;
-    // E1 topology (evidence-and-steady-state.md §5): readiness
-    // evidence is produced and consumed inside this same workspace on
-    // every gate run — never split across jobs where one side can go
-    // stale. Report-only until M7 close arms --require-ready
-    // (landing order row 14).
-    m8_evidence::produce_all()?;
-    // Reuse the all-band summary and the already-run inventory/ledger
-    // checks instead of launching a fourth full-corpus checker pass.
+    // Consume the B2-B4 artifacts in this same workspace/job. Reuse
+    // the all-band summary and the already-run inventory/ledger checks
+    // instead of launching another full-corpus checker pass.
     m8_readiness_inner(false, Some(&summaries.all), true)?;
     // E2 current-documentation gate: readiness above produces the
     // same-workspace report consumed by the generated README block.
