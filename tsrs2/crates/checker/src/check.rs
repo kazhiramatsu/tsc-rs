@@ -186,6 +186,7 @@ impl<'a> CheckerState<'a> {
         self.check_jsdoc_variadic_parameter_grammar(root);
         self.check_jsdoc_optional_parameter_order(root);
         self.check_jsdoc_template_tag_curly_name_grammar(root);
+        self.check_jsdoc_type_reference_recovery_grammar(root);
         self.check_jsdoc_identifier_name_grammar(root);
         self.check_jsdoc_satisfies_type_expression_grammar(root);
         self.check_jsdoc_template_tag_modifier_grammar(root);
@@ -2654,6 +2655,167 @@ impl<'a> CheckerState<'a> {
                     diagnostics.insert((start, start + 1));
                 }
                 line_offset += line.len();
+            }
+        }
+        diagnostics.into_iter().collect()
+    }
+
+    /// tsrs-native: project parseEntityNameOfTypeReference's missing
+    /// type diagnostic while JSDoc type nodes are absent from the arena.
+    ///
+    /// tsc-port: parseEntityNameOfTypeReference @6.0.3
+    /// tsc-hash: 7140a746a8fa4d2a7c47046886c8bc17cd06a04a4b058c23017b2aa451fe28e7
+    /// tsc-span: _tsc.js:30673-30679
+    /// d2: d2:3bdd06a01b186e396fede2e298f02bb74b916b1041d39113262740f2bbd21b94
+    ///
+    /// The bounded residual has three recovery-token faces. An empty
+    /// template default (`[T=]`) recovers at `]`. In a multiline
+    /// typedef without the supported per-line leading `*` convention,
+    /// the JSDoc scanner consumes a standalone type `*` as trivia and
+    /// the type parser recovers at the following `,` or closing `}`.
+    fn check_jsdoc_type_reference_recovery_grammar(&mut self, root: NodeId) {
+        if !self.is_in_js_file(root) {
+            return;
+        }
+        for (start, end) in self.jsdoc_type_reference_recovery_spans(root) {
+            let diagnostics_before = self.diagnostics.len();
+            self.error_at_byte_range(root, start, end, &diagnostics::Type_expected);
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1110);
+        }
+    }
+
+    fn jsdoc_type_reference_recovery_spans(&self, root: NodeId) -> Vec<(usize, usize)> {
+        let source = self.binder.source_of_node(root);
+        let mut diagnostics = std::collections::BTreeSet::new();
+        for (body_start, comment_close) in self.jsdoc_comment_body_ranges(root) {
+            let body = &source.text[body_start..comment_close];
+            let lines = body.split_inclusive('\n').collect::<Vec<_>>();
+            let mut line_offsets = Vec::with_capacity(lines.len());
+            let mut line_offset = 0usize;
+            for line in &lines {
+                line_offsets.push(line_offset);
+                line_offset += line.len();
+            }
+
+            for (line_index, line) in lines.iter().enumerate() {
+                let line_without_lf = line.strip_suffix('\n').unwrap_or(line);
+                let line_without_break = line_without_lf
+                    .strip_suffix('\r')
+                    .unwrap_or(line_without_lf);
+                let leading = line_without_break.len()
+                    - line_without_break
+                        .trim_start_matches(char::is_whitespace)
+                        .len();
+                let raw_candidate = &line_without_break[leading..];
+
+                let mut candidate = raw_candidate;
+                let mut candidate_offset = leading;
+                if let Some(after_star) = candidate.strip_prefix('*') {
+                    candidate_offset += 1;
+                    let star_space =
+                        after_star.len() - after_star.trim_start_matches(char::is_whitespace).len();
+                    candidate_offset += star_space;
+                    candidate = &after_star[star_space..];
+                }
+
+                if let Some(template_tail) = candidate.strip_prefix("@template").filter(|tail| {
+                    tail.chars()
+                        .next()
+                        .is_some_and(|character| character.is_whitespace() || character == '{')
+                }) {
+                    let whitespace = template_tail.len()
+                        - template_tail.trim_start_matches(char::is_whitespace).len();
+                    let mut parameter = &template_tail[whitespace..];
+                    let mut parameter_offset = candidate_offset + "@template".len() + whitespace;
+                    if let Some((_, consumed)) = jsdoc_braced_payload(parameter) {
+                        parameter = &parameter[consumed..];
+                        parameter_offset += consumed;
+                        let constraint_space = parameter.len()
+                            - parameter.trim_start_matches(char::is_whitespace).len();
+                        parameter = &parameter[constraint_space..];
+                        parameter_offset += constraint_space;
+                    }
+                    if let Some(bracket_tail) = parameter.strip_prefix('[') {
+                        if let Some(close_relative) = bracket_tail.find(']') {
+                            let inside = &bracket_tail[..close_relative];
+                            if let Some(equals) = inside.find('=') {
+                                if inside[equals + 1..].trim().is_empty() {
+                                    let start = body_start
+                                        + line_offsets[line_index]
+                                        + parameter_offset
+                                        + 1
+                                        + close_relative;
+                                    diagnostics.insert((start, start + 1));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                let Some(typedef_tail) = raw_candidate.strip_prefix("@typedef").filter(|tail| {
+                    tail.chars()
+                        .next()
+                        .is_some_and(|character| character.is_whitespace() || character == '{')
+                }) else {
+                    continue;
+                };
+                if !typedef_tail.trim_start().starts_with("{{") {
+                    continue;
+                }
+
+                let mut property_line = line_index + 1;
+                while property_line < lines.len() {
+                    let property = jsdoc_raw_line(lines[property_line]);
+                    if property.trim_start().starts_with("}}") {
+                        break;
+                    }
+                    let property_candidate = property.trim_start();
+                    let Some((property_name, property_tail)) = property_candidate.split_once(':')
+                    else {
+                        property_line += 1;
+                        continue;
+                    };
+                    if property_name.is_empty()
+                        || !property_name.chars().all(|character| {
+                            character.is_alphanumeric() || "_$".contains(character)
+                        })
+                        || !property_tail.trim().is_empty()
+                    {
+                        property_line += 1;
+                        continue;
+                    }
+
+                    let type_line = property_line + 1;
+                    let Some(type_raw) = lines.get(type_line).map(|line| jsdoc_raw_line(line))
+                    else {
+                        break;
+                    };
+                    let type_leading =
+                        type_raw.len() - type_raw.trim_start_matches(char::is_whitespace).len();
+                    let type_candidate = &type_raw[type_leading..];
+                    if type_candidate == "*," {
+                        let start = body_start + line_offsets[type_line] + type_leading + 1;
+                        diagnostics.insert((start, start + 1));
+                    } else if type_candidate == "*" {
+                        let mut recovery_line = type_line + 1;
+                        while recovery_line < lines.len()
+                            && jsdoc_raw_line(lines[recovery_line]).trim().is_empty()
+                        {
+                            recovery_line += 1;
+                        }
+                        if recovery_line < lines.len() {
+                            let recovery_raw = jsdoc_raw_line(lines[recovery_line]);
+                            let recovery_leading = recovery_raw.len()
+                                - recovery_raw.trim_start_matches(char::is_whitespace).len();
+                            if recovery_raw[recovery_leading..].starts_with("}}") {
+                                let start =
+                                    body_start + line_offsets[recovery_line] + recovery_leading;
+                                diagnostics.insert((start, start + 1));
+                            }
+                        }
+                    }
+                    property_line = type_line + 1;
+                }
             }
         }
         diagnostics.into_iter().collect()
@@ -10964,6 +11126,11 @@ fn jsdoc_candidate_tag_tail<'a>(
     })
 }
 
+fn jsdoc_raw_line(line: &str) -> &str {
+    let line = line.strip_suffix('\n').unwrap_or(line);
+    line.strip_suffix('\r').unwrap_or(line)
+}
+
 fn is_well_formed_jsdoc_variadic_type(text: &str) -> bool {
     let Some(element) = text.trim().strip_prefix("...") else {
         return false;
@@ -12246,6 +12413,120 @@ mod tests {
         let ts_diagnostics = checked_file_diags_with("a.ts", "/**\n * @import\n */\n", &options);
         assert!(
             ts_diagnostics.iter().all(|diagnostic| diagnostic.0 != 1109),
+            "JSDoc parser projection is JavaScript-only: {ts_diagnostics:?}"
+        );
+    }
+
+    // ---- M7 8.1ab JSDoc type-reference recovery grammar ----
+
+    #[test]
+    fn jsdoc_type_reference_recovery_reports_exact_tokens() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = concat!(
+            "/**\n",
+            " * @template {string | number} [T=]\n",
+            " * @typedef {[T]} EmptyDefault\n",
+            " */\n",
+            "/**\n",
+            "   @typedef {{\n",
+            "     foo:\n",
+            "     *,\n",
+            "     bar:\n",
+            "     *\n",
+            "   }} Broken\n",
+            " */\n",
+        );
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let mut diagnostics = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 1110)
+                .map(|diagnostic| {
+                    (
+                        diagnostic.start.expect("TS1110 start"),
+                        diagnostic.length.expect("TS1110 length"),
+                        diagnostic.message_text().to_owned(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            diagnostics.sort_by_key(|diagnostic| diagnostic.0);
+            let expected = [
+                (
+                    text.find("[T=]").expect("empty template default") + "[T=".len(),
+                    1,
+                ),
+                (
+                    text.find("*,").expect("standalone star before comma") + "*".len(),
+                    1,
+                ),
+                (text.find("}} Broken").expect("closing typedef brace"), 1),
+            ];
+            assert_eq!(
+                diagnostics,
+                expected
+                    .map(|(start, length)| { (start as u32, length, "Type expected.".to_owned()) })
+                    .to_vec()
+            );
+            for (start, length) in expected {
+                assert!(state.non_jsdoc_js_diagnostics.contains(&(
+                    "a.js".to_owned(),
+                    start as u32,
+                    length,
+                    1110,
+                )));
+            }
+        });
+    }
+
+    #[test]
+    fn jsdoc_type_reference_recovery_preserves_valid_and_non_tag_faces() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = concat!(
+            "/** @template {string | number} [T=string] */\n",
+            "/** @template {string | number} [T] */\n",
+            "/** @templates {string | number} [T=] */\n",
+            "/** prose @template {string | number} [T=] */\n",
+            "/**\n",
+            " * @typedef {{\n",
+            " *   foo:\n",
+            " *   *,\n",
+            " *   bar:\n",
+            " *   *\n",
+            " * }} ValidWithStars\n",
+            " */\n",
+            "/**\n",
+            "   @typedef {{\n",
+            "     foo:\n",
+            "     string,\n",
+            "     bar:\n",
+            "     number\n",
+            "   }} ValidWithoutStars\n",
+            " */\n",
+            "/* @template {number} [T=] */\n",
+            "const text = '/** @template {number} [T=] */';\n",
+        );
+        let diagnostics = checked_file_diags_with("a.js", text, &options);
+        assert!(
+            diagnostics.iter().all(|diagnostic| diagnostic.0 != 1110),
+            "valid/non-tag type-reference faces must not produce TS1110: {diagnostics:?}"
+        );
+
+        let ts_diagnostics = checked_file_diags_with(
+            "a.ts",
+            "/** @template {number} [T=] */\nconst value = 1;\n",
+            &options,
+        );
+        assert!(
+            ts_diagnostics.iter().all(|diagnostic| diagnostic.0 != 1110),
             "JSDoc parser projection is JavaScript-only: {ts_diagnostics:?}"
         );
     }
