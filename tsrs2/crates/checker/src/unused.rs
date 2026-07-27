@@ -53,6 +53,7 @@ impl<'a> CheckerState<'a> {
                     self.mark_checked_js_source_references_for_unused(node);
                     self.check_unused_locals_and_parameters(node)
                 }
+                SyntaxKind::Block => self.check_unused_locals_and_parameters(node),
                 _ => Ok(()),
             };
             if self.is_ambient_for_unused(node) || self.options.no_unused_locals != Some(true) {
@@ -1017,7 +1018,9 @@ mod tests {
         check_program(&files, options)
             .diagnostics
             .into_iter()
-            .filter(|diagnostic| matches!(diagnostic.code(), 6133 | 6138 | 6192))
+            .filter(|diagnostic| {
+                matches!(diagnostic.code(), 6133 | 6138 | 6192 | 6196 | 6198 | 6199)
+            })
             .map(|diagnostic| {
                 (
                     diagnostic.code(),
@@ -1188,6 +1191,54 @@ mod tests {
                 17,
                 4,
                 "'dead' is declared but its value is never read.".to_owned(),
+            )]
+        );
+    }
+
+    #[test]
+    fn block_locals_follow_suggestion_and_error_modes() {
+        let text = "export {};\nif (true) {\n    const dead = 1;\n}\n";
+        for (options, category) in [
+            (CompilerOptions::default(), DiagnosticCategory::Suggestion),
+            (
+                CompilerOptions {
+                    no_unused_locals: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Error,
+            ),
+        ] {
+            assert_eq!(
+                unused_rows(text, &options),
+                [(
+                    6133,
+                    category,
+                    33,
+                    4,
+                    "'dead' is declared but its value is never read.".to_owned(),
+                )]
+            );
+        }
+    }
+
+    #[test]
+    fn block_locals_preserve_reads_and_group_unused_variables() {
+        assert!(unused_rows(
+            "export {};\nif (true) {\n    const used = 1;\n    void used;\n}\n",
+            &CompilerOptions::default(),
+        )
+        .is_empty());
+        assert_eq!(
+            unused_rows(
+                "export {};\nif (true) {\n    const first = 1, second = 2;\n}\n",
+                &CompilerOptions::default(),
+            ),
+            [(
+                6199,
+                DiagnosticCategory::Suggestion,
+                27,
+                28,
+                "All variables are unused.".to_owned(),
             )]
         );
     }

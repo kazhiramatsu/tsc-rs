@@ -3995,9 +3995,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:83214-83228
     ///
     /// The isFunctionOrModuleBlock flowAnalysisDisabled save/restore is
-    /// M5 flow state (no field yet), and registerForUnusedIdentifiersCheck
-    /// is inert until M7 (worker note) — both branches reduce to the
-    /// statement loop.
+    /// still represented by the common statement walk. Block-local
+    /// unused identifiers are registered after that walk, matching
+    /// tsc's deferred producer order.
     pub(crate) fn check_block(&mut self, node: NodeId) -> CheckResult2<()> {
         if self.kind_of(node) == SyntaxKind::Block {
             self.check_grammar_statement_in_ambient_context(node);
@@ -4009,6 +4009,9 @@ impl<'a> CheckerState<'a> {
         };
         for statement in self.nodes_of(statements) {
             self.check_source_element(Some(statement));
+        }
+        if self.binder.locals_of(node).is_some() {
+            self.register_for_unused_identifiers_check(node);
         }
         Ok(())
     }

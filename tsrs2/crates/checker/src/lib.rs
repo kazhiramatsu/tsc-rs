@@ -3979,6 +3979,7 @@ mod tests {
             result
                 .diagnostics
                 .iter()
+                .filter(|diagnostic| diagnostic.category() == DiagnosticCategory::Error)
                 .map(|d| d.code())
                 .collect::<Vec<_>>(),
             [2678]
@@ -4346,6 +4347,7 @@ mod tests {
             result
                 .diagnostics
                 .iter()
+                .filter(|diagnostic| diagnostic.category() == DiagnosticCategory::Error)
                 .map(|d| d.code())
                 .collect::<Vec<_>>(),
             Vec::<u32>::new()
