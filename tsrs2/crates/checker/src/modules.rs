@@ -5470,8 +5470,9 @@ impl<'a> CheckerState<'a> {
     /// addLazyDiagnostic = eager identity (5.4). The
     /// verbatimModuleSyntax/CommonJS row is live for instantiated
     /// namespaces; erasableSyntaxOnly and the isolatedModules
-    /// global-script row remain outside this slice. The M7
-    /// registerForUnusedIdentifiersCheck registration is inert.
+    /// global-script row remain outside this slice. A module body is
+    /// registered for deferred unused checking after its elements are
+    /// checked; global augmentations are excluded.
     pub(crate) fn check_module_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
         let (name, body, modifiers) = match self.data_of(node) {
             NodeData::ModuleDeclaration(data) => (data.name, data.body, data.modifiers),
@@ -5482,6 +5483,9 @@ impl<'a> CheckerState<'a> {
         }
         let source = self.binder.source_of_node(node);
         let is_global_augmentation = node_util::is_global_scope_augmentation(source, node);
+        if body.is_some() && !is_global_augmentation {
+            self.register_for_unused_identifiers_check(node);
+        }
         let in_ambient_context = self
             .binder
             .flags_of(node)

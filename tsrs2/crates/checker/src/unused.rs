@@ -53,7 +53,9 @@ impl<'a> CheckerState<'a> {
                     self.mark_checked_js_source_references_for_unused(node);
                     self.check_unused_locals_and_parameters(node)
                 }
-                SyntaxKind::Block => self.check_unused_locals_and_parameters(node),
+                SyntaxKind::ModuleDeclaration | SyntaxKind::Block => {
+                    self.check_unused_locals_and_parameters(node)
+                }
                 _ => Ok(()),
             };
             if self.is_ambient_for_unused(node) || self.options.no_unused_locals != Some(true) {
@@ -1241,6 +1243,49 @@ mod tests {
                 "All variables are unused.".to_owned(),
             )]
         );
+    }
+
+    #[test]
+    fn module_locals_follow_suggestion_and_error_modes() {
+        let text = "export namespace N {\n    const dead = 1;\n}\n";
+        for (options, category) in [
+            (CompilerOptions::default(), DiagnosticCategory::Suggestion),
+            (
+                CompilerOptions {
+                    no_unused_locals: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Error,
+            ),
+        ] {
+            assert_eq!(
+                unused_rows(text, &options),
+                [(
+                    6133,
+                    category,
+                    31,
+                    4,
+                    "'dead' is declared but its value is never read.".to_owned(),
+                )]
+            );
+        }
+    }
+
+    #[test]
+    fn module_registration_preserves_exports_reads_and_global_augmentations() {
+        assert!(unused_rows(
+            "export namespace N {\n    const used = 1;\n    void used;\n    export const publicValue = 2;\n}\n",
+            &CompilerOptions::default(),
+        )
+        .is_empty());
+        assert!(unused_rows(
+            "export {};\ndeclare global {\n    const ambientGlobal: number;\n}\n",
+            &CompilerOptions {
+                no_unused_locals: Some(true),
+                ..CompilerOptions::default()
+            },
+        )
+        .is_empty());
     }
 
     #[test]

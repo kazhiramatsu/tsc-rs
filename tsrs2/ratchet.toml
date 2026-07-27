@@ -359,8 +359,11 @@
 # m7 8.4b adds +571 by surfacing Block-owned unused locals after
 # checkBlock's deferred registration; T1-T3 have no losses and
 # all-corpus FP remains zero.
-rate = 0.751693
-matched = 36851
+# m7 8.4c adds +859 by surfacing ModuleDeclaration-owned unused
+# locals while excluding global augmentations; T1-T3 gain the same
+# exact identities with no losses, and all-corpus FP remains zero.
+rate = 0.769215
+matched = 37710
 total = 49024
 allowed_regression = 0.0
 
