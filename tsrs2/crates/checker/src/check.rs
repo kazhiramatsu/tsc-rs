@@ -178,6 +178,7 @@ impl<'a> CheckerState<'a> {
             return;
         }
         self.check_grammar_source_file(root);
+        self.check_jsdoc_import_clause_from_grammar(root);
         self.check_jsdoc_import_tag_resolution_mode_attributes(root);
         self.check_jsdoc_parameter_type_argument_grammar(root);
         self.check_jsdoc_variadic_parameter_grammar(root);
@@ -1877,6 +1878,106 @@ impl<'a> CheckerState<'a> {
             line_offset += line.len();
         }
         None
+    }
+
+    /// tsrs-native: project tryParseImportClause's required `from`
+    /// token over JSDoc import tags while JSDoc nodes are absent from
+    /// the arena.
+    ///
+    /// tsc-port: tryParseImportClause @6.0.3
+    /// tsc-hash: 8fc1b85a1cfcb6b20569b117c2b944d0dbeced18e4c61c8242fcd612633ee931
+    /// tsc-span: _tsc.js:34455-34464
+    /// d2: d2:2a21c9ee0e681c8aa3284e2f8f2bc64eb0b80dd475e01bb73088b9827ca56a55
+    ///
+    /// parseImportTag supplies a leading identifier as the default
+    /// import, so tryParseImportClause unconditionally expects `from`
+    /// after it. The three residual recovery tokens are an asterisk,
+    /// the comment-close token, and an equals token.
+    fn check_jsdoc_import_clause_from_grammar(&mut self, root: NodeId) {
+        if !self.is_in_js_file(root) {
+            return;
+        }
+        for (start, end) in self.jsdoc_import_clause_missing_from_spans(root) {
+            let diagnostics_before = self.diagnostics.len();
+            self.error_at_byte_range_with_args(
+                root,
+                start,
+                end,
+                &diagnostics::_0_expected,
+                &["from"],
+            );
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1005);
+        }
+    }
+
+    fn jsdoc_import_clause_missing_from_spans(&self, root: NodeId) -> Vec<(usize, usize)> {
+        let source = self.binder.source_of_node(root);
+        let mut diagnostics = std::collections::BTreeSet::new();
+        for (body_start, comment_close) in self.jsdoc_comment_body_ranges(root) {
+            let body = &source.text[body_start..comment_close];
+            let mut line_offset = 0usize;
+            for line in body.split_inclusive('\n') {
+                let line_without_lf = line.strip_suffix('\n').unwrap_or(line);
+                let line_without_break = line_without_lf
+                    .strip_suffix('\r')
+                    .unwrap_or(line_without_lf);
+                let leading = line_without_break.len()
+                    - line_without_break
+                        .trim_start_matches(char::is_whitespace)
+                        .len();
+                let mut candidate = &line_without_break[leading..];
+                let mut candidate_offset = leading;
+                if let Some(after_star) = candidate.strip_prefix('*') {
+                    candidate_offset += 1;
+                    let star_space =
+                        after_star.len() - after_star.trim_start_matches(char::is_whitespace).len();
+                    candidate_offset += star_space;
+                    candidate = &after_star[star_space..];
+                }
+                let Some(tag_tail) = candidate.strip_prefix("@import") else {
+                    line_offset += line.len();
+                    continue;
+                };
+                if !tag_tail.chars().next().is_some_and(char::is_whitespace) {
+                    line_offset += line.len();
+                    continue;
+                }
+                let tag_whitespace =
+                    tag_tail.len() - tag_tail.trim_start_matches(char::is_whitespace).len();
+                let clause = &tag_tail[tag_whitespace..];
+                let identifier_length = clause
+                    .find(|character: char| {
+                        !(character == '_' || character == '$' || character.is_ascii_alphanumeric())
+                    })
+                    .unwrap_or(clause.len());
+                let identifier = &clause[..identifier_length];
+                if !is_jsdoc_identifier(identifier) {
+                    line_offset += line.len();
+                    continue;
+                }
+                let after_identifier = &clause[identifier_length..];
+                let whitespace = after_identifier.len()
+                    - after_identifier
+                        .trim_start_matches(char::is_whitespace)
+                        .len();
+                let recovery = &after_identifier[whitespace..];
+                let recovery_start = body_start
+                    + line_offset
+                    + candidate_offset
+                    + "@import".len()
+                    + tag_whitespace
+                    + identifier_length
+                    + whitespace;
+                if recovery.starts_with(['*', '=']) {
+                    diagnostics.insert((recovery_start, recovery_start + 1));
+                } else if recovery.is_empty() && body[line_offset + line.len()..].trim().is_empty()
+                {
+                    diagnostics.insert((comment_close, comment_close));
+                }
+                line_offset += line.len();
+            }
+        }
+        diagnostics.into_iter().collect()
     }
 
     /// tsc-port: checkJSDocImportTag @6.0.3
@@ -11854,6 +11955,85 @@ mod tests {
             "/** @satisfies T1 */\nconst typed = {};\n",
             &options,
         );
+        assert!(
+            ts_diagnostics.iter().all(|diagnostic| diagnostic.0 != 1005),
+            "JSDoc parser projection is JavaScript-only: {ts_diagnostics:?}"
+        );
+    }
+
+    // ---- M7 8.1y JSDoc import-clause `from` grammar ----
+
+    #[test]
+    fn jsdoc_default_import_clause_requires_from_keyword() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/** @import defer * as ns from \"./types\" */\n\
+                    /**\n * @import foo\n */\n\
+                    /** @import x = require(\"types\") */\n";
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let mut diagnostics = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 1005)
+                .map(|diagnostic| {
+                    (
+                        diagnostic.start.expect("TS1005 start"),
+                        diagnostic.length.expect("TS1005 length"),
+                        diagnostic.message_text().to_owned(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            diagnostics.sort_by_key(|diagnostic| diagnostic.0);
+            let defer_star =
+                text.find("@import defer *").expect("defer import") + "@import defer ".len();
+            let foo_tag = text.find("@import foo").expect("missing-from import");
+            let foo_close = foo_tag + text[foo_tag..].find("*/").expect("foo comment close");
+            let import_equals =
+                text.find("@import x =").expect("import-equals spelling") + "@import x ".len();
+            let expected = [(defer_star, 1), (foo_close, 0), (import_equals, 1)];
+            assert_eq!(
+                diagnostics,
+                expected
+                    .map(|(start, length)| {
+                        (start as u32, length, "'from' expected.".to_owned())
+                    })
+                    .to_vec()
+            );
+            for (start, length) in expected {
+                assert!(state.non_jsdoc_js_diagnostics.contains(&(
+                    "a.js".to_owned(),
+                    start as u32,
+                    length,
+                    1005,
+                )));
+            }
+        });
+    }
+
+    #[test]
+    fn jsdoc_import_from_projection_preserves_valid_and_non_tag_faces() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/** @import Foo from \"./foo\" */\n\
+                    /** @import * as ns from \"./foo\" */\n\
+                    /** @import { Bar } from \"./foo\" */\n\
+                    /** @import Foo, { Bar } from \"./foo\" */\n\
+                    /** prose @import foo */\n\
+                    /** @imports foo */\n";
+        let diagnostics = checked_file_diags_with("a.js", text, &options);
+        assert!(
+            diagnostics.iter().all(|diagnostic| diagnostic.0 != 1005),
+            "valid/non-tag import faces must not produce TS1005: {diagnostics:?}"
+        );
+
+        let ts_diagnostics = checked_file_diags_with("a.ts", "/** @import foo */\n", &options);
         assert!(
             ts_diagnostics.iter().all(|diagnostic| diagnostic.0 != 1005),
             "JSDoc parser projection is JavaScript-only: {ts_diagnostics:?}"
