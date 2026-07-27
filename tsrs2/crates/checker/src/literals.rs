@@ -16,8 +16,8 @@
 //! accessors defer to the 5.8-DECL escape arm in check_deferred_node;
 //! grammar walks checkGrammarObjectLiteralExpression (89637) and the
 //! object-member dispatch to checkGrammarMethod (89943) are live from
-//! M7 8.1b. Private-name placement remains with 8.1f and the numeric
-//! literal suggestion remains with 8.4.
+//! M7 8.1b. Private-name placement is live from 8.1f and the numeric
+//! literal suggestion from 8.4u.
 
 use tsrs2_binder::{node_util, SymbolId, SymbolTable};
 use tsrs2_diags::gen as diagnostics;
@@ -42,6 +42,44 @@ struct ArrayLiteralScan {
 }
 
 impl<'a> CheckerState<'a> {
+    /// tsc-port: checkGrammarNumericLiteral @6.0.3
+    /// tsc-hash: 108c2f7b55f8d51f778ac92db56a82d1a4fc5a7d0e90a73a4771e30254b23468
+    /// tsc-span: _tsc.js:90342-90357
+    /// d2: d2:ee8b75d3b84fb54cb858783c35491bcc6040d9b75088947813e72cfebc874b48
+    ///
+    /// The syntax tree stores tsc's cooked `node.text` but not
+    /// `numericLiteralFlags`. Recover Scientific from the raw token
+    /// spelling after excluding radix forms, whose hex digits may
+    /// themselves contain `e`/`E`.
+    pub(crate) fn check_grammar_numeric_literal(&mut self, node: NodeId) -> CheckResult2<()> {
+        let raw_text = self.text_of_node(node)?;
+        let bytes = raw_text.as_bytes();
+        let is_radix = bytes.len() >= 2
+            && bytes[0] == b'0'
+            && matches!(bytes[1], b'x' | b'X' | b'b' | b'B' | b'o' | b'O');
+        let is_fractional = raw_text.contains('.');
+        let is_scientific = !is_radix && bytes.iter().any(|byte| matches!(byte, b'e' | b'E'));
+        if is_fractional || is_scientific {
+            return Ok(());
+        }
+
+        let value = match self.data_of(node) {
+            NodeData::NumericLiteral(data) => {
+                crate::annotate::parse_numeric_literal_text(&data.text)?
+            }
+            _ => return Ok(()),
+        };
+        if value <= 9_007_199_254_740_991.0 {
+            return Ok(());
+        }
+        self.error_at(
+            Some(node),
+            &diagnostics::Numeric_literals_with_absolute_values_equal_to_2_53_or_greater_are_too_large_to_be_represented_accurately_as_integers,
+            &[],
+        );
+        Ok(())
+    }
+
     /// tsc-port: isSpreadIntoCallOrNew @6.0.3
     /// tsc-hash: 6d3c782aabde636ca8c97a9748cdf590f6340d59939db21f73474693d39ebe10
     /// tsc-span: _tsc.js:73952-73955
@@ -652,8 +690,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// M7 8.1b owns the main object-literal grammar table; M7 8.1f
     /// completes its private-name placement row (TS18016). The
-    /// large-integer suggestion (TS80008) remains suggestion-band
-    /// 8.4-owned.
+    /// large-integer suggestion (TS80008) is live from 8.4u.
     fn check_grammar_object_literal_expression(
         &mut self,
         node: NodeId,
@@ -795,8 +832,11 @@ impl<'a> CheckerState<'a> {
                 _ => continue,
             };
 
-            // checkGrammarNumericLiteral is the TS80008 suggestion
-            // producer and remains with M7 8.4.
+            if current_kind & PROPERTY_ASSIGNMENT != 0
+                && self.kind_of(name) == SyntaxKind::NumericLiteral
+            {
+                self.check_grammar_numeric_literal(name)?;
+            }
             if self.kind_of(name) == SyntaxKind::BigIntLiteral {
                 self.error_at(
                     Some(name),
@@ -1903,6 +1943,7 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
+    use tsrs2_diags::DiagnosticCategory;
     use tsrs2_syntax::SyntaxKind;
     use tsrs2_types::CompilerOptions;
 
@@ -1934,6 +1975,22 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    fn large_numeric_suggestion_spans(text: &str) -> Vec<(DiagnosticCategory, String)> {
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 80008)
+                .map(|diagnostic| {
+                    let start = diagnostic.start.expect("spanned suggestion") as usize;
+                    let end = start + diagnostic.length.expect("spanned suggestion") as usize;
+                    (diagnostic.category(), text[start..end].to_owned())
+                })
+                .collect()
+        })
     }
 
     #[test]
@@ -2152,6 +2209,64 @@ mod tests {
     }
 
     // ---- M7 8.1b: object-literal grammar owner cluster ----
+
+    #[test]
+    fn large_integer_suggestion_observes_threshold_and_literal_form() {
+        let text = "9007199254740991;\n\
+                    9007199254740992;\n\
+                    -9007199254740992;\n\
+                    9007199254740992.0;\n\
+                    9.007199254740992e15;\n";
+        assert_eq!(
+            large_numeric_suggestion_spans(text),
+            [
+                (
+                    DiagnosticCategory::Suggestion,
+                    "9007199254740992".to_owned()
+                ),
+                (
+                    DiagnosticCategory::Suggestion,
+                    "9007199254740992".to_owned()
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn large_radix_integers_are_not_mistaken_for_scientific_literals() {
+        let text = "0x20000000000000;\n\
+                    0xEEEEEEEEEEEEEE;\n\
+                    0b100000000000000000000000000000000000000000000000000000;\n\
+                    0o400000000000000000;\n\
+                    9_007_199_254_740_992;\n\
+                    0xDEAD;\n";
+        assert_eq!(
+            large_numeric_suggestion_spans(text)
+                .into_iter()
+                .map(|(_, span)| span)
+                .collect::<Vec<_>>(),
+            [
+                "0x20000000000000",
+                "0xEEEEEEEEEEEEEE",
+                "0b100000000000000000000000000000000000000000000000000000",
+                "0o400000000000000000",
+                "9_007_199_254_740_992",
+            ]
+        );
+    }
+
+    #[test]
+    fn object_property_values_and_names_use_the_exact_grammar_faces() {
+        let text = "({ 9007199254740992: 9007199254740994,\n\
+                       9007199254740996() {} });\n";
+        assert_eq!(
+            large_numeric_suggestion_spans(text)
+                .into_iter()
+                .map(|(_, span)| span)
+                .collect::<Vec<_>>(),
+            ["9007199254740992", "9007199254740994"]
+        );
+    }
 
     #[test]
     fn duplicate_object_props_report_1117_on_the_second_name() {

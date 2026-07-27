@@ -530,8 +530,7 @@ impl<'a> CheckerState<'a> {
                 Ok(self.tables.get_fresh_type_of_literal_type(literal))
             }
             SyntaxKind::NumericLiteral => {
-                // checkGrammarNumericLiteral (90342) emits only the
-                // 80008-family (suggestion band, unmodeled) — skipped.
+                self.check_grammar_numeric_literal(node)?;
                 let NodeData::NumericLiteral(data) = self.data_of(node) else {
                     unreachable!("kind/data agree");
                 };
