@@ -2160,8 +2160,8 @@ impl<'a> CheckerState<'a> {
     /// The lazy tail runs eager (the 5.4 addLazyDiagnostic decision).
     /// M7 activates registration one declaration owner at a time;
     /// FunctionDeclaration, FunctionExpression, ArrowFunction,
-    /// MethodDeclaration, SetAccessor, and Constructor value
-    /// locals/parameters are the current producer-owned slices.
+    /// MethodDeclaration, GetAccessor, SetAccessor, and Constructor
+    /// value locals/parameters are the current producer-owned slices.
     /// Type-parameter diagnostics remain on their separate worker
     /// boundary.
     pub(crate) fn check_signature_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
@@ -2281,6 +2281,7 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::FunctionExpression
                 | SyntaxKind::ArrowFunction
                 | SyntaxKind::MethodDeclaration
+                | SyntaxKind::GetAccessor
                 | SyntaxKind::SetAccessor
                 | SyntaxKind::Constructor
         ) {
@@ -6785,7 +6786,7 @@ mod tests {
             checked_rows(
                 "const o = {\n    get x() {\n        let a: number = \"s\";\n        return 1;\n    },\n};\n"
             ),
-            [(2322, 38, 1)]
+            [(2322, 38, 1), (6133, 38, 1)]
         );
     }
 
@@ -6795,7 +6796,12 @@ mod tests {
             checked_rows(
                 "const o = {\n    get x(this: void, extra: number) {\n        return 1;\n    },\n    set y(_: string) {\n        let b: string = 123;\n        b;\n    },\n};\n"
             ),
-            [(1054, 20, 1), (2784, 22, 10), (2322, 111, 1)]
+            [
+                (1054, 20, 1),
+                (2784, 22, 10),
+                (2322, 111, 1),
+                (6133, 34, 5),
+            ]
         );
     }
 }

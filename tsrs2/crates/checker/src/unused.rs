@@ -68,6 +68,7 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::FunctionExpression
                 | SyntaxKind::ArrowFunction
                 | SyntaxKind::MethodDeclaration
+                | SyntaxKind::GetAccessor
                 | SyntaxKind::SetAccessor
                 | SyntaxKind::Constructor => {
                     if node_util::body_of(self.binder.source_of_node(node), node).is_some() {
@@ -1935,6 +1936,154 @@ mod tests {
                     "'value' is declared but its value is never read.",
                 ),
             ]
+        );
+    }
+
+    #[test]
+    fn get_accessor_locals_and_parameters_use_independent_modes() {
+        let text = "export class Container {\n    get value() {\n        const deadLocal = 1;\n        return 0;\n    }\n}\n\
+                    export const Expression = class {\n    get value() {\n        const deadExpressionLocal = 1;\n        return 0;\n    }\n};\n\
+                    export const object = {\n    get value() {\n        const deadObjectLocal = 1;\n        return 0;\n    },\n};\n\
+                    export class Invalid {\n    get value(deadParameter: number) {\n        return 0;\n    }\n}\n";
+        for (options, parameter_category, local_category) in [
+            (
+                CompilerOptions::default(),
+                DiagnosticCategory::Suggestion,
+                DiagnosticCategory::Suggestion,
+            ),
+            (
+                CompilerOptions {
+                    no_unused_parameters: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Error,
+                DiagnosticCategory::Suggestion,
+            ),
+            (
+                CompilerOptions {
+                    no_unused_locals: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Suggestion,
+                DiagnosticCategory::Error,
+            ),
+            (
+                CompilerOptions {
+                    no_unused_locals: Some(true),
+                    no_unused_parameters: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Error,
+                DiagnosticCategory::Error,
+            ),
+        ] {
+            assert_eq!(
+                unused_rows(text, &options)
+                    .iter()
+                    .map(|(code, category, _, _, message)| { (*code, *category, message.as_str()) })
+                    .collect::<Vec<_>>(),
+                [
+                    (
+                        6133,
+                        local_category,
+                        "'deadLocal' is declared but its value is never read.",
+                    ),
+                    (
+                        6133,
+                        local_category,
+                        "'deadExpressionLocal' is declared but its value is never read.",
+                    ),
+                    (
+                        6133,
+                        local_category,
+                        "'deadObjectLocal' is declared but its value is never read.",
+                    ),
+                    (
+                        6133,
+                        parameter_category,
+                        "'deadParameter' is declared but its value is never read.",
+                    ),
+                ]
+            );
+        }
+    }
+
+    #[test]
+    fn get_accessor_registration_preserves_reads_underscores_and_ambient_declarations() {
+        assert!(unused_rows(
+            "export class Container {\n\
+                 get used() {\n\
+                     const usedLocal = 1;\n\
+                     return usedLocal;\n\
+                 }\n\
+                 get ignored(_ignoredParameter: number) {\n\
+                     return 0;\n\
+                 }\n\
+             }\n\
+             export const object = {\n\
+                 get used() {\n\
+                     const usedLocal = 1;\n\
+                     return usedLocal;\n\
+                 },\n\
+             };\n\
+             export declare class Ambient {\n\
+                 get value(): number;\n\
+             }\n",
+            &CompilerOptions {
+                no_unused_locals: Some(true),
+                no_unused_parameters: Some(true),
+                ..CompilerOptions::default()
+            },
+        )
+        .is_empty());
+    }
+
+    #[test]
+    fn get_accessor_shadowed_parameter_and_local_keep_distinct_kinds() {
+        assert_eq!(
+            unused_rows(
+                "export class Container {\n    get value(value: number) {\n        var [value] = [1];\n        return 0;\n    }\n}\n",
+                &CompilerOptions {
+                    no_unused_parameters: Some(true),
+                    ..CompilerOptions::default()
+                },
+            )
+            .iter()
+            .map(|(code, category, _, _, message)| { (*code, *category, message.as_str()) })
+            .collect::<Vec<_>>(),
+            [
+                (
+                    6133,
+                    DiagnosticCategory::Error,
+                    "'value' is declared but its value is never read.",
+                ),
+                (
+                    6133,
+                    DiagnosticCategory::Suggestion,
+                    "'value' is declared but its value is never read.",
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn get_accessor_nested_class_uses_the_local_mode() {
+        assert_eq!(
+            unused_rows(
+                "export class Container {\n    get value() {\n        class DeadClass {}\n        return 0;\n    }\n}\n",
+                &CompilerOptions {
+                    no_unused_locals: Some(true),
+                    ..CompilerOptions::default()
+                },
+            )
+            .iter()
+            .map(|(code, category, _, _, message)| { (*code, *category, message.as_str()) })
+            .collect::<Vec<_>>(),
+            [(
+                6196,
+                DiagnosticCategory::Error,
+                "'DeadClass' is declared but never used.",
+            )]
         );
     }
 
