@@ -916,12 +916,21 @@ mod tests {
 
     #[test]
     fn const_null_keeps_the_null_type_and_reports_implicit_any_bands() {
-        // 6133 rows are M7 FN.
+        // The function-expression-owned 6133 suggestions are live in
+        // M7 8.4j alongside the implicit-any rows.
         assert_eq!(
             checked_rows(
                 "const b2 = null;\ndeclare let n1: number;\nn1 = b2;\nconst f = function (x) { return 1; };\nf;\nconst fb = function ({ c }, [d]) { return 1; };\nfb;\n"
             ),
-            [(2322, 41, 2), (7006, 70, 1), (7031, 114, 1), (7031, 120, 1)]
+            [
+                (2322, 41, 2),
+                (7006, 70, 1),
+                (7031, 114, 1),
+                (7031, 120, 1),
+                (6133, 70, 1),
+                (6133, 112, 5),
+                (6133, 119, 3),
+            ]
         );
     }
 
@@ -949,8 +958,8 @@ mod tests {
 
     #[test]
     fn loose_mode_reports_suggestion_variants() {
-        // 6133 is M7 FN; 7043/7044 are Suggestion-category rows that
-        // ride the same T0 key space.
+        // 6133, 7043, and 7044 are Suggestion-category rows that ride
+        // the same T0 key space.
         let options = CompilerOptions {
             strict: Some(false),
             ..CompilerOptions::default()
@@ -960,7 +969,7 @@ mod tests {
                 "let a;\na = 1;\nconst f = function (x) { return 1; };\nf;\n",
                 &options
             ),
-            [(7043, 4, 1), (7044, 34, 1)]
+            [(7043, 4, 1), (7044, 34, 1), (6133, 34, 1)]
         );
     }
 
