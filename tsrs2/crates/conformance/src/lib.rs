@@ -1706,6 +1706,7 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
         verbatim_module_syntax: bool_option("verbatimModuleSyntax"),
         allow_umd_global_access: bool_option("allowUmdGlobalAccess"),
         base_url: string_option(program, "baseUrl"),
+        allow_arbitrary_extensions: bool_option("allowArbitraryExtensions"),
         allow_importing_ts_extensions: bool_option("allowImportingTsExtensions"),
         rewrite_relative_import_extensions: bool_option("rewriteRelativeImportExtensions"),
         resolve_json_module: bool_option("resolveJsonModule"),
@@ -2457,6 +2458,27 @@ mod tests {
         assert_eq!(
             compiler_options_from_program(&program).import_helpers,
             Some(true)
+        );
+    }
+
+    #[test]
+    fn allow_arbitrary_extensions_reaches_compiler_options() {
+        let program = tsrs2_harness::ProgramJson {
+            schema: 1,
+            cwd: ".".to_owned(),
+            options: [(
+                "allowArbitraryExtensions".to_owned(),
+                tsrs2_harness::OptionValue::Bool(false),
+            )]
+            .into_iter()
+            .collect(),
+            libs: Vec::new(),
+            files: Vec::new(),
+            matrix_key: String::new(),
+        };
+        assert_eq!(
+            compiler_options_from_program(&program).allow_arbitrary_extensions,
+            Some(false)
         );
     }
 

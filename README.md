@@ -142,7 +142,7 @@ artifacts by every `cargo xtask ci` run:
 
 | View | Exact diagnostic match (T0) |
 | --- | --- |
-| All bands | **98.1234%** (48,104 / 49,024) |
+| All bands | **98.1315%** (48,108 / 49,024) |
 | 2xxx band | **97.4063%** (20,505 / 21,051) |
 | Syntactic | **99.8219%** (2,242 / 2,246) |
 
@@ -150,8 +150,8 @@ False positives are a hard gate: 0 on every merge. Escape
 ceilings: untagged 0, recovery 117. Non-2XXX family
 map: frozen, 15 families / 433 rows.
 
-M8 readiness (report-only until M7 close): 2/10 gates ready.
-Ready: shadow-tiers, emitter-inventory. Pending: m7-gate, scope-frozen, rust-function-dispositions, emitter-dependency-closure, runtime-coverage, differential-fuzzer, performance-baseline, m7-family-rollup.
+M8 readiness (report-only until M7 close): 3/10 gates ready.
+Ready: shadow-tiers, emitter-inventory, m7-family-rollup. Pending: m7-gate, scope-frozen, rust-function-dispositions, emitter-dependency-closure, runtime-coverage, differential-fuzzer, performance-baseline.
 <!-- STATUS:END -->
 
 The table is the **all-corpus visibility view**. It intentionally includes

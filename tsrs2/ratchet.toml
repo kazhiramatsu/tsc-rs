@@ -478,8 +478,14 @@
 # triple-slash path pragmas, resolves explicit supported extensions against
 # the host file set, and reports exact missing-file spans/messages. T1-T3
 # gain the same identities with no losses, external gains, or false positives.
-rate = 0.981234
-matched = 48104
+# m7 8.5b adds all 4 residual TS6263 identities from
+# needAllowArbitraryExtensions. Arbitrary-extension declaration twins now
+# resolve deterministically; the importing-file and option gate publishes the
+# exact diagnostic while preserving recognized-extension substitution. T1-T3
+# gain the same identities with no losses, external gains, or false positives,
+# closing program-resolution-options at 180/180 with canaries 3/3.
+rate = 0.981315
+matched = 48108
 total = 49024
 allowed_regression = 0.0
 

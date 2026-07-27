@@ -152,6 +152,11 @@ pub struct CompilerOptions {
     /// under baseUrl is tsc-undecidable → no 2307). Full baseUrl
     /// semantics (paths mapping) stay unmodeled — ledger.
     pub base_url: Option<String>,
+    /// Enables imports resolved through arbitrary-extension declaration
+    /// twins (`file.d.<extension>.ts`). Resolution itself is independent
+    /// of the option; getResolutionDiagnostic reports 6263 when it is
+    /// absent/false and the importing file is not a declaration file.
+    pub allow_arbitrary_extensions: Option<bool>,
     /// M4 5.8d: gates the 5097 An_import_path_can_only_end_with_a_0_
     /// extension row (shouldAllowImportingTsExtension) — a true value
     /// legalizes .ts-family specifiers.
