@@ -423,8 +423,13 @@
 # keeps TS global scripts out, and grouped Unicode-escaped names use cooked
 # identifier text; T1-T3 gain the same identities with no losses, external
 # gains, or false positives.
-rate = 0.965568
-matched = 47336
+# m7 8.4o adds +1 by restoring the parser prerequisite for exported
+# internal import-equals declarations: `export import x = ns.x` is an
+# external-module indicator even though its module reference is not a
+# `require()` call. The unexported form remains a global script; T1-T3
+# gain the same identity with no losses, external gains, or false positives.
+rate = 0.965588
+matched = 47337
 total = 49024
 allowed_regression = 0.0
 

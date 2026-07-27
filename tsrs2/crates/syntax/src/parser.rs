@@ -8182,11 +8182,22 @@ impl<'text> Parser<'text> {
             })
     }
 
+    /// tsc-port: isAnExternalModuleIndicatorNode @6.0.3
+    /// tsc-hash: 475b74b710937306ea99d57073cd1e1d5fc509fec2724ad81664420b57e339c3
+    /// tsc-span: _tsc.js:28304-28306
     fn is_an_external_module_indicator_node(&self, id: NodeId) -> bool {
         let node = self.arena.node(id);
         match &node.data {
             NodeData::ImportEqualsDeclaration(data) => {
-                data.module_reference.is_some_and(|reference| {
+                self.statement_modifiers(id).is_some_and(|modifiers| {
+                    self.arena
+                        .node_array(modifiers)
+                        .nodes
+                        .iter()
+                        .any(|modifier| {
+                            self.arena.node(*modifier).kind == SyntaxKind::ExportKeyword
+                        })
+                }) || data.module_reference.is_some_and(|reference| {
                     self.arena.node(reference).kind == SyntaxKind::ExternalModuleReference
                 })
             }
@@ -11965,6 +11976,30 @@ mod tests {
             panic!("expected side-effect import");
         };
         assert!(side_effect.import_clause.is_none());
+    }
+
+    #[test]
+    fn exported_internal_import_equals_is_an_external_module_indicator() {
+        let exported = parse_source_file(
+            "exported.ts".to_owned(),
+            "export import value = ns.value;".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        let exported_statement = statement_nodes(&exported)[0];
+        assert_eq!(exported.external_module_indicator, Some(exported_statement));
+        assert_eq!(
+            exported.arena.node(exported_statement).kind,
+            SyntaxKind::ImportEqualsDeclaration
+        );
+
+        let internal = parse_source_file(
+            "internal.ts".to_owned(),
+            "import value = ns.value;".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        assert_eq!(internal.external_module_indicator, None);
     }
 
     #[test]
