@@ -1128,6 +1128,12 @@ class = "stage"
 owner = "M8"
 
 [[site]]
+file = "crates/checker/src/unused.rs"
+in = "check_unused_class_members"
+reason = "checkUnusedClassMembers unexpected class member (Debug.fail transcription, parse recovery)"
+class = "recovery"
+
+[[site]]
 file = "crates/checker/src/widen.rs"
 in = "report_implicit_any"
 reason = "reportImplicitAny JSDoc arms ([JSDOC] M8)"

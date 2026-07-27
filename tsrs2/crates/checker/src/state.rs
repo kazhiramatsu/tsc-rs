@@ -486,6 +486,11 @@ pub struct CheckerState<'a> {
     pub(crate) potential_weak_map_set_collisions: Vec<NodeId>,
     pub(crate) potential_reflect_collisions: Vec<NodeId>,
     pub(crate) potential_unused_renamed_binding_elements_in_types: Vec<NodeId>,
+    /// tsc allPotentiallyUnusedIdentifiers' current-file entry. The
+    /// Rust checker drains each file eagerly at the same lazy-
+    /// diagnostic boundary, so a per-file vector preserves ordering
+    /// without retaining the source-file map.
+    pub(crate) potentially_unused_identifiers: Vec<NodeId>,
     /// tsc deferredGlobalDisposableType (60882) — emptyObjectType memo
     /// on miss, like the Promise pair above.
     pub(crate) deferred_global_disposable_type: Option<TypeId>,
@@ -936,6 +941,7 @@ impl<'a> CheckerState<'a> {
             potential_weak_map_set_collisions: Vec::new(),
             potential_reflect_collisions: Vec::new(),
             potential_unused_renamed_binding_elements_in_types: Vec::new(),
+            potentially_unused_identifiers: Vec::new(),
             deferred_global_disposable_type: None,
             deferred_global_async_disposable_type: None,
             deferred_global_extract_symbol: None,

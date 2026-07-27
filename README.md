@@ -147,7 +147,7 @@ artifacts by every `cargo xtask ci` run:
 | Syntactic | **99.8219%** (2,242 / 2,246) |
 
 False positives are a hard gate: 0 on every merge. Escape
-ceilings: untagged 0, recovery 116. Non-2XXX family
+ceilings: untagged 0, recovery 117. Non-2XXX family
 map: frozen, 15 families / 433 rows.
 
 M8 readiness (report-only until M7 close): 2/10 gates ready.

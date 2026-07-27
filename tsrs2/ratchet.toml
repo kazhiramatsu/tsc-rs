@@ -556,7 +556,11 @@ max_untagged = 0
 # createTypeReference crash-guard precedent). Recorded as
 # m8-readiness.md deviation row 4; the differential classifier
 # consumes the row when M8 makes the shape corpus-visible.
-max_recovery = 116
+# m7 8.3b: +1 — checkUnusedClassMembers' default Debug.fail arm.
+# Valid class-member kinds are exhaustively handled; a parser-recovery
+# shape outside that closed set is contained at the registered class
+# boundary instead of panicking the unused drain.
+max_recovery = 117
 # D2a/D1a initial constructibility census: 23 exact rows. Each row
 # names a test canary; once that test exists the annotation is stale
 # and its owning model slice must implement, remove, or narrow it.

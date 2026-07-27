@@ -155,14 +155,12 @@ impl<'a> CheckerState<'a> {
     ///
     /// Elisions, each with its owner:
     /// - the PartiallyTypeChecked restore block: nodesToCheck path.
-    /// - registerForUnusedIdentifiersCheck + the addLazyDiagnostic
-    ///   unused-identifiers block: noUnusedLocals/noUnusedParameters
-    ///   are absent from CompilerOptions, so unusedIsError remains
-    ///   false — the band is inert until M7 models the
-    ///   options. checkPotentialUncheckedRenamedBindingElementsInTypes
-    ///   shares that addLazyDiagnostic block but is NOT option-gated —
-    ///   live from 5.8a (eager identity keeps tsc's order: it runs
-    ///   after the deferred drain, before checkExternalModuleExports).
+    /// - the unused-identifiers lazy block is live incrementally from
+    ///   M7 8.3; its class-member producer lands first. The eager Rust
+    ///   drain keeps tsc's position after deferred nodes.
+    ///   checkPotentialUncheckedRenamedBindingElementsInTypes shares
+    ///   that addLazyDiagnostic block but is NOT option-gated — live
+    ///   from 5.8a and runs immediately after the unused drain.
     /// - checkExternalModuleExports (86505): module export checking is
     ///   5.8d (needs alias declaration resolution).
     fn check_source_file_worker(&mut self, root: NodeId) {
@@ -202,6 +200,7 @@ impl<'a> CheckerState<'a> {
         self.potential_reflect_collisions.clear();
         self.potential_unused_renamed_binding_elements_in_types
             .clear();
+        self.potentially_unused_identifiers.clear();
         let NodeData::SourceFile(data) = self.data_of(root) else {
             unreachable!("check_source_file_worker takes source-file roots");
         };
@@ -213,10 +212,11 @@ impl<'a> CheckerState<'a> {
         self.check_source_element(end_of_file_token);
         self.check_deferred_nodes(root);
         self.check_jsdoc_satisfies_semantics(root);
-        // 87028-87040 addLazyDiagnostic block (eager identity): the
-        // unused-identifiers drain is M7-inert; the renamed-binding
-        // drain runs for non-declaration files, un-option-gated.
+        // 87028-87040 addLazyDiagnostic block (eager identity): unused
+        // errors precede the renamed-binding drain and never run in
+        // declaration files.
         if !is_declaration_file {
+            self.check_unused_identifiers_error_mode();
             self.check_potential_unchecked_renamed_binding_elements_in_types();
         }
         // 87041: external/CJS module → checkExternalModuleExports

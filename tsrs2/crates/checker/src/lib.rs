@@ -41,6 +41,7 @@ pub mod state;
 pub mod statements;
 pub mod structural;
 pub mod unions;
+mod unused;
 pub mod variance;
 pub mod widen;
 

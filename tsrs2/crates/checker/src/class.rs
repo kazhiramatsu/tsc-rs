@@ -445,8 +445,8 @@ impl<'a> CheckerState<'a> {
     ///
     /// The static-private grammar row is LIVE only under
     /// experimental_decorators=true (§10 dual mode: legacyDecorators ==
-    /// the option); registerForUnusedIdentifiersCheck is inert until
-    /// M7.
+    /// the option). M7 registers the class after its members so the
+    /// unused worker observes every reference mark.
     pub(crate) fn check_class_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
         let NodeData::ClassDeclaration(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
@@ -490,6 +490,7 @@ impl<'a> CheckerState<'a> {
         for member in self.nodes_of(members) {
             self.check_source_element(Some(member));
         }
+        self.register_for_unused_identifiers_check(node);
         Ok(())
     }
 
@@ -616,6 +617,7 @@ impl<'a> CheckerState<'a> {
         for member in self.nodes_of(data.members) {
             self.check_source_element(Some(member));
         }
+        self.register_for_unused_identifiers_check(node);
         Ok(())
     }
 

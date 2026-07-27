@@ -2379,8 +2379,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 481c183fe00ed2e2b477f0a529928f3ae93bf03baa43c2685af7d970b7f36a95
     /// tsc-span: _tsc.js:75598-75621
     ///
-    /// The isReferenced write is M7 unused-checks bookkeeping — inert
-    /// until then, ported for the symbol-state parity.
+    /// The isReferenced write is live M7 unused-checks bookkeeping;
+    /// class-member consumption starts in 8.3b.
     pub(crate) fn mark_property_as_referenced(
         &mut self,
         prop: SymbolId,
