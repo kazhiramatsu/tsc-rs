@@ -64,7 +64,9 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::ForStatement
                 | SyntaxKind::ForInStatement
                 | SyntaxKind::ForOfStatement => self.check_unused_locals_and_parameters(node),
-                SyntaxKind::FunctionDeclaration | SyntaxKind::ArrowFunction => {
+                SyntaxKind::FunctionDeclaration
+                | SyntaxKind::ArrowFunction
+                | SyntaxKind::MethodDeclaration => {
                     if node_util::body_of(self.binder.source_of_node(node), node).is_some() {
                         self.check_unused_locals_and_parameters(node)
                     } else {
@@ -1654,6 +1656,126 @@ mod tests {
         assert_eq!(
             unused_rows(
                 "export const shadowed = (value: number) => {\n    var [value] = [1];\n    return 0;\n};\n",
+                &CompilerOptions {
+                    no_unused_parameters: Some(true),
+                    ..CompilerOptions::default()
+                },
+            )
+            .iter()
+            .map(|(code, category, _, _, message)| { (*code, *category, message.as_str()) })
+            .collect::<Vec<_>>(),
+            [
+                (
+                    6133,
+                    DiagnosticCategory::Error,
+                    "'value' is declared but its value is never read.",
+                ),
+                (
+                    6133,
+                    DiagnosticCategory::Suggestion,
+                    "'value' is declared but its value is never read.",
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn method_declaration_locals_and_parameters_use_independent_modes() {
+        let text = "export class Container {\n    method(deadParameter: number, usedParameter: number) {\n        const deadLocal = 1;\n        return usedParameter;\n    }\n}\n\
+                    export const object = {\n    method(deadObjectParameter: number) {\n        const deadObjectLocal = 1;\n        return 0;\n    },\n};\n";
+        for (options, parameter_category, local_category) in [
+            (
+                CompilerOptions::default(),
+                DiagnosticCategory::Suggestion,
+                DiagnosticCategory::Suggestion,
+            ),
+            (
+                CompilerOptions {
+                    no_unused_parameters: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Error,
+                DiagnosticCategory::Suggestion,
+            ),
+            (
+                CompilerOptions {
+                    no_unused_locals: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Suggestion,
+                DiagnosticCategory::Error,
+            ),
+            (
+                CompilerOptions {
+                    no_unused_locals: Some(true),
+                    no_unused_parameters: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Error,
+                DiagnosticCategory::Error,
+            ),
+        ] {
+            assert_eq!(
+                unused_rows(text, &options)
+                    .iter()
+                    .map(|(code, category, _, _, message)| { (*code, *category, message.as_str()) })
+                    .collect::<Vec<_>>(),
+                [
+                    (
+                        6133,
+                        parameter_category,
+                        "'deadParameter' is declared but its value is never read.",
+                    ),
+                    (
+                        6133,
+                        local_category,
+                        "'deadLocal' is declared but its value is never read.",
+                    ),
+                    (
+                        6133,
+                        parameter_category,
+                        "'deadObjectParameter' is declared but its value is never read.",
+                    ),
+                    (
+                        6133,
+                        local_category,
+                        "'deadObjectLocal' is declared but its value is never read.",
+                    ),
+                ]
+            );
+        }
+    }
+
+    #[test]
+    fn method_declaration_registration_preserves_overloads_reads_and_parameter_exemptions() {
+        assert!(unused_rows(
+            "export class Container {\n\
+                 overload(deadSignatureParameter: number): void;\n\
+                 overload(_ignoredImplementationParameter: number): void {}\n\
+                 used(_ignoredParameter: number, usedParameter: number) {\n\
+                     const usedLocal = 1;\n\
+                     return usedParameter + usedLocal;\n\
+                 }\n\
+             }\n\
+             export const object = {\n\
+                 used(_ignoredParameter: number, usedParameter: number) {\n\
+                     return usedParameter;\n\
+                 },\n\
+             };\n",
+            &CompilerOptions {
+                no_unused_locals: Some(true),
+                no_unused_parameters: Some(true),
+                ..CompilerOptions::default()
+            },
+        )
+        .is_empty());
+    }
+
+    #[test]
+    fn method_declaration_shadowed_parameter_and_local_keep_distinct_kinds() {
+        assert_eq!(
+            unused_rows(
+                "export class Container {\n    shadowed(value: number) {\n        var [value] = [1];\n        return 0;\n    }\n}\n",
                 &CompilerOptions {
                     no_unused_parameters: Some(true),
                     ..CompilerOptions::default()

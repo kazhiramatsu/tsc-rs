@@ -3282,7 +3282,7 @@ Object.defineProperty(x, \"writable\", { value: \"\", writable: true });\n\
 Object.defineProperty(x, \"implicit\", { value: \"\" });\n\
 Object.defineProperty(x, \"explicit\", { value: \"\", writable: false });\n\
 Object.defineProperty(x, \"getter\", { get() { return 1; } });\n\
-Object.defineProperty(x, \"accessor\", { get() { return 1; }, set(v) {} });\n"
+Object.defineProperty(x, \"accessor\", { get() { return 1; }, set(_v) {} });\n"
                         .to_owned(),
                 },
                 InputFile {

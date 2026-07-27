@@ -376,8 +376,13 @@
 # recursive bindingNameText port also correct existing exact spans/text:
 # T1 gains 1416 and T2/T3 gain 1477, all with zero losses, external
 # gains, or false positives.
-rate = 0.899498
-matched = 44097
+# m7 8.4g adds +1329 from MethodDeclaration-owned value locals and
+# parameters across class and object-literal methods. Overload bodies,
+# underscore parameters, independent Local/Parameter modes, and
+# shadowed-binding anchors remain oracle-exact; T1-T3 gain the same
+# identities with no losses, external gains, or false positives.
+rate = 0.926607
+matched = 45426
 total = 49024
 allowed_regression = 0.0
 

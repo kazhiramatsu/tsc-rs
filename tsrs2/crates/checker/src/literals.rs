@@ -2219,7 +2219,7 @@ mod tests {
     fn duplicate_object_methods_report_2300_on_the_second_name() {
         assert_eq!(
             checked_rows("({ foo(x: 'hi') {}, foo(x: 'a') {} });\n"),
-            [(2300, 20, 3)]
+            [(2300, 20, 3), (6133, 7, 1), (6133, 24, 1)]
         );
     }
 

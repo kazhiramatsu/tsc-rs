@@ -5090,6 +5090,7 @@ mod tests {
                               this.prototype.missing;\n\
                             }\n\
                           }\n\
+                          Inner;\n\
                         }\n\
                       }\n";
         let result = check_program(
