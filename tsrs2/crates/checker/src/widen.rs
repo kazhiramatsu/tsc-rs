@@ -732,12 +732,104 @@ impl<'a> CheckerState<'a> {
             Some(name) => self.text_of_node(name)?,
             None => "(Missing)".to_owned(),
         };
+        let diagnostics_before = self.diagnostics.len();
         self.error_at(
             Some(declaration),
             diagnostic,
             &[&name_string, &type_as_string],
         );
+        // Checked-JS loose parameter diagnostics produced by
+        // reportImplicitAny are part of tsc's public suggestion stream
+        // unless an effective JSDoc type supplies the parameter context.
+        // The program layer keeps JS diagnostics behind exact producer
+        // provenance; do not expose the checker's conservative internal
+        // `any` when its modeled JSDoc carrier already owns the type.
+        if self.is_in_js_file(declaration)
+            && diagnostic.code == 7044
+            && !self.has_jsdoc_parameter_type_context(declaration)
+        {
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, diagnostic.code);
+        }
         Ok(())
+    }
+
+    /// Keep reportImplicitAny publication on the supported non-JSDoc
+    /// face while JSDoc contextual parameter typing remains M8-owned.
+    ///
+    /// Function expressions and arrows can carry their JSDoc before an
+    /// enclosing variable/binary/property assignment, while a parameter
+    /// may also carry an inline `@type`. Scan from the parameter name
+    /// through its nearest preceding attached doc comment. `=` is an
+    /// attachment-safe carrier token here; a completed statement or
+    /// block boundary is not. Constructor/class/enum/return-only comments
+    /// do not type a parameter and deliberately remain publishable.
+    fn has_jsdoc_parameter_type_context(&self, declaration: NodeId) -> bool {
+        let source = self.binder.source_of_node(declaration);
+        if self.node_contains_jsdoc_semantics(declaration) {
+            return true;
+        }
+        let anchor = match self.data_of(declaration) {
+            NodeData::Parameter(data) => data.name.unwrap_or(declaration),
+            _ => self.name_of_node(declaration).unwrap_or(declaration),
+        };
+        let anchor_pos = source.arena.node(anchor).pos as usize;
+        let prefix = &source.text[..anchor_pos.min(source.text.len())];
+        if let Some(comment_start) = prefix.rfind("/**") {
+            if let Some(relative_end) = prefix[comment_start + 3..].find("*/") {
+                let comment_end = comment_start + 3 + relative_end + 2;
+                let attached = !prefix[comment_end..]
+                    .chars()
+                    .any(|character| matches!(character, ';' | '{' | '}'));
+                if attached
+                    && Self::jsdoc_comment_has_parameter_type_context(
+                        &source.text[comment_start..comment_end],
+                    )
+                {
+                    return true;
+                }
+            }
+        }
+
+        // A destructuring parameter can put `{` between the carrier's
+        // comment and a later parameter name. Fall back to declaration
+        // attachment on the short function/assignment chain.
+        let mut current = self.parent_of(declaration);
+        for _ in 0..6 {
+            let Some(node) = current else {
+                break;
+            };
+            if self.kind_of(node) == SyntaxKind::MethodDeclaration
+                && self.node_contains_jsdoc_semantics(node)
+            {
+                return true;
+            }
+            if let Some((start, end)) = self.leading_jsdoc_comment_range(node) {
+                if Self::jsdoc_comment_has_parameter_type_context(&source.text[start..end]) {
+                    return true;
+                }
+            }
+            if matches!(
+                self.kind_of(node),
+                SyntaxKind::SourceFile | SyntaxKind::Block | SyntaxKind::ModuleBlock
+            ) {
+                break;
+            }
+            current = self.parent_of(node);
+        }
+        false
+    }
+
+    fn jsdoc_comment_has_parameter_type_context(comment: &str) -> bool {
+        let comment = comment.to_ascii_lowercase();
+        // tsc does not resolve legacy inner-namepath parameter types
+        // such as `C~A` as an effective annotation here; the parameter
+        // therefore remains on reportImplicitAny's public loose face.
+        if comment.contains("@param") && comment.contains('~') {
+            return false;
+        }
+        ["@param", "@arg", "@argument", "@type", "@overload"]
+            .iter()
+            .any(|tag| comment.contains(tag))
     }
 
     /// The Parameter NodeArray of a signature-like parent (the 7051
@@ -862,6 +954,7 @@ mod tests {
 
     use crate::state::test_support::with_program_state;
     use crate::state::CheckerState;
+    use crate::{check_program, InputFile};
 
     /// Driver-level fixture check (operators.rs idiom): oracle-pinned
     /// rows (tsc 6.0.3, noLib, options per test) — scratchpad
@@ -971,6 +1064,136 @@ mod tests {
             ),
             [(7043, 4, 1), (7044, 34, 1), (6133, 34, 1)]
         );
+    }
+
+    #[test]
+    fn checked_js_publishes_loose_parameter_suggestions() {
+        let options = CompilerOptions {
+            strict: Some(false),
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let files = [
+            (
+                "parameter.js",
+                "/** @constructor */\nfunction Dependency(j) { return j; }\nDependency({});\n",
+            ),
+            (
+                "inner-namepath.js",
+                "class C {\n/** @param {C~A} value */\nconstructor(value) {}\n}\n",
+            ),
+        ];
+
+        with_program_state(&files, &options, |state| {
+            for file_index in 0..files.len() {
+                state.check_source_file(file_index);
+            }
+            let emitted = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| matches!(diagnostic.code(), 7044 | 7045))
+                .map(|diagnostic| {
+                    (
+                        diagnostic.file_name.clone().expect("file diagnostic"),
+                        diagnostic.start.expect("spanned diagnostic"),
+                        diagnostic.length.expect("spanned diagnostic"),
+                        diagnostic.code(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                emitted.iter().map(|row| row.3).collect::<Vec<_>>(),
+                [7044, 7044]
+            );
+            assert!(emitted
+                .iter()
+                .all(|key| state.non_jsdoc_js_diagnostics.contains(key)));
+        });
+
+        let inputs = files.map(|(name, text)| InputFile {
+            name: name.to_owned(),
+            text: text.to_owned(),
+        });
+        let published = check_program(&inputs, &options)
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| matches!(diagnostic.code(), 7044 | 7045))
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>();
+        assert_eq!(published, [7044, 7044]);
+    }
+
+    #[test]
+    fn unchecked_js_does_not_publish_loose_implicit_any_suggestions() {
+        let options = CompilerOptions {
+            strict: Some(false),
+            allow_js: true,
+            check_js: Some(false),
+            ..CompilerOptions::default()
+        };
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "function f(value) { return value; }\nf(1);\n".to_owned(),
+            }],
+            &options,
+        );
+        assert!(result
+            .diagnostics
+            .iter()
+            .all(|diagnostic| !matches!(diagnostic.code(), 7044 | 7045)));
+    }
+
+    #[test]
+    fn checked_js_keeps_jsdoc_contextual_parameter_approximations_private() {
+        let options = CompilerOptions {
+            strict: Some(false),
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/** @param {number} value */\n\
+                    function f(value) { return value; }\n\
+                    ({\n\
+                      /** @type {() => void} */\n\
+                      method(more) {}\n\
+                    });\n\
+                    const inline = (/** @type {number} */ prop) => prop;\n\
+                    inline(1);\n";
+
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let emitted = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 7044)
+                .map(|diagnostic| {
+                    (
+                        diagnostic.file_name.clone().expect("file diagnostic"),
+                        diagnostic.start.expect("spanned diagnostic"),
+                        diagnostic.length.expect("spanned diagnostic"),
+                        diagnostic.code(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(emitted.len(), 3);
+            assert!(emitted
+                .iter()
+                .all(|key| !state.non_jsdoc_js_diagnostics.contains(key)));
+        });
+
+        let published = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: text.to_owned(),
+            }],
+            &options,
+        );
+        assert!(published
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code() != 7044));
     }
 
     // ---- reportWideningErrorsInType / reportErrorsFromWidening under
