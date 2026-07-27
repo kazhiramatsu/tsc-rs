@@ -212,7 +212,10 @@ impl<'a> CheckerState<'a> {
         self.check_source_element(end_of_file_token);
         self.check_deferred_nodes(root);
         self.check_jsdoc_satisfies_semantics(root);
-        if self.binder.is_external_or_common_js_module_of_node(root) {
+        let is_unused_source_file_owner = self.is_effective_external_module(root)
+            || self.is_in_js_file(root)
+                && self.binder.is_external_or_common_js_module_of_node(root);
+        if is_unused_source_file_owner {
             self.register_for_unused_identifiers_check(root);
         }
         // 87028-87040 addLazyDiagnostic block (eager identity): the
