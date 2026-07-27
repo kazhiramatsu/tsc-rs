@@ -337,8 +337,10 @@
 # missing-name projection and exact TS1069 rows.
 # m7 8.1w adds +6 through parseJSDocIdentifierName's checked-JS
 # missing/invalid entity-name recovery and exact zero-width TS1003 rows.
-rate = 0.667265
-matched = 32712
+# m7 8.1x adds +4 through parseJSDocTypeExpression's checked-JS
+# satisfies-tag required-brace projection and exact TS1005 rows.
+rate = 0.667347
+matched = 32716
 total = 49024
 allowed_regression = 0.0
 

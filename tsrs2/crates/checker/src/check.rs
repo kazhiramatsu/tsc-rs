@@ -184,6 +184,7 @@ impl<'a> CheckerState<'a> {
         self.check_jsdoc_optional_parameter_order(root);
         self.check_jsdoc_template_tag_curly_name_grammar(root);
         self.check_jsdoc_identifier_name_grammar(root);
+        self.check_jsdoc_satisfies_type_expression_grammar(root);
         self.check_jsdoc_template_tag_modifier_grammar(root);
         self.check_jsdoc_satisfies_tag_duplicates(root);
         self.check_jsdoc_cast_type_predicate_grammar(root);
@@ -2531,6 +2532,96 @@ impl<'a> CheckerState<'a> {
                 } else if name_tail.is_empty() {
                     awaiting_parameter_or_property_name = true;
                 }
+                line_offset += line.len();
+            }
+        }
+        diagnostics.into_iter().collect()
+    }
+
+    /// tsrs-native: project parseJSDocTypeExpression's required-brace
+    /// diagnostics for JSDoc satisfies tags while JSDoc nodes are
+    /// absent from the arena.
+    ///
+    /// tsc-port: parseJSDocTypeExpression @6.0.3
+    /// tsc-hash: 325ea8484a74cb8af2c59724306cb66852667232a2d61cb1de369487261e7a6e
+    /// tsc-span: _tsc.js:34787-34797
+    /// d2: d2:cf43460ba6610f9063b48070240cc02225ad0587f4de3225328c61cb7e610c79
+    ///
+    /// parseSatisfiesTag passes `mayOmitBraces = false`. Its opening
+    /// parseExpected reports over the unbraced identifier token; after
+    /// parsing that type, parseExpectedJSDoc creates a zero-width
+    /// missing `}` at the comment-close token. This projection is
+    /// bounded to the terminal, single-identifier shape exercised by
+    /// the four exact residual rows.
+    fn check_jsdoc_satisfies_type_expression_grammar(&mut self, root: NodeId) {
+        if !self.is_in_js_file(root) {
+            return;
+        }
+        for (start, end, brace) in self.jsdoc_satisfies_missing_brace_spans(root) {
+            let diagnostics_before = self.diagnostics.len();
+            self.error_at_byte_range_with_args(
+                root,
+                start,
+                end,
+                &diagnostics::_0_expected,
+                &[brace],
+            );
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1005);
+        }
+    }
+
+    fn jsdoc_satisfies_missing_brace_spans(
+        &self,
+        root: NodeId,
+    ) -> Vec<(usize, usize, &'static str)> {
+        let source = self.binder.source_of_node(root);
+        let mut diagnostics = std::collections::BTreeSet::new();
+        for (body_start, comment_close) in self.jsdoc_comment_body_ranges(root) {
+            let body = &source.text[body_start..comment_close];
+            let mut line_offset = 0usize;
+            for line in body.split_inclusive('\n') {
+                let line_without_lf = line.strip_suffix('\n').unwrap_or(line);
+                let line_without_break = line_without_lf
+                    .strip_suffix('\r')
+                    .unwrap_or(line_without_lf);
+                let leading = line_without_break.len()
+                    - line_without_break
+                        .trim_start_matches(char::is_whitespace)
+                        .len();
+                let mut candidate = &line_without_break[leading..];
+                let mut candidate_offset = leading;
+                if let Some(after_star) = candidate.strip_prefix('*') {
+                    candidate_offset += 1;
+                    let star_space =
+                        after_star.len() - after_star.trim_start_matches(char::is_whitespace).len();
+                    candidate_offset += star_space;
+                    candidate = &after_star[star_space..];
+                }
+                let Some(tail) = candidate.strip_prefix("@satisfies") else {
+                    line_offset += line.len();
+                    continue;
+                };
+                if !tail.chars().next().is_some_and(char::is_whitespace)
+                    || !body[line_offset + line.len()..].trim().is_empty()
+                {
+                    line_offset += line.len();
+                    continue;
+                }
+                let whitespace = tail.len() - tail.trim_start_matches(char::is_whitespace).len();
+                let type_tail = &tail[whitespace..];
+                let mut parts = type_tail.split_whitespace();
+                let Some(type_name) = parts.next() else {
+                    line_offset += line.len();
+                    continue;
+                };
+                if parts.next().is_some() || !is_jsdoc_identifier(type_name) {
+                    line_offset += line.len();
+                    continue;
+                }
+                let type_start =
+                    body_start + line_offset + candidate_offset + "@satisfies".len() + whitespace;
+                diagnostics.insert((type_start, type_start + type_name.len(), "{"));
+                diagnostics.insert((comment_close, comment_close, "}"));
                 line_offset += line.len();
             }
         }
@@ -11676,6 +11767,95 @@ mod tests {
         );
         assert!(
             ts_diagnostics.iter().all(|diagnostic| diagnostic.0 != 1003),
+            "JSDoc parser projection is JavaScript-only: {ts_diagnostics:?}"
+        );
+    }
+
+    // ---- M7 8.1x JSDoc satisfies required-brace grammar ----
+
+    #[test]
+    fn jsdoc_satisfies_type_expression_requires_braces() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/**\n * @satisfies T1\n */\nconst first = {};\n\
+                    const second = /** @satisfies T2 */ ({});\n";
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let mut diagnostics = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 1005)
+                .map(|diagnostic| {
+                    (
+                        diagnostic.start.expect("TS1005 start"),
+                        diagnostic.length.expect("TS1005 length"),
+                        diagnostic.message_text().to_owned(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            diagnostics.sort_by_key(|diagnostic| diagnostic.0);
+            let comment_closes = text
+                .match_indices("*/")
+                .map(|(start, _)| start)
+                .collect::<Vec<_>>();
+            let first_type =
+                text.find("@satisfies T1").expect("multiline satisfies tag") + "@satisfies ".len();
+            let second_type =
+                text.find("@satisfies T2").expect("inline satisfies tag") + "@satisfies ".len();
+            let expected = [
+                (first_type, "T1".len(), "'{' expected."),
+                (comment_closes[0], 0, "'}' expected."),
+                (second_type, "T2".len(), "'{' expected."),
+                (comment_closes[1], 0, "'}' expected."),
+            ];
+            assert_eq!(
+                diagnostics,
+                expected
+                    .map(|(start, length, message)| {
+                        (start as u32, length as u32, message.to_owned())
+                    })
+                    .to_vec()
+            );
+            for (start, length, _) in expected {
+                assert!(state.non_jsdoc_js_diagnostics.contains(&(
+                    "a.js".to_owned(),
+                    start as u32,
+                    length as u32,
+                    1005,
+                )));
+            }
+        });
+    }
+
+    #[test]
+    fn jsdoc_satisfies_brace_projection_preserves_valid_and_non_tag_faces() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/** @satisfies {T1} */\n\
+                    const valid = {};\n\
+                    /** prose @satisfies T1 */\n\
+                    const prose = {};\n\
+                    /** @satisfiesElse T1 */\n\
+                    const boundary = {};\n";
+        let diagnostics = checked_file_diags_with("a.js", text, &options);
+        assert!(
+            diagnostics.iter().all(|diagnostic| diagnostic.0 != 1005),
+            "valid/non-tag satisfies faces must not produce TS1005: {diagnostics:?}"
+        );
+
+        let ts_diagnostics = checked_file_diags_with(
+            "a.ts",
+            "/** @satisfies T1 */\nconst typed = {};\n",
+            &options,
+        );
+        assert!(
+            ts_diagnostics.iter().all(|diagnostic| diagnostic.0 != 1005),
             "JSDoc parser projection is JavaScript-only: {ts_diagnostics:?}"
         );
     }
