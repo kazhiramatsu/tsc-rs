@@ -444,8 +444,14 @@
 # Promise-like changes, error, any, and unknown; checked-JS rows use the
 # same provenance-checked publication boundary. T1-T3 gain the same
 # identities with no losses, external gains, or false positives.
-rate = 0.970525
-matched = 47579
+# m7 8.4s adds +129 from getTypeOfAccessors' errorOrSuggestion tail:
+# TS7032 x127 and TS7033 x2 retain the error mode under noImplicitAny
+# and switch to suggestion category otherwise. Private and string
+# property names recover their complete source-spelled token for exact
+# span/message identity; T1-T3 gain the same identities with no losses,
+# external gains, or false positives.
+rate = 0.973156
+matched = 47708
 total = 49024
 allowed_regression = 0.0
 
