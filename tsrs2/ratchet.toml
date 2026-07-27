@@ -467,8 +467,14 @@
 # allowUnusedLabels tri-state preserve referenced-label suppression and
 # the suggestion/error/disabled projections, including plain JavaScript;
 # T1-T3 gain the same identities with no losses or false positives.
-rate = 0.976828
-matched = 47888
+# m7 8.4x adds all 74 M7-owned TS7027 unreachable-code suggestions
+# from checkSourceElementUnreachable. The existing binder/flow reachability
+# and adjacent-statement range aggregation are unchanged; only the
+# allowUnreachableCode suggestion/error/disabled projection and plain-JS
+# publication land. T1-T3 gain the same identities with no losses or
+# false positives, closing flow-derived-suggestions at 149/149.
+rate = 0.978337
+matched = 47962
 total = 49024
 allowed_regression = 0.0
 

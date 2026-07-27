@@ -15,14 +15,12 @@
 //! M7 8.1a; declaration-file source grammar is LIVE from M7 8.1c.2.
 //!
 //! The unreachable-code slice (checkSourceElementUnreachable 86763 +
-//! the withinUnreachableCode save/restore) is elided whole: its
-//! default-options output is suggestion-band (addErrorOrSuggestion
-//! isError only under allowUnreachableCode === false, an option absent
-//! from CompilerOptions), and its flow arm needs M5's
-//! isReachableFlowNode — it lands with M5.
+//! the withinUnreachableCode save/restore) is live. M5 supplied the
+//! flow mechanism and explicit-error face; M7 8.4 supplies the
+//! default-options suggestion projection.
 
 use tsrs2_binder::{node_util, SymbolId};
-use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
+use tsrs2_diags::{gen as diagnostics, DiagnosticCategory, DiagnosticMessage};
 use tsrs2_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
     CheckFlags, ElementFlags, ModifierFlags, NodeCheckFlags, ObjectFlags, SignatureFlags,
@@ -1517,16 +1515,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkSourceElementUnreachable @6.0.3
     /// tsc-hash: 1f190f12f81e1a59e42e5348233a3c30cbc2b2562d19e0a1c3c35d5fd19811e4
     /// tsc-span: _tsc.js:86763-86807
+    /// d2: d2:ba92c132f50831c49a7b357db1af2a54283175b6b29818ac75227ee378bb6871
     ///
     /// The aggregation walk widens the report range over ADJACENT
     /// unreachable statements of the same canHaveStatements parent
-    /// (marking each reported) so ONE 7027 covers the run. Only the
-    /// error face lands (addErrorOrSuggestion isError ⇔
-    /// allowUnreachableCode === false); the default-options suggestion
-    /// face stays unmodeled with the suggestion channel, but the
-    /// reported-set/return-value bookkeeping runs identically so
-    /// withinUnreachableCode suppression matches tsc under every
-    /// option value.
+    /// (marking each reported) so ONE 7027 covers the run.
+    /// addErrorOrSuggestion's tri-state option projection is preserved:
+    /// absent = suggestion, explicit false = error, true = suppressed.
     fn check_source_element_unreachable(&mut self, node: NodeId) -> CheckResult2<bool> {
         if !tsrs2_binder::node_util::is_potentially_executable_node(
             self.binder.source_of_node(node),
@@ -1588,18 +1583,26 @@ impl<'a> CheckerState<'a> {
                 end_node = statements[last];
             }
         }
-        if self.options.allow_unreachable_code == Some(false) {
-            // getTokenPosOfNode = skipTrivia from the node's pos.
-            let start = tsrs2_syntax::skip_trivia(
-                &self.binder.source_of_node(start_node).text,
-                self.pos_of(start_node) as usize,
-            );
-            let end = self.end_of(end_node) as usize;
-            self.error_at_byte_range(
-                start_node,
-                start,
-                end,
-                &diagnostics::Unreachable_code_detected,
+        // getTokenPosOfNode = skipTrivia from the node's pos.
+        let start = tsrs2_syntax::skip_trivia(
+            &self.binder.source_of_node(start_node).text,
+            self.pos_of(start_node) as usize,
+        );
+        let end = self.end_of(end_node) as usize;
+        let diagnostics_before = self.diagnostics.len();
+        let index = self.error_at_byte_range(
+            start_node,
+            start,
+            end,
+            &diagnostics::Unreachable_code_detected,
+        );
+        if self.options.allow_unreachable_code != Some(false) {
+            self.diagnostics[index].message.category = DiagnosticCategory::Suggestion;
+        }
+        if self.is_in_js_file(start_node) {
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(
+                diagnostics_before,
+                diagnostics::Unreachable_code_detected.code,
             );
         }
         Ok(true)

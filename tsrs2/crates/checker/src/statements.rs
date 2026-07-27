@@ -3162,6 +3162,27 @@ mod tests {
         })
     }
 
+    fn unreachable_rows(
+        text: &str,
+        options: &CompilerOptions,
+    ) -> Vec<(tsrs2_diags::DiagnosticCategory, u32, u32)> {
+        with_program_state(&[("a.ts", text)], options, |state| {
+            state.check_source_file(0);
+            state
+                .diagnostics
+                .iter()
+                .filter(|diag| diag.code() == 7027)
+                .map(|diag| {
+                    (
+                        diag.category(),
+                        diag.start.unwrap_or(u32::MAX),
+                        diag.length.unwrap_or(u32::MAX),
+                    )
+                })
+                .collect()
+        })
+    }
+
     #[test]
     fn duplicate_literal_members_resolve_last_wins() {
         // The M7 8.1b grammar producer now reports tsc's 1117 row.
@@ -3471,11 +3492,62 @@ x.accessor = 1;\n"
     }
 
     #[test]
-    fn unreachable_code_stays_suggestion_band_under_default_options() {
-        // addErrorOrSuggestion: absent allowUnreachableCode routes the
-        // report to the (unmodeled) suggestion collection — the error
-        // sink must stay empty.
+    fn unreachable_code_preserves_allow_unreachable_code_tri_state() {
+        let text = "function f() { return; let x = 1; }\n";
+        assert_eq!(
+            unreachable_rows(text, &CompilerOptions::default()),
+            [(tsrs2_diags::DiagnosticCategory::Suggestion, 23, 10)]
+        );
+        assert_eq!(
+            unreachable_rows(
+                text,
+                &CompilerOptions {
+                    allow_unreachable_code: Some(false),
+                    ..CompilerOptions::default()
+                }
+            ),
+            [(tsrs2_diags::DiagnosticCategory::Error, 23, 10)]
+        );
+        assert_eq!(
+            unreachable_rows(
+                text,
+                &CompilerOptions {
+                    allow_unreachable_code: Some(true),
+                    ..CompilerOptions::default()
+                }
+            ),
+            []
+        );
+        // The error-only helper must continue to exclude the default
+        // suggestion face.
         assert_eq!(checked_rows("function f() { return; let x = 1; }\n"), []);
+    }
+
+    #[test]
+    fn plain_js_publishes_unreachable_code_suggestion() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "function f() { return; let x = 1; }\n".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .filter(|diag| diag.code() == 7027)
+                .map(|diag| (
+                    diag.category(),
+                    diag.start.unwrap_or(u32::MAX),
+                    diag.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [(tsrs2_diags::DiagnosticCategory::Suggestion, 23, 10)]
+        );
     }
 
     #[test]
