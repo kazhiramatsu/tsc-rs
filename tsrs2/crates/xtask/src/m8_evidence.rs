@@ -30,6 +30,7 @@ pub(crate) struct EvidenceConfig {
 #[derive(Clone, Debug, Deserialize)]
 struct RuntimeConfig {
     artifact: String,
+    max_workers: usize,
     #[serde(default)]
     zero_hit_reviews: Vec<ZeroHitReview>,
 }
@@ -371,7 +372,7 @@ fn produce_runtime(
     let worker_count = std::thread::available_parallelism()
         .map(usize::from)
         .unwrap_or(1)
-        .clamp(1, 4)
+        .min(config.runtime_coverage.max_workers)
         .min(programs.len());
     let mut shards = vec![Vec::new(); worker_count];
     for (index, program) in programs.iter().enumerate() {
@@ -493,6 +494,7 @@ fn run_coverage_worker(
     programs: &[PathBuf],
 ) -> Result<BTreeMap<String, u64>, String> {
     let mut child = Command::new("node")
+        .arg("--single-threaded")
         .arg(driver)
         .arg(instrumented)
         .stdin(Stdio::piped())
@@ -1405,6 +1407,9 @@ fn read_config(workspace: &Path) -> Result<EvidenceConfig, Box<dyn Error>> {
     let config: EvidenceConfig = read_json(&workspace.join(CONFIG_REL))?;
     if config.schema != 2 {
         return Err("m8-evidence.json must be schema 2".into());
+    }
+    if config.runtime_coverage.max_workers == 0 {
+        return Err("m8-evidence.json runtime_coverage.max_workers must be at least 1".into());
     }
     Ok(config)
 }

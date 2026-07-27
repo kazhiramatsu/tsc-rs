@@ -57,6 +57,13 @@ At least one emitter must execute. Every zero-hit identity needs reviewed
 evidence tied to the exact inventory hash. Unknown, duplicate,
 overlapping, name-collapsed, or unaccounted identities fail.
 
+The producer limits itself to the configured `runtime_coverage.max_workers`
+(currently one) even when more logical cores are available, and starts the
+coverage Node process in single-threaded mode. This keeps the full-corpus
+evidence run from monopolizing a developer machine or a shared CI runner;
+changing the cap affects throughput only, not the corpus, counters, or
+acceptance criteria.
+
 The completed B2 instrumented runner provides selected-fixture trace
 mode for
 [D2 trace-assisted implementation clusters](measurement-integrity.md#62-trace-assisted-implementation-clusters).
@@ -184,7 +191,8 @@ fixture limit; its purpose is to exercise the no-reuse path without
 letting the batch checker's intentionally leaked lib bundles grow once
 per corpus case. The smoke cannot replace the full-corpus wall/RSS
 observation. Give fuzz and coverage workers explicit process lifetimes
-for the same reason.
+for the same reason, and keep coverage concurrency at the configured bounded
+worker cap.
 
 ## 5. Required CI topology
 

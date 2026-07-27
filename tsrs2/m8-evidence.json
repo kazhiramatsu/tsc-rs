@@ -3,6 +3,7 @@
   "artifact_dir": "target/m8/evidence",
   "runtime_coverage": {
     "artifact": "runtime-coverage.json",
+    "max_workers": 1,
     "zero_hit_reviews": [
       {
         "declaration": "d2:09ab68676abedab95c23c3923236ea0dcf229e9b5f2c10440052dfc2c80b81bb",
