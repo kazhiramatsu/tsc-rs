@@ -164,9 +164,15 @@ pub struct SymbolLinks {
     /// tsc links.isDiscriminantProperty cache (isDiscriminantProperty
     /// 69562).
     pub is_discriminant_property: Option<bool>,
-    /// tsc symbol.isReferenced (markPropertyAsReferenced 75617) — M7
-    /// unused-checks bookkeeping, inert until then.
+    /// tsc symbol.isReferenced (markPropertyAsReferenced 75617) — live
+    /// M7 reference bookkeeping; the unused-declaration consumers land
+    /// in the following producer slices.
     pub is_referenced: bool,
+    /// tsc SymbolLinks.referenced (markAliasSymbolAsReferenced 71930)
+    /// — alias accessibility/emit bookkeeping. This is deliberately
+    /// distinct from Symbol.isReferenced above: unused locals consume
+    /// the latter, while alias visibility consumers read this bit.
+    pub alias_referenced: bool,
     /// tsc links.target for CheckFlags::INSTANTIATED symbols
     /// (instantiateSymbol 63455).
     pub target: Option<SymbolId>,
@@ -2346,6 +2352,13 @@ impl LinksTables {
     pub fn set_symbol_is_referenced(&mut self, speculation_depth: u32, id: SymbolId) {
         let _ = speculation_depth;
         self.symbol.entry(id).or_default().is_referenced = true;
+    }
+
+    /// tsrs-native: grow-only LinksTables setter for tsc
+    /// `getSymbolLinks(symbol).referenced = true`; freely repeatable.
+    pub fn set_symbol_alias_referenced(&mut self, speculation_depth: u32, id: SymbolId) {
+        let _ = speculation_depth;
+        self.symbol.entry(id).or_default().alias_referenced = true;
     }
 
     /// nonExistentPropCheckCache add (75419-75423): returns true when

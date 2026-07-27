@@ -1476,10 +1476,9 @@ impl<'a> CheckerState<'a> {
     ///
     /// Elisions/dispositions, each FN-only or unobservable:
     /// - checkExternalEmitHelpers (emit-marking artifact);
-    /// - markLinkedReferences' non-alias bookkeeping. Its any-like
-    ///   internal-import alias arm is live below because recursively
-    ///   marking the alias checks the referenced entity name and can
-    ///   emit a cannot-find-name diagnostic;
+    /// - markLinkedReferences' non-alias bookkeeping; its
+    ///   identifier/property/export/JSX alias paths are live from M7
+    ///   8.3a;
     /// - deprecation suggestions (addDeprecatedSuggestion — the
     ///   suggestion band rides JSDoc @deprecated, unmodeled);
     /// - getWidenedType is the 5.6 [WIDEN] identity (extraction §6).
@@ -1609,9 +1608,7 @@ impl<'a> CheckerState<'a> {
             }
         } else {
             if is_any_like {
-                if let Some(parent_symbol) = parent_symbol {
-                    self.mark_unresolved_internal_import_alias_reference(left, parent_symbol)?;
-                }
+                self.mark_property_alias_referenced(node, left, None, left_type)?;
                 return Ok(if apparent_type == self.tables.intrinsics.error {
                     self.tables.intrinsics.error
                 } else {
@@ -1630,6 +1627,7 @@ impl<'a> CheckerState<'a> {
                 include_type_only_members,
             )?;
         }
+        self.mark_property_alias_referenced(node, left, prop, left_type)?;
         let prop_type: TypeId;
         if let Some(prop) = prop {
             // Deprecation-suggestion skips (unmodeled JSDoc band).
@@ -1811,55 +1809,6 @@ impl<'a> CheckerState<'a> {
             prop_type = index_prop_type;
         }
         self.get_flow_type_of_access_expression(node, prop, prop_type, right)
-    }
-
-    /// The diagnostic-bearing subset of tsc
-    /// markPropertyAliasReferenced -> markAliasReferenced ->
-    /// markAliasSymbolAsReferenced for an any-like property receiver.
-    ///
-    /// An unresolved internal import-equals alias is value-used by
-    /// `alias.member`; tsc recursively checks the first identifier of
-    /// its module reference. That second, value-meaning lookup is
-    /// observable for recovered `import x = module("m")` syntax:
-    /// namespace resolution reports 2503 and this lookup reports 2591.
-    fn mark_unresolved_internal_import_alias_reference(
-        &mut self,
-        left: NodeId,
-        symbol: SymbolId,
-    ) -> CheckResult2<()> {
-        if self.kind_of(left) != SyntaxKind::Identifier
-            || symbol == self.unknown_symbol
-            || !self
-                .binder
-                .symbol(symbol)
-                .flags
-                .intersects(SymbolFlags::ALIAS)
-            || self.links.symbol(symbol).is_referenced
-        {
-            return Ok(());
-        }
-        let target = self.resolve_alias(symbol)?;
-        if target != self.unknown_symbol {
-            return Ok(());
-        }
-        let Some(declaration) = self.get_declaration_of_alias_symbol(symbol) else {
-            return Ok(());
-        };
-        if !self.is_internal_module_import_equals_declaration(declaration) {
-            return Ok(());
-        }
-        let module_reference = match self.data_of(declaration) {
-            NodeData::ImportEqualsDeclaration(data) => data.module_reference,
-            _ => None,
-        };
-        let Some(module_reference) = module_reference else {
-            return Ok(());
-        };
-        self.links
-            .set_symbol_is_referenced(self.speculation_depth, symbol);
-        let first = self.first_identifier(module_reference);
-        let _ = self.check_identifier(first, CheckMode::NORMAL)?;
-        Ok(())
     }
 
     pub(crate) fn is_delete_target(&self, node: NodeId) -> bool {
