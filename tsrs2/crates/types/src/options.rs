@@ -57,6 +57,9 @@ pub struct CompilerOptions {
     /// unreachable statements, but the comma-operator 2695 gate reads
     /// plain falsiness (`!compilerOptions.allowUnreachableCode`).
     pub allow_unreachable_code: Option<bool>,
+    /// tsc allowUnusedLabels: undefined = report unused labels as
+    /// suggestions, false = errors, true = suppress the diagnostic.
+    pub allow_unused_labels: Option<bool>,
     /// tsc checkJs: absent per-file directives, an EXPLICIT false turns
     /// bind/check diagnostics off for JS files
     /// (canIncludeBindAndCheckDiagnostics — isPlainJsFile requires
