@@ -411,8 +411,13 @@
 # gating, and noUnusedParameters category projection are oracle-exact;
 # T1-T3 gain the same identities with no losses, external gains, or
 # false positives.
-rate = 0.963712
-matched = 47245
+# m7 8.4m adds +23 from checkUnusedInferTypeParameter across conditional
+# types and template-literal/this-type inference. Each unused `infer U`
+# node keeps its whole-node span (including repeated symbols), underscore
+# exemptions, and noUnusedParameters category projection; T1-T3 gain the
+# same identities with no losses, external gains, or false positives.
+rate = 0.964181
+matched = 47268
 total = 49024
 allowed_regression = 0.0
 

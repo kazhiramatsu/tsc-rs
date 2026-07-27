@@ -86,6 +86,7 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::ConstructorType
                 | SyntaxKind::TypeAliasDeclaration
                 | SyntaxKind::InterfaceDeclaration => self.check_unused_type_parameters(node),
+                SyntaxKind::InferType => self.check_unused_infer_type_parameter(node),
                 _ => Ok(()),
             };
             if self.is_in_js_file(node) {
@@ -375,6 +376,36 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
+        Ok(())
+    }
+
+    /// tsc-port: checkUnusedInferTypeParameter @6.0.3
+    /// tsc-hash: 5361f1034a082554254b852b09d2e7ae434d6e951b2527c0f511d91b1b7483e6
+    /// tsc-span: _tsc.js:83039-83044
+    /// d2: d2:1a7c9df7149acc8d3c6e6cc251f8528c50f63dacedad718d7f5bfff2b4783063
+    fn check_unused_infer_type_parameter(&mut self, node: NodeId) -> CheckResult2<()> {
+        let type_parameter = match self.data_of(node) {
+            NodeData::InferType(data) => data.type_parameter,
+            _ => None,
+        };
+        let Some(type_parameter) = type_parameter else {
+            return Ok(());
+        };
+        if !self.is_type_parameter_unused(type_parameter)? {
+            return Ok(());
+        }
+        let name = self
+            .name_of_node(type_parameter)
+            .and_then(|name| self.identifier_text_of(name))
+            .unwrap_or_default()
+            .to_owned();
+        self.add_unused_diagnostic_at(
+            node,
+            UnusedIdentifierKind::Parameter,
+            Some(node),
+            &diagnostics::_0_is_declared_but_its_value_is_never_read,
+            &[&name],
+        );
         Ok(())
     }
 
@@ -1429,6 +1460,57 @@ mod tests {
                 "'T' is declared but its value is never read.",
             )
         );
+    }
+
+    #[test]
+    fn unused_infer_type_parameters_follow_node_spans_and_parameter_mode() {
+        let text = "export type Used<T> = T extends infer U ? U : never;\n\
+                    export type Unused<T> = T extends infer U ? string : never;\n\
+                    export type Underscore<T> = T extends infer _U ? string : never;\n\
+                    export type Repeated<T> = T extends { left: infer U; right: infer U } ? string : never;\n\
+                    export type Outside = infer U;\n";
+        let expected_starts = [
+            text.find("infer U ? string").expect("single unused infer"),
+            text.find("infer U; right").expect("first repeated infer"),
+            text.find("infer U } ? string")
+                .expect("second repeated infer"),
+            text.rfind("infer U").expect("outside infer"),
+        ];
+        for (options, category) in [
+            (CompilerOptions::default(), DiagnosticCategory::Suggestion),
+            (
+                CompilerOptions {
+                    no_unused_locals: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Suggestion,
+            ),
+            (
+                CompilerOptions {
+                    no_unused_parameters: Some(true),
+                    ..CompilerOptions::default()
+                },
+                DiagnosticCategory::Error,
+            ),
+        ] {
+            let rows = unused_rows(text, &options);
+            assert_eq!(rows.len(), 4);
+            assert_eq!(
+                rows.iter()
+                    .map(|row| (row.0, row.1, row.2, row.3, row.4.as_str()))
+                    .collect::<Vec<_>>(),
+                expected_starts
+                    .iter()
+                    .map(|start| (
+                        6133,
+                        category,
+                        *start as u32,
+                        7,
+                        "'U' is declared but its value is never read.",
+                    ))
+                    .collect::<Vec<_>>()
+            );
+        }
     }
 
     #[test]

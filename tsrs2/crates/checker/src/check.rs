@@ -4884,6 +4884,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
+        self.register_for_unused_identifiers_check(node);
         Ok(())
     }
 
