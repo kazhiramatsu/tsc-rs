@@ -19,7 +19,7 @@
 //!   caller is checkSignatureDeclarationDiagnostics (81315), a §5
 //!   worker; the fn ports with its caller in 5.8b.
 use tsrs2_binder::node_util;
-use tsrs2_diags::{gen as diagnostics, DiagnosticMessage, MessageChain};
+use tsrs2_diags::{gen as diagnostics, DiagnosticCategory, DiagnosticMessage, MessageChain};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
     CheckMode, IterationUse, ModifierFlags, NodeFlags, SymbolFlags, TypeFlags, TypeId,
@@ -2809,10 +2809,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkLabeledStatement @6.0.3
     /// tsc-hash: aede5f733f5c0fbdcac637a52f20f6eb05c2a37f0256ee708789b57bd91eeab8
     /// tsc-span: _tsc.js:84643-84660
+    /// d2: d2:79a27684a962c9caea2c231f105228076e5a6feee23d5db87ff7dc38ec415015
     ///
-    /// The Unused_label arm is suggestion-band under the absent
-    /// allowUnusedLabels option (errorOrSuggestion isError only when
-    /// the option is EXPLICIT false) — skipped with §0's note.
+    /// The binder stamps an unreferenced label with NodeFlags::UNREACHABLE.
+    /// errorOrSuggestion's tri-state option projection is preserved:
+    /// absent = suggestion, explicit false = error, true = suppressed.
     pub(crate) fn check_labeled_statement(&mut self, node: NodeId) -> CheckResult2<()> {
         let NodeData::LabeledStatement(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
@@ -2849,7 +2850,28 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        // (Unused label — suggestion band, skipped.)
+        if let Some(label) = label {
+            if self
+                .binder
+                .flags_of(label)
+                .intersects(NodeFlags::UNREACHABLE)
+                && self.options.allow_unused_labels != Some(true)
+            {
+                let diagnostics_before = self.diagnostics.len();
+                let mut diagnostic =
+                    self.create_error(Some(label), &diagnostics::Unused_label, &[]);
+                if self.options.allow_unused_labels != Some(false) {
+                    diagnostic.message.category = DiagnosticCategory::Suggestion;
+                }
+                self.push_error_diagnostic(diagnostic);
+                if self.is_in_js_file(label) {
+                    self.mark_non_jsdoc_js_diagnostics_since_with_code(
+                        diagnostics_before,
+                        diagnostics::Unused_label.code,
+                    );
+                }
+            }
+        }
         self.check_source_element(statement);
         Ok(())
     }
@@ -3111,6 +3133,27 @@ mod tests {
                 .map(|diag| {
                     (
                         diag.code(),
+                        diag.start.unwrap_or(u32::MAX),
+                        diag.length.unwrap_or(u32::MAX),
+                    )
+                })
+                .collect()
+        })
+    }
+
+    fn unused_label_rows(
+        text: &str,
+        options: &CompilerOptions,
+    ) -> Vec<(tsrs2_diags::DiagnosticCategory, u32, u32)> {
+        with_program_state(&[("a.ts", text)], options, |state| {
+            state.check_source_file(0);
+            state
+                .diagnostics
+                .iter()
+                .filter(|diag| diag.code() == 7028)
+                .map(|diag| {
+                    (
+                        diag.category(),
                         diag.start.unwrap_or(u32::MAX),
                         diag.length.unwrap_or(u32::MAX),
                     )
@@ -3433,6 +3476,66 @@ x.accessor = 1;\n"
         // report to the (unmodeled) suggestion collection — the error
         // sink must stay empty.
         assert_eq!(checked_rows("function f() { return; let x = 1; }\n"), []);
+    }
+
+    #[test]
+    fn unused_label_preserves_allow_unused_labels_tri_state() {
+        let text = "unused: { let x = 1; }\n";
+        assert_eq!(
+            unused_label_rows(text, &CompilerOptions::default()),
+            [(tsrs2_diags::DiagnosticCategory::Suggestion, 0, 6)]
+        );
+        assert_eq!(
+            unused_label_rows(
+                text,
+                &CompilerOptions {
+                    allow_unused_labels: Some(false),
+                    ..CompilerOptions::default()
+                }
+            ),
+            [(tsrs2_diags::DiagnosticCategory::Error, 0, 6)]
+        );
+        assert_eq!(
+            unused_label_rows(
+                text,
+                &CompilerOptions {
+                    allow_unused_labels: Some(true),
+                    ..CompilerOptions::default()
+                }
+            ),
+            []
+        );
+        assert_eq!(
+            unused_label_rows("used: { break used; }\n", &CompilerOptions::default()),
+            []
+        );
+    }
+
+    #[test]
+    fn plain_js_publishes_unused_label_suggestion() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "unused: { let x = 1; }\n".to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .filter(|diag| diag.code() == 7028)
+                .map(|diag| (
+                    diag.category(),
+                    diag.start.unwrap_or(u32::MAX),
+                    diag.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [(tsrs2_diags::DiagnosticCategory::Suggestion, 0, 6)]
+        );
     }
 
     #[test]

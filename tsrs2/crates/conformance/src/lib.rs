@@ -1686,6 +1686,7 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
         no_unused_locals: bool_option("noUnusedLocals"),
         no_unused_parameters: bool_option("noUnusedParameters"),
         allow_unreachable_code: bool_option("allowUnreachableCode"),
+        allow_unused_labels: bool_option("allowUnusedLabels"),
         check_js: bool_option("checkJs"),
         no_unchecked_indexed_access: bool_option("noUncheckedIndexedAccess"),
         no_property_access_from_index_signature: bool_option("noPropertyAccessFromIndexSignature"),

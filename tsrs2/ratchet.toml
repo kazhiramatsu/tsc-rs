@@ -462,8 +462,13 @@
 # preserves tsc's fractional/scientific exclusions without mistaking
 # hexadecimal E digits for exponents; T1-T3 gain the same 24 identities
 # with no losses, external gains, or false positives.
-rate = 0.975298
-matched = 47813
+# m7 8.4w adds all 75 TS7028 unused-label suggestions from
+# checkLabeledStatement. The binder-owned Unreachable label flag and
+# allowUnusedLabels tri-state preserve referenced-label suppression and
+# the suggestion/error/disabled projections, including plain JavaScript;
+# T1-T3 gain the same identities with no losses or false positives.
+rate = 0.976828
+matched = 47888
 total = 49024
 allowed_regression = 0.0
 
