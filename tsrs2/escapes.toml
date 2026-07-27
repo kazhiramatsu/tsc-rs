@@ -882,6 +882,12 @@ class = "recovery"
 
 [[site]]
 file = "crates/checker/src/modules.rs"
+in = "mark_alias_symbol_as_referenced"
+reason = "markAliasSymbolAsReferenced alias without a declaration (parse-recovery shape, tsc Debug.fail)"
+class = "recovery"
+
+[[site]]
+file = "crates/checker/src/modules.rs"
 in = "resolve_alias"
 reason = "resolveAlias alias symbol without alias declaration (parse-recovery shape, tsc Debug.fail)"
 class = "recovery"

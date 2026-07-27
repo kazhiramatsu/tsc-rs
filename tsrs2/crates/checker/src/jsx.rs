@@ -855,11 +855,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 0eada6ca95ca451acb3957d1c93cab747727a4e7e2681109206f406b65eb9efa
     /// tsc-span: _tsc.js:71787-71827
     ///
-    /// The REFERENCE bookkeeping (isReferenced, alias marking) is
-    /// M7/alias-band and stays inert; the T0 face is the factory
-    /// resolveName probe whose not-found message (2874) fires under
-    /// jsx===React. For classic fragments the second factory probe
-    /// shares the same first identifier and dedupes when appropriate.
+    /// The factory resolveName probe owns the 2874 face under
+    /// jsx===React. M7 8.3a also preserves the isReferenced and alias
+    /// accessibility marks. For classic fragments the second factory
+    /// probe shares the same first identifier and dedupes when
+    /// appropriate.
     fn mark_jsx_alias_referenced(&mut self, node: NodeId) -> CheckResult2<()> {
         if self
             .get_jsx_namespace_container_for_implicit_import(node)?
@@ -892,9 +892,21 @@ impl<'a> CheckerState<'a> {
                 jsx_factory_ref_err,
                 /*is_use*/ true,
                 /*exclude_globals*/ false,
-            );
-            // isReferenced/alias marking: M7/alias bookkeeping, inert.
-            let _ = symbol;
+            )?;
+            if let Some(symbol) = symbol {
+                self.links
+                    .set_symbol_is_referenced(self.speculation_depth, symbol);
+                if self.options.verbatim_module_syntax != Some(true)
+                    && self
+                        .binder
+                        .symbol(symbol)
+                        .flags
+                        .intersects(SymbolFlags::ALIAS)
+                    && self.get_type_only_alias_declaration(symbol)?.is_none()
+                {
+                    self.mark_alias_symbol_as_referenced(symbol)?;
+                }
+            }
         }
         if is_fragment {
             let factory_namespace = self.get_jsx_factory_namespace_name(node);

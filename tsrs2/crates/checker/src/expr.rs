@@ -880,9 +880,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:72126-72213
     ///
     /// Elisions, each per the extraction doc §3:
-    /// - shouldMarkIdentifierAliasReferenced → markLinkedReferences:
-    ///   alias-reference marking is emit/unused bookkeeping (5.8/M7) —
-    ///   whole call elided.
     /// - contextualBindingPatterns membership: the stack is pushed only
     ///   by getTypeFromBindingPattern (5.5b); empty until then, so the
     ///   nonInferrableAnyType arm cannot fire — ported over the state
@@ -910,6 +907,9 @@ impl<'a> CheckerState<'a> {
                 return Ok(self.tables.intrinsics.error);
             }
             return self.arguments_symbol_type();
+        }
+        if self.should_mark_identifier_alias_referenced(node) {
+            self.mark_alias_referenced(symbol, node)?;
         }
         let local_or_export_symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
         let mut declaration = self.binder.symbol(local_or_export_symbol).value_declaration;
