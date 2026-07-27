@@ -327,8 +327,10 @@
 # effective-host duplicate projection and exact TS1223 rows.
 # m7 8.1r adds +1 through checkTypePredicate's checked-JS JSDoc
 # cast projection and exact TS1228 row.
-rate = 0.666857
-matched = 32692
+# m7 8.1s adds +4 through checkSatisfiesExpressionWorker's checked-JS
+# JSDoc host/type projections and exact TS1360 rows.
+rate = 0.666939
+matched = 32696
 total = 49024
 allowed_regression = 0.0
 

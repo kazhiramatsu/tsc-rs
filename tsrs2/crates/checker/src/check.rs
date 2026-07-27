@@ -25,11 +25,13 @@ use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
 use tsrs2_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    ElementFlags, ModifierFlags, NodeCheckFlags, ObjectFlags, SymbolFlags, TypeData, TypeFacts,
-    TypeFlags, TypeId, UnionReduction,
+    CheckFlags, ElementFlags, ModifierFlags, NodeCheckFlags, ObjectFlags, SignatureFlags,
+    SymbolFlags, TypeData, TypeFacts, TypeFlags, TypeId, UnionReduction,
 };
 
-use crate::state::{CheckResult2, CheckerState, SignatureId, SignatureKind, Unsupported};
+use crate::state::{
+    CheckResult2, CheckerState, Signature, SignatureId, SignatureKind, Unsupported,
+};
 
 /// Debug-only unwind census (the unsupported-unwind invariant):
 /// every transient stack an element check may push must be back at
@@ -78,6 +80,16 @@ struct UnwindSnapshot {
     exhaustive_switch_computing: usize,
     inline_level: u32,
     resolving_open: i64,
+}
+
+#[derive(Clone)]
+struct JsDocSatisfiesProjection {
+    expression: NodeId,
+    tag_start: usize,
+    tag_end: usize,
+    type_text: String,
+    comment_body: String,
+    declaration_host: bool,
 }
 
 impl<'a> CheckerState<'a> {
@@ -189,6 +201,7 @@ impl<'a> CheckerState<'a> {
         }
         self.check_source_element(end_of_file_token);
         self.check_deferred_nodes(root);
+        self.check_jsdoc_satisfies_semantics(root);
         // 87028-87040 addLazyDiagnostic block (eager identity): the
         // unused-identifiers drain is M7-inert; the renamed-binding
         // drain runs for non-declaration files, un-option-gated.
@@ -2356,6 +2369,464 @@ impl<'a> CheckerState<'a> {
             cursor = comment_close + 2;
         }
         comments
+    }
+
+    /// tsrs-native: project checkSatisfiesExpressionWorker over the
+    /// checked-JS `@satisfies` hosts that are invisible while JSDoc
+    /// nodes are absent from the syntax arena.
+    ///
+    /// tsc-port: checkSatisfiesExpressionWorker @6.0.3
+    /// tsc-hash: 69efa22f5ce65ba834ce27bba8e4cab3bfedb94a4646cfa0944324f6f62d989e
+    /// tsc-span: _tsc.js:78051-78060
+    /// d2: d2:3e9fb9c09975914538e76abe110cd7f091af4fc4d9df5f4a5b448802e6ca0d50
+    ///
+    /// The projection is deliberately host-bounded: an inline tag
+    /// attaches to its following expression, while a declaration tag
+    /// attaches to the first variable initializer. Inline wins when
+    /// both faces are present, matching getJSDocSatisfiesTag's
+    /// effective-host order. The relation reports on the `satisfies`
+    /// tag name, not on the operand.
+    fn check_jsdoc_satisfies_semantics(&mut self, root: NodeId) {
+        if !self.is_in_js_file(root) {
+            return;
+        }
+        for projection in self.jsdoc_satisfies_projections(root) {
+            if let Err(err) = self.check_jsdoc_satisfies_projection(root, &projection) {
+                self.mark_partially_checked_node(projection.expression, err.reason);
+            }
+        }
+    }
+
+    fn check_jsdoc_satisfies_projection(
+        &mut self,
+        root: NodeId,
+        projection: &JsDocSatisfiesProjection,
+    ) -> CheckResult2<()> {
+        let (target_type, target_display_override) = match self
+            .jsdoc_arrow_function_type_from_text(projection.expression, &projection.type_text)?
+        {
+            // The synthetic rest-array type has no reusable syntax
+            // node. Preserve the already parsed JSDoc spelling for
+            // the TS1360 head instead of asking the declaration
+            // emitter slice to reconstruct that absent node.
+            Some(function) => (Some(function), Some(projection.type_text.as_str())),
+            None => match self
+                .get_type_from_jsdoc_text(projection.expression, &projection.type_text)?
+            {
+                Some(target) => (Some(target), None),
+                None => (
+                    self.jsdoc_object_typedef_type(projection.expression, &projection.type_text)?,
+                    Some(projection.type_text.as_str()),
+                ),
+            },
+        };
+        let Some(target_type) =
+            target_type.filter(|&target| target != self.tables.intrinsics.error)
+        else {
+            return Ok(());
+        };
+        let expression = self.skip_parentheses(projection.expression);
+        let inferred_source =
+            self.check_expression_cached(projection.expression, tsrs2_types::CheckMode::NORMAL)?;
+        // A declaration-leading tag supplies the object literal's
+        // contextual target while its excess members report through
+        // the independent 2353 face. tsc does not add a TS1360 head
+        // for a declaration-hosted object literal (the tag12 t1-t7
+        // oracle matrix pins both missing and excess members).
+        if projection.declaration_host
+            && matches!(
+                self.data_of(expression),
+                NodeData::ObjectLiteralExpression(_)
+            )
+        {
+            return Ok(());
+        }
+        let source_type = self
+            .jsdoc_parameterized_arrow_type(expression, &projection.comment_body, inferred_source)?
+            .unwrap_or(inferred_source);
+        // Satisfies performs contextual excess-property elaboration
+        // separately. The TS1360 head itself sees ordinary structural
+        // assignability, so an object that has every required member
+        // must not gain 1360 merely because it also has an excess one.
+        let relation_source = self.get_regular_type_of_object_literal(source_type)?;
+        if self.is_type_assignable_to(relation_source, target_type)? {
+            return Ok(());
+        }
+
+        // reportRelationError's literal-source generalization
+        // (65068-65072) is observable in the TS1360 argument: `1`
+        // reports as `number`, while object and function faces retain
+        // their structural display.
+        let source_for_display = if !self
+            .tables
+            .flags_of(target_type)
+            .intersects(TypeFlags::NEVER)
+            && self.is_literal_type(source_type)
+            && !self.type_could_have_top_level_singleton_types(target_type)?
+        {
+            self.get_base_type_of_literal_type(source_type)?
+        } else {
+            source_type
+        };
+        let source_text = match self.data_of(expression) {
+            NodeData::ObjectLiteralExpression(data)
+                if self.nodes_of(data.properties).is_empty() =>
+            {
+                "{}".to_owned()
+            }
+            _ => self.type_to_string_slice_with_error_enclosing(source_for_display)?,
+        };
+        let target_text = match target_display_override {
+            Some(text) => text.to_owned(),
+            None => self.type_to_string_slice_with_error_enclosing(target_type)?,
+        };
+        let diagnostics_before = self.diagnostics.len();
+        self.error_at_byte_range_with_args(
+            root,
+            projection.tag_start,
+            projection.tag_end,
+            &diagnostics::Type_0_does_not_satisfy_the_expected_type_1,
+            &[&source_text, &target_text],
+        );
+        self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1360);
+        Ok(())
+    }
+
+    fn jsdoc_satisfies_projections(&self, root: NodeId) -> Vec<JsDocSatisfiesProjection> {
+        let source = self.binder.source_of_node(root);
+        let mut nodes = Vec::new();
+        let mut stack = vec![root];
+        while let Some(node) = stack.pop() {
+            nodes.push(node);
+            let raw = source.arena.node(node);
+            for_each_child(&source.arena, raw, |child| {
+                stack.push(child);
+                false
+            });
+        }
+
+        let mut projections = Vec::new();
+        let mut claimed_expressions = Vec::new();
+        for &node in &nodes {
+            if !node_util::is_expression_node(source, node) {
+                continue;
+            }
+            if let Some(projection) = self
+                .jsdoc_satisfies_tags_in_leading_trivia(node)
+                .into_iter()
+                .next()
+            {
+                claimed_expressions.push(node);
+                projections.push(projection);
+            }
+        }
+
+        for &node in &nodes {
+            let NodeData::VariableStatement(data) = self.data_of(node) else {
+                continue;
+            };
+            let initializer = data
+                .declaration_list
+                .and_then(|list| match self.data_of(list) {
+                    NodeData::VariableDeclarationList(data) => data.declarations,
+                    _ => None,
+                })
+                .and_then(|declarations| self.nodes_of(Some(declarations)).first().copied())
+                .and_then(|declaration| match self.data_of(declaration) {
+                    NodeData::VariableDeclaration(data) => data.initializer,
+                    _ => None,
+                });
+            let Some(initializer) =
+                initializer.filter(|initializer| !claimed_expressions.contains(initializer))
+            else {
+                continue;
+            };
+            if let Some(mut projection) = self
+                .jsdoc_satisfies_tags_in_leading_trivia(node)
+                .into_iter()
+                .next()
+            {
+                projection.expression = initializer;
+                projection.declaration_host = true;
+                claimed_expressions.push(initializer);
+                projections.push(projection);
+            }
+        }
+        projections.sort_by_key(|projection| projection.tag_start);
+        projections
+    }
+
+    fn jsdoc_satisfies_tags_in_leading_trivia(
+        &self,
+        node: NodeId,
+    ) -> Vec<JsDocSatisfiesProjection> {
+        let source = self.binder.source_of_node(node);
+        let mut projections = Vec::new();
+        for (body_start, comment_close) in self.jsdoc_comment_body_ranges_in_leading_trivia(node) {
+            let body = &source.text[body_start..comment_close];
+            let mut line_offset = 0usize;
+            for line in body.split_inclusive('\n') {
+                let line_without_lf = line.strip_suffix('\n').unwrap_or(line);
+                let line_without_break = line_without_lf
+                    .strip_suffix('\r')
+                    .unwrap_or(line_without_lf);
+                let leading = line_without_break.len()
+                    - line_without_break
+                        .trim_start_matches(char::is_whitespace)
+                        .len();
+                let mut candidate = &line_without_break[leading..];
+                let mut candidate_offset = leading;
+                if let Some(after_star) = candidate.strip_prefix('*') {
+                    candidate_offset += 1;
+                    let star_space =
+                        after_star.len() - after_star.trim_start_matches(char::is_whitespace).len();
+                    candidate_offset += star_space;
+                    candidate = &after_star[star_space..];
+                }
+                let Some(tail) = candidate.strip_prefix("@satisfies") else {
+                    line_offset += line.len();
+                    continue;
+                };
+                if !tail
+                    .chars()
+                    .next()
+                    .is_none_or(|character| character.is_whitespace() || character == '{')
+                {
+                    line_offset += line.len();
+                    continue;
+                }
+                let whitespace = tail.len() - tail.trim_start_matches(char::is_whitespace).len();
+                let type_tail = &tail[whitespace..];
+                let Some((type_text, _)) = jsdoc_braced_payload(type_tail) else {
+                    line_offset += line.len();
+                    continue;
+                };
+                let tag_start = body_start + line_offset + candidate_offset + 1;
+                projections.push(JsDocSatisfiesProjection {
+                    expression: node,
+                    tag_start,
+                    tag_end: tag_start + "satisfies".len(),
+                    type_text: type_text.trim().to_owned(),
+                    comment_body: body.to_owned(),
+                    declaration_host: false,
+                });
+                line_offset += line.len();
+            }
+        }
+        projections
+    }
+
+    fn jsdoc_arrow_function_type_from_text(
+        &mut self,
+        location: NodeId,
+        text: &str,
+    ) -> CheckResult2<Option<TypeId>> {
+        let Some((parameters, return_text)) = parse_jsdoc_arrow_function_type(text) else {
+            return Ok(None);
+        };
+        let mut parameter_symbols = Vec::with_capacity(parameters.len());
+        let mut signature_flags = SignatureFlags::NONE;
+        let mut min_argument_count = 0u32;
+        let mut optional_seen = false;
+        for parameter in parameters {
+            let Some(parameter_type) = self.get_type_from_jsdoc_text(location, &parameter.ty)?
+            else {
+                return Ok(None);
+            };
+            let mut symbol_flags = SymbolFlags::FUNCTION_SCOPED_VARIABLE;
+            if parameter.optional {
+                symbol_flags |= SymbolFlags::OPTIONAL;
+            }
+            let symbol = self.binder.create_symbol(symbol_flags, parameter.name);
+            let check_flags = if parameter.rest {
+                signature_flags |= SignatureFlags::HAS_REST_PARAMETER;
+                CheckFlags::REST_PARAMETER
+            } else if parameter.optional {
+                CheckFlags::OPTIONAL_PARAMETER
+            } else {
+                CheckFlags::from_bits(0)
+            };
+            self.links
+                .set_symbol_check_flags(self.speculation_depth, symbol, check_flags);
+            self.links
+                .set_fresh_symbol_type(symbol, crate::links::LinkSlot::Resolved(parameter_type));
+            if !parameter.rest && !parameter.optional && !optional_seen {
+                min_argument_count += 1;
+            } else {
+                optional_seen = true;
+            }
+            parameter_symbols.push(symbol);
+        }
+        let Some(return_type) = self.get_type_from_jsdoc_text(location, &return_text)? else {
+            return Ok(None);
+        };
+        let signature = self.alloc_signature(Signature {
+            declaration: None,
+            flags: signature_flags,
+            type_parameters: None,
+            parameters: parameter_symbols,
+            this_parameter: None,
+            min_argument_count,
+            resolved_return_type: crate::links::LinkSlot::Resolved(return_type),
+            from_method: false,
+            target: None,
+            mapper: None,
+            instantiations: std::collections::HashMap::new(),
+            erased_signature_cache: None,
+            canonical_signature_cache: None,
+            base_signature_cache: None,
+            composite_kind: None,
+            composite_signatures: None,
+            optional_call_signature_cache: (None, None),
+            isolated_signature_kind: Some(SignatureKind::Call),
+            isolated_signature_type: None,
+        });
+        self.get_or_create_type_from_signature(signature).map(Some)
+    }
+
+    fn jsdoc_object_typedef_type(
+        &mut self,
+        location: NodeId,
+        name: &str,
+    ) -> CheckResult2<Option<TypeId>> {
+        if !is_jsdoc_identifier(name) {
+            return Ok(None);
+        }
+        let source = self.binder.source_of_node(location);
+        let mut cursor = 0usize;
+        let mut matching_comment = None;
+        while cursor < source.text.len() {
+            let Some(relative_start) = source.text[cursor..].find("/**") else {
+                break;
+            };
+            let body_start = cursor + relative_start + 3;
+            let Some(relative_close) = source.text[body_start..].find("*/") else {
+                break;
+            };
+            let close = body_start + relative_close;
+            let body = &source.text[body_start..close];
+            if parse_jsdoc_typedef_name(body).is_some_and(|(base, typedef_name)| {
+                matches!(base, "Object" | "object") && typedef_name == name
+            }) {
+                matching_comment = Some(body.to_owned());
+                break;
+            }
+            cursor = close + 2;
+        }
+        let Some(comment) = matching_comment else {
+            return Ok(None);
+        };
+        let properties = parse_jsdoc_property_annotations(&comment);
+        if properties.is_empty() {
+            return Ok(None);
+        }
+        let object = self.create_resolved_empty_anonymous_type(None);
+        let members = self
+            .links
+            .ty(object)
+            .resolved_members
+            .resolved()
+            .expect("created resolved above");
+        for (property_name, type_text, optional) in properties {
+            let Some(property_type) = self.get_type_from_jsdoc_text(location, &type_text)? else {
+                return Ok(None);
+            };
+            let mut flags = SymbolFlags::PROPERTY;
+            if optional {
+                flags |= SymbolFlags::OPTIONAL;
+            }
+            let symbol = self.binder.create_symbol(flags, property_name.clone());
+            self.links
+                .set_fresh_symbol_type(symbol, crate::links::LinkSlot::Resolved(property_type));
+            let resolved = self.members_mut(members);
+            resolved.members.insert(property_name, symbol);
+            resolved.properties.push(symbol);
+        }
+        Ok(Some(object))
+    }
+
+    fn jsdoc_parameterized_arrow_type(
+        &mut self,
+        expression: NodeId,
+        comment_body: &str,
+        inferred_type: TypeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        let NodeData::ArrowFunction(data) = self.data_of(expression) else {
+            return Ok(None);
+        };
+        let parameter_nodes = self.nodes_of(data.parameters);
+        let annotations = parse_jsdoc_parameter_annotations(comment_body);
+        if annotations.is_empty() {
+            return Ok(None);
+        }
+        let inferred_signatures =
+            self.get_signatures_of_type(inferred_type, SignatureKind::Call)?;
+        let Some(&inferred_signature) = inferred_signatures.first() else {
+            return Ok(None);
+        };
+        let return_type = self.get_return_type_of_signature(inferred_signature)?;
+        let mut parameter_symbols = Vec::with_capacity(parameter_nodes.len());
+        let mut flags = SignatureFlags::NONE;
+        for (index, parameter) in parameter_nodes.into_iter().enumerate() {
+            let NodeData::Parameter(data) = self.data_of(parameter) else {
+                return Ok(None);
+            };
+            let name = data
+                .name
+                .and_then(|name| self.identifier_text_of(name))
+                .map(str::to_owned)
+                .unwrap_or_else(|| format!("arg{index}"));
+            let parameter_type = match annotations
+                .iter()
+                .find(|(annotation_name, _)| annotation_name == &name)
+            {
+                Some((_, type_text)) => {
+                    let Some(ty) = self.get_type_from_jsdoc_text(parameter, type_text)? else {
+                        return Ok(None);
+                    };
+                    ty
+                }
+                None => self
+                    .try_get_type_at_position(inferred_signature, index)?
+                    .unwrap_or(self.tables.intrinsics.any),
+            };
+            let symbol = self
+                .binder
+                .create_symbol(SymbolFlags::FUNCTION_SCOPED_VARIABLE, name);
+            let check_flags = if data.dot_dot_dot_token.is_some() {
+                flags |= SignatureFlags::HAS_REST_PARAMETER;
+                CheckFlags::REST_PARAMETER
+            } else {
+                CheckFlags::from_bits(0)
+            };
+            self.links
+                .set_symbol_check_flags(self.speculation_depth, symbol, check_flags);
+            self.links
+                .set_fresh_symbol_type(symbol, crate::links::LinkSlot::Resolved(parameter_type));
+            parameter_symbols.push(symbol);
+        }
+        let signature = self.alloc_signature(Signature {
+            declaration: None,
+            flags,
+            type_parameters: None,
+            parameters: parameter_symbols,
+            this_parameter: None,
+            min_argument_count: self.signature_of(inferred_signature).min_argument_count,
+            resolved_return_type: crate::links::LinkSlot::Resolved(return_type),
+            from_method: false,
+            target: None,
+            mapper: None,
+            instantiations: std::collections::HashMap::new(),
+            erased_signature_cache: None,
+            canonical_signature_cache: None,
+            base_signature_cache: None,
+            composite_kind: None,
+            composite_signatures: None,
+            optional_call_signature_cache: (None, None),
+            isolated_signature_kind: Some(SignatureKind::Call),
+            isolated_signature_type: None,
+        });
+        self.get_or_create_type_from_signature(signature).map(Some)
     }
 
     /// tsrs-native: project checkTypePredicate's invalid-parent face
@@ -9729,6 +10200,210 @@ fn jsdoc_has_line_tag(comment: &str, tag: &str) -> bool {
     })
 }
 
+#[derive(Clone)]
+struct JsDocFunctionParameter {
+    name: String,
+    ty: String,
+    optional: bool,
+    rest: bool,
+}
+
+fn jsdoc_braced_payload(text: &str) -> Option<(&str, usize)> {
+    let text = text.trim_start();
+    if !text.starts_with('{') {
+        return None;
+    }
+    let mut depth = 0usize;
+    for (index, character) in text.char_indices() {
+        match character {
+            '{' => depth += 1,
+            '}' => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    return Some((&text[1..index], index + 1));
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn split_top_level_commas(text: &str) -> Option<Vec<&str>> {
+    let mut parts = Vec::new();
+    let mut start = 0usize;
+    let mut parens = 0usize;
+    let mut brackets = 0usize;
+    let mut braces = 0usize;
+    let mut angles = 0usize;
+    for (index, character) in text.char_indices() {
+        match character {
+            '(' => parens += 1,
+            ')' => parens = parens.checked_sub(1)?,
+            '[' => brackets += 1,
+            ']' => brackets = brackets.checked_sub(1)?,
+            '{' => braces += 1,
+            '}' => braces = braces.checked_sub(1)?,
+            '<' => angles += 1,
+            '>' => angles = angles.checked_sub(1)?,
+            ',' if parens == 0 && brackets == 0 && braces == 0 && angles == 0 => {
+                parts.push(text[start..index].trim());
+                start = index + 1;
+            }
+            _ => {}
+        }
+    }
+    if parens != 0 || brackets != 0 || braces != 0 || angles != 0 {
+        return None;
+    }
+    parts.push(text[start..].trim());
+    Some(parts)
+}
+
+fn parse_jsdoc_arrow_function_type(text: &str) -> Option<(Vec<JsDocFunctionParameter>, String)> {
+    let text = text.trim();
+    let arrow = text.rfind("=>")?;
+    let parameters_text = text[..arrow].trim();
+    let return_text = text[arrow + 2..].trim();
+    let parameters_text = parameters_text.strip_prefix('(')?.strip_suffix(')')?.trim();
+    if return_text.is_empty() {
+        return None;
+    }
+    let mut parameters = Vec::new();
+    if !parameters_text.is_empty() {
+        for parameter in split_top_level_commas(parameters_text)? {
+            let colon = parameter.find(':')?;
+            let mut name = parameter[..colon].trim();
+            let ty = parameter[colon + 1..].trim();
+            let rest = name.starts_with("...");
+            if rest {
+                name = name.strip_prefix("...")?.trim();
+            }
+            let optional = name.ends_with('?');
+            if optional {
+                name = name.strip_suffix('?')?.trim();
+            }
+            if !is_jsdoc_identifier(name) || ty.is_empty() {
+                return None;
+            }
+            parameters.push(JsDocFunctionParameter {
+                name: name.to_owned(),
+                ty: ty.to_owned(),
+                optional,
+                rest,
+            });
+        }
+    }
+    Some((parameters, return_text.to_owned()))
+}
+
+fn parse_jsdoc_parameter_annotations(comment: &str) -> Vec<(String, String)> {
+    let mut annotations = Vec::new();
+    for line in comment.lines() {
+        let candidate = line
+            .trim_start()
+            .strip_prefix('*')
+            .unwrap_or(line.trim_start())
+            .trim_start();
+        let Some(tail) = candidate.strip_prefix("@param") else {
+            continue;
+        };
+        if !tail
+            .chars()
+            .next()
+            .is_some_and(|character| character.is_whitespace() || character == '{')
+        {
+            continue;
+        }
+        let tail = tail.trim_start();
+        let Some((ty, consumed)) = jsdoc_braced_payload(tail) else {
+            continue;
+        };
+        let name = tail[consumed..]
+            .split_whitespace()
+            .next()
+            .unwrap_or_default()
+            .trim_matches(|character| matches!(character, '[' | ']'));
+        if is_jsdoc_identifier(name) && !ty.trim().is_empty() {
+            annotations.push((name.to_owned(), ty.trim().to_owned()));
+        }
+    }
+    annotations
+}
+
+fn parse_jsdoc_typedef_name(comment: &str) -> Option<(&str, &str)> {
+    for line in comment.lines() {
+        let candidate = line
+            .trim_start()
+            .strip_prefix('*')
+            .unwrap_or(line.trim_start())
+            .trim_start();
+        let Some(tail) = candidate.strip_prefix("@typedef") else {
+            continue;
+        };
+        if !tail
+            .chars()
+            .next()
+            .is_some_and(|character| character.is_whitespace() || character == '{')
+        {
+            continue;
+        }
+        let tail = tail.trim_start();
+        let (base, consumed) = jsdoc_braced_payload(tail)?;
+        let name = tail[consumed..].split_whitespace().next()?;
+        if is_jsdoc_identifier(name) {
+            return Some((base.trim(), name));
+        }
+    }
+    None
+}
+
+fn parse_jsdoc_property_annotations(comment: &str) -> Vec<(String, String, bool)> {
+    let mut annotations = Vec::new();
+    for line in comment.lines() {
+        let candidate = line
+            .trim_start()
+            .strip_prefix('*')
+            .unwrap_or(line.trim_start())
+            .trim_start();
+        let Some(tail) = candidate.strip_prefix("@property") else {
+            continue;
+        };
+        if !tail
+            .chars()
+            .next()
+            .is_some_and(|character| character.is_whitespace() || character == '{')
+        {
+            continue;
+        }
+        let tail = tail.trim_start();
+        let Some((ty, consumed)) = jsdoc_braced_payload(tail) else {
+            continue;
+        };
+        let raw_name = tail[consumed..]
+            .split_whitespace()
+            .next()
+            .unwrap_or_default();
+        let optional = raw_name.starts_with('[') && raw_name.ends_with(']');
+        let name = raw_name.trim_matches(|character| matches!(character, '[' | ']'));
+        if is_jsdoc_identifier(name) && !ty.trim().is_empty() {
+            annotations.push((name.to_owned(), ty.trim().to_owned(), optional));
+        }
+    }
+    annotations
+}
+
+fn is_jsdoc_identifier(text: &str) -> bool {
+    let mut characters = text.chars();
+    let Some(first) = characters.next() else {
+        return false;
+    };
+    (first == '_' || first == '$' || first.is_ascii_alphabetic())
+        && characters.all(|character| {
+            character == '_' || character == '$' || character.is_ascii_alphanumeric()
+        })
+}
+
 fn source_starts_keyword(text: &str, keyword: &str) -> bool {
     text.strip_prefix(keyword).is_some_and(|tail| {
         tail.chars().next().is_none_or(|character| {
@@ -10103,6 +10778,104 @@ mod tests {
             diagnostics.iter().all(|diagnostic| diagnostic.0 != 1223),
             "distinct-host/non-tag faces must not produce duplicate-tag diagnostics: \
              {diagnostics:?}"
+        );
+    }
+
+    // ---- M7 8.1s JSDoc satisfies semantics ----
+
+    #[test]
+    fn jsdoc_satisfies_semantics_reports_named_primitive_and_function_targets() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/**\n\
+                     * @typedef {Object} Required\n\
+                     * @property {number} value\n\
+                     */\n\
+                    const object = /** @satisfies {Required} */ ({});\n\
+                    /** @satisfies {string} */\n\
+                    const primitive = (1);\n\
+                    /**\n\
+                     * @satisfies {(a: string, ...args: number[]) => void}\n\
+                     * @param {string} a\n\
+                     * @param {string} b\n\
+                     */\n\
+                    const callable = (a, b) => {};\n";
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let diagnostics = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 1360)
+                .map(|diagnostic| {
+                    (
+                        diagnostic.start.expect("TS1360 start"),
+                        diagnostic.length.expect("TS1360 length"),
+                        diagnostic.message_text().to_owned(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let tags = text
+                .match_indices("@satisfies")
+                .map(|(start, _)| ((start + 1) as u32, "satisfies".len() as u32))
+                .collect::<Vec<_>>();
+            assert_eq!(
+                diagnostics,
+                [
+                    (
+                        tags[0].0,
+                        tags[0].1,
+                        "Type '{}' does not satisfy the expected type 'Required'.".to_owned(),
+                    ),
+                    (
+                        tags[1].0,
+                        tags[1].1,
+                        "Type 'number' does not satisfy the expected type 'string'.".to_owned(),
+                    ),
+                    (
+                        tags[2].0,
+                        tags[2].1,
+                        "Type '(a: string, b: string) => void' does not satisfy the expected type '(a: string, ...args: number[]) => void'.".to_owned(),
+                    ),
+                ]
+            );
+            for (start, length) in tags {
+                assert!(state.non_jsdoc_js_diagnostics.contains(&(
+                    "a.js".to_owned(),
+                    start,
+                    length,
+                    1360,
+                )));
+            }
+        });
+    }
+
+    #[test]
+    fn jsdoc_satisfies_semantics_preserves_contextual_object_and_non_tag_faces() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/**\n\
+                     * @typedef {Object} Required\n\
+                     * @property {number} value\n\
+                     */\n\
+                    /** @satisfies {Required} */\n\
+                    const contextualMissing = {};\n\
+                    const inlineValid = /** @satisfies {Required} */ ({ value: 1 });\n\
+                    const inlineExcess = /** @satisfies {Required} */ ({ value: 1, extra: 2 });\n\
+                    /** prose @satisfies {string} */\n\
+                    const prose = 1;\n\
+                    /** @satisfiesElse {string} */\n\
+                    const boundary = 1;\n\
+                    const text = \"/** @satisfies {string} */ (1)\";\n";
+        let diagnostics = checked_file_diags_with("a.js", text, &options);
+        assert!(
+            diagnostics.iter().all(|diagnostic| diagnostic.0 != 1360),
+            "contextual/assignable/non-tag faces must not produce TS1360: {diagnostics:?}"
         );
     }
 
