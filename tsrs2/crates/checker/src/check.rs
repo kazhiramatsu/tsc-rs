@@ -212,6 +212,7 @@ impl<'a> CheckerState<'a> {
         }
         self.check_source_element(end_of_file_token);
         self.check_deferred_nodes(root);
+        self.check_jsdoc_implicit_any_projections(root);
         self.check_jsdoc_satisfies_semantics(root);
         let is_unused_source_file_owner = self.is_effective_external_module(root)
             || self.is_in_js_file(root)
@@ -3467,6 +3468,452 @@ impl<'a> CheckerState<'a> {
                 self.mark_partially_checked_node(projection.expression, err.reason);
             }
         }
+    }
+
+    /// Source-text projection of the two reportImplicitAny faces whose
+    /// declaration nodes live inside JSDoc comments and therefore are
+    /// not present in the main syntax arena:
+    ///
+    /// * a Closure `function(...)` type with no `: return` (7014);
+    /// * a value arrow/function expression contextually typed only as
+    ///   the non-signature `Function`/`function` type (7006).
+    ///
+    /// The ordinary parameter and assignment producers still run
+    /// through `report_implicit_any`; this projection only supplies
+    /// the absent JSDoc declaration/trigger nodes.
+    fn check_jsdoc_implicit_any_projections(&mut self, root: NodeId) {
+        if !self.is_in_js_file(root) || !self.is_check_js_enabled_for_node(root) {
+            return;
+        }
+        let no_implicit_any = self
+            .options
+            .strict_option_value(self.options.no_implicit_any);
+
+        let source = self.binder.source_of_node(root);
+        let text = source.text.clone();
+        if no_implicit_any && text.contains("/**") && text.contains("function") {
+            for (start, end) in jsdoc_function_types_without_return(&text) {
+                let diagnostics_before = self.diagnostics.len();
+                self.error_at_byte_range_with_args(
+                    root,
+                    start,
+                    end,
+                    &diagnostics::Function_type_which_lacks_return_type_annotation_implicitly_has_an_0_return_type,
+                    &["any"],
+                );
+                self.mark_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 7014);
+            }
+        }
+
+        // Do not add another whole-file node visit to ordinary checked
+        // JS. The value-side projection is needed only when a rare
+        // plain Function/function @type spelling is present.
+        if !text.contains("@type") || !(text.contains("Function") || text.contains("function")) {
+            return;
+        }
+
+        let mut nodes = Vec::new();
+        let mut stack = vec![root];
+        while let Some(node) = stack.pop() {
+            nodes.push(node);
+            let raw = self.binder.source_of_node(node).arena.node(node);
+            for_each_child(&source.arena, raw, |child| {
+                stack.push(child);
+                false
+            });
+        }
+        for function in nodes {
+            if !matches!(
+                self.kind_of(function),
+                SyntaxKind::ArrowFunction | SyntaxKind::FunctionExpression
+            ) {
+                continue;
+            }
+            let Some((start, end)) = self.jsdoc_comment_range_for_function(function) else {
+                continue;
+            };
+            let comment = &text[start..end];
+            let Some(type_text) = jsdoc_braced_tag_payload(comment, "@type") else {
+                continue;
+            };
+            if !matches!(type_text.trim(), "Function" | "function") {
+                continue;
+            }
+            for parameter in self.parameters_of_function(function) {
+                let any = self.tables.intrinsics.any;
+                if let Err(err) = self.report_implicit_any(parameter, any, None) {
+                    self.mark_partially_checked_node(parameter, err.reason);
+                }
+            }
+        }
+    }
+
+    /// tsrs-native: checked-JS effective-context publication query.
+    ///
+    /// Whether a conservative internal parameter `any` is hidden by
+    /// an effective source-text JSDoc/contextual carrier in tsc.
+    ///
+    /// This is a publication-provenance query, not a type substitute:
+    /// it recognizes only syntax that tsc uses to decide that a
+    /// parameter is typed. The actual parameter type continues through
+    /// getParameterTypeOfTypeTag/contextual typing when modeled.
+    pub(crate) fn parameter_has_effective_jsdoc_implicit_any_context(
+        &self,
+        parameter: NodeId,
+    ) -> bool {
+        if !self.is_in_js_file(parameter) || self.kind_of(parameter) != SyntaxKind::Parameter {
+            return false;
+        }
+        let Some(function) = self.parent_of(parameter) else {
+            return false;
+        };
+        let parameters = self.parameters_of_function(function);
+        let Some(index) = parameters
+            .iter()
+            .position(|&candidate| candidate == parameter)
+        else {
+            return false;
+        };
+
+        if let Some((start, end)) = self.jsdoc_comment_range_for_function(function) {
+            let source = self.binder.source_of_node(function);
+            let comment = &source.text[start..end];
+            let comment_body = &source.text[start + 3..end - 2];
+            let annotations = parse_jsdoc_parameter_tag_annotations(comment_body);
+            let name = match self.data_of(parameter) {
+                NodeData::Parameter(data) => data
+                    .name
+                    .and_then(|name| self.identifier_text_of(name))
+                    .map(str::to_owned),
+                _ => None,
+            };
+            let direct = match name {
+                Some(ref name) => annotations.iter().any(|annotation| {
+                    annotation.name == *name
+                        && is_well_formed_jsdoc_implicit_any_parameter_type(&annotation.type_text)
+                }),
+                None => annotations.iter().any(|annotation| {
+                    !annotation.name.contains('.')
+                        && is_well_formed_jsdoc_implicit_any_parameter_type(&annotation.type_text)
+                }),
+            };
+            if direct {
+                return true;
+            }
+
+            // `@satisfies` contextually types function expressions and
+            // arrows, but not function declarations (fn7 in the
+            // satisfies corpus is the observable distinction).
+            if matches!(
+                self.kind_of(function),
+                SyntaxKind::ArrowFunction | SyntaxKind::FunctionExpression
+            ) {
+                if let Some(satisfies) = jsdoc_braced_tag_payload(comment, "@satisfies") {
+                    if jsdoc_function_type_has_parameter_at(satisfies, index) {
+                        return true;
+                    }
+                }
+                if let Some(type_text) = jsdoc_braced_tag_payload(comment, "@type") {
+                    if jsdoc_function_type_has_parameter_at(type_text, index) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // Inline `@satisfies {{ g(s: string): void }}` on an object
+        // literal contextually types only the named method(s) present
+        // in that target. An outer @type does not accidentally type a
+        // different member.
+        if self.kind_of(function) == SyntaxKind::MethodDeclaration {
+            if let Some(object) = self
+                .parent_of(function)
+                .filter(|&parent| self.kind_of(parent) == SyntaxKind::ObjectLiteralExpression)
+            {
+                if let Some((start, end)) = self.leading_jsdoc_comment_range(object) {
+                    let source = self.binder.source_of_node(object);
+                    let comment = &source.text[start..end];
+                    if let Some(target) = jsdoc_braced_tag_payload(comment, "@satisfies") {
+                        if let Some(name) = self
+                            .name_of_node(function)
+                            .and_then(|name| self.identifier_text_of(name))
+                        {
+                            return jsdoc_object_method_has_parameter_at(target, name, index);
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    /// tsrs-native: positive publication proof for checked-JS TS7006.
+    ///
+    /// The checker can conservatively form internal `any` parameter
+    /// diagnostics before every JSDoc/contextual carrier is modeled.
+    /// Absence of a modeled carrier is therefore not proof that tsc
+    /// reports. Publish only the bounded reportImplicitAny faces whose
+    /// source semantics independently prove the public diagnostic.
+    pub(crate) fn should_publish_js_implicit_any_parameter(&self, parameter: NodeId) -> bool {
+        if !self.is_in_js_file(parameter) || self.kind_of(parameter) != SyntaxKind::Parameter {
+            return false;
+        }
+        let Some(function) = self.parent_of(parameter) else {
+            return false;
+        };
+        let effective_context = self.parameter_has_effective_jsdoc_implicit_any_context(parameter);
+
+        let mut comment = None;
+        let mut annotations = Vec::new();
+        let mut parameter_name = None;
+        if let Some((start, end)) = self.jsdoc_comment_range_for_function(function) {
+            let source = self.binder.source_of_node(function);
+            let body = &source.text[start + 3..end - 2];
+            annotations = parse_jsdoc_parameter_tag_annotations(body);
+            parameter_name = match self.data_of(parameter) {
+                NodeData::Parameter(data) => data
+                    .name
+                    .and_then(|name| self.identifier_text_of(name))
+                    .map(str::to_owned),
+                _ => None,
+            };
+            comment = Some(&source.text[start..end]);
+        }
+
+        let matching_annotation = parameter_name.as_ref().and_then(|name| {
+            annotations
+                .iter()
+                .find(|annotation| annotation.name == *name)
+        });
+        if matching_annotation.is_some_and(|annotation| {
+            !is_well_formed_jsdoc_implicit_any_parameter_type(&annotation.type_text)
+        }) {
+            return true;
+        }
+
+        if let Some(comment) = comment {
+            if jsdoc_braced_tag_payload(comment, "@type")
+                .is_some_and(|text| matches!(text.trim(), "Function" | "function"))
+            {
+                return true;
+            }
+            if self.kind_of(function) == SyntaxKind::FunctionDeclaration
+                && jsdoc_braced_tag_payload(comment, "@satisfies").is_some()
+            {
+                return true;
+            }
+            if self.kind_of(function) == SyntaxKind::Constructor
+                && comment.contains("@constructor")
+                && !annotations.is_empty()
+                && matching_annotation.is_none()
+            {
+                return true;
+            }
+            if jsdoc_comment_has_malformed_star_parameter_tag(comment) {
+                return true;
+            }
+            if comment.contains("@template")
+                && jsdoc_braced_tag_payload(comment, "@type").is_some()
+                && !effective_context
+            {
+                return true;
+            }
+        }
+
+        if self.kind_of(function) == SyntaxKind::MethodDeclaration
+            && !effective_context
+            && self
+                .parent_of(function)
+                .filter(|&parent| self.kind_of(parent) == SyntaxKind::ObjectLiteralExpression)
+                .and_then(|object| self.leading_jsdoc_comment_range(object))
+                .is_some_and(|(start, end)| {
+                    let source = self.binder.source_of_node(function);
+                    jsdoc_braced_tag_payload(&source.text[start..end], "@satisfies")
+                        .is_some_and(|target| target.trim_start().starts_with('{'))
+                })
+        {
+            return true;
+        }
+        if effective_context {
+            return false;
+        }
+
+        if let NodeData::Parameter(data) = self.data_of(parameter) {
+            if let Some(initializer) = data.initializer {
+                if self.is_empty_array_literal_expr(initializer)
+                    || !self.tables.strict_null_checks
+                        && self.kind_of(initializer) == SyntaxKind::NullKeyword
+                {
+                    return true;
+                }
+            }
+        }
+
+        if self.kind_of(function) == SyntaxKind::FunctionExpression {
+            let mut current = self.parent_of(function);
+            for _ in 0..4 {
+                let Some(node) = current else {
+                    break;
+                };
+                if self.kind_of(node) == SyntaxKind::BinaryExpression {
+                    return tsrs2_binder::assignment::get_assignment_declaration_kind(
+                        self.binder.source_of_node(node),
+                        node,
+                    ) == tsrs2_binder::AssignmentDeclarationKind::PrototypeProperty;
+                }
+                if !matches!(
+                    self.kind_of(node),
+                    SyntaxKind::ParenthesizedExpression | SyntaxKind::AsExpression
+                ) {
+                    break;
+                }
+                current = self.parent_of(node);
+            }
+        }
+        if self.kind_of(function) == SyntaxKind::ArrowFunction {
+            let mut current = self.parent_of(function);
+            for _ in 0..4 {
+                let Some(node) = current else {
+                    break;
+                };
+                if self.kind_of(node) == SyntaxKind::ExpressionStatement {
+                    return true;
+                }
+                if self.kind_of(node) != SyntaxKind::ParenthesizedExpression {
+                    break;
+                }
+                current = self.parent_of(node);
+            }
+        }
+        false
+    }
+
+    /// tsrs-native: positive publication proof for checked-JS TS7008.
+    pub(crate) fn should_publish_js_implicit_any_member(
+        &self,
+        declaration: NodeId,
+        type_as_string: &str,
+    ) -> bool {
+        if self.kind_of(declaration) != SyntaxKind::BinaryExpression {
+            return false;
+        }
+        let source = self.binder.source_of_node(declaration);
+        if tsrs2_binder::assignment::get_assignment_declaration_kind(source, declaration)
+            != tsrs2_binder::AssignmentDeclarationKind::ThisProperty
+        {
+            return false;
+        }
+        let container = node_util::get_this_container(
+            source,
+            declaration,
+            /*include_arrow_functions*/ false,
+        );
+        if container.is_some_and(|container| {
+            matches!(
+                self.kind_of(container),
+                SyntaxKind::MethodDeclaration
+                    | SyntaxKind::GetAccessor
+                    | SyntaxKind::SetAccessor
+                    | SyntaxKind::PropertyDeclaration
+            )
+        }) {
+            return true;
+        }
+        if type_as_string != "any[]" {
+            return false;
+        }
+        let Some(symbol) = self.binder.node_symbol(declaration) else {
+            return false;
+        };
+        let mut has_empty_array = false;
+        let mut has_nullable = false;
+        for &candidate in &self.binder.symbol(symbol).declarations {
+            let NodeData::BinaryExpression(data) = self.data_of(candidate) else {
+                continue;
+            };
+            let Some(initializer) = data.right else {
+                continue;
+            };
+            has_empty_array |= self.is_empty_array_literal_expr(initializer);
+            has_nullable |= matches!(
+                self.kind_of(initializer),
+                SyntaxKind::NullKeyword | SyntaxKind::UndefinedKeyword
+            ) || self
+                .identifier_text_of(initializer)
+                .is_some_and(|name| name == "undefined");
+        }
+        has_empty_array && has_nullable
+    }
+
+    /// tsrs-native: binding-element projection of the owning
+    /// parameter's effective JSDoc/contextual carrier.
+    pub(crate) fn binding_element_has_effective_jsdoc_parameter_context(
+        &self,
+        binding_element: NodeId,
+    ) -> bool {
+        let mut current = Some(binding_element);
+        while let Some(node) = current {
+            if self.kind_of(node) == SyntaxKind::Parameter {
+                return self.parameter_has_effective_jsdoc_implicit_any_context(node);
+            }
+            if matches!(
+                self.kind_of(node),
+                SyntaxKind::SourceFile
+                    | SyntaxKind::Block
+                    | SyntaxKind::ModuleBlock
+                    | SyntaxKind::FunctionDeclaration
+                    | SyntaxKind::FunctionExpression
+                    | SyntaxKind::ArrowFunction
+                    | SyntaxKind::MethodDeclaration
+            ) {
+                break;
+            }
+            current = self.parent_of(node);
+        }
+        false
+    }
+
+    fn jsdoc_comment_range_for_function(&self, function: NodeId) -> Option<(usize, usize)> {
+        let mut current = Some(function);
+        for _ in 0..6 {
+            let node = current?;
+            if let Some(range) = self.leading_jsdoc_comment_range(node) {
+                return Some(range);
+            }
+            // Unnamed declarations (notably constructors) have no
+            // name anchor, and their node.pos starts before the JSDoc
+            // trivia. Select the nearest comment in that trivia range.
+            let source = self.binder.source_of_node(node);
+            let trivia_start = source.arena.node(node).pos as usize;
+            let trivia_end =
+                tsrs2_syntax::skip_trivia(&source.text, trivia_start).min(source.text.len());
+            if trivia_start < trivia_end {
+                let trivia = &source.text[trivia_start..trivia_end];
+                if let Some(relative_start) = trivia.rfind("/**") {
+                    let start = trivia_start + relative_start;
+                    if let Some(relative_close) = source.text[start + 3..trivia_end].find("*/") {
+                        return Some((start, start + 3 + relative_close + 2));
+                    }
+                }
+            }
+            current = match self.parent_of(node) {
+                Some(parent)
+                    if matches!(
+                        self.kind_of(parent),
+                        SyntaxKind::ParenthesizedExpression
+                            | SyntaxKind::VariableDeclaration
+                            | SyntaxKind::PropertyAssignment
+                            | SyntaxKind::PropertyDeclaration
+                            | SyntaxKind::BinaryExpression
+                            | SyntaxKind::ExpressionStatement
+                    ) =>
+                {
+                    Some(parent)
+                }
+                _ => None,
+            };
+        }
+        None
     }
 
     fn check_jsdoc_satisfies_projection(
@@ -11649,31 +12096,54 @@ fn parse_jsdoc_parameter_annotations(comment: &str) -> Vec<(String, String)> {
 }
 
 fn parse_jsdoc_parameter_tag_annotations(comment: &str) -> Vec<JsDocParameterTagAnnotation> {
+    let lines: Vec<&str> = comment
+        .lines()
+        .map(|line| {
+            line.trim_start()
+                .strip_prefix('*')
+                .unwrap_or(line.trim_start())
+                .trim_start()
+        })
+        .collect();
     let mut annotations = Vec::new();
-    for line in comment.lines() {
-        let candidate = line
-            .trim_start()
-            .strip_prefix('*')
-            .unwrap_or(line.trim_start())
-            .trim_start();
+    for (index, candidate) in lines.iter().copied().enumerate() {
         let Some(tail) = candidate.strip_prefix("@param") else {
             continue;
         };
         if !tail
             .chars()
             .next()
-            .is_some_and(|character| character.is_whitespace() || character == '{')
+            .is_none_or(|character| character.is_whitespace() || character == '{')
         {
             continue;
         }
-        let tail = tail.trim_start();
-        let Some((ty, consumed)) = jsdoc_braced_payload(tail) else {
+        let mut owned_tail = tail.trim_start().to_owned();
+        if owned_tail.starts_with('*') {
+            continue;
+        }
+        if owned_tail.is_empty() {
+            let Some(next) = lines.get(index + 1).copied() else {
+                continue;
+            };
+            if next.starts_with('@') || next.starts_with('*') {
+                continue;
+            }
+            owned_tail.push_str(next);
+        }
+        let Some((ty, consumed)) = jsdoc_braced_payload(&owned_tail) else {
             continue;
         };
-        let raw_name = tail[consumed..]
-            .split_whitespace()
-            .next()
-            .unwrap_or_default();
+        let mut name_tail = owned_tail[consumed..].trim_start().to_owned();
+        if name_tail.is_empty() {
+            let Some(next) = lines.get(index + 1).copied() else {
+                continue;
+            };
+            if next.starts_with('@') || next.starts_with('*') {
+                continue;
+            }
+            name_tail.push_str(next);
+        }
+        let raw_name = name_tail.split_whitespace().next().unwrap_or_default();
         let bracketed = raw_name.starts_with('[') && raw_name.ends_with(']');
         let name = raw_name
             .trim_matches(|character| matches!(character, '[' | ']'))
@@ -11695,6 +12165,215 @@ fn parse_jsdoc_parameter_tag_annotations(comment: &str) -> Vec<JsDocParameterTag
         }
     }
     annotations
+}
+
+fn jsdoc_braced_tag_payload<'a>(comment: &'a str, tag: &str) -> Option<&'a str> {
+    let mut cursor = 0usize;
+    while let Some(relative) = comment[cursor..].find(tag) {
+        let start = cursor + relative;
+        let before_ok = start == 0
+            || !comment[..start]
+                .chars()
+                .next_back()
+                .is_some_and(|character| {
+                    character.is_ascii_alphanumeric() || matches!(character, '_' | '$')
+                });
+        let after = start + tag.len();
+        let after_ok = comment[after..]
+            .chars()
+            .next()
+            .is_none_or(|character| character.is_whitespace() || character == '{');
+        if before_ok && after_ok {
+            let tail = comment[after..].trim_start();
+            if let Some((payload, _)) = jsdoc_braced_payload(tail) {
+                return Some(payload);
+            }
+        }
+        cursor = after;
+    }
+    None
+}
+
+fn is_well_formed_jsdoc_implicit_any_parameter_type(text: &str) -> bool {
+    let compact: String = text
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect();
+    !compact.is_empty() && !compact.contains("?!") && !compact.contains("?[]")
+}
+
+fn jsdoc_comment_has_malformed_star_parameter_tag(comment: &str) -> bool {
+    let lines = comment
+        .lines()
+        .map(|line| {
+            line.trim_start()
+                .strip_prefix('*')
+                .unwrap_or(line.trim_start())
+                .trim_start()
+        })
+        .collect::<Vec<_>>();
+    for (index, candidate) in lines.iter().copied().enumerate() {
+        let Some(tail) = candidate.strip_prefix("@param") else {
+            continue;
+        };
+        let tail = tail.trim_start();
+        if tail.starts_with('*') {
+            return true;
+        }
+        if let Some((_, consumed)) = jsdoc_braced_payload(tail) {
+            let name_tail = tail[consumed..].trim_start();
+            if name_tail.starts_with('*')
+                || name_tail.is_empty()
+                    && lines
+                        .get(index + 1)
+                        .is_some_and(|next| next.trim_start().starts_with('*'))
+            {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn jsdoc_function_type_has_parameter_at(text: &str, index: usize) -> bool {
+    let text = text.trim().trim_start_matches('!').trim();
+    if let Some((parameters, _)) = parse_jsdoc_arrow_function_type(text) {
+        return parameters
+            .get(index)
+            .is_some_and(|parameter| !parameter.ty.trim().is_empty())
+            || parameters.last().is_some_and(|parameter| {
+                parameter.rest && index >= parameters.len().saturating_sub(1)
+            });
+    }
+    let Some(after_function) = text.strip_prefix("function") else {
+        return false;
+    };
+    let after_function = after_function.trim_start();
+    let Some(open) = after_function.strip_prefix('(') else {
+        return false;
+    };
+    let Some(close) = matching_delimiter(open, '(', ')') else {
+        return false;
+    };
+    let parameters = &open[..close];
+    let Some(parts) = split_top_level_commas(parameters) else {
+        return false;
+    };
+    if parts.len() == 1 && parts[0].is_empty() {
+        return false;
+    }
+    parts.get(index).is_some_and(|parameter| {
+        let parameter = parameter.trim().trim_start_matches("...");
+        !parameter.is_empty() && is_well_formed_jsdoc_implicit_any_parameter_type(parameter)
+    }) || parts.last().is_some_and(|parameter| {
+        parameter.trim_start().starts_with("...") && index >= parts.len().saturating_sub(1)
+    })
+}
+
+fn jsdoc_object_method_has_parameter_at(text: &str, method: &str, index: usize) -> bool {
+    let mut cursor = 0usize;
+    while let Some(relative) = text[cursor..].find(method) {
+        let start = cursor + relative;
+        let before_ok = start == 0
+            || !text[..start].chars().next_back().is_some_and(|character| {
+                character.is_ascii_alphanumeric() || matches!(character, '_' | '$')
+            });
+        let after_name = start + method.len();
+        let after = text[after_name..].trim_start();
+        if before_ok && after.starts_with('(') {
+            let open = &after[1..];
+            let Some(close) = matching_delimiter(open, '(', ')') else {
+                return false;
+            };
+            let Some(parts) = split_top_level_commas(&open[..close]) else {
+                return false;
+            };
+            return parts.get(index).is_some_and(|parameter| {
+                let Some(colon) = parameter.find(':') else {
+                    return false;
+                };
+                !parameter[colon + 1..].trim().is_empty()
+            });
+        }
+        cursor = after_name;
+    }
+    false
+}
+
+/// Index of the closing delimiter in `text`, where the matching opening
+/// delimiter was consumed immediately before `text`.
+fn matching_delimiter(text: &str, open: char, close: char) -> Option<usize> {
+    let mut depth = 1usize;
+    for (index, character) in text.char_indices() {
+        if character == open {
+            depth += 1;
+        } else if character == close {
+            depth -= 1;
+            if depth == 0 {
+                return Some(index);
+            }
+        }
+    }
+    None
+}
+
+fn jsdoc_function_types_without_return(text: &str) -> Vec<(usize, usize)> {
+    let mut diagnostics = std::collections::BTreeSet::new();
+    let mut cursor = 0usize;
+    while let Some(relative_start) = text[cursor..].find("/**") {
+        let comment_start = cursor + relative_start;
+        let body_start = comment_start + 3;
+        let Some(relative_close) = text[body_start..].find("*/") else {
+            break;
+        };
+        let comment_end = body_start + relative_close;
+        let body = &text[body_start..comment_end];
+        let mut body_cursor = 0usize;
+        // Only a braced JSDoc type payload can materialize a
+        // JSDocFunctionType. A prose `function(...)` example inside a
+        // comment must not become a semantic diagnostic.
+        while let Some(relative_open) = body[body_cursor..].find('{') {
+            let payload_open = body_cursor + relative_open;
+            let after_open = &body[payload_open + 1..];
+            let Some(payload_close_relative) = matching_delimiter(after_open, '{', '}') else {
+                break;
+            };
+            let payload_close = payload_open + 1 + payload_close_relative;
+            let payload = &body[payload_open + 1..payload_close];
+            let mut candidate = payload.trim_start();
+            while let Some(stripped) = candidate.strip_prefix(['!', '?']) {
+                candidate = stripped.trim_start();
+            }
+            let function_start = payload.len().saturating_sub(candidate.len());
+            let Some(after_function) = candidate.strip_prefix("function") else {
+                body_cursor = payload_close + 1;
+                continue;
+            };
+            let whitespace = after_function.len() - after_function.trim_start().len();
+            let open_index = function_start + "function".len() + whitespace;
+            if payload[open_index..].starts_with('(') {
+                let after_function_open = &payload[open_index + 1..];
+                if let Some(close_relative) = matching_delimiter(after_function_open, '(', ')') {
+                    let close_index = open_index + 1 + close_relative;
+                    let parameters = payload[open_index + 1..close_index].trim_start();
+                    let is_constructor_type = parameters
+                        .strip_prefix("new")
+                        .is_some_and(|tail| tail.trim_start().starts_with(':'));
+                    if !is_constructor_type
+                        && !payload[close_index + 1..].trim_start().starts_with(':')
+                    {
+                        diagnostics.insert((
+                            body_start + payload_open + 1 + function_start,
+                            body_start + payload_open + 1 + close_index + 1,
+                        ));
+                    }
+                }
+            }
+            body_cursor = payload_close + 1;
+        }
+        cursor = comment_end + 2;
+    }
+    diagnostics.into_iter().collect()
 }
 
 fn parse_jsdoc_parameter_optionalities(comment: &str) -> Vec<(String, bool)> {
@@ -11931,6 +12610,71 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    // ---- M8-P08 checked-JS reportImplicitAny projections ----
+
+    #[test]
+    fn jsdoc_implicit_any_projection_honors_ts_check_and_comment_spans() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(false),
+            no_implicit_any: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "// @ts-check\n\
+                    /** @type {Function} */\n\
+                    const x = a => a;\n\
+                    /** @type {function (number)} */\n\
+                    const y = n => n;\n";
+        let diagnostics = checked_file_diags_with("a.js", text, &options);
+        assert!(diagnostics.iter().any(|row| {
+            row.0 == 7006
+                && row.1 == text.find("a =>").expect("plain Function parameter") as u32
+                && row.2 == 1
+        }));
+        let function_type = "function (number)";
+        assert!(diagnostics.iter().any(|row| {
+            row.0 == 7014
+                && row.1 == text.find(function_type).expect("JSDoc function type") as u32
+                && row.2 == function_type.len() as u32
+        }));
+        assert!(super::jsdoc_function_types_without_return(
+            "/** prose mentions function(number), but has no type payload */"
+        )
+        .is_empty());
+    }
+
+    #[test]
+    fn jsdoc_parameter_tag_projection_accepts_wrapping_but_not_star_recovery() {
+        let good = "\n\
+                    * @param\n\
+                    * {number} x Arg x.\n\
+                    * @param {number}\n\
+                    * y Arg y.\n\
+                    * @param {number} z\n";
+        let bad = "\n\
+                   * @param *\n\
+                   * {number} x Arg x.\n\
+                   * @param {number}\n\
+                   * * y Arg y.\n\
+                   * @param {number} * z\n";
+        let good = super::parse_jsdoc_parameter_tag_annotations(good)
+            .into_iter()
+            .map(|annotation| (annotation.name, annotation.type_text))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            good,
+            [
+                ("x".to_owned(), "number".to_owned()),
+                ("y".to_owned(), "number".to_owned()),
+                ("z".to_owned(), "number".to_owned()),
+            ]
+        );
+        assert!(
+            super::parse_jsdoc_parameter_tag_annotations(bad).is_empty(),
+            "star recovery must not manufacture effective @param annotations"
+        );
     }
 
     // ---- M7 8.1m JSDoc unique-symbol property grammar ----

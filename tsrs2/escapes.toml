@@ -1136,7 +1136,7 @@ class = "recovery"
 [[site]]
 file = "crates/checker/src/widen.rs"
 in = "report_implicit_any"
-reason = "reportImplicitAny JSDoc arms ([JSDOC] M8)"
+reason = "reportImplicitAny JSDocSignature overload arm ([JSDOC] M8)"
 class = "stage"
 owner = "M8"
 

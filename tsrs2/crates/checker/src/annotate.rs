@@ -8304,11 +8304,8 @@ impl<'a> CheckerState<'a> {
         if self.tables.strict_null_checks && defined_in_method && !defined_in_constructor {
             ty = self.get_optional_type(ty, /*is_property*/ false)?;
         }
-        if self
-            .binder
-            .symbol(symbol)
-            .value_declaration
-            .is_some_and(|declaration| self.is_in_js_file(declaration))
+        let value_declaration = self.binder.symbol(symbol).value_declaration;
+        if value_declaration.is_some_and(|declaration| self.is_in_js_file(declaration))
             && self.every_type(ty, |state, member| {
                 state
                     .tables
@@ -8316,7 +8313,15 @@ impl<'a> CheckerState<'a> {
                     .intersects(TypeFlags::NULLABLE)
             })
         {
-            return Ok(self.tables.intrinsics.any);
+            let any = self.tables.intrinsics.any;
+            if let Some(value_declaration) = value_declaration {
+                // tsc getWidenedTypeForAssignmentDeclaration reports the
+                // all-nullable JS assignment member before replacing its
+                // public type with `any`. Chained `exports.x = ... =
+                // undefined` declarations each own one exact 7005 row.
+                self.report_implicit_any(value_declaration, any, None)?;
+            }
+            return Ok(any);
         }
         self.get_widened_type(ty)
     }
