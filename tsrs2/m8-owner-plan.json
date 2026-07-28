@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "status": "draft",
+  "status": "frozen",
   "entry_baseline_commit": "8873bb74a2911a38ca2da6b6c305f7353bd3b31d",
   "generated_from_commit": "77ac9587e3fab14f5f17895ef5f6e0a57beb1121",
   "summary": {
@@ -28884,5 +28884,8 @@
   "review_input": {
     "path": "m8-owner-plan-review.json",
     "sha256": "24c99261c59735a28c299c5b52b388aa6de618b6c41b6a2669cfebbe2ac12d0d"
+  },
+  "freeze": {
+    "adjudication_commit": "85ef63f31887b1b3b398015e3be3206f59caf13e"
   }
 }

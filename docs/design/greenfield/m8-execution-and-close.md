@@ -169,8 +169,12 @@ cargo xtask m8 plan apply-review \
   --plan target/m8/owner-plan-draft.json \
   --review m8-owner-plan-review.json \
   --out m8-owner-plan.json
-cargo xtask m8 plan check \
+# Land the reviewed draft, return to a clean main, then freeze it in place.
+cargo xtask m8 plan freeze \
   --plan m8-owner-plan.json
+cargo xtask m8 plan check \
+  --plan m8-owner-plan.json \
+  --baseline origin/main
 ```
 
 The full conformance command is run once for the entry snapshot, not as an
@@ -195,7 +199,13 @@ native-adjacent Rust boundary needed where no exact ledger join exists.
 collapsing a non-singleton SCC as a singleton, stale Rust paths/functions,
 and boundary overrides that replace an available exact ledger join. The
 reviewed plan remains a draft for one landed commit; the later freeze commit
-may only anchor that identical reviewed content.
+may only anchor that identical reviewed content. `plan freeze` records the
+full current commit, refuses an unlanded or incomplete review, and changes
+only `status` plus the freeze record. Frozen `plan check` resolves that
+commit, requires it to be an ancestor, compares the complete normalized JSON
+to the anchored draft, verifies the anchored review-overlay hash, and allows
+the trusted baseline transition exactly once. Later semantic CI checks the
+frozen plan without rerunning Node or depending on ignored `target/` inputs.
 
 Trace `execution_pass` and oracle output `pass` are intentionally separate.
 For example, parser-created JSDoc diagnostics may be returned in the semantic
