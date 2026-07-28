@@ -170,13 +170,16 @@ cargo build --workspace
 cargo test --workspace
 cargo xtask conformance --band 2xxx
 cargo xtask ci
+cargo xtask completion
 ```
 
 `cargo xtask ci` is the full local merge gate and includes formatting,
 Clippy, build/tests, generated artifacts, accepted-state and scope/family
 audits, all/2XXX/syntactic conformance, invariants, ledgers, escapes, and
 README status freshness. See [setup and verification](docs/setup.md) for
-focused commands and environment details.
+focused commands and environment details. `cargo xtask completion` writes
+the report-only M8/M9 completion matrix; its `--require-done` form is reserved
+for the post-M9 release gate.
 
 ## Repository Layout
 

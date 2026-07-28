@@ -27,7 +27,13 @@ cargo xtask ci                      # full merge-gate suite (must be green on ma
 cargo xtask conformance             # conformance sweep (optionally --band 2xxx)
 cargo xtask conformance --syntactic-only
 cargo xtask invariants --suite all  # determinism/idempotence invariants
+cargo xtask completion              # report all 11 final completion rows
 ```
+
+`cargo xtask completion` is report-only during M8 and succeeds while naming
+pending rows in `target/completion/report.json`. The post-M9 release gate is
+`cargo xtask completion --require-done`, which fails unless all 11 rows are
+green.
 
 The full gate list, the trusted-base variants, and the per-artifact
 audit commands (`ratchet check`, `scope audit`, `families check`,
