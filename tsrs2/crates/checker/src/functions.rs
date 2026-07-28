@@ -2178,9 +2178,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:81289-81355
     ///
     /// Emit-helper probes are importHelpers-gated (no-op);
-    /// checkUnmatchedJSDocParameters is JS-only; the JSDoc type-tag
-    /// return-location indirection is JS-only (returnTypeErrorLocation
-    /// === returnTypeNode in TS files);
+    /// checkUnmatchedJSDocParameters' direct TS8024/TS8032 faces are
+    /// live from M8-P16; its `arguments`/array TS8029 face remains
+    /// JS-only and elided. The JSDoc type-tag return-location
+    /// indirection is JS-only (returnTypeErrorLocation ===
+    /// returnTypeNode in TS files);
     /// The lazy tail runs eager (the 5.4 addLazyDiagnostic decision).
     /// M7 activates registration one declaration owner at a time. The
     /// value-local function owners and the TS type-parameter owners
@@ -2227,6 +2229,7 @@ impl<'a> CheckerState<'a> {
         };
         let type_parameter_nodes = self.nodes_of(type_parameters);
         self.check_type_parameters(&type_parameter_nodes)?;
+        self.check_unmatched_jsdoc_parameters(node);
         // forEach(node.parameters, checkParameter) — DIRECT calls with
         // per-parameter Err containment (the checkTypeParameters
         // precedent: one out-of-slice parameter must not silence its

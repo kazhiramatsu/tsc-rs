@@ -565,8 +565,15 @@
 # names keep their zero-width span, and generic `@extends Base<T>`
 # siblings compare only the entity expression. T1-T3 gain the same
 # six identities with no losses, outside gains, or false positives.
-rate = 0.987598
-matched = 48416
+# M8-P16: +13 exact TS8024/TS8032 identities from
+# checkUnmatchedJSDocParameters. Parameter-tag hierarchy preserves
+# nested-property folding and binding-pattern index exclusions;
+# malformed type/name recovery keeps its zero-width span, and cached
+# later initializers in comma declarations retain their shared JSDoc
+# host. T1-T3 gain the same 13 identities with no losses, outside
+# gains, or false positives.
+rate = 0.987863
+matched = 48429
 total = 49024
 allowed_regression = 0.0
 
