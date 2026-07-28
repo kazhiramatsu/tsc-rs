@@ -5413,7 +5413,7 @@ fn render_readme_status(workspace: &Path) -> Result<String, Box<dyn Error>> {
         group_thousands(family_rows)
     ));
     block.push_str(&format!(
-        "\nM8 readiness (report-only until M7 close): {}/{} gates ready.\n\
+        "\nM8 readiness: {}/{} gates ready.\n\
          Ready: {}. Pending: {}.\n",
         readiness.gates.iter().filter(|gate| gate.ready).count(),
         readiness.gates.len(),
