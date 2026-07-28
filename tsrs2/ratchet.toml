@@ -600,8 +600,15 @@
 # adds no node traversal; explicit-type and frozen inner-namepath
 # siblings remain non-firing. T1-T3 gain the same identity with no
 # losses, outside gains, or false positives.
-rate = 0.988026
-matched = 48437
+# M8-P21: +4 exact TS8039 identities from
+# parseCallbackTagParameters and parseNestedTypeLiteral. Immediate
+# callback/overload template children and the frozen nested Object
+# property face share the existing comment-tag scan; top-level,
+# typedef-first, second-template, and overloadTag2 siblings remain
+# non-firing. T1-T3 gain the same four identities with no losses,
+# outside gains, or false positives, closing supported residuals.
+rate = 0.988108
+matched = 48441
 total = 49024
 allowed_regression = 0.0
 
