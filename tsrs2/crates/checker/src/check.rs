@@ -228,6 +228,7 @@ impl<'a> CheckerState<'a> {
         }
         self.check_source_element(end_of_file_token);
         self.check_deferred_nodes(root);
+        self.check_jsdoc_type_alias_semantics(root);
         self.check_jsdoc_implicit_any_projections(root);
         self.check_jsdoc_satisfies_semantics(root);
         let is_unused_source_file_owner = self.is_effective_external_module(root)
@@ -3754,6 +3755,114 @@ impl<'a> CheckerState<'a> {
             cursor = comment_close + 2;
         }
         comments
+    }
+
+    /// checkJSDocTypeAliasTag's missing-typeExpression face.
+    ///
+    /// tsc-port: checkJSDocTypeAliasTag @6.0.3
+    /// tsc-hash: bda3accc71bb1cb7b7bbeb2cbb44d9d92634e10f48f47ca88d178b74f4ed6f1c
+    /// tsc-span: _tsc.js:82793-82795
+    /// d2: d2:1c9b0a5e47d8bc06ebe075f171d96048c21fd1f90ba086adff3885de9b85f269
+    ///
+    /// JSDoc nodes are not materialized in the Rust syntax arena.
+    /// parseTypedefTag synthesizes a typeExpression when the typedef
+    /// has an explicit braced type or its first child tag is a
+    /// property/type/this tag. A leading template tag stops that child
+    /// fold before typeExpression exists. Project exactly that
+    /// parser-owned distinction once per checked JavaScript source.
+    fn check_jsdoc_type_alias_semantics(&mut self, root: NodeId) {
+        if !self.is_in_js_file(root) {
+            return;
+        }
+        for (start, end) in self.jsdoc_typedef_missing_type_spans(root) {
+            let diagnostics_before = self.diagnostics.len();
+            self.error_at_byte_range(
+                root,
+                start,
+                end,
+                &diagnostics::JSDoc_typedef_tag_should_either_have_a_type_annotation_or_be_followed_by_property_or_member_tags,
+            );
+            self.mark_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 8021);
+        }
+    }
+
+    fn jsdoc_typedef_missing_type_spans(&self, root: NodeId) -> Vec<(usize, usize)> {
+        let source = self.binder.source_of_node(root);
+        let mut diagnostics = std::collections::BTreeSet::new();
+        for (body_start, comment_close) in self.jsdoc_comment_body_ranges(root) {
+            let body = &source.text[body_start..comment_close];
+            let mut tags = Vec::new();
+            let mut line_offset = 0usize;
+            for line in body.split_inclusive('\n') {
+                let raw = jsdoc_raw_line(line);
+                let leading = raw.len() - raw.trim_start_matches(char::is_whitespace).len();
+                let mut candidate = &raw[leading..];
+                let mut candidate_offset = leading;
+                if let Some(after_star) = candidate.strip_prefix('*') {
+                    candidate_offset += 1;
+                    let whitespace =
+                        after_star.len() - after_star.trim_start_matches(char::is_whitespace).len();
+                    candidate_offset += whitespace;
+                    candidate = &after_star[whitespace..];
+                }
+                if let Some(tag_tail) = candidate.strip_prefix('@') {
+                    let tag_length = tag_tail
+                        .chars()
+                        .take_while(|character| character.is_ascii_alphabetic())
+                        .map(char::len_utf8)
+                        .sum::<usize>();
+                    if tag_length > 0 {
+                        let tag = &tag_tail[..tag_length];
+                        let tail = &tag_tail[tag_length..];
+                        if tail
+                            .chars()
+                            .next()
+                            .is_none_or(|character| character.is_whitespace() || character == '{')
+                        {
+                            tags.push((
+                                tag,
+                                tail,
+                                body_start + line_offset + candidate_offset + 1 + tag_length,
+                            ));
+                        }
+                    }
+                }
+                line_offset += line.len();
+            }
+
+            for (index, &(tag, tail, tag_end)) in tags.iter().enumerate() {
+                if tag != "typedef" {
+                    continue;
+                }
+                let whitespace = tail.len() - tail.trim_start_matches(char::is_whitespace).len();
+                let declaration = &tail[whitespace..];
+                if jsdoc_braced_payload(declaration).is_some() {
+                    continue;
+                }
+                let name_length = declaration
+                    .chars()
+                    .take_while(|character| {
+                        *character == '$'
+                            || *character == '_'
+                            || *character == '.'
+                            || character.is_ascii_alphanumeric()
+                    })
+                    .map(char::len_utf8)
+                    .sum::<usize>();
+                if name_length == 0 {
+                    continue;
+                }
+                let first_child_creates_type_expression =
+                    tags.get(index + 1).is_some_and(|(next, _, _)| {
+                        matches!(*next, "property" | "prop" | "type" | "this")
+                    });
+                if !first_child_creates_type_expression {
+                    let name_start = tag_end + whitespace;
+                    diagnostics.insert((name_start, name_start + name_length));
+                }
+            }
+        }
+        diagnostics.into_iter().collect()
     }
 
     /// tsrs-native: project checkSatisfiesExpressionWorker over the
@@ -13288,6 +13397,62 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    // ---- M8-P18 checked-JS checkJSDocTypeAliasTag projection ----
+
+    #[test]
+    fn jsdoc_typedef_template_before_properties_reports_8021_on_the_name() {
+        let text = "/**\n\
+                    * @typedef Oops\n\
+                    * @template T\n\
+                    * @property {T} value\n\
+                    */\n\
+                    const host = {};\n";
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        };
+        let rows: Vec<_> = checked_file_diags_with("a.js", text, &options)
+            .into_iter()
+            .filter(|row| row.0 == 8021)
+            .collect();
+        assert_eq!(
+            rows,
+            [(
+                8021,
+                text.find("Oops").unwrap() as u32,
+                4,
+                "JSDoc '@typedef' tag should either have a type annotation or be followed by '@property' or '@member' tags.".to_owned(),
+            )]
+        );
+    }
+
+    #[test]
+    fn jsdoc_typedef_type_and_property_siblings_do_not_report_8021() {
+        let text = "/** @typedef {(x: number) => string} Explicit */\n\
+                    /**\n\
+                    * @typedef ObjectLike\n\
+                    * @property {number} value\n\
+                    */\n\
+                    /**\n\
+                    * @typedef Nested\n\
+                    * @property {Object} child\n\
+                    * @template T\n\
+                    * @property {T} child.value\n\
+                    */\n\
+                    const host = {};\n";
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        };
+        assert!(checked_file_diags_with("a.js", text, &options)
+            .into_iter()
+            .all(|row| row.0 != 8021));
     }
 
     // ---- M8-P08 checked-JS reportImplicitAny projections ----
