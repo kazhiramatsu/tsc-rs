@@ -163,9 +163,14 @@ cargo xtask conformance \
   --out-json target/m8/entry-conformance.json
 cargo xtask m8 plan draft \
   --conformance-json target/m8/entry-conformance.json \
+  --sibling-fixture 'conformance/node/nodeModulesTripleSlashReferenceModeOverride4.ts#module=node16' \
   --out target/m8/owner-plan-draft.json
+cargo xtask m8 plan apply-review \
+  --plan target/m8/owner-plan-draft.json \
+  --review m8-owner-plan-review.json \
+  --out m8-owner-plan.json
 cargo xtask m8 plan check \
-  --plan target/m8/owner-plan-draft.json
+  --plan m8-owner-plan.json
 ```
 
 The full conformance command is run once for the entry snapshot, not as an
@@ -175,6 +180,22 @@ content-addressed raw trace on later draft checks. The draft partitions the
 entry universe exactly; an identity-side cluster reference that disagrees
 with cluster membership, a stale exact-identity hash, a cross-family cluster,
 or a stale program/code/summary count fails `plan check`.
+
+`--sibling-fixture` adds a focused existing-corpus negative control without
+changing the fixed entry identity universe. A multi-matrix fixture must name
+one exact `#matrix-key`. Adding probes is incremental: matching program/hash
+rows from the fresh raw trace are reused and only new or changed programs
+launch isolated Node processes. A trace-tool, Node-pin, inventory, or vendor
+fingerprint change invalidates reuse rather than mixing evidence vintages.
+
+The review overlay enumerates the exact cluster set and records one selected
+sibling, owner slice, rationale, every producer-SCC decision, and any
+native-adjacent Rust boundary needed where no exact ledger join exists.
+`apply-review` rejects unknown sibling selections, omitted clusters/SCCs,
+collapsing a non-singleton SCC as a singleton, stale Rust paths/functions,
+and boundary overrides that replace an available exact ledger join. The
+reviewed plan remains a draft for one landed commit; the later freeze commit
+may only anchor that identical reviewed content.
 
 Trace `execution_pass` and oracle output `pass` are intentionally separate.
 For example, parser-created JSDoc diagnostics may be returned in the semantic

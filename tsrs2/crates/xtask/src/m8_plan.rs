@@ -28,6 +28,7 @@ struct ResidualSeed {
 struct ProgramSeed {
     fixture: String,
     matrix_key: String,
+    entry_residual: bool,
     path: PathBuf,
     relative_path: String,
     sha256: String,
@@ -51,7 +52,44 @@ struct DraftArgs {
     out: PathBuf,
     raw_trace: Option<PathBuf>,
     program_dir: Option<PathBuf>,
+    sibling_fixtures: Vec<String>,
     max_lib_cache_buckets: usize,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ReviewOverlay {
+    schema: u64,
+    status: String,
+    clusters: Vec<ClusterReview>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ClusterReview {
+    id: String,
+    selected_sibling: String,
+    owner_slice: String,
+    rationale: String,
+    scc_decisions: Vec<SccDecision>,
+    rust_boundary_overrides: Vec<RustBoundaryOverride>,
+}
+
+#[derive(Debug, Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+struct SccDecision {
+    id: String,
+    decision: String,
+    rationale: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RustBoundaryOverride {
+    kind: String,
+    file: String,
+    function: String,
+    rationale: String,
 }
 
 pub(crate) fn draft(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -70,7 +108,7 @@ pub(crate) fn draft(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Er
 
     let seed: ResidualSeed = read_json(&conformance_path)?;
     validate_residual_seed(&seed)?;
-    let programs = materialize_programs(&workspace, &program_dir, &seed)?;
+    let programs = materialize_programs(&workspace, &program_dir, &seed, &args.sibling_fixtures)?;
     let codes = seed
         .supported_false_negative_identities
         .iter()
@@ -84,7 +122,7 @@ pub(crate) fn draft(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Er
         args.max_lib_cache_buckets,
     )?;
     let raw: Value = read_json(&raw_trace)?;
-    validate_raw_trace(&raw, &programs, &codes)?;
+    validate_raw_trace(&workspace, &raw, &programs, &codes)?;
 
     let inventory_path = workspace.join("m8-emitter-inventory.json");
     let dispositions_path = workspace.join("m8-emitter-dispositions.json");
@@ -264,10 +302,20 @@ pub(crate) fn draft(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Er
                     .filter_map(|entry| entry["declaration"].as_str().map(str::to_owned)),
             )
             .collect::<BTreeSet<_>>();
+        let trace_ids = members
+            .iter()
+            .flat_map(|member| &member.events)
+            .flat_map(|event| event["frames"].as_array().into_iter().flatten())
+            .filter_map(|frame| frame["d2_declaration"].as_str().map(str::to_owned))
+            .collect::<BTreeSet<_>>();
+        let comparison_ids = closure_ids
+            .union(&trace_ids)
+            .cloned()
+            .collect::<BTreeSet<_>>();
         let siblings = sibling_candidates(
             &family,
             &producers,
-            &closure_ids,
+            &comparison_ids,
             &emitting_programs,
             &code_passes,
             &programs,
@@ -371,6 +419,7 @@ pub(crate) fn draft(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Er
             "matrix_key": program.matrix_key,
             "program_json": program.relative_path,
             "program_sha256": program.sha256,
+            "role": if program.entry_residual { "entry-residual" } else { "sibling-probe" },
         })).collect::<Vec<_>>(),
         "identities": identity_values,
         "clusters": cluster_values,
@@ -388,6 +437,154 @@ pub(crate) fn draft(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Er
         missing_trace_clusters,
         missing_sibling_clusters,
         missing_rust_boundary_clusters,
+        out.display()
+    );
+    Ok(())
+}
+
+pub(crate) fn apply_review(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut plan_path = None;
+    let mut review_path = None;
+    let mut out = None;
+    let mut args = args.peekable();
+    while let Some(arg) = args.next() {
+        let slot = match arg.as_str() {
+            "--plan" => &mut plan_path,
+            "--review" => &mut review_path,
+            "--out" => &mut out,
+            _ => return Err(format!("unexpected m8 plan apply-review argument: {arg}").into()),
+        };
+        if slot.is_some() {
+            return Err(format!("duplicate {arg}").into());
+        }
+        *slot = Some(PathBuf::from(
+            args.next()
+                .ok_or_else(|| format!("missing value after {arg}"))?,
+        ));
+    }
+    let workspace = find_tsrs2_root()?;
+    let plan_path = workspace_path(
+        &workspace,
+        &plan_path.ok_or("m8 plan apply-review requires --plan")?,
+    );
+    let review_path = workspace_path(
+        &workspace,
+        &review_path.ok_or("m8 plan apply-review requires --review")?,
+    );
+    let out = workspace_path(
+        &workspace,
+        &out.ok_or("m8 plan apply-review requires --out")?,
+    );
+    let mut plan: Value = read_json(&plan_path)?;
+    audit_plan(&workspace, &plan, true)?;
+    let review: ReviewOverlay = read_json(&review_path)?;
+    if review.schema != 1 || review.status != "reviewed" {
+        return Err("M8 owner-plan review must be schema 1 reviewed".into());
+    }
+    let by_cluster = review
+        .clusters
+        .iter()
+        .map(|entry| (entry.id.as_str(), entry))
+        .collect::<BTreeMap<_, _>>();
+    if by_cluster.len() != review.clusters.len() {
+        return Err("M8 owner-plan review contains duplicate cluster ids".into());
+    }
+    let cluster_count;
+    {
+        let clusters = plan["clusters"]
+            .as_array_mut()
+            .ok_or("M8 owner plan lacks clusters")?;
+        cluster_count = clusters.len();
+        let expected_ids = clusters
+            .iter()
+            .filter_map(|cluster| cluster["id"].as_str().map(str::to_owned))
+            .collect::<BTreeSet<_>>();
+        if by_cluster
+            .keys()
+            .map(|id| (*id).to_owned())
+            .collect::<BTreeSet<_>>()
+            != expected_ids
+        {
+            return Err("M8 owner-plan review must enumerate the exact cluster set".into());
+        }
+        for cluster in clusters.iter_mut() {
+            let cluster_id = cluster["id"]
+                .as_str()
+                .ok_or("M8 owner plan cluster lacks id")?;
+            let entry = by_cluster[cluster_id];
+            if entry.owner_slice.trim().is_empty() || entry.rationale.trim().is_empty() {
+                return Err(format!(
+                    "M8 owner-plan review {cluster_id} requires owner_slice and rationale"
+                )
+                .into());
+            }
+            let candidates = cluster["non_emitting_sibling"]["candidates"]
+                .as_array()
+                .ok_or("M8 owner plan cluster lacks sibling candidates")?;
+            let selection = candidates
+                .iter()
+                .find(|candidate| {
+                    candidate["program"].as_str() == Some(entry.selected_sibling.as_str())
+                })
+                .cloned()
+                .ok_or_else(|| {
+                    format!(
+                        "M8 owner-plan review {cluster_id} selects unknown sibling {}",
+                        entry.selected_sibling
+                    )
+                })?;
+            let expected_sccs = cluster["static_closure"]["producer_sccs"]
+                .as_array()
+                .ok_or("M8 owner plan cluster lacks producer_sccs")?;
+            validate_scc_decisions(cluster_id, expected_sccs, &entry.scc_decisions)?;
+            let ported = cluster["static_closure"]["ported_boundaries"]
+                .as_array()
+                .ok_or("M8 owner plan cluster lacks ported_boundaries")?;
+            if ported.is_empty() == entry.rust_boundary_overrides.is_empty() {
+                return Err(format!(
+                    "M8 owner-plan review {cluster_id} requires overrides exactly when no exact Rust boundary exists"
+                )
+                .into());
+            }
+            let overrides =
+                resolve_rust_boundary_overrides(&workspace, &entry.rust_boundary_overrides)?;
+            cluster["non_emitting_sibling"]["selection"] = selection;
+            cluster["static_closure"]["reviewed_boundary_overrides"] = json!(overrides);
+            cluster["review"] = json!({
+                "status": "reviewed",
+                "selected_sibling": entry.selected_sibling,
+                "scc_decisions": entry.scc_decisions,
+                "reviewed_boundary_overrides": overrides,
+                "owner_slice": entry.owner_slice,
+                "rationale": entry.rationale,
+            });
+        }
+    }
+    plan["summary"]["missing_rust_boundary_clusters"] = json!(0);
+    plan["summary"]["reviewed_clusters"] = json!(cluster_count);
+    plan["summary"]["assigned_slices"] = json!(review
+        .clusters
+        .iter()
+        .map(|entry| entry.owner_slice.as_str())
+        .collect::<BTreeSet<_>>()
+        .len());
+    plan["review_input"] = json!({
+        "path": display_relative(&workspace, &review_path),
+        "sha256": sha256_file(&review_path)?,
+    });
+    audit_plan(&workspace, &plan, true)?;
+    if let Some(parent) = out.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(&out, serde_json::to_vec_pretty(&plan)?)?;
+    println!(
+        "M8 owner plan review applied: clusters={} slices={} report={}",
+        plan["summary"]["reviewed_clusters"]
+            .as_u64()
+            .unwrap_or_default(),
+        plan["summary"]["assigned_slices"]
+            .as_u64()
+            .unwrap_or_default(),
         out.display()
     );
     Ok(())
@@ -428,6 +625,7 @@ fn parse_draft_args(args: impl Iterator<Item = String>) -> Result<DraftArgs, Box
     let mut out = None;
     let mut raw_trace = None;
     let mut program_dir = None;
+    let mut sibling_fixtures = Vec::new();
     let mut max_lib_cache_buckets = DEFAULT_MAX_LIB_CACHE_BUCKETS;
     let mut args = args.peekable();
     while let Some(arg) = args.next() {
@@ -453,6 +651,9 @@ fn parse_draft_args(args: impl Iterator<Item = String>) -> Result<DraftArgs, Box
                     args.next().ok_or("missing value after --program-dir")?,
                 ))
             }
+            "--sibling-fixture" => {
+                sibling_fixtures.push(args.next().ok_or("missing value after --sibling-fixture")?)
+            }
             "--max-lib-cache-buckets" => {
                 let raw = args
                     .next()
@@ -472,6 +673,7 @@ fn parse_draft_args(args: impl Iterator<Item = String>) -> Result<DraftArgs, Box
         out: out.ok_or("m8 plan draft requires --out")?,
         raw_trace,
         program_dir,
+        sibling_fixtures,
         max_lib_cache_buckets,
     })
 }
@@ -500,15 +702,33 @@ fn materialize_programs(
     workspace: &Path,
     out_dir: &Path,
     seed: &ResidualSeed,
+    sibling_fixtures: &[String],
 ) -> Result<Vec<ProgramSeed>, Box<dyn Error>> {
-    let requested = seed
+    let mut requested = seed
         .supported_false_negative_identities
         .iter()
         .map(|identity| (identity.fixture.clone(), identity.matrix_key.clone()))
-        .collect::<BTreeSet<_>>();
-    let mut by_fixture = BTreeMap::<String, BTreeSet<String>>::new();
-    for (fixture, matrix) in requested {
-        by_fixture.entry(fixture).or_default().insert(matrix);
+        .map(|pair| (pair, true))
+        .collect::<BTreeMap<_, _>>();
+    for selector in sibling_fixtures {
+        let (fixture, matrix) = selector
+            .split_once('#')
+            .map_or((selector.as_str(), None), |(fixture, matrix)| {
+                (fixture, Some(matrix))
+            });
+        if fixture.is_empty() || matrix.is_some_and(str::is_empty) {
+            return Err(format!("invalid --sibling-fixture selector {selector:?}").into());
+        }
+        requested
+            .entry((fixture.to_owned(), matrix.unwrap_or("").to_owned()))
+            .or_insert(false);
+    }
+    let mut by_fixture = BTreeMap::<String, BTreeMap<String, bool>>::new();
+    for ((fixture, matrix), entry_residual) in requested {
+        by_fixture
+            .entry(fixture)
+            .or_default()
+            .insert(matrix, entry_residual);
     }
     let vendor = workspace.join("vendor/typescript-6.0.3/lib");
     let mut result = Vec::new();
@@ -519,7 +739,16 @@ fn materialize_programs(
             .iter()
             .map(|program| (program.matrix_key.as_str(), program))
             .collect::<BTreeMap<_, _>>();
-        for matrix_key in matrices {
+        let matrices = if matrices.len() == 1 && matrices.contains_key("") && expanded.len() > 1 {
+            return Err(format!(
+                "sibling fixture {fixture} expands to {} matrices; select one with #<matrix-key>",
+                expanded.len()
+            )
+            .into());
+        } else {
+            matrices
+        };
+        for (matrix_key, entry_residual) in matrices {
             let program = by_matrix.get(matrix_key.as_str()).ok_or_else(|| {
                 format!("fixture {fixture} has no expanded matrix {matrix_key:?}")
             })?;
@@ -533,6 +762,7 @@ fn materialize_programs(
             result.push(ProgramSeed {
                 fixture: fixture.clone(),
                 matrix_key,
+                entry_residual,
                 relative_path: display_relative(workspace, &path),
                 sha256: sha256_file(&path)?,
                 path,
@@ -554,9 +784,40 @@ fn ensure_raw_trace(
     codes: &BTreeSet<u32>,
     max_lib_cache_buckets: usize,
 ) -> Result<(), Box<dyn Error>> {
+    let expected = programs
+        .iter()
+        .map(|program| (program.relative_path.clone(), program.sha256.clone()))
+        .collect::<BTreeMap<_, _>>();
+    let mut reusable = BTreeMap::new();
+    let mut template = None;
     if path.exists() {
         let existing: Value = read_json(path)?;
-        if validate_raw_trace(&existing, programs, codes).is_ok() {
+        if validate_raw_trace_header(workspace, &existing, codes).is_ok() {
+            for probe in existing["probes"]
+                .as_array()
+                .ok_or("raw M8 owner-plan trace lacks probes")?
+            {
+                let Some(program_path) = probe["program_json"].as_str() else {
+                    continue;
+                };
+                let Some(program_sha256) = probe["program_sha256"].as_str() else {
+                    continue;
+                };
+                if expected.get(program_path).map(String::as_str) == Some(program_sha256) {
+                    reusable.insert(program_path.to_owned(), probe.clone());
+                }
+            }
+            template = Some(existing);
+        }
+        if reusable.len() == programs.len() {
+            validate_raw_trace(
+                workspace,
+                template
+                    .as_ref()
+                    .expect("a reusable raw trace always keeps its template"),
+                programs,
+                codes,
+            )?;
             println!(
                 "M8 owner plan raw trace: reused {}",
                 display_relative(workspace, path)
@@ -564,8 +825,14 @@ fn ensure_raw_trace(
             return Ok(());
         }
     }
+    let missing = programs
+        .iter()
+        .filter(|program| !reusable.contains_key(&program.relative_path))
+        .cloned()
+        .collect::<Vec<_>>();
+    let delta_path = path.with_file_name("raw-trace.incremental.json");
     let mut args = Vec::new();
-    for program in programs {
+    for program in &missing {
         args.push("--program-json".to_owned());
         args.push(program.path.display().to_string());
     }
@@ -574,23 +841,52 @@ fn ensure_raw_trace(
         args.push(code.to_string());
     }
     args.push("--out".to_owned());
-    args.push(path.display().to_string());
+    args.push(delta_path.display().to_string());
     args.push("--max-lib-cache-buckets".to_owned());
     args.push(max_lib_cache_buckets.to_string());
-    crate::m8_trace::run(args.into_iter())
+    crate::m8_trace::run(args.into_iter())?;
+    let delta: Value = read_json(&delta_path)?;
+    validate_raw_trace_header(workspace, &delta, codes)?;
+    for probe in delta["probes"]
+        .as_array()
+        .ok_or("incremental M8 owner-plan trace lacks probes")?
+    {
+        let program_path = probe["program_json"]
+            .as_str()
+            .ok_or("incremental M8 owner-plan trace probe lacks program_json")?;
+        reusable.insert(program_path.to_owned(), probe.clone());
+    }
+    let mut combined = template.unwrap_or_else(|| delta.clone());
+    combined["probes"] = json!(programs
+        .iter()
+        .map(|program| {
+            reusable
+                .get(&program.relative_path)
+                .cloned()
+                .ok_or_else(|| format!("incremental M8 trace omitted {}", program.relative_path))
+        })
+        .collect::<Result<Vec<_>, String>>()?);
+    validate_raw_trace(workspace, &combined, programs, codes)?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(path, serde_json::to_vec_pretty(&combined)?)?;
+    println!(
+        "M8 owner plan raw trace: reused={} generated={} report={}",
+        programs.len() - missing.len(),
+        missing.len(),
+        display_relative(workspace, path)
+    );
+    Ok(())
 }
 
 fn validate_raw_trace(
+    workspace: &Path,
     raw: &Value,
     programs: &[ProgramSeed],
     codes: &BTreeSet<u32>,
 ) -> Result<(), Box<dyn Error>> {
-    if raw["schema"].as_u64() != Some(1)
-        || raw["status"].as_str() != Some("draft/report-only")
-        || raw["inputs"]["codes"] != json!(codes.iter().copied().collect::<Vec<_>>())
-    {
-        return Err("raw M8 owner-plan trace has incompatible schema or codes".into());
-    }
+    validate_raw_trace_header(workspace, raw, codes)?;
     let observed = raw["probes"]
         .as_array()
         .ok_or("raw M8 owner-plan trace lacks probes")?
@@ -608,12 +904,49 @@ fn validate_raw_trace(
             ))
         })
         .collect::<Result<BTreeSet<_>, Box<dyn Error>>>()?;
+    if raw["probes"].as_array().map(Vec::len) != Some(observed.len()) {
+        return Err("raw M8 owner-plan trace contains duplicate programs".into());
+    }
     let expected = programs
         .iter()
         .map(|program| (program.relative_path.clone(), program.sha256.clone()))
         .collect::<BTreeSet<_>>();
     if observed != expected {
         return Err("raw M8 owner-plan trace does not cover the exact program set".into());
+    }
+    Ok(())
+}
+
+fn validate_raw_trace_header(
+    workspace: &Path,
+    raw: &Value,
+    codes: &BTreeSet<u32>,
+) -> Result<(), Box<dyn Error>> {
+    if raw["schema"].as_u64() != Some(1)
+        || raw["status"].as_str() != Some("draft/report-only")
+        || raw["inputs"]["codes"] != json!(codes.iter().copied().collect::<Vec<_>>())
+    {
+        return Err("raw M8 owner-plan trace has incompatible schema or codes".into());
+    }
+    for (field, relative) in [
+        ("source_sha256", "vendor/typescript-6.0.3/lib/_tsc.js"),
+        ("inventory_sha256", "m8-emitter-inventory.json"),
+        ("instrumenter_sha256", "crates/oracle/trace-instrument.mjs"),
+        ("driver_sha256", "crates/oracle/trace-driver.mjs"),
+        ("oracle_driver_sha256", "crates/oracle/driver.mjs"),
+        ("program_host_sha256", "crates/oracle/program-host.mjs"),
+        ("node_pin_sha256", ".node-version"),
+    ] {
+        if raw["inputs"][field].as_str() != Some(&sha256_file(&workspace.join(relative))?) {
+            return Err(format!("raw M8 owner-plan trace has stale input {relative}").into());
+        }
+    }
+    let pinned_node = fs::read_to_string(workspace.join(".node-version"))?
+        .trim()
+        .trim_start_matches('v')
+        .to_owned();
+    if raw["inputs"]["node_version"].as_str() != Some(pinned_node.as_str()) {
+        return Err("raw M8 owner-plan trace has stale Node version".into());
     }
     Ok(())
 }
@@ -804,7 +1137,7 @@ fn build_static_closure(
 fn sibling_candidates(
     family: &str,
     producers: &BTreeSet<String>,
-    closure_ids: &BTreeSet<String>,
+    comparison_ids: &BTreeSet<String>,
     emitting_programs: &BTreeSet<String>,
     code_passes: &BTreeSet<(u32, String)>,
     programs: &[ProgramSeed],
@@ -828,7 +1161,7 @@ fn sibling_candidates(
         let program = program_by_key[key];
         emitting_coverage.extend(
             coverage_set(probe_by_path[&program.relative_path])?
-                .intersection(closure_ids)
+                .intersection(comparison_ids)
                 .cloned(),
         );
     }
@@ -856,32 +1189,37 @@ fn sibling_candidates(
             .intersection(&coverage)
             .cloned()
             .collect::<BTreeSet<_>>();
-        if covered_producers.is_empty() {
-            continue;
-        }
         let relevant = coverage
-            .intersection(closure_ids)
+            .intersection(comparison_ids)
             .cloned()
             .collect::<BTreeSet<_>>();
+        if relevant.is_empty() {
+            continue;
+        }
         let symmetric_difference = emitting_coverage.symmetric_difference(&relevant).count();
         let same_fixture = emitting_fixtures.contains(program.fixture.as_str());
         let same_family = probe_families
             .get(&key)
             .is_some_and(|families| families.contains(family));
         let missing_producers = producers.len() - covered_producers.len();
+        let missing_comparison = emitting_coverage.difference(&relevant).count();
         candidates.push((
             (
                 missing_producers,
+                missing_producers > 0 && program.entry_residual,
                 !same_fixture,
                 !same_family,
+                missing_comparison,
                 symmetric_difference,
                 key.clone(),
             ),
             json!({
                 "program": key,
+                "role": if program.entry_residual { "entry-residual" } else { "targeted-sibling-probe" },
                 "program_sha256": program.sha256,
                 "covered_producers": covered_producers,
                 "missing_producers": missing_producers,
+                "missing_comparison_declarations": missing_comparison,
                 "same_fixture": same_fixture,
                 "same_family": same_family,
                 "closure_symmetric_difference": symmetric_difference,
@@ -979,6 +1317,142 @@ fn ledger_sha256(workspace: &Path, entries: &[LedgerEntry]) -> String {
         })
         .collect::<Vec<_>>();
     sha256_json(&json!(value))
+}
+
+fn validate_scc_decisions(
+    cluster_id: &str,
+    expected: &[Value],
+    decisions: &[SccDecision],
+) -> Result<(), Box<dyn Error>> {
+    let expected_by_id = expected
+        .iter()
+        .map(|scc| {
+            Ok((
+                scc["id"].as_str().ok_or("M8 owner plan SCC lacks id")?,
+                scc["member_count"]
+                    .as_u64()
+                    .ok_or("M8 owner plan SCC lacks member_count")?,
+            ))
+        })
+        .collect::<Result<BTreeMap<_, _>, Box<dyn Error>>>()?;
+    let by_id = decisions
+        .iter()
+        .map(|decision| (decision.id.as_str(), decision))
+        .collect::<BTreeMap<_, _>>();
+    if by_id.len() != decisions.len()
+        || by_id.keys().copied().collect::<BTreeSet<_>>()
+            != expected_by_id.keys().copied().collect::<BTreeSet<_>>()
+    {
+        return Err(format!(
+            "M8 owner-plan review {cluster_id} must decide the exact producer SCC set"
+        )
+        .into());
+    }
+    for (id, decision) in by_id {
+        if decision.rationale.trim().is_empty()
+            || !matches!(decision.decision.as_str(), "singleton" | "keep-separate")
+            || (decision.decision == "singleton" && expected_by_id[id] != 1)
+            || (decision.decision == "keep-separate" && expected_by_id[id] == 1)
+        {
+            return Err(format!(
+                "M8 owner-plan review {cluster_id} has invalid SCC decision for {id}"
+            )
+            .into());
+        }
+    }
+    Ok(())
+}
+
+fn resolve_rust_boundary_overrides(
+    workspace: &Path,
+    overrides: &[RustBoundaryOverride],
+) -> Result<Vec<Value>, Box<dyn Error>> {
+    overrides
+        .iter()
+        .map(|boundary| {
+            if boundary.kind != "native-adjacent"
+                || boundary.file.trim().is_empty()
+                || boundary.function.trim().is_empty()
+                || boundary.rationale.trim().is_empty()
+            {
+                return Err("invalid reviewed native-adjacent Rust boundary override".into());
+            }
+            let relative = Path::new(&boundary.file);
+            if relative.is_absolute()
+                || relative
+                    .components()
+                    .any(|component| matches!(component, std::path::Component::ParentDir))
+            {
+                return Err(format!(
+                    "reviewed Rust boundary path must stay inside the workspace: {}",
+                    boundary.file
+                )
+                .into());
+            }
+            let path = workspace.join(relative);
+            let source = fs::read_to_string(&path)?;
+            let needle = format!("fn {}", boundary.function);
+            let line = source
+                .lines()
+                .position(|line| line.contains(&needle))
+                .map(|index| index + 1)
+                .ok_or_else(|| {
+                    format!(
+                        "reviewed Rust boundary {} does not define {}",
+                        boundary.file, boundary.function
+                    )
+                })?;
+            Ok(json!({
+                "kind": boundary.kind,
+                "file": boundary.file,
+                "function": boundary.function,
+                "line": line,
+                "file_sha256": sha256_file(&path)?,
+                "rationale": boundary.rationale,
+            }))
+        })
+        .collect()
+}
+
+fn audit_reviewed_overrides(workspace: &Path, overrides: &[Value]) -> Result<(), Box<dyn Error>> {
+    for boundary in overrides {
+        if boundary["kind"].as_str() != Some("native-adjacent") {
+            return Err("reviewed Rust boundary has invalid kind".into());
+        }
+        let file = boundary["file"]
+            .as_str()
+            .ok_or("reviewed Rust boundary lacks file")?;
+        let function = boundary["function"]
+            .as_str()
+            .ok_or("reviewed Rust boundary lacks function")?;
+        let relative = Path::new(file);
+        if relative.is_absolute()
+            || relative
+                .components()
+                .any(|component| matches!(component, std::path::Component::ParentDir))
+        {
+            return Err(format!(
+                "reviewed Rust boundary path must stay inside the workspace: {file}"
+            )
+            .into());
+        }
+        let path = workspace.join(relative);
+        if boundary["file_sha256"].as_str() != Some(&sha256_file(&path)?) {
+            return Err(format!("reviewed Rust boundary {file} is stale").into());
+        }
+        let needle = format!("fn {function}");
+        let line = fs::read_to_string(&path)?
+            .lines()
+            .position(|line| line.contains(&needle))
+            .map(|index| index + 1)
+            .ok_or_else(|| format!("reviewed Rust boundary {file} lost function {function}"))?;
+        if boundary["line"].as_u64() != Some(line as u64)
+            || boundary["rationale"].as_str().is_none_or(str::is_empty)
+        {
+            return Err(format!("reviewed Rust boundary {file} is malformed").into());
+        }
+    }
+    Ok(())
 }
 
 fn audit_plan(workspace: &Path, plan: &Value, require_live: bool) -> Result<(), Box<dyn Error>> {
@@ -1142,6 +1616,52 @@ fn audit_plan(workspace: &Path, plan: &Value, require_live: bool) -> Result<(), 
                 return Err("M8 owner plan cluster crosses owner families".into());
             }
         }
+        if cluster["review"]["status"].as_str() == Some("reviewed") {
+            let selected = cluster["review"]["selected_sibling"]
+                .as_str()
+                .ok_or("reviewed M8 owner-plan cluster lacks selected_sibling")?;
+            if cluster["non_emitting_sibling"]["selection"]["program"].as_str() != Some(selected) {
+                return Err(
+                    "reviewed M8 owner-plan cluster sibling selection is inconsistent".into(),
+                );
+            }
+            let decisions: Vec<SccDecision> =
+                serde_json::from_value(cluster["review"]["scc_decisions"].clone()).map_err(
+                    |error| format!("reviewed M8 owner-plan SCC decisions are malformed: {error}"),
+                )?;
+            validate_scc_decisions(
+                cluster["id"].as_str().expect("cluster id validated above"),
+                cluster["static_closure"]["producer_sccs"]
+                    .as_array()
+                    .ok_or("reviewed M8 owner-plan cluster lacks producer_sccs")?,
+                &decisions,
+            )?;
+            if cluster["review"]["owner_slice"]
+                .as_str()
+                .is_none_or(str::is_empty)
+                || cluster["review"]["rationale"]
+                    .as_str()
+                    .is_none_or(str::is_empty)
+            {
+                return Err("reviewed M8 owner-plan cluster lacks owner slice or rationale".into());
+            }
+            let ported = cluster["static_closure"]["ported_boundaries"]
+                .as_array()
+                .ok_or("reviewed M8 owner-plan cluster lacks ported boundaries")?;
+            let overrides = cluster["static_closure"]["reviewed_boundary_overrides"]
+                .as_array()
+                .ok_or("reviewed M8 owner-plan cluster lacks boundary overrides")?;
+            if ported.is_empty() == overrides.is_empty()
+                || cluster["review"]["reviewed_boundary_overrides"] != json!(overrides)
+            {
+                return Err(
+                    "reviewed M8 owner-plan cluster has inconsistent Rust boundary review".into(),
+                );
+            }
+            if require_live {
+                audit_reviewed_overrides(workspace, overrides)?;
+            }
+        }
     }
     let missing_trace = clusters
         .iter()
@@ -1165,6 +1685,9 @@ fn audit_plan(workspace: &Path, plan: &Value, require_live: bool) -> Result<(), 
             cluster["static_closure"]["ported_boundaries"]
                 .as_array()
                 .is_none_or(Vec::is_empty)
+                && cluster["static_closure"]["reviewed_boundary_overrides"]
+                    .as_array()
+                    .is_none_or(Vec::is_empty)
         })
         .count();
     let reviewed = clusters
@@ -1176,6 +1699,21 @@ fn audit_plan(workspace: &Path, plan: &Value, require_live: bool) -> Result<(), 
         .filter_map(|cluster| cluster["review"]["owner_slice"].as_str())
         .collect::<BTreeSet<_>>()
         .len();
+    let mut slice_families = BTreeMap::new();
+    for cluster in clusters {
+        let Some(slice) = cluster["review"]["owner_slice"].as_str() else {
+            continue;
+        };
+        let family = cluster["family"]
+            .as_str()
+            .expect("cluster family validated above");
+        if slice_families
+            .insert(slice, family)
+            .is_some_and(|previous| previous != family)
+        {
+            return Err("M8 owner-plan slice crosses owner families".into());
+        }
+    }
     for (field, actual) in [
         ("missing_trace_clusters", missing_trace),
         ("missing_sibling_clusters", missing_sibling),
@@ -1200,6 +1738,17 @@ fn audit_plan(workspace: &Path, plan: &Value, require_live: bool) -> Result<(), 
                 .ok_or("M8 owner plan input lacks sha256")?;
             if sha256_file(&workspace.join(path))? != expected {
                 return Err(format!("M8 owner plan input {path} is stale").into());
+            }
+        }
+        if reviewed > 0 {
+            let review_input = plan["review_input"]["path"]
+                .as_str()
+                .ok_or("reviewed M8 owner plan lacks review_input path")?;
+            let expected = plan["review_input"]["sha256"]
+                .as_str()
+                .ok_or("reviewed M8 owner plan lacks review_input hash")?;
+            if sha256_file(&workspace.join(review_input))? != expected {
+                return Err("M8 owner-plan review input is stale".into());
             }
         }
     }
@@ -1259,6 +1808,8 @@ mod tests {
                 "conformance.json",
                 "--out",
                 "plan.json",
+                "--sibling-fixture",
+                "conformance/sibling.ts",
                 "--max-lib-cache-buckets",
                 "2",
             ]
@@ -1268,6 +1819,10 @@ mod tests {
         .unwrap();
         assert_eq!(parsed.conformance_json, PathBuf::from("conformance.json"));
         assert_eq!(parsed.out, PathBuf::from("plan.json"));
+        assert_eq!(
+            parsed.sibling_fixtures,
+            vec!["conformance/sibling.ts".to_owned()]
+        );
         assert_eq!(parsed.max_lib_cache_buckets, 2);
         assert!(parse_draft_args(
             [
@@ -1363,5 +1918,41 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("disagree"));
+    }
+
+    #[test]
+    fn scc_review_requires_exact_ids_and_keeps_large_components_separate() {
+        let singleton = json!([{"id": "scc:one", "member_count": 1}]);
+        assert!(validate_scc_decisions(
+            "cluster",
+            singleton.as_array().unwrap(),
+            &[SccDecision {
+                id: "scc:one".to_owned(),
+                decision: "singleton".to_owned(),
+                rationale: "one exact producer".to_owned(),
+            }],
+        )
+        .is_ok());
+        let large = json!([{"id": "scc:large", "member_count": 1396}]);
+        assert!(validate_scc_decisions(
+            "cluster",
+            large.as_array().unwrap(),
+            &[SccDecision {
+                id: "scc:large".to_owned(),
+                decision: "singleton".to_owned(),
+                rationale: "invalid collapse".to_owned(),
+            }],
+        )
+        .is_err());
+        assert!(validate_scc_decisions(
+            "cluster",
+            large.as_array().unwrap(),
+            &[SccDecision {
+                id: "scc:large".to_owned(),
+                decision: "keep-separate".to_owned(),
+                rationale: "mechanical TypeChecker SCC crosses subsystems".to_owned(),
+            }],
+        )
+        .is_ok());
     }
 }
