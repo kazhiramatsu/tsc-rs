@@ -7121,13 +7121,13 @@ mod tests {
             checked_rows(
                 "function hof2(f: function(this: number, string): string) {\n    return f(12, 'hullo');\n}\n"
             ),
-            [(2554, 76, 7)]
+            [(8020, 17, 38), (2554, 76, 7)]
         );
         assert_eq!(
             checked_rows(
                 "function hof(ctor: function(new: number, string)) {\n    return new ctor('hi');\n}\n"
             ),
-            []
+            [(8020, 19, 29)]
         );
     }
 

@@ -1713,13 +1713,23 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::ImportType => self.check_import_type(node),
             SyntaxKind::NamedTupleMember => self.check_named_tuple_member(node),
             SyntaxKind::JSDocNonNullableType | SyntaxKind::JSDocNullableType => {
-                self.check_jsdoc_nullable_or_non_nullable_type_is_in_js_file(node)?;
+                self.check_jsdoc_type_is_in_js_file(node)?;
                 let inner = match self.data_of(node) {
                     NodeData::JSDocNonNullableType(data) => data.r#type,
                     NodeData::JSDocNullableType(data) => data.r#type,
                     _ => unreachable!("kind/data agree"),
                 };
                 self.check_source_element(inner);
+                Ok(())
+            }
+            SyntaxKind::JSDocFunctionType
+            | SyntaxKind::JSDocAllType
+            | SyntaxKind::JSDocUnknownType => {
+                self.check_jsdoc_type_is_in_js_file(node)?;
+                // Upstream traverses these children after
+                // checkJSDocFunctionType. That worker is outside this
+                // owner closure; traversing its parameters without the
+                // prerequisite fabricates TS2680 on `this`/`new`.
                 Ok(())
             }
             SyntaxKind::IndexedAccessType => self.check_indexed_access_type(node),
@@ -1770,18 +1780,28 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 7444e9c93db2af328f6a313bfe8c6d8316b03b06017c82d42c38603ad1b52440
     /// tsc-span: _tsc.js:86832-86851
     ///
-    /// M7 owns only the nullable/non-nullable TS17019/TS17020 pair.
-    /// The sibling JSDoc-only TS8020 arm stays closed for M8. The
-    /// parser preserves tsc's `postfix` observable as equal wrapper
-    /// and operand starts, so no parallel syntax model is needed.
-    fn check_jsdoc_nullable_or_non_nullable_type_is_in_js_file(
-        &mut self,
-        node: NodeId,
-    ) -> CheckResult2<()> {
+    /// M8-P12 closes the TS8020 arm for JSDoc-only source type nodes.
+    /// The parser preserves tsc's nullable/non-nullable `postfix`
+    /// observable as equal wrapper and operand starts, so both arms
+    /// share the upstream boundary without a parallel syntax model.
+    ///
+    /// d2: d2:abafc814b78c24d9620dd74abb47d59c8a8ec014f90fb0e16a1948578320740d
+    fn check_jsdoc_type_is_in_js_file(&mut self, node: NodeId) -> CheckResult2<()> {
         if self.is_in_js_file(node) {
             return Ok(());
         }
         let kind = self.kind_of(node);
+        if !matches!(
+            kind,
+            SyntaxKind::JSDocNonNullableType | SyntaxKind::JSDocNullableType
+        ) {
+            self.grammar_error_on_node(
+                node,
+                &diagnostics::JSDoc_types_can_only_be_used_inside_documentation_comments,
+                &[],
+            );
+            return Ok(());
+        }
         let inner = match self.data_of(node) {
             NodeData::JSDocNonNullableType(data) => data.r#type,
             NodeData::JSDocNullableType(data) => data.r#type,
@@ -5030,18 +5050,52 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:81760-81770
     ///
     /// checkGrammarTypeArguments and the JSDoc-dot probe
-    /// (grammarErrorAtPos 1237-family) are M7-stub grammar sites. This
-    /// arm is what makes checkSourceElement(default/constraint) FORCE
+    /// share this owner. M8-P12 closes the TS8020 JSDoc-dot probe;
+    /// checkGrammarTypeArguments remains outside this slice. This arm
+    /// also makes checkSourceElement(default/constraint) FORCE
     /// references BEFORE hasNonCircularTypeParameterDefault reads the
     /// default slot — the 2716-lands-on-the-second-parameter ordering
     /// depends on it (oracle-pinned). Heritage
     /// ExpressionWithTypeArguments routes here since 5.8c (§6/§7).
+    ///
+    /// d2: d2:a0ca43e0404dffef54d7ea308b862df5cb15a8cc5708025ff33931c2a3a9a183
     pub(crate) fn check_type_reference_node(&mut self, node: NodeId) -> CheckResult2<()> {
-        let type_arguments = match self.data_of(node) {
-            NodeData::TypeReference(data) => data.type_arguments,
-            NodeData::ExpressionWithTypeArguments(data) => data.type_arguments,
+        let (type_name, type_arguments) = match self.data_of(node) {
+            NodeData::TypeReference(data) => (data.type_name, data.type_arguments),
+            NodeData::ExpressionWithTypeArguments(data) => (None, data.type_arguments),
             _ => unreachable!("kind/data agree"),
         };
+        let jsdoc_dot_start =
+            type_name
+                .zip(type_arguments)
+                .and_then(|(type_name, type_arguments)| {
+                    if self.is_in_js_file(node) {
+                        return None;
+                    }
+                    let source = self.binder.source_of_node(node);
+                    let type_name_end = source.arena.node(type_name).end as usize;
+                    if type_name_end == source.arena.node_array(type_arguments).pos as usize {
+                        return None;
+                    }
+                    let start = tsrs2_syntax::skip_trivia(&source.text, type_name_end);
+                    (source.text.as_bytes().get(start) == Some(&b'.')).then(|| {
+                        source
+                            .line_map
+                            .byte_to_utf16
+                            .get(start)
+                            .copied()
+                            .unwrap_or(start as u32)
+                    })
+                });
+        if let Some(start) = jsdoc_dot_start {
+            self.grammar_error_at_pos(
+                node,
+                start,
+                1,
+                &diagnostics::JSDoc_types_can_only_be_used_inside_documentation_comments,
+                &[],
+            );
+        }
         for argument in self.nodes_of(type_arguments) {
             self.check_source_element(Some(argument));
         }
@@ -14193,6 +14247,73 @@ mod tests {
                         .to_owned()
                 ),
             ]
+        );
+    }
+
+    // ---- M8-P12 JSDoc-only source type grammar ----
+
+    #[test]
+    fn jsdoc_only_source_types_report_8020_at_the_upstream_spans() {
+        let text = "interface Array<T> {}\n\
+                    var dotted: Array.<number>;\n\
+                    var callable: function(this: number, string): string;\n\
+                    var all: * = 1;\n\
+                    var unknown: ? = undefined;\n\
+                    var ordinary: Array<number>;\n";
+        let diagnostics = checked_diags(text)
+            .into_iter()
+            .filter(|diagnostic| diagnostic.0 == 8020)
+            .collect::<Vec<_>>();
+        let callable = "function(this: number, string): string";
+        assert_eq!(
+            diagnostics,
+            [
+                (
+                    8020,
+                    text.find(".<").expect("JSDoc dot") as u32,
+                    1,
+                    "JSDoc types can only be used inside documentation comments.".to_owned(),
+                ),
+                (
+                    8020,
+                    text.find(callable).expect("JSDoc function type") as u32,
+                    callable.len() as u32,
+                    "JSDoc types can only be used inside documentation comments.".to_owned(),
+                ),
+                (
+                    8020,
+                    text.find("* =").expect("JSDoc all type") as u32,
+                    1,
+                    "JSDoc types can only be used inside documentation comments.".to_owned(),
+                ),
+                (
+                    8020,
+                    text.find("? =").expect("JSDoc unknown type") as u32,
+                    1,
+                    "JSDoc types can only be used inside documentation comments.".to_owned(),
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn jsdoc_only_source_type_8020_is_silent_in_js_files() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let diagnostics = checked_file_diags_with(
+            "a.js",
+            "var dotted: Array.<number>;\n\
+             var callable: function(this: number, string): string;\n\
+             var all: * = 1;\n\
+             var unknown: ? = undefined;\n",
+            &options,
+        );
+        assert!(
+            diagnostics.iter().all(|diagnostic| diagnostic.0 != 8020),
+            "TS8020 is TypeScript-source-only: {diagnostics:?}"
         );
     }
 

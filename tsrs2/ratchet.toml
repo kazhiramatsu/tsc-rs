@@ -546,8 +546,14 @@
 # Empty `this`-property object initializers take tsc's widened `{}` face
 # before the object-literal shortcut. T1-T3 gain the same 26 identities
 # with no losses, outside gains, or false positives.
-rate = 0.986354
-matched = 48355
+# M8-P12: +10 exact TS8020 identities from checkJSDocTypeIsInJsFile
+# and checkTypeReferenceNode. JSDoc-only source type nodes report only
+# outside JS files, and the `Array.<T>` face reports on the dot. The
+# function-type child traversal remains behind its prerequisite owner
+# so it cannot fabricate TS2680; T1-T3 gain the same ten identities
+# with no losses, outside gains, or false positives.
+rate = 0.986558
+matched = 48365
 total = 49024
 allowed_regression = 0.0
 
