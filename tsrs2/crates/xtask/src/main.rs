@@ -6023,13 +6023,18 @@ fn render_readme_status(workspace: &Path) -> Result<String, Box<dyn Error>> {
         families.families.len(),
         group_thousands(family_rows)
     ));
+    let pending = gate_names(false);
     block.push_str(&format!(
         "\nM8 readiness: {}/{} gates ready.\n\
          Ready: {}. Pending: {}.\n",
         readiness.gates.iter().filter(|gate| gate.ready).count(),
         readiness.gates.len(),
         gate_names(true),
-        gate_names(false)
+        if pending.is_empty() {
+            "none"
+        } else {
+            pending.as_str()
+        }
     ));
     Ok(block)
 }
