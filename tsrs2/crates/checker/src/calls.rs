@@ -1385,6 +1385,9 @@ impl<'a> CheckerState<'a> {
     /// createDiagnosticForNode's location for `node` (error span +
     /// UTF-16 mapping — the diagnostic_for_node twin that returns the
     /// location instead of building the diagnostic).
+    /// tsrs-native: DiagSpan adapter over the ledgered
+    /// createDiagnosticForNode path; tsc carries the location as
+    /// ordinary object fields.
     pub(crate) fn diag_span_of_node(&self, node: NodeId) -> DiagSpan {
         let source = self.binder.source_of_node(node);
         let (start, end) = node_util::get_error_span_for_node(source, node);
@@ -1425,6 +1428,8 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsrs-native: Rust Diagnostic constructor adapter for a
+    /// precomputed DiagSpan; tsc has no standalone counterpart.
     pub(crate) fn diagnostic_at_span(&self, span: &DiagSpan, chain: MessageChain) -> Diagnostic {
         Diagnostic::new(
             Some(span.file_name.clone()),

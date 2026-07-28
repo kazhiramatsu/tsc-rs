@@ -553,6 +553,9 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsrs-native: RelatedInfo adapter over the ledgered
+    /// diagnostic_for_node path; tsc carries related information in
+    /// structurally compatible object literals.
     pub(crate) fn related_for_node(
         &self,
         node: NodeId,

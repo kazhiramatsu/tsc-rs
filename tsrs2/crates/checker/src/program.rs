@@ -31,6 +31,8 @@ pub struct ProgramBinder<'a> {
 }
 
 impl<'a> ProgramBinder<'a> {
+    /// tsrs-native: constructs the contiguous multi-file arena routing
+    /// table; tsc nodes and symbols are direct JavaScript references.
     pub fn new(file_binders: Vec<&'a Binder<'a>>) -> Self {
         assert!(
             !file_binders.is_empty(),
@@ -72,23 +74,30 @@ impl<'a> ProgramBinder<'a> {
         }
     }
 
+    /// tsrs-native: Rust ProgramBinder collection accessor.
     pub fn file_count(&self) -> usize {
         self.file_binders.len()
     }
 
+    /// tsrs-native: Rust ProgramBinder iterator over borrowed file
+    /// binders.
     pub fn files(&self) -> impl Iterator<Item = &'a Binder<'a>> + '_ {
         self.file_binders.iter().copied()
     }
 
+    /// tsrs-native: Rust ProgramBinder indexed file accessor.
     pub fn file(&self, index: usize) -> &'a Binder<'a> {
         self.file_binders[index]
     }
 
+    /// tsrs-native: Rust ProgramBinder SourceFile projection.
     pub fn source(&self, index: usize) -> &'a SourceFile {
         self.file_binders[index].source
     }
 
     /// Owning file of a node id (nodes allocate contiguously per file).
+    /// tsrs-native: binary-search routing for Rust's process-wide
+    /// numeric NodeId arena; tsc carries object identity directly.
     pub fn file_index_of_node(&self, node: NodeId) -> usize {
         match self.node_bases.binary_search(&node.0) {
             Ok(index) => index,
@@ -96,6 +105,8 @@ impl<'a> ProgramBinder<'a> {
         }
     }
 
+    /// tsrs-native: multi-file arena routing for a numeric NodeId; tsc
+    /// carries the SourceFile/object relationship directly.
     pub fn source_of_node(&self, node: NodeId) -> &'a SourceFile {
         let source = self.file_binders[self.file_index_of_node(node)].source;
         debug_assert!(
@@ -111,6 +122,8 @@ impl<'a> ProgramBinder<'a> {
 
     /// Owning file's arena lookup for a node-array id (arrays allocate
     /// contiguously per file, like nodes).
+    /// tsrs-native: multi-file arena routing for Rust's numeric
+    /// NodeArrayId.
     pub fn node_array(&self, id: NodeArrayId) -> &'a NodeArray {
         let index = match self.array_bases.binary_search(&id.0) {
             Ok(index) => index,
@@ -129,6 +142,8 @@ impl<'a> ProgramBinder<'a> {
         }
     }
 
+    /// tsrs-native: routes a numeric SymbolId to its binder or
+    /// checker-owned transient arena; tsc carries object references.
     pub fn symbol(&self, id: SymbolId) -> &Symbol {
         match self.owner_of_symbol(id) {
             Ok(file) => self.file_binders[file].symbols.symbol(id),
@@ -140,6 +155,8 @@ impl<'a> ProgramBinder<'a> {
     /// (shared lib binders make this structural — merge writes go to
     /// transient clones, and the merged-symbol mapping lives on
     /// CheckerState).
+    /// tsrs-native: mutable arena routing required by Rust ownership;
+    /// tsc mutates Symbol objects directly.
     pub fn symbol_mut(&mut self, id: SymbolId) -> &mut Symbol {
         match self.owner_of_symbol(id) {
             Ok(file) => unreachable!(
@@ -162,16 +179,22 @@ impl<'a> ProgramBinder<'a> {
     }
 
     /// tsc container.locals of a scope-owning node.
+    /// tsrs-native: binder-table projection for tsc's direct
+    /// `container.locals` property access.
     pub fn locals_of(&self, scope: NodeId) -> Option<&SymbolTable> {
         self.binder_of_node(scope).locals.get(&scope)
     }
 
     /// tsc node.symbol (addDeclarationToSymbol).
+    /// tsrs-native: binder-table projection for tsc's direct
+    /// `node.symbol` property access.
     pub fn node_symbol(&self, node: NodeId) -> Option<SymbolId> {
         self.binder_of_node(node).node_symbol.get(&node).copied()
     }
 
     /// The binder's mutable node-flags view (ContainsThis etc.).
+    /// tsrs-native: binder-table projection for tsc's direct
+    /// `node.flags` property access.
     pub fn flags_of(&self, node: NodeId) -> tsrs2_types::NodeFlags {
         self.binder_of_node(node).flags_of(node)
     }

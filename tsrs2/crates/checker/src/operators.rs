@@ -3278,6 +3278,8 @@ impl<'a> CheckerState<'a> {
 
     /// The keywordToken read: `new.target` vs `import.meta` via the
     /// leading token (parser convention — no keywordToken slot).
+    /// tsrs-native: parser-representation adapter; tsc reads the
+    /// MetaProperty keywordToken field directly.
     pub(crate) fn meta_property_is_new(&self, node: NodeId) -> bool {
         let source = self.binder.source_of_node(node);
         let raw = source.arena.node(node);

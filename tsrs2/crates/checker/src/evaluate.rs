@@ -1367,10 +1367,14 @@ impl<'a> CheckerState<'a> {
 
     // ---- small shared helpers ----
 
+    /// tsrs-native: typed arena projection for tsc's direct
+    /// `node.pos` property access.
     pub(crate) fn pos_of(&self, node: NodeId) -> u32 {
         self.binder.source_of_node(node).arena.node(node).pos
     }
 
+    /// tsrs-native: typed arena projection for tsc's direct
+    /// `node.end` property access.
     pub(crate) fn end_of(&self, node: NodeId) -> u32 {
         self.binder.source_of_node(node).arena.node(node).end
     }

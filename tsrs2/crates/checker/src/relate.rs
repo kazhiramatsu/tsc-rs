@@ -42,6 +42,8 @@ impl RelationKind {
         RelationKind::Comparable,
     ];
 
+    /// tsrs-native: closed-enum index used by Rust's RelationCaches
+    /// fixed array; tsc closes over distinct cache variables.
     pub const fn cache_index(self) -> usize {
         match self {
             RelationKind::Identity => 0,
@@ -67,10 +69,14 @@ pub struct RelationCaches {
 }
 
 impl RelationCaches {
+    /// tsrs-native: Rust fixed-array accessor for tsc's separate
+    /// relation cache objects.
     pub fn cache(&self, relation: RelationKind) -> &RelationCache {
         &self.per_relation[relation.cache_index()]
     }
 
+    /// tsrs-native: mutable Rust fixed-array accessor for tsc's
+    /// separate relation cache objects.
     pub fn cache_mut(&mut self, relation: RelationKind) -> &mut RelationCache {
         &mut self.per_relation[relation.cache_index()]
     }

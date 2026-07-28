@@ -121,6 +121,8 @@ pub(crate) enum IntrinsicTypeKind {
     NoInfer,
 }
 
+/// tsrs-native: Rust enum projection of tsc's intrinsicTypeKinds map;
+/// the map lookup is inline state, not a standalone tsc function.
 pub(crate) fn intrinsic_type_kind(name: &str) -> Option<IntrinsicTypeKind> {
     match name {
         "Uppercase" => Some(IntrinsicTypeKind::Uppercase),
@@ -218,10 +220,14 @@ fn js_template_text_capitalize(
 }
 
 impl<'a> CheckerState<'a> {
+    /// tsrs-native: arena accessor for TypeMapper values; tsc stores
+    /// mapper objects by reference.
     pub(crate) fn mapper(&self, id: MapperId) -> &TypeMapper {
         &self.mappers[id.0 as usize]
     }
 
+    /// tsrs-native: arena allocation for a TypeMapper object; tsc uses
+    /// ordinary JavaScript object allocation.
     pub(crate) fn alloc_mapper(&mut self, mapper: TypeMapper) -> MapperId {
         let id = MapperId(self.mappers.len() as u32);
         self.mappers.push(mapper);
@@ -2956,6 +2962,8 @@ impl<'a> CheckerState<'a> {
 
     // ---- node utilities for the containsReference walker ----
 
+    /// tsrs-native: owned child-list adapter around the syntax crate's
+    /// forEachChild traversal; tsc passes callbacks directly.
     pub(crate) fn children_of(&self, node: NodeId) -> Vec<NodeId> {
         let source = self.binder.source_of_node(node);
         let mut children = Vec::new();

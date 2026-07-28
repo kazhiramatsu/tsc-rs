@@ -616,6 +616,8 @@ impl<'a> CheckerState<'a> {
 
     /// The `declaration.name` read behind isNamedDeclaration guards
     /// (74086): the member-declaration kinds the literals band meets.
+    /// tsrs-native: typed AST projection for tsc's direct
+    /// `declaration.name` property access.
     pub(crate) fn name_of_named_declaration(&self, declaration: NodeId) -> Option<NodeId> {
         match self.data_of(declaration) {
             NodeData::PropertyAssignment(data) => data.name,

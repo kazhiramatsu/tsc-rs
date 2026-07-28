@@ -65,6 +65,7 @@ pub enum RelpinVerdict {
 /// annotations through the minimal annotation path, then hand off to
 /// the relation engine — which is stages 4.4-4.5, so every pin that
 /// constructs cleanly still reports the engine as the blocker.
+/// tsrs-native: relpin command/test harness entry; no tsc counterpart.
 pub fn probe_relation(query: &RelpinQuery) -> RelpinVerdict {
     let mut text = String::new();
     if !query.setup.is_empty() {
@@ -205,6 +206,8 @@ fn mark_fresh_probe_source(state: &mut CheckerState, ty: TypeId) -> TypeId {
 /// The scratch program is generated above: find the declared probe
 /// var's type annotation by the identifier's raw text (escapedText
 /// would carry the leading-underscore escape).
+/// tsrs-native: relpin scratch-program lookup helper; no tsc
+/// counterpart.
 pub(crate) fn find_probe_annotation(source: &SourceFile, name: &str) -> Option<NodeId> {
     for index in 0..source.arena.len() {
         let node = source.arena.node(NodeId(index as u32));

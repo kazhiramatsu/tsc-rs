@@ -27,6 +27,8 @@ pub enum LinkSlot<T> {
 }
 
 impl<T: Clone> LinkSlot<T> {
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn resolved(&self) -> Option<T> {
         match self {
             LinkSlot::Resolved(value) => Some(value.clone()),
@@ -34,6 +36,8 @@ impl<T: Clone> LinkSlot<T> {
         }
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn is_resolving(&self) -> bool {
         matches!(self, LinkSlot::Resolving)
     }
@@ -587,14 +591,20 @@ pub struct LinksTables {
 }
 
 impl LinksTables {
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn node(&self, id: NodeId) -> NodeLinks {
         self.node.get(&id).cloned().unwrap_or_default()
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn symbol(&self, id: SymbolId) -> SymbolLinks {
         self.symbol.get(&id).cloned().unwrap_or_default()
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn ty(&self, id: TypeId) -> TypeLinks {
         self.ty.get(&id).cloned().unwrap_or_default()
     }
@@ -878,6 +888,8 @@ impl LinksTables {
         ));
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_node_resolved_type(
         &mut self,
         speculation_depth: u32,
@@ -897,6 +909,8 @@ impl LinksTables {
     /// write-twice sites the memo discipline sanctions (the other:
     /// overwrite_symbol_type_for_binding_element); both slots move
     /// together.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn overwrite_type_reference_resolution(
         &mut self,
         speculation_depth: u32,
@@ -921,6 +935,8 @@ impl LinksTables {
     /// re-enter the node mid-computation (the
     /// overwrite_type_reference_resolution recursion class). The
     /// import-type sanctioned overwrite pair, symbol half.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn overwrite_import_type_resolved_symbol(
         &mut self,
         speculation_depth: u32,
@@ -936,6 +952,8 @@ impl LinksTables {
     /// The import-type sanctioned overwrite pair, type half (see
     /// overwrite_import_type_resolved_symbol; tsc 62828/62834/62862/
     /// 62868-62877 all assign links.resolvedType unguarded).
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn overwrite_import_type_resolved_type(
         &mut self,
         speculation_depth: u32,
@@ -972,6 +990,8 @@ impl LinksTables {
         links.type_of_symbol = LinkSlot::Resolved(value);
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_node_context_free_type(
         &mut self,
         speculation_depth: u32,
@@ -1011,6 +1031,8 @@ impl LinksTables {
     /// `links.spreadIndices ??= getSpreadIndices(...)` (73520) — a
     /// compute-once ?? write, not a LinkSlot (both `None` halves are
     /// meaningful values).
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_node_spread_indices(
         &mut self,
         speculation_depth: u32,
@@ -1029,6 +1051,8 @@ impl LinksTables {
 
     /// `links.jsxFlags |= …` (getIntrinsicTagSymbol 74540/74545) — an
     /// accumulating flags word; re-entry ORs the same bits.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn add_node_jsx_flags(
         &mut self,
         speculation_depth: u32,
@@ -1041,6 +1065,8 @@ impl LinksTables {
 
     /// `links.resolvedJsxElementAttributesType = …` (74731) —
     /// compute-once; a rewrite is a protocol bug.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_node_resolved_jsx_element_attributes_type(
         &mut self,
         speculation_depth: u32,
@@ -1062,6 +1088,8 @@ impl LinksTables {
 
     /// `sourceFileLinks.jsxFragmentType = …` (getJSXFragmentType
     /// 77377-77395) — compute-once per source file.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_node_jsx_fragment_type(
         &mut self,
         speculation_depth: u32,
@@ -1077,6 +1105,8 @@ impl LinksTables {
         }
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_node_resolved_signature(
         &mut self,
         speculation_depth: u32,
@@ -1121,6 +1151,8 @@ impl LinksTables {
     /// call mid-flight, live since 5.8b) can pick a different
     /// overload than the outer frame; the OUTER (last) write wins,
     /// exactly like tsc.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_node_resolved_signature_call_protocol(
         &mut self,
         speculation_depth: u32,
@@ -1162,6 +1194,8 @@ impl LinksTables {
     /// restores the prior value. A RAW swap — the ONLY writer allowed
     /// to take the slot back to Vacant (restoring a previously-vacant
     /// slot); both directions bypass the call-protocol transitions.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn swap_node_resolved_signature_iife(
         &mut self,
         speculation_depth: u32,
@@ -1183,6 +1217,8 @@ impl LinksTables {
     /// fails identically instead of observing a phantom mid-flight
     /// sentinel. Only the frame that WROTE the sentinel reverts
     /// (Resolved stashes stay — they are real memos).
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn revert_node_resolved_signature_call(&mut self, id: NodeId) {
         let slot = &mut self.node.entry(id).or_default().resolved_signature;
         if matches!(slot, LinkSlot::Resolving) {
@@ -1760,6 +1796,8 @@ impl LinksTables {
         }
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_variances(
         &mut self,
         speculation_depth: u32,
@@ -1788,6 +1826,8 @@ impl LinksTables {
     /// Err-unwind twin for the variances slot: tsc cannot fail inside
     /// getVariancesWorker, so a measurement cut short by Unsupported
     /// must leave the slot re-queryable — Resolving reverts to Vacant.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn revert_symbol_variances(&mut self, id: SymbolId) {
         let slot = &mut self.symbol.entry(id).or_default().variances;
         assert!(
@@ -1801,6 +1841,8 @@ impl LinksTables {
     /// `nodeLinks.flags |= bits` — the NodeCheckFlags word accumulates
     /// (checkSourceFileWorker 87057 `links.flags |= NodeCheckFlags.TypeChecked`
     /// is the first writer).
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn or_node_check_flags(
         &mut self,
         speculation_depth: u32,
@@ -1878,6 +1920,8 @@ impl LinksTables {
 
     /// checkGrammarStatementInAmbientContext's once-flag (90344/90349):
     /// set only when the grammar error actually emitted.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_node_has_reported_statement_in_ambient_context(
         &mut self,
         speculation_depth: u32,
@@ -1918,6 +1962,8 @@ impl LinksTables {
         self.node.entry(id).or_default().decorator_signature = value;
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_node_enum_member_value(
         &mut self,
         speculation_depth: u32,
@@ -1930,6 +1976,8 @@ impl LinksTables {
         *slot = Some(value);
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_node_enum_values_computed(&mut self, speculation_depth: u32, id: NodeId) {
         Self::assert_writable(speculation_depth);
         self.node.entry(id).or_default().enum_values_computed = true;
@@ -1944,6 +1992,8 @@ impl LinksTables {
     /// crossing a speculation boundary reaches twins INSIDE the region
     /// while depth > 0 (speculate.rs rolls back before the Err
     /// re-propagates, so OUTER twins fire at the entry depth).
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn revert_node_enum_values_computed(&mut self, id: NodeId) {
         self.node.entry(id).or_default().enum_values_computed = false;
     }
@@ -1957,6 +2007,8 @@ impl LinksTables {
         self.symbol.entry(id).or_default().type_parameters_checked = true;
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_declared_type(
         &mut self,
         speculation_depth: u32,
@@ -1994,6 +2046,8 @@ impl LinksTables {
         Self::write_slot(&mut self.symbol.entry(id).or_default().declared_type, value);
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_type(
         &mut self,
         speculation_depth: u32,
@@ -2055,6 +2109,8 @@ impl LinksTables {
         self.symbol.entry(id).or_default().type_of_symbol = LinkSlot::Resolved(value);
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_synthetic(
         &mut self,
         speculation_depth: u32,
@@ -2073,6 +2129,8 @@ impl LinksTables {
         );
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_is_discriminant(
         &mut self,
         speculation_depth: u32,
@@ -2110,6 +2168,8 @@ impl LinksTables {
 
     /// `links.uniqueESSymbolType = ...` (getESSymbolLikeTypeForNode
     /// 63127).
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_unique_es_symbol_type(
         &mut self,
         speculation_depth: u32,
@@ -2136,6 +2196,8 @@ impl LinksTables {
 
     /// tsc createSymbol's checkFlags seed (47656) for transient symbols
     /// created outside the synthetic-property path.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_check_flags(
         &mut self,
         speculation_depth: u32,
@@ -2148,6 +2210,8 @@ impl LinksTables {
 
     /// `links.nameType = ...` on a fresh transient symbol (getSpreadSymbol
     /// 63054, checkObjectLiteral's late-bound member 74193).
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_name_type(
         &mut self,
         speculation_depth: u32,
@@ -2227,6 +2291,8 @@ impl LinksTables {
 
     /// `links.target = ...` (checkObjectLiteral 74209 — the object
     /// literal member's source symbol, not the instantiation target).
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_target(&mut self, speculation_depth: u32, id: SymbolId, target: SymbolId) {
         let _ = speculation_depth;
         self.symbol.entry(id).or_default().target = Some(target);
@@ -2234,6 +2300,8 @@ impl LinksTables {
 
     /// `links.originatingImport = referenceParent` on a fresh interop
     /// clone (cloneTypeAsModuleType 49769).
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_originating_import(
         &mut self,
         speculation_depth: u32,
@@ -2245,6 +2313,8 @@ impl LinksTables {
     }
 
     /// `links.leftSpread/rightSpread` (getSpreadType 63024-63025).
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_spread_pair(
         &mut self,
         speculation_depth: u32,
@@ -2261,6 +2331,8 @@ impl LinksTables {
     /// `links.syntheticOrigin` (getSpreadSymbol 63052 /
     /// getAnonymousPartialType 62955). Every caller initializes a freshly
     /// synthesized symbol, so this semantic stamp belongs to the transaction.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_synthetic_origin(
         &mut self,
         speculation_depth: u32,
@@ -2273,6 +2345,8 @@ impl LinksTables {
 
     /// `type.literalType = cloneTypeReference(type)` (createArrayLiteralType
     /// 74039) — once-per-reference like the tsc field write.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_literal_type(&mut self, speculation_depth: u32, id: TypeId, literal: TypeId) {
         if speculation_depth != 0 {
             return;
@@ -2283,6 +2357,8 @@ impl LinksTables {
         links.literal_type = Some(literal);
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_promised_type_of_promise(
         &mut self,
         speculation_depth: u32,
@@ -2301,6 +2377,8 @@ impl LinksTables {
         links.promised_type_of_promise = Some(promised);
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_awaited_type_of_type(
         &mut self,
         speculation_depth: u32,
@@ -2321,6 +2399,8 @@ impl LinksTables {
 
     /// checkAssertionWorker's links.assertionExpressionType stamp —
     /// re-checks overwrite (tsc reassigns freely).
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_node_assertion_expression_type(
         &mut self,
         speculation_depth: u32,
@@ -2332,6 +2412,8 @@ impl LinksTables {
     }
 
     /// getInstantiationExpressionType's STORE-BEFORE-ERROR map insert.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_node_instantiation_expression_type(
         &mut self,
         speculation_depth: u32,
@@ -2349,6 +2431,8 @@ impl LinksTables {
     }
 
     /// tsc `symbol.isReferenced = SymbolFlags.All` — freely repeatable.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_is_referenced(&mut self, speculation_depth: u32, id: SymbolId) {
         let _ = speculation_depth;
         self.symbol.entry(id).or_default().is_referenced = true;
@@ -2363,6 +2447,8 @@ impl LinksTables {
 
     /// nonExistentPropCheckCache add (75419-75423): returns true when
     /// the key was NEW (the caller reports), false on a repeat.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn insert_node_non_existent_prop_key(
         &mut self,
         speculation_depth: u32,
@@ -2383,6 +2469,8 @@ impl LinksTables {
             .insert(key)
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_resolved_properties(
         &mut self,
         speculation_depth: u32,
@@ -2399,6 +2487,8 @@ impl LinksTables {
         );
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_resolved_reduced_type(
         &mut self,
         speculation_depth: u32,
@@ -2415,6 +2505,8 @@ impl LinksTables {
         );
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_union_key_property(
         &mut self,
         speculation_depth: u32,
@@ -2444,6 +2536,8 @@ impl LinksTables {
     /// written by the first context-free widening; EQUAL-value
     /// rewrites are tolerated (tsc overwrites idempotently; the
     /// resolvedSymbol precedent from 5.5e).
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_widened(&mut self, speculation_depth: u32, id: TypeId, widened: TypeId) {
         if speculation_depth != 0 {
             return;
@@ -2496,6 +2590,8 @@ impl LinksTables {
         *slot = Some(value);
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_parameter_constraint(
         &mut self,
         speculation_depth: u32,
@@ -2712,6 +2808,8 @@ impl LinksTables {
         );
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_resolved_base_constraint(
         &mut self,
         speculation_depth: u32,
@@ -2728,6 +2826,8 @@ impl LinksTables {
         );
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_immediate_base_constraint(
         &mut self,
         speculation_depth: u32,
@@ -2819,6 +2919,8 @@ impl LinksTables {
     /// setter permits that one rewrite; member-declaration nodes are
     /// disjoint from the identifier/access kinds the strict setter
     /// serves.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_node_resolved_symbol_late_bind(
         &mut self,
         speculation_depth: u32,
@@ -2836,6 +2938,8 @@ impl LinksTables {
     /// touched re-bindable — a parked memo would short-circuit the
     /// retry's lateBindMember and DROP the member from the rebuilt
     /// late table (5.7b review round #2).
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn revert_node_resolved_symbol_late_bind(&mut self, id: NodeId) {
         let slot = &mut self.node.entry(id).or_default().resolved_symbol;
         note_resolving_transition(slot.is_resolving(), false);
@@ -2843,6 +2947,8 @@ impl LinksTables {
     }
 
     /// Err-unwind twin for `links.lateSymbol`.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn clear_symbol_late_symbol(&mut self, id: SymbolId) {
         self.symbol.entry(id).or_default().late_symbol = None;
     }
@@ -2878,6 +2984,8 @@ impl LinksTables {
     ///
     /// Any other different-value rewrite still breaks memo stability
     /// and panics.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_node_resolved_symbol(
         &mut self,
         speculation_depth: u32,
@@ -2917,6 +3025,8 @@ impl LinksTables {
         }
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_node_outer_type_parameters(
         &mut self,
         speculation_depth: u32,
@@ -2952,6 +3062,8 @@ impl LinksTables {
 
     /// instantiateSymbol's transient-links seed (63455-63461): target +
     /// mapper (+ the nameType copy) written once at creation.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_instantiation_links(
         &mut self,
         speculation_depth: u32,
@@ -2974,6 +3086,8 @@ impl LinksTables {
     /// getTypeWithSyntheticDefaultImportType's synthType.syntheticType
     /// stamp (77794/77817) — the `if (!synthType.syntheticType)` guard
     /// makes this write-once.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_synthetic_type(&mut self, speculation_depth: u32, id: TypeId, value: TypeId) {
         if speculation_depth != 0 {
             return;
@@ -3008,6 +3122,8 @@ impl LinksTables {
 
     /// instantiateAnonymousType's target/mapper seed (63658-63659),
     /// written once at creation of the instantiated shell.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_instantiation_links(
         &mut self,
         speculation_depth: u32,
@@ -3053,6 +3169,8 @@ impl LinksTables {
 
     /// getResolvedMembersOrExportsOfSymbol's links[resolutionKind]
     /// cache (57717/57763).
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_resolved_members(
         &mut self,
         speculation_depth: u32,
@@ -3072,6 +3190,8 @@ impl LinksTables {
     /// revert to Vacant (tsc cannot fail here) — a parked early table
     /// left behind would silently hide late members from later
     /// queries.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_resolved_members_late_bind(
         &mut self,
         speculation_depth: u32,
@@ -3085,6 +3205,8 @@ impl LinksTables {
     }
 
     /// Err-unwind twin for the late-binding protocol.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn revert_symbol_resolved_members(&mut self, id: SymbolId) {
         let slot = &mut self.symbol.entry(id).or_default().resolved_members;
         note_resolving_transition(slot.is_resolving(), false);
@@ -3092,6 +3214,8 @@ impl LinksTables {
     }
 
     /// The resolvedExports flavor of the late-binding protocol.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_resolved_exports_late_bind(
         &mut self,
         speculation_depth: u32,
@@ -3105,6 +3229,8 @@ impl LinksTables {
     }
 
     /// Err-unwind twin for the resolvedExports flavor.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn revert_symbol_resolved_exports(&mut self, id: SymbolId) {
         let slot = &mut self.symbol.entry(id).or_default().resolved_exports;
         note_resolving_transition(slot.is_resolving(), false);
@@ -3262,6 +3388,8 @@ impl LinksTables {
 
     /// `links.lateSymbol = ...` (addDeclarationToLateBoundSymbol 57652)
     /// on the MEMBER's binder symbol.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_late_symbol(&mut self, speculation_depth: u32, id: SymbolId, late: SymbolId) {
         if speculation_depth != 0
             && !self
@@ -3280,6 +3408,8 @@ impl LinksTables {
 
     /// resolveDeclaredMembers' declared-members stamp (57604-57613),
     /// written once per class/interface/tuple target.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_declared_members(
         &mut self,
         speculation_depth: u32,
@@ -3299,6 +3429,8 @@ impl LinksTables {
     /// The tsc-mutable `type.resolvedBaseTypes` assignment (57225,
     /// 57253, 57320-57332): interfaces re-assign and push, so this
     /// setter deliberately allows overwrite.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_resolved_base_types(
         &mut self,
         speculation_depth: u32,
@@ -3310,6 +3442,8 @@ impl LinksTables {
     }
 
     /// `type.baseTypesResolved = true` (57244).
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_base_types_resolved(&mut self, speculation_depth: u32, id: TypeId) {
         let _ = speculation_depth;
         self.ty.entry(id).or_default().base_types_resolved = true;
@@ -3324,6 +3458,8 @@ impl LinksTables {
     }
 
     /// getWriteTypeOfAccessors' links.writeType stamp (56800).
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_write_type(&mut self, speculation_depth: u32, id: SymbolId, value: TypeId) {
         self.journal_symbol_write_type(speculation_depth, id);
         Self::write_slot(
@@ -3342,6 +3478,8 @@ impl LinksTables {
     }
 
     /// getResolvedMembersOrExportsOfSymbol's static-side cache (57763).
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_resolved_exports(
         &mut self,
         speculation_depth: u32,
@@ -3357,6 +3495,8 @@ impl LinksTables {
 
     /// getBaseConstructorTypeOfClass's resolvedBaseConstructorType
     /// stamp (57154/57186 — the ??= writes).
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_resolved_base_constructor_type(
         &mut self,
         speculation_depth: u32,
@@ -3380,6 +3520,8 @@ impl LinksTables {
 
     /// createTupleTargetType's tupleLabelDeclaration stamp (61170).
     /// The sole caller initializes a freshly synthesized tuple member.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_tuple_label_declaration(
         &mut self,
         speculation_depth: u32,
@@ -3397,6 +3539,8 @@ impl LinksTables {
 
     /// getSingleBaseForNonAugmentingSubtype's cachedEquivalentBaseType
     /// stamp (67713), guarded by IdenticalBaseTypeCalculated.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn ty_mut_cached_equivalent_base_type(
         &mut self,
         speculation_depth: u32,
@@ -3417,6 +3561,8 @@ impl LinksTables {
     /// so a partially-populated table left by an Unsupported unwind
     /// must not be observable — the slot reverts to Vacant and a later
     /// query re-resolves.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn retract_type_members(&mut self, id: TypeId) {
         let slot = &mut self.ty.entry(id).or_default().resolved_members;
         assert!(
@@ -3459,6 +3605,8 @@ impl LinksTables {
     }
 
     /// cloneTypeParameter/getRestrictiveTypeParameter target stamp.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_parameter_target(
         &mut self,
         speculation_depth: u32,
@@ -3474,6 +3622,8 @@ impl LinksTables {
         links.type_parameter_target = Some(target);
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_parameter_default(
         &mut self,
         speculation_depth: u32,
@@ -3493,6 +3643,8 @@ impl LinksTables {
     }
 
     /// instantiateSignature's fresh-parameter mapper stamp (63418).
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_parameter_mapper(
         &mut self,
         speculation_depth: u32,
@@ -3510,6 +3662,8 @@ impl LinksTables {
 
     /// getDeclaredTypeOfTypeAlias's typeParameters stamp (57416),
     /// written once when a generic alias's declared type resolves.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_symbol_type_parameters(
         &mut self,
         speculation_depth: u32,
@@ -3539,6 +3693,8 @@ impl LinksTables {
         links.type_parameters = Some(type_parameters);
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_resolved_index_type(
         &mut self,
         speculation_depth: u32,
@@ -3555,6 +3711,8 @@ impl LinksTables {
         );
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_resolved_string_index_type(
         &mut self,
         speculation_depth: u32,
@@ -3571,6 +3729,8 @@ impl LinksTables {
         );
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_unique_literal_filled_instantiation(
         &mut self,
         speculation_depth: u32,
@@ -3592,6 +3752,8 @@ impl LinksTables {
         );
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_permissive_instantiation(
         &mut self,
         speculation_depth: u32,
@@ -3611,6 +3773,8 @@ impl LinksTables {
 
     /// getRestrictiveInstantiation self-stamps its result (63825-63826),
     /// so a second write with the SAME value is tolerated.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_restrictive_instantiation(
         &mut self,
         speculation_depth: u32,
@@ -3629,6 +3793,8 @@ impl LinksTables {
         }
     }
 
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn set_type_members(
         &mut self,
         speculation_depth: u32,

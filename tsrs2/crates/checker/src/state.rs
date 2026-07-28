@@ -36,6 +36,8 @@ pub struct Unsupported {
 }
 
 impl Unsupported {
+    /// tsrs-native: Rust containment-error constructor for unsupported
+    /// checker paths; tsc has no Result error object counterpart.
     pub fn new(reason: impl Into<String>) -> Self {
         Self {
             reason: reason.into(),
@@ -833,6 +835,8 @@ pub struct CheckerState<'a> {
 impl<'a> CheckerState<'a> {
     /// Single-file construction — the M3 signature, kept for the
     /// relpin probe and unit tests. `source` must be the binder's file.
+    /// tsrs-native: single-file test/probe adapter around the Rust
+    /// multi-file CheckerState constructor.
     pub fn new(
         source: &'a SourceFile,
         binder: &'a Binder<'a>,
@@ -846,6 +850,8 @@ impl<'a> CheckerState<'a> {
     /// bound with contiguous id bases. Runs the initializeTypeChecker
     /// slice (globals merge + intrinsic symbol seeds + duplicate
     /// flush); merge diagnostics land in `self.diagnostics`.
+    /// tsrs-native: Rust checker arena/cache construction around the
+    /// separately ledgered initializeTypeChecker slices.
     pub fn from_program(binders: Vec<&'a Binder<'a>>, options: &'a CompilerOptions) -> Self {
         let strict_null_checks = options.strict_option_value(options.strict_null_checks);
         let strict_function_types = options.strict_option_value(options.strict_function_types);
@@ -1231,12 +1237,16 @@ impl<'a> CheckerState<'a> {
         id
     }
 
+    /// tsrs-native: arena allocation for ResolvedMembers; tsc creates
+    /// and retains ordinary JavaScript objects.
     pub fn alloc_members(&mut self, members: ResolvedMembers) -> MembersId {
         let id = MembersId(self.members.len() as u32);
         self.members.push(members);
         id
     }
 
+    /// tsrs-native: numeric MembersId arena accessor; tsc carries the
+    /// object reference directly.
     pub fn members_of(&self, id: MembersId) -> &ResolvedMembers {
         &self.members[id.0 as usize]
     }
@@ -1245,20 +1255,28 @@ impl<'a> CheckerState<'a> {
     /// over the SAME ResolvedType object (resolveObjectTypeMembers
     /// 57829/57840: the early write makes partial members observable
     /// to mid-cycle readers, then inheritance mutates the table).
+    /// tsrs-native: mutable MembersId arena accessor required by Rust
+    /// ownership; tsc mutates the object directly.
     pub fn members_mut(&mut self, id: MembersId) -> &mut ResolvedMembers {
         &mut self.members[id.0 as usize]
     }
 
+    /// tsrs-native: arena allocation for Signature objects; tsc uses
+    /// ordinary JavaScript object allocation.
     pub fn alloc_signature(&mut self, signature: Signature) -> SignatureId {
         let id = SignatureId(self.signatures.len() as u32);
         self.signatures.push(signature);
         id
     }
 
+    /// tsrs-native: mutable numeric SignatureId arena accessor; tsc
+    /// mutates the object directly.
     pub fn signature_mut(&mut self, id: SignatureId) -> &mut Signature {
         &mut self.signatures[id.0 as usize]
     }
 
+    /// tsrs-native: numeric SignatureId arena accessor; tsc carries
+    /// the object reference directly.
     pub fn signature_of(&self, id: SignatureId) -> &Signature {
         &self.signatures[id.0 as usize]
     }
@@ -1347,6 +1365,8 @@ impl<'a> CheckerState<'a> {
     }
 
     /// Empty member table shared by symbols that never had one.
+    /// tsrs-native: SymbolId arena projection for tsc's direct
+    /// `symbol.members` property access.
     pub fn symbol_members(&self, symbol: SymbolId) -> &SymbolTable {
         &self.binder.symbol(symbol).members
     }
@@ -1371,15 +1391,21 @@ impl<'a> CheckerState<'a> {
         flags.intersects(meaning).then_some(symbol)
     }
 
+    /// tsrs-native: SymbolId arena projection for tsc's direct
+    /// `symbol.flags` property access.
     pub fn symbol_flags(&self, symbol: SymbolId) -> SymbolFlags {
         self.binder.symbol(symbol).flags
     }
 
+    /// tsrs-native: binder-table projection for tsc's direct
+    /// `node.symbol` property access.
     pub fn node_symbol(&self, node: NodeId) -> Option<SymbolId> {
         self.binder.node_symbol(node)
     }
 
     /// The binder's mutable node-flags view (ContainsThis etc.).
+    /// tsrs-native: binder-table projection for tsc's direct
+    /// `node.flags` property access.
     pub fn node_flags(&self, node: NodeId) -> i32 {
         self.binder.flags_of(node).bits()
     }
@@ -1652,6 +1678,8 @@ impl<'a> CheckerState<'a> {
 
     /// The reporter-mapper closures' `t === markerSuperType || ...`
     /// gate (47115/47124) followed by the handler call.
+    /// tsrs-native: fixed-callback Rust adapter for tsc's inline
+    /// variance-marker reporter closures.
     pub(crate) fn fire_variance_marker_if_marker(&mut self, ty: TypeId, only_unreliable: bool) {
         if ty == self.marker_super_type
             || ty == self.marker_sub_type
@@ -1813,6 +1841,8 @@ impl<'a> CheckerState<'a> {
     /// information too — compare_diagnostics includes it).
     /// error_at for a PRE-BUILT diagnostic (chained heads, canonical
     /// heads): same insertSorted exact-duplicate dedupe.
+    /// tsrs-native: Rust Diagnostic storage/deduplication adapter;
+    /// tsc mutates its diagnostics array directly.
     pub fn push_error_diagnostic(&mut self, diagnostic: Diagnostic) -> usize {
         if let Some(existing) = self
             .diagnostics
@@ -1825,6 +1855,8 @@ impl<'a> CheckerState<'a> {
         self.diagnostics.len() - 1
     }
 
+    /// tsrs-native: Rust diagnostic-construction adapter that attaches
+    /// prebuilt RelatedInfo values to the ledgered node diagnostic.
     pub fn error_at_with_related(
         &mut self,
         location: Option<NodeId>,
@@ -1927,6 +1959,8 @@ pub(crate) mod test_support {
         sources
     }
 
+    /// tsrs-native: checker unit-test harness for constructing an
+    /// in-memory Program and borrowing its CheckerState.
     pub(crate) fn with_program_state<R>(
         files: &[(&str, &str)],
         options: &CompilerOptions,
