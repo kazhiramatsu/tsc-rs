@@ -1517,6 +1517,7 @@ impl<'a> CheckerState<'a> {
                             ty,
                             type_with_this,
                             param,
+                            true,
                         )?;
                     }
                 }
@@ -1529,6 +1530,7 @@ impl<'a> CheckerState<'a> {
                 ty,
                 type_with_this,
                 member,
+                false,
             )?;
         }
         Ok(())
@@ -1538,9 +1540,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 319852aa70d4b2205ec5d9477a8a9caa6a441d77fc64edc448f915899f6255d9
     /// tsc-span: _tsc.js:85151-85170
     ///
-    /// getSymbolAtLocation(member.name) reduces to the declaration's
-    /// binder symbol for class elements; reportErrors is always true
-    /// on the checker path (the LSP flavor passes false).
+    /// getSymbolAtLocation(member.name) routes computed names through
+    /// getLateBoundSymbol; reportErrors is always true on the checker
+    /// path (the LSP flavor passes false).
     #[allow(clippy::too_many_arguments)]
     fn check_existing_member_for_override_modifier(
         &mut self,
@@ -1551,15 +1553,18 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         type_with_this: TypeId,
         member: NodeId,
+        member_is_parameter_property: bool,
     ) -> CheckResult2<()> {
         let Some(declared_prop) = self.node_symbol(member) else {
             return Ok(());
         };
+        let declared_prop = self.get_late_bound_symbol(declared_prop)?;
         let source = self.binder.source_of_node(member);
-        let member_has_override_modifier = tsrs2_binder::node_util::has_syntactic_modifier(
+        let member_has_override_modifier = self.has_override_modifier(member);
+        let member_has_abstract_modifier = tsrs2_binder::node_util::has_syntactic_modifier(
             source,
             member,
-            ModifierFlags::OVERRIDE,
+            ModifierFlags::ABSTRACT,
         );
         let member_is_static = self.is_static_element(member);
         self.check_member_for_override_modifier(
@@ -1570,60 +1575,114 @@ impl<'a> CheckerState<'a> {
             ty,
             type_with_this,
             member_has_override_modifier,
+            member_has_abstract_modifier,
             member_is_static,
+            member_is_parameter_property,
             declared_prop,
             Some(member),
         )
+    }
+
+    fn has_override_modifier(&self, member: NodeId) -> bool {
+        let source = self.binder.source_of_node(member);
+        if tsrs2_binder::node_util::has_syntactic_modifier(source, member, ModifierFlags::OVERRIDE)
+        {
+            return true;
+        }
+        if !self.is_in_js_file(member) {
+            return false;
+        }
+        let raw = source.arena.node(member);
+        let trivia_start = raw.pos as usize;
+        let trivia_end =
+            tsrs2_syntax::skip_trivia(&source.text, trivia_start).min(source.text.len());
+        let trivia = &source.text[trivia_start..trivia_end];
+        let Some(relative_start) = trivia.rfind("/**") else {
+            return false;
+        };
+        let body_start = trivia_start + relative_start + 3;
+        let Some(relative_end) = source.text[body_start..trivia_end].find("*/") else {
+            return false;
+        };
+        let body_end = body_start + relative_end;
+        source.text[body_start..body_end].lines().any(|line| {
+            let candidate = line
+                .trim_start()
+                .strip_prefix('*')
+                .unwrap_or(line.trim_start())
+                .trim_start();
+            candidate.strip_prefix("@override").is_some_and(|tail| {
+                tail.chars()
+                    .next()
+                    .is_none_or(|character| character.is_whitespace())
+            })
+        })
+    }
+
+    fn report_override_error(
+        &mut self,
+        error_node: Option<NodeId>,
+        message: &'static tsrs2_diags::DiagnosticMessage,
+        args: &[&str],
+        is_js: bool,
+    ) {
+        let diagnostics_before = self.diagnostics.len();
+        self.error_at(error_node, message, args);
+        if is_js {
+            self.mark_jsdoc_js_diagnostics_since_with_code(diagnostics_before, message.code);
+        }
     }
 
     /// tsc-port: checkMemberForOverrideModifier @6.0.3
     /// tsc-hash: 787be8e6a710f05ef10453458e6b5eb30814ab2fd17c0300adb573b8b0fe887e
     /// tsc-span: _tsc.js:85171-85232
     ///
-    /// isJs is constant false; noImplicitOverride is ABSENT from
-    /// CompilerOptions (§13 options audit) — the needs-override faces
-    /// (This_member_must_have_an_override_modifier…, the
-    /// parameter-property and abstract flavors) are DEAD; only the
-    /// override-present faces live, so the memberHasAbstractModifier /
-    /// memberIsParameterProperty params reduce away. MemberOverrideStatus
-    /// is consumed only by services — elided. typeToString displays
-    /// compute at their use sites (T2 curtain).
+    /// MemberOverrideStatus is consumed only by services and remains
+    /// elided. Type displays compute at their diagnostic use sites.
     #[allow(clippy::too_many_arguments)]
     fn check_member_for_override_modifier(
         &mut self,
-        _node: NodeId,
+        node: NodeId,
         static_type: TypeId,
         base_static_type: TypeId,
         base_with_this: Option<TypeId>,
         ty: TypeId,
         type_with_this: TypeId,
         member_has_override_modifier: bool,
+        member_has_abstract_modifier: bool,
         member_is_static: bool,
+        member_is_parameter_property: bool,
         member: SymbolId,
         error_node: Option<NodeId>,
     ) -> CheckResult2<()> {
+        let is_js = self.is_in_js_file(node);
+        let source = self.binder.source_of_node(node);
+        let node_in_ambient_context = self.node_flags(node) & NodeFlags::AMBIENT.bits() != 0
+            || tsrs2_binder::node_util::has_syntactic_modifier(
+                source,
+                node,
+                ModifierFlags::AMBIENT,
+            );
         if member_has_override_modifier {
             let value_declaration = self.binder.symbol(member).value_declaration;
             if let Some(value_declaration) = value_declaration {
-                let name = self.name_of_node(value_declaration);
-                if let Some(name) = name {
-                    let source = self.binder.source_of_node(name);
-                    let non_bindable_dynamic =
-                        tsrs2_binder::node_util::is_dynamic_name(source, name)
-                            && !self.has_late_bindable_ast_name(value_declaration);
-                    if non_bindable_dynamic {
-                        self.error_at(
-                            error_node,
-                            &diagnostics::This_member_cannot_have_an_override_modifier_because_its_name_is_dynamic,
-                            &[],
-                        );
-                        return Ok(());
-                    }
+                let source = self.binder.source_of_node(value_declaration);
+                let non_bindable_dynamic =
+                    tsrs2_binder::node_util::has_dynamic_name(source, value_declaration)
+                        && !self.has_bindable_name(value_declaration)?;
+                if non_bindable_dynamic {
+                    let message = if is_js {
+                        &diagnostics::This_member_cannot_have_a_JSDoc_comment_with_an_override_tag_because_its_name_is_dynamic
+                    } else {
+                        &diagnostics::This_member_cannot_have_an_override_modifier_because_its_name_is_dynamic
+                    };
+                    self.report_override_error(error_node, message, &[], is_js);
+                    return Ok(());
                 }
             }
         }
         if let Some(base_with_this) = base_with_this {
-            if member_has_override_modifier {
+            if member_has_override_modifier || self.options.no_implicit_override == Some(true) {
                 let this_type = if member_is_static {
                     static_type
                 } else {
@@ -1637,9 +1696,9 @@ impl<'a> CheckerState<'a> {
                 let escaped_name = self.binder.symbol(member).escaped_name.clone();
                 let prop = self.get_property_of_type_full(this_type, &escaped_name)?;
                 let base_prop = self.get_property_of_type_full(base_type, &escaped_name)?;
+                let base_class_name = self.type_to_string_slice(base_with_this)?;
                 if prop.is_some() && base_prop.is_none() {
-                    if let Some(error_node) = error_node {
-                        let base_class_name = self.type_to_string_slice(base_with_this)?;
+                    if member_has_override_modifier {
                         let member_name = self.symbol_display_name(member);
                         let suggestion = self.get_suggested_symbol_for_nonexistent_class_member(
                             &member_name,
@@ -1648,35 +1707,90 @@ impl<'a> CheckerState<'a> {
                         match suggestion {
                             Some(suggestion) => {
                                 let suggestion_name = self.symbol_display_name(suggestion);
-                                self.error_at(
-                                    Some(error_node),
-                                    &diagnostics::This_member_cannot_have_an_override_modifier_because_it_is_not_declared_in_the_base_class_0_Did_you_mean_1,
+                                let message = if is_js {
+                                    &diagnostics::This_member_cannot_have_a_JSDoc_comment_with_an_override_tag_because_it_is_not_declared_in_the_base_class_0_Did_you_mean_1
+                                } else {
+                                    &diagnostics::This_member_cannot_have_an_override_modifier_because_it_is_not_declared_in_the_base_class_0_Did_you_mean_1
+                                };
+                                self.report_override_error(
+                                    error_node,
+                                    message,
                                     &[&base_class_name, &suggestion_name],
+                                    is_js,
                                 );
                             }
                             None => {
-                                self.error_at(
-                                    Some(error_node),
-                                    &diagnostics::This_member_cannot_have_an_override_modifier_because_it_is_not_declared_in_the_base_class_0,
+                                let message = if is_js {
+                                    &diagnostics::This_member_cannot_have_a_JSDoc_comment_with_an_override_tag_because_it_is_not_declared_in_the_base_class_0
+                                } else {
+                                    &diagnostics::This_member_cannot_have_an_override_modifier_because_it_is_not_declared_in_the_base_class_0
+                                };
+                                self.report_override_error(
+                                    error_node,
+                                    message,
                                     &[&base_class_name],
+                                    is_js,
                                 );
                             }
                         }
+                        return Ok(());
                     }
-                    return Ok(());
+                } else if let (Some(_), Some(base_prop)) = (prop, base_prop) {
+                    let base_declarations = self.binder.symbol(base_prop).declarations.clone();
+                    if !base_declarations.is_empty()
+                        && self.options.no_implicit_override == Some(true)
+                        && !node_in_ambient_context
+                    {
+                        let base_has_abstract = base_declarations.iter().any(|&declaration| {
+                            tsrs2_binder::node_util::has_syntactic_modifier(
+                                self.binder.source_of_node(declaration),
+                                declaration,
+                                ModifierFlags::ABSTRACT,
+                            )
+                        });
+                        if member_has_override_modifier {
+                            return Ok(());
+                        }
+                        if !base_has_abstract {
+                            let message = if member_is_parameter_property {
+                                if is_js {
+                                    &diagnostics::This_parameter_property_must_have_a_JSDoc_comment_with_an_override_tag_because_it_overrides_a_member_in_the_base_class_0
+                                } else {
+                                    &diagnostics::This_parameter_property_must_have_an_override_modifier_because_it_overrides_a_member_in_base_class_0
+                                }
+                            } else if is_js {
+                                &diagnostics::This_member_must_have_a_JSDoc_comment_with_an_override_tag_because_it_overrides_a_member_in_the_base_class_0
+                            } else {
+                                &diagnostics::This_member_must_have_an_override_modifier_because_it_overrides_a_member_in_the_base_class_0
+                            };
+                            self.report_override_error(
+                                error_node,
+                                message,
+                                &[&base_class_name],
+                                is_js,
+                            );
+                            return Ok(());
+                        }
+                        if member_has_abstract_modifier && base_has_abstract {
+                            self.report_override_error(
+                                error_node,
+                                &diagnostics::This_member_must_have_an_override_modifier_because_it_overrides_an_abstract_method_that_is_declared_in_the_base_class_0,
+                                &[&base_class_name],
+                                is_js,
+                            );
+                            return Ok(());
+                        }
+                    }
                 }
-                // prop && baseProp && noImplicitOverride — the entire
-                // needs-override arm is dead (option absent).
             }
         } else if member_has_override_modifier {
-            if let Some(error_node) = error_node {
-                let class_name = self.type_to_string_slice(ty)?;
-                self.error_at(
-                    Some(error_node),
-                    &diagnostics::This_member_cannot_have_an_override_modifier_because_its_containing_class_0_does_not_extend_another_class,
-                    &[&class_name],
-                );
-            }
+            let class_name = self.type_to_string_slice(ty)?;
+            let message = if is_js {
+                &diagnostics::This_member_cannot_have_a_JSDoc_comment_with_an_override_tag_because_its_containing_class_0_does_not_extend_another_class
+            } else {
+                &diagnostics::This_member_cannot_have_an_override_modifier_because_its_containing_class_0_does_not_extend_another_class
+            };
+            self.report_override_error(error_node, message, &[&class_name], is_js);
         }
         Ok(())
     }
@@ -2334,7 +2448,15 @@ mod tests {
     /// Class-band pins (oracle: tsc 6.0.3 noLib, scratchpad probe.sh
     /// p2-p6, 2026-07-14).
     fn checked_rows(text: &str) -> Vec<(u32, u32, u32)> {
-        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        checked_rows_with_options("a.ts", text, &CompilerOptions::default())
+    }
+
+    fn checked_rows_with_options(
+        file_name: &str,
+        text: &str,
+        options: &CompilerOptions,
+    ) -> Vec<(u32, u32, u32)> {
+        with_program_state(&[(file_name, text)], options, |state| {
             state.check_source_file(0);
             rows(state)
         })
@@ -2461,6 +2583,53 @@ mod tests {
         assert_eq!(
             checked_rows("class C { override m(): void {} }\n"),
             [(4112, 19, 1)]
+        );
+    }
+
+    #[test]
+    fn no_implicit_override_requires_modifier_for_concrete_base_member() {
+        let options = CompilerOptions {
+            no_implicit_override: Some(true),
+            ..CompilerOptions::default()
+        };
+        // Oracle: (4114, 39, 1).
+        assert_eq!(
+            checked_rows_with_options(
+                "a.ts",
+                "class B { m() {} }\nclass D extends B { m() {} }\n",
+                &options,
+            ),
+            [(4114, 39, 1)]
+        );
+        assert_eq!(
+            checked_rows_with_options(
+                "a.ts",
+                "class B { m() {} }\nclass D extends B { override m() {} }\n",
+                &options,
+            ),
+            []
+        );
+    }
+
+    #[test]
+    fn checked_js_override_tag_is_attached_to_the_member() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            no_implicit_override: Some(true),
+            ..CompilerOptions::default()
+        };
+        let diagnostics = checked_rows_with_options(
+            "a.js",
+            "class A { m() {} }\nclass B extends A {\n/** @override */ m() {}\n/** @override */ n() {}\n}\n",
+            &options,
+        );
+        assert_eq!(
+            diagnostics
+                .iter()
+                .map(|&(code, _, _)| code)
+                .collect::<Vec<_>>(),
+            [4122]
         );
     }
 

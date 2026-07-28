@@ -1722,6 +1722,7 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
         strict_bind_call_apply: bool_option("strictBindCallApply"),
         no_implicit_any: bool_option("noImplicitAny"),
         no_implicit_this: bool_option("noImplicitThis"),
+        no_implicit_override: bool_option("noImplicitOverride"),
         exact_optional_property_types: bool_option("exactOptionalPropertyTypes"),
         no_fallthrough_cases_in_switch: bool_option("noFallthroughCasesInSwitch"),
         no_implicit_returns: bool_option("noImplicitReturns"),

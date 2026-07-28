@@ -34,6 +34,10 @@ pub struct CompilerOptions {
     /// Gates checkThisExpression's 2683/7041-family implicit-this
     /// reports; strict-family (read through strict_option_value).
     pub no_implicit_this: Option<bool>,
+    /// Requires overriding members to carry `override` (or
+    /// `@override` in checked JavaScript). This is a plain option, not
+    /// part of the strict family.
+    pub no_implicit_override: Option<bool>,
     /// Selects CallableFunction/NewableFunction over Function in the
     /// global bootstrap (initializeTypeChecker 88809-88822).
     pub strict_bind_call_apply: Option<bool>,

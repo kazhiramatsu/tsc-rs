@@ -519,8 +519,14 @@
 # constraints, multiple parameters, and .ts siblings stay silent.
 # T1-T3 gain the same 32 identities, with no losses, outside gains, or
 # false positives.
-rate = 0.982417
-matched = 48162
+# M8-P07 adds all 42 supported TS4113-TS4127 identities from
+# checkMemberForOverrideModifier. noImplicitOverride, checked-JS
+# @override tags, parameter-property and abstract-member faces, and
+# type-resolved computed names now share the exact owner boundary.
+# T1-T3 gain the same 42 identities, with no losses, outside gains, or
+# false positives, closing override-validation at 65/65.
+rate = 0.983273
+matched = 48204
 total = 49024
 allowed_regression = 0.0
 
@@ -533,8 +539,10 @@ allowed_regression = 0.0
 # evidence records zero losses and zero gains outside the frozen target.
 # M8-P06: +32 exact-category .mts/.cts generic-arrow identities; the
 # slice evidence records zero losses and zero gains outside the target.
-rate = 0.982376
-matched = 48160
+# M8-P07: +42 exact-category override-validation identities; the slice
+# evidence records zero losses and zero gains outside the target.
+rate = 0.983233
+matched = 48202
 total = 49024
 allowed_regression = 0.0
 
