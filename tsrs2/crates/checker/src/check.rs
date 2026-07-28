@@ -90,6 +90,14 @@ struct JsDocSatisfiesProjection {
     declaration_host: bool,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct JsDocAugmentsProjection {
+    tag_name: &'static str,
+    target_name: String,
+    target_start: usize,
+    target_end: usize,
+}
+
 impl<'a> CheckerState<'a> {
     #[cfg(debug_assertions)]
     fn unwind_snapshot(&self) -> UnwindSnapshot {
@@ -1497,6 +1505,10 @@ impl<'a> CheckerState<'a> {
         let save_within_unreachable_code = self.within_unreachable_code;
         self.current_node = Some(node);
         self.instantiation_count = 0;
+        // 86557-86567: checked-JS JSDoc tags run before their host
+        // element. P15 projects only the checkJSDocAugmentsTag owner
+        // while JSDoc nodes remain absent from the arena.
+        self.check_jsdoc_augments_tags_for_host(node);
         #[cfg(debug_assertions)]
         let unwind_entry = self.unwind_snapshot();
         // Unsupported containment boundary: tsc has no failure channel
@@ -3052,6 +3064,101 @@ impl<'a> CheckerState<'a> {
             let diagnostics_before = self.diagnostics.len();
             self.error_at_byte_range(root, start, start, &diagnostics::Identifier_expected);
             self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1003);
+        }
+    }
+
+    /// tsrs-native: project checkJSDocAugmentsTag's TS8022/TS8023
+    /// faces while its separate TS8025 duplicate-tag face remains
+    /// outside this owner slice.
+    /// tsc-source-hash: 66091283e252c6a78b8ea20c9fd3df37d75fd8db4ab430a1c02ff07652c3ce6e
+    /// tsc-source-span: _tsc.js:82863-82882
+    /// d2: d2:7c14c7dd4197db2c468e4cfaa088d36376f322eef48d063cbd4d83c5c8355e4b
+    ///
+    /// JSDoc nodes are not materialized yet, so this reconstructs the
+    /// exact P15 producer at the existing checkSourceElement boundary.
+    /// It does not walk the AST: only class/function/EOF hosts inspect
+    /// their own leading-trivia interval. As in getJSDocHost, only the
+    /// last JSDoc comment belongs to the effective host; tags in an
+    /// earlier comment call `error(undefined, ...)`.
+    fn check_jsdoc_augments_tags_for_host(&mut self, host: NodeId) {
+        let host_kind = self.kind_of(host);
+        if !matches!(
+            host_kind,
+            SyntaxKind::ClassDeclaration
+                | SyntaxKind::ClassExpression
+                | SyntaxKind::FunctionDeclaration
+                | SyntaxKind::EndOfFileToken
+        ) || !self.is_in_js_file(host)
+        {
+            return;
+        }
+        let comments = self.jsdoc_comment_body_ranges_in_leading_trivia(host);
+        let Some(last_comment) = comments.len().checked_sub(1) else {
+            return;
+        };
+        for (comment_index, (body_start, comment_close)) in comments.into_iter().enumerate() {
+            let source = self.binder.source_of_node(host);
+            let projections =
+                jsdoc_augments_projections(&source.text[body_start..comment_close], body_start);
+            for projection in projections {
+                let effective_host = (comment_index == last_comment).then_some(host);
+                if effective_host.is_none()
+                    || !matches!(
+                        host_kind,
+                        SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+                    )
+                {
+                    let diagnostics_before = self.diagnostics.len();
+                    self.error_at(
+                        effective_host,
+                        &diagnostics::JSDoc_0_is_not_attached_to_a_class,
+                        &[projection.tag_name],
+                    );
+                    self.mark_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 8022);
+                    continue;
+                }
+
+                let Some(extends) = self.get_class_extends_heritage_element(host) else {
+                    continue;
+                };
+                let Some(extends_expression) = (match self.data_of(extends) {
+                    NodeData::ExpressionWithTypeArguments(data) => data.expression,
+                    _ => None,
+                }) else {
+                    continue;
+                };
+                let Some(class_name_node) =
+                    self.jsdoc_entity_name_expression_identifier(extends_expression)
+                else {
+                    continue;
+                };
+                let Some(class_name) = self.identifier_text_of(class_name_node).map(str::to_owned)
+                else {
+                    continue;
+                };
+                if projection.target_name == class_name {
+                    continue;
+                }
+                let diagnostics_before = self.diagnostics.len();
+                self.error_at_byte_range_with_args(
+                    host,
+                    projection.target_start,
+                    projection.target_end,
+                    &diagnostics::JSDoc_0_1_does_not_match_the_extends_2_clause,
+                    &[projection.tag_name, &projection.target_name, &class_name],
+                );
+                self.mark_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 8023);
+            }
+        }
+    }
+
+    /// tsc getIdentifierFromEntityNameExpression (82882-82891): the
+    /// rightmost identifier of an Identifier/property-access face.
+    fn jsdoc_entity_name_expression_identifier(&self, node: NodeId) -> Option<NodeId> {
+        match self.data_of(node) {
+            NodeData::Identifier(_) => Some(node),
+            NodeData::PropertyAccessExpression(data) => data.name,
+            _ => None,
         }
     }
 
@@ -12091,6 +12198,90 @@ fn jsdoc_candidate_tag_tail<'a>(
                 .then_some((tag, tail))
         })
     })
+}
+
+/// Parse the Identifier/property-access face consumed by
+/// parseJSDocAugmentsTag. The P15 producer needs only the rightmost
+/// identifier because getIdentifierFromEntityNameExpression discards
+/// the qualifier.
+fn jsdoc_augments_entity_projection(
+    text: &str,
+    absolute_start: usize,
+) -> Option<(String, usize, usize)> {
+    let leading = text.len() - text.trim_start_matches(char::is_whitespace).len();
+    let text = &text[leading..];
+    // The JSDoc class node is an ExpressionWithTypeArguments. Its
+    // `expression` ends before `<...>` (including multi-line object
+    // type arguments), so the producer compares only this entity-name
+    // prefix with the JavaScript heritage expression.
+    let token_end = text
+        .char_indices()
+        .find_map(|(index, character)| {
+            (!(character == '.'
+                || character == '_'
+                || character == '$'
+                || character.is_ascii_alphanumeric()))
+            .then_some(index)
+        })
+        .unwrap_or(text.len());
+    let token = &text[..token_end];
+    let member_offset = token.rfind('.').map_or(0, |dot| dot + 1);
+    let member = &token[member_offset..];
+    is_jsdoc_identifier(member).then(|| {
+        let start = absolute_start + leading + member_offset;
+        (member.to_owned(), start, start + member.len())
+    })
+}
+
+/// Textual JSDoc-node projection for `@augments`/`@extends`.
+///
+/// Missing names retain the parser's zero-width position immediately
+/// after the tag name (before trailing JSDoc whitespace), which is the
+/// TS8023 location used by checkJSDocAugmentsTag.
+fn jsdoc_augments_projections(comment: &str, body_start: usize) -> Vec<JsDocAugmentsProjection> {
+    let mut projections = Vec::new();
+    let mut line_offset = 0usize;
+    for line in comment.split_inclusive('\n') {
+        let line_without_break = jsdoc_raw_line(line);
+        let leading = line_without_break.len()
+            - line_without_break
+                .trim_start_matches(char::is_whitespace)
+                .len();
+        let mut candidate = &line_without_break[leading..];
+        let mut candidate_offset = leading;
+        if let Some(after_star) = candidate.strip_prefix('*') {
+            candidate_offset += 1;
+            let star_space =
+                after_star.len() - after_star.trim_start_matches(char::is_whitespace).len();
+            candidate_offset += star_space;
+            candidate = &after_star[star_space..];
+        }
+        let Some((tag, tail)) = jsdoc_candidate_tag_tail(candidate, &["@augments", "@extends"])
+        else {
+            line_offset += line.len();
+            continue;
+        };
+        let tag_name = tag.trim_start_matches('@');
+        let tag_end = body_start + line_offset + candidate_offset + tag.len();
+        let tail_leading = tail.len() - tail.trim_start_matches(char::is_whitespace).len();
+        let tail = &tail[tail_leading..];
+        let parsed = if let Some(braced) = tail.strip_prefix('{') {
+            let close = braced.find('}').unwrap_or(braced.len());
+            jsdoc_augments_entity_projection(braced[..close].trim_end(), tag_end + tail_leading + 1)
+        } else {
+            jsdoc_augments_entity_projection(tail, tag_end + tail_leading)
+        };
+        let (target_name, target_start, target_end) =
+            parsed.unwrap_or_else(|| (String::new(), tag_end, tag_end));
+        projections.push(JsDocAugmentsProjection {
+            tag_name,
+            target_name,
+            target_start,
+            target_end,
+        });
+        line_offset += line.len();
+    }
+    projections
 }
 
 fn jsdoc_raw_line(line: &str) -> &str {

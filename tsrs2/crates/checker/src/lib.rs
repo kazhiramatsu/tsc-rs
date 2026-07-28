@@ -188,6 +188,11 @@ fn is_published_checked_js_diagnostic(
     state: &state::CheckerState<'_>,
     diagnostic: &Diagnostic,
 ) -> bool {
+    if diagnostic.file_name.is_none() {
+        return state
+            .fileless_jsdoc_js_diagnostic_codes
+            .contains(&diagnostic.code());
+    }
     diagnostic
         .file_name
         .as_ref()
@@ -1235,6 +1240,11 @@ pub fn check_program_with_libs_at(
                 continue;
             }
             if file_name.is_none() {
+                diagnostics.extend(
+                    file_diagnostics.into_iter().filter(|diagnostic| {
+                        is_published_checked_js_diagnostic(&state, diagnostic)
+                    }),
+                );
                 continue;
             }
             if let Some(source) = file_name.as_deref().and_then(|name| by_name.get(name)) {
@@ -5817,6 +5827,138 @@ mod tests {
             "{:#?}",
             result.diagnostics
         );
+    }
+
+    #[test]
+    fn checked_js_jsdoc_augments_reports_effective_host_and_fileless_faces() {
+        let source = "/** @extends {A} */\n\
+                      /** @constructor */\n\
+                      class A {}\n\
+                      /** @augments A */\n\
+                      function f() {}\n\
+                      class B {}\n\
+                      /** @augments A */\n\
+                      class C extends B {}\n\
+                      /** @augments */\n\
+                      class D extends A {}\n\
+                      /** @extends {A} */\n";
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                target: Some(99),
+                ..CompilerOptions::default()
+            },
+        );
+        let rows = result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| matches!(diagnostic.code(), 8022 | 8023))
+            .map(|diagnostic| {
+                (
+                    diagnostic.file_name.as_deref(),
+                    diagnostic.start,
+                    diagnostic.length,
+                    diagnostic.code(),
+                    diagnostic.message_text(),
+                )
+            })
+            .collect::<Vec<_>>();
+        let function_name = source.find("f()").expect("function name") as u32;
+        let mismatch_name = (source
+            .find("@augments A */\nclass C")
+            .expect("mismatch tag")
+            + "@augments ".len()) as u32;
+        let missing_name =
+            (source.find("@augments */").expect("missing tag") + "@augments".len()) as u32;
+        assert_eq!(
+            rows,
+            [
+                (
+                    None,
+                    None,
+                    None,
+                    8022,
+                    "JSDoc '@extends' is not attached to a class.",
+                ),
+                (
+                    Some("a.js"),
+                    Some(function_name),
+                    Some(1),
+                    8022,
+                    "JSDoc '@augments' is not attached to a class.",
+                ),
+                (
+                    Some("a.js"),
+                    Some(mismatch_name),
+                    Some(1),
+                    8023,
+                    "JSDoc '@augments A' does not match the 'extends B' clause.",
+                ),
+                (
+                    Some("a.js"),
+                    Some(missing_name),
+                    Some(0),
+                    8023,
+                    "JSDoc '@augments ' does not match the 'extends A' clause.",
+                ),
+                (
+                    Some("a.js"),
+                    Some(source.len() as u32),
+                    Some(0),
+                    8022,
+                    "JSDoc '@extends' is not attached to a class.",
+                ),
+            ],
+            "{:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
+    fn jsdoc_augments_projection_preserves_matching_siblings_and_typescript() {
+        let valid_js = "class A {}\n\
+                        /** @extends {A} */\n\
+                        class B extends A {}\n\
+                        /** @extends { A } */\n\
+                        class C extends A {}\n\
+                        /** @extends {A<{ value: string }>} */\n\
+                        class Generic extends A {}\n\
+                        /** prose @extends {B} */\n\
+                        class D extends B {}\n";
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            target: Some(99),
+            ..CompilerOptions::default()
+        };
+        for (name, text) in [
+            ("a.js", valid_js),
+            (
+                "a.ts",
+                "/** @augments Wrong */\nclass Typed extends Actual {}\n",
+            ),
+        ] {
+            let result = check_program(
+                &[InputFile {
+                    name: name.to_owned(),
+                    text: text.to_owned(),
+                }],
+                &options,
+            );
+            assert!(
+                result
+                    .diagnostics
+                    .iter()
+                    .all(|diagnostic| !matches!(diagnostic.code(), 8022 | 8023)),
+                "{name}: {:#?}",
+                result.diagnostics
+            );
+        }
     }
 
     #[test]
