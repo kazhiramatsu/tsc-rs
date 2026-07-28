@@ -1190,6 +1190,79 @@ mod tests {
     }
 
     #[test]
+    fn checked_js_publishes_constructor_flow_implicit_any_members() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            no_implicit_any: Some(true),
+            strict_null_checks: Some(true),
+            ..CompilerOptions::default()
+        };
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "function A() {\n\
+                       this.unknown = null;\n\
+                       this.unknowable = undefined;\n\
+                       this.empty = [];\n\
+                       }\n\
+                       const a = new A();\n\
+                       a.unknown = 1;\n\
+                       a.unknowable = 1;\n\
+                       a.empty.push(1);\n"
+                    .to_owned(),
+            }],
+            &options,
+        );
+        let rows = result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 7008)
+            .map(|diagnostic| {
+                (
+                    diagnostic.start.expect("spanned diagnostic"),
+                    diagnostic.length.expect("spanned diagnostic"),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(rows.len(), 3);
+
+        let sibling = check_program(
+            &[InputFile {
+                name: "sibling.js".to_owned(),
+                text: "function Installer() { this.args = 0; }\n\
+                       Installer.prototype.load = function () {\n\
+                       (() => { this.newProperty = 1; });\n\
+                       };\n"
+                    .to_owned(),
+            }],
+            &options,
+        );
+        assert!(sibling
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code() != 7008));
+
+        let annotated = check_program(
+            &[InputFile {
+                name: "annotated.js".to_owned(),
+                text: "class Render {\n\
+                       constructor() {\n\
+                       /** @type {number[]} */\n\
+                       this.objects = [];\n\
+                       }\n\
+                       }\n"
+                .to_owned(),
+            }],
+            &options,
+        );
+        assert!(annotated
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code() != 7008));
+    }
+
+    #[test]
     fn checked_js_ports_direct_param_but_keeps_contextual_approximations_private() {
         let options = CompilerOptions {
             strict: Some(false),
