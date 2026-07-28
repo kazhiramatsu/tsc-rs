@@ -321,6 +321,10 @@ pub struct ConformanceSummary {
     pub supported_exact_match_cases: usize,
     pub supported_mismatch_cases: usize,
     pub supported_false_negative_diagnostics: usize,
+    /// Exact schema-2 oracle occurrences whose supported T0 bucket is
+    /// absent. M8 planning consumes these identities directly instead
+    /// of reconstructing occurrences from aggregate codes or T0 keys.
+    pub supported_false_negative_identities: Vec<ExactIdentity>,
     pub ratchet_rate: f64,
     pub ratchet_allowed_regression: f64,
     pub mismatches: Vec<MismatchEntry>,
@@ -817,6 +821,7 @@ fn run_conformance_inner(
     let mut supported_shadow_oracle_records = Vec::new();
     let mut supported_exact_match_cases = 0usize;
     let mut supported_fn_count = 0usize;
+    let mut supported_false_negative_identities = BTreeSet::new();
 
     for fixture in &fixtures {
         let fixture_key = fixture_key(&options.workspace, fixture)?;
@@ -994,7 +999,19 @@ fn run_conformance_inner(
             let supported_fn = supported_expected
                 .difference(&supported_actual)
                 .cloned()
-                .collect::<Vec<_>>();
+                .collect::<BTreeSet<_>>();
+            if !supported_fn.is_empty() {
+                supported_false_negative_identities.extend(
+                    exact_supported_false_negative_identities(
+                        &fixture_key,
+                        &program.matrix_key,
+                        &golden_case.oracle,
+                        options.band,
+                        &excluded_indices,
+                        &supported_fn,
+                    )?,
+                );
+            }
             // Resolution predicate (measurement-integrity.md §3.2),
             // per excluded occurrence: a resolved-t0 entry's
             // disposition must be deleted with the required
@@ -1208,6 +1225,9 @@ fn run_conformance_inner(
         supported_exact_match_cases,
         supported_mismatch_cases: case_count - supported_exact_match_cases,
         supported_false_negative_diagnostics: supported_fn_count,
+        supported_false_negative_identities: supported_false_negative_identities
+            .into_iter()
+            .collect(),
         ratchet_rate: ratchet.rate,
         ratchet_allowed_regression: ratchet.allowed_regression,
         mismatches,
@@ -1306,6 +1326,28 @@ fn run_conformance_inner(
         sets: run_sets,
         observation,
     })
+}
+
+fn exact_supported_false_negative_identities(
+    fixture: &str,
+    matrix_key: &str,
+    oracle: &[GoldenDiag],
+    band: DiagnosticBand,
+    excluded_indices: &BTreeSet<usize>,
+    supported_false_negative_buckets: &BTreeSet<T0Key>,
+) -> ConformanceResult<Vec<ExactIdentity>> {
+    let identities = identity::assign_case_identities(fixture, matrix_key, oracle)?;
+    Ok(oracle
+        .iter()
+        .zip(identities)
+        .enumerate()
+        .filter(|(index, (diagnostic, _))| {
+            band.matches_oracle(diagnostic)
+                && !excluded_indices.contains(index)
+                && supported_false_negative_buckets.contains(&t0_key(diagnostic))
+        })
+        .map(|(_, (_, identity))| identity)
+        .collect())
 }
 
 /// A golden case whose matrix key no expanded program carries. Both
@@ -2368,6 +2410,36 @@ mod tests {
         let classified =
             classify_fn_partial_boundaries(&[key], &[semantic], std::slice::from_ref(&partial));
         assert!(!classified[0].reached_partial_boundary);
+    }
+
+    #[test]
+    fn supported_false_negative_plan_uses_exact_nonexcluded_occurrences() {
+        let mut first = diag("error", 5, "missing");
+        first.pass = Some("semantic".to_owned());
+        let second = first.clone();
+        let mut unrelated = diag("error", 9, "other");
+        unrelated.pass = Some("semantic".to_owned());
+        unrelated.line = Some(2);
+        unrelated.col = Some(3);
+        let oracle = vec![first, second, unrelated];
+        let missing = BTreeSet::from([t0_key(&oracle[0])]);
+
+        let identities = exact_supported_false_negative_identities(
+            "conformance/a.ts",
+            "strict=true",
+            &oracle,
+            DiagnosticBand::All,
+            &BTreeSet::from([0]),
+            &missing,
+        )
+        .unwrap();
+
+        assert_eq!(identities.len(), 1);
+        assert_eq!(identities[0].fixture, "conformance/a.ts");
+        assert_eq!(identities[0].matrix_key, "strict=true");
+        assert_eq!(identities[0].pass, "semantic");
+        assert_eq!(identities[0].occurrence, 1);
+        assert_eq!(identities[0].start, Some(5));
     }
 
     /// The harness serializes @lib as OptionValue::StringList; the

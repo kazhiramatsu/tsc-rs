@@ -49,6 +49,14 @@ accepted-set, scope, family-map, D2, and corpus fingerprints. Later slices
 report before/after against that fixed entry universe rather than a moving
 top-FN list.
 
+The conformance JSON field `supported_false_negative_identities` is the
+authoritative seed for that report. It carries every non-excluded oracle
+occurrence in a missing supported T0 bucket as a schema-2 exact identity.
+The entry baseline has 333 such unique identities: 320 semantic, nine
+suggestion, and four syntactic. Plan generation must consume this field
+directly; aggregate diagnostic-code lists and rendered T0 keys are
+insufficient substitutes.
+
 The supported T0 residual starts in six owner families:
 
 | Family | Supported FN | Entry canaries |
