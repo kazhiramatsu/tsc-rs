@@ -1340,10 +1340,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a14bae24fb447999a090340b85a2ed0d795369282344c797c20100bfa65502a0
     /// tsc-span: _tsc.js:81425-81448
     ///
-    /// getNameOfSymbolAsWritten reduces to the unescaped symbol name
-    /// for class declarations (the anonymous-class and quoted-name
-    /// flavors never reach this row: static members require a named
-    /// container binding for the conflict to observably collide).
+    /// getNameOfSymbolAsWritten reads the first declaration name,
+    /// including the assigned name of an anonymous class expression.
+    /// That also preserves a named default-exported class instead of
+    /// exposing its export-table key (`default`).
     pub(crate) fn check_class_for_static_property_name_conflicts(
         &mut self,
         node: NodeId,
@@ -1378,7 +1378,21 @@ impl<'a> CheckerState<'a> {
             };
             if conflicts {
                 let symbol = self.get_symbol_of_declaration(node)?;
-                let class_name = self.symbol_display_name(symbol);
+                let class_name = self
+                    .binder
+                    .symbol(symbol)
+                    .declarations
+                    .iter()
+                    .find_map(|&declaration| {
+                        let source = self.binder.source_of_node(declaration);
+                        let name =
+                            tsrs2_binder::node_util::get_name_of_declaration(source, declaration)?;
+                        Some(tsrs2_binder::node_util::declaration_name_to_string(
+                            source,
+                            Some(name),
+                        ))
+                    })
+                    .unwrap_or_else(|| self.symbol_display_name(symbol));
                 let display_name =
                     tsrs2_binder::unescape_leading_underscores(&member_name).to_owned();
                 self.error_at(
@@ -2519,6 +2533,35 @@ mod tests {
         assert_eq!(
             checked_rows("class C { #p: string; constructor() { this.#p = \"x\"; } }\n"),
             []
+        );
+    }
+
+    #[test]
+    fn static_property_conflict_uses_the_written_class_name() {
+        let diagnostics = with_program_state(
+            &[(
+                "a.ts",
+                "const Assigned = class { static prototype: number; };\n\
+                 namespace N { export default class DefaultWritten { static prototype: number; } }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| diagnostic.code() == 2699)
+                    .map(|diagnostic| diagnostic.message_text().to_owned())
+                    .collect::<Vec<_>>()
+            },
+        );
+
+        assert_eq!(
+            diagnostics,
+            [
+                "Static property 'prototype' conflicts with built-in property 'Function.prototype' of constructor function 'Assigned'.",
+                "Static property 'prototype' conflicts with built-in property 'Function.prototype' of constructor function 'DefaultWritten'.",
+            ]
         );
     }
 
