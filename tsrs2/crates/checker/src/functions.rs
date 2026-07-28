@@ -1950,11 +1950,18 @@ impl<'a> CheckerState<'a> {
             let contextual_is_any =
                 contextual_type.is_some_and(|t| self.tables.flags_of(t).intersects(TypeFlags::ANY));
             if contextual_type.is_none() || contextual_is_any {
+                let diagnostics_before = self.diagnostics.len();
                 self.error_at(
                     Some(node),
                     &diagnostics::yield_expression_implicitly_results_in_an_any_type_because_its_containing_generator_lacks_a_return_type_annotation,
                     &[],
                 );
+                if self.is_in_js_file(node)
+                    && self.is_check_js_enabled_for_node(node)
+                    && !self.declaration_has_jsdoc_semantics(func)
+                {
+                    self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 7057);
+                }
             }
         }
         Ok(any)
@@ -6725,6 +6732,51 @@ declare const u: unknown;
             checked_rows("(function () { yield 5; });\n"),
             [(1163, 15, 5)]
         );
+    }
+
+    #[test]
+    fn checked_js_publishes_implicit_any_yield_only_without_return_context() {
+        let text = "function* f() { let o; while (true) { o = yield o; } }\n";
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            no_implicit_any: Some(true),
+            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            ..CompilerOptions::default()
+        };
+        let rows = checked_program_rows_with_file("a.js", text, &options)
+            .into_iter()
+            .filter(|(code, _, _)| *code == 7057)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            rows,
+            [(
+                7057,
+                text.find("yield").expect("yield expression") as u32,
+                5
+            )]
+        );
+
+        let unchecked = CompilerOptions {
+            check_js: Some(false),
+            ..options.clone()
+        };
+        assert!(
+            checked_program_rows_with_file("unchecked.js", text, &unchecked)
+                .into_iter()
+                .all(|(code, _, _)| code != 7057)
+        );
+        assert!(checked_program_rows_with_file(
+            "typed.ts",
+            "function* f(): any { const value = yield 0; }\n",
+            &CompilerOptions {
+                no_implicit_any: Some(true),
+                target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+                ..CompilerOptions::default()
+            },
+        )
+        .into_iter()
+        .all(|(code, _, _)| code != 7057));
     }
 
     // ---- await family error paths ----
