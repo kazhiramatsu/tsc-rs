@@ -3901,6 +3901,33 @@ impl<'a> CheckerState<'a> {
         self.get_or_create_type_from_signature(signature).map(Some)
     }
 
+    /// tsrs-native: the M8 exhaustive-switch owner needs the exact
+    /// checked-JS `{boolean}` parameter face before JSDoc type nodes
+    /// are materialized.
+    ///
+    /// This is intentionally not a general getParameterTypeOfTypeTag
+    /// implementation; broader JSDoc types remain with their frozen
+    /// owner slices.
+    pub(crate) fn jsdoc_boolean_parameter_type_annotation(
+        &self,
+        parameter: NodeId,
+    ) -> Option<TypeId> {
+        if !self.is_in_js_file(parameter) || self.kind_of(parameter) != SyntaxKind::Parameter {
+            return None;
+        }
+        let function = self.parent_of(parameter)?;
+        let name = self
+            .name_of_node(parameter)
+            .and_then(|name| self.identifier_text_of(name))?;
+        let source = self.binder.source_of_node(function);
+        let (comment_start, comment_end) = self.leading_jsdoc_comment_range(function)?;
+        let comment_body = &source.text[comment_start + 3..comment_end - 2];
+        parse_jsdoc_parameter_annotations(comment_body)
+            .into_iter()
+            .any(|(annotation_name, type_text)| annotation_name == name && type_text == "boolean")
+            .then_some(self.tables.intrinsics.boolean)
+    }
+
     /// tsrs-native: project checkTypePredicate's invalid-parent face
     /// over a JSDoc `@type` cast while JSDoc type nodes are absent
     /// from the syntax arena.

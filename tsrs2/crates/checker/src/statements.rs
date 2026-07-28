@@ -3183,6 +3183,33 @@ mod tests {
         })
     }
 
+    fn checked_js_unreachable_rows(text: &str) -> Vec<(tsrs2_diags::DiagnosticCategory, u32, u32)> {
+        check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: text.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                allow_unreachable_code: Some(false),
+                target: Some(2),
+                ..CompilerOptions::default()
+            },
+        )
+        .diagnostics
+        .into_iter()
+        .filter(|diagnostic| diagnostic.code() == 7027)
+        .map(|diagnostic| {
+            (
+                diagnostic.category(),
+                diagnostic.start.unwrap_or(u32::MAX),
+                diagnostic.length.unwrap_or(u32::MAX),
+            )
+        })
+        .collect()
+    }
+
     #[test]
     fn duplicate_literal_members_resolve_last_wins() {
         // The M7 8.1b grammar producer now reports tsc's 1117 row.
@@ -3548,6 +3575,43 @@ x.accessor = 1;\n"
                 .collect::<Vec<_>>(),
             [(tsrs2_diags::DiagnosticCategory::Suggestion, 23, 10)]
         );
+    }
+
+    #[test]
+    fn checked_js_jsdoc_never_and_boolean_publish_flow_unreachable_rows() {
+        let never_text = "/** @returns {never} */\n\
+function fail() { throw \"x\"; }\n\
+function f() { fail(); x; }\n";
+        assert_eq!(
+            checked_js_unreachable_rows(never_text),
+            [(
+                tsrs2_diags::DiagnosticCategory::Error,
+                never_text.rfind("x;").unwrap() as u32,
+                2,
+            )]
+        );
+
+        let boolean_text = "/** @param {boolean} b */\n\
+function f(b) {\n\
+    switch (b) {\n\
+        case true: return 1;\n\
+        case false: return 0;\n\
+    }\n\
+    b;\n\
+}\n";
+        assert_eq!(
+            checked_js_unreachable_rows(boolean_text),
+            [(
+                tsrs2_diags::DiagnosticCategory::Error,
+                boolean_text.rfind("b;").unwrap() as u32,
+                2,
+            )]
+        );
+
+        let void_control = never_text.replace("{never}", "{void}");
+        assert_eq!(checked_js_unreachable_rows(&void_control), []);
+        let any_control = boolean_text.replace("{boolean}", "{*}");
+        assert_eq!(checked_js_unreachable_rows(&any_control), []);
     }
 
     #[test]

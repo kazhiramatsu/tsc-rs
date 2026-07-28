@@ -2861,8 +2861,7 @@ impl<'a> CheckerState<'a> {
             return Ok(true);
         }
         if let Some(declaration) = self.signature_of(signature).declaration {
-            if let Some(return_type_node) = self.effective_return_type_node(declaration) {
-                let annotated = self.get_type_from_type_node(return_type_node)?;
+            if let Some(annotated) = self.get_return_type_from_annotation(declaration)? {
                 return Ok(self.tables.flags_of(annotated).intersects(TypeFlags::NEVER));
             }
         }

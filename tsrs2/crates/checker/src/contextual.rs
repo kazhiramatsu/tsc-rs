@@ -3741,7 +3741,10 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        // getReturnTypeOfTypeTag — [JSDOC].
+        if let Some(jsdoc_return) = self.jsdoc_never_return_type_annotation(declaration) {
+            return Ok(Some(jsdoc_return));
+        }
+        // The remaining getReturnTypeOfTypeTag faces are [JSDOC].
         Ok(None)
     }
 
