@@ -98,6 +98,14 @@ struct JsDocAugmentsProjection {
     target_end: usize,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct JsDocUnmatchedParameterProjection {
+    name: String,
+    start: usize,
+    end: usize,
+    is_name_first: bool,
+}
+
 impl<'a> CheckerState<'a> {
     #[cfg(debug_assertions)]
     fn unwind_snapshot(&self) -> UnwindSnapshot {
@@ -1506,9 +1514,11 @@ impl<'a> CheckerState<'a> {
         self.current_node = Some(node);
         self.instantiation_count = 0;
         // 86557-86567: checked-JS JSDoc tags run before their host
-        // element. P15 projects only the checkJSDocAugmentsTag owner
+        // element. P15 projects checkJSDocAugmentsTag; P16 also routes
+        // cached later initializers of a comma declaration directly,
         // while JSDoc nodes remain absent from the arena.
         self.check_jsdoc_augments_tags_for_host(node);
+        self.check_unmatched_jsdoc_parameters_in_following_variable_declarations(node);
         #[cfg(debug_assertions)]
         let unwind_entry = self.unwind_snapshot();
         // Unsupported containment boundary: tsc has no failure channel
@@ -3150,6 +3160,181 @@ impl<'a> CheckerState<'a> {
                 self.mark_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 8023);
             }
         }
+    }
+
+    /// tsrs-native: project checkUnmatchedJSDocParameters' direct
+    /// TS8024/TS8032 faces while JSDoc nodes remain absent from the
+    /// syntax arena. The separate `arguments`/array TS8029 face stays
+    /// outside this owner slice.
+    /// tsc-source-hash: 00361f5277c6701a052dd8905b08a078fd6604840092e5cc7c9cf1d8ecdc3703
+    /// tsc-source-span: _tsc.js:84792-84829
+    /// d2: d2:4637c5c32e3f7d3432b94cc01fbc5fb10b71a71988aab972b76c35b262222cae
+    ///
+    /// The primary route is checkSignatureDeclaration's existing
+    /// declaration boundary. A cached later initializer in a comma
+    /// declaration is supplied directly by its current VariableStatement
+    /// boundary, so neither route adds an AST visit. Only the effective
+    /// leading JSDoc comment of the current function-like host is
+    /// projected. Direct property tags are folded into their preceding
+    /// object parameter exactly as getJSDocTags does; a qualified tag
+    /// whose immediate parent is absent remains a top-level unmatched
+    /// tag and reaches TS8032.
+    pub(crate) fn check_unmatched_jsdoc_parameters(&mut self, node: NodeId) {
+        if !self.is_in_js_file(node)
+            || !matches!(
+                self.kind_of(node),
+                SyntaxKind::FunctionDeclaration
+                    | SyntaxKind::FunctionExpression
+                    | SyntaxKind::ArrowFunction
+                    | SyntaxKind::MethodDeclaration
+                    | SyntaxKind::Constructor
+                    | SyntaxKind::GetAccessor
+                    | SyntaxKind::SetAccessor
+            )
+        {
+            return;
+        }
+        let comment = self
+            .jsdoc_comment_range_for_function(node)
+            .or_else(|| self.jsdoc_shared_variable_statement_comment_range(node));
+        let Some((comment_start, comment_end)) = comment else {
+            return;
+        };
+        let source = self.binder.source_of_node(node);
+        let projections = jsdoc_unmatched_parameter_projections(
+            &source.text[comment_start + 3..comment_end - 2],
+            comment_start + 3,
+        );
+        if projections.is_empty() {
+            return;
+        }
+
+        // containsArgumentsReference switches this producer to its
+        // TS8029-only branch. A conservative lexical projection is
+        // sufficient here: false positives only suppress this partial
+        // TS8024/TS8032 port, and avoid a second body-node traversal.
+        let raw = source.arena.node(node);
+        let function_text = &source.text
+            [(raw.pos as usize).min(source.text.len())..(raw.end as usize).min(source.text.len())];
+        if text_contains_identifier(function_text, "arguments") {
+            return;
+        }
+
+        let mut parameter_names = std::collections::BTreeSet::new();
+        let mut excluded_parameters = std::collections::BTreeSet::new();
+        for (index, parameter) in self.parameters_of_function(node).into_iter().enumerate() {
+            let NodeData::Parameter(data) = self.data_of(parameter) else {
+                continue;
+            };
+            let Some(name) = data.name else { continue };
+            if let Some(name) = self.identifier_text_of(name) {
+                parameter_names.insert(name.to_owned());
+            } else if matches!(
+                self.kind_of(name),
+                SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern
+            ) {
+                excluded_parameters.insert(index);
+            }
+        }
+
+        for (index, projection) in projections.into_iter().enumerate() {
+            if excluded_parameters.contains(&index) {
+                continue;
+            }
+            if let Some((left, _)) = projection.name.rsplit_once('.') {
+                let diagnostics_before = self.diagnostics.len();
+                self.error_at_byte_range_with_args(
+                    node,
+                    projection.start,
+                    projection.end,
+                    &diagnostics::Qualified_name_0_is_not_allowed_without_a_leading_param_object_1,
+                    &[&projection.name, left],
+                );
+                self.mark_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 8032);
+            } else if !projection.is_name_first
+                && !parameter_names.contains(projection.name.as_str())
+            {
+                let diagnostics_before = self.diagnostics.len();
+                self.error_at_byte_range_with_args(
+                    node,
+                    projection.start,
+                    projection.end,
+                    &diagnostics::JSDoc_param_tag_has_name_0_but_there_is_no_parameter_with_that_name,
+                    &[&projection.name],
+                );
+                self.mark_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 8024);
+            }
+        }
+    }
+
+    /// A later comma-separated initializer may already have a cached
+    /// expression type when its declaration is checked, so the normal
+    /// checkSignatureDeclaration route is not re-entered. tsc still
+    /// checks its shared statement JSDoc; route that direct initializer
+    /// without walking the declaration subtree.
+    fn check_unmatched_jsdoc_parameters_in_following_variable_declarations(
+        &mut self,
+        statement: NodeId,
+    ) {
+        let declaration_list = match self.data_of(statement) {
+            NodeData::VariableStatement(data) => data.declaration_list,
+            _ => None,
+        };
+        let declarations = declaration_list.and_then(|list| match self.data_of(list) {
+            NodeData::VariableDeclarationList(data) => data.declarations,
+            _ => None,
+        });
+        for declaration in self.nodes_of(declarations).into_iter().skip(1) {
+            let initializer = match self.data_of(declaration) {
+                NodeData::VariableDeclaration(data) => data.initializer,
+                _ => None,
+            };
+            if let Some(initializer) = initializer {
+                if matches!(
+                    self.kind_of(initializer),
+                    SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
+                ) {
+                    self.check_unmatched_jsdoc_parameters(initializer);
+                }
+            }
+        }
+    }
+
+    /// getJSDocCommentsAndTags observes a variable statement's JSDoc
+    /// on every comma-separated declaration. The general type
+    /// projection deliberately stays narrower, so P16 supplies this
+    /// fallback only for its unmatched-parameter producer.
+    fn jsdoc_shared_variable_statement_comment_range(
+        &self,
+        function: NodeId,
+    ) -> Option<(usize, usize)> {
+        if !matches!(
+            self.kind_of(function),
+            SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
+        ) {
+            return None;
+        }
+        let mut current = self.parent_of(function);
+        for _ in 0..4 {
+            let node = current?;
+            if self.kind_of(node) == SyntaxKind::VariableStatement {
+                return self
+                    .jsdoc_comment_body_ranges_in_leading_trivia(node)
+                    .into_iter()
+                    .next_back()
+                    .map(|(body_start, comment_close)| (body_start - 3, comment_close + 2));
+            }
+            if !matches!(
+                self.kind_of(node),
+                SyntaxKind::ParenthesizedExpression
+                    | SyntaxKind::VariableDeclaration
+                    | SyntaxKind::VariableDeclarationList
+            ) {
+                return None;
+            }
+            current = self.parent_of(node);
+        }
+        None
     }
 
     /// tsc getIdentifierFromEntityNameExpression (82882-82891): the
@@ -12394,6 +12579,200 @@ fn parse_jsdoc_parameter_annotations(comment: &str) -> Vec<(String, String)> {
         .collect()
 }
 
+fn jsdoc_unmatched_parameter_projections(
+    comment: &str,
+    body_start: usize,
+) -> Vec<JsDocUnmatchedParameterProjection> {
+    let mut lines = Vec::new();
+    let mut line_offset = 0usize;
+    for line in comment.split_inclusive('\n') {
+        let raw = jsdoc_raw_line(line);
+        let leading = raw.len() - raw.trim_start_matches(char::is_whitespace).len();
+        let mut candidate = &raw[leading..];
+        let mut candidate_offset = leading;
+        if let Some(after_star) = candidate.strip_prefix('*') {
+            candidate_offset += 1;
+            let whitespace =
+                after_star.len() - after_star.trim_start_matches(char::is_whitespace).len();
+            candidate_offset += whitespace;
+            candidate = &after_star[whitespace..];
+        }
+        lines.push((candidate, body_start + line_offset + candidate_offset));
+        line_offset += line.len();
+    }
+
+    let mut raw_projections = Vec::new();
+    for (index, &(candidate, candidate_start)) in lines.iter().enumerate() {
+        let Some((tag, tail)) =
+            jsdoc_candidate_tag_tail(candidate, &["@param", "@arg", "@argument"])
+        else {
+            continue;
+        };
+        let leading = tail.len() - tail.trim_start_matches(char::is_whitespace).len();
+        let mut payload = &tail[leading..];
+        let mut payload_start = candidate_start + tag.len() + leading;
+        if payload.is_empty() {
+            let Some(&(continuation, continuation_start)) = lines.get(index + 1) else {
+                continue;
+            };
+            if continuation.starts_with('@') {
+                continue;
+            }
+            payload = continuation;
+            payload_start = continuation_start;
+        }
+
+        if payload.starts_with('*') {
+            raw_projections.push(JsDocUnmatchedParameterProjection {
+                name: String::new(),
+                start: payload_start,
+                end: payload_start,
+                is_name_first: true,
+            });
+            continue;
+        }
+
+        if payload.starts_with('{') {
+            let Some((type_text, consumed)) = jsdoc_braced_payload(payload) else {
+                continue;
+            };
+            let type_start = payload_start + 1;
+            let recovery = jsdoc_invalid_postfix_question_offset(type_text)
+                .or_else(|| jsdoc_inner_namepath_tilde_offset(type_text));
+            if let Some(recovery) = recovery {
+                let start = type_start + recovery;
+                raw_projections.push(JsDocUnmatchedParameterProjection {
+                    name: String::new(),
+                    start,
+                    end: start,
+                    is_name_first: false,
+                });
+                continue;
+            }
+
+            let tail = &payload[consumed..];
+            let name_leading = tail.len() - tail.trim_start_matches(char::is_whitespace).len();
+            let mut name_text = &tail[name_leading..];
+            let mut name_start = payload_start + consumed + name_leading;
+            if name_text.is_empty() {
+                let Some(&(continuation, continuation_start)) = lines.get(index + 1) else {
+                    continue;
+                };
+                if continuation.starts_with('@') {
+                    continue;
+                }
+                name_text = continuation;
+                name_start = continuation_start;
+            }
+            if name_text.starts_with('*') {
+                raw_projections.push(JsDocUnmatchedParameterProjection {
+                    name: String::new(),
+                    start: name_start,
+                    end: name_start,
+                    is_name_first: false,
+                });
+                continue;
+            }
+            if let Some(projection) = jsdoc_parameter_name_projection(name_text, name_start, false)
+            {
+                raw_projections.push(projection);
+            }
+            continue;
+        }
+
+        if let Some(projection) = jsdoc_parameter_name_projection(payload, payload_start, true) {
+            raw_projections.push(projection);
+        }
+    }
+
+    // JSDoc property tags are children, not members of
+    // getJSDocTags(function). Track the top-level owner of every
+    // established path so direct children can be folded into it.
+    let mut projections: Vec<JsDocUnmatchedParameterProjection> = Vec::new();
+    let mut established = std::collections::BTreeMap::<String, usize>::new();
+    for projection in raw_projections {
+        let canonical = projection.name.replace("[]", "");
+        if let Some((parent, _)) = canonical.rsplit_once('.') {
+            if let Some(&owner) = established.get(parent) {
+                projections[owner].is_name_first = true;
+                established.insert(canonical, owner);
+                continue;
+            }
+        }
+        let owner = projections.len();
+        if !canonical.is_empty() {
+            established.insert(canonical, owner);
+        }
+        projections.push(projection);
+    }
+    projections
+}
+
+fn jsdoc_parameter_name_projection(
+    text: &str,
+    absolute_start: usize,
+    is_name_first: bool,
+) -> Option<JsDocUnmatchedParameterProjection> {
+    let leading = text.len() - text.trim_start_matches(char::is_whitespace).len();
+    let text = &text[leading..];
+    let absolute_start = absolute_start + leading;
+    if text.is_empty() {
+        return None;
+    }
+
+    let (name, start, end) = if let Some(bracketed) = text.strip_prefix('[') {
+        let close = bracketed.find(']')?;
+        let inside = &bracketed[..close];
+        let value = inside.split('=').next().unwrap_or_default().trim();
+        let value_offset = inside.find(value)?;
+        (
+            value,
+            absolute_start + 1 + value_offset,
+            absolute_start + 1 + value_offset + value.len(),
+        )
+    } else {
+        let end = text
+            .char_indices()
+            .find_map(|(index, character)| {
+                (!(character == '.'
+                    || character == '['
+                    || character == ']'
+                    || character == '_'
+                    || character == '$'
+                    || character.is_ascii_alphanumeric()))
+                .then_some(index)
+            })
+            .unwrap_or(text.len());
+        (&text[..end], absolute_start, absolute_start + end)
+    };
+    let canonical = name.replace("[]", "");
+    (!name.is_empty() && canonical.split('.').all(is_jsdoc_identifier) && !canonical.contains(".."))
+        .then(|| JsDocUnmatchedParameterProjection {
+            name: name.to_owned(),
+            start,
+            end,
+            is_name_first,
+        })
+}
+
+fn text_contains_identifier(text: &str, identifier: &str) -> bool {
+    let mut cursor = 0usize;
+    while let Some(relative) = text[cursor..].find(identifier) {
+        let start = cursor + relative;
+        let end = start + identifier.len();
+        let boundary = |character: char| {
+            !(character == '_' || character == '$' || character.is_ascii_alphanumeric())
+        };
+        let before = text[..start].chars().next_back().is_none_or(boundary);
+        let after = text[end..].chars().next().is_none_or(boundary);
+        if before && after {
+            return true;
+        }
+        cursor = end;
+    }
+    false
+}
+
 fn parse_jsdoc_parameter_tag_annotations(comment: &str) -> Vec<JsDocParameterTagAnnotation> {
     let lines: Vec<&str> = comment
         .lines()
@@ -12973,6 +13352,77 @@ mod tests {
         assert!(
             super::parse_jsdoc_parameter_tag_annotations(bad).is_empty(),
             "star recovery must not manufacture effective @param annotations"
+        );
+    }
+
+    // ---- M8-P16 checkUnmatchedJSDocParameters projections ----
+
+    #[test]
+    fn jsdoc_unmatched_parameters_preserve_owner_spans_and_nested_boundaries() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/** @param {string} s */\n\
+                    var one = function (s) {}, two = function (untyped) {};\n\
+                    /**\n\
+                     * @param {object} xyz\n\
+                     * @param {number} xyz.bar.p\n\
+                     */\n\
+                    function qualified(xyz) {}\n\
+                    /** @param {number?[]} a */\n\
+                    function recovered(a) {}\n";
+        let diagnostics = checked_file_diags_with("a.js", text, &options)
+            .into_iter()
+            .filter(|row| matches!(row.0, 8024 | 8032))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            diagnostics,
+            [
+                (
+                    8024,
+                    text.find("s */").expect("shared unmatched tag") as u32,
+                    1,
+                    "JSDoc '@param' tag has name 's', but there is no parameter with that name."
+                        .to_owned(),
+                ),
+                (
+                    8032,
+                    text.find("xyz.bar.p").expect("qualified tag") as u32,
+                    "xyz.bar.p".len() as u32,
+                    "Qualified name 'xyz.bar.p' is not allowed without a leading '@param {object} xyz.bar'."
+                        .to_owned(),
+                ),
+                (
+                    8024,
+                    text.find("?[]").expect("JSDoc type recovery") as u32,
+                    0,
+                    "JSDoc '@param' tag has name '', but there is no parameter with that name."
+                        .to_owned(),
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn jsdoc_unmatched_parameters_do_not_escape_nested_or_arguments_faces() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/**\n\
+                     * @param {Object} obj\n\
+                     * @param {string} obj.value\n\
+                     */\n\
+                    function nested({ value }) {}\n\
+                    /** @param {number} missing */\n\
+                    function argumentsOwner(x) { return arguments; }\n";
+        let diagnostics = checked_file_diags_with("a.js", text, &options);
+        assert!(
+            diagnostics.iter().all(|row| !matches!(row.0, 8024 | 8032)),
+            "{diagnostics:?}"
         );
     }
 
