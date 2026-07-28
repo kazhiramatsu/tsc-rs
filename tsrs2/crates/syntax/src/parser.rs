@@ -8887,7 +8887,7 @@ pub fn parse_json_text_with_bases(
 }
 
 fn token_to_string(kind: SyntaxKind) -> String {
-    format!("{kind:?}")
+    crate::tokens::token_to_string(kind).map_or_else(|| format!("{kind:?}"), str::to_owned)
 }
 
 fn token_is_identifier_or_keyword(kind: SyntaxKind) -> bool {
@@ -10905,6 +10905,10 @@ mod tests {
 
         assert_eq!(source.parse_diagnostics.len(), 1);
         assert_eq!(source.parse_diagnostics[0].code(), 17006);
+        assert_eq!(
+            source.parse_diagnostics[0].message_text(),
+            "An unary expression with the '-' operator is not allowed in the left-hand side of an exponentiation expression. Consider enclosing the expression in parentheses."
+        );
         let expressions = expression_statements(&source);
         let (negated, exponent, _) = binary_parts(&source, expressions[0]);
         assert_eq!(exponent, SyntaxKind::AsteriskAsteriskToken);
@@ -11309,6 +11313,7 @@ mod tests {
         assert_eq!(parser.token(), SyntaxKind::CloseParenToken);
         assert_eq!(parser.parse_diagnostics.len(), 1);
         assert_eq!(parser.parse_diagnostics[0].code(), 1005);
+        assert_eq!(parser.parse_diagnostics[0].message_text(), "',' expected.");
     }
 
     #[test]
