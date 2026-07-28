@@ -16,6 +16,7 @@ use tsrs2_diags::DiagnosticList;
 
 mod completion;
 mod m8_evidence;
+mod m8_trace;
 mod recovery_census;
 mod relpin;
 mod slice_evidence;
@@ -48,12 +49,13 @@ fn main() {
         Some("m8") => match args.next().as_deref() {
             Some("readiness") => run_or_exit(m8_readiness(args)),
             Some("evidence") => run_or_exit(m8_evidence::evidence(args)),
+            Some("trace") => run_or_exit(m8_trace::run(args)),
             Some(other) => {
                 eprintln!("unknown m8 command: {other}");
                 std::process::exit(2);
             }
             None => {
-                eprintln!("missing m8 command (readiness|evidence)");
+                eprintln!("missing m8 command (readiness|evidence|trace)");
                 std::process::exit(2);
             }
         },
@@ -5933,6 +5935,7 @@ fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
 }
 
 fn ci_rust_gates() -> Result<(), Box<dyn Error>> {
+    let workspace = find_tsrs2_root()?;
     run_command(
         Command::new("cargo")
             .arg("fmt")
@@ -5951,6 +5954,16 @@ fn ci_rust_gates() -> Result<(), Box<dyn Error>> {
     )?;
     run_command(Command::new("cargo").arg("build").arg("--workspace"))?;
     run_command(Command::new("cargo").arg("test").arg("--workspace"))?;
+    run_command(
+        Command::new("node")
+            .arg("--check")
+            .arg(workspace.join("crates/oracle/trace-instrument.mjs")),
+    )?;
+    run_command(
+        Command::new("node")
+            .arg("--check")
+            .arg(workspace.join("crates/oracle/trace-driver.mjs")),
+    )?;
     Ok(())
 }
 
