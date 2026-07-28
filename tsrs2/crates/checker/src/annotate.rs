@@ -7878,7 +7878,16 @@ impl<'a> CheckerState<'a> {
                     return Ok(Some(self.get_return_type_of_signature(getter_signature)?));
                 }
             }
-            // getParameterTypeOfTypeTag: [JSDOC] — no-op outside JS.
+            if let Some(jsdoc_parameter) = self.jsdoc_boolean_parameter_type_annotation(declaration)
+            {
+                return Ok(Some(self.tables.add_optionality(
+                    jsdoc_parameter,
+                    /*is_property*/ false,
+                    is_optional,
+                )));
+            }
+            // The remaining getParameterTypeOfTypeTag faces are
+            // [JSDOC].
             let symbol = self.binder.node_symbol(declaration);
             let is_this =
                 symbol.is_some_and(|symbol| self.binder.symbol(symbol).escaped_name == "this");

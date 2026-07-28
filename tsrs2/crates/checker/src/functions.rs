@@ -2415,6 +2415,23 @@ impl<'a> CheckerState<'a> {
         Some((comment_start, comment_end))
     }
 
+    /// tsrs-native: the M8 flow owner needs the exact checked-JS
+    /// `{never}` return face before JSDoc type nodes are materialized.
+    ///
+    /// Keep this projection deliberately narrower than
+    /// getReturnTypeOfTypeTag: later JSDoc owner slices remain
+    /// responsible for the general annotation surface.
+    pub(crate) fn jsdoc_never_return_type_annotation(&self, declaration: NodeId) -> Option<TypeId> {
+        if !self.is_in_js_file(declaration) {
+            return None;
+        }
+        let source = self.binder.source_of_node(declaration);
+        let comment = self.leading_jsdoc_comment_range(declaration)?;
+        let type_span = jsdoc_braced_tag_span(&source.text, comment, &["@returns", "@return"])?;
+        (source.text[type_span.0..type_span.1].trim() == "never")
+            .then_some(self.tables.intrinsics.never)
+    }
+
     fn classify_jsdoc_async_return_type(&self, text: &str) -> Option<JsDocAsyncReturnKind> {
         let compact: String = text
             .chars()

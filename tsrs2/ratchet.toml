@@ -489,8 +489,14 @@
 # tsc's pragma precedence, JavaScript-regex whitespace, and exact `types`
 # value span. T1-T3 gain the same identities with no losses, gains outside
 # the frozen slice, or false positives.
-rate = 0.981397
-matched = 48112
+# M8-P02 adds both supported TS7027 identities from
+# checkSourceElementUnreachable. A bounded checked-JS projection supplies
+# the exact JSDoc `{never}` return and `{boolean}` parameter facts needed
+# by the already-ported effects-signature and exhaustive-switch flow
+# paths. T1-T3 gain only the frozen slice's two identities, with no
+# losses, gains outside the target, or false positives.
+rate = 0.981438
+matched = 48114
 total = 49024
 allowed_regression = 0.0
 
@@ -499,8 +505,8 @@ allowed_regression = 0.0
 # ratchet. The denominator is the same pinned all-corpus oracle universe
 # as T0; future gains may raise matched, while any proportional loss
 # fails conformance.
-rate = 0.981356
-matched = 48110
+rate = 0.981397
+matched = 48112
 total = 49024
 allowed_regression = 0.0
 
