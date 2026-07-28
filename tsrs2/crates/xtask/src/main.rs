@@ -1040,14 +1040,21 @@ fn codegen_emitter_dispositions(args: impl Iterator<Item = String>) -> Result<()
         let recorded: M8EmitterDispositions = read_json(&target)?;
         generated.status = recorded.status.clone();
         generated.adjudication_commit = recorded.adjudication_commit.clone();
-        let generated_bytes = m8_emitter_dispositions_bytes(&generated)?;
-        let recorded_bytes = fs::read(&target)?;
-        if generated_bytes != recorded_bytes {
-            return Err(format!(
-                "stale D2 dispositions {}; regenerate the draft and review the diff",
-                target.display()
-            )
-            .into());
+        // Draft evidence remains generator-exact while it is under
+        // review. Once frozen, the anchored reviewed bytes are the
+        // authority: Rust source line movement is not a D2 identity
+        // change, while exact tsc-span/hash joins are revalidated
+        // structurally below.
+        if recorded.status == "draft" {
+            let generated_bytes = m8_emitter_dispositions_bytes(&generated)?;
+            let recorded_bytes = fs::read(&target)?;
+            if generated_bytes != recorded_bytes {
+                return Err(format!(
+                    "stale D2 dispositions {}; regenerate the draft and review the diff",
+                    target.display()
+                )
+                .into());
+            }
         }
         let stats = audit_m8_emitter_dispositions(
             &workspace,
@@ -1429,7 +1436,7 @@ fn audit_m8_emitter_dispositions(
         &current,
     )?;
 
-    if runtime_verified {
+    if runtime_verified && current.status == "draft" {
         validate_canonical_m8_emitter_dispositions(
             workspace,
             inventory,

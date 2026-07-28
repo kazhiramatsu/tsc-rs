@@ -8797,8 +8797,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:57439-57474
     ///
     /// hasBindableName (57448) splits into the engine's late-binding
-    /// shape: late-bindable AST names escape (5.5), other dynamic
-    /// names are skipped. tsc's unconditional member-links write is a
+    /// shape: other dynamic names are skipped. The remaining
+    /// late-bindable declared-type arm runs after enum grammar/value
+    /// diagnostics and belongs to M8's semantic tail, not an M7 owner
+    /// family. tsc's unconditional member-links write is a
     /// vacant-guarded write here (LinkSlot discipline): merged enums
     /// that redeclare a member would make tsc's LAST write win where
     /// ours keeps the FIRST — those fixtures are 2300-family errors.
@@ -8815,7 +8817,7 @@ impl<'a> CheckerState<'a> {
             for member in self.nodes_of(data.members) {
                 if self.has_late_bindable_ast_name(member) {
                     return Err(Unsupported::new(
-                        "late-bound enum member name (lateBindMember 57662, M7-stub)",
+                        "late-bound enum member declared type (lateBindMember 57662; M8 semantic-tail owner)",
                     ));
                 }
                 if node_util::has_dynamic_name(self.binder.source_of_node(member), member) {

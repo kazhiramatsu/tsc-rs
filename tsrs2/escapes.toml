@@ -121,9 +121,9 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/annotate.rs"
 in = "get_declared_type_of_enum"
-reason = "late-bound enum member name (lateBindMember 57662, M7-stub)"
+reason = "late-bound enum member declared type (lateBindMember 57662; M8 semantic-tail owner)"
 class = "stage"
-owner = "M7"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/annotate.rs"
@@ -579,16 +579,16 @@ owner = "M8"
 [[site]]
 file = "crates/checker/src/evaluate.rs"
 in = "get_text_of_property_name"
-reason = "non-literal computed property name text (late-bound names, M7-stub)"
+reason = "non-literal computed property name text (M8 semantic-tail owner)"
 class = "stage"
-owner = "M7"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/evaluate.rs"
 in = "get_text_of_property_name"
-reason = "property name shape without literal text (late-bound names, M7-stub)"
+reason = "property name shape without literal text (M8 semantic-tail owner)"
 class = "stage"
-owner = "M7"
+owner = "M8"
 
 [[site]]
 file = "crates/checker/src/evaluate.rs"
