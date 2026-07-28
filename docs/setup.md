@@ -28,12 +28,26 @@ cargo xtask conformance             # conformance sweep (optionally --band 2xxx)
 cargo xtask conformance --syntactic-only
 cargo xtask invariants --suite all  # determinism/idempotence invariants
 cargo xtask completion              # report all 11 final completion rows
+cargo xtask m8 trace --program-json target/probe/program.json --code 8020 \
+  --out target/m8-trace.json        # targeted D2 trace; report-only
 ```
 
 `cargo xtask completion` is report-only during M8 and succeeds while naming
 pending rows in `target/completion/report.json`. The post-M9 release gate is
 `cargo xtask completion --require-done`, which fails unless all 11 rows are
 green.
+
+`cargo xtask m8 trace` is a planning probe, not a completion gate. Repeat
+`--program-json` and `--code` to compare an emitting probe with a reviewed
+non-emitting sibling. The command instruments only matching exact D2
+diagnostic-reference offsets, reports `source_declarations_visited=0`,
+collects per-probe V8 function coverage, and rejects any diagnostic change
+against the ordinary oracle driver. Per-probe library caches reset so sibling
+coverage is order-independent, and each probe runs in its own single-threaded
+Node process to isolate V8 lazy-compilation state. The instrumented bundle is
+cached by the source, inventory, tool, selected-code, and pinned-Node
+fingerprint under
+`target/m8/trace/cache/`.
 
 The full gate list, the trusted-base variants, and the per-artifact
 audit commands (`ratchet check`, `scope audit`, `families check`,

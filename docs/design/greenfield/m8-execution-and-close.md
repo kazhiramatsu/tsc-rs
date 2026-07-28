@@ -131,6 +131,30 @@ Runtime evidence chooses and explains implementation clusters. It never
 proves the static converse: an unexecuted declaration remains open until the
 frozen inventory gives it an exact reviewed disposition.
 
+The low-level evidence command is:
+
+```bash
+cargo xtask m8 trace \
+  --program-json target/emitting/program.json \
+  --program-json target/non-emitting/program.json \
+  --code 8020 \
+  --out target/m8-trace-8020.json
+```
+
+It is deliberately targeted and report-only. The instrumenter validates
+already-inventoried diagnostic-site offsets and performs no `_tsc.js` AST
+parse or visit. Each probe records the diagnostic-time stack and exact D2
+declarations observed by V8 precise coverage; the command also requires the
+instrumented diagnostic JSON to equal the ordinary oracle byte-for-byte.
+Library SourceFile caches reset between probes so coverage does not depend on
+whether the emitting or non-emitting sibling ran first. Each probe also uses
+its own single-threaded Node process; V8 lazy-compilation state from one probe
+therefore cannot alter the next probe's declaration set.
+Instrumentation is content-addressed by the source, D2 inventory, trace
+tools, and selected codes, so repeated sibling comparisons reuse the bundle.
+The command does not select or approve a sibling, truncate static closure, or
+freeze an owner cluster. Those remain plan-generator and review decisions.
+
 The initial implementation-order hypothesis is parser pragma, strict
 nullability, module semantics, override validation, then the larger
 implicit-any and supported check-JS clusters. This is not a hard-coded order.
