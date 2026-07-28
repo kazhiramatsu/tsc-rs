@@ -318,6 +318,11 @@ pub struct ConformanceSummary {
     pub supported_t3_rate: f64,
     /// Exact report-only identities after applying the A2 scope view.
     pub supported_shadow_tier_identities: ShadowTierObservation,
+    /// Exact report-only buckets that still fail one of the supported
+    /// T1-T3 comparators. The first failed tier partitions the residual
+    /// without losing the complete expected/actual diagnostic shapes
+    /// needed to assign an owning implementation slice.
+    pub supported_tier_mismatches: Vec<SupportedTierMismatch>,
     pub supported_exact_match_cases: usize,
     pub supported_mismatch_cases: usize,
     pub supported_false_negative_diagnostics: usize,
@@ -337,6 +342,16 @@ pub struct MismatchEntry {
     pub false_positive: Vec<T0Key>,
     pub false_negative: Vec<T0Key>,
     pub fn_partial_boundary_audit: Vec<FnPartialBoundaryAudit>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct SupportedTierMismatch {
+    pub fixture: String,
+    pub matrix_key: String,
+    pub diagnostic: T0Key,
+    pub first_failed_tier: String,
+    pub actual: Vec<GoldenDiag>,
+    pub expected: Vec<GoldenDiag>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -818,6 +833,7 @@ fn run_conformance_inner(
     let mut supported_t1_identities = BTreeSet::new();
     let mut supported_t2_identities = BTreeSet::new();
     let mut supported_t3_identities = BTreeSet::new();
+    let mut supported_tier_mismatches = Vec::new();
     let mut supported_shadow_oracle_records = Vec::new();
     let mut supported_exact_match_cases = 0usize;
     let mut supported_fn_count = 0usize;
@@ -1124,6 +1140,17 @@ fn run_conformance_inner(
                     })
                     .map(|(_, diagnostic)| diagnostic),
             );
+            supported_tier_mismatches.extend(collect_supported_tier_mismatches(
+                &fixture_key,
+                &program.matrix_key,
+                current,
+                &golden_case.oracle,
+                options.band,
+                &excluded_indices,
+                &fully_excluded,
+                &supported_expected,
+                &supported_tier_matches,
+            ));
             supported_t1_matched += supported_tier_matches.t1.len();
             supported_t2_matched += supported_tier_matches.t2.len();
             supported_t3_matched += supported_tier_matches.t3.len();
@@ -1222,6 +1249,7 @@ fn run_conformance_inner(
             supported_t2_identities,
             supported_t3_identities,
         ),
+        supported_tier_mismatches,
         supported_exact_match_cases,
         supported_mismatch_cases: case_count - supported_exact_match_cases,
         supported_false_negative_diagnostics: supported_fn_count,
@@ -1457,6 +1485,61 @@ fn shadow_tier_matches<'a>(
         }
     }
     matches
+}
+
+#[allow(clippy::too_many_arguments)]
+fn collect_supported_tier_mismatches(
+    fixture: &str,
+    matrix_key: &str,
+    actual: &[GoldenDiag],
+    expected: &[GoldenDiag],
+    band: DiagnosticBand,
+    excluded_indices: &BTreeSet<usize>,
+    fully_excluded: &BTreeSet<T0Key>,
+    supported_expected: &BTreeSet<T0Key>,
+    matches: &ShadowTierMatches,
+) -> Vec<SupportedTierMismatch> {
+    supported_expected
+        .iter()
+        .filter_map(|diagnostic| {
+            let first_failed_tier = if !matches.t1.contains(diagnostic) {
+                "t1"
+            } else if !matches.t2.contains(diagnostic) {
+                "t2"
+            } else if !matches.t3.contains(diagnostic) {
+                "t3"
+            } else {
+                return None;
+            };
+            let actual = actual
+                .iter()
+                .filter(|candidate| {
+                    band.contains(candidate.code)
+                        && !fully_excluded.contains(&t0_key(candidate))
+                        && t0_key(candidate) == *diagnostic
+                })
+                .cloned()
+                .collect();
+            let expected = expected
+                .iter()
+                .enumerate()
+                .filter(|(index, candidate)| {
+                    band.matches_oracle(candidate)
+                        && !excluded_indices.contains(index)
+                        && t0_key(candidate) == *diagnostic
+                })
+                .map(|(_, diagnostic)| diagnostic.clone())
+                .collect();
+            Some(SupportedTierMismatch {
+                fixture: fixture.to_owned(),
+                matrix_key: matrix_key.to_owned(),
+                diagnostic: diagnostic.clone(),
+                first_failed_tier: first_failed_tier.to_owned(),
+                actual,
+                expected,
+            })
+        })
+        .collect()
 }
 
 fn extend_shadow_identities(
@@ -2386,6 +2469,30 @@ mod tests {
             (matched.t1.len(), matched.t2.len(), matched.t3.len()),
             (1, 1, 0)
         );
+    }
+
+    #[test]
+    fn supported_tier_residual_preserves_both_bucket_shapes() {
+        let actual = [diag("error", 5, "actual")];
+        let expected = [diag("suggestion", 6, "expected")];
+        let key = t0_key(&expected[0]);
+        let matches = shadow_tier_matches(actual.iter(), expected.iter());
+        let residual = collect_supported_tier_mismatches(
+            "conformance/a.ts",
+            "",
+            &actual,
+            &expected,
+            DiagnosticBand::All,
+            &BTreeSet::new(),
+            &BTreeSet::new(),
+            &BTreeSet::from([key.clone()]),
+            &matches,
+        );
+        assert_eq!(residual.len(), 1);
+        assert_eq!(residual[0].diagnostic, key);
+        assert_eq!(residual[0].first_failed_tier, "t1");
+        assert_eq!(residual[0].actual, actual);
+        assert_eq!(residual[0].expected, expected);
     }
 
     #[test]
