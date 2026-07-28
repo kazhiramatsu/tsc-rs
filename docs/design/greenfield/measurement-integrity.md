@@ -461,7 +461,11 @@ candidate.
 The draft has no adjudication commit. Freezing adds a full 40-hex
 `adjudication_commit` naming an ancestor whose artifact is the identical
 complete draft; it cannot combine content edits with the freeze. A frozen
-trusted base is immutable. The generator and audit are:
+trusted base is immutable. Draft evidence remains generator-exact. After
+freeze, the anchored reviewed evidence remains authoritative across
+non-identity Rust line movement, while the audit still revalidates every
+current exact `tsc-span`/`tsc-hash` join and disposition. The generator and
+audit are:
 
 ```sh
 cargo xtask codegen emitter-dispositions
