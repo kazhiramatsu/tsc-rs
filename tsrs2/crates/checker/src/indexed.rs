@@ -1546,6 +1546,7 @@ impl<'a> CheckerState<'a> {
             .tables
             .object_flags_of(object_type)
             .intersects(ObjectFlags::OBJECT_LITERAL)
+            && !self.is_checked_js_empty_this_assignment_type(object_type)
         {
             if no_implicit_any
                 && index_flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL)
@@ -1724,6 +1725,7 @@ impl<'a> CheckerState<'a> {
                             }
                             let full_display = self.type_to_string_slice(full_index_type)?;
                             let object_display = self.type_to_string_slice(object_type)?;
+                            let diagnostics_before = self.diagnostics.len();
                             let head = tsrs2_diags::MessageChain::new(
                                 &diagnostics::Element_implicitly_has_an_any_type_because_expression_of_type_0_can_t_be_used_to_index_type_1,
                                 &[full_display, object_display],
@@ -1735,12 +1737,73 @@ impl<'a> CheckerState<'a> {
                             );
                             diagnostic.message = head.with_next(tail);
                             self.push_error_diagnostic(diagnostic);
+                            if self.should_publish_checked_js_implicit_any_index(
+                                object_type,
+                                access_expression,
+                            ) {
+                                self.mark_non_jsdoc_js_diagnostics_since_with_code(
+                                    diagnostics_before,
+                                    7053,
+                                );
+                            }
                         }
                     }
                 }
             }
         }
         Ok(None)
+    }
+
+    /// tsrs-native: checked-JS publication frontier for TS7053.
+    ///
+    /// The direct producer is exact, but checked-JS JSDoc index
+    /// carriers and late-bound class/function members still rely on
+    /// owner slices that follow P11. Keep those raw diagnostics
+    /// private until the receiver type has crossed the corresponding
+    /// semantic boundary.
+    fn should_publish_checked_js_implicit_any_index(
+        &self,
+        object_type: TypeId,
+        access_expression: NodeId,
+    ) -> bool {
+        if !self.is_effectively_checked_js_node(access_expression) {
+            return false;
+        }
+        let receiver = match self.data_of(access_expression) {
+            NodeData::ElementAccessExpression(data) => data.expression,
+            _ => None,
+        };
+        let receiver_has_jsdoc_type_context = receiver
+            .and_then(|receiver| self.links.node(receiver).resolved_symbol.resolved())
+            .is_some_and(|symbol| {
+                self.binder
+                    .symbol(symbol)
+                    .declarations
+                    .iter()
+                    .copied()
+                    .any(|declaration| self.declaration_has_jsdoc_semantics(declaration))
+            });
+        if receiver_has_jsdoc_type_context {
+            return false;
+        }
+        let Some(object_symbol) = self.tables.type_of(object_type).symbol else {
+            return true;
+        };
+        let Some(object_declaration) = self.binder.symbol(object_symbol).value_declaration else {
+            return true;
+        };
+        match self.kind_of(object_declaration) {
+            SyntaxKind::ClassDeclaration => false,
+            SyntaxKind::FunctionDeclaration
+                if self
+                    .tables
+                    .object_flags_of(object_type)
+                    .intersects(ObjectFlags::ANONYMOUS) =>
+            {
+                false
+            }
+            _ => true,
+        }
     }
 
     /// tsc-port: getIndexNodeForAccessExpression @6.0.3
@@ -2079,6 +2142,7 @@ mod tests {
     use crate::relpin::find_probe_annotation;
     use crate::state::test_support::with_program_state;
     use crate::state::CheckerState;
+    use crate::{check_program, InputFile};
 
     fn annotation_type(state: &mut CheckerState, name: &str) -> tsrs2_types::TypeId {
         let annotation =
@@ -2408,5 +2472,144 @@ mod tests {
             ),
             [(2322, 72, 2)]
         );
+    }
+
+    #[test]
+    fn checked_js_publishes_implicit_any_index_diagnostic() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "/** @type {string} */\n\
+                       const key = \"missing\";\n\
+                       const object = { known: 1 };\n\
+                       object[key];\n"
+                    .to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                no_implicit_any: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 7053)
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn checked_js_empty_this_assignment_uses_widened_index_error_face() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "this[\"known\"] = {};\n\
+                       this[\"known\"][\"missing\"] = {};\n"
+                    .to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                no_implicit_any: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        let rows = result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 7053)
+            .map(|diagnostic| {
+                (
+                    diagnostic.start,
+                    diagnostic.length,
+                    diagnostic.message.text.clone(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            rows,
+            [(
+                Some(20),
+                Some(24),
+                "Element implicitly has an 'any' type because expression of type '\"missing\"' can't be used to index type '{}'."
+                    .to_owned(),
+            )]
+        );
+    }
+
+    #[test]
+    fn checked_js_jsdoc_index_carrier_stays_private() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "/** @type {Object.<string, string>} */\n\
+                       const object = { known: \"value\" };\n\
+                       object[\"missing\"] = \"value\";\n"
+                    .to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                no_implicit_any: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(result
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code() != 7053));
+    }
+
+    #[test]
+    fn checked_js_late_bound_class_member_stays_private() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "const key = \"member\";\n\
+                       class C {\n\
+                         constructor() { this[key] = 1; }\n\
+                         read() { return this[key]; }\n\
+                       }\n"
+                .to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                no_implicit_any: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(result
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code() != 7053));
+    }
+
+    #[test]
+    fn unchecked_js_does_not_publish_implicit_any_index_diagnostic() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: "/** @type {string} */\n\
+                       const key = \"missing\";\n\
+                       const object = { known: 1 };\n\
+                       object[key];\n"
+                    .to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(false),
+                no_implicit_any: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(result
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code() != 7053));
     }
 }
