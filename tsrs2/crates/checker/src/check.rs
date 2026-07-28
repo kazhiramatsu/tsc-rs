@@ -3790,8 +3790,8 @@ impl<'a> CheckerState<'a> {
     /// parseTypedefTag's duplicate direct-child `@type` face.
     ///
     /// tsc-port: parseTypedefTag @6.0.3
-    /// tsc-hash: e820140ec3bb47d724ce01214ae237ce5ccd4283dac88a14a0a2eeaa9e8a078e
-    /// tsc-span: _tsc.js:35513-35557
+    /// tsc-hash: 3b19f93a5b0a960d3c46255a3b4f17ae4cf8c4f772ce44ec14f33c6a750c31c5
+    /// tsc-span: _tsc.js:35530-35536
     /// d2: d2:6181d69a112f5798e382974e2375d5c2b0be34843f8355c4633036ec85bf3348
     ///
     /// checkJSDocTypeAliasTag's missing-typeExpression face.
