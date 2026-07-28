@@ -76,6 +76,11 @@ there.
   (every gating run also enforces the A1 accepted-set ratchet;
   partial `--files`/`--limit` runs gate the executed-fixture
   projection instead of the integer counts)
+- Completion report: `cargo xtask completion` writes all eleven
+  definition-of-done rows to `target/completion/report.json` and
+  succeeds while rows remain pending during M8/M9.
+  `cargo xtask completion --require-done` is the post-M9 release gate
+  and fails with every pending row named.
 - Shadow-tier before/after report: run conformance twice with distinct
   `--out-json` paths, then `cargo xtask conformance-diff <before.json>
   <after.json>` (optional `--out-json <path>`; default

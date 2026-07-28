@@ -14,6 +14,7 @@ use sha2::{Digest, Sha256};
 use tsrs2_checker::{CompilerOptions, InputFile};
 use tsrs2_diags::DiagnosticList;
 
+mod completion;
 mod m8_evidence;
 mod recovery_census;
 mod relpin;
@@ -43,6 +44,7 @@ fn main() {
         Some("conformance-diff") => run_or_exit(conformance_diff(args)),
         Some("slice-evidence") => run_or_exit(slice_evidence::run(args)),
         Some("invariants") => run_or_exit(invariants(args)),
+        Some("completion") => run_or_exit(completion_gate(args)),
         Some("m8") => match args.next().as_deref() {
             Some("readiness") => run_or_exit(m8_readiness(args)),
             Some("evidence") => run_or_exit(m8_evidence::evidence(args)),
@@ -1652,7 +1654,7 @@ fn m8_readiness(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>
             _ => return Err(format!("unexpected m8 readiness argument: {arg}").into()),
         }
     }
-    m8_readiness_inner(require_ready, None, false, None)
+    m8_readiness_inner(require_ready, None, false, None).map(|_| ())
 }
 
 fn m8_readiness_inner(
@@ -1660,7 +1662,7 @@ fn m8_readiness_inner(
     reused_conformance: Option<&tsrs2_conformance::ConformanceSummary>,
     prerequisites_already_checked: bool,
     trusted_baseline: Option<&str>,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<M8ReadinessReport, Box<dyn Error>> {
     let workspace = find_tsrs2_root()?;
     let out_dir = workspace.join("target/m8");
     fs::create_dir_all(&out_dir)?;
@@ -1853,7 +1855,200 @@ fn m8_readiness_inner(
     if require_ready && !ready {
         return Err("M8 readiness gate is not complete".into());
     }
-    Ok(())
+    Ok(report)
+}
+
+fn completion_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let args = completion::parse_args(args)?;
+    let workspace = find_tsrs2_root()?;
+    let out_dir = workspace.join("target/completion");
+    fs::create_dir_all(&out_dir)?;
+
+    // A4 is a consumer, not an evidence producer. It runs the current
+    // full conformance observation once, then passes that exact summary
+    // into readiness so D2/B2-B4 verification does not run the checker a
+    // second time. B2-B4 artifacts must already have been produced in
+    // this workspace by CI/release topology.
+    let conformance_path = out_dir.join("conformance.json");
+    let families_path = workspace.join("target/families/report.json");
+    let conformance = tsrs2_conformance::run_conformance_with_families_report(
+        &tsrs2_conformance::ConformanceOptions {
+            workspace: workspace.clone(),
+            limit: None,
+            files: Vec::new(),
+            out_json: conformance_path,
+            band: tsrs2_conformance::DiagnosticBand::All,
+        },
+        &families_path,
+    )?;
+    let readiness = m8_readiness_inner(false, Some(&conformance), false, None)?;
+
+    let scope_audit = tsrs2_conformance::scope_audit(&workspace, None)
+        .map(|_| completion::CompletionProbe::new(true, "frozen exact-scope audit passed"))
+        .unwrap_or_else(|error| {
+            completion::CompletionProbe::new(false, format!("exact-scope audit failed: {error}"))
+        });
+    let scope_gate = readiness_probe(&readiness, &["scope-frozen"]);
+    let exact_scope = combine_completion_probes(&[scope_audit.clone(), scope_gate.clone()]);
+
+    let ratchet_path = workspace.join("ratchet.toml");
+    let t1_active = ratchet_section_has_exact_counts(&ratchet_path, "t1")?;
+    let t2_active = ratchet_section_has_exact_counts(&ratchet_path, "t2")?;
+    let t3_active = ratchet_section_has_exact_counts(&ratchet_path, "t3")?;
+    let tiers_complete = conformance.supported_matched_t0_diagnostics
+        == conformance.supported_oracle_diagnostics
+        && conformance.supported_t1_matched == conformance.supported_oracle_diagnostics
+        && conformance.supported_t2_matched == conformance.supported_oracle_diagnostics
+        && conformance.supported_t3_matched == conformance.supported_oracle_diagnostics
+        && t1_active
+        && t2_active
+        && t3_active;
+    let supported_t0_t3 = completion::CompletionProbe::new(
+        tiers_complete,
+        format!(
+            "supported T0={}/{} T1={}/{} T2={}/{} T3={}/{} active-ratchets=T1:{t1_active},T2:{t2_active},T3:{t3_active}",
+            conformance.supported_matched_t0_diagnostics,
+            conformance.supported_oracle_diagnostics,
+            conformance.supported_t1_matched,
+            conformance.supported_oracle_diagnostics,
+            conformance.supported_t2_matched,
+            conformance.supported_oracle_diagnostics,
+            conformance.supported_t3_matched,
+            conformance.supported_oracle_diagnostics,
+        ),
+    );
+
+    let t4_active = ratchet_section_has_exact_counts(&ratchet_path, "t4")?;
+    let supported_t4 = completion::CompletionProbe::new(
+        false,
+        if t4_active {
+            "T4 accepted-set section exists, but the A3 rendered-output comparator/report is not implemented"
+                .to_owned()
+        } else {
+            "A3 T4 rendered-output comparator and accepted-set section are inactive".to_owned()
+        },
+    );
+
+    let escape_sites = collect_escape_sites(&workspace)?;
+    let escape_audit = audit_legacy_dormant_markers(&workspace, &escape_sites)
+        .and_then(|_| check_escape_manifest(&workspace, &escape_sites));
+    let zero_escapes = completion::CompletionProbe::new(
+        escape_sites.is_empty() && escape_audit.is_ok(),
+        match escape_audit {
+            Ok(()) => format!(
+                "sites={} manifest-rows={} (both must be zero)",
+                escape_sites.len(),
+                escape_manifest_from_sites(&workspace, &escape_sites)?.len()
+            ),
+            Err(error) => format!("sites={} escape audit failed: {error}", escape_sites.len()),
+        },
+    );
+
+    let ledger_entries = collect_ledger_entries(&workspace)?;
+    let ledger_gate = readiness_probe(&readiness, &["rust-function-dispositions"]);
+    let rust_ledger = completion::CompletionProbe::new(
+        ledger_gate.ready,
+        format!(
+            "ledger entries={}; {}",
+            ledger_entries.len(),
+            ledger_gate.detail
+        ),
+    );
+    let declaration_converse = readiness_probe(
+        &readiness,
+        &["emitter-inventory", "emitter-dependency-closure"],
+    );
+    let b1_b4_evidence = readiness_probe(
+        &readiness,
+        &[
+            "runtime-coverage",
+            "differential-fuzzer",
+            "performance-baseline",
+        ],
+    );
+
+    let report = completion::build_report(completion::CompletionInputs {
+        all_corpus_fp_zero: completion::CompletionProbe::new(
+            conformance.false_positive_diagnostics == 0,
+            format!("all-corpus FP={}", conformance.false_positive_diagnostics),
+        ),
+        exact_scope,
+        supported_t0_t3,
+        supported_t4,
+        syntactic_in_scope: completion::CompletionProbe::new(
+            scope_audit.ready && scope_gate.ready,
+            format!(
+                "syntactic exclusions are forbidden by the exact-scope audit; {}",
+                combine_completion_probes(&[scope_audit, scope_gate]).detail
+            ),
+        ),
+        zero_escapes,
+        rust_ledger,
+        declaration_converse,
+        b1_b4_evidence,
+        full_corpus_invariants: completion::CompletionProbe::new(
+            false,
+            "no fresh full-corpus invariant attestation; sampled `invariants --suite all` cannot satisfy completion",
+        ),
+        m9_steady_state: completion::CompletionProbe::new(
+            false,
+            "M9 14-window steady-state verifier and versioned history are not implemented",
+        ),
+    });
+
+    let report_path = out_dir.join("report.json");
+    fs::write(&report_path, serde_json::to_string_pretty(&report)?)?;
+    for row in &report.rows {
+        println!(
+            "{} {:>2}. {}: {}",
+            if row.ready { "[ok]" } else { "[ ]" },
+            row.number,
+            row.name,
+            row.detail
+        );
+    }
+    println!(
+        "completion: {}/{} rows ready complete={} report={}",
+        report.ready_rows,
+        report.total_rows,
+        report.complete,
+        report_path.display()
+    );
+    completion::enforce(&report, args.require_done)
+}
+
+fn readiness_probe(report: &M8ReadinessReport, names: &[&str]) -> completion::CompletionProbe {
+    let rows = names
+        .iter()
+        .map(|name| {
+            report
+                .gates
+                .iter()
+                .find(|gate| gate.name == *name)
+                .map(|gate| (gate.ready, format!("{}: {}", gate.name, gate.detail)))
+                .unwrap_or_else(|| (false, format!("{name}: missing readiness row")))
+        })
+        .collect::<Vec<_>>();
+    completion::CompletionProbe::new(
+        rows.iter().all(|(ready, _)| *ready),
+        rows.into_iter()
+            .map(|(_, detail)| detail)
+            .collect::<Vec<_>>()
+            .join("; "),
+    )
+}
+
+fn combine_completion_probes(
+    probes: &[completion::CompletionProbe],
+) -> completion::CompletionProbe {
+    completion::CompletionProbe::new(
+        probes.iter().all(|probe| probe.ready),
+        probes
+            .iter()
+            .map(|probe| probe.detail.as_str())
+            .collect::<Vec<_>>()
+            .join("; "),
+    )
 }
 
 fn add_m8_gate(gates: &mut Vec<M8ReadinessGate>, name: &str, ready: bool, detail: String) {
