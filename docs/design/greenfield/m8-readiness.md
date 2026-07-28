@@ -1,7 +1,10 @@
 # M8 scope and readiness contract
 
 This page is the executable M8-entry contract. It states the two metric
-views and the ten machine rows. Supporting formats are defined once in
+views and the ten machine rows. M8 execution, slice construction, and close
+are owned by
+[m8-execution-and-close.md](m8-execution-and-close.md). Supporting formats are
+defined once in
 [measurement-integrity.md](measurement-integrity.md) and
 [evidence-and-steady-state.md](evidence-and-steady-state.md). The final
 end state remains [definition-of-done.md](definition-of-done.md).
@@ -132,7 +135,9 @@ cargo xtask m8 readiness --require-ready
 ```
 
 The first command reports. The second closes M7 and opens M8 only when
-all ten rows are green:
+all ten rows are green. Opening M8 does not move the checked-in `STAGE`
+marker: it records the last closed milestone and remains `M7` until the M8
+close slice.
 
 1. M7 conformance: `T0 >= 63%`, `FP=0`, configured exact T1 ratchet;
 2. live T1-T3 shadow metrics;
@@ -156,11 +161,14 @@ neighbor; a frozen owner moved to a later milestone; and stale
 conformance/scope/evidence fingerprints. Each must fail the responsible
 row rather than change the denominator silently.
 
-The report is `target/m8/readiness.json`. It describes remaining work; it
-does not claim the current branch is ready.
+The report is `target/m8/readiness.json`. `ready=true` authorizes M8 work; it
+does not claim M8 or the project is complete. After readiness, use the
+[M8 execution and close contract](m8-execution-and-close.md), not this entry
+gate, to grade progress.
 
 ## Escape end state
 
 `Unsupported` recovery may remain separately ratcheted through M7, but
 it is not a Done exception. Final completion requires `sites=0` and an
-empty `escapes.toml`.
+empty `escapes.toml`. Retirement order and the M8 close check are defined in
+[M8 execution and close](m8-execution-and-close.md#m8-exit-and-m9-handoff).

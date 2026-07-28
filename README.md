@@ -47,6 +47,12 @@ glob exclusions. See the normative
 [definition of done](docs/design/greenfield/definition-of-done.md) for the
 full contract.
 
+Emission, LSP/watch/incremental operation, and a public `TypeChecker` API are
+separate follow-on design tracks rather than deferred M8 work. Each will
+receive its own compatibility surface, evidence contract, performance
+budget, and definition of done; none changes the batch-diagnostics M8
+denominator.
+
 ## Status
 
 Milestones M0–M7 are complete.
@@ -60,6 +66,12 @@ emitter inventory, runtime coverage, differential-fuzzer smoke, performance
 baseline, M7 family rollup, and D2 emitter dependency closure are green. All
 5,513 exact declarations have owner, disposition, and immutable evidence in
 the frozen reviewed snapshot.
+
+The M7-close supported-scope M8 entry has 333 T0 residual diagnostics.
+Higher-tier entry residuals are 335 at T1, 1,516 at T2, and 3,450 at T3;
+T4 activation and escape retirement remain M8 work. These are an anchored
+planning snapshot, not count-only completion gates. See the
+[M8 execution and close contract](docs/design/greenfield/m8-execution-and-close.md).
 
 The expensive B2 Node coverage sweep is content-addressed. CI and local
 verification reuse the exact verified artifact when the Node pin, vendored
@@ -127,8 +139,8 @@ freshness, and escape inventories are separate mandatory gates.
 | M0–M6 | Complete | Harness, syntax, binding, types/relations, core checking, flow, inference, and overloads |
 | Phase-9 2XXX | Complete | Supported-scope 2XXX T0 closure using emitter ownership and exact-row mining |
 | M7 | Complete | Six A5 virtual bands closed with supported FN=0, all canaries passing, and T1 active |
-| M8 | Readiness complete (10/10) | Supported-scope T2/T3 and T4 closure |
-| M9 | Next | Differential-fuzzer steady state and closure of every known divergence class |
+| M8 | Active; readiness 10/10 | Supported-scope T0-T3/T4 closure, recovery and escapes zero |
+| M9 | After M8 | Differential-fuzzer steady state and closure of every known divergence class |
 
 M7's machine-readable A5 family map remains the permanent set of virtual
 bands for non-2XXX ownership. M8 adds the all-band D2 declaration graph:
@@ -199,6 +211,7 @@ Start with:
 - [repository workflow and verification rules](CLAUDE.md);
 - [greenfield execution guide](docs/design/greenfield/README.md);
 - [completion convergence plan](docs/design/greenfield/completion-convergence-plan.md);
+- [M8 execution and close contract](docs/design/greenfield/m8-execution-and-close.md);
 - [M7 band and owner strategy](docs/design/greenfield/m7-band-and-owner-strategy.md).
 
 The status block in this README is generated. After changing accepted state or
