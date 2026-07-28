@@ -484,8 +484,13 @@
 # exact diagnostic while preserving recognized-extension substitution. T1-T3
 # gain the same identities with no losses, external gains, or false positives,
 # closing program-resolution-options at 180/180 with canaries 3/3.
-rate = 0.981315
-matched = 48108
+# M8-P01 adds all 4 supported TS1453 identities from parseResolutionMode.
+# Leading triple-slash type references now validate resolution-mode with
+# tsc's pragma precedence, JavaScript-regex whitespace, and exact `types`
+# value span. T1-T3 gain the same identities with no losses, gains outside
+# the frozen slice, or false positives.
+rate = 0.981397
+matched = 48112
 total = 49024
 allowed_regression = 0.0
 
@@ -494,8 +499,8 @@ allowed_regression = 0.0
 # ratchet. The denominator is the same pinned all-corpus oracle universe
 # as T0; future gains may raise matched, while any proportional loss
 # fails conformance.
-rate = 0.981274
-matched = 48106
+rate = 0.981356
+matched = 48110
 total = 49024
 allowed_regression = 0.0
 
@@ -620,8 +625,8 @@ total = 21051
 allowed_regression = 0.0
 
 [t0-syntactic]
-rate = 0.998219
-matched = 2242
+rate = 1.0
+matched = 2246
 total = 2246
 allowed_regression = 0.0
 
