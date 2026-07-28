@@ -7667,7 +7667,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        Ok(tsrs2_binder::unescape_leading_underscores(&escaped).to_owned())
+        Ok(self.symbol_name_as_written_slice(prop))
     }
 
     /// tsc-port: symbolToNode @6.0.3 (WriteComputedProps name reprint)
@@ -17235,6 +17235,23 @@ mod tests {
                  type '{ [B.sym]: number; }'."
                     .to_owned()
             )]
+        );
+    }
+
+    #[test]
+    fn quoted_missing_property_preserves_its_written_name() {
+        let messages =
+            checked_diags("declare let source: {};\nlet target: { '1.0': string } = source;\n")
+                .into_iter()
+                .filter(|row| row.0 == 2741)
+                .map(|row| row.3)
+                .collect::<Vec<_>>();
+
+        assert_eq!(
+            messages,
+            [
+                "Property ''1.0'' is missing in type '{}' but required in type '{ '1.0': string; }'."
+            ]
         );
     }
 
