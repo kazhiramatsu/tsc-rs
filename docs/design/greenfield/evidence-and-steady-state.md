@@ -32,17 +32,23 @@ declared inputs need not stale it. Artifact paths are workspace-relative
 and may not escape the workspace.
 
 Artifacts under `target/` are ephemeral. The required workflow builds
-once, runs every producer, then consumes those artifacts in the same
-workspace:
+once, reuses current verified producer output where allowed (currently
+B2 only), runs every stale or non-reusable producer, then consumes those
+artifacts in the same workspace:
 
 ```sh
 cargo xtask m8 evidence produce --all
 cargo xtask m8 readiness --require-ready
 ```
 
-The orchestration command invokes B2-B4 producers and writes their common
-manifest; it cannot invent observations. A fresh clone regenerates all
-ephemeral evidence. M9 history is separately versioned in-repo.
+The orchestration command validates a candidate B2 artifact's schema,
+producer-input fingerprint, inventory hash, raw declaration counts, and
+exact zero-hit reviews before reuse. A missing, stale, malformed, or
+incomplete candidate is regenerated. B3 and B4 are always produced, and
+the common manifest is always rewritten from the artifacts actually
+consumed. A fresh local clone regenerates B2; hosted CI may restore the
+exact content-addressed B2 artifact populated by a prior successful run.
+M9 history is separately versioned in-repo.
 
 ## 2. B2 — runtime emitter coverage
 
@@ -57,12 +63,28 @@ At least one emitter must execute. Every zero-hit identity needs reviewed
 evidence tied to the exact inventory hash. Unknown, duplicate,
 overlapping, name-collapsed, or unaccounted identities fail.
 
+The runtime artifact is an execution-presence ledger, not a profiler:
+each declaration counter saturates at `1`. Instrumentation writes an
+inline declaration-index byte in a `Uint8Array` and resolves indexes back
+to D2 identities only when the process finishes. This avoids doing a
+long-ID object lookup and arithmetic update on every scanner/checker AST
+visit while preserving the exact ready/not-ready predicate.
+
 The producer limits itself to the configured `runtime_coverage.max_workers`
 (currently one) even when more logical cores are available, and starts the
 coverage Node process in single-threaded mode. This keeps the full-corpus
 evidence run from monopolizing a developer machine or a shared CI runner;
-changing the cap affects throughput only, not the corpus, counters, or
-acceptance criteria.
+changing the cap affects throughput only, not the corpus or acceptance
+criteria. Within that process, vendor lib SourceFiles are reused only
+under TypeScript's own `sourceFileAffectingCompilerOptions` key and a
+bounded LRU (`max_lib_cache_buckets`, currently eight). The producer
+ends each Node process after `programs_per_process` programs (currently
+500) and ORs the per-process hit-sets, bounding retained AST/heap state.
+Before the sweep, `diagnostic_canary_programs` programs (currently 32)
+run twice and must produce byte-identical serialized diagnostics through
+the cached, instrumented driver and the ordinary uncached oracle driver.
+The second pass forces reuse and guards the optimization against
+cross-program SourceFile state leakage.
 
 The completed B2 instrumented runner provides selected-fixture trace
 mode for
@@ -76,9 +98,12 @@ dispositions. In particular, a declaration absent from a trace may not
 be classified as not applicable on that basis.
 
 The fingerprint includes the instrumenter, Node pin, vendor, declaration
-inventory, immutable oracle inputs, and full-corpus command. A selected
-trace additionally fingerprints its position map or shadow-stack
-producer, stack-depth policy, and emitting/non-emitting probe pair.
+inventory, immutable oracle inputs, full-corpus command, harness, and
+the B2 producer source/dependencies. It deliberately excludes unrelated
+checker and xtask executable bytes so those changes do not force this
+oracle-only sweep. A selected trace additionally fingerprints its
+position map or shadow-stack producer, stack-depth policy, and
+emitting/non-emitting probe pair.
 
 Acceptance:
 
@@ -201,8 +226,8 @@ Required PR CI:
 - fetches enough history for every A1/A2/A5/M9 anchor;
 - runs recursive and trusted-base integrity checks;
 - runs the permanent syntactic and ordinary conformance gates;
-- builds once, produces B2/B3-smoke/B4 evidence, and invokes M8
-  readiness in that workspace;
+- builds once, verifies/reuses or produces B2, produces B3-smoke/B4,
+  and invokes M8 readiness in that workspace;
 - uploads mismatch, readiness, completion, and fuzz artifacts on failure.
 
 The hosted implementation may place the independent Rust
@@ -223,8 +248,10 @@ union of both lanes and is still the required pre-PR/pre-merge gate.
 Main-branch runs populate the cache scope that later pull requests may
 restore. Lockfile-keyed Cargo caches contain dependency archives only;
 a pinned content-addressed compiler cache handles build outputs without
-trusting checkout timestamps. Neither cache contains conformance,
-readiness, or other semantic evidence artifacts.
+trusting checkout timestamps. A separate exact-fingerprint cache may
+contain only the B2 raw runtime artifact; the semantic lane revalidates
+it and rewrites the manifest. Conformance, readiness, B3, B4, and other
+semantic evidence artifacts are never restored from that cache.
 
 Scheduled CI runs the two-hour/100,000-case fuzz window and retains raw
 output. A reviewed aggregation verifies and appends it without rewriting

@@ -31,6 +31,9 @@ pub(crate) struct EvidenceConfig {
 struct RuntimeConfig {
     artifact: String,
     max_workers: usize,
+    programs_per_process: usize,
+    max_lib_cache_buckets: usize,
+    diagnostic_canary_programs: usize,
     #[serde(default)]
     zero_hit_reviews: Vec<ZeroHitReview>,
 }
@@ -216,6 +219,14 @@ struct EvidenceManifest {
     artifacts: Vec<ManifestArtifact>,
 }
 
+struct RuntimeValidation {
+    ready: bool,
+    fresh: bool,
+    executed: usize,
+    zero_hit: usize,
+    reviewed: usize,
+}
+
 pub(crate) fn evidence(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     match args.next().as_deref() {
         Some("produce") => {
@@ -231,8 +242,19 @@ pub(crate) fn evidence(mut args: impl Iterator<Item = String>) -> Result<(), Box
             }
             produce_all()
         }
+        Some("fingerprint") => {
+            if args.next().as_deref() != Some("--kind")
+                || args.next().as_deref() != Some("runtime")
+                || args.next().is_some()
+            {
+                return Err("m8 evidence fingerprint requires --kind runtime".into());
+            }
+            let workspace = super::find_tsrs2_root()?;
+            println!("{}", runtime_fingerprint(&workspace)?.sha256);
+            Ok(())
+        }
         Some(other) => Err(format!("unknown m8 evidence command: {other}").into()),
-        None => Err("missing m8 evidence command (produce)".into()),
+        None => Err("missing m8 evidence command (produce/fingerprint)".into()),
     }
 }
 
@@ -245,7 +267,14 @@ pub(crate) fn produce_all() -> Result<(), Box<dyn Error>> {
     let fuzz_path = resolve_artifact_path(&workspace, &config, &config.fuzzer.artifact)?;
     let perf_path = resolve_artifact_path(&workspace, &config, &config.performance.artifact)?;
 
-    produce_runtime(&workspace, &config, &runtime_path, false)?;
+    if runtime_artifact_is_current(&workspace, &runtime_path)? {
+        println!(
+            "runtime emitter coverage: reused current verified artifact={}",
+            runtime_path.display()
+        );
+    } else {
+        produce_runtime(&workspace, &config, &runtime_path, false)?;
+    }
     produce_fuzz(
         &workspace,
         &config,
@@ -369,6 +398,14 @@ fn produce_runtime(
     }
     fs::create_dir_all(&programs_root)?;
     let programs = expand_corpus_programs(workspace, &programs_root)?;
+    verify_coverage_driver_diagnostics(
+        workspace,
+        &instrumented,
+        &programs[..programs
+            .len()
+            .min(config.runtime_coverage.diagnostic_canary_programs)],
+        config.runtime_coverage.max_lib_cache_buckets,
+    )?;
     let worker_count = std::thread::available_parallelism()
         .map(usize::from)
         .unwrap_or(1)
@@ -378,6 +415,14 @@ fn produce_runtime(
     for (index, program) in programs.iter().enumerate() {
         shards[index % worker_count].push(program.canonicalize()?);
     }
+    let process_batches = shards
+        .iter()
+        .map(|shard| {
+            shard
+                .len()
+                .div_ceil(config.runtime_coverage.programs_per_process)
+        })
+        .sum::<usize>();
     let driver = workspace.join("crates/oracle/coverage-driver.mjs");
     let instrumented = instrumented.canonicalize()?;
     let handles = shards
@@ -385,7 +430,17 @@ fn produce_runtime(
         .map(|shard| {
             let driver = driver.clone();
             let instrumented = instrumented.clone();
-            std::thread::spawn(move || run_coverage_worker(&driver, &instrumented, &shard))
+            let programs_per_process = config.runtime_coverage.programs_per_process;
+            let max_lib_cache_buckets = config.runtime_coverage.max_lib_cache_buckets;
+            std::thread::spawn(move || {
+                run_coverage_worker(
+                    &driver,
+                    &instrumented,
+                    &shard,
+                    programs_per_process,
+                    max_lib_cache_buckets,
+                )
+            })
         })
         .collect::<Vec<_>>();
     let mut raw_counts = BTreeMap::<String, u64>::new();
@@ -395,7 +450,9 @@ fn produce_runtime(
             .map_err(|_| "coverage worker thread panicked")?
             .map_err(|error| format!("coverage worker failed: {error}"))?;
         for (id, count) in counts {
-            *raw_counts.entry(id).or_default() += count;
+            if count > 0 {
+                raw_counts.insert(id, 1);
+            }
         }
     }
     let direct = inventory
@@ -455,9 +512,10 @@ fn produce_runtime(
     };
     write_json(artifact_path, &artifact)?;
     println!(
-        "runtime emitter coverage: programs={} workers={} executed={}/{} zero-hit={} elapsed={:.2}s artifact={}",
+        "runtime emitter coverage: programs={} workers={} process-batches={} executed={}/{} zero-hit={} elapsed={:.2}s artifact={}",
         programs.len(),
         worker_count,
+        process_batches,
         direct.len() - zero_hit.len(),
         direct.len(),
         zero_hit.len(),
@@ -488,15 +546,199 @@ fn produce_runtime(
     Ok(())
 }
 
+fn runtime_artifact_is_current(
+    workspace: &Path,
+    artifact_path: &Path,
+) -> Result<bool, Box<dyn Error>> {
+    if !artifact_path.is_file() {
+        return Ok(false);
+    }
+    let artifact: RuntimeArtifact = match read_json(artifact_path) {
+        Ok(artifact) => artifact,
+        Err(_) => return Ok(false),
+    };
+    let inventory_path = workspace.join(INVENTORY_REL);
+    let inventory: Inventory = read_json(&inventory_path)?;
+    validate_inventory(workspace, &inventory)?;
+    let direct_emitter_ids = inventory
+        .functions
+        .iter()
+        .filter(|function| function.direct_emitter)
+        .map(|function| function.id.as_str())
+        .collect::<BTreeSet<_>>();
+    let current = runtime_fingerprint(workspace)?;
+    let inventory_hash = sha256_file(&inventory_path)?;
+    Ok(validate_runtime_artifact(&artifact, &current, &inventory_hash, &direct_emitter_ids).ready)
+}
+
+fn validate_runtime_artifact(
+    artifact: &RuntimeArtifact,
+    current: &Fingerprint,
+    inventory_hash: &str,
+    direct_emitter_ids: &BTreeSet<&str>,
+) -> RuntimeValidation {
+    let executed = artifact
+        .raw_counts
+        .iter()
+        .filter(|(id, count)| direct_emitter_ids.contains(id.as_str()) && **count > 0)
+        .count();
+    let zero_hit_ids = direct_emitter_ids
+        .iter()
+        .filter(|id| artifact.raw_counts.get(**id).copied().unwrap_or(0) == 0)
+        .copied()
+        .collect::<BTreeSet<_>>();
+    let reviewed_ids = artifact
+        .zero_hit_reviews
+        .iter()
+        .map(|review| review.declaration.as_str())
+        .collect::<BTreeSet<_>>();
+    let fresh = artifact.header.fingerprint == *current;
+    let ready = artifact.header.schema == ARTIFACT_SCHEMA
+        && artifact.header.producer_version == PRODUCER_VERSION
+        && artifact.header.kind == "runtime-coverage"
+        && artifact.header.command == "cargo xtask coverage emitters --corpus"
+        && artifact.header.exit_status == 0
+        && artifact.header.finished_unix_ms >= artifact.header.started_unix_ms
+        && fresh
+        && artifact.inventory_sha256 == inventory_hash
+        && executed > 0
+        && artifact
+            .raw_counts
+            .keys()
+            .all(|id| direct_emitter_ids.contains(id.as_str()))
+        && artifact.raw_counts.values().all(|count| *count == 1)
+        && artifact.zero_hit_reviews.len() == reviewed_ids.len()
+        && artifact
+            .zero_hit_reviews
+            .iter()
+            .all(|review| !review.evidence.trim().is_empty())
+        && reviewed_ids == zero_hit_ids;
+    RuntimeValidation {
+        ready,
+        fresh,
+        executed,
+        zero_hit: zero_hit_ids.len(),
+        reviewed: reviewed_ids.len(),
+    }
+}
+
 fn run_coverage_worker(
     driver: &Path,
     instrumented: &Path,
     programs: &[PathBuf],
+    programs_per_process: usize,
+    max_lib_cache_buckets: usize,
+) -> Result<BTreeMap<String, u64>, String> {
+    let mut combined = BTreeMap::new();
+    for batch in programs.chunks(programs_per_process) {
+        for (id, count) in run_coverage_process(driver, instrumented, batch, max_lib_cache_buckets)?
+        {
+            if count > 0 {
+                combined.insert(id, 1);
+            }
+        }
+    }
+    Ok(combined)
+}
+
+fn verify_coverage_driver_diagnostics(
+    workspace: &Path,
+    instrumented: &Path,
+    programs: &[PathBuf],
+    max_lib_cache_buckets: usize,
+) -> Result<(), Box<dyn Error>> {
+    let requests = programs
+        .iter()
+        .chain(programs.iter())
+        .enumerate()
+        .map(|(index, program)| -> Result<Value, std::io::Error> {
+            Ok(json!({
+                "id": index,
+                "programJsonPath": program.canonicalize()?.display().to_string()
+            }))
+        })
+        .collect::<Result<Vec<_>, std::io::Error>>()?;
+    let mut oracle = Command::new("node");
+    oracle
+        .arg("--single-threaded")
+        .arg(workspace.join("crates/oracle/driver.mjs"));
+    let oracle_responses = run_node_jsonl(&mut oracle, &requests)?;
+
+    let mut coverage_requests = requests
+        .iter()
+        .cloned()
+        .map(|mut request| {
+            request["returnDiagnostics"] = Value::Bool(true);
+            request
+        })
+        .collect::<Vec<_>>();
+    coverage_requests.push(json!({"finish": true}));
+    let mut coverage = Command::new("node");
+    coverage
+        .arg("--single-threaded")
+        .arg(workspace.join("crates/oracle/coverage-driver.mjs"))
+        .arg(instrumented)
+        .arg(max_lib_cache_buckets.to_string());
+    let coverage_responses = run_node_jsonl(&mut coverage, &coverage_requests)?;
+    let expected_responses = programs.len() * 2;
+    if oracle_responses.len() != expected_responses
+        || coverage_responses.len() != expected_responses + 1
+        || oracle_responses != coverage_responses[..expected_responses]
+        || coverage_responses
+            .last()
+            .and_then(|value| value["schema"].as_u64())
+            != Some(1)
+    {
+        return Err(
+            "coverage driver diagnostic canary differs from the uncached oracle driver".into(),
+        );
+    }
+    println!(
+        "runtime emitter coverage diagnostic canary: programs={} passes=2 exact=true",
+        programs.len(),
+    );
+    Ok(())
+}
+
+fn run_node_jsonl(command: &mut Command, requests: &[Value]) -> Result<Vec<Value>, Box<dyn Error>> {
+    let mut child = command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+    {
+        let stdin = child.stdin.as_mut().ok_or("Node JSONL stdin unavailable")?;
+        for request in requests {
+            serde_json::to_writer(&mut *stdin, request)?;
+            writeln!(stdin)?;
+        }
+    }
+    let output = child.wait_with_output()?;
+    if !output.status.success() {
+        return Err(format!(
+            "Node JSONL process failed with {}: {}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        )
+        .into());
+    }
+    String::from_utf8(output.stdout)?
+        .lines()
+        .map(|line| Ok(serde_json::from_str(line)?))
+        .collect()
+}
+
+fn run_coverage_process(
+    driver: &Path,
+    instrumented: &Path,
+    programs: &[PathBuf],
+    max_lib_cache_buckets: usize,
 ) -> Result<BTreeMap<String, u64>, String> {
     let mut child = Command::new("node")
         .arg("--single-threaded")
         .arg(driver)
         .arg(instrumented)
+        .arg(max_lib_cache_buckets.to_string())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -1294,42 +1536,22 @@ pub(crate) fn verify_for_readiness(
         let path = workspace.join(&entry.path);
         let artifact: RuntimeArtifact = read_json(&path)?;
         let current = runtime_fingerprint(workspace)?;
-        let counts = artifact
-            .raw_counts
-            .iter()
-            .filter(|(id, count)| direct_emitter_ids.contains(id.as_str()) && **count > 0)
-            .count();
-        let zero = direct_emitter_ids.len().saturating_sub(counts);
-        let reviewed = artifact
-            .zero_hit_reviews
-            .iter()
-            .map(|review| review.declaration.as_str())
-            .collect::<BTreeSet<_>>();
-        let ready = artifact.header.fingerprint == current
+        let validation =
+            validate_runtime_artifact(&artifact, &current, inventory_hash, direct_emitter_ids);
+        let ready = validation.ready
             && entry.sha256 == sha256_file(&path)?
             && entry.fingerprint_sha256 == artifact.header.fingerprint.sha256
-            && artifact.inventory_sha256 == inventory_hash
-            && artifact.header.exit_status == 0
-            && counts > 0
-            && artifact
-                .raw_counts
-                .keys()
-                .all(|id| direct_emitter_ids.contains(id.as_str()))
-            && reviewed.len() == zero
-            && direct_emitter_ids
-                .iter()
-                .filter(|id| artifact.raw_counts.get(**id).copied().unwrap_or(0) == 0)
-                .all(|id| reviewed.contains(id));
+            && entry.kind == artifact.header.kind;
         (
             ready,
             format!(
                 "fresh={} accounted={}/{} executed={} zero-hit={} reviewed={}",
-                artifact.header.fingerprint == current,
-                counts + reviewed.len(),
+                validation.fresh,
+                validation.executed + validation.reviewed,
                 direct_emitter_ids.len(),
-                counts,
-                zero,
-                reviewed.len()
+                validation.executed,
+                validation.zero_hit,
+                validation.reviewed
             ),
         )
     } else {
@@ -1411,6 +1633,22 @@ fn read_config(workspace: &Path) -> Result<EvidenceConfig, Box<dyn Error>> {
     if config.runtime_coverage.max_workers == 0 {
         return Err("m8-evidence.json runtime_coverage.max_workers must be at least 1".into());
     }
+    if config.runtime_coverage.programs_per_process == 0 {
+        return Err(
+            "m8-evidence.json runtime_coverage.programs_per_process must be at least 1".into(),
+        );
+    }
+    if config.runtime_coverage.max_lib_cache_buckets == 0 {
+        return Err(
+            "m8-evidence.json runtime_coverage.max_lib_cache_buckets must be at least 1".into(),
+        );
+    }
+    if config.runtime_coverage.diagnostic_canary_programs == 0 {
+        return Err(
+            "m8-evidence.json runtime_coverage.diagnostic_canary_programs must be at least 1"
+                .into(),
+        );
+    }
     Ok(config)
 }
 
@@ -1451,18 +1689,24 @@ fn runtime_fingerprint(workspace: &Path) -> Result<Fingerprint, Box<dyn Error>> 
             CONFIG_REL,
             INVENTORY_REL,
             ".node-version",
+            "Cargo.toml",
             "Cargo.lock",
             "rust-toolchain.toml",
             "crates/oracle/coverage-instrument.mjs",
             "crates/oracle/coverage-driver.mjs",
+            "crates/oracle/driver.mjs",
             "crates/oracle/program-host.mjs",
             "crates/oracle/emitter-inventory.mjs",
             "crates/harness/src",
+            "crates/harness/Cargo.toml",
+            "crates/xtask/Cargo.toml",
+            "crates/xtask/src/m8_evidence.rs",
             "ts-tests/tests/cases/conformance",
             "vendor/typescript-6.0.3/lib/_tsc.js",
             "vendor/typescript-6.0.3/lib",
         ],
         &[],
+        false,
     )
 }
 
@@ -1491,6 +1735,7 @@ fn fuzz_fingerprint(
             "vendor/typescript-6.0.3/lib",
         ],
         &[format!("seed={seed}"), format!("cases={cases}")],
+        true,
     )
 }
 
@@ -1512,6 +1757,7 @@ fn performance_fingerprint(workspace: &Path) -> Result<Fingerprint, Box<dyn Erro
             "vendor/typescript-6.0.3/lib",
         ],
         &["command=conformance".to_owned()],
+        true,
     )
 }
 
@@ -1519,6 +1765,7 @@ fn fingerprint(
     workspace: &Path,
     relative_inputs: &[&str],
     arguments: &[String],
+    include_executable: bool,
 ) -> Result<Fingerprint, Box<dyn Error>> {
     let mut files = Vec::new();
     for relative in relative_inputs {
@@ -1526,7 +1773,6 @@ fn fingerprint(
     }
     files.sort();
     files.dedup();
-    let executable = std::env::current_exe()?;
     let mut inputs = files
         .iter()
         .map(|path| {
@@ -1536,10 +1782,13 @@ fn fingerprint(
             })
         })
         .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
-    inputs.push(InputEntry {
-        path: "<producer-executable>".to_owned(),
-        sha256: sha256_file(&executable)?,
-    });
+    if include_executable {
+        let executable = std::env::current_exe()?;
+        inputs.push(InputEntry {
+            path: "<producer-executable>".to_owned(),
+            sha256: sha256_file(&executable)?,
+        });
+    }
     for argument in arguments {
         inputs.push(InputEntry {
             path: format!("<argument:{argument}>"),
@@ -1830,5 +2079,40 @@ mod tests {
         assert!(verify_fuzzer_raw(&artifact).is_err());
         artifact.requested_cases = 0;
         assert!(verify_fuzzer_raw(&artifact).is_err());
+    }
+
+    #[test]
+    fn runtime_reuse_requires_fresh_inputs_and_exact_zero_hit_reviews() {
+        let fingerprint = Fingerprint {
+            sha256: "a".repeat(64),
+            inputs: Vec::new(),
+        };
+        let mut artifact = RuntimeArtifact {
+            header: ArtifactHeader {
+                schema: ARTIFACT_SCHEMA,
+                producer_version: PRODUCER_VERSION.to_owned(),
+                kind: "runtime-coverage".to_owned(),
+                producer_commit: "0".repeat(40),
+                command: "cargo xtask coverage emitters --corpus".to_owned(),
+                started_unix_ms: 1,
+                finished_unix_ms: 2,
+                exit_status: 0,
+                fingerprint: fingerprint.clone(),
+            },
+            inventory_sha256: "inventory".to_owned(),
+            raw_counts: BTreeMap::from([("hit".to_owned(), 1)]),
+            zero_hit_reviews: vec![ZeroHitReviewArtifact {
+                declaration: "zero".to_owned(),
+                evidence: "reviewed exact declaration".to_owned(),
+            }],
+        };
+        let direct = BTreeSet::from(["hit", "zero"]);
+        assert!(validate_runtime_artifact(&artifact, &fingerprint, "inventory", &direct).ready);
+
+        artifact.zero_hit_reviews[0].declaration = "hit".to_owned();
+        assert!(!validate_runtime_artifact(&artifact, &fingerprint, "inventory", &direct).ready);
+        artifact.zero_hit_reviews[0].declaration = "zero".to_owned();
+        artifact.header.fingerprint.sha256 = "b".repeat(64);
+        assert!(!validate_runtime_artifact(&artifact, &fingerprint, "inventory", &direct).ready);
     }
 }

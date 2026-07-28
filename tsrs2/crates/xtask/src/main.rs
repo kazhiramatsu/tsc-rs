@@ -5177,10 +5177,11 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
             .args(["families", "check", "--baseline"])
             .arg(baseline),
     )?;
-    // E1 topology (evidence-and-steady-state.md §5): produce B2-B4
+    // E1 topology (evidence-and-steady-state.md §5): verify/reuse an
+    // exact-fingerprint B2 artifact or produce it, then produce B3-B4
     // after their A1/A2/A5 inputs verify but BEFORE full-corpus
     // parse/bind/check runs retain allocator and lib-bundle pages. The
-    // coverage workers otherwise overlap that RSS and force the
+    // coverage worker otherwise overlaps that RSS and forces the
     // standard hosted runner into avoidable swap thrash. All repo
     // inputs remain byte-identical through the later consumer.
     m8_evidence::produce_all()?;

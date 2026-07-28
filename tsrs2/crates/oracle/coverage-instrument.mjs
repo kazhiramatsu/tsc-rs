@@ -15,22 +15,27 @@ if (inventory.schema !== 2 || inventory.band !== "all") {
 }
 
 const source = ts.createSourceFile(bundlePath, sourceText, ts.ScriptTarget.Latest, true);
+const expected = inventory.functions.filter(
+  (declaration) => declaration.direct_emitter,
+);
 const direct = new Map(
-  inventory.functions
-    .filter((declaration) => declaration.direct_emitter)
-    .map((declaration) => [declaration.source_range.start.offset, declaration]),
+  expected.map((declaration, index) => [
+    declaration.source_range.start.offset,
+    { declaration, index },
+  ]),
 );
 const edits = [];
 const seen = new Set();
 
-function hitExpression(id) {
-  return `__tsrsM8Hit(${JSON.stringify(id)})`;
+function hitExpression(index) {
+  return `__tsrsM8Hits[${index}]=1`;
 }
 
 function visit(node) {
   const start = node.getStart(source);
-  const declaration = direct.get(start);
-  if (declaration && declaration.kind !== "SourceFile") {
+  const match = direct.get(start);
+  if (match && match.declaration.kind !== "SourceFile") {
+    const { declaration, index } = match;
     const body = node.body;
     if (!body) {
       throw new Error(`direct emitter ${declaration.id} has no executable body`);
@@ -39,13 +44,13 @@ function visit(node) {
       edits.push({
         start: body.getStart(source) + 1,
         end: body.getStart(source) + 1,
-        text: `${hitExpression(declaration.id)};`,
+        text: `${hitExpression(index)};`,
       });
     } else if (ts.isArrowFunction(node)) {
       edits.push({
         start: body.getStart(source),
         end: body.getStart(source),
-        text: `(${hitExpression(declaration.id)},`,
+        text: `(${hitExpression(index)},`,
       });
       edits.push({
         start: body.end,
@@ -63,15 +68,14 @@ function visit(node) {
 }
 visit(source);
 
-const top = inventory.functions.filter(
-  (declaration) => declaration.direct_emitter && declaration.kind === "SourceFile",
-);
+const top = expected
+  .map((declaration, index) => ({ declaration, index }))
+  .filter(({ declaration }) => declaration.kind === "SourceFile");
 if (top.length !== 1) {
   throw new Error(`expected one direct <top> declaration, found ${top.length}`);
 }
-seen.add(top[0].id);
+seen.add(top[0].declaration.id);
 
-const expected = inventory.functions.filter((declaration) => declaration.direct_emitter);
 if (seen.size !== expected.length) {
   const missing = expected.filter((declaration) => !seen.has(declaration.id));
   throw new Error(
@@ -80,10 +84,8 @@ if (seen.size !== expected.length) {
 }
 
 const counterPrelude = `
-var __tsrsM8Counts = Object.create(null);
-function __tsrsM8Hit(id) {
-  __tsrsM8Counts[id] = (__tsrsM8Counts[id] || 0) + 1;
-}
+var __tsrsM8HitIds = ${JSON.stringify(expected.map((declaration) => declaration.id))};
+var __tsrsM8Hits = new Uint8Array(__tsrsM8HitIds.length);
 `;
 const strictMarker = '"use strict";';
 const strictOffset = sourceText.indexOf(strictMarker);
@@ -93,7 +95,7 @@ if (strictOffset < 0) {
 edits.push({
   start: strictOffset + strictMarker.length,
   end: strictOffset + strictMarker.length,
-  text: `${counterPrelude}${hitExpression(top[0].id)};`,
+  text: `${counterPrelude}${hitExpression(top[0].index)};`,
 });
 
 const cliTail = "executeCommandLine(sys, noop, sys.args);";
@@ -109,7 +111,11 @@ edits.push({
   ScriptTarget: { Latest: 99 },
   createSourceFile,
   createProgram,
-  __tsrsM8Counts
+  sortAndDeduplicateDiagnostics,
+  getKeyForCompilerOptions,
+  sourceFileAffectingCompilerOptions,
+  __tsrsM8HitIds,
+  __tsrsM8Hits
 };`,
 });
 
