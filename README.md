@@ -49,92 +49,36 @@ full contract.
 
 ## Status
 
-Milestones M0–M6 are complete: the harness and code generators, scanner and
-parser, binder, type and relation foundations, checker skeleton, flow
-narrowing, inference, and overload resolution are in place. The phase-9
-2XXX sweep is also complete: its supported-scope T0 false-negative residue is
-zero while the all-corpus false-positive gate remains zero.
+Milestones M0–M6 and the M7 owner-family diagnostic program are complete.
+The phase-9 2XXX sweep has zero supported-scope T0 false negatives, and all
+six M7 families have zero supported-scope false negatives with every canary
+passing. The all-corpus false-positive gate remains zero.
 
-Work is underway in M7, which covers grammar, unused, suggestion,
-program/options, and remaining non-2XXX diagnostics. Its first
-checker-grammar owner slices now cover modifier/decorator grammar and
-object-literal grammar, followed by the signature parameter-list grammar
-owner, declaration-file top-level source grammar, and derived-constructor
-`this`/`super` ordering. The Node CommonJS top-level-`await` work is split
-by its two actual emitters; both `checkAwaitGrammar` and the separate
-`for await` grammar producer are complete. The regex work is likewise split
-at its real boundary: target-aware scanner/parser plumbing (including ES5
-identifier tables, recovery rescan, and unterminated-literal state) is
-complete as an accepted-set-neutral prerequisite, and the complete UTF-16
-regex validator now follows it with generated Unicode-property data, exact
-target gates, and primary/related diagnostic grouping. The fresh residual
-survey selected the module-format sequence next. Its A10 prerequisite now
-keeps implied Node format tri-state, distinguishes explicit package
-`"commonjs"` from a missing package type, and preserves decisive extension
-evidence for emit. B16 now completes the `resolveExternalModule`
-Node16/Node18 synchronous-import owner, including import-equals,
-type-only resolution-mode attributes, nested conversion details, and the
-diagnostic-only package `exports`/`imports`/self-name target projection.
-The separate A11 `checkExportAssignment` producer is now complete as
-well: checked-JavaScript `export =` uses the decisive emit format, and
-the exact verbatim/isolated type-only export rules are live. The TS1340
-`getTypeFromImportTypeNode` owner is now complete too, using a
-diagnostic-only package-module meaning projection without publishing
-package symbols or members generally. The module-format sequence now
-also includes the complete TS1361/TS1362 type-only alias value-use
-worker, with exact import/export related information and checked-JavaScript
-publication. The first 8.1f producer is complete as well: object-literal
-private-name placement now closes all 31 TS18016 rows and brings the
-checker-grammar canaries to 4/4. Exact position review corrected the
-remaining TS18028 split: both checked-JavaScript rows belong to
-`checkGrammarAccessor`, and both are now complete. The following
-`checkJSDocTypeIsInJsFile` slice closed all 12 nullable/non-nullable
-TypeScript-syntax rows (TS17019/TS17020); JSDoc-only M8 diagnostics
-remain closed. The final 8.1f producer then closed the 12 residual
-TS18010 accessibility rows at their exact JSDoc tag spans without
-opening the general JSDoc checking surface. Together the four 8.1f
-producer slices added all 57 planned identities. The fresh 8.1g
-residual survey then selected the already-ported `checkESModuleMarker`
-owner: its caller now uses the Node package file's per-file emit format
-and closes all eight TS1216 rows across TypeScript and checked
-JavaScript. The following direct `checkImportDeclaration` slice closes
-the six package-`exports` TS1543 rows as well: it reuses the bounded
-diagnostic-only package-target projection to inspect JSON target file
-names while ordinary package resolution remains suppressed. The next
-direct `checkImportMetaProperty` slice publishes its four already-exact
-CommonJS-format TS1470 rows in checked JavaScript, completing the
-TypeScript/JavaScript matrix without broadening JSDoc checking. The
-following `checkImportDeclaration` slice now selects the JavaScript-
-specific TS1473 top-level-context diagnostic while retaining TS1232
-for the TypeScript sibling. Its separate `checkExportDeclaration`
-counterpart now does the same for TS1474 versus TS1233. The next
-`checkAliasSymbol` producer slice ports the live isolated/verbatim
-type-only import and re-export rules (TS1205, TS1288, TS1448,
-TS1484, and TS1485), including exact TS1377 related origins. It also
-uses the exact extension-sensitive CommonJS message helper for the
-three TS1295 alias rows owned by this producer; the export-assignment
-and dynamic-import rows stayed with their separate producers. The
-following `checkExportAssignment` slice then publishes the three
-CommonJS export-default TS1295 rows through that shared helper. The
-final TS1295 slice closes the dynamic-import row at its direct
-`checkGrammarImportCallExpression` owner, preserving tsc's
-highest-priority CommonJS/verbatim grammar branch and whole-call span.
-The next `checkModuleDeclarationDiagnostics` slice closes the final
-TS1287 namespace row after confirming that tsc deliberately excludes
-module declarations from the generic modifier producer: only an
-instantiated top-level CommonJS namespace is diagnosed, while its
-type-only sibling remains clean.
-M7 reuses the approach that made the 2XXX sweep effective: measure
-exact oracle rows first, group them into `(diagnostic code, pass)`
-owner families, trace each family through the emitting `tsc` function
-and its Rust implementation boundary, then port one bounded producer
-slice at a time. See the
-[M7 band and owner strategy](docs/design/greenfield/m7-band-and-owner-strategy.md).
+M8 is active at 9/10 readiness gates. The exact semantic scope is globally
+frozen at 583 reviewed identities; the Rust function ledger, all-band
+emitter inventory, runtime coverage, differential-fuzzer smoke, performance
+baseline, and M7 family rollup are green. The remaining gate is D2 emitter
+dependency closure: all 5,513 exact declarations are now generated with
+owner, disposition, and immutable evidence in a reviewable draft, followed
+by a separate snapshot-freeze commit.
 
-The stage marker remains `M6` while M7 is active and advances only when the
-milestone closes; this keeps M7-owned escape deadlines live during its
-producer slices.
+The expensive B2 Node coverage sweep is content-addressed. CI and local
+verification reuse the exact verified artifact when the Node pin, vendored
+compiler, corpus, inventory, and producer inputs are unchanged; the full
+7,462-program AST visit is not repeated for unrelated Rust or documentation
+changes. Coverage execution is capped at one worker with bounded
+per-process program lifetime and library-cache buckets.
 
+M7 used the same evidence-led strategy that made the 2XXX sweep effective:
+measure exact oracle rows, group them into A5 owner families, trace each
+family through its emitting `tsc` declaration and Rust boundary, and port
+one bounded producer slice at a time. M8 retains that discipline with exact
+D2 declaration identities, static dependency paths, and B2 runtime
+evidence—same-named declarations never close one another implicitly.
+
+The repository `STAGE` marker remains `M6` until three separately tracked
+late-bound-name escape annotations are retired or assigned to their actual
+post-M7 owner; the completed M7 family rollup itself is frozen and green.
 <!-- STATUS:BEGIN — generated by `cargo xtask readme-status`; do not edit by hand -->
 Accepted conformance state at stage marker `M6` — the checked-in
 `tsrs2/ratchet.toml` summaries, verified against the accepted-set
@@ -186,17 +130,14 @@ freshness, and escape inventories are separate mandatory gates.
 | --- | --- | --- |
 | M0–M6 | Complete | Harness, syntax, binding, types/relations, core checking, flow, inference, and overloads |
 | Phase-9 2XXX | Complete | Supported-scope 2XXX T0 closure using emitter ownership and exact-row mining |
-| M7 | Current | Grammar, unused, suggestion, program/options, family ownership, T1 activation, and structural diagnostics |
-| M8 | Next | Readiness-gated long-tail mining, supported-scope T2/T3 and T4 closure, escape retirement, and performance/runtime evidence |
-| M9 | Final hardening | Differential-fuzzer steady state and closure of every known divergence class |
+| M7 | Owner-family complete | Six A5 virtual bands closed with supported FN=0, all canaries passing, and T1 active |
+| M8 | Current (9/10) | Final D2 emitter-closure snapshot, then supported-scope T2/T3 and T4 closure |
+| M9 | Next | Differential-fuzzer steady state and closure of every known divergence class |
 
-M7 is more heterogeneous than the 2XXX band even if no single remaining
-family is as broad. To retain a useful denominator and a clear owner, the
-machine-readable A5 family map acts as a set of **virtual bands**. The first
-checker-grammar sweep is split by producer—modifier/decorator, object
-literal, declaration/function/accessor/heritage,
-statement/expression/target, module/import/export/format, and
-strict/private/JSDoc/ES-target—before a terminal residue pass.
+M7's machine-readable A5 family map remains the permanent set of virtual
+bands for non-2XXX ownership. M8 adds the all-band D2 declaration graph:
+5,513 exact identities, 643 direct emitters, exact Rust ledger joins, B2
+runtime execution/zero-hit evidence, and static shortest paths.
 
 ## Getting Started
 
