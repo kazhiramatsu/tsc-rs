@@ -5436,10 +5436,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkGrammarArrowFunction @6.0.3
     /// tsc-hash: 8f7f56e65b9b90db72cf6b6e3c6f9c82bfb1d7b237ba81842c439fed4c211365
     /// tsc-span: _tsc.js:89474-89488
-    ///
-    /// The mts/cts 1219-note arm needs fileExtensionIsOneOf on module
-    /// extensions — dead in the .ts conformance surface, elided with
-    /// this note.
     fn check_grammar_arrow_function(&mut self, node: NodeId) -> bool {
         if self.kind_of(node) != SyntaxKind::ArrowFunction {
             return false;
@@ -5447,6 +5443,31 @@ impl<'a> CheckerState<'a> {
         let NodeData::ArrowFunction(data) = self.data_of(node).clone() else {
             return false;
         };
+        if let Some(type_parameters) = data.type_parameters {
+            let reserved_type_parameter = {
+                let source = self.binder.source_of_node(node);
+                let array = source.arena.node_array(type_parameters);
+                let module_extension =
+                    source.file_name.ends_with(".mts") || source.file_name.ends_with(".cts");
+                if module_extension && array.nodes.len() == 1 && !array.has_trailing_comma {
+                    array.nodes.first().copied().filter(|&type_parameter| {
+                        matches!(
+                            self.data_of(type_parameter),
+                            NodeData::TypeParameter(data) if data.constraint.is_none()
+                        )
+                    })
+                } else {
+                    None
+                }
+            };
+            if let Some(type_parameter) = reserved_type_parameter {
+                self.grammar_error_on_node(
+                    type_parameter,
+                    &diagnostics::This_syntax_is_reserved_in_files_with_the_mts_or_cts_extension_Add_a_trailing_comma_or_explicit_constraint,
+                    &[],
+                );
+            }
+        }
         let Some(arrow) = data.equals_greater_than_token else {
             return false;
         };
@@ -6194,6 +6215,23 @@ mod tests {
             )
         })
         .collect()
+    }
+
+    #[test]
+    fn mts_cts_generic_arrow_requires_disambiguating_type_parameter_syntax() {
+        let diagnostic = |file_name: &str, source: &str| {
+            checked_program_rows_with_file(file_name, source, &CompilerOptions::default())
+                .into_iter()
+                .filter(|(code, _, _)| *code == 7060)
+                .collect::<Vec<_>>()
+        };
+        let ambiguous = "const x = <T>() => 0;\n";
+        assert_eq!(diagnostic("a.mts", ambiguous), [(7060, 11, 1)]);
+        assert_eq!(diagnostic("a.cts", ambiguous), [(7060, 11, 1)]);
+        assert!(diagnostic("a.ts", ambiguous).is_empty());
+        assert!(diagnostic("a.mts", "const x = <T,>() => 0;\n").is_empty());
+        assert!(diagnostic("a.mts", "const x = <T extends unknown>() => 0;\n").is_empty());
+        assert!(diagnostic("a.mts", "const x = <T, U>() => 0;\n").is_empty());
     }
 
     #[test]
