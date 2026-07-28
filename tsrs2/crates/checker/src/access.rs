@@ -313,10 +313,20 @@ impl<'a> CheckerState<'a> {
                 ));
             }
             let expose_non_jsdoc_js = self.is_non_jsdoc_js_expression_type(node, ty);
+            let expose_jsdoc_undefined = facts.intersects(TypeFacts::IS_UNDEFINED)
+                && !facts.intersects(TypeFacts::IS_NULL)
+                && self.should_publish_jsdoc_undefined_receiver(node)?;
             let diagnostics_before = self.diagnostics.len();
             report_error(self, node, facts)?;
             if expose_non_jsdoc_js {
                 self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
+            } else if expose_jsdoc_undefined {
+                // M8-P03: this is the exact checked-JS JSDoc
+                // parameter/required-module undefined-only face of
+                // the already-ported nullable-receiver producer.
+                // Other JSDoc nullable categories retain their own
+                // owner boundary.
+                self.mark_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 18048);
             }
             let t = self.get_non_nullable_type(ty)?;
             return Ok(
@@ -332,6 +342,81 @@ impl<'a> CheckerState<'a> {
             );
         }
         Ok(ty)
+    }
+
+    /// M8-P03 publication boundary for the supported JSDoc flow
+    /// owner. The nullable reporter is shared by many incomplete
+    /// checked-JS inference paths, so syntax alone is not sufficient:
+    /// publish only receivers rooted in a typed JSDoc parameter, plus
+    /// the CommonJS namespace-property face reached through a direct
+    /// `require(...)` variable.
+    fn should_publish_jsdoc_undefined_receiver(&mut self, node: NodeId) -> CheckResult2<bool> {
+        if !self.is_in_js_file(node) {
+            return Ok(false);
+        }
+
+        let mut root = node;
+        loop {
+            root = match self.data_of(root) {
+                NodeData::PropertyAccessExpression(data) => match data.expression {
+                    Some(expression) => expression,
+                    None => break,
+                },
+                NodeData::ParenthesizedExpression(data) => match data.expression {
+                    Some(expression) => expression,
+                    None => break,
+                },
+                _ => break,
+            };
+        }
+        if self.kind_of(root) != SyntaxKind::Identifier {
+            return Ok(false);
+        }
+        let Some(symbol) = self.get_resolved_symbol(root)? else {
+            return Ok(false);
+        };
+        // A checked-JS `require` variable is an alias. Once its use is
+        // checked, resolved_symbol points at the target module symbol,
+        // which has no value declaration; retain the local alias
+        // declaration as the provenance source.
+        let local_alias_declaration = self.identifier_text_of(root).and_then(|name| {
+            let source_root = self.binder.source_of_node(root).root;
+            self.binder
+                .locals_of(source_root)
+                .and_then(|locals| locals.get(name))
+                .and_then(|&local| {
+                    let local = self.binder.symbol(local);
+                    local
+                        .value_declaration
+                        .or_else(|| local.declarations.first().copied())
+                })
+        });
+        let Some(declaration) = self
+            .binder
+            .symbol(symbol)
+            .value_declaration
+            .or(local_alias_declaration)
+        else {
+            return Ok(false);
+        };
+        let source = self.binder.source_of_node(declaration);
+        let root_declaration = node_util::get_root_declaration(source, declaration);
+        if self.kind_of(root_declaration) == SyntaxKind::Parameter
+            && self.has_jsdoc_parameter_type_annotation(root_declaration)
+        {
+            return Ok(true);
+        }
+
+        if self.kind_of(node) != SyntaxKind::PropertyAccessExpression
+            || self.kind_of(declaration) != SyntaxKind::VariableDeclaration
+        {
+            return Ok(false);
+        }
+        let initializer = match self.data_of(declaration) {
+            NodeData::VariableDeclaration(data) => data.initializer,
+            _ => None,
+        };
+        Ok(initializer.is_some_and(|initializer| self.is_require_call(initializer, true)))
     }
 
     /// tsc-port: checkNonNullType @6.0.3
@@ -4593,6 +4678,96 @@ mod tests {
         assert_eq!(
             checked_rows("declare const x: string | undefined;\nx.length;\n"),
             [(18048, 37, 1), (2339, 39, 6)]
+        );
+    }
+
+    #[test]
+    fn checked_js_jsdoc_parameter_flow_publishes_undefined_only_receivers() {
+        let constructor = "/** @param {number} x */\n\
+function Point(x) {\n\
+    if (!(this instanceof Point)) return new Point(x);\n\
+    this.x = x;\n\
+}\n\
+/** @param {Point} p */\n\
+function magnitude(p) { return p.x ** 2; }\n";
+        let point = constructor.rfind("p.x").unwrap() as u32;
+        assert_eq!(
+            published_js_rows(constructor, Some(true)),
+            [(18048, point, 3)]
+        );
+
+        let destructuring = "/**\n\
+ * @param {object} opts\n\
+ * @param {number} opts.a\n\
+ * @param {number} [opts.b]\n\
+ */\n\
+function sum({ a, b }) { return a + b; }\n";
+        let b = destructuring.rfind("b;").unwrap() as u32;
+        assert_eq!(
+            published_js_rows(destructuring, Some(true)),
+            [(18048, b, 1)]
+        );
+
+        let required = destructuring.replace("[opts.b]", "opts.b");
+        assert_eq!(published_js_rows(&required, Some(true)), []);
+        assert!(check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: destructuring.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict_null_checks: Some(false),
+                ..CompilerOptions::default()
+            },
+        )
+        .diagnostics
+        .is_empty());
+    }
+
+    #[test]
+    fn checked_js_jsdoc_commonjs_optional_export_publishes_18048() {
+        let use_text = "var mod = require('./mod1.js');\nnew mod.Baz();\n";
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "mod1.js".to_owned(),
+                    text: "/** @typedef {number} Baz */\n\
+module.exports = { Baz: class {} };\n\
+/** @typedef {number} Quack */\n\
+module.exports = { Quack: 2 };\n"
+                        .to_owned(),
+                },
+                InputFile {
+                    name: "use.js".to_owned(),
+                    text: use_text.to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                target: Some(2),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.file_name.as_deref(),
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [(
+                Some("use.js"),
+                18048,
+                use_text.find("mod.Baz").unwrap() as u32,
+                "mod.Baz".len() as u32,
+            )]
         );
     }
 

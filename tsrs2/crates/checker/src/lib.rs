@@ -184,7 +184,7 @@ fn is_plain_js_file(
     javascript_file && directive.is_none() && options.check_js.is_none()
 }
 
-fn is_published_non_jsdoc_js_diagnostic(
+fn is_published_checked_js_diagnostic(
     state: &state::CheckerState<'_>,
     diagnostic: &Diagnostic,
 ) -> bool {
@@ -194,7 +194,10 @@ fn is_published_non_jsdoc_js_diagnostic(
         .zip(diagnostic.start)
         .zip(diagnostic.length)
         .map(|((file, start), length)| (file.clone(), start, length, diagnostic.code()))
-        .is_some_and(|key| state.non_jsdoc_js_diagnostics.contains(&key))
+        .is_some_and(|key| {
+            state.non_jsdoc_js_diagnostics.contains(&key)
+                || state.jsdoc_js_diagnostics.contains(&key)
+        })
 }
 
 /// tsrs-native: checked-JS publication frontier for diagnostics whose
@@ -1198,7 +1201,7 @@ pub fn check_program_with_libs_at(
                         diagnostics.extend(file_diagnostics.into_iter().filter(|diagnostic| {
                             plain_js_errors::is_plain_js_error(diagnostic.code())
                                 || diagnostic.category() == DiagnosticCategory::Suggestion
-                                    && is_published_non_jsdoc_js_diagnostic(&state, diagnostic)
+                                    && is_published_checked_js_diagnostic(&state, diagnostic)
                         }));
                     } else {
                         let used = used_directive_lines
@@ -1225,7 +1228,7 @@ pub fn check_program_with_libs_at(
                                                 length,
                                             ))
                                         }))
-                                || is_published_non_jsdoc_js_diagnostic(&state, diagnostic)
+                                || is_published_checked_js_diagnostic(&state, diagnostic)
                         }));
                     }
                 }

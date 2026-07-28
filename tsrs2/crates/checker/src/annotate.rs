@@ -7878,8 +7878,7 @@ impl<'a> CheckerState<'a> {
                     return Ok(Some(self.get_return_type_of_signature(getter_signature)?));
                 }
             }
-            if let Some(jsdoc_parameter) = self.jsdoc_boolean_parameter_type_annotation(declaration)
-            {
+            if let Some(jsdoc_parameter) = self.jsdoc_parameter_type_annotation(declaration)? {
                 return Ok(Some(self.tables.add_optionality(
                     jsdoc_parameter,
                     /*is_property*/ false,
