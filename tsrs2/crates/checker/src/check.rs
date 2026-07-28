@@ -5364,11 +5364,12 @@ impl<'a> CheckerState<'a> {
                 if self.get_symbol_of_declaration(previous).ok() == node_symbol
                     && node_symbol.is_some()
                 {
-                    let text = self
-                        .identifier_text_of(name.expect("bound type parameters have names"))
-                        .unwrap_or_default()
-                        .to_owned();
-                    self.error_at(name, &diagnostics::Duplicate_identifier_0, &[&text]);
+                    let name = name.expect("bound type parameters have names");
+                    let text = tsrs2_binder::node_util::declaration_name_to_string(
+                        self.binder.source_of_node(name),
+                        Some(name),
+                    );
+                    self.error_at(Some(name), &diagnostics::Duplicate_identifier_0, &[&text]);
                 }
             }
         }
@@ -13633,6 +13634,27 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    #[test]
+    fn duplicate_recovered_type_parameter_uses_the_missing_name_face() {
+        let text = "type T<in in> = T;\n";
+        with_program_state_allow_parse_diagnostics(
+            &[("a.ts", text)],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                let diagnostic = state
+                    .diagnostics
+                    .iter()
+                    .find(|diagnostic| diagnostic.code() == 2300)
+                    .expect("duplicate recovered type parameter");
+                assert_eq!(
+                    diagnostic.message_text(),
+                    "Duplicate identifier '(Missing)'."
+                );
+            },
+        );
     }
 
     // ---- M8-P18 checked-JS checkJSDocTypeAliasTag projection ----

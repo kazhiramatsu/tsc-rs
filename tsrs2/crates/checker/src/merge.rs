@@ -431,7 +431,11 @@ impl<'a> CheckerState<'a> {
         };
         let is_source_plain_js = is_plain_js_symbol(self, source);
         let is_target_plain_js = is_plain_js_symbol(self, target);
-        let symbol_name = self.symbol_display_name(source);
+        // symbolToString(source) reaches getNameOfSymbolAsWritten for
+        // declaration-backed symbols. In particular, a late-bound
+        // computed class member that collides with the synthetic
+        // `prototype` export keeps its written `[expr]` spelling.
+        let symbol_name = self.symbol_name_as_written_slice(source);
         match (source_file, target_file) {
             // 47764: the defer arm requires the amalgamated map to be
             // LIVE — after the post-augmentation flush it is None and

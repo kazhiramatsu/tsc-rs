@@ -2552,6 +2552,29 @@ mod tests {
     }
 
     #[test]
+    fn late_bound_prototype_merge_uses_the_written_computed_name() {
+        let diagnostics = with_program_state(
+            &[(
+                "a.ts",
+                "const names = { prototype: 'prototype' } as const;\n\
+                 class C { static [names.prototype](): void {} }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| diagnostic.code() == 2300)
+                    .map(|diagnostic| diagnostic.message_text().to_owned())
+                    .collect::<Vec<_>>()
+            },
+        );
+
+        assert_eq!(diagnostics, ["Duplicate identifier '[names.prototype]'."]);
+    }
+
+    #[test]
     fn index_constraint_uses_the_written_property_name() {
         let diagnostics = with_program_state(
             &[(
