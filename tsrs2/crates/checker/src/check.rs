@@ -3817,6 +3817,38 @@ impl<'a> CheckerState<'a> {
         Ok(Some(object))
     }
 
+    /// tsrs-native: source-text projection of the P04 catch-variable
+    /// typedef boundary. Catch annotations may name a JSDoc typedef,
+    /// but this flow slice owns only the two grammar-legal intrinsic
+    /// bases (`any` and `unknown`); structured/general typedefs remain
+    /// with the checkJs/JSDoc owner slices.
+    pub(crate) fn jsdoc_catch_intrinsic_typedef_type(
+        &self,
+        location: NodeId,
+        name: &str,
+    ) -> Option<TypeId> {
+        let source = self.binder.source_of_node(location);
+        let mut cursor = 0usize;
+        while cursor < source.text.len() {
+            let relative_start = source.text[cursor..].find("/**")?;
+            let body_start = cursor + relative_start + 3;
+            let relative_close = source.text[body_start..].find("*/")?;
+            let close = body_start + relative_close;
+            let body = &source.text[body_start..close];
+            if let Some((base, typedef_name)) = parse_jsdoc_typedef_name(body) {
+                if typedef_name == name {
+                    return match base {
+                        "*" | "any" => Some(self.tables.intrinsics.any),
+                        "?" | "unknown" => Some(self.tables.intrinsics.unknown),
+                        _ => None,
+                    };
+                }
+            }
+            cursor = close + 2;
+        }
+        None
+    }
+
     fn jsdoc_parameterized_arrow_type(
         &mut self,
         expression: NodeId,
