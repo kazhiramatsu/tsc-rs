@@ -54,13 +54,12 @@ The phase-9 2XXX sweep has zero supported-scope T0 false negatives, and all
 six M7 families have zero supported-scope false negatives with every canary
 passing. The all-corpus false-positive gate remains zero.
 
-M8 is active at 9/10 readiness gates. The exact semantic scope is globally
+M8 readiness is complete at 10/10 gates. The exact semantic scope is globally
 frozen at 583 reviewed identities; the Rust function ledger, all-band
 emitter inventory, runtime coverage, differential-fuzzer smoke, performance
-baseline, and M7 family rollup are green. The remaining gate is D2 emitter
-dependency closure: all 5,513 exact declarations are now generated with
-owner, disposition, and immutable evidence in a reviewable draft, followed
-by a separate snapshot-freeze commit.
+baseline, M7 family rollup, and D2 emitter dependency closure are green. All
+5,513 exact declarations have owner, disposition, and immutable evidence in
+the frozen reviewed snapshot.
 
 The expensive B2 Node coverage sweep is content-addressed. CI and local
 verification reuse the exact verified artifact when the Node pin, vendored
@@ -94,8 +93,8 @@ False positives are a hard gate: 0 on every merge. Escape
 ceilings: untagged 0, recovery 117. Non-2XXX family
 map: frozen, 15 families / 433 rows.
 
-M8 readiness: 9/10 gates ready.
-Ready: m7-gate, shadow-tiers, scope-frozen, rust-function-dispositions, emitter-inventory, runtime-coverage, differential-fuzzer, performance-baseline, m7-family-rollup. Pending: emitter-dependency-closure.
+M8 readiness: 10/10 gates ready.
+Ready: m7-gate, shadow-tiers, scope-frozen, rust-function-dispositions, emitter-inventory, emitter-dependency-closure, runtime-coverage, differential-fuzzer, performance-baseline, m7-family-rollup. Pending: none.
 <!-- STATUS:END -->
 
 The table is the **all-corpus visibility view**. It intentionally includes
@@ -131,7 +130,7 @@ freshness, and escape inventories are separate mandatory gates.
 | M0–M6 | Complete | Harness, syntax, binding, types/relations, core checking, flow, inference, and overloads |
 | Phase-9 2XXX | Complete | Supported-scope 2XXX T0 closure using emitter ownership and exact-row mining |
 | M7 | Owner-family complete | Six A5 virtual bands closed with supported FN=0, all canaries passing, and T1 active |
-| M8 | Current (9/10) | Final D2 emitter-closure snapshot, then supported-scope T2/T3 and T4 closure |
+| M8 | Readiness complete (10/10) | Supported-scope T2/T3 and T4 closure |
 | M9 | Next | Differential-fuzzer steady state and closure of every known divergence class |
 
 M7's machine-readable A5 family map remains the permanent set of virtual

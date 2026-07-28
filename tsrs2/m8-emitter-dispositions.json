@@ -1,6 +1,7 @@
 {
   "schema": 2,
-  "status": "draft",
+  "status": "frozen",
+  "adjudication_commit": "f9113a23143154ff5a5e8575dabdb9ef92ee201c",
   "inventory_sha256": "77a1ab1dea3367cb6d913f158ee97932d8c256f5c907f7a3846a1a2fc99f6f38",
   "entries": [
     {
