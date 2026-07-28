@@ -1789,6 +1789,8 @@ impl<'a> CheckerState<'a> {
 
     /// getSpreadArgumentType's tuple-rest contextual read (76029):
     /// (type, index, length) with no spread-index bookkeeping.
+    /// tsrs-native: fixed-argument Rust adapter around the ledgered
+    /// getContextualTypeForElementExpression port.
     pub(crate) fn get_contextual_type_for_element_expression_at(
         &mut self,
         ty: TypeId,
@@ -2468,6 +2470,8 @@ impl<'a> CheckerState<'a> {
     /// 80728, checkExpressionWithContextualType 80570, and
     /// getReturnTypeFromBody's contextual return 78813) instantiate
     /// with `/*contextFlags*/ void 0`.
+    /// tsrs-native: fixed-flag Rust adapter around the ledgered
+    /// instantiateContextualType port.
     pub(crate) fn instantiate_contextual_type_for_node(
         &mut self,
         contextual_type: Option<TypeId>,
@@ -3559,6 +3563,8 @@ impl<'a> CheckerState<'a> {
     }
 
     /// The declaration's parameter list (function-like kinds).
+    /// tsrs-native: typed AST projection for tsc's direct
+    /// `declaration.parameters` property access.
     pub(crate) fn parameters_of_function(&self, node: NodeId) -> Vec<NodeId> {
         let parameters = match self.data_of(node) {
             NodeData::FunctionDeclaration(data) => data.parameters,
@@ -3652,6 +3658,8 @@ impl<'a> CheckerState<'a> {
 
     /// tsc hasInitializer's `.initializer` read for the declaration
     /// kinds this band dispatches on.
+    /// tsrs-native: typed AST projection for tsc's direct
+    /// `declaration.initializer` property access.
     pub(crate) fn initializer_of(&self, declaration: NodeId) -> Option<NodeId> {
         match self.data_of(declaration) {
             NodeData::VariableDeclaration(data) => data.initializer,

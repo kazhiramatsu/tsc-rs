@@ -40,14 +40,18 @@ pub(crate) fn contains_type(types: &[TypeId], ty: TypeId) -> bool {
     types.binary_search(&ty).is_ok()
 }
 
+/// tsrs-native: bitflag composition for tsc's inline Ternary
+/// arithmetic; there is no standalone tsc function.
 pub(crate) fn ternary_and(left: Ternary, right: Ternary) -> Ternary {
     Ternary::from_bits(left.bits() & right.bits())
 }
 
+/// tsrs-native: Rust predicate for tsc's inline Ternary comparison.
 pub(crate) fn is_false(result: Ternary) -> bool {
     result == Ternary::FALSE
 }
 
+/// tsrs-native: Rust predicate for tsc's inline Ternary truth test.
 pub(crate) fn is_true(result: Ternary) -> bool {
     result.bits() != 0
 }
@@ -868,10 +872,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
 }
 
 impl<'r, 'a> RelationChecker<'r, 'a> {
+    /// tsrs-native: relation-frame projection for tsc's direct
+    /// `type.flags` property access.
     pub(crate) fn flags(&self, ty: TypeId) -> TypeFlags {
         self.st.tables.flags_of(ty)
     }
 
+    /// tsrs-native: owned-list projection for tsc's direct
+    /// union/intersection `type.types` property access.
     pub(crate) fn union_members(&self, ty: TypeId) -> Vec<TypeId> {
         match &self.st.tables.type_of(ty).data {
             TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),

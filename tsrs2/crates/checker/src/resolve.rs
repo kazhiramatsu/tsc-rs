@@ -2493,10 +2493,14 @@ impl<'a> CheckerState<'a> {
                 .is_some_and(|n| self.identifier_text_of(n) == Some("const"))
     }
 
+    /// tsrs-native: typed AST projection for tsc's direct
+    /// `node.name` property access.
     pub(crate) fn name_of_node(&self, node: NodeId) -> Option<NodeId> {
         node_util::name_field_of(self.binder.source_of_node(node), node)
     }
 
+    /// tsrs-native: typed Identifier/PrivateIdentifier projection for
+    /// tsc idText/direct escapedText access.
     pub(crate) fn identifier_text_of(&self, node: NodeId) -> Option<&'a str> {
         match self.data_of(node) {
             NodeData::Identifier(data) => Some(&data.escaped_text),
@@ -2567,6 +2571,8 @@ impl<'a> CheckerState<'a> {
         })
     }
 
+    /// tsrs-native: typed HeritageClause projection for tsc's direct
+    /// token comparison.
     pub(crate) fn heritage_clause_is_extends(&self, clause: NodeId) -> bool {
         matches!(
             self.data_of(clause),
@@ -2601,6 +2607,8 @@ impl<'a> CheckerState<'a> {
         )
     }
 
+    /// tsrs-native: typed AST projection for tsc's direct declaration
+    /// `type` property access.
     pub(crate) fn type_annotation_of(&self, node: NodeId) -> Option<NodeId> {
         match self.data_of(node) {
             NodeData::FunctionDeclaration(data) => data.r#type,
@@ -2682,6 +2690,8 @@ impl<'a> CheckerState<'a> {
 
 impl<'a> CheckerState<'a> {
     /// tsc findAncestor(node, predicate) for a single kind.
+    /// tsrs-native: fixed-predicate Rust adapter around the syntax
+    /// ancestor walk; tsc passes a JavaScript predicate closure.
     pub(crate) fn find_ancestor_of_kind(&self, node: NodeId, kind: SyntaxKind) -> Option<NodeId> {
         let mut current = Some(node);
         while let Some(node) = current {

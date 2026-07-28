@@ -83,6 +83,9 @@ fn is_supported_source_file_name(name: &str, allow_js: bool) -> bool {
     ts_like.iter().any(|extension| name.ends_with(extension)) || (allow_js && is_js_file_name(name))
 }
 
+/// tsc-port: hasJSFileExtension @6.0.3
+/// tsc-hash: 26f2de10186fd7377e0fc90d254165421f27320a1b95dca68e43ee8f2f71128d
+/// tsc-span: _tsc.js:18654-18656
 pub(crate) fn is_js_file_name(name: &str) -> bool {
     [".js", ".jsx", ".mjs", ".cjs"]
         .iter()
@@ -457,6 +460,8 @@ fn compute_byte_line_starts(text: &str) -> Vec<usize> {
     starts
 }
 
+/// tsrs-native: public single-lib-list adapter around the checker
+/// program harness; tsc exposes Program/TypeChecker objects instead.
 pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckResult {
     check_program_with_libs(&[], files, options)
 }
@@ -475,6 +480,8 @@ pub fn check_program(files: &[InputFile], options: &CompilerOptions) -> CheckRes
 /// getDiagnostics(file) call and the oracle driver only ever asks for
 /// fixture files, so a lib file's checkSourceFileWorker never runs
 /// and diagnostics FILED under a lib file are never collected.
+/// tsrs-native: public cwd-defaulting adapter around the Rust
+/// in-memory program harness; tsc has no function with this API.
 pub fn check_program_with_libs(
     libs: &[InputFile],
     files: &[InputFile],

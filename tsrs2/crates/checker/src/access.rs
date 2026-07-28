@@ -1458,6 +1458,9 @@ impl<'a> CheckerState<'a> {
 
     /// Related-info construction (createDiagnosticForNode on a possibly
     /// OTHER file — related infos carry their own file).
+    /// tsrs-native: RelatedInfo adapter over the ledgered
+    /// createDiagnosticForNode path; tsc has no standalone function
+    /// with this Rust return shape.
     pub(crate) fn related_info_for_node(
         &self,
         node: NodeId,

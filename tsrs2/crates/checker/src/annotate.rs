@@ -24,18 +24,26 @@ use crate::state::{
 impl<'a> CheckerState<'a> {
     // ---- node helpers ----
 
+    /// tsrs-native: typed arena projection for tsc's direct
+    /// `node.kind` property access.
     pub(crate) fn kind_of(&self, node: NodeId) -> SyntaxKind {
         self.binder.source_of_node(node).arena.node(node).kind
     }
 
+    /// tsrs-native: typed arena projection for tsc's direct node
+    /// payload access.
     pub(crate) fn data_of(&self, node: NodeId) -> &'a NodeData {
         &self.binder.source_of_node(node).arena.node(node).data
     }
 
+    /// tsrs-native: typed arena projection for tsc's direct
+    /// `node.parent` property access.
     pub(crate) fn parent_of(&self, node: NodeId) -> Option<NodeId> {
         self.binder.source_of_node(node).arena.node(node).parent
     }
 
+    /// tsrs-native: NodeArray arena projection; tsc arrays are direct
+    /// JavaScript objects.
     pub(crate) fn nodes_of(&self, array: Option<NodeArrayId>) -> Vec<NodeId> {
         match array {
             Some(array) => self.binder.node_array(array).nodes.clone(),
@@ -43,6 +51,8 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsrs-native: typed Identifier projection for tsc's direct
+    /// `escapedText` property access.
     pub(crate) fn identifier_text(&self, node: NodeId) -> Option<&str> {
         match self.data_of(node) {
             NodeData::Identifier(data) => Some(&data.escaped_text),
@@ -9542,6 +9552,8 @@ fn is_m3_signature_declaration_kind(kind: SyntaxKind) -> bool {
 
 /// The scanner already normalized numeric literal text to its value
 /// form (tsc node.text = token value); this parses that value string.
+/// tsrs-native: Rust f64 parsing replaces JavaScript's unary numeric
+/// coercion; there is no standalone tsc function.
 pub(crate) fn parse_numeric_literal_text(text: &str) -> CheckResult2<f64> {
     Ok(text.parse::<f64>().unwrap_or_else(|_| {
         unreachable!("scanner invariant: numeric literal text is f64-parsable: {text:?}")

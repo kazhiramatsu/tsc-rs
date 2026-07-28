@@ -5475,6 +5475,8 @@ impl<'a> CheckerState<'a> {
     /// The compareTypes parameter of compareSignaturesIdentical:
     /// partialMatch selects compareTypesSubtypeOf, else
     /// compareTypesIdentical (findMatchingSignature 58001).
+    /// tsrs-native: fixed-dispatch Rust adapter around the ledgered
+    /// compareSignaturesIdentical port; tsc passes a function value.
     pub(crate) fn compare_signatures_identical_at(
         &mut self,
         source: SignatureId,

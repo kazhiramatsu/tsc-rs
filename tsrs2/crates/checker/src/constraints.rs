@@ -820,6 +820,8 @@ impl<'a> CheckerState<'a> {
 
     /// Union constituents, or the type itself (the someType/everyType
     /// traversal set).
+    /// tsrs-native: owned-list projection for tsc's direct
+    /// `type.types` access and singleton fallback.
     pub(crate) fn union_members_or_self(&self, ty: TypeId) -> Vec<TypeId> {
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             match &self.tables.type_of(ty).data {
