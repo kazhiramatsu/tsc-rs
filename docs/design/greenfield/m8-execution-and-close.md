@@ -155,6 +155,44 @@ tools, and selected codes, so repeated sibling comparisons reuse the bundle.
 The command does not select or approve a sibling, truncate static closure, or
 freeze an owner cluster. Those remain plan-generator and review decisions.
 
+The entry-plan commands are:
+
+```bash
+cargo xtask conformance \
+  --band all \
+  --out-json target/m8/entry-conformance.json
+cargo xtask m8 plan draft \
+  --conformance-json target/m8/entry-conformance.json \
+  --out target/m8/owner-plan-draft.json
+cargo xtask m8 plan check \
+  --plan target/m8/owner-plan-draft.json
+```
+
+The full conformance command is run once for the entry snapshot, not as an
+editing loop. `plan draft` expands only the 109 exact programs named by the
+333 entry identities, invokes the targeted no-AST-visit trace, and reuses its
+content-addressed raw trace on later draft checks. The draft partitions the
+entry universe exactly; an identity-side cluster reference that disagrees
+with cluster membership, a stale exact-identity hash, a cross-family cluster,
+or a stale program/code/summary count fails `plan check`.
+
+Trace `execution_pass` and oracle output `pass` are intentionally separate.
+For example, parser-created JSDoc diagnostics may be returned in the semantic
+bucket, and a semantic 7016 may be returned in the suggestion bucket. The
+plan joins an exact program and diagnostic code conservatively and retains
+the execution phase for review; it must not discard a producer merely
+because those two pass labels differ.
+
+Static expansion follows exact lexical-call edges only to the first frozen
+ported or reviewed-disposition boundary. Property-call candidates and
+unresolved calls remain separate. A mechanical SCC is recorded in full with
+`merge_status=review-required`; its members are not silently merged into the
+implementation slice. Likewise, sibling candidates in the entry-residual
+program set are proposals only. Missing or weak candidates require a
+targeted minimal probe, and every sibling selection, SCC decision, Rust
+boundary override, rationale, and owner-slice assignment is reviewed before
+the plan is frozen.
+
 The initial implementation-order hypothesis is parser pragma, strict
 nullability, module semantics, override validation, then the larger
 implicit-any and supported check-JS clusters. This is not a hard-coded order.
