@@ -448,6 +448,27 @@ transition. It does not re-extract, renumber, or replace D2a identities.
 Only D2b can satisfy M8 readiness or feed D3 runtime/static
 reconciliation.
 
+`m8-emitter-dispositions.json` enumerates all closure declarations with
+`declaration`, `disposition`, `owner`, and `evidence`. `ported` is valid
+only with an exact `tsc-span`/`tsc-hash` Rust ledger join; every unmatched
+identity remains explicitly `deferred` or receives a reviewed
+`not-applicable` decision. Direct unmatched declarations cite either the
+exact B2 saturated runtime count or the inventory-hash-pinned zero-hit
+review. Indirect declarations cite their exact shortest direct-emitter
+path and source-slice hash. Runtime absence never removes a static
+candidate.
+
+The draft has no adjudication commit. Freezing adds a full 40-hex
+`adjudication_commit` naming an ancestor whose artifact is the identical
+complete draft; it cannot combine content edits with the freeze. A frozen
+trusted base is immutable. The generator and audit are:
+
+```sh
+cargo xtask codegen emitter-dispositions
+cargo xtask codegen emitter-dispositions --check --baseline origin/main
+cargo xtask m8 readiness
+```
+
 ### 6.2 Trace-assisted implementation clusters
 
 Once the D2 inventory/static-call-graph and B2 trace tooling land,

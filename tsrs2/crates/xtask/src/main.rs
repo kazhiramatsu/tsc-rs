@@ -165,6 +165,7 @@ fn main() {
             Some("scanner") => run_or_exit(codegen_scanner(false)),
             Some("scanner-check") => run_or_exit(codegen_scanner(true)),
             Some("band-inventory") => run_or_exit(codegen_band_inventory(args)),
+            Some("emitter-dispositions") => run_or_exit(codegen_emitter_dispositions(args)),
             Some(other) => {
                 eprintln!("unknown codegen target: {other}");
                 std::process::exit(2);
@@ -940,20 +941,670 @@ fn mechanical_family_rows(
     }))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 struct M8EmitterDispositions {
     schema: u32,
     status: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    adjudication_commit: Option<String>,
     inventory_sha256: String,
     #[serde(default)]
     entries: Vec<M8EmitterDisposition>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 struct M8EmitterDisposition {
     declaration: String,
     disposition: String,
+    owner: String,
     evidence: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8DispositionRuntimeArtifact {
+    inventory_sha256: String,
+    raw_counts: BTreeMap<String, u64>,
+    zero_hit_reviews: Vec<M8DispositionZeroHitReview>,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8DispositionZeroHitReview {
+    declaration: String,
+    evidence: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8DispositionEvidenceConfig {
+    artifact_dir: String,
+    runtime_coverage: M8DispositionRuntimeConfig,
+}
+
+#[derive(Debug, Deserialize)]
+struct M8DispositionRuntimeConfig {
+    artifact: String,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct M8EmitterDispositionStats {
+    ported: usize,
+    deferred: usize,
+    not_applicable: usize,
+}
+
+fn codegen_emitter_dispositions(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut check = false;
+    let mut baseline = None;
+    let mut args = args.peekable();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--check" => check = true,
+            "--baseline" => {
+                baseline = Some(
+                    args.next()
+                        .ok_or("missing value after emitter-dispositions --baseline")?,
+                )
+            }
+            _ => return Err(format!("unexpected emitter-dispositions argument: {arg}").into()),
+        }
+    }
+    if baseline.is_some() && !check {
+        return Err("emitter-dispositions --baseline requires --check".into());
+    }
+
+    let workspace = find_tsrs2_root()?;
+    let inventory_path = workspace.join("m8-emitter-inventory.json");
+    let inventory: M8EmitterInventory = read_json(&inventory_path)?;
+    validate_d2_inventory(&inventory)?;
+    let inventory_hash = sha256_file(&inventory_path)?;
+    let ledger_entries = collect_ledger_entries(&workspace)?;
+    let direct_emitter_ids = inventory
+        .functions
+        .iter()
+        .filter(|function| function.direct_emitter)
+        .map(|function| function.id.as_str())
+        .collect::<BTreeSet<_>>();
+    let verified =
+        m8_evidence::verify_for_readiness(&workspace, &inventory_hash, &direct_emitter_ids)?;
+    if !verified.runtime_ready {
+        return Err(format!(
+            "cannot generate D2 dispositions without fresh verified B2 evidence: {}",
+            verified.runtime_detail
+        )
+        .into());
+    }
+
+    let target = workspace.join("m8-emitter-dispositions.json");
+    let mut generated =
+        build_m8_emitter_dispositions(&workspace, &inventory, &inventory_hash, &ledger_entries)?;
+    if check {
+        let recorded: M8EmitterDispositions = read_json(&target)?;
+        generated.status = recorded.status.clone();
+        generated.adjudication_commit = recorded.adjudication_commit.clone();
+        let generated_bytes = m8_emitter_dispositions_bytes(&generated)?;
+        let recorded_bytes = fs::read(&target)?;
+        if generated_bytes != recorded_bytes {
+            return Err(format!(
+                "stale D2 dispositions {}; regenerate the draft and review the diff",
+                target.display()
+            )
+            .into());
+        }
+        let stats = audit_m8_emitter_dispositions(
+            &workspace,
+            baseline.as_deref(),
+            &inventory,
+            &inventory_hash,
+            &ledger_entries,
+            true,
+        )?;
+        println!(
+            "emitter dispositions fresh: status={} entries={} ported={} deferred={} not-applicable={}",
+            generated.status,
+            generated.entries.len(),
+            stats.ported,
+            stats.deferred,
+            stats.not_applicable
+        );
+    } else {
+        fs::write(&target, m8_emitter_dispositions_bytes(&generated)?)?;
+        let stats = disposition_stats(&generated.entries);
+        println!(
+            "emitter dispositions written: status=draft entries={} ported={} deferred={} not-applicable={} {}",
+            generated.entries.len(),
+            stats.ported,
+            stats.deferred,
+            stats.not_applicable,
+            target.display()
+        );
+    }
+    Ok(())
+}
+
+fn m8_emitter_dispositions_bytes(
+    dispositions: &M8EmitterDispositions,
+) -> Result<Vec<u8>, Box<dyn Error>> {
+    let mut bytes = serde_json::to_vec_pretty(dispositions)?;
+    bytes.push(b'\n');
+    Ok(bytes)
+}
+
+fn build_m8_emitter_dispositions(
+    workspace: &Path,
+    inventory: &M8EmitterInventory,
+    inventory_hash: &str,
+    ledger_entries: &[LedgerEntry],
+) -> Result<M8EmitterDispositions, Box<dyn Error>> {
+    let runtime_path = m8_disposition_runtime_artifact_path(workspace)?;
+    let runtime: M8DispositionRuntimeArtifact = read_json(&runtime_path)?;
+    if runtime.inventory_sha256 != inventory_hash {
+        return Err(format!(
+            "B2 runtime artifact inventory hash does not match {}",
+            inventory_hash
+        )
+        .into());
+    }
+
+    let direct_ids = inventory
+        .functions
+        .iter()
+        .filter(|function| function.direct_emitter)
+        .map(|function| function.id.as_str())
+        .collect::<BTreeSet<_>>();
+    let mut zero_reviews = BTreeMap::new();
+    for review in &runtime.zero_hit_reviews {
+        if review.evidence.trim().is_empty() {
+            return Err(format!(
+                "B2 zero-hit review for {} has empty evidence",
+                review.declaration
+            )
+            .into());
+        }
+        if zero_reviews
+            .insert(review.declaration.as_str(), review.evidence.as_str())
+            .is_some()
+        {
+            return Err(format!("duplicate B2 zero-hit review for {}", review.declaration).into());
+        }
+    }
+    if runtime
+        .raw_counts
+        .iter()
+        .any(|(declaration, count)| *count == 0 || !direct_ids.contains(declaration.as_str()))
+    {
+        return Err("B2 raw runtime counts contain a zero or non-direct declaration".into());
+    }
+    if zero_reviews
+        .keys()
+        .any(|declaration| !direct_ids.contains(*declaration))
+    {
+        return Err("B2 zero-hit reviews contain a non-direct declaration".into());
+    }
+    let accounted_direct = runtime
+        .raw_counts
+        .keys()
+        .map(String::as_str)
+        .chain(zero_reviews.keys().copied())
+        .collect::<BTreeSet<_>>();
+    if accounted_direct != direct_ids
+        || runtime
+            .raw_counts
+            .keys()
+            .any(|declaration| zero_reviews.contains_key(declaration.as_str()))
+    {
+        return Err(format!(
+            "B2 direct-emitter evidence is not an exact partition: accounted={} inventory={}",
+            accounted_direct.len(),
+            direct_ids.len()
+        )
+        .into());
+    }
+
+    let mut entries = Vec::with_capacity(inventory.functions.len());
+    for function in &inventory.functions {
+        let joins = exact_ledger_matches(function, ledger_entries);
+        let entry = if !joins.is_empty() {
+            let joined = joins
+                .iter()
+                .map(|entry| {
+                    format!(
+                        "{}:{} {} => {} ({}) {}:{}-{} source_slice_sha256={}",
+                        display_relative(workspace, &entry.rust_path),
+                        entry.rust_line,
+                        entry.rust_fn,
+                        entry.port_name,
+                        entry.version,
+                        entry.span_file,
+                        entry.span_start,
+                        entry.span_end,
+                        entry.hash
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("; ");
+            M8EmitterDisposition {
+                declaration: function.id.clone(),
+                disposition: "ported".to_owned(),
+                owner: "Rust exact port ledger".to_owned(),
+                evidence: format!("Exact tsc-span/tsc-hash ledger join: {joined}."),
+            }
+        } else if function.direct_emitter {
+            if let Some(count) = runtime.raw_counts.get(&function.id) {
+                let codes = function
+                    .sites
+                    .iter()
+                    .filter_map(|site| site.code)
+                    .collect::<BTreeSet<_>>()
+                    .into_iter()
+                    .map(|code| code.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                M8EmitterDisposition {
+                    declaration: function.id.clone(),
+                    disposition: "deferred".to_owned(),
+                    owner: "D3 runtime-observed direct emitter".to_owned(),
+                    evidence: format!(
+                        "B2 exact saturated runtime count={count}; lexical_path={}; direct_codes={codes}; source_slice_sha256={}. Execution evidence does not close the static dependency.",
+                        function.lexical_path, function.source_slice_sha256
+                    ),
+                }
+            } else {
+                let evidence = zero_reviews.get(function.id.as_str()).ok_or_else(|| {
+                    format!(
+                        "missing exact B2 evidence for direct emitter {}",
+                        function.id
+                    )
+                })?;
+                M8EmitterDisposition {
+                    declaration: function.id.clone(),
+                    disposition: "deferred".to_owned(),
+                    owner: "D3 zero-hit direct-emitter adjudication".to_owned(),
+                    evidence: (*evidence).to_owned(),
+                }
+            }
+        } else {
+            M8EmitterDisposition {
+                declaration: function.id.clone(),
+                disposition: "deferred".to_owned(),
+                owner: "D2 static dependency closure".to_owned(),
+                evidence: format!(
+                    "Exact shortest_direct_emitter_path={}; lexical_path={}; source_slice_sha256={}. Runtime absence does not shrink the static closure.",
+                    function.shortest_emitter_path.join(" -> "),
+                    function.lexical_path,
+                    function.source_slice_sha256
+                ),
+            }
+        };
+        entries.push(entry);
+    }
+
+    Ok(M8EmitterDispositions {
+        schema: 2,
+        status: "draft".to_owned(),
+        adjudication_commit: None,
+        inventory_sha256: inventory_hash.to_owned(),
+        entries,
+    })
+}
+
+fn m8_disposition_runtime_artifact_path(workspace: &Path) -> Result<PathBuf, Box<dyn Error>> {
+    let config: M8DispositionEvidenceConfig = read_json(&workspace.join("m8-evidence.json"))?;
+    let artifact_dir = Path::new(&config.artifact_dir);
+    let artifact = Path::new(&config.runtime_coverage.artifact);
+    if artifact_dir.is_absolute()
+        || artifact.is_absolute()
+        || artifact_dir
+            .components()
+            .chain(artifact.components())
+            .any(|component| component.as_os_str() == "..")
+    {
+        return Err("M8 runtime evidence path must stay within the workspace".into());
+    }
+    Ok(workspace.join(artifact_dir).join(artifact))
+}
+
+fn disposition_stats(entries: &[M8EmitterDisposition]) -> M8EmitterDispositionStats {
+    let mut stats = M8EmitterDispositionStats::default();
+    for entry in entries {
+        match entry.disposition.as_str() {
+            "ported" => stats.ported += 1,
+            "deferred" => stats.deferred += 1,
+            "not-applicable" => stats.not_applicable += 1,
+            _ => {}
+        }
+    }
+    stats
+}
+
+fn validate_m8_emitter_dispositions(
+    workspace: &Path,
+    inventory: &M8EmitterInventory,
+    inventory_hash: &str,
+    ledger_entries: &[LedgerEntry],
+    dispositions: &M8EmitterDispositions,
+) -> Result<M8EmitterDispositionStats, Box<dyn Error>> {
+    if dispositions.schema != 2 {
+        return Err("m8-emitter-dispositions.json must be schema 2".into());
+    }
+    if !matches!(dispositions.status.as_str(), "draft" | "frozen") {
+        return Err("M8 emitter dispositions status must be draft or frozen".into());
+    }
+    match (
+        dispositions.status.as_str(),
+        dispositions.adjudication_commit.as_deref(),
+    ) {
+        ("draft", None) => {}
+        ("draft", Some(_)) => {
+            return Err("draft M8 emitter dispositions cannot carry a snapshot anchor".into())
+        }
+        ("frozen", Some(commit)) if is_full_lower_hex_commit(commit) => {}
+        ("frozen", Some(_)) => {
+            return Err(
+                "frozen M8 emitter dispositions require a full lowercase 40-hex anchor".into(),
+            )
+        }
+        ("frozen", None) => {
+            return Err("frozen M8 emitter dispositions require an adjudication commit".into())
+        }
+        _ => unreachable!("status was validated above"),
+    }
+    if dispositions.inventory_sha256 != inventory_hash {
+        return Err(format!(
+            "M8 emitter disposition inventory hash mismatch: {} != {}",
+            dispositions.inventory_sha256, inventory_hash
+        )
+        .into());
+    }
+
+    let inventory_by_id = inventory
+        .functions
+        .iter()
+        .map(|function| (function.id.as_str(), function))
+        .collect::<BTreeMap<_, _>>();
+    let mut entries = BTreeMap::new();
+    for entry in &dispositions.entries {
+        let function = inventory_by_id
+            .get(entry.declaration.as_str())
+            .ok_or_else(|| {
+                format!(
+                    "M8 emitter disposition has an extra declaration {}",
+                    entry.declaration
+                )
+            })?;
+        if entry.owner.trim().is_empty() || entry.evidence.trim().is_empty() {
+            return Err(format!(
+                "M8 emitter disposition for {} requires owner and evidence",
+                entry.declaration
+            )
+            .into());
+        }
+        if !matches!(
+            entry.disposition.as_str(),
+            "ported" | "deferred" | "not-applicable"
+        ) {
+            return Err(format!(
+                "invalid M8 emitter disposition for {}: {}",
+                entry.declaration, entry.disposition
+            )
+            .into());
+        }
+        let joins = exact_ledger_matches(function, ledger_entries);
+        if !matches!(
+            (entry.disposition.as_str(), joins.is_empty()),
+            ("ported", false) | ("deferred" | "not-applicable", true)
+        ) {
+            return Err(format!(
+                "M8 emitter disposition {} must be ported exactly when its tsc-span/tsc-hash ledger join exists",
+                entry.declaration
+            )
+            .into());
+        }
+        if entries.insert(entry.declaration.as_str(), entry).is_some() {
+            return Err(
+                format!("duplicate M8 emitter disposition for {}", entry.declaration).into(),
+            );
+        }
+    }
+    let missing = inventory_by_id
+        .keys()
+        .filter(|declaration| !entries.contains_key(**declaration))
+        .take(5)
+        .copied()
+        .collect::<Vec<_>>();
+    if entries.len() != inventory_by_id.len() || !missing.is_empty() {
+        return Err(format!(
+            "M8 emitter dispositions must enumerate every exact identity: entries={} inventory={} first-missing={}",
+            entries.len(),
+            inventory_by_id.len(),
+            missing.join(",")
+        )
+        .into());
+    }
+    let _ = workspace;
+    Ok(disposition_stats(&dispositions.entries))
+}
+
+fn validate_canonical_m8_emitter_dispositions(
+    workspace: &Path,
+    inventory: &M8EmitterInventory,
+    inventory_hash: &str,
+    ledger_entries: &[LedgerEntry],
+    dispositions: &M8EmitterDispositions,
+) -> Result<(), Box<dyn Error>> {
+    let generated =
+        build_m8_emitter_dispositions(workspace, inventory, inventory_hash, ledger_entries)?;
+    if dispositions.entries != generated.entries {
+        let first = dispositions
+            .entries
+            .iter()
+            .zip(&generated.entries)
+            .position(|(recorded, expected)| recorded != expected)
+            .or_else(|| {
+                (dispositions.entries.len() != generated.entries.len())
+                    .then_some(dispositions.entries.len().min(generated.entries.len()))
+            });
+        return Err(format!(
+            "M8 emitter dispositions differ from exact ledger/runtime/static evidence at entry {}",
+            first.unwrap_or(0)
+        )
+        .into());
+    }
+    Ok(())
+}
+
+fn audit_m8_emitter_dispositions(
+    workspace: &Path,
+    baseline: Option<&str>,
+    inventory: &M8EmitterInventory,
+    inventory_hash: &str,
+    ledger_entries: &[LedgerEntry],
+    runtime_verified: bool,
+) -> Result<M8EmitterDispositionStats, Box<dyn Error>> {
+    let path = workspace.join("m8-emitter-dispositions.json");
+    let current: M8EmitterDispositions = read_json(&path)?;
+    let stats = validate_m8_emitter_dispositions(
+        workspace,
+        inventory,
+        inventory_hash,
+        ledger_entries,
+        &current,
+    )?;
+
+    if runtime_verified {
+        validate_canonical_m8_emitter_dispositions(
+            workspace,
+            inventory,
+            inventory_hash,
+            ledger_entries,
+            &current,
+        )?;
+    }
+
+    if let Some(anchor) = current.adjudication_commit.as_deref() {
+        let head = m8_resolve_git_commit(workspace, "HEAD")?;
+        if !m8_git_is_ancestor(workspace, anchor, &head)? {
+            return Err(format!(
+                "M8 emitter dispositions anchor {anchor} is not an ancestor of HEAD"
+            )
+            .into());
+        }
+        let anchored = m8_emitter_dispositions_at(workspace, anchor)?;
+        if anchored.status != "draft"
+            || anchored.adjudication_commit.is_some()
+            || anchored.inventory_sha256 != current.inventory_sha256
+            || anchored.entries != current.entries
+        {
+            return Err(format!(
+                "M8 emitter dispositions anchor {anchor} does not hold the identical reviewed draft"
+            )
+            .into());
+        }
+        validate_m8_emitter_dispositions(
+            workspace,
+            inventory,
+            inventory_hash,
+            ledger_entries,
+            &anchored,
+        )?;
+    }
+
+    if let Some(baseline) = baseline {
+        let baseline_commit = m8_resolve_git_commit(workspace, baseline)?;
+        let trusted = m8_emitter_dispositions_at(workspace, &baseline_commit)?;
+        if trusted.schema != 2 {
+            return Err("trusted M8 emitter dispositions must be schema 2".into());
+        }
+        if trusted.inventory_sha256 != current.inventory_sha256 {
+            return Err(
+                "M8 emitter disposition inventory hash changed against the trusted base".into(),
+            );
+        }
+        match (trusted.status.as_str(), current.status.as_str()) {
+            ("frozen", "frozen") if trusted == current => {}
+            ("frozen", "frozen") => {
+                return Err(
+                    "frozen M8 emitter dispositions changed against the trusted base".into(),
+                )
+            }
+            ("frozen", "draft") => {
+                return Err("M8 emitter dispositions cannot downgrade from frozen to draft".into())
+            }
+            ("draft", "frozen") => {
+                if trusted.entries != current.entries {
+                    return Err(
+                        "M8 emitter dispositions can freeze only the identical trusted draft"
+                            .into(),
+                    );
+                }
+            }
+            ("draft", "draft") => {
+                let current_ids = current
+                    .entries
+                    .iter()
+                    .map(|entry| entry.declaration.as_str())
+                    .collect::<BTreeSet<_>>();
+                let missing_prior = trusted
+                    .entries
+                    .iter()
+                    .find(|entry| !current_ids.contains(entry.declaration.as_str()));
+                if current.entries.len() < trusted.entries.len() || missing_prior.is_some() {
+                    return Err(
+                        "draft M8 emitter disposition coverage regressed against the trusted base"
+                            .into(),
+                    );
+                }
+            }
+            _ => {
+                return Err(format!(
+                    "unsupported M8 emitter disposition transition {} -> {}",
+                    trusted.status, current.status
+                )
+                .into())
+            }
+        }
+    }
+    Ok(stats)
+}
+
+fn is_full_lower_hex_commit(commit: &str) -> bool {
+    commit.len() == 40
+        && commit
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+fn m8_git_output(
+    workspace: &Path,
+    args: impl IntoIterator<Item = impl AsRef<std::ffi::OsStr>>,
+) -> Result<std::process::Output, Box<dyn Error>> {
+    Ok(Command::new("git")
+        .arg("-C")
+        .arg(workspace)
+        .args(args)
+        .output()?)
+}
+
+fn m8_resolve_git_commit(workspace: &Path, revision: &str) -> Result<String, Box<dyn Error>> {
+    let output = m8_git_output(
+        workspace,
+        ["rev-parse", "--verify", &format!("{revision}^{{commit}}")],
+    )?;
+    if !output.status.success() {
+        return Err(format!(
+            "cannot resolve M8 emitter disposition revision {revision}: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        )
+        .into());
+    }
+    Ok(String::from_utf8(output.stdout)?.trim().to_owned())
+}
+
+fn m8_git_is_ancestor(
+    workspace: &Path,
+    ancestor: &str,
+    descendant: &str,
+) -> Result<bool, Box<dyn Error>> {
+    let output = m8_git_output(
+        workspace,
+        ["merge-base", "--is-ancestor", ancestor, descendant],
+    )?;
+    match output.status.code() {
+        Some(0) => Ok(true),
+        Some(1) => Ok(false),
+        _ => Err(format!(
+            "git merge-base --is-ancestor failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        )
+        .into()),
+    }
+}
+
+fn m8_emitter_dispositions_at(
+    workspace: &Path,
+    commit: &str,
+) -> Result<M8EmitterDispositions, Box<dyn Error>> {
+    let root_output = m8_git_output(workspace, ["rev-parse", "--show-toplevel"])?;
+    if !root_output.status.success() {
+        return Err("cannot resolve git root for M8 emitter dispositions".into());
+    }
+    let root = PathBuf::from(String::from_utf8(root_output.stdout)?.trim());
+    let relative_workspace = workspace.strip_prefix(&root).map_err(|_| {
+        format!(
+            "tsrs2 workspace {} is outside git root {}",
+            workspace.display(),
+            root.display()
+        )
+    })?;
+    let relative = relative_workspace.join("m8-emitter-dispositions.json");
+    let object = format!("{commit}:{}", relative.to_string_lossy().replace('\\', "/"));
+    let output = m8_git_output(workspace, ["show", object.as_str()])?;
+    if !output.status.success() {
+        return Err(format!(
+            "cannot read M8 emitter dispositions at {commit}: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        )
+        .into());
+    }
+    Ok(serde_json::from_slice(&output.stdout)?)
 }
 
 #[derive(Debug, Deserialize)]
@@ -994,13 +1645,14 @@ fn m8_readiness(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>
             _ => return Err(format!("unexpected m8 readiness argument: {arg}").into()),
         }
     }
-    m8_readiness_inner(require_ready, None, false)
+    m8_readiness_inner(require_ready, None, false, None)
 }
 
 fn m8_readiness_inner(
     require_ready: bool,
     reused_conformance: Option<&tsrs2_conformance::ConformanceSummary>,
     prerequisites_already_checked: bool,
+    trusted_baseline: Option<&str>,
 ) -> Result<(), Box<dyn Error>> {
     let workspace = find_tsrs2_root()?;
     let out_dir = workspace.join("target/m8");
@@ -1054,63 +1706,7 @@ fn m8_readiness_inner(
     let inventory_fresh = inventory.source_sha256 == bundle_hash;
     let inventory_hash = sha256_file(&inventory_path)?;
 
-    let dispositions: M8EmitterDispositions =
-        read_json(&workspace.join("m8-emitter-dispositions.json"))?;
-    if dispositions.schema != 2 {
-        return Err("m8-emitter-dispositions.json must be schema 2".into());
-    }
-    let mut explicit = BTreeMap::new();
-    for entry in &dispositions.entries {
-        if !matches!(entry.disposition.as_str(), "deferred" | "not-applicable") {
-            return Err(format!(
-                "invalid M8 emitter disposition for {}: {}",
-                entry.declaration, entry.disposition
-            )
-            .into());
-        }
-        if entry.evidence.trim().is_empty() {
-            return Err(format!(
-                "M8 emitter disposition for {} has no evidence",
-                entry.declaration
-            )
-            .into());
-        }
-        if explicit.insert(entry.declaration.as_str(), entry).is_some() {
-            return Err(
-                format!("duplicate M8 emitter disposition for {}", entry.declaration).into(),
-            );
-        }
-    }
-    let inventory_ids = inventory
-        .functions
-        .iter()
-        .map(|function| function.id.as_str())
-        .collect::<BTreeSet<_>>();
-    let extra_dispositions = explicit
-        .keys()
-        .filter(|function| !inventory_ids.contains(**function))
-        .count();
     let ledger_entries = collect_ledger_entries(&workspace)?;
-    let ported_declarations = inventory
-        .functions
-        .iter()
-        .filter(|function| !exact_ledger_matches(function, &ledger_entries).is_empty())
-        .map(|function| function.id.as_str())
-        .collect::<BTreeSet<_>>();
-    let unaccounted_closure = inventory
-        .functions
-        .iter()
-        .filter(|function| {
-            !ported_declarations.contains(function.id.as_str())
-                && !explicit.contains_key(function.id.as_str())
-        })
-        .count();
-    let emitter_closure_ready = dispositions.status == "frozen"
-        && dispositions.inventory_sha256 == inventory_hash
-        && inventory_fresh
-        && unaccounted_closure == 0
-        && extra_dispositions == 0;
-
     let direct_emitter_ids = inventory
         .functions
         .iter()
@@ -1119,6 +1715,18 @@ fn m8_readiness_inner(
         .collect::<BTreeSet<_>>();
     let produced_evidence =
         m8_evidence::verify_for_readiness(&workspace, &inventory_hash, &direct_emitter_ids)?;
+    let disposition_stats = audit_m8_emitter_dispositions(
+        &workspace,
+        trusted_baseline,
+        &inventory,
+        &inventory_hash,
+        &ledger_entries,
+        produced_evidence.runtime_ready,
+    )?;
+    let dispositions: M8EmitterDispositions =
+        read_json(&workspace.join("m8-emitter-dispositions.json"))?;
+    let emitter_closure_ready =
+        dispositions.status == "frozen" && inventory_fresh && produced_evidence.runtime_ready;
 
     let t1_active = ratchet_section_has_exact_counts(&workspace.join("ratchet.toml"), "t1")?;
     let undispositioned = collect_undispositioned_checker_fns(&workspace)?.len();
@@ -1181,10 +1789,13 @@ fn m8_readiness_inner(
         "emitter-dependency-closure",
         emitter_closure_ready,
         format!(
-            "status={} unaccounted={} extra={} inventory-match={}",
+            "status={} accounted={}/{} ported={} deferred={} not-applicable={} inventory-match={}",
             dispositions.status,
-            unaccounted_closure,
-            extra_dispositions,
+            dispositions.entries.len(),
+            inventory.functions.len(),
+            disposition_stats.ported,
+            disposition_stats.deferred,
+            disposition_stats.not_applicable,
             dispositions.inventory_sha256 == inventory_hash
         ),
     );
@@ -5227,7 +5838,7 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
     // Consume the B2-B4 artifacts in this same workspace/job. Reuse
     // the all-band summary and the already-run inventory/ledger checks
     // instead of launching another full-corpus checker pass.
-    m8_readiness_inner(false, Some(&summaries.all), true)?;
+    m8_readiness_inner(false, Some(&summaries.all), true, Some(baseline))?;
     // E2 current-documentation gate: readiness above produces the
     // same-workspace report consumed by the generated README block.
     // A semantic ratchet or readiness-row change may not leave the
@@ -9313,6 +9924,155 @@ mod d2_inventory_tests {
         let joins = exact_ledger_matches(declaration, &ledger);
         assert_eq!(joins.len(), 1);
         assert_eq!(joins[0].rust_fn, "member_elaboration_target_type");
+    }
+}
+
+#[cfg(test)]
+mod m8_emitter_disposition_tests {
+    use super::*;
+
+    fn function(id_byte: char, line: usize, hash_byte: char) -> M8EmitterFunction {
+        M8EmitterFunction {
+            id: format!("d2:{}", id_byte.to_string().repeat(64)),
+            name: format!("function{line}"),
+            kind: "FunctionDeclaration".to_owned(),
+            lexical_owner: None,
+            lexical_path: format!("<top>/function{line}@{line}:1"),
+            source_range: M8SourceRange {
+                start: M8SourcePosition {
+                    offset: line * 10,
+                    line,
+                    character: 1,
+                },
+                end: M8SourcePosition {
+                    offset: line * 10 + 9,
+                    line: line + 1,
+                    character: 2,
+                },
+            },
+            source_slice_sha256: hash_byte.to_string().repeat(64),
+            direct_emitter: false,
+            sites: Vec::new(),
+            scc: format!("scc-{line}"),
+            shortest_emitter_path: vec![format!("d2:{}", id_byte.to_string().repeat(64))],
+        }
+    }
+
+    fn inventory() -> M8EmitterInventory {
+        M8EmitterInventory {
+            schema: 2,
+            status: "draft/report-only".to_owned(),
+            source: "vendor/typescript-6.0.3/lib/_tsc.js".to_owned(),
+            source_sha256: "f".repeat(64),
+            band: "all".to_owned(),
+            summary: M8EmitterInventorySummary {
+                source_declarations: 2,
+                emitter_declarations: 0,
+                diagnostic_references: 0,
+                closure_declarations: 2,
+                sccs: 2,
+                nontrivial_sccs: 0,
+                static_edges: 0,
+                property_dispatch_edges: 0,
+                unresolved_calls: 0,
+            },
+            functions: vec![function('a', 10, '1'), function('b', 20, '2')],
+            graph: M8EmitterGraph {
+                edges: Vec::new(),
+                sccs: Vec::new(),
+                unresolved_calls: Vec::new(),
+            },
+        }
+    }
+
+    fn dispositions() -> M8EmitterDispositions {
+        M8EmitterDispositions {
+            schema: 2,
+            status: "draft".to_owned(),
+            adjudication_commit: None,
+            inventory_sha256: "inventory".to_owned(),
+            entries: vec![
+                M8EmitterDisposition {
+                    declaration: format!("d2:{}", "a".repeat(64)),
+                    disposition: "ported".to_owned(),
+                    owner: "Rust exact port ledger".to_owned(),
+                    evidence: "exact join".to_owned(),
+                },
+                M8EmitterDisposition {
+                    declaration: format!("d2:{}", "b".repeat(64)),
+                    disposition: "deferred".to_owned(),
+                    owner: "D2 static dependency closure".to_owned(),
+                    evidence: "exact path".to_owned(),
+                },
+            ],
+        }
+    }
+
+    fn ledger() -> Vec<LedgerEntry> {
+        vec![LedgerEntry {
+            rust_path: PathBuf::from("crates/checker/src/example.rs"),
+            rust_line: 7,
+            rust_fn: "ported".to_owned(),
+            port_name: "function10".to_owned(),
+            version: "6.0.3".to_owned(),
+            span_file: "_tsc.js".to_owned(),
+            span_start: 10,
+            span_end: 11,
+            hash: "1".repeat(64),
+        }]
+    }
+
+    #[test]
+    fn exact_identity_coverage_and_ledger_disposition_are_required() {
+        let inventory = inventory();
+        let ledger = ledger();
+        let valid = dispositions();
+        let stats = validate_m8_emitter_dispositions(
+            Path::new("."),
+            &inventory,
+            "inventory",
+            &ledger,
+            &valid,
+        )
+        .expect("complete exact dispositions");
+        assert_eq!(
+            stats,
+            M8EmitterDispositionStats {
+                ported: 1,
+                deferred: 1,
+                not_applicable: 0,
+            }
+        );
+
+        let mut missing = valid.clone();
+        missing.entries.pop();
+        assert!(validate_m8_emitter_dispositions(
+            Path::new("."),
+            &inventory,
+            "inventory",
+            &ledger,
+            &missing,
+        )
+        .is_err());
+
+        let mut false_deferred = valid;
+        false_deferred.entries[0].disposition = "deferred".to_owned();
+        assert!(validate_m8_emitter_dispositions(
+            Path::new("."),
+            &inventory,
+            "inventory",
+            &ledger,
+            &false_deferred,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn frozen_anchor_requires_a_full_lowercase_commit() {
+        assert!(is_full_lower_hex_commit(&"a".repeat(40)));
+        assert!(!is_full_lower_hex_commit(&"A".repeat(40)));
+        assert!(!is_full_lower_hex_commit(&"a".repeat(39)));
+        assert!(!is_full_lower_hex_commit(&format!("{}g", "a".repeat(39))));
     }
 }
 
