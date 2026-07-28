@@ -1126,7 +1126,7 @@ impl<'a> CheckerState<'a> {
                         None => {
                             let string = self.tables.intrinsics.string;
                             if self.get_index_info_of_type(contextual, string)?.is_none() {
-                                let member_display = self.symbol_display_name(member_sym);
+                                let member_display = self.symbol_name_as_written_slice(member_sym);
                                 let contextual_display = self.type_to_string_slice(contextual)?;
                                 let error_node = self
                                     .name_of_named_declaration(member_decl)

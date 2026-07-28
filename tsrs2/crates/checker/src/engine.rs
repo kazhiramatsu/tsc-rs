@@ -1226,8 +1226,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .is_some_and(|parent| is_jsx(self.st, parent));
         let prop_symbol = self.st.binder.symbol(prop);
         let prop_declaration = prop_symbol.value_declaration;
-        let prop_text =
-            tsrs2_binder::unescape_leading_underscores(&prop_symbol.escaped_name).to_owned();
+        let prop_text = self.st.symbol_name_as_written_slice(prop);
         if comparing_jsx {
             let mut report_node = error_node;
             if let Some(prop_declaration) = prop_declaration {
