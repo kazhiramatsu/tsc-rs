@@ -1146,7 +1146,7 @@ mod tests {
     }
 
     #[test]
-    fn checked_js_keeps_jsdoc_contextual_parameter_approximations_private() {
+    fn checked_js_ports_direct_param_but_keeps_contextual_approximations_private() {
         let options = CompilerOptions {
             strict: Some(false),
             allow_js: true,
@@ -1177,7 +1177,19 @@ mod tests {
                     )
                 })
                 .collect::<Vec<_>>();
-            assert_eq!(emitted.len(), 3);
+            // M8-P03 resolves the direct `@param {number} value`
+            // annotation. Method contextual typing and inline
+            // parameter `@type` remain separate owners and therefore
+            // retain their private approximation diagnostics.
+            assert_eq!(
+                emitted
+                    .iter()
+                    .map(|(_, start, length, _)| {
+                        &text[*start as usize..(*start + *length) as usize]
+                    })
+                    .collect::<Vec<_>>(),
+                ["more", "prop"]
+            );
             assert!(emitted
                 .iter()
                 .all(|key| !state.non_jsdoc_js_diagnostics.contains(key)));
