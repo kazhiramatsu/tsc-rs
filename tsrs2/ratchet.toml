@@ -559,8 +559,14 @@
 # ordinary value imports, TypeScript aliases, and the selected
 # extendsTagEmit sibling stay non-firing. T1-T3 gain the same 15
 # identities with no losses, outside gains, or false positives.
-rate = 0.987476
-matched = 48410
+# M8-P15: +6 exact TS8022/TS8023 identities from
+# checkJSDocAugmentsTag's effective-host and heritage-name faces.
+# Earlier JSDoc comments retain the file-less error path, missing
+# names keep their zero-width span, and generic `@extends Base<T>`
+# siblings compare only the entity expression. T1-T3 gain the same
+# six identities with no losses, outside gains, or false positives.
+rate = 0.987598
+matched = 48416
 total = 49024
 allowed_regression = 0.0
 

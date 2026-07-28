@@ -776,6 +776,12 @@ pub struct CheckerState<'a> {
     /// provenance tests and later JSDoc owner slices cannot mistake a
     /// bounded publication decision for a general frontier opening.
     pub(crate) jsdoc_js_diagnostics: std::collections::HashSet<(String, u32, u32, u32)>,
+    /// File-less diagnostics produced by an explicitly ported
+    /// checked-JS JSDoc path. `error(undefined, ...)` is a real tsc
+    /// producer face (for example, a non-effective earlier JSDoc
+    /// comment), but it cannot use the file/span publication key
+    /// above.
+    pub(crate) fileless_jsdoc_js_diagnostic_codes: std::collections::HashSet<u32>,
     /// Exact semantic provenance for checked-JS property-miss rows
     /// whose receiver type came through a `module.exports = Alias`
     /// declaration. The assignment alias target is trustworthy even
@@ -1018,6 +1024,7 @@ impl<'a> CheckerState<'a> {
             jsdoc_typed_declarations: std::collections::HashSet::new(),
             non_jsdoc_js_diagnostics: std::collections::HashSet::new(),
             jsdoc_js_diagnostics: std::collections::HashSet::new(),
+            fileless_jsdoc_js_diagnostic_codes: std::collections::HashSet::new(),
             non_jsdoc_js_module_exports_alias_targets: std::collections::HashSet::new(),
             non_jsdoc_js_commonjs_require_targets: std::collections::HashSet::new(),
             global_type_memos: Default::default(),
@@ -1696,6 +1703,12 @@ impl<'a> CheckerState<'a> {
             })
             .collect();
         self.jsdoc_js_diagnostics.extend(keys);
+        if self.diagnostics[start..]
+            .iter()
+            .any(|diagnostic| diagnostic.code() == code && diagnostic.file_name.is_none())
+        {
+            self.fileless_jsdoc_js_diagnostic_codes.insert(code);
+        }
     }
 
     // ---- out-of-band variance marker handler (M4 5.3b) ----
