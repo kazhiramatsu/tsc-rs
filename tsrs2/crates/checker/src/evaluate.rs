@@ -40,6 +40,9 @@ pub struct EvaluatorResult {
     pub has_external_references: bool,
 }
 
+/// tsc-port: evaluatorResult @6.0.3
+/// tsc-hash: 306471c9c9700df5c41a9bc47881a08d5b2a3d26ffca8eed84fad7887c79ea23
+/// tsc-span: _tsc.js:19379-19381
 pub fn evaluator_result(
     value: Option<EvalValue>,
     is_syntactically_string: bool,

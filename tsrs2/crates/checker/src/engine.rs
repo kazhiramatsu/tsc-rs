@@ -33,6 +33,9 @@ use crate::state::{CheckResult2, CheckerState};
 
 /// stableTypeOrdering off: binary search keyed by type id over the
 /// id-sorted member list (tsc containsType 61327).
+/// tsc-port: containsType @6.0.3
+/// tsc-hash: eb85169b6f340700fb536db728d227aa1b9585f36371df6db5f7fd8270934d9d
+/// tsc-span: _tsc.js:61327-61329
 pub(crate) fn contains_type(types: &[TypeId], ty: TypeId) -> bool {
     types.binary_search(&ty).is_ok()
 }
@@ -52,10 +55,16 @@ pub(crate) fn is_true(result: Ternary) -> bool {
 impl<'a> CheckerState<'a> {
     /// The public boolean APIs the relpin probe (and later checker
     /// call sites) consume.
+    /// tsc-port: isTypeAssignableTo @6.0.3
+    /// tsc-hash: 4835b1b23e62b229e59b4a928dd4aa8d16ec671c0d71f250716bdd464b007c3b
+    /// tsc-span: _tsc.js:63919-63921
     pub fn is_type_assignable_to(&mut self, source: TypeId, target: TypeId) -> CheckResult2<bool> {
         self.is_type_related_to(source, target, RelationKind::Assignable)
     }
 
+    /// tsc-port: isTypeComparableTo @6.0.3
+    /// tsc-hash: 7c13d690978a6624137a3e70b740e15fa12889a761b7bb5a65d3d7775f0e8918
+    /// tsc-span: _tsc.js:63925-63927
     pub fn is_type_comparable_to(&mut self, source: TypeId, target: TypeId) -> CheckResult2<bool> {
         self.is_type_related_to(source, target, RelationKind::Comparable)
     }
@@ -611,6 +620,9 @@ impl<'a> CheckerState<'a> {
 
     /// tsc isGenericTupleType (67794) — the tables twin holds the body
     /// (getGenericObjectFlags reads it there since M4 5.2).
+    /// tsc-port: isGenericTupleType @6.0.3
+    /// tsc-hash: f741808e027436939d394e907796a4f2e0d4af5699ad71f6efa223032506de8b
+    /// tsc-span: _tsc.js:67794-67796
     pub(crate) fn is_generic_tuple_type(&self, ty: TypeId) -> bool {
         self.tables.is_generic_tuple_type(ty)
     }
@@ -1872,6 +1884,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         Ok(result)
     }
 
+    /// tsc-port: recursiveTypeRelatedTo @6.0.3
+    /// tsc-hash: c01e16ed6704c2e6750b4db767394bc24c68f6fdc6a15238ce6cb1ca77a1de10
+    /// tsc-span: _tsc.js:65725-65871
     pub(crate) fn recursive_type_related_to(
         &mut self,
         source: TypeId,
@@ -2197,6 +2212,9 @@ impl<'a> CheckerState<'a> {
     /// missing globals resolves to the empty object type — M4 5.3
     /// makes this apparent-type-driven). Union/intersection property
     /// synthesis (createUnionOrIntersectionProperty) is 4.6/M4.
+    /// tsc-port: getPropertiesOfType @6.0.3
+    /// tsc-hash: 24909f78d7ea360522b5188e5af3c7b09613e4dc2e455ea321c4ec054b4d7576
+    /// tsc-span: _tsc.js:58745-58748
     pub fn get_properties_of_type(
         &mut self,
         ty: TypeId,
@@ -2225,6 +2243,9 @@ impl<'a> CheckerState<'a> {
         self.get_type_of_property_of_type_full(ty, name)
     }
 
+    /// tsc-port: typeHasCallOrConstructSignatures @6.0.3
+    /// tsc-hash: c803fd3450a6f4d4aa94a768a66cb9b762c64228cf0591bff0a9d5e6715825d1
+    /// tsc-span: _tsc.js:87834-87836
     pub fn type_has_call_or_construct_signatures(&mut self, ty: TypeId) -> CheckResult2<bool> {
         if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
             return Ok(false);
@@ -2240,6 +2261,9 @@ impl<'a> CheckerState<'a> {
     /// late-bound names, M4). Unions/intersections read their OWN
     /// resolved members — resolveUnionTypeMembers synthesizes the
     /// intersected index infos (getUnionIndexInfos).
+    /// tsc-port: getApplicableIndexInfoForName @6.0.3
+    /// tsc-hash: f6b9b92223c2975ab3d55e4c1bc1acabbde0fdbf39ea15d47561f74bedf015b5
+    /// tsc-span: _tsc.js:59479-59481
     pub fn get_applicable_index_info_for_name(
         &mut self,
         ty: TypeId,

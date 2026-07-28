@@ -137,6 +137,9 @@ impl<'a> CheckerState<'a> {
     /// Per-file driver entry — checkSourceFile (86969) minus the
     /// tracing/perf marks and the nodesToCheck partial-check path
     /// (unported; conformance always full-checks).
+    /// tsc-port: checkSourceFile @6.0.3
+    /// tsc-hash: 4fac0ca4e39f116ddab5a55ab69ba01689c7194437677ab3cfd3d18556e55992
+    /// tsc-span: _tsc.js:86969-86986
     pub fn check_source_file(&mut self, file_index: usize) {
         let root = self.binder.source(file_index).root;
         self.check_source_file_worker(root);
@@ -6551,6 +6554,9 @@ impl<'a> CheckerState<'a> {
     /// getSymbolOfDeclaration (49936) — the binder's node.symbol
     /// through getLateBoundSymbol (57770) and the getMergedSymbol
     /// chase (JS aliasing arms with the JS residual).
+    /// tsc-port: getSymbolOfDeclaration @6.0.3
+    /// tsc-hash: 197061af99891199274ec82eb08309cbb138441e9fcba571ac5aa6149bf1b3a0
+    /// tsc-span: _tsc.js:49936-49938
     pub(crate) fn get_symbol_of_declaration(&mut self, node: NodeId) -> CheckResult2<SymbolId> {
         let symbol = self.node_symbol(node).ok_or_else(|| {
             Unsupported::new("declaration without a bound symbol (parse-recovery tree)")

@@ -4767,6 +4767,9 @@ impl<'a> CheckerState<'a> {
         flags.intersects(TypeFlags::UNIT)
     }
 
+    /// tsc-port: getCheckFlags @6.0.3
+    /// tsc-hash: a83648d039471a61a67a19bbf1a35c6a4bee49544839d279d7194fcf8a6ad7a4
+    /// tsc-span: _tsc.js:17433-17435
     pub fn get_check_flags(&self, symbol: SymbolId) -> CheckFlags {
         self.links.symbol(symbol).check_flags
     }
@@ -4898,6 +4901,9 @@ impl<'a> CheckerState<'a> {
     /// read the Contains* check flags.
     /// tsc getTargetSymbol (85309-85311): instantiated symbols compare
     /// by their target.
+    /// tsc-port: getTargetSymbol @6.0.3
+    /// tsc-hash: 88f4065722cee3797acdd4215c653a6e21e1b8c240b793e50ab9918f14dd99c2
+    /// tsc-span: _tsc.js:85309-85311
     pub(crate) fn get_target_symbol(&self, symbol: SymbolId) -> SymbolId {
         if self
             .get_check_flags(symbol)
@@ -4912,6 +4918,9 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsc-port: getDeclarationModifierFlagsFromSymbol @6.0.3
+    /// tsc-hash: 640b7c9d80362bc126b54abbed85737561ceff6a8dec412cfaf111c794a4ef8d
+    /// tsc-span: _tsc.js:17436-17452
     pub fn get_declaration_modifier_flags_from_symbol(&self, symbol: SymbolId) -> ModifierFlags {
         self.get_declaration_modifier_flags_from_symbol_write(symbol, /*is_write*/ false)
     }
@@ -5719,6 +5728,9 @@ impl<'a> CheckerState<'a> {
         Ok(true)
     }
 
+    /// tsc-port: isTypeIdenticalTo @6.0.3
+    /// tsc-hash: 340ecf0558de5668c844c3923ce1c0b679104251a9fe2bedf7fdcaa387d6796f
+    /// tsc-span: _tsc.js:63901-63903
     pub(crate) fn is_type_identical_to(
         &mut self,
         source: TypeId,
@@ -5961,6 +5973,9 @@ impl<'a> CheckerState<'a> {
     /// getParameterNameAtPosition (78218-78232 slice): declared
     /// positions read the parameter symbol's name; tuple-rest expanded
     /// positions read the label declaration's name text when present.
+    /// tsc-port: getParameterNameAtPosition @6.0.3
+    /// tsc-hash: 9743ec1093fde048dab12f2b7db102c09d27b4b89d6253544646b09406613e1a
+    /// tsc-span: _tsc.js:78158-78174
     pub(crate) fn get_parameter_name_at_position(
         &mut self,
         signature: SignatureId,
@@ -6128,6 +6143,9 @@ impl<'a> CheckerState<'a> {
 
     /// tsc getIndexInfoOfType (59466-59468) — findIndexInfo over the
     /// type's infos.
+    /// tsc-port: getIndexInfoOfType @6.0.3
+    /// tsc-hash: 101b63fd27f443db13b97b28b4151a42b961f365917b1fe2bdde4dbd30da4ed7
+    /// tsc-span: _tsc.js:59466-59468
     pub(crate) fn get_index_info_of_type(
         &mut self,
         ty: TypeId,
@@ -6303,6 +6321,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc getElementTypeOfArrayType (67677-67679).
+    /// tsc-port: getElementTypeOfArrayType @6.0.3
+    /// tsc-hash: d5e05dafa26965b390fb8b444266846dd654f2ff1e88977a7b759ca3f5da1bd8
+    /// tsc-span: _tsc.js:67677-67679
     pub(crate) fn get_element_type_of_array_type(
         &mut self,
         ty: TypeId,
@@ -6849,6 +6870,9 @@ impl<'a> CheckerState<'a> {
         )
     }
 
+    /// tsc-port: getEffectiveRestType @6.0.3
+    /// tsc-hash: db5b58917144da8a6844de239c0dc40a36dbb92fe824c9ac818f43c895f15f84
+    /// tsc-span: _tsc.js:78329-78340
     pub fn get_effective_rest_type(
         &mut self,
         signature: SignatureId,
@@ -7209,6 +7233,9 @@ impl<'a> CheckerState<'a> {
     /// getSingleCallSignature (75875-75877): the one-line delegation
     /// to `getSingleSignature(type, Call, /*allowMembers*/ false)`,
     /// exactly as tsc cuts it.
+    /// tsc-port: getSingleCallSignature @6.0.3
+    /// tsc-hash: 851e53e26982312745e26da51e7adc99401bb318bd4af17a9d1137c56ac5fb2a
+    /// tsc-span: _tsc.js:75875-75882
     pub fn get_single_call_signature(&mut self, ty: TypeId) -> CheckResult2<Option<SignatureId>> {
         self.get_single_signature(ty, SignatureKind::Call, false)
     }

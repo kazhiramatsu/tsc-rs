@@ -4470,6 +4470,9 @@ impl<'a> CheckerState<'a> {
             || self.has_static_modifier(member)
     }
 
+    /// tsc-port: hasStaticModifier @6.0.3
+    /// tsc-hash: aa988cea2523a038fb9edfc83ac54f743d513a67d521cee8d3cc014208062f4c
+    /// tsc-span: _tsc.js:16937-16939
     pub(crate) fn has_static_modifier(&self, member: NodeId) -> bool {
         let modifiers = match self.data_of(member) {
             NodeData::PropertyDeclaration(data) => data.modifiers,
@@ -4717,6 +4720,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc getTargetType (56993-56995).
+    /// tsc-port: getTargetType @6.0.3
+    /// tsc-hash: 68be51d79dff1c08b39fd94a9fdab855bcd3cf4d6e5f51d945480d748af08f3d
+    /// tsc-span: _tsc.js:56993-56995
     pub(crate) fn get_target_type(&self, ty: TypeId) -> TypeId {
         if self
             .tables

@@ -1916,6 +1916,9 @@ impl<'a> CheckerState<'a> {
 
     /// getStartElementCount/getEndElementCount/getTotalFixedElementCount
     /// (61300-61311).
+    /// tsc-port: getTotalFixedElementCount @6.0.3
+    /// tsc-hash: b55dd5e287d5d76710518bfe7847a6dd6ec38f32e1313ec59528411ca3b341d3
+    /// tsc-span: _tsc.js:61309-61311
     pub(crate) fn get_total_fixed_element_count(&self, target: TypeId) -> usize {
         match &self.tables.type_of(target).data {
             TypeData::TupleTarget(data) => {

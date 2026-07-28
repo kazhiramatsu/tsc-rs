@@ -63,6 +63,9 @@ pub(crate) enum Ancestor {
 impl<'a> CheckerState<'a> {
     /// tsc findAncestor (12299): walk node.parent upward until the
     /// callback answers Yes (return that node) or Quit (return None).
+    /// tsc-port: findAncestor @6.0.3
+    /// tsc-hash: 014da6a625f349ff90188d7f861ef81a2351d6d7ae2b118d0fa080d78a4d6bd4
+    /// tsc-span: _tsc.js:11411-11422
     pub(crate) fn find_ancestor(
         &self,
         start: Option<NodeId>,
@@ -623,6 +626,9 @@ impl<'a> CheckerState<'a> {
     /// `import` keyword — or (6.0.3) the `import.defer` meta-property
     /// (keywordToken `import`, name `defer`; the leading source token
     /// disambiguates from `new.target` — no keywordToken slot).
+    /// tsc-port: isImportCall @6.0.3
+    /// tsc-hash: 74cfad37d8ed5b905210a6398b89c2c9f89f42600024f1749a0c92ab8c6c11f1
+    /// tsc-span: _tsc.js:14150-14154
     pub(crate) fn is_import_call(&self, node: NodeId) -> bool {
         let NodeData::CallExpression(data) = self.data_of(node) else {
             return false;
@@ -792,6 +798,9 @@ impl<'a> CheckerState<'a> {
 
     /// tsc grammarErrorOnNode (90253): node-span grammar error, gated
     /// on the file having NO parse diagnostics.
+    /// tsc-port: grammarErrorOnNode @6.0.3
+    /// tsc-hash: 7b4cfaed5d73c81a86f98ab2a735bed402c39439fcddf19cb213a07e01f7ef50
+    /// tsc-span: _tsc.js:90240-90247
     pub(crate) fn grammar_error_on_node(
         &mut self,
         node: NodeId,
@@ -807,6 +816,9 @@ impl<'a> CheckerState<'a> {
 
     /// tsc grammarErrorOnFirstToken (90211): first-token-span grammar
     /// error, gated on the file having NO parse diagnostics.
+    /// tsc-port: grammarErrorOnFirstToken @6.0.3
+    /// tsc-hash: 95afdbb7fead82fb4f0b248d398d8b45c9ad9befff32113c3d0bbaddd7fb7919
+    /// tsc-span: _tsc.js:90215-90223
     pub(crate) fn grammar_error_on_first_token(
         &mut self,
         node: NodeId,
@@ -845,6 +857,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc hasParseDiagnostics (47555).
+    /// tsc-port: hasParseDiagnostics @6.0.3
+    /// tsc-hash: 5997fcda32088f24f68ed32ff2887763adb38be557f9a4d263afeac1a5f189f1
+    /// tsc-span: _tsc.js:90212-90214
     pub(crate) fn has_parse_diagnostics(&self, node: NodeId) -> bool {
         !self
             .binder
@@ -856,6 +871,9 @@ impl<'a> CheckerState<'a> {
     // ---- identifier band ----
 
     /// tsc isThisInTypeQuery (16707).
+    /// tsc-port: isThisInTypeQuery @6.0.3
+    /// tsc-hash: d46d5bf707704973f7235f646a615c804429dede72625f14c8e6626cf76f94da
+    /// tsc-span: _tsc.js:16707-16715
     pub(crate) fn is_this_in_type_query(&self, node: NodeId) -> bool {
         if !self.is_this_identifier(node) {
             return false;
@@ -1572,6 +1590,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc isInPropertyInitializerOrClassStaticBlock (75388).
+    /// tsc-port: isInPropertyInitializerOrClassStaticBlock @6.0.3
+    /// tsc-hash: da38fc060ea0d81aa40e9cecb0db03a53672ad0f131c6428a95dc3b6f722c7ea
+    /// tsc-span: _tsc.js:75388-75405
     pub(crate) fn is_in_property_initializer_or_class_static_block(
         &self,
         node: NodeId,
@@ -1607,6 +1628,9 @@ impl<'a> CheckerState<'a> {
 
     /// tsc getContainingFunction (14438): findAncestor(parent,
     /// isFunctionLike).
+    /// tsc-port: getContainingFunction @6.0.3
+    /// tsc-hash: b2636cc044d93884c982a0990e807a80444e88b0a7cbb46792005c19f30d82c1
+    /// tsc-span: _tsc.js:14438-14440
     pub(crate) fn get_containing_function(&self, node: NodeId) -> Option<NodeId> {
         self.find_ancestor(self.parent_of(node), |state, n| {
             if node_util::is_function_like_kind(state.kind_of(n)) {
@@ -1618,6 +1642,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc getExportSymbolOfValueSymbolIfExported (47707).
+    /// tsc-port: getExportSymbolOfValueSymbolIfExported @6.0.3
+    /// tsc-hash: 100226b2523e758e15f92c34d99bdab41975f08439c87d7b63404dbb52d84b46
+    /// tsc-span: _tsc.js:50089-50091
     pub(crate) fn get_export_symbol_of_value_symbol_if_exported(
         &self,
         symbol: SymbolId,
@@ -1836,6 +1863,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc getControlFlowContainer (71477).
+    /// tsc-port: getControlFlowContainer @6.0.3
+    /// tsc-hash: ff8e1e22dc314ecb69cd469fc7bb0ca3a9b1e4e57ccedbda833cf29744337954
+    /// tsc-span: _tsc.js:71477-71479
     pub(crate) fn get_control_flow_container(&self, node: NodeId) -> Option<NodeId> {
         self.find_ancestor(self.parent_of(node), |state, n| {
             let kind = state.kind_of(n);
@@ -2014,6 +2044,9 @@ impl<'a> CheckerState<'a> {
 
     /// tsc getAssignmentTarget (15536): the enclosing assignment-like
     /// node when `node` is (part of) its target.
+    /// tsc-port: getAssignmentTarget @6.0.3
+    /// tsc-hash: 75e46b99fd92e3e44e166d65e2e2922f5a567bf35563b3e1884012240bc34a92
+    /// tsc-span: _tsc.js:15536-15579
     pub(crate) fn get_assignment_target(&self, node: NodeId) -> Option<NodeId> {
         let mut node = node;
         let mut parent = self.parent_of(node)?;
@@ -2076,6 +2109,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc getAssignmentTargetKind (15580).
+    /// tsc-port: getAssignmentTargetKind @6.0.3
+    /// tsc-hash: 95c337d7f62ff06131164de18de4880a22c1855542d80ba521eb2bfb0ff363a8
+    /// tsc-span: _tsc.js:15580-15596
     pub(crate) fn get_assignment_target_kind(&self, node: NodeId) -> AssignmentKind {
         let Some(target) = self.get_assignment_target(node) else {
             return AssignmentKind::None;
@@ -2149,6 +2185,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc containsUndefinedType (64663).
+    /// tsc-port: containsUndefinedType @6.0.3
+    /// tsc-hash: 176b28ffd8e3795732879c00f9637fadc7e7aa67eb33c4b214a255c64b70841c
+    /// tsc-span: _tsc.js:64663-64665
     pub(crate) fn contains_undefined_type(&self, ty: TypeId) -> bool {
         let candidate = if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             match &self.tables.type_of(ty).data {
@@ -2173,6 +2212,9 @@ impl<'a> CheckerState<'a> {
     // ---- access kind (isWriteOnlyAccess for getResolvedSymbol) ----
 
     /// tsc accessKind (17465).
+    /// tsc-port: accessKind @6.0.3
+    /// tsc-hash: e366fe43b4f834053c81c8a6ecd4152ed05a6677d7003990a81871115a613915
+    /// tsc-span: _tsc.js:17465-17493
     pub(crate) fn access_kind(&self, node: NodeId) -> AccessKind {
         let Some(parent) = self.parent_of(node) else {
             return AccessKind::Read;
@@ -2261,6 +2303,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc isWriteOnlyAccess (17459).
+    /// tsc-port: isWriteOnlyAccess @6.0.3
+    /// tsc-hash: b2d45c00b7610874a96c2aa467401d308fa257d6c8626cf9b6b6c7ac14d4c731
+    /// tsc-span: _tsc.js:17459-17461
     pub(crate) fn is_write_only_access(&self, node: NodeId) -> bool {
         self.access_kind(node) == AccessKind::Write
     }
@@ -2586,6 +2631,9 @@ impl<'a> CheckerState<'a> {
     /// the walked CHILD must be the parameter/binding-element
     /// INITIALIZER itself — a parameter DECORATOR operand is not
     /// (decoratorOnClassMethodParameter3 pins the 2524 silence).
+    /// tsc-port: isInParameterInitializerBeforeContainingFunction @6.0.3
+    /// tsc-hash: 62a952197b8ade7adf38f73f0e920addcc8901600e54d0c0b15ca090e81d948a
+    /// tsc-span: _tsc.js:72849-72861
     pub(crate) fn is_in_parameter_initializer_before_containing_function(
         &self,
         node: NodeId,

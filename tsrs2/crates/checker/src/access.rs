@@ -130,6 +130,9 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsc-port: removeOptionalTypeMarker @6.0.3
+    /// tsc-hash: 62a429297192356808aaf924b5c8417758ac0d8da7ebdbee04e7b7892b2514d4
+    /// tsc-span: _tsc.js:67874-67876
     pub(crate) fn remove_optional_type_marker(&mut self, ty: TypeId) -> TypeId {
         if self
             .options
@@ -144,6 +147,9 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsc-port: propagateOptionalTypeMarker @6.0.3
+    /// tsc-hash: 4b2f941b8b98dc6e92524aae055df24606c8c454d92e7ad18c810a6efc45b55f
+    /// tsc-span: _tsc.js:67877-67879
     pub(crate) fn propagate_optional_type_marker(
         &mut self,
         ty: TypeId,
@@ -328,6 +334,9 @@ impl<'a> CheckerState<'a> {
         Ok(ty)
     }
 
+    /// tsc-port: checkNonNullType @6.0.3
+    /// tsc-hash: ea5abf00f1909afe14b1cd6b4dcabd037d6dac7517ad0602ce4d2ac16c16a10f
+    /// tsc-span: _tsc.js:75048-75050
     pub(crate) fn check_non_null_type(&mut self, ty: TypeId, node: NodeId) -> CheckResult2<TypeId> {
         self.check_non_null_type_with_reporter(
             ty,
@@ -812,6 +821,9 @@ impl<'a> CheckerState<'a> {
         .is_some()
     }
 
+    /// tsc-port: isNodeWithinClass @6.0.3
+    /// tsc-hash: 1dc0b15c1bd61e40b57afd9b1d23361011a11e0a05f2e3a898cb20178e515ce3
+    /// tsc-span: _tsc.js:87249-87251
     pub(crate) fn is_node_within_class(
         &self,
         node: NodeId,
@@ -1065,6 +1077,9 @@ impl<'a> CheckerState<'a> {
         self.propagate_optional_type_marker(access_type, node, non_optional_type != left_type)
     }
 
+    /// tsc-port: checkQualifiedName @6.0.3
+    /// tsc-hash: 1e0a1431f0abec9c79fa53b27eedcba9fec6b6b4266644f9b085aa9d7bdf68c8
+    /// tsc-span: _tsc.js:75077-75080
     pub(crate) fn check_qualified_name(
         &mut self,
         node: NodeId,
@@ -1284,6 +1299,9 @@ impl<'a> CheckerState<'a> {
         Ok(symbol)
     }
 
+    /// tsc-port: getPrivateIdentifierPropertyOfType @6.0.3
+    /// tsc-hash: 89957a6bbe550fa9f3cfd71c7a104a648b6f98cfd0427f5b9af5b9061f9f0bfd
+    /// tsc-span: _tsc.js:75136-75138
     pub(crate) fn get_private_identifier_property_of_type(
         &mut self,
         left_type: TypeId,
@@ -1811,6 +1829,9 @@ impl<'a> CheckerState<'a> {
         self.get_flow_type_of_access_expression(node, prop, prop_type, right)
     }
 
+    /// tsc-port: isDeleteTarget @6.0.3
+    /// tsc-hash: acd85d989d425ae6eb1d6b714819a3a04d372034a79799ee3d6a226899a4e01d
+    /// tsc-span: _tsc.js:15665-15671
     pub(crate) fn is_delete_target(&self, node: NodeId) -> bool {
         // tsc isDeleteTarget (walkUpParenthesizedExpressions parent is
         // a DeleteExpression whose expression chain reaches node).
@@ -2439,6 +2460,9 @@ impl<'a> CheckerState<'a> {
             .set_symbol_is_referenced(self.speculation_depth, target);
     }
 
+    /// tsc-port: isSelfTypeAccess @6.0.3
+    /// tsc-hash: 050cfa35090c8a03a8f9a71e910faf943f3923a4f6379671b2ba4a5d715419be
+    /// tsc-span: _tsc.js:75619-75621
     pub(crate) fn is_self_type_access(
         &mut self,
         name: NodeId,
