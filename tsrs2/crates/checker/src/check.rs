@@ -104,6 +104,7 @@ struct JsDocUnmatchedParameterProjection {
     start: usize,
     end: usize,
     is_name_first: bool,
+    type_text: Option<String>,
 }
 
 impl<'a> CheckerState<'a> {
@@ -3163,13 +3164,16 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsrs-native: project checkUnmatchedJSDocParameters' direct
-    /// TS8024/TS8032 faces while JSDoc nodes remain absent from the
-    /// syntax arena. The separate `arguments`/array TS8029 face stays
-    /// outside this owner slice.
+    /// tsrs-native: project checkUnmatchedJSDocParameters while JSDoc
+    /// nodes remain absent from the syntax arena.
     /// tsc-source-hash: 00361f5277c6701a052dd8905b08a078fd6604840092e5cc7c9cf1d8ecdc3703
     /// tsc-source-span: _tsc.js:84792-84829
     /// d2: d2:4637c5c32e3f7d3432b94cc01fbc5fb10b71a71988aab972b76c35b262222cae
+    ///
+    /// tsc-port: checkUnmatchedJSDocParameters @6.0.3
+    /// tsc-hash: e9a63a7054339a08163ddeab8005f045873a77f36587f78dff2158b609391afb
+    /// tsc-span: _tsc.js:84806-84813
+    /// d2: d2:cb7a6a4f1f46410bc3a666f2af66648a653c9e023a1871dc72f6791ab3c0ad2c
     ///
     /// The primary route is checkSignatureDeclaration's existing
     /// declaration boundary. A cached later initializer in a comma
@@ -3210,17 +3214,6 @@ impl<'a> CheckerState<'a> {
             return;
         }
 
-        // containsArgumentsReference switches this producer to its
-        // TS8029-only branch. A conservative lexical projection is
-        // sufficient here: false positives only suppress this partial
-        // TS8024/TS8032 port, and avoid a second body-node traversal.
-        let raw = source.arena.node(node);
-        let function_text = &source.text
-            [(raw.pos as usize).min(source.text.len())..(raw.end as usize).min(source.text.len())];
-        if text_contains_identifier(function_text, "arguments") {
-            return;
-        }
-
         let mut parameter_names = std::collections::BTreeSet::new();
         let mut excluded_parameters = std::collections::BTreeSet::new();
         for (index, parameter) in self.parameters_of_function(node).into_iter().enumerate() {
@@ -3236,6 +3229,37 @@ impl<'a> CheckerState<'a> {
             ) {
                 excluded_parameters.insert(index);
             }
+        }
+
+        // containsArgumentsReference switches this producer to its
+        // last-param-only TS8029 branch. Keep P16's bounded lexical
+        // reference projection: it avoids a second body-node traversal.
+        let raw = source.arena.node(node);
+        let function_text = &source.text
+            [(raw.pos as usize).min(source.text.len())..(raw.end as usize).min(source.text.len())];
+        if text_contains_identifier(function_text, "arguments") {
+            let index = projections.len() - 1;
+            let projection = &projections[index];
+            if is_jsdoc_identifier(&projection.name)
+                && projection
+                    .type_text
+                    .as_deref()
+                    .and_then(jsdoc_type_text_is_array_projection)
+                    == Some(false)
+                && !parameter_names.contains(projection.name.as_str())
+                && !excluded_parameters.contains(&index)
+            {
+                let diagnostics_before = self.diagnostics.len();
+                self.error_at_byte_range_with_args(
+                    node,
+                    projection.start,
+                    projection.end,
+                    &diagnostics::JSDoc_param_tag_has_name_0_but_there_is_no_parameter_with_that_name_It_would_match_arguments_if_it_had_an_array_type,
+                    &[&projection.name],
+                );
+                self.mark_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 8029);
+            }
+            return;
         }
 
         for (index, projection) in projections.into_iter().enumerate() {
@@ -12737,6 +12761,7 @@ fn jsdoc_unmatched_parameter_projections(
                 start: payload_start,
                 end: payload_start,
                 is_name_first: true,
+                type_text: None,
             });
             continue;
         }
@@ -12755,6 +12780,7 @@ fn jsdoc_unmatched_parameter_projections(
                     start,
                     end: start,
                     is_name_first: false,
+                    type_text: None,
                 });
                 continue;
             }
@@ -12779,17 +12805,24 @@ fn jsdoc_unmatched_parameter_projections(
                     start: name_start,
                     end: name_start,
                     is_name_first: false,
+                    type_text: None,
                 });
                 continue;
             }
-            if let Some(projection) = jsdoc_parameter_name_projection(name_text, name_start, false)
-            {
+            if let Some(projection) = jsdoc_parameter_name_projection(
+                name_text,
+                name_start,
+                false,
+                Some(type_text.trim().to_owned()),
+            ) {
                 raw_projections.push(projection);
             }
             continue;
         }
 
-        if let Some(projection) = jsdoc_parameter_name_projection(payload, payload_start, true) {
+        if let Some(projection) =
+            jsdoc_parameter_name_projection(payload, payload_start, true, None)
+        {
             raw_projections.push(projection);
         }
     }
@@ -12821,6 +12854,7 @@ fn jsdoc_parameter_name_projection(
     text: &str,
     absolute_start: usize,
     is_name_first: bool,
+    type_text: Option<String>,
 ) -> Option<JsDocUnmatchedParameterProjection> {
     let leading = text.len() - text.trim_start_matches(char::is_whitespace).len();
     let text = &text[leading..];
@@ -12861,6 +12895,7 @@ fn jsdoc_parameter_name_projection(
             start,
             end,
             is_name_first,
+            type_text,
         })
 }
 
@@ -12880,6 +12915,67 @@ fn text_contains_identifier(text: &str, identifier: &str) -> bool {
         cursor = end;
     }
     false
+}
+
+/// Source-text projection of isArrayType(getTypeFromTypeNode(...)) for
+/// the direct checked-JS JSDoc spellings used by the TS8029 branch.
+/// Unknown aliases stay unclassified, so they cannot introduce a
+/// false-positive diagnostic before general JSDoc type nodes exist.
+fn jsdoc_type_text_is_array_projection(text: &str) -> Option<bool> {
+    let mut text = text.trim();
+    while let Some(stripped) = text
+        .strip_prefix(['!', '?'])
+        .or_else(|| text.strip_suffix('='))
+    {
+        text = stripped.trim();
+    }
+    if text.starts_with("...") || text.ends_with("[]") {
+        return Some(true);
+    }
+    let compact: String = text
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect();
+    if matches!(compact.as_str(), "Array" | "ReadonlyArray")
+        || ((compact.starts_with("Array<")
+            || compact.starts_with("Array.<")
+            || compact.starts_with("ReadonlyArray<")
+            || compact.starts_with("ReadonlyArray.<"))
+            && compact.ends_with('>'))
+    {
+        return Some(true);
+    }
+    if matches!(
+        text,
+        "*" | "?"
+            | "any"
+            | "unknown"
+            | "never"
+            | "void"
+            | "undefined"
+            | "null"
+            | "string"
+            | "String"
+            | "number"
+            | "Number"
+            | "boolean"
+            | "Boolean"
+            | "bigint"
+            | "BigInt"
+            | "symbol"
+            | "Symbol"
+            | "object"
+            | "Object"
+            | "function"
+            | "Function"
+    ) || text.starts_with('{') && text.ends_with('}')
+        || text.starts_with('(') && (text.contains("=>") || text.ends_with(')'))
+        || text.contains('|')
+        || text.contains('&')
+    {
+        return Some(false);
+    }
+    None
 }
 
 fn parse_jsdoc_parameter_tag_annotations(comment: &str) -> Vec<JsDocParameterTagAnnotation> {
@@ -13589,6 +13685,57 @@ mod tests {
             diagnostics.iter().all(|row| !matches!(row.0, 8024 | 8032)),
             "{diagnostics:?}"
         );
+    }
+
+    // ---- M8-P19 checkUnmatchedJSDocParameters arguments branch ----
+
+    #[test]
+    fn jsdoc_arguments_owner_reports_8029_for_the_last_non_array_parameter() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/** @param {string} first */\n\
+                    function concat() { return arguments.length; }\n";
+        let rows: Vec<_> = checked_file_diags_with("a.js", text, &options)
+            .into_iter()
+            .filter(|row| row.0 == 8029)
+            .collect();
+        assert_eq!(
+            rows,
+            [(
+                8029,
+                text.find("first").unwrap() as u32,
+                5,
+                "JSDoc '@param' tag has name 'first', but there is no parameter with that name. It would match 'arguments' if it had an array type.".to_owned(),
+            )]
+        );
+    }
+
+    #[test]
+    fn jsdoc_arguments_owner_preserves_array_match_and_binding_siblings() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/**\n\
+                     * @param {string} ignored\n\
+                     * @param {...string} values\n\
+                     */\n\
+                    function variadic() { return arguments; }\n\
+                    /** @param {string[]} values */\n\
+                    function array() { return arguments; }\n\
+                    /** @param {string} present */\n\
+                    function matching(present) { return arguments; }\n\
+                    /** @param {string} excluded */\n\
+                    function binding({ value }) { return arguments; }\n";
+        assert!(checked_file_diags_with("a.js", text, &options)
+            .into_iter()
+            .all(|row| row.0 != 8029));
     }
 
     // ---- M7 8.1m JSDoc unique-symbol property grammar ----
