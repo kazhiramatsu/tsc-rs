@@ -1,27 +1,530 @@
 {
   "schema": 2,
+  "artifact_dir": "target/m8/evidence",
   "runtime_coverage": {
-    "status": "draft",
-    "inventory_sha256": "77a1ab1dea3367cb6d913f158ee97932d8c256f5c907f7a3846a1a2fc99f6f38",
-    "executed_emitters": [],
-    "zero_hit_emitters": [],
-    "artifact": null
+    "artifact": "runtime-coverage.json",
+    "max_workers": 1,
+    "programs_per_process": 500,
+    "max_lib_cache_buckets": 8,
+    "diagnostic_canary_programs": 32,
+    "zero_hit_reviews": [
+      {
+        "declaration": "d2:09ab68676abedab95c23c3923236ea0dcf229e9b5f2c10440052dfc2c80b81bb",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=trySetLanguageAndTerritory; lexical_path=<top>/validateLocaleAndSetLanguage@11349:1/trySetLanguageAndTerritory@11369:3; direct_codes=6050,6051; source_slice_sha256=1ffe1f9c123b03d9060cd4d9f0f10cc2531f9b9d6c35c97cadb184fcf3fbea0f. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:0b65d209d39c5f96f3a7a6700680004bf1e1dba66350d286f56cd79758ca6425",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=reportInvalidImportEqualsExportMember; lexical_path=<top>/createTypeChecker@46438:1/reportInvalidImportEqualsExportMember@48945:3; direct_codes=2595,2596,2597,2598,2616,2617; source_slice_sha256=8c4469049e4a46f4f4745eede49d15e95046313726a19d94760a76b79f324fb3. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:17607b645554df64dcb0ca249c8442f911457edbad724e7a543e0c7c4fd77621",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=reportFileNamesDifferOnlyInCasingError; lexical_path=<top>/createProgram@122625:1/reportFileNamesDifferOnlyInCasingError@124237:3; direct_codes=1149,1261; source_slice_sha256=265bd5220dbda878236e580ca780983e15187a54d500ab895eecab3a537243ee. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:17c8efddfac554f9fcff77457e174e1cb826338d65b30258bd26b4681b68a1a0",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=pathForLibFileWorker; lexical_path=<top>/createProgram@122625:1/pathForLibFileWorker@124526:3; direct_codes=6183,6184,6389; source_slice_sha256=55c88bbf3d28be6acc2005e67cc61be44ab47825d457b1455253b597d75bb258. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:1de90e7396b32909035e00ec2aae3b3fd2e4f9c0cda82b24b6848f07c580e636",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=parseOwnConfigOfJsonSourceFile; lexical_path=<top>/parseOwnConfigOfJsonSourceFile@39379:1; direct_codes=6258; source_slice_sha256=3fcba2287729ac4bed96a5d9a4aa0c6d28736f435a868806e898131d4a304e13. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:1efa4fbb2de0f70bc83b282929a5c4f3a448502701574b54e34b45aeba12107f",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=printVersion; lexical_path=<top>/printVersion@132212:1; direct_codes=6029; source_slice_sha256=b936ee99c7302086c1ca7d449a27ecfa358ab0df24134b1657d7545451a21880. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:1f2e8fe96769689d5f61aa62c6587148497c9360fb06442ddc145e0484679753",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=parseOptionValue; lexical_path=<top>/parseOptionValue@38180:1; direct_codes=6064,6230; source_slice_sha256=36c0fc1e2a8094d49bb5e0f4b6390308dbb298fff0ae98494728f025ef770c90. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:1f9eb167e8805ccffe3727dfb4828b3804d53c80b237bda8633eb30e0da88321",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=generateOptionOutput; lexical_path=<top>/generateOptionOutput@132258:1; direct_codes=6903; source_slice_sha256=bc4b26272cc1b333d7ac2932f2f67dcd7362e6d568b421f910ec18e1c1f9782b. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:2171820a3df95f324f8c8db9683bd476701438b9106d789c8a52ac7d733008d6",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getVariableDeclarationTypeVisibilityDiagnosticMessage; lexical_path=<top>/createGetSymbolAccessibilityDiagnosticForNode@113842:1/getVariableDeclarationTypeVisibilityDiagnosticMessage@113865:3; direct_codes=4023,4024,4025,4026,4027,4028,4029,4030,4031,4032,4033; source_slice_sha256=017266829323686449f0b54f51c5daf3a771d1533f88e21247b3b79806446bc4. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:219242bb359cb879302ce19d36c8bd3c83eedac38ba7675639c4b8bd80559b59",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getDiagnostic; lexical_path=<top>/createGetIsolatedDeclarationErrors@114054:1/getDiagnostic@114089:3; direct_codes=9021; source_slice_sha256=baf56f9844f560d249b963f2149e5db7965277c2264fe54436a8c026fab41dd1. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:21d54ae89bf4badb4ab6620a2e483c590e48f8b3a858efdfb21edddb32dc335f",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=<anonymous>; lexical_path=<top>/createTypeChecker@46438:1/reportNonExportedMember@48926:3/<anonymous>@48938:71; direct_codes=2728,6204; source_slice_sha256=77255f3e88996856fa739a4800c2f618ee6660a9ddbcef01355562dd180bb80f. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:22385160a1f970180cebf1b96534c27ec79c49f16ea77dcf56a4a65baafcc827",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getJsxPropsTypeFromClassType; lexical_path=<top>/createTypeChecker@46438:1/getJsxPropsTypeFromClassType@73708:3; direct_codes=2607; source_slice_sha256=182e71e720a8189ea641031ab9f51dee87cee594b1677967b9df3665dffcea81. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:2a1c7b580798461c1fc6dcf95c4719654b0bb03683886abab5c26289025c9a57",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=parseBuildCommand; lexical_path=<top>/parseBuildCommand@38285:1; direct_codes=6370; source_slice_sha256=23b2667c8ba7bd7483df92aa216c72c50d55b1ccd3ecbfc972e151ed82faf819. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:2ceb5b434ec0431e5f3d70c6f4d879414f1beb1bc2478d4dc4644c0be5140a9f",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getProjectReferences; lexical_path=<top>/parseJsonConfigFileContentWorker@39004:1/getProjectReferences@39126:3; direct_codes=5024; source_slice_sha256=2c0c9f948fb551582889105032a7247b642a946ace966fe27483310de2c03950. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:2ef2109fa35c96565967a0d0c35eb0089889b3278bb8da3e259f8c25136b92b1",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=printAllHelp; lexical_path=<top>/printAllHelp@132511:1; direct_codes=6029,6913,6914,6915,6917,6918,6919,6922; source_slice_sha256=8ba02d49b437be09c0d5e1df80802d49c8e687e41b19c2cad789a656d6710beb. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:326fc4a35f58f0983b4f24f990d235bff209b2f6d86ca798a622301af5332121",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=validateLocaleAndSetLanguage; lexical_path=<top>/validateLocaleAndSetLanguage@11349:1; direct_codes=6048; source_slice_sha256=56f1dda58e3526e075a635921e0d3022d1db6c14e952cf9f315da4e3f5377fe5. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:33c17a8f3e90e229f519ffd5b66295e360d6b8eb83c53914b60b06e37ed694f5",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=resolveLibrary2; lexical_path=<top>/createResolutionCache@128134:1/resolveLibrary2@128511:3; direct_codes=6183,6184,6389; source_slice_sha256=d20199f2f67e1c33e29597688cb7d55e3f38fa7eaf77a62f0fb06550689e1f66. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:36420e1434bba406019bc55300ed85b2fb60d4c1b4d61e439e56f059475df6ae",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getMethodNameVisibilityDiagnosticMessage; lexical_path=<top>/createGetSymbolAccessibilityDiagnosticForNodeName@113799:1/getMethodNameVisibilityDiagnosticMessage@113832:3; direct_codes=4095,4096,4097,4098,4099,4100,4101,4102; source_slice_sha256=cad229f9721bb9d8e17131c70536246b5561d75bf1944aca8d5a579bbf3a8a7a. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:3934c4fdacb36bb83d836f089e73a3e98a2fd7add917df8a9874a5ec08cfe4b1",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=visit; lexical_path=<top>/createBuildOrder@130664:1/visit@130674:3; direct_codes=6202; source_slice_sha256=be05561a0aaf184254289c57bcbe83d5ec0fb8fbd97cbc42c386fd237ae047ab. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:3a67937cf9fd9a04db0a9c5b3417978e2b3a2fbf2bdf7f7de36b0fa55a74e37d",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=emit; lexical_path=<top>/createBuildOrUpdateInvalidedProject@130875:1/emit@130984:3; direct_codes=6371; source_slice_sha256=cd1faa32e34387cbc9b9229425e1779a068298ec4f72b5bda58aac5e73084604. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:3ed33f51276f44764405b055c3f6e88ae116234111a75e668fd699779d140bd8",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=transformImportDeclaration; lexical_path=<top>/transformDeclarations@114265:1/transformImportDeclaration@114841:3; direct_codes=9026; source_slice_sha256=7378b26b9aa92b509ccdcf1b5e3872188bb6604c102714fe9e90013ad9ac2bf5. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:3ffc1a9f64e050f1c74ef45987b18b6d4b40a801fc7663e346b565095a7073d1",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=elaborateIterableOrArrayLikeTargetElementwise; lexical_path=<top>/createTypeChecker@46438:1/elaborateIterableOrArrayLikeTargetElementwise@64206:3; direct_codes=2412; source_slice_sha256=0c926bdf5a8e74cd79d7130f5113585b5cd7074b5f7df4096116c673a10ce8fd. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:40caa267b49c1b178dc358b574cbf83e8d2ee62255047137ff438ec71dd220ba",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=<anonymous>; lexical_path=<top>/createProgram@122625:1/findSourceFileWorker@124274:3/<anonymous>@124350:7; direct_codes=5012; source_slice_sha256=cf3135773fcaf088ff179b9fc9ad1781fb2ece824b9550bee4e6ea0ca3790007. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:442412d85e81389a765190f592b13a45d221096805a8d75034721fe25741a27d",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=printBuildHelp; lexical_path=<top>/printBuildHelp@132543:1; direct_codes=6029,6915,6919,6922; source_slice_sha256=4f9d2603d113b9a37ddd0ff0a2cd052a9f31d20f218f5b2ed4c9edbe0caa44a7. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:44d78dcf84ca23c0f82e1cc370ae50c3ca2290595e1adb2a0dd3fe6caf989a02",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=writeConfigFile; lexical_path=<top>/writeConfigFile@133238:1; direct_codes=5054; source_slice_sha256=fcece58139e45e36076d7bf8d53d4294db14e558aa29caccd6ba266d6b1ef51a. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:461c96c7b8d71fc6362b978f04e95f0a4200e9d0ec08c7d328a4b0ed695d7ecb",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=convertJsonOption; lexical_path=<top>/convertJsonOption@39555:1; direct_codes=5024,6266; source_slice_sha256=deb995ed11550c6ad106bf73f164d9d69bc991363edb5b4ea0b543e28ecbd653. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:47120d678a6ba3dbe79738dc18e4faeb8a54f230703c7ba54427336bb0083222",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=<anonymous>; lexical_path=<top>/createTypeChecker@46438:1/checkJsxOpeningLikeElementOrOpeningFragment@74797:3/<anonymous>@74812:145; direct_codes=2786; source_slice_sha256=5e1126dd9b784114c2a7c7a992c335ba8125ba6431f2a3e8fcf2db7f5501b924. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:4741b69c1320ed797e45439b769d01bade77772337bd2d7b3828356188de242c",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=executeCommandLineWorker; lexical_path=<top>/executeCommandLineWorker@132583:1; direct_codes=5042,5057,5058,5081,5112,6370; source_slice_sha256=f656ff52d520f440c26cb6ca738e44086025695cba5ced41a0d1d92d760789d7. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:487c4ac99b0ed9c255a9933e5c4066a602bfcb31065cc856b7db3669f6333beb",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getErrorSummaryText; lexical_path=<top>/getErrorSummaryText@129165:1; direct_codes=6216,6217,6259,6260,6261; source_slice_sha256=d7675f73614f081956387f49d5d088930b030d42048f40a6061eece2e115d11a. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:4b2a32496e69fdf6f63a3a81d9338401395a3f7baea170dd6da3c5b4206a3254",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getExtendsConfigPath; lexical_path=<top>/getExtendsConfigPath@39436:1; direct_codes=6053,18051; source_slice_sha256=8233c0b071d6b5fc6a4a5c0d99fc611c693f0b17e087909fb72db6818c7f6b3e. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:4ff67189e8d3c0f86d8af5a0babdae417b7ae4d9c97f5c213f4d1752a0c6d0c1",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=printEasyHelp; lexical_path=<top>/printEasyHelp@132463:1; direct_codes=6029,6913,6916,6920,6921,6922,6923,6924,6925,6926,6927,6928,6929; source_slice_sha256=8dd2d6da2fb0743f7dbba7652b99fc931b25cfb11693ad881c3db21f7aacdf73. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:53d8d7471a8f60ca61c340529e5bfe909ba5c2b726afae6ca17cf383f9d6b601",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getParameterDeclarationTypeVisibilityDiagnosticMessage; lexical_path=<top>/createGetSymbolAccessibilityDiagnosticForNode@113842:1/getParameterDeclarationTypeVisibilityDiagnosticMessage@113948:3; direct_codes=4061,4062,4063,4064,4065,4066,4067,4068,4069,4070,4071,4072,4073,4074,4075,4076,4077,4078,4091,4092,4106,4107,4108; source_slice_sha256=75a39682a9e4f4ed2fb6c8dd036aa8361864fa4eac5a7279c32981afffe8d964. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:54056f7396c567f927def85f2ab4f9c06c8ca3cd7a7ce5547e55bde5ddb328f7",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=<anonymous>; lexical_path=<top>/createTypeChecker@46438:1/lateBindMember@57662:3/<anonymous>@57678:33; direct_codes=2733; source_slice_sha256=63618e253108ae67dd2c30ae70c7ab2bd8c64cf2e9e8ce43f5cbe422394df872. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:547e9bcff319a51adb42436c2dbd2248c73343b32168d6c8372c3f3623756efa",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=traceResult; lexical_path=<top>/resolveTypeReferenceDirective@40060:1/traceResult@40164:3; direct_codes=6119,6120,6219; source_slice_sha256=3067b32247d56a9f96dcf03d46bf2c5af21305153b47239cb72962ea4c265cd0. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:55349f8f688e03875046be50169c8840c77a69425b90fabb71f3b6a8b5d41b1c",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getReturnTypeVisibilityError; lexical_path=<top>/createGetSymbolAccessibilityDiagnosticForNode@113842:1/getReturnTypeVisibilityError@113907:3; direct_codes=4044,4045,4046,4047,4048,4049,4050,4051,4052,4053,4054,4055,4056,4057,4058,4059,4060; source_slice_sha256=12ac4756cfca980452123724d8d5c1598c9da500750fa915c346f8c0e2510512. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:57e98d12e90e4e5c1d65fd831a255d2df3f0f72c1c5a9b2da63d121a1b8e2b35",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=createExpressionError; lexical_path=<top>/createGetIsolatedDeclarationErrors@114054:1/createExpressionError@114223:3; direct_codes=9013,9035; source_slice_sha256=8d903e2ed684655379eb0cfe7e6a7d8c985fcbbc3331ee0ccf4b3f86c74b3d93. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:5849eec4f71b5e9c74cb919ae07b8f1442782dde76a2140ccc30603800711e81",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=reportCyclicStructureError; lexical_path=<top>/transformDeclarations@114265:1/reportCyclicStructureError@114389:3; direct_codes=5088; source_slice_sha256=14cc9702ad59b7ac3941bbb1aaa459e6518a900952e842c46ad4cd9c0481027b. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:58d365c73ab6360f4d77a2a2383b995e532d3350be9779f405761578d39cc662",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=parseOwnConfigOfJson; lexical_path=<top>/parseOwnConfigOfJson@39331:1; direct_codes=6114; source_slice_sha256=c963090a7af75ce9d6eff9d0880dbe9a9d6db38496b303d3e24e4911a0040ab5. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:5a45e79d0c1a6f40c188737cdaa0b5373b8815652f28249746a736ad7d11d197",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getPropFromRaw; lexical_path=<top>/parseJsonConfigFileContentWorker@39004:1/getPropFromRaw@39151:3; direct_codes=5024; source_slice_sha256=73251b72af45cf45026a72a67c21fb9cbe5b8bd600fe3d86297faf41bc13353c. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:5d024312aede1b3afd923cda1c0a11aa2155d629914b0062abace6493f8d6315",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=reportNonSerializableProperty; lexical_path=<top>/transformDeclarations@114265:1/reportNonSerializableProperty@114426:3; direct_codes=4118; source_slice_sha256=eec5bea72529fcb719dc83610b55061075d7969c74aad2e479de13ccf64e7474. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:605b20704d03077554b9cefa6063136ac1ecfae31dcc2a12e90700ee63bba9ac",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=filePreprocessingLibreferenceDiagnostic; lexical_path=<top>/createProgramDiagnostics@125744:1/filePreprocessingLibreferenceDiagnostic@125836:3; direct_codes=2726,2727; source_slice_sha256=0bbb9b54d7804ab8c1120a9919e25184e9c0422e5f4b7977da2125f04e8f0aa2. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:60da2de456bc958dd4723f660d1998cff05bb160171b0feb1aac1b3e463b6868",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=parseConfigFile; lexical_path=<top>/parseConfigFile@130638:1; direct_codes=6053; source_slice_sha256=0f9a421bd74884ccc1d5e3662f1c62165eb5b59677b0b6a78e78924d33cf5ed1. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:612e9fe5586cf5953f98357f6d45934e8c9f51a6289a751b33f0ee564b2bc5cd",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=serializeOptionBaseObject; lexical_path=<top>/serializeOptionBaseObject@38736:1; direct_codes=6171,6256; source_slice_sha256=6cbf36904ea0b98fab7a8ad8a437617b83567654362609996111b9a7fa54f306. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:619bfc5c0c8750509261da20e6a78bb107fe551c34ddef1bd100807b82262486",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=buildNextInvalidatedProjectWorker; lexical_path=<top>/buildNextInvalidatedProjectWorker@131749:1; direct_codes=6032; source_slice_sha256=49f71a9d5ad9714660c0f42465b422f9d79504cbe18050729a1d68581552d5d2. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:633d85ce3000e6af69843d6dee90218ee04d581db9c9057ccc3e10abe89ac327",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=createEntityInTypeNodeError; lexical_path=<top>/createGetIsolatedDeclarationErrors@114054:1/createEntityInTypeNodeError@114214:3; direct_codes=9039; source_slice_sha256=46c286508f1b29370500f49e1b4c0fa9403c95fcf2448ed7d27c0d9215457d53. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:6511f4a0cb6c1022d1ca85d05c4624e96122e1e971e528e7998b120126cd7641",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=generateTSConfig; lexical_path=<top>/generateTSConfig@38769:1; direct_codes=6284,6285,6286,6287,6290,6291,6292,6293,6294,95110; source_slice_sha256=5e3110fe72f143639734ad4b29243d15a7140350a4fbca7d56d1ade952b15a7b. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:68b04cd1df752fc7655129719633b19f59fb67dc8a71327fa5499049bb64ef98",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=reportLikelyUnsafeImportRequiredError; lexical_path=<top>/transformDeclarations@114265:1/reportLikelyUnsafeImportRequiredError@114399:3; direct_codes=2742,2883; source_slice_sha256=6ef70ef33a0f79987bb9754d6c334c7185f4ac92159b2f30f056964a63656e7b. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:69506e1f7ad1ae40a6510c8bdddbce94acfe782a708db3ea0404b44cd35691a1",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=tryReadFile; lexical_path=<top>/tryReadFile@38351:1; direct_codes=5012,5083; source_slice_sha256=4badc631805ac5804cf5b8fb6a05d6adb7aa5b19357df9b52544dfbb24d125a4. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:6a1d83a0c3c03ccbb4cc8792e94de7910869ca4c33b1ac4f6e69c30e8ff640b9",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=scanPatternModifiers; lexical_path=<top>/createScanner@8688:1/scanRegularExpressionWorker@9997:3/scanPatternModifiers@10194:5; direct_codes=1499,1500,1509; source_slice_sha256=bd35686988a5f132ff7736f7e3d1d4cd6f5bfcd5a0efe3b9fd3e72c508da9913. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:6da3abc3508477842994cadc14c61ae9015a55f6fe0fae6c98443503c2eb57f0",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=specToDiagnostic; lexical_path=<top>/specToDiagnostic@39711:1; direct_codes=5010,5065; source_slice_sha256=14743877484a96a987583d14c18dd6d2dea73bce5a9a5d1389bdd16e88817a53. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:7211656ee302551987f8d729ade2a0e833aea01143d67e7b349620585d54daa3",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=scanClassSetSubExpression; lexical_path=<top>/createScanner@8688:1/scanRegularExpressionWorker@9997:3/scanClassSetSubExpression@10496:5; direct_codes=1005,1508,1519,1520; source_slice_sha256=e0851a8efb16b7b4d51a5c7afed783a30e11448134cee13e3e27b13c6fa8c1b7. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:760ef49b1984ff9ce096544284a7295bb3ca1d1663af25bb2f698789d5ef9e73",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=reportUpToDateStatus; lexical_path=<top>/reportUpToDateStatus@132015:1; direct_codes=6350,6351,6352,6353,6354,6363,6381,6383,6388,6399,6400,6401,6406,6412,6419,6420; source_slice_sha256=7975eb10cee70f420480a8bfb6738f9cae9782e25ef0ab79ea401519858cb077. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:7675a78b8263b2fd2795d81a309dfc1efec719cf7adc6ffe7a5eb26de5e48ca3",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=scanConflictMarkerTrivia; lexical_path=<top>/scanConflictMarkerTrivia@8459:1; direct_codes=1185; source_slice_sha256=0128feb8e635df593ba01418c38d9b36faa6a7411bfb0771f53a8e0d20a873e5. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:76876c552d8fec9bdfcb3bf07319e21247a422536c10a4d79a8a1278195acc73",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getWatchErrorSummaryDiagnosticMessage; lexical_path=<top>/getWatchErrorSummaryDiagnosticMessage@129150:1; direct_codes=6193,6194; source_slice_sha256=831058bc2e834c4452d6bd6213957203fee5c23c08bb6301336c90bb6a4d4b29. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:787244ce2a2c3ba59f16b14d8d31bc65eb105cb9f34f41d20beba8db0bd9aff6",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=setupInitialBuild; lexical_path=<top>/setupInitialBuild@130833:1; direct_codes=6031; source_slice_sha256=b45a702a139f204a46f1194419b040f908a8f408da5eec069c5c6fd65e01bcc0. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:7904082ffaf79b2b6e82a846064a44f2ff1f4f370b898d3ac23789f9c9cf9201",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=onPropertySet; lexical_path=<top>/parseOwnConfigOfJsonSourceFile@39379:1/onPropertySet@39398:3; direct_codes=6114; source_slice_sha256=8a2d708983a92f531a1529a30c91da35a97475e1e7661ec39fb8be1f6cde7f30. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:79c152cab773ec422d58691da7de75e3a80cf3d2cf6094720aa282e91bbfc24c",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=createWatchProgram; lexical_path=<top>/createWatchProgram@129745:1; direct_codes=6031; source_slice_sha256=515a5709b2defe4402292522cc4915e67e346fceb8ffb0d3eab528c78a167b79. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:7c25e32a21b11b69fbbb7afdf9e2b91f398c271fb4966d5091fa24becceee8aa",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=parseResponseFile; lexical_path=<top>/parseCommandLineWorker@38104:1/parseResponseFile@38151:3; direct_codes=6045; source_slice_sha256=e9ea5bc744f5c52d3af7de9d7b7e52d084fc2af144bc067d7093fbd40ede377d. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:7d14ff0f9a750b736e0f6a67aa0244a03acef272069a273a5ba7f6fa7772699a",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getTypeAliasDeclarationVisibilityError; lexical_path=<top>/createGetSymbolAccessibilityDiagnosticForNode@113842:1/getTypeAliasDeclarationVisibilityError@114046:3; direct_codes=4081,4084; source_slice_sha256=d538e84f7d64688fdfd59f5cbb4967d665ed41d63b7b654ef873217c3b13a4ff. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:7ffb6e9b234e98820465c529b8ca43b3d825aa4a1fb9b5f9e5ccc87b71428a39",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=scanClassSetOperand; lexical_path=<top>/createScanner@8688:1/scanRegularExpressionWorker@9997:3/scanClassSetOperand@10553:5; direct_codes=1521; source_slice_sha256=91696eb3f0d8763568a08b6238d21afc1182661b0606e21cd1f573e12eed4149. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:83b4c584d403a1bd047e959b02ba0769d0afcefedfbb843a50c411ef5461d518",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getValueType; lexical_path=<top>/generateOptionOutput@132258:1/getValueCandidate@132363:3/getValueType@132371:5; direct_codes=6900,6901,6902; source_slice_sha256=723ce3abb6124d2a2af34340edb684df6b809fddde3bb17f2673ff29cdbc3577. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:84404f7dece720da75bc620ea6995695725a9f50237a087481b713669c413891",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=createParameterError; lexical_path=<top>/createGetIsolatedDeclarationErrors@114054:1/createParameterError@114193:3; direct_codes=9025; source_slice_sha256=d031d5343d9190dbbc3849466aba8cf2b90e40621d3b19dd54af19e1d5c6f522. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:88d0bc9656234c3d2531ef5b14ecb6d9fae91cee0d6d08ac6db5ecc332d7b471",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=explainIfFileIsRedirectAndImpliedFormat; lexical_path=<top>/explainIfFileIsRedirectAndImpliedFormat@129225:1; direct_codes=1428,1429,1458,1459,1460,1461; source_slice_sha256=4bd1d72257a11fc0d58f2ff3b8609170d5f225f9a8b5d801b67751dfbf9e001a. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:8959c8b216a343de7e34ba192a25d17d32603aa222dee5d7ebb8d08198ea7f66",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=reportInaccessibleUniqueSymbolError; lexical_path=<top>/transformDeclarations@114265:1/reportInaccessibleUniqueSymbolError@114384:3; direct_codes=2527; source_slice_sha256=636f484e2cf10c53f40e989f92273b01ffc440402aa2eb895b1a034dafd0e771. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:8dc3b4a150b9c0d7cd916243440754eb417650e5225e2443c5b7c6579a846406",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=reportPrivateInBaseOfClassExpression; lexical_path=<top>/transformDeclarations@114265:1/reportPrivateInBaseOfClassExpression@114371:3; direct_codes=4094,9027; source_slice_sha256=507c8b075bab67d7e5288b77f7f6847880c83a6ae134508088ae4ab4ae156ec1. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:9106aad5985c115ea3a7433655dbe56d3ce84543e14291705760bd0349159125",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=<anonymous>; lexical_path=<top>/createTypeChecker@46438:1/checkIfNewTargetIsCapturedInEnclosingScope@83274:3/<anonymous>@83275:24; direct_codes=2543,2544; source_slice_sha256=8a48530303f2dc615fbfaf7f97e006feff4a3c52b1885ef5fe6679a11fe52049. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:9106fa3085ccb62fb4b57212cc89b0cc70cef93c38d879e51aa1d3e08c5ce8f3",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=synchronizeProgram; lexical_path=<top>/createWatchProgram@129745:1/synchronizeProgram@129888:3; direct_codes=6032; source_slice_sha256=078bc79752d68d4f29d5a2e0f761366862ac45b77414de21d47531e7db241c8a. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:919be224c241009964f17e32d0ec3bf979a634706886ca7d3ac5c3a3287f0a75",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=scanClassSetExpression; lexical_path=<top>/createScanner@8688:1/scanRegularExpressionWorker@9997:3/scanClassSetExpression@10361:5; direct_codes=1508,1516,1517,1518,1519,1520; source_slice_sha256=873bb99142acafb6c58f393bebf48d620cfdd3fd60141f27267630df453da2ed. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:92aea9c405d8694aa3f5a7278a9f804608d95c03b7dc31bbe357f0a888f46a8e",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=reportBuildQueue; lexical_path=<top>/reportBuildQueue@132010:1; direct_codes=6355; source_slice_sha256=991eb7b7f3228f8a15544647362302b32e8d0d629572fe3ed39402cd6dd1851b. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:94f8bdf82f6884f1153e7471fb123e8f08864cf3c2d0b3cddc175af190c47372",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=<anonymous>; lexical_path=<top>/transformDeclarations@114265:1/transformTopLevelDeclaration@115337:3/<anonymous>@115672:62; direct_codes=9020; source_slice_sha256=e0fbc2e75085d3b1d03dd7774bb7f91691d58c6332cea7639d261127ee448839. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:96bc155d951e7e182ccaa5849edee8d246aa87eb365450d9c61af72c9d8d16e8",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=cleanWorker; lexical_path=<top>/cleanWorker@131672:1; direct_codes=6356; source_slice_sha256=9cee74bffc0e1dfa3e1fb34d67eec6cda4cb308d01a23a7927ac8bebc6d0bd99. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:98a7d7da60a432714e9130e48e728604f692401c8a1a908fd2db86647d1495ce",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getInvalidTextualChildDiagnostic; lexical_path=<top>/createTypeChecker@46438:1/elaborateJsxComponents@64310:3/getInvalidTextualChildDiagnostic@64386:5; direct_codes=2747; source_slice_sha256=f6bc5d9e431f99b41cf383e79cd3debcf753dfdf74b10ac45c01d52844a7e190. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:9a7d9e1b41a4405300186a287d8ee291eb959fb8c0555e9064bbfb50082c90dc",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=createClassExpressionError; lexical_path=<top>/createGetIsolatedDeclarationErrors@114054:1/createClassExpressionError@114211:3; direct_codes=9022; source_slice_sha256=e0fb557470d75a0630882369a2b667ac79a343ada9d6ff9c7a6c67f733f28da0. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:9d90ce8b027974d2d09ea9a73e04b35c0bdec906d6dc0a5b1bc05aa775f3e883",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=<anonymous>; lexical_path=<top>/createTypeChecker@46438:1/checkIfThisIsCapturedInEnclosingScope@83260:3/<anonymous>@83261:24; direct_codes=2399,2400; source_slice_sha256=cd629ba3eb9c2e745bc2a72050bd387e9b5c984fa55c216ef04b31ea7c1157cc. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:9fa7421a8c18fdf856f2e41a029ec8aad1da614d27497c5d72b5a4c89d43e79e",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getNextInvalidatedProjectCreateInfo; lexical_path=<top>/getNextInvalidatedProjectCreateInfo@131083:1; direct_codes=6361,6362,6382; source_slice_sha256=8ae380a7982b21ae3e3222e5463e2127b91d78fea2c06790fbe2c5cfbfa1211a. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:a064e46a63369d81d4093f0f44a2f0ce23cd6f13d034aa08c32f3f1710f91fe1",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=<anonymous>; lexical_path=<top>/transformDeclarations@114265:1/reportExpandoFunctionErrors@114316:3/<anonymous>@114317:61; direct_codes=9023; source_slice_sha256=55364a30818068b42907863dd7c37fde94549e6770b665970509799795f41f38. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:a1751016e23138bc10c82462e6b30ef894f5b876108d4dd4fd117bc505fc17a5",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getHeritageClauseVisibilityError; lexical_path=<top>/createGetSymbolAccessibilityDiagnosticForNode@113842:1/getHeritageClauseVisibilityError@114026:3; direct_codes=4019,4020,4021,4022; source_slice_sha256=91bfee335b582fd8f74c71a2b868b30d0cef4d1221659e7ba6aaf675fb88ca6e. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:a331ff5fcfb883a053efa6aa0d2ce303088d6b5896e2223cbd73d6d5feb13090",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getTsconfigRootOptionsMap; lexical_path=<top>/getTsconfigRootOptionsMap@38420:1; direct_codes=6245,6255,6907,6908; source_slice_sha256=f5dc9bdb4fb9c16936ab47cbe4ddd7fdc48414620dcbed3fc98935902aa1bf2d. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:a70dc103edbf9e51d9037897a4d55ec38853c63bde7e646da0c9071e222e64e2",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=<anonymous>; lexical_path=<top>/writeFile@16644:1/<anonymous>@16649:5; direct_codes=5033; source_slice_sha256=8aa01ef6547b4d31ec77b0b4447dbfb914c4f387221b26035becadfb3d34d741. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:a9e23918094dfc0ced1fc3feb5468a91c9007eb8eb74df81201fed5d0c3a2773",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=elaborateJsxComponents; lexical_path=<top>/createTypeChecker@46438:1/elaborateJsxComponents@64310:3; direct_codes=2745,2746; source_slice_sha256=37571973456652aace82cbc4dd98a162da85373c51a8430f63f35b6f5000b215. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:ad0aae73bbd3d22b9958f8a3672998b6e45e360023faa03762ee3057afc4d33e",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=<anonymous>; lexical_path=<top>/createScanner@8688:1/scanRegularExpressionWorker@9997:3/<anonymous>@10818:34; direct_codes=1369,1532; source_slice_sha256=fb5b6f1042ab1a3412801ef6ba024fd71480199277fdbce96689951928cbb499. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:aed5c45d24f03647e8f84084232e5863fdb36c0999f95c614f6433931e129361",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=<anonymous>; lexical_path=<top>/transformDeclarations@114265:1/visitDeclarationStatements@115260:3/<anonymous>@115289:46; direct_codes=4082; source_slice_sha256=732d9bf066b2cc21a5ae37ac63b5a9a0a893dcc55095dca77b7619e2901f43ae. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:b0329bbe21fc9dae93230e4da9dfba9fc992871c7d8c24f561ca4ef90cdcc38c",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=reportFlowControlError; lexical_path=<top>/createTypeChecker@46438:1/reportFlowControlError@70234:3; direct_codes=2563; source_slice_sha256=7ecd1be42943a912b0e6d7785dfa14424372e9f7196c7454a89370e2b33e9181. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:b1927a7a41ada14af3f68f95ae81c1fd76f6eeca1f54b2f67cf20f675daadfcf",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=checkWeakMapSetCollision; lexical_path=<top>/createTypeChecker@46438:1/checkWeakMapSetCollision@83320:3; direct_codes=18027; source_slice_sha256=663b9c8e55a84c4b6a8e057ec63434875d6d2c616a27af09a959cf7adad75ba2. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:b26d586ce616bf898b2ce3c1ed2d50b470882ed3bcd558c76611ead699d3a2f3",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=createDiagnosticForInvalidCustomType; lexical_path=<top>/createDiagnosticForInvalidCustomType@38055:1; direct_codes=6046; source_slice_sha256=b69f5290ca841865e38c6a0bf5f6515d78d3935f2ca4f9ad1eaa65c67c3e3dfd. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:b51fdcf4ede2e54a00c86fdc150b7c6670d4d887fde920c4e81480bd2c8a77ec",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=<anonymous>; lexical_path=<top>/transformDeclarations@114265:1/transformTopLevelDeclaration@115337:3/<anonymous>@115617:46; direct_codes=4020; source_slice_sha256=47e5660ba59366c5b3e737f9bcfacc533777cbe571f7a90b216a68e02ce86dff. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:b544e17c8437f2d678c108dbc4e2dfe1a631a6518e0764efe1e490c1d6189450",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=reportSolutionBuilderTimes; lexical_path=<top>/reportSolutionBuilderTimes@133031:1; direct_codes=6386; source_slice_sha256=95b429f5e506ccb3d98fa01a1eabd6202c122fa7e1ea1da69b953279a653efe6. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:b6ea4a4b94c64587b51a22a51a5a693dbd04d69638f7a72db2249a803a886c47",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getErrorForNoInputFiles; lexical_path=<top>/getErrorForNoInputFiles@39243:1; direct_codes=18003; source_slice_sha256=3505b64bf5eacb0a16ccfd5e01f335f5c3fa62bd998a8f1044b404c1e7d9d05f. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:b7018802fb79ee6c36d1a955c5ba7ffee108be319826eb8ac74bbfa5101eb273",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=<anonymous>; lexical_path=<top>/createProgram@122625:1/<anonymous>@122639:51; direct_codes=5103; source_slice_sha256=7efcd11d453cebea7fd66d280b6011d1f986618be8b28218e0f82f7fe88b38ea. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:b7b274907e6506ee1c2507e1707ff42fc94cbd7edd2f40fbf4ca67d9cbe35520",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=reportWatchModeWithoutSysSupport; lexical_path=<top>/reportWatchModeWithoutSysSupport@132776:1; direct_codes=5001; source_slice_sha256=43ef3c4bbbc326eb84b7886ebb9e51a0c192fed235377d44a13211fa31bb8692. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:ba75258906e6511479d85c3c71a40774c80eb2b3a1e7a402c92c5ee964ccb9a7",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=<anonymous>; lexical_path=<top>/createProgram@122625:1/verifyProjectReferences@125270:3/<anonymous>@125275:7; direct_codes=6053,6306,6310,6377; source_slice_sha256=d31673ed8ca90e3b851085ed53968d81d0a39a5606f57ea8ecdc24bc79678b2d. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:bc81c65c8c4c9ef17d6df04b413c6ea42bc9b8eddf51184eacc7d21ecc8168d1",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=resolveNamesWithLocalCache; lexical_path=<top>/createResolutionCache@128134:1/resolveNamesWithLocalCache@128367:3; direct_codes=6183,6184,6389,6390,6391,6392; source_slice_sha256=9ca3149855ade6d9d41e2b8104a1d203493f76065290b258f3c7b63371d5dc9f. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:be2dabbcc3784d1e7d0eeea55f4a7f621f0e5899f2f347f7b552d7bf1165aa5d",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getAccessorNameVisibilityDiagnosticMessage; lexical_path=<top>/createGetSymbolAccessibilityDiagnosticForNodeName@113799:1/getAccessorNameVisibilityDiagnosticMessage@113815:3; direct_codes=4026,4027,4028,4029,4030,4031,4032,4033; source_slice_sha256=eefaff2a3a17f70390b09db3854057f3ec434103f400292538933b7950ee2eec. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:bf1917bdd0bdc804a9609f0e906f6394ef39298db001f125b62e008edd803874",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=reportTruncationError; lexical_path=<top>/transformDeclarations@114265:1/reportTruncationError@114408:3; direct_codes=7056; source_slice_sha256=da26edf672e1d46e1d793f23bdb9a4147a9c2305cf5a6ea6384a7bb9b044aa01. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:c38b1463a1aa314cc9a9d697e4cfb57faf5c52758557e033542a45875c742efb",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=performBuild; lexical_path=<top>/performBuild@132785:1; direct_codes=5001; source_slice_sha256=0719d3266770bb426310f02ff3d7021bdb43e68c3af63feb1765dab9721a2dc6. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:c40e35e320808e6ec9d47c58f7635c1c4ca8d4daf7bf69a0354374a4e5c5a4d8",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=parseConfig; lexical_path=<top>/parseConfig@39272:1; direct_codes=18000; source_slice_sha256=1f07635fad8d6fc935271b45fea3dc451ccb10e65298a000fa858f5d5c2cd883. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:c69aa33e04f3861c2189996f388b20877d0c62c9815f099912db390b8d01fe5b",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=reportNonlocalAugmentation; lexical_path=<top>/transformDeclarations@114265:1/reportNonlocalAugmentation@114413:3; direct_codes=6232,6233; source_slice_sha256=087a8e3b3f966c3356348f688be63ce7db15cc3179310de23a29fe56669d95fe. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:c6b4d77ed6b0705734f9b005c519fa9e6a207c3ebd1e7480308315de4df14940",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=createBindingElementError; lexical_path=<top>/createGetIsolatedDeclarationErrors@114054:1/createBindingElementError@114180:3; direct_codes=9019; source_slice_sha256=62b09381205fdfee2192f5969edf43b06bd395f6e500b0b8a89aa217465afb3f. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:cc74213e0484812b2286eab932b7a5c0f2d92cee9a6b51b4b5f00358b4f81b36",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=createGetIsolatedDeclarationErrors; lexical_path=<top>/createGetIsolatedDeclarationErrors@114054:1; direct_codes=9007,9008,9009,9010,9011,9012,9015,9016,9017,9018,9027,9028,9029,9030,9031,9032,9033,9034,9036,9037,9038; source_slice_sha256=b3e7aef2bd5f93d15e0b3987570eae6e9e2e3bd63234699fde0320e8eb7e0326. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:ce7762c18f8f602dcd427a91d9c6476b4e30b6b2a0e1ab324c7ecc52733b4503",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=updateOutputTimestamps; lexical_path=<top>/updateOutputTimestamps@131587:1; direct_codes=6359,6374; source_slice_sha256=d13a5665036d0a14625aee84e6ae14f6c208f7510ae3e2c3fcdbd75b62e4b58d. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:d056ffb6f8535e3541c171a1b32d216ebcc4cdbbd430789a3ac1bb19bb0dcb9d",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=createTabularErrorsDisplay; lexical_path=<top>/createTabularErrorsDisplay@129180:1; direct_codes=6041; source_slice_sha256=3bd143ec2431f2462266ee91b150ed869c1e898ba76499c9281730077709b37d. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:d103ee0df8029c0b2f17c8a4955c7974e6850716556b564c56697fdd151577ff",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getConfigFileSpecs; lexical_path=<top>/parseJsonConfigFileContentWorker@39004:1/getConfigFileSpecs@39038:3; direct_codes=18002; source_slice_sha256=90d9f15ec81e0f96fdc2ada040396fc30c2046c9cc5d9fbb1b12485c831f049a. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:d282e9e5d3296785534b129e5d39a5dee2400c42156c53e657d5789b0cabfe5d",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=<anonymous>; lexical_path=<top>/createScanner@8688:1/scanRegularExpressionWorker@9997:3/<anonymous>@10829:29; direct_codes=1533,1534; source_slice_sha256=f365bf83fe7474772baa83bb4e644191309700d09ed863c0a5239013eae9ec08. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:d2bb6eb55147896e94e56ba19ca3077bdab1d68f98a863e9bc96c3ef0f43905c",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=checkTagNameDoesNotExpectTooManyArguments; lexical_path=<top>/createTypeChecker@46438:1/checkApplicableSignatureForJsxCallLikeElement@76088:3/checkTagNameDoesNotExpectTooManyArguments@76109:5; direct_codes=2728,6229; source_slice_sha256=d2b131eb0edc8f667cc7e68840a8af009e616ead2b00525ab17e5e66eb7ff65a. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:d5677de9c1b950fa703b85368763de06cb41785d1177dbbacba03a6e5e8755e4",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=createUnknownOptionError; lexical_path=<top>/createUnknownOptionError@38090:1; direct_codes=6369; source_slice_sha256=b42084feb1fbef30fd1c10e1137f63895b18a038ed53ed668f55a22cd4f4941f. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:d9c5ab944325586ca66268e97c8cde3d69ed7d3cb99deb5e649532169fc9c795",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=reportInaccessibleThisError; lexical_path=<top>/transformDeclarations@114265:1/reportInaccessibleThisError@114394:3; direct_codes=2527; source_slice_sha256=d2c22ea74a4bbb193626231cdb4968409526cdb5a03fbe00a9ed3717552143ec. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:e4fd65304befff4a93f065fc9f2f714479b0b0b8d2a5f135f21e9acd714f392a",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=showAdditionalInfoOutput; lexical_path=<top>/generateOptionOutput@132258:1/showAdditionalInfoOutput@132332:3; direct_codes=6171; source_slice_sha256=fdc0533b5384f997bd12d54d13dc09a33546e47050f854342f5ed3b95f305e40. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:e6343ab4677e263b9f22276a2acf3d4cb0c971c32b57285ddfaca77933a7d5eb",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=createProgram2; lexical_path=<top>/createBuildOrUpdateInvalidedProject@130875:1/createProgram2@130943:3; direct_codes=6357,6358; source_slice_sha256=44c81e8ad953f842c6d3632f75fddf7eb74491ec65f53bfbfcfcbaedae785688. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:eab5153a5f264f3626aee505173da55ea05d8af597eac77a5d6c90ef93b27764",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=reportStatistics; lexical_path=<top>/reportStatistics@133082:1; direct_codes=6386; source_slice_sha256=540ce07ef354b52c24f3c223f21db6cec65731fe22db86c3304a481aabdc627e. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:ef7299701dff683745e022b61d999078930b23d78816fb6fca015bbe7378b4d6",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=convertConfigFileToObject; lexical_path=<top>/convertConfigFileToObject@38475:1; direct_codes=5092; source_slice_sha256=a5d3c6da433a9ae109f3c15b0bd9350e456f8889363d105220d92eb111b4396b. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:f236cfa3e75cb63306db8099f8f29f1268304d3d84beac7269dadfb75318fc91",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getTypeParameterConstraintVisibilityError; lexical_path=<top>/createGetSymbolAccessibilityDiagnosticForNode@113842:1/getTypeParameterConstraintVisibilityError@113978:3; direct_codes=4002,4004,4006,4008,4010,4012,4014,4016,4083,4085,4103; source_slice_sha256=7ecc101bee29a7dc12e8af0d97f46065bf6f0ac71dd1987cd2fce268ef66025d. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:f33e0381c607ddfd7f70a492414028078901721251cafd7d3164c4d9bd2c69bc",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=generateInitialErrorChain; lexical_path=<top>/createTypeChecker@46438:1/checkJsxReturnAssignableToAppropriateBound@74698:3/generateInitialErrorChain@74718:5; direct_codes=2786; source_slice_sha256=7aa955fa1d3bde0c3d9a8e991db30518bc83940155fb6020907bdb6606566b0f. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:f50b09117caebedaf7c65c138eb0096c02fec127b88213ecb485cbe0d9685c52",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=loadModuleFromGlobalCache; lexical_path=<top>/loadModuleFromGlobalCache@42218:1; direct_codes=6140; source_slice_sha256=7382f8c9bcd65a9dab48ce3093f5ebed33a49f3e041e35d4d48753bd43a3c2c3. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:f5d039a95fe592cbd6f1306fa4351a2f8abb03e9a4279132694773456a0e79aa",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=<anonymous>; lexical_path=<top>/createTypeChecker@46438:1/addUndefinedToGlobalsOrErrorOnRedeclaration@47882:3/<anonymous>@47886:42; direct_codes=2397; source_slice_sha256=d80a0fdf99b5472afb9bb93206eeb404127e161eba2a433c9749fcc174924685. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:f6b84e332cbb1405deb4951c668ed5b18ec4d53266fb277787dc2f22a447f33a",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=scanClassSetCharacter; lexical_path=<top>/createScanner@8688:1/scanRegularExpressionWorker@9997:3/scanClassSetCharacter@10613:5; direct_codes=1508,1522; source_slice_sha256=6b7a2361d727457798a090f9ed8746764a17c1b5fc6556179f8a8f85238541a8. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:f7484bbce08af765ef25f8982d8596a022cf77d3af229501751c19832344bc07",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getAccessorDeclarationTypeVisibilityError; lexical_path=<top>/createGetSymbolAccessibilityDiagnosticForNode@113842:1/getAccessorDeclarationTypeVisibilityError@113886:3; direct_codes=4034,4035,4036,4037,4038,4039,4040,4041,4042,4043; source_slice_sha256=6dc25bbd690105ac37e7c1a4ae0488a6cdcf8f954a4110f3707c0e339a98502e. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:f9adbf47fb1f8aac6d96683fc796b660178d4d4c9700d90b9303aa0fb7b98354",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=getImportEntityNameVisibilityError; lexical_path=<top>/createGetSymbolAccessibilityDiagnosticForNode@113842:1/getImportEntityNameVisibilityError@114039:3; direct_codes=4000; source_slice_sha256=bef95a79cc946e929c323708576c52f3ae72549fa8230319aa480c2977b53537. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:fc315e4ed1e4910ba94a8434a4072fb88684f3b7da8054febd3e7accf659ffad",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=<anonymous>; lexical_path=<top>/printEasyHelp@132463:1/<anonymous>@132474:44; direct_codes=6171; source_slice_sha256=9a4aa25d70176fc4544653b540b58cfbd738511e13f7c29b88741ce8be189e28. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:fd3c4bf55bb891b7255fdc80ed49ae4c4ab7ef3ff480cea161462eeba7807960",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=<anonymous>; lexical_path=<top>/transformDeclarations@114265:1/transformDeclarationsForJS@114431:3/<anonymous>@114433:40; direct_codes=9005,9006; source_slice_sha256=f679ee21c99d09af3ee231ec03695a3e06cafd555ab1a45597003ddcd68948de. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:fd434161a15d1ac4448e2c3d48b9fd70706d8011705ce78aa1edeffa59930feb",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=visitDeclarationSubtree; lexical_path=<top>/transformDeclarations@114265:1/visitDeclarationSubtree@114952:3; direct_codes=9014,9038; source_slice_sha256=49f1c56e7d287ca5c9d8ac236fe1d91a482f181858627f0e21a6770dad67b16b. Runtime absence does not shrink the static closure."
+      },
+      {
+        "declaration": "d2:ff05661b897204f4c841e26ba200fbda0a6f07049496eb2f3cc3966842f39264",
+        "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=<anonymous>; lexical_path=<top>/createTypeChecker@46438:1/checkTypeArguments@76043:3/<anonymous>@76052:59; direct_codes=2344; source_slice_sha256=e073a36c4e313a56f87d3803a0eef42b7b84d90e5fb6b9d2daf5ad871fbba47e. Runtime absence does not shrink the static closure."
+      }
+    ]
   },
   "fuzzer": {
-    "status": "draft",
-    "ci_command": null,
-    "generated_cases": 0,
-    "oracle_comparisons": 0,
-    "reducer_smoke": false,
-    "signature_dedupe": false,
-    "artifact": null
+    "artifact": "fuzzer-smoke.json",
+    "seed": 6840227782638526189,
+    "cases": 32
   },
   "performance": {
-    "status": "draft",
-    "wall_seconds": null,
-    "max_rss_bytes": null,
-    "ceiling_wall_seconds": 60.0,
-    "ceiling_rss_bytes": null,
-    "artifact": null
+    "artifact": "performance.json",
+    "default_runner_profile": "dev-macos-arm64",
+    "runners": [
+      {
+        "id": "dev-macos-arm64",
+        "os": "macos",
+        "arch": "aarch64",
+        "measurement_backend": "bsd-time-l",
+        "cpu_policy": "Apple Silicon, at least 8 logical cores, no oversubscription",
+        "minimum_logical_cores": 8,
+        "minimum_memory_bytes": 17179869184,
+        "ceiling_wall_seconds": 60.0,
+        "ceiling_rss_bytes": 8589934592
+      },
+      {
+        "id": "github-ubuntu-x64-standard",
+        "os": "linux",
+        "arch": "x86_64",
+        "measurement_backend": "gnu-time-v",
+        "cpu_policy": "GitHub-hosted ubuntu standard runner, at least 4 logical cores",
+        "minimum_logical_cores": 4,
+        "minimum_memory_bytes": 7516192768,
+        "ceiling_wall_seconds": 60.0,
+        "ceiling_rss_bytes": 8589934592
+      }
+    ]
   }
 }

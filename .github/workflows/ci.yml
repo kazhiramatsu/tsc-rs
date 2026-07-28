@@ -76,7 +76,7 @@ jobs:
   semantic:
     name: semantic
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Checkout full lineage
         uses: actions/checkout@v7
@@ -108,6 +108,24 @@ jobs:
         with:
           version: v0.16.0
 
+      # B2 is a full 7,462-program oracle sweep. Compute its narrow
+      # producer-input fingerprint first, then restore only the raw
+      # runtime artifact for that exact content. produce_all revalidates
+      # its schema, fingerprint, inventory hash, counts, and zero-hit
+      # reviews before reuse; a miss or invalid entry regenerates it.
+      - name: Compute B2 runtime evidence fingerprint
+        id: m8-b2-fingerprint
+        working-directory: tsrs2
+        run: |
+          fingerprint="$(cargo xtask m8 evidence fingerprint --kind runtime)"
+          printf 'sha256=%s\n' "$fingerprint" >> "$GITHUB_OUTPUT"
+
+      - name: Restore exact B2 runtime evidence
+        uses: actions/cache@v5
+        with:
+          path: tsrs2/target/m8/evidence/runtime-coverage.json
+          key: m8-b2-v1-${{ runner.os }}-${{ steps.m8-b2-fingerprint.outputs.sha256 }}
+
       # Full-corpus passes once peaked at ~11.5 GB RSS. The underlying
       # multiplication bug is fixed (~1.7 GB now), but the headroom
       # remains a cheap guard against runner-agent OOM termination.
@@ -129,6 +147,7 @@ jobs:
         working-directory: tsrs2
         env:
           BASELINE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          TSRS_M8_RUNNER_PROFILE: github-ubuntu-x64-standard
         run: cargo xtask ci --lane semantic --baseline "$BASELINE_SHA"
 
       - name: Upload semantic artifacts on failure

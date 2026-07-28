@@ -64,7 +64,10 @@ there.
   `ratchet check`, `scope audit`, `families check`, `escapes`,
   `ledger check`, `invariants`).
 - Full gate suite: `cargo xtask ci [--baseline <trusted-ref-or-sha>]`
-  (from `tsrs2/`; PR Actions supplies the immutable base SHA)
+  (from `tsrs2/`; PR Actions supplies the immutable base SHA). Its
+  full-corpus B2 producer reuses an existing exact-fingerprint artifact
+  only after raw schema/hash/inventory/count/review validation; otherwise
+  it regenerates the artifact with one single-threaded worker.
 - Hosted-lane diagnostic: `cargo xtask ci --lane <rust|semantic>
   [--baseline <trusted-ref-or-sha>]`. This is for reproducing one
   Actions lane; slice acceptance still requires the unsplit local
