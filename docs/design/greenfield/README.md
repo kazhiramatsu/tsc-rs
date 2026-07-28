@@ -39,6 +39,12 @@ schemas, anchors, and identities, and
 producers and M9. Read the plan first; open a support contract only when
 implementing or reviewing that mechanism.
 
+**M8 execution contract:**
+[m8-execution-and-close.md](m8-execution-and-close.md) — the fixed M8 entry
+baseline, exact D2 trace/static owner-cluster method, per-slice evidence,
+global T0-T4/recovery order, M8 close, and M9 handoff. The readiness page
+opens M8; this page governs work after it opens.
+
 **Terminal residue protocol:**
 [terminal-residue-protocol.md](terminal-residue-protocol.md) — the
 last-mile method used after a supported FN sweep becomes a small,
@@ -72,11 +78,12 @@ implements and when each code fires.
 architecture holes outside the classic four phases: the Program/host
 layer, module resolution, and checker initialization (globals
 merging, getGlobalType environment).
-[lsp-and-incremental.md](lsp-and-incremental.md) records tsc's
+[lsp-and-incremental.md](lsp-and-incremental.md) records preliminary tsc
 incremental architecture (syntaxCursor-fed parser, disposable
-checker), the rules phases 0-9 must follow to keep the LSP door
+checker), the rules batch work follows to keep the LSP door
 open (reserved cursor parameter, per-parse NodeIds, no
-node-id-keyed cross-program caches), and the future L-track. Work a
+node-id-keyed cross-program caches), and input for a separately designed
+future L-track. It is not an active M8 plan. Work a
 phase by reading: this README → 2xxx-first-order.md → the phase's
 steps doc → its impl companion → the cited parent-doc sections.
 
@@ -143,7 +150,7 @@ is one commit.
 | M5 flow narrowing | [m5-flow-steps.md](m5-flow-steps.md) | T0 ≥ 50%; idempotence/jobs invariants green |
 | M6 inference + overloads | [m6-inference-calls-steps.md](m6-inference-calls-steps.md) | T0 ≥ 58% |
 | M7 unused/grammar/suggestion | [m7-tail-steps.md](m7-tail-steps.md) | T0 ≥ 63%; T1 measured and ratcheted |
-| M8 long tail | [m8-readiness.md](m8-readiness.md) + the mining loop below | supported-scope T2/T3 activated; all-corpus FP=0 |
+| M8 diagnostics close | [m8-readiness.md](m8-readiness.md) + [M8 execution](m8-execution-and-close.md) | supported-scope T0-T3 and T4 complete; escapes zero; all-corpus FP=0 |
 | M9 fuzzer hardening + coverage | greenfield §7.7 + [evidence contract](evidence-and-steady-state.md#31-m9-steady-state) | `fuzz steady-state --require-ready`: 14 current-fingerprint nightly windows, rate < 1 new signature/night, no open signature |
 
 The T0 percentages are calibration points from the first
@@ -181,21 +188,26 @@ fixture must be triaged before commit.
 
 ## M8 in one paragraph
 
-After M7 the build enters the mining loop this playbook already runs:
-full conformance snapshot → top one-sided codes → owner → smallest
-probe → port the missing tsc branch → gate. The comparison tiers climb
-from T0 to T2/T3 by turning on stricter comparators fixture-family by
-fixture-family in `ratchet.toml`, followed by A3 T4 byte parity. This is
-the corpus-wide activation order, not a T0-only coding rule: a newly
-observable family follows the
+After M7, readiness opens the
+[M8 execution contract](m8-execution-and-close.md). Its first slices add
+the report-only completion gate and freeze the exact entry residual. Each
+mismatch then follows: exact residual identity → exact D2 emitter →
+diagnostic trace → non-emitting sibling difference → static dependency
+closure/SCC → Rust boundary → one dependency-closed slice. A moving top-code
+list and a printed function name are never slice identities.
+
+The comparison tiers climb from T0 to T2/T3 through accepted-set activation,
+followed by A3 T4 byte parity and recovery zero. This is the corpus-wide
+activation order, not a T0-only coding rule: a newly observable family
+follows the
 [slice-fidelity policy](definition-of-done.md#milestone-gates-vs-slice-fidelity)
 through every live tier, while pre-A3 T4 checks remain local/report-only.
-The classifier, snapshot procedure, and triage discipline are the same
-as the parent repo's EXECUTION-GUIDE; only the engine under test differs.
 
 M8 has an executable entry contract: see
 [m8-readiness.md](m8-readiness.md) and run `cargo xtask m8 readiness`.
-The fixed corpus is always reported whole; only exact reviewed
+`ready=true` authorizes work but does not close M8. `STAGE` remains `M7`
+until the M8 close slice. The fixed corpus is always reported whole; only
+exact reviewed
 host-resolution/JSDoc/emit-dependent oracle diagnostics leave the
 supported-scope T1-T4 denominator. The minimal differential fuzzer
 is running before M8 begins; M9 hardens it rather than introducing it.

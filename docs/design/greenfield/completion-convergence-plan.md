@@ -11,6 +11,8 @@ It intentionally does not repeat supporting schemas:
   and D2 identity, lineage, freeze, and adversarial-test details;
 - [evidence-and-steady-state.md](evidence-and-steady-state.md) owns
   B1-B4 production and M9 nightly evidence;
+- [m8-execution-and-close.md](m8-execution-and-close.md) owns bounded
+  owner-cluster execution and the M8-to-M9 handoff;
 - milestone steps docs own TypeScript semantics inside their stages.
 
 The governing rule is:
@@ -222,6 +224,11 @@ supported FN=0, and all ten
 [M8 readiness rows](m8-readiness.md#machine-gate) pass.
 
 #### C5. Bounded M8 mining
+
+The operational contract, entry snapshot, owner-cluster recipe, per-slice
+evidence, and close conditions are consolidated in
+[M8 execution and close](m8-execution-and-close.md). This section owns the
+global tier order.
 
 Each branch declares one family, oracle anchors, fixtures, expected
 escape/disposition removals, and tier. The entry report fixes the family

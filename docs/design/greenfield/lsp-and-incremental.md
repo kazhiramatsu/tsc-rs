@@ -1,11 +1,15 @@
-# design: LSP and incremental parsing — the door we keep open
+# design input: LSP and incremental parsing — the door we keep open
 
-Status: OUT of the 2XXX-first goal (phases 0-9 are batch-only), but a
-planned consumer — an LSP server will eventually sit on this engine.
-This doc fixes (a) the facts of tsc's incremental architecture, (b)
-the design rules the batch build must follow NOW so the LSP track can
-be added WITHOUT re-architecting, and (c) the future track itself.
-tsc anchors verified at the 6.0.3 pin.
+Status: separate follow-on L-track input; not an active M8 plan or an
+approved implementation schedule. An LSP server may eventually sit on this
+engine, but its scope, API, oracle, performance contract, and definition of
+done will be designed separately.
+
+This doc records (a) facts of tsc's incremental architecture, (b) design
+rules the batch build follows now so a future L-track does not require an
+avoidable re-architecture, and (c) a preliminary track sketch to be
+revalidated by that separate design. tsc anchors were verified at the 6.0.3
+pin.
 
 ## 1. How tsc actually does incrementality (verified)
 
@@ -67,7 +71,7 @@ Explicitly NOT reserved: in-place tree mutation, generation-tagged
 arenas, checker-state invalidation. tsc needs none of them; neither
 do we.
 
-## 3. The future L-track (post phase 9, or parallel after M7)
+## 3. Preliminary future L-track input
 
 - **L1 — incremental reparse**: port `IncrementalParser`
   (updateSourceFile 35817: change-range normalization, position

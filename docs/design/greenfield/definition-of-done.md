@@ -145,6 +145,13 @@ must be replaced at the end.
   re-vendor + goldens-regeneration + ledger-refresh loop; nothing
   here promises forward compatibility.
 
+Emitter, LSP/watch/incremental, and a public TypeChecker API are separate
+follow-on design tracks, not deferred M8 slices. Each requires its own goal,
+compatibility surface, oracle/reference contract, performance bounds, and
+definition of done. Work in those tracks may reuse the batch checker but may
+not alter this scope denominator or claim M8 acceptance credit. See
+[M8 execution and close](m8-execution-and-close.md#separate-follow-on-design-tracks).
+
 ## Performance / memory bounds
 
 - Full-corpus conformance (lib-loaded, 5,908 fixtures) stays under
