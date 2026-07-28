@@ -248,6 +248,9 @@ impl<'a> CheckerState<'a> {
 
     /// getDeclaredTypeOfSymbol's variance slice: getVariancesWorker
     /// only measures class/interface targets and alias symbols.
+    /// tsc-port: getDeclaredTypeOfSymbol @6.0.3
+    /// tsc-hash: 04bcaad92415ace0f6299d6345cbed24b36475891a61b84d6ab0efe78a103eaf
+    /// tsc-span: _tsc.js:57502-57504
     pub(crate) fn get_declared_type_of_symbol_for_variance(
         &mut self,
         symbol: SymbolId,

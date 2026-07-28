@@ -10,10 +10,6 @@
 
 [[fn]]
 file = "crates/checker/src/access.rs"
-name = "get_promised_type_of_promise_with_this_error"
-
-[[fn]]
-file = "crates/checker/src/access.rs"
 name = "related_info_for_node"
 
 [[fn]]
@@ -42,10 +38,6 @@ name = "parse_numeric_literal_text"
 
 [[fn]]
 file = "crates/checker/src/calls.rs"
-name = "check_effective_arg"
-
-[[fn]]
-file = "crates/checker/src/calls.rs"
 name = "diag_span_of_node"
 
 [[fn]]
@@ -53,16 +45,8 @@ file = "crates/checker/src/calls.rs"
 name = "diagnostic_at_span"
 
 [[fn]]
-file = "crates/checker/src/check.rs"
-name = "type_to_string_slice"
-
-[[fn]]
 file = "crates/checker/src/constraints.rs"
 name = "union_members_or_self"
-
-[[fn]]
-file = "crates/checker/src/contextual.rs"
-name = "effective_type_annotation_node"
 
 [[fn]]
 file = "crates/checker/src/contextual.rs"
@@ -78,15 +62,7 @@ name = "instantiate_contextual_type_for_node"
 
 [[fn]]
 file = "crates/checker/src/contextual.rs"
-name = "is_const_type_reference_node"
-
-[[fn]]
-file = "crates/checker/src/contextual.rs"
 name = "parameters_of_function"
-
-[[fn]]
-file = "crates/checker/src/contextual.rs"
-name = "this_parameter_node_of"
 
 [[fn]]
 file = "crates/checker/src/engine.rs"
@@ -117,98 +93,6 @@ file = "crates/checker/src/evaluate.rs"
 name = "pos_of"
 
 [[fn]]
-file = "crates/checker/src/expr.rs"
-name = "check_expression_with_force_tuple"
-
-[[fn]]
-file = "crates/checker/src/expr.rs"
-name = "get_this_container_full"
-
-[[fn]]
-file = "crates/checker/src/expr.rs"
-name = "map_type_result"
-
-[[fn]]
-file = "crates/checker/src/expr.rs"
-name = "some_type_result"
-
-[[fn]]
-file = "crates/checker/src/facts.rs"
-name = "filter_type_with"
-
-[[fn]]
-file = "crates/checker/src/functions.rs"
-name = "effective_return_type_node"
-
-[[fn]]
-file = "crates/checker/src/globals.rs"
-name = "any_array_type"
-
-[[fn]]
-file = "crates/checker/src/globals.rs"
-name = "any_readonly_array_type"
-
-[[fn]]
-file = "crates/checker/src/globals.rs"
-name = "arguments_symbol_type"
-
-[[fn]]
-file = "crates/checker/src/globals.rs"
-name = "auto_array_type"
-
-[[fn]]
-file = "crates/checker/src/globals.rs"
-name = "global_array_type"
-
-[[fn]]
-file = "crates/checker/src/globals.rs"
-name = "global_boolean_type"
-
-[[fn]]
-file = "crates/checker/src/globals.rs"
-name = "global_callable_function_type"
-
-[[fn]]
-file = "crates/checker/src/globals.rs"
-name = "global_function_type"
-
-[[fn]]
-file = "crates/checker/src/globals.rs"
-name = "global_newable_function_type"
-
-[[fn]]
-file = "crates/checker/src/globals.rs"
-name = "global_number_type"
-
-[[fn]]
-file = "crates/checker/src/globals.rs"
-name = "global_object_type"
-
-[[fn]]
-file = "crates/checker/src/globals.rs"
-name = "global_readonly_array_type"
-
-[[fn]]
-file = "crates/checker/src/globals.rs"
-name = "global_regexp_type"
-
-[[fn]]
-file = "crates/checker/src/globals.rs"
-name = "global_string_type"
-
-[[fn]]
-file = "crates/checker/src/globals.rs"
-name = "global_this_type_alias"
-
-[[fn]]
-file = "crates/checker/src/indexed.rs"
-name = "get_indexed_access_type_or_undefined_ex"
-
-[[fn]]
-file = "crates/checker/src/indexed.rs"
-name = "property_name_from_type_usable"
-
-[[fn]]
 file = "crates/checker/src/instantiate.rs"
 name = "alloc_mapper"
 
@@ -223,26 +107,6 @@ name = "intrinsic_type_kind"
 [[fn]]
 file = "crates/checker/src/instantiate.rs"
 name = "mapper"
-
-[[fn]]
-file = "crates/checker/src/instantiate.rs"
-name = "type_parameter_declarations_of"
-
-[[fn]]
-file = "crates/checker/src/intersect.rs"
-name = "cross_product_union_size"
-
-[[fn]]
-file = "crates/checker/src/intersect.rs"
-name = "get_intersection_type_ex"
-
-[[fn]]
-file = "crates/checker/src/js_grammar.rs"
-name = "get_js_syntactic_diagnostics"
-
-[[fn]]
-file = "crates/checker/src/jsx.rs"
-name = "jsx_attribute_name_text"
 
 [[fn]]
 file = "crates/checker/src/lib.rs"
@@ -590,35 +454,15 @@ name = "ty_mut_cached_equivalent_base_type"
 
 [[fn]]
 file = "crates/checker/src/literals.rs"
-name = "make_resolved_anonymous_type"
-
-[[fn]]
-file = "crates/checker/src/literals.rs"
 name = "name_of_named_declaration"
-
-[[fn]]
-file = "crates/checker/src/merge.rs"
-name = "is_in_js_file"
 
 [[fn]]
 file = "crates/checker/src/merge.rs"
 name = "related_for_node"
 
 [[fn]]
-file = "crates/checker/src/merge.rs"
-name = "symbol_display_name"
-
-[[fn]]
-file = "crates/checker/src/modules.rs"
-name = "implied_resolution_mode_from_extension"
-
-[[fn]]
 file = "crates/checker/src/operators.rs"
 name = "meta_property_is_new"
-
-[[fn]]
-file = "crates/checker/src/operators.rs"
-name = "text_of_node"
 
 [[fn]]
 file = "crates/checker/src/program.rs"
@@ -639,10 +483,6 @@ name = "files"
 [[fn]]
 file = "crates/checker/src/program.rs"
 name = "flags_of"
-
-[[fn]]
-file = "crates/checker/src/program.rs"
-name = "is_external_or_common_js_module_of_node"
 
 [[fn]]
 file = "crates/checker/src/program.rs"
@@ -698,10 +538,6 @@ name = "probe_relation"
 
 [[fn]]
 file = "crates/checker/src/resolve.rs"
-name = "declaration_of_kind"
-
-[[fn]]
-file = "crates/checker/src/resolve.rs"
 name = "find_ancestor_of_kind"
 
 [[fn]]
@@ -727,10 +563,6 @@ name = "alloc_members"
 [[fn]]
 file = "crates/checker/src/state.rs"
 name = "alloc_signature"
-
-[[fn]]
-file = "crates/checker/src/state.rs"
-name = "diagnostic_for_node"
 
 [[fn]]
 file = "crates/checker/src/state.rs"
@@ -771,10 +603,6 @@ name = "push_error_diagnostic"
 
 [[fn]]
 file = "crates/checker/src/state.rs"
-name = "resolve_file_scope_name"
-
-[[fn]]
-file = "crates/checker/src/state.rs"
 name = "signature_mut"
 
 [[fn]]
@@ -796,39 +624,3 @@ name = "with_program_state"
 [[fn]]
 file = "crates/checker/src/structural.rs"
 name = "compare_signatures_identical_at"
-
-[[fn]]
-file = "crates/checker/src/structural.rs"
-name = "compare_signatures_identical_ex"
-
-[[fn]]
-file = "crates/checker/src/structural.rs"
-name = "create_tuple_type_forced"
-
-[[fn]]
-file = "crates/checker/src/structural.rs"
-name = "get_applicable_index_info_for_name_info"
-
-[[fn]]
-file = "crates/checker/src/structural.rs"
-name = "get_declaration_modifier_flags_from_symbol_write"
-
-[[fn]]
-file = "crates/checker/src/structural.rs"
-name = "get_property_of_type_ex"
-
-[[fn]]
-file = "crates/checker/src/structural.rs"
-name = "remove_nullable_for_callback_gate"
-
-[[fn]]
-file = "crates/checker/src/structural.rs"
-name = "undefined_null_facts"
-
-[[fn]]
-file = "crates/checker/src/unions.rs"
-name = "get_union_type_ex_with_origin"
-
-[[fn]]
-file = "crates/checker/src/variance.rs"
-name = "get_declared_type_of_symbol_for_variance"

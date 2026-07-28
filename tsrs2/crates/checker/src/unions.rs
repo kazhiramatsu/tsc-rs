@@ -64,6 +64,9 @@ impl<'a> CheckerState<'a> {
     /// The origin-carrying entry (the `origin` parameter at 61505);
     /// the fast-path cache is bypassed when an origin rides along,
     /// exactly as tsc's `!origin` guard does.
+    /// tsc-port: getUnionType @6.0.3
+    /// tsc-hash: c0f3627f0a6e1cabf66d5b8cc24eabef75b60fe2d963fad1203f40d2543baf83
+    /// tsc-span: _tsc.js:61505-61531
     pub fn get_union_type_ex_with_origin(
         &mut self,
         types: &[TypeId],

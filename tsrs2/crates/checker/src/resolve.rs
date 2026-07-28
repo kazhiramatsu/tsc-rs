@@ -2694,6 +2694,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc getDeclarationOfKind.
+    /// tsc-port: getDeclarationOfKind @6.0.3
+    /// tsc-hash: d34933434824a0ff76b3eb034566feb42e6054c05caf812831c45ba8aed59e3c
+    /// tsc-span: _tsc.js:12642-12652
     pub(crate) fn declaration_of_kind(&self, symbol: SymbolId, kind: SyntaxKind) -> Option<NodeId> {
         self.binder
             .symbol(symbol)

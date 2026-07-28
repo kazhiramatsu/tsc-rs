@@ -18,6 +18,9 @@ enum Visit {
     Skip,
 }
 
+/// tsc-port: getJSSyntacticDiagnosticsForFile @6.0.3
+/// tsc-hash: b4bcf7b6b614a202521d209913dba009514530110ce328c5ce74950a562738e8
+/// tsc-span: _tsc.js:123785-124004
 pub(crate) fn get_js_syntactic_diagnostics(
     source: &SourceFile,
     experimental_decorators: bool,

@@ -2081,6 +2081,9 @@ impl<'a> CheckerState<'a> {
 
     /// getEffectiveTypeParameterDeclarations, TS-declaration slice
     /// (JSDoc template tags are elided project-wide).
+    /// tsc-port: getEffectiveTypeParameterDeclarations @6.0.3
+    /// tsc-hash: 04140ebbefd68b55eef3fc021cd5423faef96e0cbd640a51ab3e612b49a56544
+    /// tsc-span: _tsc.js:11782-11813
     pub(crate) fn type_parameter_declarations_of(&self, node: NodeId) -> Vec<NodeId> {
         self.nodes_of(self.type_parameter_declaration_list_of(node))
     }

@@ -4266,6 +4266,9 @@ impl<'a> CheckerState<'a> {
         None
     }
 
+    /// tsc-port: getImpliedNodeFormatForFileWorker @6.0.3
+    /// tsc-hash: f2b4540a6c9d401895757eaf20f9c67f32866ef1c837f8dbd4edd408fe9ea8e6
+    /// tsc-span: _tsc.js:122500-122513
     pub(crate) fn implied_resolution_mode_from_extension(
         &self,
         location: NodeId,

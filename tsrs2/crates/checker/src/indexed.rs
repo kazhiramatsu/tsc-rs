@@ -951,6 +951,9 @@ impl<'a> CheckerState<'a> {
     /// readonly, flow tail) and the getIndexNodeForAccessExpression
     /// unwrap stay off while spans still point at the element.
     #[allow(clippy::too_many_arguments)]
+    /// tsc-port: getIndexedAccessTypeOrUndefined @6.0.3
+    /// tsc-hash: be4bfa0605981b149674f9db7e4d9ee754e24045081f054e43e8c357150a550b
+    /// tsc-span: _tsc.js:62567-62608
     pub fn get_indexed_access_type_or_undefined_ex(
         &mut self,
         object_type: TypeId,
@@ -1866,6 +1869,13 @@ impl<'a> CheckerState<'a> {
 
     /// isTypeUsableAsPropertyName (19351) + getPropertyNameFromType
     /// (19354): string/number literals and unique ES symbols.
+    /// tsc-port: isTypeUsableAsPropertyName @6.0.3
+    /// tsc-hash: 7f27114b05645570b64cd4fa6e83275753a40f1fb2ad7deef7a16335d60e0acd
+    /// tsc-span: _tsc.js:19351-19353
+    ///
+    /// tsc-port: getPropertyNameFromType @6.0.3
+    /// tsc-hash: 77afdbfa0f64ff43af68d4fb691447893910b423b291dc2860af42b2402768c8
+    /// tsc-span: _tsc.js:19354-19362
     pub(crate) fn property_name_from_type_usable(&self, ty: TypeId) -> Option<String> {
         if !self
             .tables

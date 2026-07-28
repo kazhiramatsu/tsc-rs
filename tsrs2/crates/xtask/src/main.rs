@@ -4499,9 +4499,7 @@ fn parse_ledger_entries_in_file(
         }
 
         if let Some(fn_name) = function_name(trimmed) {
-            if let Some(entry) = parse_ledger_doc(path, doc_start, &fn_name, &docs)? {
-                entries.push(entry);
-            }
+            entries.extend(parse_ledger_doc(path, doc_start, &fn_name, &docs)?);
         }
         docs.clear();
     }
@@ -4514,38 +4512,51 @@ fn parse_ledger_doc(
     rust_line: usize,
     rust_fn: &str,
     docs: &[String],
-) -> Result<Option<LedgerEntry>, Box<dyn Error>> {
-    let Some(port_line) = docs
+) -> Result<Vec<LedgerEntry>, Box<dyn Error>> {
+    let port_indices = docs
         .iter()
-        .find_map(|doc| doc.strip_prefix("tsc-port:").map(str::trim))
-    else {
-        return Ok(None);
-    };
-    let hash = docs
-        .iter()
-        .find_map(|doc| doc.strip_prefix("tsc-hash:").map(str::trim))
-        .and_then(|value| value.split_whitespace().next())
-        .ok_or_else(|| format!("{}:{rust_line} missing tsc-hash", path.display()))?;
-    let span = docs
-        .iter()
-        .find_map(|doc| doc.strip_prefix("tsc-span:").map(str::trim))
-        .ok_or_else(|| format!("{}:{rust_line} missing tsc-span", path.display()))?;
-    let (port_name, version) = parse_tsc_port(port_line)
-        .ok_or_else(|| format!("{}:{rust_line} malformed tsc-port", path.display()))?;
-    let (span_file, span_start, span_end) = parse_tsc_span(span)
-        .ok_or_else(|| format!("{}:{rust_line} malformed tsc-span", path.display()))?;
+        .enumerate()
+        .filter_map(|(index, doc)| doc.starts_with("tsc-port:").then_some(index))
+        .collect::<Vec<_>>();
+    let mut entries = Vec::with_capacity(port_indices.len());
+    for (port_index_index, &port_index) in port_indices.iter().enumerate() {
+        let block_end = port_indices
+            .get(port_index_index + 1)
+            .copied()
+            .unwrap_or(docs.len());
+        let block = &docs[port_index..block_end];
+        let entry_line = rust_line + port_index;
+        let port_line = block[0]
+            .strip_prefix("tsc-port:")
+            .expect("port_indices selects tsc-port lines")
+            .trim();
+        let hash = block
+            .iter()
+            .find_map(|doc| doc.strip_prefix("tsc-hash:").map(str::trim))
+            .and_then(|value| value.split_whitespace().next())
+            .ok_or_else(|| format!("{}:{entry_line} missing tsc-hash", path.display()))?;
+        let span = block
+            .iter()
+            .find_map(|doc| doc.strip_prefix("tsc-span:").map(str::trim))
+            .ok_or_else(|| format!("{}:{entry_line} missing tsc-span", path.display()))?;
+        let (port_name, version) = parse_tsc_port(port_line)
+            .ok_or_else(|| format!("{}:{entry_line} malformed tsc-port", path.display()))?;
+        let (span_file, span_start, span_end) = parse_tsc_span(span)
+            .ok_or_else(|| format!("{}:{entry_line} malformed tsc-span", path.display()))?;
 
-    Ok(Some(LedgerEntry {
-        rust_path: path.to_owned(),
-        rust_line,
-        rust_fn: rust_fn.to_owned(),
-        port_name,
-        version,
-        span_file,
-        span_start,
-        span_end,
-        hash: hash.to_owned(),
-    }))
+        entries.push(LedgerEntry {
+            rust_path: path.to_owned(),
+            rust_line: entry_line,
+            rust_fn: rust_fn.to_owned(),
+            port_name,
+            version,
+            span_file,
+            span_start,
+            span_end,
+            hash: hash.to_owned(),
+        });
+    }
+    Ok(entries)
 }
 
 fn parse_tsc_port(value: &str) -> Option<(String, String)> {
@@ -9255,6 +9266,34 @@ mod escape_scanner_tests {
 #[cfg(test)]
 mod d2_inventory_tests {
     use super::*;
+
+    #[test]
+    fn ledger_reads_every_port_block_on_one_rust_function() {
+        // Keep complete ledger markers out of this Rust source's own
+        // line-oriented ledger scan.
+        let source = [
+            concat!("/// tsc-", "port: firstOwner @6.0.3\n"),
+            concat!("/// tsc-", "hash: aaa\n"),
+            concat!("/// tsc-", "span: _tsc.js:10-12\n"),
+            "///\n",
+            concat!("/// tsc-", "port: secondOwner @6.0.3\n"),
+            concat!("/// tsc-", "hash: bbb\n"),
+            concat!("/// tsc-", "span: _tsc.js:20-24\n"),
+            "pub(crate) fn combined_owner() {}\n",
+        ]
+        .concat();
+        let entries =
+            parse_ledger_entries_in_file(Path::new("combined.rs"), &source).expect("ledger");
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].rust_fn, "combined_owner");
+        assert_eq!(entries[0].port_name, "firstOwner");
+        assert_eq!((entries[0].span_start, entries[0].span_end), (10, 12));
+        assert_eq!(entries[0].hash, "aaa");
+        assert_eq!(entries[1].rust_fn, "combined_owner");
+        assert_eq!(entries[1].port_name, "secondOwner");
+        assert_eq!((entries[1].span_start, entries[1].span_end), (20, 24));
+        assert_eq!(entries[1].hash, "bbb");
+    }
 
     #[test]
     fn committed_schema_two_inventory_has_exact_graph_and_ledger_join() {

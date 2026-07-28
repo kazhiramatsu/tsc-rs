@@ -98,6 +98,9 @@ impl<'a> CheckerState<'a> {
         self.check_expression_with_force_tuple(node, check_mode, false)
     }
 
+    /// tsc-port: checkExpression @6.0.3
+    /// tsc-hash: b56997759c77785af8c96e94324267893636cd83bfdc656d059ef139e4cd71ac
+    /// tsc-span: _tsc.js:80960-80974
     pub(crate) fn check_expression_with_force_tuple(
         &mut self,
         node: NodeId,
@@ -1810,6 +1813,9 @@ impl<'a> CheckerState<'a> {
 
     /// someType (66550) with a fallible predicate (the constraints.rs
     /// twin takes an infallible one).
+    /// tsc-port: someType @6.0.3
+    /// tsc-hash: 8e5789de3a26e5360e1ab114a5ebff02124f84c975c9a78322fec459e3dc336d
+    /// tsc-span: _tsc.js:69982-69984
     pub(crate) fn some_type_result(
         &mut self,
         ty: TypeId,
@@ -1834,6 +1840,9 @@ impl<'a> CheckerState<'a> {
     /// mapType (70036) with a fallible mapper — the no-alias, no-
     /// distribution-over-union-of-unions form checkIdentifier needs
     /// (getBaseConstraintOrType never returns a union-of-unions here).
+    /// tsc-port: mapType @6.0.3
+    /// tsc-hash: 60df9dff52551306badb91844d59d835b9533cb48b538b3f9135664dfa87c3ad
+    /// tsc-span: _tsc.js:70028-70051
     pub(crate) fn map_type_result(
         &mut self,
         ty: TypeId,
@@ -4217,6 +4226,9 @@ impl<'a> CheckerState<'a> {
 /// two-parameter M2 port predates includeClassComputedPropertyName;
 /// checkThisExpression's interlocked toggling loop needs the full
 /// form (a class-hosted computed property name is its own container).
+/// tsc-port: getThisContainer @6.0.3
+/// tsc-hash: 76331c07b5e057b715dd29fc843f687d24b12fa6f824bd6058f9dc0ddadf0e0e
+/// tsc-span: _tsc.js:14459-14504
 pub(crate) fn get_this_container_full(
     state: &CheckerState,
     node: NodeId,

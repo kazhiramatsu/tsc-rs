@@ -2239,6 +2239,9 @@ impl<'a> CheckerState<'a> {
 
     /// getEscapedTextOfJsxAttributeName: identifier text or
     /// "namespace:name".
+    /// tsc-port: getEscapedTextOfJsxAttributeName @6.0.3
+    /// tsc-hash: e1a358a4fd711dec0294caf37ace5fd4c4d3738fc198f3bf68c8dabcae9ceef5
+    /// tsc-span: _tsc.js:19332-19334
     pub(crate) fn jsx_attribute_name_text(&self, name: NodeId) -> String {
         match self.data_of(name) {
             NodeData::Identifier(data) => data.escaped_text.clone(),

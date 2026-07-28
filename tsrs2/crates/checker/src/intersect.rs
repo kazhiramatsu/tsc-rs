@@ -186,6 +186,9 @@ impl<'a> CheckerState<'a> {
 
     /// The alias-carrying entry (tsc's optional aliasSymbol/
     /// aliasTypeArguments parameters at 61789).
+    /// tsc-port: getIntersectionType @6.0.3
+    /// tsc-hash: 9aea88818c9c1ebe2075ffa20ada35d8a3a725412c6976f5c44c6dc86ae8c85f
+    /// tsc-span: _tsc.js:61789-61870
     pub fn get_intersection_type_ex(
         &mut self,
         types: &[TypeId],
@@ -537,6 +540,9 @@ impl<'a> CheckerState<'a> {
         Ok(intersections)
     }
 
+    /// tsc-port: getCrossProductUnionSize @6.0.3
+    /// tsc-hash: b5e9572ca4c32fb818e3a1e18ce1d7e91ca18afbf17a6d35fce122616a4dc3c0
+    /// tsc-span: _tsc.js:61871-61873
     pub(crate) fn cross_product_union_size(&self, types: &[TypeId]) -> usize {
         let mut size: usize = 1;
         for &t in types {

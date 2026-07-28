@@ -3756,6 +3756,9 @@ impl<'a> CheckerState<'a> {
     /// only with an errorNode — the 5.5f awaited family passes None
     /// and consumes thisTypeForErrorOut; errorNode callers arrive at
     /// 5.8 (checkAsyncFunctionReturnType, for-await).
+    /// tsc-port: getPromisedTypeOfPromise @6.0.3
+    /// tsc-hash: 34400f2efd43255c842416a05dbe9f0b0e3f9f09d13162db7e61e10a0f59541f
+    /// tsc-span: _tsc.js:82316-82376
     pub(crate) fn get_promised_type_of_promise_with_this_error(
         &mut self,
         ty: TypeId,

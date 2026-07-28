@@ -1884,6 +1884,9 @@ impl<'a> CheckerState<'a> {
     /// checkSyntheticExpression (73946): spread synthetics answer the
     /// number-indexed access of their type, plain synthetics the type
     /// itself. Node args route through the real checkers.
+    /// tsc-port: checkSyntheticExpression @6.0.3
+    /// tsc-hash: 042f469bf501d3ed51235f98ed3d93ed5513dbe1b9f583c7a669d472c2043d23
+    /// tsc-span: _tsc.js:73946-73948
     pub(crate) fn check_effective_arg(
         &mut self,
         arg: &EffectiveArg,

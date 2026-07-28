@@ -177,6 +177,9 @@ impl<'a> ProgramBinder<'a> {
     }
 
     /// tsc isExternalOrCommonJsModule for the file owning `node`.
+    /// tsc-port: isExternalOrCommonJsModule @6.0.3
+    /// tsc-hash: e395fd4c4d5df1373eb3cc17bc653dfcd8f2e41b9e32d949b3063633dc02c07d
+    /// tsc-span: _tsc.js:14119-14121
     pub fn is_external_or_common_js_module_of_node(&self, node: NodeId) -> bool {
         let binder = self.binder_of_node(node);
         binder.source.external_module_indicator.is_some()

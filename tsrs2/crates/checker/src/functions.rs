@@ -5566,6 +5566,9 @@ impl<'a> CheckerState<'a> {
     /// a signature whose .declaration is a TYPE node — a never-typed
     /// callable parameter — hid its annotation from the effects
     /// consult, the 2366-FP face the f12 pin holds).
+    /// tsc-port: getEffectiveReturnTypeNode @6.0.3
+    /// tsc-hash: 48ca97d514d3167e7f6ad934bb144fdf907c4bca4f09b790587d13a4fc2faeeb
+    /// tsc-span: _tsc.js:16768-16770
     pub(crate) fn effective_return_type_node(&self, node: NodeId) -> Option<NodeId> {
         match self.data_of(node) {
             NodeData::FunctionExpression(data) => data.r#type,

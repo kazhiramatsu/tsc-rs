@@ -497,6 +497,9 @@ impl<'a> CheckerState<'a> {
     /// the tables twin performs the identical union reconstruction
     /// (origin filtering, PrimitiveUnion/ContainsIntersections carry,
     /// never tail).
+    /// tsc-port: filterType @6.0.3
+    /// tsc-hash: acc1fb95f1d693ec174389f71c5609dca06afa6c24c05435dfab03b4dae827f4
+    /// tsc-span: _tsc.js:69991-70021
     pub(crate) fn filter_type_with(
         &mut self,
         ty: TypeId,
