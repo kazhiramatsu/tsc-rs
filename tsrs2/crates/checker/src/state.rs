@@ -771,6 +771,11 @@ pub struct CheckerState<'a> {
     /// assignment/constructor paths opt in without opening unrelated
     /// JSDoc-dependent diagnostics.
     pub(crate) non_jsdoc_js_diagnostics: std::collections::HashSet<(String, u32, u32, u32)>,
+    /// Diagnostics produced by an explicitly ported checked-JS JSDoc
+    /// semantic path. Keep this separate from the non-JSDoc set so
+    /// provenance tests and later JSDoc owner slices cannot mistake a
+    /// bounded publication decision for a general frontier opening.
+    pub(crate) jsdoc_js_diagnostics: std::collections::HashSet<(String, u32, u32, u32)>,
     /// Exact semantic provenance for checked-JS property-miss rows
     /// whose receiver type came through a `module.exports = Alias`
     /// declaration. The assignment alias target is trustworthy even
@@ -1012,6 +1017,7 @@ impl<'a> CheckerState<'a> {
             jsx_implicit_import_containers: std::collections::HashMap::new(),
             jsdoc_typed_declarations: std::collections::HashSet::new(),
             non_jsdoc_js_diagnostics: std::collections::HashSet::new(),
+            jsdoc_js_diagnostics: std::collections::HashSet::new(),
             non_jsdoc_js_module_exports_alias_targets: std::collections::HashSet::new(),
             non_jsdoc_js_commonjs_require_targets: std::collections::HashSet::new(),
             global_type_memos: Default::default(),
@@ -1672,6 +1678,24 @@ impl<'a> CheckerState<'a> {
             })
             .collect();
         self.non_jsdoc_js_diagnostics.extend(keys);
+    }
+
+    /// tsrs-native: publish one diagnostic code from an explicitly
+    /// ported checked-JS JSDoc semantic path.
+    pub(crate) fn mark_jsdoc_js_diagnostics_since_with_code(&mut self, start: usize, code: u32) {
+        let keys: Vec<_> = self.diagnostics[start..]
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == code)
+            .filter_map(|diagnostic| {
+                Some((
+                    diagnostic.file_name.clone()?,
+                    diagnostic.start?,
+                    diagnostic.length?,
+                    diagnostic.code(),
+                ))
+            })
+            .collect();
+        self.jsdoc_js_diagnostics.extend(keys);
     }
 
     // ---- out-of-band variance marker handler (M4 5.3b) ----

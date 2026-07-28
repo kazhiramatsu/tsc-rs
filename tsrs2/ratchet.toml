@@ -495,8 +495,15 @@
 # by the already-ported effects-signature and exhaustive-switch flow
 # paths. T1-T3 gain only the frozen slice's two identities, with no
 # losses, gains outside the target, or false positives.
-rate = 0.981438
-matched = 48114
+# M8-P03 adds all 7 supported TS18048 identities from
+# reportObjectPossiblyNullOrUndefinedError. Bounded JSDoc parameter
+# projection supplies the direct and dotted optional facts used by the
+# flow owner, while the checked-JS publication frontier accepts only
+# typed-parameter receivers and direct require namespace properties.
+# T1-T3 gain only the frozen slice's seven identities, with no losses,
+# gains outside the target, resolved exclusions, or false positives.
+rate = 0.98158
+matched = 48121
 total = 49024
 allowed_regression = 0.0
 
@@ -505,8 +512,8 @@ allowed_regression = 0.0
 # ratchet. The denominator is the same pinned all-corpus oracle universe
 # as T0; future gains may raise matched, while any proportional loss
 # fails conformance.
-rate = 0.981397
-matched = 48112
+rate = 0.98154
+matched = 48119
 total = 49024
 allowed_regression = 0.0
 

@@ -3901,31 +3901,176 @@ impl<'a> CheckerState<'a> {
         self.get_or_create_type_from_signature(signature).map(Some)
     }
 
-    /// tsrs-native: the M8 exhaustive-switch owner needs the exact
-    /// checked-JS `{boolean}` parameter face before JSDoc type nodes
-    /// are materialized.
-    ///
-    /// This is intentionally not a general getParameterTypeOfTypeTag
-    /// implementation; broader JSDoc types remain with their frozen
-    /// owner slices.
-    pub(crate) fn jsdoc_boolean_parameter_type_annotation(
-        &self,
+    /// tsrs-native: source-text projection of the
+    /// getParameterTypeOfTypeTag face needed by the M8 flow slices
+    /// while JSDoc type nodes are not materialized.
+    pub(crate) fn jsdoc_parameter_type_annotation(
+        &mut self,
         parameter: NodeId,
-    ) -> Option<TypeId> {
+    ) -> CheckResult2<Option<TypeId>> {
         if !self.is_in_js_file(parameter) || self.kind_of(parameter) != SyntaxKind::Parameter {
-            return None;
+            return Ok(None);
         }
-        let function = self.parent_of(parameter)?;
-        let name = self
-            .name_of_node(parameter)
-            .and_then(|name| self.identifier_text_of(name))?;
+        let Some(function) = self.parent_of(parameter) else {
+            return Ok(None);
+        };
         let source = self.binder.source_of_node(function);
-        let (comment_start, comment_end) = self.leading_jsdoc_comment_range(function)?;
+        let Some((comment_start, comment_end)) = self.leading_jsdoc_comment_range(function) else {
+            return Ok(None);
+        };
         let comment_body = &source.text[comment_start + 3..comment_end - 2];
-        parse_jsdoc_parameter_annotations(comment_body)
-            .into_iter()
-            .any(|(annotation_name, type_text)| annotation_name == name && type_text == "boolean")
-            .then_some(self.tables.intrinsics.boolean)
+        let constructor_tag_owner = comment_body.contains("@constructor");
+        let annotations = parse_jsdoc_parameter_tag_annotations(comment_body);
+        let name = match self.data_of(parameter) {
+            NodeData::Parameter(data) => data.name,
+            _ => None,
+        };
+        let Some(name) = name else {
+            return Ok(None);
+        };
+        if let Some(name) = self.identifier_text_of(name).map(str::to_owned) {
+            let Some(annotation) = annotations
+                .iter()
+                .find(|annotation| annotation.name == name)
+            else {
+                return Ok(None);
+            };
+            // Preserve M8-P02's already-frozen exhaustive-switch
+            // projection. Explicit @constructor signatures belong to
+            // the constructor/class owner rather than P03's flow
+            // cluster and must not leak call-relation identities.
+            if annotation.type_text == "boolean" && !annotation.optional {
+                return Ok(Some(self.tables.intrinsics.boolean));
+            }
+            if constructor_tag_owner {
+                return Ok(None);
+            }
+            let Some(mut ty) = self.get_type_from_jsdoc_text(parameter, &annotation.type_text)?
+            else {
+                return Ok(None);
+            };
+            if annotation.optional {
+                ty = self.tables.add_optionality(ty, /*is_property*/ false, true);
+            }
+            return Ok(Some(ty));
+        }
+        if self.kind_of(name) != SyntaxKind::ObjectBindingPattern {
+            return Ok(None);
+        }
+        if constructor_tag_owner {
+            return Ok(None);
+        }
+
+        let parameter_index = self
+            .parameters_of_function(function)
+            .iter()
+            .position(|&candidate| candidate == parameter);
+        let roots: Vec<&JsDocParameterTagAnnotation> = annotations
+            .iter()
+            .filter(|annotation| !annotation.name.contains('.'))
+            .collect();
+        let Some(root) = parameter_index.and_then(|index| roots.get(index)).copied() else {
+            return Ok(None);
+        };
+        let prefix = format!("{}.", root.name);
+        let properties: Vec<&JsDocParameterTagAnnotation> = annotations
+            .iter()
+            .filter(|annotation| {
+                annotation
+                    .name
+                    .strip_prefix(&prefix)
+                    .is_some_and(|name| !name.contains('.') && is_jsdoc_identifier(name))
+            })
+            .collect();
+        if properties.is_empty() {
+            return Ok(None);
+        }
+
+        let object = self.create_resolved_empty_anonymous_type(None);
+        let members = self
+            .links
+            .ty(object)
+            .resolved_members
+            .resolved()
+            .expect("created resolved above");
+        for annotation in properties {
+            let property_name = annotation
+                .name
+                .strip_prefix(&prefix)
+                .expect("properties were filtered by prefix")
+                .to_owned();
+            let Some(mut property_type) =
+                self.get_type_from_jsdoc_text(parameter, &annotation.type_text)?
+            else {
+                return Ok(None);
+            };
+            let mut flags = SymbolFlags::PROPERTY;
+            if annotation.optional {
+                flags |= SymbolFlags::OPTIONAL;
+                property_type =
+                    self.tables
+                        .add_optionality(property_type, /*is_property*/ true, true);
+            }
+            let symbol = self.binder.create_symbol(flags, property_name.clone());
+            self.links
+                .set_fresh_symbol_type(symbol, crate::links::LinkSlot::Resolved(property_type));
+            let resolved = self.members_mut(members);
+            resolved.members.insert(property_name, symbol);
+            resolved.properties.push(symbol);
+        }
+        Ok(Some(object))
+    }
+
+    /// tsrs-native: pure provenance query paired with
+    /// `jsdoc_parameter_type_annotation`. It deliberately does not
+    /// resolve a type: nullable diagnostic publication can call this
+    /// while checking an expression without reopening annotation
+    /// resolution.
+    pub(crate) fn has_jsdoc_parameter_type_annotation(&self, parameter: NodeId) -> bool {
+        if !self.is_in_js_file(parameter) || self.kind_of(parameter) != SyntaxKind::Parameter {
+            return false;
+        }
+        let Some(function) = self.parent_of(parameter) else {
+            return false;
+        };
+        let source = self.binder.source_of_node(function);
+        let Some((comment_start, comment_end)) = self.leading_jsdoc_comment_range(function) else {
+            return false;
+        };
+        let comment_body = &source.text[comment_start + 3..comment_end - 2];
+        let constructor_tag_owner = comment_body.contains("@constructor");
+        let annotations = parse_jsdoc_parameter_tag_annotations(comment_body);
+        let name = match self.data_of(parameter) {
+            NodeData::Parameter(data) => data.name,
+            _ => None,
+        };
+        let Some(name) = name else {
+            return false;
+        };
+        if let Some(name) = self.identifier_text_of(name) {
+            return annotations
+                .iter()
+                .find(|annotation| annotation.name == name)
+                .is_some_and(|annotation| {
+                    annotation.type_text == "boolean" && !annotation.optional
+                        || !constructor_tag_owner
+                });
+        }
+        if self.kind_of(name) != SyntaxKind::ObjectBindingPattern {
+            return false;
+        }
+        if constructor_tag_owner {
+            return false;
+        }
+        let parameter_index = self
+            .parameters_of_function(function)
+            .iter()
+            .position(|&candidate| candidate == parameter);
+        let roots: Vec<_> = annotations
+            .iter()
+            .filter(|annotation| !annotation.name.contains('.'))
+            .collect();
+        parameter_index.is_some_and(|index| roots.get(index).is_some())
     }
 
     /// tsrs-native: project checkTypePredicate's invalid-parent face
@@ -11319,6 +11464,13 @@ struct JsDocFunctionParameter {
     rest: bool,
 }
 
+#[derive(Clone)]
+struct JsDocParameterTagAnnotation {
+    name: String,
+    type_text: String,
+    optional: bool,
+}
+
 fn jsdoc_braced_payload(text: &str) -> Option<(&str, usize)> {
     let text = text.trim_start();
     if !text.starts_with('{') {
@@ -11457,6 +11609,14 @@ fn parse_jsdoc_arrow_function_type(text: &str) -> Option<(Vec<JsDocFunctionParam
 }
 
 fn parse_jsdoc_parameter_annotations(comment: &str) -> Vec<(String, String)> {
+    parse_jsdoc_parameter_tag_annotations(comment)
+        .into_iter()
+        .filter(|annotation| !annotation.name.contains('.'))
+        .map(|annotation| (annotation.name, annotation.type_text))
+        .collect()
+}
+
+fn parse_jsdoc_parameter_tag_annotations(comment: &str) -> Vec<JsDocParameterTagAnnotation> {
     let mut annotations = Vec::new();
     for line in comment.lines() {
         let candidate = line
@@ -11478,13 +11638,28 @@ fn parse_jsdoc_parameter_annotations(comment: &str) -> Vec<(String, String)> {
         let Some((ty, consumed)) = jsdoc_braced_payload(tail) else {
             continue;
         };
-        let name = tail[consumed..]
+        let raw_name = tail[consumed..]
             .split_whitespace()
             .next()
-            .unwrap_or_default()
-            .trim_matches(|character| matches!(character, '[' | ']'));
-        if is_jsdoc_identifier(name) && !ty.trim().is_empty() {
-            annotations.push((name.to_owned(), ty.trim().to_owned()));
+            .unwrap_or_default();
+        let bracketed = raw_name.starts_with('[') && raw_name.ends_with(']');
+        let name = raw_name
+            .trim_matches(|character| matches!(character, '[' | ']'))
+            .split('=')
+            .next()
+            .unwrap_or_default();
+        let valid_name = !name.is_empty() && name.split('.').all(is_jsdoc_identifier);
+        let mut type_text = ty.trim();
+        let optional_type = type_text.ends_with('=');
+        if optional_type {
+            type_text = type_text[..type_text.len() - 1].trim_end();
+        }
+        if valid_name && !type_text.is_empty() {
+            annotations.push(JsDocParameterTagAnnotation {
+                name: name.to_owned(),
+                type_text: type_text.to_owned(),
+                optional: bracketed || optional_type,
+            });
         }
     }
     annotations
