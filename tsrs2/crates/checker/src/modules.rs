@@ -15,7 +15,7 @@
 //! ordinary resolver verdict remains suppressed).
 
 use tsrs2_binder::{node_util, SymbolId, SymbolTable};
-use tsrs2_diags::{gen as diagnostics, DiagnosticMessage, MessageChain};
+use tsrs2_diags::{gen as diagnostics, DiagnosticCategory, DiagnosticMessage, MessageChain};
 use tsrs2_syntax::{
     escape_leading_underscores, unescape_leading_underscores, NodeData, NodeId, SyntaxKind,
 };
@@ -53,6 +53,30 @@ pub(crate) enum ProgramModuleResolution {
     Resolved(ResolvedProgramModule),
     Suppressed,
     Missed,
+}
+
+/// Diagnostic-only projection of a host module target. Ordinary
+/// symbol resolution deliberately does not consume this shape: it
+/// carries only enough evidence for resolveExternalModule's TS7016
+/// branch to distinguish a declaration target from a real JavaScript
+/// implementation file.
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum HostModuleTarget {
+    Typed(String),
+    Untyped(String),
+}
+
+/// The external-library facts consumed by errorOnImplicitAnyModule.
+/// package_name is the resolved packageId.name face (and therefore
+/// remains absent for packages without name metadata); alternate_result
+/// is the declaration path found by the other resolver regime.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct UntypedModuleResolution {
+    resolved_file_name: String,
+    package_name: Option<String>,
+    alternate_result: Option<String>,
+    types_package_exists: bool,
+    package_bundles_types: bool,
 }
 
 /// tsc ResolutionMode at the host-resolution seam. `Unknown` remains
@@ -2529,19 +2553,20 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:49473-49663
     ///
     /// Reduced at the modeled defaults: project-reference redirects,
-    /// resolveJsonModule, rewriteRelativeImportExtensions, external
-    /// library (node_modules) resolution and its implicit-any rows,
-    /// and the alternateResult chain all reduce to nothing — the
-    /// program resolver never produces those shapes
-    /// (program-and-modules.md §2).
+    /// resolveJsonModule and rewriteRelativeImportExtensions reduce to
+    /// nothing. External-library symbol resolution remains suppressed,
+    /// but its diagnostic-only host projection now makes the
+    /// implicit-any and alternateResult rows live without widening the
+    /// checker resolver (program-and-modules.md §2).
     /// The Node16/Node18 synchronous-import mismatch arm is live over
     /// the in-program resolver: implied formats, import-equals and
     /// dynamic-import ancestry, resolution-mode overrides, and the
     /// nested 1480-1483 conversion details are preserved exactly.
-    /// LIVE rows: @types/ redirect,
-    /// ambient modules, in-program resolution + getResolutionDiagnostic
-    /// jsx row, ts-extension rows (5097/2846 family), File_0_is_not_a_
-    /// module, pattern ambient modules, and the 2307/2792 tail.
+    /// LIVE rows: @types/ redirect, ambient modules, in-program
+    /// resolution + getResolutionDiagnostic jsx row, external-JS
+    /// implicit-any (7016 + 6278/6280/7035/7040/7058 chain),
+    /// ts-extension rows (5097/2846 family), File_0_is_not_a_module,
+    /// pattern ambient modules, and the 2307/2792 tail.
     pub(crate) fn resolve_external_module(
         &mut self,
         location: NodeId,
@@ -2661,6 +2686,36 @@ impl<'a> CheckerState<'a> {
             }
             let root = source.root;
             if let Some(file_symbol) = self.binder.node_symbol(root) {
+                // tsc resolveExternalModule's source-symbol arm still
+                // reports an external JavaScript library as an untyped
+                // suggestion. This is observable when allowJs brought
+                // a node_modules implementation into the program; the
+                // returned symbol remains authoritative.
+                if let Some(error_node) = error_node {
+                    let resolved_file_path = Self::normalize_program_path(&resolved_file_name, "");
+                    if Self::is_untyped_javascript_path(&resolved_file_path)
+                        && Self::node_modules_package_root_for_path(&resolved_file_path).is_some()
+                    {
+                        let diagnostics_before = self.diagnostics.len();
+                        let untyped = self.untyped_resolution_from_path(
+                            location,
+                            module_reference,
+                            resolved_file_path,
+                        );
+                        self.report_implicit_any_module(
+                            /*is_error*/ false,
+                            error_node,
+                            module_reference,
+                            &untyped,
+                        );
+                        if self.is_in_js_file(error_node) {
+                            self.mark_non_jsdoc_js_diagnostics_since_with_code(
+                                diagnostics_before,
+                                diagnostics::Could_not_find_a_declaration_file_for_module_0_1_implicitly_has_an_any_type.code,
+                            );
+                        }
+                    }
+                }
                 if let Some(error_node) = error_node {
                     self.report_node_format_mismatch(location, error_node, root, module_reference);
                 }
@@ -2745,6 +2800,30 @@ impl<'a> CheckerState<'a> {
                     resolved_source_root,
                     module_reference,
                 );
+            }
+            if !is_for_augmentation {
+                if let Some(untyped) =
+                    self.resolve_untyped_module_for_diagnostic(location, module_reference)
+                {
+                    let diagnostics_before = self.diagnostics.len();
+                    let is_error = module_not_found_error.is_some()
+                        && !self.options.allow_js
+                        && self
+                            .options
+                            .strict_option_value(self.options.no_implicit_any);
+                    self.report_implicit_any_module(
+                        is_error,
+                        error_node,
+                        module_reference,
+                        &untyped,
+                    );
+                    if self.is_in_js_file(error_node) {
+                        self.mark_non_jsdoc_js_diagnostics_since_with_code(
+                            diagnostics_before,
+                            diagnostics::Could_not_find_a_declaration_file_for_module_0_1_implicitly_has_an_any_type.code,
+                        );
+                    }
+                }
             }
             // tsrs-native FP=0 rule: the miss sits behind unmodeled
             // resolution machinery (node_modules/baseUrl-paths/allowJs
@@ -3598,6 +3677,591 @@ impl<'a> CheckerState<'a> {
         let target =
             Self::package_map_target(exports, &export_key, resolution_mode, /*exports*/ true)?;
         self.resolve_package_target_path(&package_root, &target)
+    }
+
+    /// tsrs-native: diagnostic adapter for resolveExternalModule's
+    /// implicit-any branch and createModuleNotFoundChain. The exact
+    /// upstream producer identities remain in the frozen D2
+    /// disposition inventory; this helper consumes only the modeled
+    /// Rust host projection and does not create a general resolver.
+    ///
+    /// This diagnostic path consumes only definite host evidence:
+    /// `resolved_file_name` names an input JavaScript file and every
+    /// optional tail is derived from the selected package instance.
+    /// It cannot turn a Suppressed module into a checker symbol.
+    fn report_implicit_any_module(
+        &mut self,
+        is_error: bool,
+        error_node: NodeId,
+        module_reference: &str,
+        resolution: &UntypedModuleResolution,
+    ) {
+        if self.is_side_effect_import(error_node) {
+            return;
+        }
+        let details = resolution.package_name.as_ref().map(|package_name| {
+            if let Some(alternate_result) = &resolution.alternate_result {
+                if self.options.emit_module_resolution_kind() == 2 {
+                    return MessageChain::new(
+                        &diagnostics::There_are_types_at_0_but_this_result_could_not_be_resolved_under_your_current_moduleResolution_setting_Consider_updating_to_node16_nodenext_or_bundler,
+                        std::slice::from_ref(alternate_result),
+                    );
+                }
+                let library_name = if alternate_result.contains("/node_modules/@types/") {
+                    format!("@types/{}", Self::mangle_scoped_package_name(package_name))
+                } else {
+                    package_name.clone()
+                };
+                return MessageChain::new(
+                    &diagnostics::There_are_types_at_0_but_this_result_could_not_be_resolved_when_respecting_package_json_exports_The_1_library_may_need_to_update_its_package_json_or_typings,
+                    &[alternate_result.clone(), library_name],
+                );
+            }
+            if resolution.types_package_exists {
+                return MessageChain::new(
+                    &diagnostics::If_the_0_package_actually_exposes_this_module_consider_sending_a_pull_request_to_amend_https_github_com_DefinitelyTyped_DefinitelyTyped_tree_master_types_1,
+                    &[
+                        package_name.clone(),
+                        Self::mangle_scoped_package_name(package_name),
+                    ],
+                );
+            }
+            if resolution.package_bundles_types {
+                return MessageChain::new(
+                    &diagnostics::If_the_0_package_actually_exposes_this_module_try_adding_a_new_declaration_d_ts_file_containing_declare_module_1,
+                    &[package_name.clone(), module_reference.to_owned()],
+                );
+            }
+            MessageChain::new(
+                &diagnostics::Try_npm_i_save_dev_types_1_if_it_exists_or_add_a_new_declaration_d_ts_file_containing_declare_module_0,
+                &[
+                    module_reference.to_owned(),
+                    Self::mangle_scoped_package_name(package_name),
+                ],
+            )
+        });
+        let mut chain = MessageChain::new(
+            &diagnostics::Could_not_find_a_declaration_file_for_module_0_1_implicitly_has_an_any_type,
+            &[
+                module_reference.to_owned(),
+                resolution.resolved_file_name.clone(),
+            ],
+        );
+        if !is_error {
+            chain.category = DiagnosticCategory::Suggestion;
+        }
+        if let Some(details) = details {
+            chain = chain.with_next(vec![details]);
+        }
+        let span = self.diag_span_of_node(error_node);
+        let diagnostic = self.diagnostic_at_span(&span, chain);
+        self.push_error_diagnostic(diagnostic);
+    }
+
+    /// Diagnostic-only counterpart of the host's resolvedModule
+    /// record for a resolver Suppressed verdict. It recognizes only
+    /// package/relative targets backed by an actual host JS file.
+    fn resolve_untyped_module_for_diagnostic(
+        &self,
+        location: NodeId,
+        module_reference: &str,
+    ) -> Option<UntypedModuleResolution> {
+        let importer =
+            Self::normalize_program_path(&self.binder.source_of_node(location).file_name, "");
+        let importer_dir = importer
+            .rsplit_once('/')
+            .map_or("", |(directory, _)| directory);
+        if Self::is_external_module_name_relative(module_reference)
+            || module_reference.starts_with('/')
+        {
+            // needAllowJs is inactive when allowJs is effective. A
+            // Suppressed relative verdict in that mode is usually a
+            // Node ESM extension/directory question, not TS7016.
+            if self.options.allow_js {
+                return None;
+            }
+            let candidate = Self::normalize_program_path(module_reference, importer_dir);
+            let HostModuleTarget::Untyped(resolved_file_name) =
+                self.probe_host_module_candidate(&candidate)?
+            else {
+                return None;
+            };
+            return Some(UntypedModuleResolution {
+                resolved_file_name,
+                package_name: None,
+                alternate_result: None,
+                types_package_exists: false,
+                package_bundles_types: false,
+            });
+        }
+        if module_reference.starts_with('#')
+            || !matches!(self.options.emit_module_resolution_kind(), 2 | 3 | 99 | 100)
+        {
+            return None;
+        }
+        let (package, subpath) = Self::bare_package_parts(module_reference);
+        let package_root = self.nearest_visible_package_root(&importer, &package)?;
+        let HostModuleTarget::Untyped(resolved_file_name) = self
+            .resolve_host_package_current_target(
+                &package_root,
+                &subpath,
+                self.resolution_mode_for_usage(location),
+            )?
+        else {
+            return None;
+        };
+        // TypeScript searches the corresponding DefinitelyTyped
+        // package before accepting an implementation-only primary
+        // package. Keep its current resolver regime (especially
+        // exports conditions) rather than treating it as a legacy
+        // alternate.
+        let types_package = format!("@types/{}", Self::mangle_scoped_package_name(&package));
+        if self
+            .nearest_visible_package_root(&importer, &types_package)
+            .and_then(|root| {
+                self.resolve_host_package_current_target(
+                    &root,
+                    &subpath,
+                    self.resolution_mode_for_usage(location),
+                )
+            })
+            .is_some_and(|target| matches!(target, HostModuleTarget::Typed(_)))
+        {
+            return None;
+        }
+        Some(self.untyped_package_resolution(
+            &importer,
+            location,
+            module_reference,
+            package,
+            subpath,
+            package_root,
+            resolved_file_name,
+        ))
+    }
+
+    fn untyped_resolution_from_path(
+        &self,
+        location: NodeId,
+        module_reference: &str,
+        resolved_file_name: String,
+    ) -> UntypedModuleResolution {
+        let importer =
+            Self::normalize_program_path(&self.binder.source_of_node(location).file_name, "");
+        if Self::is_external_module_name_relative(module_reference)
+            || module_reference.starts_with('/')
+        {
+            return UntypedModuleResolution {
+                resolved_file_name,
+                package_name: None,
+                alternate_result: None,
+                types_package_exists: false,
+                package_bundles_types: false,
+            };
+        }
+        let (package, subpath) = Self::bare_package_parts(module_reference);
+        let Some(package_root) = self.nearest_visible_package_root(&importer, &package) else {
+            return UntypedModuleResolution {
+                resolved_file_name,
+                package_name: None,
+                alternate_result: None,
+                types_package_exists: false,
+                package_bundles_types: false,
+            };
+        };
+        self.untyped_package_resolution(
+            &importer,
+            location,
+            module_reference,
+            package,
+            subpath,
+            package_root,
+            resolved_file_name,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn untyped_package_resolution(
+        &self,
+        importer: &str,
+        location: NodeId,
+        _module_reference: &str,
+        package: String,
+        subpath: String,
+        package_root: String,
+        resolved_file_name: String,
+    ) -> UntypedModuleResolution {
+        let package_json = format!("{package_root}/package.json");
+        let package_name = self.host_package_json_names.get(&package_json).cloned();
+        let types_package = format!("@types/{}", Self::mangle_scoped_package_name(&package));
+        let types_package_root = self.nearest_visible_package_root(importer, &types_package);
+        let types_package_exists = types_package_root.is_some();
+        let package_bundles_types = self.package_root_bundles_types(&package_root);
+        let resolution_mode = self.resolution_mode_for_usage(location);
+        let alternate_result = if self.options.emit_module_resolution_kind() == 2 {
+            self.resolve_host_package_exports_target(&package_root, &subpath, resolution_mode)
+                .and_then(Self::typed_target_path)
+        } else if resolution_mode == ModuleResolutionMode::EsNext {
+            self.resolve_host_package_legacy_target(&package_root, &subpath)
+                .and_then(Self::typed_target_path)
+                .or_else(|| {
+                    types_package_root.as_ref().and_then(|root| {
+                        self.resolve_host_package_legacy_target(root, &subpath)
+                            .and_then(Self::typed_target_path)
+                    })
+                })
+        } else {
+            None
+        };
+        UntypedModuleResolution {
+            resolved_file_name,
+            package_name,
+            alternate_result,
+            types_package_exists,
+            package_bundles_types,
+        }
+    }
+
+    fn resolve_host_package_current_target(
+        &self,
+        package_root: &str,
+        subpath: &str,
+        resolution_mode: ModuleResolutionMode,
+    ) -> Option<HostModuleTarget> {
+        let package_json = format!("{package_root}/package.json");
+        let value = self.host_package_json_values.get(&package_json);
+        let modern = matches!(self.options.emit_module_resolution_kind(), 3 | 99 | 100);
+        if modern && value.is_some_and(|value| value.get("exports").is_some()) {
+            return self.resolve_host_package_exports_target(
+                package_root,
+                subpath,
+                resolution_mode,
+            );
+        }
+        self.resolve_host_package_legacy_target(package_root, subpath)
+    }
+
+    fn resolve_host_package_exports_target(
+        &self,
+        package_root: &str,
+        subpath: &str,
+        resolution_mode: ModuleResolutionMode,
+    ) -> Option<HostModuleTarget> {
+        let package_json = format!("{package_root}/package.json");
+        let exports = self
+            .host_package_json_values
+            .get(&package_json)?
+            .get("exports")?;
+        let export_key = if subpath.is_empty() {
+            ".".to_owned()
+        } else {
+            format!("./{subpath}")
+        };
+        let (value, capture) =
+            Self::package_map_entry(exports, &export_key, /*exports*/ true)?;
+        self.resolve_host_conditional_target(
+            value,
+            resolution_mode,
+            capture.as_deref(),
+            package_root,
+        )
+    }
+
+    fn package_map_entry<'b>(
+        map: &'b serde_json::Value,
+        key: &str,
+        exports: bool,
+    ) -> Option<(&'b serde_json::Value, Option<String>)> {
+        if exports
+            && key == "."
+            && !map.as_object().is_some_and(|object| {
+                object
+                    .keys()
+                    .any(|candidate| candidate == "." || candidate.starts_with("./"))
+            })
+        {
+            return Some((map, None));
+        }
+        let object = map.as_object()?;
+        if let Some(value) = object.get(key) {
+            return Some((value, None));
+        }
+        let mut patterns = object
+            .iter()
+            .filter_map(|(pattern, value)| {
+                let star = pattern.find('*')?;
+                let (prefix, suffix_with_star) = pattern.split_at(star);
+                let suffix = &suffix_with_star[1..];
+                let capture = key
+                    .strip_prefix(prefix)
+                    .and_then(|rest| rest.strip_suffix(suffix))?;
+                Some((prefix.len(), suffix.len(), value, capture.to_owned()))
+            })
+            .collect::<Vec<_>>();
+        patterns.sort_by(|left, right| right.0.cmp(&left.0).then_with(|| right.1.cmp(&left.1)));
+        patterns
+            .into_iter()
+            .next()
+            .map(|(_, _, value, capture)| (value, Some(capture)))
+    }
+
+    /// Node's declaration search can continue past a matching
+    /// JavaScript condition to a later `types`/`default` condition.
+    /// Preserve the first JS implementation as a fallback, but prefer
+    /// any declaration target reached by the same condition walk.
+    fn resolve_host_conditional_target(
+        &self,
+        value: &serde_json::Value,
+        resolution_mode: ModuleResolutionMode,
+        capture: Option<&str>,
+        package_root: &str,
+    ) -> Option<HostModuleTarget> {
+        match value {
+            serde_json::Value::String(target) => {
+                let target = match capture {
+                    Some(capture) => target.replace('*', capture),
+                    None => target.clone(),
+                };
+                if !target.starts_with("./") {
+                    return None;
+                }
+                let candidate = Self::normalize_program_path(&target, package_root);
+                self.probe_host_module_candidate(&candidate)
+            }
+            serde_json::Value::Array(targets) => {
+                let mut untyped = None;
+                for target in targets {
+                    match self.resolve_host_conditional_target(
+                        target,
+                        resolution_mode,
+                        capture,
+                        package_root,
+                    ) {
+                        some @ Some(HostModuleTarget::Typed(_)) => return some,
+                        Some(HostModuleTarget::Untyped(path)) => {
+                            untyped.get_or_insert(path);
+                        }
+                        None => {}
+                    }
+                }
+                untyped.map(HostModuleTarget::Untyped)
+            }
+            serde_json::Value::Object(conditions) => {
+                let mut untyped = None;
+                for (condition, target) in conditions {
+                    let matches = condition == "types"
+                        || condition == "node"
+                        || condition == "default"
+                        || (condition == "import"
+                            && resolution_mode == ModuleResolutionMode::EsNext)
+                        || (condition == "require"
+                            && resolution_mode == ModuleResolutionMode::CommonJs);
+                    if !matches {
+                        continue;
+                    }
+                    match self.resolve_host_conditional_target(
+                        target,
+                        resolution_mode,
+                        capture,
+                        package_root,
+                    ) {
+                        some @ Some(HostModuleTarget::Typed(_)) => return some,
+                        Some(HostModuleTarget::Untyped(path)) => {
+                            untyped.get_or_insert(path);
+                        }
+                        None => {}
+                    }
+                }
+                untyped.map(HostModuleTarget::Untyped)
+            }
+            _ => None,
+        }
+    }
+
+    fn resolve_host_package_legacy_target(
+        &self,
+        package_root: &str,
+        subpath: &str,
+    ) -> Option<HostModuleTarget> {
+        let package_json = format!("{package_root}/package.json");
+        let value = self.host_package_json_values.get(&package_json);
+        if !subpath.is_empty() {
+            if let Some(target) = value
+                .and_then(|value| value.get("typesVersions"))
+                .and_then(|versions| Self::types_versions_target(versions, subpath))
+            {
+                let candidate = Self::normalize_program_path(&target, package_root);
+                if let Some(resolved) = self.probe_host_module_candidate(&candidate) {
+                    return Some(resolved);
+                }
+            }
+            let candidate = Self::normalize_program_path(subpath, package_root);
+            return self.probe_host_module_candidate(&candidate);
+        }
+        if let Some(types) = value.and_then(|value| {
+            value
+                .get("types")
+                .or_else(|| value.get("typings"))
+                .and_then(serde_json::Value::as_str)
+        }) {
+            let candidate = Self::normalize_program_path(types, package_root);
+            if let Some(resolved) = self.probe_host_module_candidate(&candidate) {
+                return Some(resolved);
+            }
+        }
+        if let Some(main) = value
+            .and_then(|value| value.get("main"))
+            .and_then(serde_json::Value::as_str)
+        {
+            let candidate = Self::normalize_program_path(main, package_root);
+            if let Some(resolved) = self.probe_host_module_candidate(&candidate) {
+                return Some(resolved);
+            }
+        }
+        self.probe_host_module_candidate(&format!("{package_root}/index"))
+    }
+
+    fn types_versions_target(versions: &serde_json::Value, subpath: &str) -> Option<String> {
+        let mappings = versions
+            .as_object()?
+            .values()
+            .find_map(serde_json::Value::as_object)?;
+        if let Some(value) = mappings.get(subpath) {
+            return value
+                .as_array()?
+                .iter()
+                .find_map(serde_json::Value::as_str)
+                .map(str::to_owned);
+        }
+        mappings.iter().find_map(|(pattern, value)| {
+            let star = pattern.find('*')?;
+            let (prefix, suffix_with_star) = pattern.split_at(star);
+            let suffix = &suffix_with_star[1..];
+            let capture = subpath.strip_prefix(prefix)?.strip_suffix(suffix)?;
+            value
+                .as_array()?
+                .iter()
+                .find_map(serde_json::Value::as_str)
+                .map(|target| target.replace('*', capture))
+        })
+    }
+
+    fn probe_host_module_candidate(&self, candidate: &str) -> Option<HostModuleTarget> {
+        let exists = |path: &str| self.host_file_paths.contains(path);
+        let typed = |path: String| HostModuleTarget::Typed(path);
+        let untyped = |path: String| HostModuleTarget::Untyped(path);
+        if Self::is_typed_host_path(candidate) && exists(candidate) {
+            return Some(typed(candidate.to_owned()));
+        }
+        for (written, substitutions) in [
+            (".js", &[".ts", ".tsx", ".d.ts"][..]),
+            (".jsx", &[".ts", ".tsx", ".d.ts"][..]),
+            (".mjs", &[".mts", ".d.mts"][..]),
+            (".cjs", &[".cts", ".d.cts"][..]),
+        ] {
+            if let Some(base) = candidate.strip_suffix(written) {
+                for extension in substitutions {
+                    let probed = format!("{base}{extension}");
+                    if exists(&probed) {
+                        return Some(typed(probed));
+                    }
+                }
+                if exists(candidate) {
+                    return Some(untyped(candidate.to_owned()));
+                }
+                return None;
+            }
+        }
+        if !Self::has_extension(candidate) {
+            for extension in [".ts", ".tsx", ".d.ts", ".mts", ".cts"] {
+                let probed = format!("{candidate}{extension}");
+                if exists(&probed) {
+                    return Some(typed(probed));
+                }
+            }
+            for extension in [".js", ".jsx", ".mjs", ".cjs"] {
+                let probed = format!("{candidate}{extension}");
+                if exists(&probed) {
+                    return Some(untyped(probed));
+                }
+            }
+        }
+        let directory = candidate.trim_end_matches('/');
+        for extension in [".ts", ".tsx", ".d.ts", ".mts", ".cts"] {
+            let probed = format!("{directory}/index{extension}");
+            if exists(&probed) {
+                return Some(typed(probed));
+            }
+        }
+        for extension in [".js", ".jsx", ".mjs", ".cjs"] {
+            let probed = format!("{directory}/index{extension}");
+            if exists(&probed) {
+                return Some(untyped(probed));
+            }
+        }
+        None
+    }
+
+    fn typed_target_path(target: HostModuleTarget) -> Option<String> {
+        match target {
+            HostModuleTarget::Typed(path) => Some(path),
+            HostModuleTarget::Untyped(_) => None,
+        }
+    }
+
+    fn is_typed_host_path(path: &str) -> bool {
+        [".d.ts", ".d.mts", ".d.cts", ".ts", ".tsx", ".mts", ".cts"]
+            .iter()
+            .any(|extension| path.ends_with(extension))
+    }
+
+    fn is_untyped_javascript_path(path: &str) -> bool {
+        [".js", ".jsx", ".mjs", ".cjs"]
+            .iter()
+            .any(|extension| path.ends_with(extension))
+    }
+
+    fn node_modules_package_root_for_path(path: &str) -> Option<String> {
+        let marker = "/node_modules/";
+        let marker_position = path.rfind(marker)?;
+        let package_start = marker_position + marker.len();
+        let remainder = &path[package_start..];
+        let segment_count = if remainder.starts_with('@') { 2 } else { 1 };
+        let package = remainder
+            .split('/')
+            .take(segment_count)
+            .collect::<Vec<_>>()
+            .join("/");
+        (!package.is_empty()).then(|| format!("{}{}", &path[..package_start], package))
+    }
+
+    fn mangle_scoped_package_name(package: &str) -> String {
+        match package.strip_prefix('@') {
+            Some(scoped) => scoped.replace('/', "__"),
+            None => package.to_owned(),
+        }
+    }
+
+    fn package_root_bundles_types(&self, package_root: &str) -> bool {
+        let package_json = format!("{package_root}/package.json");
+        if self
+            .host_package_json_values
+            .get(&package_json)
+            .is_some_and(|value| {
+                value.get("types").is_some()
+                    || value.get("typings").is_some()
+                    || value.get("typesVersions").is_some()
+            })
+        {
+            return true;
+        }
+        let prefix = format!("{package_root}/");
+        self.host_file_paths.iter().any(|path| {
+            path.starts_with(&prefix)
+                && [".d.ts", ".d.mts", ".d.cts"]
+                    .iter()
+                    .any(|extension| path.ends_with(extension))
+        })
     }
 
     fn nearest_package_json_for_file(&self, file_name: &str) -> Option<String> {
@@ -7479,6 +8143,7 @@ impl<'a> CheckerState<'a> {
 mod tests {
     use crate::state::test_support::with_program_state;
     use crate::{check_program, check_program_with_libs_at, CompilerOptions, InputFile};
+    use tsrs2_diags::{gen as diagnostics, DiagnosticCategory, MessageChain};
     use tsrs2_syntax::{NodeData, SyntaxKind};
 
     fn internal_import_reference_state(tail: &str, options: &CompilerOptions) -> (bool, bool) {
@@ -8696,6 +9361,191 @@ let unrelated = \"\";\n",
                 bad.find("import").expect("recovered import type") as u32,
                 "import(\"pkg\", {".len() as u32,
             )]
+        );
+    }
+
+    #[test]
+    fn implicit_any_module_uses_node10_alternate_result_chain() {
+        let source = "import { pkg } from \"pkg\";\n";
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "/node_modules/pkg/package.json".to_owned(),
+                    text: r#"{
+                        "name": "pkg",
+                        "version": "1.0.0",
+                        "main": "./untyped.js",
+                        "exports": { ".": "./definitely-not-index.js" }
+                    }"#
+                    .to_owned(),
+                },
+                InputFile {
+                    name: "/node_modules/pkg/untyped.js".to_owned(),
+                    text: "export {};\n".to_owned(),
+                },
+                InputFile {
+                    name: "/node_modules/pkg/definitely-not-index.d.ts".to_owned(),
+                    text: "export {};\n".to_owned(),
+                },
+                InputFile {
+                    name: "/index.ts".to_owned(),
+                    text: source.to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                module_resolution: Some(2),
+                no_implicit_any: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        let diagnostic = result
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code() == 7016)
+            .expect("implicit-any module diagnostic");
+        assert_eq!(diagnostic.category(), DiagnosticCategory::Error);
+        assert_eq!(
+            (
+                diagnostic.file_name.as_deref(),
+                diagnostic.start,
+                diagnostic.length,
+                diagnostic.message_text(),
+            ),
+            (
+                Some("/index.ts"),
+                Some(source.find("\"pkg\"").expect("specifier") as u32),
+                Some("\"pkg\"".len() as u32),
+                "Could not find a declaration file for module 'pkg'. '/node_modules/pkg/untyped.js' implicitly has an 'any' type.",
+            )
+        );
+        assert_eq!(
+            diagnostic.message.next,
+            [MessageChain::new(
+                &diagnostics::There_are_types_at_0_but_this_result_could_not_be_resolved_under_your_current_moduleResolution_setting_Consider_updating_to_node16_nodenext_or_bundler,
+                &["/node_modules/pkg/definitely-not-index.d.ts".to_owned()],
+            )]
+        );
+    }
+
+    #[test]
+    fn implicit_any_module_suggestion_is_published_from_checked_js() {
+        let source = "const u = require('untyped');\nu.assignment.nested = true;\n";
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "/node_modules/untyped/index.js".to_owned(),
+                    text: "module.exports = {};\n".to_owned(),
+                },
+                InputFile {
+                    name: "/main.js".to_owned(),
+                    text: source.to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        let diagnostic = result
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code() == 7016)
+            .expect("checked-JS implicit-any suggestion");
+        assert_eq!(diagnostic.category(), DiagnosticCategory::Suggestion);
+        assert_eq!(diagnostic.file_name.as_deref(), Some("/main.js"));
+        assert_eq!(
+            diagnostic.start,
+            Some(source.find("'untyped'").expect("specifier") as u32)
+        );
+        assert_eq!(diagnostic.length, Some("'untyped'".len() as u32));
+        assert_eq!(
+            diagnostic.message_text(),
+            "Could not find a declaration file for module 'untyped'. '/node_modules/untyped/index.js' implicitly has an 'any' type."
+        );
+        assert!(diagnostic.message.next.is_empty());
+    }
+
+    #[test]
+    fn implicit_any_module_prefers_later_typed_exports_condition() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "/node_modules/dep/package.json".to_owned(),
+                    text: r#"{
+                        "name": "dep",
+                        "version": "1.0.0",
+                        "exports": {
+                            ".": {
+                                "import": "./dist/index.mjs",
+                                "require": "./dist/index.js",
+                                "types": "./dist/index.d.ts"
+                            }
+                        }
+                    }"#
+                    .to_owned(),
+                },
+                InputFile {
+                    name: "/node_modules/dep/dist/index.d.ts".to_owned(),
+                    text: "export {};\n".to_owned(),
+                },
+                InputFile {
+                    name: "/node_modules/dep/dist/index.mjs".to_owned(),
+                    text: "export {};\n".to_owned(),
+                },
+                InputFile {
+                    name: "/index.mts".to_owned(),
+                    text: "import {} from \"dep\";\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                module: Some(100),
+                allow_js: true,
+                no_implicit_any: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code() != 7016),
+            "{:?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
+    fn implicit_any_module_prefers_visible_at_types_package() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "/node_modules/@types/react/index.d.ts".to_owned(),
+                    text: "declare const React: any;\nexport = React;\n".to_owned(),
+                },
+                InputFile {
+                    name: "/packages/a/node_modules/react/index.js".to_owned(),
+                    text: "module.exports = {};\n".to_owned(),
+                },
+                InputFile {
+                    name: "/packages/a/index.ts".to_owned(),
+                    text: "import React from \"react\";\nReact;\n".to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                module: Some(100),
+                no_implicit_any: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code() != 7016),
+            "{:?}",
+            result.diagnostics
         );
     }
 
