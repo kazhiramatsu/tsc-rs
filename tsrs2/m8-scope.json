@@ -6362,23 +6362,6 @@
       "evidence": "2322 null-vs-@type rows; the var types are @type-mapped JSDoc types"
     },
     {
-      "fixture": "conformance/jsdoc/declarations/jsDeclarationsTypedefAndLatebound.ts",
-      "matrix_key": "",
-      "pass": "semantic",
-      "file": "index.js",
-      "start": 68,
-      "length": 9,
-      "code": 2322,
-      "category": "error",
-      "chain_sha256": "f1425c34dbf1b918ce7aacfd0b7566519138444e3bcc443846e40c3fb98ae895",
-      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "occurrence": 0,
-      "line": 3,
-      "col": 6,
-      "reason": "jsdoc-semantics",
-      "evidence": "fixture's own comment: 'Comment out this JSDoc, and note that the errors index.js go away'"
-    },
-    {
       "fixture": "conformance/jsdoc/enumTag.ts",
       "matrix_key": "",
       "pass": "semantic",
@@ -17483,6 +17466,20 @@
       "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
       "occurrence": 0,
       "resolving_commit": "41b1eabb3da8680db5815dc9990a55171b6e8f26"
+    },
+    {
+      "fixture": "conformance/jsdoc/declarations/jsDeclarationsTypedefAndLatebound.ts",
+      "matrix_key": "",
+      "pass": "semantic",
+      "file": "index.js",
+      "start": 68,
+      "length": 9,
+      "code": 2322,
+      "category": "error",
+      "chain_sha256": "f1425c34dbf1b918ce7aacfd0b7566519138444e3bcc443846e40c3fb98ae895",
+      "related_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "occurrence": 0,
+      "resolving_commit": "e62e7cfd8d6bcc70738bf17e952e8f42d66ceb9c"
     }
   ]
 }
