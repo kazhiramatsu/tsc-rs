@@ -54,13 +54,14 @@ fn main() {
             Some("plan") => match args.next().as_deref() {
                 Some("draft") => run_or_exit(m8_plan::draft(args)),
                 Some("apply-review") => run_or_exit(m8_plan::apply_review(args)),
+                Some("freeze") => run_or_exit(m8_plan::freeze(args)),
                 Some("check") => run_or_exit(m8_plan::check(args)),
                 Some(other) => {
                     eprintln!("unknown m8 plan command: {other}");
                     std::process::exit(2);
                 }
                 None => {
-                    eprintln!("missing m8 plan command (draft|apply-review|check)");
+                    eprintln!("missing m8 plan command (draft|apply-review|freeze|check)");
                     std::process::exit(2);
                 }
             },
@@ -6027,6 +6028,21 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
         Command::new(&executable)
             .args(["families", "check", "--baseline"])
             .arg(baseline),
+    )?;
+    // M8 entry-plan coherence: the frozen plan must be structurally
+    // identical to the reviewed draft at its reachable adjudication
+    // commit and immutable against the same trusted PR baseline.
+    // Frozen checks read the historical fingerprints from the anchor;
+    // they do not rerun the targeted Node trace or require ignored
+    // target artifacts on a clean hosted runner.
+    m8_plan::check(
+        [
+            "--plan".to_owned(),
+            "m8-owner-plan.json".to_owned(),
+            "--baseline".to_owned(),
+            baseline.to_owned(),
+        ]
+        .into_iter(),
     )?;
     // E1 topology (evidence-and-steady-state.md §5): verify/reuse an
     // exact-fingerprint B2 artifact or produce it, then produce B3-B4

@@ -11,6 +11,7 @@ use tsrs2_conformance::ExactIdentity;
 
 use super::{
     collect_ledger_entries, display_relative, exact_ledger_matches, find_tsrs2_root,
+    is_full_lower_hex_commit, m8_git_is_ancestor, m8_git_output, m8_resolve_git_commit,
     mechanical_family_rows, read_json, sha256_file, validate_d2_inventory, LedgerEntry,
     M8EmitterDisposition, M8EmitterDispositions, M8EmitterFunction, M8EmitterInventory,
 };
@@ -90,6 +91,12 @@ struct RustBoundaryOverride {
     file: String,
     function: String,
     rationale: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FreezeRecord {
+    adjudication_commit: String,
 }
 
 pub(crate) fn draft(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -590,7 +597,7 @@ pub(crate) fn apply_review(args: impl Iterator<Item = String>) -> Result<(), Box
     Ok(())
 }
 
-pub(crate) fn check(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+pub(crate) fn freeze(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let mut plan = None;
     let mut args = args.peekable();
     while let Some(arg) = args.next() {
@@ -603,13 +610,81 @@ pub(crate) fn check(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Er
                     args.next().ok_or("missing value after --plan")?,
                 ));
             }
+            _ => return Err(format!("unexpected m8 plan freeze argument: {arg}").into()),
+        }
+    }
+    let workspace = find_tsrs2_root()?;
+    let path = workspace_path(&workspace, &plan.ok_or("m8 plan freeze requires --plan")?);
+    let mut value: Value = read_json(&path)?;
+    audit_plan(&workspace, &value, false)?;
+    if value["status"].as_str() != Some("draft") {
+        return Err("M8 owner plan freeze requires a reviewed draft".into());
+    }
+    require_complete_review(&value)?;
+    verify_review_input(&workspace, &value)?;
+
+    let adjudication_commit = m8_resolve_git_commit(&workspace, "HEAD")?;
+    let adjudicated = plan_at(&workspace, &adjudication_commit, &path)?;
+    if adjudicated != value {
+        return Err(
+            "M8 owner plan freeze requires the identical reviewed draft at HEAD; land it first"
+                .into(),
+        );
+    }
+    value["status"] = json!("frozen");
+    value["freeze"] = json!({
+        "adjudication_commit": adjudication_commit,
+    });
+    audit_plan(&workspace, &value, false)?;
+    verify_frozen_anchor(&workspace, &path, &value)?;
+    fs::write(&path, serde_json::to_vec_pretty(&value)?)?;
+    println!(
+        "M8 owner plan frozen: identities={} clusters={} anchor={} plan={}",
+        value["summary"]["identities"].as_u64().unwrap_or_default(),
+        value["summary"]["clusters"].as_u64().unwrap_or_default(),
+        value["freeze"]["adjudication_commit"]
+            .as_str()
+            .unwrap_or("unknown"),
+        path.display()
+    );
+    Ok(())
+}
+
+pub(crate) fn check(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut plan = None;
+    let mut baseline = None;
+    let mut args = args.peekable();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--plan" => {
+                if plan.is_some() {
+                    return Err("duplicate --plan".into());
+                }
+                plan = Some(PathBuf::from(
+                    args.next().ok_or("missing value after --plan")?,
+                ));
+            }
+            "--baseline" => {
+                if baseline.is_some() {
+                    return Err("duplicate --baseline".into());
+                }
+                baseline = Some(args.next().ok_or("missing value after --baseline")?);
+            }
             _ => return Err(format!("unexpected m8 plan check argument: {arg}").into()),
         }
     }
     let workspace = find_tsrs2_root()?;
     let path = workspace_path(&workspace, &plan.ok_or("m8 plan check requires --plan")?);
     let value: Value = read_json(&path)?;
-    audit_plan(&workspace, &value, true)?;
+    let frozen = value["status"].as_str() == Some("frozen");
+    audit_plan(&workspace, &value, !frozen)?;
+    if frozen {
+        verify_review_input(&workspace, &value)?;
+        verify_frozen_anchor(&workspace, &path, &value)?;
+    }
+    if let Some(baseline) = baseline {
+        verify_plan_baseline(&workspace, &path, &baseline, &value)?;
+    }
     println!(
         "M8 owner plan check: status={} identities={} clusters={} plan={}",
         value["status"].as_str().unwrap_or("unknown"),
@@ -1456,8 +1531,22 @@ fn audit_reviewed_overrides(workspace: &Path, overrides: &[Value]) -> Result<(),
 }
 
 fn audit_plan(workspace: &Path, plan: &Value, require_live: bool) -> Result<(), Box<dyn Error>> {
-    if plan["schema"].as_u64() != Some(1) || plan["status"].as_str() != Some("draft") {
-        return Err("M8 owner plan must be schema 1 draft".into());
+    if plan["schema"].as_u64() != Some(1) {
+        return Err("M8 owner plan must be schema 1".into());
+    }
+    match plan["status"].as_str() {
+        Some("draft") if plan["freeze"].is_null() => {}
+        Some("frozen") => {
+            let freeze: FreezeRecord = serde_json::from_value(plan["freeze"].clone())
+                .map_err(|error| format!("M8 owner plan freeze record is malformed: {error}"))?;
+            if !is_full_lower_hex_commit(&freeze.adjudication_commit) {
+                return Err(
+                    "M8 owner plan freeze anchor must be a full lowercase commit hash".into(),
+                );
+            }
+        }
+        Some("draft") => return Err("draft M8 owner plan cannot carry a freeze record".into()),
+        _ => return Err("M8 owner plan status must be draft or frozen".into()),
     }
     let identities = plan["identities"]
         .as_array()
@@ -1725,6 +1814,9 @@ fn audit_plan(workspace: &Path, plan: &Value, require_live: bool) -> Result<(), 
             return Err(format!("M8 owner plan summary field {field} is stale").into());
         }
     }
+    if plan["status"].as_str() == Some("frozen") {
+        require_complete_review(plan)?;
+    }
     if require_live {
         for input in plan["checked_inputs"]
             .as_array()
@@ -1736,23 +1828,213 @@ fn audit_plan(workspace: &Path, plan: &Value, require_live: bool) -> Result<(), 
             let expected = input["sha256"]
                 .as_str()
                 .ok_or("M8 owner plan input lacks sha256")?;
-            if sha256_file(&workspace.join(path))? != expected {
+            let input_path = safe_workspace_path(workspace, path, "M8 owner-plan checked input")?;
+            if sha256_file(&input_path)? != expected {
                 return Err(format!("M8 owner plan input {path} is stale").into());
             }
         }
         if reviewed > 0 {
-            let review_input = plan["review_input"]["path"]
-                .as_str()
-                .ok_or("reviewed M8 owner plan lacks review_input path")?;
-            let expected = plan["review_input"]["sha256"]
-                .as_str()
-                .ok_or("reviewed M8 owner plan lacks review_input hash")?;
-            if sha256_file(&workspace.join(review_input))? != expected {
-                return Err("M8 owner-plan review input is stale".into());
-            }
+            verify_review_input(workspace, plan)?;
         }
     }
     Ok(())
+}
+
+fn require_complete_review(plan: &Value) -> Result<(), Box<dyn Error>> {
+    let clusters = plan["clusters"]
+        .as_array()
+        .ok_or("M8 owner plan lacks clusters")?;
+    if clusters.is_empty()
+        || plan["summary"]["missing_trace_clusters"].as_u64() != Some(0)
+        || plan["summary"]["missing_sibling_clusters"].as_u64() != Some(0)
+        || plan["summary"]["missing_rust_boundary_clusters"].as_u64() != Some(0)
+        || plan["summary"]["reviewed_clusters"].as_u64() != Some(clusters.len() as u64)
+        || plan["summary"]["assigned_slices"]
+            .as_u64()
+            .is_none_or(|count| count == 0)
+    {
+        return Err(
+            "M8 owner plan cannot freeze until every cluster has complete reviewed evidence".into(),
+        );
+    }
+    Ok(())
+}
+
+fn verify_review_input(workspace: &Path, plan: &Value) -> Result<(), Box<dyn Error>> {
+    let relative = plan["review_input"]["path"]
+        .as_str()
+        .ok_or("reviewed M8 owner plan lacks review_input path")?;
+    let expected = plan["review_input"]["sha256"]
+        .as_str()
+        .ok_or("reviewed M8 owner plan lacks review_input hash")?;
+    let path = safe_workspace_path(workspace, relative, "M8 owner-plan review input")?;
+    if sha256_file(&path)? != expected {
+        return Err("M8 owner-plan review input is stale".into());
+    }
+    Ok(())
+}
+
+fn verify_frozen_anchor(workspace: &Path, path: &Path, plan: &Value) -> Result<(), Box<dyn Error>> {
+    let freeze: FreezeRecord = serde_json::from_value(plan["freeze"].clone())
+        .map_err(|error| format!("M8 owner plan freeze record is malformed: {error}"))?;
+    let anchor = m8_resolve_git_commit(workspace, &freeze.adjudication_commit)?;
+    if anchor != freeze.adjudication_commit {
+        return Err("M8 owner plan freeze anchor must name its commit directly".into());
+    }
+    let head = m8_resolve_git_commit(workspace, "HEAD")?;
+    if !m8_git_is_ancestor(workspace, &anchor, &head)? {
+        return Err(
+            format!("M8 owner plan freeze anchor {anchor} is not an ancestor of HEAD").into(),
+        );
+    }
+    let adjudicated = plan_at(workspace, &anchor, path)?;
+    audit_plan(workspace, &adjudicated, false)?;
+    if adjudicated["status"].as_str() != Some("draft") || !adjudicated["freeze"].is_null() {
+        return Err(format!(
+            "M8 owner plan freeze anchor {anchor} does not hold the reviewed draft"
+        )
+        .into());
+    }
+    require_complete_review(&adjudicated)?;
+    if normalized_frozen_plan(plan)? != adjudicated {
+        return Err(format!(
+            "M8 owner plan differs from its reviewed draft at freeze anchor {anchor}"
+        )
+        .into());
+    }
+
+    let review_path = adjudicated["review_input"]["path"]
+        .as_str()
+        .ok_or("anchored M8 owner plan lacks review_input path")?;
+    let expected_review = adjudicated["review_input"]["sha256"]
+        .as_str()
+        .ok_or("anchored M8 owner plan lacks review_input hash")?;
+    let review_path = safe_workspace_path(
+        workspace,
+        review_path,
+        "anchored M8 owner-plan review input",
+    )?;
+    if sha256_bytes(&git_blob_at(workspace, &anchor, &review_path)?) != expected_review {
+        return Err(format!(
+            "M8 owner plan review input at freeze anchor {anchor} does not match its recorded hash"
+        )
+        .into());
+    }
+    Ok(())
+}
+
+fn verify_plan_baseline(
+    workspace: &Path,
+    path: &Path,
+    baseline: &str,
+    current: &Value,
+) -> Result<(), Box<dyn Error>> {
+    let baseline_commit = m8_resolve_git_commit(workspace, baseline)?;
+    let trusted = plan_at(workspace, &baseline_commit, path)?;
+    audit_plan(workspace, &trusted, false)?;
+    validate_plan_transition(&trusted, current, &baseline_commit)
+}
+
+fn validate_plan_transition(
+    trusted: &Value,
+    current: &Value,
+    baseline_commit: &str,
+) -> Result<(), Box<dyn Error>> {
+    match (trusted["status"].as_str(), current["status"].as_str()) {
+        (Some("draft"), Some("draft")) if trusted == current => Ok(()),
+        (Some("draft"), Some("draft")) => {
+            Err("M8 owner-plan draft changed against the trusted baseline".into())
+        }
+        (Some("draft"), Some("frozen")) => {
+            if current["freeze"]["adjudication_commit"].as_str() != Some(baseline_commit) {
+                return Err(
+                    "M8 owner plan first freeze must anchor the trusted baseline commit".into(),
+                );
+            }
+            if &normalized_frozen_plan(current)? != trusted {
+                return Err(
+                    "M8 owner plan can freeze only the identical trusted reviewed draft".into(),
+                );
+            }
+            Ok(())
+        }
+        (Some("frozen"), Some("frozen")) if trusted == current => Ok(()),
+        (Some("frozen"), Some("frozen")) => {
+            Err("frozen M8 owner plan changed against the trusted baseline".into())
+        }
+        (Some("frozen"), Some("draft")) => {
+            Err("M8 owner plan cannot downgrade from frozen to draft".into())
+        }
+        _ => Err("unsupported M8 owner-plan baseline transition".into()),
+    }
+}
+
+fn normalized_frozen_plan(plan: &Value) -> Result<Value, Box<dyn Error>> {
+    let mut normalized = plan.clone();
+    let object = normalized
+        .as_object_mut()
+        .ok_or("M8 owner plan root must be an object")?;
+    object.insert("status".to_owned(), json!("draft"));
+    object.remove("freeze");
+    Ok(normalized)
+}
+
+fn safe_workspace_path(
+    workspace: &Path,
+    relative: &str,
+    what: &str,
+) -> Result<PathBuf, Box<dyn Error>> {
+    let relative = Path::new(relative);
+    if relative.is_absolute()
+        || relative
+            .components()
+            .any(|component| matches!(component, std::path::Component::ParentDir))
+    {
+        return Err(format!("{what} path must stay inside the workspace").into());
+    }
+    Ok(workspace.join(relative))
+}
+
+fn plan_at(workspace: &Path, commit: &str, path: &Path) -> Result<Value, Box<dyn Error>> {
+    let bytes = git_blob_at(workspace, commit, path)?;
+    Ok(serde_json::from_slice(&bytes)
+        .map_err(|error| format!("cannot parse M8 owner plan at commit {commit}: {error}"))?)
+}
+
+fn git_blob_at(workspace: &Path, commit: &str, path: &Path) -> Result<Vec<u8>, Box<dyn Error>> {
+    let relative = repository_relative_path(workspace, path)?;
+    let object = format!("{commit}:{relative}");
+    let output = m8_git_output(workspace, ["show", object.as_str()])?;
+    if !output.status.success() {
+        return Err(format!(
+            "cannot read M8 owner-plan input {relative} at commit {commit}: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        )
+        .into());
+    }
+    Ok(output.stdout)
+}
+
+fn repository_relative_path(workspace: &Path, path: &Path) -> Result<String, Box<dyn Error>> {
+    let root_output = m8_git_output(workspace, ["rev-parse", "--show-toplevel"])?;
+    if !root_output.status.success() {
+        return Err("cannot resolve git root for M8 owner plan".into());
+    }
+    let root = PathBuf::from(String::from_utf8(root_output.stdout)?.trim());
+    let relative = path.strip_prefix(&root).map_err(|_| {
+        format!(
+            "M8 owner-plan path {} is outside git root {}",
+            path.display(),
+            root.display()
+        )
+    })?;
+    if relative
+        .components()
+        .any(|component| matches!(component, std::path::Component::ParentDir))
+    {
+        return Err("M8 owner-plan path cannot contain parent traversal".into());
+    }
+    Ok(relative.to_string_lossy().replace('\\', "/"))
 }
 
 fn workspace_path(workspace: &Path, path: &Path) -> PathBuf {
@@ -1954,5 +2236,26 @@ mod tests {
             }],
         )
         .is_ok());
+    }
+
+    #[test]
+    fn freeze_transition_accepts_only_the_anchored_identical_draft() {
+        let anchor = "a".repeat(40);
+        let trusted = json!({
+            "schema": 1,
+            "status": "draft",
+            "payload": {"identities": 333},
+        });
+        let mut frozen = trusted.clone();
+        frozen["status"] = json!("frozen");
+        frozen["freeze"] = json!({"adjudication_commit": anchor});
+        assert!(validate_plan_transition(&trusted, &frozen, &anchor).is_ok());
+
+        let mut changed = frozen.clone();
+        changed["payload"]["identities"] = json!(332);
+        assert!(validate_plan_transition(&trusted, &changed, &anchor).is_err());
+        assert!(validate_plan_transition(&trusted, &frozen, &"b".repeat(40)).is_err());
+        assert!(validate_plan_transition(&frozen, &frozen, &anchor).is_ok());
+        assert!(validate_plan_transition(&frozen, &trusted, &anchor).is_err());
     }
 }
