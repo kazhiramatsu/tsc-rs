@@ -3078,7 +3078,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getContextualCallSignature @6.0.3
     /// tsc-hash: 17e0e8d83c070a82bca854b226fc75adaf259bf3d35ae1552509e5009eff905c
     /// tsc-span: _tsc.js:73830-73834
-    fn get_contextual_call_signature(
+    pub(crate) fn get_contextual_call_signature(
         &mut self,
         ty: TypeId,
         node: NodeId,
