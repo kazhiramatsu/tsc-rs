@@ -525,8 +525,13 @@
 # type-resolved computed names now share the exact owner boundary.
 # T1-T3 gain the same 42 identities, with no losses, outside gains, or
 # false positives, closing override-validation at 65/65.
-rate = 0.983273
-matched = 48204
+# M8-P08: +121 exact implicit-any identities through reportImplicitAny:
+# chained JS assignments, checked-JS parameters/binding elements,
+# Closure function returns, and assignment-inferred members. T1-T3 gain
+# the same 121 identities with no losses, outside gains, or false
+# positives.
+rate = 0.985742
+matched = 48325
 total = 49024
 allowed_regression = 0.0
 

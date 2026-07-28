@@ -575,7 +575,8 @@ impl<'a> CheckerState<'a> {
     /// errorOrSuggestion is error_at both ways: the !noImplicitAny
     /// constants (7043-7050) are Suggestion-category in gen.rs, so the
     /// category rides the message like tsc's addErrorOrSuggestion.
-    /// The JSDocFunctionType/JSDocSignature arms escape ([JSDOC]).
+    /// The source-text JSDocFunctionType arm is live; comment-tag
+    /// JSDocSignature overload declarations remain in [JSDOC].
     pub(crate) fn report_implicit_any(
         &mut self,
         declaration: NodeId,
@@ -585,9 +586,7 @@ impl<'a> CheckerState<'a> {
         use tsrs2_types::WideningKind;
         let widened = self.get_widened_type(ty)?;
         let type_as_string = self.type_to_string_slice(widened)?;
-        if self.is_in_js_file(declaration) && self.options.check_js != Some(true) {
-            // isCheckJsEnabledForFile: checkJs pragmas are unmodeled,
-            // so only the option can enable JS-file reports.
+        if self.is_in_js_file(declaration) && !self.is_check_js_enabled_for_node(declaration) {
             return Ok(());
         }
         let no_implicit_any = self
@@ -675,9 +674,21 @@ impl<'a> CheckerState<'a> {
                 }
                 &diagnostics::Binding_element_0_implicitly_has_an_1_type
             }
-            SyntaxKind::JSDocFunctionType | SyntaxKind::JSDocSignature => {
+            SyntaxKind::JSDocFunctionType => {
+                let diagnostics_before = self.diagnostics.len();
+                self.error_at(
+                    Some(declaration),
+                    &diagnostics::Function_type_which_lacks_return_type_annotation_implicitly_has_an_0_return_type,
+                    &[&type_as_string],
+                );
+                if self.is_in_js_file(declaration) {
+                    self.mark_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 7014);
+                }
+                return Ok(());
+            }
+            SyntaxKind::JSDocSignature => {
                 return Err(crate::state::Unsupported::new(
-                    "reportImplicitAny JSDoc arms ([JSDOC] M8)",
+                    "reportImplicitAny JSDocSignature overload arm ([JSDOC] M8)",
                 ));
             }
             SyntaxKind::FunctionDeclaration
@@ -744,13 +755,46 @@ impl<'a> CheckerState<'a> {
         // The program layer keeps JS diagnostics behind exact producer
         // provenance; do not expose the checker's conservative internal
         // `any` when its modeled JSDoc carrier already owns the type.
-        if self.is_in_js_file(declaration)
-            && diagnostic.code == 7044
-            && !self.has_jsdoc_parameter_type_context(declaration)
-        {
-            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, diagnostic.code);
+        if self.is_in_js_file(declaration) {
+            // Assignment declarations (7005) and constructor member
+            // declarations (7008) have no JSDoc/contextual parameter
+            // carrier. Parameter/binding-element rows (7006/7031) do:
+            // keep those private until their effective JSDoc/contextual
+            // type path has made the same report/no-report decision as
+            // tsc, otherwise conservative internal `any` leaks as a FP.
+            let publish_implicit_any_core = diagnostic.code == 7005
+                || diagnostic.code == 7008
+                    && self.should_publish_js_implicit_any_member(declaration, &type_as_string)
+                || diagnostic.code == 7006
+                    && self.should_publish_js_implicit_any_parameter(declaration)
+                || diagnostic.code == 7031
+                    && !self.binding_element_has_effective_jsdoc_parameter_context(declaration);
+            let publish_loose_parameter = diagnostic.code == 7044
+                && self.options.check_js == Some(true)
+                && !self.has_jsdoc_parameter_type_context(declaration);
+            if publish_implicit_any_core || publish_loose_parameter {
+                self.mark_non_jsdoc_js_diagnostics_since_with_code(
+                    diagnostics_before,
+                    diagnostic.code,
+                );
+            }
         }
         Ok(())
+    }
+
+    /// tsrs-native: source-text projection of tsc
+    /// isCheckJsEnabledForFile: project-level checkJs plus the
+    /// leading per-file @ts-check/@ts-nocheck override.
+    pub(crate) fn is_check_js_enabled_for_node(&self, node: NodeId) -> bool {
+        if !self.is_in_js_file(node) {
+            return true;
+        }
+        let source = self.binder.source_of_node(node);
+        crate::can_include_bind_and_check_diagnostics(
+            /*javascript_file*/ true,
+            crate::check_directive(&source.text),
+            self.options,
+        )
     }
 
     /// Keep reportImplicitAny publication on the supported non-JSDoc
