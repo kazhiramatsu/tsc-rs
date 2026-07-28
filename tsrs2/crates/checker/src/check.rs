@@ -107,6 +107,12 @@ struct JsDocUnmatchedParameterProjection {
     type_text: Option<String>,
 }
 
+#[derive(Default)]
+struct JsDocTypedefProjections {
+    missing_type_spans: Vec<(usize, usize)>,
+    duplicate_type_spans: Vec<(usize, usize)>,
+}
+
 impl<'a> CheckerState<'a> {
     #[cfg(debug_assertions)]
     fn unwind_snapshot(&self) -> UnwindSnapshot {
@@ -229,7 +235,7 @@ impl<'a> CheckerState<'a> {
         }
         self.check_source_element(end_of_file_token);
         self.check_deferred_nodes(root);
-        self.check_jsdoc_type_alias_semantics(root);
+        self.check_jsdoc_typedef_diagnostics(root);
         self.check_jsdoc_implicit_any_projections(root);
         self.check_jsdoc_satisfies_semantics(root);
         let is_unused_source_file_owner = self.is_effective_external_module(root)
@@ -3781,6 +3787,13 @@ impl<'a> CheckerState<'a> {
         comments
     }
 
+    /// parseTypedefTag's duplicate direct-child `@type` face.
+    ///
+    /// tsc-port: parseTypedefTag @6.0.3
+    /// tsc-hash: e820140ec3bb47d724ce01214ae237ce5ccd4283dac88a14a0a2eeaa9e8a078e
+    /// tsc-span: _tsc.js:35513-35557
+    /// d2: d2:6181d69a112f5798e382974e2375d5c2b0be34843f8355c4633036ec85bf3348
+    ///
     /// checkJSDocTypeAliasTag's missing-typeExpression face.
     ///
     /// tsc-port: checkJSDocTypeAliasTag @6.0.3
@@ -3788,17 +3801,41 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:82793-82795
     /// d2: d2:1c9b0a5e47d8bc06ebe075f171d96048c21fd1f90ba086adff3885de9b85f269
     ///
-    /// JSDoc nodes are not materialized in the Rust syntax arena.
-    /// parseTypedefTag synthesizes a typeExpression when the typedef
-    /// has an explicit braced type or its first child tag is a
-    /// property/type/this tag. A leading template tag stops that child
-    /// fold before typeExpression exists. Project exactly that
-    /// parser-owned distinction once per checked JavaScript source.
-    fn check_jsdoc_type_alias_semantics(&mut self, root: NodeId) {
+    /// JSDoc nodes are not materialized in the Rust syntax arena. One
+    /// shared source projection covers both owned faces, so P20 does
+    /// not add another `jsdoc_comment_body_ranges` node traversal.
+    /// The duplicate face is deliberately direct and conservative:
+    /// an untyped named typedef followed by two well-formed `@type`
+    /// children. Other child-tag grammar stays non-firing until the
+    /// comment-tag parser is materialized.
+    fn check_jsdoc_typedef_diagnostics(&mut self, root: NodeId) {
         if !self.is_in_js_file(root) {
             return;
         }
-        for (start, end) in self.jsdoc_typedef_missing_type_spans(root) {
+        let projections = self.jsdoc_typedef_projections(root);
+        for (start, end) in projections.duplicate_type_spans {
+            let diagnostics_before = self.diagnostics.len();
+            let index = self.error_at_byte_range(
+                root,
+                start,
+                end,
+                &diagnostics::A_JSDoc_typedef_comment_may_not_contain_multiple_type_tags,
+            );
+            let source = self.binder.source_of_node(root);
+            self.diagnostics[index]
+                .related
+                .push(tsrs2_diags::RelatedInfo {
+                    file_name: Some(source.file_name.clone()),
+                    start: Some(0),
+                    length: Some(0),
+                    message: tsrs2_diags::MessageChain::new(
+                        &diagnostics::The_tag_was_first_specified_here,
+                        &[],
+                    ),
+                });
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 8033);
+        }
+        for (start, end) in projections.missing_type_spans {
             let diagnostics_before = self.diagnostics.len();
             self.error_at_byte_range(
                 root,
@@ -3810,9 +3847,10 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn jsdoc_typedef_missing_type_spans(&self, root: NodeId) -> Vec<(usize, usize)> {
+    fn jsdoc_typedef_projections(&self, root: NodeId) -> JsDocTypedefProjections {
         let source = self.binder.source_of_node(root);
-        let mut diagnostics = std::collections::BTreeSet::new();
+        let mut missing_type_spans = std::collections::BTreeSet::new();
+        let mut duplicate_type_spans = std::collections::BTreeSet::new();
         for (body_start, comment_close) in self.jsdoc_comment_body_ranges(root) {
             let body = &source.text[body_start..comment_close];
             let mut tags = Vec::new();
@@ -3843,10 +3881,16 @@ impl<'a> CheckerState<'a> {
                             .next()
                             .is_none_or(|character| character.is_whitespace() || character == '{')
                         {
+                            let line_break_length = line.len().saturating_sub(raw.len());
+                            let current_token_start = body_start + line_offset + raw.len();
+                            let current_token_end = current_token_start
+                                + line_break_length
+                                    .min(comment_close.saturating_sub(current_token_start));
                             tags.push((
                                 tag,
                                 tail,
                                 body_start + line_offset + candidate_offset + 1 + tag_length,
+                                (current_token_start, current_token_end),
                             ));
                         }
                     }
@@ -3854,13 +3898,14 @@ impl<'a> CheckerState<'a> {
                 line_offset += line.len();
             }
 
-            for (index, &(tag, tail, tag_end)) in tags.iter().enumerate() {
+            for (index, &(tag, tail, tag_end, _current_token_span)) in tags.iter().enumerate() {
                 if tag != "typedef" {
                     continue;
                 }
                 let whitespace = tail.len() - tail.trim_start_matches(char::is_whitespace).len();
                 let declaration = &tail[whitespace..];
-                if jsdoc_braced_payload(declaration).is_some() {
+                let explicit_type = jsdoc_braced_payload(declaration);
+                if explicit_type.is_some() {
                     continue;
                 }
                 let name_length = declaration
@@ -3876,17 +3921,33 @@ impl<'a> CheckerState<'a> {
                 if name_length == 0 {
                     continue;
                 }
+
+                let duplicate_type = tags
+                    .get(index + 1)
+                    .zip(tags.get(index + 2))
+                    .filter(|((first, ..), (second, ..))| *first == "type" && *second == "type")
+                    .filter(|((_, first_tail, ..), (_, second_tail, ..))| {
+                        jsdoc_braced_payload(first_tail.trim_start()).is_some()
+                            && jsdoc_braced_payload(second_tail.trim_start()).is_some()
+                    })
+                    .map(|(_, (_, _, _, span))| *span)
+                    .filter(|(start, end)| end > start);
+                duplicate_type_spans.extend(duplicate_type);
+
                 let first_child_creates_type_expression =
-                    tags.get(index + 1).is_some_and(|(next, _, _)| {
+                    tags.get(index + 1).is_some_and(|(next, ..)| {
                         matches!(*next, "property" | "prop" | "type" | "this")
                     });
                 if !first_child_creates_type_expression {
                     let name_start = tag_end + whitespace;
-                    diagnostics.insert((name_start, name_start + name_length));
+                    missing_type_spans.insert((name_start, name_start + name_length));
                 }
             }
         }
-        diagnostics.into_iter().collect()
+        JsDocTypedefProjections {
+            missing_type_spans: missing_type_spans.into_iter().collect(),
+            duplicate_type_spans: duplicate_type_spans.into_iter().collect(),
+        }
     }
 
     /// tsrs-native: project checkSatisfiesExpressionWorker over the
@@ -13736,6 +13797,57 @@ mod tests {
         assert!(checked_file_diags_with("a.js", text, &options)
             .into_iter()
             .all(|row| row.0 != 8029));
+    }
+
+    // ---- M8-P20 parseTypedefTag duplicate type child ----
+
+    #[test]
+    fn jsdoc_typedef_duplicate_type_reports_8033_with_detached_related() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/**\n * @typedef Name\n * @type {string}\n * @type {Oops}\n */";
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 8033)
+                .expect("TS8033");
+            assert_eq!((diagnostic.start, diagnostic.length), (Some(54), Some(1)));
+            assert_eq!(
+                diagnostic.message_text(),
+                "A JSDoc '@typedef' comment may not contain multiple '@type' tags."
+            );
+            assert_eq!(diagnostic.related.len(), 1);
+            let related = &diagnostic.related[0];
+            assert_eq!(related.file_name.as_deref(), Some("a.js"));
+            assert_eq!((related.start, related.length), (Some(0), Some(0)));
+            assert_eq!(related.message.code, 8034);
+            assert_eq!(related.message.text, "The tag was first specified here.");
+        });
+    }
+
+    #[test]
+    fn jsdoc_typedef_duplicate_type_preserves_explicit_type_sibling() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "class C {\n\
+                    /**\n\
+                     * @typedef {C~A} C~B\n\
+                     * @typedef {object} C~A\n\
+                     */\n\
+                    /** @param {C~A} o */\n\
+                    constructor(o) {}\n\
+                    }\n";
+        assert!(checked_file_diags_with("a.js", text, &options)
+            .into_iter()
+            .all(|row| row.0 != 8033));
     }
 
     // ---- M7 8.1m JSDoc unique-symbol property grammar ----
