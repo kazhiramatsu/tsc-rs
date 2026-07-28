@@ -1,0 +1,305 @@
+{
+  "schema": 1,
+  "status": "reviewed",
+  "clusters": [
+    {
+      "id": "m8:parser-pragma-residue:fbebf06e4083a114",
+      "selected_sibling": "conformance/node/nodeModulesTripleSlashReferenceModeOverride4.ts#module=node16",
+      "owner_slice": "M8-P01-parser-pragma-1453",
+      "rationale": "The valid triple-slash resolution-mode form executes the exact parseResolutionMode producer with zero 1453 diagnostics; the slice adds the missing invalid-value parser diagnostic at the adjacent resolution-mode implementation boundary.",
+      "scc_decisions": [
+        {
+          "id": "scc:02277",
+          "decision": "singleton",
+          "rationale": "The SCC contains only the exact parseResolutionMode producer."
+        }
+      ],
+      "rust_boundary_overrides": [
+        {
+          "kind": "native-adjacent",
+          "file": "crates/checker/src/modules.rs",
+          "function": "get_resolution_mode_override",
+          "rationale": "Rust already parses and diagnoses import-attribute resolution modes here; the triple-slash pragma parser must feed the same value policy without pretending to be an exact parseResolutionMode port."
+        }
+      ]
+    },
+    {
+      "id": "m8:flow-strict-nullability:1815e522daac8ac2",
+      "selected_sibling": "conformance/jsdoc/declarations/jsDeclarationsFunctionLikeClasses.ts#target=es2015",
+      "owner_slice": "M8-P02-flow-unreachable-7027",
+      "rationale": "The sibling covers the exact already-ported unreachable-code producer without 7027; the cluster is bounded by that exact Rust ledger join.",
+      "scc_decisions": [],
+      "rust_boundary_overrides": []
+    },
+    {
+      "id": "m8:flow-strict-nullability:4c4783000965faa2",
+      "selected_sibling": "conformance/salsa/typeFromJSConstructor.ts",
+      "owner_slice": "M8-P03-flow-undefined-18048",
+      "rationale": "The sibling exercises the same nullable-receiver producer and immediate boundaries without 18048, isolating the undefined receiver branch.",
+      "scc_decisions": [
+        {
+          "id": "scc:02552",
+          "decision": "singleton",
+          "rationale": "The SCC contains only the exact nullable-receiver producer."
+        }
+      ],
+      "rust_boundary_overrides": []
+    },
+    {
+      "id": "m8:flow-strict-nullability:425e274e1c599f8d",
+      "selected_sibling": "conformance/jsdoc/declarations/jsDeclarationsFunctionLikeClasses.ts#target=es2015",
+      "owner_slice": "M8-P04-flow-unknown-18046",
+      "rationale": "The sibling retains the shared TypeChecker path without the unknown-value diagnostic; the 1,396-member mechanical SCC is not a semantic slice.",
+      "scc_decisions": [
+        {
+          "id": "scc:00002",
+          "decision": "keep-separate",
+          "rationale": "This 1,396-member mechanical TypeChecker SCC crosses unrelated semantic subsystems; only the traced producer and first reviewed boundaries belong to this slice."
+        }
+      ],
+      "rust_boundary_overrides": []
+    },
+    {
+      "id": "m8:module-semantics-tail:91cfbdd4f3870255",
+      "selected_sibling": "conformance/jsdoc/declarations/jsDeclarationsFunctionLikeClasses.ts#target=es2015",
+      "owner_slice": "M8-P05-module-import-defer-modes",
+      "rationale": "The sibling covers the exact already-ported import-defer grammar producer with no 18058-18060 diagnostics, leaving one exact Rust ledger boundary.",
+      "scc_decisions": [],
+      "rust_boundary_overrides": []
+    },
+    {
+      "id": "m8:module-semantics-tail:97730dab6b4f2b74",
+      "selected_sibling": "conformance/importDefer/importDeferInvalidDefault.ts",
+      "owner_slice": "M8-P06-module-commonjs-7060",
+      "rationale": "The nearest import-defer negative control covers the module-reference path without 7060 and retains the exact module-resolution Rust boundary.",
+      "scc_decisions": [
+        {
+          "id": "scc:00456",
+          "decision": "singleton",
+          "rationale": "The SCC contains only the exact 7060 producer."
+        }
+      ],
+      "rust_boundary_overrides": []
+    },
+    {
+      "id": "m8:override-validation:a9a0270e9196ac73",
+      "selected_sibling": "conformance/salsa/inferringClassMembersFromAssignments.ts",
+      "owner_slice": "M8-P07-override-validation",
+      "rationale": "The sibling executes the exact already-ported override checker without the 4113-4127 family, so the single ledger boundary owns the complete override slice.",
+      "scc_decisions": [],
+      "rust_boundary_overrides": []
+    },
+    {
+      "id": "m8:implicit-any:f4ca332e7be8715d",
+      "selected_sibling": "conformance/jsdoc/checkJsdocTypeTag6.ts",
+      "owner_slice": "M8-P08-implicit-any-core",
+      "rationale": "The sibling covers the exact reportImplicitAny producer without the five residual code shapes; the already-ported producer is the exact Rust boundary for the common implicit-any slice.",
+      "scc_decisions": [],
+      "rust_boundary_overrides": []
+    },
+    {
+      "id": "m8:implicit-any:e925387e3f14f78d",
+      "selected_sibling": "conformance/salsa/typeFromPropertyAssignment22.ts",
+      "owner_slice": "M8-P09-implicit-any-constructor-flow",
+      "rationale": "The sibling covers reportImplicitAny and constructor-flow machinery without the residual 7008 cases; both exact producers already have Rust ledger joins.",
+      "scc_decisions": [],
+      "rust_boundary_overrides": []
+    },
+    {
+      "id": "m8:implicit-any:4be6799e9c3c7bc2",
+      "selected_sibling": "conformance/generators/generatorReturnTypeIndirectReferenceToGlobalType.ts",
+      "owner_slice": "M8-P10-implicit-any-yield-7057",
+      "rationale": "An explicitly annotated generator is the semantic negative control. The diagnostic-only anonymous closure is expected to remain emitting-only, while the sibling covers its enclosing yield path and reviewed isTypeAny boundary.",
+      "scc_decisions": [
+        {
+          "id": "scc:00727",
+          "decision": "singleton",
+          "rationale": "The SCC contains only the diagnostic-only anonymous closure."
+        }
+      ],
+      "rust_boundary_overrides": []
+    },
+    {
+      "id": "m8:implicit-any:5426262cd3d4178d",
+      "selected_sibling": "conformance/salsa/typeFromJSInitializer.ts",
+      "owner_slice": "M8-P11-implicit-any-index-7053",
+      "rationale": "The sibling preserves the indexed-access TypeChecker path without 7053; the large mechanical SCC is split at 28 exact ported boundaries and reviewed deferred callees.",
+      "scc_decisions": [
+        {
+          "id": "scc:00002",
+          "decision": "keep-separate",
+          "rationale": "This 1,396-member mechanical TypeChecker SCC crosses unrelated semantic subsystems; only the 7053 producer and first reviewed boundaries belong to this slice."
+        }
+      ],
+      "rust_boundary_overrides": []
+    },
+    {
+      "id": "m8:checkjs-jsdoc:542c9fe4eab344a9",
+      "selected_sibling": "conformance/jsdoc/declarations/jsDeclarationsImportAliasExposedWithinNamespace.ts",
+      "owner_slice": "M8-P12-checkjs-jsdoc-8020",
+      "rationale": "The sibling covers the exact 8020 producers without the residual diagnostic. This cluster shares checkJSDocTypeIsInJsFile with the second 8020 cluster, so both are one reviewed semantic owner slice.",
+      "scc_decisions": [],
+      "rust_boundary_overrides": []
+    },
+    {
+      "id": "m8:checkjs-jsdoc:8ecaa5fc3ccf6d71",
+      "selected_sibling": "conformance/jsdoc/jsdocParamTag2.ts",
+      "owner_slice": "M8-P12-checkjs-jsdoc-8020",
+      "rationale": "The sibling covers checkJSDocTypeIsInJsFile without 8020; the producer is shared with the companion 8020 cluster and therefore receives the same owner slice.",
+      "scc_decisions": [],
+      "rust_boundary_overrides": []
+    },
+    {
+      "id": "m8:checkjs-jsdoc:9a9e0c1ab585a13a",
+      "selected_sibling": "conformance/moduleResolution/untypedModuleImport.ts",
+      "owner_slice": "M8-P13-checkjs-jsdoc-7016",
+      "rationale": "The non-emitting matrix covers the 7016 module-resolution producers while suppressing the target output. It shares errorOnImplicitAnyModule with the suggestion cluster, so both modes are one semantic slice.",
+      "scc_decisions": [
+        {
+          "id": "scc:00723",
+          "decision": "singleton",
+          "rationale": "The SCC contains only needAllowJs."
+        },
+        {
+          "id": "scc:02141",
+          "decision": "singleton",
+          "rationale": "The SCC contains only errorOnImplicitAnyModule."
+        }
+      ],
+      "rust_boundary_overrides": []
+    },
+    {
+      "id": "m8:checkjs-jsdoc:b106900c62745ba9",
+      "selected_sibling": "conformance/moduleResolution/declarationNotFoundPackageBundlesTypes.ts",
+      "owner_slice": "M8-P13-checkjs-jsdoc-7016",
+      "rationale": "The sibling covers errorOnImplicitAnyModule without suggestion-pass 7016; semantic and suggestion modes share the producer and one reviewed owner slice.",
+      "scc_decisions": [
+        {
+          "id": "scc:02141",
+          "decision": "singleton",
+          "rationale": "The SCC contains only errorOnImplicitAnyModule."
+        }
+      ],
+      "rust_boundary_overrides": []
+    },
+    {
+      "id": "m8:checkjs-jsdoc:6984be83d39f0109",
+      "selected_sibling": "conformance/jsdoc/extendsTagEmit.ts",
+      "owner_slice": "M8-P14-checkjs-jsdoc-18042-18043",
+      "rationale": "The sibling executes the exact already-ported JSDoc accessibility producer without 18042/18043, leaving one exact Rust boundary.",
+      "scc_decisions": [],
+      "rust_boundary_overrides": []
+    },
+    {
+      "id": "m8:checkjs-jsdoc:8d0208f859d70d78",
+      "selected_sibling": "conformance/jsdoc/extendsTag3.ts",
+      "owner_slice": "M8-P15-checkjs-jsdoc-8022-8023",
+      "rationale": "A valid matching @extends declaration executes the exact checkJSDocAugmentsTag producer with no 8022/8023 and is the nearest semantic negative control.",
+      "scc_decisions": [
+        {
+          "id": "scc:01880",
+          "decision": "singleton",
+          "rationale": "The SCC contains only checkJSDocAugmentsTag."
+        }
+      ],
+      "rust_boundary_overrides": []
+    },
+    {
+      "id": "m8:checkjs-jsdoc:806ea4d8c2f7b20c",
+      "selected_sibling": "conformance/jsdoc/templateInsideCallback.ts",
+      "owner_slice": "M8-P16-checkjs-jsdoc-8024-8032",
+      "rationale": "The sibling covers the exact JSDoc syntax-check producer without 8024/8032, bounded by two exact Rust joins and four reviewed callees.",
+      "scc_decisions": [
+        {
+          "id": "scc:01058",
+          "decision": "singleton",
+          "rationale": "The SCC contains only the exact JSDoc syntax-check producer."
+        }
+      ],
+      "rust_boundary_overrides": []
+    },
+    {
+      "id": "m8:checkjs-jsdoc:b34eddb382c27122",
+      "selected_sibling": "conformance/jsdoc/declarations/jsDeclarationsImportAliasExposedWithinNamespace.ts",
+      "owner_slice": "M8-P17-checkjs-jsdoc-8030",
+      "rationale": "The sibling covers the exact already-ported 8030 producer without emitting the diagnostic, yielding a one-boundary slice.",
+      "scc_decisions": [],
+      "rust_boundary_overrides": []
+    },
+    {
+      "id": "m8:checkjs-jsdoc:566f5be749bf99ff",
+      "selected_sibling": "conformance/jsdoc/checkJsdocTypeTag5.ts",
+      "owner_slice": "M8-P18-checkjs-jsdoc-8021",
+      "rationale": "The sibling covers checkJSDocTypeAliasTag without 8021; the mechanical TypeChecker SCC is explicitly split at five exact ported boundaries.",
+      "scc_decisions": [
+        {
+          "id": "scc:00002",
+          "decision": "keep-separate",
+          "rationale": "This 1,396-member mechanical TypeChecker SCC crosses unrelated semantic subsystems; only checkJSDocTypeAliasTag and first reviewed boundaries belong to this slice."
+        }
+      ],
+      "rust_boundary_overrides": []
+    },
+    {
+      "id": "m8:checkjs-jsdoc:f99a15c7f5bc9e5a",
+      "selected_sibling": "conformance/jsdoc/checkJsdocTypeTag5.ts",
+      "owner_slice": "M8-P19-checkjs-jsdoc-8029",
+      "rationale": "The sibling covers checkJSDocTypeTag without 8029; the large mechanical SCC is split at four exact ported boundaries rather than imported wholesale.",
+      "scc_decisions": [
+        {
+          "id": "scc:00002",
+          "decision": "keep-separate",
+          "rationale": "This 1,396-member mechanical TypeChecker SCC crosses unrelated semantic subsystems; only checkJSDocTypeTag and first reviewed boundaries belong to this slice."
+        }
+      ],
+      "rust_boundary_overrides": []
+    },
+    {
+      "id": "m8:checkjs-jsdoc:2fa758007eea4b76",
+      "selected_sibling": "conformance/jsdoc/typedefInnerNamepaths.ts",
+      "owner_slice": "M8-P20-checkjs-jsdoc-8033",
+      "rationale": "The sibling traverses the JSDoc typedef parser without the duplicate-type-tag diagnostic. No exact Rust parseTypedefTag port exists, so the slice starts at the native JSDoc type parser boundary.",
+      "scc_decisions": [
+        {
+          "id": "scc:01481",
+          "decision": "singleton",
+          "rationale": "The SCC contains only parseTypedefTag."
+        }
+      ],
+      "rust_boundary_overrides": [
+        {
+          "kind": "native-adjacent",
+          "file": "crates/syntax/src/parser.rs",
+          "function": "parse_jsdoc_type",
+          "rationale": "Rust has the JSDoc type grammar but not the comment-tag parser; this adjacent native parser is the explicit implementation boundary, not an exact parseTypedefTag port claim."
+        }
+      ]
+    },
+    {
+      "id": "m8:checkjs-jsdoc:febf067f20ce2f53",
+      "selected_sibling": "conformance/jsdoc/overloadTag2.ts",
+      "owner_slice": "M8-P21-checkjs-jsdoc-8039",
+      "rationale": "The sibling traverses callback/overload JSDoc parsing without an invalid following @template tag. Both exact parser producers remain distinct but share this one diagnostic cluster.",
+      "scc_decisions": [
+        {
+          "id": "scc:00861",
+          "decision": "singleton",
+          "rationale": "The SCC contains only parseCallbackTagParameters."
+        },
+        {
+          "id": "scc:01036",
+          "decision": "singleton",
+          "rationale": "The SCC contains only parseNestedTypeLiteral."
+        }
+      ],
+      "rust_boundary_overrides": [
+        {
+          "kind": "native-adjacent",
+          "file": "crates/syntax/src/parser.rs",
+          "function": "parse_jsdoc_type",
+          "rationale": "Rust has the adjacent JSDoc type grammar but not the comment-tag parser; the slice extends that native boundary without asserting an exact tsc declaration join."
+        }
+      ]
+    }
+  ]
+}
