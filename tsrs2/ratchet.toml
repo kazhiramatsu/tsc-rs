@@ -623,8 +623,12 @@ allowed_regression = 0.0
 # slice evidence records zero losses and zero gains outside the target.
 # M8-P07: +42 exact-category override-validation identities; the slice
 # evidence records zero losses and zero gains outside the target.
-rate = 0.983233
-matched = 48202
+# M8 formal T1 close: +239 already-observed M8 category identities are
+# caught up, then +2 TS7051 identities close errorOrSuggestion's loose
+# parameter-name face. Supported T1 is 48,441/48,441 with no accepted
+# loss and all-corpus FP=0; this exact count closes the active T1 gate.
+rate = 0.988108
+matched = 48441
 total = 49024
 allowed_regression = 0.0
 

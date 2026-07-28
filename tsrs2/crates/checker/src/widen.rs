@@ -645,11 +645,15 @@ impl<'a> CheckerState<'a> {
                                         name_text,
                                         if dot_dot_dot { "[]" } else { "" }
                                     );
-                                    self.error_at(
+                                    let diagnostic_index = self.error_at(
                                         Some(declaration),
                                         &diagnostics::Parameter_has_a_name_but_no_type_Did_you_mean_0_1,
                                         &[&new_name, &type_name],
                                     );
+                                    if !no_implicit_any {
+                                        self.diagnostics[diagnostic_index].message.category =
+                                            tsrs2_diags::DiagnosticCategory::Suggestion;
+                                    }
                                     return Ok(());
                                 }
                             }
@@ -1124,6 +1128,53 @@ mod tests {
             ),
             [(7043, 4, 1), (7044, 34, 1), (6133, 34, 1)]
         );
+    }
+
+    #[test]
+    fn named_parameter_without_type_is_an_error_or_suggestion() {
+        let source = "type F = (string) => void;\n";
+        for (options, expected_category) in [
+            (
+                CompilerOptions {
+                    strict: Some(false),
+                    ..CompilerOptions::default()
+                },
+                tsrs2_diags::DiagnosticCategory::Suggestion,
+            ),
+            (
+                CompilerOptions {
+                    no_implicit_any: Some(true),
+                    ..CompilerOptions::default()
+                },
+                tsrs2_diags::DiagnosticCategory::Error,
+            ),
+        ] {
+            let result = check_program(
+                &[InputFile {
+                    name: "a.ts".to_owned(),
+                    text: source.to_owned(),
+                }],
+                &options,
+            );
+            let diagnostic = result
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 7051)
+                .expect("TS7051");
+            assert_eq!(diagnostic.category(), expected_category);
+            assert_eq!(
+                (
+                    diagnostic.start,
+                    diagnostic.length,
+                    diagnostic.message.text.as_str()
+                ),
+                (
+                    Some(10),
+                    Some(6),
+                    "Parameter has a name but no type. Did you mean 'arg0: string'?"
+                )
+            );
+        }
     }
 
     #[test]
