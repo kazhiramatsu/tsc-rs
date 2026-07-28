@@ -16,6 +16,7 @@ use tsrs2_diags::DiagnosticList;
 
 mod completion;
 mod m8_evidence;
+mod m8_plan;
 mod m8_trace;
 mod recovery_census;
 mod relpin;
@@ -50,12 +51,24 @@ fn main() {
             Some("readiness") => run_or_exit(m8_readiness(args)),
             Some("evidence") => run_or_exit(m8_evidence::evidence(args)),
             Some("trace") => run_or_exit(m8_trace::run(args)),
+            Some("plan") => match args.next().as_deref() {
+                Some("draft") => run_or_exit(m8_plan::draft(args)),
+                Some("check") => run_or_exit(m8_plan::check(args)),
+                Some(other) => {
+                    eprintln!("unknown m8 plan command: {other}");
+                    std::process::exit(2);
+                }
+                None => {
+                    eprintln!("missing m8 plan command (draft|check)");
+                    std::process::exit(2);
+                }
+            },
             Some(other) => {
                 eprintln!("unknown m8 command: {other}");
                 std::process::exit(2);
             }
             None => {
-                eprintln!("missing m8 command (readiness|evidence|trace)");
+                eprintln!("missing m8 command (readiness|evidence|trace|plan)");
                 std::process::exit(2);
             }
         },

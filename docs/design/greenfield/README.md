@@ -194,7 +194,10 @@ the report-only completion gate and freeze the exact entry residual. Each
 mismatch then follows: exact residual identity → exact D2 emitter →
 diagnostic trace → non-emitting sibling difference → static dependency
 closure/SCC → Rust boundary → one dependency-closed slice. A moving top-code
-list and a printed function name are never slice identities.
+list and a printed function name are never slice identities. The report-only
+`cargo xtask m8 plan draft` command builds that review surface, and
+`cargo xtask m8 plan check` rejects stale exact hashes, non-partitioning
+clusters, cross-family assignments, and stale input fingerprints.
 
 The comparison tiers climb from T0 to T2/T3 through accepted-set activation,
 followed by A3 T4 byte parity and recovery zero. This is the corpus-wide
