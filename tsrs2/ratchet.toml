@@ -490,7 +490,13 @@ total = 49024
 allowed_regression = 0.0
 
 [t1]
-rate = 0.0
+# M7 close: category-aware shadow identity is now a hard, exact-count
+# ratchet. The denominator is the same pinned all-corpus oracle universe
+# as T0; future gains may raise matched, while any proportional loss
+# fails conformance.
+rate = 0.981274
+matched = 48106
+total = 49024
 allowed_regression = 0.0
 
 [t0-2xxx]
