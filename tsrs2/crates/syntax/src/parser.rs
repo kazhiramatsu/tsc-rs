@@ -42,7 +42,7 @@ use crate::nodes::{
     VariableStatementData, VoidExpressionData, WhileStatementData, WithStatementData,
     YieldExpressionData,
 };
-use crate::scanner::{LanguageVariant, Scanner};
+use crate::scanner::{is_js_whitespace, is_whitespace_like, LanguageVariant, Scanner};
 use crate::{SourceFile, SyntaxKind};
 use tsrs2_diags::MessageChain;
 use tsrs2_diags::{compute_line_map, gen, Diagnostic, DiagnosticList, DiagnosticMessage, LineMap};
@@ -181,6 +181,7 @@ impl ParserTruthy for SyntaxKind {
 
 struct Parser<'text> {
     scanner: Scanner<'text>,
+    source_text: &'text str,
     arena: NodeArena,
     file_name: String,
     language_version: ScriptTarget,
@@ -220,6 +221,140 @@ struct FinishedParse {
     root: NodeId,
     parse_diagnostics: DiagnosticList,
     comment_directives: Vec<crate::CommentDirective>,
+}
+
+#[derive(Debug)]
+struct PragmaAttribute<'text> {
+    value: &'text str,
+    start: usize,
+    end: usize,
+}
+
+fn skip_pragma_whitespace(text: &str, mut offset: usize) -> usize {
+    while let Some(ch) = text[offset..].chars().next() {
+        if !is_js_whitespace(ch) {
+            break;
+        }
+        offset += ch.len_utf8();
+    }
+    offset
+}
+
+fn skip_leading_comment_whitespace(text: &str, mut offset: usize) -> usize {
+    while let Some(ch) = text[offset..].chars().next() {
+        if !is_whitespace_like(ch) {
+            break;
+        }
+        offset += ch.len_utf8();
+    }
+    offset
+}
+
+fn named_pragma_attribute<'text>(
+    comment: &'text str,
+    comment_start: usize,
+    name: &str,
+) -> Option<PragmaAttribute<'text>> {
+    let mut search = 0;
+    while search < comment.len() {
+        let ch = comment[search..].chars().next()?;
+        if !ch.is_whitespace() {
+            search += ch.len_utf8();
+            continue;
+        }
+        let mut cursor = search + ch.len_utf8();
+        if comment
+            .get(cursor..cursor + name.len())
+            .is_some_and(|candidate| candidate.eq_ignore_ascii_case(name))
+        {
+            cursor += name.len();
+            cursor = skip_pragma_whitespace(comment, cursor);
+            if comment.as_bytes().get(cursor) != Some(&b'=') {
+                search += ch.len_utf8();
+                continue;
+            }
+            cursor += 1;
+            cursor = skip_pragma_whitespace(comment, cursor);
+            let quote = *comment.as_bytes().get(cursor)?;
+            if quote != b'\'' && quote != b'"' {
+                search += ch.len_utf8();
+                continue;
+            }
+            let value_start = cursor + 1;
+            let relative_end = comment[value_start..]
+                .bytes()
+                .position(|byte| byte == quote)?;
+            let value_end = value_start + relative_end;
+            return Some(PragmaAttribute {
+                value: &comment[value_start..value_end],
+                start: comment_start + value_start,
+                end: comment_start + value_end,
+            });
+        }
+        search += ch.len_utf8();
+    }
+    None
+}
+
+/// M8-P01 native projection of tsc's
+/// processCommentPragmas/processPragmasIntoFields(reference) and
+/// parseResolutionMode. The diagnostic intentionally covers the `types`
+/// value, not the invalid resolution-mode value: tsc passes
+/// `(types.pos, types.end)` into parseResolutionMode.
+fn leading_reference_resolution_mode_errors(text: &str) -> Vec<(usize, usize)> {
+    fn error_from_comment(comment: &str, comment_start: usize) -> Option<(usize, usize)> {
+        let after_slashes = comment.strip_prefix("///")?;
+        let after_space = after_slashes.trim_start_matches(is_js_whitespace);
+        let after_open = after_space.strip_prefix('<')?;
+        let name_end = after_open.find(is_js_whitespace)?;
+        if !after_open[..name_end].eq_ignore_ascii_case("reference")
+            || !after_open[name_end..].contains("/>")
+        {
+            return None;
+        }
+        if named_pragma_attribute(comment, comment_start, "no-default-lib")
+            .is_some_and(|attribute| attribute.value == "true")
+        {
+            return None;
+        }
+        let types = named_pragma_attribute(comment, comment_start, "types")?;
+        let mode = named_pragma_attribute(comment, comment_start, "resolution-mode")?;
+        if mode.value.is_empty() || matches!(mode.value, "import" | "require") {
+            return None;
+        }
+        Some((types.start, types.end.saturating_sub(types.start)))
+    }
+
+    let mut offset = 0;
+    if text.starts_with("#!") {
+        offset = text
+            .find(['\n', '\r', '\u{2028}', '\u{2029}'])
+            .unwrap_or(text.len());
+    }
+    let mut errors = Vec::new();
+    loop {
+        offset = skip_leading_comment_whitespace(text, offset);
+        let rest = &text[offset..];
+        if rest.starts_with("//") {
+            let length = rest
+                .find(['\n', '\r', '\u{2028}', '\u{2029}'])
+                .unwrap_or(rest.len());
+            if let Some(error) = error_from_comment(&rest[..length], offset) {
+                errors.push(error);
+            }
+            offset += length;
+            continue;
+        }
+        if let Some(after_open) = rest.strip_prefix("/*") {
+            let Some(end) = after_open.find("*/") else {
+                break;
+            };
+            offset += 2 + end + 2;
+            continue;
+        }
+        break;
+    }
+    errors
 }
 
 impl<'text> Parser<'text> {
@@ -272,6 +407,7 @@ impl<'text> Parser<'text> {
         }
         Self {
             scanner: Scanner::new_with_target(text, language_variant, language_version),
+            source_text: text,
             arena: NodeArena::new(),
             file_name,
             language_version,
@@ -8490,6 +8626,11 @@ impl<'text> Parser<'text> {
         );
         self.arena.finalize_tree(root);
 
+        // M8-P01: tsc runs processCommentPragmas/processPragmasIntoFields
+        // after building the SourceFile and appends pragma diagnostics
+        // to the syntactic bucket.
+        self.append_reference_resolution_mode_diagnostics();
+
         // tsc parseSourceFileWorker: sourceFile.commentDirectives =
         // scanner.getCommentDirectives().
         let comment_directives = self.scanner.take_comment_directives();
@@ -8503,6 +8644,17 @@ impl<'text> Parser<'text> {
             root,
             parse_diagnostics: self.parse_diagnostics,
             comment_directives,
+        }
+    }
+
+    fn append_reference_resolution_mode_diagnostics(&mut self) {
+        for (start, length) in leading_reference_resolution_mode_errors(self.source_text) {
+            self.push_parse_diagnostic(
+                start,
+                length,
+                &gen::resolution_mode_should_be_either_require_or_import,
+                Vec::new(),
+            );
         }
     }
 
@@ -12032,6 +12184,78 @@ mod tests {
         };
         assert_eq!(identifier.escaped_text, "module");
         assert_eq!(source.parse_diagnostics.len(), 1);
+    }
+
+    #[test]
+    fn triple_slash_resolution_mode_diagnostic_uses_the_types_span() {
+        let source = parse_source_file(
+            "/index.ts".to_owned(),
+            "/// <reference types=\"pkg\" resolution-mode=\"esm\"/>\nexport {};".to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        assert_eq!(source.parse_diagnostics.len(), 1);
+        let diagnostic = &source.parse_diagnostics[0];
+        assert_eq!(
+            diagnostic.code(),
+            gen::resolution_mode_should_be_either_require_or_import.code
+        );
+        assert_eq!(diagnostic.start, Some(22));
+        assert_eq!(diagnostic.length, Some(3));
+    }
+
+    #[test]
+    fn triple_slash_resolution_mode_honors_pragma_precedence_and_leading_scope() {
+        for text in [
+            "/// <reference types=\"pkg\" resolution-mode=\"import\"/>\nexport {};",
+            "/// <reference types=\"pkg\" resolution-mode=\"require\"/>\nexport {};",
+            "/// <reference types=\"pkg\" resolution-mode=\"\"/>\nexport {};",
+            "/// <reference path=\"pkg\" resolution-mode=\"esm\"/>\nexport {};",
+            "/// <reference no-default-lib=\"true\" types=\"pkg\" resolution-mode=\"esm\"/>\nexport {};",
+            "export {};\n/// <reference types=\"pkg\" resolution-mode=\"esm\"/>",
+            "///\u{0085}<reference types=\"pkg\" resolution-mode=\"esm\"/>\nexport {};",
+        ] {
+            let source = parse_source_file(
+                "/index.ts".to_owned(),
+                text.to_owned(),
+                ParseOptions::default(),
+                None,
+            );
+            assert!(
+                source.parse_diagnostics.is_empty(),
+                "{text:?}: {:?}",
+                source.parse_diagnostics
+            );
+        }
+
+        let source = parse_source_file(
+            "/index.ts".to_owned(),
+            "/* leading */\n/// <REFERENCE TYPES='pkg' RESOLUTION-MODE='esm'/>\nexport {};"
+                .to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        assert_eq!(source.parse_diagnostics.len(), 1);
+        assert_eq!(source.parse_diagnostics[0].code(), 1453);
+
+        for text in [
+            "///\u{FEFF}<reference types=\"pkg\" resolution-mode=\"esm\"/>\nexport {};",
+            "\u{200B}/// <reference types=\"pkg\" resolution-mode=\"esm\"/>\nexport {};",
+        ] {
+            let source = parse_source_file(
+                "/index.ts".to_owned(),
+                text.to_owned(),
+                ParseOptions::default(),
+                None,
+            );
+            assert_eq!(
+                source.parse_diagnostics.len(),
+                1,
+                "{text:?}: {:?}",
+                source.parse_diagnostics
+            );
+            assert_eq!(source.parse_diagnostics[0].code(), 1453);
+        }
     }
 
     #[test]

@@ -101,9 +101,9 @@ artifacts by every `cargo xtask ci` run:
 
 | View | Exact diagnostic match (T0) |
 | --- | --- |
-| All bands | **98.1315%** (48,108 / 49,024) |
+| All bands | **98.1397%** (48,112 / 49,024) |
 | 2xxx band | **97.4063%** (20,505 / 21,051) |
-| Syntactic | **99.8219%** (2,242 / 2,246) |
+| Syntactic | **100.0000%** (2,246 / 2,246) |
 
 False positives are a hard gate: 0 on every merge. Escape
 ceilings: untagged 0, recovery 117. Non-2XXX family
