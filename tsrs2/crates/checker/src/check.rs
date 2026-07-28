@@ -108,9 +108,10 @@ struct JsDocUnmatchedParameterProjection {
 }
 
 #[derive(Default)]
-struct JsDocTypedefProjections {
+struct JsDocCommentTagProjections {
     missing_type_spans: Vec<(usize, usize)>,
     duplicate_type_spans: Vec<(usize, usize)>,
+    invalid_template_spans: Vec<(usize, usize)>,
 }
 
 impl<'a> CheckerState<'a> {
@@ -235,7 +236,7 @@ impl<'a> CheckerState<'a> {
         }
         self.check_source_element(end_of_file_token);
         self.check_deferred_nodes(root);
-        self.check_jsdoc_typedef_diagnostics(root);
+        self.check_jsdoc_comment_tag_diagnostics(root);
         self.check_jsdoc_implicit_any_projections(root);
         self.check_jsdoc_satisfies_semantics(root);
         let is_unused_source_file_owner = self.is_effective_external_module(root)
@@ -3787,6 +3788,20 @@ impl<'a> CheckerState<'a> {
         comments
     }
 
+    /// parseNestedTypeLiteral's invalid child `@template` face.
+    ///
+    /// tsc-port: parseNestedTypeLiteral @6.0.3
+    /// tsc-hash: ad2ff893671e504bdd53de562989ebe1c07d4271dafef9f0907e74ac394a2385
+    /// tsc-span: _tsc.js:35364-35369
+    /// d2: d2:44d50889b33e501f79e8c83bce414c2a7e0588d780ff283ef1d0afb98508df84
+    ///
+    /// parseCallbackTagParameters' invalid `@template` face.
+    ///
+    /// tsc-port: parseCallbackTagParameters @6.0.3
+    /// tsc-hash: 6cb70338a9b02361063c20c65e804fb0482947c2793553c9e7688b6d934fe9a3
+    /// tsc-span: _tsc.js:35587-35591
+    /// d2: d2:38e81f67dd37c1f3cc463adeba578fbed3fa96052ae78a33d257ad53654e1ede
+    ///
     /// parseTypedefTag's duplicate direct-child `@type` face.
     ///
     /// tsc-port: parseTypedefTag @6.0.3
@@ -3802,17 +3817,29 @@ impl<'a> CheckerState<'a> {
     /// d2: d2:1c9b0a5e47d8bc06ebe075f171d96048c21fd1f90ba086adff3885de9b85f269
     ///
     /// JSDoc nodes are not materialized in the Rust syntax arena. One
-    /// shared source projection covers both owned faces, so P20 does
-    /// not add another `jsdoc_comment_body_ranges` node traversal.
+    /// shared source projection covers all owned faces, so P20 and P21
+    /// add no `jsdoc_comment_body_ranges` node traversal.
     /// The duplicate face is deliberately direct and conservative:
     /// an untyped named typedef followed by two well-formed `@type`
-    /// children. Other child-tag grammar stays non-firing until the
-    /// comment-tag parser is materialized.
-    fn check_jsdoc_typedef_diagnostics(&mut self, root: NodeId) {
+    /// children. P21 likewise projects only the frozen immediate
+    /// callback/overload and direct nested-property shapes. Other
+    /// child-tag grammar stays non-firing until the comment-tag parser
+    /// is materialized.
+    fn check_jsdoc_comment_tag_diagnostics(&mut self, root: NodeId) {
         if !self.is_in_js_file(root) {
             return;
         }
-        let projections = self.jsdoc_typedef_projections(root);
+        let projections = self.jsdoc_comment_tag_projections(root);
+        for (start, end) in projections.invalid_template_spans {
+            let diagnostics_before = self.diagnostics.len();
+            self.error_at_byte_range(
+                root,
+                start,
+                end,
+                &diagnostics::A_JSDoc_template_tag_may_not_follow_a_typedef_callback_or_overload_tag,
+            );
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 8039);
+        }
         for (start, end) in projections.duplicate_type_spans {
             let diagnostics_before = self.diagnostics.len();
             let index = self.error_at_byte_range(
@@ -3847,10 +3874,11 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn jsdoc_typedef_projections(&self, root: NodeId) -> JsDocTypedefProjections {
+    fn jsdoc_comment_tag_projections(&self, root: NodeId) -> JsDocCommentTagProjections {
         let source = self.binder.source_of_node(root);
         let mut missing_type_spans = std::collections::BTreeSet::new();
         let mut duplicate_type_spans = std::collections::BTreeSet::new();
+        let mut invalid_template_spans = std::collections::BTreeSet::new();
         for (body_start, comment_close) in self.jsdoc_comment_body_ranges(root) {
             let body = &source.text[body_start..comment_close];
             let mut tags = Vec::new();
@@ -3899,6 +3927,12 @@ impl<'a> CheckerState<'a> {
             }
 
             for (index, &(tag, tail, tag_end, _current_token_span)) in tags.iter().enumerate() {
+                if matches!(tag, "callback" | "overload") {
+                    if let Some(&("template", _, template_end, _)) = tags.get(index + 1) {
+                        invalid_template_spans
+                            .insert((template_end - "template".len(), template_end));
+                    }
+                }
                 if tag != "typedef" {
                     continue;
                 }
@@ -3920,6 +3954,35 @@ impl<'a> CheckerState<'a> {
                     .sum::<usize>();
                 if name_length == 0 {
                     continue;
+                }
+
+                if let (
+                    Some(&(property_tag, property_tail, _, _)),
+                    Some(&(child_tag, child_tail, _, _)),
+                    Some(&("template", _, template_end, _)),
+                ) = (
+                    tags.get(index + 1),
+                    tags.get(index + 2),
+                    tags.get(index + 3),
+                ) {
+                    let property = jsdoc_braced_tag_type_and_name(property_tail);
+                    let child = jsdoc_braced_tag_type_and_name(child_tail);
+                    if matches!(property_tag, "property" | "prop")
+                        && matches!(child_tag, "property" | "prop")
+                        && property.is_some_and(|(ty, name)| {
+                            is_jsdoc_object_or_object_array_type_text(ty)
+                                && is_jsdoc_identifier(name)
+                                && child.is_some_and(|(_, child_name)| {
+                                    child_name.strip_prefix(name).is_some_and(|suffix| {
+                                        suffix.starts_with('.')
+                                            && suffix[1..].split('.').all(is_jsdoc_identifier)
+                                    })
+                                })
+                        })
+                    {
+                        invalid_template_spans
+                            .insert((template_end - "template".len(), template_end));
+                    }
                 }
 
                 let duplicate_type = tags
@@ -3944,9 +4007,10 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        JsDocTypedefProjections {
+        JsDocCommentTagProjections {
             missing_type_spans: missing_type_spans.into_iter().collect(),
             duplicate_type_spans: duplicate_type_spans.into_iter().collect(),
+            invalid_template_spans: invalid_template_spans.into_iter().collect(),
         }
     }
 
@@ -12565,6 +12629,21 @@ fn jsdoc_braced_payload(text: &str) -> Option<(&str, usize)> {
     None
 }
 
+fn jsdoc_braced_tag_type_and_name(text: &str) -> Option<(&str, &str)> {
+    let text = text.trim_start();
+    let (ty, consumed) = jsdoc_braced_payload(text)?;
+    let name = text[consumed..].split_whitespace().next()?;
+    (!name.is_empty()).then_some((ty.trim(), name))
+}
+
+fn is_jsdoc_object_or_object_array_type_text(text: &str) -> bool {
+    let mut text = text.trim();
+    while let Some(element) = text.strip_suffix("[]") {
+        text = element.trim_end();
+    }
+    matches!(text, "object" | "Object")
+}
+
 fn jsdoc_candidate_tag_tail<'a>(
     candidate: &'a str,
     tags: &[&'static str],
@@ -13848,6 +13927,89 @@ mod tests {
         assert!(checked_file_diags_with("a.js", text, &options)
             .into_iter()
             .all(|row| row.0 != 8033));
+    }
+
+    // ---- M8-P21 invalid template child tags ----
+
+    #[test]
+    fn jsdoc_callback_overload_and_nested_property_report_8039() {
+        let fixture = include_str!(
+            "../../../ts-tests/tests/cases/conformance/jsdoc/templateInsideCallback.ts"
+        );
+        let text = fixture
+            .split_once("// @filename: templateInsideCallback.js\n")
+            .expect("fixture file section")
+            .1;
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        };
+        with_program_state(&[("templateInsideCallback.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let rows = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 8039)
+                .map(|diagnostic| {
+                    (
+                        diagnostic.start,
+                        diagnostic.length,
+                        diagnostic.message_text(),
+                        diagnostic.related.len(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                rows,
+                [
+                    (
+                        Some(104),
+                        Some(8),
+                        "A JSDoc '@template' tag may not follow a '@typedef', '@callback', or '@overload' tag",
+                        0,
+                    ),
+                    (
+                        Some(299),
+                        Some(8),
+                        "A JSDoc '@template' tag may not follow a '@typedef', '@callback', or '@overload' tag",
+                        0,
+                    ),
+                    (
+                        Some(370),
+                        Some(8),
+                        "A JSDoc '@template' tag may not follow a '@typedef', '@callback', or '@overload' tag",
+                        0,
+                    ),
+                    (
+                        Some(496),
+                        Some(8),
+                        "A JSDoc '@template' tag may not follow a '@typedef', '@callback', or '@overload' tag",
+                        0,
+                    ),
+                ]
+            );
+        });
+    }
+
+    #[test]
+    fn jsdoc_invalid_template_preserves_frozen_overload_sibling() {
+        let fixture =
+            include_str!("../../../ts-tests/tests/cases/conformance/jsdoc/overloadTag2.ts");
+        let text = fixture
+            .split_once("// @filename: overloadTag2.js\n")
+            .expect("fixture file section")
+            .1;
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            ..CompilerOptions::default()
+        };
+        assert!(checked_file_diags_with("overloadTag2.js", text, &options)
+            .into_iter()
+            .all(|row| row.0 != 8039));
     }
 
     // ---- M7 8.1m JSDoc unique-symbol property grammar ----
