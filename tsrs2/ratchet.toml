@@ -546,14 +546,15 @@
 # Empty `this`-property object initializers take tsc's widened `{}` face
 # before the object-literal shortcut. T1-T3 gain the same 26 identities
 # with no losses, outside gains, or false positives.
-# M8-P12: +10 exact TS8020 identities from checkJSDocTypeIsInJsFile
-# and checkTypeReferenceNode. JSDoc-only source type nodes report only
-# outside JS files, and the `Array.<T>` face reports on the dot. The
-# function-type child traversal remains behind its prerequisite owner
-# so it cannot fabricate TS2680; T1-T3 gain the same ten identities
-# with no losses, outside gains, or false positives.
-rate = 0.986558
-matched = 48365
+# M8-P13: +30 exact TS7016 identities from errorOnImplicitAnyModule
+# and createModuleNotFoundChain. Diagnostic-only host resolution keeps
+# the checker resolver Suppressed while reproducing error/suggestion,
+# Node10/exports alternates, @types priority, and bundled-types tails.
+# Conditional typed fallbacks and allowJs-relative siblings stay
+# non-firing; T1-T3 gain the same 30 identities with no losses,
+# outside gains, or false positives.
+rate = 0.98717
+matched = 48395
 total = 49024
 allowed_regression = 0.0
 
