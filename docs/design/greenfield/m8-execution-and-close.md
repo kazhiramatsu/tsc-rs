@@ -90,7 +90,11 @@ M8 executes these steps in order:
    accepted sets in the convergence plan's order. A touched family still
    follows the vertical slice-fidelity rule; the global sweep is not
    permission to add a knowingly wrong category, span, message, chain, or
-   related-information shape.
+   related-information shape. The all-band conformance JSON includes
+   `supported_tier_mismatches`, partitioned by `first_failed_tier`, with the
+   complete expected and actual bucket shapes. This report-only residual is
+   the scheduling input; aggregate tier counts and matched-only identity
+   lists are not sufficient to assign an implementation owner.
 5. **A3 T4 closure** — activate the rendered-output comparator through the
    reviewed A3 universe transition, then close byte parity for every
    supported case, including ordering and deduplication.
