@@ -9363,6 +9363,48 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsrs-native: bounded consumer-side face of tsc's widened type
+    /// for an empty object assigned to a checked-JS `this` property.
+    /// The Rust flow currently retains the source OBJECT_LITERAL bit;
+    /// tsc has widened it to `{}` before indexed access. Keeping this
+    /// predicate syntax- and assignment-kind-exact prevents the
+    /// object-literal index shortcut from swallowing the 7053 path.
+    pub(crate) fn is_checked_js_empty_this_assignment_type(&self, ty: TypeId) -> bool {
+        let Some(symbol) = self.tables.type_of(ty).symbol else {
+            return false;
+        };
+        let Some(literal) = self.binder.symbol(symbol).value_declaration else {
+            return false;
+        };
+        if !self.is_effectively_checked_js_node(literal) {
+            return false;
+        }
+        if !matches!(
+            self.data_of(literal),
+            NodeData::ObjectLiteralExpression(data)
+                if self.nodes_of(data.properties).is_empty()
+        ) {
+            return false;
+        }
+        let Some(assignment) = self.parent_of(literal) else {
+            return false;
+        };
+        let NodeData::BinaryExpression(data) = self.data_of(assignment) else {
+            return false;
+        };
+        if data.right != Some(literal)
+            || data
+                .operator_token
+                .is_none_or(|operator| self.kind_of(operator) != SyntaxKind::EqualsToken)
+        {
+            return false;
+        }
+        tsrs2_binder::get_assignment_declaration_kind(
+            self.binder.source_of_node(assignment),
+            assignment,
+        ) == tsrs2_binder::AssignmentDeclarationKind::ThisProperty
+    }
+
     /// tsc-port: createTypeNodeFromObjectType @6.0.3
     /// tsc-hash: 1190da69649fad92283f6058fe227821ed7a562223b62b2e4193b555f06359bd
     /// tsc-span: _tsc.js:51894-51938
@@ -9516,6 +9558,7 @@ impl<'a> CheckerState<'a> {
                 if symbol.is_none()
                     || ty == self.empty_type_literal_type
                     || (born_resolved && !js_declared)
+                    || (born_resolved && self.is_checked_js_empty_this_assignment_type(ty))
                     || (born_resolved && bounded_js_container_literal.is_some())
                     || (born_resolved && js_declared && js_empty_parameter_assignment)
                     || (born_resolved && js_declared && js_empty_property_initializer)

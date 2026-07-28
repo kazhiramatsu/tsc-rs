@@ -539,8 +539,15 @@
 # noImplicitAny closure. Checked-JS publication is limited to effective
 # checkJs without a JSDoc return carrier; the explicitly typed generator
 # sibling and unchecked-JS canary remain clean.
-rate = 0.985823
-matched = 48329
+# M8-P11: +26 exact TS7053 identities from
+# getPropertyTypeForIndexType's implicit-any index error ladder.
+# Publication requires explicitly checked JS and excludes JSDoc index
+# carriers plus the still-owned late-bound class/function-value faces.
+# Empty `this`-property object initializers take tsc's widened `{}` face
+# before the object-literal shortcut. T1-T3 gain the same 26 identities
+# with no losses, outside gains, or false positives.
+rate = 0.986354
+matched = 48355
 total = 49024
 allowed_regression = 0.0
 

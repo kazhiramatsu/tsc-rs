@@ -797,6 +797,22 @@ impl<'a> CheckerState<'a> {
         )
     }
 
+    /// tsrs-native: distinguish an explicitly checked JS file from a
+    /// plain allowJs file. isCheckJsEnabledForFile alone is also true
+    /// for plain JS because ordinary bind/check inclusion is enabled
+    /// there; publication frontiers need this stricter predicate.
+    pub(crate) fn is_effectively_checked_js_node(&self, node: NodeId) -> bool {
+        if !self.is_in_js_file(node) || !self.is_check_js_enabled_for_node(node) {
+            return false;
+        }
+        let source = self.binder.source_of_node(node);
+        !crate::is_plain_js_file(
+            /*javascript_file*/ true,
+            crate::check_directive(&source.text),
+            self.options,
+        )
+    }
+
     /// Keep reportImplicitAny publication on the supported non-JSDoc
     /// face while JSDoc contextual parameter typing remains M8-owned.
     ///
