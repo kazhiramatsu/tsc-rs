@@ -530,8 +530,13 @@
 # Closure function returns, and assignment-inferred members. T1-T3 gain
 # the same 121 identities with no losses, outside gains, or false
 # positives.
-rate = 0.985742
-matched = 48325
+# M8-P09: +3 exact TS7008 identities from checked-JS constructor flow:
+# null and undefined fall through reportImplicitAny, while the empty
+# array reports directly from getFlowTypeInConstructor. The nearest
+# non-emitting sibling and the JSDoc-annotated constructor canary remain
+# clean; T1-T3 gain the same three identities with no losses.
+rate = 0.985803
+matched = 48328
 total = 49024
 allowed_regression = 0.0
 

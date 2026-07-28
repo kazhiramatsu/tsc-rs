@@ -3082,11 +3082,17 @@ impl<'a> CheckerState<'a> {
             let display = self.member_implicit_any_display_name(symbol)?;
             let type_display = self.type_to_string_slice(flow_type)?;
             let error_node = self.binder.symbol(symbol).value_declaration;
+            let diagnostics_before = self.diagnostics.len();
             self.error_at(
                 error_node,
                 &diagnostics::Member_0_implicitly_has_an_1_type,
                 &[&display, &type_display],
             );
+            if error_node.is_some_and(|node| {
+                self.is_in_js_file(node) && !self.declaration_has_jsdoc_semantics(node)
+            }) {
+                self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 7008);
+            }
         }
         if self.every_type_is_nullable(flow_type)? {
             return Ok(None);

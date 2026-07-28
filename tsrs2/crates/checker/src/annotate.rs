@@ -8513,7 +8513,9 @@ impl<'a> CheckerState<'a> {
         self.assignment_constructor_container(expression).is_some()
     }
 
-    fn assignment_constructor_container(&self, expression: NodeId) -> Option<NodeId> {
+    /// tsrs-native: shared non-JSDoc projection of tsc
+    /// isConstructorDeclaredProperty's declaring-constructor test.
+    pub(crate) fn assignment_constructor_container(&self, expression: NodeId) -> Option<NodeId> {
         let source = self.binder.source_of_node(expression);
         let container = node_util::get_this_container(
             source, expression, /*include_arrow_functions*/ false,

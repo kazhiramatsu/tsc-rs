@@ -3803,6 +3803,9 @@ impl<'a> CheckerState<'a> {
         {
             return false;
         }
+        if self.declaration_has_jsdoc_semantics(declaration) {
+            return false;
+        }
         let container = node_util::get_this_container(
             source,
             declaration,
@@ -3817,6 +3820,14 @@ impl<'a> CheckerState<'a> {
                     | SyntaxKind::PropertyDeclaration
             )
         }) {
+            return true;
+        }
+        // The all-nullable constructor-flow fallback reaches
+        // reportImplicitAny with the assignment declaration itself.
+        // Use the exact constructor classifier from the owning
+        // assignment producer rather than a symbol recovered from a
+        // node whose binder link may refer to an access subexpression.
+        if self.assignment_constructor_container(declaration).is_some() {
             return true;
         }
         if type_as_string != "any[]" {
