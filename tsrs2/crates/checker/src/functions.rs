@@ -46,6 +46,12 @@ struct JsDocAsyncReturnProjection {
     error_span: (usize, usize),
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct JsDocCallSignatureProjection {
+    parameter_count: usize,
+    has_rest_parameter: bool,
+}
+
 fn utf16_span(source: &tsrs2_syntax::SourceFile, byte_span: (usize, usize)) -> (u32, u32) {
     let to_utf16 = |byte: usize| -> u32 {
         source
@@ -125,6 +131,163 @@ fn jsdoc_braced_tag_span(
         }
     }
     best.map(|(_, span)| span)
+}
+
+fn split_jsdoc_top_level(text: &str, delimiter: char) -> Option<Vec<&str>> {
+    let mut parts = Vec::new();
+    let mut start = 0usize;
+    let mut parens = 0usize;
+    let mut brackets = 0usize;
+    let mut braces = 0usize;
+    let mut angles = 0usize;
+    for (index, character) in text.char_indices() {
+        match character {
+            '(' => parens += 1,
+            ')' => parens = parens.checked_sub(1)?,
+            '[' => brackets += 1,
+            ']' => brackets = brackets.checked_sub(1)?,
+            '{' => braces += 1,
+            '}' => braces = braces.checked_sub(1)?,
+            '<' => angles += 1,
+            '>' => angles = angles.checked_sub(1)?,
+            current
+                if current == delimiter
+                    && parens == 0
+                    && brackets == 0
+                    && braces == 0
+                    && angles == 0 =>
+            {
+                parts.push(text[start..index].trim());
+                start = index + character.len_utf8();
+            }
+            _ => {}
+        }
+    }
+    if parens != 0 || brackets != 0 || braces != 0 || angles != 0 {
+        return None;
+    }
+    parts.push(text[start..].trim());
+    Some(parts)
+}
+
+fn jsdoc_parameter_list_projection(text: &str) -> Option<JsDocCallSignatureProjection> {
+    let parameters = split_jsdoc_top_level(text.trim(), ',')?;
+    let parameters: Vec<_> = parameters
+        .into_iter()
+        .filter(|parameter| !parameter.is_empty())
+        .collect();
+    let has_rest_parameter = parameters.iter().any(|parameter| {
+        let parameter = parameter.trim();
+        parameter.starts_with("...")
+            || parameter
+                .split_once(':')
+                .is_some_and(|(_, ty)| ty.trim().starts_with("..."))
+    });
+    Some(JsDocCallSignatureProjection {
+        parameter_count: parameters.len(),
+        has_rest_parameter,
+    })
+}
+
+fn jsdoc_parenthesized_signature_projection(text: &str) -> Option<JsDocCallSignatureProjection> {
+    let text = text.trim();
+    let tail = text.strip_prefix('(')?;
+    let mut depth = 1usize;
+    let mut close = None;
+    for (offset, character) in tail.char_indices() {
+        match character {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    close = Some(offset);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    let close = close?;
+    let after = tail[close + 1..].trim_start();
+    if !after.starts_with("=>") && !after.starts_with(':') {
+        return None;
+    }
+    jsdoc_parameter_list_projection(&tail[..close])
+}
+
+/// Project only the call-signature list needed by
+/// getContextualCallSignature. `Some([])` is a known non-callable
+/// object type; `None` leaves unsupported JSDoc syntax unclassified.
+fn jsdoc_call_signatures_from_type_text(text: &str) -> Option<Vec<JsDocCallSignatureProjection>> {
+    let text = text.trim();
+    if text.starts_with('(') && text.contains("=>") {
+        return jsdoc_parenthesized_signature_projection(text).map(|signature| vec![signature]);
+    }
+    if let Some(tail) = text
+        .get(.."function".len())
+        .filter(|prefix| prefix.eq_ignore_ascii_case("function"))
+        .map(|_| text["function".len()..].trim_start())
+    {
+        if let Some(parameters) = tail.strip_prefix('(') {
+            let mut depth = 1usize;
+            let mut close = None;
+            for (offset, character) in parameters.char_indices() {
+                match character {
+                    '(' => depth += 1,
+                    ')' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            close = Some(offset);
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            return jsdoc_parameter_list_projection(&parameters[..close?])
+                .map(|signature| vec![signature]);
+        }
+    }
+    let inner = text.strip_prefix('{')?.strip_suffix('}')?.trim();
+    let mut signatures = Vec::new();
+    for member in split_jsdoc_top_level(inner, ';')? {
+        if member.is_empty() {
+            continue;
+        }
+        if member.starts_with('(') {
+            signatures.push(jsdoc_parenthesized_signature_projection(member)?);
+        }
+    }
+    Some(signatures)
+}
+
+fn find_jsdoc_typedef_type_text(source: &str, alias: &str) -> Option<String> {
+    let mut cursor = 0usize;
+    while let Some(relative_start) = source[cursor..].find("/**") {
+        let comment_start = cursor + relative_start;
+        let relative_end = source[comment_start + 3..].find("*/")?;
+        let comment_end = comment_start + 3 + relative_end + 2;
+        let comment = (comment_start, comment_end);
+        if let Some(type_span) = jsdoc_braced_tag_span(source, comment, &["@typedef"]) {
+            let declaration_tail = source[type_span.1..comment_end]
+                .strip_prefix('}')
+                .unwrap_or(&source[type_span.1..comment_end])
+                .trim_start_matches(|character: char| {
+                    character.is_whitespace() || character == '*'
+                });
+            let declared_name: String = declaration_tail
+                .chars()
+                .take_while(|character| {
+                    *character == '$' || *character == '_' || character.is_ascii_alphanumeric()
+                })
+                .collect();
+            if declared_name == alias {
+                return Some(source[type_span.0..type_span.1].trim().to_owned());
+            }
+        }
+        cursor = comment_end;
+    }
+    None
 }
 
 fn find_jsdoc_callback_return_span(source: &str, alias: &str) -> Option<(usize, usize)> {
@@ -3084,7 +3247,105 @@ impl<'a> CheckerState<'a> {
                 self.get_return_type_of_signature(signature)?;
             }
         }
+        self.check_jsdoc_function_type_tag(node)?;
         Ok(())
+    }
+
+    /// checkFunctionOrMethodDeclaration's checked-JS type-tag tail.
+    ///
+    /// tsc-port: checkFunctionOrMethodDeclaration @6.0.3
+    /// tsc-hash: fcecf19b2f9ee177f4343da9f3f75b61921bb5e6ab92e9739bb00495ac588fe0
+    /// tsc-span: _tsc.js:82935-82940
+    /// d2: d2:4910467ed8640900c98336a5314421fe6921c3d432f77bec2b510af67cd90804
+    ///
+    /// JSDoc nodes are not materialized in the syntax arena. Keep the
+    /// projection at the already-ported producer boundary: read only
+    /// the attached `@type`, and (for an identifier) its exact
+    /// source-local `@typedef`. The projected signature list feeds
+    /// the same arity/cardinality decision as getContextualCallSignature.
+    fn check_jsdoc_function_type_tag(&mut self, node: NodeId) -> CheckResult2<()> {
+        if !self.is_in_js_file(node) {
+            return Ok(());
+        }
+        let source = self.binder.source_of_node(node);
+        let Some(comment) = self.leading_jsdoc_comment_range(node) else {
+            return Ok(());
+        };
+        let Some(type_span) = jsdoc_braced_tag_span(&source.text, comment, &["@type"]) else {
+            return Ok(());
+        };
+        let type_text = source.text[type_span.0..type_span.1].trim().to_owned();
+        let function_name = self
+            .name_of_node(node)
+            .and_then(|name| self.identifier_text_of(name))
+            .map(str::to_owned);
+
+        let has_contextual_signature = if function_name.as_deref() == Some(type_text.as_str()) {
+            // getTypeFromTypeNode resolves a direct self-reference
+            // through its circularity sentinel, which has no call
+            // signature.
+            Some(false)
+        } else if let Some(signatures) = jsdoc_call_signatures_from_type_text(&type_text) {
+            Some(self.projected_jsdoc_type_has_contextual_call_signature(node, &signatures))
+        } else if is_jsdoc_identifier(&type_text) {
+            if let Some(alias_text) = find_jsdoc_typedef_type_text(&source.text, &type_text) {
+                jsdoc_call_signatures_from_type_text(&alias_text).map(|signatures| {
+                    self.projected_jsdoc_type_has_contextual_call_signature(node, &signatures)
+                })
+            } else if let Some(ty) = self.get_type_from_jsdoc_text(node, &type_text)? {
+                Some(self.get_contextual_call_signature(ty, node)?.is_some())
+            } else {
+                None
+            }
+        } else if let Some(ty) = self.get_type_from_jsdoc_text(node, &type_text)? {
+            Some(self.get_contextual_call_signature(ty, node)?.is_some())
+        } else {
+            None
+        };
+
+        if has_contextual_signature == Some(false) {
+            let diagnostics_before = self.diagnostics.len();
+            self.error_at_byte_range_with_args(
+                node,
+                type_span.0,
+                type_span.1,
+                &diagnostics::The_type_of_a_function_declaration_must_match_the_function_s_signature,
+                &[],
+            );
+            self.mark_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 8030);
+        }
+        Ok(())
+    }
+
+    fn projected_jsdoc_type_has_contextual_call_signature(
+        &self,
+        node: NodeId,
+        signatures: &[JsDocCallSignatureProjection],
+    ) -> bool {
+        let mut target_parameter_count = 0usize;
+        for parameter in self.parameters_of_function(node) {
+            let NodeData::Parameter(data) = self.data_of(parameter) else {
+                break;
+            };
+            if data.initializer.is_some()
+                || data.question_token.is_some()
+                || data.dot_dot_dot_token.is_some()
+            {
+                break;
+            }
+            target_parameter_count += 1;
+        }
+        let applicable = signatures
+            .iter()
+            .filter(|signature| {
+                signature.has_rest_parameter || signature.parameter_count >= target_parameter_count
+            })
+            .count();
+        applicable == 1
+            || applicable > 1
+                && self
+                    .options
+                    .strict_option_value(self.options.no_implicit_any)
     }
 
     /// tsc-port: isPrivateWithinAmbient @6.0.3
@@ -6897,6 +7158,65 @@ declare const u: unknown;
             checked_program_rows_with_file("a.js", text, &options),
             [(1064, 23, 6)]
         );
+    }
+
+    #[test]
+    fn checked_js_function_type_tag_reports_8030_at_the_type_node() {
+        let text = "/** @type {number} */\n\
+                    function f() {}\n\
+                    /** @type {(a: number) => number} */\n\
+                    function add1(a, b) {}\n\
+                    /** @type {() => void} */\n\
+                    function more(value) {}\n\
+                    /** @typedef {{(s: string): 0 | 1; (b: boolean): 2 | 3}} G */\n\
+                    /** @type {G} */\n\
+                    function overloaded(value) {}\n\
+                    /** @type {Self} */\n\
+                    function Self() {}\n";
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(false),
+            ..CompilerOptions::default()
+        };
+        let rows: Vec<_> = checked_program_rows_with_file("a.js", text, &options)
+            .into_iter()
+            .filter(|row| row.0 == 8030)
+            .collect();
+        assert_eq!(
+            rows,
+            [
+                (8030, text.find("number").unwrap() as u32, 6),
+                (8030, text.find("(a: number) => number").unwrap() as u32, 21),
+                (8030, text.find("() => void").unwrap() as u32, 10),
+                (8030, text.rfind("{G}").unwrap() as u32 + 1, 1),
+                (8030, text.find("{Self}").unwrap() as u32 + 1, 4),
+            ]
+        );
+    }
+
+    #[test]
+    fn checked_js_function_type_tag_keeps_callable_siblings_non_emitting() {
+        let text = "/** @type {(a: number) => number} */\n\
+                    function exact(a) {}\n\
+                    /** @type {(a: number, b: number, c: number) => number} */\n\
+                    function wider(a, b) {}\n\
+                    /** @type {{(a: number): string}} */\n\
+                    function objectCall(a) {}\n\
+                    /** @typedef {(x: number) => string} Alias */\n\
+                    /** @type {Alias} */\n\
+                    function aliased(x) {}\n\
+                    /** @type {Object<string, *>} */\n\
+                    const namespaceSibling = {};\n\
+                    function noTypeTag(input) { return input; }\n";
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        assert!(checked_program_rows_with_file("a.js", text, &options)
+            .into_iter()
+            .all(|row| row.0 != 8030));
     }
 
     #[test]

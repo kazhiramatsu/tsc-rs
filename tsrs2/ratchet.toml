@@ -572,8 +572,16 @@
 # later initializers in comma declarations retain their shared JSDoc
 # host. T1-T3 gain the same 13 identities with no losses, outside
 # gains, or false positives.
-rate = 0.987863
-matched = 48429
+# M8-P17: +5 exact TS8030 identities from
+# checkFunctionOrMethodDeclaration's checked-JS type-tag tail.
+# The bounded JSDoc projection preserves call-signature arity,
+# non-strict overload intersection, source-local typedef aliases, and
+# direct self-reference circularity without walking function bodies.
+# Callable type-tag siblings and the selected namespace declaration
+# fixture stay non-firing; T1-T3 gain the same five identities with no
+# losses, outside gains, or false positives.
+rate = 0.987965
+matched = 48434
 total = 49024
 allowed_regression = 0.0
 
