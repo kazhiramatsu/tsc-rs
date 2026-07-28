@@ -3254,7 +3254,7 @@ impl<'a> CheckerState<'a> {
     /// checkFunctionOrMethodDeclaration's checked-JS type-tag tail.
     ///
     /// tsc-port: checkFunctionOrMethodDeclaration @6.0.3
-    /// tsc-hash: 2fbb401c655a6f56f2d5b09c206d2a1f2ef7791c58986f4371ad680c7021f07f
+    /// tsc-hash: fcecf19b2f9ee177f4343da9f3f75b61921bb5e6ab92e9739bb00495ac588fe0
     /// tsc-span: _tsc.js:82935-82940
     /// d2: d2:4910467ed8640900c98336a5314421fe6921c3d432f77bec2b510af67cd90804
     ///
