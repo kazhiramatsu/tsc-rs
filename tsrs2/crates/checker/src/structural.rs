@@ -2757,6 +2757,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// The parametrized face (partialMatch / ignoreThisTypes /
     /// ignoreReturnTypes) used by the union-signature machinery; the
     /// ambient relation supplies the compareTypes callback.
+    /// tsc-port: compareSignaturesIdentical @6.0.3
+    /// tsc-hash: ff64ccff2dd2fde3efc5b70fe05834b924d9044f53833479bf00443877912805
+    /// tsc-span: _tsc.js:67574-67630
     pub(crate) fn compare_signatures_identical_ex(
         &mut self,
         source: SignatureId,
@@ -3898,6 +3901,9 @@ impl<'a> CheckerState<'a> {
     /// symbolIsValue follows aliases, and the
     /// includeTypeOnlyMembers/typeOnlyExportStarMap gate matches the
     /// value/type-query distinction.
+    /// tsc-port: getPropertyOfType @6.0.3
+    /// tsc-hash: 39a7221f835629e1b6b6c3d3e53d7aec1032999299e682d96846922fa299498a
+    /// tsc-span: _tsc.js:59348-59389
     pub fn get_property_of_type_ex(
         &mut self,
         ty: TypeId,
@@ -4927,6 +4933,9 @@ impl<'a> CheckerState<'a> {
 
     /// The full tsc signature (17436): isWrite selects the SETTER
     /// declaration first — live from 5.5d's write-position accessibility.
+    /// tsc-port: getDeclarationModifierFlagsFromSymbol @6.0.3
+    /// tsc-hash: 640b7c9d80362bc126b54abbed85737561ceff6a8dec412cfaf111c794a4ef8d
+    /// tsc-span: _tsc.js:17436-17452
     pub fn get_declaration_modifier_flags_from_symbol_write(
         &self,
         symbol: SymbolId,
@@ -5120,7 +5129,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:68483-68485
     ///
     /// tsc-port: getUnmatchedProperties @6.0.3
-    /// tsc-hash: fbca79444245eedebe6170eec4706a5840746ffdd9d4a9d4e75c1b4fad4e323e
+    /// tsc-hash: 304e9138c7b1c9acb0d579f237ed75a0f7b92696262e77f6f2c9e645e083fc93
     /// tsc-span: _tsc.js:68464-68482
     ///
     /// The generator collapses to first-match (every caller takes the
@@ -6982,6 +6991,9 @@ impl<'a> CheckerState<'a> {
 
     /// createTupleType through the checker's variadic pre-force wrapper
     /// (tables cannot force deferred element arguments).
+    /// tsc-port: createTupleType @6.0.3
+    /// tsc-hash: b2054126131f4beb527c2fc7b6ccacc23a1a2c0fecb62b02e76f01b77f1468f6
+    /// tsc-span: _tsc.js:61141-61144
     pub(crate) fn create_tuple_type_forced(
         &mut self,
         element_types: &[TypeId],
@@ -7184,6 +7196,9 @@ impl<'a> CheckerState<'a> {
 
     /// The applicable index info's shape for union-property synthesis
     /// (getApplicableIndexInfoForName over the property name).
+    /// tsc-port: getApplicableIndexInfoForName @6.0.3
+    /// tsc-hash: f6b9b92223c2975ab3d55e4c1bc1acabbde0fdbf39ea15d47561f74bedf015b5
+    /// tsc-span: _tsc.js:59479-59481
     pub(crate) fn get_applicable_index_info_for_name_info(
         &mut self,
         ty: TypeId,
@@ -7286,6 +7301,9 @@ impl<'a> CheckerState<'a> {
 
     /// getNonNullableType's M3 slice for the callback gate: strip
     /// nullable constituents (the full type-facts machinery is M5).
+    /// tsc-port: getNonNullableType @6.0.3
+    /// tsc-hash: e64e3f0d08a085a8b0a5a597fb450e623bdf865ae234a5a8565c24f338871e98
+    /// tsc-span: _tsc.js:67868-67870
     pub fn remove_nullable_for_callback_gate(&mut self, ty: TypeId) -> TypeId {
         if !self.tables.strict_null_checks {
             return ty;
@@ -7297,6 +7315,9 @@ impl<'a> CheckerState<'a> {
 
     /// getTypeFacts(type, IsUndefinedOrNull) equality slice for the
     /// callback gate: whether the type includes undefined / null.
+    /// tsc-port: getTypeFacts @6.0.3
+    /// tsc-hash: 9ebc7f3fcc2cc025223d75d01134c416284c42ce877e8934427ca333d8a3cf15
+    /// tsc-span: _tsc.js:69697-69699
     pub fn undefined_null_facts(&self, ty: TypeId) -> (bool, bool) {
         let mut has_undefined = false;
         let mut has_null = false;

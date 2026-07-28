@@ -230,6 +230,9 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsc-port: isInJSFile @6.0.3
+    /// tsc-hash: c5f0db66356c51537ce1e7c91692c0775f3db5764d39100f22ad85b89e0ec9a1
+    /// tsc-span: _tsc.js:14886-14888
     pub(crate) fn is_in_js_file(&self, node: NodeId) -> bool {
         crate::is_js_file_name(&self.binder.source_of_node(node).file_name)
     }
@@ -349,6 +352,9 @@ impl<'a> CheckerState<'a> {
 
     /// tsc symbolToString slice for the merge-error message args: the
     /// unescaped symbol name (the full display machinery is M8 tail).
+    /// tsc-port: symbolToString @6.0.3
+    /// tsc-hash: 483aaf1e4cc4280b31d8e18dab23b7c3bb1ed6966d92ff0e59a80ab3bdb157f5
+    /// tsc-span: _tsc.js:50649-50682
     pub fn symbol_display_name(&self, symbol: SymbolId) -> String {
         tsrs2_binder::unescape_leading_underscores(&self.binder.symbol(symbol).escaped_name)
             .to_owned()

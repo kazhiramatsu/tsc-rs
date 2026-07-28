@@ -3587,6 +3587,9 @@ impl<'a> CheckerState<'a> {
 
     /// getThisParameter's declaration read: the leading `this`
     /// parameter node if present.
+    /// tsc-port: getThisParameter @6.0.3
+    /// tsc-hash: 8c1e2ce4210955734b6add5a267b55ddf27ac885be7fe105dd77c1f26eaa30d7
+    /// tsc-span: _tsc.js:16687-16694
     pub(crate) fn this_parameter_node_of(&self, func: NodeId) -> Option<NodeId> {
         let parameters = self.parameters_of_function(func);
         parameters
@@ -3615,6 +3618,9 @@ impl<'a> CheckerState<'a> {
     /// declaration's `.type` is a return annotation rather than a
     /// variable-like type annotation ([JSDOC] carries the JS
     /// annotations).
+    /// tsc-port: getEffectiveTypeAnnotationNode @6.0.3
+    /// tsc-hash: bc478fa37f444f4159e1b5e522468db266b4b7e42116029d47eea22c813b3339
+    /// tsc-span: _tsc.js:16761-16767
     pub(crate) fn effective_type_annotation_node(&self, declaration: NodeId) -> Option<NodeId> {
         if self.kind_of(declaration) == SyntaxKind::FunctionDeclaration
             && !self.is_in_js_file(declaration)
@@ -3661,6 +3667,9 @@ impl<'a> CheckerState<'a> {
 
     /// tsc isConstTypeReference on a TYPE node: `const` type reference
     /// with no type arguments.
+    /// tsc-port: isConstTypeReference @6.0.3
+    /// tsc-hash: c8471d35ea7ac67784b55175f273e9f6ff8b77a3437ef18fda76699877a208b5
+    /// tsc-span: _tsc.js:11848-11850
     pub(crate) fn is_const_type_reference_node(&self, type_node: NodeId) -> bool {
         let NodeData::TypeReference(data) = self.data_of(type_node) else {
             return false;

@@ -6624,6 +6624,9 @@ impl<'a> CheckerState<'a> {
     /// anonymous shapes, enum members — is nodeBuilder work (T2/M8)
     /// and unwinds Unsupported so the caller drops the diagnostic
     /// instead of mis-printing it.
+    /// tsc-port: typeToString @6.0.3
+    /// tsc-hash: 4b587962e2fb137a31ea52c35aeba733ffb4c6d97a8c54c98d5c1f1666e73dda
+    /// tsc-span: _tsc.js:50717-50747
     pub(crate) fn type_to_string_slice(&mut self, ty: TypeId) -> CheckResult2<String> {
         self.type_to_string_slice_ex(ty, /*fully_qualified*/ false)
     }

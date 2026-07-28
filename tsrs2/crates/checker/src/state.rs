@@ -1356,6 +1356,9 @@ impl<'a> CheckerState<'a> {
     /// root scope), then the merged globals, meaning-filtered, with the
     /// getMergedSymbol chase (49932) so cross-file merged declarations
     /// surface. Full lexical walking is resolveName (M4 5.1).
+    /// tsc-port: resolveEntityName @6.0.3
+    /// tsc-hash: 0c5ce0e5980d5548db101cd9240b04944dea6e35cde2b0b3416210816fdb85b9
+    /// tsc-span: _tsc.js:49292-49393
     pub fn resolve_file_scope_name(&self, name: &str, meaning: SymbolFlags) -> Option<SymbolId> {
         let root = self.binder.source(0).root;
         let symbol = self
@@ -1539,6 +1542,9 @@ impl<'a> CheckerState<'a> {
     /// tsc createDiagnosticForNode(InSourceFile): span from
     /// getErrorSpanForNode, positions in UTF-16 (the binder's
     /// diagnostic_for_node twin, program-wide).
+    /// tsc-port: createDiagnosticForNode @6.0.3
+    /// tsc-hash: 358ec88d52a45803957de382a162466361b967ba9a0665a2d6d7431d2eff55fe
+    /// tsc-span: _tsc.js:13909-13912
     pub fn diagnostic_for_node(
         &self,
         node: NodeId,

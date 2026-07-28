@@ -1119,6 +1119,13 @@ impl<'a> CheckerState<'a> {
     /// `substring` SWAPS its arguments when begin > end — reachable
     /// for zero-width recovery nodes whose leading-trivia skip runs
     /// past their end; replicate rather than panic.
+    /// tsc-port: getTextOfNode @6.0.3
+    /// tsc-hash: cb4037b9d0e93b0fc01341a22e946e09da6115b8db5b2861f21b458f2add269f
+    /// tsc-span: _tsc.js:13045-13047
+    ///
+    /// tsc-port: getSourceTextOfNodeFromSourceFile @6.0.3
+    /// tsc-hash: c2d2a4cbb43eaea54f3c334de2dcafd9e23d75c8c0268997ea504de46f9b16c2
+    /// tsc-span: _tsc.js:13017-13019
     pub(crate) fn text_of_node(&self, node: NodeId) -> CheckResult2<String> {
         let source = self.binder.source_of_node(node);
         let raw = source.arena.node(node);

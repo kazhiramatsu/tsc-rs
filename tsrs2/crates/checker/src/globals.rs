@@ -394,6 +394,9 @@ impl<'a> CheckerState<'a> {
     // ---- the lazily-bound init-block globals (88788-88873) ----
 
     /// initializeTypeChecker 88788-88794, lazy per the 5.0 plan.
+    /// tsc-port: initializeTypeChecker @6.0.3
+    /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
+    /// tsc-span: _tsc.js:88732-88906
     pub fn global_array_type(&mut self) -> CheckResult2<TypeId> {
         if let Some(cached) = self.global_type_memos.array {
             return Ok(cached);
@@ -405,6 +408,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// initializeTypeChecker 88795-88801.
+    /// tsc-port: initializeTypeChecker @6.0.3
+    /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
+    /// tsc-span: _tsc.js:88732-88906
     pub fn global_object_type(&mut self) -> CheckResult2<TypeId> {
         if let Some(cached) = self.global_type_memos.object {
             return Ok(cached);
@@ -416,6 +422,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// initializeTypeChecker 88802-88808.
+    /// tsc-port: initializeTypeChecker @6.0.3
+    /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
+    /// tsc-span: _tsc.js:88732-88906
     pub fn global_function_type(&mut self) -> CheckResult2<TypeId> {
         if let Some(cached) = self.global_type_memos.function {
             return Ok(cached);
@@ -428,6 +437,9 @@ impl<'a> CheckerState<'a> {
 
     /// initializeTypeChecker 88809-88815: strictBindCallApply selects
     /// CallableFunction (no report) with the Function fallback.
+    /// tsc-port: initializeTypeChecker @6.0.3
+    /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
+    /// tsc-span: _tsc.js:88732-88906
     pub fn global_callable_function_type(&mut self) -> CheckResult2<TypeId> {
         if let Some(cached) = self.global_type_memos.callable_function {
             return Ok(cached);
@@ -452,6 +464,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// initializeTypeChecker 88816-88822.
+    /// tsc-port: initializeTypeChecker @6.0.3
+    /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
+    /// tsc-span: _tsc.js:88732-88906
     pub fn global_newable_function_type(&mut self) -> CheckResult2<TypeId> {
         if let Some(cached) = self.global_type_memos.newable_function {
             return Ok(cached);
@@ -472,6 +487,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// initializeTypeChecker 88823-88829.
+    /// tsc-port: initializeTypeChecker @6.0.3
+    /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
+    /// tsc-span: _tsc.js:88732-88906
     pub fn global_string_type(&mut self) -> CheckResult2<TypeId> {
         if let Some(cached) = self.global_type_memos.string {
             return Ok(cached);
@@ -483,6 +501,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// initializeTypeChecker 88830-88836.
+    /// tsc-port: initializeTypeChecker @6.0.3
+    /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
+    /// tsc-span: _tsc.js:88732-88906
     pub fn global_number_type(&mut self) -> CheckResult2<TypeId> {
         if let Some(cached) = self.global_type_memos.number {
             return Ok(cached);
@@ -494,6 +515,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// initializeTypeChecker 88837-88843.
+    /// tsc-port: initializeTypeChecker @6.0.3
+    /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
+    /// tsc-span: _tsc.js:88732-88906
     pub fn global_boolean_type(&mut self) -> CheckResult2<TypeId> {
         if let Some(cached) = self.global_type_memos.boolean {
             return Ok(cached);
@@ -538,6 +562,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// initializeTypeChecker 88844-88850.
+    /// tsc-port: initializeTypeChecker @6.0.3
+    /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
+    /// tsc-span: _tsc.js:88732-88906
     pub fn global_regexp_type(&mut self) -> CheckResult2<TypeId> {
         if let Some(cached) = self.global_type_memos.regexp {
             return Ok(cached);
@@ -549,6 +576,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// initializeTypeChecker 88863-88867: `|| globalArrayType`.
+    /// tsc-port: initializeTypeChecker @6.0.3
+    /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
+    /// tsc-span: _tsc.js:88732-88906
     pub fn global_readonly_array_type(&mut self) -> CheckResult2<TypeId> {
         if let Some(cached) = self.global_type_memos.readonly_array {
             return Ok(cached);
@@ -562,6 +592,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// initializeTypeChecker 88869-88873 (ThisType stays optional).
+    /// tsc-port: initializeTypeChecker @6.0.3
+    /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
+    /// tsc-span: _tsc.js:88732-88906
     pub fn global_this_type_alias(&mut self) -> CheckResult2<Option<TypeId>> {
         if let Some(cached) = self.global_type_memos.this_type {
             return Ok(cached);
@@ -1164,6 +1197,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// initializeTypeChecker 88851: anyArrayType = createArrayType(any).
+    /// tsc-port: initializeTypeChecker @6.0.3
+    /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
+    /// tsc-span: _tsc.js:88732-88906
     pub fn any_array_type(&mut self) -> CheckResult2<TypeId> {
         if let Some(cached) = self.global_type_memos.any_array {
             return Ok(cached);
@@ -1178,6 +1214,9 @@ impl<'a> CheckerState<'a> {
     /// "must not BE emptyObjectType" replacement (autoArrayType is an
     /// identity sentinel — see getTypeOfVariableOrParameterOrProperty
     /// consumers in M5's auto-typing).
+    /// tsc-port: initializeTypeChecker @6.0.3
+    /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
+    /// tsc-span: _tsc.js:88732-88906
     pub fn auto_array_type(&mut self) -> CheckResult2<TypeId> {
         if let Some(cached) = self.global_type_memos.auto_array {
             return Ok(cached);
@@ -1192,6 +1231,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// initializeTypeChecker 88868.
+    /// tsc-port: initializeTypeChecker @6.0.3
+    /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
+    /// tsc-span: _tsc.js:88732-88906
     pub fn any_readonly_array_type(&mut self) -> CheckResult2<TypeId> {
         if let Some(cached) = self.global_type_memos.any_readonly_array {
             return Ok(cached);
@@ -1206,6 +1248,9 @@ impl<'a> CheckerState<'a> {
     /// initializeTypeChecker 88779-88785: argumentsSymbol.type =
     /// getGlobalType("IArguments") — lazy here (the identifier arm in
     /// 5.5 consumes it).
+    /// tsc-port: initializeTypeChecker @6.0.3
+    /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
+    /// tsc-span: _tsc.js:88732-88906
     pub fn arguments_symbol_type(&mut self) -> CheckResult2<TypeId> {
         if let Some(cached) = self.global_type_memos.arguments_type {
             return Ok(cached);

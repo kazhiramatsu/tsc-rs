@@ -1361,6 +1361,9 @@ impl<'a> CheckerState<'a> {
 
     /// createAnonymousType (50208) over already-resolved members —
     /// the literals-band constructor (fresh TypeId per call).
+    /// tsc-port: createAnonymousType @6.0.3
+    /// tsc-hash: 801cde8bdea7de88d9052f5f01d296c15ec067902d478f857925edd1106efb93
+    /// tsc-span: _tsc.js:50208-50210
     pub(crate) fn make_resolved_anonymous_type(
         &mut self,
         symbol: Option<SymbolId>,
