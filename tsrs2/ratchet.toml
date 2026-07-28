@@ -508,8 +508,13 @@
 # any/unknown intrinsic typedef aliases; publication requires that
 # exact typed catch declaration. T1-T3 gain only the frozen slice's
 # two identities, with no losses, outside gains, or false positives.
-rate = 0.981621
-matched = 48123
+# M8-P05 adds all 7 supported TS18058/18059/18060 identities from the
+# already-ported checkGrammarImportClause boundary. The defer-phase
+# branch preserves tsc's default/named/module-mode precedence and
+# exact ImportClause span. T1-T3 gain the same seven identities, with
+# no losses, outside gains, or false positives.
+rate = 0.981764
+matched = 48130
 total = 49024
 allowed_regression = 0.0
 
@@ -518,8 +523,10 @@ allowed_regression = 0.0
 # ratchet. The denominator is the same pinned all-corpus oracle universe
 # as T0; future gains may raise matched, while any proportional loss
 # fails conformance.
-rate = 0.98158
-matched = 48121
+# M8-P05: +7 exact-category import-defer grammar identities; the slice
+# evidence records zero losses and zero gains outside the frozen target.
+rate = 0.981723
+matched = 48128
 total = 49024
 allowed_regression = 0.0
 

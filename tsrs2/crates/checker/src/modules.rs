@@ -6739,13 +6739,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkGrammarImportClause @6.0.3
     /// tsc-hash: 135005635990b013ef4d869f68234202f2703dae3e7cb87768337c7a642852c3
     /// tsc-span: _tsc.js:90396-90417
-    ///
-    /// The defer-phase arm (tsc 90405-90414: diags 18058/18059/18060 off
-    /// phase_modifier == DeferKeyword) is not ported yet — type-only arms
-    /// only.
     fn check_grammar_import_clause(&mut self, node: NodeId) -> CheckResult2<bool> {
-        let (is_type_only, name, named_bindings) = match self.data_of(node) {
-            NodeData::ImportClause(data) => (data.is_type_only, data.name, data.named_bindings),
+        let (is_type_only, phase_modifier, name, named_bindings) = match self.data_of(node) {
+            NodeData::ImportClause(data) => (
+                data.is_type_only,
+                data.phase_modifier,
+                data.name,
+                data.named_bindings,
+            ),
             _ => return Ok(false),
         };
         if is_type_only {
@@ -6760,6 +6761,30 @@ impl<'a> CheckerState<'a> {
                 if self.kind_of(named_bindings) == SyntaxKind::NamedImports {
                     return self.check_grammar_named_imports_or_exports(named_bindings);
                 }
+            }
+        } else if phase_modifier == Some(SyntaxKind::DeferKeyword) {
+            if name.is_some() {
+                return Ok(self.grammar_error_on_node(
+                    node,
+                    &diagnostics::Default_imports_are_not_allowed_in_a_deferred_import,
+                    &[],
+                ));
+            }
+            if named_bindings
+                .is_some_and(|bindings| self.kind_of(bindings) == SyntaxKind::NamedImports)
+            {
+                return Ok(self.grammar_error_on_node(
+                    node,
+                    &diagnostics::Named_imports_are_not_allowed_in_a_deferred_import,
+                    &[],
+                ));
+            }
+            if !matches!(self.options.emit_module_kind(), 99 | 200) {
+                return Ok(self.grammar_error_on_node(
+                    node,
+                    &diagnostics::Deferred_imports_are_only_supported_when_the_module_flag_is_set_to_esnext_or_preserve,
+                    &[],
+                ));
             }
         }
         Ok(false)
@@ -7569,6 +7594,46 @@ mod tests {
 
     fn rows(files: &[(&str, &str)]) -> Vec<(String, u32, u32, u32)> {
         program_rows(files, &CompilerOptions::default())
+    }
+
+    #[test]
+    fn deferred_import_grammar_reports_shape_before_module_mode() {
+        let cases = [
+            ("import defer foo from \"./a\";\n", 99, (18058, 7, 9)),
+            ("import defer { foo } from \"./a\";\n", 99, (18059, 7, 13)),
+            ("import defer * as ns from \"./a\";\n", 1, (18060, 7, 13)),
+        ];
+        for (source, module, expected) in cases {
+            let rows = program_rows(
+                &[("a.ts", source)],
+                &CompilerOptions {
+                    module: Some(module),
+                    ..CompilerOptions::default()
+                },
+            );
+            let actual = rows
+                .into_iter()
+                .filter_map(|(_, code, start, length)| {
+                    matches!(code, 18058..=18060).then_some((code, start, length))
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(actual, [expected], "source={source:?}, module={module}");
+        }
+
+        for module in [99, 200] {
+            let rows = program_rows(
+                &[("a.ts", "import defer * as ns from \"./a\";\n")],
+                &CompilerOptions {
+                    module: Some(module),
+                    ..CompilerOptions::default()
+                },
+            );
+            assert!(
+                rows.iter()
+                    .all(|(_, code, _, _)| !matches!(code, 18058..=18060)),
+                "module={module}: {rows:?}"
+            );
+        }
     }
 
     fn targeted_rows(
