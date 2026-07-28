@@ -1101,6 +1101,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// walkUpParenthesizedExpressions.
+    /// tsc-port: walkUpParenthesizedExpressions @6.0.3
+    /// tsc-hash: c7b9f97b1b14b29d991fe1746460648f8be06ba6f691484635c722c829279769
+    /// tsc-span: _tsc.js:15646-15648
     pub(crate) fn walk_up_parenthesized_expressions(&self, mut node: NodeId) -> NodeId {
         while self.kind_of(node) == SyntaxKind::ParenthesizedExpression {
             match self.parent_of(node) {
@@ -3153,6 +3156,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// checkGrammarTypeArguments (89537-89539).
+    /// tsc-port: checkGrammarTypeArguments @6.0.3
+    /// tsc-hash: 0ec184a91fd848949484577ec95c93edaedd1d12bcd1e82b5bfa2fca64b94c92
+    /// tsc-span: _tsc.js:89537-89539
     pub(crate) fn check_grammar_type_arguments(
         &mut self,
         node: NodeId,

@@ -2552,6 +2552,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc findConstructorDeclaration: the constructor WITH a body.
+    /// tsc-port: findConstructorDeclaration @6.0.3
+    /// tsc-hash: 39fbf7ea056a909825faed464e1bb64ae7a1d51960d447e54ac1cc9b3780bc72
+    /// tsc-span: _tsc.js:19508-19515
     pub(crate) fn find_constructor_declaration(&self, class: NodeId) -> Option<NodeId> {
         let members = match self.data_of(class) {
             NodeData::ClassDeclaration(data) => data.members,
@@ -2653,6 +2656,9 @@ impl<'a> CheckerState<'a> {
         children
     }
 
+    /// tsc-port: isTypeNodeKind @6.0.3
+    /// tsc-hash: 9848a49e4c3c1c37141e5b8133408d45e2b07b5a04ca4d2a6b33befcee7dc766
+    /// tsc-span: _tsc.js:17579-17581
     pub(crate) fn is_type_node_kind(&self, kind: SyntaxKind) -> bool {
         (kind >= SyntaxKind::TypePredicate && kind <= SyntaxKind::ImportType)
             || matches!(

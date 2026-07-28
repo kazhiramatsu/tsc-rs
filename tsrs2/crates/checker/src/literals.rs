@@ -1935,6 +1935,9 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc isNonGenericObjectType (62918-62920).
+    /// tsc-port: isNonGenericObjectType @6.0.3
+    /// tsc-hash: f9066c898abd87764a1de86ec94a503de2b5f88f0790920c73fc626ecf3a6b47
+    /// tsc-span: _tsc.js:62918-62920
     pub(crate) fn is_non_generic_object_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
         Ok(self.tables.flags_of(ty).intersects(TypeFlags::OBJECT)
             && !self.is_generic_mapped_type_state(ty)?)

@@ -228,10 +228,16 @@ impl<'a> CheckerState<'a> {
         id
     }
 
+    /// tsc-port: makeUnaryTypeMapper @6.0.3
+    /// tsc-hash: f16e43be81b2a0ab46054c6a62c222608c47514ebef557e8fdbe5fc2b022cb63
+    /// tsc-span: _tsc.js:63359-63361
     pub fn make_unary_type_mapper(&mut self, source: TypeId, target: TypeId) -> MapperId {
         self.alloc_mapper(TypeMapper::Simple { source, target })
     }
 
+    /// tsc-port: makeArrayTypeMapper @6.0.3
+    /// tsc-hash: e011653188a06047cc1bd6668dc7b584e0756d94eb7e8a572b0cc9fe88695602
+    /// tsc-span: _tsc.js:63362-63364
     pub fn make_array_type_mapper(
         &mut self,
         sources: Vec<TypeId>,
@@ -1797,6 +1803,9 @@ impl<'a> CheckerState<'a> {
     /// instantiateList + instantiateTypes (63298-63317): tsc returns
     /// the same array when nothing changed — callers compare slices for
     /// the same identity answer.
+    /// tsc-port: instantiateTypes @6.0.3
+    /// tsc-hash: 17f124dd9f7f604b58aafe5fe9c84a8d4cd7c95016a760fb344f3c8d357e66b6
+    /// tsc-span: _tsc.js:63315-63317
     pub fn instantiate_types(
         &mut self,
         types: &[TypeId],
