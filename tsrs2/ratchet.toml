@@ -502,8 +502,14 @@
 # typed-parameter receivers and direct require namespace properties.
 # T1-T3 gain only the frozen slice's seven identities, with no losses,
 # gains outside the target, resolved exclusions, or false positives.
-rate = 0.98158
-matched = 48121
+# M8-P04 adds both supported TS18046 identities from
+# checkNonNullTypeWithReporter. Catch-variable JSDoc type lookup now
+# anchors after inline trivia and resolves only the grammar-legal
+# any/unknown intrinsic typedef aliases; publication requires that
+# exact typed catch declaration. T1-T3 gain only the frozen slice's
+# two identities, with no losses, outside gains, or false positives.
+rate = 0.981621
+matched = 48123
 total = 49024
 allowed_regression = 0.0
 
@@ -512,8 +518,8 @@ allowed_regression = 0.0
 # ratchet. The denominator is the same pinned all-corpus oracle universe
 # as T0; future gains may raise matched, while any proportional loss
 # fails conformance.
-rate = 0.98154
-matched = 48119
+rate = 0.98158
+matched = 48121
 total = 49024
 allowed_regression = 0.0
 

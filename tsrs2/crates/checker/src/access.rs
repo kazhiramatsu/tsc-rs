@@ -285,14 +285,19 @@ impl<'a> CheckerState<'a> {
                      (unported narrowing dependency, M6/M8 seam)",
                 ));
             }
+            let expose_jsdoc_unknown = self.should_publish_jsdoc_unknown_receiver(node)?;
             if self.is_entity_name_expression(node) {
                 let node_text = self.entity_name_to_string(node)?;
                 if node_text.encode_utf16().count() < 100 {
+                    let diagnostics_before = self.diagnostics.len();
                     self.error_at(
                         Some(node),
                         &tsrs2_diags::gen::_0_is_of_type_unknown,
                         &[&node_text],
                     );
+                    if expose_jsdoc_unknown {
+                        self.mark_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 18046);
+                    }
                     return Ok(self.tables.intrinsics.error);
                 }
             }
@@ -342,6 +347,38 @@ impl<'a> CheckerState<'a> {
             );
         }
         Ok(ty)
+    }
+
+    /// M8-P04 publication boundary for explicit checked-JS catch
+    /// variable `@type {unknown}` annotations. Unannotated catch
+    /// variables selected by `useUnknownInCatchVariables` and other
+    /// incomplete JSDoc inference paths remain outside this owner.
+    fn should_publish_jsdoc_unknown_receiver(&mut self, node: NodeId) -> CheckResult2<bool> {
+        if !self.is_in_js_file(node) {
+            return Ok(false);
+        }
+        let mut root = node;
+        while let NodeData::ParenthesizedExpression(data) = self.data_of(root) {
+            let Some(expression) = data.expression else {
+                return Ok(false);
+            };
+            root = expression;
+        }
+        if self.kind_of(root) != SyntaxKind::Identifier {
+            return Ok(false);
+        }
+        let Some(symbol) = self.get_resolved_symbol(root)? else {
+            return Ok(false);
+        };
+        let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
+            return Ok(false);
+        };
+        let source = self.binder.source_of_node(declaration);
+        let root_declaration = node_util::get_root_declaration(source, declaration);
+        Ok(self
+            .parent_of(root_declaration)
+            .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::CatchClause)
+            && self.jsdoc_typed_declarations.contains(&root_declaration))
     }
 
     /// M8-P03 publication boundary for the supported JSDoc flow
@@ -4768,6 +4805,51 @@ module.exports = { Quack: 2 };\n"
                 use_text.find("mod.Baz").unwrap() as u32,
                 "mod.Baz".len() as u32,
             )]
+        );
+    }
+
+    #[test]
+    fn checked_js_jsdoc_unknown_catch_receivers_publish_18046_only() {
+        let text = "/** @typedef {unknown} Unknown */\n\
+try {} catch (/** @type {unknown} */ err) { err.foo; }\n\
+try {} catch (/** @type {Unknown} */ other) { other.foo; }\n\
+try {} catch (/** @type {any} */ anyErr) { anyErr.foo; }\n\
+try {} catch (plain) { plain.foo; }\n";
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: text.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(true),
+                use_unknown_in_catch_variables: Some(false),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    18046,
+                    text.find("err.foo").unwrap() as u32,
+                    "err".len() as u32,
+                ),
+                (
+                    18046,
+                    text.find("other.foo").unwrap() as u32,
+                    "other".len() as u32,
+                ),
+            ]
         );
     }
 

@@ -7458,7 +7458,19 @@ impl<'a> CheckerState<'a> {
         }
         let source = self.binder.source_of_node(declaration);
         let anchor = self.name_of_node(declaration).unwrap_or(declaration);
-        let anchor_pos = source.arena.node(anchor).pos as usize;
+        // Catch-variable identifier positions include the inline
+        // JSDoc comment as trivia. P04 needs the effective JSDoc type
+        // attached immediately before the actual identifier token;
+        // other declarations retain their frozen raw-position owner
+        // boundary.
+        let anchor_pos = if self
+            .is_catch_clause_variable_declaration_or_binding_element(declaration)
+        {
+            node_util::get_span_of_token_at_position(source, source.arena.node(anchor).pos as usize)
+                .0
+        } else {
+            source.arena.node(anchor).pos as usize
+        };
         let prefix = &source.text[..anchor_pos.min(source.text.len())];
         let Some(comment_start) = prefix.rfind("/**") else {
             return Ok(None);
@@ -7665,6 +7677,11 @@ impl<'a> CheckerState<'a> {
         };
         if intrinsic.is_some() {
             return Ok(intrinsic);
+        }
+        if self.is_catch_clause_variable_declaration_or_binding_element(location) {
+            if let Some(ty) = self.jsdoc_catch_intrinsic_typedef_type(location, text) {
+                return Ok(Some(ty));
+            }
         }
         let symbol = self.resolve_name(
             Some(location),
