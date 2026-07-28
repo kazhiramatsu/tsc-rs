@@ -360,6 +360,27 @@ impl<'a> CheckerState<'a> {
             .to_owned()
     }
 
+    /// The declaration-backed face of tsc symbolToString's default
+    /// symbolToNode path. It ultimately calls getNameOfSymbolAsWritten,
+    /// so computed, quoted, numeric, and assigned names retain their
+    /// source spelling instead of exposing an internal escaped name.
+    /// tsrs-native: bounded declaration-backed symbol display adapter.
+    pub(crate) fn symbol_name_as_written_slice(&self, symbol: SymbolId) -> String {
+        self.binder
+            .symbol(symbol)
+            .declarations
+            .iter()
+            .find_map(|&declaration| {
+                let source = self.binder.source_of_node(declaration);
+                let name = get_name_of_declaration(source, declaration)?;
+                Some(tsrs2_binder::node_util::declaration_name_to_string(
+                    source,
+                    Some(name),
+                ))
+            })
+            .unwrap_or_else(|| self.symbol_display_name(symbol))
+    }
+
     /// tsc reportMergeSymbolError (inside mergeSymbol, 47755-47775) +
     /// addDuplicateLocations (47776-47782).
     ///

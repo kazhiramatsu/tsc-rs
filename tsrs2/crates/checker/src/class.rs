@@ -196,7 +196,7 @@ impl<'a> CheckerState<'a> {
             };
             if let Some(error_node) = error_node {
                 if !self.is_type_assignable_to(prop_type, info.value_type)? {
-                    let prop_display = self.symbol_display_name(prop);
+                    let prop_display = self.symbol_name_as_written_slice(prop);
                     let prop_type_display = self.type_to_string_slice(prop_type)?;
                     let key_display = self.type_to_string_slice(info.key_type)?;
                     let value_display = self.type_to_string_slice(info.value_type)?;
@@ -1378,21 +1378,7 @@ impl<'a> CheckerState<'a> {
             };
             if conflicts {
                 let symbol = self.get_symbol_of_declaration(node)?;
-                let class_name = self
-                    .binder
-                    .symbol(symbol)
-                    .declarations
-                    .iter()
-                    .find_map(|&declaration| {
-                        let source = self.binder.source_of_node(declaration);
-                        let name =
-                            tsrs2_binder::node_util::get_name_of_declaration(source, declaration)?;
-                        Some(tsrs2_binder::node_util::declaration_name_to_string(
-                            source,
-                            Some(name),
-                        ))
-                    })
-                    .unwrap_or_else(|| self.symbol_display_name(symbol));
+                let class_name = self.symbol_name_as_written_slice(symbol);
                 let display_name =
                     tsrs2_binder::unescape_leading_underscores(&member_name).to_owned();
                 self.error_at(
@@ -1851,7 +1837,7 @@ impl<'a> CheckerState<'a> {
                 let base_prop_type = self.get_type_of_symbol(base_prop)?;
                 if !self.is_type_assignable_to(prop_type, base_prop_type)? {
                     let error_node = self.name_of_node(member).or(Some(member));
-                    let prop_name = self.symbol_display_name(declared_prop);
+                    let prop_name = self.symbol_name_as_written_slice(declared_prop);
                     let type_text = self.type_to_string_slice(type_with_this)?;
                     let base_text = self.type_to_string_slice(base_with_this)?;
                     self.error_at(
@@ -2561,6 +2547,33 @@ mod tests {
             [
                 "Static property 'prototype' conflicts with built-in property 'Function.prototype' of constructor function 'Assigned'.",
                 "Static property 'prototype' conflicts with built-in property 'Function.prototype' of constructor function 'DefaultWritten'.",
+            ]
+        );
+    }
+
+    #[test]
+    fn index_constraint_uses_the_written_property_name() {
+        let diagnostics = with_program_state(
+            &[(
+                "a.ts",
+                "interface I { [key: string]: number; [\"quoted\"]: string; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| diagnostic.code() == 2411)
+                    .map(|diagnostic| diagnostic.message_text().to_owned())
+                    .collect::<Vec<_>>()
+            },
+        );
+
+        assert_eq!(
+            diagnostics,
+            [
+                "Property '[\"quoted\"]' of type 'string' is not assignable to 'string' index type 'number'."
             ]
         );
     }
