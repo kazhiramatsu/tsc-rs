@@ -518,6 +518,16 @@ impl<'a> CheckerState<'a> {
         }
         let mut stack: Vec<crate::engine::RecursionIdentity> = Vec::new();
         let resolved = self.get_immediate_base_constraint(ty, &mut stack)?;
+        // tsc's `links.resolvedBaseConstraint ?? (links... = ...)`
+        // can re-enter while evaluating the right-hand side. The
+        // inner evaluation then publishes the same result before this
+        // outer frame resumes. Coalesce that semantic single write
+        // instead of presenting it to the Rust one-write Links guard
+        // as a rewrite.
+        if let Some(cached) = self.links.ty(ty).resolved_base_constraint.resolved() {
+            debug_assert_eq!(cached, resolved);
+            return Ok(cached);
+        }
         self.links
             .set_type_resolved_base_constraint(self.speculation_depth, ty, resolved);
         Ok(resolved)
