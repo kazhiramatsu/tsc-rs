@@ -44,8 +44,8 @@ use crate::nodes::{
 };
 use crate::scanner::{is_js_whitespace, is_whitespace_like, LanguageVariant, Scanner};
 use crate::{SourceFile, SyntaxKind};
-use tsrs2_diags::MessageChain;
 use tsrs2_diags::{compute_line_map, gen, Diagnostic, DiagnosticList, DiagnosticMessage, LineMap};
+use tsrs2_diags::{MessageChain, RelatedInfo};
 use tsrs2_types::{NodeFlags, ScriptTarget};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -445,6 +445,26 @@ impl<'text> Parser<'text> {
         );
     }
 
+    /// The result-bearing face of parseErrorAtCurrentToken used by
+    /// parseExpectedMatchingBrackets. tsc attaches related information
+    /// only when parseErrorAtPosition actually created a new primary
+    /// diagnostic; a same-start dedupe returns `undefined`.
+    fn parse_error_at_current_token_with_index(
+        &mut self,
+        message: &'static DiagnosticMessage,
+        args: &[&str],
+    ) -> Option<usize> {
+        let args = args.iter().map(|arg| (*arg).to_owned()).collect();
+        let result = self.push_parse_diagnostic_with_index(
+            self.scanner.token_start(),
+            self.scanner.pos() - self.scanner.token_start(),
+            message,
+            args,
+        );
+        self.parse_error_before_next_finished_node = true;
+        result
+    }
+
     /// tsc parseErrorAt.
     fn parse_error_at(
         &mut self,
@@ -583,6 +603,78 @@ impl<'text> Parser<'text> {
             self.parse_error_at_current_token(&gen::_0_expected, &[&token_to_string(kind)]);
         }
         false
+    }
+
+    /// tsc-port: parseExpectedMatchingBrackets @6.0.3
+    /// tsc-hash: 4c67e416302b544a64896ae552a999fd4b89649e6f1218ead0f3c13c686026e7
+    /// tsc-span: _tsc.js:29687-29702
+    fn parse_expected_matching_brackets(
+        &mut self,
+        open_kind: SyntaxKind,
+        close_kind: SyntaxKind,
+        open_parsed: bool,
+        open_position: usize,
+    ) {
+        if self.token() == close_kind {
+            self.next_token();
+            return;
+        }
+        let close_text = token_to_string(close_kind);
+        let last_error =
+            self.parse_error_at_current_token_with_index(&gen::_0_expected, &[&close_text]);
+        if !open_parsed {
+            return;
+        }
+        if let Some(index) = last_error {
+            self.add_matching_bracket_related(index, open_kind, close_kind, open_position);
+        }
+    }
+
+    /// tsc createDetachedDiagnostic + addRelatedInfo inside
+    /// parseExpectedMatchingBrackets and its two import-attribute
+    /// counterparts.
+    fn add_matching_bracket_related(
+        &mut self,
+        diagnostic_index: usize,
+        open_kind: SyntaxKind,
+        close_kind: SyntaxKind,
+        open_position: usize,
+    ) {
+        let start = self.to_utf16(open_position);
+        let end = self.to_utf16(open_position.saturating_add(1));
+        let args = [token_to_string(open_kind), token_to_string(close_kind)];
+        self.parse_diagnostics[diagnostic_index]
+            .related
+            .push(RelatedInfo {
+                file_name: Some(self.file_name.clone()),
+                start: Some(start),
+                length: Some(end.saturating_sub(start)),
+                message: MessageChain::new(
+                    &gen::The_parser_expected_to_find_a_1_to_match_the_0_token_here,
+                    &args,
+                ),
+            });
+    }
+
+    /// parseImportType and parseImportAttributes do not call
+    /// parseExpectedMatchingBrackets. Their handwritten tsc path
+    /// checks `lastOrUndefined(parseDiagnostics)` after a failed close
+    /// parse, so a same-start dedupe still gains the related row.
+    fn parse_expected_close_brace_with_last_error_related(&mut self, open_position: usize) {
+        if self.parse_expected(SyntaxKind::CloseBraceToken, None) {
+            return;
+        }
+        let Some(index) = self.parse_diagnostics.len().checked_sub(1) else {
+            return;
+        };
+        if self.parse_diagnostics[index].code() == gen::_0_expected.code {
+            self.add_matching_bracket_related(
+                index,
+                SyntaxKind::OpenBraceToken,
+                SyntaxKind::CloseBraceToken,
+                open_position,
+            );
+        }
     }
 
     fn parse_optional(&mut self, kind: SyntaxKind) -> bool {
@@ -2754,12 +2846,18 @@ impl<'text> Parser<'text> {
         diagnostic_message: Option<&'static DiagnosticMessage>,
     ) -> NodeId {
         let pos = self.node_pos();
+        let open_brace_position = self.scanner.token_start();
         let open_brace_parsed = self.parse_expected(SyntaxKind::OpenBraceToken, diagnostic_message);
         let statements = if open_brace_parsed || ignore_missing_open_brace {
             let statements = self.parse_list(ParsingContext::BlockStatements, |parser| {
                 Some(parser.parse_statement())
             });
-            self.parse_expected(SyntaxKind::CloseBraceToken, None);
+            self.parse_expected_matching_brackets(
+                SyntaxKind::OpenBraceToken,
+                SyntaxKind::CloseBraceToken,
+                open_brace_parsed,
+                open_brace_position,
+            );
             statements
         } else {
             self.arena.empty_array(self.node_pos())
@@ -2786,9 +2884,15 @@ impl<'text> Parser<'text> {
     fn parse_if_statement(&mut self) -> NodeId {
         let pos = self.node_pos();
         self.parse_expected(SyntaxKind::IfKeyword, None);
-        self.parse_expected(SyntaxKind::OpenParenToken, None);
+        let open_paren_position = self.scanner.token_start();
+        let open_paren_parsed = self.parse_expected(SyntaxKind::OpenParenToken, None);
         let expression = self.allow_in(|parser| parser.parse_expression());
-        self.parse_expected(SyntaxKind::CloseParenToken, None);
+        self.parse_expected_matching_brackets(
+            SyntaxKind::OpenParenToken,
+            SyntaxKind::CloseParenToken,
+            open_paren_parsed,
+            open_paren_position,
+        );
         let then_statement = self.parse_statement();
         let else_statement = if self.parse_optional(SyntaxKind::ElseKeyword) {
             Some(self.parse_statement())
@@ -2810,9 +2914,15 @@ impl<'text> Parser<'text> {
         self.parse_expected(SyntaxKind::DoKeyword, None);
         let statement = self.parse_statement();
         self.parse_expected(SyntaxKind::WhileKeyword, None);
-        self.parse_expected(SyntaxKind::OpenParenToken, None);
+        let open_paren_position = self.scanner.token_start();
+        let open_paren_parsed = self.parse_expected(SyntaxKind::OpenParenToken, None);
         let expression = self.allow_in(|parser| parser.parse_expression());
-        self.parse_expected(SyntaxKind::CloseParenToken, None);
+        self.parse_expected_matching_brackets(
+            SyntaxKind::OpenParenToken,
+            SyntaxKind::CloseParenToken,
+            open_paren_parsed,
+            open_paren_position,
+        );
         self.parse_optional(SyntaxKind::SemicolonToken);
         self.finish_node_data(
             NodeData::DoStatement(DoStatementData {
@@ -2826,9 +2936,15 @@ impl<'text> Parser<'text> {
     fn parse_while_statement(&mut self) -> NodeId {
         let pos = self.node_pos();
         self.parse_expected(SyntaxKind::WhileKeyword, None);
-        self.parse_expected(SyntaxKind::OpenParenToken, None);
+        let open_paren_position = self.scanner.token_start();
+        let open_paren_parsed = self.parse_expected(SyntaxKind::OpenParenToken, None);
         let expression = self.allow_in(|parser| parser.parse_expression());
-        self.parse_expected(SyntaxKind::CloseParenToken, None);
+        self.parse_expected_matching_brackets(
+            SyntaxKind::OpenParenToken,
+            SyntaxKind::CloseParenToken,
+            open_paren_parsed,
+            open_paren_position,
+        );
         let statement = self.parse_statement();
         self.finish_node_data(
             NodeData::WhileStatement(WhileStatementData {
@@ -2967,9 +3083,15 @@ impl<'text> Parser<'text> {
     fn parse_with_statement(&mut self) -> NodeId {
         let pos = self.node_pos();
         self.parse_expected(SyntaxKind::WithKeyword, None);
-        self.parse_expected(SyntaxKind::OpenParenToken, None);
+        let open_paren_position = self.scanner.token_start();
+        let open_paren_parsed = self.parse_expected(SyntaxKind::OpenParenToken, None);
         let expression = self.allow_in(|parser| parser.parse_expression());
-        self.parse_expected(SyntaxKind::CloseParenToken, None);
+        self.parse_expected_matching_brackets(
+            SyntaxKind::OpenParenToken,
+            SyntaxKind::CloseParenToken,
+            open_paren_parsed,
+            open_paren_position,
+        );
         let statement =
             self.do_in_context(NodeFlags::IN_WITH_STATEMENT, NodeFlags::NONE, |parser| {
                 parser.parse_statement()
@@ -5753,13 +5875,19 @@ impl<'text> Parser<'text> {
 
     fn parse_array_literal_expression(&mut self) -> NodeId {
         let pos = self.node_pos();
-        self.parse_expected(SyntaxKind::OpenBracketToken, None);
+        let open_bracket_position = self.scanner.token_start();
+        let open_bracket_parsed = self.parse_expected(SyntaxKind::OpenBracketToken, None);
         let elements = self.parse_delimited_list(
             ParsingContext::ArrayLiteralMembers,
             |parser| Some(parser.parse_argument_or_array_literal_element()),
             false,
         );
-        self.parse_expected(SyntaxKind::CloseBracketToken, None);
+        self.parse_expected_matching_brackets(
+            SyntaxKind::OpenBracketToken,
+            SyntaxKind::CloseBracketToken,
+            open_bracket_parsed,
+            open_bracket_position,
+        );
         self.finish_node_data(
             NodeData::ArrayLiteralExpression(ArrayLiteralExpressionData {
                 elements: Some(elements),
@@ -5770,13 +5898,19 @@ impl<'text> Parser<'text> {
 
     fn parse_object_literal_expression(&mut self) -> NodeId {
         let pos = self.node_pos();
-        self.parse_expected(SyntaxKind::OpenBraceToken, None);
+        let open_brace_position = self.scanner.token_start();
+        let open_brace_parsed = self.parse_expected(SyntaxKind::OpenBraceToken, None);
         let properties = self.parse_delimited_list(
             ParsingContext::ObjectLiteralMembers,
             |parser| Some(parser.parse_object_literal_element()),
             true,
         );
-        self.parse_expected(SyntaxKind::CloseBraceToken, None);
+        self.parse_expected_matching_brackets(
+            SyntaxKind::OpenBraceToken,
+            SyntaxKind::CloseBraceToken,
+            open_brace_parsed,
+            open_brace_position,
+        );
         self.finish_node_data(
             NodeData::ObjectLiteralExpression(ObjectLiteralExpressionData {
                 properties: Some(properties),
@@ -7298,7 +7432,9 @@ impl<'text> Parser<'text> {
         self.token() == SyntaxKind::ImportKeyword
     }
 
-    /// tsc parseImportType.
+    /// tsc-port: parseImportType @6.0.3
+    /// tsc-hash: 5e0521eb06a60098914af1988238d0754a3f63ab1e0efe09b8b71dfe51a78524
+    /// tsc-span: _tsc.js:31291-31329
     fn parse_import_type(&mut self) -> NodeId {
         self.source_flags |= NodeFlags::POSSIBLY_CONTAINS_DYNAMIC_IMPORT;
         let pos = self.node_pos();
@@ -7308,6 +7444,7 @@ impl<'text> Parser<'text> {
         let argument = self.parse_type();
         let mut attributes = None;
         if self.parse_optional(SyntaxKind::CommaToken) {
+            let open_brace_position = self.scanner.token_start();
             self.parse_expected(SyntaxKind::OpenBraceToken, None);
             // tsc parseImportType captures currentToken() BEFORE the
             // keyword advance and threads it into parseImportAttributes
@@ -7328,7 +7465,7 @@ impl<'text> Parser<'text> {
             self.parse_expected(SyntaxKind::ColonToken, None);
             attributes = Some(self.parse_import_attributes(keyword, true));
             self.parse_optional(SyntaxKind::CommaToken);
-            self.parse_expected(SyntaxKind::CloseBraceToken, None);
+            self.parse_expected_close_brace_with_last_error_related(open_brace_position);
         }
         self.parse_expected(SyntaxKind::CloseParenToken, None);
         let qualifier = if self.parse_optional(SyntaxKind::DotToken) {
@@ -7349,19 +7486,23 @@ impl<'text> Parser<'text> {
         )
     }
 
-    /// tsc parseImportAttributes.
+    /// tsc-port: parseImportAttributes @6.0.3
+    /// tsc-hash: fa198931880f0285c230e25010b2b3d434b98f087ce3a4a8074627df45f43539
+    /// tsc-span: _tsc.js:34481-34521
     fn parse_import_attributes(&mut self, keyword: SyntaxKind, skip_keyword: bool) -> NodeId {
         let pos = self.node_pos();
         if !skip_keyword {
             self.parse_expected(keyword, None);
         }
-        let elements = if self.parse_expected(SyntaxKind::OpenBraceToken, None) {
+        let open_brace_position = self.scanner.token_start();
+        let open_brace_parsed = self.parse_expected(SyntaxKind::OpenBraceToken, None);
+        let elements = if open_brace_parsed {
             let elements = self.parse_delimited_list(
                 ParsingContext::ImportAttributes,
                 |parser| Some(parser.parse_import_attribute()),
                 true,
             );
-            self.parse_expected(SyntaxKind::CloseBraceToken, None);
+            self.parse_expected_close_brace_with_last_error_related(open_brace_position);
             elements
         } else {
             self.arena.empty_array(self.node_pos())
@@ -8677,6 +8818,16 @@ impl<'text> Parser<'text> {
         message: &'static DiagnosticMessage,
         args: Vec<String>,
     ) {
+        let _ = self.push_parse_diagnostic_with_index(start, length, message, args);
+    }
+
+    fn push_parse_diagnostic_with_index(
+        &mut self,
+        start: usize,
+        length: usize,
+        message: &'static DiagnosticMessage,
+        args: Vec<String>,
+    ) -> Option<usize> {
         let start_utf16 = self.to_utf16(start);
         if self
             .parse_diagnostics
@@ -8690,6 +8841,9 @@ impl<'text> Parser<'text> {
                 Some(end_utf16.saturating_sub(start_utf16)),
                 MessageChain::new(message, &args),
             ));
+            Some(self.parse_diagnostics.len() - 1)
+        } else {
+            None
         }
     }
 
@@ -12260,6 +12414,73 @@ mod tests {
                 source.parse_diagnostics
             );
             assert_eq!(source.parse_diagnostics[0].code(), 1453);
+        }
+    }
+
+    #[test]
+    fn matched_bracket_error_points_back_to_the_open_token() {
+        let text = "if (true { }";
+        let source = parse_source_file(
+            "a.ts".to_owned(),
+            text.to_owned(),
+            ParseOptions::default(),
+            None,
+        );
+        let diagnostic = source
+            .parse_diagnostics
+            .iter()
+            .find(|diagnostic| {
+                diagnostic.code() == 1005 && diagnostic.message_text() == "')' expected."
+            })
+            .expect("the missing close parenthesis is reported");
+        assert_eq!(diagnostic.related.len(), 1);
+        let related = &diagnostic.related[0];
+        assert_eq!(related.message.code, 1007);
+        assert_eq!(related.start, Some(text.find('(').unwrap() as u32));
+        assert_eq!(related.length, Some(1));
+        assert_eq!(
+            related.message.text,
+            "The parser expected to find a ')' to match the '(' token here."
+        );
+    }
+
+    #[test]
+    fn import_attribute_brace_errors_retain_their_exact_open_tokens() {
+        for text in [
+            "type T = import(\"x\", { with: { type: \"json\" } );",
+            "type T = import(\"x\", { \"resolution-mode\": \"require\" });",
+            "import value from \"x\" with { type: \"json\";",
+        ] {
+            let source = parse_source_file(
+                "a.ts".to_owned(),
+                text.to_owned(),
+                ParseOptions::default(),
+                None,
+            );
+            let diagnostic = source
+                .parse_diagnostics
+                .iter()
+                .find(|diagnostic| {
+                    diagnostic.code() == 1005
+                        && matches!(
+                            diagnostic.message_text(),
+                            "'}' expected." | "'with' expected."
+                        )
+                })
+                .expect("the malformed attribute object is reported");
+            assert_eq!(diagnostic.related.len(), 1, "{text:?}");
+            let related = &diagnostic.related[0];
+            assert_eq!(related.message.code, 1007);
+            assert_eq!(
+                related.start,
+                Some(text.find('{').unwrap() as u32),
+                "{text:?}"
+            );
+            assert_eq!(related.length, Some(1));
+            assert_eq!(
+                related.message.text,
+                "The parser expected to find a '}' to match the '{' token here."
+            );
         }
     }
 
