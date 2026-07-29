@@ -743,10 +743,10 @@ impl<'a> CheckerState<'a> {
             }
         };
         let name = node_util::get_name_of_declaration(source, declaration);
-        let name_string = match name {
-            Some(name) => self.text_of_node(name)?,
-            None => "(Missing)".to_owned(),
-        };
+        // 68164: declarationNameToString, not getTextOfNode. Recovery
+        // names are zero-width nodes whose surrounding trivia must
+        // never become a user-facing parameter/function name.
+        let name_string = node_util::declaration_name_to_string(source, name);
         let diagnostics_before = self.diagnostics.len();
         self.error_at(
             Some(declaration),
@@ -1016,7 +1016,9 @@ impl<'a> CheckerState<'a> {
 mod tests {
     use tsrs2_types::CompilerOptions;
 
-    use crate::state::test_support::with_program_state;
+    use crate::state::test_support::{
+        with_program_state, with_program_state_allow_parse_diagnostics,
+    };
     use crate::state::CheckerState;
     use crate::{check_program, InputFile};
 
@@ -1112,6 +1114,36 @@ mod tests {
     }
 
     // ---- reportImplicitAny suggestion band (!noImplicitAny) ----
+
+    #[test]
+    fn implicit_any_recovery_names_use_the_missing_declaration_face() {
+        let text = "\
+function f(`hello`);
+function f(x: string);
+function f(x: string) {}
+function g(value) { return value; }
+";
+        let options = CompilerOptions {
+            no_implicit_any: Some(true),
+            ..CompilerOptions::default()
+        };
+        with_program_state_allow_parse_diagnostics(&[("a.ts", text)], &options, |state| {
+            state.check_source_file(0);
+            let messages = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 7006)
+                .map(|diagnostic| diagnostic.message_text().to_owned())
+                .collect::<Vec<_>>();
+            assert_eq!(
+                messages,
+                [
+                    "Parameter '(Missing)' implicitly has an 'any' type.",
+                    "Parameter 'value' implicitly has an 'any' type.",
+                ]
+            );
+        });
+    }
 
     #[test]
     fn loose_mode_reports_suggestion_variants() {
