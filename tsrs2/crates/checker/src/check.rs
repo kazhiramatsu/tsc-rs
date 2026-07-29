@@ -6858,23 +6858,41 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isRelatedTo @6.0.3
     /// tsc-hash: 347cb4f05f51cf2f84cf35b3506eecf7649742674a98e720ef96514cae0d718a
     /// tsc-span: _tsc.js:65147-65168
+    /// tsc-port: reportErrorResults @6.0.3
+    /// tsc-hash: 3eddd5747113ff18b7f684d7f85fe61a1b833cae13a3f11bbaa8219d0838a31e
+    /// tsc-span: _tsc.js:65248-65253
     ///
-    /// The relation engine compares against getNormalizedType(target,
-    /// writing=true). Its reporting closure therefore sees the base
-    /// type of a NoInfer substitution too, unless the original target
-    /// carries an alias (NoInfer itself does not). Our report pass is
-    /// split from that engine, so preserve the same write-normalized
-    /// target at every relation-report entry without changing the
-    /// ordinary type-printer face of NoInfer<T>.
-    pub(crate) fn no_infer_write_target_for_relation_report(
+    /// isRelatedTo's reporting closure receives the read-normalized
+    /// source and write-normalized target, not the original verdict
+    /// pair. The Rust verdict/report split must reconstruct that pair
+    /// for every direct reporting entry: this covers fresh literals,
+    /// NoInfer substitutions, and simplifiable indexed accesses such
+    /// as Partial<T>[K] and Readonly<T>[K].
+    pub(crate) fn normalized_relation_report_types(
         &mut self,
-        target: TypeId,
-    ) -> CheckResult2<TypeId> {
-        if self.tables.is_no_infer_type(target) {
-            self.get_normalized_type(target, /*writing*/ true)
-        } else {
-            Ok(target)
+        original_source: TypeId,
+        original_target: TypeId,
+    ) -> CheckResult2<(TypeId, TypeId)> {
+        let mut source = self.get_normalized_type(original_source, /*writing*/ false)?;
+        let target = self.get_normalized_type(original_target, /*writing*/ true)?;
+        let mut target = self.nullable_stripped_report_target(source, target)?;
+        // reportErrorResults 65248-65253 restores the original display
+        // face after the relation-level normalization when an alias
+        // symbol or a non-augmenting base is present. Without this
+        // step named conditional/mapped aliases expand in the head.
+        let source_has_base = self
+            .get_single_base_for_non_augmenting_subtype(original_source)?
+            .is_some();
+        let target_has_base = self
+            .get_single_base_for_non_augmenting_subtype(original_target)?
+            .is_some();
+        if self.tables.type_of(original_source).alias_symbol.is_some() || source_has_base {
+            source = original_source;
         }
+        if self.tables.type_of(original_target).alias_symbol.is_some() || target_has_base {
+            target = original_target;
+        }
+        Ok((source, target))
     }
 
     /// tsc-port: checkTypeAssignableTo @6.0.3 (5.4 slice)
@@ -6904,27 +6922,13 @@ impl<'a> CheckerState<'a> {
         let related = self.is_type_assignable_to(source, target)?;
         if !related {
             if let Some(error_node) = error_node {
-                // The 65185 nullable-candidate substitution runs at
-                // the failing level's entry — every report arm below
-                // (excess/common-property heads, unmatched-property
-                // faces, the rendered pair) sees the substituted
-                // target, exactly like tsc's in-engine reporting.
-                let target = self.nullable_stripped_report_target(source, target)?;
-                let target = self.no_infer_write_target_for_relation_report(target)?;
                 // reportErrorResults (65248-65253) receives the
                 // getNormalizedType pair produced by isRelatedTo.
-                // Fresh literals therefore reach every report arm as
-                // their REGULAR twin. Our verdict/report split must do
-                // that normalization explicitly; otherwise the fresh
-                // member of a single-member enum renders as `E.A`
-                // even though its regular twin IS the declared enum
-                // type and tsc renders `E`. This is report-only:
-                // isTypeAssignableTo above still owns the verdict.
-                let source = if self.tables.is_fresh_literal_type(source) {
-                    self.get_normalized_type(source, /*writing*/ false)?
-                } else {
-                    source
-                };
+                // The helper also applies the 65185 nullable-candidate
+                // substitution after normalization. This is
+                // report-only: isTypeAssignableTo above still owns the
+                // verdict.
+                let (source, target) = self.normalized_relation_report_types(source, target)?;
                 // An EXPLICIT tsc headMessage chains OUTERMOST
                 // unconditionally (64860: errorInfo =
                 // chainDiagnosticMessages(errorInfo, headMessage)) —
@@ -7363,10 +7367,10 @@ impl<'a> CheckerState<'a> {
             ty
         };
         // isRelatedTo hands reportUnmatchedProperty its normalized
-        // pair. A NoInfer write target normalizes to its base type,
-        // so both the required-property walk and the 2741 display
-        // must see `T`, not the substitution wrapper.
-        let target = self.no_infer_write_target_for_relation_report(target)?;
+        // pair. Keep this defensive normalization for direct callers
+        // too: required-property walks and 2741 displays must see the
+        // write-normalized target.
+        let target = self.get_normalized_type(target, /*writing*/ true)?;
         let target = {
             let mut ty = target;
             while let Some(base) = self.get_single_base_for_non_augmenting_subtype(ty)? {
@@ -7782,10 +7786,7 @@ impl<'a> CheckerState<'a> {
         let related = self.is_type_comparable_to(source, target)?;
         if !related {
             if let Some(error_node) = error_node {
-                // 65185 nullable-candidate substitution (see the
-                // assignable twin).
-                let target = self.nullable_stripped_report_target(source, target)?;
-                let target = self.no_infer_write_target_for_relation_report(target)?;
+                let (source, target) = self.normalized_relation_report_types(source, target)?;
                 // isRelatedTo's excess-property arm runs under the
                 // comparable relation too (65353) — a fresh-literal
                 // case expression reports the parent-skipped
@@ -13941,6 +13942,35 @@ mod tests {
                     "Object literal may only specify known properties, and 'y' does not exist in type '{ x: number; }'."
                         .to_owned(),
                 ),
+            ]
+        );
+    }
+
+    #[test]
+    fn relation_reports_use_normalized_pair_then_restore_alias_faces() {
+        let options = CompilerOptions {
+            strict_null_checks: Some(true),
+            ..CompilerOptions::default()
+        };
+        let messages = checked_diags_with(
+            "type Partial<T> = { [P in keyof T]?: T[P] };\n\
+             type Readonly<T> = { readonly [P in keyof T]: T[P] };\n\
+             type Named<T> = T & {};\n\
+             function read<T>(x: T, p: Partial<T>, k: keyof T) { x[k] = p[k]; }\n\
+             function write<T, U extends T>(x: T, r: Readonly<U>, k: keyof T) { r[k] = x[k]; }\n\
+             function alias<T>(x: T, n: Named<T>) { n = x; }\n",
+            &options,
+        )
+        .into_iter()
+        .filter(|row| row.0 == 2322)
+        .map(|row| row.3)
+        .collect::<Vec<_>>();
+        assert_eq!(
+            messages,
+            [
+                "Type 'T[keyof T] | undefined' is not assignable to type 'T[keyof T]'.",
+                "Type 'T[keyof T]' is not assignable to type 'U[keyof T]'.",
+                "Type 'T' is not assignable to type 'Named<T>'.",
             ]
         );
     }
