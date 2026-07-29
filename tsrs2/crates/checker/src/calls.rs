@@ -3316,9 +3316,13 @@ impl<'a> CheckerState<'a> {
                         )?),
                         _ => None,
                     };
+                    let related = diagnostic
+                        .as_ref()
+                        .map(|diagnostic| diagnostic.related.clone())
+                        .unwrap_or_default();
                     return Ok(Some(vec![ApplicabilityError {
                         span,
-                        related: Vec::new(),
+                        related,
                         diagnostic,
                     }]));
                 }
@@ -3432,7 +3436,8 @@ impl<'a> CheckerState<'a> {
                             &span,
                             head,
                         )?;
-                        diagnostic.related = related.clone();
+                        diagnostic.related.extend(related);
+                        related = diagnostic.related.clone();
                         Some(diagnostic)
                     }
                     _ => None,
@@ -3488,7 +3493,8 @@ impl<'a> CheckerState<'a> {
                             &span,
                             head,
                         )?;
-                        diagnostic.related = related.clone();
+                        diagnostic.related.extend(related);
+                        related = diagnostic.related.clone();
                         Some(diagnostic)
                     }
                     _ => None,
@@ -6865,6 +6871,39 @@ mod tests {
             ),
             [(2571, 141, 7)]
         );
+    }
+
+    #[test]
+    fn generic_rest_missing_property_keeps_declaration_related_info() {
+        let text = "interface Array<T> { length: number; [index: number]: T; }\n\
+                    interface RequiredArray<T> extends Array<T> { required: number; }\n\
+                    declare function take<T>(...args: RequiredArray<T>): void;\n\
+                    take();\n";
+        let (codes, related) =
+            with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+                state.check_source_file(0);
+                let diagnostic = state
+                    .diagnostics
+                    .iter()
+                    .find(|diagnostic| diagnostic.code() == 2345)
+                    .expect("generic rest mismatch");
+                fn flatten(chain: &tsrs2_diags::MessageChain, codes: &mut Vec<u32>) {
+                    codes.push(chain.code);
+                    for child in &chain.next {
+                        flatten(child, codes);
+                    }
+                }
+                let mut codes = Vec::new();
+                flatten(&diagnostic.message, &mut codes);
+                let related = diagnostic
+                    .related
+                    .iter()
+                    .map(|info| (info.message.code, info.message.text.clone()))
+                    .collect::<Vec<_>>();
+                (codes, related)
+            });
+        assert_eq!(codes, [2345, 2741]);
+        assert_eq!(related, [(2728, "'required' is declared here.".to_owned())]);
     }
 
     #[test]
