@@ -1331,7 +1331,7 @@ impl<'a> CheckerState<'a> {
             _ => None,
         };
         let local_symbol = self.binder.node_symbol(node);
-        let module_name = self.symbol_display_name(module_symbol);
+        let module_name = self.get_fully_qualified_name(module_symbol);
         let exports_has_local = local_symbol.is_some_and(|local| {
             let local_name = self.binder.symbol(local).escaped_name.clone();
             self.binder
@@ -1720,7 +1720,7 @@ impl<'a> CheckerState<'a> {
             // A concrete written specifier such as "b.foo" resolves
             // through the "*.foo" declaration. getFullyQualifiedName
             // reports the declaration pattern in this case.
-            self.fully_qualified_name(module_symbol)
+            self.get_fully_qualified_name(module_symbol)
         } else {
             self.get_external_module_name_of(node)
                 .or_else(|| self.get_module_specifier_for_import_or_export(node))
@@ -1731,7 +1731,7 @@ impl<'a> CheckerState<'a> {
                         Some(specifier),
                     )
                 })
-                .unwrap_or_else(|| self.fully_qualified_name(module_symbol))
+                .unwrap_or_else(|| self.get_fully_qualified_name(module_symbol))
         };
         // declarationNameToString preserves arbitrary module export
         // names as written, including the quotes on string literals.
@@ -7973,7 +7973,7 @@ impl<'a> CheckerState<'a> {
                     self.resolve_external_module_name(node, module_specifier, false)?;
                 if let Some(module_symbol) = module_symbol {
                     if self.has_export_assignment_symbol(module_symbol) {
-                        let display = self.symbol_display_name(module_symbol);
+                        let display = self.get_fully_qualified_name(module_symbol);
                         self.error_at(
                             Some(module_specifier),
                             &diagnostics::Module_0_uses_export_and_cannot_be_used_with_export,
@@ -8874,6 +8874,56 @@ mod tests {
                 .map(|row| row.4)
                 .collect::<Vec<_>>(),
             ["Module '\"*.foo\"' has no exported member 'absent'.".to_owned()]
+        );
+    }
+
+    #[test]
+    fn source_file_module_symbols_use_normalized_host_names() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "t4.ts".to_owned(),
+                    text: "export const value = 1;\n".to_owned(),
+                },
+                InputFile {
+                    name: "foo.ts".to_owned(),
+                    text: "export interface Present {}\n".to_owned(),
+                },
+                InputFile {
+                    name: "export-equals.ts".to_owned(),
+                    text: "declare const value: number;\nexport = value;\n".to_owned(),
+                },
+                InputFile {
+                    name: "main.ts".to_owned(),
+                    text: "import missingDefault from \"./t4\";\n\
+                           import foo = require(\"./foo\");\n\
+                           export * from \"./export-equals\";\n\
+                           let value: foo.Missing;\n"
+                        .to_owned(),
+                },
+            ],
+            &CompilerOptions::default(),
+        );
+        assert_eq!(
+            targeted_rows(&result, &[1192, 2498, 2694])
+                .into_iter()
+                .map(|row| (row.1, row.4))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    1192,
+                    "Module '\"/t4\"' has no default export.".to_owned(),
+                ),
+                (
+                    2498,
+                    "Module '\"/export-equals\"' uses 'export =' and cannot be used with 'export *'."
+                        .to_owned(),
+                ),
+                (
+                    2694,
+                    "Namespace '\"/foo\"' has no exported member 'Missing'.".to_owned(),
+                ),
+            ]
         );
     }
 

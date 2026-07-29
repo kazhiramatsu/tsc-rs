@@ -2286,7 +2286,7 @@ impl<'a> CheckerState<'a> {
                 }
                 let Some(symbol) = symbol else {
                     if !ignore_errors {
-                        let namespace_name = self.fully_qualified_name(namespace);
+                        let namespace_name = self.get_fully_qualified_name(namespace);
                         let declaration_name = node_util::declaration_name_to_string(
                             self.binder.source_of_node(right),
                             Some(right),
@@ -2448,27 +2448,6 @@ impl<'a> CheckerState<'a> {
                 _ => return current,
             }
         }
-    }
-
-    /// tsc-port: getFullyQualifiedName @6.0.3
-    /// tsc-hash: 30098265216734ac1ab039c9b23d5a0c3c8cc578a2ea153ad77edaed4461564c
-    /// tsc-span: _tsc.js:49253-49261
-    ///
-    /// The 2694/2305 message-arg slice: the parent-chain dotted name
-    /// (the full symbolToString display walk is M8 tail).
-    pub(crate) fn fully_qualified_name(&self, symbol: SymbolId) -> String {
-        let mut parts = vec![self.symbol_display_name(symbol)];
-        let mut current = self.binder.symbol(symbol).parent;
-        while let Some(parent) = current {
-            let data = self.binder.symbol(parent);
-            if data.escaped_name.starts_with("__") {
-                break;
-            }
-            parts.push(self.symbol_display_name(parent));
-            current = data.parent;
-        }
-        parts.reverse();
-        parts.join(".")
     }
 
     // ---- small structural predicates ----
