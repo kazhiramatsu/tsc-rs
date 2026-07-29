@@ -331,6 +331,15 @@ pub struct CheckerState<'a> {
     /// the slice guards both — divergence is observable only on a
     /// symbol-less self-containing type, which cannot be constructed.
     pub(crate) slice_visited_types: std::collections::HashSet<TypeId>,
+    /// nodeBuilder context.approximateLength/maxTruncationLength/
+    /// truncating for one typeToString call. These fields are parked
+    /// on CheckerState because the bounded renderer is method-based;
+    /// each public entry saves, initializes, and restores them so
+    /// recursive rendering shares one context while reentrant root
+    /// calls do not.
+    pub(crate) slice_approximate_length: usize,
+    pub(crate) slice_max_truncation_length: usize,
+    pub(crate) slice_truncating: bool,
     /// The display slice's face of the nodeBuilder's
     /// context.enclosingDeclaration for the ANNOTATION-REUSE gates
     /// only (canReuseTypeNodeAnnotation, 50932-50955: `undefined →
@@ -934,6 +943,9 @@ impl<'a> CheckerState<'a> {
             marker_sub_type_for_check: TypeId(0),
             variance_type_parameter: None,
             slice_visited_types: std::collections::HashSet::new(),
+            slice_approximate_length: 0,
+            slice_max_truncation_length: 160,
+            slice_truncating: false,
             slice_display_enclosing: None,
             marker_types: std::collections::HashSet::new(),
             in_variance_computation: false,

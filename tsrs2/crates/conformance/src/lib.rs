@@ -1804,6 +1804,7 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
         strict_function_types: bool_option("strictFunctionTypes"),
         strict_bind_call_apply: bool_option("strictBindCallApply"),
         no_implicit_any: bool_option("noImplicitAny"),
+        no_error_truncation: bool_option("noErrorTruncation"),
         no_implicit_this: bool_option("noImplicitThis"),
         no_implicit_override: bool_option("noImplicitOverride"),
         exact_optional_property_types: bool_option("exactOptionalPropertyTypes"),
@@ -2659,6 +2660,27 @@ mod tests {
         assert_eq!(
             compiler_options_from_program(&program).allow_arbitrary_extensions,
             Some(false)
+        );
+    }
+
+    #[test]
+    fn no_error_truncation_reaches_compiler_options() {
+        let program = tsrs2_harness::ProgramJson {
+            schema: 1,
+            cwd: ".".to_owned(),
+            options: [(
+                "noErrorTruncation".to_owned(),
+                tsrs2_harness::OptionValue::Bool(true),
+            )]
+            .into_iter()
+            .collect(),
+            libs: Vec::new(),
+            files: Vec::new(),
+            matrix_key: String::new(),
+        };
+        assert_eq!(
+            compiler_options_from_program(&program).no_error_truncation,
+            Some(true)
         );
     }
 
