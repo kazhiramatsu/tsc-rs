@@ -3149,6 +3149,73 @@ impl<'a> CheckerState<'a> {
         Ok(self.take_captured_applicability_errors(node, before, mode))
     }
 
+    /// tsc-port: getUndefinedStrippedTargetIfNeeded @6.0.3
+    /// tsc-hash: 45e8325a55be5a972853ecc64b0da3218d6a633e6d2087f63b706a5499a2d645
+    /// tsc-span: _tsc.js:65586-65591
+    ///
+    /// Tuple spreads become synthetic arguments before applicability.
+    /// By the time a synthetic element fails, the source is already
+    /// the failing non-undefined constituent; carry tsc's corresponding
+    /// undefined-stripped target across the split reporting boundary.
+    fn spread_argument_relation_report_target(
+        &mut self,
+        call_like: NodeId,
+        arg: &EffectiveArg,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<TypeId> {
+        let EffectiveArg::Synthetic { pos, end, .. } = *arg else {
+            return Ok(target);
+        };
+        let arguments = match self.data_of(call_like) {
+            NodeData::CallExpression(data) => data.arguments,
+            NodeData::NewExpression(data) => data.arguments,
+            _ => None,
+        };
+        let from_tuple_spread = arguments.is_some_and(|arguments| {
+            self.nodes_of(Some(arguments)).iter().any(|&argument| {
+                if self.kind_of(argument) != SyntaxKind::SpreadElement {
+                    return false;
+                }
+                let source = self.binder.source_of_node(argument);
+                let raw = source.arena.node(argument);
+                raw.pos == pos && raw.end == end
+            })
+        });
+        if !from_tuple_spread
+            || self.tables.flags_of(source).intersects(TypeFlags::UNION)
+            || !self.tables.flags_of(target).intersects(TypeFlags::UNION)
+        {
+            return Ok(target);
+        }
+        let target_types = match &self.tables.type_of(target).data {
+            TypeData::Union { types, .. } => types.to_vec(),
+            _ => return Ok(target),
+        };
+        if self
+            .tables
+            .flags_of(source)
+            .intersects(TypeFlags::UNDEFINED)
+            || !target_types.first().is_some_and(|&member| {
+                self.tables
+                    .flags_of(member)
+                    .intersects(TypeFlags::UNDEFINED)
+            })
+        {
+            return Ok(target);
+        }
+        let stripped = self.tables.filter_type(target, |tables, member| {
+            !tables.flags_of(member).intersects(TypeFlags::UNDEFINED)
+        });
+        Ok(
+            if self.tables.flags_of(stripped).intersects(TypeFlags::NEVER) {
+                target
+            } else {
+                stripped
+            },
+        )
+    }
+
     fn take_captured_applicability_errors(
         &mut self,
         node: NodeId,
@@ -3353,9 +3420,15 @@ impl<'a> CheckerState<'a> {
                 }
                 let diagnostic = match mode {
                     ApplicabilityMode::Report => {
-                        let mut diagnostic = self.build_relation_error_with_head(
+                        let report_target = self.spread_argument_relation_report_target(
+                            node,
+                            &arg,
                             check_arg_type,
                             param_type,
+                        )?;
+                        let mut diagnostic = self.build_relation_error_with_head(
+                            check_arg_type,
+                            report_target,
                             &span,
                             head,
                         )?;
@@ -6790,6 +6863,35 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    #[test]
+    fn tuple_spread_synthetic_report_uses_the_undefined_stripped_target() {
+        let messages = with_program_state(
+            &[(
+                "a.ts",
+                "declare function take(first?: number, second?: number): void;\n\
+                 declare const tuple: [number, string];\n\
+                 take(...tuple);\n",
+            )],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| diagnostic.code() == 2345)
+                    .map(|diagnostic| diagnostic.message_text().to_owned())
+                    .collect::<Vec<_>>()
+            },
+        );
+        assert_eq!(
+            messages,
+            ["Argument of type 'string' is not assignable to parameter of type 'number'."]
+        );
     }
 
     #[test]
