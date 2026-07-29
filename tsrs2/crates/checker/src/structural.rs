@@ -2469,6 +2469,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let require_optional_properties = (self.relation == RelationKind::Subtype
             || self.relation == RelationKind::StrictSubtype)
             && !self.st.is_object_literal_type(source)
+            && !self.st.is_empty_array_literal_type(source)?
             && !self.st.tables.is_tuple_type(source);
         if let Some(unmatched) =
             self.get_unmatched_property(source, target, require_optional_properties)?
@@ -2492,6 +2493,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     .get_property_of_object_type(target, &name)?
                     .is_none()
                 {
+                    if report_errors {
+                        let prop_name = self.st.symbol_name_as_written_slice(source_prop);
+                        let target_text = self.st.type_to_string_slice(target)?;
+                        self.report_error(
+                            &tsrs2_diags::gen::Property_0_does_not_exist_on_type_1,
+                            vec![prop_name, target_text],
+                        )?;
+                    }
                     return Ok(Ternary::FALSE);
                 }
             }
@@ -2577,6 +2586,67 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         unmatched_property: SymbolId,
         require_optional_properties: bool,
     ) -> CheckResult2<()> {
+        // 71344-71362: a private identifier with an own, same-spelled
+        // member on the source class is nominally different, not
+        // missing. This arm precedes enumeration and returns without
+        // arming overrideNextErrorInfo.
+        if let Some(declaration) = self.st.binder.symbol(unmatched_property).value_declaration {
+            let declaration_source = self.st.binder.source_of_node(declaration);
+            if let Some(name) =
+                tsrs2_binder::node_util::get_name_of_declaration(declaration_source, declaration)
+            {
+                if self.st.kind_of(name) == SyntaxKind::PrivateIdentifier {
+                    if let Some(private_description) =
+                        self.st.identifier_text_of(name).map(str::to_owned)
+                    {
+                        let source_symbol =
+                            self.st.tables.type_of(source).symbol.filter(|&symbol| {
+                                self.st
+                                    .binder
+                                    .symbol(symbol)
+                                    .flags
+                                    .intersects(SymbolFlags::CLASS)
+                            });
+                        if let Some(source_symbol) = source_symbol {
+                            let suffix = format!("@{private_description}");
+                            let has_own_twin =
+                                self.st.get_members_of_symbol(source_symbol)?.keys().any(
+                                    |member| member.starts_with("__#") && member.ends_with(&suffix),
+                                );
+                            if has_own_twin {
+                                let source_name = self
+                                    .st
+                                    .binder
+                                    .symbol(source_symbol)
+                                    .value_declaration
+                                    .and_then(|declaration| self.st.name_of_node(declaration))
+                                    .map(|name| self.st.entity_name_to_string(name))
+                                    .transpose()?
+                                    .unwrap_or_else(|| "(anonymous)".to_owned());
+                                let target_name = self
+                                    .st
+                                    .tables
+                                    .type_of(target)
+                                    .symbol
+                                    .and_then(|symbol| {
+                                        self.st.binder.symbol(symbol).value_declaration
+                                    })
+                                    .and_then(|declaration| self.st.name_of_node(declaration))
+                                    .map(|name| self.st.entity_name_to_string(name))
+                                    .transpose()?
+                                    .unwrap_or_else(|| "(anonymous)".to_owned());
+                                self.report_error(
+                                    &tsrs2_diags::gen::Property_0_in_type_1_refers_to_a_different_member_that_cannot_be_accessed_from_within_type_2,
+                                    vec![private_description, source_name, target_name],
+                                )?;
+                                return Ok(());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         let mut properties = Vec::new();
         for property in self.st.get_properties_of_type(target)? {
             if self.st.is_static_private_identifier_property(property) {
@@ -2632,6 +2702,15 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 );
                 self.associate_related_info(info);
             }
+            self.override_next_error_after_unmatched_property();
+            return Ok(());
+        }
+
+        // 71390-71406: multi-property elaboration is gated through
+        // tryElaborateArrayLikeErrors(false). In particular a
+        // non-array source against a tuple target reports only its
+        // enclosing relation head; it must not fabricate 2739/2740.
+        if !self.try_elaborate_array_like_errors_without_reporting(source, target)? {
             return Ok(());
         }
 
@@ -2664,7 +2743,34 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 vec![source_text, target_text, names],
             )?;
         }
+        self.override_next_error_after_unmatched_property();
         Ok(())
+    }
+
+    /// tsc-port: tryElaborateArrayLikeErrors @6.0.3
+    /// tsc-hash: 4d8d191f532ffe704ad74834cc079e0c2f02d50f2a1159f8bde055450d13c086
+    /// tsc-span: _tsc.js:65123-65143
+    ///
+    /// reportUnmatchedProperty calls this with reportErrors=false, so
+    /// only the boolean gate is needed in the relation walker.
+    fn try_elaborate_array_like_errors_without_reporting(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<bool> {
+        if self.st.tables.is_tuple_type(source) {
+            if self.tuple_target_readonly(source) && self.st.is_mutable_array_or_tuple(target)? {
+                return Ok(false);
+            }
+            return Ok(self.st.is_array_type(target)? || self.st.tables.is_tuple_type(target));
+        }
+        if self.st.is_readonly_array_type(source)? && self.st.is_mutable_array_or_tuple(target)? {
+            return Ok(false);
+        }
+        if self.st.tables.is_tuple_type(target) {
+            return self.st.is_array_type(source);
+        }
+        Ok(true)
     }
 
     /// tsc-port: getUnmatchedProperties @6.0.3
@@ -8803,6 +8909,81 @@ function sourceVariadic<T extends unknown[]>(source: [...T], target: [number]) {
         assert!(
             !single_codes.iter().any(|code| (2618..=2627).contains(code)),
             "the one-element sibling has no tuple-position wrapper: {single_codes:?}"
+        );
+    }
+
+    #[test]
+    fn unmatched_property_reporting_preserves_tsc_control_flow() {
+        fn flatten_codes(chain: &tsrs2_diags::MessageChain, codes: &mut Vec<u32>) {
+            codes.push(chain.code);
+            for child in &chain.next {
+                flatten_codes(child, codes);
+            }
+        }
+
+        let options = CompilerOptions {
+            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            ..CompilerOptions::default()
+        };
+        let chains = crate::state::test_support::with_program_state(
+            &[(
+                "a.ts",
+                r#"
+interface Array<T> {
+    pop(): T | undefined;
+    push(...items: T[]): number;
+    concat(...items: T[]): T[];
+    join(separator?: string): string;
+}
+declare let singleSource: { p: {} };
+let singleTarget: { p: { a: string } } = singleSource;
+declare let multiSource: { p: {} };
+let multiTarget: { p: { a: string; b: number } } = multiSource;
+declare let nonArray: { length: number };
+let emptyTuple: [] = nonArray;
+class PrivateSource { #x = 1 }
+class PrivateTarget { #x = 1 }
+let privateTarget: PrivateTarget = new PrivateSource();
+class Base { p = {} }
+interface Required { p: { a: string } }
+class ImplementsViaBase extends Base implements Required {}
+"#,
+            )],
+            &options,
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| {
+                        diagnostic.file_name.is_some() && matches!(diagnostic.code(), 2322 | 2420)
+                    })
+                    .map(|diagnostic| {
+                        let mut codes = Vec::new();
+                        flatten_codes(&diagnostic.message, &mut codes);
+                        codes
+                    })
+                    .collect::<Vec<_>>()
+            },
+        );
+        assert_eq!(
+            chains,
+            [
+                // reportUnmatchedProperty increments
+                // overrideNextErrorInfo after the single and multi
+                // details, replacing the immediately enclosing 2322.
+                vec![2322, 2326, 2741],
+                vec![2322, 2326, 2739],
+                // tryElaborateArrayLikeErrors(false): a non-array
+                // source against a tuple target declines the detail.
+                vec![2322],
+                // The private-identifier arm precedes missing-property
+                // enumeration and never arms the override counter.
+                vec![2322, 18015],
+                // The class-implements closure head is the explicit
+                // exception: its nested generic relation row remains.
+                vec![2420, 2326, 2322, 2741],
+            ]
         );
     }
 

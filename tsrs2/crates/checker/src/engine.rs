@@ -1,23 +1,15 @@
 //! The relation engine core (m3-types-relations-steps.md stage 4.5,
 //! checker-key-functions §1.1-§1.3).
 //!
-//! Every function returns CheckResult2<Ternary>: an Unsupported means
-//! "this query needs machinery from a later stage" and is NEVER cached
-//! or converted into a verdict. structuredTypeRelatedTo is the stage
-//! 4.6 boundary — at 4.5 it reports itself as the blocker, so pins
-//! that resolve through entry fast paths, simple rules and
-//! union/intersection dispatch flip green while structural pins stay
-//! honestly unsupported.
+//! Every relation function returns CheckResult2<Ternary>: an
+//! Unsupported is never cached or converted into a verdict.
 //!
-//! Error REPORTING is deliberately absent (M3 captures verdicts only;
-//! chain shaping is T2 work): the probe calls checkTypeRelatedTo with
-//! no error node, which is exactly tsc's reportErrors=false mode, so
-//! every error-construction block in the source is a no-op here. The
-//! error-path recursions that influence VERDICTS do not exist —
-//! reportErrorResults and friends only shape diagnostics. One
-//! exception since p9 9.3b: excess_properties_worker carries tsc's
-//! reportErrors face (the parent-skipped 2353/2561 rows are TOP-LEVEL
-//! codes, not chain shaping) for the head-site reporter in check.rs.
+//! Boolean callers use tsc's reportErrors=false face. Diagnostic
+//! callers replay the failed relation in a fresh reporting frame,
+//! preserving errorInfo, incompatibleStack, per-level normalization,
+//! and head suppression. excess_properties_worker also exposes the
+//! head-site reporting adapter needed to retain tsc's final source
+//! location for object-literal and JSX diagnostics.
 
 use std::collections::HashSet;
 
@@ -666,13 +658,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 3ce5a7fee9a3a4c896a2e34f5f2d8ff2e385b952cc67b32c7e4ec94fd8565fc8
     /// tsc-span: _tsc.js:64842-67230
     ///
-    /// M3 slice: verdicts only. The probe passes no error node, which
-    /// is tsc's reportErrors=false mode — the error machinery
-    /// (errorInfo chains, incompatibleStack, elaborations) never runs
-    /// and is deferred to T2 diagnostics work. The overflow path DOES
-    /// cache Failed|ComplexityOverflow / Failed|StackDepthOverflow
-    /// exactly like 64872-64882 (diagnostics 2859/2321 deferred with
-    /// error reporting).
+    /// The boolean entry uses tsc's reportErrors=false mode. Diagnostic
+    /// callers use relation_error_output_with_context below. The
+    /// overflow path caches Failed|ComplexityOverflow /
+    /// Failed|StackDepthOverflow exactly like 64872-64882.
     pub fn check_type_related_to(
         &mut self,
         source: TypeId,
@@ -759,6 +748,20 @@ impl<'a> CheckerState<'a> {
         containing_message_chain: Option<MessageChain>,
     ) -> CheckResult2<Option<RelationErrorOutput>> {
         let relation_count = (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
+        // reportUnmatchedProperty reads checkTypeRelatedTo's closure-
+        // level `headMessage`, not the per-recursion `headMessage2`.
+        // Only the two class-implements heads retain the intermediate
+        // generic relation row; every other entry lets the missing-
+        // property row override that next row.
+        let should_skip_elaboration = !head_message.is_some_and(|message| {
+            std::ptr::eq(
+                message,
+                &tsrs2_diags::gen::Class_0_incorrectly_implements_interface_1,
+            ) || std::ptr::eq(
+                message,
+                &tsrs2_diags::gen::Class_0_incorrectly_implements_class_1_Did_you_mean_to_extend_1_and_inherit_its_members_as_a_subclass,
+            )
+        });
         let mut checker = RelationChecker {
             st: self,
             relation,
@@ -772,7 +775,10 @@ impl<'a> CheckerState<'a> {
             expanding_flags: ExpandingFlags::NONE,
             overflow: false,
             relation_count,
-            error_state: RelationErrorState::default(),
+            error_state: RelationErrorState {
+                should_skip_elaboration,
+                ..RelationErrorState::default()
+            },
         };
         let result = checker.is_related_to_with_head(
             source,
@@ -850,6 +856,9 @@ pub(crate) struct RelationErrorState {
     /// structuredTypeRelatedTo's `errorInfo === saveErrorInfo.errorInfo`
     /// guard: reporting advances it and resetErrorInfo restores it.
     error_info_revision: u64,
+    /// reportUnmatchedProperty's closure-level `shouldSkipElaboration`.
+    /// It is false only for the two class-implements head messages.
+    should_skip_elaboration: bool,
 }
 
 /// The checkTypeRelatedTo closure state (maybe stack, recursion
@@ -1335,6 +1344,19 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         self.error_state.related_info.push(info);
     }
 
+    /// tsc-port: reportUnmatchedProperty @6.0.3
+    /// tsc-hash: 2273740e1e468507c9fe6968bfee394b8d0511c7fcaf96b850f3ea2795413fbd
+    /// tsc-span: _tsc.js:66708-66760
+    ///
+    /// A missing-property detail normally replaces the generic
+    /// relation row at the immediately enclosing failed relation
+    /// level. The class-implements heads are the sole exception.
+    pub(crate) fn override_next_error_after_unmatched_property(&mut self) {
+        if self.error_state.should_skip_elaboration && self.error_state.error_info.is_some() {
+            self.error_state.override_next_error_info += 1;
+        }
+    }
+
     /// tsc-port: reportIncompatibleStack @6.0.3
     /// tsc-hash: a1152011911131a223fd5304339b7872a283f3a6a0757347c0b3e67216a21dd2
     /// tsc-span: _tsc.js:64948-65036
@@ -1818,18 +1840,56 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
             }
             // JSX excess-property rows do not use the object-literal
-            // parent-skipped protocol. tsc first chains the 2339/2551
-            // detail and then reportRelationError adds the generic
-            // 2322 as the diagnostic head. The relation tail is
-            // intentionally elided by the current T2 representation,
-            // so emit that canonical head directly at the attribute.
+            // parent-skipped protocol. tsc first reports the 2339/2551
+            // detail into errorInfo, then reportRelationError prepends
+            // the generic 2322. This head-site adapter owns the final
+            // source location, so materialize the same complete chain
+            // before returning UnknownProperty to its caller.
             let source_text = self.st.type_to_string_slice(source)?;
             let target_text = self.st.type_to_string_slice(error_target)?;
-            self.st.error_at(
+            let target_properties = self.st.get_properties_of_type(error_target)?;
+            let jsx_specific = match prop_text.as_str() {
+                "for" => target_properties
+                    .iter()
+                    .copied()
+                    .find(|&candidate| self.st.symbol_display_name(candidate) == "htmlFor"),
+                "class" => target_properties
+                    .iter()
+                    .copied()
+                    .find(|&candidate| self.st.symbol_display_name(candidate) == "className"),
+                _ => None,
+            };
+            let suggestion_symbol = jsx_specific.or_else(|| {
+                self.st.get_spelling_suggestion_for_name(
+                    &prop_text,
+                    &target_properties,
+                    SymbolFlags::VALUE,
+                )
+            });
+            let detail = if let Some(suggestion_symbol) = suggestion_symbol {
+                let suggestion = self.st.symbol_display_name(suggestion_symbol);
+                MessageChain::new(
+                    &tsrs2_diags::gen::Property_0_does_not_exist_on_type_1_Did_you_mean_2,
+                    &[prop_text, target_text.clone(), suggestion],
+                )
+            } else {
+                MessageChain::new(
+                    &tsrs2_diags::gen::Property_0_does_not_exist_on_type_1,
+                    &[prop_text, target_text.clone()],
+                )
+            };
+            let message = MessageChain::new(
+                &tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1,
+                &[source_text, target_text],
+            )
+            .with_next(vec![detail]);
+            let mut diagnostic = self.st.create_error(
                 Some(report_node),
                 &tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1,
-                &[&source_text, &target_text],
+                &[],
             );
+            diagnostic.message = message;
+            self.st.push_error_diagnostic(diagnostic);
             return Ok(());
         }
         let object_literal_declaration = self
