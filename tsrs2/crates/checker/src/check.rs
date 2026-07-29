@@ -7920,24 +7920,29 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc getNameOfSymbolAsWritten's anonymous class/function face.
-    /// Named symbols keep the slice's existing qualified/unqualified
-    /// spelling; the synthetic `__class`/`__function` names are never
-    /// user-facing when their declaration has no written name.
+    /// A class/function expression assigned directly to a variable
+    /// borrows the variable declaration's written name; otherwise an
+    /// unnamed expression uses the anonymous sentinel. Named symbols
+    /// keep the slice's existing qualified/unqualified spelling, so
+    /// synthetic `__class`/`__function` names are never user-facing.
     fn type_reference_symbol_name_slice(&self, symbol: SymbolId, fully_qualified: bool) -> String {
         let declarations = &self.binder.symbol(symbol).declarations;
-        let has_written_name = declarations.iter().any(|&declaration| {
-            node_util::get_name_of_declaration(self.binder.source_of_node(declaration), declaration)
-                .is_some()
-        });
-        if !has_written_name {
-            if let Some(&declaration) = declarations.first() {
-                match self.kind_of(declaration) {
-                    SyntaxKind::ClassExpression => return "(Anonymous class)".to_owned(),
-                    SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction => {
-                        return "(Anonymous function)".to_owned();
+        if let Some(&declaration) = declarations.first() {
+            match self.kind_of(declaration) {
+                SyntaxKind::ClassExpression
+                | SyntaxKind::FunctionExpression
+                | SyntaxKind::ArrowFunction => {
+                    let source = self.binder.source_of_node(declaration);
+                    if let Some(name) = node_util::get_name_of_declaration(source, declaration) {
+                        return node_util::declaration_name_to_string(source, Some(name));
                     }
-                    _ => {}
+                    return if self.kind_of(declaration) == SyntaxKind::ClassExpression {
+                        "(Anonymous class)".to_owned()
+                    } else {
+                        "(Anonymous function)".to_owned()
+                    };
                 }
+                _ => {}
             }
         }
         if fully_qualified {
@@ -8099,11 +8104,7 @@ impl<'a> CheckerState<'a> {
                     .object_flags_of(ty)
                     .intersects(ObjectFlags::REFERENCE)
                 {
-                    let name = if fully_qualified {
-                        self.get_fully_qualified_name(symbol)
-                    } else {
-                        self.symbol_display_name(symbol)
-                    };
+                    let name = self.type_reference_symbol_name_slice(symbol, fully_qualified);
                     if self.get_declared_type_of_symbol_slice(symbol)? != ty
                         && symbol_flags.intersects(
                             tsrs2_types::SymbolFlags::CLASS
@@ -17309,6 +17310,36 @@ mod tests {
                 2,
                 "Type 'typeof A3' is not assignable to type 'number'.".to_owned()
             )]
+        );
+    }
+
+    #[test]
+    fn class_expression_type_queries_use_written_or_anonymous_names() {
+        let messages = |text: &str, code: u32| {
+            checked_diags(text)
+                .into_iter()
+                .filter(|row| row.0 == code)
+                .map(|row| row.3)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            messages(
+                "function foo<T>(x = class { prop: T }): T { return undefined; }\n\
+                 foo(class { static prop = \"hello\" }).length;\n"
+                ,
+                2345,
+            ),
+            [
+                "Argument of type 'typeof (Anonymous class)' is not assignable to parameter of type 'typeof (Anonymous class)'.".to_owned(),
+            ]
+        );
+        assert_eq!(
+            messages(
+                "var ExpandoExpr3 = class { n = 10001; };\n\
+                 ExpandoExpr3.prop = 3;\n",
+                2339,
+            ),
+            ["Property 'prop' does not exist on type 'typeof ExpandoExpr3'.".to_owned(),]
         );
     }
 
