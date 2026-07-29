@@ -4774,7 +4774,7 @@ impl<'a> CheckerState<'a> {
         let properties = self.get_properties_of_union_or_intersection_type(ty)?;
         for prop in properties.iter().copied() {
             if self.is_discriminant_with_never_type(prop)? {
-                let type_name = self.type_to_string_slice(ty)?;
+                let type_name = self.type_to_string_slice_no_type_reduction(ty)?;
                 let prop_name = self.symbol_display_name(prop);
                 return Ok(Some(tsrs2_diags::MessageChain::new(
                     &tsrs2_diags::gen::The_intersection_0_was_reduced_to_never_because_property_1_has_conflicting_types_in_some_constituents,
@@ -4784,7 +4784,7 @@ impl<'a> CheckerState<'a> {
         }
         for prop in properties.iter().copied() {
             if self.is_conflicting_private_property(prop) {
-                let type_name = self.type_to_string_slice(ty)?;
+                let type_name = self.type_to_string_slice_no_type_reduction(ty)?;
                 let prop_name = self.symbol_display_name(prop);
                 return Ok(Some(tsrs2_diags::MessageChain::new(
                     &tsrs2_diags::gen::The_intersection_0_was_reduced_to_never_because_property_1_exists_in_multiple_constituents_and_is_private_in_some,

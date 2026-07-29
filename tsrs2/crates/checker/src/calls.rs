@@ -510,10 +510,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 05a1c22981f35b25af51ce8b9aa5a5e84b25919cf2047938ded5ed36208ede3a
     /// tsc-span: _tsc.js:77298-77331
     ///
-    /// The no-call-signatures face chains invocationErrorDetails' T0
-    /// head (This_expression_is_not_callable) UNDER the 1238-family
-    /// decorator head — the union constituent detail rows elide (T2
-    /// curtain) like the invocation_error port.
+    /// The no-call-signatures face chains the full
+    /// invocationErrorDetails result UNDER the 1238-family decorator
+    /// head, including union/detail rows and the missing-await hint.
     fn resolve_decorator(
         &mut self,
         node: NodeId,
@@ -555,25 +554,15 @@ impl<'a> CheckerState<'a> {
         }
         let head_message = self.diagnostic_head_message_for_decorator_resolution(node);
         if call_signatures.is_empty() {
-            // invocationErrorDetails (77167+) reduced to its T0 face:
-            // the not-callable head + the missing-await related row.
-            let awaited = self.get_awaited_type_probe(apparent_type)?;
-            let maybe_missing_await = match awaited {
-                Some(awaited) => !self
-                    .get_signatures_of_type(awaited, SignatureKind::Call)?
-                    .is_empty(),
-                None => false,
-            };
+            let (invocation_chain, related_message) =
+                self.invocation_error_details(expression, apparent_type, SignatureKind::Call)?;
             let span = self.diag_span_of_node(expression);
-            let chain = MessageChain::new(head_message, &[]).with_next(vec![MessageChain::new(
-                &diagnostics::This_expression_is_not_callable,
-                &[],
-            )]);
+            let chain = MessageChain::new(head_message, &[]).with_next(vec![invocation_chain]);
             let mut diagnostic = self.diagnostic_at_span(&span, chain);
-            if maybe_missing_await {
+            if let Some(related_message) = related_message {
                 diagnostic.related.push(self.related_info_for_node(
                     expression,
-                    &diagnostics::Did_you_forget_to_use_await,
+                    related_message,
                     &[],
                 ));
             }
@@ -5063,30 +5052,108 @@ impl<'a> CheckerState<'a> {
         self.is_type_assignable_to(func_type, global_function)
     }
 
-    /// tsc-port: invocationError @6.0.3 (invocationErrorDetails folded in)
-    /// tsc-hash: f2d2133394f805817e33a6c4b1534917ab876d99027c097b8c1f6d172778d90b
-    /// tsc-span: _tsc.js:77167-77247
-    ///
-    /// The union constituent rows and the typeToString chain details
-    /// all elide (T2 curtain) — the emitted HEAD (2349/2351, or the
-    /// 6234 get-accessor flavor) is display-free, so the band never
-    /// escapes. Related rows: the await hint (2773); the
-    /// invocationErrorRecovery 7038 rides the unmodeled
-    /// originatingImport link (absent = attach-only, safe).
-    fn invocation_error(
+    /// tsrs-native: Rust return-shape adapter for tsc's
+    /// invocationErrorDetails, whose ledger block is folded into
+    /// invocation_error below.
+    fn invocation_error_details(
         &mut self,
         error_target: NodeId,
         apparent_type: TypeId,
         kind: SignatureKind,
-        related_information: Option<RelatedInfo>,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult2<(MessageChain, Option<&'static DiagnosticMessage>)> {
+        fn prepend(
+            details: Option<MessageChain>,
+            message: &'static DiagnosticMessage,
+            args: &[String],
+        ) -> MessageChain {
+            MessageChain::new(message, args).with_next(details.into_iter().collect())
+        }
+
         let is_call = kind == SignatureKind::Call;
         let awaited = self.get_awaited_type_probe(apparent_type)?;
         let maybe_missing_await = match awaited {
             Some(awaited) => !self.get_signatures_of_type(awaited, kind)?.is_empty(),
             None => false,
         };
-        // 77222-77228: the zero-arg get-accessor head flavor.
+
+        let union_types = match &self.tables.type_of(apparent_type).data {
+            TypeData::Union { types, .. } => Some(types.to_vec()),
+            _ => None,
+        };
+        let error_info = if let Some(types) = union_types {
+            let apparent_text = self.type_to_string_slice(apparent_type)?;
+            let mut error_info = None;
+            let mut has_signatures = false;
+            for constituent in types {
+                let signatures = self.get_signatures_of_type(constituent, kind)?;
+                if !signatures.is_empty() {
+                    has_signatures = true;
+                    if error_info.is_some() {
+                        break;
+                    }
+                } else {
+                    if error_info.is_none() {
+                        let constituent_text = self.type_to_string_slice(constituent)?;
+                        error_info = Some(prepend(
+                            error_info,
+                            if is_call {
+                                &diagnostics::Type_0_has_no_call_signatures
+                            } else {
+                                &diagnostics::Type_0_has_no_construct_signatures
+                            },
+                            &[constituent_text],
+                        ));
+                        error_info = Some(prepend(
+                            error_info,
+                            if is_call {
+                                &diagnostics::Not_all_constituents_of_type_0_are_callable
+                            } else {
+                                &diagnostics::Not_all_constituents_of_type_0_are_constructable
+                            },
+                            std::slice::from_ref(&apparent_text),
+                        ));
+                    }
+                    if has_signatures {
+                        break;
+                    }
+                }
+            }
+            if !has_signatures {
+                Some(prepend(
+                    None,
+                    if is_call {
+                        &diagnostics::No_constituent_of_type_0_is_callable
+                    } else {
+                        &diagnostics::No_constituent_of_type_0_is_constructable
+                    },
+                    &[apparent_text],
+                ))
+            } else if error_info.is_none() {
+                Some(prepend(
+                    None,
+                    if is_call {
+                        &diagnostics::Each_member_of_the_union_type_0_has_signatures_but_none_of_those_signatures_are_compatible_with_each_other
+                    } else {
+                        &diagnostics::Each_member_of_the_union_type_0_has_construct_signatures_but_none_of_those_signatures_are_compatible_with_each_other
+                    },
+                    &[apparent_text],
+                ))
+            } else {
+                error_info
+            }
+        } else {
+            let apparent_text = self.type_to_string_slice(apparent_type)?;
+            Some(prepend(
+                None,
+                if is_call {
+                    &diagnostics::Type_0_has_no_call_signatures
+                } else {
+                    &diagnostics::Type_0_has_no_construct_signatures
+                },
+                &[apparent_text],
+            ))
+        };
+
         let mut head: &'static DiagnosticMessage = if is_call {
             &diagnostics::This_expression_is_not_callable
         } else {
@@ -5111,6 +5178,29 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
+        Ok((
+            prepend(error_info, head, &[]),
+            maybe_missing_await.then_some(&diagnostics::Did_you_forget_to_use_await),
+        ))
+    }
+
+    /// tsc-port: invocationError @6.0.3 (invocationErrorDetails folded in)
+    /// tsc-hash: f2d2133394f805817e33a6c4b1534917ab876d99027c097b8c1f6d172778d90b
+    /// tsc-span: _tsc.js:77167-77247
+    ///
+    /// Related rows: the await hint (2773); invocationErrorRecovery
+    /// 7038 rides the unmodeled originatingImport link (absent =
+    /// attach-only, safe).
+    fn invocation_error(
+        &mut self,
+        error_target: NodeId,
+        apparent_type: TypeId,
+        kind: SignatureKind,
+        related_information: Option<RelatedInfo>,
+    ) -> CheckResult2<()> {
+        let (chain, related_message) =
+            self.invocation_error_details(error_target, apparent_type, kind)?;
+        let parent = self.parent_of(error_target);
         // 77240-77244: the span override inside call parents.
         let span =
             if parent.is_some_and(|parent| self.kind_of(parent) == SyntaxKind::CallExpression) {
@@ -5133,13 +5223,12 @@ impl<'a> CheckerState<'a> {
                                 self.external_module_require_argument(declaration).is_some()
                             })
             );
-        let mut diagnostic = self.diagnostic_at_span(&span, MessageChain::new(head, &[]));
-        if maybe_missing_await {
-            diagnostic.related.push(self.related_info_for_node(
-                error_target,
-                &diagnostics::Did_you_forget_to_use_await,
-                &[],
-            ));
+        let head_code = chain.code;
+        let mut diagnostic = self.diagnostic_at_span(&span, chain);
+        if let Some(related_message) = related_message {
+            diagnostic
+                .related
+                .push(self.related_info_for_node(error_target, related_message, &[]));
         }
         if let Some(related) = related_information {
             diagnostic.related.push(related);
@@ -5147,7 +5236,7 @@ impl<'a> CheckerState<'a> {
         let diagnostics_before = self.diagnostics.len();
         self.push_error_diagnostic(diagnostic);
         if publish_checked_js_require {
-            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, head.code);
+            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, head_code);
         }
         Ok(())
     }
@@ -7308,6 +7397,116 @@ mod tests {
         assert_eq!(
             checked_rows("declare const u: { (): void } | { n: number };\nu();\n"),
             [(2349, 47, 1)]
+        );
+    }
+
+    #[test]
+    fn invocation_error_details_match_the_tsc_union_ladder() {
+        fn chain_codes(text: &str, code: u32) -> (Vec<u32>, Vec<String>) {
+            fn flatten(
+                chain: &tsrs2_diags::MessageChain,
+                codes: &mut Vec<u32>,
+                texts: &mut Vec<String>,
+            ) {
+                codes.push(chain.code);
+                texts.push(chain.text.clone());
+                for child in &chain.next {
+                    flatten(child, codes, texts);
+                }
+            }
+
+            let source_text = format!(
+                "interface Object {{}}\ninterface Function {{ readonly prototype: any }}\ninterface Array<T> {{}}\ninterface ReadonlyArray<T> {{}}\n{text}"
+            );
+            with_program_state(
+                &[("a.ts", &source_text)],
+                &CompilerOptions::default(),
+                |state| {
+                    state.check_source_file(0);
+                    let diagnostic = state
+                        .diagnostics
+                        .iter()
+                        .find(|diagnostic| diagnostic.code() == code)
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "the invocation error {code} is reported for {text:?}; actual={:?}",
+                                state
+                                    .diagnostics
+                                    .iter()
+                                    .map(|diagnostic| diagnostic.code())
+                                    .collect::<Vec<_>>()
+                            )
+                        });
+                    let mut codes = Vec::new();
+                    let mut texts = Vec::new();
+                    flatten(&diagnostic.message, &mut codes, &mut texts);
+                    (codes, texts)
+                },
+            )
+        }
+
+        let (plain_call, plain_call_text) =
+            chain_codes("declare const value: { n: number };\nvalue();\n", 2349);
+        assert_eq!(plain_call, [2349, 2757]);
+        assert_eq!(
+            plain_call_text[1],
+            "Type '{ n: number; }' has no call signatures."
+        );
+
+        let (plain_construct, plain_construct_text) =
+            chain_codes("declare const value: { n: number };\nnew value();\n", 2351);
+        assert_eq!(plain_construct, [2351, 2761]);
+        assert_eq!(
+            plain_construct_text[1],
+            "Type '{ n: number; }' has no construct signatures."
+        );
+
+        let (none, _) = chain_codes(
+            "declare const value: { a: string } | { b: number };\nvalue();\n",
+            2349,
+        );
+        assert_eq!(none, [2349, 2755]);
+
+        let (mixed, _) = chain_codes(
+            "declare const value: { (): void } | { n: number };\nvalue();\n",
+            2349,
+        );
+        assert_eq!(mixed, [2349, 2756, 2757]);
+
+        let (incompatible, _) = chain_codes(
+            r#"
+interface A { a: string }
+interface B { b: number }
+interface C { c: string }
+interface D { d: number }
+interface F3 {
+    (this: A): void;
+    (this: B): void;
+}
+interface F4 {
+    (this: C): void;
+    (this: D): void;
+}
+declare const value: F3 | F4;
+value();
+"#,
+            2349,
+        );
+        assert_eq!(incompatible, [2349, 2758]);
+
+        let (never_intersection, never_intersection_text) = chain_codes(
+            "declare const value: { (x: string): number; a: \"\" } & { a: number };\nvalue();\n",
+            2349,
+        );
+        assert_eq!(never_intersection, [2349, 2757]);
+        assert_eq!(
+            never_intersection_text[1],
+            "Type 'never' has no call signatures."
+        );
+
+        assert_eq!(
+            checked_rows("declare const callable: () => void;\ncallable();\n"),
+            []
         );
     }
 
