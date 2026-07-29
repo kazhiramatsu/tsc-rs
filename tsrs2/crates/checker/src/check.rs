@@ -7950,7 +7950,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4b587962e2fb137a31ea52c35aeba733ffb4c6d97a8c54c98d5c1f1666e73dda
     /// tsc-span: _tsc.js:50717-50747
     pub(crate) fn type_to_string_slice(&mut self, ty: TypeId) -> CheckResult2<String> {
-        self.type_to_string_slice_ex(ty, /*fully_qualified*/ false)
+        self.type_to_string_slice_root(ty, /*fully_qualified*/ false)
     }
 
     /// tsc-port: getTypeNameForErrorDisplay @6.0.3
@@ -7963,7 +7963,36 @@ impl<'a> CheckerState<'a> {
     /// curtain); shapes outside the slice keep escalating to the
     /// structured tail's tagged escapes.
     pub(crate) fn get_type_name_for_error_display(&mut self, ty: TypeId) -> CheckResult2<String> {
-        self.type_to_string_slice_ex(ty, /*fully_qualified*/ true)
+        self.type_to_string_slice_root(ty, /*fully_qualified*/ true)
+    }
+
+    /// withContext's typeToString-local nodeBuilder state
+    /// (_tsc.js:51205-51256). The renderer's recursive methods share
+    /// the parked fields below; a root call saves/restores them so a
+    /// semantic getter that re-enters typeToString receives a fresh
+    /// context just like tsc.
+    fn type_to_string_slice_root(
+        &mut self,
+        ty: TypeId,
+        fully_qualified: bool,
+    ) -> CheckResult2<String> {
+        let saved_visited = std::mem::take(&mut self.slice_visited_types);
+        let saved_approximate_length = std::mem::replace(&mut self.slice_approximate_length, 0);
+        let saved_max_truncation_length = std::mem::replace(
+            &mut self.slice_max_truncation_length,
+            if self.options.no_error_truncation == Some(true) {
+                1_000_000
+            } else {
+                160
+            },
+        );
+        let saved_truncating = std::mem::replace(&mut self.slice_truncating, false);
+        let result = self.type_to_string_slice_ex(ty, fully_qualified);
+        self.slice_visited_types = saved_visited;
+        self.slice_approximate_length = saved_approximate_length;
+        self.slice_max_truncation_length = saved_max_truncation_length;
+        self.slice_truncating = saved_truncating;
+        result
     }
 
     fn type_to_string_slice_ex(
@@ -7972,6 +8001,155 @@ impl<'a> CheckerState<'a> {
         fully_qualified: bool,
     ) -> CheckResult2<String> {
         Ok(self.type_to_string_slice_node(ty, fully_qualified)?.0)
+    }
+
+    /// tsc-port: checkTruncationLength @6.0.3
+    /// tsc-hash: 487c4a58aa166fe4725c57bdefaa15d36737ad40f6c64fa1476f33bd83d24e06
+    /// tsc-span: _tsc.js:51284-51287
+    ///
+    /// Once the accumulated
+    /// nodeBuilder estimate exceeds the active budget, truncating is
+    /// sticky for the rest of this typeToString call.
+    fn slice_check_truncation_length(&mut self) -> bool {
+        if !self.slice_truncating {
+            self.slice_truncating =
+                self.slice_approximate_length > self.slice_max_truncation_length;
+        }
+        self.slice_truncating
+    }
+
+    fn slice_add_approximate_length(&mut self, length: usize) {
+        self.slice_approximate_length = self.slice_approximate_length.saturating_add(length);
+    }
+
+    /// JS string `.length`, used by nodeBuilder's estimate counters.
+    fn slice_js_length(text: &str) -> usize {
+        text.encode_utf16().count()
+    }
+
+    /// createAccessFromSymbolChain on the ordinary one-symbol chain
+    /// increments once while selecting the root name and once again
+    /// while creating that link (53204-53231).
+    fn slice_add_bare_symbol_length(&mut self, name: &str) {
+        self.slice_add_approximate_length(2 * (Self::slice_js_length(name) + 1));
+    }
+
+    fn slice_truncation_type_node(&self) -> (String, SliceTypeNodeKind) {
+        if self.options.no_error_truncation == Some(true) {
+            // NoTruncation uses `any` plus a synthetic elision
+            // comment; typeToString's remove-comments printer leaves
+            // the keyword face.
+            ("any".to_owned(), SliceTypeNodeKind::Keyword)
+        } else {
+            ("...".to_owned(), SliceTypeNodeKind::Reference)
+        }
+    }
+
+    fn slice_types_are_same_reference(&self, left: TypeId, right: TypeId) -> bool {
+        if left == right {
+            return true;
+        }
+        let left = self.tables.type_of(left);
+        let right = self.tables.type_of(right);
+        left.symbol.is_some() && left.symbol == right.symbol
+            || left.alias_symbol.is_some() && left.alias_symbol == right.alias_symbol
+    }
+
+    /// tsc-port: mapToTypeNodes @6.0.3
+    /// tsc-hash: a385aa0049c7141c5be2128f906eee6191ceb8679fc524625f46ebab2808d59a
+    /// tsc-span: _tsc.js:52404-52472
+    ///
+    /// Includes its sticky
+    /// truncation probes and the two-unit estimate charged before
+    /// every rendered element, plus the fully-qualified
+    /// same-written-name collision retry.
+    fn map_to_type_string_nodes_slice(
+        &mut self,
+        types: &[TypeId],
+        fully_qualified: bool,
+        is_bare_list: bool,
+    ) -> CheckResult2<Vec<(String, SliceTypeNodeKind)>> {
+        if types.is_empty() {
+            return Ok(Vec::new());
+        }
+        if self.slice_check_truncation_length() {
+            if !is_bare_list {
+                return Ok(vec![self.slice_truncation_type_node()]);
+            }
+            if types.len() > 2 {
+                let first = self.type_to_string_slice_node(types[0], fully_qualified)?;
+                let last =
+                    self.type_to_string_slice_node(types[types.len() - 1], fully_qualified)?;
+                return Ok(vec![
+                    first,
+                    if self.options.no_error_truncation == Some(true) {
+                        ("any".to_owned(), SliceTypeNodeKind::Keyword)
+                    } else {
+                        (
+                            format!("... {} more ...", types.len() - 2),
+                            SliceTypeNodeKind::Reference,
+                        )
+                    },
+                    last,
+                ]);
+            }
+        }
+        let mut rendered = Vec::with_capacity(types.len());
+        let mut seen_names: std::collections::BTreeMap<String, Vec<(TypeId, usize)>> =
+            std::collections::BTreeMap::new();
+        for (index, &ty) in types.iter().enumerate() {
+            let ordinal = index + 1;
+            if self.slice_check_truncation_length() && ordinal + 2 < types.len() - 1 {
+                rendered.push(if self.options.no_error_truncation == Some(true) {
+                    ("any".to_owned(), SliceTypeNodeKind::Keyword)
+                } else {
+                    (
+                        format!("... {} more ...", types.len() - ordinal),
+                        SliceTypeNodeKind::Reference,
+                    )
+                });
+                rendered
+                    .push(self.type_to_string_slice_node(types[types.len() - 1], fully_qualified)?);
+                break;
+            }
+            self.slice_add_approximate_length(2);
+            let node = self.type_to_string_slice_node(ty, fully_qualified)?;
+            let result_index = rendered.len();
+            if !fully_qualified && node.1 == SliceTypeNodeKind::Reference {
+                let head = node
+                    .0
+                    .split_once('<')
+                    .map_or(node.0.as_str(), |(head, _)| head);
+                if tsrs2_syntax::is_identifier_text(head) {
+                    seen_names
+                        .entry(head.to_owned())
+                        .or_default()
+                        .push((ty, result_index));
+                }
+            }
+            rendered.push(node);
+        }
+        // mapToTypeNodes' same-written-name retry (52451-52469):
+        // only a heterogeneous identifier-reference group rerenders
+        // under UseFullyQualifiedType. Same-symbol generic
+        // instantiations are homogeneous even when arguments differ.
+        for collisions in seen_names.values() {
+            let Some(&(first, _)) = collisions.first() else {
+                continue;
+            };
+            if collisions
+                .iter()
+                .skip(1)
+                .all(|&(ty, _)| self.slice_types_are_same_reference(first, ty))
+            {
+                continue;
+            }
+            for &(ty, result_index) in collisions {
+                rendered[result_index] =
+                    self.type_to_string_slice_node(ty, /*fully_qualified*/ true)?;
+            }
+        }
+        Ok(rendered)
     }
 
     /// tsc getNameOfSymbolAsWritten's anonymous class/function face.
@@ -7993,24 +8171,22 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::ArrowFunction => {
                     let source = self.binder.source_of_node(declaration);
                     if let Some(name) = node_util::get_name_of_declaration(source, declaration) {
-                        return Ok(node_util::declaration_name_to_string(source, Some(name)));
+                        let name = node_util::declaration_name_to_string(source, Some(name));
+                        self.slice_add_bare_symbol_length(&name);
+                        return Ok(name);
                     }
-                    return Ok(
-                        if self.kind_of(declaration) == SyntaxKind::ClassExpression {
-                            "(Anonymous class)".to_owned()
-                        } else {
-                            "(Anonymous function)".to_owned()
-                        },
-                    );
+                    let name = if self.kind_of(declaration) == SyntaxKind::ClassExpression {
+                        "(Anonymous class)".to_owned()
+                    } else {
+                        "(Anonymous function)".to_owned()
+                    };
+                    self.slice_add_bare_symbol_length(&name);
+                    return Ok(name);
                 }
                 _ => {}
             }
         }
-        if fully_qualified {
-            Ok(self.symbol_type_face_slice(symbol, true)?.0)
-        } else {
-            Ok(self.symbol_display_name(symbol))
-        }
+        Ok(self.symbol_type_face_slice(symbol, fully_qualified)?.0)
     }
 
     /// The bounded non-JSDoc face of tsc
@@ -8143,11 +8319,19 @@ impl<'a> CheckerState<'a> {
                 };
                 return match alias_arguments {
                     Some(arguments) if !arguments.is_empty() => {
-                        let mut rendered = Vec::with_capacity(arguments.len());
-                        for argument in arguments.iter() {
-                            rendered
-                                .push(self.type_to_string_slice_ex(*argument, fully_qualified)?);
-                        }
+                        // The Any+alias arm uses
+                        // symbolToEntityNameNode, not symbolToTypeNode:
+                        // it charges only mapToTypeNodes' per-argument
+                        // units, never the alias name.
+                        let rendered = self
+                            .map_to_type_string_nodes_slice(
+                                &arguments,
+                                fully_qualified,
+                                /*is_bare_list*/ false,
+                            )?
+                            .into_iter()
+                            .map(|(text, _)| text)
+                            .collect::<Vec<_>>();
                         Ok((
                             format!("{name}<{}>", rendered.join(", ")),
                             SliceTypeNodeKind::Reference,
@@ -8175,7 +8359,7 @@ impl<'a> CheckerState<'a> {
             }
             return Ok((
                 match self.tables.type_of(ty).symbol {
-                    Some(symbol) => self.symbol_display_name(symbol),
+                    Some(symbol) => self.symbol_type_face_slice(symbol, fully_qualified)?.0,
                     None => "?".to_owned(),
                 },
                 SliceTypeNodeKind::Reference,
@@ -8258,11 +8442,7 @@ impl<'a> CheckerState<'a> {
                         "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
                     ));
                 };
-                let parent_name = if fully_qualified {
-                    self.get_fully_qualified_name(parent)
-                } else {
-                    self.symbol_display_name(parent)
-                };
+                let parent_name = self.symbol_type_face_slice(parent, fully_qualified)?.0;
                 if self.get_declared_type_of_symbol_slice(parent)? == ty {
                     return Ok((parent_name, SliceTypeNodeKind::Reference));
                 }
@@ -8277,16 +8457,9 @@ impl<'a> CheckerState<'a> {
                     "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
                 ));
             }
-            return Ok((
-                if fully_qualified {
-                    self.get_fully_qualified_name(symbol)
-                } else {
-                    self.symbol_display_name(symbol)
-                },
-                SliceTypeNodeKind::Reference,
-            ));
+            return self.symbol_type_face_slice(symbol, fully_qualified);
         }
-        match &self.tables.type_of(ty).data {
+        match self.tables.type_of(ty).data.clone() {
             TypeData::Intrinsic { name, .. } => {
                 // tsc-port: typeToTypeNodeWorker @6.0.3
                 // tsc-span: _tsc.js:51314-51330
@@ -8297,12 +8470,41 @@ impl<'a> CheckerState<'a> {
                 // the AnyKeyword face. The single `intrinsic`
                 // marker used by string-mapping declarations keeps
                 // its dedicated IntrinsicKeyword face.
-                let text = if flags.intersects(TypeFlags::ANY) {
+                let text: &str = if flags.intersects(TypeFlags::ANY) {
+                    self.slice_add_approximate_length(3);
                     if ty == self.tables.intrinsics.intrinsic_marker {
                         "intrinsic"
                     } else {
                         "any"
                     }
+                } else if flags.intersects(TypeFlags::UNKNOWN) {
+                    name
+                } else if flags
+                    .intersects(TypeFlags::STRING | TypeFlags::NUMBER | TypeFlags::BIG_INT)
+                {
+                    self.slice_add_approximate_length(6);
+                    name
+                } else if flags.intersects(TypeFlags::BOOLEAN) {
+                    self.slice_add_approximate_length(7);
+                    name
+                } else if flags.intersects(TypeFlags::BOOLEAN_LITERAL) {
+                    self.slice_add_approximate_length(Self::slice_js_length(name));
+                    name
+                } else if flags.intersects(TypeFlags::VOID) {
+                    self.slice_add_approximate_length(4);
+                    name
+                } else if flags.intersects(TypeFlags::UNDEFINED) {
+                    self.slice_add_approximate_length(9);
+                    name
+                } else if flags.intersects(TypeFlags::NULL) {
+                    self.slice_add_approximate_length(4);
+                    name
+                } else if flags.intersects(TypeFlags::NEVER) {
+                    self.slice_add_approximate_length(5);
+                    name
+                } else if flags.intersects(TypeFlags::ES_SYMBOL | TypeFlags::NON_PRIMITIVE) {
+                    self.slice_add_approximate_length(6);
+                    name
                 } else {
                     name
                 };
@@ -8319,15 +8521,17 @@ impl<'a> CheckerState<'a> {
                     // gap is the recorded 9.3b4-r1 D1a census
                     // candidate; LiteralValue::String cannot carry
                     // one.)
+                    self.slice_add_approximate_length(Self::slice_js_length(&text) + 2);
                     Ok((
-                        format!("\"{}\"", string_literal_type_display_text(text)),
+                        format!("\"{}\"", string_literal_type_display_text(&text)),
                         SliceTypeNodeKind::Literal,
                     ))
                 }
-                tsrs2_types::LiteralValue::Number(value) => Ok((
-                    tsrs2_types::js_number_to_string(*value),
-                    SliceTypeNodeKind::Literal,
-                )),
+                tsrs2_types::LiteralValue::Number(value) => {
+                    let text = tsrs2_types::js_number_to_string(value);
+                    self.slice_add_approximate_length(Self::slice_js_length(&text));
+                    Ok((text, SliceTypeNodeKind::Literal))
+                }
                 _ => Err(Unsupported::new(
                     "literal display beyond plain strings/numbers (nodeBuilder, T2/M8)",
                 )),
@@ -8355,8 +8559,10 @@ impl<'a> CheckerState<'a> {
                         .type_of(ty)
                         .symbol
                         .expect("unique symbols carry their declaration symbol");
+                    self.slice_add_approximate_length(6);
                     self.symbol_value_face_slice(symbol, true)
                 } else {
+                    self.slice_add_approximate_length(13);
                     Ok(("unique symbol".to_owned(), SliceTypeNodeKind::TypeOperator))
                 }
             }
@@ -8408,11 +8614,6 @@ impl<'a> CheckerState<'a> {
         if let (Some(alias_symbol), alias_arguments) =
             (type_of.alias_symbol, type_of.alias_type_arguments.clone())
         {
-            let name = if fully_qualified {
-                self.get_fully_qualified_name(alias_symbol)
-            } else {
-                self.symbol_display_name(alias_symbol)
-            };
             return match alias_arguments {
                 Some(arguments) if !arguments.is_empty() => {
                     // Type-argument lists never parenthesize in the
@@ -8425,28 +8626,37 @@ impl<'a> CheckerState<'a> {
                     // same ArrayTypeNode sugar as the reference arm;
                     // name-based matching would incorrectly sugar a
                     // shadowing local alias, so retain symbol identity.
+                    let mut rendered_nodes = self.map_to_type_string_nodes_slice(
+                        &arguments,
+                        fully_qualified,
+                        /*is_bare_list*/ false,
+                    )?;
                     if arguments.len() == 1
                         && self.binder.symbol(alias_symbol).escaped_name == "Array"
                         && self.get_global_type_symbol("Array", /*report_errors*/ false)
                             == Some(alias_symbol)
                     {
-                        let (element, kind) =
-                            self.type_to_string_slice_node(arguments[0], fully_qualified)?;
+                        let (element, kind) = rendered_nodes
+                            .pop()
+                            .expect("one alias argument produced one mapToTypeNodes face");
                         return Ok((
                             array_type_node_text(element, kind),
                             SliceTypeNodeKind::Array,
                         ));
                     }
-                    let mut rendered = Vec::new();
-                    for argument in arguments.iter() {
-                        rendered.push(self.type_to_string_slice_ex(*argument, fully_qualified)?);
-                    }
+                    let name = self
+                        .symbol_type_face_slice(alias_symbol, fully_qualified)?
+                        .0;
+                    let rendered = rendered_nodes
+                        .into_iter()
+                        .map(|(text, _)| text)
+                        .collect::<Vec<_>>();
                     Ok((
                         format!("{name}<{}>", rendered.join(", ")),
                         SliceTypeNodeKind::Reference,
                     ))
                 }
-                _ => Ok((name, SliceTypeNodeKind::Reference)),
+                _ => self.symbol_type_face_slice(alias_symbol, fully_qualified),
             };
         }
         let flags = self.tables.flags_of(ty);
@@ -8455,6 +8665,7 @@ impl<'a> CheckerState<'a> {
         // (getUnionType's boolean-pair stamp — tables mirror it) and
         // prints as the keyword, never as its members.
         if flags.intersects(TypeFlags::BOOLEAN) && flags.intersects(TypeFlags::UNION) {
+            self.slice_add_approximate_length(7);
             return Ok(("boolean".to_owned(), SliceTypeNodeKind::Keyword));
         }
         if flags.intersects(TypeFlags::UNION | TypeFlags::INTERSECTION) {
@@ -8535,9 +8746,13 @@ impl<'a> CheckerState<'a> {
             if types.len() == 1 {
                 return self.type_to_string_slice_node(types[0], fully_qualified);
             }
+            let rendered_nodes = self.map_to_type_string_nodes_slice(
+                &types,
+                fully_qualified,
+                /*is_bare_list*/ true,
+            )?;
             let mut rendered = Vec::new();
-            for member in types {
-                let (text, kind) = self.type_to_string_slice_node(member, fully_qualified)?;
+            for (text, kind) in rendered_nodes {
                 let needs_parens = if is_union {
                     union_constituent_needs_parens(kind)
                 } else {
@@ -8598,10 +8813,15 @@ impl<'a> CheckerState<'a> {
                 // through to the empty-tuple tail; typeToString always
                 // runs under IgnoreErrors ⊇ AllowEmptyTuple (50722),
                 // so the error-display slice prints `[]` there.
-                let mut rendered = Vec::with_capacity(arity);
-                for (i, &argument) in arguments.iter().take(arity).enumerate() {
+                let argument_count = arguments.len().min(arity);
+                let tuple_nodes = self.map_to_type_string_nodes_slice(
+                    &arguments[..argument_count],
+                    fully_qualified,
+                    /*is_bare_list*/ false,
+                )?;
+                let mut rendered = Vec::with_capacity(tuple_nodes.len());
+                for (i, (text, kind)) in tuple_nodes.into_iter().enumerate() {
                     let flags = element_flags[i];
-                    let (text, kind) = self.type_to_string_slice_node(argument, fully_qualified)?;
                     let label = labels
                         .as_ref()
                         .and_then(|labels| labels.get(i).copied())
@@ -8682,7 +8902,6 @@ impl<'a> CheckerState<'a> {
                     "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
                 ));
             };
-            let name = self.type_reference_symbol_name_slice(symbol, fully_qualified)?;
             let arguments = self.get_type_arguments(ty)?;
             // typeReferenceToTypeNode's array sugar: references to the
             // global Array/ReadonlyArray print as element sugar (the
@@ -8762,10 +8981,15 @@ impl<'a> CheckerState<'a> {
                     .copied()
                     .ne(type_parameters[group_start..argument_start].iter().copied())
                 {
-                    let mut rendered = Vec::new();
-                    for argument in argument_group {
-                        rendered.push(self.type_to_string_slice_ex(*argument, fully_qualified)?);
-                    }
+                    let rendered = self
+                        .map_to_type_string_nodes_slice(
+                            argument_group,
+                            fully_qualified,
+                            /*is_bare_list*/ false,
+                        )?
+                        .into_iter()
+                        .map(|(text, _)| text)
+                        .collect::<Vec<_>>();
                     let parent_name =
                         self.type_reference_symbol_name_slice(parent, fully_qualified)?;
                     let reference = format!("{parent_name}<{}>", rendered.join(", "));
@@ -8795,14 +9019,18 @@ impl<'a> CheckerState<'a> {
                     type_parameter_count -= 1;
                 }
             }
-            let mut rendered = Vec::new();
-            for argument in arguments
-                .iter()
-                .take(type_parameter_count)
-                .skip(outer_type_parameter_count)
-            {
-                rendered.push(self.type_to_string_slice_ex(*argument, fully_qualified)?);
-            }
+            let argument_end = type_parameter_count.min(arguments.len());
+            let argument_start = outer_type_parameter_count.min(argument_end);
+            let rendered = self
+                .map_to_type_string_nodes_slice(
+                    &arguments[argument_start..argument_end],
+                    fully_qualified,
+                    /*is_bare_list*/ false,
+                )?
+                .into_iter()
+                .map(|(text, _)| text)
+                .collect::<Vec<_>>();
+            let name = self.type_reference_symbol_name_slice(symbol, fully_qualified)?;
             let reference = if rendered.is_empty() {
                 name
             } else {
@@ -8851,6 +9079,7 @@ impl<'a> CheckerState<'a> {
                 out.push_str(&template_text_utf16_raw(texts[i + 1].units()));
             }
             out.push('`');
+            self.slice_add_approximate_length(2);
             return Ok((out, SliceTypeNodeKind::TemplateLiteral));
         }
         // tsc-port: typeToTypeNodeHelper @6.0.3 (the StringMapping arm)
@@ -8876,11 +9105,7 @@ impl<'a> CheckerState<'a> {
                 ));
             };
             let (argument, _) = self.type_to_string_slice_node(inner, fully_qualified)?;
-            let name = if fully_qualified {
-                self.get_fully_qualified_name(symbol)
-            } else {
-                self.symbol_display_name(symbol)
-            };
+            let name = self.symbol_type_face_slice(symbol, fully_qualified)?.0;
             return Ok((format!("{name}<{argument}>"), SliceTypeNodeKind::Reference));
         }
         // tsc-port: typeToTypeNodeHelper @6.0.3 (the IndexedAccess arm)
@@ -8908,6 +9133,7 @@ impl<'a> CheckerState<'a> {
                 object_text
             };
             let (index_text, _) = self.type_to_string_slice_node(index_type, fully_qualified)?;
+            self.slice_add_approximate_length(2);
             return Ok((
                 format!("{object}[{index_text}]"),
                 SliceTypeNodeKind::IndexedAccess,
@@ -8924,6 +9150,7 @@ impl<'a> CheckerState<'a> {
             } else {
                 check_text
             };
+            self.slice_add_approximate_length(15);
             let (extends_text, extends_kind) =
                 self.type_to_string_slice_node(data.extends_type, fully_qualified)?;
             let extends = if extends_kind == SliceTypeNodeKind::Conditional {
@@ -8948,11 +9175,7 @@ impl<'a> CheckerState<'a> {
                 let (argument, _) =
                     self.type_to_string_slice_node(data.base_type, fully_qualified)?;
                 if let Some(symbol) = self.get_global_type_symbol("NoInfer", false) {
-                    let name = if fully_qualified {
-                        self.get_fully_qualified_name(symbol)
-                    } else {
-                        self.symbol_display_name(symbol)
-                    };
+                    let name = self.symbol_type_face_slice(symbol, fully_qualified)?.0;
                     return Ok((format!("{name}<{argument}>"), SliceTypeNodeKind::Reference));
                 }
             }
@@ -9027,6 +9250,7 @@ impl<'a> CheckerState<'a> {
         let name = name_type
             .map(|name_type| format!(" as {name_type}"))
             .unwrap_or_default();
+        self.slice_add_approximate_length(10);
         Ok((
             format!(
                 "{{ {readonly}[{parameter_name} in {constraint}{name}]{question}: {template}; }}"
@@ -9053,6 +9277,7 @@ impl<'a> CheckerState<'a> {
             TypeData::Index { ty: inner, .. } => inner,
             _ => unreachable!("INDEX flag implies Index data"),
         };
+        self.slice_add_approximate_length(6);
         let (text, kind) = self.type_to_string_slice_node(inner, fully_qualified)?;
         let operand = if type_operator_operand_needs_parens(kind) {
             format!("({text})")
@@ -9242,6 +9467,7 @@ impl<'a> CheckerState<'a> {
             let specifier = self.specifier_for_module_symbol_slice(symbol)?;
             let literal = string_literal_name_slice(&specifier, false)?;
             let type_of = if is_type_of { "typeof " } else { "" };
+            self.slice_add_approximate_length(Self::slice_js_length(&specifier) + 10);
             return Ok((
                 format!("{type_of}import({literal})"),
                 SliceTypeNodeKind::ImportType,
@@ -9259,6 +9485,7 @@ impl<'a> CheckerState<'a> {
                 let specifier = self.specifier_for_module_symbol_slice(root)?;
                 let literal = string_literal_name_slice(&specifier, false)?;
                 let type_of = if is_type_of { "typeof " } else { "" };
+                self.slice_add_approximate_length(Self::slice_js_length(&specifier) + 10);
                 // 53175-53185: the export= short-circuit (52978-52981)
                 // leaves a length-1 chain — the bare ImportTypeNode.
                 if chain.len() == 1 {
@@ -9269,8 +9496,9 @@ impl<'a> CheckerState<'a> {
                 }
                 let mut qualifier = Vec::with_capacity(chain.len() - 1);
                 for index in 1..chain.len() {
-                    qualifier
-                        .push(self.qualifier_symbol_name_slice(chain[index - 1], chain[index])?);
+                    let name = self.qualifier_symbol_name_slice(chain[index - 1], chain[index])?;
+                    self.slice_add_approximate_length(Self::slice_js_length(&name) + 1);
+                    qualifier.push(name);
                 }
                 let qualifier = qualifier.join(".");
                 return Ok((
@@ -9283,9 +9511,13 @@ impl<'a> CheckerState<'a> {
             // symbol_display_name posture), then export-table naming
             // below it.
             let mut parts = Vec::with_capacity(chain.len());
-            parts.push(self.symbol_display_name(root));
+            let root_name = self.symbol_display_name(root);
+            self.slice_add_bare_symbol_length(&root_name);
+            parts.push(root_name);
             for index in 1..chain.len() {
-                parts.push(self.qualifier_symbol_name_slice(chain[index - 1], chain[index])?);
+                let name = self.qualifier_symbol_name_slice(chain[index - 1], chain[index])?;
+                self.slice_add_approximate_length(Self::slice_js_length(&name) + 1);
+                parts.push(name);
             }
             let text = parts.join(".");
             return Ok(if is_type_of {
@@ -9296,6 +9528,7 @@ impl<'a> CheckerState<'a> {
         }
         // 53186-53197 with the [symbol] chain: the bare-name face.
         let name = self.symbol_display_name(symbol);
+        self.slice_add_bare_symbol_length(&name);
         Ok(if is_type_of {
             (format!("typeof {name}"), SliceTypeNodeKind::TypeQuery)
         } else {
@@ -10494,6 +10727,7 @@ impl<'a> CheckerState<'a> {
                     || (born_resolved && js_declared && js_empty_parameter_assignment)
                     || (born_resolved && js_declared && js_empty_property_initializer)
                 {
+                    self.slice_add_approximate_length(2);
                     return Ok(("{}".to_owned(), SliceTypeNodeKind::TypeLiteral));
                 }
                 return Err(Unsupported::new(
@@ -10533,15 +10767,26 @@ impl<'a> CheckerState<'a> {
                 "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
             ));
         }
+        // tsc-port: createTypeNodesFromResolvedType @6.0.3
+        // tsc-hash: 96050b8c4ac17267f28f5ad848b848455efd24d01d889c9513683ef40b05770e
+        // tsc-span: _tsc.js:52137-52152
+        //
+        // createTypeNodesFromResolvedType performs this
+        // probe before signatures, index infos, or properties. A
+        // sticky truncating context therefore turns the entire object
+        // body into the synthetic `...` property; the enclosing
+        // TypeLiteral still charges its braces below.
+        if self.slice_check_truncation_length() {
+            self.slice_add_approximate_length(2);
+            return Ok(("{ ...; }".to_owned(), SliceTypeNodeKind::TypeLiteral));
+        }
         // createTypeNodesFromResolvedType (52137-52240): call
         // signatures, then construct signatures (the 52157 abstract
         // `continue` is unreachable while the re-derivation above
         // curtains every abstract-bearing shape), then index
-        // signatures, then properties. The checkTruncationLength
-        // probes are approximateLength gates the slice does not
-        // model: an over-long literal prints whole where tsc elides
-        // `... N more ...` — text-only divergence (T2 tail), the row
-        // keys are position+code and unaffected.
+        // signatures, then properties. The leading and per-property
+        // checkTruncationLength probes share the exact sticky context
+        // initialized by type_to_string_slice_root.
         let mut rendered = Vec::new();
         for &signature in &call_signatures {
             rendered.push(self.signature_to_string_slice(
@@ -10562,14 +10807,28 @@ impl<'a> CheckerState<'a> {
         for info in &index_infos {
             rendered.push(self.index_signature_slice(info, fully_qualified)?);
         }
-        for &property in &properties {
+        for (index, &property) in properties.iter().enumerate() {
+            let ordinal = index + 1;
+            if self.slice_check_truncation_length() && ordinal + 2 < properties.len() - 1 {
+                if self.options.no_error_truncation != Some(true) {
+                    rendered.push(format!("... {} more ...", properties.len() - ordinal));
+                }
+                self.property_signature_slice(
+                    properties[properties.len() - 1],
+                    fully_qualified,
+                    &mut rendered,
+                )?;
+                break;
+            }
             self.property_signature_slice(property, fully_qualified, &mut rendered)?;
         }
         if rendered.is_empty() {
             // 52238: every property skipped -> undefined members ->
             // the member-less literal face.
+            self.slice_add_approximate_length(2);
             return Ok(("{}".to_owned(), SliceTypeNodeKind::TypeLiteral));
         }
+        self.slice_add_approximate_length(2);
         Ok((
             format!("{{ {}; }}", rendered.join("; ")),
             SliceTypeNodeKind::TypeLiteral,
@@ -10614,6 +10873,7 @@ impl<'a> CheckerState<'a> {
         };
         let key = self.type_to_string_slice_ex(info.key_type, fully_qualified)?;
         let value = self.type_to_string_slice_ex(info.value_type, fully_qualified)?;
+        self.slice_add_approximate_length(Self::slice_js_length(&name) + 4);
         let readonly = if info.is_readonly { "readonly " } else { "" };
         Ok(format!("{readonly}[{name}: {key}]: {value}"))
     }
@@ -10648,6 +10908,8 @@ impl<'a> CheckerState<'a> {
         }
         let property_type = self.get_non_missing_type_of_symbol(property)?;
         let symbol_flags = self.binder.symbol(property).flags;
+        let name = self.property_name_slice(property, fully_qualified)?;
+        self.slice_add_approximate_length(Self::slice_js_length(&name) + 1);
         // 52268-52343: accessor properties whose write type diverges
         // (or whose class parent takes the getter/setter arms) print
         // signature faces; the same-type non-class fall-through
@@ -10684,7 +10946,6 @@ impl<'a> CheckerState<'a> {
                     // 52274-52297: the diverging pair prints one
                     // signature face per present accessor declaration,
                     // instantiated under the symbol links mapper.
-                    let name = self.property_name_slice(property, fully_qualified)?;
                     let symbol_mapper = self.links.symbol(property).mapper;
                     let declarations = self.binder.symbol(property).declarations.clone();
                     let getter = declarations
@@ -10743,7 +11004,6 @@ impl<'a> CheckerState<'a> {
                 // member per call signature, the optional token on
                 // each (`m?(...)`), the filtered type's undefined
                 // never printing.
-                let name = self.property_name_slice(property, fully_qualified)?;
                 for &signature in &signatures {
                     rendered.push(self.signature_to_string_slice(
                         signature,
@@ -10758,9 +11018,9 @@ impl<'a> CheckerState<'a> {
                 return Ok(());
             }
         }
-        let name = self.property_name_slice(property, fully_qualified)?;
         let type_text = self.type_to_string_slice_ex(property_type, fully_qualified)?;
         let readonly = if self.is_readonly_symbol(property) {
+            self.slice_add_approximate_length(9);
             "readonly "
         } else {
             ""
@@ -16733,6 +16993,61 @@ mod tests {
                 1,
                 "Type 'number' is not assignable to type '{ x: string; y: number; }'.".to_owned()
             )]
+        );
+    }
+
+    #[test]
+    fn type_display_truncation_state_is_sticky_across_alias_arguments() {
+        let short = "type Defaultize<T, D> = T & D;\n\
+                     declare let target: Defaultize<{ \
+                     property0: number; property1: number; property2: number; \
+                     property3: number; property4: number; property5: number; \
+                     }, { tail: number }>;\n\
+                     target = 1;\n";
+        let long = "type Defaultize<T, D> = T & D;\n\
+                    declare let target: Defaultize<{ \
+                    property0: number; property1: number; property2: number; \
+                    property3: number; property4: number; property5: number; \
+                    property6: number; property7: number; property8: number; \
+                    property9: number; \
+                    }, { tail: number }>;\n\
+                    target = 1;\n";
+        let message = |text| {
+            checked_diags(text)
+                .into_iter()
+                .find(|row| row.0 == 2322)
+                .expect("assignment diagnostic")
+                .3
+        };
+        assert_eq!(
+            message(short),
+            "Type 'number' is not assignable to type \
+             'Defaultize<{ property0: number; property1: number; property2: number; \
+             property3: number; property4: number; property5: number; }, \
+             { tail: number; }>'."
+        );
+        assert_eq!(
+            message(long),
+            "Type 'number' is not assignable to type \
+             'Defaultize<{ property0: number; property1: number; property2: number; \
+             property3: number; property4: number; property5: number; property6: number; \
+             property7: number; property8: number; property9: number; }, { ...; }>'."
+        );
+        let options = CompilerOptions {
+            no_error_truncation: Some(true),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            checked_diags_with(long, &options)
+                .into_iter()
+                .find(|row| row.0 == 2322)
+                .expect("assignment diagnostic")
+                .3,
+            "Type 'number' is not assignable to type \
+             'Defaultize<{ property0: number; property1: number; property2: number; \
+             property3: number; property4: number; property5: number; property6: number; \
+             property7: number; property8: number; property9: number; }, \
+             { tail: number; }>'."
         );
     }
 

@@ -785,6 +785,7 @@ fn directive_spec(normalized_name: &str) -> Option<DirectiveSpec> {
         "noemit" => bool_option("noEmit"),
         "noemithelpers" => bool_option("noEmitHelpers"),
         "noemitonerror" => bool_option("noEmitOnError"),
+        "noerrortruncation" => bool_option("noErrorTruncation"),
         "nofallthroughcasesinswitch" => bool_option("noFallthroughCasesInSwitch"),
         "noimplicitany" => bool_option("noImplicitAny"),
         "noimplicitoverride" => bool_option("noImplicitOverride"),
@@ -1283,6 +1284,21 @@ mod tests {
         assert_eq!(
             programs[0].to_json(),
             "{\n  \"schema\": 1,\n  \"cwd\": \"/\",\n  \"options\": {\n    \"noLib\": true\n  },\n  \"libs\": [],\n  \"files\": [\n    {\n      \"name\": \"plain.ts\",\n      \"textB64\": \"bGV0IHggPSAxOwo=\"\n    }\n  ],\n  \"matrixKey\": \"\"\n}\n"
+        );
+    }
+
+    #[test]
+    fn no_error_truncation_directive_reaches_program_options() {
+        let programs = expand_fixture_text(
+            "display.ts",
+            "// @noErrorTruncation: true\nlet x = 1;\n",
+            &vendor_lib_dir(),
+        )
+        .expect("fixture expands");
+
+        assert_eq!(
+            programs[0].options.get("noErrorTruncation"),
+            Some(&OptionValue::Bool(true))
         );
     }
 

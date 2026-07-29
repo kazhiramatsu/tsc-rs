@@ -31,6 +31,10 @@ pub struct CompilerOptions {
     /// Gates the 7022/7023-family implicit-any circularity reports
     /// (reportCircularityError 56893, getReturnTypeOfSignature 59826).
     pub no_implicit_any: Option<bool>,
+    /// Selects nodeBuilder's one-million-unit NoTruncation budget for
+    /// diagnostic type rendering instead of the ordinary 160-unit
+    /// budget (typeToString 50717-50747).
+    pub no_error_truncation: Option<bool>,
     /// Gates checkThisExpression's 2683/7041-family implicit-this
     /// reports; strict-family (read through strict_option_value).
     pub no_implicit_this: Option<bool>,
