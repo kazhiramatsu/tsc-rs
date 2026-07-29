@@ -1650,6 +1650,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             && self.flags(target).intersects(TypeFlags::PRIMITIVE)
         {
             self.try_elaborate_errors_for_primitives_and_objects(source, target)?;
+        } else if self.st.tables.type_of(source).symbol.is_some()
+            && self.flags(source).intersects(TypeFlags::OBJECT)
+            && source == self.st.global_object_type()?
+        {
+            self.report_error(
+                &diagnostics::The_Object_type_is_assignable_to_very_few_other_types_Did_you_mean_to_use_the_any_type_instead,
+                vec![],
+            )?;
         }
         if head_message.is_none() && maybe_suppress {
             let saved_error_state = self.capture_error_calculation_state();
