@@ -7540,12 +7540,33 @@ impl<'a> CheckerState<'a> {
         // enclosing pass plus the equal→fully-qualified retry; the
         // multi-property 2739/2740 faces use plain typeToString
         // (66752-66757, no enclosing).
+        // The unmatched-property verdict above remains keyed to the
+        // original report pair. Only its source DISPLAY reconstructs
+        // the structural relation's inner apparent face: branded
+        // primitive intersections acquire their wrapper constituent,
+        // and generic-reference aliases report the canonical
+        // reference that failed. Keeping this after head selection is
+        // essential — apparent-izing the verdict input would turn
+        // unrelated generic 2322 rows into missing-property heads.
+        let source_display = self.get_apparent_type(source)?;
+        let source_display = if self
+            .tables
+            .object_flags_of(source_display)
+            .intersects(ObjectFlags::REFERENCE)
+            && self.tables.type_of(source_display).alias_symbol.is_some()
+        {
+            let target = self.tables.reference_target(source_display);
+            let arguments = self.get_type_arguments(source_display)?;
+            self.tables.create_type_reference(target, &arguments)
+        } else {
+            source_display
+        };
         let (source_text, target_text) = if unmatched.len() == 1 {
-            let source_text = self.type_to_string_slice_with_error_enclosing(source)?;
+            let source_text = self.type_to_string_slice_with_error_enclosing(source_display)?;
             let target_text = self.type_to_string_slice_with_error_enclosing(target)?;
             if source_text == target_text {
                 (
-                    self.get_type_name_for_error_display(source)?,
+                    self.get_type_name_for_error_display(source_display)?,
                     self.get_type_name_for_error_display(target)?,
                 )
             } else {
@@ -7553,7 +7574,7 @@ impl<'a> CheckerState<'a> {
             }
         } else {
             (
-                self.type_to_string_slice(source)?,
+                self.type_to_string_slice(source_display)?,
                 self.type_to_string_slice(target)?,
             )
         };
@@ -17869,6 +17890,30 @@ mod tests {
                  [B.sym]: number; }': other, [ B . sym ]"
                     .to_owned()
             )]
+        );
+    }
+
+    #[test]
+    fn multi_missing_source_uses_the_structural_relation_face() {
+        let text = "interface Number {}\n\
+                    interface Obj { hello: string; world: number }\n\
+                    interface NumberTo<T> { [x: number]: T }\n\
+                    type NumberToNumber = NumberTo<number>;\n\
+                    declare const n: NumberToNumber;\n\
+                    const a: Obj = n;\n\
+                    type Brand<T> = number & { __brand: T };\n\
+                    declare const b: Brand<{ view: number; styleMedia: string }>;\n\
+                    const c: Obj = b;\n";
+        let rows: Vec<_> = checked_diags(text)
+            .into_iter()
+            .filter(|row| row.0 == 2739)
+            .collect();
+        assert_eq!(
+            rows.iter().map(|row| row.3.as_str()).collect::<Vec<_>>(),
+            [
+                "Type 'NumberTo<number>' is missing the following properties from type 'Obj': hello, world",
+                "Type 'Number & { __brand: { view: number; styleMedia: string; }; }' is missing the following properties from type 'Obj': hello, world",
+            ]
         );
     }
 
