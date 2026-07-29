@@ -5143,6 +5143,13 @@ impl<'a> CheckerState<'a> {
         let base_type_node = self
             .get_base_type_node_of_class(ty)
             .expect("a base constructor implies an extends clause");
+        let NodeData::ExpressionWithTypeArguments(base_type_data) = self.data_of(base_type_node)
+        else {
+            unreachable!("heritage clause types are ExpressionWithTypeArguments");
+        };
+        let base_expression = base_type_data.expression.expect(
+            "parser invariant: heritage ExpressionWithTypeArguments expression always parsed",
+        );
         let original_base_type = match self.tables.type_of(base_constructor_type).symbol {
             Some(symbol) => Some(self.get_declared_type_of_symbol_slice(symbol)?),
             None => None,
@@ -5177,7 +5184,7 @@ impl<'a> CheckerState<'a> {
             )?;
             if constructors.is_empty() {
                 self.error_at(
-                    Some(base_type_node),
+                    Some(base_expression),
                     &diagnostics::No_base_constructor_has_the_specified_number_of_type_arguments,
                     &[],
                 );
@@ -5201,12 +5208,6 @@ impl<'a> CheckerState<'a> {
             // sentinel). The drop marks the report anchor partial so
             // an @ts-expect-error consuming tsc's 2509 is not counted
             // unused (9.3b5 review r1; DR-F6 start-face rule).
-            let NodeData::ExpressionWithTypeArguments(data) = self.data_of(base_type_node) else {
-                unreachable!("heritage clause types are ExpressionWithTypeArguments");
-            };
-            let expression = data.expression.expect(
-                "parser invariant: heritage ExpressionWithTypeArguments expression always parsed",
-            );
             let report = (|state: &mut Self| -> CheckResult2<()> {
                 let elaboration = state.elaborate_never_intersection_row(base_type)?;
                 let text = state.type_to_string_slice(reduced_base_type)?;
@@ -5215,7 +5216,7 @@ impl<'a> CheckerState<'a> {
                     &[text],
                 );
                 let mut diagnostic = state.diagnostic_for_node(
-                    expression,
+                    base_expression,
                     &diagnostics::Base_constructor_return_type_0_is_not_an_object_type_or_intersection_of_object_types_with_statically_known_members,
                     &[],
                 );
@@ -5224,7 +5225,7 @@ impl<'a> CheckerState<'a> {
                 Ok(())
             })(self);
             if let Err(err) = report {
-                self.mark_partially_checked_node(expression, err.reason.clone());
+                self.mark_partially_checked_node(base_expression, err.reason.clone());
             }
             return Ok(());
         }
@@ -9930,6 +9931,42 @@ mod tests {
                 ))
                 .collect::<Vec<_>>(),
             [(2507, "first.js", 23, 6)]
+        );
+    }
+
+    #[test]
+    fn base_constructor_type_argument_count_error_uses_expression_span() {
+        let text = "interface Base<T, U> {}\n\
+                    interface BaseConstructor { new <T, U>(): Base<T, U>; }\n\
+                    declare function getBase(): BaseConstructor;\n\
+                    class D extends getBase() <string, string, string> {}\n";
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: text.to_owned(),
+            }],
+            &CompilerOptions {
+                target: Some(2),
+                ..CompilerOptions::default()
+            },
+        );
+        let diagnostic = result
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code() == 2508)
+            .expect("base constructor type-argument count error");
+        let expected_start = text
+            .find("getBase() <")
+            .expect("heritage expression")
+            .try_into()
+            .expect("test offset fits u32");
+        assert_eq!(
+            (diagnostic.start, diagnostic.length),
+            (Some(expected_start), Some(9))
+        );
+        assert_eq!(
+            diagnostic.message.text,
+            "No base constructor has the specified number of type arguments."
         );
     }
 
