@@ -1212,11 +1212,9 @@ fn generated_source(seed: u64, case: usize) -> String {
             "function g{case}<T>(x: T, y: T): T {{ return x; }}\ng{case}(1, \"x\");\n"
         ),
         6 => format!(
-            "// @target: es2015\n\
-             // @experimentalDecorators: true\n\
-             declare function d{case}(): (target: Function, index: number) => void;\n\
-             @d{case}()\n\
-             class C{case} {{}}\n"
+            "function r{case}<T extends readonly unknown[]>(source: T, target: [...T]) {{\n\
+                 target = source;\n\
+             }}\n"
         ),
         _ => format!(
             "declare function o{case}(a: number): void;\ndeclare function o{case}(a: string): void;\no{case}(true);\n"
