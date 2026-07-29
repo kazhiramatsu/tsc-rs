@@ -3464,7 +3464,13 @@ impl<'a> CheckerState<'a> {
                 {
                     "{}".to_owned()
                 } else {
-                    self.type_to_string_slice(containing_type)?
+                    // tsc retains the raw intersection identity for
+                    // elaborateNeverIntersection, while typeToString
+                    // renders its cached reduction. Keep those two
+                    // concerns separate: reducing the report target
+                    // itself would lose the diagnostic-chain reason.
+                    let display_type = self.get_reduced_type(containing_type)?;
+                    self.type_to_string_slice(display_type)?
                 };
                 let lib_suggestion = self.get_suggested_lib_for_non_existent_property(
                     &missing_property,
@@ -4634,12 +4640,25 @@ mod tests {
         // never in tsc's own lookup (59287-59297), so the 2339 row
         // proceeds instead of containing. tsc-probed (scratchpad p6,
         // vendored 6.0.3 noLib): container renders 'never'.
-        assert_eq!(
-            checked_rows(
-                "type AB = { kind: \"a\" } & { kind: \"b\" };\ndeclare const x: AB;\nx.q;\n"
-            ),
-            [(2339, 64, 1)]
-        );
+        let text = "type AB = { kind: \"a\" } & { kind: \"b\" };\ndeclare const x: AB;\nx.q;\n";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            let diag = state
+                .diagnostics
+                .iter()
+                .find(|diag| diag.file_name.is_some() && diag.code() == 2339)
+                .expect("property miss");
+            assert_eq!((diag.start, diag.length), (Some(64), Some(1)));
+            assert_eq!(
+                diag.message.text,
+                "Property 'q' does not exist on type 'never'."
+            );
+            assert_eq!(diag.message.next.len(), 1);
+            assert_eq!(
+                diag.message.next[0].text,
+                "The intersection 'AB' was reduced to 'never' because property 'kind' has conflicting types in some constituents."
+            );
+        });
     }
 
     fn checked_rows(text: &str) -> Vec<(u32, u32, u32)> {
