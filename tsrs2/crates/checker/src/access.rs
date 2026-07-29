@@ -2178,7 +2178,10 @@ impl<'a> CheckerState<'a> {
             && self.contains_undefined_type(flow_type)
         {
             let display = match prop {
-                Some(prop) => self.symbol_display_name(prop),
+                // tsc passes this argument through symbolToString;
+                // declaration-backed private/computed names must not
+                // expose their escaped symbol-table key.
+                Some(prop) => self.symbol_name_as_written_slice(prop),
                 None => String::new(),
             };
             let common_js_kind = tsrs2_binder::get_assignment_declaration_property_access_kind(
