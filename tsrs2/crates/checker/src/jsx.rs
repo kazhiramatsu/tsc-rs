@@ -2299,6 +2299,29 @@ mod tests {
         })
     }
 
+    fn checked_chain_codes_with(text: &str, options: &CompilerOptions) -> Vec<Vec<u32>> {
+        fn flatten(chain: &tsrs2_diags::MessageChain, codes: &mut Vec<u32>) {
+            codes.push(chain.code);
+            for child in &chain.next {
+                flatten(child, codes);
+            }
+        }
+
+        with_program_state(&[("a.tsx", text)], options, |state| {
+            state.check_source_file(0);
+            state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.file_name.is_some() && diagnostic.code() == 2322)
+                .map(|diagnostic| {
+                    let mut codes = Vec::new();
+                    flatten(&diagnostic.message, &mut codes);
+                    codes
+                })
+                .collect()
+        })
+    }
+
     fn jsx(value: i32) -> CompilerOptions {
         CompilerOptions {
             jsx: Some(value),
@@ -2321,13 +2344,12 @@ mod tests {
 
     #[test]
     fn jsx_excess_properties_are_checked_against_empty_props() {
-        let rows = checked_rows_with(
+        let source =
             "declare namespace JSX { interface Element {} interface ElementChildrenAttribute { children: {} } }\n\
              declare function Tag(props: {}): JSX.Element;\n\
              (<Tag children=\"x\" />);\n\
-             (<Tag key=\"1\">x</Tag>);\n",
-            &jsx(1),
-        );
+             (<Tag key=\"1\">x</Tag>);\n";
+        let rows = checked_rows_with(source, &jsx(1));
         assert_eq!(
             rows.iter()
                 .filter(|row| row.0 == 2322)
@@ -2335,6 +2357,10 @@ mod tests {
                 .collect::<Vec<_>>(),
             [(2322, 8), (2322, 3)],
             "{rows:?}"
+        );
+        assert_eq!(
+            checked_chain_codes_with(source, &jsx(1)),
+            [vec![2322, 2339], vec![2322, 2339]]
         );
     }
 
