@@ -18007,6 +18007,18 @@ mod tests {
     }
 
     #[test]
+    fn type_variable_constraint_retry_preserves_relation_failure_frames() {
+        assert_eq!(
+            checked_chain_codes(
+                "function f<T extends \"a\" | \"b\">(x: T) {\n\
+                     let y: `${T}` = x;\n\
+                 }\n"
+            ),
+            [vec![2322, 2322, 2322]]
+        );
+    }
+
+    #[test]
     fn iife_optional_probe_counts_effective_arguments() {
         // isOptionalParameter's IIFE arm reads
         // getEffectiveCallArguments — the spread tuple counts 2, so

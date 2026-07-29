@@ -1017,18 +1017,24 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 if !is_false(result) {
                     return Ok(result);
                 }
-                // 66306-66313: retry with the source as this-argument;
-                // the reportErrors expression is error machinery.
+                // 66306-66313: retry with the source as this-argument.
+                // A real constraint inherits reporting unless both
+                // ends are type parameters, preserving each nested
+                // relation failure frame in tsc's error pyramid.
                 let this_constraint = self.st.get_type_with_this_argument(
                     constraint,
                     Some(source),
                     /*need_apparent_type*/ false,
                 )?;
+                let report_constraint_errors = report_errors
+                    && constraint != self.st.tables.intrinsics.unknown
+                    && !(target_flags.intersects(TypeFlags::TYPE_PARAMETER)
+                        && source_flags.intersects(TypeFlags::TYPE_PARAMETER));
                 let result = self.is_related_to(
                     this_constraint,
                     target,
                     RecursionFlags::SOURCE,
-                    /*report_errors*/ false,
+                    report_constraint_errors,
                     intersection_state,
                 )?;
                 if !is_false(result) {

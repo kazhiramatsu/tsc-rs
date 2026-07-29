@@ -1212,8 +1212,15 @@ fn generated_source(seed: u64, case: usize) -> String {
             "function g{case}<T>(x: T, y: T): T {{ return x; }}\ng{case}(1, \"x\");\n"
         ),
         6 => format!(
-            "function h{case}<T extends \"a\" | \"b\">(x: T) {{\n\
-                 let {name}: `${{T}}` = x;\n\
+            "// @target: es2015\n\
+             class B{case} {{\n\
+                 #x = 1;\n\
+                 m() {{\n\
+                     class D{case} {{\n\
+                         #x = 2;\n\
+                         f(x: B{case}) {{ return x.#x; }}\n\
+                     }}\n\
+                 }}\n\
              }}\n"
         ),
         _ => format!(
