@@ -1215,7 +1215,7 @@ fn generated_source(seed: u64, case: usize) -> String {
             "class K{case} {{ private x = 1; }}\nclass L{case} {{ private x = 1; }}\nlet {name}: K{case} = new L{case}();\n"
         ),
         _ => format!(
-            "type U{case} = {{kind:\"a\",x:number}} | {{kind:\"b\",y:string}};\nfunction h{case}(u: U{case}) {{ if (u.kind === \"a\") return u.y; }}\n"
+            "declare function o{case}(a: number): void;\ndeclare function o{case}(a: string): void;\no{case}(true);\n"
         ),
     }
 }
