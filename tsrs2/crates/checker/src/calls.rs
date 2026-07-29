@@ -2459,6 +2459,11 @@ impl<'a> CheckerState<'a> {
         span: &DiagSpan,
         head: &'static DiagnosticMessage,
     ) -> CheckResult2<Diagnostic> {
+        // isRelatedTo compares and reports against the write-normalized
+        // target. Applicability's direct-head fallback bypasses that
+        // reporting closure, so explicitly erase a NoInfer wrapper
+        // here while leaving its ordinary type-printer face intact.
+        let target = self.no_infer_write_target_for_relation_report(target)?;
         // 65111: the 2345→2379 head swap under
         // exactOptionalPropertyTypes.
         let head = if head.code

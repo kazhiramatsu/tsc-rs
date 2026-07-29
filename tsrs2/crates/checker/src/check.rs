@@ -6855,6 +6855,28 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsc-port: isRelatedTo @6.0.3
+    /// tsc-hash: 347cb4f05f51cf2f84cf35b3506eecf7649742674a98e720ef96514cae0d718a
+    /// tsc-span: _tsc.js:65147-65168
+    ///
+    /// The relation engine compares against getNormalizedType(target,
+    /// writing=true). Its reporting closure therefore sees the base
+    /// type of a NoInfer substitution too, unless the original target
+    /// carries an alias (NoInfer itself does not). Our report pass is
+    /// split from that engine, so preserve the same write-normalized
+    /// target at every relation-report entry without changing the
+    /// ordinary type-printer face of NoInfer<T>.
+    pub(crate) fn no_infer_write_target_for_relation_report(
+        &mut self,
+        target: TypeId,
+    ) -> CheckResult2<TypeId> {
+        if self.tables.is_no_infer_type(target) {
+            self.get_normalized_type(target, /*writing*/ true)
+        } else {
+            Ok(target)
+        }
+    }
+
     /// tsc-port: checkTypeAssignableTo @6.0.3 (5.4 slice)
     /// tsc-hash: c54f432c89f2f52677994a63f73b2d9e30dadfe890712c62749b4aab33e7f833
     /// tsc-span: _tsc.js:63931-63933
@@ -6888,6 +6910,7 @@ impl<'a> CheckerState<'a> {
                 // faces, the rendered pair) sees the substituted
                 // target, exactly like tsc's in-engine reporting.
                 let target = self.nullable_stripped_report_target(source, target)?;
+                let target = self.no_infer_write_target_for_relation_report(target)?;
                 // An EXPLICIT tsc headMessage chains OUTERMOST
                 // unconditionally (64860: errorInfo =
                 // chainDiagnosticMessages(errorInfo, headMessage)) —
@@ -7329,11 +7352,7 @@ impl<'a> CheckerState<'a> {
         // pair. A NoInfer write target normalizes to its base type,
         // so both the required-property walk and the 2741 display
         // must see `T`, not the substitution wrapper.
-        let target = if self.tables.is_no_infer_type(target) {
-            self.get_normalized_type(target, /*writing*/ true)?
-        } else {
-            target
-        };
+        let target = self.no_infer_write_target_for_relation_report(target)?;
         let target = {
             let mut ty = target;
             while let Some(base) = self.get_single_base_for_non_augmenting_subtype(ty)? {
@@ -7731,6 +7750,7 @@ impl<'a> CheckerState<'a> {
                 // 65185 nullable-candidate substitution (see the
                 // assignable twin).
                 let target = self.nullable_stripped_report_target(source, target)?;
+                let target = self.no_infer_write_target_for_relation_report(target)?;
                 // isRelatedTo's excess-property arm runs under the
                 // comparable relation too (65353) — a fresh-literal
                 // case expression reports the parent-skipped
@@ -13772,6 +13792,39 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    #[test]
+    fn no_infer_relation_reports_use_the_write_normalized_target() {
+        let rows = checked_diags(
+            "type NoInfer<T> = intrinsic;\n\
+             declare function assertEqual<T>(actual: T, expected: NoInfer<T>): boolean;\n\
+             const g = { x: 3, y: 2 };\n\
+             assertEqual(g, { x: 3 });\n\
+             declare function invoke<T, R>(func: (value: T) => R, value: NoInfer<T>): R;\n\
+             declare function test(value: { x: number }): number;\n\
+             invoke(test, { x: 1, y: 2 });\n",
+        );
+        let messages = rows
+            .into_iter()
+            .filter(|row| matches!(row.0, 2345 | 2353))
+            .map(|row| (row.0, row.3))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            messages,
+            [
+                (
+                    2345,
+                    "Argument of type '{ x: number; }' is not assignable to parameter of type '{ x: number; y: number; }'."
+                        .to_owned(),
+                ),
+                (
+                    2353,
+                    "Object literal may only specify known properties, and 'y' does not exist in type '{ x: number; }'."
+                        .to_owned(),
+                ),
+            ]
+        );
     }
 
     #[test]
