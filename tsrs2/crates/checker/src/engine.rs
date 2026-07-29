@@ -1604,7 +1604,55 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             self.error_state.last_skipped_info = Some((source, target));
             return Ok(());
         }
-        self.report_relation_error(head_message, source, target)
+        self.report_relation_error(head_message, source, target)?;
+        self.associate_missing_type_parameter_constraint_related(source, target)
+    }
+
+    /// reportErrorResults 65296-65305: after the relation head is
+    /// materialized, suggest a constraint only when substituting a
+    /// clone of the unconstrained source parameter into the target
+    /// produces a non-circular base constraint.
+    fn associate_missing_type_parameter_constraint_related(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<()> {
+        if !self.flags(source).intersects(TypeFlags::TYPE_PARAMETER) {
+            return Ok(());
+        }
+        let declaration = self
+            .st
+            .tables
+            .type_of(source)
+            .symbol
+            .and_then(|symbol| self.st.binder.symbol(symbol).declarations.first().copied());
+        let Some(declaration) = declaration else {
+            return Ok(());
+        };
+        if self.st.get_constraint_of_type(source)?.is_some() {
+            return Ok(());
+        }
+
+        let synthetic_parameter = self.st.clone_type_parameter(source);
+        let mapper = self.st.make_unary_type_mapper(source, synthetic_parameter);
+        let synthetic_constraint = self.st.instantiate_type(target, Some(mapper))?;
+        self.st
+            .set_cloned_type_parameter_constraint(synthetic_parameter, synthetic_constraint);
+        if !self
+            .st
+            .has_non_circular_base_constraint(synthetic_parameter)?
+        {
+            return Ok(());
+        }
+
+        let target_text = self.st.type_to_string_slice_at(target, declaration)?;
+        let related = self.st.related_info_for_node(
+            declaration,
+            &diagnostics::This_type_parameter_might_need_an_extends_0_constraint,
+            &[&target_text],
+        );
+        self.associate_related_info(related);
+        Ok(())
     }
 
     /// tsc-port: hasExcessProperties @6.0.3

@@ -77,17 +77,20 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
     ) -> CheckResult2<Option<TypeId>> {
-        if let Some(cached) = self.links.ty(ty).type_parameter_constraint.resolved() {
-            return Ok((cached != self.no_constraint_type).then_some(cached));
-        }
         // Tables-synthesized parameters carry their constraint inline
-        // (tuple markers); mirror it into the lazy slot's semantics.
+        // (tuple markers and reportErrorResults clones). tsc reads the
+        // mutable TypeParameter.constraint field before deriving a lazy
+        // target constraint, so the inline value must win over a slot that
+        // an instantiateType RHS populated before assigning that field.
         if let TypeData::TypeParameter {
             constraint: Some(inline),
             ..
         } = self.tables.type_of(ty).data
         {
             return Ok(Some(inline));
+        }
+        if let Some(cached) = self.links.ty(ty).type_parameter_constraint.resolved() {
+            return Ok((cached != self.no_constraint_type).then_some(cached));
         }
         if let Some(target) = self.links.ty(ty).type_parameter_target {
             let target_constraint = self.get_constraint_of_type_parameter(target)?;

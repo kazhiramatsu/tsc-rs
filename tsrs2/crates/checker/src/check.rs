@@ -11974,6 +11974,21 @@ impl<'a> CheckerState<'a> {
         result
     }
 
+    /// tsrs-native: explicit-enclosing adapter for tsc's
+    /// `typeToString(type, enclosingDeclaration)` calls. The parked
+    /// nodeBuilder context is restored on both success and
+    /// Unsupported unwind.
+    pub(crate) fn type_to_string_slice_at(
+        &mut self,
+        ty: TypeId,
+        enclosing: NodeId,
+    ) -> CheckResult2<String> {
+        let saved = self.slice_display_enclosing.replace(enclosing);
+        let result = self.type_to_string_slice(ty);
+        self.slice_display_enclosing = saved;
+        result
+    }
+
     /// tsc-port: tryReuseExistingTypeNode @6.0.3 (bounded printer)
     /// tsc-hash: dd3b6d1408c0a1685cfb3e3d107db34a442f77ff62ee7d0e9b42945b063b6cf7
     /// tsc-span: _tsc.js:133283-133292

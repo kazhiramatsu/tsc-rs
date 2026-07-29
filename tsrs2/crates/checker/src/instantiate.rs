@@ -494,7 +494,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: cloneTypeParameter @6.0.3
     /// tsc-hash: 58e94c72a583540b7fe44cf0ef3d87bba03057b16a1dd4601531b4a1294ed633
     /// tsc-span: _tsc.js:63403-63407
-    fn clone_type_parameter(&mut self, type_parameter: TypeId) -> TypeId {
+    pub(crate) fn clone_type_parameter(&mut self, type_parameter: TypeId) -> TypeId {
         let symbol = self.tables.type_of(type_parameter).symbol;
         let result = self.tables.create_type(
             TypeFlags::TYPE_PARAMETER,
@@ -507,6 +507,25 @@ impl<'a> CheckerState<'a> {
         self.links
             .set_type_parameter_target(self.speculation_depth, result, type_parameter);
         result
+    }
+
+    /// tsrs-native: Rust storage adapter for tsc's direct
+    /// `syntheticParam.constraint = ...` write in reportErrorResults.
+    pub(crate) fn set_cloned_type_parameter_constraint(
+        &mut self,
+        type_parameter: TypeId,
+        value: TypeId,
+    ) {
+        match &mut self.tables.type_mut(type_parameter).data {
+            TypeData::TypeParameter { constraint, .. } => {
+                debug_assert!(
+                    constraint.is_none(),
+                    "a cloned type-parameter constraint is initialized once"
+                );
+                *constraint = Some(value);
+            }
+            _ => unreachable!("cloneTypeParameter always creates a type parameter"),
+        }
     }
 
     /// tsc-port: instantiateSignature @6.0.3
