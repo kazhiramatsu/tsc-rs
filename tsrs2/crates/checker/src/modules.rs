@@ -211,7 +211,9 @@ fn valid_package_version_identifiers(text: &str) -> bool {
         })
 }
 
-/// tsc-port: parsePartial @6.0.3.
+/// tsc-port: parsePartial @6.0.3
+/// tsc-hash: 4b8d5d206f7ab16042e56130ecfbf4039e125f3adc73097ad8124a3dde2d09d6
+/// tsc-span: _tsc.js:2370-2382
 fn parse_partial_package_version(text: &str) -> Option<PartialPackageVersion> {
     let (without_build, build) = text
         .split_once('+')
@@ -266,7 +268,9 @@ fn push_version_comparator(
     comparators.push(VersionComparator { operator, operand });
 }
 
-/// tsc-port: parseComparator @6.0.3.
+/// tsc-port: parseComparator @6.0.3
+/// tsc-hash: 6ad4a95c3ed7e6850a75dc755d01e26965d56c67d180042037d4b62e006afd7a
+/// tsc-span: _tsc.js:2398-2450
 fn parse_package_version_comparator(
     text: &str,
     comparators: &mut Vec<VersionComparator>,
@@ -435,8 +439,11 @@ fn package_version_comparator_matches(
     }
 }
 
-/// tsc-port: VersionRange.tryParse/test @6.0.3, evaluated against the
-/// compiler version pinned by this port.
+/// tsc-port: VersionRange.tryParse/test @6.0.3
+/// tsc-hash: 25b6a78b2d413328c4b3ab536f00a67c4098b91089ce2ad5b69db70e404ee7ce
+/// tsc-span: _tsc.js:2321-2486
+///
+/// Evaluated against the compiler version pinned by this port.
 fn package_version_range_matches_compiler(range: &str) -> Option<bool> {
     let compiler = PackageVersion::stable(6, 0, 3);
     let mut alternatives = Vec::new();
@@ -4215,8 +4222,9 @@ impl<'a> CheckerState<'a> {
             .unwrap_or_else(|| matches!(self.options.emit_module_resolution_kind(), 3 | 99 | 100))
     }
 
-    /// tsc-port: getConditions + isApplicableVersionedTypesKey
-    /// @6.0.3.
+    /// tsc-port: getConditions @6.0.3
+    /// tsc-hash: 91d1ed5895417f7bdcea21d875a24ebbf5b54004698e26c46a9b89e7a0808140
+    /// tsc-span: _tsc.js:40276-40291
     fn package_condition_matches(
         &self,
         condition: &str,
@@ -4226,6 +4234,9 @@ impl<'a> CheckerState<'a> {
             return true;
         }
         let module_resolution = self.options.emit_module_resolution_kind();
+        if resolution_mode == ModuleResolutionMode::Unknown && module_resolution == 2 {
+            return false;
+        }
         let resolution_mode =
             if resolution_mode == ModuleResolutionMode::Unknown && module_resolution == 100 {
                 ModuleResolutionMode::EsNext
@@ -4244,17 +4255,25 @@ impl<'a> CheckerState<'a> {
         if condition == "node" {
             return module_resolution != 100;
         }
-        if has_types_condition {
-            if let Some(range) = condition.strip_prefix("types@") {
-                if package_version_range_matches_compiler(range) == Some(true) {
-                    return true;
-                }
-            }
+        if self.is_applicable_versioned_types_key(condition) {
+            return true;
         }
         self.options
             .custom_conditions
             .as_ref()
             .is_some_and(|conditions| conditions.iter().any(|candidate| candidate == condition))
+    }
+
+    /// tsc-port: isApplicableVersionedTypesKey @6.0.3
+    /// tsc-hash: 9af5528adbf587055e813a06f658baa9b9b865f96672f1f2c05c85669b4e7222
+    /// tsc-span: _tsc.js:41884-41890
+    fn is_applicable_versioned_types_key(&self, condition: &str) -> bool {
+        if self.options.no_dts_resolution == Some(true) {
+            return false;
+        }
+        condition
+            .strip_prefix("types@")
+            .is_some_and(|range| package_version_range_matches_compiler(range) == Some(true))
     }
 
     /// tsrs-native: diagnostic adapter for resolveExternalModule's
