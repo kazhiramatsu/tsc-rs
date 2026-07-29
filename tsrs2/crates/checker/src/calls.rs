@@ -4797,7 +4797,15 @@ impl<'a> CheckerState<'a> {
             && parameter_range == "1"
             && args.is_empty()
             && self.is_promise_resolve_arity_error(node)?;
-        let error_message: &'static DiagnosticMessage = if has_rest_parameter {
+        let error_message: &'static DiagnosticMessage = if self.kind_of(node)
+            == SyntaxKind::Decorator
+        {
+            if has_rest_parameter {
+                &diagnostics::The_runtime_will_invoke_the_decorator_with_1_arguments_but_the_decorator_expects_at_least_0
+            } else {
+                &diagnostics::The_runtime_will_invoke_the_decorator_with_1_arguments_but_the_decorator_expects_0
+            }
+        } else if has_rest_parameter {
             &diagnostics::Expected_at_least_0_arguments_but_got_1
         } else if is_void_promise_error {
             &diagnostics::Expected_0_arguments_but_got_1_Did_you_forget_to_include_void_in_your_type_argument_to_Promise
@@ -6947,6 +6955,14 @@ mod tests {
     }
 
     fn checked_chain(text: &str, code: u32) -> (Vec<u32>, Vec<String>) {
+        checked_chain_with(text, &CompilerOptions::default(), code)
+    }
+
+    fn checked_chain_with(
+        text: &str,
+        options: &CompilerOptions,
+        code: u32,
+    ) -> (Vec<u32>, Vec<String>) {
         fn flatten(
             chain: &tsrs2_diags::MessageChain,
             codes: &mut Vec<u32>,
@@ -6959,7 +6975,7 @@ mod tests {
             }
         }
 
-        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        with_program_state(&[("a.ts", text)], options, |state| {
             state.check_source_file(0);
             let diagnostic = state
                 .diagnostics
@@ -8141,6 +8157,29 @@ value();
         assert_eq!(
             checked_rows_with(text, &legacy_decorator_options()),
             [(1241, 75, 2)]
+        );
+    }
+
+    #[test]
+    fn legacy_class_decorator_fixed_arity_uses_runtime_1278() {
+        let text = "declare function d(target: Function, index: number): void;\n@d\nclass C {}\n";
+        let (codes, texts) = checked_chain_with(text, &legacy_decorator_options(), 1238);
+        assert_eq!(codes, [1238, 1278]);
+        assert_eq!(
+            texts[1],
+            "The runtime will invoke the decorator with 1 arguments, but the decorator expects 2."
+        );
+    }
+
+    #[test]
+    fn legacy_class_decorator_rest_arity_uses_runtime_1279() {
+        let text =
+            "declare function d(target: Function, index: number, ...rest: any[]): void;\n@d\nclass C {}\n";
+        let (codes, texts) = checked_chain_with(text, &legacy_decorator_options(), 1238);
+        assert_eq!(codes, [1238, 1279]);
+        assert_eq!(
+            texts[1],
+            "The runtime will invoke the decorator with 1 arguments, but the decorator expects at least 2."
         );
     }
 
