@@ -6911,6 +6911,20 @@ impl<'a> CheckerState<'a> {
                 // target, exactly like tsc's in-engine reporting.
                 let target = self.nullable_stripped_report_target(source, target)?;
                 let target = self.no_infer_write_target_for_relation_report(target)?;
+                // reportErrorResults (65248-65253) receives the
+                // getNormalizedType pair produced by isRelatedTo.
+                // Fresh literals therefore reach every report arm as
+                // their REGULAR twin. Our verdict/report split must do
+                // that normalization explicitly; otherwise the fresh
+                // member of a single-member enum renders as `E.A`
+                // even though its regular twin IS the declared enum
+                // type and tsc renders `E`. This is report-only:
+                // isTypeAssignableTo above still owns the verdict.
+                let source = if self.tables.is_fresh_literal_type(source) {
+                    self.get_normalized_type(source, /*writing*/ false)?
+                } else {
+                    source
+                };
                 // An EXPLICIT tsc headMessage chains OUTERMOST
                 // unconditionally (64860: errorInfo =
                 // chainDiagnosticMessages(errorInfo, headMessage)) —
@@ -16543,6 +16557,33 @@ mod tests {
                 44,
                 1,
                 "Type 'E' is not assignable to type '[string]'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn relation_report_normalizes_fresh_enum_member_sources() {
+        // isRelatedTo normalizes a fresh literal before handing the
+        // failed pair to reportErrorResults. For a single-member enum,
+        // that regular member IS the declared enum and prints bare.
+        assert_eq!(
+            checked_diags("enum S { Only }\ndeclare let u: undefined;\nu = S.Only;\n"),
+            [(
+                2322,
+                42,
+                1,
+                "Type 'S' is not assignable to type 'undefined'.".to_owned()
+            )]
+        );
+        // Non-firing sibling: a member of a multi-member enum remains
+        // qualified because its regular twin is not the enum union.
+        assert_eq!(
+            checked_diags("enum E { A, B }\ndeclare let u: undefined;\nu = E.A;\n"),
+            [(
+                2322,
+                42,
+                1,
+                "Type 'E.A' is not assignable to type 'undefined'.".to_owned()
             )]
         );
     }
