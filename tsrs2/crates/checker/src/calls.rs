@@ -7370,6 +7370,36 @@ mod tests {
     }
 
     #[test]
+    fn array_member_elaboration_rechecks_the_syntax_specific_source() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function b7([[a], b, [[c, d]]] = [[undefined], undefined, [[undefined, undefined]]]) {}\n\
+                 b7([[\"string\"], 1, [[true, false]]]);\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                let messages = state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| diagnostic.code() == 2322)
+                    .map(|diagnostic| diagnostic.message_text())
+                    .collect::<Vec<_>>();
+                assert_eq!(
+                    messages,
+                    [
+                        "Type 'string' is not assignable to type 'undefined'.",
+                        "Type 'number' is not assignable to type 'undefined'.",
+                        "Type 'true' is not assignable to type 'undefined'.",
+                        "Type 'false' is not assignable to type 'undefined'.",
+                    ]
+                );
+            },
+        );
+    }
+
+    #[test]
     fn object_literal_arg_reports_member_row() {
         // elaborateObjectLiteral → elaborateElementwise: the row
         // anchors at the property name, not the outer argument.

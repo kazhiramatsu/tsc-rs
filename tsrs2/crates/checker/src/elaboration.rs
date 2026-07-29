@@ -749,19 +749,54 @@ impl<'a> CheckerState<'a> {
                     {
                         continue;
                     }
-                    let (actual, expected) = self.remove_missing_for_member_report(
+                    // elaborateElementwise 64153-64157 rechecks the
+                    // syntax element under the indexed source type.
+                    // A tupleized mutable source can contain `boolean`,
+                    // while rechecking `true` in that context produces
+                    // the regular singleton used in tsc's diagnostic.
+                    let specific_source = {
+                        self.push_contextual_type(
+                            error_node,
+                            Some(actual),
+                            /*is_cache*/ false,
+                        );
+                        let result = self.check_expression_for_mutable_location(
+                            error_node,
+                            CheckMode::CONTEXTUAL,
+                            /*force_tuple*/ false,
+                        );
+                        self.pop_contextual_type();
+                        result?
+                    };
+                    let original_expected = expected;
+                    let (source_property_type, expected) = self.remove_missing_for_member_report(
                         tupleized_source,
                         target_type,
                         &index_name,
                         actual,
                         expected,
                     )?;
-                    self.check_type_assignable_to(
-                        actual,
+                    let (specific_source, _) = self.remove_missing_for_member_report(
+                        tupleized_source,
+                        target_type,
+                        &index_name,
+                        specific_source,
+                        original_expected,
+                    )?;
+                    let specific_related = self.check_type_assignable_to(
+                        specific_source,
                         expected,
                         Some(error_node),
                         &diagnostics::Type_0_is_not_assignable_to_type_1,
                     )?;
+                    if specific_related && specific_source != source_property_type {
+                        self.check_type_assignable_to(
+                            source_property_type,
+                            expected,
+                            Some(error_node),
+                            &diagnostics::Type_0_is_not_assignable_to_type_1,
+                        )?;
+                    }
                 }
             }
             NodeData::JsxAttributes(_) => {
