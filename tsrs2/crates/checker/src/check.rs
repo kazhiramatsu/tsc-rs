@@ -9296,7 +9296,7 @@ impl<'a> CheckerState<'a> {
         };
         if needs_walk {
             let walk_from = accessible.as_ref().map_or(symbol, |chain| chain[0]);
-            let parents = self.containers_of_symbol_slice(walk_from)?;
+            let parents = self.containers_of_symbol_slice(walk_from, enclosing, meaning)?;
             if !parents.is_empty() {
                 // 52964-52969: parents sort by specifier shape
                 // (sortByBestName) — module parents key their
@@ -9785,18 +9785,26 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 22e0144d0040f4fb713cbdddd579457d28490db454397361da682542484911d7
     /// tsc-span: _tsc.js:49989-50051
     ///
-    /// No enclosingDeclaration ⇒ reexportContainers
-    /// (getAlternativeContainingModules) stay empty. This face's
-    /// symbols are VALUE_MODULE-flagged (symbol_value_face routing):
-    /// the TypeParameter guard is inert, the class-expression-
-    /// assignment candidates arm (50003-50009) cannot match a
-    /// module/function declaration list, and the
-    /// getVariableDeclarationOfObjectLiteral / firstVariableMatch
-    /// probes (50038-50046) both need a NON-namespace container, which
-    /// module/namespace parents never are.
-    fn containers_of_symbol_slice(&mut self, symbol: SymbolId) -> CheckResult2<Vec<SymbolId>> {
+    /// The computed unique-symbol member face can carry a TYPE-only
+    /// parent (for example `SymbolConstructor.iterator`) while the
+    /// Value expression must qualify through an in-scope value whose
+    /// type is that parent's declared type (`Symbol.iterator`).
+    /// getWithAlternativeContainers' firstVariableMatch owns that
+    /// bridge. The class-expression-assignment candidates arm
+    /// (50003-50009) cannot match the admitted declarations here.
+    fn containers_of_symbol_slice(
+        &mut self,
+        symbol: SymbolId,
+        enclosing: Option<NodeId>,
+        meaning: tsrs2_types::SymbolFlags,
+    ) -> CheckResult2<Vec<SymbolId>> {
         if let Some(container) = self.get_parent_of_symbol(symbol) {
-            return self.with_alternative_containers_slice(container, Some(container));
+            return self.with_alternative_containers_slice(
+                container,
+                Some(container),
+                enclosing,
+                meaning,
+            );
         }
         let declarations = self.binder.symbol(symbol).declarations.clone();
         let mut candidates = Vec::new();
@@ -9850,7 +9858,8 @@ impl<'a> CheckerState<'a> {
         let mut best = Vec::new();
         let mut alternatives = Vec::new();
         for container in containers {
-            let expanded = self.with_alternative_containers_slice(container, None)?;
+            let expanded =
+                self.with_alternative_containers_slice(container, None, enclosing, meaning)?;
             let mut expanded = expanded.into_iter();
             if let Some(first) = expanded.next() {
                 best.push(first);
@@ -9861,28 +9870,69 @@ impl<'a> CheckerState<'a> {
         Ok(best)
     }
 
-    /// getWithAlternativeContainers (50023-50047), no enclosing:
+    /// getWithAlternativeContainers (50023-50047), error-display
+    /// slice:
     /// additionalContainers (files whose export= IS the symbol's
     /// PARENT container — the closure reads the outer `container`,
-    /// 50048-50050) ahead of the container itself; reexportContainers,
-    /// the accessible-container early return, firstVariableMatch and
-    /// objectLiteralContainer are all inert on this path.
+    /// 50048-50050) ahead of the container itself. firstVariableMatch
+    /// precedes both when a TYPE-only object container has an in-scope
+    /// Value with the identical declared type. reexportContainers,
+    /// the accessible-container early return, and
+    /// objectLiteralContainer remain outside this bounded face.
     fn with_alternative_containers_slice(
         &mut self,
         container: SymbolId,
         parent_container: Option<SymbolId>,
+        enclosing: Option<NodeId>,
+        meaning: tsrs2_types::SymbolFlags,
     ) -> CheckResult2<Vec<SymbolId>> {
-        let mut result = Vec::new();
+        let mut additional = Vec::new();
         if let Some(parent_container) = parent_container {
             let declarations = self.binder.symbol(container).declarations.clone();
             for declaration in declarations {
                 if let Some(file_symbol) = self
                     .file_symbol_if_export_equals_container_slice(declaration, parent_container)?
                 {
-                    result.push(file_symbol);
+                    additional.push(file_symbol);
                 }
             }
         }
+        // 50038-50043: an interface/type-literal container cannot be
+        // named as a Value expression. Find the first in-scope Value
+        // whose value type is exactly the container's declared type.
+        // Identity, table order, and the exact Value meaning gate are
+        // all observable (`SymbolConstructor` -> global `Symbol`).
+        let container_flags = self.binder.symbol(container).flags;
+        let left_meaning = Self::qualified_left_meaning(meaning);
+        let first_variable_match = if !container_flags.intersects(left_meaning)
+            && container_flags.intersects(tsrs2_types::SymbolFlags::TYPE)
+            && meaning == tsrs2_types::SymbolFlags::VALUE
+        {
+            let declared = self.get_declared_type_of_symbol_slice(container)?;
+            if self.tables.flags_of(declared).intersects(TypeFlags::OBJECT) {
+                let mut first = None;
+                'tables: for (_, table, _) in self.symbol_tables_in_scope_slice(enclosing) {
+                    for &candidate in table.values() {
+                        if self.binder.symbol(candidate).flags.intersects(left_meaning)
+                            && self.get_type_of_symbol(candidate)? == declared
+                        {
+                            first = Some(candidate);
+                            break 'tables;
+                        }
+                    }
+                }
+                first
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        let mut result = Vec::with_capacity(additional.len() + 2);
+        if let Some(first_variable_match) = first_variable_match {
+            result.push(first_variable_match);
+        }
+        result.extend(additional);
         result.push(container);
         Ok(result)
     }
@@ -17528,6 +17578,28 @@ mod tests {
                  type '{ [B.sym]: number; }'."
                     .to_owned()
             )]
+        );
+    }
+
+    #[test]
+    fn unique_symbol_member_uses_the_value_with_the_matching_declared_type() {
+        // getContainersOfSymbol's firstVariableMatch: the unique
+        // symbol member belongs to the TYPE-only SymbolConstructor,
+        // but its Value expression qualifies through the in-scope
+        // `Symbol` value whose type is exactly SymbolConstructor.
+        let messages = checked_diags(
+            "interface SymbolConstructor { readonly iterator: unique symbol; }\n\
+             declare var Symbol: SymbolConstructor;\n\
+             declare var source: { [Symbol.iterator]?(): string };\n\
+             let target: number = source;\n",
+        )
+        .into_iter()
+        .filter(|row| row.0 == 2322)
+        .map(|row| row.3)
+        .collect::<Vec<_>>();
+        assert_eq!(
+            messages,
+            ["Type '{ [Symbol.iterator]?(): string; }' is not assignable to type 'number'."]
         );
     }
 
