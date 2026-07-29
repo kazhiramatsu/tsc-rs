@@ -2645,10 +2645,11 @@ impl<'a> CheckerState<'a> {
     ///
     /// Reduced at the modeled defaults: project-reference redirects,
     /// resolveJsonModule and rewriteRelativeImportExtensions reduce to
-    /// nothing. External-library symbol resolution remains suppressed,
-    /// but its diagnostic-only host projection now makes the
-    /// implicit-any and alternateResult rows live without widening the
-    /// checker resolver (program-and-modules.md §2).
+    /// nothing. External-library symbol resolution is live when the
+    /// in-memory host can prove the exact loaded package target;
+    /// unmodeled package faces remain suppressed, with diagnostic-only
+    /// projections for implicit-any and alternateResult rows
+    /// (program-and-modules.md §2).
     /// The Node16/Node18 synchronous-import mismatch arm is live over
     /// the in-program resolver: implied formats, import-equals and
     /// dynamic-import ancestry, resolution-mode overrides, and the
@@ -3472,9 +3473,11 @@ impl<'a> CheckerState<'a> {
     /// only); .js-family specifiers substitute their TS twins before
     /// their written JS file (non-Classic only); non-relative
     /// specifiers walk up the directory tree under Classic and probe
-    /// baseUrl, and are otherwise only resolvable through machinery
-    /// the port does not model (node_modules, paths) — those misses
-    /// SUPPRESS rather than fabricate 2307 (FP=0 rule; risk §14.7).
+    /// baseUrl. Modern Node/Bundler modes additionally consume an
+    /// exact in-program package `exports`/`imports` target when that
+    /// target names a loaded source; unresolved package machinery
+    /// (including paths mappings) stays SUPPRESSED rather than
+    /// fabricating 2307 (FP=0 rule; risk §14.7).
     /// Case SENSITIVE (the oracle host's useCaseSensitiveFileNames=
     /// true).
     fn resolve_program_module(
@@ -3609,6 +3612,29 @@ impl<'a> CheckerState<'a> {
                     return ProgramModuleResolution::Suppressed;
                 }
             }
+            // tsc's resolveModuleNameUsingMode consumes the usage
+            // mode before selecting a package condition. The
+            // in-memory host has enough evidence for an authoritative
+            // checker hit only when package exports/imports select an
+            // actual loaded source; every unmodeled package face
+            // remains in the suppressed channel below.
+            if matches!(self.options.emit_module_resolution_kind(), 3 | 99 | 100) {
+                if let Some(resolved) =
+                    self.resolve_node_package_target(&importer, location, module_reference)
+                {
+                    let resolved_path = Self::normalize_program_path(
+                        &self.binder.source(resolved.file_index).file_name,
+                        "",
+                    );
+                    // An implementation target is not authoritative:
+                    // tsc can still select a later typed condition or
+                    // @types target. Preserve the existing suppressed
+                    // diagnostic resolver for that search.
+                    if !Self::is_untyped_javascript_path(&resolved_path) {
+                        return ProgramModuleResolution::Resolved(resolved);
+                    }
+                }
+            }
             // Keep only genuinely plausible package-resolution misses
             // in the undecidable band. An unrelated node_modules entry
             // or package.json cannot resolve this specifier and must
@@ -3678,14 +3704,14 @@ impl<'a> CheckerState<'a> {
         Some(self.binder.source(resolved.file_index).root)
     }
 
-    /// tsrs-native: diagnostic-only package target projection for the
-    /// bare, recovered ImportType face of getTypeFromImportTypeNode.
+    /// tsrs-native: package target projection for the bare, recovered
+    /// ImportType face of getTypeFromImportTypeNode.
     ///
-    /// Ordinary package resolution deliberately remains Suppressed:
-    /// this helper exposes only the target module's own SymbolFlags so
-    /// the direct TS1340 producer can decide whether `import("pkg")`
-    /// refers to a type. It never publishes package exports, members,
-    /// or a general resolver success.
+    /// The ordinary resolver consumes exact loaded-source package
+    /// targets. This helper remains the diagnostic fallback for
+    /// suppressed package faces and exposes only the target module's
+    /// own SymbolFlags so the direct TS1340 producer can decide
+    /// whether `import("pkg")` refers to a type.
     pub(crate) fn resolve_bare_import_type_module_for_diagnostic(
         &self,
         node: NodeId,
@@ -9919,32 +9945,33 @@ let unrelated = \"\";\n",
     }
 
     #[test]
-    fn recovered_bare_import_type_reads_only_package_module_meaning() {
-        let bad =
-            "type Bad = import(\"pkg\", {\"resolution-mode\": \"require\"}).RequireInterface;\n";
+    fn recovered_bare_import_type_and_dynamic_import_use_package_meaning() {
+        let bad = "type Bad =\n\
+                   & import(\"pkg\", {\"resolution-mode\": \"require\"}).RequireInterface\n\
+                   & import(\"pkg\", {\"resolution-mode\": \"import\"}).ImportInterface;\n";
         let good = "type Good = import(\"pkg\", { with: {\"resolution-mode\": \"require\"} }).RequireInterface;\n";
-        let rows = program_rows(
-            &[
-                (
-                    "/node_modules/pkg/package.json",
-                    "{ \"name\": \"pkg\", \"exports\": { \"import\": \"./import.js\", \"require\": \"./require.js\" } }\n",
-                ),
-                (
-                    "/node_modules/pkg/import.d.ts",
-                    "export interface ImportInterface {}\n",
-                ),
-                (
-                    "/node_modules/pkg/require.d.ts",
-                    "export interface RequireInterface {}\n",
-                ),
-                ("/bad.ts", bad),
-                ("/good.ts", good),
-            ],
-            &node16_options(),
-        )
-        .into_iter()
-        .filter(|(_, code, _, _)| *code == 1340)
-        .collect::<Vec<_>>();
+        let files = [
+            ("/globals.d.ts", "interface Promise<T> {}\n"),
+            (
+                "/node_modules/pkg/package.json",
+                "{ \"name\": \"pkg\", \"exports\": { \"import\": \"./import.js\", \"require\": \"./require.js\" } }\n",
+            ),
+            (
+                "/node_modules/pkg/import.d.ts",
+                "export interface ImportInterface {}\n",
+            ),
+            (
+                "/node_modules/pkg/require.d.ts",
+                "export interface RequireInterface {}\n",
+            ),
+            ("/bad.ts", bad),
+            ("/dynamic.ts", "import(\"pkg\").ImportInterface;\n"),
+            ("/good.ts", good),
+        ];
+        let rows = program_rows(&files, &node16_options())
+            .into_iter()
+            .filter(|(_, code, _, _)| *code == 1340)
+            .collect::<Vec<_>>();
         assert_eq!(
             rows,
             [(
@@ -9953,6 +9980,38 @@ let unrelated = \"\";\n",
                 bad.find("import").expect("recovered import type") as u32,
                 "import(\"pkg\", {".len() as u32,
             )]
+        );
+
+        let inputs = files
+            .into_iter()
+            .map(|(name, text)| InputFile {
+                name: name.to_owned(),
+                text: text.to_owned(),
+            })
+            .collect::<Vec<_>>();
+        let messages = check_program(&inputs, &node16_options())
+            .diagnostics
+            .into_iter()
+            .filter(|diagnostic| diagnostic.code() == 2339)
+            .map(|diagnostic| {
+                let message = diagnostic.message_text().to_owned();
+                (
+                    diagnostic.file_name.expect("located property miss"),
+                    message,
+                )
+            })
+            .collect::<Vec<_>>();
+        let expected_message = "Property 'ImportInterface' does not exist on type \
+                                'Promise<{ default: typeof import(\"/node_modules/pkg/import\"); }>'."
+            .to_owned();
+        assert_eq!(
+            messages,
+            [
+                ("/bad.ts".to_owned(), expected_message.clone()),
+                ("/dynamic.ts".to_owned(), expected_message),
+            ],
+            "the recovered dynamic import resolves the ESM package condition; \
+             the valid require-mode ImportType is the non-firing sibling"
         );
     }
 
