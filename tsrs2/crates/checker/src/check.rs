@@ -6894,23 +6894,17 @@ impl<'a> CheckerState<'a> {
         Ok((source, target))
     }
 
-    /// tsc-port: checkTypeAssignableTo @6.0.3 (5.4 slice)
+    /// tsc-port: checkTypeAssignableTo @6.0.3
     /// tsc-hash: c54f432c89f2f52677994a63f73b2d9e30dadfe890712c62749b4aab33e7f833
     /// tsc-span: _tsc.js:63931-63933
     ///
-    /// checkTypeRelatedTo's failure path (64842+) builds an
-    /// elaboration CHAIN whose tail renders through the full
-    /// nodeBuilder; this slice emits the HEAD message only —
-    /// code/span/args tsc-identical, the chain tail honestly elided
-    /// (T2 band). reportRelationError's argument shaping (65064-65135)
-    /// is ported: getTypeNamesForErrorDisplay equality fallback
-    /// escapes (UseFullyQualifiedType re-render is nodeBuilder work),
-    /// literal-source generalization is live, and the
-    /// TypeParameter-target elaboration arm — WITH its ForCheck marker
-    /// guard (65075) — only shapes the elided chain, so it reduces to
-    /// the guard itself. A failure whose types the display slice
-    /// cannot render unwinds Unsupported: no diagnostic rather than an
-    /// unfaithful one.
+    /// The verdict probe remains separate, but a failed diagnostic
+    /// call replays checkTypeRelatedTo in reporting mode. That replay
+    /// performs per-level read/write normalization and returns tsc's
+    /// errorInfo, relatedInfo, incompatibleStack collapse, literal
+    /// generalization, and TypeParameter-target elaboration under the
+    /// supplied head. Caller-specific head overrides below still run
+    /// before the common reporting walk.
     pub(crate) fn check_type_assignable_to(
         &mut self,
         source: TypeId,
@@ -6918,6 +6912,8 @@ impl<'a> CheckerState<'a> {
         error_node: Option<NodeId>,
         head_message: &'static DiagnosticMessage,
     ) -> CheckResult2<bool> {
+        let original_source = source;
+        let original_target = target;
         let related = self.is_type_assignable_to(source, target)?;
         if !related {
             if let Some(error_node) = error_node {
@@ -7073,6 +7069,23 @@ impl<'a> CheckerState<'a> {
                         return Ok(related);
                     }
                 }
+                if let Some(output) = self.relation_error_output_with_context(
+                    original_source,
+                    original_target,
+                    crate::relate::RelationKind::Assignable,
+                    if generic_head {
+                        None
+                    } else {
+                        Some(head_message)
+                    },
+                    None,
+                )? {
+                    let mut diagnostic = self.create_error(Some(error_node), head_message, &[]);
+                    diagnostic.message = output.message;
+                    diagnostic.related = output.related;
+                    self.push_error_diagnostic(diagnostic);
+                    return Ok(related);
+                }
                 let mut source_text = self.type_to_string_slice_with_error_enclosing(source)?;
                 let mut target_text = self.type_to_string_slice_with_error_enclosing(target)?;
                 if source_text == target_text {
@@ -7163,6 +7176,7 @@ impl<'a> CheckerState<'a> {
             expanding_flags: tsrs2_types::ExpandingFlags::NONE,
             overflow: false,
             relation_count,
+            error_state: Default::default(),
         };
         Ok(matches!(
             checker.excess_properties_worker(source, target, Some(error_node))?,
@@ -7768,13 +7782,12 @@ impl<'a> CheckerState<'a> {
         Ok(format!("[{text}]"))
     }
 
-    /// tsc-port: checkTypeComparableTo @6.0.3 (5.4-slice shape)
+    /// tsc-port: checkTypeComparableTo @6.0.3
     /// tsc-hash: e58eb977753b557ce9b0c944ca7602c6b1b4981cd57f5ce5d3181ab726e31d4d
     /// tsc-span: _tsc.js:63937-63939
     ///
-    /// The comparable twin of check_type_assignable_to above: HEAD
-    /// message only, reportRelationError argument shaping (literal
-    /// generalization + identical-name escape), chain tail elided.
+    /// The comparable twin of check_type_assignable_to above, including
+    /// the reporting-mode relation replay and its full errorInfo chain.
     pub(crate) fn check_type_comparable_to(
         &mut self,
         source: TypeId,
@@ -7782,6 +7795,8 @@ impl<'a> CheckerState<'a> {
         error_node: Option<NodeId>,
         head_message: &'static DiagnosticMessage,
     ) -> CheckResult2<bool> {
+        let original_source = source;
+        let original_target = target;
         let related = self.is_type_comparable_to(source, target)?;
         if !related {
             if let Some(error_node) = error_node {
@@ -7796,6 +7811,27 @@ impl<'a> CheckerState<'a> {
                     error_node,
                     crate::relate::RelationKind::Comparable,
                 )? {
+                    return Ok(related);
+                }
+                let generic_head = std::ptr::eq(
+                    head_message,
+                    &diagnostics::Type_0_is_not_comparable_to_type_1,
+                );
+                if let Some(output) = self.relation_error_output_with_context(
+                    original_source,
+                    original_target,
+                    crate::relate::RelationKind::Comparable,
+                    if generic_head {
+                        None
+                    } else {
+                        Some(head_message)
+                    },
+                    None,
+                )? {
+                    let mut diagnostic = self.create_error(Some(error_node), head_message, &[]);
+                    diagnostic.message = output.message;
+                    diagnostic.related = output.related;
+                    self.push_error_diagnostic(diagnostic);
                     return Ok(related);
                 }
                 let mut source_text = self.type_to_string_slice_with_error_enclosing(source)?;

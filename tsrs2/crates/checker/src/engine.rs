@@ -21,6 +21,7 @@
 
 use std::collections::HashSet;
 
+use tsrs2_diags::{gen as diagnostics, DiagnosticMessage, MessageChain, RelatedInfo};
 use tsrs2_types::{
     ConditionalRootId, ExpandingFlags, IntersectionState, ObjectFlags, RecursionFlags,
     RelationComparisonResult, SymbolFlags, Ternary, TypeData, TypeFlags, TypeId, UnionReduction,
@@ -692,6 +693,7 @@ impl<'a> CheckerState<'a> {
             expanding_flags: ExpandingFlags::NONE,
             overflow: false,
             relation_count,
+            error_state: RelationErrorState::default(),
         };
         let result = checker.is_related_to(
             source,
@@ -722,6 +724,95 @@ impl<'a> CheckerState<'a> {
         }
         Ok(is_true(result))
     }
+
+    /// tsc-port: checkTypeRelatedTo @6.0.3 (reporting-mode result)
+    /// tsc-hash: bf733d6181fb759f6b95d8beca1b21a072e94e36deeb94708fba113be2f8e601
+    /// tsc-span: _tsc.js:64842-64936
+    ///
+    /// The ordinary boolean API intentionally enters with no error
+    /// node. Diagnostic callers enter a fresh reporting walk instead:
+    /// failed cached relations are replayed below, and every recursive
+    /// `isRelatedTo` level performs the same read/write normalization
+    /// before contributing its message-chain row.
+    pub(crate) fn relation_error_output(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        relation: RelationKind,
+        head_message: &'static DiagnosticMessage,
+    ) -> CheckResult2<Option<RelationErrorOutput>> {
+        self.relation_error_output_with_context(source, target, relation, Some(head_message), None)
+    }
+
+    /// The containing-message-chain face of `checkTypeRelatedTo`.
+    /// `issueMemberSpecificError` uses this with no head message: the
+    /// relation builds its own inner 2322-family chain, then tsc
+    /// prepends the caller-provided member row.
+    /// tsrs-native: owned-result adapter for tsc's closure-local
+    /// checkTypeRelatedTo errorInfo and containingMessageChain output.
+    pub(crate) fn relation_error_output_with_context(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        relation: RelationKind,
+        head_message: Option<&'static DiagnosticMessage>,
+        containing_message_chain: Option<MessageChain>,
+    ) -> CheckResult2<Option<RelationErrorOutput>> {
+        let relation_count = (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
+        let mut checker = RelationChecker {
+            st: self,
+            relation,
+            maybe_keys: Vec::new(),
+            maybe_keys_set: HashSet::new(),
+            source_stack: Vec::new(),
+            target_stack: Vec::new(),
+            maybe_count: 0,
+            source_depth: 0,
+            target_depth: 0,
+            expanding_flags: ExpandingFlags::NONE,
+            overflow: false,
+            relation_count,
+            error_state: RelationErrorState::default(),
+        };
+        let result = checker.is_related_to_with_head(
+            source,
+            target,
+            RecursionFlags::BOTH,
+            /*report_errors*/ true,
+            head_message,
+            IntersectionState::NONE,
+        )?;
+        if !checker.error_state.incompatible_stack.is_empty() {
+            checker.report_incompatible_stack()?;
+        }
+        if !is_false(result) {
+            return Ok(None);
+        }
+        let mut message = checker.error_state.error_info.take();
+        if let Some(mut containing) = containing_message_chain {
+            if let Some(inner) = message.take() {
+                fn append_to_leaf(chain: &mut MessageChain, inner: MessageChain) {
+                    if chain.next.is_empty() {
+                        chain.next.push(inner);
+                    } else {
+                        append_to_leaf(
+                            chain
+                                .next
+                                .last_mut()
+                                .expect("non-empty chain has a last child"),
+                            inner,
+                        );
+                    }
+                }
+                append_to_leaf(&mut containing, inner);
+                message = Some(containing);
+            }
+        }
+        Ok(message.map(|message| RelationErrorOutput {
+            message,
+            related: std::mem::take(&mut checker.error_state.related_info),
+        }))
+    }
 }
 
 /// What hasExcessProperties found — the worker's verdict/report faces
@@ -734,6 +825,31 @@ pub(crate) enum ExcessPropertyOutcome {
     None,
     UnknownProperty,
     Incompatible,
+}
+
+/// The diagnostic value produced by one reporting-mode relation walk.
+///
+/// tsc keeps this state in the `checkTypeRelatedTo` closure. Rust keeps
+/// verdict and diagnostic entry points separate, so the closure result
+/// is returned to the caller and attached to the caller's error node.
+pub(crate) struct RelationErrorOutput {
+    pub(crate) message: MessageChain,
+    pub(crate) related: Vec<RelatedInfo>,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct RelationErrorState {
+    error_info: Option<MessageChain>,
+    related_info: Vec<RelatedInfo>,
+    incompatible_stack: Vec<(&'static DiagnosticMessage, Vec<String>)>,
+    last_skipped_info: Option<(TypeId, TypeId)>,
+    override_next_error_info: usize,
+    skip_parent_counter: usize,
+    /// Rust owns diagnostic chains instead of retaining tsc's object
+    /// identity. This revision is the identity token used by
+    /// structuredTypeRelatedTo's `errorInfo === saveErrorInfo.errorInfo`
+    /// guard: reporting advances it and resetErrorInfo restores it.
+    error_info_revision: u64,
 }
 
 /// The checkTypeRelatedTo closure state (maybe stack, recursion
@@ -754,6 +870,7 @@ pub(crate) struct RelationChecker<'r, 'a> {
     pub(crate) expanding_flags: ExpandingFlags,
     pub(crate) overflow: bool,
     pub(crate) relation_count: i64,
+    pub(crate) error_state: RelationErrorState,
 }
 
 /// The checkTypeRelatedTo frame state detached from its `st` borrow —
@@ -904,6 +1021,28 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> CheckResult2<Ternary> {
+        self.is_related_to_with_head(
+            original_source,
+            original_target,
+            recursion_flags,
+            report_errors,
+            None,
+            intersection_state,
+        )
+    }
+
+    /// tsc-port: isRelatedTo @6.0.3
+    /// tsc-hash: 47404a0f4ae9f5c59d0f972b7e338adbd1a9cbb8419eae7187f6415cd1d68fd5
+    /// tsc-span: _tsc.js:65147-65247
+    fn is_related_to_with_head(
+        &mut self,
+        original_source: TypeId,
+        original_target: TypeId,
+        recursion_flags: RecursionFlags,
+        report_errors: bool,
+        head_message: Option<&'static DiagnosticMessage>,
+        intersection_state: IntersectionState,
+    ) -> CheckResult2<Ternary> {
         if original_source == original_target {
             return Ok(Ternary::TRUE);
         }
@@ -924,6 +1063,15 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 )?
             {
                 return Ok(Ternary::TRUE);
+            }
+            if report_errors {
+                self.report_error_results(
+                    original_source,
+                    original_target,
+                    original_source,
+                    original_target,
+                    head_message,
+                )?;
             }
             return Ok(Ternary::FALSE);
         }
@@ -1077,7 +1225,386 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 return Ok(result);
             }
         }
+        if report_errors {
+            self.report_error_results(
+                original_source,
+                original_target,
+                source,
+                target,
+                head_message,
+            )?;
+        }
         Ok(Ternary::FALSE)
+    }
+
+    /// tsc-port: reportError @6.0.3
+    /// tsc-hash: f14a9d286af01a8105c39ad41f01e22afe1f8289681fe663fdfaec45fbd7b238
+    /// tsc-span: _tsc.js:65037-65046
+    pub(crate) fn report_error(
+        &mut self,
+        message: &'static DiagnosticMessage,
+        args: Vec<String>,
+    ) -> CheckResult2<()> {
+        if !self.error_state.incompatible_stack.is_empty() {
+            self.report_incompatible_stack()?;
+        }
+        self.report_error_direct(message, args);
+        Ok(())
+    }
+
+    fn report_error_direct(&mut self, message: &'static DiagnosticMessage, args: Vec<String>) {
+        if message.elided_in_compatibility_pyramid {
+            return;
+        }
+        self.report_error_unelided(message, args);
+    }
+
+    fn report_error_unelided(&mut self, message: &'static DiagnosticMessage, args: Vec<String>) {
+        if self.error_state.skip_parent_counter > 0 {
+            self.error_state.skip_parent_counter -= 1;
+            return;
+        }
+        let next = self.error_state.error_info.take().into_iter().collect();
+        self.error_state.error_info = Some(MessageChain::new(message, &args).with_next(next));
+        self.error_state.error_info_revision = self.error_state.error_info_revision.wrapping_add(1);
+    }
+
+    /// tsc-port: captureErrorCalculationState/resetErrorInfo @6.0.3
+    /// tsc-hash: 88eb6cf35409a050372d39711513487a39760cde3bd86ffb4e41165b28677c64
+    /// tsc-span: _tsc.js:64925-64941
+    pub(crate) fn capture_error_calculation_state(&self) -> RelationErrorState {
+        self.error_state.clone()
+    }
+
+    /// tsrs-native: owned-state restore for tsc's closure-local
+    /// resetErrorInfo assignment sequence.
+    pub(crate) fn reset_error_info(&mut self, saved: &RelationErrorState) {
+        self.error_state = saved.clone();
+    }
+
+    /// tsrs-native: revision-token equivalent of tsc's errorInfo
+    /// object-identity comparison.
+    pub(crate) fn has_same_error_info(&self, saved: &RelationErrorState) -> bool {
+        self.error_state.error_info_revision == saved.error_info_revision
+    }
+
+    /// `errorInfo = originalErrorInfo || errorInfo ||
+    /// saveErrorInfo.errorInfo` at the end of the invariant variance
+    /// fallback. tsc restores only the chain here, not the other
+    /// captured error-calculation fields.
+    /// tsrs-native: owned-chain projection of tsc's direct errorInfo
+    /// fallback assignment.
+    pub(crate) fn restore_variance_error_info(
+        &mut self,
+        original: Option<&RelationErrorState>,
+        saved: &RelationErrorState,
+    ) {
+        let selected = original
+            .filter(|state| state.error_info.is_some())
+            .or_else(|| {
+                self.error_state
+                    .error_info
+                    .as_ref()
+                    .map(|_| &self.error_state)
+            })
+            .or_else(|| saved.error_info.as_ref().map(|_| saved))
+            .map(|state| (state.error_info.clone(), state.error_info_revision));
+        if let Some((error_info, revision)) = selected {
+            self.error_state.error_info = error_info;
+            self.error_state.error_info_revision = revision;
+        }
+    }
+
+    /// tsc-port: reportIncompatibleError @6.0.3
+    /// tsc-hash: 2cce1f797b799fa60fb64403c93683596305c21563a3981cc4c08fa509f7dbd4
+    /// tsc-span: _tsc.js:64942-64947
+    pub(crate) fn report_incompatible_error(
+        &mut self,
+        message: &'static DiagnosticMessage,
+        args: Vec<String>,
+    ) {
+        self.error_state.override_next_error_info += 1;
+        self.error_state.last_skipped_info = None;
+        self.error_state.incompatible_stack.push((message, args));
+    }
+
+    /// tsc-port: associateRelatedInfo @6.0.3
+    /// tsc-hash: bc1b1569bdd899799ee9342731376814b5bc2cafa3b6f9653778aeb73b7e1c50
+    /// tsc-span: _tsc.js:65047-65055
+    pub(crate) fn associate_related_info(&mut self, info: RelatedInfo) {
+        self.error_state.related_info.push(info);
+    }
+
+    /// tsc-port: reportIncompatibleStack @6.0.3
+    /// tsc-hash: a1152011911131a223fd5304339b7872a283f3a6a0757347c0b3e67216a21dd2
+    /// tsc-span: _tsc.js:64948-65036
+    fn report_incompatible_stack(&mut self) -> CheckResult2<()> {
+        let mut stack = std::mem::take(&mut self.error_state.incompatible_stack);
+        let skipped = self.error_state.last_skipped_info.take();
+        if stack.len() == 1 {
+            let (message, args) = stack.pop().expect("single incompatibility");
+            self.report_error_direct(message, args);
+            if let Some((source, target)) = skipped {
+                self.report_relation_error(None, source, target)?;
+            }
+            return Ok(());
+        }
+        let mut path = String::new();
+        let mut secondary_root_errors: Vec<(&'static DiagnosticMessage, Vec<String>)> = Vec::new();
+        while let Some((message, args)) = stack.pop() {
+            match message.code {
+                code if code == diagnostics::Types_of_property_0_are_incompatible.code => {
+                    let property = args.first().cloned().unwrap_or_default();
+                    if path.is_empty() {
+                        path = property;
+                    } else if property.chars().enumerate().all(|(index, ch)| {
+                        ch == '_'
+                            || ch == '$'
+                            || ch.is_alphanumeric() && (index > 0 || !ch.is_ascii_digit())
+                    }) {
+                        path = format!("{path}.{property}");
+                    } else if property.starts_with('[') && property.ends_with(']') {
+                        path.push_str(&property);
+                    } else {
+                        path = format!("{path}[{property}]");
+                    }
+                }
+                code if code
+                    == diagnostics::Call_signature_return_types_0_and_1_are_incompatible.code
+                    || code
+                        == diagnostics::Construct_signature_return_types_0_and_1_are_incompatible
+                            .code
+                    || code
+                        == diagnostics::Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
+                            .code
+                    || code
+                        == diagnostics::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
+                            .code =>
+                {
+                    if path.is_empty() {
+                        let mapped = if code
+                            == diagnostics::Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
+                                .code
+                        {
+                            &diagnostics::Call_signature_return_types_0_and_1_are_incompatible
+                        } else if code
+                            == diagnostics::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
+                                .code
+                        {
+                            &diagnostics::Construct_signature_return_types_0_and_1_are_incompatible
+                        } else {
+                            message
+                        };
+                        secondary_root_errors.insert(0, (mapped, args));
+                    } else {
+                        let construct = code
+                            == diagnostics::Construct_signature_return_types_0_and_1_are_incompatible
+                                .code
+                            || code
+                                == diagnostics::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
+                                    .code;
+                        let no_arguments = code
+                            == diagnostics::Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
+                                .code
+                            || code
+                                == diagnostics::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
+                                    .code;
+                        path = format!(
+                            "{}{}({})",
+                            if construct { "new " } else { "" },
+                            path,
+                            if no_arguments { "" } else { "..." }
+                        );
+                    }
+                }
+                code if code
+                    == diagnostics::Type_at_position_0_in_source_is_not_compatible_with_type_at_position_1_in_target.code
+                    || code
+                        == diagnostics::Type_at_positions_0_through_1_in_source_is_not_compatible_with_type_at_position_2_in_target
+                            .code =>
+                {
+                    secondary_root_errors.insert(0, (message, args));
+                }
+                _ => self.report_error_direct(message, args),
+            }
+        }
+        if !path.is_empty() {
+            self.report_error_direct(
+                if path.ends_with(')') {
+                    &diagnostics::The_types_returned_by_0_are_incompatible_between_these_types
+                } else {
+                    &diagnostics::The_types_of_0_are_incompatible_between_these_types
+                },
+                vec![path],
+            );
+        } else if !secondary_root_errors.is_empty() {
+            secondary_root_errors.remove(0);
+        }
+        for (message, args) in secondary_root_errors {
+            // reportIncompatibleStack temporarily clears
+            // elidedInCompatibilityPyramid for these root rows.
+            self.report_error_unelided(message, args);
+        }
+        if let Some((source, target)) = skipped {
+            self.report_relation_error(None, source, target)?;
+        }
+        Ok(())
+    }
+
+    /// tsc-port: reportRelationError @6.0.3
+    /// tsc-hash: 45dea8d9b67f23646ebfaf1715763d15c020dc9530e26760e6352e2f3be75fcd
+    /// tsc-span: _tsc.js:65064-65135
+    fn report_relation_error(
+        &mut self,
+        mut message: Option<&'static DiagnosticMessage>,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<()> {
+        if !self.error_state.incompatible_stack.is_empty() {
+            self.report_incompatible_stack()?;
+        }
+        let mut source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
+        let mut target_text = self.st.type_to_string_slice_with_error_enclosing(target)?;
+        if source_text == target_text {
+            source_text = self.st.get_type_name_for_error_display(source)?;
+            target_text = self.st.get_type_name_for_error_display(target)?;
+        }
+
+        let mut generalized_source = source;
+        let mut generalized_source_text = source_text.clone();
+        if !self.flags(target).intersects(TypeFlags::NEVER)
+            && self.st.is_literal_type(source)
+            && !self.st.type_could_have_top_level_singleton_types(target)?
+        {
+            generalized_source = self.st.get_base_type_of_literal_type(source)?;
+            generalized_source_text = self
+                .st
+                .get_type_name_for_error_display(generalized_source)?;
+        }
+
+        let target_flags = match self.st.tables.type_of(target).data {
+            TypeData::IndexedAccess { object_type, .. }
+                if !self.flags(source).intersects(TypeFlags::INDEXED_ACCESS) =>
+            {
+                self.flags(object_type)
+            }
+            _ => self.flags(target),
+        };
+        if target_flags.intersects(TypeFlags::TYPE_PARAMETER)
+            && target != self.st.marker_super_type_for_check
+            && target != self.st.marker_sub_type_for_check
+        {
+            let constraint = self.st.get_base_constraint_of_type(target)?;
+            let mut needs_original_source = false;
+            let assignable_to_constraint = if let Some(constraint) = constraint {
+                if self
+                    .st
+                    .is_type_assignable_to(generalized_source, constraint)?
+                {
+                    true
+                } else if self.st.is_type_assignable_to(source, constraint)? {
+                    needs_original_source = true;
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+            if assignable_to_constraint {
+                let constraint_text = self.st.type_to_string_slice_with_error_enclosing(
+                    constraint.expect("successful constraint relation has a constraint"),
+                )?;
+                self.report_error(
+                    &diagnostics::_0_is_assignable_to_the_constraint_of_type_1_but_1_could_be_instantiated_with_a_different_subtype_of_constraint_2,
+                    vec![
+                        if needs_original_source {
+                            source_text.clone()
+                        } else {
+                            generalized_source_text.clone()
+                        },
+                        target_text.clone(),
+                        constraint_text,
+                    ],
+                )?;
+            } else {
+                self.error_state.error_info = None;
+                self.error_state.error_info_revision =
+                    self.error_state.error_info_revision.wrapping_add(1);
+                self.report_error(
+                    &diagnostics::_0_could_be_instantiated_with_an_arbitrary_type_which_could_be_unrelated_to_1,
+                    vec![target_text.clone(), generalized_source_text.clone()],
+                )?;
+            }
+        }
+
+        if message.is_none() {
+            message = Some(if self.relation == RelationKind::Comparable {
+                &diagnostics::Type_0_is_not_comparable_to_type_1
+            } else if source_text == target_text {
+                &diagnostics::Type_0_is_not_assignable_to_type_1_Two_different_types_with_this_name_exist_but_they_are_unrelated
+            } else {
+                &diagnostics::Type_0_is_not_assignable_to_type_1
+            });
+        }
+        self.report_error(
+            message.expect("relation error has a selected head"),
+            vec![generalized_source_text, target_text],
+        )?;
+        Ok(())
+    }
+
+    /// tsc-port: reportErrorResults @6.0.3
+    /// tsc-hash: 18a0d61d9350e78cbeb8b2d70f425a892ab9fabe200309c353e1413ac5b5cef7
+    /// tsc-span: _tsc.js:65248-65346
+    fn report_error_results(
+        &mut self,
+        original_source: TypeId,
+        original_target: TypeId,
+        mut source: TypeId,
+        mut target: TypeId,
+        head_message: Option<&'static DiagnosticMessage>,
+    ) -> CheckResult2<()> {
+        let source_has_base = self
+            .st
+            .get_single_base_for_non_augmenting_subtype(original_source)?
+            .is_some();
+        let target_has_base = self
+            .st
+            .get_single_base_for_non_augmenting_subtype(original_target)?
+            .is_some();
+        if self
+            .st
+            .tables
+            .type_of(original_source)
+            .alias_symbol
+            .is_some()
+            || source_has_base
+        {
+            source = original_source;
+        }
+        if self
+            .st
+            .tables
+            .type_of(original_target)
+            .alias_symbol
+            .is_some()
+            || target_has_base
+        {
+            target = original_target;
+        }
+        let maybe_suppress = self.error_state.override_next_error_info > 0;
+        if maybe_suppress {
+            self.error_state.override_next_error_info -= 1;
+        }
+        if head_message.is_none() && maybe_suppress {
+            let saved_error_state = self.capture_error_calculation_state();
+            self.report_relation_error(None, source, target)?;
+            self.reset_error_info(&saved_error_state);
+            self.error_state.last_skipped_info = Some((source, target));
+            return Ok(());
+        }
+        self.report_relation_error(head_message, source, target)
     }
 
     /// tsc-port: hasExcessProperties @6.0.3
@@ -1455,10 +1982,22 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         if self.flags(target).intersects(TypeFlags::UNION) {
             let regular_source = self.st.get_regular_type_of_object_literal(source)?;
-            return self.type_related_to_some_type(regular_source, target, intersection_state);
+            return self.type_related_to_some_type(
+                regular_source,
+                target,
+                report_errors
+                    && !self.flags(source).intersects(TypeFlags::PRIMITIVE)
+                    && !self.flags(target).intersects(TypeFlags::PRIMITIVE),
+                intersection_state,
+            );
         }
         if self.flags(target).intersects(TypeFlags::INTERSECTION) {
-            return self.type_related_to_each_type(source, target, IntersectionState::TARGET);
+            return self.type_related_to_each_type(
+                source,
+                target,
+                report_errors,
+                IntersectionState::TARGET,
+            );
         }
         // 65433-65456: for comparability against a primitive, an
         // intersection source steps its instantiable constituents to
@@ -1533,8 +2072,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     ) -> CheckResult2<Ternary> {
         let mut result = Ternary::TRUE;
         for source_type in self.union_members(source) {
-            let related =
-                self.type_related_to_some_type(source_type, target, IntersectionState::NONE)?;
+            let related = self.type_related_to_some_type(
+                source_type,
+                target,
+                /*report_errors*/ false,
+                IntersectionState::NONE,
+            )?;
             if !is_true(related) {
                 return Ok(Ternary::FALSE);
             }
@@ -1553,6 +2096,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
+        report_errors: bool,
         intersection_state: IntersectionState,
     ) -> CheckResult2<Ternary> {
         let target_types = self.union_members(target);
@@ -1628,6 +2172,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 return Ok(related);
             }
         }
+        if report_errors {
+            if let Some(best_matching_type) = self.st.get_best_matching_type(source, target)? {
+                self.is_related_to(
+                    source,
+                    best_matching_type,
+                    RecursionFlags::TARGET,
+                    /*report_errors*/ true,
+                    intersection_state,
+                )?;
+            }
+        }
         Ok(Ternary::FALSE)
     }
 
@@ -1638,6 +2193,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
+        report_errors: bool,
         intersection_state: IntersectionState,
     ) -> CheckResult2<Ternary> {
         let mut result = Ternary::TRUE;
@@ -1646,7 +2202,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 source,
                 target_type,
                 RecursionFlags::TARGET,
-                /*report_errors*/ false,
+                report_errors,
                 intersection_state,
             )?;
             if !is_true(related) {
@@ -1664,19 +2220,20 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-        _report_errors: bool,
+        report_errors: bool,
         intersection_state: IntersectionState,
     ) -> CheckResult2<Ternary> {
         let source_types = self.union_members(source);
         if self.flags(source).intersects(TypeFlags::UNION) && contains_type(&source_types, target) {
             return Ok(Ternary::TRUE);
         }
-        for source_type in source_types {
+        let len = source_types.len();
+        for (index, source_type) in source_types.into_iter().enumerate() {
             let related = self.is_related_to(
                 source_type,
                 target,
                 RecursionFlags::SOURCE,
-                /*report_errors*/ false,
+                report_errors && index + 1 == len,
                 intersection_state,
             )?;
             if is_true(related) {
@@ -1717,7 +2274,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-        _report_errors: bool,
+        report_errors: bool,
         intersection_state: IntersectionState,
     ) -> CheckResult2<Ternary> {
         let mut result = Ternary::TRUE;
@@ -1750,7 +2307,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 source_type,
                 target,
                 RecursionFlags::SOURCE,
-                /*report_errors*/ false,
+                report_errors,
                 intersection_state,
             )?;
             if !is_true(related) {
@@ -1913,28 +2470,35 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             /*ignore_constraints*/ false,
         )?;
         if let Some(&entry) = self.st.relations.cache(self.relation).get(&id) {
-            // The reportErrors && Failed && !Overflow recompute
-            // (65740) and the overflow error emission (65751-65755)
-            // are reportErrors-only — dead in the reportErrors=false
-            // engine.
-            if !self.st.variance_handler_stack.is_empty() {
-                // 65742-65750: replay the entry's Reports* bits into
-                // the active handler via the reporter mappers.
-                let saved = entry.bits() & RelationComparisonResult::REPORTS_MASK.bits();
-                if saved & RelationComparisonResult::REPORTS_UNMEASURABLE.bits() != 0 {
-                    let mapper = self.st.report_unmeasurable_mapper;
-                    self.st.instantiate_type(source, Some(mapper))?;
+            // 65739-65741: a failed, non-overflow cached relation is
+            // deliberately recomputed in reporting mode so the exact
+            // nested error path can be reconstructed.
+            let replay_failure = report_errors
+                && entry.intersects(RelationComparisonResult::FAILED)
+                && !entry.intersects(RelationComparisonResult::from_bits(
+                    RelationComparisonResult::COMPLEXITY_OVERFLOW.bits()
+                        | RelationComparisonResult::STACK_DEPTH_OVERFLOW.bits(),
+                ));
+            if !replay_failure {
+                if !self.st.variance_handler_stack.is_empty() {
+                    // 65742-65750: replay the entry's Reports* bits into
+                    // the active handler via the reporter mappers.
+                    let saved = entry.bits() & RelationComparisonResult::REPORTS_MASK.bits();
+                    if saved & RelationComparisonResult::REPORTS_UNMEASURABLE.bits() != 0 {
+                        let mapper = self.st.report_unmeasurable_mapper;
+                        self.st.instantiate_type(source, Some(mapper))?;
+                    }
+                    if saved & RelationComparisonResult::REPORTS_UNRELIABLE.bits() != 0 {
+                        let mapper = self.st.report_unreliable_mapper;
+                        self.st.instantiate_type(source, Some(mapper))?;
+                    }
                 }
-                if saved & RelationComparisonResult::REPORTS_UNRELIABLE.bits() != 0 {
-                    let mapper = self.st.report_unreliable_mapper;
-                    self.st.instantiate_type(source, Some(mapper))?;
-                }
+                return Ok(if entry.intersects(RelationComparisonResult::SUCCEEDED) {
+                    Ternary::TRUE
+                } else {
+                    Ternary::FALSE
+                });
             }
-            return Ok(if entry.intersects(RelationComparisonResult::SUCCEEDED) {
-                Ternary::TRUE
-            } else {
-                Ternary::FALSE
-            });
         }
         if self.relation_count <= 0 {
             self.overflow = true;

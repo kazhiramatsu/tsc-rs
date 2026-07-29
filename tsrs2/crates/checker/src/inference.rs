@@ -1237,6 +1237,7 @@ impl<'a> CheckerState<'a> {
                             expanding_flags,
                             overflow,
                             relation_count,
+                            error_state: Default::default(),
                         };
                         let related = checker.is_related_to(
                             source,
@@ -1302,6 +1303,7 @@ impl<'a> CheckerState<'a> {
                             expanding_flags: tsrs2_types::ExpandingFlags::NONE,
                             overflow: false,
                             relation_count,
+                            error_state: Default::default(),
                         };
                         let related = checker.is_related_to(
                             source,

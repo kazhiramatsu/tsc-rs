@@ -1840,11 +1840,26 @@ impl<'a> CheckerState<'a> {
                     let prop_name = self.symbol_name_as_written_slice(declared_prop);
                     let type_text = self.type_to_string_slice(type_with_this)?;
                     let base_text = self.type_to_string_slice(base_with_this)?;
-                    self.error_at(
-                        error_node,
+                    let root = tsrs2_diags::MessageChain::new(
                         &diagnostics::Property_0_in_type_1_is_not_assignable_to_the_same_property_in_base_type_2,
-                        &[&prop_name, &type_text, &base_text],
+                        &[prop_name, type_text, base_text],
                     );
+                    if let Some(output) = self.relation_error_output_with_context(
+                        prop_type,
+                        base_prop_type,
+                        crate::relate::RelationKind::Assignable,
+                        None,
+                        Some(root),
+                    )? {
+                        let mut diagnostic = self.create_error(
+                            error_node,
+                            &diagnostics::Property_0_in_type_1_is_not_assignable_to_the_same_property_in_base_type_2,
+                            &[],
+                        );
+                        diagnostic.message = output.message;
+                        diagnostic.related = output.related;
+                        self.push_error_diagnostic(diagnostic);
+                    }
                     issued_member_error = true;
                 }
             }
