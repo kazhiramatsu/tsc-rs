@@ -1212,7 +1212,9 @@ fn generated_source(seed: u64, case: usize) -> String {
             "function g{case}<T>(x: T, y: T): T {{ return x; }}\ng{case}(1, \"x\");\n"
         ),
         6 => format!(
-            "// @target: es2015\nvar {name}: () => void = new Object();\n"
+            "function h{case}<T extends \"a\" | \"b\">(x: T) {{\n\
+                 let {name}: `${{T}}` = x;\n\
+             }}\n"
         ),
         _ => format!(
             "declare function o{case}(a: number): void;\ndeclare function o{case}(a: string): void;\no{case}(true);\n"
