@@ -4196,6 +4196,24 @@ function f(b) {\n\
     }
 
     #[test]
+    fn switch_case_2678_preserves_eager_zero_union_order() {
+        let text = "function earlier(x: 2 | 3) { x = 2; }\n\
+                    function f(x: 0 | 2 | 4) { switch (x) { case 1: return; } }\n";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 2678)
+                .expect("incomparable switch case");
+            assert_eq!(
+                diagnostic.message.text,
+                "Type '1' is not comparable to type '0 | 2 | 4'."
+            );
+        });
+    }
+
+    #[test]
     fn catch_clause_block_scoped_shadow_reports_2492() {
         assert_eq!(
             checked_rows("try {} catch (q) { let q: number; }\n"),

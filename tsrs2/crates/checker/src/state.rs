@@ -11,8 +11,8 @@ use tsrs2_binder::{Binder, InternalSymbolName, SymbolId, SymbolTable};
 use tsrs2_diags::{Diagnostic, DiagnosticList, DiagnosticMessage, MessageChain};
 use tsrs2_syntax::{NodeId, SourceFile};
 use tsrs2_types::{
-    CheckFlags, CompilerOptions, ExpandingFlags, ObjectFlags, SignatureFlags, SymbolFlags,
-    TypeData, TypeFlags, TypeId, TypeSystemPropertyName, TypeTables,
+    CheckFlags, CompilerOptions, ExpandingFlags, ObjectFlags, PseudoBigInt, SignatureFlags,
+    SymbolFlags, TypeData, TypeFlags, TypeId, TypeSystemPropertyName, TypeTables,
 };
 
 use crate::instantiate::MapperId;
@@ -1197,6 +1197,18 @@ impl<'a> CheckerState<'a> {
                 .get_union_type_ex(&members, tsrs2_types::UnionReduction::Literal)
                 .expect("literal unions cannot fail")
         };
+
+        // tsc checker-init 47416-47418: these cache roots are created
+        // before any user program type. Union members sort by TypeId
+        // when stableTypeOrdering is off, so lazy creation here would
+        // incorrectly let an earlier-visited `2`, `""`, or `1n`
+        // precede the corresponding zero/empty literal in displays.
+        state.tables.get_string_literal_type("");
+        state.tables.get_number_literal_type(0.0);
+        state.tables.get_bigint_literal_type(PseudoBigInt {
+            negative: false,
+            base10_value: "0".to_owned(),
+        });
 
         // initializeTypeChecker slice (88732-88906): globals merge +
         // symbol-type seeds + amalgamated-duplicate flush.
