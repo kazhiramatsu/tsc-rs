@@ -141,8 +141,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: da7fa1b903bc78d060f67772b13b9c45bec2c78f40fe0ea25bb0e47691bd763e
     /// tsc-span: _tsc.js:62013-62015
     ///
-    /// The generic-mapped-with-nameType disjunct stays behind the named
-    /// getIndexTypeForMappedType 9.5b boundary below.
+    /// The generic-mapped-with-nameType disjunct preserves a deferred
+    /// `keyof Mapped<T>` identity instead of eagerly replacing it with
+    /// the mapped name type.
     pub(crate) fn should_defer_index_type(
         &mut self,
         ty: TypeId,
@@ -151,6 +152,11 @@ impl<'a> CheckerState<'a> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
             || self.tables.is_generic_tuple_type(ty)
+        {
+            return Ok(true);
+        }
+        if self.is_generic_mapped_type_state(ty)?
+            && self.get_name_type_from_mapped_type(ty)?.is_some()
         {
             return Ok(true);
         }
