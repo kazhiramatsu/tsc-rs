@@ -340,6 +340,10 @@ pub struct CheckerState<'a> {
     pub(crate) slice_approximate_length: usize,
     pub(crate) slice_max_truncation_length: usize,
     pub(crate) slice_truncating: bool,
+    /// nodeBuilder context.flags' NoTypeReduction bit. Ordinary
+    /// typeToString calls leave it false; elaborateNeverIntersection
+    /// sets it so the explanation can name the original intersection.
+    pub(crate) slice_no_type_reduction: bool,
     /// The display slice's face of the nodeBuilder's
     /// context.enclosingDeclaration for the ANNOTATION-REUSE gates
     /// only (canReuseTypeNodeAnnotation, 50932-50955: `undefined →
@@ -946,6 +950,7 @@ impl<'a> CheckerState<'a> {
             slice_approximate_length: 0,
             slice_max_truncation_length: 160,
             slice_truncating: false,
+            slice_no_type_reduction: false,
             slice_display_enclosing: None,
             marker_types: std::collections::HashSet::new(),
             in_variance_computation: false,

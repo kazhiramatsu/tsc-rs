@@ -7990,7 +7990,22 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4b587962e2fb137a31ea52c35aeba733ffb4c6d97a8c54c98d5c1f1666e73dda
     /// tsc-span: _tsc.js:50717-50747
     pub(crate) fn type_to_string_slice(&mut self, ty: TypeId) -> CheckResult2<String> {
-        self.type_to_string_slice_root(ty, /*fully_qualified*/ false)
+        self.type_to_string_slice_root(
+            ty, /*fully_qualified*/ false, /*no_type_reduction*/ false,
+        )
+    }
+
+    /// tsrs-native: state-backed adapter for
+    /// typeToString(..., NodeBuilderFlags.NoTypeReduction), used by
+    /// elaborateNeverIntersection to retain the original intersection
+    /// face after getReducedType has cached its collapse to never.
+    pub(crate) fn type_to_string_slice_no_type_reduction(
+        &mut self,
+        ty: TypeId,
+    ) -> CheckResult2<String> {
+        self.type_to_string_slice_root(
+            ty, /*fully_qualified*/ false, /*no_type_reduction*/ true,
+        )
     }
 
     /// tsc-port: getTypeNameForErrorDisplay @6.0.3
@@ -8003,7 +8018,9 @@ impl<'a> CheckerState<'a> {
     /// curtain); shapes outside the slice keep escalating to the
     /// structured tail's tagged escapes.
     pub(crate) fn get_type_name_for_error_display(&mut self, ty: TypeId) -> CheckResult2<String> {
-        self.type_to_string_slice_root(ty, /*fully_qualified*/ true)
+        self.type_to_string_slice_root(
+            ty, /*fully_qualified*/ true, /*no_type_reduction*/ false,
+        )
     }
 
     /// withContext's typeToString-local nodeBuilder state
@@ -8015,6 +8032,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
+        no_type_reduction: bool,
     ) -> CheckResult2<String> {
         let saved_visited = std::mem::take(&mut self.slice_visited_types);
         let saved_approximate_length = std::mem::replace(&mut self.slice_approximate_length, 0);
@@ -8027,11 +8045,14 @@ impl<'a> CheckerState<'a> {
             },
         );
         let saved_truncating = std::mem::replace(&mut self.slice_truncating, false);
+        let saved_no_type_reduction =
+            std::mem::replace(&mut self.slice_no_type_reduction, no_type_reduction);
         let result = self.type_to_string_slice_ex(ty, fully_qualified);
         self.slice_visited_types = saved_visited;
         self.slice_approximate_length = saved_approximate_length;
         self.slice_max_truncation_length = saved_max_truncation_length;
         self.slice_truncating = saved_truncating;
+        self.slice_no_type_reduction = saved_no_type_reduction;
         result
     }
 
@@ -8318,6 +8339,15 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         fully_qualified: bool,
     ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+        // typeToTypeNodeWorker 51331-51333: typeToString's default
+        // builder flags do not include NoTypeReduction, so every
+        // recursive display frame reduces before selecting a node
+        // arm. This is observable for never-reduced intersections.
+        let ty = if self.slice_no_type_reduction {
+            ty
+        } else {
+            self.get_reduced_type(ty)?
+        };
         if ty == self.marker_super_type_for_check || ty == self.marker_sub_type_for_check {
             // typeToString's type-parameter arm (51535).
             let name = self
