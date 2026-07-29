@@ -1212,14 +1212,10 @@ fn generated_source(seed: u64, case: usize) -> String {
             "function g{case}<T>(x: T, y: T): T {{ return x; }}\ng{case}(1, \"x\");\n"
         ),
         6 => format!(
-            "class G{case} {{\n\
-                 isA{case}(): this is A{case} {{ return true; }}\n\
-                 isB{case}(): this is B{case} {{ return true; }}\n\
-             }}\n\
-             class A{case} extends G{case} {{ a{case}: number = 0; }}\n\
-             class B{case} extends G{case} {{ b{case}: number = 0; }}\n\
-             let guard{case}: G{case} = new G{case}();\n\
-             guard{case}.isA{case} = guard{case}.isB{case};\n"
+            "function assertionOwner{case}(value{case}: unknown) {{\n\
+                 const assert{case} = (condition{case}: unknown): asserts condition{case} => {{}};\n\
+                 assert{case}(value{case});\n\
+             }}\n"
         ),
         _ => format!(
             "declare function o{case}(a: number): void;\ndeclare function o{case}(a: string): void;\no{case}(true);\n"
