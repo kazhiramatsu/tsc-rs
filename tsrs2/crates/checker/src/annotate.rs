@@ -12023,6 +12023,35 @@ mod mapped_type_tests {
     }
 
     #[test]
+    fn keyof_generic_remapped_type_stays_deferred() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "function f<K extends string>() {\n\
+                   let keys: keyof { [P in K as `_${P}`]: P };\n\
+                 }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let (_, keys) = annotation_type(state, "keys");
+                let TypeData::Index { ty: mapped, .. } = state.tables.type_of(keys).data else {
+                    panic!("keyof a generic remapped type stays an Index type");
+                };
+                assert!(state
+                    .tables
+                    .object_flags_of(mapped)
+                    .intersects(ObjectFlags::MAPPED));
+                assert_eq!(
+                    state
+                        .type_to_string_slice(keys)
+                        .expect("deferred mapped keyof renders"),
+                    "keyof { [P in K as `_${P}`]: P; }"
+                );
+            },
+        );
+    }
+
+    #[test]
     fn mapped_type_modifiers_participate_in_identity() {
         with_program_state(
             &[(
