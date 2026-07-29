@@ -1191,7 +1191,7 @@ impl<'a> CheckerState<'a> {
             && !self.contains_undefined_type(ty)
             && self.contains_undefined_type(flow_type)
         {
-            let display = self.symbol_display_name(symbol);
+            let display = self.symbol_name_as_written_slice(symbol);
             self.error_at(
                 Some(node),
                 &diagnostics::Variable_0_is_used_before_being_assigned,
