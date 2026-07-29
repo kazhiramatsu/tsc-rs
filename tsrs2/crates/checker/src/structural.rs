@@ -9069,6 +9069,89 @@ let laterMatch: (x: number) => number = overloaded;
     }
 
     #[test]
+    fn wrapper_object_to_primitive_reports_the_tsc_hint() {
+        fn flatten_codes(chain: &tsrs2_diags::MessageChain, codes: &mut Vec<u32>) {
+            codes.push(chain.code);
+            for child in &chain.next {
+                flatten_codes(child, codes);
+            }
+        }
+
+        let diagnostics = crate::state::test_support::with_program_state(
+            &[(
+                "a.ts",
+                r#"
+interface String {}
+interface Number {}
+interface Boolean {}
+interface Symbol {}
+declare let boxedString: String;
+declare let boxedNumber: Number;
+declare let boxedBoolean: Boolean;
+declare let boxedSymbol: Symbol;
+let primitiveString: string = boxedString;
+let primitiveNumber: number = boxedNumber;
+let primitiveBoolean: boolean = boxedBoolean;
+let primitiveSymbol: symbol = boxedSymbol;
+"#,
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| diagnostic.file_name.is_some())
+                    .map(|diagnostic| {
+                        let mut codes = Vec::new();
+                        flatten_codes(&diagnostic.message, &mut codes);
+                        let detail = diagnostic
+                            .message
+                            .next
+                            .first()
+                            .map(|child| child.text.clone());
+                        (codes, detail)
+                    })
+                    .collect::<Vec<_>>()
+            },
+        );
+
+        assert_eq!(
+            diagnostics,
+            [
+                (
+                    vec![2322, 2692],
+                    Some(
+                        "'string' is a primitive, but 'String' is a wrapper object. Prefer using 'string' when possible."
+                            .to_owned()
+                    )
+                ),
+                (
+                    vec![2322, 2692],
+                    Some(
+                        "'number' is a primitive, but 'Number' is a wrapper object. Prefer using 'number' when possible."
+                            .to_owned()
+                    )
+                ),
+                (
+                    vec![2322, 2692],
+                    Some(
+                        "'boolean' is a primitive, but 'Boolean' is a wrapper object. Prefer using 'boolean' when possible."
+                            .to_owned()
+                    )
+                ),
+                (
+                    vec![2322, 2692],
+                    Some(
+                        "'symbol' is a primitive, but 'Symbol' is a wrapper object. Prefer using 'symbol' when possible."
+                            .to_owned()
+                    )
+                ),
+            ]
+        );
+    }
+
+    #[test]
     fn recursive_mapped_keyof_constraint_requires_a_definite_relation() {
         // 66144's `=== True` is intentional: stepping from `keyof T`
         // into T's self-referential mapped constraint revisits the

@@ -1576,6 +1576,33 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         Ok(())
     }
 
+    /// tsc-port: tryElaborateErrorsForPrimitivesAndObjects @6.0.3
+    /// tsc-hash: adbeaf9ce607ce3df0b6799a99a3f5ee7a84ae09004a28e40d85f12d2bc878e7
+    /// tsc-span: _tsc.js:65116-65122
+    fn try_elaborate_errors_for_primitives_and_objects(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<()> {
+        let source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
+        let target_text = self.st.type_to_string_slice_with_error_enclosing(target)?;
+        let string_type = self.st.tables.intrinsics.string;
+        let number_type = self.st.tables.intrinsics.number;
+        let boolean_type = self.st.tables.intrinsics.boolean;
+        let es_symbol_type = self.st.tables.intrinsics.es_symbol;
+        let wrapper_to_primitive = source == self.st.global_string_type()? && target == string_type
+            || source == self.st.global_number_type()? && target == number_type
+            || source == self.st.global_boolean_type()? && target == boolean_type
+            || source == self.st.global_es_symbol_type()? && target == es_symbol_type;
+        if wrapper_to_primitive {
+            self.report_error(
+                &diagnostics::_0_is_a_primitive_but_1_is_a_wrapper_object_Prefer_using_0_when_possible,
+                vec![target_text, source_text],
+            )?;
+        }
+        Ok(())
+    }
+
     /// tsc-port: reportErrorResults @6.0.3
     /// tsc-hash: 18a0d61d9350e78cbeb8b2d70f425a892ab9fabe200309c353e1413ac5b5cef7
     /// tsc-span: _tsc.js:65248-65346
@@ -1618,6 +1645,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let maybe_suppress = self.error_state.override_next_error_info > 0;
         if maybe_suppress {
             self.error_state.override_next_error_info -= 1;
+        }
+        if self.flags(source).intersects(TypeFlags::OBJECT)
+            && self.flags(target).intersects(TypeFlags::PRIMITIVE)
+        {
+            self.try_elaborate_errors_for_primitives_and_objects(source, target)?;
         }
         if head_message.is_none() && maybe_suppress {
             let saved_error_state = self.capture_error_calculation_state();
