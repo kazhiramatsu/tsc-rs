@@ -7964,6 +7964,64 @@ impl<'a> CheckerState<'a> {
         self.get_symbol_of_declaration_opt(host)
     }
 
+    /// typeReferenceToTypeNode's deliberately narrow trailing-default
+    /// elision gate. tsc only applies it to the four iterable protocol
+    /// references; ordinary generics (including Generator) keep every
+    /// filled argument. A node-backed reference with an explicitly
+    /// complete argument list also keeps its arguments.
+    fn should_elide_iterable_default_arguments_slice(
+        &mut self,
+        ty: TypeId,
+        type_parameter_count: usize,
+    ) -> CheckResult2<bool> {
+        let target = self.tables.reference_target(ty);
+        let Some(symbol) = self.tables.type_of(target).symbol else {
+            return Ok(false);
+        };
+        // Keep the common reference-rendering path allocation-free
+        // and getter-free: only one of the four exact written names
+        // can enter the global-identity probe.
+        enum IterableProtocol {
+            Iterable,
+            IterableIterator,
+            AsyncIterable,
+            AsyncIterableIterator,
+        }
+        let protocol_name = match self.binder.symbol(symbol).escaped_name.as_str() {
+            "Iterable" => Some(IterableProtocol::Iterable),
+            "IterableIterator" => Some(IterableProtocol::IterableIterator),
+            "AsyncIterable" => Some(IterableProtocol::AsyncIterable),
+            "AsyncIterableIterator" => Some(IterableProtocol::AsyncIterableIterator),
+            _ => None,
+        };
+        let protocol_target = match protocol_name {
+            Some(IterableProtocol::Iterable) => {
+                self.get_global_iterable_type(/*report_errors*/ false)?
+            }
+            Some(IterableProtocol::IterableIterator) => {
+                self.get_global_iterable_iterator_type(/*report_errors*/ false)?
+            }
+            Some(IterableProtocol::AsyncIterable) => {
+                self.get_global_async_iterable_type(/*report_errors*/ false)?
+            }
+            Some(IterableProtocol::AsyncIterableIterator) => {
+                self.get_global_async_iterable_iterator_type(/*report_errors*/ false)?
+            }
+            None => return Ok(false),
+        };
+        if !self.is_reference_to_type(ty, protocol_target) {
+            return Ok(false);
+        }
+
+        let Some(node) = self.links.ty(ty).deferred_node else {
+            return Ok(true);
+        };
+        let NodeData::TypeReference(data) = self.data_of(node) else {
+            return Ok(true);
+        };
+        Ok(self.nodes_of(data.type_arguments).len() < type_parameter_count)
+    }
+
     /// The kind-carrying face of the slice renderer: the nodeBuilder
     /// emits factory TypeNodes and the factory's parenthesizer rules
     /// branch on the CHILD node's kind at every join, so the string
@@ -8242,6 +8300,24 @@ impl<'a> CheckerState<'a> {
                     // slice (parenthesizeOrdinalTypeArgument wraps only
                     // a LEADING function/constructor head, 20607-20612
                     // — not a producible child).
+                    //
+                    // 51476-51477: the global Array symbol can also
+                    // arrive through the alias head. It receives the
+                    // same ArrayTypeNode sugar as the reference arm;
+                    // name-based matching would incorrectly sugar a
+                    // shadowing local alias, so retain symbol identity.
+                    if arguments.len() == 1
+                        && self.binder.symbol(alias_symbol).escaped_name == "Array"
+                        && self.get_global_type_symbol("Array", /*report_errors*/ false)
+                            == Some(alias_symbol)
+                    {
+                        let (element, kind) =
+                            self.type_to_string_slice_node(arguments[0], fully_qualified)?;
+                        return Ok((
+                            array_type_node_text(element, kind),
+                            SliceTypeNodeKind::Array,
+                        ));
+                    }
                     let mut rendered = Vec::new();
                     for argument in arguments.iter() {
                         rendered.push(self.type_to_string_slice_ex(*argument, fully_qualified)?);
@@ -8491,20 +8567,44 @@ impl<'a> CheckerState<'a> {
             let arguments = self.get_type_arguments(ty)?;
             // typeReferenceToTypeNode's array sugar: references to the
             // global Array/ReadonlyArray print as element sugar (the
-            // sugar probe reads the PLAIN name — lib globals are
-            // parentless, so the qualified head matches too).
-            if arguments.len() == 1 && (name == "Array" || name == "ReadonlyArray") {
+            // identity probe is against the target globals, before the
+            // ordinary symbol head. Member-resolution can append the
+            // reference's `this` argument, so only the first semantic
+            // type argument is consumed here — tsc does not require
+            // `typeArguments.length === 1`.
+            let array_name_kind = match self.binder.symbol(symbol).escaped_name.as_str() {
+                "Array" => Some(false),
+                "ReadonlyArray" => Some(true),
+                _ => None,
+            };
+            let array_kind = match array_name_kind {
+                Some(false)
+                    if self.get_global_type_symbol("Array", /*report_errors*/ false)
+                        == Some(symbol) =>
+                {
+                    Some(false)
+                }
+                Some(true)
+                    if self
+                        .get_global_type_symbol("ReadonlyArray", /*report_errors*/ false)
+                        == Some(symbol) =>
+                {
+                    Some(true)
+                }
+                _ => None,
+            };
+            if let (Some(readonly), Some(&element_type)) = (array_kind, arguments.first()) {
                 let (element, kind) =
-                    self.type_to_string_slice_node(arguments[0], fully_qualified)?;
+                    self.type_to_string_slice_node(element_type, fully_qualified)?;
                 // 51945-51947: ArrayTypeNode (postfix-parenthesized
                 // element) + the readonly TypeOperator for
                 // ReadonlyArray (an array operand never parenthesizes,
                 // 20570-20576).
                 let array = array_type_node_text(element, kind);
-                return Ok(if name == "Array" {
-                    (array, SliceTypeNodeKind::Array)
-                } else {
+                return Ok(if readonly {
                     (format!("readonly {array}"), SliceTypeNodeKind::TypeOperator)
+                } else {
+                    (array, SliceTypeNodeKind::Array)
                 });
             }
             let (type_parameters, outer_type_parameter_count) =
@@ -8556,7 +8656,26 @@ impl<'a> CheckerState<'a> {
                     });
                 }
             }
-            let type_parameter_count = type_parameters.len().min(arguments.len());
+            let mut type_parameter_count = type_parameters.len().min(arguments.len());
+            // 52009-52033: only the four iterable protocol types omit
+            // a trailing run of arguments identical to their declared
+            // defaults. Stop at the first absent/non-identical default;
+            // Generator and every other generic are non-firing
+            // siblings even when their parameter defaults are equal.
+            if self.should_elide_iterable_default_arguments_slice(ty, type_parameter_count)? {
+                while type_parameter_count > outer_type_parameter_count {
+                    let argument = arguments[type_parameter_count - 1];
+                    let parameter = type_parameters[type_parameter_count - 1];
+                    let Some(default_type) = self.get_default_from_type_parameter(parameter)?
+                    else {
+                        break;
+                    };
+                    if !self.is_type_identical_to(argument, default_type)? {
+                        break;
+                    }
+                    type_parameter_count -= 1;
+                }
+            }
             let mut rendered = Vec::new();
             for argument in arguments
                 .iter()
@@ -19405,6 +19524,94 @@ mod tests {
                     "Type 'number' is not assignable to type 'readonly (keyof T)[]'.".to_owned()
                 ),
             ]
+        );
+    }
+
+    #[test]
+    fn iterable_protocol_faces_elide_only_trailing_default_arguments() {
+        assert_eq!(
+            checked_diags(
+                "\
+interface Iterable<T, TReturn = any, TNext = any> {}
+interface IterableIterator<T, TReturn = any, TNext = any> {}
+interface AsyncIterable<T, TReturn = any, TNext = any> {}
+interface AsyncIterableIterator<T, TReturn = any, TNext = any> {}
+interface Generator<T, TReturn = any, TNext = any> {}
+interface Other<T, U = any> {}
+declare let a: Iterable<string, any, any>;
+declare let b: IterableIterator<string, void, any>;
+declare let c: AsyncIterable<string, any, any>;
+declare let d: AsyncIterableIterator<string, void, any>;
+declare let e: Generator<string, any, any>;
+declare let f: Other<string, any>;
+const aa: number = a;
+const bb: number = b;
+const cc: number = c;
+const dd: number = d;
+const ee: number = e;
+const ff: number = f;
+"
+            ),
+            [
+                (
+                    2322,
+                    608,
+                    2,
+                    "Type 'Iterable<string>' is not assignable to type 'number'.".to_owned()
+                ),
+                (
+                    2322,
+                    630,
+                    2,
+                    "Type 'IterableIterator<string, void>' is not assignable to type 'number'."
+                        .to_owned()
+                ),
+                (
+                    2322,
+                    652,
+                    2,
+                    "Type 'AsyncIterable<string>' is not assignable to type 'number'.".to_owned()
+                ),
+                (
+                    2322,
+                    674,
+                    2,
+                    "Type 'AsyncIterableIterator<string, void>' is not assignable to type 'number'."
+                        .to_owned()
+                ),
+                (
+                    2322,
+                    696,
+                    2,
+                    "Type 'Generator<string, any, any>' is not assignable to type 'number'."
+                        .to_owned()
+                ),
+                (
+                    2322,
+                    718,
+                    2,
+                    "Type 'Other<string, any>' is not assignable to type 'number'.".to_owned()
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn global_array_reference_with_appended_this_keeps_array_type_sugar() {
+        assert_eq!(
+            checked_diags(
+                "\
+interface Array<T> { length: number; }
+type T3 = number[];
+interface I3 extends T3 { length: string }
+"
+            ),
+            [(
+                2430,
+                69,
+                2,
+                "Interface 'I3' incorrectly extends interface 'number[]'.".to_owned()
+            )]
         );
     }
 
