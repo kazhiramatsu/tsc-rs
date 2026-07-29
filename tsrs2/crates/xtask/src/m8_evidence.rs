@@ -1212,9 +1212,9 @@ fn generated_source(seed: u64, case: usize) -> String {
             "function g{case}<T>(x: T, y: T): T {{ return x; }}\ng{case}(1, \"x\");\n"
         ),
         6 => format!(
-            "function r{case}<T extends readonly unknown[]>(source: T, target: [...T]) {{\n\
-                 target = source;\n\
-             }}\n"
+            "interface R{case}<T> extends Array<T> {{ required{case}: number; }}\n\
+             declare function q{case}<T>(...args: R{case}<T>): void;\n\
+             q{case}();\n"
         ),
         _ => format!(
             "declare function o{case}(a: number): void;\ndeclare function o{case}(a: string): void;\no{case}(true);\n"

@@ -2716,7 +2716,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         // tryElaborateArrayLikeErrors(false). In particular a
         // non-array source against a tuple target reports only its
         // enclosing relation head; it must not fabricate 2739/2740.
-        if !self.try_elaborate_array_like_errors_without_reporting(source, target)? {
+        if !self.try_elaborate_array_like_errors(source, target, false)? {
             return Ok(());
         }
 
@@ -2757,20 +2757,38 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-hash: 4d8d191f532ffe704ad74834cc079e0c2f02d50f2a1159f8bde055450d13c086
     /// tsc-span: _tsc.js:65123-65143
     ///
-    /// reportUnmatchedProperty calls this with reportErrors=false, so
-    /// only the boolean gate is needed in the relation walker.
-    fn try_elaborate_array_like_errors_without_reporting(
+    /// Both reportErrorResults' reporting face and
+    /// reportUnmatchedProperty's verdict-only face execute inside the
+    /// recursive relation walker.
+    pub(crate) fn try_elaborate_array_like_errors(
         &mut self,
         source: TypeId,
         target: TypeId,
+        report_errors: bool,
     ) -> CheckResult2<bool> {
         if self.st.tables.is_tuple_type(source) {
             if self.tuple_target_readonly(source) && self.st.is_mutable_array_or_tuple(target)? {
+                if report_errors {
+                    let source_text = self.st.type_to_string_slice(source)?;
+                    let target_text = self.st.type_to_string_slice(target)?;
+                    self.report_error(
+                        &tsrs2_diags::gen::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1,
+                        vec![source_text, target_text],
+                    )?;
+                }
                 return Ok(false);
             }
             return Ok(self.st.is_array_type(target)? || self.st.tables.is_tuple_type(target));
         }
         if self.st.is_readonly_array_type(source)? && self.st.is_mutable_array_or_tuple(target)? {
+            if report_errors {
+                let source_text = self.st.type_to_string_slice(source)?;
+                let target_text = self.st.type_to_string_slice(target)?;
+                self.report_error(
+                    &tsrs2_diags::gen::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1,
+                    vec![source_text, target_text],
+                )?;
+            }
             return Ok(false);
         }
         if self.st.tables.is_tuple_type(target) {

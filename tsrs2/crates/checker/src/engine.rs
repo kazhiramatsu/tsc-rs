@@ -1642,9 +1642,18 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         {
             target = original_target;
         }
-        let maybe_suppress = self.error_state.override_next_error_info > 0;
+        let mut maybe_suppress = self.error_state.override_next_error_info > 0;
         if maybe_suppress {
             self.error_state.override_next_error_info -= 1;
+        }
+        if self.flags(source).intersects(TypeFlags::OBJECT)
+            && self.flags(target).intersects(TypeFlags::OBJECT)
+        {
+            let current_error_revision = self.error_state.error_info_revision;
+            self.try_elaborate_array_like_errors(source, target, true)?;
+            if self.error_state.error_info_revision != current_error_revision {
+                maybe_suppress = self.error_state.error_info.is_some();
+            }
         }
         if self.flags(source).intersects(TypeFlags::OBJECT)
             && self.flags(target).intersects(TypeFlags::PRIMITIVE)
