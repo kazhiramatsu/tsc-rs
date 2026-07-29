@@ -1212,7 +1212,7 @@ fn generated_source(seed: u64, case: usize) -> String {
             "function g{case}<T>(x: T, y: T): T {{ return x; }}\ng{case}(1, \"x\");\n"
         ),
         6 => format!(
-            "interface A{case} {{ a: <T>(x: T) => T[]; }}\ninterface I{case}<T> extends A{case} {{ a: (x: T) => T[]; }}\n"
+            "// @target: es2015\nclass C{case} {{ public constructor() {{}} }}\nvar {name} = new C{case}();\nvar r{case}: () => void = {name}.constructor;\n"
         ),
         _ => format!(
             "declare function o{case}(a: number): void;\ndeclare function o{case}(a: string): void;\no{case}(true);\n"
