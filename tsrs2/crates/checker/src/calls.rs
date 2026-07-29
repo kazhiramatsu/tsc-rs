@@ -5649,12 +5649,18 @@ impl<'a> CheckerState<'a> {
                 source_type,
                 target_type,
             )?;
+            let diagnostics_before_report = self.diagnostics.len();
             self.check_type_assignable_to(
                 source_type,
                 target_type,
                 Some(name_node),
                 &diagnostics::Type_0_is_not_assignable_to_type_1,
             )?;
+            if self.diagnostics.len() > diagnostics_before_report {
+                let diagnostic_index = self.diagnostics.len() - 1;
+                let name_type = self.tables.get_string_literal_type(&name);
+                self.attach_elementwise_elaboration_related(diagnostic_index, target, name_type)?;
+            }
             reported = true;
         }
         Ok(reported)
@@ -7462,6 +7468,81 @@ mod tests {
                          '{ a: true; }'"
                     );
                 }
+            },
+        );
+    }
+
+    #[test]
+    fn elementwise_elaboration_points_to_an_index_signature() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "declare function f(x: { [key: string]: number }): void;\nf({ a: \"x\" });\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                let diagnostic = state
+                    .diagnostics
+                    .iter()
+                    .find(|diagnostic| diagnostic.code() == 2322)
+                    .expect("the property mismatch is reported");
+                assert_eq!(diagnostic.related.len(), 1);
+                assert_eq!(diagnostic.related[0].message.code, 6501);
+                assert_eq!(
+                    diagnostic.related[0].message.text,
+                    "The expected type comes from this index signature."
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn ordinary_declaration_roots_retain_elementwise_provenance() {
+        with_program_state(
+            &[
+                ("types.d.ts", "interface Target { a: number; }\n"),
+                (
+                    "a.ts",
+                    "declare function f(x: Target): void;\nf({ a: \"x\" });\n",
+                ),
+            ],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(1);
+                let diagnostic = state
+                    .diagnostics
+                    .iter()
+                    .find(|diagnostic| diagnostic.code() == 2322)
+                    .expect("the property mismatch is reported");
+                assert_eq!(diagnostic.related.len(), 1);
+                assert_eq!(diagnostic.related[0].message.code, 6500);
+                assert_eq!(
+                    diagnostic.related[0].file_name.as_deref(),
+                    Some("types.d.ts")
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn arrow_elaboration_points_to_the_contextual_return_signature() {
+        with_program_state(
+            &[("a.ts", "const f: () => number = () => \"x\";\n")],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                let diagnostic = state
+                    .diagnostics
+                    .iter()
+                    .find(|diagnostic| diagnostic.code() == 2322)
+                    .expect("the return mismatch is reported");
+                assert_eq!(diagnostic.related.len(), 1);
+                assert_eq!(diagnostic.related[0].message.code, 6502);
+                assert_eq!(
+                    diagnostic.related[0].message.text,
+                    "The expected type comes from the return type of this signature."
+                );
             },
         );
     }

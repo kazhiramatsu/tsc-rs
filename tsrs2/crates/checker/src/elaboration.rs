@@ -208,47 +208,110 @@ impl<'a> CheckerState<'a> {
         Ok((actual, expected))
     }
 
-    /// elaborateElementwise (64179-64204): attach the property-origin
-    /// tail after the inner relation row has been created. A regular
-    /// source file is provably not a default library, so this is the
-    /// exact live subset of host.isSourceFileDefaultLibrary that the
-    /// in-memory host can classify without guessing from a path.
-    fn attach_user_property_elaboration_related(
+    /// tsc-port: elaborateElementwise @6.0.3
+    /// tsc-hash: ba522e034925ca5fe1f8233c0d876dafe1973315638a5f524a6eac6d0b0c3505
+    /// tsc-span: _tsc.js:64126-64205
+    ///
+    /// The provenance tail after the inner relation row has been
+    /// created. The oracle host runs `noLib: true` and passes every
+    /// vendored lib as an ordinary root, so its `libFiles` set is
+    /// empty: `host.isSourceFileDefaultLibrary` is false for every
+    /// declaration in this program model.
+    pub(crate) fn attach_elementwise_elaboration_related(
         &mut self,
         diagnostic_index: usize,
         target_type: TypeId,
-        name_text: &str,
+        name_type: TypeId,
     ) -> CheckResult2<()> {
-        let Some(target_property) = self.get_property_of_type_full(target_type, name_text)? else {
-            return Ok(());
+        let property_name = self.property_name_from_type_usable(name_type);
+        let target_property = match property_name.as_deref() {
+            Some(property_name) => self.get_property_of_type_full(target_type, property_name)?,
+            None => None,
         };
-        let Some(declaration) = self
-            .binder
-            .symbol(target_property)
-            .declarations
-            .first()
-            .copied()
-        else {
-            return Ok(());
-        };
-        if self.binder.source_of_node(declaration).is_declaration_file {
-            return Ok(());
+
+        if target_property.is_none() {
+            if let Some(declaration) = self
+                .get_applicable_index_info(target_type, name_type)?
+                .and_then(|info| info.declaration)
+            {
+                let related = self.related_info_for_node(
+                    declaration,
+                    &diagnostics::The_expected_type_comes_from_this_index_signature,
+                    &[],
+                );
+                if let Some(diagnostic) = self.diagnostics.get_mut(diagnostic_index) {
+                    diagnostic.related.push(related);
+                }
+                return Ok(());
+            }
         }
-        // A display outside the current nodeBuilder slice must not
-        // unwind an already faithful primary diagnostic. It simply
-        // leaves this T3 tail for the later display-closure slice.
+
+        let target_node = target_property
+            .and_then(|property| self.binder.symbol(property).declarations.first().copied())
+            .or_else(|| {
+                self.tables
+                    .type_of(target_type)
+                    .symbol
+                    .and_then(|symbol| self.binder.symbol(symbol).declarations.first().copied())
+            });
+        let Some(target_node) = target_node else {
+            return Ok(());
+        };
+
+        let property_display = match property_name {
+            Some(ref property_name)
+                if !self
+                    .tables
+                    .flags_of(name_type)
+                    .intersects(TypeFlags::UNIQUE_ES_SYMBOL) =>
+            {
+                tsrs2_binder::unescape_leading_underscores(property_name).to_owned()
+            }
+            _ => {
+                let Ok(display) = self.type_to_string_slice(name_type) else {
+                    return Ok(());
+                };
+                display
+            }
+        };
         let Ok(target_text) = self.type_to_string_slice(target_type) else {
             return Ok(());
         };
         let related = self.related_info_for_node(
-            declaration,
+            target_node,
             &diagnostics::The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1,
-            &[name_text, &target_text],
+            &[&property_display, &target_text],
         );
         if let Some(diagnostic) = self.diagnostics.get_mut(diagnostic_index) {
             diagnostic.related.push(related);
         }
         Ok(())
+    }
+
+    /// tsc-port: elaborateArrowFunction @6.0.3
+    /// tsc-hash: 592e789cf5d2404080e9d8b355099c7a7f0e7580287399e52d8b25a4950b9cd7
+    /// tsc-span: _tsc.js:64024-64102
+    fn attach_arrow_return_elaboration_related(
+        &mut self,
+        diagnostic_index: usize,
+        target_type: TypeId,
+    ) {
+        let declaration = self
+            .tables
+            .type_of(target_type)
+            .symbol
+            .and_then(|symbol| self.binder.symbol(symbol).declarations.first().copied());
+        let Some(declaration) = declaration else {
+            return;
+        };
+        let related = self.related_info_for_node(
+            declaration,
+            &diagnostics::The_expected_type_comes_from_the_return_type_of_this_signature,
+            &[],
+        );
+        if let Some(diagnostic) = self.diagnostics.get_mut(diagnostic_index) {
+            diagnostic.related.push(related);
+        }
     }
 
     /// tsrs-native: elaborateJsxComponents @6.0.3 children slice
@@ -485,12 +548,17 @@ impl<'a> CheckerState<'a> {
                 {
                     return Ok(ElaborationOutcome::Reported);
                 }
+                let diagnostics_before_report = self.diagnostics.len();
                 self.check_type_assignable_to(
                     source_return,
                     target_return,
                     Some(body),
                     &diagnostics::Type_0_is_not_assignable_to_type_1,
                 )?;
+                if self.diagnostics.len() > diagnostics_before_report {
+                    let diagnostic_index = self.diagnostics.len() - 1;
+                    self.attach_arrow_return_elaboration_related(diagnostic_index, target_type);
+                }
                 return Ok(ElaborationOutcome::Reported);
             }
             NodeData::ObjectLiteralExpression(data) => {
@@ -652,10 +720,10 @@ impl<'a> CheckerState<'a> {
                     }
                     if self.diagnostics.len() > diagnostics_before_report {
                         let diagnostic_index = self.diagnostics.len() - 1;
-                        self.attach_user_property_elaboration_related(
+                        self.attach_elementwise_elaboration_related(
                             diagnostic_index,
                             target_type,
-                            &name_text,
+                            name_type,
                         )?;
                     }
                 }
@@ -783,6 +851,7 @@ impl<'a> CheckerState<'a> {
                         specific_source,
                         original_expected,
                     )?;
+                    let diagnostics_before_report = self.diagnostics.len();
                     let specific_related = self.check_type_assignable_to(
                         specific_source,
                         expected,
@@ -795,6 +864,14 @@ impl<'a> CheckerState<'a> {
                             expected,
                             Some(error_node),
                             &diagnostics::Type_0_is_not_assignable_to_type_1,
+                        )?;
+                    }
+                    if self.diagnostics.len() > diagnostics_before_report {
+                        let diagnostic_index = self.diagnostics.len() - 1;
+                        self.attach_elementwise_elaboration_related(
+                            diagnostic_index,
+                            target_type,
+                            name_type,
                         )?;
                     }
                 }
