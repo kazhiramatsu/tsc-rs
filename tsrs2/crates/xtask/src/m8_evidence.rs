@@ -1213,15 +1213,10 @@ fn generated_source(seed: u64, case: usize) -> String {
         ),
         6 => format!(
             "// @target: es2015\n\
-             class B{case} {{\n\
-                 #x = 1;\n\
-                 m() {{\n\
-                     class D{case} {{\n\
-                         #x = 2;\n\
-                         f(x: B{case}) {{ return x.#x; }}\n\
-                     }}\n\
-                 }}\n\
-             }}\n"
+             // @experimentalDecorators: true\n\
+             declare function d{case}(): (target: Function, index: number) => void;\n\
+             @d{case}()\n\
+             class C{case} {{}}\n"
         ),
         _ => format!(
             "declare function o{case}(a: number): void;\ndeclare function o{case}(a: string): void;\no{case}(true);\n"
