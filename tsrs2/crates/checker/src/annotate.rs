@@ -7301,7 +7301,10 @@ impl<'a> CheckerState<'a> {
         // `.type` read — declaration kinds without a type field
         // simply answer None.
         let annotation = self.effective_type_annotation_node(declaration);
-        let name = self.symbol_display_name(symbol);
+        // reportCircularityError passes the symbol through
+        // symbolToString, whose default symbolToNode route preserves
+        // the declaration spelling (`#x`, `["#x"]`, ...).
+        let name = self.symbol_name_as_written_slice(symbol);
         if annotation.is_some() {
             self.error_at(
                 Some(declaration),

@@ -13794,6 +13794,56 @@ mod tests {
         );
     }
 
+    #[test]
+    fn circularity_and_unassigned_property_diagnostics_use_written_names() {
+        let options = CompilerOptions {
+            strict: Some(true),
+            target: Some(ScriptTarget::ES2015.bits()),
+            ..CompilerOptions::default()
+        };
+        let rows = checked_diags_with(
+            "class A {\n\
+                 #foo = this.#bar;\n\
+                 #bar = this.#foo;\n\
+                 [\"#baz\"] = this[\"#baz\"];\n\
+             }\n\
+             class B {\n\
+                 #d: number;\n\
+                 constructor() {\n\
+                     this.#d;\n\
+                     this.#d = 1;\n\
+                 }\n\
+             }\n",
+            &options,
+        );
+        let messages = rows
+            .into_iter()
+            .filter(|row| matches!(row.0, 7022 | 2565))
+            .map(|row| (row.0, row.3))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            messages,
+            [
+                (
+                    7022,
+                    "'#foo' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.".to_owned(),
+                ),
+                (
+                    7022,
+                    "'#bar' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.".to_owned(),
+                ),
+                (
+                    7022,
+                    "'[\"#baz\"]' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.".to_owned(),
+                ),
+                (
+                    2565,
+                    "Property '#d' is used before being assigned.".to_owned(),
+                ),
+            ]
+        );
+    }
+
     // ---- M8-P18 checked-JS checkJSDocTypeAliasTag projection ----
 
     #[test]
