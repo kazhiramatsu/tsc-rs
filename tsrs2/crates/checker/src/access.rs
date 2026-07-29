@@ -1438,8 +1438,8 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: checkPrivateIdentifierPropertyAccess @6.0.3
-    /// tsc-hash: 88d07828ed4c3f6ad804ab8aa9a8b3ba39df1680fe4d40b43b04e977f00da6ee
-    /// tsc-span: _tsc.js:75139-75172
+    /// tsc-hash: d9d3592711f361c706ec9d51c5b2b351953da2682a5b8d9042ca4424fba9b726
+    /// tsc-span: _tsc.js:75139-75179
     fn check_private_identifier_property_access(
         &mut self,
         left_type: TypeId,
@@ -1492,15 +1492,21 @@ impl<'a> CheckerState<'a> {
                     .is_some();
                 if shadowed {
                     let left_name = self.type_to_string_slice(left_type)?;
+                    let shadowing_related = self.related_info_for_node(
+                        lexical_value_decl,
+                        &tsrs2_diags::gen::The_shadowing_declaration_of_0_is_defined_here,
+                        &[&diag_name],
+                    );
+                    let intended_related = self.related_info_for_node(
+                        type_value_decl,
+                        &tsrs2_diags::gen::The_declaration_of_0_that_you_probably_intended_to_use_is_defined_here,
+                        &[&diag_name],
+                    );
                     let index = self.error_at_with_related(
                         Some(right),
                         &tsrs2_diags::gen::The_property_0_cannot_be_accessed_on_type_1_within_this_class_because_it_is_shadowed_by_another_private_identifier_with_the_same_spelling,
                         &[&diag_name, &left_name],
-                        vec![self.related_info_for_node(
-                            lexical_value_decl,
-                            &tsrs2_diags::gen::The_shadowing_declaration_of_0_is_defined_here,
-                            &[&diag_name],
-                        )],
+                        vec![shadowing_related, intended_related],
                     );
                     let _ = index;
                     return Ok(true);
@@ -4609,7 +4615,7 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_types::CompilerOptions;
+    use tsrs2_types::{CompilerOptions, ScriptTarget};
 
     use crate::state::test_support::with_program_state;
     use crate::state::CheckerState;
@@ -5482,6 +5488,50 @@ try {} catch (plain) { plain.foo; }\n";
                 "Property '#field' is not accessible outside class 'Named' because it has a private identifier.".to_owned(),
             ]
         );
+    }
+
+    #[test]
+    fn shadowed_private_access_reports_both_declaration_sites() {
+        let text = "class Base {\n\
+                        #x = 1;\n\
+                        m() {\n\
+                            class Derived {\n\
+                                #x = 2;\n\
+                                f(x: Base) { return x.#x; }\n\
+                            }\n\
+                        }\n\
+                    }\n";
+        let options = CompilerOptions {
+            target: Some(ScriptTarget::ES2015.bits()),
+            ..CompilerOptions::default()
+        };
+        with_program_state(&[("a.ts", text)], &options, |state| {
+            state.check_source_file(0);
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 18014)
+                .expect("shadowed private access");
+            assert_eq!(
+                diagnostic
+                    .related
+                    .iter()
+                    .map(|related| related.message.code)
+                    .collect::<Vec<_>>(),
+                [18017, 18018]
+            );
+            assert_eq!(
+                diagnostic
+                    .related
+                    .iter()
+                    .map(|related| related.message.text.as_str())
+                    .collect::<Vec<_>>(),
+                [
+                    "The shadowing declaration of '#x' is defined here",
+                    "The declaration of '#x' that you probably intended to use is defined here",
+                ]
+            );
+        });
     }
 
     #[test]
