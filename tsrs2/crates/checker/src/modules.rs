@@ -1702,11 +1702,41 @@ impl<'a> CheckerState<'a> {
         &mut self,
         module_symbol: SymbolId,
         target_symbol: SymbolId,
-        _node: NodeId,
+        node: NodeId,
         name: NodeId,
     ) -> CheckResult2<()> {
-        let module_name = self.fully_qualified_name(module_symbol);
-        let declaration_name = self.module_export_name_text_unescaped(name);
+        // getFullyQualifiedName(moduleSymbol, node): at an
+        // import/export specifier the location-aware symbol builder
+        // selects the written module specifier rather than exposing
+        // the resolved source-file symbol name.
+        let merged_module_symbol = self.get_merged_symbol(module_symbol);
+        let is_pattern_ambient_module =
+            self.pattern_ambient_modules
+                .iter()
+                .any(|(_, _, pattern_symbol)| {
+                    self.get_merged_symbol(*pattern_symbol) == merged_module_symbol
+                });
+        let module_name = if is_pattern_ambient_module {
+            // A concrete written specifier such as "b.foo" resolves
+            // through the "*.foo" declaration. getFullyQualifiedName
+            // reports the declaration pattern in this case.
+            self.fully_qualified_name(module_symbol)
+        } else {
+            self.get_external_module_name_of(node)
+                .or_else(|| self.get_module_specifier_for_import_or_export(node))
+                .filter(|&specifier| self.kind_of(specifier) == SyntaxKind::StringLiteral)
+                .map(|specifier| {
+                    node_util::declaration_name_to_string(
+                        self.binder.source_of_node(specifier),
+                        Some(specifier),
+                    )
+                })
+                .unwrap_or_else(|| self.fully_qualified_name(module_symbol))
+        };
+        // declarationNameToString preserves arbitrary module export
+        // names as written, including the quotes on string literals.
+        let declaration_name =
+            node_util::declaration_name_to_string(self.binder.source_of_node(name), Some(name));
         let suggestion = if self.kind_of(name) == SyntaxKind::Identifier {
             self.get_suggested_symbol_for_nonexistent_module(name, target_symbol)?
         } else {
@@ -8772,6 +8802,78 @@ mod tests {
                 ("main.ts".to_owned(), 2306, 44, 10),
                 ("main.ts".to_owned(), 2305, 65, 4),
             ]
+        );
+    }
+
+    #[test]
+    fn missing_module_member_diagnostics_use_written_specifiers_and_names() {
+        let missing = check_program(
+            &[
+                InputFile {
+                    name: "/mod.ts".to_owned(),
+                    text: "export const present = 1;\n".to_owned(),
+                },
+                InputFile {
+                    name: "/main.ts".to_owned(),
+                    text: "import { \"missing\" as x, absent } from \"./mod.js\";\n".to_owned(),
+                },
+            ],
+            &CompilerOptions::default(),
+        );
+        let messages = targeted_rows(&missing, &[2305])
+            .into_iter()
+            .map(|row| row.4)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            messages,
+            [
+                "Module '\"./mod.js\"' has no exported member '\"missing\"'.".to_owned(),
+                "Module '\"./mod.js\"' has no exported member 'absent'.".to_owned(),
+            ]
+        );
+
+        let default_only = check_program(
+            &[
+                InputFile {
+                    name: "/default.ts".to_owned(),
+                    text: "export default 1;\n".to_owned(),
+                },
+                InputFile {
+                    name: "/main.ts".to_owned(),
+                    text: "import { Oops } from \"./default.js\";\n".to_owned(),
+                },
+            ],
+            &CompilerOptions::default(),
+        );
+        assert_eq!(
+            targeted_rows(&default_only, &[2614])
+                .into_iter()
+                .map(|row| row.4)
+                .collect::<Vec<_>>(),
+            [
+                "Module '\"./default.js\"' has no exported member 'Oops'. Did you mean to use 'import Oops from \"./default.js\"' instead?".to_owned(),
+            ]
+        );
+
+        let pattern_ambient = check_program(
+            &[
+                InputFile {
+                    name: "/ambient.d.ts".to_owned(),
+                    text: "declare module \"*.foo\" { export const present: number; }\n".to_owned(),
+                },
+                InputFile {
+                    name: "/main.ts".to_owned(),
+                    text: "import { absent } from \"b.foo\";\n".to_owned(),
+                },
+            ],
+            &CompilerOptions::default(),
+        );
+        assert_eq!(
+            targeted_rows(&pattern_ambient, &[2305])
+                .into_iter()
+                .map(|row| row.4)
+                .collect::<Vec<_>>(),
+            ["Module '\"*.foo\"' has no exported member 'absent'.".to_owned()]
         );
     }
 
