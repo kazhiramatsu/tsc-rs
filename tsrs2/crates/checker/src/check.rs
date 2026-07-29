@@ -8187,7 +8187,25 @@ impl<'a> CheckerState<'a> {
         }
         match &self.tables.type_of(ty).data {
             TypeData::Intrinsic { name, .. } => {
-                Ok(((*name).to_owned(), SliceTypeNodeKind::Keyword))
+                // tsc-port: typeToTypeNodeWorker @6.0.3
+                // tsc-span: _tsc.js:51314-51330
+                //
+                // The Any arm precedes the generic intrinsic arm:
+                // implementation-only intrinsic names such as
+                // `error` and `unresolved` therefore print through
+                // the AnyKeyword face. The single `intrinsic`
+                // marker used by string-mapping declarations keeps
+                // its dedicated IntrinsicKeyword face.
+                let text = if flags.intersects(TypeFlags::ANY) {
+                    if ty == self.tables.intrinsics.intrinsic_marker {
+                        "intrinsic"
+                    } else {
+                        "any"
+                    }
+                } else {
+                    name
+                };
+                Ok((text.to_owned(), SliceTypeNodeKind::Keyword))
             }
             TypeData::Literal { value } => match value {
                 tsrs2_types::LiteralValue::String(text) => {
@@ -19480,6 +19498,26 @@ mod tests {
                 "Type 'number' is not assignable to type '`\\uD800A${Uppercase<T>}`'.".to_owned()
             )]
         );
+    }
+
+    #[test]
+    fn any_intrinsics_hide_internal_names_in_type_display() {
+        with_program_state(&[("a.ts", "")], &CompilerOptions::default(), |state| {
+            let error = state.tables.intrinsics.error;
+            let unresolved = state.tables.intrinsics.unresolved;
+            let any = state.tables.intrinsics.any;
+            let intrinsic_marker = state.tables.intrinsics.intrinsic_marker;
+            let unknown = state.tables.intrinsics.unknown;
+
+            assert_eq!(state.type_to_string_slice(error).unwrap(), "any");
+            assert_eq!(state.type_to_string_slice(unresolved).unwrap(), "any");
+            assert_eq!(state.type_to_string_slice(any).unwrap(), "any");
+            assert_eq!(
+                state.type_to_string_slice(intrinsic_marker).unwrap(),
+                "intrinsic"
+            );
+            assert_eq!(state.type_to_string_slice(unknown).unwrap(), "unknown");
+        });
     }
 
     #[test]
