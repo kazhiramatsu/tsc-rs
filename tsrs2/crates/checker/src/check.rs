@@ -9543,7 +9543,19 @@ impl<'a> CheckerState<'a> {
                 SliceTypeNodeKind::ImportType,
             ));
         }
-        if fully_qualified {
+        // lookupSymbolChainWorker 52945-52957: type parameters are
+        // deliberately never expanded into a symbol chain, even when
+        // UseFullyQualifiedType is set. This is what keeps two
+        // unrelated same-written-name parameters as `T`/`T` for
+        // getTypeNamesForErrorDisplay's 2719 branch instead of
+        // inventing container-qualified faces such as `I.T`.
+        if fully_qualified
+            && !self
+                .binder
+                .symbol(symbol)
+                .flags
+                .intersects(tsrs2_types::SymbolFlags::TYPE_PARAMETER)
+        {
             // yield_module_symbol TRUE — symbolToTypeNode flavor
             // (53115): the `typeof import("...")` faces REQUIRE module
             // roots.
@@ -19663,6 +19675,59 @@ mod tests {
                 "Type 'T' is not assignable to type 'T'. Two different types with this name exist, but they are unrelated."
                     .to_owned()
             )]
+        );
+    }
+
+    #[test]
+    fn inherited_signature_type_parameter_collision_keeps_the_2719_chain() {
+        fn flatten(
+            chain: &tsrs2_diags::MessageChain,
+            codes: &mut Vec<u32>,
+            texts: &mut Vec<String>,
+        ) {
+            codes.push(chain.code);
+            texts.push(chain.text.clone());
+            for child in &chain.next {
+                flatten(child, codes, texts);
+            }
+        }
+
+        // The source `T` belongs to I while the target `T` belongs to
+        // A's generic call signature. UseFullyQualifiedType must not
+        // turn the former into `I.T`: tsc's type-parameter short
+        // circuit keeps both names bare, selects 2719, then appends
+        // the target-parameter constraint reason (5082).
+        let (codes, texts) = with_program_state(
+            &[(
+                "a.ts",
+                "interface A { a: <T>(x: T) => void; }\n\
+                 interface I<T> extends A { a: (x: T) => void; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                let diagnostic = state
+                    .diagnostics
+                    .iter()
+                    .find(|diagnostic| diagnostic.code() == 2430)
+                    .expect("inheritance relation reports 2430");
+                let mut codes = Vec::new();
+                let mut texts = Vec::new();
+                flatten(&diagnostic.message, &mut codes, &mut texts);
+                (codes, texts)
+            },
+        );
+        assert_eq!(codes, [2430, 2326, 2322, 2328, 2719, 5082]);
+        assert_eq!(
+            texts,
+            [
+                "Interface 'I<T>' incorrectly extends interface 'A'.",
+                "Types of property 'a' are incompatible.",
+                "Type '(x: T) => void' is not assignable to type '<T>(x: T) => void'.",
+                "Types of parameters 'x' and 'x' are incompatible.",
+                "Type 'T' is not assignable to type 'T'. Two different types with this name exist, but they are unrelated.",
+                "'T' could be instantiated with an arbitrary type which could be unrelated to 'T'.",
+            ]
         );
     }
 
