@@ -8545,6 +8545,78 @@ mod tests {
     }
 
     #[test]
+    fn unconstrained_source_type_parameter_gets_the_constraint_hint() {
+        let positive = crate::state::test_support::with_program_state(
+            &[(
+                "a.ts",
+                "function f<T>(x: T) { const y: { a: string } = x; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                let diagnostic = state
+                    .diagnostics
+                    .iter()
+                    .find(|diagnostic| diagnostic.code() == 2322)
+                    .expect("the assignment mismatch is reported");
+                diagnostic.related.clone()
+            },
+        );
+        assert_eq!(positive.len(), 1);
+        assert_eq!(positive[0].message.code, 2208);
+        assert_eq!((positive[0].start, positive[0].length), (Some(11), Some(1)));
+        assert_eq!(
+            positive[0].message.text,
+            "This type parameter might need an `extends { a: string; }` constraint."
+        );
+
+        let target_parameter = crate::state::test_support::with_program_state(
+            &[("a.ts", "function h<T, U>(x: T) { const y: U = x; }\n")],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .find(|diagnostic| diagnostic.code() == 2322)
+                    .expect("the type-parameter assignment mismatch is reported")
+                    .related
+                    .clone()
+            },
+        );
+        assert_eq!(target_parameter.len(), 1);
+        assert_eq!(target_parameter[0].message.code, 2208);
+        assert_eq!(
+            target_parameter[0].message.text,
+            "This type parameter might need an `extends U` constraint."
+        );
+
+        let constrained = crate::state::test_support::with_program_state(
+            &[(
+                "a.ts",
+                "function g<T extends object>(x: T) { const y: { a: string } = x; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .find(|diagnostic| diagnostic.code() == 2322)
+                    .expect("the constrained assignment mismatch is reported")
+                    .related
+                    .iter()
+                    .map(|related| related.message.code)
+                    .collect::<Vec<_>>()
+            },
+        );
+        assert!(
+            !constrained.contains(&2208),
+            "an existing constraint suppresses the hint: {constrained:?}"
+        );
+    }
+
+    #[test]
     fn recursive_mapped_keyof_constraint_requires_a_definite_relation() {
         // 66144's `=== True` is intentional: stepping from `keyof T`
         // into T's self-referential mapped constraint revisits the
