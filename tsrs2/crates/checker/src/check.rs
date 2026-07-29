@@ -7010,25 +7010,6 @@ impl<'a> CheckerState<'a> {
                 {
                     return Ok(related);
                 }
-                // reportErrorResults 65258 + the `!headMessage &&
-                // maybeSuppress` roll-back (65284): under the GENERIC
-                // head a readonly→mutable array/tuple failure reports
-                // 4104 and the head never lands. The suppression keys
-                // on errorInfo CHANGING — a false verdict with no
-                // report (tuple source vs non-array target) still
-                // takes the head. Explicit heads keep their code (tsc
-                // chains 4104 into the elided tail).
-                if generic_head
-                    && self.tables.flags_of(source).intersects(TypeFlags::OBJECT)
-                    && self.tables.flags_of(target).intersects(TypeFlags::OBJECT)
-                {
-                    let reported_before = self.diagnostics.len();
-                    if !self.try_elaborate_array_like_errors(source, target, true, error_node)?
-                        && self.diagnostics.len() > reported_before
-                    {
-                        return Ok(related);
-                    }
-                }
                 // Reporting is a refinement of the already-failed
                 // verdict. A still-unimplemented descendant may
                 // suppress only the nested chain, never this known
@@ -7264,35 +7245,14 @@ impl<'a> CheckerState<'a> {
         Ok(true)
     }
 
-    /// tsc-port: tryElaborateArrayLikeErrors @6.0.3
-    /// tsc-hash: 4d8d191f532ffe704ad74834cc079e0c2f02d50f2a1159f8bde055450d13c086
-    /// tsc-span: _tsc.js:65123-65143
-    ///
-    /// Both faces of tsc's use: with `report_errors` the
-    /// readonly-source→mutable-target failure EMITS 4104 (the
-    /// reportErrorResults call, 65258 — and under the generic head
-    /// tsc's `!headMessage && maybeSuppress` arm rolls the head back,
-    /// so 4104 stands alone); without it the boolean gates the
-    /// missing-properties head (reportUnmatchedProperty's `else if`,
-    /// 66750).
-    fn try_elaborate_array_like_errors(
+    /// The pre-head missing-property approximation uses only
+    /// tryElaborateArrayLikeErrors' reportErrors=false verdict. The
+    /// reporting face lives at its exact recursive relation site.
+    fn try_elaborate_array_like_errors_without_reporting(
         &mut self,
         source: TypeId,
         target: TypeId,
-        report_errors: bool,
-        error_node: NodeId,
     ) -> CheckResult2<bool> {
-        let report_readonly_mismatch =
-            |state: &mut Self, source: TypeId, target: TypeId| -> CheckResult2<()> {
-                let source_text = state.type_to_string_slice(source)?;
-                let target_text = state.type_to_string_slice(target)?;
-                state.error_at(
-                Some(error_node),
-                &diagnostics::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1,
-                &[&source_text, &target_text],
-            );
-                Ok(())
-            };
         if self.tables.is_tuple_type(source) {
             let tuple_readonly = {
                 let tuple_target = self.tables.reference_target(source);
@@ -7302,17 +7262,11 @@ impl<'a> CheckerState<'a> {
                 }
             };
             if tuple_readonly && self.is_mutable_array_or_tuple(target)? {
-                if report_errors {
-                    report_readonly_mismatch(self, source, target)?;
-                }
                 return Ok(false);
             }
             return Ok(self.is_array_type(target)? || self.tables.is_tuple_type(target));
         }
         if self.is_readonly_array_type(source)? && self.is_mutable_array_or_tuple(target)? {
-            if report_errors {
-                report_readonly_mismatch(self, source, target)?;
-            }
             return Ok(false);
         }
         if self.tables.is_tuple_type(target) {
@@ -7526,7 +7480,7 @@ impl<'a> CheckerState<'a> {
         // mutable-target mismatch reports 4104 later instead (the
         // single-property 2741 arm is unconditional in tsc).
         if unmatched.len() > 1
-            && !self.try_elaborate_array_like_errors(source, target, false, error_node)?
+            && !self.try_elaborate_array_like_errors_without_reporting(source, target)?
         {
             return Ok(false);
         }
@@ -17139,6 +17093,18 @@ mod tests {
                  the mutable type '[string, number]'."
                     .to_owned()
             )]
+        );
+    }
+
+    #[test]
+    fn relation_report_elaborates_read_normalized_readonly_source() {
+        assert_eq!(
+            checked_chain_codes(
+                "function f<T extends readonly [unknown]>(source: T, target: [...T]) {\n\
+                     target = source;\n\
+                 }\n"
+            ),
+            [[2322, 4104]]
         );
     }
 
