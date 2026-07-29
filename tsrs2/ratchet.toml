@@ -607,8 +607,16 @@
 # typedef-first, second-template, and overloadTag2 siblings remain
 # non-firing. T1-T3 gain the same four identities with no losses,
 # outside gains, or false positives, closing supported residuals.
-rate = 0.988108
-matched = 48441
+# M8 package-resolution owner slice: +62 exact T0 buckets. The
+# ordinary resolver now publishes loaded declaration targets selected
+# by package exports/imports, with tsc-exact Bundler/node condition
+# sets, custom conditions, and `types@<range>` selection against the
+# pinned 6.0.3 compiler version. The 32 formerly excluded TS2694
+# buckets return through A1 tombstones; 30 supported TS2305 buckets
+# gain in the same resolver closure. Untyped-JS, later typed-condition,
+# and @types siblings remain suppressed; all-corpus FP stays zero.
+rate = 0.989373
+matched = 48503
 total = 49024
 allowed_regression = 0.0
 
@@ -747,8 +755,11 @@ allowed_regression = 0.0
 # p9 9.9bn adds +3 nested-class this.prototype property misses.
 # p9 9.9bo adds +1 JSDoc chained-static-assignment this miss.
 # p9 9.9bp adds +1 class-field arrow lexical-this miss.
-rate = 0.974063
-matched = 20505
+# M8 package-resolution owner slice adds +62 exact 2XXX T0 buckets:
+# 32 TS2694 scope returns and 30 supported TS2305 gains, with no
+# accepted loss or false positive.
+rate = 0.977008
+matched = 20567
 total = 21051
 allowed_regression = 0.0
 

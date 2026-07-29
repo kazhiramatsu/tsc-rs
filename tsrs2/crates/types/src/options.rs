@@ -160,6 +160,18 @@ pub struct CompilerOptions {
     /// under baseUrl is tsc-undecidable → no 2307). Full baseUrl
     /// semantics (paths mapping) stay unmodeled — ledger.
     pub base_url: Option<String>,
+    /// Explicit package-map feature overrides read by
+    /// getNodeResolutionFeatures. Their computed default is enabled
+    /// for Node16/NodeNext/Bundler and disabled for older resolvers.
+    pub resolve_package_json_exports: Option<bool>,
+    pub resolve_package_json_imports: Option<bool>,
+    /// Appended to getConditions after import/require, types, and
+    /// (outside Bundler) node. Order is observable when a package
+    /// exports object contains more than one matching condition.
+    pub custom_conditions: Option<Vec<String>>,
+    /// Removes the `types` condition, including `types@<range>`, from
+    /// package exports resolution.
+    pub no_dts_resolution: Option<bool>,
     /// Enables imports resolved through arbitrary-extension declaration
     /// twins (`file.d.<extension>.ts`). Resolution itself is independent
     /// of the option; getResolutionDiagnostic reports 6263 when it is

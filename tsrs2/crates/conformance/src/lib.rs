@@ -1833,6 +1833,27 @@ pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> Co
         verbatim_module_syntax: bool_option("verbatimModuleSyntax"),
         allow_umd_global_access: bool_option("allowUmdGlobalAccess"),
         base_url: string_option(program, "baseUrl"),
+        resolve_package_json_exports: bool_option("resolvePackageJsonExports"),
+        resolve_package_json_imports: bool_option("resolvePackageJsonImports"),
+        custom_conditions: program.options.iter().find_map(|(key, value)| {
+            if key.eq_ignore_ascii_case("customConditions") {
+                match value {
+                    tsrs2_harness::OptionValue::StringList(values) => Some(values.clone()),
+                    tsrs2_harness::OptionValue::String(value) => Some(
+                        value
+                            .split(',')
+                            .map(str::trim)
+                            .filter(|entry| !entry.is_empty())
+                            .map(str::to_owned)
+                            .collect(),
+                    ),
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        }),
+        no_dts_resolution: bool_option("noDtsResolution"),
         allow_arbitrary_extensions: bool_option("allowArbitraryExtensions"),
         allow_importing_ts_extensions: bool_option("allowImportingTsExtensions"),
         rewrite_relative_import_extensions: bool_option("rewriteRelativeImportExtensions"),
@@ -2599,6 +2620,48 @@ mod tests {
             options.lib,
             Some(vec!["es2020".to_owned(), "dom".to_owned()])
         );
+    }
+
+    #[test]
+    fn package_resolution_conditions_reach_compiler_options() {
+        let program = tsrs2_harness::ProgramJson {
+            schema: 1,
+            cwd: ".".to_owned(),
+            options: [
+                (
+                    "resolvePackageJsonExports".to_owned(),
+                    tsrs2_harness::OptionValue::Bool(false),
+                ),
+                (
+                    "resolvePackageJsonImports".to_owned(),
+                    tsrs2_harness::OptionValue::Bool(true),
+                ),
+                (
+                    "customConditions".to_owned(),
+                    tsrs2_harness::OptionValue::StringList(vec![
+                        "webpack".to_owned(),
+                        "browser".to_owned(),
+                    ]),
+                ),
+                (
+                    "noDtsResolution".to_owned(),
+                    tsrs2_harness::OptionValue::Bool(true),
+                ),
+            ]
+            .into_iter()
+            .collect(),
+            libs: Vec::new(),
+            files: Vec::new(),
+            matrix_key: String::new(),
+        };
+        let options = compiler_options_from_program(&program);
+        assert_eq!(options.resolve_package_json_exports, Some(false));
+        assert_eq!(options.resolve_package_json_imports, Some(true));
+        assert_eq!(
+            options.custom_conditions,
+            Some(vec!["webpack".to_owned(), "browser".to_owned()])
+        );
+        assert_eq!(options.no_dts_resolution, Some(true));
     }
 
     #[test]
