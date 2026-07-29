@@ -7945,7 +7945,11 @@ impl<'a> CheckerState<'a> {
     /// unnamed expression uses the anonymous sentinel. Named symbols
     /// keep the slice's existing qualified/unqualified spelling, so
     /// synthetic `__class`/`__function` names are never user-facing.
-    fn type_reference_symbol_name_slice(&self, symbol: SymbolId, fully_qualified: bool) -> String {
+    fn type_reference_symbol_name_slice(
+        &mut self,
+        symbol: SymbolId,
+        fully_qualified: bool,
+    ) -> CheckResult2<String> {
         let declarations = &self.binder.symbol(symbol).declarations;
         if let Some(&declaration) = declarations.first() {
             match self.kind_of(declaration) {
@@ -7954,21 +7958,23 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::ArrowFunction => {
                     let source = self.binder.source_of_node(declaration);
                     if let Some(name) = node_util::get_name_of_declaration(source, declaration) {
-                        return node_util::declaration_name_to_string(source, Some(name));
+                        return Ok(node_util::declaration_name_to_string(source, Some(name)));
                     }
-                    return if self.kind_of(declaration) == SyntaxKind::ClassExpression {
-                        "(Anonymous class)".to_owned()
-                    } else {
-                        "(Anonymous function)".to_owned()
-                    };
+                    return Ok(
+                        if self.kind_of(declaration) == SyntaxKind::ClassExpression {
+                            "(Anonymous class)".to_owned()
+                        } else {
+                            "(Anonymous function)".to_owned()
+                        },
+                    );
                 }
                 _ => {}
             }
         }
         if fully_qualified {
-            self.get_fully_qualified_name(symbol)
+            Ok(self.symbol_type_face_slice(symbol, true)?.0)
         } else {
-            self.symbol_display_name(symbol)
+            Ok(self.symbol_display_name(symbol))
         }
     }
 
@@ -8124,7 +8130,7 @@ impl<'a> CheckerState<'a> {
                     .object_flags_of(ty)
                     .intersects(ObjectFlags::REFERENCE)
                 {
-                    let name = self.type_reference_symbol_name_slice(symbol, fully_qualified);
+                    let name = self.type_reference_symbol_name_slice(symbol, fully_qualified)?;
                     if self.get_declared_type_of_symbol_slice(symbol)? != ty
                         && symbol_flags.intersects(
                             tsrs2_types::SymbolFlags::CLASS
@@ -8602,7 +8608,7 @@ impl<'a> CheckerState<'a> {
                     "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
                 ));
             };
-            let name = self.type_reference_symbol_name_slice(symbol, fully_qualified);
+            let name = self.type_reference_symbol_name_slice(symbol, fully_qualified)?;
             let arguments = self.get_type_arguments(ty)?;
             // typeReferenceToTypeNode's array sugar: references to the
             // global Array/ReadonlyArray print as element sugar (the
@@ -8687,7 +8693,7 @@ impl<'a> CheckerState<'a> {
                         rendered.push(self.type_to_string_slice_ex(*argument, fully_qualified)?);
                     }
                     let parent_name =
-                        self.type_reference_symbol_name_slice(parent, fully_qualified);
+                        self.type_reference_symbol_name_slice(parent, fully_qualified)?;
                     let reference = format!("{parent_name}<{}>", rendered.join(", "));
                     outer_reference = Some(match outer_reference {
                         Some(root) => format!("{root}.{reference}"),
@@ -9097,7 +9103,7 @@ impl<'a> CheckerState<'a> {
         result
     }
 
-    /// tsc-port: symbolToTypeNode @6.0.3 (error-path Value slice)
+    /// tsc-port: symbolToTypeNode @6.0.3 (error-path Type/Value slice)
     /// tsc-hash: 352e9c292fbd16c2334897be45253723d19b5f8f522d36cf226ac469b796e919
     /// tsc-span: _tsc.js:53114-53198
     ///
@@ -9113,19 +9119,39 @@ impl<'a> CheckerState<'a> {
     /// for the 53117 gate, so the below-root links ride as the
     /// ImportTypeNode's qualifier (createAccessFromSymbolChain with
     /// stopper 1, export-table naming) and the export= short-circuit's
-    /// length-1 chain keeps the bare import face; other roots render
-    /// the entity face over the same chain. The import face's
+    /// length-1 chain keeps the bare import face. Value meaning adds
+    /// `typeof`; Type meaning does not. Other roots render the entity
+    /// face over the same chain, with `typeof` only for Value. The
+    /// import face's
     /// node16/nodenext resolution-mode attributes (53125-53150)
     /// and /node_modules/ specifier swap (53151-53174) read
     /// impliedNodeFormat, which the port does not model: the swap can
     /// only fire on node_modules fixtures (host-adjudicated band) and
     /// the attributes only change message text under node16 matrices —
     /// recorded T2 residue, row keys unaffected.
+    fn symbol_type_face_slice(
+        &mut self,
+        symbol: SymbolId,
+        fully_qualified: bool,
+    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+        self.symbol_to_type_face_slice(symbol, fully_qualified, tsrs2_types::SymbolFlags::TYPE)
+    }
+
     fn symbol_value_face_slice(
         &mut self,
         symbol: SymbolId,
         fully_qualified: bool,
     ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+        self.symbol_to_type_face_slice(symbol, fully_qualified, tsrs2_types::SymbolFlags::VALUE)
+    }
+
+    fn symbol_to_type_face_slice(
+        &mut self,
+        symbol: SymbolId,
+        fully_qualified: bool,
+        meaning: tsrs2_types::SymbolFlags,
+    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+        let is_type_of = meaning == tsrs2_types::SymbolFlags::VALUE;
         // 53117: some(chain[0].declarations,
         // hasNonGlobalAugmentationExternalModuleSymbol) routes the
         // import-type face. (For a module symbol the chain is always
@@ -9137,11 +9163,13 @@ impl<'a> CheckerState<'a> {
         if self.symbol_has_external_module_declaration(symbol) {
             // 53175-53185: a length-1 chain leaves nonRootParts and
             // typeParameterNodes undefined — the face is the bare
-            // ImportTypeNode with isTypeOf (meaning === Value).
+            // ImportTypeNode, with isTypeOf exactly under Value
+            // meaning.
             let specifier = self.specifier_for_module_symbol_slice(symbol)?;
             let literal = string_literal_name_slice(&specifier, false)?;
+            let type_of = if is_type_of { "typeof " } else { "" };
             return Ok((
-                format!("typeof import({literal})"),
+                format!("{type_of}import({literal})"),
                 SliceTypeNodeKind::ImportType,
             ));
         }
@@ -9150,17 +9178,18 @@ impl<'a> CheckerState<'a> {
             // (53115): the `typeof import("...")` faces REQUIRE module
             // roots.
             let chain = self
-                .symbol_chain_slice(symbol, tsrs2_types::SymbolFlags::VALUE, true, true, None)?
+                .symbol_chain_slice(symbol, meaning, true, true, None)?
                 .expect("getSymbolChain with endOfChain always yields (52991-52999)");
             let root = chain[0];
             if self.symbol_has_external_module_declaration(root) {
                 let specifier = self.specifier_for_module_symbol_slice(root)?;
                 let literal = string_literal_name_slice(&specifier, false)?;
+                let type_of = if is_type_of { "typeof " } else { "" };
                 // 53175-53185: the export= short-circuit (52978-52981)
                 // leaves a length-1 chain — the bare ImportTypeNode.
                 if chain.len() == 1 {
                     return Ok((
-                        format!("typeof import({literal})"),
+                        format!("{type_of}import({literal})"),
                         SliceTypeNodeKind::ImportType,
                     ));
                 }
@@ -9171,29 +9200,33 @@ impl<'a> CheckerState<'a> {
                 }
                 let qualifier = qualifier.join(".");
                 return Ok((
-                    format!("typeof import({literal}).{qualifier}"),
+                    format!("{type_of}import({literal}).{qualifier}"),
                     SliceTypeNodeKind::ImportType,
                 ));
             }
             // 53186-53197: the entity face over the chain —
             // getNameOfSymbolAsWritten at the root (the slice's
-            // symbol_display_name posture), the export-table naming
-            // below it, isTypeOf wrapping the TypeQuery.
+            // symbol_display_name posture), then export-table naming
+            // below it.
             let mut parts = Vec::with_capacity(chain.len());
             parts.push(self.symbol_display_name(root));
             for index in 1..chain.len() {
                 parts.push(self.qualifier_symbol_name_slice(chain[index - 1], chain[index])?);
             }
-            return Ok((
-                format!("typeof {}", parts.join(".")),
-                SliceTypeNodeKind::TypeQuery,
-            ));
+            let text = parts.join(".");
+            return Ok(if is_type_of {
+                (format!("typeof {text}"), SliceTypeNodeKind::TypeQuery)
+            } else {
+                (text, SliceTypeNodeKind::Reference)
+            });
         }
         // 53186-53197 with the [symbol] chain: the bare-name face.
-        Ok((
-            format!("typeof {}", self.symbol_display_name(symbol)),
-            SliceTypeNodeKind::TypeQuery,
-        ))
+        let name = self.symbol_display_name(symbol);
+        Ok(if is_type_of {
+            (format!("typeof {name}"), SliceTypeNodeKind::TypeQuery)
+        } else {
+            (name, SliceTypeNodeKind::Reference)
+        })
     }
 
     /// tsc-port: symbolToExpression @6.0.3 (computed-name face slice)
@@ -18564,6 +18597,38 @@ mod tests {
                 80,
                 1,
                 "Type 'typeof import(\"/b\").N' is not assignable to type 'typeof import(\"/a\").N'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn fully_qualified_interface_under_module_prints_import_type_qualifier() {
+        // The Type-meaning twin of the namespace Value face:
+        // symbolToTypeNode roots the chain at the external module and
+        // emits an ImportTypeNode without `typeof`.
+        assert_eq!(
+            program_diags(&[
+                (
+                    "a.ts",
+                    "export namespace dom { export namespace JSX { export interface Element { a: string } } }\n"
+                ),
+                (
+                    "b.ts",
+                    "export namespace dom { export namespace JSX { export interface Element { b: string } } }\n"
+                ),
+                (
+                    "c.ts",
+                    "import { dom as A } from \"./a\";\nimport { dom as B } from \"./b\";\ndeclare let source: B.JSX.Element;\nlet target: A.JSX.Element = source;\n"
+                ),
+            ]),
+            [(
+                "c.ts".to_owned(),
+                2741,
+                103,
+                6,
+                "Property 'a' is missing in type 'import(\"/b\").dom.JSX.Element' but required in \
+                 type 'import(\"/a\").dom.JSX.Element'."
                     .to_owned()
             )]
         );
