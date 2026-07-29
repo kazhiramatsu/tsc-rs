@@ -405,7 +405,7 @@ impl<'a> CheckerState<'a> {
                         let Some(name) = self.name_of_node(parameter) else {
                             continue;
                         };
-                        let display = self.declaration_name_display(name);
+                        let display = self.symbol_display_name(symbol);
                         self.add_unused_diagnostic_at(
                             node,
                             UnusedIdentifierKind::Local,
@@ -2864,6 +2864,26 @@ const test2 = mod2;
             },
         )
         .is_empty());
+    }
+
+    #[test]
+    fn destructured_parameter_property_uses_synthetic_symbol_name() {
+        let rows = unused_rows(
+            "class Container {\n\
+                 constructor(private [a, b, c]: [number, string, boolean]) {}\n\
+             }\n",
+            &CompilerOptions::default(),
+        );
+        assert_eq!(
+            rows.iter()
+                .filter(|row| row.0 == 6138)
+                .map(|row| (row.1, row.4.as_str()))
+                .collect::<Vec<_>>(),
+            [(
+                DiagnosticCategory::Suggestion,
+                "Property '__missing' is declared but its value is never read.",
+            )]
+        );
     }
 
     #[test]
