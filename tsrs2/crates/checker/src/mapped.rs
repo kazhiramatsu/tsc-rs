@@ -732,7 +732,7 @@ impl<'a> CheckerState<'a> {
         if !self.pop_type_resolution() {
             self.links
                 .set_mapped_contains_error(self.speculation_depth, mapped_type);
-            let property_name = self.symbol_display_name(symbol);
+            let property_name = self.symbol_name_as_written_slice(symbol);
             let mapped_text = self.type_to_string_slice(mapped_type)?;
             self.error_at(
                 self.current_node,
@@ -1235,6 +1235,34 @@ mod tests {
                 assert!(state
                     .is_type_assignable_to(empty, optional)
                     .expect("empty object maps to a partial mapped target"));
+            },
+        );
+    }
+
+    #[test]
+    fn mapped_circularity_preserves_quoted_property_name() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "type NonOptionalKeys<T> = { [P in keyof T]: undefined extends T[P] ? never : P }[keyof T];\n\
+                 type Child<T> = { [P in NonOptionalKeys<T>]: T[P] };\n\
+                 interface ListWidget { \"type\": \"list\"; \"each\": Child<ListWidget>; }\n\
+                 type ListChild = Child<ListWidget>;\n\
+                 declare let value: ListChild;\n\
+                 value.type;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                let diagnostic = state
+                    .diagnostics
+                    .iter()
+                    .find(|diagnostic| diagnostic.code() == 2615)
+                    .expect("mapped circularity diagnostic");
+                assert_eq!(
+                    diagnostic.message_text(),
+                    "Type of property '\"each\"' circularly references itself in mapped type '{ [P in keyof ListWidget]: undefined extends ListWidget[P] ? never : P; }'."
+                );
             },
         );
     }
