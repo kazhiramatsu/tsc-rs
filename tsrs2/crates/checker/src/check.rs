@@ -8563,7 +8563,7 @@ impl<'a> CheckerState<'a> {
             .object_flags_of(ty)
             .intersects(ObjectFlags::MAPPED)
         {
-            return self.mapped_type_to_string_slice_node(ty, fully_qualified);
+            return self.type_node_from_object_type_slice(ty, fully_qualified);
         }
         if self
             .tables
@@ -10325,13 +10325,16 @@ impl<'a> CheckerState<'a> {
         ) == tsrs2_binder::AssignmentDeclarationKind::ThisProperty
     }
 
-    /// tsc-port: createTypeNodeFromObjectType @6.0.3
-    /// tsc-hash: 1190da69649fad92283f6058fe227821ed7a562223b62b2e4193b555f06359bd
-    /// tsc-span: _tsc.js:51894-51938
+    /// Generic or error-containing mapped types preserve their mapped
+    /// declaration face. A concrete mapped type instead resolves its
+    /// structured members and prints the resulting properties/index
+    /// signatures, exactly like any other object type.
     ///
-    /// The mapped-type head is routed through
-    /// mapped_type_to_string_slice_node before this anonymous-object
-    /// fallback. The
+    /// tsc-port: createTypeNodeFromObjectType @6.0.3
+    /// tsc-hash: 484555186ba56d6509e6571aec8c745dab9e4d23b6f3fcd7a596a09c55537294
+    /// tsc-span: _tsc.js:51894-51897
+    ///
+    /// The remainder follows 51898-51937, but the
     /// abstract-construct intersection re-derivation (51918-51928)
     /// needs an anonymous type mixing abstract construct signatures
     /// with other members: `abstract new` is grammatical only on
@@ -10345,6 +10348,14 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         fully_qualified: bool,
     ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+        if self
+            .tables
+            .object_flags_of(ty)
+            .intersects(ObjectFlags::MAPPED)
+            && (self.is_generic_mapped_type_state(ty)? || self.links.ty(ty).mapped_contains_error)
+        {
+            return self.mapped_type_to_string_slice_node(ty, fully_qualified);
+        }
         // Captured BEFORE the lazy walk: a members link already
         // Resolved here means the type was BORN resolved
         // (make_resolved_anonymous_type / the widening clone — its
@@ -16776,6 +16787,48 @@ mod tests {
                  '{ [idx: number]: unknown; [k: string]: unknown; p: boolean; }'."
                     .to_owned()
             )]
+        );
+    }
+
+    #[test]
+    fn concrete_mapped_source_displays_as_a_resolved_index_signature() {
+        let text = "function f<K extends string>(a: { [P in K]: number }, b: { [P in string]: number }) { a = b; }\n";
+        assert_eq!(
+            checked_diags(text),
+            [(
+                2322,
+                text.find("a = b").expect("assignment") as u32,
+                1,
+                "Type '{ [x: string]: number; }' is not assignable to type \
+                 '{ [P in K]: number; }'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn error_containing_concrete_mapped_type_keeps_its_declaration_face() {
+        with_program_state(
+            &[("a.ts", "declare let value: { [P in string]: number };\n")],
+            &CompilerOptions::default(),
+            |state| {
+                let mapped_node = node_of_kind(state, tsrs2_syntax::SyntaxKind::MappedType);
+                let mapped_type = state
+                    .get_type_from_type_node(mapped_node)
+                    .expect("mapped type");
+                assert!(!state
+                    .is_generic_mapped_type_state(mapped_type)
+                    .expect("genericity"));
+                state
+                    .links
+                    .set_mapped_contains_error(state.speculation_depth, mapped_type);
+                assert_eq!(
+                    state
+                        .type_to_string_slice(mapped_type)
+                        .expect("mapped display"),
+                    "{ [P in string]: number; }"
+                );
+            },
         );
     }
 
