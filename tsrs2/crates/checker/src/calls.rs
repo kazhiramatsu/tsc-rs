@@ -7381,6 +7381,47 @@ mod tests {
     }
 
     #[test]
+    fn object_member_elaboration_uses_the_mutable_source_property() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "declare function f(x: { a: true }): void;\n\
+                 f({ a: 1 });\n\
+                 f({ a: 1 as const });\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                let diagnostics: Vec<_> = state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| diagnostic.code() == 2322)
+                    .collect();
+                assert_eq!(diagnostics.len(), 2);
+                assert_eq!(
+                    diagnostics[0].message_text(),
+                    "Type 'number' is not assignable to type 'true'."
+                );
+                // Non-firing sibling: an explicit const assertion
+                // keeps the singleton source through the same helper.
+                assert_eq!(
+                    diagnostics[1].message_text(),
+                    "Type '1' is not assignable to type 'true'."
+                );
+                for diagnostic in diagnostics {
+                    assert_eq!(diagnostic.related.len(), 1);
+                    assert_eq!(diagnostic.related[0].message.code, 6500);
+                    assert_eq!(
+                        diagnostic.related[0].message.text,
+                        "The expected type comes from property 'a' which is declared here on type \
+                         '{ a: true; }'"
+                    );
+                }
+            },
+        );
+    }
+
+    #[test]
     fn declined_object_elaboration_keeps_excess_property_selection() {
         // The elementwise walk skips unknown target properties, then
         // the ordinary relation reporter selects 2353 at `y`.

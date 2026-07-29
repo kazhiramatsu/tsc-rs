@@ -208,6 +208,49 @@ impl<'a> CheckerState<'a> {
         Ok((actual, expected))
     }
 
+    /// elaborateElementwise (64179-64204): attach the property-origin
+    /// tail after the inner relation row has been created. A regular
+    /// source file is provably not a default library, so this is the
+    /// exact live subset of host.isSourceFileDefaultLibrary that the
+    /// in-memory host can classify without guessing from a path.
+    fn attach_user_property_elaboration_related(
+        &mut self,
+        diagnostic_index: usize,
+        target_type: TypeId,
+        name_text: &str,
+    ) -> CheckResult2<()> {
+        let Some(target_property) = self.get_property_of_type_full(target_type, name_text)? else {
+            return Ok(());
+        };
+        let Some(declaration) = self
+            .binder
+            .symbol(target_property)
+            .declarations
+            .first()
+            .copied()
+        else {
+            return Ok(());
+        };
+        if self.binder.source_of_node(declaration).is_declaration_file {
+            return Ok(());
+        }
+        // A display outside the current nodeBuilder slice must not
+        // unwind an already faithful primary diagnostic. It simply
+        // leaves this T3 tail for the later display-closure slice.
+        let Ok(target_text) = self.type_to_string_slice(target_type) else {
+            return Ok(());
+        };
+        let related = self.related_info_for_node(
+            declaration,
+            &diagnostics::The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1,
+            &[name_text, &target_text],
+        );
+        if let Some(diagnostic) = self.diagnostics.get_mut(diagnostic_index) {
+            diagnostic.related.push(related);
+        }
+        Ok(())
+    }
+
     /// tsrs-native: elaborateJsxComponents @6.0.3 children slice
     /// (`_tsc.js` 64312-64378).
     ///
@@ -500,20 +543,24 @@ impl<'a> CheckerState<'a> {
                         Some(expected) => expected,
                         None => continue,
                     };
-                    let actual = if member_lookup {
-                        match self.get_property_of_type_full(source_type, &name_text)? {
-                            Some(source_property) => self.get_type_of_symbol(source_property)?,
-                            None => continue,
-                        }
-                    } else {
-                        match initializer {
-                            Some(initializer) => {
-                                self.check_expression_cached(initializer, CheckMode::NORMAL)?
-                            }
-                            None => self.check_expression_cached(name, CheckMode::NORMAL)?,
-                        }
+                    // elaborateElementwise (64131-64148) compares the
+                    // indexed SOURCE property first. In particular,
+                    // a mutable object property has already widened
+                    // `{ a: 1 }` to `number`; reading the initializer
+                    // directly here would incorrectly resurrect the
+                    // fresh literal `1`.
+                    let Some(source_property_type) = self.get_indexed_access_type_or_undefined(
+                        source_type,
+                        name_type,
+                        AccessFlags::NONE,
+                        None,
+                        None,
+                        None,
+                    )?
+                    else {
+                        continue;
                     };
-                    if self.is_type_assignable_to(actual, expected)? {
+                    if self.is_type_assignable_to(source_property_type, expected)? {
                         continue;
                     }
                     if let Some(initializer) = initializer {
@@ -528,6 +575,29 @@ impl<'a> CheckerState<'a> {
                             continue;
                         }
                     }
+                    // checkExpressionForMutableLocationWithContextualType
+                    // (64115-64125): the syntax-specific source is
+                    // rechecked under the indexed source property,
+                    // preserving an explicit `as const` while keeping
+                    // an ordinary mutable literal widened.
+                    let specific_source = if member_lookup {
+                        source_property_type
+                    } else if let Some(initializer) = initializer {
+                        self.push_contextual_type(
+                            initializer,
+                            Some(source_property_type),
+                            /*is_cache*/ false,
+                        );
+                        let result = self.check_expression_for_mutable_location(
+                            initializer,
+                            CheckMode::CONTEXTUAL,
+                            /*force_tuple*/ false,
+                        );
+                        self.pop_contextual_type();
+                        result?
+                    } else {
+                        source_property_type
+                    };
                     let computed_non_literal = !member_lookup
                         && match self.data_of(name) {
                             NodeData::ComputedPropertyName(data) => {
@@ -547,14 +617,47 @@ impl<'a> CheckerState<'a> {
                     } else {
                         &diagnostics::Type_0_is_not_assignable_to_type_1
                     };
-                    let (actual, expected) = self.remove_missing_for_member_report(
+                    let original_expected = expected;
+                    let (source_property_type, expected) = self.remove_missing_for_member_report(
                         source_type,
                         target_type,
                         &name_text,
-                        actual,
+                        source_property_type,
                         expected,
                     )?;
-                    self.check_type_assignable_to(actual, expected, Some(name), message)?;
+                    let (specific_source, _) = self.remove_missing_for_member_report(
+                        source_type,
+                        target_type,
+                        &name_text,
+                        specific_source,
+                        original_expected,
+                    )?;
+                    let diagnostics_before_report = self.diagnostics.len();
+                    let specific_related = self.check_type_assignable_to(
+                        specific_source,
+                        expected,
+                        Some(name),
+                        message,
+                    )?;
+                    // 64168-64170: if contextual rechecking made the
+                    // syntax-specific source pass, report against the
+                    // indexed source property that originally failed.
+                    if specific_related && specific_source != source_property_type {
+                        self.check_type_assignable_to(
+                            source_property_type,
+                            expected,
+                            Some(name),
+                            message,
+                        )?;
+                    }
+                    if self.diagnostics.len() > diagnostics_before_report {
+                        let diagnostic_index = self.diagnostics.len() - 1;
+                        self.attach_user_property_elaboration_related(
+                            diagnostic_index,
+                            target_type,
+                            &name_text,
+                        )?;
+                    }
                 }
             }
             NodeData::ArrayLiteralExpression(data) => {
