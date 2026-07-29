@@ -3038,19 +3038,33 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             result = related;
         } else {
             'outer: for &t in &target_signatures {
+                let saved_error_info = self.capture_error_calculation_state();
+                let mut should_elaborate_errors = report_errors;
                 for &s in &source_signatures {
                     let related = self.signature_related_to(
                         s,
                         t,
                         /*erase*/ true,
                         kind,
-                        report_errors,
+                        should_elaborate_errors,
                         intersection_state,
                     )?;
                     if is_true(related) {
                         result = ternary_and(result, related);
+                        self.reset_error_info(&saved_error_info);
                         continue 'outer;
                     }
+                    should_elaborate_errors = false;
+                }
+                if should_elaborate_errors {
+                    let source_text = self.st.type_to_string_slice(source)?;
+                    let signature_text = self
+                        .st
+                        .signature_to_string_slice_for_relation_error(t, kind)?;
+                    self.report_error(
+                        &tsrs2_diags::gen::Type_0_provides_no_match_for_the_signature_1,
+                        vec![source_text, signature_text],
+                    )?;
                 }
                 return Ok(Ternary::FALSE);
             }
@@ -8983,6 +8997,73 @@ class ImplementsViaBase extends Base implements Required {}
                 // The class-implements closure head is the explicit
                 // exception: its nested generic relation row remains.
                 vec![2420, 2326, 2322, 2741],
+            ]
+        );
+    }
+
+    #[test]
+    fn no_matching_signature_reporting_preserves_tsc_control_flow() {
+        fn flatten_codes(chain: &tsrs2_diags::MessageChain, codes: &mut Vec<u32>) {
+            codes.push(chain.code);
+            for child in &chain.next {
+                flatten_codes(child, codes);
+            }
+        }
+
+        let diagnostics = crate::state::test_support::with_program_state(
+            &[(
+                "a.ts",
+                r#"
+declare let plainCallSource: { x: number };
+let callTarget: () => void = plainCallSource;
+declare let plainConstructSource: { x: number };
+let constructTarget: new () => object = plainConstructSource;
+interface Overloaded {
+    (x: string): string;
+    (x: number): number;
+}
+declare let overloaded: Overloaded;
+let laterMatch: (x: number) => number = overloaded;
+"#,
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| diagnostic.file_name.is_some())
+                    .map(|diagnostic| {
+                        let mut codes = Vec::new();
+                        flatten_codes(&diagnostic.message, &mut codes);
+                        let detail = diagnostic
+                            .message
+                            .next
+                            .first()
+                            .map(|child| child.text.clone());
+                        (codes, detail)
+                    })
+                    .collect::<Vec<_>>()
+            },
+        );
+
+        assert_eq!(
+            diagnostics,
+            [
+                (
+                    vec![2322, 2658],
+                    Some(
+                        "Type '{ x: number; }' provides no match for the signature '(): void'."
+                            .to_owned()
+                    )
+                ),
+                (
+                    vec![2322, 2658],
+                    Some(
+                        "Type '{ x: number; }' provides no match for the signature 'new (): object'."
+                            .to_owned()
+                    )
+                ),
             ]
         );
     }
