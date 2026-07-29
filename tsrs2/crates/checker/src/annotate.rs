@@ -1295,67 +1295,19 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: d850bffcaf58ba26258dd2c696ae5f925b00c2314d7d08f0ac4c33f9a22d753a
     /// tsc-span: _tsc.js:60557-60592
     ///
-    /// Combined with the slices of resolveTypeReferenceName
-    /// (60372-60379, the real resolveEntityName from M4 5.1a) and
-    /// getTypeReferenceType (60380-60405). Generic ALIAS references
-    /// ride on getTypeAliasInstantiation (next commit); enums are 5.3b;
-    /// class references wait for class members (5.3). An unresolved
-    /// name is tsc's unknownSymbol → errorType; the probe keeps the
-    /// Unsupported channel until the 5.4 driver makes errorType
-    /// observable through diagnostics. The links.resolvedSymbol write
-    /// (60587) lands with the 5.4 driver (checkTypeReferenceOrImport
-    /// reads it for type-argument constraint checking).
+    /// Calls the separately ledgered resolveTypeReferenceName and
+    /// getTypeReferenceType ports. Missing entity names flow through
+    /// getUnresolvedSymbolForEntityName so the type remains error-like
+    /// while retaining its written alias identity.
     pub(crate) fn get_type_from_type_reference(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.node(node).resolved_type.resolved() {
             return Ok(cached);
         }
-        // getTypeReferenceName (60364-60371): the entity name for
-        // TypeReference nodes, the (entity-name) expression for heritage
-        // ExpressionWithTypeArguments.
-        let type_name = match self.data_of(node) {
-            NodeData::TypeReference(data) => data.type_name,
-            NodeData::ExpressionWithTypeArguments(data) => data
-                .expression
-                .filter(|&expression| self.is_entity_name_expression(expression)),
-            _ => unreachable!("type reference kinds imply payloads"),
-        };
-        // resolveTypeReferenceName (60372-60376): a heritage
-        // expression that is not an entity name resolves to
-        // unknownSymbol, and the reference types as errorType
-        // (getTypeReferenceType 60381-60383).
-        let Some(type_name) = type_name else {
-            let error = self.tables.intrinsics.error;
-            let unknown = self.unknown_symbol;
-            self.links.overwrite_type_reference_resolution(
-                self.speculation_depth,
-                node,
-                unknown,
-                error,
-            );
-            return Ok(error);
-        };
-        // resolveEntityName reports (2304 family) and yields
-        // unknownSymbol; the reference then types as errorType.
-        let Some(symbol) = self.resolve_entity_name(
-            type_name,
+        let symbol = self.resolve_type_reference_name(
+            node,
             SymbolFlags::TYPE,
             /*ignore_errors*/ false,
-            None,
-        )?
-        else {
-            // Cache unknownSymbol and errorType together, like
-            // getTypeFromTypeReference. Re-reading an unresolved annotation
-            // must not consume the checker-wide suggestion budget twice.
-            let error = self.tables.intrinsics.error;
-            let unknown = self.unknown_symbol;
-            self.links.overwrite_type_reference_resolution(
-                self.speculation_depth,
-                node,
-                unknown,
-                error,
-            );
-            return Ok(error);
-        };
+        )?;
         let resolved = self.get_type_reference_type(node, symbol)?;
         // links.resolvedSymbol + links.resolvedType (60587-60588):
         // written together, and deliberately OVERWRITE-capable — the
@@ -1369,6 +1321,107 @@ impl<'a> CheckerState<'a> {
             resolved,
         );
         Ok(resolved)
+    }
+
+    /// tsc-port: getTypeReferenceName @6.0.3
+    /// tsc-hash: 0c09ad88c5d3a629786ee7341b209c528d60c369ead807a85da0adf1b364d791
+    /// tsc-span: _tsc.js:60341-60352
+    fn get_type_reference_name(&self, node: NodeId) -> Option<NodeId> {
+        match self.data_of(node) {
+            NodeData::TypeReference(data) => data.type_name,
+            NodeData::ExpressionWithTypeArguments(data) => data
+                .expression
+                .filter(|&expression| self.is_entity_name_expression(expression)),
+            _ => None,
+        }
+    }
+
+    /// tsc-port: getUnresolvedSymbolForEntityName @6.0.3
+    /// tsc-hash: 09f7c5227b6603a7f639e6ea132498017441dbd9effa610aa07088ef5854ae80
+    /// tsc-span: _tsc.js:60356-60371
+    ///
+    /// A missing name is represented by a checker-global synthetic
+    /// TypeAlias symbol carrying CheckFlags::Unresolved. Qualified
+    /// names reproduce the written parent chain, and the full path
+    /// interns that symbol across all references in the program.
+    fn get_unresolved_symbol_for_entity_name(&mut self, name: NodeId) -> SymbolId {
+        let (identifier, parent_name) = match self.data_of(name).clone() {
+            NodeData::QualifiedName(data) => match (data.right, data.left) {
+                (Some(right), left) => (right, left),
+                _ => return self.unknown_symbol,
+            },
+            NodeData::PropertyAccessExpression(data) => match (data.name, data.expression) {
+                (Some(right), left) => (right, left),
+                _ => return self.unknown_symbol,
+            },
+            _ => (name, None),
+        };
+        let Some(text) = self.identifier_text(identifier).map(str::to_owned) else {
+            return self.unknown_symbol;
+        };
+        if text.is_empty() {
+            return self.unknown_symbol;
+        }
+        let parent = parent_name.map(|parent| self.get_unresolved_symbol_for_entity_name(parent));
+        let path = match parent {
+            Some(parent) => format!("{}.{}", self.unresolved_symbol_path(parent), text),
+            None => text.clone(),
+        };
+        if let Some(&cached) = self.unresolved_symbols.get(&path) {
+            return cached;
+        }
+        let symbol = self.binder.create_symbol(SymbolFlags::TYPE_ALIAS, text);
+        self.binder.symbol_mut(symbol).parent = parent;
+        self.links
+            .set_symbol_check_flags(self.speculation_depth, symbol, CheckFlags::UNRESOLVED);
+        self.links.set_fresh_symbol_declared_type(
+            symbol,
+            LinkSlot::Resolved(self.tables.intrinsics.unresolved),
+        );
+        self.unresolved_symbols.insert(path, symbol);
+        symbol
+    }
+
+    /// tsc-port: getSymbolPath @6.0.3
+    /// tsc-hash: f6a68f49de06819913741281d8e751a6f066a575bbac439748db1aeeb236f7a0
+    /// tsc-span: _tsc.js:60353-60355
+    ///
+    /// Escaped names joined through the synthetic unresolved-symbol
+    /// parent chain.
+    fn unresolved_symbol_path(&self, symbol: SymbolId) -> String {
+        let mut parts = Vec::new();
+        let mut current = Some(symbol);
+        while let Some(symbol) = current {
+            let data = self.binder.symbol(symbol);
+            parts.push(data.escaped_name.clone());
+            current = data.parent;
+        }
+        parts.reverse();
+        parts.join(".")
+    }
+
+    /// tsc-port: resolveTypeReferenceName @6.0.3
+    /// tsc-hash: d9bfa2b4bbc3091dd9598041b5fe9683a5336e8499acff4f30a5594fa85eb56f
+    /// tsc-span: _tsc.js:60372-60379
+    fn resolve_type_reference_name(
+        &mut self,
+        type_reference: NodeId,
+        meaning: SymbolFlags,
+        ignore_errors: bool,
+    ) -> CheckResult2<SymbolId> {
+        let Some(name) = self.get_type_reference_name(type_reference) else {
+            return Ok(self.unknown_symbol);
+        };
+        let symbol = self.resolve_entity_name(name, meaning, ignore_errors, None)?;
+        Ok(symbol
+            .filter(|&symbol| symbol != self.unknown_symbol)
+            .unwrap_or_else(|| {
+                if ignore_errors {
+                    self.unknown_symbol
+                } else {
+                    self.get_unresolved_symbol_for_entity_name(name)
+                }
+            }))
     }
 
     /// tsc-port: getTypeFromThisTypeNode @6.0.3
@@ -2542,17 +2595,56 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4117b012190268bec69ab226d5b25d0561d7bd3630fae40819022c04e2b1f3dc
     /// tsc-span: _tsc.js:60278-60335
     ///
-    /// Elisions, each owned by a later stage: the Unresolved-check-flag
-    /// error-alias arm (60279-60296 — unresolvedSymbols are
-    /// unconstructible while unresolved names escape at resolution) and
-    /// the import-alias re-resolution arm (60313-60329, resolveAlias =
-    /// 5.8) — an alias REFERENCED THROUGH an import keeps aliasSymbol
-    /// None, an alias-identity FN only.
+    /// The import-alias re-resolution arm (60313-60329, resolveAlias =
+    /// 5.8) is the remaining elision: an alias REFERENCED THROUGH an
+    /// import keeps aliasSymbol None, an alias-identity FN only.
     fn get_type_from_type_alias_reference(
         &mut self,
         node: NodeId,
         symbol: SymbolId,
     ) -> CheckResult2<TypeId> {
+        // 60279-60296: every written unresolved alias identity gets
+        // an Any-like error intrinsic of its own. Its alias symbol and
+        // arguments are display identity; isErrorType still recognizes
+        // it and semantic continuation remains error-like.
+        if self
+            .get_check_flags(symbol)
+            .intersects(CheckFlags::UNRESOLVED)
+        {
+            let argument_nodes = match self.data_of(node) {
+                NodeData::TypeReference(data) => data
+                    .type_arguments
+                    .map(|arguments| self.nodes_of(Some(arguments))),
+                NodeData::ExpressionWithTypeArguments(data) => data
+                    .type_arguments
+                    .map(|arguments| self.nodes_of(Some(arguments))),
+                NodeData::ImportType(data) => data
+                    .type_arguments
+                    .map(|arguments| self.nodes_of(Some(arguments))),
+                _ => None,
+            };
+            let type_arguments = match argument_nodes {
+                Some(nodes) => {
+                    let mut arguments = Vec::with_capacity(nodes.len());
+                    for argument in nodes {
+                        arguments.push(self.get_type_from_type_node(argument)?);
+                    }
+                    Some(arguments)
+                }
+                None => None,
+            };
+            let id = self
+                .tables
+                .get_alias_id(Some(symbol), type_arguments.as_deref());
+            if let Some(&cached) = self.error_types.get(&id) {
+                return Ok(cached);
+            }
+            let error = self
+                .tables
+                .create_error_type_with_alias(symbol, type_arguments.as_deref());
+            self.error_types.insert(id, error);
+            return Ok(error);
+        }
         let ty = self.get_declared_type_of_type_alias(symbol)?;
         let type_parameters = self.links.symbol(symbol).type_parameters.clone();
         if let Some(type_parameters) = type_parameters {
@@ -9855,7 +9947,8 @@ mod tests {
     use tsrs2_binder::bind_source_file;
     use tsrs2_syntax::{parse_source_file, LanguageVariant, ParseOptions, SourceFile};
     use tsrs2_types::{
-        CompilerOptions, ElementFlags, ObjectFlags, SignatureFlags, TypeData, TypeFlags, TypeId,
+        CheckFlags, CompilerOptions, ElementFlags, ObjectFlags, SignatureFlags, TypeData,
+        TypeFlags, TypeId,
     };
 
     use crate::links::LinkSlot;
@@ -10248,7 +10341,12 @@ mod tests {
     #[test]
     fn resolved_conditional_and_unresolved_name_shapes_are_sound() {
         with_state(
-            "declare var b: number extends string ? 1 : 2;\ndeclare var c: Missing;\n",
+            concat!(
+                "declare var b: number extends string ? 1 : 2;\n",
+                "declare var c: Missing;\n",
+                "declare var d: Missing.Scope<string>;\n",
+                "declare var e: Missing.Scope<string>;\n",
+            ),
             |state| {
                 let annotation =
                     find_probe_annotation(state.binder.source(0), "b").expect("annotation");
@@ -10262,14 +10360,31 @@ mod tests {
                     "2"
                 );
                 // Unresolved names are in-slice: resolveEntityName
-                // reports 2304 and the reference types as errorType.
+                // reports 2304 and the reference types as
+                // alias-bearing error intrinsics.
                 let annotation =
                     find_probe_annotation(state.binder.source(0), "c").expect("annotation");
                 let suggestion_count = state.suggestion_count;
                 let ty = state
                     .get_type_from_type_node(annotation)
-                    .expect("unresolved names type as errorType");
-                assert_eq!(ty, state.tables.intrinsics.error);
+                    .expect("unresolved names type as an alias-bearing error");
+                assert_ne!(ty, state.tables.intrinsics.error);
+                assert!(state.tables.is_error_type(ty));
+                let alias = state
+                    .tables
+                    .type_of(ty)
+                    .alias_symbol
+                    .expect("unresolved error retains its alias symbol");
+                assert!(state
+                    .get_check_flags(alias)
+                    .intersects(CheckFlags::UNRESOLVED));
+                assert_eq!(state.symbol_display_name(alias), "Missing");
+                assert_eq!(
+                    state
+                        .type_to_string_slice(ty)
+                        .expect("unresolved alias display"),
+                    "Missing"
+                );
                 assert_eq!(state.suggestion_count, suggestion_count + 1);
                 assert_eq!(
                     state
@@ -10284,8 +10399,28 @@ mod tests {
                 );
                 assert!(matches!(
                     state.links.node(annotation).resolved_symbol,
-                    LinkSlot::Resolved(symbol) if symbol == state.unknown_symbol
+                    LinkSlot::Resolved(symbol) if symbol == alias
                 ));
+
+                let d = annotation_type(state, "d");
+                let e = annotation_type(state, "e");
+                assert_eq!(d, e, "same unresolved path and arguments intern");
+                assert!(state.tables.is_error_type(d));
+                let qualified_alias = state
+                    .tables
+                    .type_of(d)
+                    .alias_symbol
+                    .expect("qualified unresolved error retains its alias symbol");
+                assert_eq!(
+                    state.get_fully_qualified_name(qualified_alias),
+                    "Missing.Scope"
+                );
+                assert_eq!(
+                    state
+                        .type_to_string_slice(d)
+                        .expect("qualified unresolved alias display"),
+                    "Missing.Scope<string>"
+                );
             },
         );
     }

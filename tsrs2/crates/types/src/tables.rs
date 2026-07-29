@@ -418,6 +418,25 @@ impl TypeTables {
         id
     }
 
+    /// tsc getTypeFromTypeAliasReference's Unresolved arm creates an
+    /// error intrinsic per alias identity, then stamps the synthetic
+    /// unresolved TypeAlias symbol and its written type arguments.
+    ///
+    /// The JS debugIntrinsicName (`alias ${id}`) is debugger-only and
+    /// deliberately omitted from the semantic payload.
+    pub fn create_error_type_with_alias(
+        &mut self,
+        alias_symbol: SymbolId,
+        alias_type_arguments: Option<&[TypeId]>,
+    ) -> TypeId {
+        let none = ObjectFlags::from_bits(0);
+        let id = self.create_intrinsic_type(TypeFlags::ANY, "error", none, None);
+        let ty = self.type_mut(id);
+        ty.alias_symbol = Some(alias_symbol);
+        ty.alias_type_arguments = alias_type_arguments.map(|arguments| arguments.into());
+        id
+    }
+
     /// The initial type block, in tsc's allocation order (47011-47111)
     /// so ids line up run-for-run — EVERY type-allocating statement in
     /// that span is materialized (the mapper vars allocate no types);

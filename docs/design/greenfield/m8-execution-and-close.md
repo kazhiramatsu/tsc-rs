@@ -257,6 +257,13 @@ tails merely to reduce the displayed FN count. Three probes that expose the
 same model ceiling trigger the stall playbook and a design review rather
 than a fourth local patch.
 
+The disposition artifact itself remains byte-identical after D2b freeze.
+When a slice ports a declaration frozen as `deferred`, the before/after row
+records the new exact `tsc-span`/`tsc-hash` ledger join as monotone
+implementation evidence; it does not rewrite the historical planning
+disposition. Losing a join frozen as `ported`, or adding one to
+`not-applicable`, remains a hard failure.
+
 Focused probes, crate tests, and the target family report are the iteration
 loop. Generated artifacts and README status are refreshed before the final
 verification. Run the complete local `cargo xtask ci --baseline origin/main`
