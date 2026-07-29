@@ -2224,11 +2224,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-hash: 7ab473d979727978a6b21387e28e6ee505aa87b65b6b3e3ecba42fcc6eacb70a
     /// tsc-span: _tsc.js:66766-66910
     ///
-    /// Includes the TUPLE target arm (66771+). The variadic-vs-rest
-    /// createArrayType branch and generic-variadic flags need M4
-    /// (generic tuples/global Array); M3 tuples carry no Variadic
-    /// elements after normalization, so those branches report
-    /// Unsupported if ever reached.
+    /// Includes the TUPLE target arm (66771+) and its reportErrors
+    /// ladder (2618-2627), including generic variadic/rest matching
+    /// and the ranged 2627 incompatibility wrapper.
     #[allow(clippy::needless_range_loop)] // positional dual-array walk, ported as tsc wrote it
     pub(crate) fn properties_related_to(
         &mut self,
@@ -2288,12 +2286,37 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 let source_min_length = source_data.as_ref().map_or(0, |data| data.min_length);
                 let target_min_length = target_data.min_length;
                 if !source_rest_flag && source_arity < target_min_length {
+                    if report_errors {
+                        self.report_error(
+                            &tsrs2_diags::gen::Source_has_0_element_s_but_target_requires_1,
+                            vec![source_arity.to_string(), target_min_length.to_string()],
+                        )?;
+                    }
                     return Ok(Ternary::FALSE);
                 }
                 if !target_has_rest_element && target_arity < source_min_length {
+                    if report_errors {
+                        self.report_error(
+                            &tsrs2_diags::gen::Source_has_0_element_s_but_target_allows_only_1,
+                            vec![source_min_length.to_string(), target_arity.to_string()],
+                        )?;
+                    }
                     return Ok(Ternary::FALSE);
                 }
                 if !target_has_rest_element && (source_rest_flag || target_arity < source_arity) {
+                    if report_errors {
+                        if source_min_length < target_min_length {
+                            self.report_error(
+                                &tsrs2_diags::gen::Target_requires_0_element_s_but_source_may_have_fewer,
+                                vec![target_min_length.to_string()],
+                            )?;
+                        } else {
+                            self.report_error(
+                                &tsrs2_diags::gen::Target_allows_only_0_element_s_but_source_may_have_more,
+                                vec![target_arity.to_string()],
+                            )?;
+                        }
+                    }
                     return Ok(Ternary::FALSE);
                 }
                 // getTypeArguments (66804-66805): deferred tuple
@@ -2323,16 +2346,37 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     if target_flags.intersects(ElementFlags::VARIADIC)
                         && !source_flags.intersects(ElementFlags::VARIADIC)
                     {
+                        if report_errors {
+                            self.report_error(
+                                &tsrs2_diags::gen::Source_provides_no_match_for_variadic_element_at_position_0_in_target,
+                                vec![target_position.to_string()],
+                            )?;
+                        }
                         return Ok(Ternary::FALSE);
                     }
                     if source_flags.intersects(ElementFlags::VARIADIC)
                         && !target_flags.intersects(ElementFlags::VARIABLE)
                     {
+                        if report_errors {
+                            self.report_error(
+                                &tsrs2_diags::gen::Variadic_element_at_position_0_in_source_does_not_match_element_at_position_1_in_target,
+                                vec![
+                                    source_position.to_string(),
+                                    target_position.to_string(),
+                                ],
+                            )?;
+                        }
                         return Ok(Ternary::FALSE);
                     }
                     if target_flags.intersects(ElementFlags::REQUIRED)
                         && !source_flags.intersects(ElementFlags::REQUIRED)
                     {
+                        if report_errors {
+                            self.report_error(
+                                &tsrs2_diags::gen::Source_provides_no_match_for_required_element_at_position_0_in_target,
+                                vec![target_position.to_string()],
+                            )?;
+                        }
                         return Ok(Ternary::FALSE);
                     }
                     if can_exclude_discriminants {
@@ -2375,10 +2419,28 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     )?;
                     if !is_true(related) {
                         if report_errors && (target_arity > 1 || source_arity > 1) {
-                            self.report_incompatible_error(
-                                &tsrs2_diags::gen::Type_at_position_0_in_source_is_not_compatible_with_type_at_position_1_in_target,
-                                vec![source_position.to_string(), target_position.to_string()],
-                            );
+                            if target_has_rest_element
+                                && source_position >= target_start_count
+                                && source_position_from_end >= target_end_count
+                                && target_start_count != source_arity - target_end_count - 1
+                            {
+                                self.report_incompatible_error(
+                                    &tsrs2_diags::gen::Type_at_positions_0_through_1_in_source_is_not_compatible_with_type_at_position_2_in_target,
+                                    vec![
+                                        target_start_count.to_string(),
+                                        (source_arity - target_end_count - 1).to_string(),
+                                        target_position.to_string(),
+                                    ],
+                                );
+                            } else {
+                                self.report_incompatible_error(
+                                    &tsrs2_diags::gen::Type_at_position_0_in_source_is_not_compatible_with_type_at_position_1_in_target,
+                                    vec![
+                                        source_position.to_string(),
+                                        target_position.to_string(),
+                                    ],
+                                );
+                            }
                         }
                         return Ok(Ternary::FALSE);
                     }
@@ -8613,6 +8675,134 @@ mod tests {
         assert!(
             !constrained.contains(&2208),
             "an existing constraint suppresses the hint: {constrained:?}"
+        );
+    }
+
+    #[test]
+    fn tuple_relation_reports_tsc_arity_and_element_mismatch_chains() {
+        fn flatten_codes(chain: &tsrs2_diags::MessageChain, codes: &mut Vec<u32>) {
+            codes.push(chain.code);
+            for child in &chain.next {
+                flatten_codes(child, codes);
+            }
+        }
+
+        let chains = crate::state::test_support::with_program_state(
+            &[(
+                "a.ts",
+                r#"
+declare let one: [number];
+declare let two: [number, number];
+declare let open: [number, ...number[]];
+declare let optional: [number?];
+const tooShort: [number, number] = one;
+const tooLong: [number] = two;
+const mayBeShort: [number, number] = open;
+const mayBeLong: [number] = open;
+const lacksRequired: [number] = optional;
+"#,
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| diagnostic.code() == 2322)
+                    .map(|diagnostic| {
+                        let mut codes = Vec::new();
+                        flatten_codes(&diagnostic.message, &mut codes);
+                        codes
+                    })
+                    .collect::<Vec<_>>()
+            },
+        );
+        assert_eq!(
+            chains,
+            [
+                vec![2322, 2618],
+                vec![2322, 2619],
+                vec![2322, 2620],
+                vec![2322, 2621],
+                vec![2322, 2623],
+            ]
+        );
+
+        let ranged = crate::state::test_support::with_program_state(
+            &[(
+                "a.ts",
+                "declare let source: [number, number, string];\ndeclare let target: [number, ...number[]];\ntarget = source;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .find(|diagnostic| diagnostic.code() == 2322)
+                    .expect("the rest-element assignment mismatch is reported")
+                    .message
+                    .clone()
+            },
+        );
+        assert_eq!(ranged.next[0].code, 2627);
+        assert_eq!(
+            ranged.next[0].text,
+            "Type at positions 1 through 2 in source is not compatible with type at position 1 in target."
+        );
+        assert_eq!(ranged.next[0].next[0].code, 2322);
+
+        let variadic = crate::state::test_support::with_program_state(
+            &[(
+                "a.ts",
+                r#"
+function targetVariadic<T extends unknown[]>(source: [number], target: [...T]) {
+    target = source;
+}
+function sourceVariadic<T extends unknown[]>(source: [...T], target: [number]) {
+    target = source;
+}
+"#,
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| diagnostic.code() == 2322)
+                    .map(|diagnostic| {
+                        let mut codes = Vec::new();
+                        flatten_codes(&diagnostic.message, &mut codes);
+                        codes
+                    })
+                    .collect::<Vec<_>>()
+            },
+        );
+        assert_eq!(variadic, [vec![2322, 2624], vec![2322, 2625]]);
+
+        let single = crate::state::test_support::with_program_state(
+            &[(
+                "a.ts",
+                "declare let source: [number];\ndeclare let target: [string];\ntarget = source;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .find(|diagnostic| diagnostic.code() == 2322)
+                    .expect("the single-element assignment mismatch is reported")
+                    .message
+                    .clone()
+            },
+        );
+        let mut single_codes = Vec::new();
+        flatten_codes(&single, &mut single_codes);
+        assert!(
+            !single_codes.iter().any(|code| (2618..=2627).contains(code)),
+            "the one-element sibling has no tuple-position wrapper: {single_codes:?}"
         );
     }
 
