@@ -696,6 +696,14 @@ pub struct CheckerState<'a> {
     pub require_symbol: SymbolId,
     /// tsc unknownSymbol (47006).
     pub unknown_symbol: SymbolId,
+    /// tsc unresolvedSymbols (47008): full entity-name path to the
+    /// synthetic TypeAlias symbol used to preserve a missing written
+    /// name after resolveEntityName has reported it.
+    pub(crate) unresolved_symbols: std::collections::HashMap<String, SymbolId>,
+    /// tsc errorTypes (47009): alias identity (symbol + written type
+    /// arguments) to the per-reference error intrinsic. These remain
+    /// Any-like semantically while typeToString prints the alias face.
+    pub(crate) error_types: std::collections::HashMap<String, TypeId>,
     /// tsc patternAmbientModules (initializeTypeChecker 88754-88756).
     pub pattern_ambient_modules: Vec<(String, String, SymbolId)>,
     /// tsc patternAmbientModuleAugmentations (mergeModuleAugmentation
@@ -1008,6 +1016,8 @@ impl<'a> CheckerState<'a> {
             arguments_symbol,
             require_symbol,
             unknown_symbol,
+            unresolved_symbols: std::collections::HashMap::new(),
+            error_types: std::collections::HashMap::new(),
             pattern_ambient_modules: Vec::new(),
             pattern_ambient_module_augmentations: std::collections::HashMap::new(),
             unresolved_module_augmentations: std::collections::HashMap::new(),

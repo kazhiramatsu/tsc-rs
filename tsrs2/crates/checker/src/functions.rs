@@ -2865,7 +2865,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<()> {
         let return_type = self.get_type_from_type_node(return_type_node)?;
         if self.options.emit_script_target() >= tsrs2_types::ScriptTarget::ES2015 {
-            if return_type == self.tables.intrinsics.error {
+            if self.tables.is_error_type(return_type) {
                 return Ok(());
             }
             let global_promise_type = self.get_global_promise_type(/*report_errors*/ true)?;
@@ -2883,7 +2883,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         } else {
-            if return_type == self.tables.intrinsics.error {
+            if self.tables.is_error_type(return_type) {
                 return Ok(());
             }
             let promise_constructor_name = self.get_entity_name_from_type_node(return_type_node);
@@ -2910,7 +2910,7 @@ impl<'a> CheckerState<'a> {
                 self.binder.source_of_node(promise_constructor_name),
                 Some(promise_constructor_name),
             );
-            if promise_constructor_type == self.tables.intrinsics.error {
+            if self.tables.is_error_type(promise_constructor_type) {
                 let is_plain_promise = self.kind_of(promise_constructor_name)
                     == SyntaxKind::Identifier
                     && self.identifier_text_of(promise_constructor_name) == Some("Promise")
@@ -7142,6 +7142,22 @@ declare const u: unknown;
                 "interface Promise<T> { p: T }\ndeclare const a: any;\nconst h = async (): number => a;\n"
             ),
             [(1064, 72, 6)]
+        );
+    }
+
+    #[test]
+    fn async_unresolved_alias_return_stays_on_the_error_type_bailout() {
+        let options = CompilerOptions {
+            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            ..CompilerOptions::default()
+        };
+        let rows = checked_rows_with(
+            "interface Promise<T> {}\nasync function f(): Missing<void> {}\n",
+            &options,
+        );
+        assert!(
+            rows.iter().all(|row| !matches!(row.0, 1055 | 1064)),
+            "an alias-bearing error type must not trigger async return validation: {rows:?}"
         );
     }
 

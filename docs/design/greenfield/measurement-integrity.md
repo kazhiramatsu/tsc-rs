@@ -448,6 +448,14 @@ transition. It does not re-extract, renumber, or replace D2a identities.
 Only D2b can satisfy M8 readiness or feed D3 runtime/static
 reconciliation.
 
+That immutability applies to the reviewed planning decision, not to the
+implementation ledger. A declaration frozen as `deferred` may later acquire an
+exact `tsc-span`/`tsc-hash` Rust ledger join as M8 ports its owner cluster. The
+frozen row remains byte-identical and the new join is monotone implementation
+evidence. A frozen `ported` row may never lose its join, and a frozen
+`not-applicable` row may not acquire one without the explicit vendor/universe
+transition that re-adjudicates the inventory.
+
 `m8-emitter-dispositions.json` enumerates all closure declarations with
 `declaration`, `disposition`, `owner`, and `evidence`. `ported` is valid
 only with an exact `tsc-span`/`tsc-hash` Rust ledger join; every unmatched
@@ -463,9 +471,10 @@ The draft has no adjudication commit. Freezing adds a full 40-hex
 complete draft; it cannot combine content edits with the freeze. A frozen
 trusted base is immutable. Draft evidence remains generator-exact. After
 freeze, the anchored reviewed evidence remains authoritative across
-non-identity Rust line movement, while the audit still revalidates every
-current exact `tsc-span`/`tsc-hash` join and disposition. The generator and
-audit are:
+non-identity Rust line movement. The audit still requires every frozen
+`ported` join, rejects a join for `not-applicable`, and accepts a new exact
+join for `deferred` as post-freeze implementation progress without rewriting
+the snapshot. The generator and audit are:
 
 ```sh
 cargo xtask codegen emitter-dispositions

@@ -1374,12 +1374,25 @@ fn validate_m8_emitter_dispositions(
             .into());
         }
         let joins = exact_ledger_matches(function, ledger_entries);
-        if !matches!(
-            (entry.disposition.as_str(), joins.is_empty()),
-            ("ported", false) | ("deferred" | "not-applicable", true)
+        let valid_ledger_join = match (
+            dispositions.status.as_str(),
+            entry.disposition.as_str(),
+            joins.is_empty(),
         ) {
+            // A draft is the live generated adjudication view, so its
+            // disposition must exactly reflect the current ledger.
+            ("draft", "ported", false) | ("draft", "deferred" | "not-applicable", true) => true,
+            // A frozen disposition is the immutable pre-M8 planning
+            // decision. A later exact port may monotonically satisfy a
+            // deferred row without rewriting the reviewed snapshot.
+            ("frozen", "ported", false)
+            | ("frozen", "deferred", _)
+            | ("frozen", "not-applicable", true) => true,
+            _ => false,
+        };
+        if !valid_ledger_join {
             return Err(format!(
-                "M8 emitter disposition {} must be ported exactly when its tsc-span/tsc-hash ledger join exists",
+                "M8 emitter disposition {} is inconsistent with its status and tsc-span/tsc-hash ledger join",
                 entry.declaration
             )
             .into());
@@ -1484,12 +1497,19 @@ fn audit_m8_emitter_dispositions(
             )
             .into());
         }
+        // The anchor stores the reviewed bytes as a draft, but once those
+        // bytes back a frozen artifact their ledger relation has frozen
+        // semantics: later exact ports may satisfy deferred rows without
+        // mutating the anchor.
+        let mut anchored_snapshot = anchored;
+        anchored_snapshot.status = "frozen".to_owned();
+        anchored_snapshot.adjudication_commit = Some(anchor.to_owned());
         validate_m8_emitter_dispositions(
             workspace,
             inventory,
             inventory_hash,
             ledger_entries,
-            &anchored,
+            &anchored_snapshot,
         )?;
     }
 
@@ -10313,6 +10333,31 @@ mod m8_emitter_disposition_tests {
             "inventory",
             &ledger,
             &false_deferred,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn frozen_deferred_disposition_accepts_a_later_exact_port() {
+        let inventory = inventory();
+        let ledger = ledger();
+        let mut frozen = dispositions();
+        frozen.status = "frozen".to_owned();
+        frozen.adjudication_commit = Some("a".repeat(40));
+        frozen.entries[0].disposition = "deferred".to_owned();
+        frozen.entries[0].owner = "D2 static dependency closure".to_owned();
+        frozen.entries[0].evidence = "exact frozen path".to_owned();
+
+        validate_m8_emitter_dispositions(Path::new("."), &inventory, "inventory", &ledger, &frozen)
+            .expect("a post-freeze exact port is monotone implementation evidence");
+
+        frozen.entries[0].disposition = "not-applicable".to_owned();
+        assert!(validate_m8_emitter_dispositions(
+            Path::new("."),
+            &inventory,
+            "inventory",
+            &ledger,
+            &frozen,
         )
         .is_err());
     }

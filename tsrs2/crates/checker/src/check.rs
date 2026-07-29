@@ -5658,10 +5658,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:81771-81793
     ///
     /// The deprecation-suggestion tail is suggestion-band (unmodeled).
-    /// Unresolved names unwind Unsupported out of getTypeFromTypeNode
-    /// (annotate.rs) instead of flowing errorType, so the isErrorType
-    /// guard is the Ok path here; the 2304 was already emitted by the
-    /// resolver.
+    /// Unresolved names flow as alias-bearing error types; isErrorType
+    /// keeps their type-argument/deprecation tails silent after the
+    /// resolver has emitted the 2304/2503 family.
     fn check_type_reference_or_import(
         &mut self,
         node: NodeId,
@@ -5680,7 +5679,7 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         }
         let ty = self.get_type_from_type_node(node)?;
-        if ty != self.tables.intrinsics.error && has_type_arguments {
+        if !self.tables.is_error_type(ty) && has_type_arguments {
             self.check_node_deferred(node);
         }
         Ok(())
@@ -5728,7 +5727,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
     ) -> CheckResult2<Option<Vec<TypeId>>> {
         let ty = self.get_type_from_type_node(node)?;
-        if ty == self.tables.intrinsics.error {
+        if self.tables.is_error_type(ty) {
             return Ok(None);
         }
         let Some(symbol) = self.links.node(node).resolved_symbol.resolved() else {
@@ -8094,6 +8093,10 @@ impl<'a> CheckerState<'a> {
     /// branch on the CHILD node's kind at every join, so the string
     /// slice returns the would-be node kind beside the text and the
     /// joins apply the same rules (`SliceTypeNodeKind`).
+    ///
+    /// tsc-port: typeToTypeNodeWorker @6.0.3 (Any arm)
+    /// tsc-hash: db8cf9911d836f13e37be9d395a4d61fbfad346e6c3e3c25210441a94d986533
+    /// tsc-span: _tsc.js:51338-51347
     fn type_to_string_slice_node(
         &mut self,
         ty: TypeId,
@@ -8119,6 +8122,41 @@ impl<'a> CheckerState<'a> {
             ));
         }
         let flags = self.tables.flags_of(ty);
+        // typeToTypeNodeWorker 51327-51330: Any-like types consult
+        // aliasSymbol before the AnyKeyword fallback. This is the
+        // display half of unresolved alias error types: semantics keep
+        // TypeFlags::ANY while the written entity name and arguments
+        // survive.
+        if flags.intersects(TypeFlags::ANY) {
+            let type_of = self.tables.type_of(ty);
+            if let (Some(alias_symbol), alias_arguments) =
+                (type_of.alias_symbol, type_of.alias_type_arguments.clone())
+            {
+                let name = if fully_qualified
+                    || self
+                        .get_check_flags(alias_symbol)
+                        .intersects(CheckFlags::UNRESOLVED)
+                {
+                    self.get_fully_qualified_name(alias_symbol)
+                } else {
+                    self.symbol_display_name(alias_symbol)
+                };
+                return match alias_arguments {
+                    Some(arguments) if !arguments.is_empty() => {
+                        let mut rendered = Vec::with_capacity(arguments.len());
+                        for argument in arguments.iter() {
+                            rendered
+                                .push(self.type_to_string_slice_ex(*argument, fully_qualified)?);
+                        }
+                        Ok((
+                            format!("{name}<{}>", rendered.join(", ")),
+                            SliceTypeNodeKind::Reference,
+                        ))
+                    }
+                    _ => Ok((name, SliceTypeNodeKind::Reference)),
+                };
+            }
+        }
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
             // isThisTypeParameter (51454-51463): the synthesized
             // thisType renders the ThisTypeNode face — `this`, never
@@ -11516,7 +11554,7 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         let annotation_type = self.get_type_from_type_node(annotation)?;
-        if annotation_type == self.tables.intrinsics.error {
+        if self.tables.is_error_type(annotation_type) {
             return self.reusable_annotation_node_text_slice(annotation);
         }
         let compared_annotation_type = if requires_adding_undefined {
@@ -13971,6 +14009,30 @@ mod tests {
                 "Type 'T[keyof T] | undefined' is not assignable to type 'T[keyof T]'.",
                 "Type 'T[keyof T]' is not assignable to type 'U[keyof T]'.",
                 "Type 'T' is not assignable to type 'Named<T>'.",
+            ]
+        );
+    }
+
+    #[test]
+    fn unresolved_type_aliases_keep_written_return_faces_in_relation_reports() {
+        let options = CompilerOptions {
+            strict_null_checks: Some(true),
+            ..CompilerOptions::default()
+        };
+        let messages = checked_diags_with(
+            "let a: () => Missing = null;\n\
+             let b: () => Missing.Scope<string> = null;\n",
+            &options,
+        )
+        .into_iter()
+        .filter(|row| row.0 == 2322)
+        .map(|row| row.3)
+        .collect::<Vec<_>>();
+        assert_eq!(
+            messages,
+            [
+                "Type 'null' is not assignable to type '() => Missing'.",
+                "Type 'null' is not assignable to type '() => Missing.Scope<string>'.",
             ]
         );
     }

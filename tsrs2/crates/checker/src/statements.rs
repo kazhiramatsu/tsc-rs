@@ -485,7 +485,6 @@ impl<'a> CheckerState<'a> {
                 let widened = self.get_widened_type_for_variable_like_declaration(node, false)?;
                 self.convert_auto_to_any(widened)?
             };
-            let error_type = self.tables.intrinsics.error;
             // [JSDOC]/open-ended-JS gate: merged declarations living
             // in JS need the unmodeled JSDoc/open-object machinery.
             // The bounded faces modeled by getJSContainerObjectType
@@ -513,8 +512,8 @@ impl<'a> CheckerState<'a> {
             // comparison face IS tsc's — `var x = []` types as
             // Array<auto>, convertAutoToAny renders `any[]`, and the
             // 2403 report matches the oracle byte-for-byte.)
-            if ty != error_type
-                && declaration_type != error_type
+            if !self.tables.is_error_type(ty)
+                && !self.tables.is_error_type(declaration_type)
                 && !self.is_type_identical_to(ty, declaration_type)?
                 && !self
                     .binder
@@ -3728,6 +3727,15 @@ function f(b) {\n\
         assert_eq!(
             rows[0].3,
             "Subsequent variable declarations must have the same type.  Variable 'y' must be of type 'string', but here has type 'number'."
+        );
+    }
+
+    #[test]
+    fn unresolved_assertion_alias_suppresses_redeclaration_type_comparison() {
+        let rows = checked_rows("var v = <T>() => 1;\nvar v = <T>a;\n");
+        assert!(
+            rows.iter().all(|row| row.0 != 2403),
+            "isErrorType must recognize alias-bearing unresolved types: {rows:?}"
         );
     }
 
