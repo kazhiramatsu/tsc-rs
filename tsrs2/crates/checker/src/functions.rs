@@ -7319,6 +7319,40 @@ declare const u: unknown;
     }
 
     #[test]
+    fn es5_async_constructor_relation_uses_the_tsc_compatibility_pyramid() {
+        let lib = "declare type PromiseConstructorLike = new <T>(executor: (resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: any) => void) => void) => PromiseLike<T>;\n\
+                   interface PromiseLike<T> {\n\
+                     then<TResult1 = T, TResult2 = never>(onfulfilled?: (value: T) => TResult1 | PromiseLike<TResult1>, onrejected?: (reason: any) => TResult2 | PromiseLike<TResult2>): PromiseLike<TResult1 | TResult2>;\n\
+                   }\n";
+        let source =
+            "declare class Thenable { then(): void; }\nasync function value(): Thenable {}\n";
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "/lib.d.ts".to_owned(),
+                    text: lib.to_owned(),
+                },
+                InputFile {
+                    name: "/a.ts".to_owned(),
+                    text: source.to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                target: Some(tsrs2_types::ScriptTarget::ES5.bits()),
+                ..CompilerOptions::default()
+            },
+        );
+        let diagnostic = result
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code() == 1055)
+            .expect("the invalid ES5 promise constructor is reported");
+        assert_eq!(diagnostic.message.next[0].code, 2203);
+        assert_eq!(diagnostic.message.next[0].next[0].code, 2201);
+        assert_eq!(diagnostic.message.next[0].next[0].next[0].code, 2322);
+    }
+
+    #[test]
     fn arrow_non_array_rest_parameter_reports_2370() {
         assert_eq!(
             checked_rows(

@@ -2444,14 +2444,15 @@ impl<'a> CheckerState<'a> {
         self.get_contextual_type_for_element_expression_at(ty, index, Some(length))
     }
 
-    // ---- relation heads (the T2-curtain reporter) ----
+    // ---- relation heads ----
 
     /// reportRelationError (65064-65115) under a PRESENT head message:
     /// the code is ALWAYS the head's (the unmatched-property override
     /// and the identically-named-types message swap are both gated on
     /// `!headMessage` — reportErrorResults 65286), the source display
-    /// generalizes literals, and the chain tail elides (T2). Display
-    /// failures unwind Unsupported per the house discipline.
+    /// generalizes literals, and the reporting-mode relation walk
+    /// supplies the nested errorInfo chain. Display failures unwind
+    /// Unsupported per the house discipline.
     fn build_relation_error_with_head(
         &mut self,
         source: TypeId,
@@ -2459,6 +2460,8 @@ impl<'a> CheckerState<'a> {
         span: &DiagSpan,
         head: &'static DiagnosticMessage,
     ) -> CheckResult2<Diagnostic> {
+        let original_source = source;
+        let original_target = target;
         // Applicability's direct-head fallback bypasses isRelatedTo's
         // reporting closure. Reconstruct the same read/write
         // normalized pair used by that closure before rendering.
@@ -2474,6 +2477,19 @@ impl<'a> CheckerState<'a> {
         } else {
             head
         };
+        // The verdict is already known. Until every report-only
+        // descendant is implemented, an Unsupported while refining
+        // the chain must not erase the accepted parent diagnostic.
+        if let Ok(Some(output)) = self.relation_error_output(
+            original_source,
+            original_target,
+            RelationKind::Assignable,
+            head,
+        ) {
+            let mut diagnostic = self.diagnostic_at_span(span, output.message);
+            diagnostic.related = output.related;
+            return Ok(diagnostic);
+        }
         let source_text = self.type_to_string_slice(source)?;
         let target_text = self.type_to_string_slice(target)?;
         // 65069-65072: literal sources generalize to their base

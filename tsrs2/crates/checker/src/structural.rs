@@ -49,16 +49,16 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-span: _tsc.js:66488-66507
     ///
     /// `Some(result)` is a definite verdict; `None` falls through to
-    /// the structural arms. reportErrors=false collapses the tail:
-    /// the AllowsStructuralFallback and covariant-void paths reach the
-    /// structural fallback with varianceCheckFailed=false, and the
-    /// remaining path — `varianceCheckFailed && !(reportErrors2 &&
-    /// some invariant)` — always returns False, so varianceCheckFailed
-    /// can never be true at a structural fallback and the errorInfo
-    /// juggling (originalErrorInfo/resetErrorInfo, 66468-66471) stays
-    /// elided with the error machinery. The `variances !== emptyArray`
-    /// conjunct is always true here: both call sites pre-answer the
-    /// in-progress sentinel with Ternary.Unknown.
+    /// the structural arms. In reporting mode an invariant failure
+    /// saves the variance chain, resets to the worker-entry state, and
+    /// lets structural comparison choose the more specific error. A
+    /// successful structural fallback restores the saved variance
+    /// error and remains a failed relation, exactly like
+    /// originalErrorInfo/varianceCheckFailed in tsc. The
+    /// `variances !== emptyArray` conjunct is always true here: both
+    /// call sites pre-answer the in-progress sentinel with
+    /// Ternary::UNKNOWN.
+    #[allow(clippy::too_many_arguments)] // tsc closure state is explicit in Rust
     fn relate_variances(
         &mut self,
         source_type_arguments: &[TypeId],
@@ -66,6 +66,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         variances: &[tsrs2_types::VarianceFlags],
         report_errors: bool,
         intersection_state: IntersectionState,
+        saved_error_info: &crate::engine::RelationErrorState,
+        original_error_info: &mut Option<crate::engine::RelationErrorState>,
+        variance_check_failed: &mut bool,
     ) -> CheckResult2<Option<Ternary>> {
         let result = self.type_arguments_related_to(
             source_type_arguments,
@@ -81,13 +84,24 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             .iter()
             .any(|v| v.intersects(tsrs2_types::VarianceFlags::ALLOWS_STRUCTURAL_FALLBACK))
         {
+            *original_error_info = None;
+            self.reset_error_info(saved_error_info);
             return Ok(None);
         }
         let allow_structural_fallback = self
             .st
             .has_covariant_void_argument(target_type_arguments, variances);
+        *variance_check_failed = !allow_structural_fallback;
         if !allow_structural_fallback {
-            return Ok(Some(Ternary::FALSE));
+            let has_invariant = variances.iter().any(|variance| {
+                *variance & tsrs2_types::VarianceFlags::VARIANCE_MASK
+                    == tsrs2_types::VarianceFlags::INVARIANT
+            });
+            if !report_errors || !has_invariant {
+                return Ok(Some(Ternary::FALSE));
+            }
+            *original_error_info = Some(self.capture_error_calculation_state());
+            self.reset_error_info(saved_error_info);
         }
         Ok(None)
     }
@@ -105,11 +119,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> CheckResult2<Ternary> {
+        let saved_error_info = self.capture_error_calculation_state();
         let mut result = self.structured_type_related_to_worker(
             source,
             target,
             report_errors,
             intersection_state,
+            &saved_error_info,
         )?;
         if self.relation != RelationKind::Identity {
             if is_false(result)
@@ -150,6 +166,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     target,
                     /*excluded_properties*/ None,
                     /*optionals_only*/ false,
+                    report_errors,
                     IntersectionState::NONE,
                 )?;
                 result = ternary_and(result, props);
@@ -165,6 +182,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         source,
                         target,
                         /*source_is_primitive*/ false,
+                        report_errors,
                         IntersectionState::NONE,
                     )?;
                     result = ternary_and(result, index);
@@ -192,10 +210,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     target,
                     /*excluded_properties*/ None,
                     /*optionals_only*/ true,
+                    report_errors,
                     intersection_state,
                 )?;
                 result = ternary_and(result, props);
             }
+        }
+        if !is_false(result) {
+            self.reset_error_info(&saved_error_info);
         }
         Ok(result)
     }
@@ -227,7 +249,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         target: TypeId,
         report_errors: bool,
         intersection_state: IntersectionState,
+        saved_error_info: &crate::engine::RelationErrorState,
     ) -> CheckResult2<Ternary> {
+        let mut original_error_info = None;
+        let mut variance_check_failed = false;
         let mut source = source;
         let mut source_flags = self.flags(source);
         let target_flags = self.flags(target);
@@ -539,6 +564,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                                 &variances,
                                 report_errors,
                                 intersection_state,
+                                saved_error_info,
+                                &mut original_error_info,
+                                &mut variance_check_failed,
                             )? {
                                 return Ok(variance_result);
                             }
@@ -1344,6 +1372,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             &variances,
                             report_errors,
                             intersection_state,
+                            saved_error_info,
+                            &mut original_error_info,
+                            &mut variance_check_failed,
                         )? {
                             return Ok(variance_result);
                         }
@@ -1456,11 +1487,15 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 TypeFlags::OBJECT.bits() | TypeFlags::INTERSECTION.bits(),
             )) && target_flags.intersects(TypeFlags::OBJECT)
             {
+                let report_structural_errors = report_errors
+                    && self.has_same_error_info(saved_error_info)
+                    && !source_is_primitive;
                 let mut result = self.properties_related_to(
                     source,
                     target,
                     /*excluded_properties*/ None,
                     /*optionals_only*/ false,
+                    report_structural_errors,
                     intersection_state,
                 )?;
                 if is_true(result) {
@@ -1470,6 +1505,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             source,
                             target,
                             SignatureKind::Call,
+                            report_structural_errors,
                             intersection_state,
                         )?,
                     );
@@ -1480,6 +1516,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                                 source,
                                 target,
                                 SignatureKind::Construct,
+                                report_structural_errors,
                                 intersection_state,
                             )?,
                         );
@@ -1490,13 +1527,19 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                                     source,
                                     target,
                                     source_is_primitive,
+                                    report_structural_errors,
                                     intersection_state,
                                 )?,
                             );
                         }
                     }
                 }
-                if is_true(result) {
+                if variance_check_failed && !is_false(result) {
+                    self.restore_variance_error_info(
+                        original_error_info.as_ref(),
+                        saved_error_info,
+                    );
+                } else if !is_false(result) {
                     return Ok(result);
                 }
             }
@@ -1779,6 +1822,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         source_property,
                         target_property,
                         |_, _| Ok(combination_type),
+                        /*report_errors*/ false,
                         IntersectionState::NONE,
                         skip_optional,
                     )?;
@@ -1802,6 +1846,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 ty,
                 Some(&excluded_properties),
                 /*optionals_only*/ false,
+                /*report_errors*/ false,
                 IntersectionState::NONE,
             )?;
             result = ternary_and(result, props);
@@ -1812,6 +1857,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         source,
                         ty,
                         SignatureKind::Call,
+                        /*report_errors*/ false,
                         IntersectionState::NONE,
                     )?,
                 );
@@ -1822,6 +1868,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             source,
                             ty,
                             SignatureKind::Construct,
+                            /*report_errors*/ false,
                             IntersectionState::NONE,
                         )?,
                     );
@@ -1835,6 +1882,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                                 source,
                                 ty,
                                 /*source_is_primitive*/ false,
+                                /*report_errors*/ false,
                                 IntersectionState::NONE,
                             )?,
                         );
@@ -1974,6 +2022,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         source_prop: SymbolId,
         target_prop: SymbolId,
         get_type_of_source_property: impl Fn(&mut Self, SymbolId) -> CheckResult2<TypeId>,
+        report_errors: bool,
         intersection_state: IntersectionState,
     ) -> CheckResult2<Ternary> {
         let target_is_optional = self.st.tables.strict_null_checks
@@ -2000,7 +2049,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             effective_source,
             effective_target,
             RecursionFlags::BOTH,
-            /*report_errors*/ false,
+            report_errors,
             intersection_state,
         )
     }
@@ -2015,11 +2064,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     #[allow(clippy::too_many_arguments)]
     fn property_related_to(
         &mut self,
-        _source: TypeId,
-        _target: TypeId,
+        source: TypeId,
+        target: TypeId,
         source_prop: SymbolId,
         target_prop: SymbolId,
         get_type_of_source_property: impl Fn(&mut Self, SymbolId) -> CheckResult2<TypeId>,
+        report_errors: bool,
         intersection_state: IntersectionState,
         skip_optional: bool,
     ) -> CheckResult2<Ternary> {
@@ -2035,14 +2085,72 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             let source_declaration = self.st.binder.symbol(source_prop).value_declaration;
             let target_declaration = self.st.binder.symbol(target_prop).value_declaration;
             if source_declaration != target_declaration {
+                if report_errors {
+                    let name = self.st.binder.symbol(target_prop).escaped_name.clone();
+                    if source_prop_flags.intersects(ModifierFlags::PRIVATE)
+                        && target_prop_flags.intersects(ModifierFlags::PRIVATE)
+                    {
+                        self.report_error(
+                            &tsrs2_diags::gen::Types_have_separate_declarations_of_a_private_property_0,
+                            vec![name],
+                        )?;
+                    } else {
+                        let private_source = if source_prop_flags.intersects(ModifierFlags::PRIVATE)
+                        {
+                            source
+                        } else {
+                            target
+                        };
+                        let public_source = if source_prop_flags.intersects(ModifierFlags::PRIVATE)
+                        {
+                            target
+                        } else {
+                            source
+                        };
+                        let private_text = self
+                            .st
+                            .type_to_string_slice_with_error_enclosing(private_source)?;
+                        let public_text = self
+                            .st
+                            .type_to_string_slice_with_error_enclosing(public_source)?;
+                        self.report_error(
+                            &tsrs2_diags::gen::Property_0_is_private_in_type_1_but_not_in_type_2,
+                            vec![name, private_text, public_text],
+                        )?;
+                    }
+                }
                 return Ok(Ternary::FALSE);
             }
         } else if target_prop_flags.intersects(ModifierFlags::PROTECTED) {
             if !self.st.is_valid_override_of(source_prop, target_prop)? {
+                if report_errors {
+                    let name = self.st.binder.symbol(target_prop).escaped_name.clone();
+                    let source_class = self.st.get_declaring_class(source_prop)?.unwrap_or(source);
+                    let target_class = self.st.get_declaring_class(target_prop)?.unwrap_or(target);
+                    let source_text = self
+                        .st
+                        .type_to_string_slice_with_error_enclosing(source_class)?;
+                    let target_text = self
+                        .st
+                        .type_to_string_slice_with_error_enclosing(target_class)?;
+                    self.report_error(
+                        &tsrs2_diags::gen::Property_0_is_protected_but_type_1_is_not_a_class_derived_from_2,
+                        vec![name, source_text, target_text],
+                    )?;
+                }
                 return Ok(Ternary::FALSE);
             }
         } else if source_prop_flags.intersects(ModifierFlags::PROTECTED) {
             // 66686-66692: protected source vs public target.
+            if report_errors {
+                let name = self.st.binder.symbol(target_prop).escaped_name.clone();
+                let source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
+                let target_text = self.st.type_to_string_slice_with_error_enclosing(target)?;
+                self.report_error(
+                    &tsrs2_diags::gen::Property_0_is_protected_in_type_1_but_public_in_type_2,
+                    vec![name, source_text, target_text],
+                )?;
+            }
             return Ok(Ternary::FALSE);
         }
         if self.relation == RelationKind::StrictSubtype
@@ -2055,9 +2163,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             source_prop,
             target_prop,
             get_type_of_source_property,
+            report_errors,
             intersection_state,
         )?;
         if !is_true(related) {
+            if report_errors {
+                let name = self.st.binder.symbol(target_prop).escaped_name.clone();
+                self.report_incompatible_error(
+                    &tsrs2_diags::gen::Types_of_property_0_are_incompatible,
+                    vec![name],
+                );
+            }
             return Ok(Ternary::FALSE);
         }
         let source_optional = self
@@ -2073,6 +2189,15 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             .symbol_flags(target_prop)
             .intersects(SymbolFlags::OPTIONAL);
         if !skip_optional && source_optional && target_class_member && !target_optional {
+            if report_errors {
+                let name = self.st.binder.symbol(target_prop).escaped_name.clone();
+                let source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
+                let target_text = self.st.type_to_string_slice_with_error_enclosing(target)?;
+                self.report_error(
+                    &tsrs2_diags::gen::Property_0_is_optional_in_type_1_but_required_in_type_2,
+                    vec![name, source_text, target_text],
+                )?;
+            }
             return Ok(Ternary::FALSE);
         }
         Ok(related)
@@ -2111,6 +2236,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         target: TypeId,
         excluded_properties: Option<&std::collections::HashSet<String>>,
         optionals_only: bool,
+        report_errors: bool,
         intersection_state: IntersectionState,
     ) -> CheckResult2<Ternary> {
         if self.relation == RelationKind::Identity {
@@ -2244,10 +2370,16 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         source_type,
                         target_check_type,
                         RecursionFlags::BOTH,
-                        /*report_errors*/ false,
+                        report_errors,
                         intersection_state,
                     )?;
                     if !is_true(related) {
+                        if report_errors && (target_arity > 1 || source_arity > 1) {
+                            self.report_incompatible_error(
+                                &tsrs2_diags::gen::Type_at_position_0_in_source_is_not_compatible_with_type_at_position_1_in_target,
+                                vec![source_position.to_string(), target_position.to_string()],
+                            );
+                        }
                         return Ok(Ternary::FALSE);
                     }
                     result = ternary_and(result, related);
@@ -2276,9 +2408,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             || self.relation == RelationKind::StrictSubtype)
             && !self.st.is_object_literal_type(source)
             && !self.st.tables.is_tuple_type(source);
-        if let Some(_unmatched) =
+        if let Some(unmatched) =
             self.get_unmatched_property(source, target, require_optional_properties)?
         {
+            if report_errors && self.should_report_unmatched_property_error(source, target)? {
+                self.report_unmatched_property(
+                    source,
+                    target,
+                    unmatched,
+                    require_optional_properties,
+                )?;
+            }
             return Ok(Ternary::FALSE);
         }
         if self.st.is_object_literal_type(target) {
@@ -2314,6 +2454,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             source_prop,
                             target_prop,
                             |checker, prop| checker.st.get_non_missing_type_of_symbol(prop),
+                            report_errors,
                             intersection_state,
                             skip_optional,
                         )?;
@@ -2326,6 +2467,142 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         Ok(result)
+    }
+
+    /// tsc-port: shouldReportUnmatchedPropertyError @6.0.3
+    /// tsc-hash: 50971a4b21d441f80197e97471cd5b96c137a135657e988bfd96fd536a951e20
+    /// tsc-span: _tsc.js:67043-67054
+    fn should_report_unmatched_property_error(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult2<bool> {
+        let source_calls = self
+            .st
+            .get_signatures_of_type(source, SignatureKind::Call)?
+            .len();
+        let source_constructs = self
+            .st
+            .get_signatures_of_type(source, SignatureKind::Construct)?
+            .len();
+        if (source_calls > 0 || source_constructs > 0)
+            && self
+                .st
+                .get_properties_of_object_type_owned(source)?
+                .is_empty()
+        {
+            return Ok((source_calls > 0
+                && !self
+                    .st
+                    .get_signatures_of_type(target, SignatureKind::Call)?
+                    .is_empty())
+                || (source_constructs > 0
+                    && !self
+                        .st
+                        .get_signatures_of_type(target, SignatureKind::Construct)?
+                        .is_empty()));
+        }
+        Ok(true)
+    }
+
+    /// tsc-port: reportUnmatchedProperty @6.0.3
+    /// tsc-hash: 2273740e1e468507c9fe6968bfee394b8d0511c7fcaf96b850f3ea2795413fbd
+    /// tsc-span: _tsc.js:66708-66760
+    fn report_unmatched_property(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        unmatched_property: SymbolId,
+        require_optional_properties: bool,
+    ) -> CheckResult2<()> {
+        let mut properties = Vec::new();
+        for property in self.st.get_properties_of_type(target)? {
+            if self.st.is_static_private_identifier_property(property) {
+                continue;
+            }
+            let flags = self.st.symbol_flags(property);
+            if !require_optional_properties
+                && (flags.intersects(SymbolFlags::OPTIONAL)
+                    || self
+                        .st
+                        .get_check_flags(property)
+                        .intersects(CheckFlags::PARTIAL))
+            {
+                continue;
+            }
+            let name = self.st.binder.symbol(property).escaped_name.clone();
+            if self.st.get_property_of_type_full(source, &name)?.is_none() {
+                properties.push(property);
+            }
+        }
+        if properties.is_empty() {
+            return Ok(());
+        }
+
+        if properties.len() == 1 {
+            let name = self
+                .st
+                .binder
+                .symbol(unmatched_property)
+                .escaped_name
+                .clone();
+            let mut source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
+            let mut target_text = self.st.type_to_string_slice_with_error_enclosing(target)?;
+            if source_text == target_text {
+                source_text = self.st.get_type_name_for_error_display(source)?;
+                target_text = self.st.get_type_name_for_error_display(target)?;
+            }
+            self.report_error(
+                &tsrs2_diags::gen::Property_0_is_missing_in_type_1_but_required_in_type_2,
+                vec![name.clone(), source_text, target_text],
+            )?;
+            if let Some(&declaration) = self
+                .st
+                .binder
+                .symbol(unmatched_property)
+                .declarations
+                .first()
+            {
+                let info = self.st.related_info_for_node(
+                    declaration,
+                    &tsrs2_diags::gen::_0_is_declared_here,
+                    &[&name],
+                );
+                self.associate_related_info(info);
+            }
+            return Ok(());
+        }
+
+        let source_text = self.st.type_to_string_slice(source)?;
+        let target_text = self.st.type_to_string_slice(target)?;
+        let names = properties
+            .iter()
+            .take(4)
+            .map(|&property| self.st.binder.symbol(property).escaped_name.clone())
+            .collect::<Vec<_>>()
+            .join(", ");
+        if properties.len() > 5 {
+            self.report_error(
+                &tsrs2_diags::gen::Type_0_is_missing_the_following_properties_from_type_1_2_and_3_more,
+                vec![
+                    source_text,
+                    target_text,
+                    names,
+                    (properties.len() - 4).to_string(),
+                ],
+            )?;
+        } else {
+            let names = properties
+                .iter()
+                .map(|&property| self.st.binder.symbol(property).escaped_name.clone())
+                .collect::<Vec<_>>()
+                .join(", ");
+            self.report_error(
+                &tsrs2_diags::gen::Type_0_is_missing_the_following_properties_from_type_1_2,
+                vec![source_text, target_text, names],
+            )?;
+        }
+        Ok(())
     }
 
     /// tsc-port: getUnmatchedProperties @6.0.3
@@ -2451,6 +2728,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         source: TypeId,
         target: TypeId,
         kind: SignatureKind,
+        report_errors: bool,
         intersection_state: IntersectionState,
     ) -> CheckResult2<Ternary> {
         if self.relation == RelationKind::Identity {
@@ -2495,6 +2773,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     source,
                     target,
                     SignatureKind::Call,
+                    report_errors,
                     intersection_state,
                 );
             }
@@ -2519,11 +2798,19 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .flags
                 .intersects(tsrs2_types::SignatureFlags::ABSTRACT);
             if source_is_abstract && !target_is_abstract {
+                if report_errors {
+                    self.report_error(
+                        &tsrs2_diags::gen::Cannot_assign_an_abstract_constructor_type_to_a_non_abstract_constructor_type,
+                        vec![],
+                    )?;
+                }
                 return Ok(Ternary::FALSE);
             }
-            if !self
-                .constructor_visibilities_are_compatible(source_signatures[0], target_signatures[0])
-            {
+            if !self.constructor_visibilities_are_compatible(
+                source_signatures[0],
+                target_signatures[0],
+                report_errors,
+            )? {
                 return Ok(Ternary::FALSE);
             }
         }
@@ -2558,6 +2845,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     source_signatures[i],
                     target_signatures[i],
                     /*erase*/ true,
+                    kind,
+                    report_errors,
                     intersection_state,
                 )?;
                 if !is_true(related) {
@@ -2571,6 +2860,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 source_signatures[0],
                 target_signatures[0],
                 erase_generics,
+                kind,
+                report_errors,
                 intersection_state,
             )?;
             if !is_true(related) {
@@ -2580,8 +2871,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         } else {
             'outer: for &t in &target_signatures {
                 for &s in &source_signatures {
-                    let related =
-                        self.signature_related_to(s, t, /*erase*/ true, intersection_state)?;
+                    let related = self.signature_related_to(
+                        s,
+                        t,
+                        /*erase*/ true,
+                        kind,
+                        report_errors,
+                        intersection_state,
+                    )?;
                     if is_true(related) {
                         result = ternary_and(result, related);
                         continue 'outer;
@@ -2597,21 +2894,20 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-hash: 71021a08f9755ceb3fe5e906186900287fc93015e0e6e11c26a09c2430c5275f
     /// tsc-span: _tsc.js:67210-67229
     ///
-    /// Verdict-complete decision table. tsc's `reportErrors` arm adds
-    /// 2672 as nested relation errorInfo; this port's relation frame
-    /// does not yet carry errorInfo, so the caller publishes the exact
-    /// 2322 head through its ordinary failed-assignability path while
-    /// the nested T3 row remains report-only debt.
+    /// Verdict-complete decision table. The `reportErrors` arm adds
+    /// 2672 to the active relation errorInfo so the caller's 2322 head
+    /// retains the same nested row as tsc.
     fn constructor_visibilities_are_compatible(
-        &self,
+        &mut self,
         source_signature: SignatureId,
         target_signature: SignatureId,
-    ) -> bool {
+        report_errors: bool,
+    ) -> CheckResult2<bool> {
         let Some(source_declaration) = self.st.signature_of(source_signature).declaration else {
-            return true;
+            return Ok(true);
         };
         let Some(target_declaration) = self.st.signature_of(target_signature).declaration else {
-            return true;
+            return Ok(true);
         };
         let source_file = self.st.binder.source_of_node(source_declaration);
         let target_file = self.st.binder.source_of_node(target_declaration);
@@ -2627,19 +2923,37 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 & non_public.bits(),
         );
         if target_accessibility.intersects(ModifierFlags::PRIVATE) {
-            return true;
+            return Ok(true);
         }
         if target_accessibility.intersects(ModifierFlags::PROTECTED)
             && !source_accessibility.intersects(ModifierFlags::PRIVATE)
         {
-            return true;
+            return Ok(true);
         }
         if !target_accessibility.intersects(ModifierFlags::PROTECTED)
             && source_accessibility == ModifierFlags::NONE
         {
-            return true;
+            return Ok(true);
         }
-        false
+        if report_errors {
+            let visibility = |flags: ModifierFlags| {
+                if flags.intersects(ModifierFlags::PRIVATE) {
+                    "private"
+                } else if flags.intersects(ModifierFlags::PROTECTED) {
+                    "protected"
+                } else {
+                    "public"
+                }
+            };
+            self.report_error(
+                &tsrs2_diags::gen::Cannot_assign_a_0_constructor_type_to_a_1_constructor_type,
+                vec![
+                    visibility(source_accessibility).to_owned(),
+                    visibility(target_accessibility).to_owned(),
+                ],
+            )?;
+        }
+        Ok(false)
     }
 
     /// tsc-port: signatureRelatedTo @6.0.3
@@ -2655,6 +2969,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         source: SignatureId,
         target: SignatureId,
         erase: bool,
+        kind: SignatureKind,
+        report_errors: bool,
         intersection_state: IntersectionState,
     ) -> CheckResult2<Ternary> {
         let source = if erase {
@@ -2680,6 +2996,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             source,
             target,
             check_mode,
+            Some(kind),
+            report_errors,
             intersection_state,
             report_unreliable_markers,
             crate::inference::CompareTypesFn::RelationFrame,
@@ -2979,11 +3297,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// isImplementationCompatibleWithOverload models
     /// compareTypesAssignable; the enum value additionally rides the
     /// generic-source arm into iSICO's constraint clamp.
+    #[allow(clippy::too_many_arguments)] // tsc passes reporter closures plus compareTypes
     fn compare_signatures_related(
         &mut self,
         source: SignatureId,
         target: SignatureId,
         check_mode: i32,
+        incompatible_kind: Option<SignatureKind>,
+        report_errors: bool,
         intersection_state: IntersectionState,
         report_unreliable_markers: Option<crate::instantiate::MapperId>,
         compare_types: crate::inference::CompareTypesFn,
@@ -3014,6 +3335,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 self.st.get_min_argument_count(source)? > target_count
             });
         if source_has_more_parameters {
+            if report_errors && check_mode & check_mode::STRICT_ARITY == 0 {
+                let source_min_count = self.st.get_min_argument_count(source)?.to_string();
+                self.report_error(
+                    &tsrs2_diags::gen::Target_signature_provides_too_few_arguments_Expected_0_or_more_but_got_1,
+                    vec![source_min_count, target_count.to_string()],
+                )?;
+            }
             return Ok(Ternary::FALSE);
         }
         // 64505-64514 in tsc order (m4-review B8 rebuilt the head —
@@ -3103,11 +3431,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             target_this_type,
                             source_this_type,
                             RecursionFlags::BOTH,
-                            /*report_errors*/ false,
+                            report_errors,
                             intersection_state,
                         )?
                     };
                     if !is_true(related) {
+                        if report_errors {
+                            self.report_error(
+                                &tsrs2_diags::gen::The_this_types_of_each_signature_are_incompatible,
+                                vec![],
+                            )?;
+                        }
                         return Ok(Ternary::FALSE);
                     }
                     result = ternary_and(result, related);
@@ -3195,6 +3529,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             } else {
                                 check_mode::BIVARIANT_CALLBACK
                             },
+                        incompatible_kind,
+                        report_errors,
                         intersection_state,
                         report_unreliable_markers,
                         compare_types,
@@ -3218,7 +3554,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             target_type,
                             source_type,
                             RecursionFlags::BOTH,
-                            /*report_errors*/ false,
+                            report_errors,
                             intersection_state,
                         )?
                     }
@@ -3238,6 +3574,20 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     related = Ternary::FALSE;
                 }
                 if !is_true(related) {
+                    if report_errors {
+                        let source_name = self
+                            .st
+                            .get_parameter_name_at_position(source, i)?
+                            .unwrap_or_default();
+                        let target_name = self
+                            .st
+                            .get_parameter_name_at_position(target, i)?
+                            .unwrap_or_default();
+                        self.report_error(
+                            &tsrs2_diags::gen::Types_of_parameters_0_and_1_are_incompatible,
+                            vec![source_name, target_name],
+                        )?;
+                    }
                     return Ok(Ternary::FALSE);
                 }
                 result = ternary_and(result, related);
@@ -3348,11 +3698,38 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     source_return_type,
                     target_return_type,
                     RecursionFlags::BOTH,
-                    /*report_errors*/ false,
+                    report_errors,
                     intersection_state,
                 )?
             };
             result = ternary_and(result, related);
+            if !is_true(related) && report_errors {
+                if let Some(kind) = incompatible_kind {
+                    let source_text = self
+                        .st
+                        .type_to_string_slice_with_error_enclosing(source_return_type)?;
+                    let target_text = self
+                        .st
+                        .type_to_string_slice_with_error_enclosing(target_return_type)?;
+                    let no_arguments = self.st.get_parameter_count(source)? == 0
+                        && self.st.get_parameter_count(target)? == 0;
+                    let message = match (kind, no_arguments) {
+                        (SignatureKind::Call, false) => {
+                            &tsrs2_diags::gen::Call_signature_return_types_0_and_1_are_incompatible
+                        }
+                        (SignatureKind::Call, true) => {
+                            &tsrs2_diags::gen::Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
+                        }
+                        (SignatureKind::Construct, false) => {
+                            &tsrs2_diags::gen::Construct_signature_return_types_0_and_1_are_incompatible
+                        }
+                        (SignatureKind::Construct, true) => {
+                            &tsrs2_diags::gen::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
+                        }
+                    };
+                    self.report_incompatible_error(message, vec![source_text, target_text]);
+                }
+            }
         }
         Ok(result)
     }
@@ -3414,6 +3791,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         &mut self,
         source: TypeId,
         target_info: &IndexInfo,
+        report_errors: bool,
         intersection_state: IntersectionState,
     ) -> CheckResult2<Ternary> {
         let mut result = Ternary::TRUE;
@@ -3462,17 +3840,29 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 ty,
                 target_info.value_type,
                 RecursionFlags::BOTH,
-                /*report_errors*/ false,
+                report_errors,
                 intersection_state,
             )?;
             if !is_true(related) {
+                if report_errors {
+                    let name = self.st.binder.symbol(prop).escaped_name.clone();
+                    self.report_error(
+                        &tsrs2_diags::gen::Property_0_is_incompatible_with_index_signature,
+                        vec![name],
+                    )?;
+                }
                 return Ok(Ternary::FALSE);
             }
             result = ternary_and(result, related);
         }
         for info in self.st.get_index_infos_of_type(source)? {
             if self.st.is_applicable_index_type(info.key_type, key_type)? {
-                let related = self.index_info_related_to(&info, target_info, intersection_state)?;
+                let related = self.index_info_related_to(
+                    &info,
+                    target_info,
+                    report_errors,
+                    intersection_state,
+                )?;
                 if !is_true(related) {
                     return Ok(Ternary::FALSE);
                 }
@@ -3489,15 +3879,36 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         &mut self,
         source_info: &IndexInfo,
         target_info: &IndexInfo,
+        report_errors: bool,
         intersection_state: IntersectionState,
     ) -> CheckResult2<Ternary> {
-        self.is_related_to(
+        let related = self.is_related_to(
             source_info.value_type,
             target_info.value_type,
             RecursionFlags::BOTH,
-            /*report_errors*/ false,
+            report_errors,
             intersection_state,
-        )
+        )?;
+        if !is_true(related) && report_errors {
+            let source_key = self
+                .st
+                .type_to_string_slice_with_error_enclosing(source_info.key_type)?;
+            if source_info.key_type == target_info.key_type {
+                self.report_error(
+                    &tsrs2_diags::gen::_0_index_signatures_are_incompatible,
+                    vec![source_key],
+                )?;
+            } else {
+                let target_key = self
+                    .st
+                    .type_to_string_slice_with_error_enclosing(target_info.key_type)?;
+                self.report_error(
+                    &tsrs2_diags::gen::_0_and_1_index_signatures_are_incompatible,
+                    vec![source_key, target_key],
+                )?;
+            }
+        }
+        Ok(related)
     }
 
     /// tsc-port: indexSignaturesRelatedTo @6.0.3
@@ -3508,6 +3919,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         source: TypeId,
         target: TypeId,
         source_is_primitive: bool,
+        report_errors: bool,
         intersection_state: IntersectionState,
     ) -> CheckResult2<Ternary> {
         if self.relation == RelationKind::Identity {
@@ -3528,7 +3940,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 Ternary::TRUE
             } else {
                 // Generic mapped sources are M4.
-                self.type_related_to_index_info(source, target_info, intersection_state)?
+                self.type_related_to_index_info(
+                    source,
+                    target_info,
+                    report_errors,
+                    intersection_state,
+                )?
             };
             if !is_true(related) {
                 return Ok(Ternary::FALSE);
@@ -3545,13 +3962,19 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         &mut self,
         source: TypeId,
         target_info: &IndexInfo,
+        report_errors: bool,
         intersection_state: IntersectionState,
     ) -> CheckResult2<Ternary> {
         if let Some(source_info) = self
             .st
             .get_applicable_index_info(source, target_info.key_type)?
         {
-            return self.index_info_related_to(&source_info, target_info, intersection_state);
+            return self.index_info_related_to(
+                &source_info,
+                target_info,
+                report_errors,
+                intersection_state,
+            );
         }
         if !intersection_state.intersects(IntersectionState::SOURCE)
             && (self.relation != RelationKind::StrictSubtype
@@ -3562,7 +3985,22 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     .intersects(ObjectFlags::FRESH_LITERAL))
             && self.st.is_object_type_with_inferable_index(source)?
         {
-            return self.members_related_to_index_info(source, target_info, intersection_state);
+            return self.members_related_to_index_info(
+                source,
+                target_info,
+                report_errors,
+                intersection_state,
+            );
+        }
+        if report_errors {
+            let key = self
+                .st
+                .type_to_string_slice_with_error_enclosing(target_info.key_type)?;
+            let source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
+            self.report_error(
+                &tsrs2_diags::gen::Index_signature_for_type_0_is_missing_in_type_1,
+                vec![key, source_text],
+            )?;
         }
         Ok(Ternary::FALSE)
     }
@@ -4086,11 +4524,14 @@ impl<'a> CheckerState<'a> {
             expanding_flags: tsrs2_types::ExpandingFlags::NONE,
             overflow: false,
             relation_count,
+            error_state: Default::default(),
         };
         let verdict = checker.compare_signatures_related(
             erased_source,
             erased_target,
             check_mode::IGNORE_RETURN_TYPES,
+            /*incompatible_kind*/ None,
+            /*report_errors*/ false,
             IntersectionState::NONE,
             /*report_unreliable_markers*/ None,
             // isSignatureAssignableTo passes compareTypesAssignable
@@ -5504,6 +5945,7 @@ impl<'a> CheckerState<'a> {
             expanding_flags: tsrs2_types::ExpandingFlags::NONE,
             overflow: false,
             relation_count,
+            error_state: Default::default(),
         };
         let related = checker.compare_signatures_identical_ex(
             source,
