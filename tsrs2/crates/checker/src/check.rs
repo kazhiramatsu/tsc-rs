@@ -11118,6 +11118,36 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
     ) -> CheckResult2<String> {
+        self.signature_to_string_slice_for_diagnostic(signature, SliceSignatureKind::CallSignature)
+    }
+
+    /// tsrs-native: signatureToString's default-flags relation-error
+    /// adapter.
+    ///
+    /// signaturesRelatedTo passes its Call/Construct kind with no
+    /// WriteArrowStyleSignature flag, so the printer emits `(...): R`
+    /// / `new (...): R` rather than the corresponding function-type
+    /// arrows.
+    pub(crate) fn signature_to_string_slice_for_relation_error(
+        &mut self,
+        signature: SignatureId,
+        kind: SignatureKind,
+    ) -> CheckResult2<String> {
+        let slice_kind = match kind {
+            SignatureKind::Call => SliceSignatureKind::CallSignature,
+            SignatureKind::Construct => SliceSignatureKind::ConstructSignature,
+        };
+        self.signature_to_string_slice_for_diagnostic(signature, slice_kind)
+    }
+
+    /// Keep every standalone diagnostic render isolated from an
+    /// enclosing typeToString slice. This mirrors tsc's fresh
+    /// single-line writer per signatureToString call.
+    fn signature_to_string_slice_for_diagnostic(
+        &mut self,
+        signature: SignatureId,
+        kind: SliceSignatureKind,
+    ) -> CheckResult2<String> {
         let saved_visited = std::mem::take(&mut self.slice_visited_types);
         let saved_approximate_length = std::mem::replace(&mut self.slice_approximate_length, 0);
         let saved_max_truncation_length = std::mem::replace(
@@ -11131,12 +11161,8 @@ impl<'a> CheckerState<'a> {
         let saved_truncating = std::mem::replace(&mut self.slice_truncating, false);
         let saved_no_type_reduction = std::mem::replace(&mut self.slice_no_type_reduction, false);
         let saved_enclosing = self.slice_display_enclosing.take();
-        let result = self.signature_to_string_slice(
-            signature,
-            SliceSignatureKind::CallSignature,
-            None,
-            /*fully_qualified*/ false,
-        );
+        let result =
+            self.signature_to_string_slice(signature, kind, None, /*fully_qualified*/ false);
         self.slice_visited_types = saved_visited;
         self.slice_approximate_length = saved_approximate_length;
         self.slice_max_truncation_length = saved_max_truncation_length;
