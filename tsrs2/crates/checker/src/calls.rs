@@ -2477,12 +2477,15 @@ impl<'a> CheckerState<'a> {
         } else {
             head
         };
-        if let Some(output) = self.relation_error_output(
+        // The verdict is already known. Until every report-only
+        // descendant is implemented, an Unsupported while refining
+        // the chain must not erase the accepted parent diagnostic.
+        if let Ok(Some(output)) = self.relation_error_output(
             original_source,
             original_target,
             RelationKind::Assignable,
             head,
-        )? {
+        ) {
             let mut diagnostic = self.diagnostic_at_span(span, output.message);
             diagnostic.related = output.related;
             return Ok(diagnostic);

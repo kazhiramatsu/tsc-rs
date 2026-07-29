@@ -7069,7 +7069,11 @@ impl<'a> CheckerState<'a> {
                         return Ok(related);
                     }
                 }
-                if let Some(output) = self.relation_error_output_with_context(
+                // Reporting is a refinement of the already-failed
+                // verdict. A still-unimplemented descendant may
+                // suppress only the nested chain, never this known
+                // parent diagnostic.
+                if let Ok(Some(output)) = self.relation_error_output_with_context(
                     original_source,
                     original_target,
                     crate::relate::RelationKind::Assignable,
@@ -7079,7 +7083,7 @@ impl<'a> CheckerState<'a> {
                         Some(head_message)
                     },
                     None,
-                )? {
+                ) {
                     let mut diagnostic = self.create_error(Some(error_node), head_message, &[]);
                     diagnostic.message = output.message;
                     diagnostic.related = output.related;
@@ -7817,7 +7821,7 @@ impl<'a> CheckerState<'a> {
                     head_message,
                     &diagnostics::Type_0_is_not_comparable_to_type_1,
                 );
-                if let Some(output) = self.relation_error_output_with_context(
+                if let Ok(Some(output)) = self.relation_error_output_with_context(
                     original_source,
                     original_target,
                     crate::relate::RelationKind::Comparable,
@@ -7827,7 +7831,7 @@ impl<'a> CheckerState<'a> {
                         Some(head_message)
                     },
                     None,
-                )? {
+                ) {
                     let mut diagnostic = self.create_error(Some(error_node), head_message, &[]);
                     diagnostic.message = output.message;
                     diagnostic.related = output.related;
@@ -14317,6 +14321,26 @@ mod tests {
                 "Type 'T[keyof T]' is not assignable to type 'U[keyof T]'.",
                 "Type 'T' is not assignable to type 'Named<T>'.",
             ]
+        );
+    }
+
+    #[test]
+    fn report_only_refinement_does_not_erase_variadic_key_assignment() {
+        let rows = checked_diags(
+            "function f<T extends string[]>(k: keyof [1, 2, ...T]) {\n\
+                 k = '2';\n\
+             }\n",
+        );
+        assert_eq!(
+            rows.into_iter()
+                .filter(|row| row.0 == 2322)
+                .collect::<Vec<_>>(),
+            [(
+                2322,
+                56,
+                1,
+                "Type 'string' is not assignable to type 'keyof [1, 2, ...T]'.".to_owned(),
+            )]
         );
     }
 

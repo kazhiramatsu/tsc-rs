@@ -1844,22 +1844,30 @@ impl<'a> CheckerState<'a> {
                         &diagnostics::Property_0_in_type_1_is_not_assignable_to_the_same_property_in_base_type_2,
                         &[prop_name, type_text, base_text],
                     );
-                    if let Some(output) = self.relation_error_output_with_context(
+                    let output = self.relation_error_output_with_context(
                         prop_type,
                         base_prop_type,
                         crate::relate::RelationKind::Assignable,
                         None,
-                        Some(root),
-                    )? {
-                        let mut diagnostic = self.create_error(
-                            error_node,
-                            &diagnostics::Property_0_in_type_1_is_not_assignable_to_the_same_property_in_base_type_2,
-                            &[],
-                        );
-                        diagnostic.message = output.message;
-                        diagnostic.related = output.related;
-                        self.push_error_diagnostic(diagnostic);
+                        Some(root.clone()),
+                    );
+                    let mut diagnostic = self.create_error(
+                        error_node,
+                        &diagnostics::Property_0_in_type_1_is_not_assignable_to_the_same_property_in_base_type_2,
+                        &[],
+                    );
+                    match output {
+                        Ok(Some(output)) => {
+                            diagnostic.message = output.message;
+                            diagnostic.related = output.related;
+                        }
+                        // The member verdict and root are already
+                        // exact. A report-only Unsupported may defer
+                        // the nested chain but must not suppress the
+                        // member row or abort later checks.
+                        Ok(None) | Err(_) => diagnostic.message = root,
                     }
+                    self.push_error_diagnostic(diagnostic);
                     issued_member_error = true;
                 }
             }
