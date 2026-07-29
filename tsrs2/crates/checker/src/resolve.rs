@@ -1241,10 +1241,21 @@ impl<'a> CheckerState<'a> {
         // — oracle-pinned via strictBindCallApply:false. Every failure
         // reaching this tail consumes one slot, suggestion or not.
         let diagnostics_before = self.diagnostics.len();
-        let display = tsrs2_binder::unescape_leading_underscores(name);
+        let display = error_location
+            .filter(|&location| {
+                self.kind_of(location) == SyntaxKind::Identifier
+                    && self.identifier_text_of(location) == Some(name)
+            })
+            .map(|location| {
+                node_util::declaration_name_to_string(
+                    self.binder.source_of_node(location),
+                    Some(location),
+                )
+            })
+            .unwrap_or_else(|| tsrs2_binder::unescape_leading_underscores(name).to_owned());
         let suggested_lib = get_suggested_lib_for_non_existent_name(name);
         if let Some(lib) = suggested_lib {
-            self.error_at(error_location, message, &[display, lib]);
+            self.error_at(error_location, message, &[display.as_str(), lib]);
         } else {
             let mut suggestion: Option<SymbolId> = None;
             if self.suggestion_count < MAXIMUM_SUGGESTION_COUNT {
@@ -1290,13 +1301,17 @@ impl<'a> CheckerState<'a> {
                     let mut diagnostic = self.diagnostic_for_node_or_compiler(
                         error_location,
                         did_you_mean,
-                        &[display, &suggestion_name],
+                        &[display.as_str(), &suggestion_name],
                     );
                     // getCanonicalDiagnostic(nameNotFoundMessage, name):
                     // sort/dedupe compare through the PLAIN form.
                     diagnostic.canonical_head = Some(tsrs2_diags::CanonicalHead {
                         code: message.code,
-                        text: tsrs2_diags::MessageChain::new(message, &[display.to_owned()]).text,
+                        text: tsrs2_diags::MessageChain::new(
+                            message,
+                            std::slice::from_ref(&display),
+                        )
+                        .text,
                     });
                     if is_unchecked_js {
                         diagnostic.message.category = DiagnosticCategory::Suggestion;
@@ -1321,7 +1336,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             if suggestion.is_none() {
-                self.error_at(error_location, message, &[display]);
+                self.error_at(error_location, message, &[display.as_str()]);
             }
         }
         if error_location.is_some_and(|location| self.is_in_js_file(location)) {
@@ -3350,6 +3365,32 @@ mod tests {
                 ))
                 .collect::<Vec<_>>(),
             [("a.js", 2304, 0), ("b.ts", 2304, 17)]
+        );
+    }
+
+    #[test]
+    fn diagnostics_preserve_escaped_identifier_spelling() {
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "let \\u0078x: number;\n\\u0078x;\n\\u005F01234;\n".to_owned(),
+            }],
+            &CompilerOptions {
+                strict_null_checks: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| matches!(diagnostic.code(), 2304 | 2454))
+                .map(|diagnostic| (diagnostic.code(), diagnostic.message_text()))
+                .collect::<Vec<_>>(),
+            [
+                (2454, "Variable '\\u0078x' is used before being assigned."),
+                (2304, "Cannot find name '\\u005F01234'."),
+            ]
         );
     }
 }
