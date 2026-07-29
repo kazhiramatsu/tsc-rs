@@ -1509,7 +1509,10 @@ impl<'a> CheckerState<'a> {
             let class_name_node = self.name_of_node(type_class);
             let class_display = match class_name_node {
                 Some(name) => self.entity_name_to_string(name)?,
-                None => "anonymous".to_owned(),
+                // diagnosticName(typeClass.name || anon): tsc's
+                // shared anonymous declaration sentinel includes
+                // the parentheses.
+                None => "(anonymous)".to_owned(),
             };
             self.error_at(
                 Some(right),
@@ -5428,6 +5431,37 @@ try {} catch (plain) { plain.foo; }\n";
                 "function dec(x: any): any { return x; }\n@dec(class Inner { #p = 1; m() { return this.#p; } })\nclass Outer {}\n"
             ),
             []
+        );
+    }
+
+    #[test]
+    fn private_access_diagnostic_uses_the_anonymous_class_sentinel() {
+        let text = "const Anonymous = class {\n\
+                        #field = 1;\n\
+                        static getInstance() { return new Anonymous(); }\n\
+                    };\n\
+                    Anonymous.getInstance().#field;\n\
+                    class Named {\n\
+                        #field = 1;\n\
+                        static getInstance() { return new Named(); }\n\
+                    }\n\
+                    Named.getInstance().#field;\n";
+        let messages =
+            with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| diagnostic.code() == 18013)
+                    .map(|diagnostic| diagnostic.message_text().to_owned())
+                    .collect::<Vec<_>>()
+            });
+        assert_eq!(
+            messages,
+            [
+                "Property '#field' is not accessible outside class '(anonymous)' because it has a private identifier.".to_owned(),
+                "Property '#field' is not accessible outside class 'Named' because it has a private identifier.".to_owned(),
+            ]
         );
     }
 
