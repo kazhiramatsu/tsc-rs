@@ -13,13 +13,12 @@
 //! type arguments, non-generic candidates, and every target-shape/
 //! arity/type-argument-arity error band go fully live.
 //!
-//! Error rendering rides the established T2 curtain: diagnostic CODE
-//! and SPAN are tsc-exact, chain tails elide, and a head whose display
-//! the slice cannot render unwinds Unsupported (no diagnostic rather
-//! than an unfaithful one). Elaboration-eligible argument shapes
-//! (object/array literals, arrow bodies — elaborateError 63957) escape
-//! on the reporting path because tsc's elaboration would move the
-//! code/span into the literal.
+//! Error rendering follows tsc's diagnostic chains; a display the
+//! bounded nodeBuilder slice cannot render unwinds Unsupported (no
+//! diagnostic rather than an unfaithful one). Elaboration-eligible
+//! argument shapes (object/array literals, arrow bodies —
+//! elaborateError 63957) escape on the reporting path because tsc's
+//! elaboration would move the code/span into the literal.
 
 use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_diags::{gen as diagnostics, Diagnostic, DiagnosticMessage, MessageChain, RelatedInfo};
@@ -57,9 +56,9 @@ pub(crate) enum EffectiveArg {
     },
 }
 
-/// A resolved diagnostic location (file + UTF-16 start/length) — the
-/// applicability walk computes spans without rendering type displays
-/// so the 2769 bands stay display-free.
+/// A resolved diagnostic location (file + UTF-16 start/length) carried
+/// beside the applicability diagnostic while overload selection
+/// chooses and combines its rows.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct DiagSpan {
     pub(crate) file_name: String,
@@ -78,14 +77,11 @@ struct ApplicabilityError {
 
 /// getSignatureApplicabilityError run modes: Silent is the selection
 /// pass (verdicts only, errorOutputContainer.skipLogging semantics);
-/// Report builds the head diagnostics (display escapes allowed);
-/// Probe computes spans/related only — the overload-failure chains
-/// (2769) are display-free heads whose tails elide.
+/// Report builds the head diagnostics (display escapes allowed).
 #[derive(Clone, Copy, Eq, PartialEq)]
 enum ApplicabilityMode {
     Silent,
     Report,
-    Probe,
 }
 
 /// resolveCall's closure state: the three error-candidate slots plus
@@ -3276,8 +3272,8 @@ impl<'a> CheckerState<'a> {
     ///
     /// None = applicable; Some = the errorOutputContainer contents.
     /// Silent mode (selection) collects verdicts only; Report builds
-    /// the head diagnostics; Probe computes spans/related for the
-    /// display-free overload chains (2769). maybeAddMissingAwaitInfo
+    /// the head diagnostics that resolveCall either publishes directly
+    /// or nests under its overload chain. maybeAddMissingAwaitInfo
     /// (76265-76275) rides as related rows.
     fn get_signature_applicability_error(
         &mut self,
@@ -3729,8 +3725,8 @@ impl<'a> CheckerState<'a> {
 
     /// The reportErrors tail of resolveCall (76631-76742): the four-
     /// rung failure ladder. A present head message (instanceof 2860 at
-    /// 5.7b; decorators 5.8) chains OUTERMOST — the diagnostic takes
-    /// the head's code, the inner chain elides (T2, display-free).
+    /// 5.7b; decorators 5.8) chains OUTERMOST and retains the selected
+    /// applicability diagnostics beneath it.
     fn report_call_resolution_failure(
         &mut self,
         node: NodeId,
@@ -3738,6 +3734,16 @@ impl<'a> CheckerState<'a> {
         signatures: &[SignatureId],
         head_message: Option<&'static DiagnosticMessage>,
     ) -> CheckResult2<()> {
+        fn append_to_linear_tail(mut prefix: MessageChain, detail: MessageChain) -> MessageChain {
+            let mut tail = &mut prefix;
+            while tail.next.len() == 1 {
+                tail = &mut tail.next[0];
+            }
+            debug_assert!(tail.next.is_empty(), "overload prefix is linear");
+            tail.next.push(detail);
+            prefix
+        }
+
         if let Some(candidates_for_argument_error) = ctx.candidates_for_argument_error.take() {
             ctx.candidates_for_argument_error = Some(candidates_for_argument_error.clone());
             if candidates_for_argument_error.len() == 1 || candidates_for_argument_error.len() > 3 {
@@ -3746,51 +3752,50 @@ impl<'a> CheckerState<'a> {
                     .expect("non-empty by construction");
                 let over_three = candidates_for_argument_error.len() > 3;
                 let args = ctx.args.clone();
-                if over_three {
-                    // The chain heads (2769/2770, + the outermost head
-                    // message when present) are display-free; the
-                    // relation tail elides (T2) — Probe mode supplies
-                    // the span tsc's inner diagnostic would carry.
-                    let errors = match self.get_signature_applicability_error(
-                        node,
-                        &args,
-                        last,
-                        RelationKind::Assignable,
-                        CheckMode::NORMAL,
-                        ApplicabilityMode::Probe,
-                    ) {
-                        Ok(errors) => errors.unwrap_or_else(|| {
-                            panic!(
-                                "No error for last overload signature @{}",
-                                self.binder.source_of_node(node).file_name
-                            )
-                        }),
-                        Err(err) => {
-                            // T2 containment: tsc's post-report
-                            // implementation probe still runs its
-                            // argument checks (the ContextChecked
-                            // burn/pin side effects) before the
-                            // diagnostic dies — without this a display
-                            // containment leaves later context-
-                            // sensitive args unburned and the deferred
-                            // re-check types them off the failure
-                            // stash (parenthesizedContexualTyping2 FP).
-                            let _ = self.implementation_success_elaboration(ctx, last);
-                            return Err(err);
-                        }
-                    };
-                    for error in errors {
-                        let mut chain =
-                            MessageChain::new(&diagnostics::No_overload_matches_this_call, &[])
-                                .with_next(vec![MessageChain::new(
-                                    &diagnostics::The_last_overload_gave_the_following_error,
-                                    &[],
-                                )]);
-                        if let Some(head) = head_message {
-                            chain = MessageChain::new(head, &[]).with_next(vec![chain]);
-                        }
-                        let mut diagnostic = self.diagnostic_at_span(&error.span, chain);
-                        diagnostic.related = error.related;
+                let mut prefix = over_three.then(|| {
+                    MessageChain::new(&diagnostics::No_overload_matches_this_call, &[]).with_next(
+                        vec![MessageChain::new(
+                            &diagnostics::The_last_overload_gave_the_following_error,
+                            &[],
+                        )],
+                    )
+                });
+                if let Some(head) = head_message {
+                    prefix = Some(
+                        MessageChain::new(head, &[])
+                            .with_next(prefix.into_iter().collect::<Vec<_>>()),
+                    );
+                }
+                let errors = match self.get_signature_applicability_error(
+                    node,
+                    &args,
+                    last,
+                    RelationKind::Assignable,
+                    CheckMode::NORMAL,
+                    ApplicabilityMode::Report,
+                ) {
+                    Ok(errors) => errors.unwrap_or_else(|| {
+                        panic!(
+                            "No error for last overload signature @{}",
+                            self.binder.source_of_node(node).file_name
+                        )
+                    }),
+                    Err(err) => {
+                        // tsc still runs the post-report
+                        // implementation probe before an unrenderable
+                        // diagnostic unwinds; preserve its contextual
+                        // burn/pin side effects.
+                        let _ = self.implementation_success_elaboration(ctx, last);
+                        return Err(err);
+                    }
+                };
+                for error in errors {
+                    let mut diagnostic = error.diagnostic.expect("Report mode builds diagnostics");
+                    if let Some(prefix) = prefix.clone() {
+                        diagnostic.message =
+                            append_to_linear_tail(prefix, diagnostic.message.clone());
+                    }
+                    if over_three {
                         if let Some(declaration) = self.signature_of(last).declaration {
                             diagnostic.related.push(self.related_info_for_node(
                                 declaration,
@@ -3798,98 +3803,34 @@ impl<'a> CheckerState<'a> {
                                 &[],
                             ));
                         }
-                        if let Some(related) = self.implementation_success_elaboration(ctx, last)? {
-                            diagnostic.related.push(related);
-                        }
-                        self.push_error_diagnostic(diagnostic);
                     }
-                } else if let Some(head) = head_message {
-                    // 76644-76656 under a head (instanceof 2860): the
-                    // chain is the head alone — Probe supplies the
-                    // span/related, the inner 2345/2684 chain elides.
-                    let errors = match self.get_signature_applicability_error(
-                        node,
-                        &args,
-                        last,
-                        RelationKind::Assignable,
-                        CheckMode::NORMAL,
-                        ApplicabilityMode::Probe,
-                    ) {
-                        Ok(errors) => errors.unwrap_or_else(|| {
-                            panic!(
-                                "No error for last overload signature @{}",
-                                self.binder.source_of_node(node).file_name
-                            )
-                        }),
-                        Err(err) => {
-                            // T2 containment side-effect parity — see
-                            // the over_three arm.
-                            let _ = self.implementation_success_elaboration(ctx, last);
-                            return Err(err);
-                        }
-                    };
-                    for error in errors {
-                        let chain = MessageChain::new(head, &[]);
-                        let mut diagnostic = self.diagnostic_at_span(&error.span, chain);
-                        diagnostic.related = error.related;
-                        if let Some(related) = self.implementation_success_elaboration(ctx, last)? {
-                            diagnostic.related.push(related);
-                        }
-                        self.push_error_diagnostic(diagnostic);
+                    if let Some(related) = self.implementation_success_elaboration(ctx, last)? {
+                        diagnostic.related.push(related);
                     }
-                } else {
-                    let errors = match self.get_signature_applicability_error(
-                        node,
-                        &args,
-                        last,
-                        RelationKind::Assignable,
-                        CheckMode::NORMAL,
-                        ApplicabilityMode::Report,
-                    ) {
-                        Ok(errors) => errors.unwrap_or_else(|| {
-                            panic!(
-                                "No error for last overload signature @{}",
-                                self.binder.source_of_node(node).file_name
-                            )
-                        }),
-                        Err(err) => {
-                            // T2 containment side-effect parity — see
-                            // the over_three arm.
-                            let _ = self.implementation_success_elaboration(ctx, last);
-                            return Err(err);
-                        }
-                    };
-                    for error in errors {
-                        let mut diagnostic =
-                            error.diagnostic.expect("Report mode builds diagnostics");
-                        if let Some(related) = self.implementation_success_elaboration(ctx, last)? {
-                            diagnostic.related.push(related);
-                        }
-                        self.push_error_diagnostic(diagnostic);
-                    }
+                    self.push_error_diagnostic(diagnostic);
                 }
             } else {
                 // 76667-76722: 2-3 failed candidates — each re-runs
-                // under an `Overload N of M` chain (display-elided
-                // tail). When any candidate produced MORE than one
-                // error, only the min-error candidate's diags feed the
-                // 2769 (last min wins, tsc `diags.length <= min`);
-                // otherwise all candidates' flatten. One 2769 lands at
-                // the chosen diags' shared span, else at the callee
-                // error node.
+                // under an `Overload N of M` chain. When any candidate
+                // produced MORE than one error, only the min-error
+                // candidate's diags feed the 2769 (last min wins, tsc
+                // `diags.length <= min`); otherwise all candidates'
+                // diagnostics flatten. One 2769 lands at the chosen
+                // diagnostics' shared span, else at the callee error
+                // node.
                 let args = ctx.args.clone();
                 let mut all_diagnostics: Vec<Vec<ApplicabilityError>> = Vec::new();
                 let mut max = 0usize;
                 let mut min = usize::MAX;
                 let mut min_index = 0usize;
                 for (i, &candidate) in candidates_for_argument_error.iter().enumerate() {
-                    let errors = match self.get_signature_applicability_error(
+                    let mut errors = match self.get_signature_applicability_error(
                         node,
                         &args,
                         candidate,
                         RelationKind::Assignable,
                         CheckMode::NORMAL,
-                        ApplicabilityMode::Probe,
+                        ApplicabilityMode::Report,
                     ) {
                         Ok(errors) => errors.unwrap_or_else(|| {
                             panic!(
@@ -3908,6 +3849,24 @@ impl<'a> CheckerState<'a> {
                             return Err(err);
                         }
                     };
+                    let signature_text =
+                        self.signature_to_string_slice_for_overload_error(candidate)?;
+                    for error in &mut errors {
+                        let diagnostic = error
+                            .diagnostic
+                            .as_mut()
+                            .expect("Report mode builds diagnostics");
+                        let overload = MessageChain::new(
+                            &diagnostics::Overload_0_of_1_2_gave_the_following_error,
+                            &[
+                                (i + 1).to_string(),
+                                ctx.candidates.len().to_string(),
+                                signature_text.clone(),
+                            ],
+                        );
+                        diagnostic.message =
+                            append_to_linear_tail(overload, diagnostic.message.clone());
+                    }
                     if errors.len() <= min {
                         min = errors.len();
                         min_index = i;
@@ -3924,7 +3883,19 @@ impl<'a> CheckerState<'a> {
                     !chosen.is_empty(),
                     "No errors reported for 3 or fewer overload signatures"
                 );
-                let mut chain = MessageChain::new(&diagnostics::No_overload_matches_this_call, &[]);
+                let details = chosen
+                    .iter()
+                    .map(|error| {
+                        error
+                            .diagnostic
+                            .as_ref()
+                            .expect("Report mode builds diagnostics")
+                            .message
+                            .clone()
+                    })
+                    .collect();
+                let mut chain = MessageChain::new(&diagnostics::No_overload_matches_this_call, &[])
+                    .with_next(details);
                 if let Some(head) = head_message {
                     chain = MessageChain::new(head, &[]).with_next(vec![chain]);
                 }
@@ -6975,6 +6946,33 @@ mod tests {
             .collect()
     }
 
+    fn checked_chain(text: &str, code: u32) -> (Vec<u32>, Vec<String>) {
+        fn flatten(
+            chain: &tsrs2_diags::MessageChain,
+            codes: &mut Vec<u32>,
+            texts: &mut Vec<String>,
+        ) {
+            codes.push(chain.code);
+            texts.push(chain.text.clone());
+            for child in &chain.next {
+                flatten(child, codes, texts);
+            }
+        }
+
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == code)
+                .unwrap_or_else(|| panic!("diagnostic {code} is reported"));
+            let mut codes = Vec::new();
+            let mut texts = Vec::new();
+            flatten(&diagnostic.message, &mut codes, &mut texts);
+            (codes, texts)
+        })
+    }
+
     #[test]
     fn tuple_spread_synthetic_report_uses_the_undefined_stripped_target() {
         let messages = with_program_state(
@@ -7372,22 +7370,26 @@ mod tests {
 
     #[test]
     fn two_failed_overloads_report_2769_at_the_shared_span() {
+        let text = "declare function o(a: number): void;\ndeclare function o(a: string): void;\no(true);\n";
+        assert_eq!(checked_rows(text), [(2769, 76, 4)]);
+        let (codes, texts) = checked_chain(text, 2769);
+        assert_eq!(codes, [2769, 2772, 2345, 2772, 2345]);
         assert_eq!(
-            checked_rows(
-                "declare function o(a: number): void;\ndeclare function o(a: string): void;\no(true);\n"
-            ),
-            [(2769, 76, 4)]
+            texts[1],
+            "Overload 1 of 2, '(a: number): void', gave the following error."
+        );
+        assert_eq!(
+            texts[3],
+            "Overload 2 of 2, '(a: string): void', gave the following error."
         );
     }
 
     #[test]
     fn many_failed_overloads_report_2769_at_the_last_failure() {
-        assert_eq!(
-            checked_rows(
-                "declare function w(a: number): void;\ndeclare function w(a: string): void;\ndeclare function w(a: boolean): void;\ndeclare function w(a: object): void;\nw(null);\n"
-            ),
-            [(2769, 151, 4)]
-        );
+        let text = "declare function w(a: number): void;\ndeclare function w(a: string): void;\ndeclare function w(a: boolean): void;\ndeclare function w(a: object): void;\nw(null);\n";
+        assert_eq!(checked_rows(text), [(2769, 151, 4)]);
+        let (codes, _) = checked_chain(text, 2769);
+        assert_eq!(codes, [2769, 2770, 2345]);
     }
 
     // ---- invocation errors ----
@@ -7855,7 +7857,7 @@ value();
         // A non-array reference source against a tuple target rides
         // the property machinery (the stale M3-era escape contained
         // the whole call); the 2-3 overload ladder renders 2769
-        // display-free.
+        // with the two overload-specific diagnostic subtrees.
         assert_eq!(
             checked_rows(
                 "interface Box<T> { v: T }\ndeclare const b: Box<string>;\ndeclare function f(x: [number]): void;\ndeclare function f(x: number): void;\nf(b);\n"

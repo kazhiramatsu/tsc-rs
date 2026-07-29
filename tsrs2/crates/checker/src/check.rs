@@ -11100,6 +11100,40 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
+    /// tsrs-native: call-signature adapter for resolveCall's
+    /// signatureToString(c) overload-error row.
+    pub(crate) fn signature_to_string_slice_for_overload_error(
+        &mut self,
+        signature: SignatureId,
+    ) -> CheckResult2<String> {
+        let saved_visited = std::mem::take(&mut self.slice_visited_types);
+        let saved_approximate_length = std::mem::replace(&mut self.slice_approximate_length, 0);
+        let saved_max_truncation_length = std::mem::replace(
+            &mut self.slice_max_truncation_length,
+            if self.options.no_error_truncation == Some(true) {
+                1_000_000
+            } else {
+                160
+            },
+        );
+        let saved_truncating = std::mem::replace(&mut self.slice_truncating, false);
+        let saved_no_type_reduction = std::mem::replace(&mut self.slice_no_type_reduction, false);
+        let saved_enclosing = self.slice_display_enclosing.take();
+        let result = self.signature_to_string_slice(
+            signature,
+            SliceSignatureKind::CallSignature,
+            None,
+            /*fully_qualified*/ false,
+        );
+        self.slice_visited_types = saved_visited;
+        self.slice_approximate_length = saved_approximate_length;
+        self.slice_max_truncation_length = saved_max_truncation_length;
+        self.slice_truncating = saved_truncating;
+        self.slice_no_type_reduction = saved_no_type_reduction;
+        self.slice_display_enclosing = saved_enclosing;
+        result
+    }
+
     /// tsc-port: signatureToSignatureDeclarationHelper @6.0.3
     /// tsc-hash: 648aa8da24269c33b616fec95aa4cf725df9b6ddc0bb254ac01e456791be71c7
     /// tsc-span: _tsc.js:52504-52631
