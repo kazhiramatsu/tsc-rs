@@ -9849,6 +9849,16 @@ fn render_nodes_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
     writeln!(out, "pub struct Node {{")?;
     writeln!(out, "    pub kind: SyntaxKind,")?;
     writeln!(out, "    pub flags: i32,")?;
+    writeln!(
+        out,
+        "    /// tsc NumericLiteral.numericLiteralFlags; zero on every other node kind."
+    )?;
+    writeln!(out, "    pub numeric_literal_flags: i32,")?;
+    writeln!(
+        out,
+        "    /// tsc's internal Array/Object/Block.multiLine parser bit."
+    )?;
+    writeln!(out, "    pub multi_line: Option<bool>,")?;
     writeln!(out, "    pub pos: u32,")?;
     writeln!(out, "    pub end: u32,")?;
     writeln!(out, "    pub parent: Option<NodeId>,")?;

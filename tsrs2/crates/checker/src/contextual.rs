@@ -392,6 +392,7 @@ impl<'a> CheckerState<'a> {
                 if is_rest {
                     let any = self.tables.intrinsics.any;
                     return Ok(Some(self.get_spread_argument_type(
+                        iife,
                         &args,
                         index_of_parameter,
                         args.len(),

@@ -53,7 +53,7 @@ use tsrs2_types::{
     CheckMode, FlowFlags, NodeCheckFlags, NodeFlags, SymbolFlags, TypeData, TypeFlags, TypeId,
 };
 
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState};
 
 /// tsc FlowType = Type | IncompleteType (checker-key §4.1). The
 /// `Incomplete` wrapper means "computed while a loop back-edge was
@@ -4659,13 +4659,9 @@ impl<'a> CheckerState<'a> {
     /// mapper read through None is instantiateType(T, undefined) = T).
     ///
     /// The restType computation follows tsc's order — nonFixingMapper
-    /// instantiation FIRST, then getReducedApparentType — with a
-    /// conservative M6 net on the RESULT: a residue that still
-    /// contains type variables (an unresolved inference) unwinds as a
-    /// named Unsupported instead of narrowing over it. Under a live
-    /// context (tests today, production at 7.4) the instantiation
-    /// dispatches the deferred non-fixing mapper, so resolution rides
-    /// the 7.3 getInferredType frontier until that stage lands.
+    /// instantiation FIRST, then getReducedApparentType — and proceeds
+    /// directly into the union-of-tuples gate even when the reduced
+    /// type retains type-variable constituents.
     pub(crate) fn get_narrowed_type_of_symbol(
         &mut self,
         symbol: SymbolId,
@@ -4731,18 +4727,6 @@ impl<'a> CheckerState<'a> {
                                 None => rest_symbol_type,
                             };
                             let rest_type = self.get_reduced_apparent_type(mapped)?;
-                            if self.could_contain_type_variables(rest_type) {
-                                // The conservative M6 net over the
-                                // RESULT of tsc's chain: a residue that
-                                // still contains type variables (an
-                                // unresolved inference) unwinds instead
-                                // of narrowing over it.
-                                return Err(Unsupported::new(
-                                    "dependent-parameter narrowing over a generic-residue rest \
-                                     type (fixed/unfixed/type-variable probes all port==oracle \
-                                     at M6 close; Inferential-phase shield, M8 audit)",
-                                ));
-                            }
                             let is_union_of_tuples =
                                 self.tables.flags_of(rest_type).intersects(TypeFlags::UNION)
                                     && self.every_type(rest_type, |state, t| {

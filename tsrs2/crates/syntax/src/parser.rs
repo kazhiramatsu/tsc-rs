@@ -3099,7 +3099,8 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let open_brace_position = self.scanner.token_start();
         let open_brace_parsed = self.parse_expected(SyntaxKind::OpenBraceToken, diagnostic_message);
-        let statements = if open_brace_parsed || ignore_missing_open_brace {
+        let (statements, multi_line) = if open_brace_parsed || ignore_missing_open_brace {
+            let multi_line = self.scanner.has_preceding_line_break();
             let statements = self.parse_list(ParsingContext::BlockStatements, |parser| {
                 Some(parser.parse_statement())
             });
@@ -3109,9 +3110,9 @@ impl<'text> Parser<'text> {
                 open_brace_parsed,
                 open_brace_position,
             );
-            statements
+            (statements, Some(multi_line))
         } else {
-            self.arena.empty_array(self.node_pos())
+            (self.arena.empty_array(self.node_pos()), None)
         };
 
         let block = self.finish_node_data(
@@ -3120,6 +3121,7 @@ impl<'text> Parser<'text> {
             }),
             pos,
         );
+        self.arena.node_mut(block).multi_line = multi_line;
 
         if self.token() == SyntaxKind::EqualsToken {
             self.parse_error_at_current_token(
@@ -6132,6 +6134,7 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let open_bracket_position = self.scanner.token_start();
         let open_bracket_parsed = self.parse_expected(SyntaxKind::OpenBracketToken, None);
+        let multi_line = self.scanner.has_preceding_line_break();
         let elements = self.parse_delimited_list(
             ParsingContext::ArrayLiteralMembers,
             |parser| Some(parser.parse_argument_or_array_literal_element()),
@@ -6143,18 +6146,21 @@ impl<'text> Parser<'text> {
             open_bracket_parsed,
             open_bracket_position,
         );
-        self.finish_node_data(
+        let array = self.finish_node_data(
             NodeData::ArrayLiteralExpression(ArrayLiteralExpressionData {
                 elements: Some(elements),
             }),
             pos,
-        )
+        );
+        self.arena.node_mut(array).multi_line = Some(multi_line);
+        array
     }
 
     fn parse_object_literal_expression(&mut self) -> NodeId {
         let pos = self.node_pos();
         let open_brace_position = self.scanner.token_start();
         let open_brace_parsed = self.parse_expected(SyntaxKind::OpenBraceToken, None);
+        let multi_line = self.scanner.has_preceding_line_break();
         let properties = self.parse_delimited_list(
             ParsingContext::ObjectLiteralMembers,
             |parser| Some(parser.parse_object_literal_element()),
@@ -6166,12 +6172,14 @@ impl<'text> Parser<'text> {
             open_brace_parsed,
             open_brace_position,
         );
-        self.finish_node_data(
+        let object = self.finish_node_data(
             NodeData::ObjectLiteralExpression(ObjectLiteralExpressionData {
                 properties: Some(properties),
             }),
             pos,
-        )
+        );
+        self.arena.node_mut(object).multi_line = Some(multi_line);
+        object
     }
 
     fn parse_argument_or_array_literal_element(&mut self) -> NodeId {
@@ -6720,12 +6728,14 @@ impl<'text> Parser<'text> {
         let pos = self.node_pos();
         let end = self.scanner.pos();
         let text = self.current_token_text();
+        let numeric_literal_flags = self.scanner.numeric_literal_flags();
         let id = self.arena.alloc_node(
             NodeData::NumericLiteral(NumericLiteralData { text }),
             pos,
             end,
             NodeFlags::NONE,
         );
+        self.arena.node_mut(id).numeric_literal_flags = numeric_literal_flags;
         self.next_token();
         self.finish_node_at(id, pos, end)
     }
@@ -9807,6 +9817,54 @@ mod tests {
 
         let json_source = parse_json_text("a.json".to_owned(), "{}".to_owned());
         assert_eq!(json_source.language_version, ScriptTarget::ES2015);
+    }
+
+    #[test]
+    fn numeric_literals_retain_the_scanner_flags_used_by_the_printer() {
+        let source = parse_with_target("0x10; 1e2; 1;", ScriptTarget::ES2015);
+        let literals = nodes_of_kind(&source, SyntaxKind::NumericLiteral);
+        assert_eq!(
+            literals
+                .iter()
+                .map(|&literal| {
+                    let node = source.arena.node(literal);
+                    let NodeData::NumericLiteral(data) = &node.data else {
+                        unreachable!()
+                    };
+                    (data.text.as_str(), node.numeric_literal_flags)
+                })
+                .collect::<Vec<_>>(),
+            [("16", 64), ("100", 16), ("1", 0)]
+        );
+    }
+
+    #[test]
+    fn literal_and_block_nodes_retain_the_printer_multiline_bit() {
+        let source = parse_with_target(
+            "const a = [\n1]; const b = [1]; const c = {\na: 1}; function f() {\nreturn;}",
+            ScriptTarget::ES2015,
+        );
+        assert_eq!(
+            nodes_of_kind(&source, SyntaxKind::ArrayLiteralExpression)
+                .into_iter()
+                .map(|node| source.arena.node(node).multi_line)
+                .collect::<Vec<_>>(),
+            [Some(true), Some(false)]
+        );
+        assert_eq!(
+            nodes_of_kind(&source, SyntaxKind::ObjectLiteralExpression)
+                .into_iter()
+                .map(|node| source.arena.node(node).multi_line)
+                .collect::<Vec<_>>(),
+            [Some(true)]
+        );
+        assert_eq!(
+            nodes_of_kind(&source, SyntaxKind::Block)
+                .into_iter()
+                .map(|node| source.arena.node(node).multi_line)
+                .collect::<Vec<_>>(),
+            [Some(true)]
+        );
     }
 
     #[test]

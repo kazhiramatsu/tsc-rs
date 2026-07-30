@@ -9622,10 +9622,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:57439-57474
     ///
     /// hasBindableName (57448) splits into the engine's late-binding
-    /// shape: other dynamic names are skipped. The remaining
-    /// late-bindable declared-type arm runs after enum grammar/value
-    /// diagnostics and belongs to M8's semantic tail, not an M7 owner
-    /// family. tsc's unconditional member-links write is a
+    /// shape: other dynamic names are skipped, while usable computed
+    /// names resolve through getSymbolOfDeclaration's late-binding
+    /// route. tsc's unconditional member-links write is a
     /// vacant-guarded write here (LinkSlot discipline): merged enums
     /// that redeclare a member would make tsc's LAST write win where
     /// ours keeps the FIRST — those fixtures are 2300-family errors.
@@ -9640,19 +9639,14 @@ impl<'a> CheckerState<'a> {
                 continue;
             };
             for member in self.nodes_of(data.members) {
-                if self.has_late_bindable_ast_name(member) {
-                    return Err(Unsupported::new(
-                        "late-bound enum member declared type (lateBindMember 57662; M8 semantic-tail owner)",
-                    ));
-                }
-                if node_util::has_dynamic_name(self.binder.source_of_node(member), member) {
+                let has_bindable_name =
+                    !node_util::has_dynamic_name(self.binder.source_of_node(member), member)
+                        || self.has_late_bindable_name(member)?;
+                if !has_bindable_name {
                     continue;
                 }
-                let member_symbol = self
-                    .node_symbol(member)
-                    .expect("bound enum members carry symbols");
                 // getSymbolOfDeclaration (57448).
-                let member_symbol = self.get_merged_symbol(member_symbol);
+                let member_symbol = self.get_symbol_of_declaration(member)?;
                 let value = self.get_enum_member_value(member)?.value;
                 let base = match value {
                     Some(EvalValue::Str(text)) => self.tables.get_enum_literal_type(
@@ -13442,7 +13436,7 @@ mod conditional_type_tests {
 
 #[cfg(test)]
 mod enum_tests {
-    use tsrs2_syntax::NodeId;
+    use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
     use tsrs2_types::{CompilerOptions, TypeData, TypeFlags, TypeId};
 
     use crate::relpin::find_probe_annotation;
@@ -13541,6 +13535,150 @@ mod enum_tests {
             assert!(!flags.intersects(TypeFlags::UNION));
             assert!(matches!(state.tables.type_of(a).data, TypeData::Enum));
         });
+    }
+
+    #[test]
+    fn computed_enum_names_follow_the_bindable_name_split() {
+        with_state(
+            "const key = \"member\" as const;\n\
+             enum Bound { [key] }\n\
+             enum Skipped { [key + \"suffix\"] }\n\
+             declare var bound: Bound;\n\
+            declare var skipped: Skipped;\n",
+            |state| {
+                state.check_source_file(0);
+                // The entity-name expression is late-bindable and is
+                // included through getSymbolOfDeclaration; the binary
+                // expression is dynamic but not late-bindable and is
+                // skipped by hasBindableName.
+                let bound = annotation_type(state, "bound");
+                assert_eq!(literal_number(state, bound), 0.0);
+                let skipped = annotation_type(state, "skipped");
+                assert!(state.tables.flags_of(skipped).intersects(TypeFlags::ENUM));
+                assert!(matches!(state.tables.type_of(skipped).data, TypeData::Enum));
+                assert_eq!(
+                    state
+                        .diagnostics
+                        .iter()
+                        .map(|diagnostic| diagnostic.code())
+                        .collect::<Vec<_>>(),
+                    [1164, 1164]
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn property_name_text_switch_matches_tsc_kinds() {
+        with_program_state(
+            &[(
+                "a.tsx",
+                "const signed = \"-1\";\n\
+                 const numeric = 42;\n\
+                 const object = { [\"s\"]: 0, [1]: 0, [1n]: 0, [`t`]: 0 };\n\
+                 tag`template`;\n\
+                 const jsx = <ns:name />;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let source = state.binder.source(0);
+                let ids = source.arena.node_ids().collect::<Vec<_>>();
+                let string = ids
+                    .iter()
+                    .copied()
+                    .find(|&id| {
+                        matches!(&source.arena.node(id).data, NodeData::StringLiteral(data) if data.text == "-1")
+                    })
+                    .expect("signed numeric text literal");
+                let numeric = ids
+                    .iter()
+                    .copied()
+                    .find(|&id| {
+                        matches!(&source.arena.node(id).data, NodeData::NumericLiteral(data) if data.text == "42")
+                    })
+                    .expect("numeric literal");
+                let bigint = ids
+                    .iter()
+                    .copied()
+                    .find(|&id| source.arena.node(id).kind == SyntaxKind::BigIntLiteral)
+                    .expect("bigint literal");
+                let template = ids
+                    .iter()
+                    .copied()
+                    .find(|&id| {
+                        matches!(
+                            &source.arena.node(id).data,
+                            NodeData::NoSubstitutionTemplateLiteral(data)
+                                if data.text == "template"
+                        )
+                    })
+                    .expect("template literal");
+                let jsx_name = ids
+                    .iter()
+                    .copied()
+                    .find(|&id| source.arena.node(id).kind == SyntaxKind::JsxNamespacedName)
+                    .expect("JSX namespaced name");
+
+                // A signed numeric property name is represented by
+                // its textual StringLiteral name; PrefixUnaryExpression
+                // is not a PropertyName kind.
+                assert_eq!(
+                    state.try_get_text_of_property_name(string).as_deref(),
+                    Some("-1")
+                );
+                assert_eq!(
+                    state.try_get_text_of_property_name(numeric).as_deref(),
+                    Some("42")
+                );
+                assert_eq!(
+                    state.try_get_text_of_property_name(bigint).as_deref(),
+                    Some("1n")
+                );
+                assert_eq!(
+                    state.try_get_text_of_property_name(template).as_deref(),
+                    Some("template")
+                );
+                assert_eq!(
+                    state.try_get_text_of_property_name(jsx_name).as_deref(),
+                    Some("ns:name")
+                );
+                assert_eq!(
+                    state.try_get_text_of_property_name(source.root),
+                    None,
+                    "tryGetTextOfPropertyName's switch default is undefined"
+                );
+
+                let computed = ids
+                    .iter()
+                    .copied()
+                    .filter(|&id| source.arena.node(id).kind == SyntaxKind::ComputedPropertyName)
+                    .map(|name| {
+                        let expression = match state.data_of(name) {
+                            NodeData::ComputedPropertyName(data) => {
+                                data.expression.expect("computed expression")
+                            }
+                            _ => unreachable!("kind/data agree"),
+                        };
+                        (
+                            state.kind_of(expression),
+                            state.try_get_text_of_property_name(name),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(
+                    computed,
+                    [
+                        (SyntaxKind::StringLiteral, Some("s".to_owned())),
+                        (SyntaxKind::NumericLiteral, Some("1".to_owned())),
+                        (SyntaxKind::BigIntLiteral, None),
+                        (
+                            SyntaxKind::NoSubstitutionTemplateLiteral,
+                            Some("t".to_owned())
+                        ),
+                    ]
+                );
+            },
+        );
     }
 
     #[test]

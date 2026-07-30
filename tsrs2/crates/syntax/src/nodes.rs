@@ -45,6 +45,10 @@ pub enum NodePayload {
 pub struct Node {
     pub kind: SyntaxKind,
     pub flags: i32,
+    /// tsc NumericLiteral.numericLiteralFlags; zero on every other node kind.
+    pub numeric_literal_flags: i32,
+    /// tsc's internal Array/Object/Block.multiLine parser bit.
+    pub multi_line: Option<bool>,
     pub pos: u32,
     pub end: u32,
     pub parent: Option<NodeId>,

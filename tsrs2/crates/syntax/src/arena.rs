@@ -171,6 +171,8 @@ impl NodeArena {
         self.nodes.push(Node {
             kind,
             flags: flags.bits(),
+            numeric_literal_flags: 0,
+            multi_line: None,
             pos: pos as u32,
             end: end as u32,
             parent: None,

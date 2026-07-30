@@ -350,16 +350,40 @@ pub struct CheckerState<'a> {
     /// typeToString calls leave it false; elaborateNeverIntersection
     /// sets it so the explanation can name the original intersection.
     pub(crate) slice_no_type_reduction: bool,
-    /// The display slice's face of the nodeBuilder's
-    /// context.enclosingDeclaration for the ANNOTATION-REUSE gates
-    /// only (canReuseTypeNodeAnnotation, 50932-50955: `undefined →
-    /// false`). getTypeNamesForErrorDisplay (50748) passes the
-    /// symbol's value declaration for non-context-sensitive
-    /// expression-valued symbols; every other slice entry renders
-    /// with None. The 5.4 slice prints bare symbol names, so the
-    /// node's OTHER context roles (symbol-chain qualification, fake
-    /// scopes, unique-symbol ancestry) stay out of slice.
+    /// The display slice's face of nodeBuilder
+    /// context.enclosingDeclaration. getTypeNamesForErrorDisplay
+    /// (50748) seeds it with the symbol's value declaration for a
+    /// non-context-sensitive expression; reusable signatures/mapped
+    /// nodes temporarily enter their own scope. Annotation reuse,
+    /// entity-name accessibility/shortest symbol chains, and
+    /// unique-symbol ancestry all consume the parked declaration.
     pub(crate) slice_display_enclosing: Option<NodeId>,
+    /// nodeBuilder context.mapper while rendering instantiated
+    /// signatures. This is deliberately separate from
+    /// active_type_mappers, which is instantiateType's recursion/cache
+    /// stack rather than display context. Nested signature rendering
+    /// pushes another mapper and restores it on every exit.
+    pub(crate) slice_display_mappers: Vec<MapperId>,
+    /// createRecoveryBoundary's `hadError` cell and the nested
+    /// visitExistingNodeTreeSymbols depth for the bounded reused-node
+    /// printer. A TypePredicate deliberately leaves the error armed so
+    /// the nearest enclosing non-predicate TypeNode is rebuilt
+    /// semantically; IndexedAccess/keyof simple-node probes bypass a
+    /// child boundary for the same reason.
+    pub(crate) slice_reuse_had_error: bool,
+    pub(crate) slice_reuse_visit_depth: usize,
+    /// Standard-printer indentation while an existing TypeNode clone
+    /// recursively prints initializer expressions and their bodies.
+    /// typeToString supplies a writer whose newline text is empty, but
+    /// whose indentation remains four spaces per nesting level.
+    pub(crate) slice_display_clone_indent: usize,
+    /// The standard display writer's virtual `lineStart` state at the
+    /// entry of the current cloned expression/body node. Callers that
+    /// materialize a line event's indentation into their local String
+    /// still pass `true`: a nested decorator list's leading writeLine
+    /// must not add that indentation a second time. Every recursive
+    /// entry saves and restores this bit.
+    pub(crate) slice_display_clone_at_line_start: bool,
     /// tsc markerTypes (47005): ids of createMarkerType results.
     pub(crate) marker_types: std::collections::HashSet<TypeId>,
     /// tsc inVarianceComputation (47422).
@@ -675,6 +699,22 @@ pub struct CheckerState<'a> {
     /// getSemanticDiagnostics. Lazy initialization diagnostics not
     /// registered here remain program-global.
     pub visible_global_diagnostics: DiagnosticList,
+    /// Completed diagnostics emitted by reporting-mode iteration walks
+    /// while an overload candidate transaction is active. tsc has no
+    /// such transaction, so these eager side effects survive a
+    /// rejected candidate; speculate.rs replays the journal after
+    /// rolling every other diagnostic back.
+    pub(crate) tsc_eager_diagnostics: DiagnosticList,
+    /// The visible-global counterpart of `tsc_eager_diagnostics`.
+    /// Some reporting iteration paths force global getters whose
+    /// file-less rows must remain observable after candidate rollback.
+    pub(crate) tsc_eager_visible_global_diagnostics: DiagnosticList,
+    /// Nesting depth of reporting-mode iteration entries. Nested
+    /// entries provisionally journal their completed sink suffix
+    /// before an inner overload transaction can roll it back; the
+    /// outermost entry replaces those provisional rows with its final
+    /// sink suffix after related information has been attached.
+    pub(crate) tsc_eager_iteration_capture_depth: usize,
     /// Syntax ranges whose check was partial because an Unsupported
     /// containment boundary or an unimplemented flow-sensitive
     /// diagnostic was reached. Only directives targeting one of these
@@ -930,6 +970,11 @@ impl<'a> CheckerState<'a> {
             slice_reverse_mapped_stack: Vec::new(),
             slice_no_type_reduction: false,
             slice_display_enclosing: None,
+            slice_display_mappers: Vec::new(),
+            slice_reuse_had_error: false,
+            slice_reuse_visit_depth: 0,
+            slice_display_clone_indent: 0,
+            slice_display_clone_at_line_start: false,
             marker_types: std::collections::HashSet::new(),
             in_variance_computation: false,
             variance_handler_stack: Vec::new(),
@@ -1001,6 +1046,9 @@ impl<'a> CheckerState<'a> {
             resolved_type_predicates: std::collections::HashMap::new(),
             diagnostics: Vec::new(),
             visible_global_diagnostics: Vec::new(),
+            tsc_eager_diagnostics: Vec::new(),
+            tsc_eager_visible_global_diagnostics: Vec::new(),
+            tsc_eager_iteration_capture_depth: 0,
             partially_checked_ranges: std::collections::HashMap::new(),
             contained_call_resolutions: std::collections::HashSet::new(),
             partial_check_records: Vec::new(),

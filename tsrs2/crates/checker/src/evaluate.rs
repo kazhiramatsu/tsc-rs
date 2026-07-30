@@ -1431,30 +1431,58 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsc-port: tryGetTextOfPropertyName @6.0.3
+    /// tsc-hash: 775dd95b7a0f4d64b4b910bb31e7dd9bdcddd1c473bf9b913b2b2adbe4afd0c2
+    /// tsc-span: _tsc.js:13863-13882
+    pub(crate) fn try_get_text_of_property_name(&self, name: NodeId) -> Option<String> {
+        let source = self.binder.source_of_node(name);
+        match self.data_of(name) {
+            // emitNode.autoGenerate is not represented in the parsed
+            // arena; parsed identifiers/private identifiers therefore
+            // take the escapedText arm directly.
+            NodeData::Identifier(data) => Some(data.escaped_text.clone()),
+            NodeData::PrivateIdentifier(data) => Some(data.escaped_text.clone()),
+            NodeData::StringLiteral(data) => {
+                Some(tsrs2_binder::escape_leading_underscores(&data.text))
+            }
+            NodeData::NumericLiteral(data) => {
+                Some(tsrs2_binder::escape_leading_underscores(&data.text))
+            }
+            NodeData::BigIntLiteral(data) => {
+                Some(tsrs2_binder::escape_leading_underscores(&data.text))
+            }
+            NodeData::NoSubstitutionTemplateLiteral(data) => {
+                Some(tsrs2_binder::escape_leading_underscores(&data.text))
+            }
+            NodeData::ComputedPropertyName(data) => {
+                let expression = data.expression?;
+                match self.data_of(expression) {
+                    NodeData::StringLiteral(data) => {
+                        Some(tsrs2_binder::escape_leading_underscores(&data.text))
+                    }
+                    NodeData::NumericLiteral(data) => {
+                        Some(tsrs2_binder::escape_leading_underscores(&data.text))
+                    }
+                    NodeData::NoSubstitutionTemplateLiteral(data) => {
+                        Some(tsrs2_binder::escape_leading_underscores(&data.text))
+                    }
+                    _ => None,
+                }
+            }
+            NodeData::JsxNamespacedName(_) => {
+                node_util::get_escaped_text_of_jsx_namespaced_name(source, name)
+            }
+            _ => None,
+        }
+    }
+
     /// tsc-port: getTextOfPropertyName @6.0.3
     /// tsc-hash: b6a070f28394bc21fdf62f528c96dee4a10060472d748602fd0bba75be70e0cd
     /// tsc-span: _tsc.js:13883-13885
-    ///
-    /// Enum grammar/value validation guards the literal-name path.
-    /// Dynamic computed names and non-text declaration shapes reach
-    /// later semantic name inference, so their remaining containment
-    /// belongs to M8's semantic tail rather than an M7 owner family.
     pub(crate) fn get_text_of_property_name(&self, name: NodeId) -> CheckResult2<String> {
-        let source = self.binder.source_of_node(name);
-        if let NodeData::ComputedPropertyName(data) = self.data_of(name) {
-            let expression = data
-                .expression
-                .expect("parser invariant: ComputedPropertyName expression always parsed");
-            return node_util::get_escaped_text_of_identifier_or_literal(source, expression)
-                .ok_or_else(|| {
-                    Unsupported::new(
-                        "non-literal computed property name text (M8 semantic-tail owner)",
-                    )
-                });
-        }
-        node_util::get_escaped_text_of_identifier_or_literal(source, name).ok_or_else(|| {
-            Unsupported::new("property name shape without literal text (M8 semantic-tail owner)")
-        })
+        Ok(self
+            .try_get_text_of_property_name(name)
+            .expect("getTextOfPropertyName requires a textual property name"))
     }
 
     /// tsc-port: isEnumConst @6.0.3

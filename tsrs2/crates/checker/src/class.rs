@@ -1901,16 +1901,16 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    /// tsc getFullyQualifiedName (50040) sliced to the parentless
-    /// case: a symbol with a container renders `A.B` through the
-    /// nodeBuilder — escape (T2 display band).
+    /// tsc-port: getFullyQualifiedName @6.0.3
+    /// tsc-hash: 30098265216734ac1ab039c9b23d5a0c3c8cc578a2ea153ad77edaed4461564c
+    /// tsc-span: _tsc.js:49253-49260
+    ///
+    /// The shared checker implementation owns the exact recursive
+    /// parent-chain face, including external source-file roots. Keep
+    /// this diagnostic consumer on that implementation rather than a
+    /// second parentless-only display slice.
     fn fully_qualified_name_slice(&self, symbol: SymbolId) -> CheckResult2<String> {
-        if self.binder.symbol(symbol).parent.is_some() {
-            return Err(crate::state::Unsupported::new(
-                "getFullyQualifiedName over a contained symbol (nodeBuilder display, T2)",
-            ));
-        }
-        Ok(self.symbol_display_name(symbol))
+        Ok(self.get_fully_qualified_name(symbol))
     }
 
     /// tsc-port: checkKindsOfPropertyMemberOverrides @6.0.3

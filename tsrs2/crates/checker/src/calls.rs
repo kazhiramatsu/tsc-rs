@@ -2167,13 +2167,12 @@ impl<'a> CheckerState<'a> {
 
     /// The non-array-like spread element walk shared by both
     /// getSpreadArgumentType arms (76012/76026): Node spreads report
-    /// at their expression; SYNTHETIC spreads are span-only (tsc
-    /// anchors at the synthetic expression NODE), so their walk runs
-    /// silently — the success face (variadic tuple elements iterating
-    /// through array constraints, probe p11) is node-free, and only a
-    /// walk that would have REPORTED keeps a containment.
+    /// at their expression; SYNTHETIC spreads report at the
+    /// createSyntheticExpression setTextRange carried by EffectiveArg.
     fn iterated_spread_element_type(
         &mut self,
+        node_in_file: NodeId,
+        arg: &EffectiveArg,
         spread_type: TypeId,
         error_node: Option<NodeId>,
     ) -> CheckResult2<TypeId> {
@@ -2186,29 +2185,25 @@ impl<'a> CheckerState<'a> {
                 error_node,
             );
         }
-        self.get_iterated_type_or_element_type(
+        let span = self.diag_span_of_effective_arg(node_in_file, arg);
+        self.check_iterated_type_or_element_type_at_span(
             tsrs2_types::IterationUse::SPREAD,
             spread_type,
             undefined_type,
-            None,
-            /*check_assignability*/ true,
-        )?
-        .ok_or_else(|| {
-            Unsupported::new(
-                "non-array-like SYNTHETIC spread whose iteration walk reports \
-                 (span-only error threading, M8)",
-            )
-        })
+            &span,
+        )
     }
 
     /// tsc-port: getSpreadArgumentType @6.0.3
     /// tsc-hash: dfdbbb36374c6ab5201a5e1f9856e353347e1d3cace2f7a7f8d6246a95d6fbce
     /// tsc-span: _tsc.js:76002-76042
     ///
-    /// Non-array-like SYNTHETIC spread walks run silently (span-only
-    /// error node) via iterated_spread_element_type.
+    /// Non-array-like SYNTHETIC spreads use their EffectiveArg range
+    /// as tsc's fabricated errorNode location.
+    #[allow(clippy::too_many_arguments)] // tsc's spread inputs stay explicit at all four callers.
     pub(crate) fn get_spread_argument_type(
         &mut self,
+        node_in_file: NodeId,
         args: &[EffectiveArg],
         index: usize,
         arg_count: usize,
@@ -2241,7 +2236,8 @@ impl<'a> CheckerState<'a> {
                 if self.is_array_like_type(spread_type)? {
                     return self.get_mutable_array_or_tuple_type(spread_type);
                 }
-                let element = self.iterated_spread_element_type(spread_type, error_node)?;
+                let element =
+                    self.iterated_spread_element_type(node_in_file, arg, spread_type, error_node)?;
                 return self.create_array_type(element, in_const_context);
             }
         }
@@ -2268,7 +2264,12 @@ impl<'a> CheckerState<'a> {
                     types.push(spread_type);
                     flags.push(ElementFlags::VARIADIC);
                 } else {
-                    let element = self.iterated_spread_element_type(spread_type, error_node)?;
+                    let element = self.iterated_spread_element_type(
+                        node_in_file,
+                        &arg,
+                        spread_type,
+                        error_node,
+                    )?;
                     types.push(element);
                     flags.push(ElementFlags::REST);
                 }
@@ -2439,7 +2440,10 @@ impl<'a> CheckerState<'a> {
     /// generalizes literals, and the reporting-mode relation walk
     /// supplies the nested errorInfo chain. Display failures unwind
     /// Unsupported per the house discipline.
-    fn build_relation_error_with_head(
+    /// tsrs-native: DiagSpan adapter over tsc's reportRelationError
+    /// present-head path; SyntheticExpression locations have no arena
+    /// NodeId in the Rust representation.
+    pub(crate) fn build_relation_error_with_head(
         &mut self,
         source: TypeId,
         target: TypeId,
@@ -2491,6 +2495,56 @@ impl<'a> CheckerState<'a> {
             // getBaseTypeOfLiteralType passes through UNCHANGED and
             // whose typeof face qualifies only on the FQ chain
             // (`typeof Symbol.toPrimitive`, oracle-probed).
+            self.get_type_name_for_error_display(generalized)?
+        } else {
+            source_text
+        };
+        Ok(self.diagnostic_at_span(span, MessageChain::new(head, &[source_text, target_text])))
+    }
+
+    /// reportRelationError's no-head face for callers whose diagnostic
+    /// target is a SyntheticExpression span rather than an arena node.
+    /// This retains the relation walk's own 2322-family head selection
+    /// and nested chain.
+    /// tsrs-native: DiagSpan adapter over tsc's reportRelationError
+    /// no-head path; SyntheticExpression locations have no arena
+    /// NodeId in the Rust representation.
+    pub(crate) fn build_relation_error_without_head(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        span: &DiagSpan,
+    ) -> CheckResult2<Diagnostic> {
+        let original_source = source;
+        let original_target = target;
+        let (source, target) = self.normalized_relation_report_types(source, target)?;
+        if let Ok(Some(output)) = self.relation_error_output_with_context(
+            original_source,
+            original_target,
+            RelationKind::Assignable,
+            None,
+            None,
+        ) {
+            let mut diagnostic = self.diagnostic_at_span(span, output.message);
+            diagnostic.related = output.related;
+            return Ok(diagnostic);
+        }
+        let mut source_text = self.type_to_string_slice_with_error_enclosing(source)?;
+        let mut target_text = self.type_to_string_slice_with_error_enclosing(target)?;
+        if source_text == target_text {
+            source_text = self.get_type_name_for_error_display(source)?;
+            target_text = self.get_type_name_for_error_display(target)?;
+        }
+        let head = if source_text == target_text {
+            &diagnostics::Type_0_is_not_assignable_to_type_1_Two_different_types_with_this_name_exist_but_they_are_unrelated
+        } else {
+            &diagnostics::Type_0_is_not_assignable_to_type_1
+        };
+        let source_text = if !self.tables.flags_of(target).intersects(TypeFlags::NEVER)
+            && self.is_literal_type(source)
+            && !self.type_could_have_top_level_singleton_types(target)?
+        {
+            let generalized = self.get_base_type_of_literal_type(source)?;
             self.get_type_name_for_error_display(generalized)?
         } else {
             source_text
@@ -2828,6 +2882,7 @@ impl<'a> CheckerState<'a> {
         if let Some(rest_type) = rest_type {
             if self.could_contain_type_variables(rest_type) {
                 let spread_type = self.get_spread_argument_type(
+                    node,
                     args,
                     arg_count,
                     args.len(),
@@ -3375,9 +3430,13 @@ impl<'a> CheckerState<'a> {
                     if let Some(mut errors) =
                         self.capture_argument_elaboration(effective, param_type, head, mode)?
                     {
-                        if let Some(await_related) =
-                            self.missing_await_related(&arg, check_arg_type, param_type, relation)?
-                        {
+                        if let Some(await_related) = self.missing_await_related(
+                            node,
+                            &arg,
+                            check_arg_type,
+                            param_type,
+                            relation,
+                        )? {
                             if let Some(first) = errors.first_mut() {
                                 first.related.push(await_related.clone());
                                 if let Some(diagnostic) = first.diagnostic.as_mut() {
@@ -3394,9 +3453,13 @@ impl<'a> CheckerState<'a> {
                         head,
                         mode,
                     )?;
-                    if let Some(await_related) =
-                        self.missing_await_related(&arg, check_arg_type, param_type, relation)?
-                    {
+                    if let Some(await_related) = self.missing_await_related(
+                        node,
+                        &arg,
+                        check_arg_type,
+                        param_type,
+                        relation,
+                    )? {
                         if let Some(first) = errors.first_mut() {
                             first.related.push(await_related.clone());
                             if let Some(diagnostic) = first.diagnostic.as_mut() {
@@ -3419,7 +3482,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let mut related: Vec<RelatedInfo> = Vec::new();
                 if let Some(await_related) =
-                    self.missing_await_related(&arg, check_arg_type, param_type, relation)?
+                    self.missing_await_related(node, &arg, check_arg_type, param_type, relation)?
                 {
                     related.push(await_related);
                 }
@@ -3452,6 +3515,7 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(rest_type) = rest_type {
             let spread_type = self.get_spread_argument_type(
+                node,
                 args,
                 arg_count,
                 args.len(),
@@ -3535,31 +3599,19 @@ impl<'a> CheckerState<'a> {
     /// not promise-like.
     fn missing_await_related(
         &mut self,
+        node_in_file: NodeId,
         arg: &EffectiveArg,
         source: TypeId,
         target: TypeId,
         relation: RelationKind,
     ) -> CheckResult2<Option<RelatedInfo>> {
-        if self.get_awaited_type_of_promise(target)?.is_some() {
-            return Ok(None);
-        }
-        let Some(awaited_source) = self.get_awaited_type_of_promise(source)? else {
-            return Ok(None);
-        };
-        if !self.is_type_related_to(awaited_source, target, relation)? {
-            return Ok(None);
-        }
-        match *arg {
+        let span = match *arg {
             EffectiveArg::Node(arg_node) => {
-                let error_node = self.get_effective_check_node(arg_node);
-                Ok(Some(self.related_info_for_node(
-                    error_node,
-                    &diagnostics::Did_you_forget_to_use_await,
-                    &[],
-                )))
+                self.diag_span_of_node(self.get_effective_check_node(arg_node))
             }
-            EffectiveArg::Synthetic { .. } => Ok(None),
-        }
+            EffectiveArg::Synthetic { .. } => self.diag_span_of_effective_arg(node_in_file, arg),
+        };
+        self.missing_await_related_at(Some(&span), source, target, relation)
     }
 
     fn missing_await_related_at(
@@ -6892,7 +6944,7 @@ mod tests {
         );
     }
 
-    // m6 7.6: synthetic-spread silent iteration walk + generic-rest
+    // m6 7.6/M8: synthetic-spread iteration walk + generic-rest
     // narrowing probes (tsc-probed rows, vendored 6.0.3 noLib,
     // scratchpad p11/p13).
 
@@ -6915,12 +6967,227 @@ mod tests {
     }
 
     #[test]
+    fn non_array_synthetic_spread_reports_at_its_utf16_range_with_await_related() {
+        let text = "interface Array<T> { length: number; [n: number]: T; }\n\
+                    interface Promise<T> {}\n\
+                    declare const p: Promise<number>;\n\
+                    const 名 = 0;\n\
+                    f(  ...p);\n";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            let (call, spread) = {
+                let source = state.binder.source(0);
+                let call = source
+                    .arena
+                    .node_ids()
+                    .find(|&id| source.arena.node(id).kind == SyntaxKind::CallExpression)
+                    .expect("call expression");
+                let spread = source
+                    .arena
+                    .node_ids()
+                    .find(|&id| source.arena.node(id).kind == SyntaxKind::SpreadElement)
+                    .expect("spread element");
+                (call, spread)
+            };
+            let (pos, end) = {
+                let raw = state.binder.source(0).arena.node(spread);
+                (raw.pos, raw.end)
+            };
+            let p = state
+                .resolve_file_scope_name("p", SymbolFlags::VARIABLE)
+                .expect("p resolves");
+            let promise = state.get_type_of_symbol(p).expect("promise type");
+            let args = [super::EffectiveArg::Synthetic {
+                pos,
+                end,
+                ty: promise,
+                is_spread: true,
+                tuple_name_source: None,
+            }];
+            let any = state.tables.intrinsics.any;
+            state
+                .get_spread_argument_type(
+                    call,
+                    &args,
+                    0,
+                    1,
+                    any,
+                    /*inference_context*/ None,
+                    CheckMode::NORMAL,
+                )
+                .expect("synthetic iteration reports and returns any[]");
+
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 2461)
+                .expect("non-array synthetic spread diagnostic");
+            let start_byte = text.find("...p").expect("spread text");
+            let expected_start = text[..start_byte].encode_utf16().count() as u32;
+            let expected_length = "...p".encode_utf16().count() as u32;
+            assert_eq!(
+                (diagnostic.start, diagnostic.length),
+                (Some(expected_start), Some(expected_length))
+            );
+            assert_eq!(
+                diagnostic.message.text,
+                "Type 'Promise<number>' is not an array type."
+            );
+            assert_eq!(diagnostic.related.len(), 1);
+            let related = &diagnostic.related[0];
+            assert_eq!(related.message.code, 2773);
+            assert_eq!(
+                (related.start, related.length),
+                (Some(expected_start), Some(expected_length))
+            );
+        });
+    }
+
+    #[test]
+    fn synthetic_spread_reports_end_to_end_from_effective_arguments() {
+        let text = "const 名 = 0;\n\
+                    declare function f(...xs: number[]): void;\n\
+                    function g<T>(...args: [...T]) { f(  ...args); }\n";
+        let (rows, partials) =
+            with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+                state.check_source_file(0);
+                let rows = state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| matches!(diagnostic.code(), 2461 | 2574))
+                    .map(|diagnostic| {
+                        (
+                            diagnostic.code(),
+                            diagnostic.start.expect("file diagnostic start"),
+                            diagnostic.length.expect("file diagnostic length"),
+                            diagnostic.message.text.clone(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                (rows, state.partial_check_records.clone())
+            });
+        assert_eq!(
+            rows,
+            [
+                (
+                    2574,
+                    80,
+                    4,
+                    "A rest element type must be an array type.".to_owned(),
+                ),
+                (2461, 93, 7, "Type 'T' is not an array type.".to_owned(),),
+            ]
+        );
+        assert!(partials.is_empty(), "{partials:?}");
+    }
+
+    #[test]
+    fn constrained_synthetic_spread_keeps_the_array_like_non_firing_path() {
+        let text = "declare function f(...xs: unknown[]): void;\n\
+                    function g<T extends unknown[]>(...args: [...T]) { f(...args); }\n";
+        let (codes, partials) =
+            with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+                state.check_source_file(0);
+                (
+                    state
+                        .diagnostics
+                        .iter()
+                        .filter(|diagnostic| diagnostic.code() != 2318)
+                        .map(|diagnostic| diagnostic.code())
+                        .collect::<Vec<_>>(),
+                    state.partial_check_records.clone(),
+                )
+            });
+        assert!(codes.is_empty(), "{codes:?}");
+        assert!(partials.is_empty(), "{partials:?}");
+    }
+
+    #[test]
+    fn rejected_overload_keeps_reached_synthetic_spread_iteration_diagnostic() {
+        // tsc has no candidate transaction: the first overload reaches
+        // getSpreadArgumentType and emits 2461 before its tuple-union
+        // relation fails. The later fixed overload succeeds, but that
+        // already-emitted iteration row remains in the program sink.
+        let text = "declare function f(...xs: [] | [x: string]): \"rest\";\n\
+                    declare function f(x?: unknown): \"fixed\";\n\
+                    function g<T>(...args: [...T]) { const r = f(...args); const fixed: \"fixed\" = r; return fixed; }\n";
+        let (rows, partials) =
+            with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+                state.check_source_file(0);
+                let rows = state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| matches!(diagnostic.code(), 2322 | 2461 | 2574))
+                    .map(|diagnostic| {
+                        (
+                            diagnostic.code(),
+                            diagnostic.start.expect("file diagnostic start"),
+                            diagnostic.length.expect("file diagnostic length"),
+                            diagnostic.message_text().to_owned(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                (rows, state.partial_check_records.clone())
+            });
+        assert_eq!(
+            rows,
+            [
+                (
+                    2574,
+                    119,
+                    4,
+                    "A rest element type must be an array type.".to_owned(),
+                ),
+                (2461, 140, 7, "Type 'T' is not an array type.".to_owned(),),
+            ]
+        );
+        assert!(partials.is_empty(), "{partials:?}");
+    }
+
+    #[test]
+    fn earlier_fixed_overload_does_not_precheck_later_synthetic_spread_iteration() {
+        // Order-sensitive non-firing twin: the fixed overload succeeds
+        // before the tuple-union rest candidate is visited, so tsc
+        // never calls getSpreadArgumentType and never emits 2461.
+        let text = "declare function f(x?: unknown): \"fixed\";\n\
+                    declare function f(...xs: [] | [x: string]): \"rest\";\n\
+                    function g<T>(...args: [...T]) { const r = f(...args); const fixed: \"fixed\" = r; return fixed; }\n";
+        let (rows, partials) =
+            with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+                state.check_source_file(0);
+                let rows = state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| matches!(diagnostic.code(), 2322 | 2461 | 2574))
+                    .map(|diagnostic| {
+                        (
+                            diagnostic.code(),
+                            diagnostic.start.expect("file diagnostic start"),
+                            diagnostic.length.expect("file diagnostic length"),
+                            diagnostic.message_text().to_owned(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                (rows, state.partial_check_records.clone())
+            });
+        assert_eq!(
+            rows,
+            [(
+                2574,
+                119,
+                4,
+                "A rest element type must be an array type.".to_owned(),
+            )]
+        );
+        assert!(partials.is_empty(), "{partials:?}");
+    }
+
+    #[test]
     fn generic_rest_narrowing_matches_oracle_with_type_variable_residue() {
         // Dependent-parameter narrowing over a generic rest type whose
         // CONSTRAINT still carries a type variable (B): the
         // non-fixing-mapper chain narrows and the access reports 2571
-        // exactly like tsc — the flow.rs conservative net stays
-        // corpus-dead (shield evidence for the M6-close adjudication).
+        // exactly like tsc — getReducedApparentType proceeds directly
+        // into the union-of-tuples gate even with B still present.
         assert_eq!(
             checked_rows(
                 "declare function invoke<B, A extends [\"a\", B] | [\"b\", string]>(cb: (...args: A) => void): void;\ninvoke((...args) => { if (args[0] === \"a\") { args[1].bad; } });\n",
@@ -7124,6 +7391,37 @@ mod tests {
             messages,
             ["Argument of type 'string' is not assignable to parameter of type 'number'."]
         );
+    }
+
+    #[test]
+    fn tuple_spread_fixed_parameter_await_related_uses_the_synthetic_span() {
+        let text = "interface Promise<T> {}\n\
+                    declare function take(value: string): void;\n\
+                    declare const tuple: [Promise<string>];\n\
+                    const 名 = 0;\n\
+                    take(  ...tuple);\n";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 2345)
+                .expect("tuple-spread fixed-parameter mismatch");
+            let start_byte = text.find("...tuple").expect("spread text");
+            let expected_start = text[..start_byte].encode_utf16().count() as u32;
+            let expected_length = "...tuple".encode_utf16().count() as u32;
+            assert_eq!(
+                (diagnostic.start, diagnostic.length),
+                (Some(expected_start), Some(expected_length))
+            );
+            assert_eq!(diagnostic.related.len(), 1);
+            let related = &diagnostic.related[0];
+            assert_eq!(related.message.code, 2773);
+            assert_eq!(
+                (related.start, related.length),
+                (Some(expected_start), Some(expected_length))
+            );
+        });
     }
 
     #[test]

@@ -96,6 +96,7 @@ impl TokenFlags {
     const CONTAINS_LEADING_ZERO: Self = Self(8192);
     const CONTAINS_INVALID_SEPARATOR: Self = Self(16384);
     const PRECEDING_JSDOC_LEADING_ASTERISKS: Self = Self(32768);
+    const NUMERIC_LITERAL_FLAGS: Self = Self(25584);
 
     const fn empty() -> Self {
         Self(0)
@@ -672,6 +673,11 @@ impl<'text> Scanner<'text> {
 
     pub(crate) fn token_value(&self) -> &str {
         &self.token_value
+    }
+
+    /// tsc scanner.getNumericLiteralFlags.
+    pub(crate) fn numeric_literal_flags(&self) -> i32 {
+        (self.token_flags.0 & TokenFlags::NUMERIC_LITERAL_FLAGS.0) as i32
     }
 
     /// tsc getTokenText: the raw source slice of the current token.

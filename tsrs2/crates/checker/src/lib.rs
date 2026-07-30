@@ -8,6 +8,9 @@ pub mod class;
 pub mod conditional;
 pub mod constraints;
 pub mod contextual;
+mod display_clone;
+mod display_clone_body;
+mod display_clone_module;
 pub mod elaboration;
 pub mod engine;
 pub mod evaluate;
@@ -4789,8 +4792,7 @@ mod tests {
     fn dependent_parameter_narrowing_types_rest_tuple_slices() {
         // getNarrowedTypeOfSymbol arm 2 (72040-72060) over a CONCRETE
         // union-of-tuples rest type — live since the 6.2 review fix
-        // (pre-fix the whole reference contained as Unsupported; only
-        // a generic rest type still defers to M6's nonFixingMapper).
+        // (pre-fix the whole reference contained as Unsupported).
         // kind types as the [0]-slice "a" | "b", so takeAB accepts it.
         let result = check_program(
             &[InputFile {
@@ -4810,6 +4812,80 @@ mod tests {
                 .collect::<Vec<_>>(),
             Vec::<u32>::new()
         );
+        assert_eq!(result.partial_checks.len(), 0);
+    }
+
+    #[test]
+    fn dependent_parameter_narrowing_skips_a_non_union_rest_type() {
+        // Nearest non-firing side of the 72046 gate: a single tuple is
+        // contextually indexed normally, but does not enter the
+        // dependent union-of-tuples flow walk.
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "declare function f(cb: (...args: [\"a\", number]) => void): void;\n\
+                       declare function takeA(x: \"a\"): void;\n\
+                       f((kind, _data) => { takeA(kind); });\n"
+                    .to_owned(),
+            }],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.code())
+                .collect::<Vec<_>>(),
+            Vec::<u32>::new()
+        );
+        assert_eq!(result.partial_checks.len(), 0);
+    }
+
+    #[test]
+    fn dependent_parameter_narrowing_stops_after_parameter_assignment() {
+        // getNarrowedTypeOfSymbol 72043-72046: assignment to one of
+        // the dependent parameters keeps the union-of-tuples rest
+        // type on its non-firing path. The property access therefore
+        // retains both tuple payloads and reports tsc 6.0.3's exact
+        // chained 2339 rather than narrowing data from kind.
+        let result = check_program(
+            &[InputFile {
+                name: "a.ts".to_owned(),
+                text: "declare function f(cb: (...args: [\"a\", { aOnly: 1 }] | [\"b\", { bOnly: 1 }]) => void): void;\nf((kind, data) => { kind = kind; if (kind === \"a\") { data.aOnly; } });\n".to_owned(),
+            }],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        let diagnostics = result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 2339)
+            .collect::<Vec<_>>();
+        assert_eq!(diagnostics.len(), 1);
+        let diagnostic = diagnostics[0];
+        assert_eq!((diagnostic.start, diagnostic.length), (Some(150), Some(5)));
+        assert_eq!(
+            (diagnostic.message.code, diagnostic.message.text.as_str()),
+            (
+                2339,
+                "Property 'aOnly' does not exist on type '{ aOnly: 1; } | { bOnly: 1; }'.",
+            )
+        );
+        assert_eq!(diagnostic.message.next.len(), 1);
+        let child = &diagnostic.message.next[0];
+        assert_eq!(
+            (child.code, child.text.as_str()),
+            (
+                2339,
+                "Property 'aOnly' does not exist on type '{ bOnly: 1; }'.",
+            )
+        );
+        assert!(child.next.is_empty());
         assert_eq!(result.partial_checks.len(), 0);
     }
 
