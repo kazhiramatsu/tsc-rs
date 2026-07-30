@@ -2881,6 +2881,8 @@ impl<'a> CheckerState<'a> {
         self.get_type_of_dotted_name_with_diagnostic(node, None)
     }
 
+    /// tsrs-native: mutable-diagnostic adapter for tsc's
+    /// getTypeOfDottedName(node, diagnostic) parameter.
     pub(crate) fn get_type_of_dotted_name_with_diagnostic(
         &mut self,
         node: NodeId,
