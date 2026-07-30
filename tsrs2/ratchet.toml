@@ -638,32 +638,31 @@ allowed_regression = 0.0
 # slice evidence records zero losses and zero gains outside the target.
 # M8-P07: +42 exact-category override-validation identities; the slice
 # evidence records zero losses and zero gains outside the target.
-# M8 formal T1 close: +239 already-observed M8 category identities are
-# caught up, then +2 TS7051 identities close errorOrSuggestion's loose
-# parameter-name face. Supported T1 is 48,441/48,441 with no accepted
-# loss and all-corpus FP=0; this exact count closes the active T1 gate.
-rate = 0.988108
-matched = 48441
+# M8 formal T1 close: the final full-corpus measurement has supported
+# T1 at 48,783/48,783 with no accepted loss and all-corpus FP=0. The
+# one-time tier1-3-input-schema-extension records that complete bucket
+# set; this exact artifact-derived count closes the active T1 gate.
+rate = 0.995084
+matched = 48783
 total = 49024
 allowed_regression = 0.0
 
 [t2]
 # Written from A1's complete-multiset T2 bucket set by the reviewed
-# tier1-3-input-schema-extension. Zero is the pre-activation
-# placeholder; `cargo xtask ratchet update --transition
-# tier1-3-input-schema-extension` replaces it transactionally with
-# the exact artifact-derived count.
-rate = 0.0
-matched = 0
+# tier1-3-input-schema-extension. The activated set is the exact
+# artifact-derived supported 48,783/48,783 measurement.
+rate = 0.995084
+matched = 48783
 total = 49024
 allowed_regression = 0.0
 
 [t3]
 # Written from A1's complete-multiset T3 bucket set by the same
-# one-time activation. As with T1/T2, this section is a verified
-# derived summary; the accepted identity set is the authority.
-rate = 0.0
-matched = 0
+# one-time activation. The activated set is supported
+# 48,783/48,783; as with T1/T2, the accepted identity set is the
+# authority and this section is a verified derived summary.
+rate = 0.995084
+matched = 48783
 total = 49024
 allowed_regression = 0.0
 
