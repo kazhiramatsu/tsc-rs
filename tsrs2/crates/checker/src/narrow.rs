@@ -2982,16 +2982,30 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isDeclarationWithExplicitTypeAnnotation @6.0.3
     /// tsc-hash: 1ce22ff5fa71bee60fc931c39179d1552c778f61d4e1fecaba74c9f4a9c54b63
     /// tsc-span: _tsc.js:70118-70120
-    ///
-    /// The JS-file initializer arm is checkJs band — elided with it.
     fn is_declaration_with_explicit_type_annotation(&self, node: NodeId) -> bool {
-        matches!(
+        let is_variable_like = matches!(
             self.kind_of(node),
             SyntaxKind::VariableDeclaration
                 | SyntaxKind::PropertyDeclaration
                 | SyntaxKind::PropertySignature
                 | SyntaxKind::Parameter
-        ) && self.effective_type_annotation_node(node).is_some()
+        );
+        if !is_variable_like {
+            return false;
+        }
+        if self.effective_type_annotation_node(node).is_some() {
+            return true;
+        }
+        if !self.is_in_js_file(node) {
+            return false;
+        }
+        let Some(initializer) = self.initializer_of(node) else {
+            return false;
+        };
+        matches!(
+            self.kind_of(initializer),
+            SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
+        ) && self.effective_return_type_node(initializer).is_some()
     }
 
     /// tsc-port: getExplicitTypeOfSymbol @6.0.3
@@ -3155,8 +3169,7 @@ impl<'a> CheckerState<'a> {
     /// materialize from the TypePredicate return node; unannotated
     /// boolean-returning function-likes take the LIVE body-inference
     /// arm (m6 7.6, getTypePredicateFromBody 79020-79074 — the
-    /// double-write pre-seed is the re-entrancy shield). The jsdoc
-    /// arm is checkJs band.
+    /// double-write pre-seed is the re-entrancy shield).
     pub(crate) fn get_type_predicate_of_signature(
         &mut self,
         signature: SignatureId,
@@ -3223,11 +3236,16 @@ impl<'a> CheckerState<'a> {
                 .create_type_predicate_from_type_predicate_node(return_type_node, signature)
                 .map(Some);
         }
+        if let Some(jsdoc_signature) = self.get_signature_of_type_tag(declaration)? {
+            if jsdoc_signature != signature {
+                if let Some(predicate) = self.get_type_predicate_of_signature(jsdoc_signature)? {
+                    return Ok(Some(predicate));
+                }
+            }
+        }
         // 59783-59788 body-inference arm (LIVE at m6 7.6): an
         // unannotated function-like whose (unforced) return-type slot
         // is vacant or Boolean proper, with at least one parameter.
-        // The jsdocPredicate leg (59774-59780) is elided with the
-        // JSDoc band (project-wide).
         if !node_util::is_function_like_declaration_kind(self.kind_of(declaration)) {
             return Ok(None);
         }
@@ -3301,16 +3319,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkIfExpressionRefinesAnyParameter @6.0.3
     /// tsc-hash: a2a835027b12af0c30ef0fb4ea278230f27a9436dff75c33d6e052ad032ef5b8
     /// tsc-span: _tsc.js:79041-79059
-    ///
-    /// skipParentheses(expr, /*excludeJSDocTypeAssertions*/ true) —
-    /// JSDoc type assertions are elided project-wide, so the plain
-    /// walk is the same function.
     fn check_if_expression_refines_any_parameter(
         &mut self,
         func: NodeId,
         expr: NodeId,
     ) -> CheckResult2<Option<TypePredicate>> {
-        let expr = self.skip_parentheses(expr);
+        let expr = self.skip_parentheses_excluding_jsdoc_type_assertions(expr);
         let return_type = self.check_expression_cached(expr, tsrs2_types::CheckMode::NORMAL)?;
         if !self
             .tables

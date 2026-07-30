@@ -19,11 +19,14 @@ files, and the matching conformance corpus. The vendored compiler is both the
 source-level specification for porting and the executable oracle used by the
 test harness.
 
-The supported compatibility target covers:
+The M8 compatibility surface covers the following. This is the completion
+target, not a claim that every row already matches:
 
 - batch syntactic and semantic diagnostics;
 - emit-free suggestion diagnostics;
 - grammar and unused diagnostic families;
+- checked JavaScript, including tsc-compatible JSDoc parsing, binding, type
+  resolution, and diagnostics;
 - multi-file programs with in-program and ambient/pattern-ambient module
   resolution;
 - exact diagnostic comparison from source location to message chains,
@@ -38,7 +41,6 @@ The following are deliberately out of scope:
   by supported diagnostic producers;
 - LSP, watch, and incremental operation;
 - a public `TypeChecker` API;
-- deep JSDoc-driven checking of JavaScript files;
 - compatibility with TypeScript versions newer than 6.0.3.
 
 These boundaries are diagnostic-identity based: excluded oracle rows remain
@@ -73,6 +75,17 @@ T4 activation and escape retirement remain M8 work. These are an anchored
 planning snapshot, not count-only completion gates. See the
 [M8 execution and close contract](docs/design/greenfield/m8-execution-and-close.md).
 
+The active `checkjs-jsdoc` work is a complete TypeScript 6.0.3 JSDoc
+subsystem port. An initial bounded materialization experiment proved that
+enabling individual tags before their template, import, signature, and
+host-scope dependencies are present changes real symbol behavior. M8 is
+therefore porting the JSDoc scanner/parser, arena nodes, binder paths,
+checker utilities, and diagnostic dispatch as one dependency-complete
+chain. Acceptance requires removal of the older checker-side comment
+projections; a partially activated JSDoc subsystem is not a landing unit.
+See the
+[complete JSDoc port contract](docs/design/greenfield/m8-jsdoc-ast-materialization.md).
+
 The expensive B2 Node coverage sweep is content-addressed. CI and local
 verification reuse the exact verified artifact when the Node pin, vendored
 compiler, corpus, inventory, and producer inputs are unchanged; the full
@@ -102,8 +115,12 @@ artifacts by every `cargo xtask ci` run:
 | View | Exact diagnostic match (T0) |
 | --- | --- |
 | All bands | **98.9373%** (48,503 / 49,024) |
-| 2xxx band | **97.7008%** (20,567 / 21,051) |
+| 2xxx all-corpus visibility | **97.7008%** (20,567 / 21,051) |
 | Syntactic | **100.0000%** (2,246 / 2,246) |
+
+The 2XXX supported scope is **100% complete** with zero T0 false
+negatives. Its all-corpus row above deliberately retains reviewed
+out-of-scope oracle diagnostics in the denominator.
 
 False positives are a hard gate: 0 on every merge. Escape
 ceilings: untagged 0, recovery 117. Non-2XXX family
@@ -173,11 +190,11 @@ Build and run the primary checks from the active workspace:
 git clone https://github.com/kazhiramatsu/tsc-rs.git
 cd tsc-rs/tsrs2
 
-cargo build --workspace
-cargo test --workspace
-cargo xtask conformance --band 2xxx
-cargo xtask ci
-cargo xtask completion
+CARGO_BUILD_JOBS=2 cargo build --workspace
+CARGO_BUILD_JOBS=2 cargo test --workspace -- --test-threads=2
+CARGO_BUILD_JOBS=2 cargo xtask conformance --band 2xxx
+CARGO_BUILD_JOBS=2 cargo xtask ci --baseline origin/main
+CARGO_BUILD_JOBS=2 cargo xtask completion
 ```
 
 `cargo xtask ci` is the full local merge gate and includes formatting,
@@ -187,6 +204,11 @@ README status freshness. See [setup and verification](docs/setup.md) for
 focused commands and environment details. `cargo xtask completion` writes
 the report-only M8/M9 completion matrix; its `--require-done` form is reserved
 for the post-M9 release gate.
+
+M8 implementation work keeps Cargo at two build jobs and two test threads,
+groups related focused tests into batches, and runs the complete local CI
+once for the candidate branch. The full conformance and content-addressed B2
+Node coverage sweeps are not editing-loop commands.
 
 ## Repository Layout
 
@@ -213,8 +235,10 @@ preserved at the `v1-final` tag.
 
 Porting is evidence-led: read the matching vendored `tsc` function, probe the
 oracle when behavior is ambiguous, capture immutable before evidence, and
-then implement the smallest producer-owned slice. Expected diagnostics and
-messages come from the oracle rather than memory.
+then implement the smallest dependency-complete producer slice. A subsystem
+whose parser, binder, and checker semantics are inseparable—currently
+JSDoc—lands only when that whole semantic chain is coherent. Expected
+diagnostics and messages come from the oracle rather than memory.
 
 Start with:
 

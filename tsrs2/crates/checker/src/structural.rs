@@ -12,8 +12,8 @@ use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
     AccessFlags, CheckFlags, ElementFlags, IndexFlags, InferenceFlags, InferencePriority,
     IntersectionFlags, IntersectionState, MappedTypeModifiers, ModifierFlags, ObjectFlags,
-    PseudoBigInt, RecursionFlags, SymbolFlags, TemplateText, Ternary, TupleTargetFlags, TypeData,
-    TypeFlags, TypeId, UnionReduction,
+    PseudoBigInt, RecursionFlags, SignatureFlags, SymbolFlags, TemplateText, Ternary,
+    TupleTargetFlags, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::engine::{is_false, is_true, ternary_and, RelationChecker};
@@ -2948,18 +2948,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .type_of(source)
                 .symbol
                 .and_then(|symbol| self.st.binder.symbol(symbol).value_declaration)
-                .is_some_and(|declaration| {
-                    self.st.is_js_constructor_without_jsdoc(declaration) == Some(true)
-                });
+                .is_some_and(|declaration| self.st.is_js_constructor(declaration));
             let target_is_js_constructor = self
                 .st
                 .tables
                 .type_of(target)
                 .symbol
                 .and_then(|symbol| self.st.binder.symbol(symbol).value_declaration)
-                .is_some_and(|declaration| {
-                    self.st.is_js_constructor_without_jsdoc(declaration) == Some(true)
-                });
+                .is_some_and(|declaration| self.st.is_js_constructor(declaration));
             if source_is_js_constructor && target_is_js_constructor {
                 return self.signatures_related_to(
                     source,
@@ -3811,9 +3807,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .st
                 .signature_of(target)
                 .declaration
-                .filter(|&declaration| {
-                    self.st.is_js_constructor_without_jsdoc(declaration) == Some(true)
-                })
+                .filter(|&declaration| self.st.is_js_constructor(declaration))
                 .and_then(|declaration| self.st.node_symbol(declaration))
                 .map(|symbol| self.st.get_merged_symbol(symbol))
             {
@@ -3837,9 +3831,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .st
                 .signature_of(source)
                 .declaration
-                .filter(|&declaration| {
-                    self.st.is_js_constructor_without_jsdoc(declaration) == Some(true)
-                })
+                .filter(|&declaration| self.st.is_js_constructor(declaration))
                 .and_then(|declaration| self.st.node_symbol(declaration))
                 .map(|symbol| self.st.get_merged_symbol(symbol))
             {
@@ -5481,15 +5473,30 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: isPrototypeProperty @6.0.3
-    /// tsc-hash: a0150259e3d1514eb8ec0975ce264af887321e6d865c941d8a3dace7eefa0a93
-    /// tsc-span: _tsc.js:74862-74864
-    ///
-    /// The JS valueDeclaration arm is dead in TS files.
+    /// tsc-hash: 207ce788baf9b71475e96f8eb9766636491049cf22405208a4f9d3587c69dbd8
+    /// tsc-span: _tsc.js:74862-74870
     pub(crate) fn is_prototype_property(&self, prop: SymbolId) -> bool {
-        self.symbol_flags(prop).intersects(SymbolFlags::METHOD)
+        if self.symbol_flags(prop).intersects(SymbolFlags::METHOD)
             || self
                 .get_check_flags(prop)
                 .intersects(CheckFlags::SYNTHETIC_METHOD)
+        {
+            return true;
+        }
+        let Some(value_declaration) = self.binder.symbol(prop).value_declaration else {
+            return false;
+        };
+        if !self.is_in_js_file(value_declaration) {
+            return false;
+        }
+        let Some(parent) = self.parent_of(value_declaration) else {
+            return false;
+        };
+        self.kind_of(parent) == SyntaxKind::BinaryExpression
+            && tsrs2_binder::assignment::get_assignment_declaration_kind(
+                self.binder.source_of_node(parent),
+                parent,
+            ) == tsrs2_binder::AssignmentDeclarationKind::PrototypeProperty
     }
 
     fn is_literal_type_public(&self, ty: TypeId) -> bool {
@@ -6055,17 +6062,24 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 049f21cf11685ae294ad5a29441b2addc02e7c766ab94220928627f0c3d993da
     /// tsc-span: _tsc.js:67445-67447
     pub(crate) fn get_declaring_class(&mut self, prop: SymbolId) -> CheckResult2<Option<TypeId>> {
-        let Some(parent) = self.binder.symbol(prop).parent else {
+        let Some(raw_parent) = self.binder.symbol(prop).parent else {
             return Ok(None);
         };
         if !self
             .binder
-            .symbol(parent)
+            .symbol(raw_parent)
             .flags
             .intersects(SymbolFlags::CLASS)
         {
             return Ok(None);
         }
+        // tsc tests the raw `prop.parent` flags, then deliberately
+        // obtains the declaration owner through getParentOfSymbol.
+        // That second step follows the initializer merge id to the
+        // inferred JS class carrying variable/prototype members.
+        let parent = self
+            .get_parent_of_symbol(prop)
+            .expect("a property parent remains present after merge resolution");
         Ok(Some(self.get_declared_type_of_class_or_interface(parent)?))
     }
 
@@ -7395,10 +7409,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:78287-78321
     ///
     /// The (StrongArityForUntypedJS|VoidIsNonOptional) flags parameter
-    /// is elided — every ported caller passes none, so the
-    /// resolvedMinArgumentCount cache reduces to recomputation; the
-    /// void-trimming loop lowers the syntactic count when trailing
-    /// parameters accept void.
+    /// is elided — every ported caller of this default face passes
+    /// none. Untyped JavaScript signatures therefore have minimum
+    /// arity zero; the void-trimming loop lowers other syntactic
+    /// counts when trailing parameters accept void.
     pub fn get_min_argument_count(&mut self, signature: SignatureId) -> CheckResult2<usize> {
         let mut computed: Option<usize> = None;
         if let Some((_, data)) = self.rest_tuple_target_data(signature)? {
@@ -7412,7 +7426,16 @@ impl<'a> CheckerState<'a> {
             }
         }
         let signature_data = self.signature_of(signature);
-        let mut min_argument_count = computed.unwrap_or(signature_data.min_argument_count as usize);
+        let mut min_argument_count = match computed {
+            Some(computed) => computed,
+            None if signature_data
+                .flags
+                .intersects(SignatureFlags::IS_UNTYPED_SIGNATURE_IN_JS_FILE) =>
+            {
+                return Ok(0);
+            }
+            None => signature_data.min_argument_count as usize,
+        };
         let mut i = min_argument_count;
         while i > 0 {
             i -= 1;
@@ -8809,6 +8832,69 @@ mod tests {
 
     fn checked_rows(text: &str) -> Vec<(u32, u32, u32)> {
         rows_and_partials(text).0
+    }
+
+    fn checked_js_rows(text: &str) -> Vec<(u32, u32, u32)> {
+        crate::state::test_support::with_program_state(
+            &[("a.js", text)],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(false),
+                ..CompilerOptions::default()
+            },
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| {
+                        diagnostic.file_name.is_some()
+                            && diagnostic.category() == tsrs2_diags::DiagnosticCategory::Error
+                    })
+                    .map(|diagnostic| {
+                        (
+                            diagnostic.code(),
+                            diagnostic.start.unwrap_or(u32::MAX),
+                            diagnostic.length.unwrap_or(u32::MAX),
+                        )
+                    })
+                    .collect()
+            },
+        )
+    }
+
+    #[test]
+    fn js_prototype_placeholder_is_a_prototype_property_override() {
+        assert_eq!(
+            checked_js_rows(
+                "class Module {}\nModule.prototype.identifier = undefined;\nclass NormalModule extends Module { identifier() { return \"normal\"; } }\n"
+            ),
+            []
+        );
+
+        let ordinary =
+            "class Base { constructor() { this.p = 1; } }\nclass Derived extends Base { p() {} }\n";
+        // The ordinary number-property/function override owns two
+        // independent tsc rows: 2416 from issueMemberSpecificError
+        // and 2425 from checkKindsOfPropertyMemberOverrides. The JS
+        // prototype placeholders above are special only to the latter
+        // predicate and remain clean in both passes.
+        assert_eq!(
+            checked_js_rows(ordinary),
+            [
+                (
+                    2416,
+                    ordinary.find("p()").expect("derived method") as u32,
+                    1
+                ),
+                (
+                    2425,
+                    ordinary.find("p()").expect("derived method") as u32,
+                    1
+                )
+            ]
+        );
     }
 
     /// The containment-aware face (7.5d review): a `(rows, 0)` pin

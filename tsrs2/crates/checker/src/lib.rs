@@ -22,6 +22,7 @@ pub mod instantiate;
 pub mod intersect;
 pub mod iterate;
 mod js_grammar;
+mod jsdoc;
 pub mod jsx;
 pub mod links;
 pub mod literals;
@@ -174,45 +175,13 @@ fn can_include_bind_and_check_diagnostics(
 /// tsc isPlainJsFile (12876): a JS/JSX file is "plain" only when
 /// neither a per-file check directive nor the project-level checkJs
 /// option was supplied. Checked JS uses the same comment-directive
-/// merge as TypeScript files; until M8 completes JS/JSDoc semantics,
-/// only the supported subset is exposed after directive matching.
+/// merge as TypeScript files.
 fn is_plain_js_file(
     javascript_file: bool,
     directive: Option<CheckDirective>,
     options: &CompilerOptions,
 ) -> bool {
     javascript_file && directive.is_none() && options.check_js.is_none()
-}
-
-fn is_published_checked_js_diagnostic(
-    state: &state::CheckerState<'_>,
-    diagnostic: &Diagnostic,
-) -> bool {
-    if diagnostic.file_name.is_none() {
-        return state
-            .fileless_jsdoc_js_diagnostic_codes
-            .contains(&diagnostic.code());
-    }
-    diagnostic
-        .file_name
-        .as_ref()
-        .zip(diagnostic.start)
-        .zip(diagnostic.length)
-        .map(|((file, start), length)| (file.clone(), start, length, diagnostic.code()))
-        .is_some_and(|key| {
-            state.non_jsdoc_js_diagnostics.contains(&key)
-                || state.jsdoc_js_diagnostics.contains(&key)
-        })
-}
-
-/// tsrs-native: checked-JS publication frontier for diagnostics whose
-/// direct producer is the binder rather than CheckerState.
-///
-/// bindNamespaceExportDeclaration already produces the exact tsc
-/// diagnostic. Publish its declaration-file guard only when the JS
-/// file is checked; plain JS retains the closed plainJSErrors surface.
-fn is_published_checked_js_bind_diagnostic(diagnostic: &Diagnostic) -> bool {
-    diagnostic.code() == 1315
 }
 
 /// tsc-port: markPrecedingCommentDirectiveLine @6.0.3
@@ -950,6 +919,7 @@ pub fn check_program_with_libs_at(
                 detect_external_module_from_jsx,
                 node_id_base,
                 node_array_id_base,
+                js_doc_parsing_mode: tsrs2_syntax::JSDocParsingMode::ParseAll,
             },
             None,
         );
@@ -1038,13 +1008,17 @@ pub fn check_program_with_libs_at(
                         .expect("all parsed sources have a directive-use set");
                     let filtered = filter_by_comment_directives_and_mark_used(
                         source_file,
-                        binder.bind_diagnostics.iter().cloned(),
+                        binder
+                            .bind_diagnostics
+                            .iter()
+                            .cloned()
+                            // tsc getBindAndCheckDiagnosticsForFileNoCache:
+                            // checked JS appends SourceFile.jsDocDiagnostics
+                            // to the same directive-aware diagnostic stream.
+                            .chain(source_file.js_doc_diagnostics.iter().cloned()),
                         Some(used),
                     );
-                    diagnostics.extend(filtered.into_iter().filter(|diagnostic| {
-                        plain_js_errors::is_plain_js_error(diagnostic.code())
-                            || is_published_checked_js_bind_diagnostic(diagnostic)
-                    }));
+                    diagnostics.extend(filtered);
                 }
             } else {
                 let used = used_directive_lines
@@ -1133,14 +1107,6 @@ pub fn check_program_with_libs_at(
                 state.check_source_file(index);
             }
         }
-        let jsdoc_diagnostic_spans: std::collections::HashSet<(String, u32, u32)> = state
-            .jsdoc_typed_declarations
-            .iter()
-            .map(|&declaration| {
-                let span = state.diag_span_of_node(declaration);
-                (span.file_name, span.start, span.length)
-            })
-            .collect();
         let lib_names: std::collections::HashSet<&str> = lib_sources
             .iter()
             .map(|source| source.file_name.as_str())
@@ -1153,11 +1119,11 @@ pub fn check_program_with_libs_at(
         // 123717): plain JS files filter check diagnostics to the
         // plainJSErrors allowlist and skip the directive merge;
         // TypeScript and checked JS run the comment-directive filter.
-        // File-less checker diagnostics are global diagnostics in
-        // tsc. The provenance-checked global getters clone their
-        // observable rows into visible_global_diagnostics; the raw
-        // file-less sink remains private so unreviewed lazy noLib
-        // probes do not leak through this aggregate API.
+        // File-less checker diagnostics are global diagnostics in tsc.
+        // The global getters mirror getDiagnosticsWorker's snapshot and
+        // copy only observable deferred rows into
+        // visible_global_diagnostics; the raw file-less sink also contains
+        // initialization-time probes and is not collected here.
         let mut checker_diagnostics_by_file: std::collections::BTreeMap<
             Option<String>,
             Vec<tsrs2_diags::Diagnostic>,
@@ -1206,7 +1172,6 @@ pub fn check_program_with_libs_at(
                         diagnostics.extend(file_diagnostics.into_iter().filter(|diagnostic| {
                             plain_js_errors::is_plain_js_error(diagnostic.code())
                                 || diagnostic.category() == DiagnosticCategory::Suggestion
-                                    && is_published_checked_js_diagnostic(&state, diagnostic)
                         }));
                     } else {
                         let used = used_directive_lines
@@ -1217,34 +1182,12 @@ pub fn check_program_with_libs_at(
                             file_diagnostics.into_iter(),
                             Some(used),
                         );
-                        diagnostics.extend(filtered.into_iter().filter(|diagnostic| {
-                            plain_js_errors::is_plain_js_error(diagnostic.code())
-                                || diagnostic.code() == 2349
-                                || (diagnostic.code() == 2322
-                                    && diagnostic
-                                        .file_name
-                                        .as_ref()
-                                        .zip(diagnostic.start)
-                                        .zip(diagnostic.length)
-                                        .is_some_and(|((file, start), length)| {
-                                            jsdoc_diagnostic_spans.contains(&(
-                                                file.clone(),
-                                                start,
-                                                length,
-                                            ))
-                                        }))
-                                || is_published_checked_js_diagnostic(&state, diagnostic)
-                        }));
+                        diagnostics.extend(filtered);
                     }
                 }
                 continue;
             }
             if file_name.is_none() {
-                diagnostics.extend(
-                    file_diagnostics.into_iter().filter(|diagnostic| {
-                        is_published_checked_js_diagnostic(&state, diagnostic)
-                    }),
-                );
                 continue;
             }
             if let Some(source) = file_name.as_deref().and_then(|name| by_name.get(name)) {
@@ -1422,6 +1365,7 @@ fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static 
                 detect_external_module_from_jsx: false,
                 node_id_base,
                 node_array_id_base,
+                js_doc_parsing_mode: tsrs2_syntax::JSDocParsingMode::ParseAll,
             },
             None,
         ));
@@ -3609,6 +3553,140 @@ mod tests {
         );
     }
 
+    fn checked_js_codes(source: &str) -> Vec<u32> {
+        check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                no_implicit_any: Some(true),
+                ..CompilerOptions::default()
+            },
+        )
+        .diagnostics
+        .iter()
+        .map(|diagnostic| diagnostic.code())
+        .collect()
+    }
+
+    fn checked_js_codes_with_function_prototype(source: &str) -> Vec<u32> {
+        // getPropertyOfType 59348-59389 augments a callable with the
+        // global Function face. The upstream fixture uses the default
+        // lib, whose lib.es5.d.ts:299 declares `prototype: any`.
+        check_program_with_libs(
+            &[es5_lib()],
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                no_implicit_any: Some(true),
+                ..CompilerOptions::default()
+            },
+        )
+        .diagnostics
+        .iter()
+        .map(|diagnostic| diagnostic.code())
+        .collect()
+    }
+
+    #[test]
+    fn checked_js_bare_prototype_access_type_annotates_the_assignment_symbol() {
+        // getWidenedTypeForAssignmentDeclaration 56247-56263 keeps a
+        // bare access declaration as the expression, so its @type
+        // participates in the earlier constructor assignment.
+        assert_eq!(
+            checked_js_codes_with_function_prototype(
+                "function C() { this.x = false; }\n\
+                 /** @type {number} */\n\
+                 C.prototype.x;\n\
+                 new C().x;\n"
+            ),
+            [2322]
+        );
+    }
+
+    #[test]
+    fn checked_js_bare_prototype_access_without_type_does_not_constrain_the_assignment() {
+        assert_eq!(
+            checked_js_codes_with_function_prototype(
+                "function C() { this.x = false; }\n\
+                 C.prototype.x;\n\
+                 new C().x;\n"
+            ),
+            Vec::<u32>::new()
+        );
+    }
+
+    #[test]
+    fn checked_js_chained_prototype_replacement_uses_the_rightmost_object_literal() {
+        // getAssignedJSPrototype 77594-77606 reads
+        // getInitializerOfBinaryExpression, so both A and B acquire
+        // the object-literal class face.
+        assert_eq!(
+            checked_js_codes(
+                "var A = function A() {};\n\
+                 var B = function B() {};\n\
+                 A.prototype = B.prototype = {\n\
+                   /** @param {number} n */\n\
+                   m(n) { return n + 1; }\n\
+                 };\n\
+                 new A().m('bad');\n\
+                 new B().m('bad');\n"
+            ),
+            [2345, 2345]
+        );
+    }
+
+    #[test]
+    fn checked_js_non_object_chained_prototype_replacement_does_not_invent_members() {
+        let codes = checked_js_codes(
+            // isJSConstructor 77509-77522 requires an instance member:
+            // establish constructability before the primitive prototype
+            // assignment, then verify that the assignment neither removes
+            // that face nor invents `missing`.
+            "var A = function A() { this.a = 1; };\n\
+             var B = function B() { this.b = 2; };\n\
+             A.prototype = B.prototype = 0;\n\
+             new A().missing;\n",
+        );
+        assert!(codes.contains(&2339), "{codes:?}");
+        assert!(!codes.contains(&7009), "{codes:?}");
+    }
+
+    #[test]
+    fn checked_js_exported_arrow_expando_keeps_its_own_property_annotation() {
+        // getTypeOfFuncClassEnumModule 56808-56827 publishes the
+        // merged initializer/expando type on both link faces.
+        assert_eq!(
+            checked_js_codes(
+                "/** @type {{ (): boolean; nuo: 789 }} */\n\
+                 export const conflicting = () => true;\n\
+                 /** @type {1000} */\n\
+                 conflicting.nuo = 789;\n"
+            ),
+            [2322]
+        );
+    }
+
+    #[test]
+    fn checked_js_exported_arrow_matching_expando_annotation_is_clean() {
+        assert_eq!(
+            checked_js_codes(
+                "/** @type {{ (): boolean; nuo: 789 }} */\n\
+                 export const matching = () => true;\n\
+                 /** @type {789} */\n\
+                 matching.nuo = 789;\n"
+            ),
+            Vec::<u32>::new()
+        );
+    }
+
     #[test]
     fn function_return_annotation_is_not_an_expando_parent_annotation() {
         assert_eq!(
@@ -4934,12 +5012,13 @@ mod tests {
     }
 
     #[test]
-    fn checked_js_contains_jsdoc_symbol_free_property_misses() {
+    fn checked_js_publishes_jsdoc_symbol_free_property_misses() {
+        let source = "/** @type {number} */\nconst n = 1;\nn.missing;\n";
         let result = check_program_with_libs(
             &[es5_lib()],
             &[InputFile {
                 name: "a.js".to_owned(),
-                text: "/** @type {number} */\nconst n = 1;\nn.missing;\n".to_owned(),
+                text: source.to_owned(),
             }],
             &CompilerOptions {
                 allow_js: true,
@@ -4947,13 +5026,21 @@ mod tests {
                 ..CompilerOptions::default()
             },
         );
-        assert!(
+        assert_eq!(
             result
                 .diagnostics
                 .iter()
-                .all(|diagnostic| diagnostic.code() != 2339),
-            "{:#?}",
-            result.diagnostics
+                .map(|diagnostic| (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [(
+                2339,
+                source.find("missing").expect("missing property") as u32,
+                "missing".len() as u32,
+            )]
         );
     }
 
@@ -4999,7 +5086,8 @@ mod tests {
     }
 
     #[test]
-    fn checked_js_contains_non_js_declared_prototype_replacements() {
+    fn checked_js_non_js_declared_prototype_replacement_reports_assignment_type() {
+        let source = "C.prototype = {};\nC.bar = 2;\n";
         let result = check_program(
             &[
                 InputFile {
@@ -5008,7 +5096,7 @@ mod tests {
                 },
                 InputFile {
                     name: "a.js".to_owned(),
-                    text: "C.prototype = {};\nC.bar = 2;\n".to_owned(),
+                    text: source.to_owned(),
                 },
             ],
             &CompilerOptions {
@@ -5017,13 +5105,21 @@ mod tests {
                 ..CompilerOptions::default()
             },
         );
-        assert!(
+        assert_eq!(
             result
                 .diagnostics
                 .iter()
-                .all(|diagnostic| diagnostic.code() != 2339),
-            "{:#?}",
-            result.diagnostics
+                .map(|diagnostic| (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [(
+                2322,
+                source.find("C.bar").expect("typed assignment") as u32,
+                "C.bar".len() as u32,
+            )]
         );
     }
 
@@ -5076,14 +5172,7 @@ mod tests {
                 ..CompilerOptions::default()
             },
         );
-        assert!(
-            result
-                .diagnostics
-                .iter()
-                .all(|diagnostic| diagnostic.code() != 2339),
-            "{:#?}",
-            result.diagnostics
-        );
+        assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     }
 
     #[test]
@@ -5171,6 +5260,8 @@ mod tests {
                 ..CompilerOptions::default()
             },
         );
+        // TS 6.0.3 exact identity: both imported assignment sites are
+        // rejected, producing these two 2339 rows.
         assert_eq!(
             result
                 .diagnostics
@@ -5182,12 +5273,20 @@ mod tests {
                     diagnostic.length.unwrap_or(u32::MAX),
                 ))
                 .collect::<Vec<_>>(),
-            [(
-                Some("main.js"),
-                2339,
-                source.find("missing").expect("missing property") as u32,
-                "missing".len() as u32,
-            )]
+            [
+                (
+                    Some("main.js"),
+                    2339,
+                    source.find("missing").expect("missing property") as u32,
+                    "missing".len() as u32,
+                ),
+                (
+                    Some("main.js"),
+                    2339,
+                    source.find("added").expect("added property") as u32,
+                    "added".len() as u32,
+                ),
+            ]
         );
     }
 
@@ -5222,11 +5321,18 @@ mod tests {
                     diagnostic.length.unwrap_or(u32::MAX),
                 ))
                 .collect::<Vec<_>>(),
-            [(
-                2339,
-                source.find("#missing").expect("missing private name") as u32,
-                "#missing".len() as u32,
-            )]
+            [
+                (
+                    7008,
+                    source.find("#known").expect("unused private field") as u32,
+                    "#known".len() as u32,
+                ),
+                (
+                    2339,
+                    source.find("#missing").expect("missing private name") as u32,
+                    "#missing".len() as u32,
+                ),
+            ]
         );
     }
 
@@ -5298,6 +5404,8 @@ mod tests {
                 ..CompilerOptions::default()
             },
         );
+        // TS 6.0.3 exact identity: prototype plus both direct access
+        // sites produce three 2339 rows.
         assert_eq!(
             result
                 .diagnostics
@@ -5309,12 +5417,26 @@ mod tests {
                     diagnostic.message_text(),
                 ))
                 .collect::<Vec<_>>(),
-            [(
-                2339,
-                source.find("prototype").expect("chained missing property") as u32,
-                "prototype".len() as u32,
-                "Property 'prototype' does not exist on type '{}'.",
-            )]
+            [
+                (
+                    2339,
+                    source.find("prototype").expect("chained missing property") as u32,
+                    "prototype".len() as u32,
+                    "Property 'prototype' does not exist on type '{}'.",
+                ),
+                (
+                    2339,
+                    source.find("direct").expect("direct assignment miss") as u32,
+                    "direct".len() as u32,
+                    "Property 'direct' does not exist on type '{}'.",
+                ),
+                (
+                    2339,
+                    source.rfind("direct").expect("direct read miss") as u32,
+                    "direct".len() as u32,
+                    "Property 'direct' does not exist on type '{}'.",
+                ),
+            ]
         );
     }
 
@@ -5323,6 +5445,10 @@ mod tests {
         let source = "/** @constructor */\n\
                       var Multimap = function() {\n\
                         this._map = {};\n\
+                        this._map;\n\
+                        this.set;\n\
+                        this.get;\n\
+                        this.addon;\n\
                       };\n\
                       Multimap.prototype = {\n\
                         set: function() {},\n\
@@ -5360,11 +5486,77 @@ mod tests {
                     diagnostic.message_text(),
                 ))
                 .collect::<Vec<_>>(),
+            [
+                (
+                    2339,
+                    (source
+                        .find("Multimap.prototype.addon")
+                        .expect("missing prototype property")
+                        + "Multimap.prototype.".len()) as u32,
+                    "addon".len() as u32,
+                    "Property 'addon' does not exist on type '{ set: () => void; get(): void; }'.",
+                ),
+                (
+                    2339,
+                    source
+                        .find("incremental")
+                        .expect("plain prototype property") as u32,
+                    "incremental".len() as u32,
+                    "Property 'incremental' does not exist on type '{ existing(): void; }'.",
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn checked_js_nested_constructor_this_uses_merged_prototype_members() {
+        let source = "(function container() {\n\
+                        /** @constructor */\n\
+                        var Multimap = function() {\n\
+                          this._map = {};\n\
+                          this._map;\n\
+                          this.set;\n\
+                          this.get;\n\
+                          this.addon;\n\
+                        };\n\
+                        Multimap.prototype = {\n\
+                          set: function() {},\n\
+                          get() {}\n\
+                        };\n\
+                        Multimap.prototype.addon = function() {};\n\
+                      })();\n";
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        // Preserve the existing assignment-LHS canary while proving
+        // the earlier constructor read sees the inferred JS class's
+        // complete prototype member set.
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
             [(
                 2339,
-                source.find("addon").expect("missing prototype property") as u32,
+                (source
+                    .find("Multimap.prototype.addon")
+                    .expect("missing prototype property")
+                    + "Multimap.prototype.".len()) as u32,
                 "addon".len() as u32,
-                "Property 'addon' does not exist on type '{ set: () => void; get(): void; }'.",
             )]
         );
     }
@@ -5398,19 +5590,75 @@ mod tests {
                     diagnostic.message_text(),
                 ))
                 .collect::<Vec<_>>(),
+            [
+                (
+                    2339,
+                    source.find("missing").expect("satisfies-backed miss") as u32,
+                    "missing".len() as u32,
+                    "Property 'missing' does not exist on type '{ present: number; }'.",
+                ),
+                (
+                    2339,
+                    source.find("hidden").expect("type-assertion-backed miss") as u32,
+                    "hidden".len() as u32,
+                    "Property 'hidden' does not exist on type '{ present: number; }'.",
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn checked_js_valid_template_nested_prototype_read_is_parse_all_crash_guard() {
+        // TypeScript 6.0.3 with ParseAll crashes in
+        // typeToString -> lookupSymbolChainWorker while trying to
+        // format the otherwise expected 2339 for `missing`. Keep this
+        // fixture as a crash-free valid-JSDoc guard; the non-crashing
+        // oracle face for the prototype read is pinned separately.
+        let source = "/** @template T */\n\
+                      class Outer {\n\
+                        method() {\n\
+                          class Inner {\n\
+                            static check() {\n\
+                              this.prototype.missing;\n\
+                            }\n\
+                          }\n\
+                          Inner;\n\
+                        }\n\
+                      }\n";
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                    diagnostic.message_text(),
+                ))
+                .collect::<Vec<_>>(),
             [(
-                2339,
-                source.find("missing").expect("satisfies-backed miss") as u32,
-                "missing".len() as u32,
-                "Property 'missing' does not exist on type '{ present: number; }'.",
+                6133,
+                source.find("@template").expect("unused template tag") as u32,
+                12,
+                "'T' is declared but its value is never read.",
             )]
         );
     }
 
     #[test]
     fn checked_js_publishes_this_prototype_class_property_reads() {
-        let source = "/** @template T */\n\
-                      class Outer {\n\
+        let source = "class Outer {\n\
                         method() {\n\
                           class Inner {\n\
                             static check() {\n\
@@ -5527,12 +5775,20 @@ mod tests {
                     diagnostic.message_text(),
                 ))
                 .collect::<Vec<_>>(),
-            [(
-                2339,
-                source.find("missing").expect("lexical class this miss") as u32,
-                "missing".len() as u32,
-                "Property 'missing' does not exist on type 'C'.",
-            )]
+            [
+                (
+                    2730,
+                    source.find("@this").expect("JSDoc this tag") as u32 + 1,
+                    "this".len() as u32,
+                    "An arrow function cannot have a 'this' parameter.",
+                ),
+                (
+                    2339,
+                    source.find("missing").expect("lexical class this miss") as u32,
+                    "missing".len() as u32,
+                    "Property 'missing' does not exist on type 'C'.",
+                ),
+            ]
         );
     }
 
@@ -5830,7 +6086,7 @@ mod tests {
     }
 
     #[test]
-    fn checked_js_jsdoc_augments_reports_effective_host_and_fileless_faces() {
+    fn checked_js_jsdoc_augments_reports_only_effective_hosts() {
         let source = "/** @extends {A} */\n\
                       /** @constructor */\n\
                       class A {}\n\
@@ -5920,6 +6176,97 @@ mod tests {
     }
 
     #[test]
+    fn checked_js_detached_augments_document_keeps_fileless_8022() {
+        let source = "class A {}\n\
+                      /** @extends {A} */\n\
+                      \n\
+                      /** @constructor */\n\
+                      class B extends A {}\n";
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                target: Some(99),
+                ..CompilerOptions::default()
+            },
+        );
+        let rows = result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 8022)
+            .map(|diagnostic| {
+                (
+                    diagnostic.file_name.as_deref(),
+                    diagnostic.start,
+                    diagnostic.length,
+                    diagnostic.message_text(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            rows,
+            [(
+                None,
+                None,
+                None,
+                "JSDoc '@extends' is not attached to a class.",
+            )],
+            "{:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
+    fn checked_js_detached_implements_document_keeps_fileless_8022() {
+        let source = "class A {}\n\
+                      /** @implements {A} */\n\
+                      /** @constructor */\n\
+                      class B {}\n\
+                      /** @implements {A} */\n\
+                      class C {}\n";
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                target: Some(99),
+                ..CompilerOptions::default()
+            },
+        );
+        let rows = result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 8022)
+            .map(|diagnostic| {
+                (
+                    diagnostic.file_name.as_deref(),
+                    diagnostic.start,
+                    diagnostic.length,
+                    diagnostic.message_text(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            rows,
+            [(
+                None,
+                None,
+                None,
+                "JSDoc '@implements' is not attached to a class.",
+            )],
+            "{:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
     fn jsdoc_augments_projection_preserves_matching_siblings_and_typescript() {
         let valid_js = "class A {}\n\
                         /** @extends {A} */\n\
@@ -5956,6 +6303,114 @@ mod tests {
                     .iter()
                     .all(|diagnostic| !matches!(diagnostic.code(), 8022 | 8023)),
                 "{name}: {:#?}",
+                result.diagnostics
+            );
+        }
+    }
+
+    #[test]
+    fn checked_js_set_only_accessors_use_jsdoc_parameter_annotations() {
+        let source = "// @ts-check\n\
+                      class C {\n\
+                        /** @param {string} value */\n\
+                        set instance(value) {}\n\
+                        /** @param {number} value */\n\
+                        static set stat(value) {}\n\
+                      }\n\
+                      const c = new C();\n\
+                      c.instance = 1;\n\
+                      C.stat = \"bad\";\n";
+        for target in [1, 2] {
+            let result = check_program(
+                &[InputFile {
+                    name: "a.js".to_owned(),
+                    text: source.to_owned(),
+                }],
+                &CompilerOptions {
+                    allow_js: true,
+                    check_js: Some(true),
+                    strict: Some(true),
+                    target: Some(target),
+                    ..CompilerOptions::default()
+                },
+            );
+            assert_eq!(
+                result
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| matches!(diagnostic.code(), 2322 | 7032))
+                    .map(|diagnostic| (
+                        diagnostic.code(),
+                        diagnostic.start.unwrap_or(u32::MAX),
+                        diagnostic.length.unwrap_or(u32::MAX),
+                    ))
+                    .collect::<Vec<_>>(),
+                [
+                    (
+                        2322,
+                        source.find("c.instance").expect("instance assignment") as u32,
+                        "c.instance".len() as u32,
+                    ),
+                    (
+                        2322,
+                        source.find("C.stat").expect("static assignment") as u32,
+                        "C.stat".len() as u32,
+                    ),
+                ],
+                "target {target}: {:#?}",
+                result.diagnostics
+            );
+        }
+    }
+
+    #[test]
+    fn checked_js_super_call_uses_effective_jsdoc_extends_type_arguments() {
+        let source = "// @ts-check\n\
+                      /** @template T */\n\
+                      class Base {\n\
+                        /** @param {T} value */\n\
+                        constructor(value) {}\n\
+                      }\n\
+                      /** @template U @extends {Base<U>} */\n\
+                      class Derived extends Base {\n\
+                        /** @param {U} value */\n\
+                        constructor(value) { super(value); }\n\
+                      }\n\
+                      /** @extends {Base<number>} */\n\
+                      class Fixed extends Base {\n\
+                        constructor() { super(\"bad\"); }\n\
+                      }\n";
+        for target in [1, 2] {
+            let result = check_program(
+                &[InputFile {
+                    name: "a.js".to_owned(),
+                    text: source.to_owned(),
+                }],
+                &CompilerOptions {
+                    allow_js: true,
+                    check_js: Some(true),
+                    strict: Some(true),
+                    target: Some(target),
+                    ..CompilerOptions::default()
+                },
+            );
+            assert_eq!(
+                result
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| matches!(diagnostic.code(), 2345 | 2346))
+                    .map(|diagnostic| (
+                        diagnostic.code(),
+                        diagnostic.start.unwrap_or(u32::MAX),
+                        diagnostic.length.unwrap_or(u32::MAX),
+                    ))
+                    .collect::<Vec<_>>(),
+                [(
+                    2345,
+                    source.find("\"bad\"").expect("invalid super argument") as u32,
+                    "\"bad\"".len() as u32,
+                )],
+                "target {target}: {:#?}",
                 result.diagnostics
             );
         }
@@ -6038,6 +6493,63 @@ mod tests {
         );
 
         assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    }
+
+    #[test]
+    fn jsdoc_parse_diagnostics_publish_only_for_checked_js_semantics() {
+        let text = "/**\n * @typedef Name\n * @type {string}\n * @type {Oops}\n */";
+        let checked = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: text.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(
+            checked
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code() == 8033),
+            "{:#?}",
+            checked.diagnostics
+        );
+        assert!(
+            checked
+                .syntactic_diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code() != 8033),
+            "{:#?}",
+            checked.syntactic_diagnostics
+        );
+
+        for (source, check_js) in [
+            (text.to_owned(), false),
+            (format!("// @ts-nocheck\n{text}"), true),
+        ] {
+            let result = check_program(
+                &[InputFile {
+                    name: "a.js".to_owned(),
+                    text: source,
+                }],
+                &CompilerOptions {
+                    allow_js: true,
+                    check_js: Some(check_js),
+                    ..CompilerOptions::default()
+                },
+            );
+            assert!(
+                result
+                    .diagnostics
+                    .iter()
+                    .all(|diagnostic| diagnostic.code() != 8033),
+                "{:#?}",
+                result.diagnostics
+            );
+        }
     }
 
     #[test]

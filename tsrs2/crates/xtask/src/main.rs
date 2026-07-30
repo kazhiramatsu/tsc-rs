@@ -34,6 +34,7 @@ fn main() {
         Some("token-diff") => run_or_exit(token_diff(args)),
         Some("ast-dump") => run_or_exit(ast_dump(args)),
         Some("ast-diff") => run_or_exit(ast_diff(args)),
+        Some("jsdoc-ast-diff") => run_or_exit(jsdoc_ast_diff(args)),
         Some("recovery-census") => run_or_exit(recovery_census::run(args)),
         Some("symbol-diff") => run_or_exit(symbol_diff(args)),
         Some("lib-gate") => run_or_exit(lib_gate(args)),
@@ -2646,6 +2647,581 @@ struct AstDumpResult {
     dump: String,
     #[serde(rename = "parseErrors")]
     parse_errors: usize,
+}
+
+/// Compare the parser-owned JSDoc attachment graph against the vendored
+/// TypeScript runtime.  Ordinary `ast-diff` intentionally follows
+/// `forEachChild`, which does not enter `node.jsDoc`; this command owns that
+/// separate tree and compares every observable stored field.
+fn jsdoc_ast_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let args = parse_token_diff_args(args)?;
+    let workspace = find_tsrs2_root()?;
+    let mut files = if args.corpus {
+        collect_fixture_paths(&workspace.join("ts-tests/tests/cases/conformance"))?
+            .into_iter()
+            .filter(|path| is_javascript_or_typescript_path(path))
+            .collect()
+    } else {
+        args.files
+    };
+    if files.is_empty() {
+        return Err("jsdoc-ast-diff requires --files or a file path".into());
+    }
+    files.sort();
+    if let Some(limit) = args.limit {
+        files.truncate(limit);
+    }
+
+    let mut oracle = JsDocAstDumpOracle::spawn(&workspace)?;
+    let mut compared = 0usize;
+    let mut with_jsdoc = 0usize;
+    let mut differing = 0usize;
+    let mut failures = String::new();
+    let mut failure_details = Vec::new();
+    for file in &files {
+        let text = fs::read_to_string(file)?;
+        let file_name = file.to_string_lossy();
+        let rust = rust_jsdoc_ast_dump(&file_name, &text);
+        let oracle_raw = oracle.jsdoc_ast_dump(file, &text, &file_name)?;
+        let expected = project_oracle_jsdoc_dump(&oracle_raw)?;
+        compared += 1;
+        if rust
+            .get("jsDocAttachments")
+            .and_then(serde_json::Value::as_array)
+            .is_some_and(|attachments| !attachments.is_empty())
+            || expected
+                .get("jsDocAttachments")
+                .and_then(serde_json::Value::as_array)
+                .is_some_and(|attachments| !attachments.is_empty())
+        {
+            with_jsdoc += 1;
+        }
+        if rust != expected {
+            differing += 1;
+            let rust_text = serde_json::to_string_pretty(&rust)?;
+            let expected_text = serde_json::to_string_pretty(&expected)?;
+            let (line, left, right) = first_diff(&rust_text, &expected_text);
+            let entry = format!(
+                "diff {} line {}:\n  tsrs:   {}\n  oracle: {}",
+                file.display(),
+                line,
+                left.unwrap_or("<missing>"),
+                right.unwrap_or("<missing>")
+            );
+            if differing <= 10 {
+                println!("{entry}");
+            }
+            failures.push_str(&entry);
+            failures.push('\n');
+            failure_details.push(serde_json::json!({
+                "file": file,
+                "tsrs": rust,
+                "oracle": expected,
+            }));
+        }
+    }
+
+    let failures_path = workspace.join("target/jsdoc-ast-diff-failures.txt");
+    if let Some(parent) = failures_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(&failures_path, failures)?;
+    let details_path = workspace.join("target/jsdoc-ast-diff-details.json");
+    fs::write(
+        &details_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "schema": 1,
+            "differing": failure_details.len(),
+            "failures": failure_details,
+        }))?,
+    )?;
+    println!("JSDoc AST diff: files={compared} with-jsdoc={with_jsdoc} differing={differing}");
+    println!("failures: {}", failures_path.display());
+    println!("details: {}", details_path.display());
+    if differing > 0 {
+        return Err(format!("JSDoc AST diff failed: {differing}/{compared} files differ").into());
+    }
+    Ok(())
+}
+
+fn is_javascript_or_typescript_path(path: &Path) -> bool {
+    matches!(
+        path.extension().and_then(|extension| extension.to_str()),
+        Some("js" | "jsx" | "mjs" | "cjs" | "ts" | "tsx" | "mts" | "cts")
+    )
+}
+
+fn is_javascript_path(path: &Path) -> bool {
+    matches!(
+        path.extension().and_then(|extension| extension.to_str()),
+        Some("js" | "jsx" | "mjs" | "cjs")
+    )
+}
+
+#[derive(Clone, Debug)]
+struct JsDocDumpEntry {
+    node: tsrs2_syntax::NodeId,
+    depth: usize,
+    children: Vec<String>,
+}
+
+fn add_jsdoc_dump_node(
+    arena: &tsrs2_syntax::NodeArena,
+    node: tsrs2_syntax::NodeId,
+    prefix: char,
+    depth: usize,
+    ids: &mut BTreeMap<tsrs2_syntax::NodeId, String>,
+    entries: &mut Vec<JsDocDumpEntry>,
+) -> String {
+    if let Some(id) = ids.get(&node) {
+        return id.clone();
+    }
+    let id = format!("{prefix}{}", entries.len());
+    ids.insert(node, id.clone());
+    let entry_index = entries.len();
+    entries.push(JsDocDumpEntry {
+        node,
+        depth,
+        children: Vec::new(),
+    });
+    let mut children = Vec::new();
+    tsrs2_syntax::for_each_child(arena, arena.node(node), |child| {
+        children.push(child);
+        false
+    });
+    for child in children {
+        let child_id = add_jsdoc_dump_node(arena, child, prefix, depth + 1, ids, entries);
+        entries[entry_index].children.push(child_id);
+    }
+    id
+}
+
+fn rust_jsdoc_ast_dump(file_name: &str, text: &str) -> serde_json::Value {
+    let path = Path::new(file_name);
+    let source = tsrs2_syntax::parse_source_file(
+        file_name,
+        text,
+        tsrs2_syntax::ParseOptions {
+            language_variant: language_variant_for_path(path),
+            javascript_file: is_javascript_path(path),
+            js_doc_parsing_mode: tsrs2_syntax::JSDocParsingMode::ParseAll,
+            ..tsrs2_syntax::ParseOptions::default()
+        },
+        None,
+    );
+    let to_utf16 = |pos: u32| -> u32 {
+        source
+            .line_map
+            .byte_to_utf16
+            .get(pos as usize)
+            .copied()
+            .unwrap_or(pos)
+    };
+
+    let mut ast_ids = BTreeMap::new();
+    let mut ast_entries = Vec::new();
+    add_jsdoc_dump_node(
+        &source.arena,
+        source.root,
+        'a',
+        0,
+        &mut ast_ids,
+        &mut ast_entries,
+    );
+
+    let mut jsdoc_ids = BTreeMap::new();
+    let mut jsdoc_entries = Vec::new();
+    let mut attachments = Vec::new();
+    let mut attachment_owners = BTreeSet::new();
+
+    let mut collect_attachment =
+        |owner: tsrs2_syntax::NodeId,
+         jsdoc_ids: &mut BTreeMap<tsrs2_syntax::NodeId, String>,
+         jsdoc_entries: &mut Vec<JsDocDumpEntry>,
+         attachments: &mut Vec<(tsrs2_syntax::NodeId, tsrs2_syntax::NodeArrayId)>| {
+            if !attachment_owners.insert(owner) {
+                return;
+            }
+            let Some(documents) = source.arena.node(owner).js_doc else {
+                return;
+            };
+            for document in &source.arena.node_array(documents).nodes {
+                add_jsdoc_dump_node(&source.arena, *document, 'j', 0, jsdoc_ids, jsdoc_entries);
+            }
+            attachments.push((owner, documents));
+        };
+
+    for entry in &ast_entries {
+        collect_attachment(
+            entry.node,
+            &mut jsdoc_ids,
+            &mut jsdoc_entries,
+            &mut attachments,
+        );
+    }
+    let mut index = 0usize;
+    while index < jsdoc_entries.len() {
+        let owner = jsdoc_entries[index].node;
+        collect_attachment(owner, &mut jsdoc_ids, &mut jsdoc_entries, &mut attachments);
+        index += 1;
+    }
+
+    let node_ref = |node: tsrs2_syntax::NodeId| {
+        rust_jsdoc_node_ref(&source.arena, &jsdoc_ids, node, &to_utf16)
+    };
+    let attachment_values = attachments
+        .iter()
+        .map(|(owner, documents)| {
+            let owner_ref = rust_jsdoc_node_ref(&source.arena, &BTreeMap::new(), *owner, &to_utf16);
+            let elements = source
+                .arena
+                .node_array(*documents)
+                .nodes
+                .iter()
+                .map(|node| node_ref(*node))
+                .collect::<Vec<_>>();
+            serde_json::json!({
+                "owner": owner_ref,
+                "property": "jsDoc",
+                "elements": elements,
+            })
+        })
+        .collect::<Vec<_>>();
+    let node_values = jsdoc_entries
+        .iter()
+        .map(|entry| {
+            let node = source.arena.node(entry.node);
+            let parent = node
+                .parent
+                .map(|parent| node_ref(parent))
+                .unwrap_or(serde_json::Value::Null);
+            let children = entry
+                .children
+                .iter()
+                .map(|id| serde_json::json!({ "id": id }))
+                .collect::<Vec<_>>();
+            let mut fields = Vec::new();
+            tsrs2_syntax::for_each_observable_field(node, |name, value| {
+                let (field_type, value) = match value {
+                    tsrs2_syntax::ObservableField::Node(value) => ("node", node_ref(value)),
+                    tsrs2_syntax::ObservableField::NodeArray(value) => (
+                        "nodeArray",
+                        rust_jsdoc_node_array(&source.arena, &jsdoc_ids, value, &to_utf16),
+                    ),
+                    tsrs2_syntax::ObservableField::Bool(value) => {
+                        ("boolean", serde_json::json!(value))
+                    }
+                    tsrs2_syntax::ObservableField::String(value) => {
+                        ("string", serde_json::json!(value))
+                    }
+                };
+                fields.push(serde_json::json!({
+                    "name": name,
+                    "type": field_type,
+                    "value": value,
+                }));
+            });
+            serde_json::json!({
+                "id": jsdoc_ids.get(&entry.node),
+                "kind": node.kind as u16,
+                "pos": to_utf16(node.pos),
+                "end": to_utf16(node.end),
+                "flags": node.flags,
+                "parent": parent,
+                "depth": entry.depth,
+                "children": children,
+                "fields": fields,
+            })
+        })
+        .collect::<Vec<_>>();
+    let diagnostics = source
+        .js_doc_diagnostics
+        .iter()
+        .map(|diagnostic| {
+            let start = diagnostic.start.map(to_utf16);
+            let length = diagnostic
+                .start
+                .zip(diagnostic.length)
+                .map(|(start, length)| {
+                    to_utf16(start.saturating_add(length)).saturating_sub(to_utf16(start))
+                });
+            let category = match diagnostic.category() {
+                tsrs2_diags::DiagnosticCategory::Warning => 0,
+                tsrs2_diags::DiagnosticCategory::Error => 1,
+                tsrs2_diags::DiagnosticCategory::Suggestion => 2,
+                tsrs2_diags::DiagnosticCategory::Message => 3,
+            };
+            serde_json::json!({
+                "code": diagnostic.code(),
+                "category": category,
+                "start": start,
+                "length": length,
+                "message": diagnostic.message_text(),
+            })
+        })
+        .collect::<Vec<_>>();
+
+    serde_json::json!({
+        "jsDocAttachments": attachment_values,
+        "jsDocNodes": node_values,
+        "jsDocDiagnostics": diagnostics,
+    })
+}
+
+fn rust_jsdoc_node_ref(
+    arena: &tsrs2_syntax::NodeArena,
+    jsdoc_ids: &BTreeMap<tsrs2_syntax::NodeId, String>,
+    node: tsrs2_syntax::NodeId,
+    to_utf16: &impl Fn(u32) -> u32,
+) -> serde_json::Value {
+    let value = arena.node(node);
+    serde_json::json!({
+        "id": jsdoc_ids.get(&node),
+        "kind": value.kind as u16,
+        "pos": to_utf16(value.pos),
+        "end": to_utf16(value.end),
+    })
+}
+
+fn rust_jsdoc_node_array(
+    arena: &tsrs2_syntax::NodeArena,
+    jsdoc_ids: &BTreeMap<tsrs2_syntax::NodeId, String>,
+    array: tsrs2_syntax::NodeArrayId,
+    to_utf16: &impl Fn(u32) -> u32,
+) -> serde_json::Value {
+    let array = arena.node_array(array);
+    let pos = if array.pos == u32::MAX {
+        serde_json::json!(-1)
+    } else {
+        serde_json::json!(to_utf16(array.pos))
+    };
+    let end = if array.end == u32::MAX {
+        serde_json::json!(-1)
+    } else {
+        serde_json::json!(to_utf16(array.end))
+    };
+    serde_json::json!({
+        "pos": pos,
+        "end": end,
+        "hasTrailingComma": array.has_trailing_comma,
+        "elements": array.nodes.iter().map(|node| {
+            rust_jsdoc_node_ref(arena, jsdoc_ids, *node, to_utf16)
+        }).collect::<Vec<_>>(),
+    })
+}
+
+fn project_oracle_jsdoc_dump(raw: &serde_json::Value) -> Result<serde_json::Value, Box<dyn Error>> {
+    let attachments = raw
+        .get("jsDocAttachments")
+        .and_then(serde_json::Value::as_array)
+        .ok_or("JSDoc AST oracle response missing jsDocAttachments")?
+        .iter()
+        .map(|attachment| {
+            let owner = project_oracle_jsdoc_ref(&attachment["owner"]);
+            let elements = attachment["value"]["elements"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(project_oracle_jsdoc_ref)
+                .collect::<Vec<_>>();
+            serde_json::json!({
+                "owner": owner,
+                "property": "jsDoc",
+                "elements": elements,
+            })
+        })
+        .collect::<Vec<_>>();
+    let nodes = raw
+        .get("jsDocNodes")
+        .and_then(serde_json::Value::as_array)
+        .ok_or("JSDoc AST oracle response missing jsDocNodes")?
+        .iter()
+        .map(|node| {
+            let fields = node["fields"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|field| {
+                    let field_type = field["type"].as_str().unwrap_or_default();
+                    let value = match field_type {
+                        "node" => project_oracle_jsdoc_ref(&field["value"]),
+                        "nodeArray" => project_oracle_jsdoc_node_array(&field["value"]),
+                        _ => field["value"].clone(),
+                    };
+                    serde_json::json!({
+                        "name": field["name"],
+                        "type": field["type"],
+                        "value": value,
+                    })
+                })
+                .collect::<Vec<_>>();
+            let children = node["children"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|child| serde_json::json!({ "id": child["id"] }))
+                .collect::<Vec<_>>();
+            serde_json::json!({
+                "id": node["id"],
+                "kind": node["kind"],
+                "pos": node["pos"],
+                "end": node["end"],
+                "flags": node["flags"],
+                "parent": if node["parent"].is_null() {
+                    serde_json::Value::Null
+                } else {
+                    project_oracle_jsdoc_ref(&node["parent"])
+                },
+                "depth": node["depth"],
+                "children": children,
+                "fields": fields,
+            })
+        })
+        .collect::<Vec<_>>();
+    let diagnostics = raw
+        .get("jsDocDiagnostics")
+        .and_then(serde_json::Value::as_array)
+        .ok_or("JSDoc AST oracle response missing jsDocDiagnostics")?
+        .iter()
+        .map(|diagnostic| {
+            serde_json::json!({
+                "code": diagnostic["code"],
+                "category": diagnostic["category"],
+                "start": diagnostic["start"],
+                "length": diagnostic["length"],
+                "message": diagnostic["message"],
+            })
+        })
+        .collect::<Vec<_>>();
+    Ok(serde_json::json!({
+        "jsDocAttachments": attachments,
+        "jsDocNodes": nodes,
+        "jsDocDiagnostics": diagnostics,
+    }))
+}
+
+fn project_oracle_jsdoc_ref(value: &serde_json::Value) -> serde_json::Value {
+    let id = value["id"]
+        .as_str()
+        .filter(|id| id.starts_with('j'))
+        .map_or(serde_json::Value::Null, |id| serde_json::json!(id));
+    serde_json::json!({
+        "id": id,
+        "kind": value["kind"],
+        "pos": value["pos"],
+        "end": value["end"],
+    })
+}
+
+fn project_oracle_jsdoc_node_array(value: &serde_json::Value) -> serde_json::Value {
+    serde_json::json!({
+        "pos": value["pos"],
+        "end": value["end"],
+        "hasTrailingComma": value["hasTrailingComma"],
+        "elements": value["elements"].as_array().into_iter().flatten()
+            .map(project_oracle_jsdoc_ref).collect::<Vec<_>>(),
+    })
+}
+
+struct JsDocAstDumpOracle {
+    child: Child,
+    stdin: ChildStdin,
+    stdout: BufReader<ChildStdout>,
+    next_id: u64,
+}
+
+impl JsDocAstDumpOracle {
+    fn spawn(workspace: &Path) -> Result<Self, Box<dyn Error>> {
+        let mut child = Command::new("node")
+            .arg(workspace.join("crates/oracle/jsdoc-ast-dump.mjs"))
+            .arg("--server-jsonl")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit())
+            .spawn()?;
+        let stdin = child
+            .stdin
+            .take()
+            .ok_or("JSDoc AST oracle stdin unavailable")?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or("JSDoc AST oracle stdout unavailable")?;
+        Ok(Self {
+            child,
+            stdin,
+            stdout: BufReader::new(stdout),
+            next_id: 1,
+        })
+    }
+
+    fn jsdoc_ast_dump(
+        &mut self,
+        path: &Path,
+        text: &str,
+        file_name: &str,
+    ) -> Result<serde_json::Value, Box<dyn Error>> {
+        let id = self.next_id;
+        self.next_id += 1;
+        let text_base64 = BASE64.encode(text);
+        let request = serde_json::to_string(&AstDumpRequest {
+            id,
+            payload: AstDumpPayload {
+                text_base64: &text_base64,
+                file_name,
+            },
+        })?;
+        writeln!(self.stdin, "{request}")?;
+        self.stdin.flush()?;
+
+        let mut line = String::new();
+        if self.stdout.read_line(&mut line)? == 0 {
+            return Err(format!(
+                "JSDoc AST oracle exited without a response for {}",
+                path.display()
+            )
+            .into());
+        }
+        let response: JsDocAstDumpResponse = serde_json::from_str(&line)?;
+        if response.id != Some(id) {
+            return Err(format!(
+                "JSDoc AST oracle response id mismatch for {}: expected {id}, got {:?}",
+                path.display(),
+                response.id
+            )
+            .into());
+        }
+        if !response.ok {
+            return Err(format!(
+                "JSDoc AST oracle failed for {}: {}",
+                path.display(),
+                response.error.unwrap_or_else(|| "unknown error".to_owned())
+            )
+            .into());
+        }
+        response.result.ok_or_else(|| {
+            format!(
+                "JSDoc AST oracle response missing result for {}",
+                path.display()
+            )
+            .into()
+        })
+    }
+}
+
+impl Drop for JsDocAstDumpOracle {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct JsDocAstDumpResponse {
+    id: Option<u64>,
+    ok: bool,
+    result: Option<serde_json::Value>,
+    error: Option<String>,
 }
 
 /// m2-binder-steps.md stage 3.0: compare the Rust symbol audit against
@@ -6276,12 +6852,15 @@ fn render_readme_status(workspace: &Path) -> Result<String, Box<dyn Error>> {
     block.push_str("| View | Exact diagnostic match (T0) |\n| --- | --- |\n");
     block.push_str(&view_row("All bands", "t0")?);
     block.push('\n');
-    block.push_str(&view_row("2xxx band", "t0-2xxx")?);
+    block.push_str(&view_row("2xxx all-corpus visibility", "t0-2xxx")?);
     block.push('\n');
     block.push_str(&view_row("Syntactic", "t0-syntactic")?);
     block.push('\n');
     block.push_str(&format!(
-        "\nFalse positives are a hard gate: 0 on every merge. Escape\n\
+        "\nThe 2XXX supported scope is **100% complete** with zero T0 false\n\
+         negatives. Its all-corpus row above deliberately retains reviewed\n\
+         out-of-scope oracle diagnostics in the denominator.\n\n\
+         False positives are a hard gate: 0 on every merge. Escape\n\
          ceilings: untagged {max_untagged}, recovery {max_recovery}. Non-2XXX family\n\
          map: {}, {} families / {} rows.\n",
         families.status,
@@ -7840,6 +8419,7 @@ struct SchemaField {
     ty: RustFieldType,
     optional: bool,
     child: bool,
+    rust_optional: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -7850,6 +8430,7 @@ enum RustFieldType {
     String,
     Number,
     SyntaxKind,
+    JSDocComment,
     Payload,
 }
 
@@ -7866,6 +8447,7 @@ fn codegen_nodes(check: bool) -> Result<(), Box<dyn Error>> {
 
     let nodes_rs = rustfmt_text(&render_nodes_rs(&schemas)?)?;
     let for_each_child_rs = rustfmt_text(&render_for_each_child_rs(&schemas)?)?;
+    let observable_fields_rs = rustfmt_text(&render_observable_fields_rs(&schemas)?)?;
     let schema_json = render_nodes_schema_json(&schemas)?;
 
     write_generated(
@@ -7876,6 +8458,11 @@ fn codegen_nodes(check: bool) -> Result<(), Box<dyn Error>> {
     write_generated(
         &workspace.join("crates/syntax/src/for_each_child.rs"),
         &for_each_child_rs,
+        check,
+    )?;
+    write_generated(
+        &workspace.join("crates/syntax/src/observable_fields.rs"),
+        &observable_fields_rs,
         check,
     )?;
     write_generated(
@@ -8497,14 +9084,22 @@ const DTS_SCALAR_ADMISSIONS: &[(&str, &[&str])] = &[
     ("ExportSpecifier", &["isTypeOnly"]),
     ("HeritageClause", &["token"]),
     ("Identifier", &["escapedText", "text"]),
-    ("ImportAttributes", &["token"]),
+    ("ImportAttributes", &["token", "multiLine"]),
     ("ImportClause", &["isTypeOnly", "phaseModifier"]),
     ("ImportEqualsDeclaration", &["isTypeOnly"]),
     ("ImportSpecifier", &["isTypeOnly"]),
     ("ImportType", &["isTypeOf"]),
     ("JSDocCallbackTag", &["name"]),
+    ("JSDocFunctionType", &["name", "typeParameters"]),
+    ("JSDocLink", &["text"]),
+    ("JSDocLinkCode", &["text"]),
+    ("JSDocLinkPlain", &["text"]),
+    ("JSDocNamepathType", &["type"]),
+    ("JSDocNonNullableType", &["postfix"]),
+    ("JSDocNullableType", &["postfix"]),
     ("JSDocParameterTag", &["isBracketed", "isNameFirst"]),
     ("JSDocPropertyTag", &["isBracketed", "isNameFirst"]),
+    ("JSDocText", &["text"]),
     ("JSDocTypeLiteral", &["isArrayType"]),
     ("JSDocTypedefTag", &["name"]),
     ("JsxText", &["text", "containsOnlyTriviaWhiteSpaces"]),
@@ -8515,7 +9110,7 @@ const DTS_SCALAR_ADMISSIONS: &[(&str, &[&str])] = &[
     ("PrefixUnaryExpression", &["operator"]),
     ("PrivateIdentifier", &["escapedText", "text"]),
     ("RegularExpressionLiteral", &["text", "isUnterminated"]),
-    ("StringLiteral", &["text"]),
+    ("StringLiteral", &["text", "hasExtendedUnicodeEscape"]),
     ("TemplateHead", &["text", "rawText"]),
     ("TemplateMiddle", &["text", "rawText"]),
     ("TemplateTail", &["text", "rawText"]),
@@ -8527,6 +9122,8 @@ const DTS_SCALAR_ADMISSIONS: &[(&str, &[&str])] = &[
 const FIELDLESS_KINDS: &[&str] = &[
     "DebuggerStatement",
     "EmptyStatement",
+    "JSDocAllType",
+    "JSDocUnknownType",
     "OmittedExpression",
     "SyntaxList",
 ];
@@ -8553,14 +9150,6 @@ const UNMATERIALIZED_KINDS: &[&str] = &[
     "ThisKeyword",
     "ThisType",
     "TrueKeyword",
-    // JSDoc: All/Unknown are kind-only sentinel types the parser emits
-    // in type positions; JSDocText/JSDocNamepathType occur only inside
-    // JSDoc comment bodies the port does not parse yet (M8 umbrella) —
-    // their fields are tracked as debt.
-    "JSDocAllType",
-    "JSDocNamepathType",
-    "JSDocText",
-    "JSDocUnknownType",
     // Synthetic kinds tsc itself never parses: checker/transform/emit
     // fabrications.
     "Bundle",
@@ -8791,7 +9380,12 @@ fn build_node_schema(
     let mut fields = Vec::new();
     for dts_field in dts_fields {
         let child = children.iter().find(|child| child.name == dts_field.name);
-        let ty = if let Some(child) = child {
+        let ty = if dts_field.name == "comment"
+            && dts_field.type_text.contains("string")
+            && dts_field.type_text.contains("NodeArray<JSDocComment>")
+        {
+            RustFieldType::JSDocComment
+        } else if let Some(child) = child {
             match child.kind {
                 ChildKind::Node => RustFieldType::Node,
                 ChildKind::Nodes => RustFieldType::NodeArray,
@@ -8800,12 +9394,20 @@ fn build_node_schema(
             rust_field_type(&dts_field.type_text)
         };
         let optional = dts_field.optional;
+        // JSDocParser creates JSDocNamepathType(undefined) while recovering
+        // even though the public d.ts declares `type` as required. Preserve
+        // the honest schema bit and model the observable runtime shape in
+        // Rust, just as all forEachChild-backed children are Option-typed.
+        let rust_optional = optional
+            || child.is_some()
+            || (kind_name == "JSDocNamepathType" && dts_field.name == "type");
         fields.push(SchemaField {
             rust_name: rust_field_name(&dts_field.name),
             ts_name: dts_field.name,
             ty,
             optional,
             child: child.is_some(),
+            rust_optional,
         });
     }
     for child in &children {
@@ -8819,6 +9421,7 @@ fn build_node_schema(
                 },
                 optional: true,
                 child: true,
+                rust_optional: true,
             });
         }
     }
@@ -8832,7 +9435,9 @@ fn build_node_schema(
 }
 
 fn rust_field_type(type_text: &str) -> RustFieldType {
-    if type_text.contains("NodeArray<") {
+    if type_text.contains("string") && type_text.contains("NodeArray<JSDocComment>") {
+        RustFieldType::JSDocComment
+    } else if type_text.contains("NodeArray<") {
         RustFieldType::NodeArray
     } else if type_text.contains("boolean") {
         RustFieldType::Bool
@@ -8914,6 +9519,19 @@ fn render_nodes_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
         "#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]"
     )?;
     writeln!(out, "pub struct NodeArrayId(pub u32);")?;
+    writeln!(out)?;
+    writeln!(out, "#[derive(Clone, Debug, Eq, PartialEq)]")?;
+    writeln!(out, "pub enum JSDocComment {{")?;
+    writeln!(out, "    Text(String),")?;
+    writeln!(out, "    Nodes(NodeArrayId),")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(out, "impl JSDocComment {{")?;
+    writeln!(
+        out,
+        "    pub fn nodes(&self) -> Option<NodeArrayId> {{ match self {{ Self::Nodes(nodes) => Some(*nodes), Self::Text(_) => None }} }}"
+    )?;
+    writeln!(out, "}}")?;
     writeln!(out)?;
     writeln!(out, "#[derive(Clone, Debug, Eq, PartialEq)]")?;
     writeln!(out, "pub struct NodeArray {{")?;
@@ -9061,7 +9679,7 @@ fn render_nodes_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
 /// children to bare NodeId needs the recovery-guarantee census first and
 /// is tracked pre-M7 debt (m1-review-2026-07-22.md #8).
 fn rust_optional(field: &SchemaField) -> bool {
-    field.optional || field.child
+    field.rust_optional
 }
 
 fn render_missing_field_value(field: &SchemaField, kind_name: &str) -> String {
@@ -9076,6 +9694,7 @@ fn render_missing_field_value(field: &SchemaField, kind_name: &str) -> String {
         RustFieldType::String => "String::new()".to_owned(),
         RustFieldType::Number => "0.0".to_owned(),
         RustFieldType::SyntaxKind => format!("SyntaxKind::{kind_name}"),
+        RustFieldType::JSDocComment => "JSDocComment::Text(String::new())".to_owned(),
         RustFieldType::Payload => "NodePayload::String(String::new())".to_owned(),
     }
 }
@@ -9088,6 +9707,7 @@ fn render_field_type(field: &SchemaField) -> String {
         RustFieldType::String => "String",
         RustFieldType::Number => "f64",
         RustFieldType::SyntaxKind => "SyntaxKind",
+        RustFieldType::JSDocComment => "JSDocComment",
         RustFieldType::Payload => "NodePayload",
     };
     if rust_optional(field) {
@@ -9106,10 +9726,12 @@ fn render_for_each_child_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Er
     writeln!(out)?;
     writeln!(
         out,
-        "use crate::nodes::{{Node, NodeArray, NodeArrayId, NodeData, NodeId}};"
+        "use crate::nodes::{{JSDocComment, Node, NodeArray, NodeArrayId, NodeData, NodeId}};"
     )?;
+    writeln!(out, "use crate::SyntaxKind;")?;
     writeln!(out)?;
     writeln!(out, "pub trait NodeLookup {{")?;
+    writeln!(out, "    fn node(&self, id: NodeId) -> &Node;")?;
     writeln!(
         out,
         "    fn node_array(&self, id: NodeArrayId) -> &NodeArray;"
@@ -9135,12 +9757,91 @@ fn render_for_each_child_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Er
             )?;
         } else {
             writeln!(out, "        NodeData::{}(data) => {{", schema.kind_name)?;
+            if matches!(
+                schema.kind_name.as_str(),
+                "JSDocParameterTag" | "JSDocPropertyTag"
+            ) {
+                writeln!(
+                    out,
+                    "            if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(out, "            if data.is_name_first {{")?;
+                writeln!(
+                    out,
+                    "                if let Some(result) = visit_optional_node(data.name, &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(
+                    out,
+                    "                if let Some(result) = visit_optional_node(data.type_expression, &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(out, "            }} else {{")?;
+                writeln!(
+                    out,
+                    "                if let Some(result) = visit_optional_node(data.type_expression, &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(
+                    out,
+                    "                if let Some(result) = visit_optional_node(data.name, &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(out, "            }}")?;
+                writeln!(
+                    out,
+                    "            if let Some(result) = visit_optional_jsdoc_comment(lookup, data.comment.as_ref(), &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(out, "            None")?;
+                writeln!(out, "        }}")?;
+                continue;
+            }
+            if schema.kind_name == "JSDocTypedefTag" {
+                writeln!(
+                    out,
+                    "            if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(
+                    out,
+                    "            let type_expression_first = data.type_expression.is_some_and(|node| lookup.node(node).kind == SyntaxKind::JSDocTypeExpression);"
+                )?;
+                writeln!(out, "            if type_expression_first {{")?;
+                writeln!(
+                    out,
+                    "                if let Some(result) = visit_optional_node(data.type_expression, &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(
+                    out,
+                    "                if let Some(result) = visit_optional_node(data.full_name, &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(out, "            }} else {{")?;
+                writeln!(
+                    out,
+                    "                if let Some(result) = visit_optional_node(data.full_name, &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(
+                    out,
+                    "                if let Some(result) = visit_optional_node(data.type_expression, &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(out, "            }}")?;
+                writeln!(
+                    out,
+                    "            if let Some(result) = visit_optional_jsdoc_comment(lookup, data.comment.as_ref(), &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(out, "            None")?;
+                writeln!(out, "        }}")?;
+                continue;
+            }
             for child in &schema.children {
                 let field = schema
                     .fields
                     .iter()
                     .find(|field| field.ts_name == child.name)
                     .ok_or_else(|| format!("missing generated field for child {}", child.name))?;
+                if field.ty == RustFieldType::JSDocComment {
+                    writeln!(
+                        out,
+                        "            if let Some(result) = visit_optional_jsdoc_comment(lookup, data.{}.as_ref(), &mut cb) {{ return Some(result); }}",
+                        field.rust_name
+                    )?;
+                    continue;
+                }
                 let helper = match (child.kind, rust_optional(field)) {
                     (ChildKind::Node, false) => "visit_node",
                     (ChildKind::Node, true) => "visit_optional_node",
@@ -9197,8 +9898,230 @@ fn render_for_each_child_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Er
     writeln!(out, "    None")?;
     writeln!(out, "}}")?;
     writeln!(out)?;
+    writeln!(out, "fn visit_optional_jsdoc_comment<L, F>(lookup: &L, comment: Option<&JSDocComment>, cb: &mut F) -> Option<NodeId>")?;
+    writeln!(out, "where L: NodeLookup, F: FnMut(NodeId) -> bool {{")?;
+    writeln!(out, "    match comment {{")?;
+    writeln!(
+        out,
+        "        Some(JSDocComment::Nodes(nodes)) => visit_nodes(lookup, *nodes, cb),"
+    )?;
+    writeln!(out, "        _ => None,")?;
+    writeln!(out, "    }}")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
     writeln!(out, "fn visit_optional_nodes<L, F>(lookup: &L, id: Option<NodeArrayId>, cb: &mut F) -> Option<NodeId>")?;
     writeln!(out, "where L: NodeLookup, F: FnMut(NodeId) -> bool {{ id.and_then(|id| visit_nodes(lookup, id, cb)) }}")?;
+    Ok(out)
+}
+
+/// Generate the runtime field view used by exact AST oracles.
+///
+/// `forEachChild` is deliberately not a field reflection API: tsc stores
+/// compatibility fields that it does not visit, and JSDoc comment payloads
+/// may be either strings or node arrays.  Keeping this table generated from
+/// the same schema as `NodeData` prevents inspection tools from growing a
+/// second, hand-maintained node model.
+fn render_observable_fields_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
+    let mut out = String::new();
+    let has_payload = schemas
+        .iter()
+        .flat_map(|schema| &schema.fields)
+        .any(|field| field.ty == RustFieldType::Payload);
+    writeln!(
+        out,
+        "// @generated by `cargo xtask codegen nodes`. Do not edit by hand."
+    )?;
+    writeln!(out)?;
+    if has_payload {
+        writeln!(
+            out,
+            "use crate::nodes::{{JSDocComment, Node, NodeArrayId, NodeData, NodeId, NodePayload}};"
+        )?;
+    } else {
+        writeln!(
+            out,
+            "use crate::nodes::{{JSDocComment, Node, NodeArrayId, NodeData, NodeId}};"
+        )?;
+    }
+    writeln!(out)?;
+    writeln!(out, "#[derive(Clone, Copy, Debug, PartialEq)]")?;
+    writeln!(out, "pub enum ObservableField<'a> {{")?;
+    writeln!(out, "    Node(NodeId),")?;
+    writeln!(out, "    NodeArray(NodeArrayId),")?;
+    writeln!(out, "    Bool(bool),")?;
+    writeln!(out, "    String(&'a str),")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(
+        out,
+        "pub fn for_each_observable_field<'a, F>(node: &'a Node, mut cb: F)"
+    )?;
+    writeln!(out, "where")?;
+    writeln!(out, "    F: FnMut(&'static str, ObservableField<'a>),")?;
+    writeln!(out, "{{")?;
+    writeln!(out, "    match &node.data {{")?;
+    writeln!(out, "        NodeData::Token => {{}}")?;
+
+    for schema in schemas {
+        let mut fields = schema
+            .fields
+            .iter()
+            .filter(|field| {
+                !(field.ts_name == "text"
+                    && matches!(
+                        schema.kind_name.as_str(),
+                        "Identifier" | "PrivateIdentifier"
+                    ))
+                    && !matches!(field.ty, RustFieldType::Number | RustFieldType::SyntaxKind)
+            })
+            .collect::<Vec<_>>();
+        fields.sort_by(|left, right| left.ts_name.cmp(&right.ts_name));
+        let binding = if fields.is_empty() { "_data" } else { "data" };
+        writeln!(
+            out,
+            "        NodeData::{}({binding}) => {{",
+            schema.kind_name
+        )?;
+        for field in fields {
+            match (field.ty, rust_optional(field)) {
+                (RustFieldType::Node, true) => {
+                    writeln!(
+                        out,
+                        "            if let Some(value) = data.{} {{ cb({:?}, ObservableField::Node(value)); }}",
+                        field.rust_name, field.ts_name
+                    )?;
+                }
+                (RustFieldType::Node, false) => {
+                    writeln!(
+                        out,
+                        "            cb({:?}, ObservableField::Node(data.{}));",
+                        field.ts_name, field.rust_name
+                    )?;
+                }
+                (RustFieldType::NodeArray, true) => {
+                    writeln!(
+                        out,
+                        "            if let Some(value) = data.{} {{ cb({:?}, ObservableField::NodeArray(value)); }}",
+                        field.rust_name, field.ts_name
+                    )?;
+                }
+                (RustFieldType::NodeArray, false) => {
+                    writeln!(
+                        out,
+                        "            cb({:?}, ObservableField::NodeArray(data.{}));",
+                        field.ts_name, field.rust_name
+                    )?;
+                }
+                (RustFieldType::Bool, true) => {
+                    writeln!(
+                        out,
+                        "            if let Some(value) = data.{} {{ cb({:?}, ObservableField::Bool(value)); }}",
+                        field.rust_name, field.ts_name
+                    )?;
+                }
+                (RustFieldType::Bool, false) => {
+                    writeln!(
+                        out,
+                        "            cb({:?}, ObservableField::Bool(data.{}));",
+                        field.ts_name, field.rust_name
+                    )?;
+                }
+                (RustFieldType::String, true) => {
+                    writeln!(
+                        out,
+                        "            if let Some(value) = data.{}.as_deref() {{ cb({:?}, ObservableField::String(value)); }}",
+                        field.rust_name, field.ts_name
+                    )?;
+                }
+                (RustFieldType::String, false) => {
+                    writeln!(
+                        out,
+                        "            cb({:?}, ObservableField::String(&data.{}));",
+                        field.ts_name, field.rust_name
+                    )?;
+                }
+                (RustFieldType::JSDocComment, true) => {
+                    writeln!(
+                        out,
+                        "            if let Some(value) = data.{}.as_ref() {{ emit_jsdoc_comment({:?}, value, &mut cb); }}",
+                        field.rust_name, field.ts_name
+                    )?;
+                }
+                (RustFieldType::JSDocComment, false) => {
+                    writeln!(
+                        out,
+                        "            emit_jsdoc_comment({:?}, &data.{}, &mut cb);",
+                        field.ts_name, field.rust_name
+                    )?;
+                }
+                (RustFieldType::Payload, true) => {
+                    writeln!(
+                        out,
+                        "            if let Some(value) = data.{}.as_ref() {{ emit_payload({:?}, value, &mut cb); }}",
+                        field.rust_name, field.ts_name
+                    )?;
+                }
+                (RustFieldType::Payload, false) => {
+                    writeln!(
+                        out,
+                        "            emit_payload({:?}, &data.{}, &mut cb);",
+                        field.ts_name, field.rust_name
+                    )?;
+                }
+                // The TypeScript oracle intentionally records only the
+                // string/boolean/node/node-array surface. Numeric and
+                // SyntaxKind-valued fields are outside that contract.
+                (RustFieldType::Number | RustFieldType::SyntaxKind, _) => {}
+            }
+        }
+        writeln!(out, "        }}")?;
+    }
+    writeln!(out, "    }}")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(
+        out,
+        "fn emit_jsdoc_comment<'a, F>(name: &'static str, value: &'a JSDocComment, cb: &mut F)"
+    )?;
+    writeln!(out, "where")?;
+    writeln!(out, "    F: FnMut(&'static str, ObservableField<'a>),")?;
+    writeln!(out, "{{")?;
+    writeln!(out, "    match value {{")?;
+    writeln!(
+        out,
+        "        JSDocComment::Text(text) => cb(name, ObservableField::String(text)),"
+    )?;
+    writeln!(
+        out,
+        "        JSDocComment::Nodes(nodes) => cb(name, ObservableField::NodeArray(*nodes)),"
+    )?;
+    writeln!(out, "    }}")?;
+    writeln!(out, "}}")?;
+    if has_payload {
+        writeln!(out)?;
+        writeln!(
+            out,
+            "fn emit_payload<'a, F>(name: &'static str, value: &'a NodePayload, cb: &mut F)"
+        )?;
+        writeln!(out, "where")?;
+        writeln!(out, "    F: FnMut(&'static str, ObservableField<'a>),")?;
+        writeln!(out, "{{")?;
+        writeln!(out, "    match value {{")?;
+        writeln!(
+            out,
+            "        NodePayload::Bool(value) => cb(name, ObservableField::Bool(*value)),"
+        )?;
+        writeln!(
+            out,
+            "        NodePayload::String(value) => cb(name, ObservableField::String(value)),"
+        )?;
+        writeln!(
+            out,
+            "        NodePayload::Number(_) | NodePayload::Kind(_) => {{}}"
+        )?;
+        writeln!(out, "    }}")?;
+        writeln!(out, "}}")?;
+    }
     Ok(out)
 }
 

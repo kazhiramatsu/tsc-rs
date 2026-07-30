@@ -98,6 +98,11 @@ pub struct NodeLinks {
     /// tsc links.resolvedSymbol (getResolvedSymbol 69389) — the
     /// unknownSymbol failure sentinel is cached like tsc's.
     pub resolved_symbol: LinkSlot<SymbolId>,
+    /// tsc links.resolvedJSDocType
+    /// (getTypeFromJSDocValueReference 60406): the value-derived
+    /// JSDoc type is cached separately from the enclosing type
+    /// reference result.
+    pub resolved_jsdoc_type: LinkSlot<TypeId>,
     /// tsc links.enumMemberValue (computeEnumMemberValues 85587) on
     /// EnumMember nodes.
     pub enum_member_value: Option<crate::evaluate::EvaluatorResult>,
@@ -109,6 +114,10 @@ pub struct NodeLinks {
     /// TypeChecked bit lands with M4 5.4; later stages OR in their own
     /// bits (a flags word accumulates, unlike the write-once slots).
     pub check_flags: tsrs2_types::NodeCheckFlags,
+    /// tsc links.containsArgumentsReference
+    /// (containsArgumentsReference 59689): syntax-and-binding-stable
+    /// result of the function-body traversal.
+    pub contains_arguments_reference: Option<bool>,
     /// tsc links.assertionExpressionType (checkAssertionWorker 77920):
     /// the operand type stashed for checkAssertionDeferred.
     pub assertion_expression_type: Option<TypeId>,
@@ -160,6 +169,12 @@ pub struct SymbolLinks {
     pub declared_type: LinkSlot<TypeId>,
     /// tsc links.type (getTypeOfVariableOrParameterOrProperty 56633).
     pub type_of_symbol: LinkSlot<TypeId>,
+    /// tsc links.inferredClassSymbol (mergeJSSymbols 77526-77538): source
+    /// symbol-local map from the inferred target symbol id to that
+    /// transient merged symbol. The key is the inferred symbol
+    /// itself (not necessarily the incoming target), matching tsc's
+    /// clone-then-publish protocol.
+    pub inferred_class_symbols: HashMap<SymbolId, SymbolId>,
     /// tsc TransientSymbol links.checkFlags (synthetic union/
     /// intersection properties, createUnionOrIntersectionProperty).
     pub check_flags: tsrs2_types::CheckFlags,
@@ -168,10 +183,16 @@ pub struct SymbolLinks {
     /// tsc links.isDiscriminantProperty cache (isDiscriminantProperty
     /// 69562).
     pub is_discriminant_property: Option<bool>,
-    /// tsc symbol.isReferenced (markPropertyAsReferenced 75617) — live
-    /// M7 reference bookkeeping; the unused-declaration consumers land
-    /// in the following producer slices.
-    pub is_referenced: bool,
+    /// tsc links.isConstructorDeclaredProperty
+    /// (isConstructorDeclaredProperty 56145): the syntax/annotation-stable
+    /// classification of JS assignment-declared instance properties.
+    pub is_constructor_declared_property: Option<bool>,
+    /// tsc symbol.isReferenced — a SymbolFlags meaning mask, not a
+    /// boolean. resolveName ORs the requested meaning into this field;
+    /// the JSX/private-property direct markers write SymbolFlags::All.
+    /// Unused type parameters and value declarations consume different
+    /// bits of the same merged symbol.
+    pub is_referenced: tsrs2_types::SymbolFlags,
     /// tsc SymbolLinks.referenced (markAliasSymbolAsReferenced 71930)
     /// — alias accessibility/emit bookkeeping. This is deliberately
     /// distinct from Symbol.isReferenced above: unused locals consume
@@ -516,7 +537,13 @@ pub struct LinksTables {
     /// Trial-local type-node resolution publications. A candidate
     /// needs one stable type identity (and resolving sentinels) while
     /// it runs, but the AST cache must return to its entry state.
-    speculative_resolved_type_writes: Vec<(u32, NodeId, LinkSlot<TypeId>, LinkSlot<SymbolId>)>,
+    speculative_resolved_type_writes: Vec<(
+        u32,
+        NodeId,
+        LinkSlot<TypeId>,
+        LinkSlot<SymbolId>,
+        LinkSlot<TypeId>,
+    )>,
     /// Trial-local decorator-signature protocol writes. The
     /// `any_signature` sentinel must remain visible to re-entrant
     /// decorator checks inside the same candidate.
@@ -717,20 +744,27 @@ impl LinksTables {
         if self
             .speculative_resolved_type_writes
             .iter()
-            .any(|(depth, node, _, _)| *depth == speculation_depth && *node == id)
+            .any(|(depth, node, _, _, _)| *depth == speculation_depth && *node == id)
         {
             return;
         }
-        let (resolved_type, resolved_symbol) = self
+        let (resolved_type, resolved_symbol, resolved_jsdoc_type) = self
             .node
             .get(&id)
-            .map(|links| (links.resolved_type.clone(), links.resolved_symbol.clone()))
+            .map(|links| {
+                (
+                    links.resolved_type.clone(),
+                    links.resolved_symbol.clone(),
+                    links.resolved_jsdoc_type.clone(),
+                )
+            })
             .unwrap_or_default();
         self.speculative_resolved_type_writes.push((
             speculation_depth,
             id,
             resolved_type,
             resolved_symbol,
+            resolved_jsdoc_type,
         ));
     }
 
@@ -915,15 +949,33 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: NodeId,
-        symbol: SymbolId,
+        symbol: Option<SymbolId>,
         value: TypeId,
     ) {
         self.journal_node_resolution(speculation_depth, id);
         let links = self.node.entry(id).or_default();
         note_resolving_transition(links.resolved_symbol.is_resolving(), false);
         note_resolving_transition(links.resolved_type.is_resolving(), false);
-        links.resolved_symbol = LinkSlot::Resolved(symbol);
+        links.resolved_symbol = symbol.map_or(LinkSlot::Vacant, LinkSlot::Resolved);
         links.resolved_type = LinkSlot::Resolved(value);
+    }
+
+    /// getTypeFromJSDocValueReference's resolvedJSDocType assignment
+    /// is guarded only before computation. Re-entrant evaluation may
+    /// therefore publish an inner result before the outer assignment;
+    /// tsc's final write wins.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
+    pub fn overwrite_node_resolved_jsdoc_type(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        value: TypeId,
+    ) {
+        self.journal_node_resolution(speculation_depth, id);
+        let links = self.node.entry(id).or_default();
+        note_resolving_transition(links.resolved_jsdoc_type.is_resolving(), false);
+        links.resolved_jsdoc_type = LinkSlot::Resolved(value);
     }
 
     /// getTypeFromImportTypeNode's resolvedSymbol writes are UNGUARDED
@@ -1510,7 +1562,7 @@ impl LinksTables {
     /// tsrs-native: speculation-transaction unwind for type-node caches.
     pub fn restore_speculative_resolved_types(&mut self, mark: usize) {
         while self.speculative_resolved_type_writes.len() > mark {
-            let (_, node, previous_type, previous_symbol) = self
+            let (_, node, previous_type, previous_symbol, previous_jsdoc_type) = self
                 .speculative_resolved_type_writes
                 .pop()
                 .expect("length checked");
@@ -1523,8 +1575,13 @@ impl LinksTables {
                 links.resolved_symbol.is_resolving(),
                 previous_symbol.is_resolving(),
             );
+            note_resolving_transition(
+                links.resolved_jsdoc_type.is_resolving(),
+                previous_jsdoc_type.is_resolving(),
+            );
             links.resolved_type = previous_type;
             links.resolved_symbol = previous_symbol;
+            links.resolved_jsdoc_type = previous_jsdoc_type;
         }
     }
 
@@ -1934,6 +1991,24 @@ impl LinksTables {
             .has_reported_statement_in_ambient_context = true;
     }
 
+    /// tsrs-native: links-table setter for tsc's direct
+    /// `links.containsArgumentsReference` memo-field write.
+    ///
+    /// The result depends only on the immutable syntax tree and bound
+    /// name resolution, so it is safe to retain across speculation.
+    pub fn set_node_contains_arguments_reference(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        value: bool,
+    ) {
+        let _ = speculation_depth;
+        self.node
+            .entry(id)
+            .or_default()
+            .contains_arguments_reference = Some(value);
+    }
+
     /// tsrs-native: links-table setter (tsc plain property write).
     /// getDecoratorCallSignature's memo — PLAIN ASSIGNMENT (tsc writes
     /// the anySignature sentinel first, then possibly overwrites within
@@ -2142,6 +2217,34 @@ impl LinksTables {
         }
         Self::assert_writable(speculation_depth);
         self.symbol.entry(id).or_default().is_discriminant_property = Some(value);
+    }
+
+    /// tsrs-native: SymbolLinks write adapter for tsc's direct
+    /// links.isConstructorDeclaredProperty assignment. The verdict
+    /// depends only on bound declarations and their annotations, so it
+    /// remains valid across speculation like tsc's own memo.
+    pub fn set_symbol_is_constructor_declared_property(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        value: bool,
+    ) {
+        let _ = speculation_depth;
+        self.symbol
+            .entry(id)
+            .or_default()
+            .is_constructor_declared_property = Some(value);
+    }
+
+    /// tsrs-native: Err-unwind twin for isConstructorDeclaredProperty's leading
+    /// false recursion sentinel. TypeScript cannot throw from the
+    /// synchronous worker, while Rust's checked dependency chain can
+    /// return Unsupported; a failed computation must remain retryable.
+    pub fn clear_symbol_is_constructor_declared_property(&mut self, id: SymbolId) {
+        self.symbol
+            .entry(id)
+            .or_default()
+            .is_constructor_declared_property = None;
     }
 
     /// tsrs-native: getUnionOrIntersectionProperty's propertyCache
@@ -2435,7 +2538,20 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_symbol_is_referenced(&mut self, speculation_depth: u32, id: SymbolId) {
         let _ = speculation_depth;
-        self.symbol.entry(id).or_default().is_referenced = true;
+        self.symbol.entry(id).or_default().is_referenced = tsrs2_types::SymbolFlags::ALL;
+    }
+
+    /// tsrs-native: Links-table adapter for tsc resolveNameHelper
+    /// 19767-19769: `result.isReferenced |= meaning`; no standalone
+    /// tsc function.
+    pub fn add_symbol_reference_meaning(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        meaning: tsrs2_types::SymbolFlags,
+    ) {
+        let _ = speculation_depth;
+        self.symbol.entry(id).or_default().is_referenced |= meaning;
     }
 
     /// tsrs-native: grow-only LinksTables setter for tsc
@@ -3383,6 +3499,36 @@ impl LinksTables {
             None => *slot = Some(value),
             Some(existing) if *existing == value => {}
             _ => panic!("cjsExportMerged rewritten: {slot:?} -> {value:?}"),
+        }
+    }
+
+    /// `links.inferredClassSymbol.set(getSymbolId(inferred), inferred)`
+    /// (mergeJSSymbols 77538). This is a grow-only source-symbol cache;
+    /// it is published with the fresh inferred semantic symbol even
+    /// during speculation. The corresponding transient mutation or
+    /// cloneSymbol merged-symbol redirection is likewise persistent.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
+    pub fn set_symbol_inferred_class_symbol(
+        &mut self,
+        speculation_depth: u32,
+        source: SymbolId,
+        inferred: SymbolId,
+    ) {
+        let _ = speculation_depth;
+        let cache = &mut self
+            .symbol
+            .entry(source)
+            .or_default()
+            .inferred_class_symbols;
+        match cache.get(&inferred).copied() {
+            None => {
+                cache.insert(inferred, inferred);
+            }
+            Some(existing) if existing == inferred => {}
+            Some(existing) => {
+                panic!("inferredClassSymbol rewritten for {source:?}/{inferred:?}: {existing:?}")
+            }
         }
     }
 

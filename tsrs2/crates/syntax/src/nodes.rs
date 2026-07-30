@@ -9,6 +9,21 @@ pub struct NodeId(pub u32);
 pub struct NodeArrayId(pub u32);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub enum JSDocComment {
+    Text(String),
+    Nodes(NodeArrayId),
+}
+
+impl JSDocComment {
+    pub fn nodes(&self) -> Option<NodeArrayId> {
+        match self {
+            Self::Nodes(nodes) => Some(*nodes),
+            Self::Text(_) => None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NodeArray {
     pub nodes: Vec<NodeId>,
     pub pos: u32,
@@ -395,6 +410,7 @@ pub struct ImportAttributeData {
 pub struct ImportAttributesData {
     pub token: SyntaxKind,
     pub elements: Option<NodeArrayId>,
+    pub multi_line: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -478,26 +494,29 @@ pub struct IntersectionTypeData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocData {
     pub tags: Option<NodeArrayId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
 }
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct JSDocAllTypeData {}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocAugmentsTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
     pub class: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocAuthorTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocCallbackTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
     pub name: Option<NodeId>,
     pub full_name: Option<NodeId>,
     pub type_expression: Option<NodeId>,
@@ -506,24 +525,26 @@ pub struct JSDocCallbackTagData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocClassTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocDeprecatedTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocEnumTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
     pub type_expression: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocFunctionTypeData {
+    pub name: Option<NodeId>,
+    pub type_parameters: Option<NodeArrayId>,
     pub parameters: Option<NodeArrayId>,
     pub r#type: Option<NodeId>,
 }
@@ -531,14 +552,14 @@ pub struct JSDocFunctionTypeData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocImplementsTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
     pub class: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocImportTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
     pub import_clause: Option<NodeId>,
     pub module_specifier: Option<NodeId>,
     pub attributes: Option<NodeId>,
@@ -547,16 +568,19 @@ pub struct JSDocImportTagData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocLinkData {
     pub name: Option<NodeId>,
+    pub text: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocLinkCodeData {
     pub name: Option<NodeId>,
+    pub text: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocLinkPlainData {
     pub name: Option<NodeId>,
+    pub text: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -571,13 +595,20 @@ pub struct JSDocNameReferenceData {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct JSDocNamepathTypeData {
+    pub r#type: Option<NodeId>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct JSDocNonNullableTypeData {
     pub r#type: Option<NodeId>,
+    pub postfix: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocNullableTypeData {
     pub r#type: Option<NodeId>,
+    pub postfix: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -588,20 +619,20 @@ pub struct JSDocOptionalTypeData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocOverloadTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
     pub type_expression: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocOverrideTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocParameterTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
     pub name: Option<NodeId>,
     pub type_expression: Option<NodeId>,
     pub is_name_first: bool,
@@ -611,13 +642,13 @@ pub struct JSDocParameterTagData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocPrivateTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocPropertyTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
     pub name: Option<NodeId>,
     pub type_expression: Option<NodeId>,
     pub is_name_first: bool,
@@ -627,39 +658,39 @@ pub struct JSDocPropertyTagData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocProtectedTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocPublicTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocReadonlyTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocReturnTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
     pub type_expression: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocSatisfiesTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
     pub type_expression: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocSeeTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
     pub name: Option<NodeId>,
 }
 
@@ -673,28 +704,33 @@ pub struct JSDocSignatureData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocTemplateTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
     pub constraint: Option<NodeId>,
     pub type_parameters: Option<NodeArrayId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct JSDocTextData {
+    pub text: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct JSDocThisTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
     pub type_expression: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocThrowsTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
     pub type_expression: Option<NodeId>,
 }
 
@@ -712,18 +748,21 @@ pub struct JSDocTypeLiteralData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocTypeTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
     pub type_expression: Option<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocTypedefTagData {
     pub tag_name: Option<NodeId>,
-    pub comment: Option<NodeArrayId>,
+    pub comment: Option<JSDocComment>,
     pub name: Option<NodeId>,
     pub full_name: Option<NodeId>,
     pub type_expression: Option<NodeId>,
 }
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct JSDocUnknownTypeData {}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocVariadicTypeData {
@@ -1085,6 +1124,7 @@ pub struct SpreadElementData {
 #[derive(Clone, Debug, PartialEq)]
 pub struct StringLiteralData {
     pub text: String,
+    pub has_extended_unicode_escape: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1337,6 +1377,7 @@ pub enum NodeData {
     InterfaceDeclaration(InterfaceDeclarationData),
     IntersectionType(IntersectionTypeData),
     JSDoc(JSDocData),
+    JSDocAllType(JSDocAllTypeData),
     JSDocAugmentsTag(JSDocAugmentsTagData),
     JSDocAuthorTag(JSDocAuthorTagData),
     JSDocCallbackTag(JSDocCallbackTagData),
@@ -1351,6 +1392,7 @@ pub enum NodeData {
     JSDocLinkPlain(JSDocLinkPlainData),
     JSDocMemberName(JSDocMemberNameData),
     JSDocNameReference(JSDocNameReferenceData),
+    JSDocNamepathType(JSDocNamepathTypeData),
     JSDocNonNullableType(JSDocNonNullableTypeData),
     JSDocNullableType(JSDocNullableTypeData),
     JSDocOptionalType(JSDocOptionalTypeData),
@@ -1368,12 +1410,14 @@ pub enum NodeData {
     JSDocSignature(JSDocSignatureData),
     JSDocTag(JSDocTagData),
     JSDocTemplateTag(JSDocTemplateTagData),
+    JSDocText(JSDocTextData),
     JSDocThisTag(JSDocThisTagData),
     JSDocThrowsTag(JSDocThrowsTagData),
     JSDocTypeExpression(JSDocTypeExpressionData),
     JSDocTypeLiteral(JSDocTypeLiteralData),
     JSDocTypeTag(JSDocTypeTagData),
     JSDocTypedefTag(JSDocTypedefTagData),
+    JSDocUnknownType(JSDocUnknownTypeData),
     JSDocVariadicType(JSDocVariadicTypeData),
     JsxAttribute(JsxAttributeData),
     JsxAttributes(JsxAttributesData),
@@ -1533,6 +1577,7 @@ impl NodeData {
             Self::InterfaceDeclaration(_) => Some(SyntaxKind::InterfaceDeclaration),
             Self::IntersectionType(_) => Some(SyntaxKind::IntersectionType),
             Self::JSDoc(_) => Some(SyntaxKind::JSDoc),
+            Self::JSDocAllType(_) => Some(SyntaxKind::JSDocAllType),
             Self::JSDocAugmentsTag(_) => Some(SyntaxKind::JSDocAugmentsTag),
             Self::JSDocAuthorTag(_) => Some(SyntaxKind::JSDocAuthorTag),
             Self::JSDocCallbackTag(_) => Some(SyntaxKind::JSDocCallbackTag),
@@ -1547,6 +1592,7 @@ impl NodeData {
             Self::JSDocLinkPlain(_) => Some(SyntaxKind::JSDocLinkPlain),
             Self::JSDocMemberName(_) => Some(SyntaxKind::JSDocMemberName),
             Self::JSDocNameReference(_) => Some(SyntaxKind::JSDocNameReference),
+            Self::JSDocNamepathType(_) => Some(SyntaxKind::JSDocNamepathType),
             Self::JSDocNonNullableType(_) => Some(SyntaxKind::JSDocNonNullableType),
             Self::JSDocNullableType(_) => Some(SyntaxKind::JSDocNullableType),
             Self::JSDocOptionalType(_) => Some(SyntaxKind::JSDocOptionalType),
@@ -1564,12 +1610,14 @@ impl NodeData {
             Self::JSDocSignature(_) => Some(SyntaxKind::JSDocSignature),
             Self::JSDocTag(_) => Some(SyntaxKind::JSDocTag),
             Self::JSDocTemplateTag(_) => Some(SyntaxKind::JSDocTemplateTag),
+            Self::JSDocText(_) => Some(SyntaxKind::JSDocText),
             Self::JSDocThisTag(_) => Some(SyntaxKind::JSDocThisTag),
             Self::JSDocThrowsTag(_) => Some(SyntaxKind::JSDocThrowsTag),
             Self::JSDocTypeExpression(_) => Some(SyntaxKind::JSDocTypeExpression),
             Self::JSDocTypeLiteral(_) => Some(SyntaxKind::JSDocTypeLiteral),
             Self::JSDocTypeTag(_) => Some(SyntaxKind::JSDocTypeTag),
             Self::JSDocTypedefTag(_) => Some(SyntaxKind::JSDocTypedefTag),
+            Self::JSDocUnknownType(_) => Some(SyntaxKind::JSDocUnknownType),
             Self::JSDocVariadicType(_) => Some(SyntaxKind::JSDocVariadicType),
             Self::JsxAttribute(_) => Some(SyntaxKind::JsxAttribute),
             Self::JsxAttributes(_) => Some(SyntaxKind::JsxAttributes),
@@ -1912,6 +1960,7 @@ impl NodeData {
             SyntaxKind::ImportAttributes => Self::ImportAttributes(ImportAttributesData {
                 token: SyntaxKind::ImportAttributes,
                 elements: None,
+                multi_line: None,
             }),
             SyntaxKind::ImportClause => Self::ImportClause(ImportClauseData {
                 name: None,
@@ -1979,6 +2028,7 @@ impl NodeData {
                 tags: None,
                 comment: None,
             }),
+            SyntaxKind::JSDocAllType => Self::JSDocAllType(JSDocAllTypeData {}),
             SyntaxKind::JSDocAugmentsTag => Self::JSDocAugmentsTag(JSDocAugmentsTagData {
                 tag_name: None,
                 comment: None,
@@ -2009,6 +2059,8 @@ impl NodeData {
                 type_expression: None,
             }),
             SyntaxKind::JSDocFunctionType => Self::JSDocFunctionType(JSDocFunctionTypeData {
+                name: None,
+                type_parameters: None,
                 parameters: None,
                 r#type: None,
             }),
@@ -2024,9 +2076,18 @@ impl NodeData {
                 module_specifier: None,
                 attributes: None,
             }),
-            SyntaxKind::JSDocLink => Self::JSDocLink(JSDocLinkData { name: None }),
-            SyntaxKind::JSDocLinkCode => Self::JSDocLinkCode(JSDocLinkCodeData { name: None }),
-            SyntaxKind::JSDocLinkPlain => Self::JSDocLinkPlain(JSDocLinkPlainData { name: None }),
+            SyntaxKind::JSDocLink => Self::JSDocLink(JSDocLinkData {
+                name: None,
+                text: String::new(),
+            }),
+            SyntaxKind::JSDocLinkCode => Self::JSDocLinkCode(JSDocLinkCodeData {
+                name: None,
+                text: String::new(),
+            }),
+            SyntaxKind::JSDocLinkPlain => Self::JSDocLinkPlain(JSDocLinkPlainData {
+                name: None,
+                text: String::new(),
+            }),
             SyntaxKind::JSDocMemberName => Self::JSDocMemberName(JSDocMemberNameData {
                 left: None,
                 right: None,
@@ -2034,12 +2095,19 @@ impl NodeData {
             SyntaxKind::JSDocNameReference => {
                 Self::JSDocNameReference(JSDocNameReferenceData { name: None })
             }
+            SyntaxKind::JSDocNamepathType => {
+                Self::JSDocNamepathType(JSDocNamepathTypeData { r#type: None })
+            }
             SyntaxKind::JSDocNonNullableType => {
-                Self::JSDocNonNullableType(JSDocNonNullableTypeData { r#type: None })
+                Self::JSDocNonNullableType(JSDocNonNullableTypeData {
+                    r#type: None,
+                    postfix: false,
+                })
             }
-            SyntaxKind::JSDocNullableType => {
-                Self::JSDocNullableType(JSDocNullableTypeData { r#type: None })
-            }
+            SyntaxKind::JSDocNullableType => Self::JSDocNullableType(JSDocNullableTypeData {
+                r#type: None,
+                postfix: false,
+            }),
             SyntaxKind::JSDocOptionalType => {
                 Self::JSDocOptionalType(JSDocOptionalTypeData { r#type: None })
             }
@@ -2114,6 +2182,9 @@ impl NodeData {
                 constraint: None,
                 type_parameters: None,
             }),
+            SyntaxKind::JSDocText => Self::JSDocText(JSDocTextData {
+                text: String::new(),
+            }),
             SyntaxKind::JSDocThisTag => Self::JSDocThisTag(JSDocThisTagData {
                 tag_name: None,
                 comment: None,
@@ -2143,6 +2214,7 @@ impl NodeData {
                 full_name: None,
                 type_expression: None,
             }),
+            SyntaxKind::JSDocUnknownType => Self::JSDocUnknownType(JSDocUnknownTypeData {}),
             SyntaxKind::JSDocVariadicType => {
                 Self::JSDocVariadicType(JSDocVariadicTypeData { r#type: None })
             }
@@ -2396,6 +2468,7 @@ impl NodeData {
             }
             SyntaxKind::StringLiteral => Self::StringLiteral(StringLiteralData {
                 text: String::new(),
+                has_extended_unicode_escape: None,
             }),
             SyntaxKind::SwitchStatement => Self::SwitchStatement(SwitchStatementData {
                 expression: None,
@@ -2986,6 +3059,13 @@ impl NodeData {
         }
     }
 
+    pub fn as_js_doc_all_type(&self) -> Option<&JSDocAllTypeData> {
+        match self {
+            Self::JSDocAllType(data) => Some(data),
+            _ => None,
+        }
+    }
+
     pub fn as_js_doc_augments_tag(&self) -> Option<&JSDocAugmentsTagData> {
         match self {
             Self::JSDocAugmentsTag(data) => Some(data),
@@ -3080,6 +3160,13 @@ impl NodeData {
     pub fn as_js_doc_name_reference(&self) -> Option<&JSDocNameReferenceData> {
         match self {
             Self::JSDocNameReference(data) => Some(data),
+            _ => None,
+        }
+    }
+
+    pub fn as_js_doc_namepath_type(&self) -> Option<&JSDocNamepathTypeData> {
+        match self {
+            Self::JSDocNamepathType(data) => Some(data),
             _ => None,
         }
     }
@@ -3203,6 +3290,13 @@ impl NodeData {
         }
     }
 
+    pub fn as_js_doc_text(&self) -> Option<&JSDocTextData> {
+        match self {
+            Self::JSDocText(data) => Some(data),
+            _ => None,
+        }
+    }
+
     pub fn as_js_doc_this_tag(&self) -> Option<&JSDocThisTagData> {
         match self {
             Self::JSDocThisTag(data) => Some(data),
@@ -3241,6 +3335,13 @@ impl NodeData {
     pub fn as_js_doc_typedef_tag(&self) -> Option<&JSDocTypedefTagData> {
         match self {
             Self::JSDocTypedefTag(data) => Some(data),
+            _ => None,
+        }
+    }
+
+    pub fn as_js_doc_unknown_type(&self) -> Option<&JSDocUnknownTypeData> {
+        match self {
+            Self::JSDocUnknownType(data) => Some(data),
             _ => None,
         }
     }

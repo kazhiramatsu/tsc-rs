@@ -8,24 +8,27 @@
 
 use crate::assignment::{
     access_expression_of, get_assigned_expando_initializer, get_assignment_declaration_kind,
-    get_element_or_property_access_name, get_expando_initializer,
-    get_right_most_assigned_expression, is_bindable_object_define_property_call,
-    is_bindable_static_access_expression, is_exports_identifier,
-    is_module_exports_access_expression, is_prototype_access, AssignmentDeclarationKind,
+    get_assignment_declaration_property_access_kind, get_element_or_property_access_name,
+    get_expando_initializer, get_right_most_assigned_expression,
+    is_bindable_object_define_property_call, is_bindable_static_access_expression,
+    is_exports_identifier, is_literal_like_element_access, is_module_exports_access_expression,
+    is_prototype_access, AssignmentDeclarationKind,
 };
 use crate::containers::{get_container_flags, ContainerFlags};
 use crate::declare::{Binder, TableRef};
 use crate::flow::FlowId;
 use crate::node_util::{
     can_have_flow_node, declaration_name_to_string, get_containing_class, get_error_span_for_node,
-    has_dynamic_name, id_text, is_assignment_expression_simple, is_assignment_operator,
-    is_async_function, is_auto_accessor_property_declaration, is_binding_pattern,
-    is_block_or_catch_scoped, is_destructuring_assignment, is_entity_name_expression,
-    is_function_like_kind, is_identifier_name, is_in_top_level_context, is_narrowable_operand,
+    get_host_signature_from_jsdoc, get_jsdoc_host, get_jsdoc_type_tag, has_dynamic_name, id_text,
+    is_assignment_expression_simple, is_assignment_operator, is_async_function,
+    is_auto_accessor_property_declaration, is_binding_pattern, is_block_or_catch_scoped,
+    is_destructuring_assignment, is_entity_name_expression, is_function_like_kind,
+    is_identifier_name, is_in_top_level_context, is_jsdoc_type_alias, is_narrowable_operand,
     is_narrowable_reference, is_narrowing_expression, is_object_literal_method,
     is_object_literal_or_class_expression_method_or_accessor, is_parameter_property_declaration,
     is_part_of_parameter_declaration, is_part_of_type_query, is_potentially_executable_node,
-    kind_of, name_field_of, parent_of, statements_of,
+    is_property_access_entity_name_expression, jsdoc_full_name, jsdoc_type_expression, kind_of,
+    name_field_of, parent_of, statements_of,
 };
 use crate::symbols::{InternalSymbolName, SymbolId};
 use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
@@ -43,6 +46,7 @@ impl<'a> Binder<'a> {
         self.in_strict_mode = self.bind_in_strict_mode();
         self.bind(Some(self.source.root));
         self.delayed_bind_jsdoc_typedef_tags();
+        self.bind_jsdoc_imports();
     }
 
     /// tsc-port: bindInStrictMode @6.0.3
@@ -82,14 +86,30 @@ impl<'a> Binder<'a> {
     /// tsc-port: bindWorker @6.0.3
     /// tsc-hash: 4b259323fa2534e8d67ea9485669ddbff8e0a5a252719533558d6d8e99181588
     /// tsc-span: _tsc.js:44287-44527
-    ///
-    /// The non-JSDoc special-property/CommonJS arms formerly carved out
-    /// at stage 3.4c landed in phase 9.8a. JSDoc namespace aliases,
-    /// special declarations driven solely by tags, and JSDoc tag arms
-    /// remain deferred.
     pub(crate) fn bind_worker(&mut self, node: NodeId) {
         match kind_of(self.source, node) {
             SyntaxKind::Identifier | SyntaxKind::ThisKeyword => {
+                if kind_of(self.source, node) == SyntaxKind::Identifier
+                    && self
+                        .flags_of(node)
+                        .intersects(NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE)
+                {
+                    let mut declaration = parent_of(self.source, node);
+                    while declaration
+                        .is_some_and(|candidate| !is_jsdoc_type_alias(self.source, candidate))
+                    {
+                        declaration =
+                            declaration.and_then(|candidate| parent_of(self.source, candidate));
+                    }
+                    if let Some(declaration) = declaration {
+                        self.bind_block_scoped_declaration(
+                            declaration,
+                            SymbolFlags::TYPE_ALIAS,
+                            SymbolFlags::TYPE_ALIAS_EXCLUDES,
+                        );
+                    }
+                    return;
+                }
                 if kind_of(self.source, node) == SyntaxKind::ThisKeyword {
                     self.seen_this_keyword = true;
                 }
@@ -122,7 +142,9 @@ impl<'a> Binder<'a> {
                         self.node_flow.insert(node, current_flow);
                     }
                 }
-                // isSpecialPropertyDeclaration remains JSDoc-driven.
+                if self.is_special_property_declaration(node) {
+                    self.bind_special_property_declaration(node);
+                }
                 self.bind_common_js_module_symbol(node);
             }
             SyntaxKind::BinaryExpression => {
@@ -141,7 +163,35 @@ impl<'a> Binder<'a> {
                         self.bind_this_property_assignment(node)
                     }
                     AssignmentDeclarationKind::Property => {
-                        self.bind_special_property_assignment(node);
+                        let receiver = match &self.source.arena.node(node).data {
+                            NodeData::BinaryExpression(data) => data
+                                .left
+                                .and_then(|left| access_expression_of(self.source, left)),
+                            _ => None,
+                        };
+                        let is_aliased_this = self.is_in_js_file()
+                            && receiver.is_some_and(|receiver| {
+                                let NodeData::Identifier(data) =
+                                    &self.source.arena.node(receiver).data
+                                else {
+                                    return false;
+                                };
+                                self.block_scope_container
+                                    .and_then(|container| {
+                                        self.lookup_symbol_for_name(container, &data.escaped_text)
+                                    })
+                                    .and_then(|symbol| {
+                                        self.symbols.symbol(symbol).value_declaration
+                                    })
+                                    .is_some_and(|declaration| {
+                                        self.is_this_initialized_declaration(declaration)
+                                    })
+                            });
+                        if is_aliased_this {
+                            self.bind_this_property_assignment(node);
+                        } else {
+                            self.bind_special_property_assignment(node);
+                        }
                     }
                     AssignmentDeclarationKind::None => {}
                     _ => debug_assert!(
@@ -319,9 +369,12 @@ impl<'a> Binder<'a> {
                 }
             }
             SyntaxKind::JSDocPropertyTag => self.bind_jsdoc_property_like_tag(node),
+            SyntaxKind::JSDocClassTag => self.bind_jsdoc_class_tag(node),
             SyntaxKind::JSDocTypedefTag
             | SyntaxKind::JSDocCallbackTag
             | SyntaxKind::JSDocEnumTag => self.delayed_type_aliases.push(node),
+            SyntaxKind::JSDocOverloadTag => self.bind(jsdoc_type_expression(self.source, node)),
+            SyntaxKind::JSDocImportTag => self.js_doc_imports.push(node),
             SyntaxKind::ImportEqualsDeclaration
             | SyntaxKind::NamespaceImport
             | SyntaxKind::ImportSpecifier
@@ -752,11 +805,19 @@ impl<'a> Binder<'a> {
             return;
         };
         if !is_binding_pattern(self.source, name) {
+            let possible_variable_declaration =
+                if kind_of(self.source, node) == SyntaxKind::BindingElement {
+                    parent_of(self.source, node)
+                        .and_then(|pattern| parent_of(self.source, pattern))
+                        .unwrap_or(node)
+                } else {
+                    node
+                };
             let bind_as_require_alias = self.is_in_js_file()
                 && self
-                    .bare_or_accessed_require_call_for_variable(node)
+                    .bare_or_accessed_require_call_for_variable(possible_variable_declaration)
                     .is_some()
-                && !self.variable_declaration_has_jsdoc_type_tag(node)
+                && get_jsdoc_type_tag(self.source, node).is_none()
                 && !crate::node_util::get_combined_modifier_flags(self.source, node)
                     .intersects(ModifierFlags::EXPORT);
             if bind_as_require_alias {
@@ -821,45 +882,17 @@ impl<'a> Binder<'a> {
         Some(initializer)
     }
 
-    /// The syntax arena does not retain JSDoc attachment nodes yet.
-    /// Preserve tsc's `!getJSDocTypeTag(node)` require-alias guard
-    /// using the same nearest-leading-comment convention as the
-    /// checker-side JSDoc type reader.
-    fn variable_declaration_has_jsdoc_type_tag(&self, node: NodeId) -> bool {
-        let Some(name) = name_field_of(self.source, node) else {
-            return false;
-        };
-        let anchor_pos = self.source.arena.node(name).pos as usize;
-        let prefix = &self.source.text[..anchor_pos.min(self.source.text.len())];
-        let Some(comment_start) = prefix.rfind("/**") else {
-            return false;
-        };
-        let after_start = &prefix[comment_start + 3..];
-        let Some(relative_end) = after_start.find("*/") else {
-            return false;
-        };
-        let comment_end = comment_start + 3 + relative_end + 2;
-        let between = prefix[comment_end..].trim();
-        if !matches!(between, "" | "let" | "const" | "var")
-            && !between.ends_with(" let")
-            && !between.ends_with(" const")
-            && !between.ends_with(" var")
-        {
-            return false;
-        }
-        let comment = prefix[comment_start + 3..comment_end - 2].to_ascii_lowercase();
-        comment.match_indices("@type").any(|(index, _)| {
-            comment[index + "@type".len()..]
-                .chars()
-                .next()
-                .is_none_or(|character| character.is_whitespace() || character == '{')
-        })
-    }
-
     /// tsc-port: bindParameter @6.0.3
     /// tsc-hash: bf7da5ad28542bd11a56b44230ae7af7fc900197d037f4c8a9b5170ed17370f2
     /// tsc-span: _tsc.js:45021-45037
     fn bind_parameter(&mut self, node: NodeId) {
+        if kind_of(self.source, node) == SyntaxKind::JSDocParameterTag
+            && self.container.is_none_or(|container| {
+                kind_of(self.source, container) != SyntaxKind::JSDocSignature
+            })
+        {
+            return;
+        }
         let name = name_field_of(self.source, node);
         if self.in_strict_mode && !self.flags_of(node).intersects(NodeFlags::AMBIENT) {
             self.check_strict_mode_eval_or_arguments(node, name);
@@ -1042,10 +1075,33 @@ impl<'a> Binder<'a> {
     /// tsc-port: bindTypeParameter @6.0.3
     /// tsc-hash: d9ebdb8d11003cd97969f00e4e4b7b32890cc8cfc66be6ee5ea25c7e84621a2f
     /// tsc-span: _tsc.js:45078-45115
-    ///
-    /// The JSDocTemplateTag arm awaits JSDoc parsing.
     fn bind_type_parameter(&mut self, node: NodeId) {
         let parent = parent_of(self.source, node);
+        if parent.is_some_and(|parent| kind_of(self.source, parent) == SyntaxKind::JSDocTemplateTag)
+        {
+            let tag = parent.expect("checked JSDoc template parent");
+            if let Some(container) = self.effective_container_for_jsdoc_template_tag(tag) {
+                // Deliberately no addToContainerChain: tsc creates this
+                // locals table directly for JSDoc/infer type parameters.
+                self.locals.entry(container).or_default();
+                self.declare_symbol(
+                    TableRef::Locals(container),
+                    None,
+                    node,
+                    SymbolFlags::TYPE_PARAMETER,
+                    SymbolFlags::TYPE_PARAMETER_EXCLUDES,
+                    false,
+                    false,
+                );
+            } else {
+                self.declare_symbol_and_add_to_symbol_table(
+                    node,
+                    SymbolFlags::TYPE_PARAMETER,
+                    SymbolFlags::TYPE_PARAMETER_EXCLUDES,
+                );
+            }
+            return;
+        }
         let in_infer_type =
             parent.is_some_and(|parent| kind_of(self.source, parent) == SyntaxKind::InferType);
         if in_infer_type {
@@ -1079,6 +1135,29 @@ impl<'a> Binder<'a> {
                 SymbolFlags::TYPE_PARAMETER_EXCLUDES,
             );
         }
+    }
+
+    /// tsc-port: getEffectiveContainerForJSDocTemplateTag @6.0.3
+    /// tsc-hash: 6604aa47d045079b7bcfd5d4eafd83467e557090119f44a885805ce1dbaa773b
+    /// tsc-span: _tsc.js:15490-15498
+    fn effective_container_for_jsdoc_template_tag(&self, node: NodeId) -> Option<NodeId> {
+        let parent = parent_of(self.source, node)?;
+        if let NodeData::JSDoc(data) = &self.source.arena.node(parent).data {
+            if let Some(tags) = data.tags {
+                if let Some(alias) = self
+                    .source
+                    .arena
+                    .node_array(tags)
+                    .nodes
+                    .iter()
+                    .copied()
+                    .find(|&tag| is_jsdoc_type_alias(self.source, tag))
+                {
+                    return Some(alias);
+                }
+            }
+        }
+        get_host_signature_from_jsdoc(self.source, node)
     }
 
     /// tsc-port: getInferTypeContainer @6.0.3
@@ -1149,13 +1228,14 @@ impl<'a> Binder<'a> {
                 SymbolFlags::PROPERTY | SymbolFlags::ASSIGNMENT,
                 InternalSymbolName::COMPUTED.to_owned(),
             );
-            self.bind_potentially_missing_namespaces(
+            let symbol = self.bind_potentially_missing_namespaces(
                 parent_symbol,
                 left_expression,
                 self.is_top_level_namespace_assignment(left),
                 false,
                 false,
             );
+            self.add_late_bound_assignment_declaration_to_symbol(node, symbol);
         } else {
             self.bind_static_property_assignment(left);
         }
@@ -1328,6 +1408,10 @@ impl<'a> Binder<'a> {
         }) else {
             return;
         };
+        self.bind_prototype_property_access(left);
+    }
+
+    fn bind_prototype_property_access(&mut self, left: NodeId) {
         let Some(class_prototype) = access_expression_of(self.source, left) else {
             return;
         };
@@ -1338,7 +1422,19 @@ impl<'a> Binder<'a> {
     }
 
     fn bind_this_property_assignment(&mut self, node: NodeId) {
-        if !self.is_in_js_file() || has_dynamic_name(self.source, node) {
+        let has_private_identifier = match &self.source.arena.node(node).data {
+            NodeData::BinaryExpression(data) => data.left.is_some_and(|left| {
+                kind_of(self.source, left) == SyntaxKind::PropertyAccessExpression
+                    && name_field_of(self.source, left).is_some_and(|name| {
+                        kind_of(self.source, name) == SyntaxKind::PrivateIdentifier
+                    })
+            }),
+            NodeData::PropertyAccessExpression(data) => data
+                .name
+                .is_some_and(|name| kind_of(self.source, name) == SyntaxKind::PrivateIdentifier),
+            _ => false,
+        };
+        if !self.is_in_js_file() || has_private_identifier {
             return;
         }
         let Some(this_container) = self.get_this_container(node) else {
@@ -1390,15 +1486,23 @@ impl<'a> Binder<'a> {
                 {
                     return;
                 }
-                self.declare_symbol(
-                    TableRef::Members(constructor_symbol),
-                    Some(constructor_symbol),
-                    node,
-                    SymbolFlags::PROPERTY | SymbolFlags::ASSIGNMENT,
-                    SymbolFlags::NONE,
-                    true,
-                    false,
-                );
+                if has_dynamic_name(self.source, node) {
+                    self.bind_dynamically_named_this_property_assignment(
+                        node,
+                        constructor_symbol,
+                        TableRef::Members(constructor_symbol),
+                    );
+                } else {
+                    self.declare_symbol(
+                        TableRef::Members(constructor_symbol),
+                        Some(constructor_symbol),
+                        node,
+                        SymbolFlags::PROPERTY | SymbolFlags::ASSIGNMENT,
+                        SymbolFlags::NONE,
+                        true,
+                        false,
+                    );
+                }
                 if let Some(value_declaration) =
                     self.symbols.symbol(constructor_symbol).value_declaration
                 {
@@ -1432,17 +1536,24 @@ impl<'a> Binder<'a> {
                 } else {
                     TableRef::Members(class_symbol)
                 };
-                self.declare_symbol(
-                    table,
-                    Some(class_symbol),
-                    node,
-                    SymbolFlags::PROPERTY | SymbolFlags::ASSIGNMENT,
-                    SymbolFlags::NONE,
-                    true,
-                    false,
-                );
+                if has_dynamic_name(self.source, node) {
+                    self.bind_dynamically_named_this_property_assignment(node, class_symbol, table);
+                } else {
+                    self.declare_symbol(
+                        table,
+                        Some(class_symbol),
+                        node,
+                        SymbolFlags::PROPERTY | SymbolFlags::ASSIGNMENT,
+                        SymbolFlags::NONE,
+                        true,
+                        false,
+                    );
+                }
             }
             SyntaxKind::SourceFile => {
+                if has_dynamic_name(self.source, node) {
+                    return;
+                }
                 if let Some(file_symbol) = self
                     .common_js_module_indicator
                     .and_then(|_| self.file_symbol())
@@ -1467,6 +1578,50 @@ impl<'a> Binder<'a> {
             SyntaxKind::ModuleDeclaration => {}
             _ => {}
         }
+    }
+
+    /// tsc-port: bindDynamicallyNamedThisPropertyAssignment/addLateBoundAssignmentDeclarationToSymbol @6.0.3
+    /// tsc-hash: 65b038e874010506c9bd51f193b9af9a5e664418aacc34b81ae556495ca9a197
+    /// tsc-span: _tsc.js:44733-44749
+    fn bind_dynamically_named_this_property_assignment(
+        &mut self,
+        node: NodeId,
+        symbol: SymbolId,
+        table: TableRef,
+    ) {
+        self.declare_symbol(
+            table,
+            Some(symbol),
+            node,
+            SymbolFlags::PROPERTY,
+            SymbolFlags::NONE,
+            true,
+            true,
+        );
+        self.add_late_bound_assignment_declaration_to_symbol(node, Some(symbol));
+    }
+
+    fn add_late_bound_assignment_declaration_to_symbol(
+        &mut self,
+        node: NodeId,
+        symbol: Option<SymbolId>,
+    ) {
+        if let Some(symbol) = symbol {
+            self.symbols
+                .symbol_mut(symbol)
+                .assignment_declaration_members
+                .insert(node, node);
+        }
+    }
+
+    fn is_this_initialized_declaration(&self, node: NodeId) -> bool {
+        matches!(
+            &self.source.arena.node(node).data,
+            NodeData::VariableDeclaration(data)
+                if data.initializer.is_some_and(|initializer| {
+                    kind_of(self.source, initializer) == SyntaxKind::ThisKeyword
+                })
+        )
     }
 
     fn get_this_container(&self, node: NodeId) -> Option<NodeId> {
@@ -1496,6 +1651,42 @@ impl<'a> Binder<'a> {
             return;
         };
         self.bind_property_assignment(expression, node, false, false);
+    }
+
+    /// tsc-port: isSpecialPropertyDeclaration @6.0.3
+    /// tsc-hash: 8ee17fc5daafcf687ae616150fffcdd63a110af227d1ef43923211f8bf65034e
+    /// tsc-span: _tsc.js:15187-15189
+    fn is_special_property_declaration(&self, node: NodeId) -> bool {
+        self.is_in_js_file()
+            && parent_of(self.source, node).is_some_and(|parent| {
+                kind_of(self.source, parent) == SyntaxKind::ExpressionStatement
+            })
+            && (kind_of(self.source, node) != SyntaxKind::ElementAccessExpression
+                || is_literal_like_element_access(self.source, node))
+            && parent_of(self.source, node)
+                .is_some_and(|statement| get_jsdoc_type_tag(self.source, statement).is_some())
+    }
+
+    /// tsc-port: bindSpecialPropertyDeclaration @6.0.3
+    /// tsc-hash: 1bdbe3df071447471f5c52641d071c810a6fd87f1920ebe432da6548df81223a
+    /// tsc-span: _tsc.js:44752-44762
+    fn bind_special_property_declaration(&mut self, node: NodeId) {
+        let Some(expression) = access_expression_of(self.source, node) else {
+            return;
+        };
+        if kind_of(self.source, expression) == SyntaxKind::ThisKeyword {
+            self.bind_this_property_assignment(node);
+        } else if is_bindable_static_access_expression(self.source, node, false)
+            && parent_of(self.source, node)
+                .and_then(|statement| parent_of(self.source, statement))
+                .is_some_and(|parent| kind_of(self.source, parent) == SyntaxKind::SourceFile)
+        {
+            if is_prototype_access(self.source, expression) {
+                self.bind_prototype_property_access(node);
+            } else {
+                self.bind_static_property_assignment(node);
+            }
+        }
     }
 
     fn bind_property_assignment(
@@ -1949,7 +2140,7 @@ impl<'a> Binder<'a> {
         }
     }
 
-    fn is_top_level_namespace_assignment(&self, node: NodeId) -> bool {
+    pub(crate) fn is_top_level_namespace_assignment(&self, node: NodeId) -> bool {
         let mut current = node;
         while let Some(parent) = parent_of(self.source, current) {
             if kind_of(self.source, parent) == SyntaxKind::BinaryExpression {
@@ -2588,6 +2779,7 @@ impl<'a> Binder<'a> {
             SyntaxKind::JSDocTypedefTag
             | SyntaxKind::JSDocCallbackTag
             | SyntaxKind::JSDocEnumTag => self.bind_jsdoc_type_alias(node),
+            SyntaxKind::JSDocImportTag => self.bind_jsdoc_import_tag(node),
             SyntaxKind::SourceFile => {
                 let (statements, end_of_file_token) = match &self.source.arena.node(node).data {
                     NodeData::SourceFile(data) => (data.statements, data.end_of_file_token),
@@ -2641,92 +2833,283 @@ impl<'a> Binder<'a> {
     /// tsc-span: _tsc.js:43715-43727
     fn bind_jsdoc_type_alias(&mut self, node: NodeId) {
         let (tag_name, comment) = match &self.source.arena.node(node).data {
-            NodeData::JSDocTypedefTag(data) => (data.tag_name, data.comment),
-            NodeData::JSDocCallbackTag(data) => (data.tag_name, data.comment),
-            NodeData::JSDocEnumTag(data) => (data.tag_name, data.comment),
+            NodeData::JSDocTypedefTag(data) => (
+                data.tag_name,
+                data.comment.as_ref().and_then(|comment| comment.nodes()),
+            ),
+            NodeData::JSDocCallbackTag(data) => (
+                data.tag_name,
+                data.comment.as_ref().and_then(|comment| comment.nodes()),
+            ),
+            NodeData::JSDocEnumTag(data) => (
+                data.tag_name,
+                data.comment.as_ref().and_then(|comment| comment.nodes()),
+            ),
             _ => (None, None),
         };
         self.bind(tag_name);
         self.bind_each(comment);
     }
 
-    fn jsdoc_host(&self, node: NodeId) -> Option<NodeId> {
-        let doc = parent_of(self.source, node)?;
-        (kind_of(self.source, doc) == SyntaxKind::JSDoc)
-            .then(|| parent_of(self.source, doc))
-            .flatten()
-    }
-
-    fn enclosing_container_from(&self, mut node: NodeId) -> NodeId {
-        loop {
-            if get_container_flags(self.source, node).intersects(ContainerFlags::IS_CONTAINER) {
-                return node;
-            }
-            let Some(parent) = parent_of(self.source, node) else {
-                return self.source.root;
-            };
-            node = parent;
+    /// tsc-port: bindJSDocClassTag @6.0.3
+    /// tsc-hash: f359647efc406bad6897db5d5e378d2ec520d62db51c45f7a5a9909bba796885
+    /// tsc-span: _tsc.js:43729-43735
+    fn bind_jsdoc_class_tag(&mut self, node: NodeId) {
+        self.bind_each_child(node);
+        let Some(host) = get_host_signature_from_jsdoc(self.source, node) else {
+            return;
+        };
+        if kind_of(self.source, host) == SyntaxKind::MethodDeclaration {
+            return;
+        }
+        if let Some(&symbol) = self.node_symbol.get(&host) {
+            self.add_declaration_to_symbol(symbol, host, SymbolFlags::CLASS);
         }
     }
 
-    fn enclosing_block_scope_container_from(&self, mut node: NodeId) -> NodeId {
-        loop {
-            let flags = get_container_flags(self.source, node);
-            if flags.intersects(
-                ContainerFlags::IS_CONTAINER | ContainerFlags::IS_BLOCK_SCOPED_CONTAINER,
-            ) {
-                return node;
-            }
-            let Some(parent) = parent_of(self.source, node) else {
-                return self.source.root;
+    /// tsc-port: bindJSDocImportTag @6.0.3
+    /// tsc-hash: 0c6e051c6d4bf96725368bc57e64b1f1a9b69bd2e862337cce123d430bc91cca
+    /// tsc-span: _tsc.js:43736-43743
+    fn bind_jsdoc_import_tag(&mut self, node: NodeId) {
+        let (tag_name, module_specifier, attributes, comment) =
+            match &self.source.arena.node(node).data {
+                NodeData::JSDocImportTag(data) => (
+                    data.tag_name,
+                    data.module_specifier,
+                    data.attributes,
+                    data.comment.as_ref().and_then(|comment| comment.nodes()),
+                ),
+                _ => return,
             };
-            node = parent;
+        self.bind(tag_name);
+        self.bind(module_specifier);
+        self.bind(attributes);
+        self.bind_each(comment);
+    }
+
+    fn enclosing_container_from(&self, node: NodeId) -> Option<NodeId> {
+        let mut current = parent_of(self.source, node);
+        while let Some(candidate) = current {
+            if get_container_flags(self.source, candidate).intersects(ContainerFlags::IS_CONTAINER)
+            {
+                return Some(candidate);
+            }
+            current = parent_of(self.source, candidate);
+        }
+        None
+    }
+
+    fn enclosing_block_scope_container_from(&self, node: NodeId) -> Option<NodeId> {
+        let mut current = parent_of(self.source, node);
+        while let Some(candidate) = current {
+            if self.is_block_scope(candidate) {
+                return Some(candidate);
+            }
+            current = parent_of(self.source, candidate);
+        }
+        None
+    }
+
+    fn is_block_scope(&self, node: NodeId) -> bool {
+        match kind_of(self.source, node) {
+            SyntaxKind::SourceFile
+            | SyntaxKind::CaseBlock
+            | SyntaxKind::CatchClause
+            | SyntaxKind::ModuleDeclaration
+            | SyntaxKind::ForStatement
+            | SyntaxKind::ForInStatement
+            | SyntaxKind::ForOfStatement
+            | SyntaxKind::Constructor
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::ArrowFunction
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::ClassStaticBlockDeclaration => true,
+            SyntaxKind::Block => parent_of(self.source, node).is_none_or(|parent| {
+                !is_function_like_kind(kind_of(self.source, parent))
+                    && kind_of(self.source, parent) != SyntaxKind::ClassStaticBlockDeclaration
+            }),
+            _ => false,
         }
     }
 
     /// tsc-port: delayedBindJSDocTypedefTag @6.0.3
     /// tsc-hash: 81918f8d6ca2b8ac860ef667494925641d30f765f62fb8515aa81cb3271fe57e
     /// tsc-span: _tsc.js:43999-44072
-    ///
-    /// The first materialized slice covers identifier-named
-    /// typedef/callback declarations. Namespace/assignment names keep
-    /// their later owner cluster.
     fn delayed_bind_jsdoc_typedef_tags(&mut self) {
         let aliases = std::mem::take(&mut self.delayed_type_aliases);
+        if aliases.is_empty() {
+            return;
+        }
+        let save_container = self.container;
+        let save_last_container = self.last_container;
+        let save_block_scope_container = self.block_scope_container;
+        let save_current_flow = self.current_flow;
         for type_alias in aliases {
-            let Some(host) = self.jsdoc_host(type_alias) else {
+            let Some(host) =
+                parent_of(self.source, type_alias).and_then(|doc| parent_of(self.source, doc))
+            else {
                 continue;
             };
-            let save_container = self.container;
-            let save_block_scope_container = self.block_scope_container;
-            let save_current_flow = self.current_flow;
-            self.container = Some(self.enclosing_container_from(host));
-            self.block_scope_container = Some(self.enclosing_block_scope_container_from(host));
+            self.container = Some(
+                self.enclosing_container_from(host)
+                    .unwrap_or(self.source.root),
+            );
+            self.block_scope_container = Some(
+                self.enclosing_block_scope_container_from(host)
+                    .unwrap_or(self.source.root),
+            );
             self.current_flow = Some(self.flow.create_flow_node(
                 FlowFlags::START,
                 crate::flow::FlowPayload::None,
                 None,
             ));
 
-            let type_expression = match &self.source.arena.node(type_alias).data {
-                NodeData::JSDocTypedefTag(data) => data.type_expression,
-                NodeData::JSDocCallbackTag(data) => data.type_expression,
-                NodeData::JSDocEnumTag(data) => data.type_expression,
-                _ => None,
-            };
-            self.bind(type_expression);
-            if crate::node_util::get_name_of_declaration(self.source, type_alias).is_some() {
+            self.bind(jsdoc_type_expression(self.source, type_alias));
+            let decl_name = crate::node_util::get_name_of_declaration(self.source, type_alias);
+            let full_name = jsdoc_full_name(self.source, type_alias);
+            let is_enum = kind_of(self.source, type_alias) == SyntaxKind::JSDocEnumTag;
+            let property_access = decl_name
+                .and_then(|name| parent_of(self.source, name))
+                .filter(|&parent| is_property_access_entity_name_expression(self.source, parent));
+
+            if (is_enum || full_name.is_none()) && property_access.is_some() {
+                let property_access = property_access.expect("checked property access");
+                let is_top_level = self.is_top_level_namespace_assignment(property_access);
+                if is_top_level {
+                    let mut ancestor = Some(decl_name.expect("property name"));
+                    let mut is_prototype_property = false;
+                    while let Some(candidate) = ancestor {
+                        if kind_of(self.source, candidate) == SyntaxKind::PropertyAccessExpression
+                            && name_field_of(self.source, candidate)
+                                .and_then(|name| id_text(self.source, name))
+                                == Some("prototype")
+                        {
+                            is_prototype_property = true;
+                            break;
+                        }
+                        ancestor = parent_of(self.source, candidate);
+                    }
+                    self.bind_potentially_missing_namespaces(
+                        self.file_symbol(),
+                        property_access,
+                        is_top_level,
+                        is_prototype_property,
+                        false,
+                    );
+
+                    let old_container = self.container;
+                    let access_expression = access_expression_of(self.source, property_access);
+                    self.container = match get_assignment_declaration_property_access_kind(
+                        self.source,
+                        property_access,
+                    ) {
+                        AssignmentDeclarationKind::ExportsProperty
+                        | AssignmentDeclarationKind::ModuleExports => {
+                            (self.source.external_module_indicator.is_some()
+                                || self.common_js_module_indicator.is_some())
+                            .then_some(self.source.root)
+                        }
+                        AssignmentDeclarationKind::ThisProperty => access_expression,
+                        AssignmentDeclarationKind::PrototypeProperty => access_expression
+                            .and_then(|expression| name_field_of(self.source, expression)),
+                        AssignmentDeclarationKind::Property => {
+                            access_expression.map(|expression| {
+                                if self.is_exports_or_module_exports_or_alias(expression) {
+                                    self.source.root
+                                } else if kind_of(self.source, expression)
+                                    == SyntaxKind::PropertyAccessExpression
+                                {
+                                    name_field_of(self.source, expression).unwrap_or(expression)
+                                } else {
+                                    expression
+                                }
+                            })
+                        }
+                        AssignmentDeclarationKind::None => {
+                            debug_assert!(
+                                false,
+                                "typedef/enum property name must classify as an assignment"
+                            );
+                            None
+                        }
+                        _ => {
+                            debug_assert!(
+                                false,
+                                "unexpected JSDoc typedef assignment declaration kind"
+                            );
+                            None
+                        }
+                    };
+                    if self.container.is_some() {
+                        self.declare_module_member(
+                            type_alias,
+                            SymbolFlags::TYPE_ALIAS,
+                            SymbolFlags::TYPE_ALIAS_EXCLUDES,
+                        );
+                    }
+                    self.container = old_container;
+                }
+            } else if is_enum
+                || full_name.is_none()
+                || full_name
+                    .is_some_and(|name| kind_of(self.source, name) == SyntaxKind::Identifier)
+            {
                 self.bind_block_scoped_declaration(
                     type_alias,
                     SymbolFlags::TYPE_ALIAS,
                     SymbolFlags::TYPE_ALIAS_EXCLUDES,
                 );
+            } else {
+                self.bind(full_name);
             }
-
-            self.container = save_container;
-            self.block_scope_container = save_block_scope_container;
-            self.current_flow = save_current_flow;
         }
+        self.container = save_container;
+        self.last_container = save_last_container;
+        self.block_scope_container = save_block_scope_container;
+        self.current_flow = save_current_flow;
+    }
+
+    /// tsc-port: bindJSDocImports @6.0.3
+    /// tsc-hash: d375ec368ff9ff477272d321b5f92e7a84791bff6fe60a50f449fd9025229629
+    /// tsc-span: _tsc.js:44073-44103
+    fn bind_jsdoc_imports(&mut self) {
+        let imports = std::mem::take(&mut self.js_doc_imports);
+        if imports.is_empty() {
+            return;
+        }
+        let save_container = self.container;
+        let save_last_container = self.last_container;
+        let save_block_scope_container = self.block_scope_container;
+        let save_current_flow = self.current_flow;
+        for import_tag in imports {
+            let host = get_jsdoc_host(self.source, import_tag);
+            self.container = Some(
+                host.and_then(|host| self.enclosing_container_from(host))
+                    .unwrap_or(self.source.root),
+            );
+            self.block_scope_container = Some(
+                host.and_then(|host| self.enclosing_block_scope_container_from(host))
+                    .unwrap_or(self.source.root),
+            );
+            self.current_flow = Some(self.flow.create_flow_node(
+                FlowFlags::START,
+                crate::flow::FlowPayload::None,
+                None,
+            ));
+            let import_clause = match &self.source.arena.node(import_tag).data {
+                NodeData::JSDocImportTag(data) => data.import_clause,
+                _ => None,
+            };
+            self.bind(import_clause);
+        }
+        self.container = save_container;
+        self.last_container = save_last_container;
+        self.block_scope_container = save_block_scope_container;
+        self.current_flow = save_current_flow;
     }
 
     // ---- stage 3.5: the flow-aware statement binders ----
@@ -4272,6 +4655,56 @@ mod tests {
         }
     }
 
+    #[test]
+    fn jsdoc_reference_contexts_match_expression_classification() {
+        let source = parse(
+            "/**\n\
+             * See {@link ns.Member} and {@link ns#member}.\n\
+             * @see Other#field\n\
+             * @extends {Base<string>}\n\
+             */\n\
+             class Derived {}\n",
+        );
+
+        let links = find_nodes(&source, SyntaxKind::JSDocLink);
+        assert_eq!(links.len(), 2);
+        for link in links {
+            let NodeData::JSDocLink(data) = &source.arena.node(link).data else {
+                unreachable!("kind/data agree");
+            };
+            let name = data.name.expect("parsed link name");
+            assert!(crate::node_util::is_expression_node(&source, name));
+        }
+
+        let name_reference = find_nodes(&source, SyntaxKind::JSDocNameReference)
+            .into_iter()
+            .next()
+            .expect("parsed @see name reference");
+        let NodeData::JSDocNameReference(data) = &source.arena.node(name_reference).data else {
+            unreachable!("kind/data agree");
+        };
+        assert!(crate::node_util::is_expression_node(
+            &source,
+            data.name.expect("@see entity name"),
+        ));
+        assert!(find_nodes(&source, SyntaxKind::JSDocMemberName)
+            .into_iter()
+            .all(|node| crate::node_util::is_expression_node(&source, node)));
+
+        let augments_type = find_nodes(&source, SyntaxKind::ExpressionWithTypeArguments)
+            .into_iter()
+            .find(|&node| {
+                source.arena.node(node).parent.is_some_and(|parent| {
+                    source.arena.node(parent).kind == SyntaxKind::JSDocAugmentsTag
+                })
+            })
+            .expect("parsed @extends type");
+        assert!(!crate::node_util::is_expression_node(
+            &source,
+            augments_type,
+        ));
+    }
+
     fn find_nodes(source: &SourceFile, kind: SyntaxKind) -> Vec<NodeId> {
         (0..source.arena.len() as u32)
             .map(NodeId)
@@ -4942,6 +5375,76 @@ module.exports = F;
     }
 
     #[test]
+    fn aliased_this_and_dynamic_assignments_bind_the_constructor_owner() {
+        // bindWorker 44358-44365 routes `var self = this; self.x = ...`
+        // through bindThisPropertyAssignment. Its dynamic-name twin and
+        // bindSpecialPropertyAssignment 44840-44850 both record the
+        // declaration in the owning symbol's late-bound assignment map.
+        let source = parse_named(
+            "a.js",
+            "\
+const key = Symbol();
+function F() {
+    var self = this;
+    self.x = 1;
+    self[key] = 2;
+}
+function G() {
+    var self = {};
+    self.y = 1;
+}
+F[key] = 3;
+",
+            true,
+        );
+        let binder = bind(&source);
+        let root_locals = &binder.locals[&source.root];
+        let f = root_locals["F"];
+        let g = root_locals["G"];
+        let f_symbol = binder.symbols.symbol(f);
+        assert!(f_symbol.flags.intersects(SymbolFlags::CLASS));
+        assert!(f_symbol.members.contains_key("x"));
+        assert!(f_symbol.members.contains_key(InternalSymbolName::COMPUTED));
+        assert_eq!(f_symbol.assignment_declaration_members.len(), 2);
+        assert!(
+            !binder.symbols.symbol(g).members.contains_key("y"),
+            "an object-valued local with the same spelling is not a this alias"
+        );
+    }
+
+    #[test]
+    fn destructured_require_elements_bind_as_aliases_only_at_the_require_boundary() {
+        // bindVariableDeclarationOrBindingElement 45004-45020 uses the
+        // root VariableDeclaration for a BindingElement's require test.
+        let source = parse_named(
+            "a.js",
+            "\
+const { K: Renamed, V } = require('./mod');
+const ordinary = { V: 1 };
+const { V: local } = ordinary;
+",
+            true,
+        );
+        let binder = bind(&source);
+        let elements = find_nodes(&source, SyntaxKind::BindingElement);
+        assert_eq!(elements.len(), 3);
+        for &element in &elements[..2] {
+            let symbol = binder.node_symbol[&element];
+            assert!(binder
+                .symbols
+                .symbol(symbol)
+                .flags
+                .intersects(SymbolFlags::ALIAS));
+        }
+        let ordinary = binder.node_symbol[&elements[2]];
+        assert!(!binder
+            .symbols
+            .symbol(ordinary)
+            .flags
+            .intersects(SymbolFlags::ALIAS));
+    }
+
+    #[test]
     fn common_js_aliases_follow_initializers_without_treating_every_alias_as_exports() {
         // Oracle: TypeScript 6.0.3. Aliases initialized from exports or
         // module.exports feed named exports, while an unrelated entity
@@ -5105,10 +5608,15 @@ function outer() {
         assert_eq!(alias_symbol.declarations.len(), 1);
         let typedef = alias_symbol.declarations[0];
         assert_eq!(kind_of(&source, typedef), SyntaxKind::JSDocTypedefTag);
-        let type_literal = match &source.arena.node(typedef).data {
+        let type_expression = match &source.arena.node(typedef).data {
             NodeData::JSDocTypedefTag(data) => data.type_expression.expect("type literal"),
             _ => unreachable!(),
         };
+        let type_literal = match &source.arena.node(type_expression).data {
+            NodeData::JSDocTypeExpression(data) => data.r#type.expect("wrapped type literal"),
+            _ => type_expression,
+        };
+        assert_eq!(kind_of(&source, type_literal), SyntaxKind::JSDocTypeLiteral);
         let type_symbol = binder.node_symbol[&type_literal];
         let property = binder.symbols.symbol(type_symbol).members["required"];
         let property_symbol = binder.symbols.symbol(property);
@@ -5135,6 +5643,179 @@ function outer() {
 
         assert_eq!(binder.symbols.symbol(symbol).declarations, [parameter]);
         assert!(!binder.node_symbol.contains_key(&tag));
+    }
+
+    #[test]
+    fn dotted_jsdoc_typedef_binds_namespace_then_leaf_alias() {
+        let source = parse_named(
+            "a.js",
+            "/** @typedef {number} Types.Count */\nfunction host() {}\n",
+            true,
+        );
+        let binder = bind(&source);
+        let host = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
+        assert!(!binder.locals[&host].contains_key("Types"));
+        let types = binder.locals[&source.root]["Types"];
+        let count = binder.symbols.symbol(types).exports["Count"];
+        let count = binder.symbols.symbol(count);
+
+        assert!(count.flags.intersects(SymbolFlags::TYPE_ALIAS));
+        assert_eq!(count.declarations.len(), 1);
+        assert_eq!(
+            kind_of(&source, count.declarations[0]),
+            SyntaxKind::JSDocTypedefTag
+        );
+    }
+
+    #[test]
+    fn dotted_jsdoc_typedef_merges_namespace_face_into_explicit_export_alias() {
+        let source = parse_named(
+            "a.js",
+            "/**\n\
+             * @namespace myTypes\n\
+             * @global\n\
+             * @type {Object<string, *>}\n\
+             */\n\
+             const myTypes = {};\n\
+             /** @typedef {string} myTypes.typeA */\n\
+             export { myTypes };\n",
+            true,
+        );
+        let binder = bind(&source);
+        let file = binder.node_symbol[&source.root];
+        let exported = binder.symbols.symbol(file).exports["myTypes"];
+        let exported = binder.symbols.symbol(exported);
+
+        assert!(exported.flags.intersects(SymbolFlags::ALIAS));
+        assert!(exported.flags.intersects(SymbolFlags::NAMESPACE_MODULE));
+        assert!(exported
+            .declarations
+            .iter()
+            .any(|&declaration| kind_of(&source, declaration) == SyntaxKind::ExportSpecifier));
+        assert!(exported
+            .declarations
+            .iter()
+            .any(|&declaration| kind_of(&source, declaration) == SyntaxKind::ModuleDeclaration));
+    }
+
+    #[test]
+    fn nameless_jsdoc_typedef_on_property_routes_to_namespace_export() {
+        let source = parse_named("a.js", "/** @typedef {number} */\nTypes.Count;\n", true);
+        let binder = bind(&source);
+        let types = binder.js_global_augmentations["Types"];
+        let count = binder.symbols.symbol(types).exports["Count"];
+        let count = binder.symbols.symbol(count);
+        assert!(count.flags.intersects(SymbolFlags::TYPE_ALIAS));
+        assert!(count
+            .declarations
+            .iter()
+            .any(|&declaration| kind_of(&source, declaration) == SyntaxKind::JSDocTypedefTag));
+    }
+
+    #[test]
+    fn jsdoc_import_clause_binds_in_host_enclosing_scope() {
+        let source = parse_named(
+            "a.js",
+            "function f() {\n\
+             /** @import { RootOnly } from \"./root\" */\n\
+             /** @import { Foo } from \"./foo\" */\n\
+             const value = 0;\n\
+             }\n",
+            true,
+        );
+        let import_tag = find_nodes(&source, SyntaxKind::JSDocImportTag)[0];
+        assert_eq!(
+            get_container_flags(&source, import_tag).0,
+            ContainerFlags::IS_CONTAINER.0
+                | ContainerFlags::IS_CONTROL_FLOW_CONTAINER.0
+                | ContainerFlags::HAS_LOCALS.0
+                | ContainerFlags::PROPAGATES_THIS_KEYWORD.0
+        );
+
+        let binder = bind(&source);
+        let function = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
+        let locals = &binder.locals[&function];
+        assert!(locals.contains_key("Foo"));
+        assert!(binder
+            .symbols
+            .symbol(locals["Foo"])
+            .flags
+            .intersects(SymbolFlags::ALIAS));
+        assert!(!binder.locals[&source.root].contains_key("Foo"));
+        assert!(binder.locals[&source.root].contains_key("RootOnly"));
+        assert!(!locals.contains_key("RootOnly"));
+    }
+
+    #[test]
+    fn jsdoc_template_callback_and_class_tags_use_effective_hosts() {
+        let source = parse_named(
+            "a.js",
+            "/**\n\
+             * @template T\n\
+             * @callback Mapper\n\
+             * @param {T} value\n\
+             * @returns {T}\n\
+             */\n\
+             const mapper = null;\n\
+             /** @class */\n\
+             function C() {}\n",
+            true,
+        );
+        let binder = bind(&source);
+        let callback = find_nodes(&source, SyntaxKind::JSDocCallbackTag)[0];
+        assert!(binder.locals[&callback].contains_key("T"));
+        let signature = find_nodes(&source, SyntaxKind::JSDocSignature)[0];
+        let signature_type = binder.node_symbol[&signature];
+        assert!(binder
+            .symbols
+            .symbol(signature_type)
+            .members
+            .contains_key(InternalSymbolName::CALL));
+
+        let class_function = binder.locals[&source.root]["C"];
+        let flags = binder.symbols.symbol(class_function).flags;
+        assert!(flags.intersects(SymbolFlags::FUNCTION));
+        assert!(flags.intersects(SymbolFlags::CLASS));
+    }
+
+    #[test]
+    fn jsdoc_type_special_property_uses_materialized_ast_tag() {
+        let source = parse_named(
+            "a.js",
+            "function F() {}\n\
+             /** @type {number} */\n\
+             F.count;\n",
+            true,
+        );
+        let binder = bind(&source);
+        let function = binder.locals[&source.root]["F"];
+        let count = binder.symbols.symbol(function).exports["count"];
+        assert!(binder
+            .symbols
+            .symbol(count)
+            .flags
+            .intersects(SymbolFlags::PROPERTY | SymbolFlags::ASSIGNMENT));
+    }
+
+    #[test]
+    fn jsdoc_visibility_tags_contribute_effective_modifier_flags() {
+        let source = parse_named(
+            "a.js",
+            "class C {\n\
+             /**\n\
+             * @private\n\
+             * @readonly\n\
+             * @deprecated\n\
+             */\n\
+             value;\n\
+             }\n",
+            true,
+        );
+        let property = find_nodes(&source, SyntaxKind::PropertyDeclaration)[0];
+        let flags = crate::node_util::get_combined_modifier_flags(&source, property);
+        assert!(flags.intersects(ModifierFlags::PRIVATE));
+        assert!(flags.intersects(ModifierFlags::READONLY));
+        assert!(flags.intersects(ModifierFlags::DEPRECATED));
     }
 
     #[test]

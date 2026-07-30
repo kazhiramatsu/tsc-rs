@@ -497,66 +497,6 @@ fn package_version_range_matches_compiler(range: &str) -> Option<bool> {
     }))
 }
 
-fn jsdoc_line_candidate(line: &str) -> &str {
-    line.trim_start()
-        .strip_prefix('*')
-        .unwrap_or(line.trim_start())
-        .trim_start()
-}
-
-fn jsdoc_line_tag_name<'a>(comment: &'a str, tag: &str) -> Option<&'a str> {
-    comment.lines().find_map(|line| {
-        let tail = jsdoc_line_candidate(line).strip_prefix(tag)?;
-        if !tail.chars().next().is_some_and(char::is_whitespace) {
-            return None;
-        }
-        tail.split_whitespace().next()
-    })
-}
-
-fn jsdoc_typedef_tag(comment: &str) -> Option<(&str, usize, usize)> {
-    comment.lines().find_map(|line| {
-        let candidate = jsdoc_line_candidate(line);
-        let tail = candidate.strip_prefix("@typedef")?;
-        if !tail
-            .chars()
-            .next()
-            .is_some_and(|character| character.is_whitespace() || character == '{')
-        {
-            return None;
-        }
-        let tail = tail.trim_start();
-        let name_tail = if tail.starts_with('{') {
-            let mut depth = 0usize;
-            let mut end = None;
-            for (offset, character) in tail.char_indices() {
-                match character {
-                    '{' => depth += 1,
-                    '}' => {
-                        depth = depth.saturating_sub(1);
-                        if depth == 0 {
-                            end = Some(offset + character.len_utf8());
-                            break;
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            &tail[end?..]
-        } else {
-            tail
-        };
-        let name = name_tail.split_whitespace().next()?;
-        let start = candidate.as_ptr() as usize - comment.as_ptr() as usize;
-        let end = name.as_ptr() as usize - comment.as_ptr() as usize + name.len();
-        Some((name, start, end))
-    })
-}
-
-fn jsdoc_typedef_name(comment: &str) -> Option<&str> {
-    jsdoc_typedef_tag(comment).map(|(name, _, _)| name)
-}
-
 pub(crate) const EMIT_HELPER_DECORATE: u32 = 1 << 3;
 pub(crate) const EMIT_HELPER_READ: u32 = 1 << 9;
 pub(crate) const EMIT_HELPER_SPREAD_ARRAY: u32 = 1 << 10;
@@ -1041,9 +981,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 162af5ad124b130bc6f80f131212585721d1d34d502fc735b9eaea94780b01d0
     /// tsc-span: _tsc.js:49071-49108
     ///
-    /// TS core kinds plus CommonJS access assignments and checked-JS
-    /// bare/accessed require aliases. Object-literal alias shapes stay
-    /// behind their assignment-declaration slices.
+    /// TS core kinds plus CommonJS/object-literal assignments and
+    /// checked-JS bare/accessed require aliases.
     fn get_target_of_alias_declaration(
         &mut self,
         node: NodeId,
@@ -1062,7 +1001,7 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::NamespaceExport => {
                 self.get_target_of_namespace_export(node, dont_recursively_resolve)
             }
-            SyntaxKind::ImportSpecifier => {
+            SyntaxKind::ImportSpecifier | SyntaxKind::BindingElement => {
                 self.get_target_of_import_specifier(node, dont_recursively_resolve)
             }
             SyntaxKind::ExportSpecifier => self.get_target_of_export_specifier(
@@ -1100,7 +1039,36 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::NamespaceExportDeclaration => {
                 self.get_target_of_namespace_export_declaration(node, dont_recursively_resolve)
             }
-            _ => Ok(None),
+            SyntaxKind::ShorthandPropertyAssignment => {
+                let name = match self.data_of(node) {
+                    NodeData::ShorthandPropertyAssignment(data) => data.name,
+                    _ => None,
+                };
+                match name {
+                    Some(name) => self.resolve_entity_name_ex(
+                        name,
+                        SymbolFlags::VALUE | SymbolFlags::TYPE | SymbolFlags::NAMESPACE,
+                        /*ignore_errors*/ true,
+                        None,
+                        dont_recursively_resolve,
+                    ),
+                    None => Ok(None),
+                }
+            }
+            SyntaxKind::PropertyAssignment => {
+                let initializer = match self.data_of(node) {
+                    NodeData::PropertyAssignment(data) => data.initializer,
+                    _ => None,
+                };
+                match initializer {
+                    Some(initializer) => self
+                        .get_target_of_alias_like_expression(initializer, dont_recursively_resolve),
+                    None => Ok(None),
+                }
+            }
+            _ => Err(Unsupported::new(
+                "getTargetOfAliasDeclaration unexpected declaration kind (Debug.fail transcription)",
+            )),
         }
     }
 
@@ -1148,7 +1116,12 @@ impl<'a> CheckerState<'a> {
                                 let property_name = self.text_of_node(name)?;
                                 let property =
                                     self.get_property_of_type_full(module_type, &property_name)?;
-                                return self.resolve_symbol_ex(property, dont_resolve_alias);
+                                // getTargetOfImportEqualsDeclaration 48508 calls
+                                // resolveSymbol with no dontResolveAlias argument.
+                                // Even getImmediateAliasedSymbol therefore skips a
+                                // deprecated re-export alias on this CommonJS
+                                // property-access path and returns its final target.
+                                return self.resolve_symbol_ex(property, false);
                             }
                         }
                     }
@@ -1174,12 +1147,6 @@ impl<'a> CheckerState<'a> {
         if let Some(expression) = expression {
             let immediate = self.resolve_external_module_name(node, expression, false)?;
             let resolved = self.resolve_external_module_symbol(immediate, false)?;
-            if self.kind_of(node) == SyntaxKind::VariableDeclaration {
-                if let Some(resolved) = resolved {
-                    self.non_jsdoc_js_commonjs_require_targets
-                        .insert(self.get_merged_symbol(resolved));
-                }
-            }
             // 48516-48521: under node20..nodenext, `import x =
             // require(esm)` targets the module's `"module.exports"`
             // named export when one exists.
@@ -1240,6 +1207,19 @@ impl<'a> CheckerState<'a> {
             NodeData::CallExpression(data) => self.nodes_of(data.arguments).first().copied(),
             _ => None,
         }
+    }
+
+    /// tsc-port: isBindingElementOfBareOrAccessedRequire @6.0.3
+    /// tsc-hash: f1153d83781a44e6b70813384860b9cd0ce9c5e9077efd507c34cce49d21ee06
+    /// tsc-span: _tsc.js:14929-14931
+    pub(crate) fn is_binding_element_of_bare_or_accessed_require(&self, node: NodeId) -> bool {
+        self.kind_of(node) == SyntaxKind::BindingElement
+            && self
+                .parent_of(node)
+                .and_then(|pattern| self.parent_of(pattern))
+                .is_some_and(|declaration| {
+                    self.external_module_require_argument(declaration).is_some()
+                })
     }
 
     /// tsc-port: checkAndReportErrorForResolvingImportAliasToTypeOnlySymbol @6.0.3
@@ -1525,6 +1505,7 @@ impl<'a> CheckerState<'a> {
             .parent_of(node)
             .and_then(|parent| match self.data_of(parent) {
                 NodeData::ImportDeclaration(data) => data.module_specifier,
+                NodeData::JSDocImportTag(data) => data.module_specifier,
                 _ => None,
             });
         let Some(module_specifier) = module_specifier else {
@@ -1684,6 +1665,7 @@ impl<'a> CheckerState<'a> {
                 let parent = self.parent_of(node)?;
                 match self.data_of(parent) {
                     NodeData::ImportDeclaration(data) => data.module_specifier,
+                    NodeData::JSDocImportTag(data) => data.module_specifier,
                     _ => None,
                 }
             }
@@ -1702,6 +1684,7 @@ impl<'a> CheckerState<'a> {
                 let declaration = self.parent_of(clause)?;
                 match self.data_of(declaration) {
                     NodeData::ImportDeclaration(data) => data.module_specifier,
+                    NodeData::JSDocImportTag(data) => data.module_specifier,
                     _ => None,
                 }
             }
@@ -1711,6 +1694,7 @@ impl<'a> CheckerState<'a> {
                 let declaration = self.parent_of(clause)?;
                 match self.data_of(declaration) {
                     NodeData::ImportDeclaration(data) => data.module_specifier,
+                    NodeData::JSDocImportTag(data) => data.module_specifier,
                     _ => None,
                 }
             }
@@ -1793,17 +1777,12 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        let diagnostics_before = self.diagnostics.len();
         self.error_at_with_related(
             name.or(Some(node)),
             &diagnostics::Module_0_has_no_default_export,
             &[&module_name],
             related,
         );
-        // `reportNonDefaultExport` depends only on the module symbol and
-        // import clause. Publish its exact checked-JS row without opening
-        // unrelated JSDoc-backed semantic diagnostics.
-        self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1192);
         Ok(())
     }
 
@@ -2000,16 +1979,21 @@ impl<'a> CheckerState<'a> {
         specifier: NodeId,
         dont_resolve_alias: bool,
     ) -> CheckResult2<Option<SymbolId>> {
-        let module_specifier = match self.data_of(node) {
-            NodeData::ImportDeclaration(data) => data.module_specifier,
-            NodeData::ExportDeclaration(data) => data.module_specifier,
-            _ => None,
-        };
+        let module_specifier =
+            self.external_module_require_argument(node)
+                .or_else(|| match self.data_of(node) {
+                    NodeData::ImportDeclaration(data) => data.module_specifier,
+                    NodeData::ExportDeclaration(data) => data.module_specifier,
+                    NodeData::JSDocImportTag(data) => data.module_specifier,
+                    _ => None,
+                });
         let Some(module_specifier) = module_specifier else {
             return Ok(None);
         };
         let module_symbol = self.resolve_external_module_name(node, module_specifier, false)?;
         let name = match self.data_of(specifier) {
+            NodeData::PropertyAccessExpression(data) => data.name,
+            NodeData::BindingElement(data) => data.property_name.or(data.name),
             NodeData::ImportSpecifier(data) => data.property_name.or(data.name),
             NodeData::ExportSpecifier(data) => data.property_name.or(data.name),
             _ => None,
@@ -2341,12 +2325,15 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<Option<SymbolId>> {
         let (property_name, name) = match self.data_of(node) {
             NodeData::ImportSpecifier(data) => (data.property_name, data.name),
+            NodeData::BindingElement(data) => (data.property_name, data.name),
             _ => return Ok(None),
         };
         let Some(effective) = property_name.or(name) else {
             return Ok(None);
         };
-        if self.module_export_name_is_default(effective) {
+        if self.kind_of(node) == SyntaxKind::ImportSpecifier
+            && self.module_export_name_is_default(effective)
+        {
             let specifier = self.get_module_specifier_for_import_or_export(node);
             if let Some(specifier) = specifier {
                 let module_symbol = self.resolve_external_module_name(node, specifier, false)?;
@@ -2359,13 +2346,38 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        let named = self.parent_of(node);
-        let clause = named.and_then(|named| self.parent_of(named));
-        let root = clause.and_then(|clause| self.parent_of(clause));
+        let root = if self.kind_of(node) == SyntaxKind::BindingElement {
+            Some(node_util::get_root_declaration(
+                self.binder.source_of_node(node),
+                node,
+            ))
+        } else {
+            let named = self.parent_of(node);
+            let clause = named.and_then(|named| self.parent_of(named));
+            clause.and_then(|clause| self.parent_of(clause))
+        };
         let Some(root) = root else {
             return Ok(None);
         };
-        let resolved = self.get_external_module_member(root, node, dont_resolve_alias)?;
+        let common_js_property_access = match self.data_of(root) {
+            NodeData::VariableDeclaration(data) => data.initializer.filter(|&initializer| {
+                self.kind_of(initializer) == SyntaxKind::PropertyAccessExpression
+            }),
+            _ => None,
+        };
+        let resolved = self.get_external_module_member(
+            root,
+            common_js_property_access.unwrap_or(node),
+            dont_resolve_alias,
+        )?;
+        if let (Some(_), Some(resolved)) = (common_js_property_access, resolved) {
+            if self.kind_of(effective) == SyntaxKind::Identifier {
+                let ty = self.get_type_of_symbol(resolved)?;
+                let name = self.text_of_node(effective)?;
+                let property = self.get_property_of_type_full(ty, &name)?;
+                return self.resolve_symbol_ex(property, dont_resolve_alias);
+            }
+        }
         self.mark_symbol_of_alias_declaration_if_type_only(
             Some(node),
             /*immediate_target*/ None,
@@ -2486,13 +2498,6 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         };
         let resolved = self.get_target_of_alias_like_expression(expression, dont_resolve_alias)?;
-        if self.kind_of(node) == SyntaxKind::BinaryExpression {
-            if let Some(symbol) = resolved {
-                let symbol = self.get_merged_symbol(symbol);
-                self.non_jsdoc_js_module_exports_alias_targets
-                    .insert(symbol);
-            }
-        }
         self.mark_symbol_of_alias_declaration_if_type_only(
             Some(node),
             /*immediate_target*/ None,
@@ -3129,18 +3134,19 @@ impl<'a> CheckerState<'a> {
             if resolved.resolved_using_ts_extension
                 && Self::is_declaration_file_name(module_reference)
             {
-                if let Some(error_node) = error_node {
-                    if !self.import_location_is_type_only(location) {
-                        let ts_extension =
-                            Self::try_extract_ts_extension(module_reference).unwrap_or(".d.ts");
-                        let suggestion =
-                            self.suggested_import_source(location, module_reference, ts_extension);
-                        self.error_at(
-                            Some(error_node),
-                            &diagnostics::A_declaration_file_cannot_be_imported_without_import_type_Did_you_mean_to_import_an_implementation_file_0_instead,
-                            &[&suggestion],
-                        );
-                    }
+                if (error_node.is_some()
+                    && self.import_or_export_is_type_only(location) == Some(false))
+                    || self.has_import_call_ancestor(location)
+                {
+                    let ts_extension =
+                        Self::try_extract_ts_extension(module_reference).unwrap_or(".d.ts");
+                    let suggestion =
+                        self.suggested_import_source(location, module_reference, ts_extension);
+                    self.error_at(
+                        error_node,
+                        &diagnostics::A_declaration_file_cannot_be_imported_without_import_type_Did_you_mean_to_import_an_implementation_file_0_instead,
+                        &[&suggestion],
+                    );
                 }
             } else if resolved.resolved_using_ts_extension
                 && self.options.allow_importing_ts_extensions != Some(true)
@@ -3151,7 +3157,7 @@ impl<'a> CheckerState<'a> {
                 // declaration-file importer legalizes the extension
                 // (bundlerImportTsExtensions pins the .d.ts face).
                 if let Some(error_node) = error_node {
-                    if !self.import_location_is_type_only(location) {
+                    if !self.ts_extension_import_is_type_only(location) {
                         let ts_extension =
                             Self::try_extract_ts_extension(module_reference).unwrap_or(".ts");
                         self.error_at(
@@ -3167,7 +3173,8 @@ impl<'a> CheckerState<'a> {
                     .flags_of(location)
                     .intersects(tsrs2_types::NodeFlags::AMBIENT)
                 && !Self::is_declaration_file_name(module_reference)
-                && !self.import_location_is_type_only(location)
+                && !self.is_literal_import_type_node(location)
+                && !self.is_part_of_type_only_import_or_export_declaration(location)
                 && Self::is_external_module_name_relative(module_reference)
                 && Self::try_extract_ts_extension(module_reference).is_some()
                 && !resolved.resolved_using_ts_extension
@@ -3196,7 +3203,6 @@ impl<'a> CheckerState<'a> {
                     if Self::is_untyped_javascript_path(&resolved_file_path)
                         && Self::node_modules_package_root_for_path(&resolved_file_path).is_some()
                     {
-                        let diagnostics_before = self.diagnostics.len();
                         let untyped = self.untyped_resolution_from_path(
                             location,
                             module_reference,
@@ -3208,12 +3214,6 @@ impl<'a> CheckerState<'a> {
                             module_reference,
                             &untyped,
                         );
-                        if self.is_in_js_file(error_node) {
-                            self.mark_non_jsdoc_js_diagnostics_since_with_code(
-                                diagnostics_before,
-                                diagnostics::Could_not_find_a_declaration_file_for_module_0_1_implicitly_has_an_any_type.code,
-                            );
-                        }
                     }
                 }
                 if let Some(error_node) = error_node {
@@ -3223,16 +3223,12 @@ impl<'a> CheckerState<'a> {
             }
             if let (Some(error_node), Some(_)) = (error_node, module_not_found_error) {
                 if !self.is_side_effect_import(error_node) {
-                    let diagnostics_before = self.diagnostics.len();
                     let resolved_file_path = Self::normalize_program_path(&resolved_file_name, "");
                     self.error_at(
                         Some(error_node),
                         &diagnostics::File_0_is_not_a_module,
                         &[&resolved_file_path],
                     );
-                    if self.is_in_js_file(error_node) {
-                        self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
-                    }
                 }
             }
             return Ok(None);
@@ -3270,7 +3266,6 @@ impl<'a> CheckerState<'a> {
             && !Self::has_extension(module_reference)
             && self.resolution_mode_for_usage(location) == ModuleResolutionMode::EsNext
         {
-            let diagnostics_before = self.diagnostics.len();
             if let Some(suggested) = self.suggested_extension_for(location, module_reference) {
                 let suggestion = format!("{module_reference}{suggested}");
                 self.error_at(
@@ -3284,9 +3279,6 @@ impl<'a> CheckerState<'a> {
                     &diagnostics::Relative_import_paths_need_explicit_file_extensions_in_ECMAScript_imports_when_moduleResolution_is_node16_or_nodenext_Consider_adding_an_extension_to_the_import_path,
                     &[],
                 );
-            }
-            if self.is_in_js_file(error_node) {
-                self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
             }
             return Ok(None);
         }
@@ -3305,7 +3297,6 @@ impl<'a> CheckerState<'a> {
                 if let Some(untyped) =
                     self.resolve_untyped_module_for_diagnostic(location, module_reference)
                 {
-                    let diagnostics_before = self.diagnostics.len();
                     let is_error = module_not_found_error.is_some()
                         && !self.options.allow_js
                         && self
@@ -3317,12 +3308,6 @@ impl<'a> CheckerState<'a> {
                         module_reference,
                         &untyped,
                     );
-                    if self.is_in_js_file(error_node) {
-                        self.mark_non_jsdoc_js_diagnostics_since_with_code(
-                            diagnostics_before,
-                            diagnostics::Could_not_find_a_declaration_file_for_module_0_1_implicitly_has_an_any_type.code,
-                        );
-                    }
                 }
             }
             // tsrs-native FP=0 rule: the miss sits behind unmodeled
@@ -3349,15 +3334,11 @@ impl<'a> CheckerState<'a> {
                 // only yields typed results); the NOT-FOUND face rides
                 // the plain tail below in tsc too.
             }
-            let diagnostics_before = self.diagnostics.len();
             self.error_at(
                 Some(error_node),
                 module_not_found_error,
                 &[module_reference],
             );
-            if self.is_in_js_file(error_node) {
-                self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
-            }
         }
         Ok(None)
     }
@@ -3394,7 +3375,6 @@ impl<'a> CheckerState<'a> {
             return;
         }
 
-        let diagnostics_before = self.diagnostics.len();
         if is_import_equals {
             self.error_at(
                 Some(error_node),
@@ -3427,9 +3407,6 @@ impl<'a> CheckerState<'a> {
             let span = self.diag_span_of_node(error_node);
             let diagnostic = self.diagnostic_at_span(&span, chain);
             self.push_error_diagnostic(diagnostic);
-        }
-        if self.is_in_js_file(error_node) {
-            self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
         }
     }
 
@@ -5007,15 +4984,11 @@ impl<'a> CheckerState<'a> {
                     }
                     ProgramModuleResolution::Suppressed => None,
                     ProgramModuleResolution::Missed => {
-                        let diagnostics_before = self.diagnostics.len();
                         self.error_at(
                             Some(location),
                             &diagnostics::This_syntax_requires_an_imported_helper_but_module_0_cannot_be_found,
                             &["tslib"],
                         );
-                        if self.is_in_js_file(location) {
-                            self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
-                        }
                         None
                     }
                 }
@@ -5055,15 +5028,11 @@ impl<'a> CheckerState<'a> {
                     let symbol = self.resolve_symbol_ex(exported, false)?;
                     let Some(symbol) = symbol.filter(|&symbol| symbol != self.unknown_symbol)
                     else {
-                        let diagnostics_before = self.diagnostics.len();
                         self.error_at(
                             Some(location),
                             &diagnostics::This_syntax_requires_an_imported_helper_named_1_which_does_not_exist_in_0_Consider_upgrading_your_version_of_0,
                             &["tslib", name],
                         );
-                        if self.is_in_js_file(location) {
-                            self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
-                        }
                         continue;
                     };
                     let required_parameter_count = match helper {
@@ -5082,15 +5051,11 @@ impl<'a> CheckerState<'a> {
                         }
                         if !compatible {
                             let required = required.to_string();
-                            let diagnostics_before = self.diagnostics.len();
                             self.error_at(
                                 Some(location),
                                 &diagnostics::This_syntax_requires_an_imported_helper_named_1_with_2_parameters_which_is_not_compatible_with_the_one_in_0_Consider_upgrading_your_version_of_0,
                                 &["tslib", name, &required],
                             );
-                            if self.is_in_js_file(location) {
-                                self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
-                            }
                         }
                     }
                 }
@@ -5826,25 +5791,58 @@ impl<'a> CheckerState<'a> {
         format!("{without_extension}{runtime_extension}")
     }
 
-    /// The type-only probe the ts-extension rows share
-    /// (importOrExport.isTypeOnly || findAncestor(location,
-    /// isImportTypeNode)).
-    fn import_location_is_type_only(&self, location: NodeId) -> bool {
+    /// resolveExternalModule's `importOrExport` probe
+    /// (_tsc.js:49500/49509). A JSDoc import deliberately produces
+    /// `None`: its ImportClause is not owned by an ImportDeclaration.
+    fn import_or_export_is_type_only(&self, location: NodeId) -> Option<bool> {
         let mut current = Some(location);
         while let Some(node) = current {
             match self.data_of(node) {
                 NodeData::ImportDeclaration(data) => {
-                    return data
-                        .import_clause
-                        .is_some_and(|clause| match self.data_of(clause) {
-                            NodeData::ImportClause(data) => data.is_type_only,
-                            _ => false,
-                        });
+                    if let Some(clause) = data.import_clause {
+                        return match self.data_of(clause) {
+                            NodeData::ImportClause(data) => Some(data.is_type_only),
+                            _ => None,
+                        };
+                    }
                 }
-                NodeData::ImportEqualsDeclaration(data) => return data.is_type_only,
-                NodeData::ExportDeclaration(data) => return data.is_type_only,
-                NodeData::ImportType(_) => return true,
+                NodeData::ImportEqualsDeclaration(data) => return Some(data.is_type_only),
+                NodeData::ExportDeclaration(data) => return Some(data.is_type_only),
                 _ => {}
+            }
+            current = self.parent_of(node);
+        }
+        None
+    }
+
+    /// The 5097 suppressor (_tsc.js:49509-49510):
+    /// `importOrExport?.isTypeOnly || findAncestor(location,
+    /// isImportTypeNode)`.
+    fn ts_extension_import_is_type_only(&self, location: NodeId) -> bool {
+        self.import_or_export_is_type_only(location) == Some(true)
+            || self.has_ancestor_kind(location, SyntaxKind::ImportType)
+    }
+
+    /// tsc isLiteralImportTypeNode (_tsc.js:14158).
+    fn is_literal_import_type_node(&self, node: NodeId) -> bool {
+        let NodeData::ImportType(data) = self.data_of(node) else {
+            return false;
+        };
+        data.argument
+            .and_then(|argument| match self.data_of(argument) {
+                NodeData::LiteralType(data) => data.literal,
+                _ => None,
+            })
+            .is_some_and(|literal| self.kind_of(literal) == SyntaxKind::StringLiteral)
+    }
+
+    /// tsc isPartOfTypeOnlyImportOrExportDeclaration
+    /// (_tsc.js:11926-11928).
+    fn is_part_of_type_only_import_or_export_declaration(&self, location: NodeId) -> bool {
+        let mut current = Some(location);
+        while let Some(node) = current {
+            if self.is_type_only_import_or_export_declaration(node) {
+                return true;
             }
             current = self.parent_of(node);
         }
@@ -5940,7 +5938,6 @@ impl<'a> CheckerState<'a> {
             {
                 return Ok(self.tables.intrinsics.any);
             }
-            self.non_jsdoc_js_commonjs_require_targets.insert(resolved);
             let ty = self.get_type_of_symbol(resolved)?;
             return Ok(ty);
         }
@@ -6435,7 +6432,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getExportsOfModuleWorker @6.0.3
     /// tsc-hash: 6646b6aa219ba46b93920a4edbcda42d39415260d756ebbcf05e8dff99229fbc
     /// tsc-span: _tsc.js:49868-49931
-    fn get_exports_of_module_worker(
+    pub(crate) fn get_exports_of_module_worker(
         &mut self,
         module_symbol: SymbolId,
     ) -> CheckResult2<(
@@ -7199,12 +7196,14 @@ impl<'a> CheckerState<'a> {
         Ok(true)
     }
 
-    /// tsc getExternalModuleName: the specifier expression of an
-    /// import/export declaration or import-equals external reference.
+    /// tsc-port: getExternalModuleName @6.0.3
+    /// tsc-hash: 0fe1fd1c0fddc419cc22b2cc6a22752e816eefdf725777ba55a3021683fad6a2
+    /// tsc-span: _tsc.js:15253-15270
     fn get_external_module_name_of(&self, node: NodeId) -> Option<NodeId> {
         match self.data_of(node) {
             NodeData::ImportDeclaration(data) => data.module_specifier,
             NodeData::ExportDeclaration(data) => data.module_specifier,
+            NodeData::JSDocImportTag(data) => data.module_specifier,
             NodeData::ImportEqualsDeclaration(data) => {
                 let reference = data.module_reference?;
                 match self.data_of(reference) {
@@ -7212,6 +7211,18 @@ impl<'a> CheckerState<'a> {
                     _ => None,
                 }
             }
+            NodeData::ImportType(data) => data.argument.and_then(|argument| {
+                let NodeData::LiteralType(literal) = self.data_of(argument) else {
+                    return None;
+                };
+                literal
+                    .literal
+                    .filter(|&literal| self.kind_of(literal) == SyntaxKind::StringLiteral)
+            }),
+            NodeData::CallExpression(data) => self.nodes_of(data.arguments).first().copied(),
+            NodeData::ModuleDeclaration(data) => data
+                .name
+                .filter(|&name| self.kind_of(name) == SyntaxKind::StringLiteral),
             _ => None,
         }
     }
@@ -7327,22 +7338,22 @@ impl<'a> CheckerState<'a> {
     /// The checked-JS type-only import/export face and the live
     /// isolatedModules/verbatimModuleSyntax type-only and CommonJS-
     /// format faces are ported here. Isolated import/local-value
-    /// conflicts, exported import-equals, ambient const enums, and
-    /// ImportSpecifier deprecation remain with their separately owned
-    /// producer slices.
+    /// conflicts, exported import-equals, and ambient const enums
+    /// remain with their separately owned producer slices.
     pub(crate) fn check_alias_symbol(&mut self, node: NodeId) -> CheckResult2<()> {
         let symbol = self.get_symbol_of_declaration(node)?;
         let target = self.resolve_alias(symbol)?;
-        let target_flags = (target != self.unknown_symbol)
-            .then(|| self.get_symbol_flags_of(target))
-            .transpose()?
-            .unwrap_or(SymbolFlags::NONE);
+        if target == self.unknown_symbol {
+            return Ok(());
+        }
+        // tsc intentionally tests the target's declared flags before
+        // getSymbolFlags follows aliases and merged symbol faces.
         let checked_js_type_alias = self.is_in_js_file(node)
-            && ((target == self.unknown_symbol
-                && self.checked_js_unbound_typedef_export(node).is_some())
-                || (target != self.unknown_symbol
-                    && (!target_flags.intersects(SymbolFlags::VALUE)
-                        || self.checked_js_imported_namespace_type_alias(node, target))));
+            && !self
+                .binder
+                .symbol(target)
+                .flags
+                .intersects(SymbolFlags::VALUE);
         if checked_js_type_alias && !self.is_type_only_import_or_export_declaration(node) {
             let export_symbol = self.binder.symbol(symbol).export_symbol.unwrap_or(symbol);
             let symbol = self.get_merged_symbol(export_symbol);
@@ -7352,7 +7363,6 @@ impl<'a> CheckerState<'a> {
                 _ => self.name_of_node(node),
             }
             .unwrap_or(node);
-            let diagnostics_before = self.diagnostics.len();
             if self.kind_of(node) == SyntaxKind::ExportSpecifier {
                 let related = self
                     .checked_js_automatic_export_related_info(
@@ -7366,11 +7376,6 @@ impl<'a> CheckerState<'a> {
                     &diagnostics::Types_cannot_appear_in_export_declarations_in_JavaScript_files,
                     &[],
                     related,
-                );
-                self.mark_non_jsdoc_js_diagnostics_since_with_code(
-                    diagnostics_before,
-                    diagnostics::Types_cannot_appear_in_export_declarations_in_JavaScript_files
-                        .code,
                 );
             } else {
                 let declaration = self.find_ancestor(Some(node), |state, ancestor| {
@@ -7403,16 +7408,10 @@ impl<'a> CheckerState<'a> {
                     &diagnostics::_0_is_a_type_and_cannot_be_imported_in_JavaScript_files_Use_1_in_a_JSDoc_type_annotation,
                     &[&imported_identifier, &import_type],
                 );
-                self.mark_non_jsdoc_js_diagnostics_since_with_code(
-                    diagnostics_before,
-                    diagnostics::_0_is_a_type_and_cannot_be_imported_in_JavaScript_files_Use_1_in_a_JSDoc_type_annotation.code,
-                );
             }
             return Ok(());
         }
-        if target == self.unknown_symbol {
-            return Ok(());
-        }
+        let target_flags = self.get_symbol_flags_of(target)?;
         let export_symbol = self.binder.symbol(symbol).export_symbol.unwrap_or(symbol);
         let symbol = self.get_merged_symbol(export_symbol);
         let symbol_flags = self.binder.symbol(symbol).flags;
@@ -7579,6 +7578,16 @@ impl<'a> CheckerState<'a> {
                 );
             }
         }
+        if self.kind_of(node) == SyntaxKind::ImportSpecifier {
+            let target_symbol = self.resolve_alias_with_deprecation_check(symbol, node)?;
+            if self.is_deprecated_symbol(target_symbol) {
+                let declarations = self.binder.symbol(target_symbol).declarations.clone();
+                if !declarations.is_empty() {
+                    let name = self.binder.symbol(target_symbol).escaped_name.clone();
+                    self.add_deprecated_suggestion(node, &declarations, &name);
+                }
+            }
+        }
         Ok(())
     }
 
@@ -7596,146 +7605,34 @@ impl<'a> CheckerState<'a> {
         }?;
         let escaped_name = self.module_export_name_text_escaped(export_name);
         let source = self.binder.source_of_node(node);
-        if let Some(target) = target {
-            let file_symbol = self.node_symbol(source.root)?;
-            let already_exported = self
-                .binder
-                .symbol(file_symbol)
-                .exports
-                .get(&escaped_name)
-                .copied()?;
-            if already_exported == target {
-                if let Some(exporting_declaration) = self
-                    .binder
-                    .symbol(already_exported)
-                    .declarations
-                    .iter()
-                    .copied()
-                    .find(|&declaration| {
-                        let kind = self.kind_of(declaration);
-                        (SyntaxKind::FirstJSDocNode..=SyntaxKind::LastJSDocNode).contains(&kind)
-                    })
-                {
-                    let display = unescape_leading_underscores(
-                        &self.binder.symbol(already_exported).escaped_name,
-                    );
-                    return Some(self.related_info_for_node(
-                        exporting_declaration,
-                        &diagnostics::_0_is_automatically_exported_here,
-                        &[display],
-                    ));
-                }
-            }
-        }
-        let (start, end) = self.checked_js_unbound_typedef_export(node)?;
-        let to_utf16 = |byte: usize| -> u32 {
-            source
-                .line_map
-                .byte_to_utf16
-                .get(byte)
-                .copied()
-                .unwrap_or(byte as u32)
-        };
-        let start = to_utf16(start);
-        let end = to_utf16(end);
-        Some(tsrs2_diags::RelatedInfo {
-            file_name: Some(source.file_name.clone()),
-            start: Some(start),
-            length: Some(end.saturating_sub(start)),
-            message: MessageChain::new(
-                &diagnostics::_0_is_automatically_exported_here,
-                &[unescape_leading_underscores(&escaped_name).to_owned()],
-            ),
-        })
-    }
-
-    /// tsrs-native: while JSDoc typedef nodes are absent from the
-    /// syntax arena, recover the exact local typedef comment that
-    /// checkAliasSymbol observes through the source-file export table.
-    fn checked_js_unbound_typedef_export(&self, node: NodeId) -> Option<(usize, usize)> {
-        let export_name = match self.data_of(node) {
-            NodeData::ExportSpecifier(data) => data.property_name.or(data.name),
-            _ => None,
-        }?;
-        let expected = self.module_export_name_text_unescaped(export_name);
-        let source = self.binder.source_of_node(node);
-        if !source.text.contains("@typedef") {
+        let target = target?;
+        let file_symbol = self.node_symbol(source.root)?;
+        let already_exported = self
+            .binder
+            .symbol(file_symbol)
+            .exports
+            .get(&escaped_name)
+            .copied()?;
+        if already_exported != target {
             return None;
         }
-        self.checked_js_top_level_jsdoc_comment_ranges(source.root)
-            .into_iter()
-            .find_map(|(body_start, comment_close)| {
-                let comment = &source.text[body_start..comment_close];
-                jsdoc_typedef_tag(comment)
-                    .filter(|(name, _, _)| *name == expected)
-                    .map(|(_, start, end)| (body_start + start, body_start + end))
-            })
-    }
-
-    /// tsrs-native: Rust's binder currently retains the runtime
-    /// declaration for a JSDoc namespace export where tsc resolves an
-    /// importing alias to the namespace's type-only face. Require both
-    /// the explicit namespace tag and a qualified typedef owned by it;
-    /// ordinary JavaScript object imports remain values.
-    fn checked_js_imported_namespace_type_alias(&self, node: NodeId, target: SymbolId) -> bool {
-        if self.kind_of(node) != SyntaxKind::ImportSpecifier {
-            return false;
-        }
-        let target_name = self.binder.symbol(target).escaped_name.as_str();
-        self.binder
-            .symbol(target)
+        let exporting_declaration = self
+            .binder
+            .symbol(already_exported)
             .declarations
             .iter()
             .copied()
-            .any(|declaration| {
-                let source = self.binder.source_of_node(declaration);
-                if !source.text.contains("@namespace") || !source.text.contains("@typedef") {
-                    return false;
-                }
-                let comments = self.checked_js_top_level_jsdoc_comment_ranges(source.root);
-                let has_namespace = comments.iter().any(|&(body_start, comment_close)| {
-                    jsdoc_line_tag_name(&source.text[body_start..comment_close], "@namespace")
-                        == Some(target_name)
-                });
-                has_namespace
-                    && comments.iter().any(|&(body_start, comment_close)| {
-                        jsdoc_typedef_name(&source.text[body_start..comment_close])
-                            .is_some_and(|name| name.starts_with(&format!("{target_name}.")))
-                    })
-            })
-    }
-
-    /// tsrs-native: leading-trivia JSDoc projection for this alias
-    /// boundary. Only top-level statements can own the typedefs and
-    /// namespaces consumed here, so this avoids the general JSDoc
-    /// helper's recursive AST visit on every checked-JS import.
-    fn checked_js_top_level_jsdoc_comment_ranges(&self, root: NodeId) -> Vec<(usize, usize)> {
-        let source = self.binder.source_of_node(root);
-        let statements = match self.data_of(root) {
-            NodeData::SourceFile(data) => data.statements,
-            _ => None,
-        };
-        let mut comments = std::collections::BTreeSet::new();
-        for statement in self.nodes_of(statements) {
-            let raw = source.arena.node(statement);
-            let trivia_start = (raw.pos as usize).min(source.text.len());
-            let trivia_end =
-                tsrs2_syntax::skip_trivia(&source.text, trivia_start).min(source.text.len());
-            let mut cursor = trivia_start;
-            while cursor < trivia_end {
-                let Some(relative_start) = source.text[cursor..trivia_end].find("/**") else {
-                    break;
-                };
-                let body_start = cursor + relative_start + 3;
-                let Some(relative_close) = source.text[body_start..trivia_end].find("*/") else {
-                    break;
-                };
-                let comment_close = body_start + relative_close;
-                comments.insert((body_start, comment_close));
-                cursor = comment_close + 2;
-            }
-        }
-        comments.into_iter().collect()
+            .find(|&declaration| {
+                let kind = self.kind_of(declaration);
+                (SyntaxKind::FirstJSDocNode..=SyntaxKind::LastJSDocNode).contains(&kind)
+            })?;
+        let display =
+            unescape_leading_underscores(&self.binder.symbol(already_exported).escaped_name);
+        Some(self.related_info_for_node(
+            exporting_declaration,
+            &diagnostics::_0_is_automatically_exported_here,
+            &[display],
+        ))
     }
 
     /// tsc-port: checkImportBinding @6.0.3
@@ -7782,10 +7679,11 @@ impl<'a> CheckerState<'a> {
     /// specifier's emit syntax and takes priority over the type-only
     /// (2857) and resolution-mode (1454) rows — the oracle-correction
     /// epoch made it observable corpus-wide.
-    fn check_import_attributes_of(&mut self, declaration: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_import_attributes_of(&mut self, declaration: NodeId) -> CheckResult2<()> {
         let attributes = match self.data_of(declaration) {
             NodeData::ImportDeclaration(data) => data.attributes,
             NodeData::ExportDeclaration(data) => data.attributes,
+            NodeData::JSDocImportTag(data) => data.attributes,
             _ => None,
         };
         let Some(node) = attributes else {
@@ -7852,6 +7750,7 @@ impl<'a> CheckerState<'a> {
         let module_specifier = match self.data_of(declaration) {
             NodeData::ImportDeclaration(data) => data.module_specifier,
             NodeData::ExportDeclaration(data) => data.module_specifier,
+            NodeData::JSDocImportTag(data) => data.module_specifier,
             _ => None,
         };
         if let Some(specifier) = module_specifier {
@@ -7876,6 +7775,7 @@ impl<'a> CheckerState<'a> {
                     })
             }
             NodeData::ExportDeclaration(data) => data.is_type_only,
+            NodeData::JSDocImportTag(_) => true,
             _ => false,
         };
         if is_type_only {
@@ -7903,6 +7803,13 @@ impl<'a> CheckerState<'a> {
         match self.data_of(declaration) {
             NodeData::ExportDeclaration(data) => data.is_type_only,
             NodeData::ImportDeclaration(data) => {
+                data.import_clause
+                    .is_some_and(|clause| match self.data_of(clause) {
+                        NodeData::ImportClause(data) => data.is_type_only,
+                        _ => false,
+                    })
+            }
+            NodeData::JSDocImportTag(data) => {
                 data.import_clause
                     .is_some_and(|clause| match self.data_of(clause) {
                         NodeData::ImportClause(data) => data.is_type_only,
@@ -8805,15 +8712,11 @@ impl<'a> CheckerState<'a> {
                 implied_node_format != Some(ModuleResolutionMode::CommonJs)
             };
             if module_kind >= 5 && module_kind != 200 && invalid_esm_export_assignment {
-                let diagnostics_before = self.diagnostics.len();
                 self.grammar_error_on_node(
                     node,
                     &diagnostics::Export_assignment_cannot_be_used_when_targeting_ECMAScript_modules_Consider_using_export_default_or_another_module_format_instead,
                     &[],
                 );
-                if self.is_in_js_file(node) {
-                    self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1203);
-                }
             } else if module_kind == 4 && !ambient {
                 self.grammar_error_on_node(
                     node,
@@ -8848,7 +8751,9 @@ impl<'a> CheckerState<'a> {
                     .get_declaration_of_alias_symbol(export_equals_symbol)
                     .or(self.binder.symbol(export_equals_symbol).value_declaration);
                 if let Some(declaration) = declaration {
-                    if !self.is_top_level_in_external_module_augmentation(declaration) {
+                    if !self.is_top_level_in_external_module_augmentation(declaration)
+                        && !self.is_in_js_file(declaration)
+                    {
                         self.error_at(
                             Some(declaration),
                             &diagnostics::An_export_assignment_cannot_be_used_in_a_module_with_other_exported_elements,
@@ -8884,19 +8789,11 @@ impl<'a> CheckerState<'a> {
             {
                 for &declaration in &declarations {
                     if self.is_not_overload(declaration) {
-                        let publish_checked_js = self.is_in_js_file(declaration);
-                        let diagnostics_before = self.diagnostics.len();
                         self.error_at(
                             Some(declaration),
                             &diagnostics::Cannot_redeclare_exported_variable_0,
                             &[unescape_leading_underscores(id)],
                         );
-                        if publish_checked_js {
-                            self.mark_non_jsdoc_js_diagnostics_since_with_code(
-                                diagnostics_before,
-                                2323,
-                            );
-                        }
                     }
                 }
             }
@@ -9009,7 +8906,7 @@ mod tests {
                 .get_symbol_of_declaration(declaration)
                 .expect("internal import symbol");
             let links = state.links.symbol(symbol);
-            (links.alias_referenced, links.is_referenced)
+            (links.alias_referenced, !links.is_referenced.is_empty())
         })
     }
 
@@ -9064,7 +8961,7 @@ mod tests {
                 .expect("exported import symbol");
             let links = state.links.symbol(symbol);
             assert!(links.alias_referenced);
-            assert!(!links.is_referenced);
+            assert!(links.is_referenced.is_empty());
         });
     }
 
@@ -9168,6 +9065,79 @@ mod tests {
             .collect::<Vec<_>>();
         rows.sort();
         rows
+    }
+
+    #[test]
+    fn import_specifiers_report_direct_and_intermediate_deprecated_aliases() {
+        let main = "import { old as via } from \"./b\";\n\
+                    import { old as direct } from \"./direct\";\n";
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "/a.js".to_owned(),
+                    text: "export const current = 1;\n".to_owned(),
+                },
+                InputFile {
+                    name: "/b.js".to_owned(),
+                    text:
+                        "export { /** @deprecated use current */ current as old } from \"./a\";\n"
+                            .to_owned(),
+                },
+                InputFile {
+                    name: "/direct.js".to_owned(),
+                    text: "/** @deprecated use current */\nexport const old = 1;\n".to_owned(),
+                },
+                InputFile {
+                    name: "/main.js".to_owned(),
+                    text: main.to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        let rows = result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 6385)
+            .map(|diagnostic| {
+                (
+                    diagnostic.file_name.as_deref(),
+                    diagnostic.start,
+                    diagnostic.length,
+                    diagnostic.category(),
+                    diagnostic.message_text(),
+                    diagnostic
+                        .related
+                        .iter()
+                        .map(|related| related.message.code)
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            rows,
+            [
+                (
+                    Some("/main.js"),
+                    Some(main.find("old as via").expect("intermediate alias") as u32),
+                    Some("old as via".len() as u32),
+                    DiagnosticCategory::Suggestion,
+                    "'old' is deprecated.",
+                    vec![2798],
+                ),
+                (
+                    Some("/main.js"),
+                    Some(main.find("old as direct").expect("direct alias") as u32),
+                    Some("old as direct".len() as u32),
+                    DiagnosticCategory::Suggestion,
+                    "'old' is deprecated.",
+                    vec![2798],
+                ),
+            ]
+        );
     }
 
     #[test]
@@ -9731,7 +9701,8 @@ let unrelated = \"\";\n",
     }
 
     #[test]
-    fn plain_js_nested_object_remains_open_ended_for_typescript_consumers() {
+    fn plain_js_nested_object_is_closed_for_typescript_consumers() {
+        let consumer = "obj.property.a = 1;\n";
         let result = check_program(
             &[
                 InputFile {
@@ -9740,7 +9711,7 @@ let unrelated = \"\";\n",
                 },
                 InputFile {
                     name: "/b.ts".to_owned(),
-                    text: "obj.property.a = 1;\n".to_owned(),
+                    text: consumer.to_owned(),
                 },
             ],
             &CompilerOptions {
@@ -9749,13 +9720,29 @@ let unrelated = \"\";\n",
                 ..CompilerOptions::default()
             },
         );
-        assert!(
+        // TypeScript 6.0.3 keeps the nested object-literal member
+        // closed across the JS-to-TS boundary under its implicit
+        // strict defaults; the earlier no-diagnostic expectation came
+        // from the removed local memberless-JS admission heuristic.
+        assert_eq!(
             result
                 .diagnostics
                 .iter()
-                .all(|diagnostic| diagnostic.code() != 2339),
-            "{:#?}",
-            result.diagnostics
+                .map(|diagnostic| (
+                    diagnostic.file_name.as_deref(),
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                    diagnostic.message_text(),
+                ))
+                .collect::<Vec<_>>(),
+            [(
+                Some("/b.ts"),
+                2339,
+                consumer.find('a').expect("closed nested member access") as u32,
+                1,
+                "Property 'a' does not exist on type '{}'.",
+            )]
         );
     }
 
@@ -10115,6 +10102,161 @@ let unrelated = \"\";\n",
                     "'TypeOnly' is a type and cannot be imported in JavaScript files. Use 'import(\"./types\").TypeOnly' in a JSDoc type annotation.".to_owned(),
                 ),
             ]
+        );
+    }
+
+    #[test]
+    fn jsdoc_import_aliases_resolve_named_namespace_and_default_targets() {
+        let declaration = "export type Named = string;\n\
+                           export type Nested = string;\n\
+                           export default interface DefaultType { value: string }\n";
+        let source = "/** @import { Named } from './types.d.ts' */\n\
+                      /** @import * as types from './types.d.ts' */\n\
+                      /** @import DefaultType from './types.d.ts' */\n\
+                      /** @type {Named} */\n\
+                      const named = 1;\n\
+                      /** @type {types.Nested} */\n\
+                      const namespaced = 2;\n\
+                      /** @type {DefaultType} */\n\
+                      const defaulted = { value: 3 };\n\
+                      /** @returns {Named} */\n\
+                      function namedReturn() { return 4; }\n";
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "/types.d.ts".to_owned(),
+                    text: declaration.to_owned(),
+                },
+                InputFile {
+                    name: "/a.js".to_owned(),
+                    text: source.to_owned(),
+                },
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                module: Some(200),
+                module_resolution: Some(100),
+                target: Some(2),
+                no_emit: Some(true),
+                allow_importing_ts_extensions: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            targeted_rows(&result, &[2322]),
+            [
+                (
+                    "/a.js".to_owned(),
+                    2322,
+                    source.find("named =").expect("named declaration") as u32,
+                    "named".len() as u32,
+                    "Type 'number' is not assignable to type 'string'.".to_owned(),
+                ),
+                (
+                    "/a.js".to_owned(),
+                    2322,
+                    source.find("namespaced =").expect("namespace declaration") as u32,
+                    "namespaced".len() as u32,
+                    "Type 'number' is not assignable to type 'string'.".to_owned(),
+                ),
+                (
+                    "/a.js".to_owned(),
+                    2322,
+                    source.rfind("value").expect("default member") as u32,
+                    "value".len() as u32,
+                    "Type 'number' is not assignable to type 'string'.".to_owned(),
+                ),
+                (
+                    "/a.js".to_owned(),
+                    2322,
+                    source.rfind("return 4").expect("JSDoc return statement") as u32,
+                    "return".len() as u32,
+                    "Type 'number' is not assignable to type 'string'.".to_owned(),
+                ),
+            ]
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| {
+                    diagnostic.category() == tsrs2_diags::DiagnosticCategory::Error
+                })
+                .count(),
+            4,
+            "{:#?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
+    fn checked_js_imported_jsdoc_namespace_resolves_to_its_type_only_face() {
+        let declaration = "/**\n\
+                           * @namespace myTypes\n\
+                           * @global\n\
+                           * @type {Object<string, *>}\n\
+                           */\n\
+                           const myTypes = {};\n\
+                           /** @typedef {string} myTypes.typeA */\n\
+                           export { myTypes };\n";
+        let source = "import { myTypes } from \"./types.js\";\n";
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            module: Some(1),
+            target: Some(2),
+            ..CompilerOptions::default()
+        };
+        with_program_state(
+            &[("/types.js", declaration), ("/main.js", source)],
+            &options,
+            |state| {
+                let file = state
+                    .node_symbol(state.binder.source(0).root)
+                    .expect("external module symbol");
+                let exported = state.binder.symbol(file).exports["myTypes"];
+                assert!(state
+                    .binder
+                    .symbol(exported)
+                    .flags
+                    .intersects(tsrs2_types::SymbolFlags::NAMESPACE_MODULE));
+                let import = state
+                    .binder
+                    .source(1)
+                    .arena
+                    .node_ids()
+                    .find(|&node| state.kind_of(node) == SyntaxKind::ImportSpecifier)
+                    .expect("import specifier");
+                let alias = state
+                    .get_symbol_of_declaration(import)
+                    .expect("import alias symbol");
+                let target = state.resolve_alias(alias).expect("import target");
+                assert_eq!(target, exported);
+            },
+        );
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "/types.js".to_owned(),
+                    text: declaration.to_owned(),
+                },
+                InputFile {
+                    name: "/main.js".to_owned(),
+                    text: source.to_owned(),
+                },
+            ],
+            &options,
+        );
+        assert_eq!(
+            targeted_rows(&result, &[18042]),
+            [(
+                "/main.js".to_owned(),
+                18042,
+                source.find("myTypes").expect("imported namespace") as u32,
+                "myTypes".len() as u32,
+                "'myTypes' is a type and cannot be imported in JavaScript files. Use 'import(\"./types.js\").myTypes' in a JSDoc type annotation.".to_owned(),
+            )]
         );
     }
 
@@ -11080,6 +11222,134 @@ let unrelated = \"\";\n",
     }
 
     #[test]
+    fn commonjs_property_immediate_target_skips_deprecated_reexport_alias() {
+        // getTargetOfImportEqualsDeclaration's CommonJS-property arm calls
+        // resolveSymbol without forwarding dontRecursivelyResolve. Thus the
+        // immediate target of the require variable is `original`, not the
+        // deprecated `foo` re-export alias, and the use has no 6385.
+        let files = [
+            InputFile {
+                name: "/base.ts".to_owned(),
+                text: "export function original() {}".to_owned(),
+            },
+            InputFile {
+                name: "/dep.ts".to_owned(),
+                text: "export { /** @deprecated use original */ original as foo } from \"./base\";"
+                    .to_owned(),
+            },
+            InputFile {
+                name: "/consumer.js".to_owned(),
+                text: "const foo = require(\"./dep\").foo; foo();".to_owned(),
+            },
+        ];
+        let result = check_program(
+            &files,
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                module: Some(1),
+                module_resolution: Some(2),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code() != 6385),
+            "{:?}",
+            result.diagnostics
+        );
+    }
+
+    #[test]
+    fn checked_js_destructured_require_aliases_preserve_bare_class_and_accessed_value_faces() {
+        // getTargetOfAliasDeclaration 49071-49108 routes BindingElement
+        // through getTargetOfImportSpecifier 48959-48983. A bare require
+        // resolves the exported class symbol, so its JSDoc value reference
+        // sees the instance face. The accessed-require second stage returns
+        // the object-literal Property symbol verbatim;
+        // getTypeFromJSDocValueReference consequently keeps its constructor
+        // value face, on which both instance-member reads miss.
+        let files = [
+            (
+                "/mod.js",
+                "class K { values() {} }\nexports.K = K;\nexports.box = { K };\n",
+            ),
+            (
+                "/main.js",
+                "const { K } = require('./mod');\n\
+                 /** @param {K} value */\n\
+                 function use(value) { value.values(); value.missing; }\n",
+            ),
+            (
+                "/accessed.js",
+                "const { K: NestedK } = require('./mod').box;\n\
+                 /** @param {NestedK} value */\n\
+                 function use(value) { value.values(); value.missing; }\n",
+            ),
+        ];
+        let rows = program_rows(
+            &files,
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            rows.into_iter()
+                .filter(|(_, code, _, _)| *code == 2339)
+                .map(|(file, code, _, _)| (file, code))
+                .collect::<Vec<_>>(),
+            [
+                ("/accessed.js".to_owned(), 2339),
+                ("/accessed.js".to_owned(), 2339),
+                ("/main.js".to_owned(), 2339),
+            ]
+        );
+    }
+
+    #[test]
+    fn destructured_require_sees_named_members_merged_onto_commonjs_export_equals() {
+        // getCommonJsExportEquals 49691-49714 merges the file's named
+        // exports onto the resolved export= target before the binding
+        // element selects its module member.
+        let files = [
+            (
+                "/commonJSAliasedExport.js",
+                "const donkey = ast => ast;\n\
+                 function funky(declaration) { return false; }\n\
+                 module.exports = donkey;\n\
+                 module.exports.funky = funky;\n",
+            ),
+            (
+                "/bug43713.js",
+                "const { funky } = require('./commonJSAliasedExport');\n\
+                 /** @type {boolean} */\n\
+                 var diddy;\n\
+                 var diddy = funky(1);\n",
+            ),
+        ];
+        let rows = program_rows(
+            &files,
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            rows.into_iter()
+                .filter(|(_, code, _, _)| *code == 2339)
+                .map(|(file, code, _, _)| (file, code))
+                .collect::<Vec<_>>(),
+            []
+        );
+    }
+
+    #[test]
     fn allow_js_resolves_in_program_js_after_ts_substitution_candidates() {
         let files = [
             (
@@ -11258,6 +11528,84 @@ let unrelated = \"\";\n",
     }
 
     #[test]
+    fn jsdoc_declaration_file_import_suppresses_2846_without_suppressing_value_imports() {
+        let jsdoc = "/** @import { T } from \"./types.d.ts\" */\n\
+                     /** @type {T} */\n\
+                     export const jsdocValue = \"ok\";\n";
+        let value_import = "import {} from \"./types.d.ts\";\nexport const valueImport = \"ok\";\n";
+        let files = [
+            ("/types.d.ts", "export type T = string;\n"),
+            ("/jsdoc.js", jsdoc),
+            ("/value.ts", value_import),
+        ];
+        let rows = program_rows(
+            &files,
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                no_emit: Some(true),
+                module: Some(200),
+                module_resolution: Some(100),
+                target: Some(9),
+                ..CompilerOptions::default()
+            },
+        )
+        .into_iter()
+        .filter(|(_, code, _, _)| *code == 2846)
+        .collect::<Vec<_>>();
+        assert_eq!(
+            rows,
+            [(
+                "/value.ts".to_owned(),
+                2846,
+                value_import
+                    .find("\"./types.d.ts\"")
+                    .expect("value import specifier") as u32,
+                "\"./types.d.ts\"".len() as u32,
+            )]
+        );
+    }
+
+    #[test]
+    fn jsdoc_ts_extension_import_reports_5097_but_import_type_does_not() {
+        let jsdoc = "/** @import { T } from \"./types.ts\" */\n\
+                     /** @type {T} */\n\
+                     export const jsdocValue = \"ok\";\n";
+        let import_type = "import type { T } from \"./types.ts\";\nexport type Imported = T;\n";
+        let files = [
+            ("/types.ts", "export type T = string;\n"),
+            ("/jsdoc.js", jsdoc),
+            ("/type-only.ts", import_type),
+        ];
+        let rows = program_rows(
+            &files,
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                no_emit: Some(true),
+                module: Some(200),
+                module_resolution: Some(100),
+                target: Some(9),
+                ..CompilerOptions::default()
+            },
+        )
+        .into_iter()
+        .filter(|(_, code, _, _)| *code == 5097)
+        .collect::<Vec<_>>();
+        assert_eq!(
+            rows,
+            [(
+                "/jsdoc.js".to_owned(),
+                5097,
+                jsdoc
+                    .find("\"./types.ts\"")
+                    .expect("JSDoc import specifier") as u32,
+                "\"./types.ts\"".len() as u32,
+            )]
+        );
+    }
+
+    #[test]
     fn rewrite_relative_import_reports_file_looking_directory_resolution() {
         let files = [
             ("/foo.ts/index.ts", "export = {};\n"),
@@ -11279,6 +11627,43 @@ let unrelated = \"\";\n",
                 },
             ),
             [("/index.ts".to_owned(), 2876, 21, 10)]
+        );
+    }
+
+    #[test]
+    fn rewrite_relative_import_checks_jsdoc_import_but_not_literal_import_type() {
+        let jsdoc = "/** @import { T } from \"./foo.ts\" */\n\
+                     /** @type {T} */\n\
+                     export const jsdocValue = {};\n";
+        let import_type = "export type Imported = import(\"./foo.ts\");\n";
+        let files = [
+            ("/foo.ts/index.ts", "export interface T {}\n"),
+            ("/jsdoc.js", jsdoc),
+            ("/type-only.ts", import_type),
+        ];
+        let rows = program_rows(
+            &files,
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                target: Some(9),
+                module: Some(102),
+                verbatim_module_syntax: Some(true),
+                rewrite_relative_import_extensions: Some(true),
+                ..CompilerOptions::default()
+            },
+        )
+        .into_iter()
+        .filter(|(_, code, _, _)| *code == 2876)
+        .collect::<Vec<_>>();
+        assert_eq!(
+            rows,
+            [(
+                "/jsdoc.js".to_owned(),
+                2876,
+                jsdoc.find("\"./foo.ts\"").expect("JSDoc import specifier") as u32,
+                "\"./foo.ts\"".len() as u32,
+            )]
         );
     }
 

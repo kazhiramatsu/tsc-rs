@@ -654,6 +654,9 @@ struct ObjectLiteralAcc {
     contextual_type_has_pattern: bool,
     in_const_context: bool,
     check_flags: CheckFlags,
+    is_in_javascript: bool,
+    enum_tag: Option<NodeId>,
+    is_js_object_literal: bool,
     object_flags: ObjectFlags,
     pattern_with_computed_properties: bool,
     has_computed_string_property: bool,
@@ -766,16 +769,11 @@ impl<'a> CheckerState<'a> {
             }
 
             if self.kind_of(name) == SyntaxKind::PrivateIdentifier {
-                let publish_checked_js = self.is_in_js_file(name);
-                let diagnostics_before = self.diagnostics.len();
                 self.grammar_error_on_node(
                     name,
                     &diagnostics::Private_identifiers_are_not_allowed_outside_class_bodies,
                     &[],
                 );
-                if publish_checked_js {
-                    self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 18016);
-                }
             }
 
             for modifier in self.nodes_of(node_util::modifiers_of(source, member)) {
@@ -898,9 +896,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// Elided/dead arms: checkGrammarObjectLiteralExpression (89637)
     /// is live through the M7 8.1b owner slice, with only its
-    /// private-name and suggestion rows split to 8.1f/8.4;
-    /// isInJavascript/enumTag/jsDocType/JSLiteral ride [JSDOC] (TS
-    /// files answer false — plain-JS files gate earlier); the
+    /// private-name and suggestion rows split to 8.1f/8.4; the
     /// languageVersion ObjectAssign emit-helper gate is dead at
     /// ES2025; the Inferential intra-expression site is a live named
     /// escape (Inferential producible since M6 7.1; site recording is
@@ -924,6 +920,9 @@ impl<'a> CheckerState<'a> {
             contextual_type_has_pattern: false,
             in_const_context: false,
             check_flags: CheckFlags::from_bits(0),
+            is_in_javascript: false,
+            enum_tag: None,
+            is_js_object_literal: false,
             object_flags: ObjectFlags::FRESH_LITERAL,
             pattern_with_computed_properties: false,
             has_computed_string_property: false,
@@ -999,8 +998,13 @@ impl<'a> CheckerState<'a> {
         } else {
             CheckFlags::from_bits(0)
         };
-        // isInJavascript / enumTag / isJSObjectLiteral: [JSDOC] — TS
-        // files answer false throughout.
+        acc.is_in_javascript = self.is_in_js_file(node);
+        acc.enum_tag = acc
+            .is_in_javascript
+            .then(|| self.first_jsdoc_tag(node, SyntaxKind::JSDocEnumTag))
+            .flatten();
+        acc.is_js_object_literal =
+            acc.contextual_type.is_none() && acc.is_in_javascript && acc.enum_tag.is_none();
         // Pre-pass: force every computed name (74159-74163).
         for &member_decl in &properties {
             if let Some(name) = self.name_of_named_declaration(member_decl) {
@@ -1039,7 +1043,7 @@ impl<'a> CheckerState<'a> {
                 let member_sym = member_symbol.ok_or_else(|| {
                     Unsupported::new("object member without a bound symbol (parse recovery)")
                 })?;
-                let ty = match kind {
+                let mut ty = match kind {
                     SyntaxKind::PropertyAssignment => {
                         self.check_property_assignment(member_decl, check_mode)?
                     }
@@ -1065,7 +1069,34 @@ impl<'a> CheckerState<'a> {
                     }
                     _ => self.check_object_literal_method(member_decl, check_mode)?,
                 };
-                // isInJavascript jsDocType/enumTag arms — [JSDOC] dead.
+                if acc.is_in_javascript {
+                    if let Some(jsdoc_type) =
+                        self.get_type_for_declaration_from_jsdoc_comment(member_decl)?
+                    {
+                        self.check_type_assignable_to(
+                            ty,
+                            jsdoc_type,
+                            Some(member_decl),
+                            &diagnostics::Type_0_is_not_assignable_to_type_1,
+                        )?;
+                        ty = jsdoc_type;
+                    } else {
+                        let enum_type_expression =
+                            acc.enum_tag.and_then(|tag| match self.data_of(tag) {
+                                NodeData::JSDocEnumTag(data) => data.type_expression,
+                                _ => None,
+                            });
+                        if let Some(enum_type_expression) = enum_type_expression {
+                            let enum_type = self.get_type_from_type_node(enum_type_expression)?;
+                            self.check_type_assignable_to(
+                                ty,
+                                enum_type,
+                                Some(member_decl),
+                                &diagnostics::Type_0_is_not_assignable_to_type_1,
+                            )?;
+                        }
+                    }
+                }
                 acc.object_flags |=
                     self.tables.object_flags_of(ty) & ObjectFlags::PROPAGATING_FLAGS;
                 let name_type = computed_name_type
@@ -1335,7 +1366,9 @@ impl<'a> CheckerState<'a> {
             | acc.object_flags
             | ObjectFlags::OBJECT_LITERAL
             | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL;
-        // isJSObjectLiteral → JSLiteral: [JSDOC] dead in TS files.
+        if acc.is_js_object_literal {
+            object_flags |= ObjectFlags::JS_LITERAL;
+        }
         if acc.pattern_with_computed_properties {
             object_flags |= ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES;
         }

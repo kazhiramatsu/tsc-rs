@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+mod jsdoc;
+
 use crate::arena::NodeArena;
 use crate::for_each_child::for_each_child;
 use crate::nodes::{
@@ -18,10 +20,8 @@ use crate::nodes::{
     HeritageClauseData, IdentifierData, IfStatementData, ImportAttributeData, ImportAttributesData,
     ImportClauseData, ImportDeclarationData, ImportEqualsDeclarationData, ImportSpecifierData,
     ImportTypeData, IndexSignatureData, IndexedAccessTypeData, InferTypeData,
-    InterfaceDeclarationData, IntersectionTypeData, JSDocData, JSDocFunctionTypeData,
-    JSDocNonNullableTypeData, JSDocNullableTypeData, JSDocOptionalTypeData, JSDocParameterTagData,
-    JSDocPropertyTagData, JSDocSatisfiesTagData, JSDocTagData, JSDocTypeExpressionData,
-    JSDocTypeLiteralData, JSDocTypeTagData, JSDocTypedefTagData, JSDocVariadicTypeData,
+    InterfaceDeclarationData, IntersectionTypeData, JSDocFunctionTypeData,
+    JSDocNonNullableTypeData, JSDocNullableTypeData, JSDocOptionalTypeData, JSDocVariadicTypeData,
     JsxAttributeData, JsxAttributesData, JsxClosingElementData, JsxElementData, JsxExpressionData,
     JsxFragmentData, JsxNamespacedNameData, JsxOpeningElementData, JsxSelfClosingElementData,
     JsxSpreadAttributeData, JsxTextData, LabeledStatementData, LiteralTypeData, MappedTypeData,
@@ -50,6 +50,22 @@ use tsrs2_diags::{compute_line_map, gen, Diagnostic, DiagnosticList, DiagnosticM
 use tsrs2_diags::{MessageChain, RelatedInfo};
 use tsrs2_types::{NodeFlags, ScriptTarget};
 
+/// tsc JSDocParsingMode @6.0.3.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum JSDocParsingMode {
+    /// Always parse attached JSDoc. This is createSourceFile's default.
+    #[default]
+    ParseAll = 0,
+    /// Never parse attached JSDoc.
+    ParseNone = 1,
+    /// In TS/TSX parse only comments containing `@see` or `@link`;
+    /// JS/JSX still parses every JSDoc comment.
+    ParseForTypeErrors = 2,
+    /// In TS/TSX parse no JSDoc; JS/JSX still parses every comment.
+    ParseForTypeInfo = 3,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ParseOptions {
     /// tsc languageVersion. Parse-only callers default to the latest
@@ -58,6 +74,9 @@ pub struct ParseOptions {
     pub language_variant: LanguageVariant,
     /// tsc ContextFlags.JavaScriptFile (subset: the parse-steering uses).
     pub javascript_file: bool,
+    /// tsc createSourceFile defaults to ParseAll. Program/compiler callers
+    /// explicitly select ParseForTypeErrors.
+    pub js_doc_parsing_mode: JSDocParsingMode,
     /// Program's getSetExternalModuleIndicator callback has already
     /// determined that this non-declaration file is a module (Force or
     /// format/package-driven Auto). The SourceFile root stands in for
@@ -80,6 +99,7 @@ impl Default for ParseOptions {
             script_target: ScriptTarget::ES2025,
             language_variant: LanguageVariant::Standard,
             javascript_file: false,
+            js_doc_parsing_mode: JSDocParsingMode::ParseAll,
             force_external_module: false,
             detect_external_module_from_jsx: false,
             node_id_base: 0,
@@ -200,6 +220,7 @@ struct Parser<'text> {
     /// speculation, so lookAhead/tryParse leak them here too.
     source_flags: NodeFlags,
     parse_diagnostics: DiagnosticList,
+    js_doc_diagnostics: DiagnosticList,
     parse_error_before_next_finished_node: bool,
     parsing_context: u32,
     not_parenthesized_arrow: std::collections::HashSet<usize>,
@@ -207,6 +228,9 @@ struct Parser<'text> {
     /// only those possible hosts so attachment materialization does not
     /// require another whole-tree walk after parsing.
     jsdoc_candidates: Vec<NodeId>,
+    /// Full-start positions whose ordinary scanner token carried
+    /// TokenFlags.PrecedingJSDocComment.
+    jsdoc_positions: std::collections::HashSet<usize>,
     has_jsdoc_comments: bool,
 }
 
@@ -227,16 +251,8 @@ struct FinishedParse {
     arena: NodeArena,
     root: NodeId,
     parse_diagnostics: DiagnosticList,
+    js_doc_diagnostics: DiagnosticList,
     comment_directives: Vec<crate::CommentDirective>,
-}
-
-#[derive(Clone, Debug)]
-struct JsDocTagSpec {
-    start: usize,
-    name_start: usize,
-    name_end: usize,
-    end: usize,
-    name: String,
 }
 
 fn can_have_jsdoc(kind: SyntaxKind) -> bool {
@@ -311,170 +327,120 @@ fn can_have_jsdoc(kind: SyntaxKind) -> bool {
     )
 }
 
-/// tsc getLeadingCommentRanges + getJSDocCommentRanges (leading face).
-/// Ranges include `/**` and `*/`, in parser byte-position space.
-fn leading_jsdoc_comment_ranges(text: &str, pos: usize) -> Vec<(usize, usize)> {
+/// Kinds passed through Parser.withJSDoc in TypeScript 6.0.3. This is
+/// intentionally narrower than the public canHaveJSDoc table: the latter
+/// also admits expression/name shapes whose jsDoc property can be populated
+/// by later API transforms, but the source parser never attaches to them.
+fn parser_calls_with_jsdoc_for_kind(kind: SyntaxKind) -> bool {
+    can_have_jsdoc(kind)
+        && !matches!(
+            kind,
+            SyntaxKind::BinaryExpression
+                | SyntaxKind::ElementAccessExpression
+                | SyntaxKind::Identifier
+                | SyntaxKind::JSDocSignature
+                | SyntaxKind::ObjectLiteralExpression
+                | SyntaxKind::PropertyAccessExpression
+        )
+}
+
+/// tsc iterateCommentRanges/getLeadingCommentRanges/getTrailingCommentRanges.
+/// Ranges include their delimiters and use parser byte-position space.
+fn comment_ranges(text: &str, pos: usize, trailing: bool) -> Vec<(usize, usize)> {
     let mut cursor = pos.min(text.len());
+    let mut collecting = trailing;
     let mut ranges = Vec::new();
-    loop {
-        while cursor < text.len() {
-            let ch = text[cursor..]
-                .chars()
-                .next()
-                .expect("cursor is on a UTF-8 boundary");
-            if !is_whitespace_like(ch) {
-                break;
-            }
-            cursor += ch.len_utf8();
-        }
-        if text[cursor..].starts_with("//") {
-            cursor += text[cursor..]
+    let mut pending = None;
+    if cursor == 0 {
+        collecting = true;
+        if text.starts_with("#!") {
+            cursor = text
                 .find(['\n', '\r', '\u{2028}', '\u{2029}'])
-                .unwrap_or(text.len() - cursor);
-            continue;
+                .unwrap_or(text.len());
         }
-        if text[cursor..].starts_with("/*") {
-            let start = cursor;
-            let Some(relative_close) = text[cursor + 2..].find("*/") else {
-                break;
-            };
-            let end = cursor + 2 + relative_close + 2;
-            if text[start..].starts_with("/**") && text.as_bytes().get(start + 3) != Some(&b'/') {
-                ranges.push((start, end));
-            }
-            cursor = end;
-            continue;
-        }
-        break;
     }
+    'scan: while cursor < text.len() {
+        let ch = text[cursor..]
+            .chars()
+            .next()
+            .expect("cursor is on a UTF-8 boundary");
+        match ch {
+            '\r' | '\n' => {
+                if ch == '\r' && text[cursor + 1..].starts_with('\n') {
+                    cursor += 1;
+                }
+                cursor += 1;
+                if trailing {
+                    break;
+                }
+                collecting = true;
+            }
+            ' ' | '\t' | '\u{000B}' | '\u{000C}' => cursor += ch.len_utf8(),
+            '/' if text[cursor..].starts_with("//") => {
+                let start = cursor;
+                cursor += 2;
+                while cursor < text.len() {
+                    let ch = text[cursor..]
+                        .chars()
+                        .next()
+                        .expect("cursor is on a UTF-8 boundary");
+                    if is_whitespace_like(ch) && matches!(ch, '\n' | '\r' | '\u{2028}' | '\u{2029}')
+                    {
+                        break;
+                    }
+                    cursor += ch.len_utf8();
+                }
+                if collecting {
+                    if let Some(previous) = pending.replace((start, cursor)) {
+                        ranges.push(previous);
+                    }
+                }
+            }
+            '/' if text[cursor..].starts_with("/*") => {
+                let start = cursor;
+                cursor += 2;
+                if let Some(close) = text[cursor..].find("*/") {
+                    cursor += close + 2;
+                } else {
+                    cursor = text.len();
+                }
+                if collecting {
+                    if let Some(previous) = pending.replace((start, cursor)) {
+                        ranges.push(previous);
+                    }
+                }
+            }
+            _ if ch > '\u{7f}' && is_whitespace_like(ch) => cursor += ch.len_utf8(),
+            _ => break 'scan,
+        }
+    }
+    ranges.extend(pending);
     ranges
 }
 
-fn jsdoc_tag_specs(text: &str, comment_start: usize, comment_end: usize) -> Vec<JsDocTagSpec> {
-    let body_start = comment_start.saturating_add(3).min(comment_end);
-    let body_end = comment_end.saturating_sub(2).max(body_start);
-    let body = &text[body_start..body_end];
-    let mut starts = Vec::new();
-    let mut line_offset = 0usize;
-    for line_with_break in body.split_inclusive('\n') {
-        let line = line_with_break
-            .strip_suffix('\n')
-            .unwrap_or(line_with_break)
-            .strip_suffix('\r')
-            .unwrap_or_else(|| {
-                line_with_break
-                    .strip_suffix('\n')
-                    .unwrap_or(line_with_break)
-            });
-        let mut relative = line.len() - line.trim_start_matches(is_js_whitespace).len();
-        let mut candidate = &line[relative..];
-        if let Some(after_star) = candidate.strip_prefix('*') {
-            relative += 1;
-            let whitespace =
-                after_star.len() - after_star.trim_start_matches(is_js_whitespace).len();
-            relative += whitespace;
-            candidate = &after_star[whitespace..];
-        }
-        let Some(after_at) = candidate.strip_prefix('@') else {
-            line_offset += line_with_break.len();
-            continue;
-        };
-        let name_len = after_at
-            .chars()
-            .take_while(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-'))
-            .map(char::len_utf8)
-            .sum::<usize>();
-        if name_len == 0 {
-            line_offset += line_with_break.len();
-            continue;
-        }
-        let start = body_start + line_offset + relative;
-        starts.push(JsDocTagSpec {
-            start,
-            name_start: start + 1,
-            name_end: start + 1 + name_len,
-            end: body_end,
-            name: after_at[..name_len].to_owned(),
-        });
-        line_offset += line_with_break.len();
-    }
-    for index in 0..starts.len().saturating_sub(1) {
-        starts[index].end = starts[index + 1].start;
-    }
-    starts
-}
-
-fn jsdoc_braced_range(text: &str, from: usize, end: usize) -> Option<(usize, usize)> {
-    let mut cursor = from;
-    while cursor < end {
-        let ch = text[cursor..].chars().next()?;
-        if !is_whitespace_like(ch) && ch != '*' {
-            break;
-        }
-        cursor += ch.len_utf8();
-    }
-    if text.as_bytes().get(cursor) != Some(&b'{') {
-        return None;
-    }
-    let open = cursor;
-    let mut depth = 0usize;
-    let mut quote = None;
-    let mut escaped = false;
-    for (relative, ch) in text[open..end].char_indices() {
-        if let Some(active_quote) = quote {
-            if escaped {
-                escaped = false;
-            } else if ch == '\\' {
-                escaped = true;
-            } else if ch == active_quote {
-                quote = None;
-            }
-            continue;
-        }
-        if matches!(ch, '\'' | '"' | '`') {
-            quote = Some(ch);
-            continue;
-        }
-        match ch {
-            '{' => depth += 1,
-            '}' => {
-                depth = depth.saturating_sub(1);
-                if depth == 0 {
-                    return Some((open, open + relative));
-                }
-            }
-            _ => {}
-        }
-    }
-    None
-}
-
-fn jsdoc_name_range_after(
-    text: &str,
-    mut cursor: usize,
-    end: usize,
-) -> Option<(usize, usize, bool)> {
-    while cursor < end {
-        let ch = text[cursor..].chars().next()?;
-        if !is_whitespace_like(ch) && ch != '*' {
-            break;
-        }
-        cursor += ch.len_utf8();
-    }
-    let bracketed = text.as_bytes().get(cursor) == Some(&b'[');
-    if bracketed {
-        cursor += 1;
-    }
-    let start = cursor;
-    while cursor < end {
-        let ch = text[cursor..].chars().next()?;
-        if ch.is_alphanumeric() || matches!(ch, '_' | '$' | '.') {
-            cursor += ch.len_utf8();
-        } else {
-            break;
-        }
-    }
-    (cursor > start).then_some((start, cursor, bracketed))
+fn jsdoc_comment_ranges(text: &str, kind: SyntaxKind, pos: usize) -> Vec<(usize, usize)> {
+    let mut ranges = if matches!(
+        kind,
+        SyntaxKind::Parameter
+            | SyntaxKind::TypeParameter
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::ArrowFunction
+            | SyntaxKind::ParenthesizedExpression
+            | SyntaxKind::VariableDeclaration
+            | SyntaxKind::ExportSpecifier
+    ) {
+        let mut both = comment_ranges(text, pos, true);
+        both.extend(comment_ranges(text, pos, false));
+        both
+    } else {
+        comment_ranges(text, pos, false)
+    };
+    ranges.retain(|&(start, _)| {
+        text.as_bytes().get(start + 1) == Some(&b'*')
+            && text.as_bytes().get(start + 2) == Some(&b'*')
+            && text.as_bytes().get(start + 3) != Some(&b'/')
+    });
+    ranges
 }
 
 #[derive(Debug)]
@@ -672,10 +638,12 @@ impl<'text> Parser<'text> {
             context_flags: source_flags,
             source_flags,
             parse_diagnostics: Vec::new(),
+            js_doc_diagnostics: Vec::new(),
             parse_error_before_next_finished_node: false,
             parsing_context: 0,
             not_parenthesized_arrow: std::collections::HashSet::new(),
             jsdoc_candidates: Vec::new(),
+            jsdoc_positions: std::collections::HashSet::new(),
             has_jsdoc_comments: text.contains("/**"),
         }
     }
@@ -784,6 +752,15 @@ impl<'text> Parser<'text> {
 
     fn next_token_without_check(&mut self) -> SyntaxKind {
         let token = self.scanner.scan();
+        if self.scanner.has_preceding_jsdoc_comment() {
+            self.jsdoc_positions.insert(self.scanner.full_start_pos());
+        }
+        self.drain_scanner_errors();
+        token
+    }
+
+    fn next_token_jsdoc(&mut self) -> SyntaxKind {
+        let token = self.scanner.scan_jsdoc_token();
         self.drain_scanner_errors();
         token
     }
@@ -2693,7 +2670,7 @@ impl<'text> Parser<'text> {
             }
         }
         let import_clause =
-            self.try_parse_import_clause(identifier, after_import_pos, phase_modifier);
+            self.try_parse_import_clause(identifier, after_import_pos, phase_modifier, false);
         let module_specifier = self.parse_module_specifier();
         let attributes = self.try_parse_import_attributes();
         self.parse_semicolon();
@@ -2739,6 +2716,7 @@ impl<'text> Parser<'text> {
         identifier: Option<NodeId>,
         pos: usize,
         phase_modifier: Option<SyntaxKind>,
+        skip_jsdoc_leading_asterisks: bool,
     ) -> Option<NodeId> {
         if identifier.is_some()
             || matches!(
@@ -2746,7 +2724,12 @@ impl<'text> Parser<'text> {
                 SyntaxKind::AsteriskToken | SyntaxKind::OpenBraceToken
             )
         {
-            let import_clause = self.parse_import_clause(identifier, pos, phase_modifier);
+            let import_clause = self.parse_import_clause(
+                identifier,
+                pos,
+                phase_modifier,
+                skip_jsdoc_leading_asterisks,
+            );
             self.parse_expected(SyntaxKind::FromKeyword, None);
             Some(import_clause)
         } else {
@@ -2759,14 +2742,22 @@ impl<'text> Parser<'text> {
         identifier: Option<NodeId>,
         pos: usize,
         phase_modifier: Option<SyntaxKind>,
+        skip_jsdoc_leading_asterisks: bool,
     ) -> NodeId {
         let named_bindings = if identifier.is_none() || self.parse_optional(SyntaxKind::CommaToken)
         {
-            Some(if self.token() == SyntaxKind::AsteriskToken {
+            if skip_jsdoc_leading_asterisks {
+                self.scanner.set_skip_jsdoc_leading_asterisks(true);
+            }
+            let named_bindings = if self.token() == SyntaxKind::AsteriskToken {
                 self.parse_namespace_import()
             } else {
                 self.parse_named_imports_or_exports(true)
-            })
+            };
+            if skip_jsdoc_leading_asterisks {
+                self.scanner.set_skip_jsdoc_leading_asterisks(false);
+            }
+            Some(named_bindings)
         } else {
             None
         };
@@ -3751,7 +3742,11 @@ impl<'text> Parser<'text> {
     }
 
     fn parse_identifier(&mut self) -> NodeId {
-        let pos = self.node_pos();
+        let pos = if self.scanner.has_preceding_jsdoc_leading_asterisks() {
+            self.scanner.token_start()
+        } else {
+            self.node_pos()
+        };
         let end = self.scanner.pos();
         let text = self.current_token_text();
         // tsc factory createIdentifier (21609): escapedText is the
@@ -6707,8 +6702,12 @@ impl<'text> Parser<'text> {
         // is legitimate — current_token_text's missing-token fallback
         // would turn it into the token NAME.
         let text = self.scanner.token_value().to_owned();
+        let has_extended_unicode_escape = self.scanner.has_extended_unicode_escape();
         let id = self.arena.alloc_node(
-            NodeData::StringLiteral(StringLiteralData { text }),
+            NodeData::StringLiteral(StringLiteralData {
+                text,
+                has_extended_unicode_escape: Some(has_extended_unicode_escape),
+            }),
             pos,
             end,
             NodeFlags::NONE,
@@ -6965,7 +6964,10 @@ impl<'text> Parser<'text> {
     fn parse_jsdoc_all_type(&mut self) -> NodeId {
         let pos = self.node_pos();
         self.next_token();
-        self.finish_kind_only_node(SyntaxKind::JSDocAllType, pos)
+        self.finish_node_data(
+            NodeData::JSDocAllType(crate::nodes::JSDocAllTypeData {}),
+            pos,
+        )
     }
 
     fn parse_jsdoc_non_nullable_type(&mut self) -> NodeId {
@@ -6975,6 +6977,7 @@ impl<'text> Parser<'text> {
         self.finish_node_data(
             NodeData::JSDocNonNullableType(JSDocNonNullableTypeData {
                 r#type: Some(r#type),
+                postfix: false,
             }),
             pos,
         )
@@ -6992,12 +6995,16 @@ impl<'text> Parser<'text> {
                 | SyntaxKind::EqualsToken
                 | SyntaxKind::BarToken
         ) {
-            self.finish_kind_only_node(SyntaxKind::JSDocUnknownType, pos)
+            self.finish_node_data(
+                NodeData::JSDocUnknownType(crate::nodes::JSDocUnknownTypeData {}),
+                pos,
+            )
         } else {
             let r#type = self.parse_type();
             self.finish_node_data(
                 NodeData::JSDocNullableType(JSDocNullableTypeData {
                     r#type: Some(r#type),
+                    postfix: false,
                 }),
                 pos,
             )
@@ -7017,6 +7024,8 @@ impl<'text> Parser<'text> {
                 NodeData::JSDocFunctionType(JSDocFunctionTypeData {
                     parameters: Some(parameters),
                     r#type,
+                    name: None,
+                    type_parameters: None,
                 }),
                 pos,
             );
@@ -7076,13 +7085,33 @@ impl<'text> Parser<'text> {
         )
     }
 
-    /// tsc parseJSDocType minus the JSDoc-comment-only namepath branch and
-    /// the setSkipJsDocLeadingAsterisks scanner mode (both unreachable from
-    /// type positions in source text).
+    /// tsc parseJSDocType. This is shared by ordinary type parsing and the
+    /// attached JSDoc parser; the scanner mode skips one leading `*` on
+    /// continuation lines while the ordinary type grammar is active.
     fn parse_jsdoc_type(&mut self) -> NodeId {
+        self.scanner.set_skip_jsdoc_leading_asterisks(true);
         let pos = self.node_pos();
+        if self.parse_optional(SyntaxKind::ModuleKeyword) {
+            loop {
+                match self.token() {
+                    SyntaxKind::CloseBraceToken
+                    | SyntaxKind::EndOfFileToken
+                    | SyntaxKind::CommaToken
+                    | SyntaxKind::WhitespaceTrivia => break,
+                    _ => {
+                        self.next_token_jsdoc();
+                    }
+                }
+            }
+            self.scanner.set_skip_jsdoc_leading_asterisks(false);
+            return self.finish_node_data(
+                NodeData::JSDocNamepathType(crate::nodes::JSDocNamepathTypeData { r#type: None }),
+                pos,
+            );
+        }
         let has_dot_dot_dot = self.parse_optional(SyntaxKind::DotDotDotToken);
         let mut r#type = self.parse_type_or_type_predicate();
+        self.scanner.set_skip_jsdoc_leading_asterisks(false);
         if has_dot_dot_dot {
             r#type = self.finish_node_data(
                 NodeData::JSDocVariadicType(JSDocVariadicTypeData {
@@ -7756,21 +7785,23 @@ impl<'text> Parser<'text> {
         }
         let open_brace_position = self.scanner.token_start();
         let open_brace_parsed = self.parse_expected(SyntaxKind::OpenBraceToken, None);
-        let elements = if open_brace_parsed {
+        let (elements, multi_line) = if open_brace_parsed {
+            let multi_line = self.scanner.has_preceding_line_break();
             let elements = self.parse_delimited_list(
                 ParsingContext::ImportAttributes,
                 |parser| Some(parser.parse_import_attribute()),
                 true,
             );
             self.parse_expected_close_brace_with_last_error_related(open_brace_position);
-            elements
+            (elements, multi_line)
         } else {
-            self.arena.empty_array(self.node_pos())
+            (self.arena.empty_array(self.node_pos()), false)
         };
         self.finish_node_data(
             NodeData::ImportAttributes(ImportAttributesData {
                 token: keyword,
                 elements: Some(elements),
+                multi_line: Some(multi_line),
             }),
             pos,
         )
@@ -7890,6 +7921,7 @@ impl<'text> Parser<'text> {
                     r#type = self.finish_node_data(
                         NodeData::JSDocNonNullableType(JSDocNonNullableTypeData {
                             r#type: Some(r#type),
+                            postfix: true,
                         }),
                         pos,
                     );
@@ -7904,6 +7936,7 @@ impl<'text> Parser<'text> {
                     r#type = self.finish_node_data(
                         NodeData::JSDocNullableType(JSDocNullableTypeData {
                             r#type: Some(r#type),
+                            postfix: true,
                         }),
                         pos,
                     );
@@ -9029,13 +9062,14 @@ impl<'text> Parser<'text> {
         seen
     }
 
-    /// tsc withJSDoc/JSDocParser.parseJSDocComment, first activated
-    /// vertical slice: host attachment plus typedef/property/satisfies
-    /// declaration nodes. Hosts are captured as parser nodes finish, so
-    /// the ordinary path does not walk the tree a second time. The rare
-    /// top-level-await reparse filters discarded candidates against the
-    /// final tree. Identical trivia starts are cached, and the checker
-    /// never rescans the file for these tags.
+    /// tsc withJSDoc/JSDocParser.parseJSDocComment. This materializes the
+    /// complete attached JSDoc AST (comments, tags, names, and JSDoc types)
+    /// for every source-parser host that participates in withJSDoc. Hosts
+    /// are captured as parser nodes finish, so the ordinary path does not
+    /// walk the tree a second time. The rare top-level-await reparse filters
+    /// discarded candidates against the final tree. Identical trivia starts
+    /// are cached, and later compiler phases consume the arena graph without
+    /// rescanning source comments.
     fn materialize_jsdoc_attachments(
         &mut self,
         statements: crate::NodeArrayId,
@@ -9054,23 +9088,47 @@ impl<'text> Parser<'text> {
                 reachable.get(index).copied().unwrap_or(false)
             });
         }
-        let mut range_cache = std::collections::HashMap::<usize, Vec<(usize, usize)>>::new();
+        let mut range_cache =
+            std::collections::HashMap::<(SyntaxKind, usize), Vec<(usize, usize)>>::new();
         for host in hosts {
-            let (kind, pos, end) = {
+            let (kind, pos, end, flags) = {
                 let node = self.arena.node(host);
-                (node.kind, node.pos as usize, node.end as usize)
+                (
+                    node.kind,
+                    node.pos as usize,
+                    node.end as usize,
+                    NodeFlags::from_bits(node.flags),
+                )
             };
-            if !can_have_jsdoc(kind) {
+            if !can_have_jsdoc(kind) || kind == SyntaxKind::Identifier {
+                continue;
+            }
+            if kind == SyntaxKind::ExpressionStatement
+                && matches!(
+                    &self.arena.node(host).data,
+                    NodeData::ExpressionStatement(data)
+                        if data.expression.is_some_and(|expression| {
+                            let expression = self.arena.node(expression);
+                            expression.kind == SyntaxKind::ParenthesizedExpression
+                                && expression.pos as usize == pos
+                        })
+                )
+            {
+                // parseExpressionOrLabeledStatement explicitly clears its
+                // hasJSDoc bit when the expression began with `(`.
                 continue;
             }
             let ranges = range_cache
-                .entry(pos)
-                .or_insert_with(|| leading_jsdoc_comment_ranges(self.source_text, pos))
+                .entry((kind, pos))
+                .or_insert_with(|| jsdoc_comment_ranges(self.source_text, kind, pos))
                 .clone();
             let mut docs = Vec::new();
+            let mut deprecated = false;
             for (start, comment_end) in ranges {
                 if comment_end <= end {
-                    docs.push(self.parse_jsdoc_comment(start, comment_end));
+                    let parsed = jsdoc::parse_jsdoc_comment(self, start, comment_end, flags);
+                    docs.push(parsed.node);
+                    deprecated |= parsed.deprecated;
                 }
             }
             if docs.is_empty() {
@@ -9083,239 +9141,14 @@ impl<'text> Parser<'text> {
                 .end as usize;
             let js_doc = self.arena.alloc_array(docs, array_start, array_end, false);
             self.arena.set_js_doc(host, js_doc);
+            if deprecated {
+                self.arena.node_mut(host).flags |= NodeFlags::DEPRECATED.bits();
+            }
         }
     }
 
     fn jsdoc_flags(&self) -> NodeFlags {
         (self.context_flags & NodeFlags::CONTEXT_FLAGS) | NodeFlags::JS_DOC
-    }
-
-    fn alloc_jsdoc_node(&mut self, data: NodeData, pos: usize, end: usize) -> NodeId {
-        self.arena.alloc_node(data, pos, end, self.jsdoc_flags())
-    }
-
-    fn alloc_jsdoc_identifier(&mut self, start: usize, end: usize) -> NodeId {
-        let text = self.source_text[start..end].to_owned();
-        self.alloc_jsdoc_node(
-            NodeData::Identifier(IdentifierData {
-                escaped_text: crate::escape_leading_underscores(&text),
-                text,
-            }),
-            start,
-            end,
-        )
-    }
-
-    fn parse_jsdoc_type_expression_range(&mut self, open: usize, close: usize) -> NodeId {
-        let scanner_state = self.scanner.save();
-        let saved_context = self.context_flags;
-        let saved_diagnostics_len = self.parse_diagnostics.len();
-        let saved_parse_error = self.parse_error_before_next_finished_node;
-
-        self.context_flags |= NodeFlags::JS_DOC;
-        self.scanner.reset_range(open + 1, close + 1);
-        self.next_token_without_check();
-        let parsed_type = self.parse_jsdoc_type();
-        // Do not activate a partial type parse. For example, the
-        // not-yet-materialized JSDoc namepath `C~A` must not silently
-        // become `C`; its owner remains on the legacy path until the
-        // JSDocNamepathType node lands.
-        let r#type = matches!(
-            self.token(),
-            SyntaxKind::CloseBraceToken | SyntaxKind::EndOfFileToken
-        )
-        .then_some(parsed_type);
-        let expression = self.alloc_jsdoc_node(
-            NodeData::JSDocTypeExpression(JSDocTypeExpressionData { r#type }),
-            open,
-            close + 1,
-        );
-
-        self.context_flags = saved_context;
-        self.scanner.restore(scanner_state);
-        self.parse_diagnostics.truncate(saved_diagnostics_len);
-        self.parse_error_before_next_finished_node = saved_parse_error;
-        expression
-    }
-
-    fn parse_jsdoc_property_tag(&mut self, spec: &JsDocTagSpec) -> NodeId {
-        let tag_name = self.alloc_jsdoc_identifier(spec.name_start, spec.name_end);
-        let braced = jsdoc_braced_range(self.source_text, spec.name_end, spec.end);
-        let type_expression =
-            braced.map(|(open, close)| self.parse_jsdoc_type_expression_range(open, close));
-        let name_from = braced.map(|(_, close)| close + 1).unwrap_or(spec.name_end);
-        let name_range = jsdoc_name_range_after(self.source_text, name_from, spec.end);
-        let (name, is_bracketed) = name_range
-            .map(|(start, end, bracketed)| {
-                (Some(self.alloc_jsdoc_identifier(start, end)), bracketed)
-            })
-            .unwrap_or((None, false));
-        self.alloc_jsdoc_node(
-            NodeData::JSDocPropertyTag(JSDocPropertyTagData {
-                tag_name: Some(tag_name),
-                comment: None,
-                name,
-                type_expression,
-                is_name_first: braced.is_none(),
-                is_bracketed,
-            }),
-            spec.start,
-            spec.end,
-        )
-    }
-
-    fn parse_jsdoc_parameter_tag(&mut self, spec: &JsDocTagSpec) -> NodeId {
-        let tag_name = self.alloc_jsdoc_identifier(spec.name_start, spec.name_end);
-        let braced = jsdoc_braced_range(self.source_text, spec.name_end, spec.end);
-        let type_expression =
-            braced.map(|(open, close)| self.parse_jsdoc_type_expression_range(open, close));
-        let name_from = braced.map(|(_, close)| close + 1).unwrap_or(spec.name_end);
-        let name_range = jsdoc_name_range_after(self.source_text, name_from, spec.end);
-        let (name, is_bracketed) = name_range
-            .map(|(start, end, bracketed)| {
-                (Some(self.alloc_jsdoc_identifier(start, end)), bracketed)
-            })
-            .unwrap_or((None, false));
-        self.alloc_jsdoc_node(
-            NodeData::JSDocParameterTag(JSDocParameterTagData {
-                tag_name: Some(tag_name),
-                comment: None,
-                name,
-                type_expression,
-                is_name_first: braced.is_none(),
-                is_bracketed,
-            }),
-            spec.start,
-            spec.end,
-        )
-    }
-
-    fn parse_jsdoc_comment(&mut self, start: usize, end: usize) -> NodeId {
-        let specs = jsdoc_tag_specs(self.source_text, start, end);
-        let mut tags = Vec::new();
-        let mut index = 0usize;
-        while index < specs.len() {
-            let spec = &specs[index];
-            match spec.name.as_str() {
-                "typedef" => {
-                    let tag_name = self.alloc_jsdoc_identifier(spec.name_start, spec.name_end);
-                    let braced = jsdoc_braced_range(self.source_text, spec.name_end, spec.end);
-                    let name_from = braced.map(|(_, close)| close + 1).unwrap_or(spec.name_end);
-                    let name = jsdoc_name_range_after(self.source_text, name_from, spec.end).map(
-                        |(name_start, name_end, _)| {
-                            self.alloc_jsdoc_identifier(name_start, name_end)
-                        },
-                    );
-
-                    let mut property_tags = Vec::new();
-                    let mut next = index + 1;
-                    while next < specs.len()
-                        && matches!(specs[next].name.as_str(), "property" | "prop")
-                    {
-                        property_tags.push(self.parse_jsdoc_property_tag(&specs[next]));
-                        next += 1;
-                    }
-                    let tag_end = property_tags
-                        .last()
-                        .map(|&property| self.arena.node(property).end as usize)
-                        .unwrap_or(spec.end);
-                    let type_expression = if property_tags.is_empty() {
-                        braced.map(|(open, close)| {
-                            self.parse_jsdoc_type_expression_range(open, close)
-                        })
-                    } else {
-                        let property_array = self.arena.alloc_array(
-                            property_tags,
-                            specs[index + 1].start,
-                            tag_end,
-                            false,
-                        );
-                        Some(self.alloc_jsdoc_node(
-                            NodeData::JSDocTypeLiteral(JSDocTypeLiteralData {
-                                js_doc_property_tags: Some(property_array),
-                                is_array_type: false,
-                            }),
-                            spec.start,
-                            tag_end,
-                        ))
-                    };
-                    tags.push(self.alloc_jsdoc_node(
-                        NodeData::JSDocTypedefTag(JSDocTypedefTagData {
-                            tag_name: Some(tag_name),
-                            comment: None,
-                            name,
-                            full_name: name,
-                            type_expression,
-                        }),
-                        spec.start,
-                        tag_end,
-                    ));
-                    index = next;
-                    continue;
-                }
-                "satisfies" => {
-                    let tag_name = self.alloc_jsdoc_identifier(spec.name_start, spec.name_end);
-                    let type_expression =
-                        jsdoc_braced_range(self.source_text, spec.name_end, spec.end).map(
-                            |(open, close)| self.parse_jsdoc_type_expression_range(open, close),
-                        );
-                    tags.push(self.alloc_jsdoc_node(
-                        NodeData::JSDocSatisfiesTag(JSDocSatisfiesTagData {
-                            tag_name: Some(tag_name),
-                            comment: None,
-                            type_expression,
-                        }),
-                        spec.start,
-                        spec.end,
-                    ));
-                }
-                "type" => {
-                    let tag_name = self.alloc_jsdoc_identifier(spec.name_start, spec.name_end);
-                    let type_expression =
-                        jsdoc_braced_range(self.source_text, spec.name_end, spec.end).map(
-                            |(open, close)| self.parse_jsdoc_type_expression_range(open, close),
-                        );
-                    tags.push(self.alloc_jsdoc_node(
-                        NodeData::JSDocTypeTag(JSDocTypeTagData {
-                            tag_name: Some(tag_name),
-                            comment: None,
-                            type_expression,
-                        }),
-                        spec.start,
-                        spec.end,
-                    ));
-                }
-                "property" | "prop" => tags.push(self.parse_jsdoc_property_tag(spec)),
-                "param" | "arg" | "argument" => tags.push(self.parse_jsdoc_parameter_tag(spec)),
-                _ => {
-                    let tag_name = self.alloc_jsdoc_identifier(spec.name_start, spec.name_end);
-                    tags.push(self.alloc_jsdoc_node(
-                        NodeData::JSDocTag(JSDocTagData {
-                            tag_name: Some(tag_name),
-                            comment: None,
-                        }),
-                        spec.start,
-                        spec.end,
-                    ));
-                }
-            }
-            index += 1;
-        }
-        let tags = if tags.is_empty() {
-            None
-        } else {
-            let tags_start = self.arena.node(tags[0]).pos as usize;
-            let tags_end = self.arena.node(*tags.last().expect("non-empty tags")).end as usize;
-            Some(self.arena.alloc_array(tags, tags_start, tags_end, false))
-        };
-        self.alloc_jsdoc_node(
-            NodeData::JSDoc(JSDocData {
-                tags,
-                comment: None,
-            }),
-            start,
-            end,
-        )
     }
 
     fn finish(
@@ -9355,6 +9188,7 @@ impl<'text> Parser<'text> {
             arena: self.arena,
             root,
             parse_diagnostics: self.parse_diagnostics,
+            js_doc_diagnostics: self.js_doc_diagnostics,
             comment_directives,
         }
     }
@@ -9382,8 +9216,9 @@ impl<'text> Parser<'text> {
                 node.flags |= NodeFlags::THIS_NODE_HAS_ERROR.bits();
             }
             self.has_jsdoc_comments
+                && self.jsdoc_positions.contains(&pos)
                 && !NodeFlags::from_bits(node.flags).contains(NodeFlags::JS_DOC)
-                && can_have_jsdoc(node.kind)
+                && parser_calls_with_jsdoc_for_kind(node.kind)
         };
         if is_jsdoc_candidate {
             self.jsdoc_candidates.push(id);
@@ -9455,6 +9290,9 @@ pub fn parse_source_file(
         options.language_variant,
         options.javascript_file,
     );
+    parser
+        .scanner
+        .set_jsdoc_parsing_mode(options.js_doc_parsing_mode, !options.javascript_file);
     if options.node_id_base != 0 || options.node_array_id_base != 0 {
         debug_assert!(parser.arena.is_empty());
         parser.arena = NodeArena::with_bases(options.node_id_base, options.node_array_id_base);
@@ -9499,11 +9337,13 @@ pub fn parse_source_file(
         language_version: finished.language_version,
         language_variant: finished.language_variant,
         is_declaration_file: finished.is_declaration_file,
+        js_doc_parsing_mode: options.js_doc_parsing_mode,
         line_map: finished.line_map,
         arena: finished.arena,
         root: finished.root,
         external_module_indicator,
         parse_diagnostics: finished.parse_diagnostics,
+        js_doc_diagnostics: finished.js_doc_diagnostics,
         comment_directives: finished.comment_directives,
     }
 }
@@ -9612,11 +9452,13 @@ pub fn parse_json_text_with_bases(
         language_version: finished.language_version,
         language_variant: finished.language_variant,
         is_declaration_file: finished.is_declaration_file,
+        js_doc_parsing_mode: JSDocParsingMode::ParseAll,
         line_map: finished.line_map,
         arena: finished.arena,
         root: finished.root,
         external_module_indicator: None,
         parse_diagnostics: finished.parse_diagnostics,
+        js_doc_diagnostics: finished.js_doc_diagnostics,
         comment_directives: finished.comment_directives,
     }
 }
@@ -13223,5 +13065,94 @@ mod tests {
         assert!(source.arena.nodes().iter().all(|node| {
             node.js_doc.is_none() && !NodeFlags::from_bits(node.flags).contains(NodeFlags::JS_DOC)
         }));
+    }
+
+    #[test]
+    fn jsdoc_parsing_modes_match_tsc_script_kind_rules() {
+        fn parse(
+            text: &str,
+            javascript_file: bool,
+            js_doc_parsing_mode: JSDocParsingMode,
+        ) -> SourceFile {
+            parse_source_file(
+                if javascript_file {
+                    "a.js".to_owned()
+                } else {
+                    "a.ts".to_owned()
+                },
+                text.to_owned(),
+                ParseOptions {
+                    javascript_file,
+                    js_doc_parsing_mode,
+                    ..ParseOptions::default()
+                },
+                None,
+            )
+        }
+
+        fn function_has_jsdoc(source: &SourceFile) -> bool {
+            source
+                .arena
+                .nodes()
+                .iter()
+                .find(|node| node.kind == SyntaxKind::FunctionDeclaration)
+                .is_some_and(|node| node.js_doc.is_some())
+        }
+
+        let ordinary = "/** @param {number} x */\nfunction f(x) {}";
+        let deprecated = "/** @deprecated use g instead */\nfunction f() {}";
+        let see = "/** @SeE f */\nfunction f() {}";
+        let link = "/** {@LiNk f} */\nfunction f() {}";
+
+        let all = parse(ordinary, false, JSDocParsingMode::ParseAll);
+        assert!(function_has_jsdoc(&all));
+        assert_eq!(all.js_doc_parsing_mode, JSDocParsingMode::ParseAll);
+
+        assert!(!function_has_jsdoc(&parse(
+            ordinary,
+            false,
+            JSDocParsingMode::ParseNone,
+        )));
+        assert!(!function_has_jsdoc(&parse(
+            ordinary,
+            false,
+            JSDocParsingMode::ParseForTypeErrors,
+        )));
+        assert!(!function_has_jsdoc(&parse(
+            ordinary,
+            false,
+            JSDocParsingMode::ParseForTypeInfo,
+        )));
+        assert!(function_has_jsdoc(&parse(
+            see,
+            false,
+            JSDocParsingMode::ParseForTypeErrors,
+        )));
+        assert!(function_has_jsdoc(&parse(
+            link,
+            false,
+            JSDocParsingMode::ParseForTypeErrors,
+        )));
+
+        // Both reduced modes still parse all JSDoc in JS/JSX.
+        assert!(function_has_jsdoc(&parse(
+            ordinary,
+            true,
+            JSDocParsingMode::ParseForTypeErrors,
+        )));
+        assert!(function_has_jsdoc(&parse(
+            ordinary,
+            true,
+            JSDocParsingMode::ParseForTypeInfo,
+        )));
+
+        let deprecated = parse(deprecated, false, JSDocParsingMode::ParseAll);
+        let function = deprecated
+            .arena
+            .nodes()
+            .iter()
+            .find(|node| node.kind == SyntaxKind::FunctionDeclaration)
+            .expect("function declaration");
+        assert!(NodeFlags::from_bits(function.flags).contains(NodeFlags::DEPRECATED));
     }
 }

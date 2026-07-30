@@ -501,11 +501,11 @@ pub struct CheckerState<'a> {
     pub(crate) potential_weak_map_set_collisions: Vec<NodeId>,
     pub(crate) potential_reflect_collisions: Vec<NodeId>,
     pub(crate) potential_unused_renamed_binding_elements_in_types: Vec<NodeId>,
-    /// tsc allPotentiallyUnusedIdentifiers' current-file entry. The
-    /// Rust checker drains each file eagerly at the same lazy-
-    /// diagnostic boundary, so a per-file vector preserves ordering
-    /// without retaining the source-file map.
-    pub(crate) potentially_unused_identifiers: Vec<NodeId>,
+    /// tsc allPotentiallyUnusedIdentifiers, keyed by the owning source
+    /// file's root. A checker visit can force a declaration in another
+    /// file, so registrations cannot be attributed to the file whose
+    /// worker happens to be active.
+    pub(crate) potentially_unused_identifiers: std::collections::HashMap<NodeId, Vec<NodeId>>,
     /// tsc deferredGlobalDisposableType (60882) — emptyObjectType memo
     /// on miss, like the Promise pair above.
     pub(crate) deferred_global_disposable_type: Option<TypeId>,
@@ -781,39 +781,10 @@ pub struct CheckerState<'a> {
     /// `Some(None)` records an attempted miss so repeated JSX nodes do
     /// not duplicate the runtime-module diagnostic.
     pub(crate) jsx_implicit_import_containers: std::collections::HashMap<usize, Option<SymbolId>>,
-    /// Variable-like declarations whose effective type came from the
-    /// modeled JSDoc @type subset. Checked-JS assembly uses their exact
-    /// diagnostic spans to expose the resulting semantic diagnostics
-    /// without admitting unrelated JSDoc-dependent approximations.
-    pub(crate) jsdoc_typed_declarations: std::collections::HashSet<NodeId>,
-    /// Diagnostics produced by a phase-9 non-JSDoc checked-JS path.
-    /// The public program layer still filters checked-JS output while
-    /// JSDoc is incomplete; this exact key set lets newly ported
-    /// assignment/constructor paths opt in without opening unrelated
-    /// JSDoc-dependent diagnostics.
-    pub(crate) non_jsdoc_js_diagnostics: std::collections::HashSet<(String, u32, u32, u32)>,
-    /// Diagnostics produced by an explicitly ported checked-JS JSDoc
-    /// semantic path. Keep this separate from the non-JSDoc set so
-    /// provenance tests and later JSDoc owner slices cannot mistake a
-    /// bounded publication decision for a general frontier opening.
-    pub(crate) jsdoc_js_diagnostics: std::collections::HashSet<(String, u32, u32, u32)>,
-    /// File-less diagnostics produced by an explicitly ported
-    /// checked-JS JSDoc path. `error(undefined, ...)` is a real tsc
-    /// producer face (for example, a non-effective earlier JSDoc
-    /// comment), but it cannot use the file/span publication key
-    /// above.
-    pub(crate) fileless_jsdoc_js_diagnostic_codes: std::collections::HashSet<u32>,
-    /// Exact semantic provenance for checked-JS property-miss rows
-    /// whose receiver type came through a `module.exports = Alias`
-    /// declaration. The assignment alias target is trustworthy even
-    /// while general JS expando/member inference remains incomplete.
-    pub(crate) non_jsdoc_js_module_exports_alias_targets: std::collections::HashSet<SymbolId>,
-    /// Module symbols whose types were produced by an exact checked-JS
-    /// CommonJS require resolution. These permit the access checker to
-    /// publish diagnostics that do not depend on unported JSDoc type
-    /// construction even when an unrelated declaration in the target
-    /// module carries JSDoc.
-    pub(crate) non_jsdoc_js_commonjs_require_targets: std::collections::HashSet<SymbolId>,
+    /// tsc `node.jsDoc.jsDocCache` (getJSDocTagsWorker): effective,
+    /// ownership-filtered tags are syntax-stable and computed once per
+    /// host. The checker keeps the cache outside the immutable arena.
+    pub(crate) jsdoc_tag_cache: std::cell::RefCell<std::collections::HashMap<NodeId, Vec<NodeId>>>,
     /// Lazy getGlobal*Type memos (deferredGlobal* pattern 60679 for the
     /// deferred ones; the core init block 88788+ is deliberately LAZY
     /// here — m4-checker-skeleton-steps.md 5.0 — so each global starts
@@ -983,7 +954,7 @@ impl<'a> CheckerState<'a> {
             potential_weak_map_set_collisions: Vec::new(),
             potential_reflect_collisions: Vec::new(),
             potential_unused_renamed_binding_elements_in_types: Vec::new(),
-            potentially_unused_identifiers: Vec::new(),
+            potentially_unused_identifiers: std::collections::HashMap::new(),
             deferred_global_disposable_type: None,
             deferred_global_async_disposable_type: None,
             deferred_global_extract_symbol: None,
@@ -1048,12 +1019,7 @@ impl<'a> CheckerState<'a> {
             external_helpers_modules: std::collections::HashMap::new(),
             requested_external_emit_helpers: std::collections::HashMap::new(),
             jsx_implicit_import_containers: std::collections::HashMap::new(),
-            jsdoc_typed_declarations: std::collections::HashSet::new(),
-            non_jsdoc_js_diagnostics: std::collections::HashSet::new(),
-            jsdoc_js_diagnostics: std::collections::HashSet::new(),
-            fileless_jsdoc_js_diagnostic_codes: std::collections::HashSet::new(),
-            non_jsdoc_js_module_exports_alias_targets: std::collections::HashSet::new(),
-            non_jsdoc_js_commonjs_require_targets: std::collections::HashSet::new(),
+            jsdoc_tag_cache: Default::default(),
             global_type_memos: Default::default(),
             decorator_context_override_type_cache: Default::default(),
             relation_frame_loan: crate::engine::RelationFrameLoan::None,
@@ -1685,71 +1651,6 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsrs-native: publish exact diagnostic keys produced by a
-    /// provenance-checked non-JSDoc JavaScript path.
-    pub(crate) fn mark_non_jsdoc_js_diagnostics_since(&mut self, start: usize) {
-        let keys: Vec<_> = self.diagnostics[start..]
-            .iter()
-            .filter_map(|diagnostic| {
-                Some((
-                    diagnostic.file_name.clone()?,
-                    diagnostic.start?,
-                    diagnostic.length?,
-                    diagnostic.code(),
-                ))
-            })
-            .collect();
-        self.non_jsdoc_js_diagnostics.extend(keys);
-    }
-
-    /// tsrs-native: publish only one exact diagnostic code from a
-    /// provenance-checked JavaScript path. Nested suggestion/module
-    /// probes may emit other diagnostics while the path runs; those
-    /// retain their own publication decision.
-    pub(crate) fn mark_non_jsdoc_js_diagnostics_since_with_code(
-        &mut self,
-        start: usize,
-        code: u32,
-    ) {
-        let keys: Vec<_> = self.diagnostics[start..]
-            .iter()
-            .filter(|diagnostic| diagnostic.code() == code)
-            .filter_map(|diagnostic| {
-                Some((
-                    diagnostic.file_name.clone()?,
-                    diagnostic.start?,
-                    diagnostic.length?,
-                    diagnostic.code(),
-                ))
-            })
-            .collect();
-        self.non_jsdoc_js_diagnostics.extend(keys);
-    }
-
-    /// tsrs-native: publish one diagnostic code from an explicitly
-    /// ported checked-JS JSDoc semantic path.
-    pub(crate) fn mark_jsdoc_js_diagnostics_since_with_code(&mut self, start: usize, code: u32) {
-        let keys: Vec<_> = self.diagnostics[start..]
-            .iter()
-            .filter(|diagnostic| diagnostic.code() == code)
-            .filter_map(|diagnostic| {
-                Some((
-                    diagnostic.file_name.clone()?,
-                    diagnostic.start?,
-                    diagnostic.length?,
-                    diagnostic.code(),
-                ))
-            })
-            .collect();
-        self.jsdoc_js_diagnostics.extend(keys);
-        if self.diagnostics[start..]
-            .iter()
-            .any(|diagnostic| diagnostic.code() == code && diagnostic.file_name.is_none())
-        {
-            self.fileless_jsdoc_js_diagnostic_codes.insert(code);
-        }
-    }
-
     // ---- out-of-band variance marker handler (M4 5.3b) ----
 
     /// The reporter-mapper closures' `t === markerSuperType || ...`
@@ -2019,6 +1920,7 @@ pub(crate) mod test_support {
                     javascript_file,
                     node_id_base,
                     node_array_id_base,
+                    js_doc_parsing_mode: tsrs2_syntax::JSDocParsingMode::ParseAll,
                     ..ParseOptions::default()
                 },
                 None,

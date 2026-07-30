@@ -709,7 +709,8 @@
       "dataName": "ImportAttributesData",
       "fields": [
         {"name": "token", "rustName": "token", "type": "SyntaxKind", "optional": false, "child": false},
-        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": false, "child": true}
+        {"name": "elements", "rustName": "elements", "type": "NodeArray", "optional": false, "child": true},
+        {"name": "multiLine", "rustName": "multi_line", "type": "Bool", "optional": true, "child": false}
       ],
       "children": [
         {"name": "elements", "array": true}
@@ -871,7 +872,7 @@
       "dataName": "JSDocData",
       "fields": [
         {"name": "tags", "rustName": "tags", "type": "NodeArray", "optional": true, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true}
       ],
       "children": [
         {"name": "comment", "array": true},
@@ -879,11 +880,19 @@
       ]
     },
     {
+      "kindName": "JSDocAllType",
+      "dataName": "JSDocAllTypeData",
+      "fields": [
+      ],
+      "children": [
+      ]
+    },
+    {
       "kindName": "JSDocAugmentsTag",
       "dataName": "JSDocAugmentsTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true},
         {"name": "class", "rustName": "class", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
@@ -897,7 +906,7 @@
       "dataName": "JSDocAuthorTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -909,7 +918,7 @@
       "dataName": "JSDocCallbackTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": false},
         {"name": "fullName", "rustName": "full_name", "type": "Node", "optional": true, "child": true},
         {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": false, "child": true}
@@ -926,7 +935,7 @@
       "dataName": "JSDocClassTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -938,7 +947,7 @@
       "dataName": "JSDocDeprecatedTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -950,7 +959,7 @@
       "dataName": "JSDocEnumTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true},
         {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
@@ -963,6 +972,8 @@
       "kindName": "JSDocFunctionType",
       "dataName": "JSDocFunctionTypeData",
       "fields": [
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": false},
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": false},
         {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": false, "child": true},
         {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
       ],
@@ -976,7 +987,7 @@
       "dataName": "JSDocImplementsTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true},
         {"name": "class", "rustName": "class", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
@@ -990,7 +1001,7 @@
       "dataName": "JSDocImportTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true},
         {"name": "importClause", "rustName": "import_clause", "type": "Node", "optional": true, "child": true},
         {"name": "moduleSpecifier", "rustName": "module_specifier", "type": "Node", "optional": false, "child": true},
         {"name": "attributes", "rustName": "attributes", "type": "Node", "optional": true, "child": true}
@@ -1007,7 +1018,8 @@
       "kindName": "JSDocLink",
       "dataName": "JSDocLinkData",
       "fields": [
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false}
       ],
       "children": [
         {"name": "name", "array": false}
@@ -1017,7 +1029,8 @@
       "kindName": "JSDocLinkCode",
       "dataName": "JSDocLinkCodeData",
       "fields": [
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false}
       ],
       "children": [
         {"name": "name", "array": false}
@@ -1027,7 +1040,8 @@
       "kindName": "JSDocLinkPlain",
       "dataName": "JSDocLinkPlainData",
       "fields": [
-        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true},
+        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false}
       ],
       "children": [
         {"name": "name", "array": false}
@@ -1056,10 +1070,20 @@
       ]
     },
     {
+      "kindName": "JSDocNamepathType",
+      "dataName": "JSDocNamepathTypeData",
+      "fields": [
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": false}
+      ],
+      "children": [
+      ]
+    },
+    {
       "kindName": "JSDocNonNullableType",
       "dataName": "JSDocNonNullableTypeData",
       "fields": [
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true}
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true},
+        {"name": "postfix", "rustName": "postfix", "type": "Bool", "optional": false, "child": false}
       ],
       "children": [
         {"name": "type", "array": false}
@@ -1069,7 +1093,8 @@
       "kindName": "JSDocNullableType",
       "dataName": "JSDocNullableTypeData",
       "fields": [
-        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true}
+        {"name": "type", "rustName": "r#type", "type": "Node", "optional": false, "child": true},
+        {"name": "postfix", "rustName": "postfix", "type": "Bool", "optional": false, "child": false}
       ],
       "children": [
         {"name": "type", "array": false}
@@ -1090,7 +1115,7 @@
       "dataName": "JSDocOverloadTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true},
         {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
@@ -1104,7 +1129,7 @@
       "dataName": "JSDocOverrideTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1116,7 +1141,7 @@
       "dataName": "JSDocParameterTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
         {"name": "isNameFirst", "rustName": "is_name_first", "type": "Bool", "optional": false, "child": false},
@@ -1134,7 +1159,7 @@
       "dataName": "JSDocPrivateTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1146,7 +1171,7 @@
       "dataName": "JSDocPropertyTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
         {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
         {"name": "isNameFirst", "rustName": "is_name_first", "type": "Bool", "optional": false, "child": false},
@@ -1164,7 +1189,7 @@
       "dataName": "JSDocProtectedTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1176,7 +1201,7 @@
       "dataName": "JSDocPublicTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1188,7 +1213,7 @@
       "dataName": "JSDocReadonlyTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1200,7 +1225,7 @@
       "dataName": "JSDocReturnTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true},
         {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
@@ -1214,7 +1239,7 @@
       "dataName": "JSDocSatisfiesTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true},
         {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
@@ -1228,7 +1253,7 @@
       "dataName": "JSDocSeeTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
@@ -1256,7 +1281,7 @@
       "dataName": "JSDocTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true}
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1268,7 +1293,7 @@
       "dataName": "JSDocTemplateTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true},
         {"name": "constraint", "rustName": "constraint", "type": "Node", "optional": true, "child": true},
         {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": false, "child": true}
       ],
@@ -1280,11 +1305,20 @@
       ]
     },
     {
+      "kindName": "JSDocText",
+      "dataName": "JSDocTextData",
+      "fields": [
+        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false}
+      ],
+      "children": [
+      ]
+    },
+    {
       "kindName": "JSDocThisTag",
       "dataName": "JSDocThisTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true},
         {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
@@ -1298,7 +1332,7 @@
       "dataName": "JSDocThrowsTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true},
         {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
@@ -1333,7 +1367,7 @@
       "dataName": "JSDocTypeTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true},
         {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": false, "child": true}
       ],
       "children": [
@@ -1347,7 +1381,7 @@
       "dataName": "JSDocTypedefTagData",
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
-        {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "comment", "rustName": "comment", "type": "JSDocComment", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": false},
         {"name": "fullName", "rustName": "full_name", "type": "Node", "optional": true, "child": true},
         {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true}
@@ -1357,6 +1391,14 @@
         {"name": "typeExpression", "array": false},
         {"name": "fullName", "array": false},
         {"name": "comment", "array": true}
+      ]
+    },
+    {
+      "kindName": "JSDocUnknownType",
+      "dataName": "JSDocUnknownTypeData",
+      "fields": [
+      ],
+      "children": [
       ]
     },
     {
@@ -2067,7 +2109,8 @@
       "kindName": "StringLiteral",
       "dataName": "StringLiteralData",
       "fields": [
-        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false}
+        {"name": "text", "rustName": "text", "type": "String", "optional": false, "child": false},
+        {"name": "hasExtendedUnicodeEscape", "rustName": "has_extended_unicode_escape", "type": "Bool", "optional": true, "child": false}
       ],
       "children": [
       ]

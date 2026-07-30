@@ -46,8 +46,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getConstraintDeclaration @6.0.3
     /// tsc-hash: fc71627075c903670d496f877070b8920b60d20169eba4040b803c4a0948cef0
     /// tsc-span: _tsc.js:60056-60058
-    ///
-    /// getEffectiveConstraintOfTypeParameter's JSDoc arm elided.
     pub(crate) fn get_constraint_declaration(&self, ty: TypeId) -> Option<NodeId> {
         let symbol = self.tables.type_of(ty).symbol?;
         self.binder
@@ -59,7 +57,16 @@ impl<'a> CheckerState<'a> {
                 NodeData::TypeParameter(data)
                     if self.kind_of(declaration) == SyntaxKind::TypeParameter =>
                 {
-                    data.constraint
+                    data.constraint.or_else(|| {
+                        let parent = self.parent_of(declaration)?;
+                        let NodeData::JSDocTemplateTag(template) = self.data_of(parent) else {
+                            return None;
+                        };
+                        (self.nodes_of(template.type_parameters).first().copied()
+                            == Some(declaration))
+                        .then_some(template.constraint)
+                        .flatten()
+                    })
                 }
                 _ => None,
             })

@@ -10,6 +10,18 @@ gate) restricted to the 2XXX band. This doc owns the phase's mined
 worklist, slice order, and adjudication protocol; steps-doc
 semantics stay with the m*-steps docs each slice cites.
 
+> **M8 supersession note:** this file is the historical Phase-9 execution
+> log. Its references to a memberless or symbol-carrying
+> empty-resolution shield, checked-JS display admission, and plain-JS nested
+> objects remaining behind a curtain describe the implementation at that
+> slice's date. M8 later deleted that checker-side heuristic in favor of the
+> exact TypeScript 6.0.3 binder/type/checker path. The current nested
+> plain-JS object to TypeScript-consumer canary retains tsc's 2339 when the
+> member is absent. Do not use the historical shield as current design
+> authority; see
+> [M8 execution and close](m8-execution-and-close.md) and the
+> [complete JSDoc port](m8-jsdoc-ast-materialization.md).
+
 Process anchors:
 
 - STAGE stays `M6` for the whole phase (phase 9 is a row between

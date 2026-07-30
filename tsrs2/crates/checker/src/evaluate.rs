@@ -682,8 +682,7 @@ impl<'a> CheckerState<'a> {
     /// Evaluator slice. The cross-file arm reduces to `true`: the
     /// moduleKind conjunct needs an externalModuleIndicator either way
     /// and `!compilerOptions.outFile` is always true (outFile
-    /// unmodeled), so the tsc disjunction short-circuits. The JSDoc
-    /// usage-flag test is elided (no JSDoc nodes parse). All
+    /// unmodeled), so the tsc disjunction short-circuits. All
     /// declaration arms are live since 5.7b (2729 band).
     pub(crate) fn is_block_scoped_name_declared_before_use(
         &mut self,
@@ -693,7 +692,10 @@ impl<'a> CheckerState<'a> {
         if self.binder.file_index_of_node(declaration) != self.binder.file_index_of_node(usage) {
             return Ok(true);
         }
-        if self.is_in_type_query(usage) || self.is_in_ambient_or_type_node(usage) {
+        if self.node_flags(usage) & tsrs2_types::NodeFlags::JS_DOC.bits() != 0
+            || self.is_in_type_query(usage)
+            || self.is_in_ambient_or_type_node(usage)
+        {
             return Ok(true);
         }
         let declaration_pos = self.pos_of(declaration);
@@ -1389,6 +1391,23 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn skip_parentheses(&self, node: NodeId) -> NodeId {
         let mut node = node;
         while let NodeData::ParenthesizedExpression(data) = self.data_of(node) {
+            match data.expression {
+                Some(expression) => node = expression,
+                None => break,
+            }
+        }
+        node
+    }
+
+    /// tsc-port: skipParentheses/excludeJSDocTypeAssertions @6.0.3
+    /// tsc-hash: 57477e009374b3ffadffee5b4db7695a3c33fc1710ed92ce3c06ab51d147e7f3
+    /// tsc-span: _tsc.js:15661-15664
+    pub(crate) fn skip_parentheses_excluding_jsdoc_type_assertions(&self, node: NodeId) -> NodeId {
+        let mut node = node;
+        while let NodeData::ParenthesizedExpression(data) = self.data_of(node) {
+            if node_util::is_jsdoc_type_assertion(self.binder.source_of_node(node), node) {
+                break;
+            }
             match data.expression {
                 Some(expression) => node = expression,
                 None => break,

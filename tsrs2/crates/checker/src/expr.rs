@@ -670,6 +670,9 @@ impl<'a> CheckerState<'a> {
             if let Some(target) = self.jsdoc_satisfies_type_node(node) {
                 return self.check_jsdoc_satisfies_expression_worker(expression, target);
             }
+            if node_util::is_jsdoc_type_assertion(self.binder.source_of_node(node), node) {
+                return self.check_assertion_worker(node, check_mode);
+            }
         }
         self.check_expression(expression, check_mode)
     }
@@ -679,10 +682,7 @@ impl<'a> CheckerState<'a> {
         expression: NodeId,
         target: NodeId,
     ) -> CheckResult2<TypeId> {
-        let diagnostics_before = self.diagnostics.len();
-        let result = self.check_satisfies_expression_worker(expression, target);
-        self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1360);
-        result
+        self.check_satisfies_expression_worker(expression, target)
     }
 
     /// tsc tryGetJSDocSatisfiesTypeNode over the parser-owned host
@@ -692,60 +692,31 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 5c43a45c455549c9cc17bb633aaa0d3ba781fa783992420e3deffad53e7d30c4
     /// tsc-span: _tsc.js:19328-19331
     pub(crate) fn jsdoc_satisfies_type_node(&self, host: NodeId) -> Option<NodeId> {
-        if let Some(target) = self.direct_jsdoc_satisfies_type_node(host) {
-            return Some(target);
-        }
-        if let Some(initializer) = self.initializer_of(host) {
-            if let Some(target) = self.direct_jsdoc_satisfies_type_node(initializer) {
-                return Some(target);
-            }
-        }
-        let mut current = Some(host);
-        while let Some(node) = current {
-            if self.kind_of(node) == SyntaxKind::VariableDeclaration {
-                let source = self.binder.source_of_node(node);
-                let statement = self
-                    .parent_of(node)
-                    .and_then(|list| self.parent_of(list))
-                    .filter(|&parent| {
-                        source.arena.node(parent).kind == SyntaxKind::VariableStatement
-                    });
-                if let Some(target) =
-                    statement.and_then(|statement| self.direct_jsdoc_satisfies_type_node(statement))
-                {
-                    return Some(target);
-                }
-                break;
-            }
-            current = self.parent_of(node);
-            if current.is_some_and(|parent| self.kind_of(parent) == SyntaxKind::SourceFile) {
-                break;
-            }
-        }
-        None
+        let tag = self.first_jsdoc_tag(host, SyntaxKind::JSDocSatisfiesTag)?;
+        let NodeData::JSDocSatisfiesTag(data) = self.data_of(tag) else {
+            return None;
+        };
+        self.jsdoc_type_expression_type(data.type_expression)
     }
 
-    fn direct_jsdoc_satisfies_type_node(&self, host: NodeId) -> Option<NodeId> {
+    /// tsrs-native: optional AST query combining tsc's
+    /// isJSDocTypeAssertion guard with getJSDocTypeAssertionType;
+    /// Rust callers use `None` for a non-assertion instead of relying
+    /// on tsc's assertion-only precondition.
+    ///
+    /// The parser materializes the `@type` tag and its
+    /// `JSDocTypeExpression` on the parenthesized host.
+    pub(crate) fn jsdoc_type_assertion_type_node(&self, host: NodeId) -> Option<NodeId> {
         let source = self.binder.source_of_node(host);
-        let js_doc = source.arena.node(host).js_doc?;
-        for &doc in &source.arena.node_array(js_doc).nodes {
-            let NodeData::JSDoc(data) = &source.arena.node(doc).data else {
-                continue;
-            };
-            let Some(tags) = data.tags else { continue };
-            for &tag in &source.arena.node_array(tags).nodes {
-                let NodeData::JSDocSatisfiesTag(data) = &source.arena.node(tag).data else {
-                    continue;
-                };
-                let expression = data.type_expression?;
-                let NodeData::JSDocTypeExpression(data) = &source.arena.node(expression).data
-                else {
-                    continue;
-                };
-                return data.r#type;
-            }
+        if !node_util::is_jsdoc_type_assertion(source, host) {
+            return None;
         }
-        None
+        let tag = node_util::get_jsdoc_type_tag(source, host)?;
+        let expression = node_util::jsdoc_type_expression(source, tag)?;
+        match &source.arena.node(expression).data {
+            NodeData::JSDocTypeExpression(data) => data.r#type,
+            _ => None,
+        }
     }
 
     // ---- literal leaves ----
@@ -807,14 +778,7 @@ impl<'a> CheckerState<'a> {
         if self.has_parse_diagnostics(node) {
             return false;
         }
-        let (
-            literal_text,
-            is_unterminated,
-            target,
-            file_name,
-            token_start_utf16,
-            publish_checked_js,
-        ) = {
+        let (literal_text, is_unterminated, target, file_name, token_start_utf16) = {
             let source = self.binder.source_of_node(node);
             let raw = source.arena.node(node);
             let Some(data) = raw.data.as_regular_expression_literal() else {
@@ -834,7 +798,6 @@ impl<'a> CheckerState<'a> {
                 source.language_version,
                 source.file_name.clone(),
                 token_start_utf16,
-                self.is_in_js_file(node),
             )
         };
         if is_unterminated {
@@ -842,7 +805,6 @@ impl<'a> CheckerState<'a> {
         }
 
         let regex_diagnostics = validate_regular_expression_literal(&literal_text, target);
-        let diagnostics_before = self.diagnostics.len();
         let mut last_primary: Option<(u32, u32, usize)> = None;
         for regex_diagnostic in regex_diagnostics {
             let start = token_start_utf16.saturating_add(regex_diagnostic.start_utf16);
@@ -869,9 +831,6 @@ impl<'a> CheckerState<'a> {
                 let index = self.push_error_diagnostic(diagnostic);
                 last_primary = Some((start, length, index));
             }
-        }
-        if publish_checked_js {
-            self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
         }
         last_primary.is_some()
     }
@@ -998,7 +957,7 @@ impl<'a> CheckerState<'a> {
         let Some(symbol) = self.get_resolved_symbol(node)? else {
             return Ok(self.tables.intrinsics.error);
         };
-        self.check_identifier_calculate_node_check_flags(node, symbol);
+        self.check_identifier_calculate_node_check_flags(node, symbol)?;
         if symbol == self.arguments_symbol {
             if self.is_in_property_initializer_or_class_static_block(node, true) {
                 return Ok(self.tables.intrinsics.error);
@@ -1297,12 +1256,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4950eecd5ccf25b955631bc3837bfda9ab85d640abbc29f84414e7a17115a3c8
     /// tsc-span: _tsc.js:72063-72125
     ///
-    /// The deprecation-suggestion block (resolveAliasWithDeprecationCheck
-    /// → addDeprecatedSuggestion) is suggestion-band — elided; its alias
-    /// resolution has no other effect here.
-    fn check_identifier_calculate_node_check_flags(&mut self, node: NodeId, symbol: SymbolId) {
+    fn check_identifier_calculate_node_check_flags(
+        &mut self,
+        node: NodeId,
+        symbol: SymbolId,
+    ) -> CheckResult2<()> {
         if self.is_this_in_type_query(node) {
-            return;
+            return Ok(());
         }
         if symbol == self.arguments_symbol {
             if self.is_in_property_initializer_or_class_static_block(node, true) {
@@ -1311,7 +1271,7 @@ impl<'a> CheckerState<'a> {
                     &diagnostics::arguments_cannot_be_referenced_in_property_initializers_or_class_static_initialization_blocks,
                     &[],
                 );
-                return;
+                return Ok(());
             }
             let mut container = self.get_containing_function(node);
             if let Some(first_container) = container {
@@ -1353,9 +1313,24 @@ impl<'a> CheckerState<'a> {
                     }
                 }
             }
-            return;
+            return Ok(());
         }
         let local_or_export_symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
+        let target_symbol =
+            self.resolve_alias_with_deprecation_check(local_or_export_symbol, node)?;
+        if self.is_deprecated_symbol(target_symbol)
+            && self.is_uncalled_function_reference(node, target_symbol)?
+        {
+            let declarations = self.binder.symbol(target_symbol).declarations.clone();
+            if !declarations.is_empty() {
+                let deprecated_entity = self
+                    .identifier_text_of(node)
+                    .map(tsrs2_binder::unescape_leading_underscores)
+                    .unwrap_or_default()
+                    .to_owned();
+                self.add_deprecated_suggestion(node, &declarations, &deprecated_entity);
+            }
+        }
         let declaration = self.binder.symbol(local_or_export_symbol).value_declaration;
         if let Some(declaration) = declaration {
             if self
@@ -1410,6 +1385,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         self.check_nested_block_scoped_binding(node, symbol);
+        Ok(())
     }
 
     /// tsc-port: checkNestedBlockScopedBinding @6.0.3
@@ -2042,8 +2018,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 56e340e6315f9514b9b10ee2da3e5255c009cf09db1260c3198ac6088db29832
     /// tsc-span: _tsc.js:48498-48500
     ///
-    /// The TS arms plus the CommonJS module.exports, access-assignment,
-    /// and bare/accessed-require arms used by checked-JS aliases.
+    /// The TS arms plus the CommonJS/object-literal assignment and
+    /// bare/accessed-require arms used by checked-JS aliases.
     pub(crate) fn is_alias_symbol_declaration(&self, node: NodeId) -> bool {
         match self.kind_of(node) {
             SyntaxKind::ImportEqualsDeclaration
@@ -2057,15 +2033,13 @@ impl<'a> CheckerState<'a> {
                 _ => false,
             },
             SyntaxKind::ExportAssignment => {
-                // exportAssignmentIsAlias: the expression is an alias-
-                // able entity name / class / function expression.
+                // exportAssignmentIsAlias: only an entity-name or
+                // class expression. Function expressions participate
+                // only in isAliasableOrJsExpression-owned arms.
                 match self.data_of(node) {
                     NodeData::ExportAssignment(data) => data.expression.is_some_and(|expression| {
                         self.is_entity_name_expression(expression)
-                            || matches!(
-                                self.kind_of(expression),
-                                SyntaxKind::ClassExpression | SyntaxKind::FunctionExpression
-                            )
+                            || self.kind_of(expression) == SyntaxKind::ClassExpression
                     }),
                     _ => false,
                 }
@@ -2075,19 +2049,6 @@ impl<'a> CheckerState<'a> {
                 if tsrs2_binder::get_assignment_declaration_kind(source, node)
                     != tsrs2_binder::AssignmentDeclarationKind::ModuleExports
                 {
-                    return false;
-                }
-                // A nested `exports = module.exports = value` also
-                // changes the outer assignment's flow/type meaning.
-                // Keep that compound JS-assignment shape behind the
-                // existing assignment-declaration boundary until its
-                // outer write semantics are modeled.
-                if self.parent_of(node).is_some_and(|parent| {
-                    matches!(
-                        self.data_of(parent),
-                        NodeData::BinaryExpression(data) if data.right == Some(node)
-                    )
-                }) {
                     return false;
                 }
                 match self.data_of(node) {
@@ -2112,18 +2073,32 @@ impl<'a> CheckerState<'a> {
                 {
                     return false;
                 }
-                data.right.is_some_and(|expression| {
-                    self.is_entity_name_expression(expression)
-                        || self.kind_of(expression) == SyntaxKind::ClassExpression
-                        || (self.kind_of(expression) == SyntaxKind::FunctionExpression
-                            && self.is_js_constructor_without_jsdoc(expression) == Some(true))
-                })
+                data.right
+                    .is_some_and(|expression| self.is_aliasable_or_js_expression(expression))
             }
+            SyntaxKind::ShorthandPropertyAssignment => true,
+            SyntaxKind::PropertyAssignment => match self.data_of(node) {
+                NodeData::PropertyAssignment(data) => data
+                    .initializer
+                    .is_some_and(|initializer| self.is_aliasable_or_js_expression(initializer)),
+                _ => false,
+            },
             SyntaxKind::VariableDeclaration => {
                 self.external_module_require_argument(node).is_some()
             }
+            SyntaxKind::BindingElement => self.is_binding_element_of_bare_or_accessed_require(node),
             _ => false,
         }
+    }
+
+    /// tsc-port: isAliasableOrJsExpression @6.0.3
+    /// tsc-hash: 3975905d2c19771572d9f17ef228f4eca89f31a9afc8ff33639a5a787202b7b0
+    /// tsc-span: _tsc.js:48501-48503
+    fn is_aliasable_or_js_expression(&self, node: NodeId) -> bool {
+        self.is_entity_name_expression(node)
+            || self.kind_of(node) == SyntaxKind::ClassExpression
+            || (self.kind_of(node) == SyntaxKind::FunctionExpression
+                && self.is_js_constructor(node))
     }
 
     // ---- assignment-target classification ----
@@ -2516,10 +2491,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 2cd361c26acb6a3601a6e0b7fa0726104aaea4313c035468241b49e1d53661ab
     /// tsc-span: _tsc.js:72422-72463
     ///
-    /// Elisions: the JS arms (getTypeForThisExpressionFromJSDoc,
-    /// getClassNameFromPrototypeMethod, isJSConstructor, commonjs
-    /// SourceFile arm) per the plain-JS band; the
-    /// getContextualThisParameterType fallback is live (5.5b).
+    /// JSDoc `@this` is materialized as the signature's this
+    /// parameter, so getThisTypeOfDeclaration covers the upstream
+    /// getTypeForThisExpressionFromJSDoc fallback.
     pub(crate) fn try_get_this_type_at(
         &mut self,
         node: NodeId,
@@ -2530,7 +2504,10 @@ impl<'a> CheckerState<'a> {
             && (!self.is_in_parameter_initializer_before_containing_function(node)
                 || self.get_this_parameter_of_declaration(container).is_some())
         {
-            let this_type = self.get_this_type_of_declaration(container)?;
+            let mut this_type = self.get_this_type_of_declaration(container)?;
+            if this_type.is_none() && self.is_in_js_file(node) {
+                this_type = self.get_type_for_this_expression_from_jsdoc(container)?;
+            }
             if let Some(this_type) = this_type {
                 return Ok(Some(
                     self.get_flow_type_of_reference(node, this_type, this_type, None)?,
@@ -2549,7 +2526,7 @@ impl<'a> CheckerState<'a> {
                             self.symbol_flags(symbol).intersects(SymbolFlags::FUNCTION)
                                 && !self.binder.symbol(symbol).members.is_empty()
                         })
-                } else if self.is_js_constructor_without_jsdoc(container) == Some(true) {
+                } else if self.is_js_constructor(container) {
                     self.node_symbol(container)
                         .map(|symbol| self.get_merged_symbol(symbol))
                 } else {
@@ -2594,11 +2571,23 @@ impl<'a> CheckerState<'a> {
             }
         }
         if self.kind_of(container) == SyntaxKind::SourceFile {
-            // commonJsModuleIndicator arm: JS band (no CJS indicator in
-            // TS files).
+            let file_index = self.binder.file_index_of_node(container);
             if self
                 .binder
-                .is_external_or_common_js_module_of_node(container)
+                .file(file_index)
+                .common_js_module_indicator
+                .is_some()
+            {
+                if let Some(symbol) = self.node_symbol(container) {
+                    return Ok(Some(self.get_type_of_symbol(symbol)?));
+                }
+                return Ok(None);
+            }
+            if self
+                .binder
+                .source(file_index)
+                .external_module_indicator
+                .is_some()
             {
                 return Ok(Some(self.tables.intrinsics.undefined));
             }
@@ -2607,6 +2596,33 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(None)
+    }
+
+    /// tsc-port: getTypeForThisExpressionFromJSDoc @6.0.3
+    /// tsc-hash: 45fb505ef968c03189e96c5e13c796d8202c510be96b771fb1cbe34469309b69
+    /// tsc-span: _tsc.js:72496-72505
+    ///
+    /// The direct `@this` face is normally already represented by
+    /// getSignatureFromDeclaration's synthetic this parameter.  The
+    /// type-tag signature fallback remains independently observable for
+    /// `@type {function(this: T): R}`.
+    fn get_type_for_this_expression_from_jsdoc(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult2<Option<TypeId>> {
+        if let Some(this_tag) = self.first_jsdoc_tag(node, SyntaxKind::JSDocThisTag) {
+            let type_expression = match self.data_of(this_tag) {
+                NodeData::JSDocThisTag(data) => data.type_expression,
+                _ => None,
+            };
+            if let Some(type_expression) = type_expression {
+                return Ok(Some(self.get_type_from_type_node(type_expression)?));
+            }
+        }
+        let Some(signature) = self.get_signature_of_type_tag(node)? else {
+            return Ok(None);
+        };
+        self.get_this_type_of_signature(signature)
     }
 
     /// tsc-port: getClassNameFromPrototypeMethod @6.0.3
@@ -2702,6 +2718,8 @@ impl<'a> CheckerState<'a> {
             NodeData::CallSignature(data) => data.parameters,
             NodeData::ConstructSignature(data) => data.parameters,
             NodeData::FunctionType(data) => data.parameters,
+            NodeData::JSDocFunctionType(data) => data.parameters,
+            NodeData::JSDocSignature(data) => data.parameters,
             NodeData::ConstructorType(data) => data.parameters,
             _ => return None,
         };
@@ -3490,15 +3508,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 666d5c2cff0b5ac6e459a721e3c1251084f05b323b3384bd6d6b2d355d3be53e
     /// tsc-span: _tsc.js:80596-80603
     ///
-    /// The JSDoc-type-assertion half is [JSDOC] (invisible — no JSDoc
-    /// parse), so both skipParentheses forms collapse to the plain one.
     fn is_type_assertion_expr(&self, node: NodeId) -> bool {
-        let source = self.binder.source_of_node(node);
-        let node = node_util::skip_parentheses_pub(source, node);
+        let node = self.skip_parentheses_excluding_jsdoc_type_assertions(node);
         matches!(
             self.kind_of(node),
             SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression
-        )
+        ) || node_util::is_jsdoc_type_assertion(self.binder.source_of_node(node), node)
     }
 
     /// tsc-port: checkDeclarationInitializer @6.0.3
@@ -3805,8 +3820,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: ca0d9cc55a6a71da6f654ad57a0669325df6cca1e15082aa35dc2e8cf89db960
     /// tsc-span: _tsc.js:80720-80723
     ///
-    /// The JSDoc-type-assertion disjunct is [JSDOC]; the
-    /// isConstTypeVariable disjunct reads the contextual type and so
+    /// The isConstTypeVariable disjunct reads the contextual type and so
     /// only fires once const type parameters are constructible.
     pub(crate) fn is_const_context(&mut self, node: NodeId) -> CheckResult2<bool> {
         let Some(parent) = self.parent_of(node) else {
@@ -3821,6 +3835,13 @@ impl<'a> CheckerState<'a> {
             if self.is_const_type_reference_node(assertion_type) {
                 return Ok(true);
             }
+        }
+        if node_util::is_jsdoc_type_assertion(self.binder.source_of_node(parent), parent)
+            && self
+                .jsdoc_type_assertion_type_node(parent)
+                .is_some_and(|type_node| self.is_const_type_reference_node(type_node))
+        {
+            return Ok(true);
         }
         if self.is_valid_const_assertion_argument(node)? {
             let contextual = self.get_contextual_type(node, tsrs2_types::ContextFlags::NONE)?;
@@ -4019,8 +4040,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: d85d9ab8a5bee0dadc479cbc618ddf99398666c7c84f75d18023afe56186d6e3
     /// tsc-span: _tsc.js:80724-80736
     ///
-    /// isCommonJsExportedExpression is [JSDOC] (JS-only, constant
-    /// false in TS). Live consumers: the 5.5c literals band.
     pub(crate) fn check_expression_for_mutable_location(
         &mut self,
         node: NodeId,
@@ -4028,7 +4047,7 @@ impl<'a> CheckerState<'a> {
         force_tuple: bool,
     ) -> CheckResult2<TypeId> {
         let ty = self.check_expression_with_force_tuple(node, check_mode, force_tuple)?;
-        if self.is_const_context(node)? {
+        if self.is_const_context(node)? || self.is_common_js_exported_expression(node) {
             return Ok(self.tables.get_regular_type_of_literal_type(ty));
         }
         if self.is_type_assertion_expr(node) {
@@ -4037,6 +4056,33 @@ impl<'a> CheckerState<'a> {
         let contextual = self.get_contextual_type(node, tsrs2_types::ContextFlags::NONE)?;
         let instantiated = self.instantiate_contextual_type_for_node(contextual, node)?;
         self.get_widened_literal_like_type_for_contextual_type(ty, instantiated)
+    }
+
+    /// tsc-port: isCommonJsExportedExpression @6.0.3
+    /// tsc-hash: f2b448cf74731f36fdaa898f6e46ac676f1f28b95c699d363e356d72a4c9ae12
+    /// tsc-span: _tsc.js:14369-14372
+    fn is_common_js_exported_expression(&self, node: NodeId) -> bool {
+        if !self.is_in_js_file(node) {
+            return false;
+        }
+        let Some(parent) = self.parent_of(node) else {
+            return false;
+        };
+        let object_literal_module_export = self.kind_of(parent)
+            == SyntaxKind::ObjectLiteralExpression
+            && self.parent_of(parent).is_some_and(|assignment| {
+                self.kind_of(assignment) == SyntaxKind::BinaryExpression
+                    && tsrs2_binder::get_assignment_declaration_kind(
+                        self.binder.source_of_node(assignment),
+                        assignment,
+                    ) == tsrs2_binder::AssignmentDeclarationKind::ModuleExports
+            });
+        object_literal_module_export
+            || (self.kind_of(parent) == SyntaxKind::BinaryExpression
+                && tsrs2_binder::get_assignment_declaration_kind(
+                    self.binder.source_of_node(parent),
+                    parent,
+                ) == tsrs2_binder::AssignmentDeclarationKind::ExportsProperty)
     }
 
     /// tsc-port: checkPropertyAssignment @6.0.3
@@ -4197,8 +4243,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 12fa64ad550e27bc242ab7af46766acf39032fe3d50d50699bdb2a0a251a5c57
     /// tsc-span: _tsc.js:80915-80944
     ///
-    /// The JSDoc-assertion arm is [JSDOC]. The await and call arms went
-    /// live once their dependencies landed (getAwaitedType @5.5f,
+    /// The await and call arms went live once their dependencies landed
+    /// (getAwaitedType @5.5f,
     /// checkNonNullExpression @5.5d, single-signature reads @5.2): a
     /// stale escape here contained every `const x = f()` initializer
     /// even after 5.7a made the call itself checkable.
@@ -4207,6 +4253,12 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
     ) -> CheckResult2<Option<TypeId>> {
         let source = self.binder.source_of_node(node);
+        let jsdoc_assertion = self.skip_parentheses_excluding_jsdoc_type_assertions(node);
+        if let Some(type_node) = self.jsdoc_type_assertion_type_node(jsdoc_assertion) {
+            if !self.is_const_type_reference_node(type_node) {
+                return self.get_type_from_type_node(type_node).map(Some);
+            }
+        }
         let expr = node_util::skip_parentheses_pub(source, node);
         match self.kind_of(expr) {
             SyntaxKind::AwaitExpression => {
@@ -4535,6 +4587,168 @@ mod tests {
             state.check_source_file(0);
             rows(state)
         })
+    }
+
+    #[test]
+    fn require_binding_elements_are_alias_declarations_but_ordinary_bindings_are_not() {
+        // isAliasSymbolDeclaration 48498-48500 owns the BindingElement
+        // predicate independently of the binder's Alias flag.
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        with_program_state(
+            &[(
+                "a.js",
+                "const { K } = require('./mod');\n\
+                 const object = { K: 1 };\n\
+                 const { K: local } = object;\n",
+            )],
+            &options,
+            |state| {
+                let source = state.binder.source(0);
+                let elements = source
+                    .arena
+                    .node_ids()
+                    .filter(|&node| {
+                        tsrs2_binder::node_util::kind_of(source, node) == SyntaxKind::BindingElement
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(elements.len(), 2);
+                assert!(state.is_alias_symbol_declaration(elements[0]));
+                assert!(!state.is_alias_symbol_declaration(elements[1]));
+            },
+        );
+    }
+
+    #[test]
+    fn checked_js_alias_declaration_predicates_match_tsc_boundaries() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        with_program_state(
+            &[(
+                "a.js",
+                "function C() {}\n\
+                 let x, y;\n\
+                 exports = module.exports = C;\n\
+                 exports = module.exports = 1;\n\
+                 x = y = C;\n\
+                 const object = { C, literal: 1, arrow: () => 1, alias: C };\n\
+                 exports.plain = function plain() {};\n\
+                 exports.ctor = /** @constructor */ function Ctor() {};\n",
+            )],
+            &options,
+            |state| {
+                let source = state.binder.source(0);
+
+                let module_exports = source
+                    .arena
+                    .node_ids()
+                    .filter(|&node| {
+                        tsrs2_binder::node_util::kind_of(source, node)
+                            == SyntaxKind::BinaryExpression
+                            && tsrs2_binder::get_assignment_declaration_kind(source, node)
+                                == tsrs2_binder::AssignmentDeclarationKind::ModuleExports
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(module_exports.len(), 2);
+                assert!(state.is_alias_symbol_declaration(module_exports[0]));
+                assert!(!state.is_alias_symbol_declaration(module_exports[1]));
+
+                let ordinary_assignments = source
+                    .arena
+                    .node_ids()
+                    .filter(|&node| match state.data_of(node) {
+                        NodeData::BinaryExpression(data) => data.left.is_some_and(|left| {
+                            state
+                                .identifier_text_of(left)
+                                .is_some_and(|name| matches!(name, "x" | "y"))
+                        }),
+                        _ => false,
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(ordinary_assignments.len(), 2);
+                assert!(ordinary_assignments
+                    .into_iter()
+                    .all(|node| !state.is_alias_symbol_declaration(node)));
+
+                let shorthand = source
+                    .arena
+                    .node_ids()
+                    .find(|&node| state.kind_of(node) == SyntaxKind::ShorthandPropertyAssignment)
+                    .expect("fixture shorthand");
+                assert!(state.is_alias_symbol_declaration(shorthand));
+
+                let property_aliases = source
+                    .arena
+                    .node_ids()
+                    .filter_map(|node| {
+                        (state.kind_of(node) == SyntaxKind::PropertyAssignment)
+                            .then(|| {
+                                state
+                                    .name_of_node(node)
+                                    .and_then(|name| state.identifier_text_of(name))
+                                    .map(|name| (name, node))
+                            })
+                            .flatten()
+                    })
+                    .collect::<std::collections::HashMap<_, _>>();
+                assert!(!state.is_alias_symbol_declaration(property_aliases["literal"]));
+                assert!(!state.is_alias_symbol_declaration(property_aliases["arrow"]));
+                assert!(state.is_alias_symbol_declaration(property_aliases["alias"]));
+
+                let access_aliases = source
+                    .arena
+                    .node_ids()
+                    .filter_map(|node| {
+                        matches!(
+                            state.kind_of(node),
+                            SyntaxKind::PropertyAccessExpression
+                                | SyntaxKind::ElementAccessExpression
+                        )
+                        .then(|| {
+                            state
+                                .name_of_node(node)
+                                .and_then(|name| state.identifier_text_of(name))
+                                .map(|name| (name, node))
+                        })
+                        .flatten()
+                    })
+                    .collect::<std::collections::HashMap<_, _>>();
+                assert!(!state.is_alias_symbol_declaration(access_aliases["plain"]));
+                assert!(state.is_alias_symbol_declaration(access_aliases["ctor"]));
+            },
+        );
+    }
+
+    #[test]
+    fn export_assignment_aliases_exclude_function_expressions() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "declare const C: unknown;\n\
+                 export = function () {};\n\
+                 export = class {};\n\
+                 export = C;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let source = state.binder.source(0);
+                let assignments = source
+                    .arena
+                    .node_ids()
+                    .filter(|&node| state.kind_of(node) == SyntaxKind::ExportAssignment)
+                    .collect::<Vec<_>>();
+                assert_eq!(assignments.len(), 3);
+                assert!(!state.is_alias_symbol_declaration(assignments[0]));
+                assert!(state.is_alias_symbol_declaration(assignments[1]));
+                assert!(state.is_alias_symbol_declaration(assignments[2]));
+            },
+        );
     }
 
     #[test]
@@ -5099,6 +5313,57 @@ mod tests {
             checked_rows("const r = require(\"m\");\nr;\n"),
             [(2591, 10, 7)]
         );
+    }
+
+    #[test]
+    fn jsdoc_type_assertion_is_checked_and_drives_quick_type() {
+        let text = "const value = /** @type {string} */ (1);\nvalue.missing;\n";
+        let mut actual = checked_js_rows(text);
+        actual.sort_by_key(|row| row.1);
+        assert_eq!(actual, [(2352, 25, 6), (2339, 47, 7)]);
+    }
+
+    #[test]
+    fn jsdoc_type_tag_signature_supplies_this_type() {
+        let text = "/** @type {function(this: { x: number }): void} */\n\
+                    function f() { this.x = \"bad\"; }\n";
+        assert!(checked_js_rows(text)
+            .into_iter()
+            .any(|(code, _, _)| code == 2322));
+    }
+
+    #[test]
+    fn compound_assignment_rhs_inherits_jsdoc_this_tag() {
+        let text = "const holder = {};\n\
+                    /** @this {{ x: number }} */\n\
+                    holder.m ??= function () { this.x = \"bad\"; };\n";
+        assert!(checked_js_rows(text)
+            .into_iter()
+            .any(|(code, _, _)| code == 2322));
+    }
+
+    #[test]
+    fn commonjs_exported_expression_preserves_literal_type() {
+        let text = "exports.value = \"x\";\n\
+                    /** @param {\"x\"} value */\n\
+                    function take(value) {}\n\
+                    take(exports.value);\n\
+                    let local = \"x\";\n\
+                    take(local);\n";
+        let actual = checked_js_rows(text)
+            .into_iter()
+            .filter(|row| row.0 == 2345)
+            .collect::<Vec<_>>();
+        assert_eq!(actual, [(2345, 114, 5)]);
+    }
+
+    #[test]
+    fn commonjs_source_file_this_uses_module_export_type() {
+        let actual = checked_js_rows("exports.x = 1;\nthis.x.bad;\n")
+            .into_iter()
+            .filter(|row| row.0 == 2339)
+            .collect::<Vec<_>>();
+        assert_eq!(actual, [(2339, 22, 3)]);
     }
 
     #[test]

@@ -334,12 +334,15 @@ impl<'a> CheckerState<'a> {
         // Step 9: checked-JS bare/accessed require declarations are
         // aliases, not ordinary variable initializers. Resolving the
         // alias also applies Node20's `"module.exports"` target.
+        let is_bare_or_accessed_require_alias =
+            self.external_module_require_argument(node).is_some()
+                || self.is_binding_element_of_bare_or_accessed_require(node);
         if self
             .binder
             .symbol(symbol)
             .flags
             .intersects(SymbolFlags::ALIAS)
-            && self.external_module_require_argument(node).is_some()
+            && is_bare_or_accessed_require_alias
         {
             self.check_alias_symbol(node)?;
             return Ok(());
@@ -366,13 +369,18 @@ impl<'a> CheckerState<'a> {
             // Step 12: the value declaration's own initializer row.
             let initializer = self.only_expression_initializer_of(node);
             if let Some(initializer) = initializer {
-                if parent_parent_kind != Some(SyntaxKind::ForInStatement) {
-                    let diagnostics_before_initializer = self.diagnostics.len();
-                    let has_jsdoc_annotation = self
-                        .effective_type_annotation_node(node)
-                        .is_some_and(|annotation| {
-                            self.node_flags(annotation) & tsrs2_types::NodeFlags::JS_DOC.bits() != 0
-                        });
+                let source = self.binder.source_of_node(node);
+                let is_js_object_literal_initializer = self.is_in_js_file(node)
+                    && matches!(
+                        self.data_of(initializer),
+                        NodeData::ObjectLiteralExpression(data)
+                            if self.nodes_of(data.properties).is_empty()
+                                || tsrs2_binder::assignment::is_prototype_access(source, name)
+                    )
+                    && !self.binder.symbol(symbol).exports.is_empty();
+                if !is_js_object_literal_initializer
+                    && parent_parent_kind != Some(SyntaxKind::ForInStatement)
+                {
                     let initializer_type =
                         self.check_expression_cached(initializer, CheckMode::NORMAL)?;
                     // THE annotated-declaration 2322 row: errorNode =
@@ -407,12 +415,6 @@ impl<'a> CheckerState<'a> {
                             Some(node),
                             &diagnostics::Type_0_is_not_assignable_to_type_1,
                         )?;
-                    }
-                    if has_jsdoc_annotation {
-                        self.mark_non_jsdoc_js_diagnostics_since_with_code(
-                            diagnostics_before_initializer,
-                            2322,
-                        );
                     }
                     let block_scope_kind =
                         node_util::get_combined_node_flags(self.binder.source_of_node(node), node)
@@ -497,28 +499,6 @@ impl<'a> CheckerState<'a> {
                 let widened = self.get_widened_type_for_variable_like_declaration(node, false)?;
                 self.convert_auto_to_any(widened)?
             };
-            // [JSDOC]/open-ended-JS gate: merged declarations living
-            // in JS need the unmodeled JSDoc/open-object machinery.
-            // The bounded faces modeled by getJSContainerObjectType
-            // are safe to publish: an empty JS variable with real
-            // binder exports, or one merged into a non-JS class value.
-            let any_js_declaration = self
-                .binder
-                .symbol(symbol)
-                .declarations
-                .iter()
-                .any(|&declaration| self.is_in_js_file(declaration));
-            let bounded_js_container = self
-                .only_expression_initializer_of(node)
-                .and_then(|initializer| {
-                    self.get_bounded_js_container_initializer(node, symbol, initializer)
-                })
-                .is_some();
-            if any_js_declaration && !bounded_js_container {
-                return Err(Unsupported::new(
-                    "merged declaration typed from a JS file (@type tags [JSDOC], M8 checkJs band)",
-                ));
-            }
             // (The pre-6.2 [FLOW M5] evolving-array containment gate
             // retired here: with the real autoArrayType producer the
             // comparison face IS tsc's — `var x = []` types as
@@ -575,10 +555,6 @@ impl<'a> CheckerState<'a> {
                 // checkTypeAssignableToAndOptionallyElaborate like the
                 // Step-12 row: a literal initializer's member row
                 // replaces the merged head.
-                let publish_checked_js = self
-                    .is_non_jsdoc_js_expression_type(initializer, initializer_type)
-                    && self.is_non_jsdoc_js_expression_type(initializer, declaration_type);
-                let diagnostics_before = self.diagnostics.len();
                 let elaborated = !self.is_type_assignable_to(initializer_type, declaration_type)?
                     && self
                         .elaborate_literal_assignment(
@@ -594,9 +570,6 @@ impl<'a> CheckerState<'a> {
                         Some(node),
                         &diagnostics::Type_0_is_not_assignable_to_type_1,
                     )?;
-                }
-                if publish_checked_js {
-                    self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
                 }
             }
             if let Some(value_declaration) = value_declaration {
@@ -632,7 +605,7 @@ impl<'a> CheckerState<'a> {
     /// Display band (risk §14.4): an unrenderable type unwinds
     /// Unsupported and the whole report escapes — never a partial
     /// render.
-    fn error_next_variable_or_property_declaration_must_have_same_type(
+    pub(crate) fn error_next_variable_or_property_declaration_must_have_same_type(
         &mut self,
         first_declaration: Option<NodeId>,
         first_type: TypeId,
@@ -692,13 +665,11 @@ impl<'a> CheckerState<'a> {
             | ModifierFlags::ABSTRACT.bits()
             | ModifierFlags::READONLY.bits()
             | ModifierFlags::STATIC.bits();
-        // getSelectedEffectiveModifierFlags: effective == syntactic in
-        // TS files (JSDoc modifiers are the JS residual).
         let left_flags =
-            node_util::get_syntactic_modifier_flags(self.binder.source_of_node(left), left).bits()
+            node_util::get_effective_modifier_flags(self.binder.source_of_node(left), left).bits()
                 & interesting;
         let right_flags =
-            node_util::get_syntactic_modifier_flags(self.binder.source_of_node(right), right)
+            node_util::get_effective_modifier_flags(self.binder.source_of_node(right), right)
                 .bits()
                 & interesting;
         left_flags == right_flags
@@ -1079,10 +1050,7 @@ impl<'a> CheckerState<'a> {
                     )
                 });
             if !parent_parent_ambient && parent_parent_exported {
-                let diagnostics_before = self.diagnostics.len();
-                if self.check_es_module_marker(name) && self.is_in_js_file(node) {
-                    self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1216);
-                }
+                self.check_es_module_marker(name);
             }
         }
         if block_scope_kind != 0 {
@@ -1484,15 +1452,11 @@ impl<'a> CheckerState<'a> {
                 && self.binder.is_external_or_common_js_module_of_node(parent)
             {
                 let display = self.declaration_name_display(name);
-                let diagnostics_before = self.diagnostics.len();
                 self.error_skipped_on_no_emit(
                     Some(name),
                     &diagnostics::Duplicate_identifier_0_Compiler_reserves_name_1_in_top_level_scope_of_a_module,
                     &[&display, &display],
                 );
-                if self.is_in_js_file(name) {
-                    self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
-                }
             }
         }
     }
@@ -1699,15 +1663,11 @@ impl<'a> CheckerState<'a> {
                 199 => "NodeNext",
                 _ => unreachable!("module kinds below ES2015"),
             };
-            let diagnostics_before = self.diagnostics.len();
             self.error_at(
                 Some(name),
                 &diagnostics::Class_name_cannot_be_Object_when_targeting_ES5_and_above_with_module_0,
                 &[module_name],
             );
-            if self.is_in_js_file(name) {
-                self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
-            }
         }
     }
 
@@ -1814,7 +1774,7 @@ impl<'a> CheckerState<'a> {
             let Ok(symbol) = self.get_symbol_of_declaration(node) else {
                 continue;
             };
-            if self.links.symbol(symbol).is_referenced {
+            if !self.links.symbol(symbol).is_referenced.is_empty() {
                 continue;
             }
             let source = self.binder.source_of_node(node);
@@ -1860,8 +1820,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: hasOnlyExpressionInitializer @6.0.3
     /// tsc-hash: 56782551f781d46f793251ce5a948ea4bfc97074c0912263c4f57f9969f36c3a
     /// tsc-span: _tsc.js:12545-12557
+    /// tsc-port: getEffectiveInitializer @6.0.3
+    /// tsc-hash: 455a012a41d42902e0f3e42f134528af49278476bb8855606e6bfb078e149658
+    /// tsc-span: _tsc.js:14967-14972
     fn only_expression_initializer_of(&self, node: NodeId) -> Option<NodeId> {
-        match self.kind_of(node) {
+        let initializer = match self.kind_of(node) {
             SyntaxKind::VariableDeclaration
             | SyntaxKind::Parameter
             | SyntaxKind::BindingElement
@@ -1869,11 +1832,39 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::PropertyAssignment
             | SyntaxKind::EnumMember => self.initializer_of_node(node),
             _ => None,
+        }?;
+        if !self.is_in_js_file(node) {
+            return Some(initializer);
+        }
+        let NodeData::BinaryExpression(data) = self.data_of(initializer) else {
+            return Some(initializer);
+        };
+        if !data.operator_token.is_some_and(|operator| {
+            matches!(
+                self.kind_of(operator),
+                SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
+            )
+        }) {
+            return Some(initializer);
+        }
+        let (Some(name), Some(left), Some(right)) = (
+            node_util::name_field_of(self.binder.source_of_node(node), node),
+            data.left,
+            data.right,
+        ) else {
+            return Some(initializer);
+        };
+        let source = self.binder.source_of_node(node);
+        if node_util::is_entity_name_expression(source, name)
+            && tsrs2_binder::assignment::is_same_entity_name(source, name, left)
+        {
+            Some(right)
+        } else {
+            Some(initializer)
         }
     }
 
-    /// The declaration-kind initializer field (getEffectiveInitializer
-    /// reduces to node.initializer in TS files).
+    /// The declaration-kind initializer field.
     fn initializer_of_node(&self, node: NodeId) -> Option<NodeId> {
         match self.data_of(node) {
             NodeData::VariableDeclaration(data) => data.initializer,
@@ -2339,18 +2330,11 @@ impl<'a> CheckerState<'a> {
                                 && self.implied_node_format_for_file(node)
                                     == Some(crate::modules::ModuleResolutionMode::CommonJs)
                             {
-                                let diagnostics_before = self.diagnostics.len();
                                 self.error_at(
                                     Some(await_modifier),
                                     &diagnostics::The_current_file_is_a_CommonJS_module_and_cannot_use_await_at_the_top_level,
                                     &[],
                                 );
-                                if self.is_in_js_file(node) {
-                                    self.mark_non_jsdoc_js_diagnostics_since_with_code(
-                                        diagnostics_before,
-                                        1309,
-                                    );
-                                }
                             } else if !ladder_ok {
                                 self.error_at(
                                     Some(await_modifier),
@@ -2868,19 +2852,12 @@ impl<'a> CheckerState<'a> {
                 .intersects(NodeFlags::UNREACHABLE)
                 && self.options.allow_unused_labels != Some(true)
             {
-                let diagnostics_before = self.diagnostics.len();
                 let mut diagnostic =
                     self.create_error(Some(label), &diagnostics::Unused_label, &[]);
                 if self.options.allow_unused_labels != Some(false) {
                     diagnostic.message.category = DiagnosticCategory::Suggestion;
                 }
                 self.push_error_diagnostic(diagnostic);
-                if self.is_in_js_file(label) {
-                    self.mark_non_jsdoc_js_diagnostics_since_with_code(
-                        diagnostics_before,
-                        diagnostics::Unused_label.code,
-                    );
-                }
             }
         }
         self.check_source_element(statement);
@@ -2969,45 +2946,10 @@ impl<'a> CheckerState<'a> {
                         .flags_of(ty)
                         .intersects(TypeFlags::ANY | TypeFlags::UNKNOWN)
                     {
-                        let diagnostics_before = self.diagnostics.len();
                         self.grammar_error_on_first_token(
                             type_node,
                             &diagnostics::Catch_clause_variable_type_annotation_must_be_any_or_unknown_if_specified,
                             &[],
-                        );
-                        if self.node_flags(type_node) & tsrs2_types::NodeFlags::JS_DOC.bits() != 0 {
-                            self.mark_non_jsdoc_js_diagnostics_since_with_code(
-                                diagnostics_before,
-                                1196,
-                            );
-                        }
-                    }
-                } else if let Some((type_text, type_span)) =
-                    self.jsdoc_catch_type_annotation_projection(declaration)
-                {
-                    let ty = self.get_type_from_jsdoc_text(declaration, &type_text)?;
-                    if ty.is_some_and(|ty| {
-                        !self
-                            .tables
-                            .flags_of(ty)
-                            .intersects(TypeFlags::ANY | TypeFlags::UNKNOWN)
-                    }) {
-                        let source = self.binder.source_of_node(declaration);
-                        let (token_start, token_end) =
-                            node_util::get_span_of_token_at_position(source, type_span.0);
-                        let start = self.utf16_position(declaration, token_start);
-                        let end = self.utf16_position(declaration, token_end);
-                        let diagnostics_before = self.diagnostics.len();
-                        self.grammar_error_at_pos(
-                            declaration,
-                            start,
-                            end.saturating_sub(start),
-                            &diagnostics::Catch_clause_variable_type_annotation_must_be_any_or_unknown_if_specified,
-                            &[],
-                        );
-                        self.mark_non_jsdoc_js_diagnostics_since_with_code(
-                            diagnostics_before,
-                            1196,
                         );
                     }
                 } else if let Some(initializer) = self.initializer_of_node(declaration) {
@@ -3058,56 +3000,6 @@ impl<'a> CheckerState<'a> {
         }
         Ok(())
     }
-
-    /// getEffectiveTypeAnnotationNode's JSDoc half for a catch
-    /// variable declaration. The syntax arena does not materialize
-    /// JSDoc nodes, so retain this projection inside checkTryStatement:
-    /// it accepts only the inline `@type {T}` attachment and returns
-    /// the source range of the type node tsc would have produced.
-    fn jsdoc_catch_type_annotation_projection(
-        &self,
-        declaration: NodeId,
-    ) -> Option<(String, (usize, usize))> {
-        if !self.is_in_js_file(declaration) {
-            return None;
-        }
-        let source = self.binder.source_of_node(declaration);
-        let anchor = self.name_of_node(declaration).unwrap_or(declaration);
-        let anchor_start = node_util::get_span_of_token_at_position(
-            source,
-            source.arena.node(anchor).pos as usize,
-        )
-        .0;
-        let prefix = &source.text[..anchor_start.min(source.text.len())];
-        let comment_start = prefix.rfind("/**")?;
-        let relative_end = prefix[comment_start + 3..].find("*/")?;
-        let comment_end = comment_start + 3 + relative_end + 2;
-        if !prefix[comment_end..].trim().is_empty() {
-            return None;
-        }
-        let comment_body_start = comment_start + 3;
-        let comment = &prefix[comment_body_start..comment_end - 2];
-        let lower = comment.to_ascii_lowercase();
-        let tag = lower.match_indices("@type").find_map(|(index, _)| {
-            lower[index + "@type".len()..]
-                .chars()
-                .next()
-                .is_none_or(|character| character.is_whitespace() || character == '{')
-                .then_some(index)
-        })?;
-        let tail = &comment[tag + "@type".len()..];
-        let open = tail.find('{')?;
-        let close = tail[open + 1..].find('}')?;
-        let raw = &tail[open + 1..open + 1 + close];
-        let type_text = raw.trim();
-        if type_text.is_empty() {
-            return None;
-        }
-        let raw_start = comment_body_start + tag + "@type".len() + open + 1;
-        let type_start = raw_start + raw.len().saturating_sub(raw.trim_start().len());
-        let type_end = type_start + type_text.len();
-        Some((type_text.to_owned(), (type_start, type_end)))
-    }
 }
 
 #[cfg(test)]
@@ -3157,6 +3049,36 @@ mod tests {
                 })
                 .collect()
         })
+    }
+
+    fn checked_js_rows(text: &str) -> Vec<(u32, u32, u32)> {
+        with_program_state(
+            &[("a.js", text)],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(false),
+                ..CompilerOptions::default()
+            },
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diag| {
+                        diag.file_name.is_some()
+                            && diag.category() == tsrs2_diags::DiagnosticCategory::Error
+                    })
+                    .map(|diag| {
+                        (
+                            diag.code(),
+                            diag.start.unwrap_or(u32::MAX),
+                            diag.length.unwrap_or(u32::MAX),
+                        )
+                    })
+                    .collect()
+            },
+        )
     }
 
     fn unused_label_rows(
@@ -3377,6 +3299,12 @@ mod tests {
 
     #[test]
     fn checked_js_define_property_container_preserves_readonly_descriptors() {
+        let js = "const x = {};\n\
+Object.defineProperty(x, \"writable\", { value: \"\", writable: true });\n\
+Object.defineProperty(x, \"implicit\", { value: \"\" });\n\
+Object.defineProperty(x, \"explicit\", { value: \"\", writable: false });\n\
+Object.defineProperty(x, \"getter\", { get() { return 1; } });\n\
+Object.defineProperty(x, \"accessor\", { get() { return 1; }, set(_v) {} });\n";
         let result = check_program(
             &[
                 InputFile {
@@ -3386,13 +3314,7 @@ mod tests {
                 },
                 InputFile {
                     name: "a.js".to_owned(),
-                    text: "const x = {};\n\
-Object.defineProperty(x, \"writable\", { value: \"\", writable: true });\n\
-Object.defineProperty(x, \"implicit\", { value: \"\" });\n\
-Object.defineProperty(x, \"explicit\", { value: \"\", writable: false });\n\
-Object.defineProperty(x, \"getter\", { get() { return 1; } });\n\
-Object.defineProperty(x, \"accessor\", { get() { return 1; }, set(_v) {} });\n"
-                        .to_owned(),
+                    text: js.to_owned(),
                 },
                 InputFile {
                     name: "b.ts".to_owned(),
@@ -3424,6 +3346,13 @@ x.accessor = 1;\n"
                 ))
                 .collect::<Vec<_>>(),
             [
+                (
+                    Some("a.js"),
+                    7006,
+                    js.find("_v").expect("implicit-any setter parameter") as u32,
+                    "_v".len() as u32,
+                    "Parameter '_v' implicitly has an 'any' type.",
+                ),
                 (
                     Some("b.ts"),
                     2540,
@@ -3713,6 +3642,26 @@ function f(b) {\n\
     fn declaration_initializer_2322_reports_at_the_name_span() {
         // getErrorSpanForNode's VariableDeclaration arm → the NAME.
         assert_eq!(checked_rows("const x: string = 1;\n"), [(2322, 6, 1)]);
+    }
+
+    #[test]
+    fn js_defaulted_expando_variable_checks_the_effective_initializer() {
+        // getEffectiveInitializer unwraps both an unqualified and a
+        // global-object-qualified self-reference before the empty
+        // JS-container exemption. The expando members make each
+        // effective `{}` initializer an assignment declaration.
+        assert_eq!(
+            checked_js_rows(
+                "var my = my || {};\nmy.app = {};\nvar min = this.min || {};\nmin.app = {};\n"
+            ),
+            []
+        );
+        assert_eq!(
+            checked_js_rows(
+                "var my = my ?? {};\nmy.app = {};\nvar min = this.min ?? {};\nmin.app = {};\n"
+            ),
+            []
+        );
     }
 
     #[test]

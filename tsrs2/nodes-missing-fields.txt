@@ -27,19 +27,11 @@ FunctionType.name type=Node optional=true
 GetAccessor.asteriskToken type=Node optional=true
 GetAccessor.exclamationToken type=Node optional=true
 GetAccessor.questionToken type=Node optional=true
-ImportAttributes.multiLine type=Bool optional=true
 ImportDeclaration.assertClause type=Node optional=true
 ImportType.assertions type=Node optional=true
 ImportTypeAssertionContainer.multiLine type=Bool optional=true
 IndexSignature.name type=Node optional=true
 IndexSignature.questionToken type=Node optional=true
-JSDocFunctionType.name type=Node optional=true
-JSDocFunctionType.typeParameters type=NodeArray optional=true
-JSDocLink.text type=String optional=false
-JSDocLinkCode.text type=String optional=false
-JSDocLinkPlain.text type=String optional=false
-JSDocNonNullableType.postfix type=Bool optional=false
-JSDocNullableType.postfix type=Bool optional=false
 JsxSpreadAttribute.name type=Node optional=true
 JsxText.hasExtendedUnicodeEscape type=Bool optional=true
 JsxText.isUnterminated type=Bool optional=true
@@ -65,7 +57,6 @@ SourceFile.referencedFiles type=Payload optional=false
 SourceFile.text type=String optional=false
 SourceFile.typeReferenceDirectives type=Payload optional=false
 SpreadAssignment.name type=Node optional=true
-StringLiteral.hasExtendedUnicodeEscape type=Bool optional=true
 StringLiteral.isUnterminated type=Bool optional=true
 SwitchStatement.possiblyExhaustive type=Bool optional=true
 TemplateHead.hasExtendedUnicodeEscape type=Bool optional=true
@@ -93,8 +84,6 @@ TaggedTemplateExpression.questionDotToken
 # -- xtask: kind-only token nodes or tsc-synthetic kinds with no
 # -- payload struct generated yet)
 Bundle.sourceFiles type=NodeArray optional=false
-JSDocNamepathType.type type=Node optional=false
-JSDocText.text type=String optional=false
 NotEmittedTypeElement.name type=Node optional=true
 NotEmittedTypeElement.questionToken type=Node optional=true
 SemicolonClassElement.name type=Node optional=true

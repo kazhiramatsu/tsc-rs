@@ -21,9 +21,8 @@
 //!   checkExpressionWithContextualType 80565), so
 //!   instantiateContextualType's mapper branches now run in
 //!   production, not just under tests.
-//! - [JSDOC] JS-only arms (type tags, satisfies tags, expando kinds)
-//!   follow the standing plain-JS policy: the TS-visible shape ports,
-//!   JSDoc reads are invisible (we do not parse JSDoc) — FN in JS only.
+//! - [JSDOC] JS-only arms use the parser-owned JSDoc AST for effective
+//!   annotations, satisfies tags, and expando/contextual typing.
 
 use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
@@ -251,8 +250,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getContextualThisParameterType @6.0.3
     /// tsc-hash: 427137868847758711d3501016d73efd44c6a073114c73a77b2cf5296a08eff3
     /// tsc-span: _tsc.js:72642-72686
-    ///
-    /// The commonJS-indicator arm is [JSDOC].
     pub(crate) fn get_contextual_this_parameter_type(
         &mut self,
         func: NodeId,
@@ -323,8 +320,6 @@ impl<'a> CheckerState<'a> {
                                 SyntaxKind::PropertyAccessExpression
                                     | SyntaxKind::ElementAccessExpression
                             ) {
-                                // The commonJsModuleIndicator arm is
-                                // [JSDOC] (JS only) — invisible here.
                                 let expression = match self.data_of(target) {
                                     NodeData::PropertyAccessExpression(data) => data.expression,
                                     NodeData::ElementAccessExpression(data) => data.expression,
@@ -333,6 +328,21 @@ impl<'a> CheckerState<'a> {
                                 let Some(expression) = expression else {
                                     return Ok(None);
                                 };
+                                if in_js && self.kind_of(expression) == SyntaxKind::Identifier {
+                                    let file_index = self.binder.file_index_of_node(parent);
+                                    let has_common_js_indicator = self
+                                        .binder
+                                        .file(file_index)
+                                        .common_js_module_indicator
+                                        .is_some();
+                                    let source_symbol =
+                                        self.node_symbol(self.binder.source(file_index).root);
+                                    if has_common_js_indicator
+                                        && self.get_resolved_symbol(expression)? == source_symbol
+                                    {
+                                        return Ok(None);
+                                    }
+                                }
                                 let checked = self.check_expression_cached(
                                     expression,
                                     tsrs2_types::CheckMode::NORMAL,
@@ -1033,9 +1043,8 @@ impl<'a> CheckerState<'a> {
                 // When an || expression has a contextual type, the RHS
                 // takes it too, EXCEPT when the LHS type carries a
                 // binding `pattern` or there is no context and the
-                // expression is not a defaulted-expando initializer
-                // ([JSDOC]: expando detection is JS-only, constant
-                // false in TS) — those get the LHS type.
+                // expression is not a defaulted-expando initializer —
+                // those get the LHS type.
                 let ty = self.get_contextual_type(binary, context_flags)?;
                 if Some(node) == right {
                     let has_pattern = ty.is_some_and(|t| self.links.ty(t).pattern.is_some());
@@ -2592,9 +2601,32 @@ impl<'a> CheckerState<'a> {
                 self.get_contextual_type_for_substitution_expression(template, node)
             }
             SyntaxKind::ParenthesizedExpression => {
-                // The unavailable JSDoc satisfies/type-tag heads would
-                // override this result. Untagged JS uses the same
-                // recursive path as TS and must not be contained.
+                if self.is_in_js_file(parent) {
+                    let satisfies_type = self
+                        .first_jsdoc_tag(parent, SyntaxKind::JSDocSatisfiesTag)
+                        .and_then(|tag| match self.data_of(tag) {
+                            NodeData::JSDocSatisfiesTag(data) => {
+                                self.jsdoc_type_expression_type(data.type_expression)
+                            }
+                            _ => None,
+                        });
+                    if let Some(satisfies_type) = satisfies_type {
+                        return Ok(Some(self.get_type_from_type_node(satisfies_type)?));
+                    }
+                    let type_tag_type = self
+                        .first_jsdoc_tag(parent, SyntaxKind::JSDocTypeTag)
+                        .and_then(|tag| match self.data_of(tag) {
+                            NodeData::JSDocTypeTag(data) => {
+                                self.jsdoc_type_expression_type(data.type_expression)
+                            }
+                            _ => None,
+                        });
+                    if let Some(type_tag_type) =
+                        type_tag_type.filter(|&ty| !self.is_const_type_reference_node(ty))
+                    {
+                        return Ok(Some(self.get_type_from_type_node(type_tag_type)?));
+                    }
+                }
                 self.get_contextual_type(parent, context_flags)
             }
             SyntaxKind::NonNullExpression => self.get_contextual_type(parent, context_flags),
@@ -2607,12 +2639,7 @@ impl<'a> CheckerState<'a> {
                     None => Ok(None),
                 }
             }
-            SyntaxKind::ExportAssignment => {
-                // tryGetTypeFromEffectiveTypeNode: export assignments
-                // carry no annotation in TS ([JSDOC] covers the JS
-                // read) — tsc's own answer is undefined.
-                Ok(None)
-            }
+            SyntaxKind::ExportAssignment => self.try_get_type_from_effective_type_node(parent),
             SyntaxKind::JsxExpression => {
                 self.get_contextual_type_for_jsx_expression(parent, context_flags)
             }
@@ -3103,9 +3130,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isAritySmaller @6.0.3
     /// tsc-hash: 76c4b60c9f043739ab3c66041377a58eb6371b46bb05d7489a1b2e13bc536ab5
     /// tsc-span: _tsc.js:73835-73847
-    ///
-    /// isJSDocOptionalParameter is [JSDOC] (constant false — no JSDoc
-    /// parse).
     fn is_arity_smaller(&mut self, signature: SignatureId, target: NodeId) -> CheckResult2<bool> {
         let parameters = self.parameters_of_function(target);
         let mut target_parameter_count = 0usize;
@@ -3115,7 +3139,7 @@ impl<'a> CheckerState<'a> {
                 break;
             };
             if data.initializer.is_some()
-                || data.question_token.is_some()
+                || self.is_optional_declaration(param)
                 || data.dot_dot_dot_token.is_some()
             {
                 break;
@@ -3153,9 +3177,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getContextualSignature @6.0.3
     /// tsc-hash: c1e7196d7ccbc1f0d515ba769eba97076e82b2a9b2470335bff2d50f97a09950
     /// tsc-span: _tsc.js:73851-73891
-    ///
-    /// getSignatureOfTypeTag is [JSDOC] (no JSDoc parse — the JS
-    /// type-tag answer is a recorded FN in JS files only).
     pub(crate) fn get_contextual_signature(
         &mut self,
         node: NodeId,
@@ -3164,6 +3185,9 @@ impl<'a> CheckerState<'a> {
             self.kind_of(node) != SyntaxKind::MethodDeclaration
                 || self.is_object_literal_method(node)
         );
+        if let Some(signature) = self.get_signature_of_type_tag(node)? {
+            return Ok(Some(signature));
+        }
         let Some(ty) = self.get_apparent_type_of_contextual_type(node, ContextFlags::SIGNATURE)?
         else {
             return Ok(None);
@@ -3337,7 +3361,7 @@ impl<'a> CheckerState<'a> {
         let parameters = self.parameters_of_function(node);
         if parameters
             .iter()
-            .any(|&p| matches!(self.data_of(p), NodeData::Parameter(data) if data.r#type.is_none()))
+            .any(|&parameter| self.effective_type_annotation_node(parameter).is_none())
         {
             return true;
         }
@@ -3356,17 +3380,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: ebf895c7da74e8dc1ebdb5597e76ab4068ec8b16647e3c3d49a3b94910b13fda
     /// tsc-span: _tsc.js:63869-63877
     fn has_context_sensitive_return_expression(&self, node: NodeId) -> bool {
-        if self.function_type_parameters_of(node).is_some() {
-            return false;
-        }
-        let annotation = match self.data_of(node) {
-            NodeData::FunctionDeclaration(data) => data.r#type,
-            NodeData::FunctionExpression(data) => data.r#type,
-            NodeData::ArrowFunction(data) => data.r#type,
-            NodeData::MethodDeclaration(data) => data.r#type,
-            _ => None,
-        };
-        if annotation.is_some() {
+        if self.function_type_parameters_of(node).is_some()
+            || self.effective_return_type_node(node).is_some()
+        {
             return false;
         }
         let body = match self.data_of(node) {
@@ -3578,13 +3594,19 @@ impl<'a> CheckerState<'a> {
             NodeData::Constructor(data) => data.parameters,
             NodeData::GetAccessor(data) => data.parameters,
             NodeData::SetAccessor(data) => data.parameters,
+            NodeData::CallSignature(data) => data.parameters,
+            NodeData::ConstructSignature(data) => data.parameters,
+            NodeData::MethodSignature(data) => data.parameters,
+            NodeData::FunctionType(data) => data.parameters,
+            NodeData::ConstructorType(data) => data.parameters,
+            NodeData::JSDocFunctionType(data) => data.parameters,
+            NodeData::JSDocSignature(data) => data.parameters,
             _ => None,
         };
         self.nodes_of(parameters)
     }
 
-    /// The declaration's type-parameter list (getEffectiveTypeParameterDeclarations'
-    /// TS half — JSDoc templates are [JSDOC]).
+    /// The declaration's syntactic `typeParameters` property.
     fn function_type_parameters_of(&self, node: NodeId) -> Option<tsrs2_syntax::NodeArrayId> {
         match self.data_of(node) {
             NodeData::FunctionDeclaration(data) => data.type_parameters,
@@ -3623,143 +3645,6 @@ impl<'a> CheckerState<'a> {
         parameters.get(usize::from(has_this)).copied()
     }
 
-    fn jsdoc_type_expression_type_node(&self, expression: Option<NodeId>) -> Option<NodeId> {
-        let expression = expression?;
-        match self.data_of(expression) {
-            NodeData::JSDocTypeExpression(data) => data.r#type,
-            _ => None,
-        }
-    }
-
-    fn direct_jsdoc_tags(&self, host: NodeId) -> Vec<NodeId> {
-        let source = self.binder.source_of_node(host);
-        let Some(js_doc) = source.arena.node(host).js_doc else {
-            return Vec::new();
-        };
-        let mut tags = Vec::new();
-        for &doc in &source.arena.node_array(js_doc).nodes {
-            let NodeData::JSDoc(data) = &source.arena.node(doc).data else {
-                continue;
-            };
-            if let Some(doc_tags) = data.tags {
-                tags.extend(source.arena.node_array(doc_tags).nodes.iter().copied());
-            }
-        }
-        tags
-    }
-
-    fn jsdoc_hosts_for_declaration(&self, declaration: NodeId) -> Vec<NodeId> {
-        let mut hosts = Vec::new();
-        if let Some(initializer) = self.initializer_of(declaration) {
-            hosts.push(initializer);
-        }
-        let mut current = Some(declaration);
-        while let Some(node) = current {
-            hosts.push(node);
-            if matches!(
-                self.kind_of(node),
-                SyntaxKind::VariableStatement
-                    | SyntaxKind::ExpressionStatement
-                    | SyntaxKind::FunctionDeclaration
-                    | SyntaxKind::MethodDeclaration
-                    | SyntaxKind::PropertyDeclaration
-            ) {
-                break;
-            }
-            let parent = self.parent_of(node);
-            if parent.is_some_and(|parent| self.kind_of(parent) == SyntaxKind::SourceFile) {
-                break;
-            }
-            current = parent;
-        }
-        hosts
-    }
-
-    /// tsc getJSDocType/getJSDocParameterTags over parser-owned
-    /// attachments. The declaration-host walk mirrors
-    /// getJSDocCommentsAndTags/getNextJSDocCommentLocation for the
-    /// variable/function faces activated in M8.
-    fn jsdoc_type_node(&self, declaration: NodeId) -> Option<NodeId> {
-        if self.kind_of(declaration) == SyntaxKind::Parameter {
-            let name = self
-                .name_of_node(declaration)
-                .and_then(|name| self.identifier_text(name))?;
-            let function = self.parent_of(declaration)?;
-            let hosts = self.jsdoc_hosts_for_declaration(function);
-            // tsc getJSDocParameterTags does not treat a function-level
-            // @type as the annotation of each parameter. Explicit
-            // @constructor signatures and generic @template scopes
-            // likewise stay on their separate owner paths until those
-            // tag kinds are materialized dependency-completely.
-            let has_generic_tag_named = |host: NodeId, names: &[&str]| {
-                self.direct_jsdoc_tags(host).into_iter().any(|tag| {
-                    let NodeData::JSDocTag(data) = self.data_of(tag) else {
-                        return false;
-                    };
-                    data.tag_name
-                        .and_then(|tag_name| self.identifier_text(tag_name))
-                        .is_some_and(|name| names.contains(&name))
-                })
-            };
-            let deferred_direct_owner = hosts
-                .iter()
-                .copied()
-                .any(|host| has_generic_tag_named(host, &["constructor", "template"]));
-            let deferred_enclosing_template_scope =
-                std::iter::successors(Some(function), |&node| self.parent_of(node))
-                    .any(|host| has_generic_tag_named(host, &["template"]));
-            if deferred_direct_owner || deferred_enclosing_template_scope {
-                return None;
-            }
-            for host in hosts {
-                for tag in self.direct_jsdoc_tags(host) {
-                    let NodeData::JSDocParameterTag(data) = self.data_of(tag) else {
-                        continue;
-                    };
-                    let tag_name = data
-                        .name
-                        .and_then(|tag_name| self.identifier_text(tag_name));
-                    if tag_name == Some(name) {
-                        if let Some(ty) = self.jsdoc_type_expression_type_node(data.type_expression)
-                        {
-                            return Some(ty);
-                        }
-                    }
-                }
-            }
-            return None;
-        }
-        for host in self.jsdoc_hosts_for_declaration(declaration) {
-            let source = self.binder.source_of_node(host);
-            let has_direct_jsdoc = source.arena.node(host).js_doc.is_some();
-            for tag in self.direct_jsdoc_tags(host) {
-                let NodeData::JSDocTypeTag(data) = self.data_of(tag) else {
-                    continue;
-                };
-                if let Some(ty) = self.jsdoc_type_expression_type_node(data.type_expression) {
-                    // Variable-level JSDocFunctionType contextual async
-                    // checking remains on the function-signature owner.
-                    // Activating it here produces a second outer 2322
-                    // after that owner has already emitted tsc's 1064.
-                    if self.kind_of(declaration) == SyntaxKind::VariableDeclaration
-                        && self.kind_of(ty) == SyntaxKind::JSDocFunctionType
-                    {
-                        return None;
-                    }
-                    return Some(ty);
-                }
-            }
-            // getJSDocCommentsAndTags advances through comment
-            // locations, not through tag kinds. A nearer inline JSDoc
-            // carrier (notably @satisfies on the initializer) shadows
-            // an outer declaration comment even when it has no @type.
-            if has_direct_jsdoc {
-                return None;
-            }
-        }
-        None
-    }
-
     /// tsc getEffectiveTypeAnnotationNode: syntactic `.type` first,
     /// then JSDoc property-like/type/parameter tags in JavaScript.
     /// tsc-port: getEffectiveTypeAnnotationNode @6.0.3
@@ -3769,6 +3654,9 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(declaration) == SyntaxKind::FunctionDeclaration
             && !self.is_in_js_file(declaration)
         {
+            return None;
+        }
+        if self.kind_of(declaration) == SyntaxKind::TypeAliasDeclaration {
             return None;
         }
         // tsc getEffectiveTypeAnnotationNode is a kind-generic `.type`
@@ -3789,19 +3677,20 @@ impl<'a> CheckerState<'a> {
             NodeData::ConstructSignature(data) => data.r#type,
             NodeData::IndexSignature(data) => data.r#type,
             NodeData::FunctionType(data) => data.r#type,
+            NodeData::JSDocFunctionType(data) => data.r#type,
             NodeData::ConstructorType(data) => data.r#type,
             NodeData::JSDocPropertyTag(data) => {
-                self.jsdoc_type_expression_type_node(data.type_expression)
+                self.jsdoc_type_expression_type(data.type_expression)
             }
             NodeData::JSDocParameterTag(data) => {
-                self.jsdoc_type_expression_type_node(data.type_expression)
+                self.jsdoc_type_expression_type(data.type_expression)
             }
             _ => None,
         };
         if syntactic.is_some() || !self.is_in_js_file(declaration) {
             syntactic
         } else {
-            self.jsdoc_type_node(declaration)
+            self.get_jsdoc_type(declaration)
         }
     }
 
@@ -3841,9 +3730,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 59a361ad1f8c3e47696f66ca558f78d32f511ea571477db96df219a130d55c5a
     /// tsc-span: _tsc.js:59842-59871
     ///
-    /// The JSDoc signature/construct-signature/type-tag arms are
-    /// [JSDOC]; the constructor arm returns the class declared type;
-    /// the getter arm falls back to the setter's annotated parameter.
+    /// The constructor arm returns the class declared type; a getter's
+    /// JSDoc `@type` precedes its setter's annotated parameter, and the
+    /// tail reads a parser-owned JSDoc `@type` call signature.
     pub(crate) fn get_return_type_from_annotation(
         &mut self,
         declaration: NodeId,
@@ -3864,12 +3753,53 @@ impl<'a> CheckerState<'a> {
         // tsc's bare-return 7030 face consults exactly that (the 6.6
         // review's p9 face).
         let type_node = self.effective_return_type_node(declaration);
+        if self.kind_of(declaration) == SyntaxKind::JSDocSignature && type_node.is_none() {
+            let constructor = self
+                .get_jsdoc_root(declaration)
+                .and_then(|root| self.parent_of(root))
+                .filter(|&host| self.kind_of(host) == SyntaxKind::Constructor);
+            if let Some(constructor) = constructor {
+                let class = self
+                    .parent_of(constructor)
+                    .expect("constructor has a class");
+                let symbol = self.get_symbol_of_declaration(class)?;
+                let symbol = self.get_merged_symbol(symbol);
+                return self
+                    .get_declared_type_of_class_or_interface(symbol)
+                    .map(Some);
+            }
+        }
+        if node_util::is_jsdoc_construct_signature(
+            self.binder.source_of_node(declaration),
+            declaration,
+        ) {
+            let type_node = match self.data_of(declaration) {
+                NodeData::JSDocFunctionType(data) => self
+                    .nodes_of(data.parameters)
+                    .first()
+                    .and_then(|&parameter| match self.data_of(parameter) {
+                        NodeData::Parameter(data) => data.r#type,
+                        _ => None,
+                    }),
+                _ => None,
+            };
+            if let Some(type_node) = type_node {
+                return Ok(Some(self.get_type_from_type_node(type_node)?));
+            }
+        }
         if let Some(type_node) = type_node {
             return Ok(Some(self.get_type_from_type_node(type_node)?));
         }
         if self.kind_of(declaration) == SyntaxKind::GetAccessor
             && self.has_bindable_name(declaration)?
         {
+            if self.is_in_js_file(declaration) {
+                if let Some(jsdoc_type) =
+                    self.get_type_for_declaration_from_jsdoc_comment(declaration)?
+                {
+                    return Ok(Some(jsdoc_type));
+                }
+            }
             let symbol = self.get_symbol_of_declaration(declaration)?;
             let setter = self
                 .binder
@@ -3890,11 +3820,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        if let Some(jsdoc_return) = self.jsdoc_never_return_type_annotation(declaration) {
-            return Ok(Some(jsdoc_return));
-        }
-        // The remaining getReturnTypeOfTypeTag faces are [JSDOC].
-        Ok(None)
+        self.get_return_type_of_type_tag(declaration)
     }
 
     /// tsc-port: isResolvingReturnTypeOfSignature @6.0.3
@@ -4233,6 +4159,23 @@ mod tests {
                     )
                 ]
             );
+        });
+    }
+
+    #[test]
+    fn jsdoc_getter_type_precedes_the_setter_annotation() {
+        let text = "class A {\n/** @type {string} */\nget value() { return \"\"; }\nset value(_value) {}\n}\n";
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        with_program_state(&[("a.js", text)], &options, |state| {
+            let getter = find_node(state, SyntaxKind::GetAccessor, None);
+            let actual = state
+                .get_return_type_from_annotation(getter)
+                .expect("JSDoc getter type resolves");
+            assert_eq!(actual, Some(state.tables.intrinsics.string));
         });
     }
 }

@@ -424,16 +424,63 @@ impl<'a> CheckerState<'a> {
         Ok(reported)
     }
 
+    /// tsc-port: checkTypeAssignableToAndOptionallyElaborate @6.0.3
+    /// tsc-hash: dbd7908806e20f7e4764fbdf33970aba20ca29fd3bba2bf210cee82985102c06
+    /// tsc-span: _tsc.js:63934-63946
+    ///
+    /// The verdict probe owns the original source/target pair. A
+    /// failed pair is elaborated first; when elaboration declines, the
+    /// ordinary reporting entry performs its existing read-source /
+    /// write-target normalization.
+    pub(crate) fn check_type_assignable_to_and_optionally_elaborate(
+        &mut self,
+        source_type: TypeId,
+        target_type: TypeId,
+        error_node: Option<NodeId>,
+        expression: NodeId,
+        head_message: &'static DiagnosticMessage,
+    ) -> CheckResult2<bool> {
+        if self.is_type_assignable_to(source_type, target_type)? {
+            return Ok(true);
+        }
+        if error_node.is_some()
+            && self
+                .elaborate_assignment_relation(
+                    expression,
+                    source_type,
+                    target_type,
+                    Some(head_message),
+                )?
+                .reported()
+        {
+            return Ok(false);
+        }
+        self.check_type_assignable_to(source_type, target_type, error_node, head_message)
+    }
+
     /// tsrs-native: the currently live assignability/reporting subset
     /// of elaborateError (63957-64460).
-    ///
-    /// `probe_head` carries elaborateError's headMessage into the
-    /// entry did-you-mean probe. `None` keeps the satisfies band's
-    /// callable-source containment decision; every other caller and
-    /// both inner recursions pass the generic relation head.
     pub(crate) fn elaborate_literal_assignment(
         &mut self,
         expression: NodeId,
+        target_type: TypeId,
+        probe_head: Option<&'static DiagnosticMessage>,
+    ) -> CheckResult2<ElaborationOutcome> {
+        let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
+        self.elaborate_assignment_relation(expression, source_type, target_type, probe_head)
+    }
+
+    /// tsc-port: elaborateError @6.0.3
+    /// tsc-hash: cf474114c976f5967a2be3275091b181fd65ee1a99c08cc8ea1fbf435695d421
+    /// tsc-span: _tsc.js:63957-64091
+    ///
+    /// `source_type` is explicit because elaborateError preserves it
+    /// while peeling transparent syntax. Elementwise recursion passes
+    /// the indexed source member instead.
+    fn elaborate_assignment_relation(
+        &mut self,
+        expression: NodeId,
+        source_type: TypeId,
         target_type: TypeId,
         probe_head: Option<&'static DiagnosticMessage>,
     ) -> CheckResult2<ElaborationOutcome> {
@@ -443,7 +490,6 @@ impl<'a> CheckerState<'a> {
         // elaborateError's entry probe (63959-63966): runs BEFORE the
         // recursion arms on every entry.
         if let Some(head_message) = probe_head {
-            let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
             if self
                 .elaborate_did_you_mean_to_call_or_construct(
                     expression,
@@ -463,19 +509,34 @@ impl<'a> CheckerState<'a> {
         match self.data_of(expression) {
             NodeData::ParenthesizedExpression(data) => {
                 if let Some(inner) = data.expression {
-                    return self.elaborate_literal_assignment(inner, target_type, probe_head);
+                    return self.elaborate_assignment_relation(
+                        inner,
+                        source_type,
+                        target_type,
+                        probe_head,
+                    );
                 }
             }
             NodeData::AsExpression(data) => {
                 if let (Some(inner), Some(type_node)) = (data.expression, data.r#type) {
                     if self.is_const_type_reference_node(type_node) {
-                        return self.elaborate_literal_assignment(inner, target_type, probe_head);
+                        return self.elaborate_assignment_relation(
+                            inner,
+                            source_type,
+                            target_type,
+                            probe_head,
+                        );
                     }
                 }
             }
             NodeData::JsxExpression(data) => {
                 if let Some(inner) = data.expression {
-                    return self.elaborate_literal_assignment(inner, target_type, probe_head);
+                    return self.elaborate_assignment_relation(
+                        inner,
+                        source_type,
+                        target_type,
+                        probe_head,
+                    );
                 }
             }
             NodeData::BinaryExpression(data) => {
@@ -484,7 +545,12 @@ impl<'a> CheckerState<'a> {
                         self.kind_of(operator),
                         SyntaxKind::EqualsToken | SyntaxKind::CommaToken
                     ) {
-                        return self.elaborate_literal_assignment(right, target_type, probe_head);
+                        return self.elaborate_assignment_relation(
+                            right,
+                            source_type,
+                            target_type,
+                            probe_head,
+                        );
                     }
                 }
             }
@@ -513,8 +579,7 @@ impl<'a> CheckerState<'a> {
                         self.diagnostics.len() > before,
                     ));
                 }
-                let source = self.check_expression_cached(expression, CheckMode::NORMAL)?;
-                let Some(source_signature) = self.get_single_call_signature(source)? else {
+                let Some(source_signature) = self.get_single_call_signature(source_type)? else {
                     return Ok(ElaborationOutcome::from_reported(
                         self.diagnostics.len() > before,
                     ));
@@ -539,8 +604,9 @@ impl<'a> CheckerState<'a> {
                     ));
                 }
                 if self
-                    .elaborate_literal_assignment(
+                    .elaborate_assignment_relation(
                         body,
+                        source_return,
                         target_return,
                         Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
                     )?
@@ -574,7 +640,6 @@ impl<'a> CheckerState<'a> {
                     return Ok(ElaborationOutcome::Declined);
                 }
                 let properties = self.nodes_of(data.properties);
-                let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
                 for property in properties {
                     let (name, initializer, member_lookup) = match self.data_of(property) {
                         NodeData::PropertyAssignment(data) => match (data.name, data.initializer) {
@@ -633,8 +698,9 @@ impl<'a> CheckerState<'a> {
                     }
                     if let Some(initializer) = initializer {
                         if self
-                            .elaborate_literal_assignment(
+                            .elaborate_assignment_relation(
                                 initializer,
+                                source_property_type,
                                 expected,
                                 Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
                             )?
@@ -740,7 +806,6 @@ impl<'a> CheckerState<'a> {
                 // the tupleized SOURCE by the syntax-element position,
                 // rather than comparing the SpreadElement expression's
                 // array type directly.
-                let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
                 if self
                     .tables
                     .flags_of(target_type)
@@ -808,8 +873,9 @@ impl<'a> CheckerState<'a> {
                     }
                     let error_node = self.get_effective_check_node(element);
                     if self
-                        .elaborate_literal_assignment(
+                        .elaborate_assignment_relation(
                             error_node,
+                            actual,
                             expected,
                             Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
                         )?
@@ -877,7 +943,6 @@ impl<'a> CheckerState<'a> {
                 }
             }
             NodeData::JsxAttributes(_) => {
-                let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
                 let attributes_reported = self.elaborate_jsx_named_attributes(
                     expression,
                     source_type,
@@ -894,5 +959,86 @@ impl<'a> CheckerState<'a> {
         Ok(ElaborationOutcome::from_reported(
             self.diagnostics.len() > before,
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use tsrs2_diags::gen as diagnostics;
+    use tsrs2_syntax::SyntaxKind;
+    use tsrs2_types::{CheckMode, CompilerOptions};
+
+    use crate::state::test_support::with_program_state;
+
+    fn jsx_attributes_optional_elaboration_codes(attribute: &str) -> Vec<u32> {
+        let text = format!(
+            "declare namespace JSX {{\n\
+               interface Element {{}}\n\
+               interface IntrinsicElements {{ x: {{ n: number }} }}\n\
+             }}\n\
+             declare const bad: {{ n: string }};\n\
+             (<x {attribute} />);\n"
+        );
+        let options = CompilerOptions {
+            jsx: Some(1),
+            ..CompilerOptions::default()
+        };
+        with_program_state(&[("a.tsx", &text)], &options, |state| {
+            state.check_source_file(0);
+            let (attributes, target_node, opening) = {
+                let source = state.binder.source(0);
+                let attributes = source
+                    .arena
+                    .node_ids()
+                    .find(|&node| source.arena.node(node).kind == SyntaxKind::JsxAttributes)
+                    .expect("JSX attributes");
+                let target_node = source
+                    .arena
+                    .node_ids()
+                    .find(|&node| source.arena.node(node).kind == SyntaxKind::TypeLiteral)
+                    .expect("intrinsic attributes target");
+                let opening = source
+                    .arena
+                    .node(attributes)
+                    .parent
+                    .expect("opening element");
+                (attributes, target_node, opening)
+            };
+            let source_type = state
+                .check_expression_cached(attributes, CheckMode::NORMAL)
+                .expect("JSX attributes source");
+            let target_type = state
+                .get_type_from_type_node(target_node)
+                .expect("JSX attributes target");
+            state.diagnostics.clear();
+            state
+                .check_type_assignable_to_and_optionally_elaborate(
+                    source_type,
+                    target_type,
+                    Some(opening),
+                    attributes,
+                    &diagnostics::Type_0_does_not_satisfy_the_expected_type_1,
+                )
+                .expect("optional elaboration");
+            state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.file_name.is_some())
+                .map(|diagnostic| diagnostic.code())
+                .collect()
+        })
+    }
+
+    #[test]
+    fn jsx_attributes_optional_elaboration_reports_named_member() {
+        assert_eq!(jsx_attributes_optional_elaboration_codes("n=\"s\""), [2322]);
+    }
+
+    #[test]
+    fn jsx_attributes_optional_elaboration_decline_reports_relation_head() {
+        assert_eq!(
+            jsx_attributes_optional_elaboration_codes("{...bad}"),
+            [1360]
+        );
     }
 }

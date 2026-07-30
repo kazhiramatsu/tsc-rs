@@ -276,16 +276,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4d3743d83604dfbfe4837773b9ca468725d514ec6b76b25d406a7e715cbf9bca
     /// tsc-span: _tsc.js:67373-67376
     ///
-    /// getEffectiveModifierFlags reduces to the syntactic flags in TS
-    /// files (JSDoc modifiers never parse). Marker parameters are
-    /// symbol-less and answer None.
+    /// Marker parameters are symbol-less and answer None.
     pub(crate) fn get_type_parameter_modifiers(&self, tp: TypeId) -> ModifierFlags {
         let Some(symbol) = self.tables.type_of(tp).symbol else {
             return ModifierFlags::NONE;
         };
         let mut modifiers = 0;
         for &declaration in &self.binder.symbol(symbol).declarations {
-            modifiers |= node_util::get_syntactic_modifier_flags(
+            modifiers |= node_util::get_effective_modifier_flags(
                 self.binder.source_of_node(declaration),
                 declaration,
             )

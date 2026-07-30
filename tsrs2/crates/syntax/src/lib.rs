@@ -6,6 +6,7 @@ pub mod for_each_child;
 mod keywords;
 pub mod kind;
 pub mod nodes;
+pub mod observable_fields;
 mod parser;
 pub mod regex;
 mod regex_unicode;
@@ -18,8 +19,13 @@ use tsrs2_types::ScriptTarget;
 pub use arena::NodeArena;
 pub use for_each_child::{for_each_child, NodeLookup};
 pub use kind::SyntaxKind;
-pub use nodes::{Node, NodeArray, NodeArrayId, NodeData, NodeId, NodePayload, SourceFileData};
-pub use parser::{is_identifier_text, is_identifier_text_for_target, ParseOptions, SyntaxCursor};
+pub use nodes::{
+    JSDocComment, Node, NodeArray, NodeArrayId, NodeData, NodeId, NodePayload, SourceFileData,
+};
+pub use observable_fields::{for_each_observable_field, ObservableField};
+pub use parser::{
+    is_identifier_text, is_identifier_text_for_target, JSDocParsingMode, ParseOptions, SyntaxCursor,
+};
 pub use scanner::{
     is_js_whitespace, is_line_break, is_whitespace_like, js_trim_start, scan_big_int_string,
     scan_tokens, skip_trivia, template_text_utf16, BigIntStringScan, CommentDirective,
@@ -35,11 +41,17 @@ pub struct SourceFile {
     pub language_version: ScriptTarget,
     pub language_variant: LanguageVariant,
     pub is_declaration_file: bool,
+    /// tsc SourceFile.jsDocParsingMode.
+    pub js_doc_parsing_mode: JSDocParsingMode,
     pub line_map: LineMap,
     pub arena: NodeArena,
     pub root: NodeId,
     pub external_module_indicator: Option<NodeId>,
     pub parse_diagnostics: DiagnosticList,
+    /// tsc SourceFile.jsDocDiagnostics: diagnostics produced while
+    /// parsing attached JSDoc. They are merged into bind/check diagnostics
+    /// only for checked JavaScript files, never into syntactic diagnostics.
+    pub js_doc_diagnostics: DiagnosticList,
     /// tsc SourceFile.commentDirectives: scanner-collected
     /// `@ts-expect-error`/`@ts-ignore` markers, in scan order (byte
     /// offsets; see CommentDirective).

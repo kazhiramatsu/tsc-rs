@@ -267,11 +267,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 0a9b4693e940d88eb7c1f44bf68f18be234122787ee12bdd1cee1f6250e83715
     /// tsc-span: _tsc.js:74346-74490
     ///
-    /// Divergences held to the T2/M6 lines: the deprecation-suggestion
-    /// probe (74381-74386) is suggestion-band (unmodeled JSDoc) — the
-    /// access.rs precedent; addIntraExpressionInferenceSite requires a
-    /// live inference context (Inferential never set at M4 — escape
-    /// mirrors literals.rs); the synthesized children property carries
+    /// Divergences held to the T2/M6 lines:
+    /// addIntraExpressionInferenceSite requires a live inference
+    /// context; the synthesized children property carries
     /// NO fabricated PropertySignature valueDeclaration (node
     /// fabrication is unavailable — its consumers are display/related-
     /// span side, T2).
@@ -341,7 +339,7 @@ impl<'a> CheckerState<'a> {
                         .set_symbol_target(self.speculation_depth, attribute_symbol, member);
                     attributes_table.insert(escaped_name.clone(), attribute_symbol);
                     if let Some(all) = &mut all_attributes_table {
-                        all.insert(escaped_name, attribute_symbol);
+                        all.insert(escaped_name.clone(), attribute_symbol);
                     }
                     let name_text = match self.data_of(attribute_decl) {
                         NodeData::JsxAttribute(data) => {
@@ -356,9 +354,36 @@ impl<'a> CheckerState<'a> {
                             explicitly_specify_children_attribute = true;
                         }
                     }
-                    // 74381-74386: addDeprecatedSuggestion — the
-                    // suggestion band rides JSDoc @deprecated
-                    // (unmodeled); elided like access.rs.
+                    if let Some(contextual_type) = contextual_type {
+                        let attribute_name = match self.data_of(attribute_decl) {
+                            NodeData::JsxAttribute(data) => data.name,
+                            _ => None,
+                        };
+                        if let Some(attribute_name) = attribute_name
+                            .filter(|&name| self.kind_of(name) == SyntaxKind::Identifier)
+                        {
+                            if let Some(property) =
+                                self.get_property_of_type_full(contextual_type, &escaped_name)?
+                            {
+                                if self.is_deprecated_symbol(property) {
+                                    let declarations =
+                                        self.binder.symbol(property).declarations.clone();
+                                    if !declarations.is_empty() {
+                                        let deprecated_entity = self
+                                            .identifier_text_of(attribute_name)
+                                            .map(tsrs2_binder::unescape_leading_underscores)
+                                            .unwrap_or_default()
+                                            .to_owned();
+                                        self.add_deprecated_suggestion(
+                                            attribute_name,
+                                            &declarations,
+                                            &deprecated_entity,
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
                     // 74387-74392: the intra-expression inference-site
                     // record (7.4) — the attribute INITIALIZER'S
                     // expression, against the ATTRIBUTES context node.
@@ -694,9 +719,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:74797-74825
     ///
     /// markJsxAliasReferenced (71787) is emit/alias bookkeeping — no-op
-    /// hook. checkDeprecatedSignature is a no-op like the call worker's
-    /// (the Deprecated flag only comes from JSDoc `@deprecated`,
-    /// unmodeled — the 5.7b flag audit).
+    /// hook.
     pub(crate) fn check_jsx_opening_like_element_or_opening_fragment(
         &mut self,
         node: NodeId,
@@ -711,7 +734,7 @@ impl<'a> CheckerState<'a> {
         self.check_jsx_preconditions(node)?;
         self.mark_jsx_alias_referenced(node)?;
         let signature = self.get_resolved_signature(node, CheckMode::NORMAL)?;
-        // checkDeprecatedSignature: no-op (see the fn header).
+        self.check_deprecated_signature(signature, node)?;
         if is_opening_like {
             let element_type_constraint = self.get_jsx_element_type_type_at(node)?;
             let tag_name = match self.data_of(node) {
@@ -2798,5 +2821,40 @@ mod tests {
             ),
             [(2339, 117, 3), (7026, 83, 13)]
         );
+    }
+
+    #[test]
+    fn deprecated_contextual_jsx_attribute_reports_6385() {
+        let text = "declare namespace JSX {\n\
+                      interface Element {}\n\
+                      interface IntrinsicElements { comp: Props }\n\
+                    }\n\
+                    interface Props {\n\
+                      /** @deprecated */\n\
+                      old?: string;\n\
+                    }\n\
+                    declare var React: any;\n\
+                    const value = <comp old=\"x\" />;\n";
+        with_program_state(&[("a.tsx", text)], &jsx(1), |state| {
+            state.check_source_file(0);
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 6385)
+                .expect("deprecated JSX attribute suggestion");
+            assert_eq!(
+                diagnostic.category(),
+                tsrs2_diags::DiagnosticCategory::Suggestion
+            );
+            assert_eq!(diagnostic.message_text(), "'old' is deprecated.");
+            assert_eq!(
+                diagnostic
+                    .related
+                    .iter()
+                    .map(|related| related.message.code)
+                    .collect::<Vec<_>>(),
+                [2798]
+            );
+        });
     }
 }

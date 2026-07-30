@@ -138,7 +138,7 @@ frozen inventory gives it an exact reviewed disposition.
 The low-level evidence command is:
 
 ```bash
-cargo xtask m8 trace \
+CARGO_BUILD_JOBS=2 cargo xtask m8 trace \
   --program-json target/emitting/program.json \
   --program-json target/non-emitting/program.json \
   --code 8020 \
@@ -162,21 +162,21 @@ freeze an owner cluster. Those remain plan-generator and review decisions.
 The entry-plan commands are:
 
 ```bash
-cargo xtask conformance \
+CARGO_BUILD_JOBS=2 cargo xtask conformance \
   --band all \
   --out-json target/m8/entry-conformance.json
-cargo xtask m8 plan draft \
+CARGO_BUILD_JOBS=2 cargo xtask m8 plan draft \
   --conformance-json target/m8/entry-conformance.json \
   --sibling-fixture 'conformance/node/nodeModulesTripleSlashReferenceModeOverride4.ts#module=node16' \
   --out target/m8/owner-plan-draft.json
-cargo xtask m8 plan apply-review \
+CARGO_BUILD_JOBS=2 cargo xtask m8 plan apply-review \
   --plan target/m8/owner-plan-draft.json \
   --review m8-owner-plan-review.json \
   --out m8-owner-plan.json
 # Land the reviewed draft, return to a clean main, then freeze it in place.
-cargo xtask m8 plan freeze \
+CARGO_BUILD_JOBS=2 cargo xtask m8 plan freeze \
   --plan m8-owner-plan.json
-cargo xtask m8 plan check \
+CARGO_BUILD_JOBS=2 cargo xtask m8 plan check \
   --plan m8-owner-plan.json \
   --baseline origin/main
 ```
@@ -259,12 +259,29 @@ than a fourth local patch.
 
 The `checkjs-jsdoc` family has reached that ceiling: comments were projected
 from source text without declaration nodes, so exact relation chains and
-related declaration sites required repeated fabrication. Its approved
-design correction is the
-[M8 JSDoc AST materialization contract](m8-jsdoc-ast-materialization.md).
-JSDoc owner slices now land through parser attachment, binder declarations,
-and ordinary checker control flow; new checker-side comment projections are
-not accepted.
+related declaration sites required repeated fabrication. A first bounded
+materialization experiment then showed that activating a subset of tags
+before template, import, signature, and host-scope dependencies are present
+changes real symbol and relation behavior. Its approved design correction is
+therefore the
+[complete M8 JSDoc subsystem port](m8-jsdoc-ast-materialization.md).
+JSDoc is implemented as one dependency-complete parser/AST/binder/checker
+chain. Dependency-ordered branch commits are allowed, but no partial
+semantic JSDoc slice is accepted or merged; new checker-side comment
+projections and local activation guards are not accepted.
+
+Relation reporting follows the vendored control flow at every failure level.
+Whenever tsc renders a source/target pair, the source is read-normalized and
+the target is write-normalized at that same level before display. Applying
+normalization only to the final diagnostic head, or repairing a nested chain
+after the relation returns, is not equivalent and is not accepted.
+
+Checked-JS object and member behavior is likewise producer-owned. The former
+checker-side memberless/symbol-carrying empty-resolution admission heuristic
+has been deleted and must not be restored. Object display and property
+publication follow the TypeScript 6.0.3 binder/type/checker path; the
+plain-JS nested-object to TypeScript-consumer canary therefore retains tsc's
+2339 when that member is absent.
 
 The disposition artifact itself remains byte-identical after D2b freeze.
 When a slice ports a declaration frozen as `deferred`, the before/after row
@@ -275,10 +292,20 @@ disposition. Losing a join frozen as `ported`, or adding one to
 
 Focused probes, crate tests, and the target family report are the iteration
 loop. Generated artifacts and README status are refreshed before the final
-verification. Run the complete local `cargo xtask ci --baseline origin/main`
-once on the clean candidate branch, then let the required GitHub Actions
-lanes verify the same slice. Do not repeatedly run full conformance, the B2
-Node sweep, or long fuzz windows while editing.
+verification. Run the complete local
+`CARGO_BUILD_JOBS=2 cargo xtask ci --baseline origin/main` once on the clean
+candidate branch, then let the required GitHub Actions lanes verify the same
+slice. As soon as every required hosted check passes and the PR is mergeable,
+merge it automatically with `gh pr merge --merge --delete-branch`; no fresh
+per-PR approval is required unless the work introduces a substantial design
+or scope change. Do not repeatedly run full conformance, the B2 Node sweep, or
+long fuzz windows while editing.
+
+Local M8 validation uses `CARGO_BUILD_JOBS=2` and at most two Rust test
+threads. Related focused tests are batched into one invocation; repeatedly
+starting one Cargo process per fixture is not the iteration model. Higher
+parallelism is allowed only for an explicitly owned performance experiment,
+not for semantic closure or routine CI preparation.
 
 The B2 runtime artifact remains content-addressed. An unrelated Rust or
 documentation change revalidates and reuses it; only an exact producer

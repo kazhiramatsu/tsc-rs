@@ -98,6 +98,9 @@ function fieldCategory(rawTypeText) {
     .replace(/\s*\|\s*undefined$/, "")
     .trim();
   if (aliases.has(bare)) t = aliases.get(bare);
+  if (t.includes("string") && t.includes("NodeArray<JSDocComment>")) {
+    return "JSDocComment";
+  }
   if (t.includes("NodeArray<")) return "NodeArray";
   const readonlyArray = t.match(/^readonly\s+(.+)\[\]$/);
   if (readonlyArray) {

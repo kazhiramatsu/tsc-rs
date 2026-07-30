@@ -139,36 +139,33 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: mergeJSSymbols @6.0.3
-    /// tsc-hash: 913f6a806dcbccd352b9d900c7c760c3e1e89f1f32357800b70fba18cbed9167
-    /// tsc-span: _tsc.js:77523-77542
+    /// tsc-hash: b89c5c9776a5cd3750f08d0a16209f7a403adaf64f3b6ce7454009e3597c34ef
+    /// tsc-span: _tsc.js:77523-77543
     ///
-    /// Function-expression types keep the callable target symbol but
-    /// acquire the exports/members bound on their containing variable
-    /// or assignment symbol. Unlike cloneSymbol/mergeSymbol, this is
-    /// an inferred, type-local merge and must not redirect the
-    /// checker-wide merged-symbol map.
+    /// Function-expression and assigned-class types keep the target
+    /// symbol face while acquiring exports/members from the source
+    /// symbol. A transient target is augmented in place; a normal
+    /// target goes through cloneSymbol, including its merged-symbol
+    /// redirection, exactly like tsc.
     pub(crate) fn merge_js_symbols(&mut self, target: SymbolId, source: SymbolId) -> SymbolId {
+        if let Some(inferred) = self
+            .links
+            .symbol(source)
+            .inferred_class_symbols
+            .get(&target)
+            .copied()
+        {
+            return inferred;
+        }
         let original = self.binder.symbol(target);
         let flags = original.flags;
-        let escaped_name = original.escaped_name.clone();
-        let declarations = original.declarations.clone();
-        let parent = original.parent;
-        let value_declaration = original.value_declaration;
-        let const_enum_only_module = original.const_enum_only_module;
-        let members = original.members.clone();
-        let exports = original.exports.clone();
         let source_class_flags = self.binder.symbol(source).flags & SymbolFlags::CLASS;
-        let inferred = self.binder.create_symbol(flags, escaped_name);
-        {
-            let cloned = self.binder.symbol_mut(inferred);
-            cloned.declarations = declarations;
-            cloned.parent = parent;
-            cloned.value_declaration = value_declaration;
-            cloned.const_enum_only_module = const_enum_only_module;
-            cloned.members = members;
-            cloned.exports = exports;
-            cloned.flags |= source_class_flags;
-        }
+        let inferred = if flags.intersects(SymbolFlags::TRANSIENT) {
+            target
+        } else {
+            self.clone_symbol(target)
+        };
+        self.binder.symbol_mut(inferred).flags |= source_class_flags;
 
         let source_exports = self.binder.symbol(source).exports.clone();
         if !source_exports.is_empty() {
@@ -194,6 +191,8 @@ impl<'a> CheckerState<'a> {
             );
             self.binder.symbol_mut(inferred).members = inferred_members;
         }
+        self.links
+            .set_symbol_inferred_class_symbol(self.speculation_depth, source, inferred);
         inferred
     }
 
@@ -517,7 +516,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: addDuplicateDeclarationErrorsForSymbols @6.0.3
     /// tsc-hash: e718d927bbdd807670fe6c275346799c2546a4c3670890477379ca1685296aa3
     /// tsc-span: _tsc.js:47784-47788
-    fn add_duplicate_declaration_errors_for_symbols(
+    pub(crate) fn add_duplicate_declaration_errors_for_symbols(
         &mut self,
         target: SymbolId,
         message: &'static tsrs2_diags::DiagnosticMessage,
@@ -667,8 +666,7 @@ impl<'a> CheckerState<'a> {
     /// symbol-type seeds that need no globals lookup (88778, 88786,
     /// 88787), and the amalgamated-duplicates flush (88882-88905).
     /// Deliberately NOT here: module augmentations (88769-88776,
-    /// 88874-88881 — module resolution, 5.8 rows),
-    /// jsGlobalAugmentations (88751-88753, JS expandos), and the eager
+    /// 88874-88881 — module resolution, 5.8 rows) and the eager
     /// getGlobalType binding block (88779-88785, 88788-88873) — those
     /// globals stay LAZY accessors (globals.rs) per the M4 5.0 doc so
     /// they begin resolving when 5.1's declared types exist.
@@ -684,28 +682,32 @@ impl<'a> CheckerState<'a> {
                         let declarations =
                             self.binder.symbol(file_global_this).declarations.clone();
                         for declaration in declarations {
-                            let diagnostics_before = self.diagnostics.len();
                             let diagnostic = self.diagnostic_for_node(
                                 declaration,
                                 &diagnostics::Declaration_name_conflicts_with_built_in_global_identifier_0,
                                 &["globalThis"],
                             );
                             self.diagnostics.push(diagnostic);
-                            // The aggregate checked-JS publisher keeps
-                            // non-JSDoc semantic rows behind exact
-                            // provenance keys. This initialization-time
-                            // diagnostic is intrinsically tied to the
-                            // declaration, so publish its exact key just
-                            // like the later checker-owned JS paths.
-                            if self.is_in_js_file(declaration) {
-                                self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
-                            }
                         }
                     }
                     let mut globals = std::mem::take(&mut self.globals);
                     self.merge_symbol_table(&mut globals, &locals, false, None);
                     self.globals = globals;
                 }
+            }
+            // file.jsGlobalAugmentations (88751-88753): top-level
+            // JavaScript namespace/prototype assignments merge into
+            // the same globals table as declarations from script files.
+            let js_global_augmentations = self.binder.file(index).js_global_augmentations.clone();
+            if !js_global_augmentations.is_empty() {
+                let mut globals = std::mem::take(&mut self.globals);
+                self.merge_symbol_table(
+                    &mut globals,
+                    &js_global_augmentations,
+                    /*unidirectional*/ false,
+                    None,
+                );
+                self.globals = globals;
             }
             // file.patternAmbientModules concatenation (88754-88756).
             let pattern_modules = self.binder.file(index).pattern_ambient_modules.clone();
@@ -1041,9 +1043,8 @@ fn is_js_file_name(name: &str) -> bool {
 /// tsc-hash: b2274df074ed8639268970588736dbae37b3f9f0e10f20792b347297677273e1
 /// tsc-span: _tsc.js:19262-19284
 ///
-/// JSDoc tag arms elided (JSDoc declarations are not modeled — M2
-/// residual); the import/export arms read the CLAUSE's type-only bit
-/// through the parent chain, like tsc's phaseModifier checks.
+/// Import/export arms read the clause's type-only bit through the
+/// parent chain, like tsc's phaseModifier checks.
 fn is_type_declaration(state: &CheckerState, node: NodeId) -> bool {
     let source = state.binder.source_of_node(node);
     let arena = &source.arena;
@@ -1052,7 +1053,10 @@ fn is_type_declaration(state: &CheckerState, node: NodeId) -> bool {
         | SyntaxKind::ClassDeclaration
         | SyntaxKind::InterfaceDeclaration
         | SyntaxKind::TypeAliasDeclaration
-        | SyntaxKind::EnumDeclaration => true,
+        | SyntaxKind::EnumDeclaration
+        | SyntaxKind::JSDocTypedefTag
+        | SyntaxKind::JSDocCallbackTag
+        | SyntaxKind::JSDocEnumTag => true,
         SyntaxKind::ImportClause => matches!(
             &arena.node(node).data,
             tsrs2_syntax::NodeData::ImportClause(data) if data.is_type_only
@@ -1267,15 +1271,6 @@ mod tests {
             with_program_state(&[(name, "var globalThis;\n")], &options, |state| {
                 let codes: Vec<u32> = state.diagnostics.iter().map(|d| d.code()).collect();
                 assert_eq!(codes, [2397]);
-                if name.ends_with(".js") {
-                    let diagnostic = &state.diagnostics[0];
-                    assert!(state.non_jsdoc_js_diagnostics.contains(&(
-                        diagnostic.file_name.clone().expect("file diagnostic"),
-                        diagnostic.start.expect("diagnostic start"),
-                        diagnostic.length.expect("diagnostic length"),
-                        2397,
-                    )));
-                }
             });
         }
     }

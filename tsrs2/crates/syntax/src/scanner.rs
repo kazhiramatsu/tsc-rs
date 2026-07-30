@@ -1,3 +1,4 @@
+use crate::parser::JSDocParsingMode;
 use crate::{chars, keywords, SyntaxKind};
 use tsrs2_diags::{gen, DiagnosticMessage};
 use tsrs2_types::ScriptTarget;
@@ -80,6 +81,7 @@ struct TokenFlags(u32);
 
 impl TokenFlags {
     const PRECEDING_LINE_BREAK: Self = Self(1);
+    const PRECEDING_JSDOC_COMMENT: Self = Self(2);
     const UNTERMINATED: Self = Self(4);
     const EXTENDED_UNICODE_ESCAPE: Self = Self(8);
     const SCIENTIFIC: Self = Self(16);
@@ -93,6 +95,7 @@ impl TokenFlags {
     const HEX_ESCAPE: Self = Self(4096);
     const CONTAINS_LEADING_ZERO: Self = Self(8192);
     const CONTAINS_INVALID_SEPARATOR: Self = Self(16384);
+    const PRECEDING_JSDOC_LEADING_ASTERISKS: Self = Self(32768);
 
     const fn empty() -> Self {
         Self(0)
@@ -131,7 +134,12 @@ pub(crate) struct Scanner<'text> {
     token_flags: TokenFlags,
     language_version: ScriptTarget,
     language_variant: LanguageVariant,
+    js_doc_parsing_mode: JSDocParsingMode,
+    is_typescript_file: bool,
     errors: Vec<ScanError>,
+    /// tsc scanner.skipJsDocLeadingAsterisks. This is a balanced mode
+    /// counter rather than speculative scanner state.
+    skip_jsdoc_leading_asterisks: u32,
     /// Deliberately NOT captured by save()/restore(): tsc's
     /// speculationHelper rewinds pos/token but leaves appended
     /// commentDirectives in place, so a rewound-then-rescanned comment
@@ -183,13 +191,25 @@ impl<'text> Scanner<'text> {
             token_flags: TokenFlags::empty(),
             language_version,
             language_variant,
+            js_doc_parsing_mode: JSDocParsingMode::ParseAll,
+            is_typescript_file: true,
             errors: Vec::new(),
+            skip_jsdoc_leading_asterisks: 0,
             comment_directives: Vec::new(),
         }
     }
 
     pub(crate) fn text(&self) -> &'text str {
         self.text
+    }
+
+    pub(crate) fn set_jsdoc_parsing_mode(
+        &mut self,
+        mode: JSDocParsingMode,
+        is_typescript_file: bool,
+    ) {
+        self.js_doc_parsing_mode = mode;
+        self.is_typescript_file = is_typescript_file;
     }
 
     pub(crate) fn scan(&mut self) -> SyntaxKind {
@@ -272,7 +292,19 @@ impl<'text> Scanner<'text> {
                     if self.starts_with("*=") {
                         return self.finish_token(SyntaxKind::AsteriskEqualsToken, 2);
                     }
-                    return self.finish_token(SyntaxKind::AsteriskToken, 1);
+                    self.pos += 1;
+                    if self.skip_jsdoc_leading_asterisks != 0
+                        && !self
+                            .token_flags
+                            .contains(TokenFlags::PRECEDING_JSDOC_LEADING_ASTERISKS)
+                        && self.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK)
+                    {
+                        self.token_flags
+                            .insert(TokenFlags::PRECEDING_JSDOC_LEADING_ASTERISKS);
+                        continue;
+                    }
+                    self.token = SyntaxKind::AsteriskToken;
+                    return self.token;
                 }
                 '+' => {
                     if self.starts_with("++") {
@@ -449,6 +481,155 @@ impl<'text> Scanner<'text> {
         self.token_flags = TokenFlags::empty();
     }
 
+    /// tsc setSkipJsDocLeadingAsterisks: callers balance nested enables.
+    pub(crate) fn set_skip_jsdoc_leading_asterisks(&mut self, skip: bool) {
+        if skip {
+            self.skip_jsdoc_leading_asterisks += 1;
+        } else {
+            debug_assert!(self.skip_jsdoc_leading_asterisks > 0);
+            self.skip_jsdoc_leading_asterisks = self.skip_jsdoc_leading_asterisks.saturating_sub(1);
+        }
+    }
+
+    /// tsc scanJSDocCommentTextToken @6.0.3.
+    pub(crate) fn scan_jsdoc_comment_text_token(&mut self, in_backticks: bool) -> SyntaxKind {
+        self.full_start_pos = self.pos;
+        self.token_start = self.pos;
+        self.token_flags = TokenFlags::empty();
+        self.token_value.clear();
+        if self.pos >= self.end {
+            self.token = SyntaxKind::EndOfFileToken;
+            return self.token;
+        }
+
+        while let Some(ch) = self.current_char() {
+            if is_line_break(ch) || ch == '`' {
+                break;
+            }
+            if !in_backticks {
+                if ch == '{' {
+                    break;
+                }
+                if ch == '@' && self.pos > 0 {
+                    let previous = self.text[..self.pos].chars().next_back();
+                    let next = self.text[self.pos + ch.len_utf8()..].chars().next();
+                    if previous.is_some_and(is_single_line_whitespace)
+                        && !next.is_some_and(|next| {
+                            is_single_line_whitespace(next) || is_line_break(next)
+                        })
+                    {
+                        break;
+                    }
+                }
+            }
+            self.advance_char();
+        }
+
+        if self.pos == self.token_start {
+            return self.scan_jsdoc_token();
+        }
+        self.token_value
+            .push_str(&self.text[self.token_start..self.pos]);
+        self.token = SyntaxKind::JSDocCommentTextToken;
+        self.token
+    }
+
+    /// tsc scanJsDocToken @6.0.3. Unlike ordinary scan(), whitespace and
+    /// newlines are returned because the JSDoc parser owns indentation and
+    /// comment text.
+    pub(crate) fn scan_jsdoc_token(&mut self) -> SyntaxKind {
+        self.full_start_pos = self.pos;
+        self.token_start = self.pos;
+        self.token_flags = TokenFlags::empty();
+        self.token_value.clear();
+        let Some(ch) = self.current_char() else {
+            self.token = SyntaxKind::EndOfFileToken;
+            return self.token;
+        };
+
+        if is_single_line_whitespace(ch) {
+            self.advance_char();
+            while self.current_char().is_some_and(is_single_line_whitespace) {
+                self.advance_char();
+            }
+            self.token = SyntaxKind::WhitespaceTrivia;
+            return self.token;
+        }
+        if is_line_break(ch) {
+            self.advance_char();
+            if ch == '\r' && self.current_char() == Some('\n') {
+                self.advance_char();
+            }
+            self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
+            self.token = SyntaxKind::NewLineTrivia;
+            return self.token;
+        }
+
+        let punctuation = match ch {
+            '@' => Some(SyntaxKind::AtToken),
+            '*' => Some(SyntaxKind::AsteriskToken),
+            '{' => Some(SyntaxKind::OpenBraceToken),
+            '}' => Some(SyntaxKind::CloseBraceToken),
+            '[' => Some(SyntaxKind::OpenBracketToken),
+            ']' => Some(SyntaxKind::CloseBracketToken),
+            '(' => Some(SyntaxKind::OpenParenToken),
+            ')' => Some(SyntaxKind::CloseParenToken),
+            '<' => Some(SyntaxKind::LessThanToken),
+            '>' => Some(SyntaxKind::GreaterThanToken),
+            '=' => Some(SyntaxKind::EqualsToken),
+            ',' => Some(SyntaxKind::CommaToken),
+            '.' => Some(SyntaxKind::DotToken),
+            '`' => Some(SyntaxKind::BacktickToken),
+            '#' => Some(SyntaxKind::HashToken),
+            _ => None,
+        };
+        if let Some(kind) = punctuation {
+            self.advance_char();
+            self.token = kind;
+            return self.token;
+        }
+
+        if ch == '\\' {
+            if let Some(kind) = self.scan_identifier_escape_start() {
+                return kind;
+            }
+            self.advance_char();
+            self.token = SyntaxKind::Unknown;
+            return self.token;
+        }
+
+        if chars::is_identifier_start(ch, self.language_version) {
+            self.token_value.push(ch);
+            self.advance_char();
+            loop {
+                let Some(next) = self.current_char() else {
+                    break;
+                };
+                if chars::is_identifier_part(next, self.language_version) || next == '-' {
+                    self.token_value.push(next);
+                    self.advance_char();
+                    continue;
+                }
+                if next == '\\' {
+                    let escape_start = self.pos;
+                    if let Some(cooked) = self.scan_unicode_escape() {
+                        if chars::is_identifier_part(cooked, self.language_version) {
+                            self.token_value.push(cooked);
+                            continue;
+                        }
+                    }
+                    self.pos = escape_start;
+                }
+                break;
+            }
+            return self.finish_identifier_token();
+        }
+
+        self.advance_char();
+        self.token = SyntaxKind::Unknown;
+        self.token
+    }
+
     #[allow(dead_code)]
     fn speculation_helper<R: Truthy>(
         &mut self,
@@ -517,6 +698,17 @@ impl<'text> Scanner<'text> {
         self.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK)
     }
 
+    /// tsc scanner.hasPrecedingJSDocComment.
+    pub(crate) fn has_preceding_jsdoc_comment(&self) -> bool {
+        self.token_flags
+            .contains(TokenFlags::PRECEDING_JSDOC_COMMENT)
+    }
+
+    pub(crate) fn has_preceding_jsdoc_leading_asterisks(&self) -> bool {
+        self.token_flags
+            .contains(TokenFlags::PRECEDING_JSDOC_LEADING_ASTERISKS)
+    }
+
     /// tsc hasUnicodeEscape.
     pub(crate) fn has_unicode_escape(&self) -> bool {
         self.token_flags.contains(TokenFlags::UNICODE_ESCAPE)
@@ -577,10 +769,12 @@ impl<'text> Scanner<'text> {
     /// closing `*/` inclusive) feeds appendIfCommentDirective, with the
     /// multi-line directive shape — a `@ts-ignore` on an interior line
     /// is NOT a directive. The append runs whether or not the comment
-    /// closed. (The JSDoc token flag of the tsc arm has no consumer
-    /// here yet.)
+    /// closed. A `/**` other than the empty `/**/` also stamps the
+    /// ordinary token that follows with PrecedingJSDocComment.
     fn skip_multi_line_comment(&mut self) {
         let mut last_line_start = self.token_start;
+        let is_jsdoc =
+            self.byte_at(self.pos + 2) == Some(b'*') && self.byte_at(self.pos + 3) != Some(b'/');
         self.pos += 2;
 
         let mut comment_closed = false;
@@ -601,12 +795,38 @@ impl<'text> Scanner<'text> {
             }
         }
 
+        if is_jsdoc && self.should_parse_jsdoc() {
+            self.token_flags.insert(TokenFlags::PRECEDING_JSDOC_COMMENT);
+        }
         self.append_if_comment_directive(last_line_start, CommentDirectiveRegEx::MultiLine);
 
         if !comment_closed {
             // tsc: the unterminated-comment error sits at the scan
             // position (end of text), zero width.
             self.error_at(self.pos, 0, &gen::expected);
+        }
+    }
+
+    fn should_parse_jsdoc(&self) -> bool {
+        match self.js_doc_parsing_mode {
+            JSDocParsingMode::ParseAll => true,
+            JSDocParsingMode::ParseNone => false,
+            JSDocParsingMode::ParseForTypeErrors | JSDocParsingMode::ParseForTypeInfo
+                if !self.is_typescript_file =>
+            {
+                true
+            }
+            JSDocParsingMode::ParseForTypeInfo => false,
+            JSDocParsingMode::ParseForTypeErrors => {
+                let text = &self.text[self.full_start_pos..self.pos];
+                text.as_bytes()
+                    .windows(4)
+                    .any(|window| window.eq_ignore_ascii_case(b"@see"))
+                    || text
+                        .as_bytes()
+                        .windows(5)
+                        .any(|window| window.eq_ignore_ascii_case(b"@link"))
+            }
         }
     }
 
@@ -1307,8 +1527,7 @@ impl<'text> Scanner<'text> {
         self.token
     }
 
-    #[allow(dead_code)]
-    fn re_scan_hash_token(&mut self) -> SyntaxKind {
+    pub(crate) fn re_scan_hash_token(&mut self) -> SyntaxKind {
         if self.token == SyntaxKind::PrivateIdentifier {
             self.pos = self.token_start + 1;
             self.token = SyntaxKind::HashToken;
@@ -1889,7 +2108,10 @@ impl<'text> Scanner<'text> {
     }
 
     fn current_char(&self) -> Option<char> {
-        self.text.get(self.pos..)?.chars().next()
+        if self.pos >= self.end {
+            return None;
+        }
+        self.text.get(self.pos..self.end)?.chars().next()
     }
 
     fn advance_char(&mut self) {
@@ -1900,11 +2122,21 @@ impl<'text> Scanner<'text> {
     }
 
     fn starts_with(&self, needle: &str) -> bool {
-        self.text[self.pos..].starts_with(needle)
+        self.pos.checked_add(needle.len()).is_some_and(|end| {
+            // tsc's scanner first bounds the current code point with
+            // `pos < end`, then uses codePointUnchecked/charCodeUnchecked
+            // for punctuation and escape lookahead. A scanRange can
+            // therefore recognize a multi-character token whose final
+            // code unit lies just beyond the range boundary.
+            end <= self.text.len()
+                && self.text.as_bytes().get(self.pos..end) == Some(needle.as_bytes())
+        })
     }
 
     fn byte_at(&self, pos: usize) -> Option<u8> {
-        self.text.as_bytes().get(pos).copied()
+        (pos < self.end)
+            .then(|| self.text.as_bytes().get(pos).copied())
+            .flatten()
     }
 }
 
@@ -2381,6 +2613,47 @@ mod tests {
     }
 
     #[test]
+    fn jsdoc_scanner_preserves_comment_text_and_tag_boundaries() {
+        let text = "hello mail@host {@link X} @foo-bar";
+        let mut scanner = Scanner::new(text, LanguageVariant::Standard);
+
+        assert_eq!(
+            scanner.scan_jsdoc_comment_text_token(false),
+            SyntaxKind::JSDocCommentTextToken
+        );
+        assert_eq!(scanner.token_value(), "hello mail@host ");
+        assert_eq!(scanner.scan_jsdoc_token(), SyntaxKind::OpenBraceToken);
+        assert_eq!(scanner.scan_jsdoc_token(), SyntaxKind::AtToken);
+        assert_eq!(scanner.scan_jsdoc_token(), SyntaxKind::Identifier);
+        assert_eq!(scanner.token_value(), "link");
+        assert_eq!(scanner.scan_jsdoc_token(), SyntaxKind::WhitespaceTrivia);
+        assert_eq!(scanner.scan_jsdoc_token(), SyntaxKind::Identifier);
+        assert_eq!(scanner.token_value(), "X");
+        assert_eq!(scanner.scan_jsdoc_token(), SyntaxKind::CloseBraceToken);
+        assert_eq!(scanner.scan_jsdoc_token(), SyntaxKind::WhitespaceTrivia);
+        assert_eq!(scanner.scan_jsdoc_token(), SyntaxKind::AtToken);
+        assert_eq!(scanner.scan_jsdoc_token(), SyntaxKind::Identifier);
+        assert_eq!(scanner.token_value(), "foo-bar");
+    }
+
+    #[test]
+    fn jsdoc_type_mode_skips_one_leading_asterisk_per_line() {
+        let text = "{Foo\n * | Bar}";
+        let mut scanner = Scanner::new(text, LanguageVariant::Standard);
+        scanner.set_skip_jsdoc_leading_asterisks(true);
+
+        assert_eq!(scanner.scan(), SyntaxKind::OpenBraceToken);
+        assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+        assert_eq!(scanner.token_value(), "Foo");
+        assert_eq!(scanner.scan(), SyntaxKind::BarToken);
+        assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+        assert_eq!(scanner.token_value(), "Bar");
+        assert_eq!(scanner.scan(), SyntaxKind::CloseBraceToken);
+
+        scanner.set_skip_jsdoc_leading_asterisks(false);
+    }
+
+    #[test]
     fn shebang_at_start_is_trivia() {
         assert_eq!(
             scan_tokens("#!/usr/bin/env node\n", LanguageVariant::Standard),
@@ -2426,6 +2699,17 @@ mod tests {
 
         assert_eq!(scanner.pos(), 0);
         assert_eq!(scanner.errors(), &[]);
+    }
+
+    #[test]
+    fn ordinary_token_lookahead_can_cross_a_scan_range_boundary() {
+        let mut scanner = Scanner::new("**/", LanguageVariant::Standard);
+        scanner.reset_range(0, 1);
+
+        // tsc uses unchecked punctuation lookahead after checking only the
+        // first code unit against scanRange's end.
+        assert_eq!(scanner.scan(), SyntaxKind::AsteriskAsteriskToken);
+        assert_eq!(scanner.pos(), 2);
     }
 
     #[test]
@@ -3507,5 +3791,56 @@ mod tests {
             template_text_utf16("a\nb", Some("a\r\nb")),
             "a\nb".encode_utf16().collect::<Vec<_>>()
         );
+    }
+
+    #[test]
+    fn jsdoc_parsing_mode_controls_preceding_comment_flag() {
+        fn has_jsdoc_flag(text: &str, mode: JSDocParsingMode, is_typescript: bool) -> bool {
+            let mut scanner = Scanner::new(text, LanguageVariant::Standard);
+            scanner.set_jsdoc_parsing_mode(mode, is_typescript);
+            scanner.scan();
+            scanner.has_preceding_jsdoc_comment()
+        }
+
+        let ordinary = "/** @param {number} x */ function f() {}";
+        let see = "/** @SEE f */ function f() {}";
+        let link = "/** {@LINK f} */ function f() {}";
+
+        assert!(has_jsdoc_flag(ordinary, JSDocParsingMode::ParseAll, true));
+        assert!(!has_jsdoc_flag(
+            ordinary,
+            JSDocParsingMode::ParseNone,
+            false
+        ));
+        assert!(!has_jsdoc_flag(
+            ordinary,
+            JSDocParsingMode::ParseForTypeErrors,
+            true
+        ));
+        assert!(has_jsdoc_flag(
+            see,
+            JSDocParsingMode::ParseForTypeErrors,
+            true
+        ));
+        assert!(has_jsdoc_flag(
+            link,
+            JSDocParsingMode::ParseForTypeErrors,
+            true
+        ));
+        assert!(!has_jsdoc_flag(
+            see,
+            JSDocParsingMode::ParseForTypeInfo,
+            true
+        ));
+        assert!(has_jsdoc_flag(
+            ordinary,
+            JSDocParsingMode::ParseForTypeErrors,
+            false
+        ));
+        assert!(has_jsdoc_flag(
+            ordinary,
+            JSDocParsingMode::ParseForTypeInfo,
+            false
+        ));
     }
 }

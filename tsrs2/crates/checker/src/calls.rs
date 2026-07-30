@@ -20,13 +20,14 @@
 //! elaborateError 63957) escape on the reporting path because tsc's
 //! elaboration would move the code/span into the literal.
 
-use tsrs2_binder::{node_util, SymbolId};
+use tsrs2_binder::{node_util, SymbolId, SymbolTable};
 use tsrs2_diags::{gen as diagnostics, Diagnostic, DiagnosticMessage, MessageChain, RelatedInfo};
 use tsrs2_syntax::nodes::{JsxOpeningElementData, JsxSelfClosingElementData};
 use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    CheckMode, ContextFlags, ElementFlags, InferenceFlags, InferencePriority, ModifierFlags,
-    NodeFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags, TypeId, UnionReduction,
+    CheckMode, ContextFlags, ElementFlags, InferenceFlags, InferencePriority, IntersectionFlags,
+    ModifierFlags, NodeFlags, ObjectFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags,
+    TypeId, UnionReduction,
 };
 
 use crate::inference::InferenceContextId;
@@ -428,13 +429,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 8be0ce0cdee3c8c15174b3fe4697c773f73b6373f7f5f145778a0079d717b494
     /// tsc-span: _tsc.js:82628-82663
     ///
-    /// checkDeprecatedSignature is a suggestion-band no-op. The
-    /// headMessage switch: the legacy PropertyDeclaration face FALLS
+    /// The headMessage switch: the legacy PropertyDeclaration face FALLS
     /// THROUGH to the Parameter void-or-any head; Parameter itself is
     /// reachable only under experimental_decorators=true.
     fn check_decorator(&mut self, node: NodeId) -> CheckResult2<()> {
         self.check_grammar_decorator(node);
         let signature = self.get_resolved_signature(node, CheckMode::NORMAL)?;
+        self.check_deprecated_signature(signature, node)?;
         let return_type = self.get_return_type_of_signature(signature)?;
         if self.tables.flags_of(return_type).intersects(TypeFlags::ANY) {
             return Ok(());
@@ -3925,13 +3926,7 @@ impl<'a> CheckerState<'a> {
             let args = ctx.args.clone();
             let diagnostic =
                 self.get_argument_arity_error(node, &[candidate], &args, head_message)?;
-            let publish_checked_js =
-                self.should_publish_typed_declaration_js_arity(node, &[candidate]);
-            let diagnostics_before = self.diagnostics.len();
             self.push_error_diagnostic(diagnostic);
-            if publish_checked_js {
-                self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 2554);
-            }
         } else if let Some(candidate) = ctx.candidate_for_type_argument_error {
             let type_argument_nodes = ctx.type_argument_nodes.clone();
             self.check_type_arguments(
@@ -3968,35 +3963,10 @@ impl<'a> CheckerState<'a> {
                     &args,
                     head_message,
                 )?;
-                let publish_checked_js = self.should_publish_typed_declaration_js_arity(
-                    node,
-                    &with_correct_type_argument_arity,
-                );
-                let diagnostics_before = self.diagnostics.len();
                 self.push_error_diagnostic(diagnostic);
-                if publish_checked_js {
-                    self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 2554);
-                }
             }
         }
         Ok(())
-    }
-
-    /// tsrs-native: checked JavaScript calls into typed declarations
-    /// retain their ordinary 2554 arity row. JSDoc-owned signatures
-    /// stay on the separate checked-JS/JSDoc boundary.
-    fn should_publish_typed_declaration_js_arity(
-        &self,
-        node: NodeId,
-        signatures: &[SignatureId],
-    ) -> bool {
-        self.is_in_js_file(node)
-            && !signatures.is_empty()
-            && signatures.iter().all(|&signature| {
-                self.signature_of(signature)
-                    .declaration
-                    .is_some_and(|declaration| !self.is_in_js_file(declaration))
-            })
     }
 
     /// addImplementationSuccessElaboration (76744-76762): when the
@@ -4858,6 +4828,8 @@ impl<'a> CheckerState<'a> {
                     NodeData::CallSignature(data) => data.parameters,
                     NodeData::ConstructSignature(data) => data.parameters,
                     NodeData::FunctionType(data) => data.parameters,
+                    NodeData::JSDocFunctionType(data) => data.parameters,
+                    NodeData::JSDocSignature(data) => data.parameters,
                     NodeData::ConstructorType(data) => data.parameters,
                     NodeData::Constructor(data) => data.parameters,
                     _ => None,
@@ -4886,11 +4858,13 @@ impl<'a> CheckerState<'a> {
 
     /// The 76494 related-row selection: binding pattern / rest / named.
     fn argument_not_provided_related(&mut self, parameter: NodeId) -> CheckResult2<RelatedInfo> {
-        let NodeData::Parameter(data) = self.data_of(parameter) else {
-            unreachable!("signature declarations carry parameter nodes");
+        let (name, is_rest) = match self.data_of(parameter) {
+            NodeData::Parameter(data) => (data.name, data.dot_dot_dot_token.is_some()),
+            NodeData::JSDocParameterTag(data) => {
+                (data.name, self.is_rest_parameter_declaration(parameter))
+            }
+            _ => unreachable!("signature declarations carry parameter-like nodes"),
         };
-        let name = data.name;
-        let is_rest = data.dot_dot_dot_token.is_some();
         let name_kind = name.map(|name| self.kind_of(name));
         if matches!(
             name_kind,
@@ -5193,22 +5167,6 @@ impl<'a> CheckerState<'a> {
             } else {
                 self.diag_span_of_node(error_target)
             };
-        // tsrs-native: the binder admits only non-JSDoc checked-JS
-        // bare/accessed-require aliases. A call/construct failure on
-        // that exact alias is therefore safe to publish without
-        // opening arbitrary checked-JS callees.
-        let publish_checked_js_require = self.is_in_js_file(error_target)
-            && matches!(
-                self.links.node(error_target).resolved_symbol,
-                LinkSlot::Resolved(symbol)
-                    if self.symbol_flags(symbol).intersects(SymbolFlags::ALIAS)
-                        && self
-                            .get_declaration_of_alias_symbol(symbol)
-                            .is_some_and(|declaration| {
-                                self.external_module_require_argument(declaration).is_some()
-                            })
-            );
-        let head_code = chain.code;
         let mut diagnostic = self.diagnostic_at_span(&span, chain);
         if let Some(related_message) = related_message {
             diagnostic
@@ -5218,11 +5176,7 @@ impl<'a> CheckerState<'a> {
         if let Some(related) = related_information {
             diagnostic.related.push(related);
         }
-        let diagnostics_before = self.diagnostics.len();
         self.push_error_diagnostic(diagnostic);
-        if publish_checked_js_require {
-            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, head_code);
-        }
         Ok(())
     }
 
@@ -5255,12 +5209,9 @@ impl<'a> CheckerState<'a> {
                 return Ok(self.any_signature);
             }
             if super_type != self.tables.intrinsics.error {
-                // getEffectiveBaseTypeNode = the extends heritage
-                // element in TS files (the JS @augments divergence is
-                // the checkClassLikeDeclaration elision).
                 let base_type_node = self
                     .get_containing_class_of(node)
-                    .and_then(|class| self.get_class_extends_heritage_element(class));
+                    .and_then(|class| self.get_effective_base_type_node(class));
                 if let Some(base_type_node) = base_type_node {
                     let base_constructors = self.get_instantiated_constructors_for_type_arguments(
                         super_type,
@@ -5390,7 +5341,31 @@ impl<'a> CheckerState<'a> {
                 return Ok(self.resolving_signature);
             }
         }
-        // 77043-77046: the JSDoc @class arm is JS-file-gated.
+        // 77043-77046: a callable declaration carrying JSDoc
+        // `@class`/`@constructor` must be invoked with `new`.
+        let mut has_jsdoc_class_signature = false;
+        for &signature in &call_signatures {
+            let Some(declaration) = self.signature_of(signature).declaration else {
+                continue;
+            };
+            if self.is_in_js_file(declaration)
+                && self
+                    .first_jsdoc_tag(declaration, SyntaxKind::JSDocClassTag)
+                    .is_some()
+            {
+                has_jsdoc_class_signature = true;
+                break;
+            }
+        }
+        if has_jsdoc_class_signature {
+            let display = self.type_to_string_slice(func_type)?;
+            self.error_at(
+                Some(node),
+                &diagnostics::Value_of_type_0_is_not_callable_Did_you_mean_to_include_new,
+                &[&display],
+            );
+            return self.resolve_error_call(node);
+        }
         self.resolve_call(node, &call_signatures, check_mode, call_chain_flags, None)
     }
 
@@ -5510,13 +5485,7 @@ impl<'a> CheckerState<'a> {
             {
                 let declaration = self.signature_of(signature).declaration;
                 if let Some(declaration) = declaration {
-                    let js_constructor = self.is_js_constructor_without_jsdoc(declaration);
-                    if self.is_in_js_file(declaration) && js_constructor.is_none() {
-                        return Err(Unsupported::new(
-                            "isJSConstructor probe on a JS declaration (checkJs band, M8)",
-                        ));
-                    }
-                    if js_constructor != Some(true) {
+                    if !self.is_js_constructor(declaration) {
                         let return_type = self.get_return_type_of_signature(signature)?;
                         if return_type != self.tables.intrinsics.void {
                             self.error_at(
@@ -5925,9 +5894,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:77854-77862
     ///
     /// The MakeTemplateObject emit-helper check is dead at ES2025
-    /// (languageVersion >= TaggedTemplates); checkDeprecatedSignature
-    /// is a no-op (the Deprecated node flag only ever comes from JSDoc
-    /// `@deprecated` parsing, unmodeled).
+    /// (languageVersion >= TaggedTemplates).
     pub(crate) fn check_tagged_template_expression(
         &mut self,
         node: NodeId,
@@ -5941,6 +5908,7 @@ impl<'a> CheckerState<'a> {
             self.check_grammar_type_arguments(node, type_arguments);
         }
         let signature = self.get_resolved_signature(node, check_mode)?;
+        self.check_deprecated_signature(signature, node)?;
         self.get_return_type_of_signature(signature)
     }
 
@@ -6359,8 +6327,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:77607-77660
     ///
     /// Serves Call AND New (tsc dispatches both here).
-    /// checkDeprecatedSignature is a no-op: the Deprecated node flag
-    /// only ever comes from JSDoc `@deprecated` parsing (unmodeled).
     /// The void-return type-predicate assertion band (2775/2776)
     /// landed with the 6.6 review (its M4 "provably dead" residual
     /// lapsed when 6.6a/c made getEffectsSignature and
@@ -6384,6 +6350,7 @@ impl<'a> CheckerState<'a> {
             // resolves for real.
             return Ok(self.tables.intrinsics.silent_never);
         }
+        self.check_deprecated_signature(signature, node)?;
         if expression.is_some_and(|e| self.kind_of(e) == SyntaxKind::SuperKeyword) {
             return Ok(self.tables.intrinsics.void);
         }
@@ -6392,34 +6359,35 @@ impl<'a> CheckerState<'a> {
             // signatures — 7009 under noImplicitAny, anyType result.
             let declaration = self.signature_of(signature).declaration;
             if let Some(declaration) = declaration {
+                // 77625: a materialized JSDocSignature inherits construct
+                // semantics directly from its JSDoc root's constructor host.
                 if !matches!(
                     self.kind_of(declaration),
                     SyntaxKind::Constructor
                         | SyntaxKind::ConstructSignature
                         | SyntaxKind::ConstructorType
-                ) && !node_util::is_jsdoc_construct_signature(
-                    self.binder.source_of_node(declaration),
-                    declaration,
-                ) {
-                    let js_constructor = self.is_js_constructor_without_jsdoc(declaration);
-                    if js_constructor != Some(true) {
-                        if self.is_in_js_file(declaration) && js_constructor.is_none() {
-                            return Err(Unsupported::new(
-                                "isJSConstructor probe on a JS declaration (checkJs band, M8)",
-                            ));
-                        }
-                        if self
-                            .options
-                            .strict_option_value(self.options.no_implicit_any)
-                        {
-                            self.error_at(
+                ) && !(self.kind_of(declaration) == SyntaxKind::JSDocSignature
+                    && self
+                        .get_jsdoc_root(declaration)
+                        .and_then(|root| self.parent_of(root))
+                        .is_some_and(|host| self.kind_of(host) == SyntaxKind::Constructor))
+                    && !node_util::is_jsdoc_construct_signature(
+                        self.binder.source_of_node(declaration),
+                        declaration,
+                    )
+                    && !self.is_js_constructor(declaration)
+                {
+                    if self
+                        .options
+                        .strict_option_value(self.options.no_implicit_any)
+                    {
+                        self.error_at(
                                 Some(node),
                                 &diagnostics::new_expression_whose_target_lacks_a_construct_signature_implicitly_has_an_any_type,
                                 &[],
                             );
-                        }
-                        return Ok(self.tables.intrinsics.any);
                     }
+                    return Ok(self.tables.intrinsics.any);
                 }
             }
         }
@@ -6498,6 +6466,25 @@ impl<'a> CheckerState<'a> {
                         )?;
                         self.push_error_diagnostic(diagnostic);
                     }
+                }
+            }
+        }
+        if self.is_in_js_file(node) {
+            if let Some(js_symbol) = self.get_symbol_of_expando(node) {
+                let exports: SymbolTable = self.binder.symbol(js_symbol).exports.clone();
+                if !exports.is_empty() {
+                    let properties = exports.values().copied().collect();
+                    let js_assignment_type = self.make_resolved_anonymous_type(
+                        Some(js_symbol),
+                        exports,
+                        properties,
+                        Vec::new(),
+                        ObjectFlags::JS_LITERAL,
+                    );
+                    return self.get_intersection_type(
+                        &[return_type, js_assignment_type],
+                        IntersectionFlags::NONE,
+                    );
                 }
             }
         }
@@ -7036,6 +7023,19 @@ mod tests {
         })
     }
 
+    fn checked_js_rows(text: &str) -> Vec<(u32, u32, u32)> {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(false),
+            ..CompilerOptions::default()
+        };
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            rows(state)
+        })
+    }
+
     fn rows(state: &CheckerState) -> Vec<(u32, u32, u32)> {
         state
             .diagnostics
@@ -7457,6 +7457,25 @@ mod tests {
             ),
             [(8020, 19, 29)]
         );
+    }
+
+    #[test]
+    fn jsdoc_class_tag_requires_new() {
+        let rows = checked_js_rows(
+            "/** @constructor */\nfunction Dependency(j) { return j; }\nDependency({});\n",
+        );
+        assert_eq!(
+            rows.into_iter()
+                .filter(|(code, _, _)| *code == 2348)
+                .collect::<Vec<_>>(),
+            [(2348, 57, 14)]
+        );
+    }
+
+    #[test]
+    fn untyped_js_signature_has_zero_minimum_arity() {
+        let rows = checked_js_rows("function f(required) {}\nf();\n");
+        assert!(rows.into_iter().all(|(code, _, _)| code != 2554));
     }
 
     #[test]
@@ -8233,6 +8252,51 @@ value();
             checked_rows_with(text, &legacy_decorator_options()),
             [(1329, 28, 2)]
         );
+    }
+
+    #[test]
+    fn deprecated_decorator_and_tagged_template_signatures_report_6387() {
+        let text = "/** @deprecated */\n\
+                    declare function dec(target: Function): void;\n\
+                    @dec class C {}\n\
+                    /** @deprecated */\n\
+                    declare function tag(parts: any): void;\n\
+                    tag`x`;\n";
+        with_program_state(&[("a.ts", text)], &legacy_decorator_options(), |state| {
+            state.check_source_file(0);
+            let diagnostics = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 6387)
+                .map(|diagnostic| {
+                    (
+                        diagnostic.category(),
+                        diagnostic.message_text().to_owned(),
+                        diagnostic
+                            .related
+                            .iter()
+                            .map(|related| related.message.code)
+                            .collect::<Vec<_>>(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                diagnostics,
+                [
+                    (
+                        tsrs2_diags::DiagnosticCategory::Suggestion,
+                        "The signature '(target: Function): void' of 'dec' is deprecated."
+                            .to_owned(),
+                        vec![2798],
+                    ),
+                    (
+                        tsrs2_diags::DiagnosticCategory::Suggestion,
+                        "The signature '(parts: any): void' of 'tag' is deprecated.".to_owned(),
+                        vec![2798],
+                    ),
+                ]
+            );
+        });
     }
 
     #[test]
