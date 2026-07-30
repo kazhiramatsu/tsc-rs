@@ -4475,7 +4475,12 @@ impl<'a> CheckerState<'a> {
             error_state: Default::default(),
         };
         Ok(matches!(
-            checker.excess_properties_worker(source, target, Some(error_node))?,
+            checker.excess_properties_worker(
+                source,
+                target,
+                /*report_errors*/ true,
+                Some(error_node),
+            )?,
             crate::engine::ExcessPropertyOutcome::UnknownProperty
         ))
     }

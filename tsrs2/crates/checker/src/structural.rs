@@ -10349,4 +10349,189 @@ let primitiveSymbol: symbol = boxedSymbol;
             "a generic mapped source bypasses cleanup and keeps its detail"
         );
     }
+
+    #[test]
+    fn relation_reporting_keeps_union_keyof_and_class_member_failure_levels() {
+        fn flatten(chain: &tsrs2_diags::MessageChain, out: &mut Vec<(u32, String)>) {
+            out.push((chain.code, chain.text.clone()));
+            for child in &chain.next {
+                flatten(child, out);
+            }
+        }
+
+        fn error_chains(
+            files: &[(&str, &str)],
+            options: &CompilerOptions,
+        ) -> Vec<Vec<(u32, String)>> {
+            crate::state::test_support::with_program_state(files, options, |state| {
+                for index in 0..files.len() {
+                    state.check_source_file(index);
+                }
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| {
+                        diagnostic.file_name.is_some()
+                            && diagnostic.category() == tsrs2_diags::DiagnosticCategory::Error
+                    })
+                    .map(|diagnostic| {
+                        let mut chain = Vec::new();
+                        flatten(&diagnostic.message, &mut chain);
+                        chain
+                    })
+                    .collect()
+            })
+        }
+
+        let strict = CompilerOptions {
+            strict: Some(true),
+            strict_null_checks: Some(true),
+            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            error_chains(
+                &[(
+                    "a.ts",
+                    "interface Array<T> { [index: number]: T }\n\
+                     let x = [{ a: 1, b: 2 }, { a: \"abc\" }, {}][0];\n\
+                     x = { a: \"value\", b: 1 };\n",
+                )],
+                &strict,
+            ),
+            [vec![
+                (
+                    2322,
+                    "Type '{ a: string; b: number; }' is not assignable to type \
+                     '{ a: number; b: number; } | { a: string; b?: undefined; } | \
+                     { a?: undefined; b?: undefined; }'."
+                        .to_owned(),
+                ),
+                (2326, "Types of property 'b' are incompatible.".to_owned(),),
+                (
+                    2322,
+                    "Type 'number' is not assignable to type 'undefined'.".to_owned(),
+                ),
+            ]]
+        );
+
+        assert_eq!(
+            error_chains(
+                &[(
+                    "a.ts",
+                    "interface Array<T> { [index: number]: T }\n\
+                     function f<T extends string[]>(k: keyof [1, 2, ...T]) {\n\
+                         k = '2';\n\
+                     }\n",
+                )],
+                &strict,
+            ),
+            [vec![
+                (
+                    2322,
+                    "Type 'string' is not assignable to type 'keyof [1, 2, ...T]'.".to_owned(),
+                ),
+                // This noLib pin declares only a numeric Array index,
+                // so its known-key face expands to number | "0" |
+                // "1". The vendored-lib conformance fixture retains
+                // the canonical `"0" | "1" | keyof T[]` face.
+                (
+                    2322,
+                    "Type '\"2\"' is not assignable to type 'number | \"0\" | \"1\"'.".to_owned(),
+                ),
+            ]]
+        );
+
+        assert_eq!(
+            error_chains(
+                &[(
+                    "a.ts",
+                    "interface Array<T> { [index: number]: T }\n\
+                     class Base {\n\
+                         load(supplies?: any[]): void {}\n\
+                         static circle(wagons?: Base[]): number { return 0; }\n\
+                     }\n\
+                     class DerivedInstance extends Base {\n\
+                         load(files: string[], format: \"csv\" | \"json\"): void {}\n\
+                     }\n\
+                     class DerivedStatic extends Base {\n\
+                         static circle(others: (typeof Base)[]): number { return 0; }\n\
+                     }\n",
+                )],
+                &strict,
+            ),
+            [
+                vec![
+                    (
+                        2416,
+                        "Property 'load' in type 'DerivedInstance' is not assignable to the same \
+                         property in base type 'Base'."
+                            .to_owned(),
+                    ),
+                    (
+                        2322,
+                        "Type '(files: string[], format: \"csv\" | \"json\") => void' is not \
+                         assignable to type '(supplies?: any[] | undefined) => void'."
+                            .to_owned(),
+                    ),
+                    (
+                        2849,
+                        "Target signature provides too few arguments. Expected 2 or more, but got \
+                         1."
+                        .to_owned(),
+                    ),
+                ],
+                vec![
+                    (
+                        2417,
+                        "Class static side 'typeof DerivedStatic' incorrectly extends base class \
+                         static side 'typeof Base'."
+                            .to_owned(),
+                    ),
+                    (
+                        2326,
+                        "Types of property 'circle' are incompatible.".to_owned(),
+                    ),
+                    (
+                        2322,
+                        "Type '(others: (typeof Base)[]) => number' is not assignable to type \
+                         '(wagons?: Base[] | undefined) => number'."
+                            .to_owned(),
+                    ),
+                    (
+                        2328,
+                        "Types of parameters 'others' and 'wagons' are incompatible.".to_owned(),
+                    ),
+                    (
+                        2322,
+                        "Type 'Base[] | undefined' is not assignable to type \
+                         '(typeof Base)[]'."
+                            .to_owned(),
+                    ),
+                    (
+                        2322,
+                        "Type 'undefined' is not assignable to type '(typeof Base)[]'.".to_owned(),
+                    ),
+                ],
+            ]
+        );
+
+        assert_eq!(
+            error_chains(
+                &[(
+                    "a.ts",
+                    "let okUnion: { a: number } | { a: string };\n\
+                     okUnion = { a: \"value\" };\n\
+                     function okKey<T extends string[]>(k: keyof [1, 2, ...T]) {\n\
+                         k = '0';\n\
+                     }\n\
+                     class OkBase { load(supplies?: any[]): void {} }\n\
+                     class OkDerived extends OkBase { load(supplies?: any[]): void {} }\n",
+                )],
+                &strict,
+            ),
+            Vec::<Vec<(u32, String)>>::new(),
+            "non-firing siblings remain clean"
+        );
+    }
 }

@@ -1220,8 +1220,29 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     .tables
                     .object_flags_of(source)
                     .intersects(ObjectFlags::FRESH_LITERAL);
-            if is_performing_excess_property_checks && self.has_excess_properties(source, target)? {
-                return Ok(Ternary::FALSE);
+            if is_performing_excess_property_checks {
+                if self.has_excess_properties(source, target, report_errors)? {
+                    if report_errors {
+                        // 65202-65204: discriminant incompatibility
+                        // contributes its 2326/inner relation first;
+                        // the current normalized relation level then
+                        // supplies the kept outer head. An aliased
+                        // original target is the sole display restore.
+                        let report_target = if self
+                            .st
+                            .tables
+                            .type_of(original_target)
+                            .alias_symbol
+                            .is_some()
+                        {
+                            original_target
+                        } else {
+                            target
+                        };
+                        self.report_relation_error(head_message, source, report_target)?;
+                    }
+                    return Ok(Ternary::FALSE);
+                }
             }
             let is_performing_common_property_checks = (self.relation != RelationKind::Comparable
                 || self.st.is_unit_type(source))
@@ -1803,9 +1824,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// justification lapsed). JSX attribute sources preserve tsc's
     /// empty-target exception and hyphenated-name exemption in both
     /// excess and common-property checks.
-    fn has_excess_properties(&mut self, source: TypeId, target: TypeId) -> CheckResult2<bool> {
+    fn has_excess_properties(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        report_errors: bool,
+    ) -> CheckResult2<bool> {
         Ok(!matches!(
-            self.excess_properties_worker(source, target, None)?,
+            self.excess_properties_worker(source, target, report_errors, None)?,
             ExcessPropertyOutcome::None
         ))
     }
@@ -1819,23 +1845,26 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// head-site reporter (check.rs report_excess_property_head)
     /// cannot drift from the relation's verdict. With `report_node`
     /// the unknown-property arm emits tsc's parent-skipped 2353/2561
-    /// at the excess property's name; the discriminant-incompatibility
-    /// arm reports only a chain row in tsc
-    /// (Types_of_property_0_are_incompatible) under the KEPT head —
-    /// chain content is the elided T2 tail, so nothing is emitted
-    /// there and the caller lets the head land.
+    /// at the excess property's name. The discriminant-incompatibility
+    /// arm threads reportErrors into the property relation, then
+    /// stacks 2326; isRelatedTo adds the kept outer relation head.
     pub(crate) fn excess_properties_worker(
         &mut self,
         source: TypeId,
         target: TypeId,
+        report_errors: bool,
         report_node: Option<tsrs2_syntax::NodeId>,
     ) -> CheckResult2<ExcessPropertyOutcome> {
         if !self.st.is_excess_property_check_target(target)
-            || self
+            || !self
                 .st
-                .tables
-                .object_flags_of(target)
-                .intersects(ObjectFlags::JS_LITERAL)
+                .options
+                .strict_option_value(self.st.options.no_implicit_any)
+                && self
+                    .st
+                    .tables
+                    .object_flags_of(target)
+                    .intersects(ObjectFlags::JS_LITERAL)
         {
             return Ok(ExcessPropertyOutcome::None);
         }
@@ -1882,13 +1911,23 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     let prop_type = self.st.get_type_of_symbol(prop)?;
                     let target_prop_type =
                         self.get_type_of_property_in_types(check_types.clone(), &name)?;
+                    // 65401-65405: this relation is diagnostic-active
+                    // in the reporting walk; suppressing it loses the
+                    // innermost failure level before 2326 is stacked.
                     if !is_true(self.is_related_to(
                         prop_type,
                         target_prop_type,
                         RecursionFlags::BOTH,
-                        /*report_errors*/ false,
+                        report_errors,
                         IntersectionState::NONE,
                     )?) {
+                        if report_errors {
+                            let name = self.st.symbol_name_as_written_slice(prop);
+                            self.report_incompatible_error(
+                                &diagnostics::Types_of_property_0_are_incompatible,
+                                vec![name],
+                            );
+                        }
                         return Ok(ExcessPropertyOutcome::Incompatible);
                     }
                 }
