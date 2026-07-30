@@ -357,10 +357,11 @@ fn comparator_state(
         {
             Ok(TierComparatorState::T1ThroughT4)
         }
-        (TierComparatorState::Inactive, Some(ComparatorEntry::Active { .. })) => Err(format!(
+        (TierComparatorState::Inactive, Some(ComparatorEntry::Active { .. })) => Err(
             "oracle-inputs t4 comparator cannot activate before the T1-T3 comparators"
-        )
-        .into()),
+                .to_string()
+                .into(),
+        ),
         (_, entry) => Err(format!(
             "oracle-inputs t4 comparator must be explicit \"absent\" or active at schema \
              {T4_COMPARATOR_SCHEMA} after {T4_INPUT_SCHEMA_EXTENSION:?}; found {entry:?}"
@@ -1608,11 +1609,9 @@ fn verify_input_growth_with_comparators(
                 Some(newer_case)
                     if newer_case.oracle_sha256 != older_case.oracle_sha256
                         || newer_case.program_sha256 != older_case.program_sha256
-                        || (!allow_schema_extensions
-                            && newer_case.oracle_t4_sha256 != older_case.oracle_t4_sha256)
-                        || (allow_schema_extensions
-                            && older_case.oracle_t4_sha256.is_some()
-                            && newer_case.oracle_t4_sha256 != older_case.oracle_t4_sha256) =>
+                        || (newer_case.oracle_t4_sha256 != older_case.oracle_t4_sha256
+                            && (!allow_schema_extensions
+                                || older_case.oracle_t4_sha256.is_some())) =>
                 {
                     return Err(format!(
                         "{context} changed pinned matrix case {key} [{matrix}] \
@@ -2047,11 +2046,7 @@ fn verify_baseline_inputs(
             "baseline compare changed the A3 render-driver pin across an oracle correction".into(),
         );
     }
-    if older_render.is_none()
-        && newer_render
-            .as_deref()
-            .is_some_and(|hash| !valid_sha256(hash))
-    {
+    if older_render.is_none() && newer_render.is_some_and(|hash| !valid_sha256(hash)) {
         return Err("baseline compare added an invalid A3 render-driver pin".into());
     }
     for (key, older_entry) in &older.fixtures {
@@ -3196,7 +3191,7 @@ pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
             band: DiagnosticBand::All,
         };
         let run = if t4_active(comparator_state) {
-            super::run_conformance_collect_with_t4(&options, None)?
+            super::run_conformance_collect_with_t4(&options, None, None)?
         } else {
             super::run_conformance_collect(&options)?
         };
@@ -3288,6 +3283,9 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
         super::run_conformance_collect_with_t4(
             &conformance_options,
             render_plan.as_ref().map(|plan| &plan.pins),
+            render_plan
+                .as_ref()
+                .map(|plan| &plan.empty_related_information),
         )?
     } else {
         super::run_conformance_collect(&conformance_options)?
@@ -6015,6 +6013,7 @@ mod tests {
                 matrix_key: String::new(),
                 tsrs: Vec::new(),
                 oracle: vec![diag(2322, 4, "semantic")],
+                oracle_empty_related_information: Vec::new(),
                 tsrs_cli_hash: String::new(),
                 oracle_cli_hash: String::new(),
             }],
@@ -6125,6 +6124,7 @@ mod tests {
                         matrix_key: String::new(),
                         tsrs: Vec::new(),
                         oracle: vec![diag(2322, 4, "semantic")],
+                        oracle_empty_related_information: Vec::new(),
                         tsrs_cli_hash: String::new(),
                         oracle_cli_hash: hash_byte.to_string().repeat(64),
                     }],

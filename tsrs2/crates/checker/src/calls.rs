@@ -3953,6 +3953,7 @@ impl<'a> CheckerState<'a> {
                     let span = self.diag_span_of_node(error_node);
                     self.diagnostic_at_span(&span, chain)
                 };
+                diagnostic.related_information_present = true;
                 diagnostic.related = chosen.into_iter().flat_map(|error| error.related).collect();
                 if let Some(related) =
                     self.implementation_success_elaboration(ctx, candidates_for_argument_error[0])?
@@ -7864,6 +7865,21 @@ mod tests {
             texts[3],
             "Overload 2 of 2, '(a: string): void', gave the following error."
         );
+    }
+
+    #[test]
+    fn two_failed_overloads_preserve_present_empty_related_information() {
+        let text = "declare function o(a: number): void;\ndeclare function o(a: string): void;\no(true);\n";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 2769)
+                .expect("the overload aggregate is reported");
+            assert!(diagnostic.related_information_present);
+            assert!(diagnostic.related.is_empty());
+        });
     }
 
     #[test]

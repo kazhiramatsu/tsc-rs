@@ -50,6 +50,8 @@ pub struct OracleDiag {
     pub chain: OracleMessageChain,
     #[serde(default)]
     pub related: Vec<OracleRelated>,
+    #[serde(default, rename = "relatedInformationPresent")]
+    pub related_information_present: bool,
     #[serde(default, rename = "reportsUnnecessary")]
     pub reports_unnecessary: bool,
     #[serde(default, rename = "reportsDeprecated")]
@@ -599,6 +601,32 @@ mod tests {
             version.starts_with('v') && version.len() > 1,
             "process.version shape: {version}"
         );
+    }
+
+    #[test]
+    fn oracle_diag_preserves_related_information_presence() {
+        let absent: OracleDiag = serde_json::from_str(
+            r#"{
+  "file": null,
+  "start": null,
+  "length": null,
+  "code": 2769,
+  "category": "error",
+  "chain": {"text": "No overload matches this call.", "code": 2769, "category": "error"},
+  "related": []
+}"#,
+        )
+        .expect("diagnostic without presence marker");
+        assert!(!absent.related_information_present);
+
+        let mut present = absent;
+        present.related_information_present = true;
+        let encoded = serde_json::to_value(&present).expect("serialize diagnostic");
+        assert_eq!(encoded["relatedInformationPresent"], true);
+        let decoded: OracleDiag =
+            serde_json::from_value(encoded).expect("deserialize diagnostic with presence marker");
+        assert!(decoded.related_information_present);
+        assert!(decoded.related.is_empty());
     }
 
     #[test]

@@ -135,7 +135,7 @@ pub fn format_sorted_diagnostics_with_context(
             }
         }
 
-        if !diagnostic.related.is_empty() {
+        if diagnostic.related_information_present || !diagnostic.related.is_empty() {
             output.push('\n');
             for related in &diagnostic.related {
                 format_related_information(related, host, &mut output)?;
@@ -691,6 +691,30 @@ mod tests {
                 "  6 f\n",
                 "    \n",
             )
+        );
+    }
+
+    #[test]
+    fn present_empty_related_information_emits_the_tsc_blank_line() {
+        let files = BTreeMap::new();
+        let mut present_empty = Diagnostic::new(
+            None,
+            None,
+            None,
+            chain(1, DiagnosticCategory::Error, "first"),
+        );
+        present_empty.related_information_present = true;
+        let absent = Diagnostic::new(
+            None,
+            None,
+            None,
+            chain(2, DiagnosticCategory::Error, "second"),
+        );
+        let host = FormatDiagnosticsHost::new("/", &files);
+
+        assert_eq!(
+            format_sorted_diagnostics_with_context(&[present_empty, absent], &host).unwrap(),
+            "error TS1: first\n\nerror TS2: second\n"
         );
     }
 

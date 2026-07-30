@@ -142,6 +142,11 @@ pub struct Diagnostic {
     pub start: Option<u32>,
     pub length: Option<u32>,
     pub message: MessageChain,
+    /// Whether tsc's `relatedInformation` property exists, including
+    /// the observable present-but-empty `[]` case. Non-empty `related`
+    /// is treated as present even when legacy producers leave this
+    /// marker false.
+    pub related_information_present: bool,
     pub related: Vec<RelatedInfo>,
     pub canonical_head: Option<CanonicalHead>,
     /// tsc Diagnostic.skippedOn (errorSkippedOn 47575): the program
@@ -163,6 +168,7 @@ impl Diagnostic {
             start,
             length,
             message,
+            related_information_present: false,
             related: Vec::new(),
             canonical_head: None,
             skipped_on_no_emit: false,
@@ -199,8 +205,14 @@ impl Diagnostic {
 pub type DiagnosticList = Vec<Diagnostic>;
 
 pub fn compare_diagnostics(left: &Diagnostic, right: &Diagnostic) -> Ordering {
-    compare_diagnostics_skip_related(left, right)
-        .then_with(|| compare_related_information(&left.related, &right.related))
+    compare_diagnostics_skip_related(left, right).then_with(|| {
+        compare_related_information(
+            left.related_information_present || !left.related.is_empty(),
+            &left.related,
+            right.related_information_present || !right.related.is_empty(),
+            &right.related,
+        )
+    })
 }
 
 pub fn sort_and_dedupe_diagnostics(diagnostics: &mut DiagnosticList) {
@@ -251,12 +263,17 @@ fn compare_diagnostic_message_text(left: &Diagnostic, right: &Diagnostic) -> Ord
         })
 }
 
-fn compare_related_information(left: &[RelatedInfo], right: &[RelatedInfo]) -> Ordering {
-    match (left.is_empty(), right.is_empty()) {
-        (true, true) => Ordering::Equal,
-        (false, true) => Ordering::Less,
-        (true, false) => Ordering::Greater,
-        (false, false) => right.len().cmp(&left.len()).then_with(|| {
+fn compare_related_information(
+    left_present: bool,
+    left: &[RelatedInfo],
+    right_present: bool,
+    right: &[RelatedInfo],
+) -> Ordering {
+    match (left_present, right_present) {
+        (false, false) => Ordering::Equal,
+        (true, false) => Ordering::Less,
+        (false, true) => Ordering::Greater,
+        (true, true) => right.len().cmp(&left.len()).then_with(|| {
             left.iter()
                 .zip(right.iter())
                 .map(|(left, right)| compare_related_info(left, right))
@@ -388,6 +405,25 @@ mod tests {
         assert_eq!(diagnostics[0].file_name, None);
         assert_eq!(diagnostics[1].file_name.as_deref(), Some("a.ts"));
         assert_eq!(diagnostics[2].file_name.as_deref(), Some("b.ts"));
+    }
+
+    #[test]
+    fn present_empty_related_information_sorts_before_absent_and_wins_dedupe() {
+        let absent = diagnostic(Some("a.ts"), Some(0), 1005, "';' expected.");
+        let mut present_empty = absent.clone();
+        present_empty.related_information_present = true;
+
+        assert_eq!(compare_diagnostics(&present_empty, &absent), Ordering::Less);
+        assert_eq!(
+            compare_diagnostics(&absent, &present_empty),
+            Ordering::Greater
+        );
+
+        let mut diagnostics = vec![absent, present_empty];
+        sort_and_dedupe_diagnostics(&mut diagnostics);
+        assert_eq!(diagnostics.len(), 1);
+        assert!(diagnostics[0].related_information_present);
+        assert!(diagnostics[0].related.is_empty());
     }
 
     #[test]

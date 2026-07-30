@@ -7,7 +7,7 @@
 //! 6.0.3 `formatDiagnosticsWithColorAndContext` path (ANSI removed,
 //! formatter newlines fixed to LF). `tsrs_cli_hash` is never persisted.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -59,8 +59,15 @@ pub(crate) struct PlannedGoldenUpdate {
 pub(crate) struct RenderHashExtensionPlan {
     pub(crate) summary: RenderHashSummary,
     pub(crate) pins: super::ratchet::T4OraclePins,
+    pub(crate) empty_related_information: T4OracleEmptyRelatedInformation,
     pub(crate) updates: Vec<PlannedGoldenUpdate>,
 }
+
+/// Sparse formatter-only metadata for an A3 plan that has not written
+/// its schema-3 goldens yet: fixture -> matrix -> canonical oracle
+/// diagnostic indices with a present-but-empty relatedInformation
+/// array.
+pub(crate) type T4OracleEmptyRelatedInformation = BTreeMap<String, BTreeMap<String, Vec<usize>>>;
 
 #[derive(Clone, Debug)]
 pub struct T4ReportOptions {
@@ -134,6 +141,86 @@ impl Drop for TemporaryTree {
     }
 }
 
+fn collect_genuine_empty_related_information(
+    diagnostics: &[tsrs2_oracle::OracleDiag],
+) -> Vec<usize> {
+    diagnostics
+        .iter()
+        .enumerate()
+        .filter_map(|(index, diagnostic)| {
+            (diagnostic.related_information_present && diagnostic.related.is_empty())
+                .then_some(index)
+        })
+        .collect()
+}
+
+fn validate_empty_related_information(
+    diagnostics: &[GoldenDiag],
+    indices: &[usize],
+    context: &str,
+) -> ConformanceResult<BTreeSet<usize>> {
+    let mut validated = BTreeSet::new();
+    let mut previous = None;
+    for &index in indices {
+        if previous.is_some_and(|previous| index <= previous) {
+            return Err(format!(
+                "{context} empty-related-information indices must be strictly increasing \
+                 and unique"
+            )
+            .into());
+        }
+        let diagnostic = diagnostics.get(index).ok_or_else(|| {
+            format!(
+                "{context} empty-related-information index {index} is out of range for {} \
+                 diagnostics",
+                diagnostics.len()
+            )
+        })?;
+        if !diagnostic.related.is_empty() {
+            return Err(format!(
+                "{context} empty-related-information index {index} points to a diagnostic \
+                 with {} serialized related rows",
+                diagnostic.related.len()
+            )
+            .into());
+        }
+        validated.insert(index);
+        previous = Some(index);
+    }
+    Ok(validated)
+}
+
+fn effective_oracle_empty_related_information(
+    golden_schema: u32,
+    diagnostics: &[GoldenDiag],
+    stored: &[usize],
+    genuine: &[usize],
+    context: &str,
+) -> ConformanceResult<BTreeSet<usize>> {
+    let genuine = validate_empty_related_information(diagnostics, genuine, context)?;
+    if golden_schema < GOLDEN_RENDER_SCHEMA {
+        if !stored.is_empty() {
+            return Err(format!(
+                "{context} schema-{golden_schema} case carries schema-3 \
+                 empty-related-information metadata"
+            )
+            .into());
+        }
+        return Ok(genuine);
+    }
+
+    let stored = validate_empty_related_information(diagnostics, stored, context)?;
+    if stored != genuine {
+        return Err(format!(
+            "{context} stored empty-related-information metadata drifted from the genuine \
+             TypeScript producer: stored={:?}, genuine={:?}",
+            stored, genuine
+        )
+        .into());
+    }
+    Ok(stored)
+}
+
 /// Produce focused, report-only T4 evidence. This never changes A1,
 /// goldens, scope, or ratchets and is therefore safe before A3
 /// activation. `--files`/`--limit` callers use this path for formatter
@@ -175,7 +262,7 @@ pub fn run_t4_report(options: &T4ReportOptions) -> ConformanceResult<T4Report> {
                         program.matrix_key
                     )
                 })?;
-            let file_texts = file_texts_for_program(&program, &vendor_lib_dir)?;
+            let file_texts = file_texts_for_program(program, &vendor_lib_dir)?;
             let host = FormatDiagnosticsHost::new(&program.cwd, &file_texts);
             let excluded = scope.exclusions_for_case(
                 &fixture_name,
@@ -202,10 +289,23 @@ pub fn run_t4_report(options: &T4ReportOptions) -> ConformanceResult<T4Report> {
                 )
                 .into());
             }
+            let context = format!("T4 report {fixture_name} [{}]", program.matrix_key);
+            let genuine_empty_related_information =
+                collect_genuine_empty_related_information(&genuine.diagnostics);
+            let oracle_empty_related_information = effective_oracle_empty_related_information(
+                golden.schema,
+                &golden_case.oracle,
+                &golden_case.oracle_empty_related_information,
+                &genuine_empty_related_information,
+                &context,
+            )?;
 
             let oracle_full_hash = rendered_sha256(&genuine.rendered);
             let rust_oracle_full_rendered = format_sorted_diagnostics_with_context(
-                &diagnostics_from_golden(&golden_case.oracle)?,
+                &diagnostics_from_golden_with_empty_related_information(
+                    &golden_case.oracle,
+                    &oracle_empty_related_information,
+                )?,
                 &host,
             )?;
             let rust_oracle_full_hash = rendered_sha256(&rust_oracle_full_rendered);
@@ -228,13 +328,17 @@ pub fn run_t4_report(options: &T4ReportOptions) -> ConformanceResult<T4Report> {
                 .collect::<Vec<_>>();
             let oracle_rendered = pool.render_sorted_records(program_path, &oracle_supported)?;
 
-            let current = current_case_tsrs(&program, &vendor_lib_dir)?;
+            let current = current_case_tsrs(program, &vendor_lib_dir)?;
             let tsrs_supported = current
                 .all
                 .iter()
-                .filter(|diagnostic| !fully_excluded.contains(&t0_key(diagnostic)))
+                .enumerate()
+                .filter(|(_, diagnostic)| !fully_excluded.contains(&t0_key(diagnostic)))
                 .collect::<Vec<_>>();
-            let tsrs_supported = diagnostics_from_golden_refs(&tsrs_supported)?;
+            let tsrs_supported = diagnostics_from_indexed_golden_refs(
+                tsrs_supported,
+                &current.all_empty_related_information,
+            )?;
             let tsrs_rendered = format_sorted_diagnostics_with_context(&tsrs_supported, &host)?;
 
             let oracle_hash = rendered_sha256(&oracle_rendered);
@@ -358,6 +462,7 @@ fn plan_rendered_hashes(
     let mut upgraded = 0usize;
     let mut checked = 0usize;
     let mut pins = super::ratchet::T4OraclePins::new();
+    let mut empty_related_information = T4OracleEmptyRelatedInformation::new();
 
     for (fixture_index, fixture) in fixtures.iter().enumerate() {
         let fixture_name = fixture_key(&options.workspace, fixture)?;
@@ -385,6 +490,7 @@ fn plan_rendered_hashes(
         let program_dir = temp_root.join("programs").join(fixture_index.to_string());
         let program_paths = tsrs2_harness::write_program_jsons(&programs, &program_dir)?;
         let input_schema = golden.schema;
+        let mut fixture_empty_related_information = BTreeMap::new();
         let mut golden_by_matrix = golden
             .cases
             .iter_mut()
@@ -415,9 +521,25 @@ fn plan_rendered_hashes(
                 )
                 .into());
             }
+            let context = format!(
+                "A3 rendered-hash plan {fixture_name} [{}]",
+                program.matrix_key
+            );
+            let genuine_empty_related_information =
+                collect_genuine_empty_related_information(&response.diagnostics);
+            let oracle_empty_related_information = effective_oracle_empty_related_information(
+                input_schema,
+                &golden_case.oracle,
+                &golden_case.oracle_empty_related_information,
+                &genuine_empty_related_information,
+                &context,
+            )?;
             let host = FormatDiagnosticsHost::new(&program.cwd, &file_texts);
             let rust_rendered = format_sorted_diagnostics_with_context(
-                &diagnostics_from_golden(&golden_case.oracle)?,
+                &diagnostics_from_golden_with_empty_related_information(
+                    &golden_case.oracle,
+                    &oracle_empty_related_information,
+                )?,
                 &host,
             )?;
             if rust_rendered != response.rendered {
@@ -451,10 +573,17 @@ fn plan_rendered_hashes(
                 golden_case.oracle_cli_hash = hash;
                 golden_case.tsrs.clear();
                 golden_case.tsrs_cli_hash.clear();
+                golden_case.oracle_empty_related_information =
+                    genuine_empty_related_information.clone();
             }
+            fixture_empty_related_information.insert(
+                program.matrix_key.clone(),
+                genuine_empty_related_information,
+            );
             cases += 1;
             diagnostics += oracle.len();
         }
+        empty_related_information.insert(fixture_name.clone(), fixture_empty_related_information);
         pins.insert(
             fixture_name,
             golden
@@ -495,18 +624,32 @@ fn plan_rendered_hashes(
             schema_3_checked: checked,
         },
         pins,
+        empty_related_information,
         updates,
     })
 }
 
+#[cfg(test)]
 fn diagnostics_from_golden(records: &[GoldenDiag]) -> ConformanceResult<Vec<Diagnostic>> {
-    records.iter().map(diagnostic_from_golden).collect()
+    diagnostics_from_golden_with_empty_related_information(records, &BTreeSet::new())
 }
 
-fn diagnostics_from_golden_refs(records: &[&GoldenDiag]) -> ConformanceResult<Vec<Diagnostic>> {
+fn diagnostics_from_golden_with_empty_related_information(
+    records: &[GoldenDiag],
+    empty_related_information: &BTreeSet<usize>,
+) -> ConformanceResult<Vec<Diagnostic>> {
+    diagnostics_from_indexed_golden_refs(records.iter().enumerate(), empty_related_information)
+}
+
+fn diagnostics_from_indexed_golden_refs<'a>(
+    records: impl IntoIterator<Item = (usize, &'a GoldenDiag)>,
+    empty_related_information: &BTreeSet<usize>,
+) -> ConformanceResult<Vec<Diagnostic>> {
     records
-        .iter()
-        .map(|diagnostic| diagnostic_from_golden(diagnostic))
+        .into_iter()
+        .map(|(index, record)| {
+            diagnostic_from_golden(record, empty_related_information.contains(&index))
+        })
         .collect()
 }
 
@@ -516,19 +659,39 @@ fn diagnostics_from_golden_refs(records: &[&GoldenDiag]) -> ConformanceResult<Ve
 pub(crate) fn supported_case_t4_matches(
     program: &tsrs2_harness::ProgramJson,
     vendor_lib_dir: &std::path::Path,
-    oracle: &[GoldenDiag],
-    tsrs: &[GoldenDiag],
-    excluded_indices: &std::collections::BTreeSet<usize>,
-    fully_excluded: &std::collections::BTreeSet<super::T0Key>,
+    oracle: (&[GoldenDiag], &[usize]),
+    tsrs: (&[GoldenDiag], &BTreeSet<usize>),
+    excluded_indices: &BTreeSet<usize>,
+    fully_excluded: &BTreeSet<super::T0Key>,
     oracle_full_sha256: &str,
 ) -> ConformanceResult<bool> {
+    let (oracle, oracle_empty_related_information) = oracle;
+    let (tsrs, tsrs_empty_related_information) = tsrs;
     let file_texts = file_texts_for_program(program, vendor_lib_dir)?;
     let host = FormatDiagnosticsHost::new(&program.cwd, &file_texts);
     if !valid_sha256(oracle_full_sha256) {
         return Err("active T4 case carries an invalid oracle rendered SHA-256".into());
     }
-    let full_oracle =
-        format_sorted_diagnostics_with_context(&diagnostics_from_golden(oracle)?, &host)?;
+    let oracle_empty_related_information = validate_empty_related_information(
+        oracle,
+        oracle_empty_related_information,
+        "active T4 oracle",
+    )?;
+    let tsrs_empty_related_information = validate_empty_related_information(
+        tsrs,
+        &tsrs_empty_related_information
+            .iter()
+            .copied()
+            .collect::<Vec<_>>(),
+        "current tsrs T4 stream",
+    )?;
+    let full_oracle = format_sorted_diagnostics_with_context(
+        &diagnostics_from_golden_with_empty_related_information(
+            oracle,
+            &oracle_empty_related_information,
+        )?,
+        &host,
+    )?;
     let actual_full_sha256 = rendered_sha256(&full_oracle);
     if actual_full_sha256 != oracle_full_sha256 {
         return Err(format!(
@@ -540,21 +703,26 @@ pub(crate) fn supported_case_t4_matches(
     let oracle = oracle
         .iter()
         .enumerate()
-        .filter(|(index, _)| !excluded_indices.contains(index))
-        .map(|(_, diagnostic)| diagnostic)
-        .collect::<Vec<_>>();
+        .filter(|(index, _)| !excluded_indices.contains(index));
     let tsrs = tsrs
         .iter()
-        .filter(|diagnostic| !fully_excluded.contains(&t0_key(diagnostic)))
-        .collect::<Vec<_>>();
-    let oracle =
-        format_sorted_diagnostics_with_context(&diagnostics_from_golden_refs(&oracle)?, &host)?;
-    let tsrs =
-        format_sorted_diagnostics_with_context(&diagnostics_from_golden_refs(&tsrs)?, &host)?;
+        .enumerate()
+        .filter(|(_, diagnostic)| !fully_excluded.contains(&t0_key(diagnostic)));
+    let oracle = format_sorted_diagnostics_with_context(
+        &diagnostics_from_indexed_golden_refs(oracle, &oracle_empty_related_information)?,
+        &host,
+    )?;
+    let tsrs = format_sorted_diagnostics_with_context(
+        &diagnostics_from_indexed_golden_refs(tsrs, &tsrs_empty_related_information)?,
+        &host,
+    )?;
     Ok(oracle == tsrs)
 }
 
-fn diagnostic_from_golden(record: &GoldenDiag) -> ConformanceResult<Diagnostic> {
+fn diagnostic_from_golden(
+    record: &GoldenDiag,
+    empty_related_information: bool,
+) -> ConformanceResult<Diagnostic> {
     let mut message = message_from_golden(&record.chain)?;
     // A Diagnostic's outer code/category are independent from the root
     // DiagnosticMessageChain fields. The renderer and sorter consume
@@ -577,6 +745,8 @@ fn diagnostic_from_golden(record: &GoldenDiag) -> ConformanceResult<Diagnostic> 
             })
         })
         .collect::<ConformanceResult<Vec<_>>>()?;
+    diagnostic.related_information_present =
+        empty_related_information || !diagnostic.related.is_empty();
     Ok(diagnostic)
 }
 
@@ -671,6 +841,7 @@ mod tests {
             category: category.to_owned(),
             chain: oracle_chain(code, category, text),
             related: Vec::new(),
+            related_information_present: false,
             reports_unnecessary: false,
             reports_deprecated: false,
             source: None,
@@ -687,6 +858,139 @@ mod tests {
             "70897b64d4f29f0963accdf7d4b618f72f1313eb86d9f68fa6208815ebd8eb1d"
         ));
         assert!(!valid_sha256("CBF29CE484222325"));
+    }
+
+    #[test]
+    fn schema3_empty_related_metadata_does_not_change_structured_oracle_bytes() {
+        let file_texts = BTreeMap::new();
+        let absent = oracle_diag(
+            None,
+            None,
+            None,
+            2769,
+            "error",
+            "No overload matches this call.",
+        );
+        let mut present = absent.clone();
+        present.related_information_present = true;
+        let absent_structured = GoldenDiag::from_oracle(&absent, &file_texts);
+        let oracle = vec![GoldenDiag::from_oracle(&present, &file_texts)];
+        assert_eq!(oracle[0], absent_structured);
+        let mut case = super::super::GoldenCase {
+            matrix_key: String::new(),
+            tsrs: Vec::new(),
+            oracle,
+            oracle_empty_related_information: Vec::new(),
+            tsrs_cli_hash: String::new(),
+            oracle_cli_hash: "a".repeat(64),
+        };
+        let structured_before = serde_json::to_vec(&case.oracle).unwrap();
+        assert!(!serde_json::to_string(&case)
+            .unwrap()
+            .contains("oracle_empty_related_information"));
+
+        case.oracle_empty_related_information = vec![0];
+        assert_eq!(serde_json::to_vec(&case.oracle).unwrap(), structured_before);
+        assert!(serde_json::to_string(&case)
+            .unwrap()
+            .contains(r#""oracle_empty_related_information":[0]"#));
+    }
+
+    #[test]
+    fn empty_related_metadata_rehydrates_the_formatter_presence_bit() {
+        let file_texts = BTreeMap::new();
+        let records = vec![GoldenDiag::from_oracle(
+            &oracle_diag(
+                None,
+                None,
+                None,
+                2769,
+                "error",
+                "No overload matches this call.",
+            ),
+            &file_texts,
+        )];
+        let absent = diagnostics_from_golden(&records).unwrap();
+        let present =
+            diagnostics_from_golden_with_empty_related_information(&records, &BTreeSet::from([0]))
+                .unwrap();
+        assert!(!absent[0].related_information_present);
+        assert!(present[0].related_information_present);
+
+        let host = FormatDiagnosticsHost::new("/workspace", &file_texts);
+        assert_eq!(
+            format_sorted_diagnostics_with_context(&absent, &host).unwrap(),
+            "error TS2769: No overload matches this call.\n"
+        );
+        assert_eq!(
+            format_sorted_diagnostics_with_context(&present, &host).unwrap(),
+            "error TS2769: No overload matches this call.\n\n"
+        );
+    }
+
+    #[test]
+    fn empty_related_metadata_is_validated_and_projection_keeps_original_indices() {
+        let file_texts = BTreeMap::new();
+        let first = GoldenDiag::from_oracle(
+            &oracle_diag(None, None, None, 1, "error", "first"),
+            &file_texts,
+        );
+        let second = GoldenDiag::from_oracle(
+            &oracle_diag(None, None, None, 2, "error", "second"),
+            &file_texts,
+        );
+        let records = vec![first, second];
+        let indices = validate_empty_related_information(&records, &[1], "test").unwrap();
+        let projected =
+            diagnostics_from_indexed_golden_refs(records.iter().enumerate().skip(1), &indices)
+                .unwrap();
+        assert_eq!(projected.len(), 1);
+        assert_eq!(projected[0].code(), 2);
+        assert!(projected[0].related_information_present);
+
+        let duplicate = validate_empty_related_information(&records, &[1, 1], "test")
+            .unwrap_err()
+            .to_string();
+        assert!(duplicate.contains("strictly increasing"), "{duplicate}");
+        let out_of_range = validate_empty_related_information(&records, &[2], "test")
+            .unwrap_err()
+            .to_string();
+        assert!(out_of_range.contains("out of range"), "{out_of_range}");
+        let mut non_empty = records.clone();
+        non_empty[0].related.push(super::super::GoldenRelated {
+            file: None,
+            start: None,
+            length: None,
+            code: 1,
+            category: "message".to_owned(),
+            chain: GoldenMessageChain {
+                text: "related".to_owned(),
+                code: 1,
+                category: "message".to_owned(),
+                next: Vec::new(),
+            },
+        });
+        let points_to_rows = validate_empty_related_information(&non_empty, &[0], "test")
+            .unwrap_err()
+            .to_string();
+        assert!(
+            points_to_rows.contains("serialized related rows"),
+            "{points_to_rows}"
+        );
+
+        assert_eq!(
+            effective_oracle_empty_related_information(2, &records, &[], &[1], "test").unwrap(),
+            BTreeSet::from([1])
+        );
+        let schema2_metadata =
+            effective_oracle_empty_related_information(2, &records, &[1], &[1], "test")
+                .unwrap_err()
+                .to_string();
+        assert!(schema2_metadata.contains("schema-2"), "{schema2_metadata}");
+        let stale = effective_oracle_empty_related_information(3, &records, &[], &[1], "test")
+            .unwrap_err()
+            .to_string();
+        assert!(stale.contains("drifted"), "{stale}");
     }
 
     #[test]

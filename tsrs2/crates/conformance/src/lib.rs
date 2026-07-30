@@ -181,6 +181,15 @@ pub struct GoldenCase {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tsrs: Vec<GoldenDiag>,
     pub oracle: Vec<GoldenDiag>,
+    /// Schema-3 formatter-only metadata. Each entry is an index into
+    /// `oracle` whose genuine tsc diagnostic carried a truthy but empty
+    /// `relatedInformation` array. Schema-2's structured diagnostic
+    /// records deliberately collapsed that state with `undefined`, so
+    /// keep the sparse presence data beside (not inside) `oracle`: the
+    /// A3 extension must leave every pre-existing oracle JSON byte and
+    /// its `oracle_sha256` unchanged.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub oracle_empty_related_information: Vec<usize>,
     /// Schema-2 compatibility only: the old value is an FNV hash of
     /// serialized diagnostic JSON and MUST NOT be interpreted as T4.
     /// Schema 3 omits the field; conformance computes the current tsrs
@@ -633,6 +642,7 @@ pub fn refresh_oracle_goldens(options: &RefreshOptions) -> ConformanceResult<Ref
             cases.push(GoldenCase {
                 matrix_key: program.matrix_key.clone(),
                 tsrs: Vec::new(),
+                oracle_empty_related_information: Vec::new(),
                 oracle_cli_hash: stable_json_hash(&oracle)?,
                 oracle,
                 tsrs_cli_hash: stable_json_hash(&Vec::<GoldenDiag>::new())?,
@@ -659,7 +669,7 @@ pub fn refresh_oracle_goldens(options: &RefreshOptions) -> ConformanceResult<Ref
 /// A gating conformance run: enforces the accepted-set ratchet
 /// (measurement-integrity.md §2) on top of the integer/FP gates.
 pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<ConformanceSummary> {
-    run_conformance_inner(options, SetGate::Enforce, false, None, None).map(|run| run.summary)
+    run_conformance_inner(options, SetGate::Enforce, false, None, None, None).map(|run| run.summary)
 }
 
 /// The A5 rollup path: the identical gating run, additionally
@@ -675,7 +685,7 @@ pub fn run_conformance_with_families_report(
     report_out: &Path,
 ) -> ConformanceResult<ConformanceSummary> {
     let preparation = families::prepare_report(&options.workspace)?;
-    let run = run_conformance_inner(options, SetGate::Enforce, true, None, None)?;
+    let run = run_conformance_inner(options, SetGate::Enforce, true, None, None, None)?;
     let observation = run
         .observation
         .expect("observing run collects an observation");
@@ -695,14 +705,22 @@ pub fn run_conformance_with_families_report(
 pub(crate) fn run_conformance_collect(
     options: &ConformanceOptions,
 ) -> ConformanceResult<ConformanceRun> {
-    run_conformance_inner(options, SetGate::Collect, false, None, None)
+    run_conformance_inner(options, SetGate::Collect, false, None, None, None)
 }
 
 pub(crate) fn run_conformance_collect_with_t4(
     options: &ConformanceOptions,
     planned_t4_pins: Option<&ratchet::T4OraclePins>,
+    planned_t4_empty_related_information: Option<&rendered::T4OracleEmptyRelatedInformation>,
 ) -> ConformanceResult<ConformanceRun> {
-    run_conformance_inner(options, SetGate::Collect, false, planned_t4_pins, None)
+    run_conformance_inner(
+        options,
+        SetGate::Collect,
+        false,
+        planned_t4_pins,
+        planned_t4_empty_related_information,
+        None,
+    )
 }
 
 /// The merge-gate shape: grade every fixed view while executing the
@@ -737,6 +755,7 @@ pub fn run_ci_conformance(
         SetGate::Enforce,
         true,
         None,
+        None,
         Some(&mut case_cache),
     )?;
     let all_observation = all_run
@@ -756,6 +775,7 @@ pub fn run_ci_conformance(
         SetGate::Enforce,
         false,
         None,
+        None,
         Some(&mut case_cache),
     )?
     .summary;
@@ -764,6 +784,7 @@ pub fn run_ci_conformance(
         &options_for(DiagnosticBand::Syntactic),
         SetGate::Enforce,
         false,
+        None,
         None,
         Some(&mut case_cache),
     )?
@@ -803,6 +824,7 @@ fn run_conformance_inner(
     set_gate: SetGate,
     families_observe: bool,
     planned_t4_pins: Option<&ratchet::T4OraclePins>,
+    planned_t4_empty_related_information: Option<&rendered::T4OracleEmptyRelatedInformation>,
     mut case_cache: Option<&mut CaseTsrsCache>,
 ) -> ConformanceResult<ConformanceRun> {
     let fixtures = select_fixtures(&RefreshOptions {
@@ -825,6 +847,12 @@ fn run_conformance_inner(
         SetGate::Enforce => Some(ratchet::load_accepted_for_gating(&options.workspace)?),
         SetGate::Collect => None,
     };
+    if planned_t4_pins.is_some() != planned_t4_empty_related_information.is_some() {
+        return Err(
+            "planned T4 pins and empty-related-information metadata must be supplied together"
+                .into(),
+        );
+    }
     let measure_t4 = options.band == DiagnosticBand::All
         && (planned_t4_pins.is_some()
             || accepted.as_ref().is_some_and(|accepted| accepted.t4_active));
@@ -1067,16 +1095,34 @@ fn run_conformance_inner(
                 )
             };
             if measure_t4 {
-                let oracle_t4_pin = planned_t4_pins
-                    .and_then(|fixtures| fixtures.get(&fixture_key))
-                    .and_then(|cases| cases.get(&program.matrix_key))
-                    .map(String::as_str)
-                    .or_else(|| {
-                        (golden.schema >= 3).then_some(golden_case.oracle_cli_hash.as_str())
-                    })
+                let oracle_t4_pin = if let Some(fixtures) = planned_t4_pins {
+                    fixtures
+                        .get(&fixture_key)
+                        .and_then(|cases| cases.get(&program.matrix_key))
+                        .map(String::as_str)
+                } else {
+                    (golden.schema >= 3).then_some(golden_case.oracle_cli_hash.as_str())
+                }
+                .ok_or_else(|| {
+                    format!(
+                        "active T4 measurement lacks a genuine oracle pin for \
+                         {fixture_key} [{}]",
+                        program.matrix_key
+                    )
+                })?;
+                let oracle_empty_related_information =
+                    if let Some(fixtures) = planned_t4_empty_related_information {
+                        fixtures
+                            .get(&fixture_key)
+                            .and_then(|cases| cases.get(&program.matrix_key))
+                            .map(Vec::as_slice)
+                    } else {
+                        (golden.schema >= 3)
+                            .then_some(golden_case.oracle_empty_related_information.as_slice())
+                    }
                     .ok_or_else(|| {
                         format!(
-                            "active T4 measurement lacks a genuine oracle pin for \
+                            "active T4 measurement lacks empty-related-information metadata for \
                              {fixture_key} [{}]",
                             program.matrix_key
                         )
@@ -1084,8 +1130,8 @@ fn run_conformance_inner(
                 if rendered::supported_case_t4_matches(
                     &program,
                     &vendor_lib_dir,
-                    &golden_case.oracle,
-                    &case_tsrs.all,
+                    (&golden_case.oracle, oracle_empty_related_information),
+                    (&case_tsrs.all, &case_tsrs.all_empty_related_information),
                     &excluded_indices,
                     &fully_excluded,
                     oracle_t4_pin,
@@ -1709,6 +1755,11 @@ fn read_lib_inputs(
 /// syntactic pass, so one run grades every fixed view.
 struct CaseTsrs {
     all: Vec<GoldenDiag>,
+    /// Indices in the canonical aggregate stream whose Rust
+    /// Diagnostic has a present-but-empty related-information property.
+    /// GoldenDiag intentionally cannot serialize this formatter-only
+    /// distinction because schema 2 fixed the structured oracle bytes.
+    all_empty_related_information: BTreeSet<usize>,
     syntactic: Vec<GoldenDiag>,
     partial_checks: Vec<PartialCheck>,
 }
@@ -1738,12 +1789,22 @@ fn current_case_tsrs(
         &compiler_options_from_program(program),
         &program.cwd,
     );
+    let all_empty_related_information = result
+        .diagnostics
+        .iter()
+        .enumerate()
+        .filter_map(|(index, diagnostic)| {
+            (diagnostic.related_information_present && diagnostic.related.is_empty())
+                .then_some(index)
+        })
+        .collect();
     Ok(CaseTsrs {
         all: result
             .diagnostics
             .iter()
             .map(|diag| GoldenDiag::from_tsrs(diag, &file_texts))
             .collect(),
+        all_empty_related_information,
         syntactic: result
             .syntactic_diagnostics
             .iter()

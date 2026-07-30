@@ -125,6 +125,11 @@ function normalizeNewlines(text) {
 }
 
 function deserializeDiagnostic(record, program, cwd) {
+  const relatedInformation = (record.related ?? []).map((related) =>
+    deserializeRelated(related, program, cwd)
+  );
+  const relatedInformationPresent =
+    record.relatedInformationPresent === true || relatedInformation.length > 0;
   return {
     file: sourceFileForRecord(record.file, program, cwd),
     start: record.start ?? undefined,
@@ -132,9 +137,7 @@ function deserializeDiagnostic(record, program, cwd) {
     code: record.code,
     category: categoryValue(record.category),
     messageText: deserializeMessageText(record.chain),
-    relatedInformation: record.related?.length
-      ? record.related.map((related) => deserializeRelated(related, program, cwd))
-      : undefined,
+    relatedInformation: relatedInformationPresent ? relatedInformation : undefined,
     reportsUnnecessary: record.reportsUnnecessary || undefined,
     reportsDeprecated: record.reportsDeprecated || undefined,
     source: record.source ?? undefined,
@@ -190,6 +193,7 @@ function serializeDiagnostic(diagnostic, publicNames) {
     related: (diagnostic.relatedInformation ?? []).map((related) =>
       serializeRelated(related, publicNames)
     ),
+    relatedInformationPresent: diagnostic.relatedInformation !== undefined,
     reportsUnnecessary: !!diagnostic.reportsUnnecessary,
     reportsDeprecated: !!diagnostic.reportsDeprecated,
     source: diagnostic.source ?? null,
