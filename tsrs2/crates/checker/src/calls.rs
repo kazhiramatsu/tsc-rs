@@ -6461,10 +6461,9 @@ impl<'a> CheckerState<'a> {
         // Body-inference uncertainty cannot reach the predicate read:
         // inferred predicates are boolean-valued `x is T`, never
         // void/asserts, so the VOID filter keeps it
-        // annotation-driven. getTypeOfDottedName's related-info
-        // attachment on the 2775 diagnostic (77644) rides the T2/T3
-        // display band with the rest of the elided assertion
-        // elaboration.
+        // annotation-driven. The live 2775 diagnostic is passed back
+        // through getTypeOfDottedName so getExplicitTypeOfSymbol can
+        // attach 2782 at the first declaration without an annotation.
         if self.kind_of(node) == SyntaxKind::CallExpression {
             let question_dot_token = match self.data_of(node) {
                 NodeData::CallExpression(data) => data.question_dot_token,
@@ -6488,11 +6487,16 @@ impl<'a> CheckerState<'a> {
                             &[],
                         );
                     } else if self.get_effects_signature(node)?.is_none() {
-                        self.error_at(
-                            Some(expression),
+                        let mut diagnostic = self.diagnostic_for_node(
+                            expression,
                             &diagnostics::Assertions_require_every_name_in_the_call_target_to_be_declared_with_an_explicit_type_annotation,
                             &[],
                         );
+                        self.get_type_of_dotted_name_with_diagnostic(
+                            expression,
+                            Some(&mut diagnostic),
+                        )?;
+                        self.push_error_diagnostic(diagnostic);
                     }
                 }
             }
@@ -6803,6 +6807,60 @@ mod tests {
                 "function assert(_alue: unknown): asserts _alue {}\nconst helpers = { assert };\nfunction g(x: unknown) {\n    helpers.assert(typeof x === \"string\");\n    (0, assert)(typeof x === \"string\");\n}\n"
             ),
             [(2775, 107, 14), (2695, 151, 1), (2776, 150, 11)]
+        );
+    }
+
+    #[test]
+    fn assertion_position_2775_keeps_explicit_annotation_related_info() {
+        let related = with_program_state(
+            &[(
+                "a.ts",
+                "function direct(value: unknown) {\n\
+                     const assert = (condition: unknown): asserts condition => {};\n\
+                     assert(value);\n\
+                 }\n\
+                 class Test {\n\
+                     assert(value: unknown): asserts value {}\n\
+                 }\n\
+                 function inferredReceiver(value: unknown) {\n\
+                     const t1 = new Test();\n\
+                     t1.assert(value);\n\
+                 }\n\
+                 class PropertyOwner {\n\
+                     assert = (condition: unknown): asserts condition => {};\n\
+                     run(value: unknown) { this.assert(value); }\n\
+                 }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| diagnostic.code() == 2775)
+                    .map(|diagnostic| {
+                        diagnostic
+                            .related
+                            .iter()
+                            .map(|info| (info.message.code, info.message.text.clone()))
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>()
+            },
+        );
+        assert_eq!(
+            related,
+            [
+                vec![(
+                    2782,
+                    "'assert' needs an explicit type annotation.".to_owned()
+                )],
+                vec![(2782, "'t1' needs an explicit type annotation.".to_owned())],
+                vec![(
+                    2782,
+                    "'assert' needs an explicit type annotation.".to_owned()
+                )],
+            ]
         );
     }
 
