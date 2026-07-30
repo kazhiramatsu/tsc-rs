@@ -1212,10 +1212,14 @@ fn generated_source(seed: u64, case: usize) -> String {
             "function g{case}<T>(x: T, y: T): T {{ return x; }}\ng{case}(1, \"x\");\n"
         ),
         6 => format!(
-            "function assertionOwner{case}(value{case}: unknown) {{\n\
-                 const assert{case} = (condition{case}: unknown): asserts condition{case} => {{}};\n\
-                 assert{case}(value{case});\n\
-             }}\n"
+            "// @allowJS: true\n\
+             // @checkJs: true\n\
+             // @filename: /main.js\n\
+             /**\n\
+              * @typedef {{Object}} SatisfiesTarget{case}\n\
+              * @property {{number}} required{case}\n\
+              */\n\
+             const satisfiesValue{case} = /** @satisfies {{SatisfiesTarget{case}}} */ ({{}});\n"
         ),
         _ => format!(
             "declare function o{case}(a: number): void;\ndeclare function o{case}(a: string): void;\no{case}(true);\n"
