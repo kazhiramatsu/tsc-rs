@@ -861,6 +861,43 @@ pub(crate) struct RelationErrorState {
     should_skip_elaboration: bool,
 }
 
+fn count_message_chain_breadth(info: &[MessageChain]) -> usize {
+    info.iter()
+        .map(|chain| 1 + count_message_chain_breadth(&chain.next))
+        .sum()
+}
+
+fn indexed_access_error_info_selection<'s>(
+    original: &'s RelationErrorState,
+    current: &'s RelationErrorState,
+) -> Option<&'s RelationErrorState> {
+    let (Some(original_info), Some(current_info)) =
+        (original.error_info.as_ref(), current.error_info.as_ref())
+    else {
+        return None;
+    };
+    Some(
+        if count_message_chain_breadth(std::slice::from_ref(original_info))
+            <= count_message_chain_breadth(std::slice::from_ref(current_info))
+        {
+            original
+        } else {
+            current
+        },
+    )
+}
+
+fn variance_error_info_selection<'s>(
+    original: Option<&'s RelationErrorState>,
+    current: &'s RelationErrorState,
+    saved: &'s RelationErrorState,
+) -> &'s RelationErrorState {
+    original
+        .filter(|state| state.error_info.is_some())
+        .or_else(|| current.error_info.as_ref().map(|_| current))
+        .unwrap_or(saved)
+}
+
 /// The checkTypeRelatedTo closure state (maybe stack, recursion
 /// stacks, complexity budget) — checker-key §1.2's four invariants:
 /// Maybe results are never cached mid-recursion, commit happens on
@@ -1285,6 +1322,16 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         self.error_state.clone()
     }
 
+    /// Capture tsc's nullable `errorInfo` value together with the
+    /// owned revision token. A Rust snapshot with an empty chain is
+    /// not equivalent to JavaScript's falsy `undefined`.
+    pub(crate) fn capture_current_error_info(&self) -> Option<RelationErrorState> {
+        self.error_state
+            .error_info
+            .as_ref()
+            .map(|_| self.error_state.clone())
+    }
+
     /// tsrs-native: owned-state restore for tsc's closure-local
     /// resetErrorInfo assignment sequence.
     pub(crate) fn reset_error_info(&mut self, saved: &RelationErrorState) {
@@ -1297,10 +1344,35 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         self.error_state.error_info_revision == saved.error_info_revision
     }
 
+    /// `countMessageChainBreadth` and the indexed-access retry's
+    /// shallower-chain selection. tsc compares every node in the
+    /// original componentwise failure with every node in the
+    /// constraint-retry failure and keeps the original on ties.
+    ///
+    /// tsc-port: indexed-access errorInfo breadth selection @6.0.3
+    /// tsc-hash: 5345a387db70bb2a21b2012657fdc5096d8f3937d986fec396b191cbcaa4e679
+    /// tsc-span: _tsc.js:66164-66207
+    pub(crate) fn select_shallower_indexed_access_error_info(
+        &mut self,
+        original: &RelationErrorState,
+    ) {
+        if let Some(selected) = indexed_access_error_info_selection(original, &self.error_state) {
+            let error_info = selected.error_info.clone();
+            let revision = selected.error_info_revision;
+            self.error_state.error_info = error_info;
+            self.error_state.error_info_revision = revision;
+        }
+    }
+
     /// `errorInfo = originalErrorInfo || errorInfo ||
     /// saveErrorInfo.errorInfo` at the end of the invariant variance
     /// fallback. tsc restores only the chain here, not the other
     /// captured error-calculation fields.
+    ///
+    /// tsc-port: variance structural-fallback errorInfo selection @6.0.3
+    /// tsc-hash: 195842bf8de93b6709fb8223a82cda92b24af29ad7c85dbddf4d6c0d03c5a853
+    /// tsc-span: _tsc.js:66446-66471
+    ///
     /// tsrs-native: owned-chain projection of tsc's direct errorInfo
     /// fallback assignment.
     pub(crate) fn restore_variance_error_info(
@@ -1308,20 +1380,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         original: Option<&RelationErrorState>,
         saved: &RelationErrorState,
     ) {
-        let selected = original
-            .filter(|state| state.error_info.is_some())
-            .or_else(|| {
-                self.error_state
-                    .error_info
-                    .as_ref()
-                    .map(|_| &self.error_state)
-            })
-            .or_else(|| saved.error_info.as_ref().map(|_| saved))
-            .map(|state| (state.error_info.clone(), state.error_info_revision));
-        if let Some((error_info, revision)) = selected {
-            self.error_state.error_info = error_info;
-            self.error_state.error_info_revision = revision;
-        }
+        let selected = variance_error_info_selection(original, &self.error_state, saved);
+        let error_info = selected.error_info.clone();
+        let revision = selected.error_info_revision;
+        self.error_state.error_info = error_info;
+        self.error_state.error_info_revision = revision;
     }
 
     /// tsc-port: reportIncompatibleError @6.0.3
@@ -3963,4 +4026,85 @@ fn is_numeric_literal_name(name: &str) -> bool {
     !name.is_empty()
         && name.bytes().all(|b| b.is_ascii_digit())
         && (name == "0" || !name.starts_with('0'))
+}
+
+#[cfg(test)]
+mod relation_error_state_tests {
+    use super::{
+        indexed_access_error_info_selection, variance_error_info_selection, RelationErrorState,
+    };
+    use tsrs2_diags::{DiagnosticCategory, MessageChain};
+
+    fn chain(depth: usize, label: &str) -> MessageChain {
+        MessageChain {
+            code: depth as u32,
+            category: DiagnosticCategory::Error,
+            text: format!("{label}-{depth}"),
+            next: (depth > 1)
+                .then(|| chain(depth - 1, label))
+                .into_iter()
+                .collect(),
+        }
+    }
+
+    fn state(depth: Option<usize>, revision: u64) -> RelationErrorState {
+        RelationErrorState {
+            error_info: depth.map(|depth| chain(depth, "chain")),
+            error_info_revision: revision,
+            ..RelationErrorState::default()
+        }
+    }
+
+    #[test]
+    fn relation_error_state_selectors_follow_tsc_priority_and_breadth() {
+        let original_short = state(Some(1), 1);
+        let original_long = state(Some(3), 2);
+        let current_short = state(Some(1), 3);
+        let current_long = state(Some(3), 4);
+        let empty = state(None, 5);
+        let saved = state(Some(2), 6);
+
+        assert!(std::ptr::eq(
+            indexed_access_error_info_selection(&original_short, &current_long)
+                .expect("both chains exist"),
+            &original_short,
+        ));
+        assert!(std::ptr::eq(
+            indexed_access_error_info_selection(&original_long, &current_short)
+                .expect("both chains exist"),
+            &current_short,
+        ));
+        assert!(
+            std::ptr::eq(
+                indexed_access_error_info_selection(&original_short, &current_short)
+                    .expect("equal breadth favors original"),
+                &original_short,
+            ),
+            "tsc's <= tie break keeps originalErrorInfo"
+        );
+        assert!(
+            indexed_access_error_info_selection(&empty, &current_short).is_none(),
+            "a falsy originalErrorInfo does not trigger retry selection"
+        );
+
+        assert!(std::ptr::eq(
+            variance_error_info_selection(Some(&original_short), &current_short, &saved),
+            &original_short,
+        ));
+        assert!(std::ptr::eq(
+            variance_error_info_selection(Some(&empty), &current_short, &saved),
+            &current_short,
+        ));
+        assert!(std::ptr::eq(
+            variance_error_info_selection(Some(&empty), &empty, &saved),
+            &saved,
+        ));
+        assert!(
+            std::ptr::eq(
+                variance_error_info_selection(Some(&empty), &empty, &empty),
+                &empty,
+            ),
+            "all-falsy selection still restores the saved identity token"
+        );
+    }
 }

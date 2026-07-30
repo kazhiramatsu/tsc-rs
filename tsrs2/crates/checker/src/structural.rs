@@ -100,7 +100,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if !report_errors || !has_invariant {
                 return Ok(Some(Ternary::FALSE));
             }
-            *original_error_info = Some(self.capture_error_calculation_state());
+            *original_error_info = self.capture_current_error_info();
             self.reset_error_info(saved_error_info);
         }
         Ok(None)
@@ -793,9 +793,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 unreachable!("indexed-access flag implies indexed-access data");
             };
             if source_flags.intersects(TypeFlags::INDEXED_ACCESS) {
-                // 66165-66177: componentwise object/index relation;
-                // the originalErrorInfo juggling is display machinery
-                // — unported like the 66468-66471 precedent.
+                // 66165-66177: componentwise object/index relation.
                 let TypeData::IndexedAccess {
                     object_type: source_object,
                     index_type: source_index,
@@ -825,6 +823,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
                 if !is_false(result) {
                     return Ok(result);
+                }
+                if report_errors {
+                    original_error_info = self.capture_current_error_info();
                 }
             }
             if self.relation == RelationKind::Assignable
@@ -861,6 +862,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         None,
                     )?;
                     if let Some(constraint) = constraint {
+                        if report_errors && original_error_info.is_some() {
+                            self.reset_error_info(saved_error_info);
+                        }
                         let result = self.is_related_to(
                             source,
                             constraint,
@@ -871,16 +875,28 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         if !is_false(result) {
                             return Ok(result);
                         }
+                        if report_errors {
+                            if let Some(original) = original_error_info.as_ref() {
+                                self.select_shallower_indexed_access_error_info(original);
+                            }
+                        }
                     }
                 }
+            }
+            if report_errors {
+                original_error_info = None;
             }
         }
         if self.relation != RelationKind::Identity
             && self.st.is_generic_mapped_type_state(target)?
         {
-            if let Some(result) =
-                self.generic_mapped_target_related_to(source, target, report_errors)?
-            {
+            if let Some(result) = self.generic_mapped_target_related_to(
+                source,
+                target,
+                report_errors,
+                saved_error_info,
+                &mut original_error_info,
+            )? {
                 return Ok(result);
             }
         }
@@ -1310,10 +1326,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if !target_flags.intersects(TypeFlags::CONDITIONAL)
                 && self.st.has_non_circular_base_constraint(source)?
             {
+                // tsc-port: distributive-constraint retry @6.0.3
+                // tsc-hash: 6de6d80ca57c45142ea7cfaa2536e6c9aefd4ef04338b569e6a9cf9fba7353bc
+                // tsc-span: _tsc.js:66388-66400
                 if let Some(distributive_constraint) = self
                     .st
                     .get_constraint_of_distributive_conditional_type(source)?
                 {
+                    self.reset_error_info(saved_error_info);
                     let result = self.is_related_to(
                         distributive_constraint,
                         target,
@@ -1648,15 +1668,23 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         Ok(ternary_and(constraint_result, template_result))
     }
 
-    /// tsrs-native: extracted generic-mapped target arm of
-    /// structuredTypeRelatedToWorker (66204-66243). `None` means that
-    /// the arm did not produce a successful relation and the
-    /// source-side dispatch must continue.
+    /// tsc-port: generic-mapped target arm @6.0.3
+    /// tsc-hash: c3ee36a0d2ca24ac76adf73571b12f0f7c3009fed9201b9368c3b23a957efffc
+    /// tsc-span: _tsc.js:66208-66240
+    ///
+    /// tsrs-native extraction from structuredTypeRelatedToWorker.
+    /// `None` means that the arm did not produce a successful relation
+    /// and the source-side dispatch must continue. A failed
+    /// non-generic-source attempt preserves its chain as
+    /// originalErrorInfo and restores the worker-entry state before
+    /// that continuation.
     fn generic_mapped_target_related_to(
         &mut self,
         source: TypeId,
         target: TypeId,
         report_errors: bool,
+        saved_error_info: &crate::engine::RelationErrorState,
+        original_error_info: &mut Option<crate::engine::RelationErrorState>,
     ) -> CheckResult2<Option<Ternary>> {
         let keys_remapped = self.st.mapped_type_declaration_has_name_type(target);
         let template = self.st.get_template_type_from_mapped_type(target)?;
@@ -1710,6 +1738,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             )?),
         };
         if !keys_related {
+            *original_error_info = self.capture_current_error_info();
+            self.reset_error_info(saved_error_info);
             return Ok(None);
         }
         let non_null_component = self.st.tables.filter_type(template, |tables, member| {
@@ -1733,6 +1763,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     if !is_false(result) {
                         return Ok(Some(result));
                     }
+                    *original_error_info = self.capture_current_error_info();
+                    self.reset_error_info(saved_error_info);
                     return Ok(None);
                 }
             }
@@ -1760,7 +1792,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             report_errors,
             IntersectionState::NONE,
         )?;
-        Ok((!is_false(result)).then_some(result))
+        if !is_false(result) {
+            return Ok(Some(result));
+        }
+        *original_error_info = self.capture_current_error_info();
+        self.reset_error_info(saved_error_info);
+        Ok(None)
     }
 
     /// tsc-port: typeRelatedToDiscriminatedType @6.0.3
@@ -10227,6 +10264,89 @@ let primitiveSymbol: symbol = boxedSymbol;
                 "declare function isB(a: unknown, b: unknown): b is string;\nconst m2: (a: unknown, b: unknown) => b is string = isB;\n"
             ),
             (vec![], 0)
+        );
+    }
+
+    #[test]
+    fn relation_error_state_generic_mapped_cleanup_preserves_the_tsc_boundary() {
+        fn flatten(chain: &tsrs2_diags::MessageChain, out: &mut Vec<(u32, String)>) {
+            out.push((chain.code, chain.text.clone()));
+            for child in &chain.next {
+                flatten(child, out);
+            }
+        }
+
+        fn error_chains(text: &str, options: &CompilerOptions) -> Vec<Vec<(u32, String)>> {
+            crate::state::test_support::with_program_state(&[("a.ts", text)], options, |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| {
+                        diagnostic.file_name.is_some()
+                            && diagnostic.category() == tsrs2_diags::DiagnosticCategory::Error
+                    })
+                    .map(|diagnostic| {
+                        let mut chain = Vec::new();
+                        flatten(&diagnostic.message, &mut chain);
+                        chain
+                    })
+                    .collect()
+            })
+        }
+
+        let options = CompilerOptions {
+            strict_null_checks: Some(true),
+            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            ..CompilerOptions::default()
+        };
+
+        assert_eq!(
+            error_chains(
+                "type Partial<T> = { [P in keyof T]?: T[P] };\n\
+                 type Thing = { a: string, b: string };\n\
+                 function f<T extends Thing>(x: Partial<Thing>, y: Partial<T>) {\n\
+                     y = x;\n\
+                 }\n",
+                &options,
+            ),
+            [vec![(
+                2322,
+                "Type 'Partial<Thing>' is not assignable to type 'Partial<T>'.".to_owned(),
+            )]],
+            "a non-generic mapped source cleans up the speculative detail"
+        );
+
+        assert_eq!(
+            error_chains(
+                "function g<T, U extends T>(\n\
+                     x: { [P in keyof T]: T[P] },\n\
+                     y: { [P in keyof T]: U[P] },\n\
+                 ) {\n\
+                     y = x;\n\
+                 }\n",
+                &options,
+            ),
+            [vec![
+                (
+                    2322,
+                    "Type '{ [P in keyof T]: T[P]; }' is not assignable to type \
+                     '{ [P in keyof T]: U[P]; }'."
+                        .to_owned(),
+                ),
+                (
+                    2322,
+                    "Type 'T[P]' is not assignable to type 'U[P]'.".to_owned(),
+                ),
+                (2322, "Type 'T' is not assignable to type 'U'.".to_owned(),),
+                (
+                    5082,
+                    "'U' could be instantiated with an arbitrary type which could be unrelated \
+                     to 'T'."
+                        .to_owned(),
+                ),
+            ]],
+            "a generic mapped source bypasses cleanup and keeps its detail"
         );
     }
 }
