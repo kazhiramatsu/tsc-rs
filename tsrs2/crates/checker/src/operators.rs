@@ -4640,10 +4640,10 @@ impl<'a> CheckerState<'a> {
     ///
     /// Error paths live since 5.5f: the circularity arms report 1062
     /// at the caller's errorNode; the thenable tail reports the
-    /// caller's head message (1320/1058-family). tsc chains a 2684
-    /// this-context row plus the head into ONE message chain — the
-    /// chain TAIL is elided with the 5.4 head-only discipline (code
-    /// and span are the head's; only text depth differs, T2).
+    /// caller's head message (1320/1058-family). When
+    /// getPromisedTypeOfPromise rejected every `then` signature on
+    /// its explicit-this relation, tsc appends the 2684 this-context
+    /// row under that head in one message chain.
     pub(crate) fn get_awaited_type_no_alias(
         &mut self,
         ty: TypeId,
@@ -4714,12 +4714,24 @@ impl<'a> CheckerState<'a> {
         }
         if self.is_thenable_type(ty)? {
             if let Some((error_node, message)) = error_info {
-                // chainDiagnosticMessages([2684 this-context?], head):
-                // the head's code+span emit; the chain tail (incl. the
-                // 2684 row when thisTypeForError is set) is elided
-                // with the 5.4 head-only discipline.
-                let _ = this_type_for_error;
-                self.error_at(Some(error_node), message, &[]);
+                // getAwaitedTypeNoAlias 82485-82490:
+                // chainDiagnosticMessages first creates the optional
+                // 2684 detail, then prepends the caller's head.
+                let detail = match this_type_for_error {
+                    Some(this_type) => {
+                        let type_text = self.type_to_string_slice(ty)?;
+                        let this_text = self.type_to_string_slice(this_type)?;
+                        vec![tsrs2_diags::MessageChain::new(
+                            &tsrs2_diags::gen::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1,
+                            &[type_text, this_text],
+                        )]
+                    }
+                    None => Vec::new(),
+                };
+                let chain = tsrs2_diags::MessageChain::new(message, &[]).with_next(detail);
+                let span = self.diag_span_of_node(error_node);
+                let diagnostic = self.diagnostic_at_span(&span, chain);
+                self.push_error_diagnostic(diagnostic);
             }
             return Ok(None);
         }
@@ -5019,6 +5031,52 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    #[test]
+    fn awaited_thenable_with_incompatible_this_appends_2684_detail() {
+        let text = "interface EPromise<E, A> {\n\
+                        e: E;\n\
+                        then<B>(this: EPromise<never, A>, onfulfilled?: (value: A) => B): B;\n\
+                    }\n\
+                    declare const value: EPromise<number, string>;\n\
+                    async function f() { await value; }\n";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 1320)
+                .expect("invalid await operand");
+            assert_eq!(
+                diagnostic.message.text,
+                "Type of 'await' operand must either be a valid promise or must not contain a callable 'then' member."
+            );
+            assert_eq!(diagnostic.message.next.len(), 1);
+            assert_eq!(diagnostic.message.next[0].code, 2684);
+            assert_eq!(
+                diagnostic.message.next[0].text,
+                "The 'this' context of type 'EPromise<number, string>' is not assignable to method's 'this' of type 'EPromise<never, string>'."
+            );
+            assert!(diagnostic.message.next[0].next.is_empty());
+            assert!(diagnostic.related.is_empty());
+        });
+    }
+
+    #[test]
+    fn awaited_thenable_without_this_rejection_keeps_1320_head_only() {
+        let text = "declare const value: { then(onfulfilled: number): void };\n\
+                    async function f() { await value; }\n";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 1320)
+                .expect("invalid await operand");
+            assert!(diagnostic.message.next.is_empty());
+            assert!(diagnostic.related.is_empty());
+        });
     }
 
     // ---- arithmetic / + / relational / equality arms ----
