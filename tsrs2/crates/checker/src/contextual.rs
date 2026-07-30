@@ -3688,18 +3688,27 @@ impl<'a> CheckerState<'a> {
             let hosts = self.jsdoc_hosts_for_declaration(function);
             // tsc getJSDocParameterTags does not treat a function-level
             // @type as the annotation of each parameter. Explicit
-            // @constructor signatures likewise stay on their separate
-            // constructor owner path.
-            if hosts.iter().copied().any(|host| {
+            // @constructor signatures and generic @template scopes
+            // likewise stay on their separate owner paths until those
+            // tag kinds are materialized dependency-completely.
+            let has_generic_tag_named = |host: NodeId, names: &[&str]| {
                 self.direct_jsdoc_tags(host).into_iter().any(|tag| {
                     let NodeData::JSDocTag(data) = self.data_of(tag) else {
                         return false;
                     };
                     data.tag_name
                         .and_then(|tag_name| self.identifier_text(tag_name))
-                        == Some("constructor")
+                        .is_some_and(|name| names.contains(&name))
                 })
-            }) {
+            };
+            let deferred_direct_owner = hosts
+                .iter()
+                .copied()
+                .any(|host| has_generic_tag_named(host, &["constructor", "template"]));
+            let deferred_enclosing_template_scope =
+                std::iter::successors(Some(function), |&node| self.parent_of(node))
+                    .any(|host| has_generic_tag_named(host, &["template"]));
+            if deferred_direct_owner || deferred_enclosing_template_scope {
                 return None;
             }
             for host in hosts {

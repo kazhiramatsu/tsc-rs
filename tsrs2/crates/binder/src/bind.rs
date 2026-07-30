@@ -311,33 +311,14 @@ impl<'a> Binder<'a> {
                     SymbolFlags::PROPERTY_EXCLUDES,
                 );
             }
-            SyntaxKind::JSDocPropertyTag | SyntaxKind::JSDocParameterTag => {
-                let (is_bracketed, type_expression) = match &self.source.arena.node(node).data {
-                    NodeData::JSDocPropertyTag(data) => (data.is_bracketed, data.type_expression),
-                    NodeData::JSDocParameterTag(data) => (data.is_bracketed, data.type_expression),
-                    _ => (false, None),
-                };
-                let optional_type = type_expression
-                    .and_then(
-                        |expression| match &self.source.arena.node(expression).data {
-                            NodeData::JSDocTypeExpression(data) => data.r#type,
-                            _ => None,
-                        },
-                    )
-                    .is_some_and(|r#type| {
-                        kind_of(self.source, r#type) == SyntaxKind::JSDocOptionalType
-                    });
-                self.declare_symbol_and_add_to_symbol_table(
-                    node,
-                    SymbolFlags::PROPERTY
-                        | if is_bracketed || optional_type {
-                            SymbolFlags::OPTIONAL
-                        } else {
-                            SymbolFlags::NONE
-                        },
-                    SymbolFlags::PROPERTY_EXCLUDES,
-                );
+            SyntaxKind::JSDocParameterTag => {
+                match parent_of(self.source, node).map(|parent| kind_of(self.source, parent)) {
+                    Some(SyntaxKind::JSDocSignature) => self.bind_parameter(node),
+                    Some(SyntaxKind::JSDocTypeLiteral) => self.bind_jsdoc_property_like_tag(node),
+                    _ => {}
+                }
             }
+            SyntaxKind::JSDocPropertyTag => self.bind_jsdoc_property_like_tag(node),
             SyntaxKind::JSDocTypedefTag
             | SyntaxKind::JSDocCallbackTag
             | SyntaxKind::JSDocEnumTag => self.delayed_type_aliases.push(node),
@@ -923,6 +904,32 @@ impl<'a> Binder<'a> {
                 }
             }
         }
+    }
+
+    fn bind_jsdoc_property_like_tag(&mut self, node: NodeId) {
+        let (is_bracketed, type_expression) = match &self.source.arena.node(node).data {
+            NodeData::JSDocPropertyTag(data) => (data.is_bracketed, data.type_expression),
+            NodeData::JSDocParameterTag(data) => (data.is_bracketed, data.type_expression),
+            _ => unreachable!("JSDoc property-like kind implies payload"),
+        };
+        let optional_type = type_expression
+            .and_then(
+                |expression| match &self.source.arena.node(expression).data {
+                    NodeData::JSDocTypeExpression(data) => data.r#type,
+                    _ => None,
+                },
+            )
+            .is_some_and(|r#type| kind_of(self.source, r#type) == SyntaxKind::JSDocOptionalType);
+        self.declare_symbol_and_add_to_symbol_table(
+            node,
+            SymbolFlags::PROPERTY
+                | if is_bracketed || optional_type {
+                    SymbolFlags::OPTIONAL
+                } else {
+                    SymbolFlags::NONE
+                },
+            SymbolFlags::PROPERTY_EXCLUDES,
+        );
     }
 
     fn parameter_index(&self, function: NodeId, parameter: NodeId) -> Option<usize> {
@@ -5111,6 +5118,23 @@ function outer() {
             kind_of(&source, property_symbol.declarations[0]),
             SyntaxKind::JSDocPropertyTag
         );
+    }
+
+    #[test]
+    fn host_parameter_jsdoc_tag_does_not_redeclare_the_parameter() {
+        let source = parse_named(
+            "a.js",
+            "/** @param {number} value */\nfunction f(value) {}\n",
+            true,
+        );
+        let binder = bind(&source);
+        let function = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
+        let parameter = find_nodes(&source, SyntaxKind::Parameter)[0];
+        let tag = find_nodes(&source, SyntaxKind::JSDocParameterTag)[0];
+        let symbol = binder.locals[&function]["value"];
+
+        assert_eq!(binder.symbols.symbol(symbol).declarations, [parameter]);
+        assert!(!binder.node_symbol.contains_key(&tag));
     }
 
     #[test]
