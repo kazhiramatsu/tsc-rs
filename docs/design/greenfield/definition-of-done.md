@@ -30,9 +30,13 @@ two-view contract in [m8-readiness.md](m8-readiness.md):
    between** (the standing invariant, not just at the end). Scope
    exclusions are exact reviewed diagnostic identities; no
    fixture/code/glob exclusion exists.
-2. **Supported-scope T4 per case**: the rendered-output hash equals the oracle's
-   (`tsrs_cli_hash == oracle_cli_hash` in the goldens) — ordering
-   and dedupe included.
+2. **Supported-scope T4 per case**: replaying the complete oracle records
+   through the Rust formatter first reproduces the genuine
+   `oracle_cli_hash` stored in the schema-3 golden. After that formatter
+   anchor verifies, exact A2 scope is applied and the supported oracle and
+   current tsrs rendered bytes are byte-identical — ordering and dedupe
+   included. The golden stores oracle output evidence only; it never
+   persists a tsrs output or `tsrs_cli_hash` baseline.
 3. **Suggestion-pass rows are in scope** insofar as they are
    emit-free (the M7 band: unused/grammar/suggestion). They already
    sit in the All-band denominator (band filtering is code-based);
@@ -85,23 +89,19 @@ different obligations:
   available; the slice may not knowingly choose a T0-equivalent but
   structurally wrong reporter merely because the higher tier is still
   shadow-only.
-- **Shadow evidence before identity diff tooling**: while conformance
-  exposes T1/T2/T3 only as band-level shadow rates plus row data in
-  `mismatches.json`, a slice records the before/after rates and reviews
-  the target-family rows directly. This is the current evidence for the
-  no-trade rule above; it must not be described as an automated
-  identity-level shadow ratchet. Phase 9.3c adds exact per-tier
-  matched/lost/gained identity fields (or stable hashes) to
-  `conformance --out-json` after the display ladder and before 9.4b; an
-  external `cargo xtask conformance-diff <old> <new>` report compares
-  two observations. It does not change A1 or any ratchet artifact. From
-  9.4b onward, the exact diff is mandatory PR evidence: a loss is fixed
-  or attached to the existing exact-row shared-prerequisite debt record.
-  It becomes an automated no-loss gate only after that debt vocabulary
-  is machine-readable.
-  This remains shadow/report-only rather than early corpus-wide tier
-  activation. Earlier slices continue using the manual evidence above.
-  Do not reconstruct tier identities from aggregate rates.
+- **Pre-identity-diff evidence history**: before phase 9.3c, conformance
+  exposed T1/T2/T3 only as band-level shadow rates plus row data in
+  `mismatches.json`. Slices therefore recorded before/after rates and
+  reviewed target-family rows directly; that historical procedure was
+  review evidence, never an automated identity-level ratchet. Phase 9.3c
+  added exact per-tier matched/lost/gained identities to
+  `conformance --out-json`, and
+  `cargo xtask conformance-diff <old> <new>` now compares two observations.
+  The report never changes A1 or a ratchet artifact. Before the formal
+  `tier1-3-input-schema-extension` it is shadow/report-only; after that
+  transition it remains supplemental slice evidence while A1 is the
+  enforcement authority. Do not reconstruct tier identities from aggregate
+  rates.
 - **Pre-A3 T4**: local formatter goldens and
   `conformance --tier t4 --report-only` are validation evidence, not
   accepted T4 identities and not corpus-wide T4 activation. The A3
@@ -124,6 +124,13 @@ recorded upper-tier blocker. This policy keeps the causal clarity of
 staged gates without creating a T0-only reporting architecture that
 must be replaced at the end.
 
+Checked JavaScript, including tsc-compatible JSDoc parsing, arena nodes,
+binding, type construction, relations, and diagnostics, is part of the M8
+batch-diagnostics surface. `plainJSErrors` is a tsc dispatch rule, not a
+scope boundary. Historical exact `jsdoc-semantics` exclusions return through
+A2 tombstones when their dependencies are implemented; a broad JSDoc
+exclusion is not permitted.
+
 ## Explicitly out of scope
 
 - **Emitter** (no JS/d.ts output; emit-dependent diagnostics get
@@ -139,11 +146,6 @@ must be replaced at the end.
   lsp-and-incremental.md) is design-only). Preconditions if ever
   started: owned lib cache (no `Box::leak`), collision-safe keys.
 - **Public TypeChecker API** surface.
-- **JS-file checking depth**: plain-JS files check to the
-  plainJSErrors allowlist; JSDoc-driven semantics are out until a
-  future decision revisits this line. Exact affected diagnostics use
-  `jsdoc-semantics` dispositions; non-JSDoc assignment-declaration
-  semantics are not excluded by this rule.
 - **Upstream tracking** (>6.0.3): a separate project with its own
   re-vendor + goldens-regeneration + ledger-refresh loop; nothing
   here promises forward compatibility.
@@ -157,13 +159,12 @@ not alter this scope denominator or claim M8 acceptance credit. See
 
 ## Performance / memory bounds
 
-- Full-corpus conformance (lib-loaded, 5,908 fixtures) stays under
-  **60 s wall** on the reference dev machine (current: ~15 s;
-  ratchet the regression, not the number).
-- Peak RSS for the corpus run is currently UNMEASURED; measure and
-  record a ceiling before M8's mining loop starts (the leaked lib
-  bundles are an accepted batch-mode cost until the LSP
-  precondition above).
+- Full-corpus conformance stays at or below **60 s wall** on an approved
+  runner profile.
+- Peak RSS stays within the reviewed ceiling declared for that approved
+  profile in `tsrs2/m8-evidence.json`. Completion consumes a fresh B4
+  observation against those ceilings; this document does not embed a
+  transient current measurement.
 
 ## Go / no-go checkpoints (external review, 2026-07-14)
 

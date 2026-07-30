@@ -101,10 +101,12 @@ port's report stands; it is not a mismatch. Recorded rows
    arm — Debug Failure. The port's synthesis
    (`get_async_from_sync_iteration_types`, checker/src/iterate.rs)
    passes the 1320 pair explicitly, so it reports where tsc dies.
-   Under the corpus lib regime both trigger shapes currently contain
-   upstream as conditional-type (`Awaited`/`BuiltinIteratorReturn`
-   machinery) M8-stub partials, so the deviation is corpus-inert
-   today and goes observable when M8 ports conditional types.
+   At the M4 review checkpoint, both trigger shapes were upstream of
+   conditional-type (`Awaited`/`BuiltinIteratorReturn`) partials and were
+   therefore corpus-inert. The conditional-type subsystem subsequently
+   landed, so that historical blocker no longer applies. This row now
+   records only the pinned oracle-crash classification for any supported
+   generated shape that reaches the path.
 
 3. The static-block `strictPropertyInitialization` probe under
    `strictNullChecks: false` — `getOptionalType` Debug assert; the

@@ -44,8 +44,10 @@ there.
    scope/architecture. Ordinary producer-owned implementation,
    evidence/ratchet updates, PR creation, CI fixes, and green-PR
    merges do not require approval.
-6. Bump `tsrs2/ratchet.toml` and `tsrs2/STAGE` as part of the slice,
-   not the merge. Pull `main` after merging.
+6. Update `tsrs2/ratchet.toml` in the slice that changes accepted state,
+   and update `tsrs2/STAGE` only in the slice that closes a milestone.
+   Neither update is deferred to the merge operation. Pull `main` after
+   merging.
 7. Trivial process/docs-only changes may land directly on `main`
    and be pushed.
 8. Pushing to `origin` is allowed and expected: push the slice branch
@@ -82,11 +84,12 @@ there.
   succeeds while rows remain pending during M8/M9.
   `cargo xtask completion --require-done` is the post-M9 release gate
   and fails with every pending row named.
-- Shadow-tier before/after report: run conformance twice with distinct
+- Tier before/after report: run conformance twice with distinct
   `--out-json` paths, then `cargo xtask conformance-diff <before.json>
   <after.json>` (optional `--out-json <path>`; default
-  `target/conformance/shadow-diff.json`). This is exact T1/T2/T3
-  review evidence only; it does not update or enforce a ratchet.
+  `target/conformance/shadow-diff.json`). This is exact T1/T2/T3 review
+  evidence: shadow/report-only before formal activation and supplemental
+  slice evidence afterwards. It does not itself update or enforce a ratchet.
 - Terminal-slice evidence: before editing, run `cargo xtask
   slice-evidence snapshot --slice <name> --targets <csv> --band
   <all|2xxx|syntactic> --out-dir </tmp/new-before-dir>`; after the

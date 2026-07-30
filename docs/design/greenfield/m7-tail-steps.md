@@ -277,6 +277,15 @@ already stores T1 identities.
 
 ## Stage 8.5: options + program-level diagnostics [M]
 
+> **M8 supersession note:** the formatter text and gates below record the
+> intended M7 contract. The M8 audit found that the actual schema-2 CLI-hash
+> fields and fuzzer T4 path still hashed or compared structured diagnostic
+> JSON rather than genuine rendered bytes. They provide no T4 acceptance
+> evidence. A3/M8 replaces those placeholders with the vendored formatter's
+> rendered bytes, a deterministic Rust formatter, and schema-3 SHA-256
+> evidence under the
+> [measurement-integrity contract](measurement-integrity.md#4-a3--t4-activation).
+
 `getOptionsDiagnostics` port (invalid combinations, 5069/5052-family
 the corpus exercises), the strict-family expansion
 (`getStrictOptionValue`), file-level program diagnostics
@@ -311,7 +320,7 @@ port currently drops.
 
 Commit: `m7 8.5: options + program diagnostics`.
 
-Gate: the program/resolution family rows reach acceptance; the T4
+Intended gate: the program/resolution family rows reach acceptance and the T4
 formatter structure is live
 ([measurement contract A3](measurement-integrity.md#4-a3--t4-activation)).
 

@@ -104,17 +104,25 @@ conformance crate tests. Schema 1 cannot freeze or satisfy readiness.
 
 #### A3. Real T4
 
-M7 lands deterministic formatter structure; M8 activates byte parity.
-Oracle T4 hashes come from the vendored formatter, enter the immutable
-oracle manifest through A3's one schema extension, and remain check-only
-afterwards. Accepted T4 cases grow through A1. See
+The M7 plan required deterministic formatter structure before M8. The later
+M8 audit established that the landed schema-2 CLI-hash fields and fuzzer T4
+path were hashes/comparisons of structured diagnostic JSON, not genuine
+rendered bytes. They are historical placeholders and confer no T4 acceptance
+credit. M8 replaces them with the deterministic Rust formatter and the
+vendored formatter's actual rendered bytes before activation.
+
+Genuine oracle T4 hashes enter the immutable oracle manifest through A3's one
+schema extension and remain check-only afterwards. Accepted T4 cases grow
+through A1. See
 [T4 activation](measurement-integrity.md#4-a3--t4-activation).
 
-M7 acceptance:
+A3 preparation and acceptance commands:
 
 ```sh
-cargo xtask oracle-refresh --render-hashes --check
 cargo xtask conformance --tier t4 --report-only
+cargo xtask ratchet update --transition t4-input-schema-extension
+cargo xtask oracle-refresh --render-hashes --check
+cargo xtask conformance
 cargo xtask ci
 ```
 

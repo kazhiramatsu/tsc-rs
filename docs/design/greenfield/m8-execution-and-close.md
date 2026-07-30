@@ -270,18 +270,20 @@ tails merely to reduce the displayed FN count. Three probes that expose the
 same model ceiling trigger the stall playbook and a design review rather
 than a fourth local patch.
 
-The `checkjs-jsdoc` family has reached that ceiling: comments were projected
+The `checkjs-jsdoc` family exposed that ceiling: comments had been projected
 from source text without declaration nodes, so exact relation chains and
 related declaration sites required repeated fabrication. A first bounded
 materialization experiment then showed that activating a subset of tags
-before template, import, signature, and host-scope dependencies are present
-changes real symbol and relation behavior. Its approved design correction is
+before template, import, signature, and host-scope dependencies were present
+changed real symbol and relation behavior. Its approved design correction was
 therefore the
 [complete M8 JSDoc subsystem port](m8-jsdoc-ast-materialization.md).
-JSDoc is implemented as one dependency-complete parser/AST/binder/checker
-chain. Dependency-ordered branch commits are allowed, but no partial
-semantic JSDoc slice is accepted or merged; new checker-side comment
-projections and local activation guards are not accepted.
+That dependency-complete parser/AST/binder/checker chain has landed, and
+resolved historical scope rows return through A2 tombstones. The lasting
+rule is unchanged: no partial semantic JSDoc slice, new checker-side comment
+projection, or local activation guard is an accepted implementation unit.
+The landed subsystem is a prerequisite for the formal A1/A3 corpus gates,
+not evidence that either transition has already occurred.
 
 Relation reporting follows the vendored control flow at every failure level.
 Whenever tsc renders a source/target pair, the source is read-normalized and

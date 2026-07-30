@@ -45,6 +45,12 @@ baseline, exact D2 trace/static owner-cluster method, per-slice evidence,
 global T0-T4/recovery order, M8 close, and M9 handoff. The readiness page
 opens M8; this page governs work after it opens.
 
+**Complete JSDoc subsystem:**
+[m8-jsdoc-ast-materialization.md](m8-jsdoc-ast-materialization.md) — the
+landed TypeScript 6.0.3 scanner/parser/arena/binder/checker port, its
+performance rules, and the distinction between subsystem completion and the
+separate formal A1/A3 corpus gates.
+
 **Terminal residue protocol:**
 [terminal-residue-protocol.md](terminal-residue-protocol.md) — the
 last-mile method used after a supported FN sweep becomes a small,
@@ -199,7 +205,7 @@ list and a printed function name are never slice identities. The report-only
 `cargo xtask m8 plan check` rejects stale exact hashes, non-partitioning
 clusters, cross-family assignments, and stale input fingerprints.
 
-The comparison tiers climb from T0 to T2/T3 through accepted-set activation,
+The comparison tiers climb from T0 through T1-T3 accepted-set activation,
 followed by A3 T4 byte parity and recovery zero. This is the corpus-wide
 activation order, not a T0-only coding rule: a newly observable family
 follows the
@@ -210,10 +216,12 @@ M8 has an executable entry contract: see
 [m8-readiness.md](m8-readiness.md) and run `cargo xtask m8 readiness`.
 `ready=true` authorizes work but does not close M8. `STAGE` remains `M7`
 until the M8 close slice. The fixed corpus is always reported whole; only
-exact reviewed
-host-resolution/JSDoc/emit-dependent oracle diagnostics leave the
-supported-scope T1-T4 denominator. The minimal differential fuzzer
-is running before M8 begins; M9 hardens it rather than introducing it.
+exact reviewed identities in the current A2 scope manifest leave the
+supported-scope T1-T4 denominator. `jsdoc-semantics` is a historical
+disposition class whose resolved identities remain as A2 tombstones, not a
+broad exclusion from the now-landed JSDoc subsystem. The minimal
+differential fuzzer is running before M8 begins; M9 hardens it rather than
+introducing it.
 
 ## Conventions
 

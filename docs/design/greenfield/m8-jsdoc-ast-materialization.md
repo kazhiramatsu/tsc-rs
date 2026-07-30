@@ -1,6 +1,8 @@
 # M8: complete JSDoc subsystem port
 
-Status: approved M8 design correction; full-port implementation active.
+Status: approved M8 design correction; dependency-complete implementation
+landed. Formal corpus-tier and T4 acceptance remain governed by the M8
+execution contract.
 
 This page owns the complete JSDoc subsystem used by the parser, binder, and
 checker during M8. It refines the
@@ -13,6 +15,20 @@ and checking paths. A bounded JSDoc owner slice is no longer an accepted
 landing unit. Work may be committed in dependency order on one branch, but
 the subsystem is accepted only after its parser, AST, binder, checker, and
 diagnostic dependencies are coherent across the full supported corpus.
+
+## Landed result
+
+The complete scanner/parser, arena-node, attachment, binder, checker, and
+ordinary diagnostic-control-flow chain has landed. The follow-up scope review
+returned every resolved historical `jsdoc-semantics` exclusion through A2
+tombstones instead of redefining the supported denominator. Superseded
+checker-side comment projections and partial-activation guards are not the
+production semantics.
+
+This result closes the representation correction described below. It does
+not by itself claim that the separate A1 tier transition or A3 rendered-output
+transition has occurred; those remain executable corpus-wide gates in the
+[M8 execution contract](m8-execution-and-close.md).
 
 ## Why the representation had to change
 
