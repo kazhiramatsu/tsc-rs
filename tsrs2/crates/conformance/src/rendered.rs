@@ -310,11 +310,11 @@ pub fn run_t4_report(options: &T4ReportOptions) -> ConformanceResult<T4Report> {
             )?;
             let rust_oracle_full_hash = rendered_sha256(&rust_oracle_full_rendered);
             let rust_formatter_matches_oracle = rust_oracle_full_rendered == genuine.rendered;
-            let golden_oracle_hash = (golden.schema >= GOLDEN_RENDER_SCHEMA)
-                .then(|| golden_case.oracle_cli_hash.clone());
-            let pin_matches = golden_oracle_hash
-                .as_ref()
-                .map(|expected| valid_sha256(expected) && *expected == oracle_full_hash);
+            let (golden_oracle_hash, pin_matches) = evaluate_golden_oracle_pin(
+                golden.schema,
+                &golden_case.oracle_cli_hash,
+                &oracle_full_hash,
+            );
 
             // Filtering preserves the already canonical tsc order.
             // Never sort serialized golden records again: canonicalHead
@@ -789,6 +789,18 @@ fn valid_sha256(hash: &str) -> bool {
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
+fn evaluate_golden_oracle_pin(
+    golden_schema: u32,
+    stored: &str,
+    observed: &str,
+) -> (Option<String>, Option<bool>) {
+    let stored = (golden_schema >= GOLDEN_RENDER_SCHEMA).then(|| stored.to_owned());
+    let matches = stored
+        .as_ref()
+        .map(|expected| valid_sha256(expected) && expected == observed);
+    (stored, matches)
+}
+
 fn first_rendered_difference(oracle: &str, tsrs: &str) -> RenderedDifference {
     let mut oracle_lines = oracle.split('\n');
     let mut tsrs_lines = tsrs.split('\n');
@@ -858,6 +870,32 @@ mod tests {
             "70897b64d4f29f0963accdf7d4b618f72f1313eb86d9f68fa6208815ebd8eb1d"
         ));
         assert!(!valid_sha256("CBF29CE484222325"));
+    }
+
+    #[test]
+    fn schema2_legacy_hashes_never_become_t4_pins() {
+        let observed = "a".repeat(64);
+        assert_eq!(
+            evaluate_golden_oracle_pin(2, "cbf29ce484222325", &observed),
+            (None, None)
+        );
+        assert_eq!(
+            evaluate_golden_oracle_pin(2, &observed, &observed),
+            (None, None),
+            "even a SHA-256-shaped schema-2 value is legacy evidence"
+        );
+        assert_eq!(
+            evaluate_golden_oracle_pin(3, &observed, &observed),
+            (Some(observed.clone()), Some(true))
+        );
+        assert_eq!(
+            evaluate_golden_oracle_pin(3, &"b".repeat(64), &observed),
+            (Some("b".repeat(64)), Some(false))
+        );
+        assert_eq!(
+            evaluate_golden_oracle_pin(3, "not-a-sha256", &observed),
+            (Some("not-a-sha256".to_owned()), Some(false))
+        );
     }
 
     #[test]
@@ -1099,7 +1137,7 @@ mod tests {
     }
 
     #[test]
-    fn focused_schema2_t4_report_stays_report_only_and_ignores_legacy_hashes() {
+    fn focused_schema3_t4_report_stays_report_only_and_checks_active_pins() {
         let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../..")
             .canonicalize()
@@ -1122,12 +1160,16 @@ mod tests {
         assert_eq!(report.status, "report-only");
         assert_eq!(report.fixtures, 1);
         assert_eq!(report.cases, 2);
-        assert_eq!(report.schema_3_pinned_cases, 0);
+        assert_eq!(report.schema_3_pinned_cases, 2);
+        assert_eq!(report.matched_cases, 2);
+        assert_eq!(report.mismatched_cases, 0);
+        assert_eq!(report.oracle_pin_failures, 0);
         assert_eq!(report.rust_formatter_failures, 0);
         assert!(report.cases_detail.iter().all(|case| {
-            case.golden_schema == 2
-                && case.golden_oracle_cli_hash.is_none()
-                && case.oracle_pin_matches.is_none()
+            case.golden_schema == 3
+                && case.golden_oracle_cli_hash.as_deref()
+                    == Some(case.oracle_full_cli_hash.as_str())
+                && case.oracle_pin_matches == Some(true)
                 && case.rust_formatter_matches_oracle
                 && case.oracle_full_cli_hash == case.rust_oracle_full_cli_hash
                 && valid_sha256(&case.oracle_cli_hash)
