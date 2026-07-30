@@ -615,8 +615,14 @@
 # buckets return through A1 tombstones; 30 supported TS2305 buckets
 # gain in the same resolver closure. Untyped-JS, later typed-condition,
 # and @types siblings remain suppressed; all-corpus FP stays zero.
-rate = 0.989373
-matched = 48503
+# M8 complete-JSDoc slice: +280 exact T0 buckets return from the
+# jsdoc-semantics scope through tombstones after the JSDoc AST,
+# parser, binder, checker, alias-flow, and unused-reference paths were
+# ported to the 6.0.3 behavior. The same 280 buckets are
+# multiplicity-complete; no accepted identity is lost and all-corpus
+# FP remains zero.
+rate = 0.995084
+matched = 48783
 total = 49024
 allowed_regression = 0.0
 
@@ -758,8 +764,12 @@ allowed_regression = 0.0
 # M8 package-resolution owner slice adds +62 exact 2XXX T0 buckets:
 # 32 TS2694 scope returns and 30 supported TS2305 gains, with no
 # accepted loss or false positive.
-rate = 0.977008
-matched = 20567
+# M8 complete-JSDoc slice returns +243 exact 2XXX buckets from the
+# frozen jsdoc-semantics scope. The remaining +37 all-band gains are
+# non-2XXX JSDoc, unused, and suggestion identities; all are
+# multiplicity-complete and all-corpus FP remains zero.
+rate = 0.988552
+matched = 20810
 total = 21051
 allowed_regression = 0.0
 
