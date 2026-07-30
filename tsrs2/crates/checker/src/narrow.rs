@@ -2873,9 +2873,21 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:70162-70193
     ///
     /// The diagnostic parameter is the assertion-signature
-    /// elaboration (2775 family) — every flow consumer passes none,
-    /// so the related-info arm is elided with it.
+    /// elaboration (2775 family). Flow consumers use the wrapper and
+    /// pass none; checkCallExpression passes its live 2775 diagnostic
+    /// so the first declaration without an explicit annotation gains
+    /// the 2782 related row.
     fn get_type_of_dotted_name(&mut self, node: NodeId) -> CheckResult2<Option<TypeId>> {
+        self.get_type_of_dotted_name_with_diagnostic(node, None)
+    }
+
+    /// tsrs-native: mutable-diagnostic adapter for tsc's
+    /// getTypeOfDottedName(node, diagnostic) parameter.
+    pub(crate) fn get_type_of_dotted_name_with_diagnostic(
+        &mut self,
+        node: NodeId,
+        mut diagnostic: Option<&mut tsrs2_diags::Diagnostic>,
+    ) -> CheckResult2<Option<TypeId>> {
         if self.node_flags(node) & tsrs2_types::NodeFlags::IN_WITH_STATEMENT.bits() != 0 {
             return Ok(None);
         }
@@ -2885,7 +2897,7 @@ impl<'a> CheckerState<'a> {
                     return Ok(None);
                 };
                 let export_symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
-                self.get_explicit_type_of_symbol(export_symbol)
+                self.get_explicit_type_of_symbol_with_diagnostic(export_symbol, diagnostic)
             }
             SyntaxKind::ThisKeyword => self.get_explicit_this_type(node),
             SyntaxKind::SuperKeyword => self.check_super_expression(node).map(Some),
@@ -2897,7 +2909,9 @@ impl<'a> CheckerState<'a> {
                 let (Some(receiver), Some(name)) = (receiver, name) else {
                     return Ok(None);
                 };
-                let Some(receiver_type) = self.get_type_of_dotted_name(receiver)? else {
+                let receiver_type = self
+                    .get_type_of_dotted_name_with_diagnostic(receiver, diagnostic.as_deref_mut())?;
+                let Some(receiver_type) = receiver_type else {
                     return Ok(None);
                 };
                 let prop = if self.kind_of(name) == SyntaxKind::PrivateIdentifier {
@@ -2945,7 +2959,9 @@ impl<'a> CheckerState<'a> {
                     self.get_property_of_type_full(receiver_type, &text)?
                 };
                 match prop {
-                    Some(prop) => self.get_explicit_type_of_symbol(prop),
+                    Some(prop) => {
+                        self.get_explicit_type_of_symbol_with_diagnostic(prop, diagnostic)
+                    }
                     None => Ok(None),
                 }
             }
@@ -2955,7 +2971,7 @@ impl<'a> CheckerState<'a> {
                     _ => None,
                 };
                 match inner {
-                    Some(inner) => self.get_type_of_dotted_name(inner),
+                    Some(inner) => self.get_type_of_dotted_name_with_diagnostic(inner, diagnostic),
                     None => Ok(None),
                 }
             }
@@ -2982,9 +2998,15 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: e746c3000673eed6afae1fa9727123a0a6bca22174a94bcd656ccd7cb6ee876c
     /// tsc-span: _tsc.js:70121-70161
     ///
-    /// The diagnostic-related-info arm rides with the elided
-    /// assertion elaboration (see get_type_of_dotted_name).
     fn get_explicit_type_of_symbol(&mut self, symbol: SymbolId) -> CheckResult2<Option<TypeId>> {
+        self.get_explicit_type_of_symbol_with_diagnostic(symbol, None)
+    }
+
+    fn get_explicit_type_of_symbol_with_diagnostic(
+        &mut self,
+        symbol: SymbolId,
+        diagnostic: Option<&mut tsrs2_diags::Diagnostic>,
+    ) -> CheckResult2<Option<TypeId>> {
         let symbol = self.resolve_symbol_shallow(symbol)?;
         let flags = self.binder.symbol(symbol).flags;
         if flags.intersects(
@@ -3006,7 +3028,6 @@ impl<'a> CheckerState<'a> {
                         return self.get_type_of_symbol(symbol).map(Some);
                     }
                 }
-                return Ok(None);
             }
             let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
                 return Ok(None);
@@ -3048,6 +3069,14 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                 }
+            }
+            if let Some(diagnostic) = diagnostic {
+                let display = self.symbol_display_name(symbol);
+                diagnostic.related.push(self.related_info_for_node(
+                    declaration,
+                    &tsrs2_diags::gen::_0_needs_an_explicit_type_annotation,
+                    &[&display],
+                ));
             }
         }
         Ok(None)
