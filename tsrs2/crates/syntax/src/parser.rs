@@ -801,6 +801,10 @@ impl<'text> Parser<'text> {
         self.finish_node_at(id, pos, self.scanner.full_start_pos())
     }
 
+    /// tsc-port: parseExpected @6.0.3
+    /// tsc-hash: 6bdef5de4e667c786cab20a05aa70e307d1ec2f77aa38a5c8dff953632c843ca
+    /// tsc-span: _tsc.js:29578-29591
+    /// d2: d2:628509734c564024831c390c8dbbf7f8d458f30e2b325ef0c724efaa60117cf9
     fn parse_expected(
         &mut self,
         kind: SyntaxKind,
@@ -2711,6 +2715,10 @@ impl<'text> Parser<'text> {
         )
     }
 
+    /// tsc-port: tryParseImportClause @6.0.3
+    /// tsc-hash: 8fc1b85a1cfcb6b20569b117c2b944d0dbeced18e4c61c8242fcd612633ee931
+    /// tsc-span: _tsc.js:34455-34464
+    /// d2: d2:2a21c9ee0e681c8aa3284e2f8f2bc64eb0b80dd475e01bb73088b9827ca56a55
     fn try_parse_import_clause(
         &mut self,
         identifier: Option<NodeId>,
@@ -5498,6 +5506,10 @@ impl<'text> Parser<'text> {
         self.parse_member_expression_rest(pos, expression, true)
     }
 
+    /// tsc-port: parsePrimaryExpression @6.0.3
+    /// tsc-hash: e92a10897f8adc50a2093796753180941ccbcc7c2a668d26945058bf0eeb6ecf
+    /// tsc-span: _tsc.js:32854-32908
+    /// d2: d2:40dbd804982f27d9c2975cbdee99c10e256ba437064ebb8c974d461bc79e28c9
     fn parse_primary_expression(&mut self) -> NodeId {
         match self.token() {
             SyntaxKind::ThisKeyword
@@ -6030,6 +6042,10 @@ impl<'text> Parser<'text> {
         entity
     }
 
+    /// tsc-port: parseEntityNameOfTypeReference @6.0.3
+    /// tsc-hash: 7140a746a8fa4d2a7c47046886c8bc17cd06a04a4b058c23017b2aa451fe28e7
+    /// tsc-span: _tsc.js:30673-30679
+    /// d2: d2:3bdd06a01b186e396fede2e298f02bb74b916b1041d39113262740f2bbd21b94
     fn parse_entity_name_of_type_reference(&mut self) -> NodeId {
         self.parse_entity_name(true, Some(&gen::Type_expected))
     }

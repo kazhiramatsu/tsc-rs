@@ -2190,6 +2190,11 @@ impl<'a> CheckerState<'a> {
     /// `return_type_error_location` differs for a JSDoc `@type`
     /// reference whose resolved call signature supplies the actual
     /// return annotation. `markLinkedReferences` is emit-only.
+    ///
+    /// tsc-port: errorInfo @6.0.3
+    /// tsc-hash: e1a24fabcf6804fad35da3af2931050959472a63a0d8f5715af1d0db02aaa664
+    /// tsc-span: _tsc.js:82549-82553
+    /// d2: d2:701aaaadafcb77b7efd0eefd41cf39fe937994d1099c3f561039ae650e655a36
     fn check_async_function_return_type(
         &mut self,
         node: NodeId,

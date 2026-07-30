@@ -146,6 +146,10 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         }
     }
 
+    /// tsc-port: parseExpectedJSDoc @6.0.3
+    /// tsc-hash: 5752be124f97a11a7e2f7e6af19208ddc36ddd9a127d2921c9018a0111f6a185
+    /// tsc-span: _tsc.js:29678-29686
+    /// d2: d2:f734756314d2535619516fd4d1feef44e92506df26798d86fbaa59b0f8ae9c09
     fn parse_expected(&mut self, kind: SyntaxKind) -> bool {
         if self.parse_optional(kind) {
             true
@@ -182,6 +186,10 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         self.parser.arena.alloc_array(nodes, pos, end, false)
     }
 
+    /// tsc-port: parseJSDocIdentifierName @6.0.3
+    /// tsc-hash: 78215969ec15ba75b198cf8c0bb5d05364314b74a24edc2ab3673fe6da3f454f
+    /// tsc-span: _tsc.js:35782-35799
+    /// d2: d2:e9f169197af45c251fa2e5f2e93467061c25ff6cfeba65771e6fda87350e6d4f
     fn parse_identifier_name(&mut self, message: Option<&'static DiagnosticMessage>) -> NodeId {
         if !token_is_identifier_or_keyword(self.token()) {
             return self.parser.create_missing_node(
@@ -882,6 +890,10 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
             .then(|| self.parse_jsdoc_type_expression(false))
     }
 
+    /// tsc-port: parseJSDocTypeExpression @6.0.3
+    /// tsc-hash: 325ea8484a74cb8af2c59724306cb66852667232a2d61cb1de369487261e7a6e
+    /// tsc-span: _tsc.js:34787-34797
+    /// d2: d2:cf43460ba6610f9063b48070240cc02225ad0587f4de3225328c61cb7e610c79
     fn parse_jsdoc_type_expression(&mut self, may_omit_braces: bool) -> NodeId {
         let pos = self.node_pos();
         let has_brace = self.token() == SyntaxKind::OpenBraceToken;
@@ -1802,6 +1814,10 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         )
     }
 
+    /// tsc-port: parseTemplateTagTypeParameter @6.0.3
+    /// tsc-hash: 82c21472fa8bd61beebc2c4a8bd5db6d41831197899023a26eee489f11c8f3d2
+    /// tsc-span: _tsc.js:35712-35742
+    /// d2: d2:624f6ae3e504b80c275345b2fe8f9e150962ade1f6a4932a070a86909f5d8051
     fn parse_template_type_parameter(&mut self) -> Option<NodeId> {
         let pos = self.node_pos();
         let is_bracketed = self.parse_optional(SyntaxKind::OpenBracketToken);
