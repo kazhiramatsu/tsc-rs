@@ -1923,14 +1923,24 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// The `"" + indexType.value` rendering the 2339/7053 display rows
-    /// pass (62295/62343/62388) — the raw literal value, NOT the
-    /// escaped propName.
+    /// getPropertyTypeForIndexType's `"" + indexType.value`
+    /// diagnostic arguments @6.0.3 (62296, 62347, 62355, 62390): the
+    /// raw JavaScript string value, NOT the escaped propName and NOT a
+    /// quoted-literal printer face.
+    ///
+    /// Rust strings cannot carry an unpaired UTF-16 surrogate. Only
+    /// that non-UTF-8 boundary falls back to the lossless `\uXXXX`
+    /// spelling; every representable JavaScript string passes through
+    /// verbatim, including quotes and backslashes.
     fn index_literal_value_display(&self, ty: TypeId) -> Option<String> {
         match &self.tables.type_of(ty).data {
             TypeData::Literal {
                 value: tsrs2_types::LiteralValue::String(value),
-            } => Some(crate::check::string_literal_type_display_text(value)),
+            } => Some(
+                value
+                    .to_utf8()
+                    .unwrap_or_else(|| crate::check::string_literal_type_display_text(value)),
+            ),
             TypeData::Literal {
                 value: tsrs2_types::LiteralValue::Number(value),
             } => Some(tsrs2_types::tables::js_number_to_string(*value)),
@@ -2397,6 +2407,32 @@ mod tests {
                     && diagnostic.message.text.contains("'__hello'"),
                 "{}",
                 diagnostic.message.text
+            );
+        });
+    }
+
+    #[test]
+    fn indexed_access_missing_property_uses_raw_string_literal_value() {
+        // getPropertyTypeForIndexType passes indexType.value directly
+        // to TS2339. The diagnostic template already uses single
+        // quotes, so double quotes inside the property value are not
+        // escaped a second time.
+        let text = "declare module \"ambientModule\" {\n\
+                        export type typ = 1;\n\
+                        export var val: typ;\n\
+                    }\n\
+                    type Bad = (typeof globalThis)[\"\\\"ambientModule\\\"\"];\n";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            let rows: Vec<_> = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 2339)
+                .collect();
+            assert_eq!(rows.len(), 1, "{rows:#?}");
+            assert_eq!(
+                rows[0].message_text(),
+                "Property '\"ambientModule\"' does not exist on type 'typeof globalThis'."
             );
         });
     }

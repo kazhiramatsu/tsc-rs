@@ -5944,8 +5944,14 @@ impl<'a> CheckerState<'a> {
                 SliceTypeNodeKind::Reference,
             ));
         }
-        // typeToTypeNodeWorker 51495-51540 admits only actual
-        // ClassOrInterface object shapes to the early symbol head.
+        // typeToTypeNodeWorker 51495-51540 sends Reference objects
+        // through typeReferenceToTypeNode BEFORE the later
+        // ClassOrInterface symbol head.  A generic class/interface
+        // target is both flags, and its self-reference must therefore
+        // render its resolved type-parameter arguments (`C<T>`), not
+        // stop at the bare symbol (`C`).  Only thisless, non-reference
+        // interfaces reach the later symbol-only arm.
+        //
         // Anonymous value sides (class statics, enum/value modules,
         // and mixin statics) must continue to createAnonymousTypeNode:
         // that later gate decides between `typeof X` and structural
@@ -5955,6 +5961,10 @@ impl<'a> CheckerState<'a> {
                 .tables
                 .object_flags_of(ty)
                 .intersects(ObjectFlags::CLASS_OR_INTERFACE)
+            && !self
+                .tables
+                .object_flags_of(ty)
+                .intersects(ObjectFlags::REFERENCE)
         {
             if let Some(symbol) = self.tables.type_of(ty).symbol {
                 return self.symbol_type_face_slice(symbol, fully_qualified);
@@ -13103,7 +13113,9 @@ fn string_literal_name_text(
 mod tests {
     use tsrs2_binder::node_util;
     use tsrs2_syntax::{NodeData, SyntaxKind};
-    use tsrs2_types::{CompilerOptions, ObjectFlags, ScriptTarget, TypeData, TypeFlags};
+    use tsrs2_types::{
+        CompilerOptions, ObjectFlags, ScriptTarget, SymbolFlags, TypeData, TypeFlags,
+    };
 
     use crate::state::test_support::{
         with_program_state, with_program_state_allow_parse_diagnostics,
@@ -18241,6 +18253,42 @@ mod tests {
                     .property_signature_slice(plain, false, &mut rendered)
                     .expect("plain property display");
                 assert_eq!(rendered, ["q: number".to_owned()]);
+            },
+        );
+    }
+
+    #[test]
+    fn declared_class_and_interface_targets_render_self_type_arguments() {
+        // typeToTypeNodeWorker dispatches Reference before the later
+        // ClassOrInterface symbol arm.  The declared target aliases its
+        // own type parameters as resolved arguments, so generic targets
+        // retain those arguments while their non-generic siblings stay
+        // bare. Oracle-pinned vs vendored tsc 6.0.3, noLib.
+        with_program_state(
+            &[(
+                "a.ts",
+                "class Box<T, U> {}\ninterface Face<T> {}\nclass Plain {}\ninterface Empty {}\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                for (name, expected) in [
+                    ("Box", "Box<T, U>"),
+                    ("Face", "Face<T>"),
+                    ("Plain", "Plain"),
+                    ("Empty", "Empty"),
+                ] {
+                    let symbol = state
+                        .resolve_file_scope_name(name, SymbolFlags::TYPE)
+                        .expect("declared type symbol");
+                    let ty = state
+                        .get_declared_type_of_class_or_interface(symbol)
+                        .expect("declared class/interface type");
+                    assert_eq!(
+                        state.type_to_string_slice(ty).expect("declared display"),
+                        expected
+                    );
+                }
             },
         );
     }
