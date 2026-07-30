@@ -2906,9 +2906,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 5c80fbb8a3f77b883164000d53b9c225931e458723582d7eeb69e47b95ca997d
     /// tsc-span: _tsc.js:56864-56884
     ///
-    /// Duplicated CommonJS access exports use autoType so reads follow
-    /// their assignment flow. The export=-type-annotation arm remains
-    /// behind the broader JS source-type boundary.
+    /// Duplicated CommonJS access exports use their source-file end
+    /// flow when reached through an alias, while the export symbol
+    /// itself remains auto-typed. The export=-type-annotation arm
+    /// remains behind the broader JS source-type boundary.
     pub(crate) fn get_type_of_alias(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
             return Ok(cached);
@@ -2919,20 +2920,66 @@ impl<'a> CheckerState<'a> {
         ) {
             return Ok(self.tables.intrinsics.error);
         }
-        let computed = (|state: &mut Self| -> CheckResult2<TypeId> {
+        let computed = (|state: &mut Self| -> CheckResult2<(TypeId, Option<SymbolId>)> {
             let declarations = state.binder.symbol(symbol).declarations.clone();
-            if state.is_duplicated_common_js_export(&declarations) {
-                return Ok(state.tables.intrinsics.auto);
-            }
             let target_symbol = state.resolve_alias(symbol)?;
-            let target_flags = state.get_symbol_flags_of(target_symbol)?;
-            if target_flags.intersects(SymbolFlags::VALUE) {
-                state.get_type_of_symbol(target_symbol)
+            let export_symbol = if declarations.is_empty() {
+                None
             } else {
-                Ok(state.tables.intrinsics.error)
-            }
+                let declaration =
+                    state
+                        .get_declaration_of_alias_symbol(symbol)
+                        .ok_or_else(|| {
+                            Unsupported::new(
+                                "getTypeOfAlias alias symbol without alias declaration (parse-recovery shape, tsc Debug.fail)",
+                            )
+                        })?;
+                state.get_target_of_alias_declaration(
+                    declaration,
+                    /*dont_recursively_resolve*/ true,
+                )?
+            };
+            let declared_type = if let Some(export_symbol) = export_symbol {
+                let export_declarations = state.binder.symbol(export_symbol).declarations.clone();
+                let mut declared_type = None;
+                for declaration in export_declarations {
+                    if state.kind_of(declaration) == SyntaxKind::ExportAssignment {
+                        if let Some(ty) =
+                            state.try_get_type_from_effective_type_node(declaration)?
+                        {
+                            declared_type = Some(ty);
+                            break;
+                        }
+                    }
+                }
+                declared_type
+            } else {
+                None
+            };
+            let ty = if export_symbol.is_some_and(|export_symbol| {
+                state.is_duplicated_common_js_export(
+                    &state.binder.symbol(export_symbol).declarations,
+                )
+            }) && !declarations.is_empty()
+            {
+                state.get_flow_type_from_common_js_export(
+                    export_symbol.expect("guarded Some above"),
+                )?
+            } else if state.is_duplicated_common_js_export(&declarations) {
+                state.tables.intrinsics.auto
+            } else if let Some(declared_type) = declared_type {
+                declared_type
+            } else if state
+                .get_symbol_flags_of(target_symbol)?
+                .intersects(SymbolFlags::VALUE)
+            {
+                state.get_type_of_symbol(target_symbol)?
+            } else {
+                state.tables.intrinsics.error
+            };
+            Ok((ty, export_symbol))
         })(self);
-        let computed = match computed {
+        let (computed, export_symbol) = match computed {
             Ok(computed) => computed,
             Err(unsupported) => {
                 self.pop_type_resolution();
@@ -2942,7 +2989,7 @@ impl<'a> CheckerState<'a> {
         let computed = if self.pop_type_resolution() {
             computed
         } else {
-            self.report_circularity_error(symbol)
+            self.report_circularity_error(export_symbol.unwrap_or(symbol))
         };
         if let Some(already) = self.links.symbol(symbol).type_of_symbol.resolved() {
             return Ok(already);
@@ -2950,6 +2997,84 @@ impl<'a> CheckerState<'a> {
         self.links
             .set_symbol_type(self.speculation_depth, symbol, LinkSlot::Resolved(computed));
         Ok(computed)
+    }
+
+    /// tsc-port: getFlowTypeFromCommonJSExport @6.0.3
+    /// tsc-hash: d4f9f5ae9dc097efb3e47b44e0cd3144298f502bf28b17cf9f1e034aa353d8f2
+    /// tsc-span: _tsc.js:56180-56192
+    ///
+    /// tsc creates a synthetic `exports.name` (or
+    /// `module.exports.name` when every declaration uses that form),
+    /// parents it to the source file, and starts at `file.endFlowNode`.
+    /// A matching real declaration access is structurally equivalent
+    /// for the immutable Rust arena and supplies the same reference
+    /// identity to the flow walk.
+    fn get_flow_type_from_common_js_export(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
+        let declarations = self.binder.symbol(symbol).declarations.clone();
+        let first = declarations.first().copied().ok_or_else(|| {
+            Unsupported::new(
+                "getFlowTypeFromCommonJSExport symbol without declarations \
+                 (parse-recovery shape)",
+            )
+        })?;
+        let receiver_of = |state: &Self, declaration: NodeId| match state.data_of(declaration) {
+            NodeData::PropertyAccessExpression(data) => data.expression,
+            NodeData::ElementAccessExpression(data) => data.expression,
+            _ => None,
+        };
+        let are_all_module_exports = declarations.iter().all(|&declaration| {
+            if !self.is_in_js_file(declaration) {
+                return false;
+            }
+            receiver_of(self, declaration).is_some_and(|receiver| {
+                tsrs2_binder::assignment::is_module_exports_access_expression(
+                    self.binder.source_of_node(receiver),
+                    receiver,
+                )
+            })
+        });
+        let reference = if are_all_module_exports {
+            first
+        } else {
+            declarations
+                .iter()
+                .copied()
+                .find(|&declaration| {
+                    receiver_of(self, declaration).is_some_and(|receiver| {
+                        tsrs2_binder::assignment::is_exports_identifier(
+                            self.binder.source_of_node(receiver),
+                            receiver,
+                        )
+                    })
+                })
+                .ok_or_else(|| {
+                    Unsupported::new(
+                        "getFlowTypeFromCommonJSExport declarations lack an exports reference \
+                         (tsc factory-reference invariant)",
+                    )
+                })?
+        };
+        let file = self.binder.file_index_of_node(first);
+        let root = self.binder.source_of_node(first).root;
+        let end_flow = self
+            .binder
+            .file(file)
+            .node_end_flow
+            .get(&root)
+            .copied()
+            .ok_or_else(|| {
+                Unsupported::new(
+                    "getFlowTypeFromCommonJSExport source file without end flow \
+                     (parse-recovery shape)",
+                )
+            })?;
+        self.get_flow_type_of_reference_with_flow(
+            reference,
+            self.tables.intrinsics.auto,
+            self.tables.intrinsics.undefined,
+            None,
+            Some(end_flow),
+        )
     }
 
     /// tsc-port: getSymbolIfSameReference @6.0.3
@@ -9785,6 +9910,79 @@ let unrelated = \"\";\n",
         )
         .iter()
         .all(|(_, code, _, _)| *code != 18048));
+    }
+
+    #[test]
+    fn checked_js_duplicate_commonjs_export_alias_uses_exporting_file_end_flow() {
+        let files = [
+            (
+                "/lib.d.ts",
+                "interface Number { toFixed(): string; }\n\
+                 interface String { toUpperCase(): string; }\n",
+            ),
+            (
+                "/mod.js",
+                "exports.apply = undefined;\n\
+                 exports.apply = undefined;\n\
+                 function a() {}\n\
+                 exports.apply = a;\n\
+                 exports.apply();\n\
+                 exports.apply = 'ok';\n\
+                 var OK = exports.apply.toUpperCase();\n\
+                 exports.apply = 1;\n",
+            ),
+            (
+                "/main.js",
+                "const { apply } = require('./mod');\n\
+                 const result = apply.toFixed();\n",
+            ),
+        ];
+        assert_eq!(
+            program_rows(
+                &files,
+                &CompilerOptions {
+                    allow_js: true,
+                    check_js: Some(true),
+                    strict: Some(true),
+                    target: Some(2),
+                    ..CompilerOptions::default()
+                },
+            ),
+            [],
+            "the importing alias sees the final number assignment, not the export's union"
+        );
+    }
+
+    #[test]
+    fn checked_js_duplicate_commonjs_export_alias_keeps_undefined_final_assignment() {
+        let consumer = "const { apply } = require('./mod');\napply.toFixed();\n";
+        let rows = program_rows(
+            &[
+                ("/lib.d.ts", "interface Number { toFixed(): string; }\n"),
+                (
+                    "/mod.js",
+                    "exports.apply = 1;\nexports.apply = undefined;\n",
+                ),
+                ("/main.js", consumer),
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(true),
+                target: Some(2),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            rows,
+            [(
+                "/main.js".to_owned(),
+                18048,
+                consumer.rfind("apply").expect("consumer use") as u32,
+                "apply".len() as u32,
+            )],
+            "the end-flow branch must not degrade duplicated exports to any"
+        );
     }
 
     #[test]
