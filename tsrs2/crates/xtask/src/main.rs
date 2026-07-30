@@ -2957,7 +2957,7 @@ fn rust_jsdoc_ast_dump(file_name: &str, text: &str) -> serde_json::Value {
             let node = source.arena.node(entry.node);
             let parent = node
                 .parent
-                .map(|parent| node_ref(parent))
+                .map(&node_ref)
                 .unwrap_or(serde_json::Value::Null);
             let children = entry
                 .children
@@ -4870,11 +4870,26 @@ fn prefix_determinism_holds(text: &str, variant: tsrs2_syntax::LanguageVariant) 
     let cut_utf16: u32 = text[..cut].chars().map(|ch| ch.len_utf16() as u32).sum();
     let full = tsrs2_syntax::scan_tokens(text, variant);
     let prefix = tsrs2_syntax::scan_tokens(&text[..cut], variant);
-    // Tokens touching the cut are inherently ambiguous (they may be
-    // truncated or merge with later text); everything strictly
-    // before it must be byte-identical.
-    let full_before = full.iter().filter(|token| token.end < cut_utf16);
-    let prefix_before = prefix.iter().filter(|token| token.end < cut_utf16);
+    // The whole boundary token is inherently ambiguous. A truncated
+    // numeric prefix such as `0B` is scanned as `0` + `B`, while the
+    // complete invalid literal starts with one `0B` token. Filtering
+    // only records that touch the cut would retain the prefix's `0`
+    // fragment even though it overlaps the full scan's boundary token.
+    // Compare only through the start of the full scan's token that
+    // touches the cut. When no full token touches the cut, use the cut
+    // as the frontier but exclude prefix tokens ending exactly there:
+    // the missing next byte can still turn a trailing `/` into comment
+    // trivia.
+    let boundary_start = full
+        .iter()
+        .find(|token| token.start < cut_utf16 && token.end >= cut_utf16)
+        .map(|token| token.start);
+    let stable_token = |token: &&tsrs2_syntax::TokenRecord| match boundary_start {
+        Some(stable_end) => token.end <= stable_end,
+        None => token.end < cut_utf16,
+    };
+    let full_before = full.iter().filter(stable_token);
+    let prefix_before = prefix.iter().filter(stable_token);
     full_before.eq(prefix_before)
 }
 
@@ -10271,12 +10286,12 @@ fn render_observable_fields_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn
             .fields
             .iter()
             .filter(|field| {
-                !(field.ts_name == "text"
-                    && matches!(
-                        schema.kind_name.as_str(),
-                        "Identifier" | "PrivateIdentifier"
-                    ))
-                    && !matches!(field.ty, RustFieldType::Number | RustFieldType::SyntaxKind)
+                !(matches!(field.ty, RustFieldType::Number | RustFieldType::SyntaxKind)
+                    || field.ts_name == "text"
+                        && matches!(
+                            schema.kind_name.as_str(),
+                            "Identifier" | "PrivateIdentifier"
+                        ))
             })
             .collect::<Vec<_>>();
         fields.sort_by(|left, right| left.ts_name.cmp(&right.ts_name));
@@ -11149,6 +11164,31 @@ mod prefix_determinism_tests {
         let text = "const value = 1;\nconst other = value + 2;\n".to_string();
         assert!(prefix_determinism_holds(
             &text,
+            tsrs2_syntax::LanguageVariant::Standard
+        ));
+    }
+
+    #[test]
+    fn invalid_numeric_prefix_excludes_the_fragmented_boundary_token() {
+        let text = "// Error\r\nvar binary = 0b21010;\r\n\
+                    var binary1 = 0B21010;\r\n\
+                    var octal = 0o81010;\r\n\
+                    var octal = 0O91010;";
+        assert_eq!(midpoint_char_boundary(text), 49);
+        assert!(prefix_determinism_holds(
+            text,
+            tsrs2_syntax::LanguageVariant::Standard
+        ));
+    }
+
+    #[test]
+    fn possible_comment_opener_at_the_cut_is_a_boundary_token() {
+        let text = "let x = 1;// comment!!";
+        let cut = midpoint_char_boundary(text);
+        assert_eq!(cut, 11);
+        assert_eq!(&text[cut - 1..cut + 1], "//");
+        assert!(prefix_determinism_holds(
+            text,
             tsrs2_syntax::LanguageVariant::Standard
         ));
     }
