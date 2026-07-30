@@ -6,9 +6,12 @@ exact, vendored `tsc` bundle—from diagnostic identity through rendered CLI
 output—and measures progress by differential testing against that bundle on
 the TypeScript conformance corpus.
 
-> **Development status:** the checker is not yet complete or distributed as a
-> drop-in `tsc` replacement. The active implementation and its verification
-> tools live in the [`tsrs2/`](tsrs2/) Cargo workspace.
+> **Development status:** M8 batch-diagnostics compatibility is complete on
+> the frozen supported scope. The project is not yet distributed as a
+> drop-in `tsc` replacement: M9 steady-state verification and the explicitly
+> separate emit, language-service, and public-API tracks remain. The active
+> implementation and verification tools live in the [`tsrs2/`](tsrs2/) Cargo
+> workspace.
 
 ## Compatibility Target
 
@@ -19,8 +22,8 @@ files, and the matching conformance corpus. The vendored compiler is both the
 source-level specification for porting and the executable oracle used by the
 test harness.
 
-The M8 compatibility surface covers the following. This is the completion
-target, not a claim that every row already matches:
+The completed M8 compatibility surface covers the following on its frozen
+supported scope:
 
 - batch syntactic and semantic diagnostics;
 - emit-free suggestion diagnostics;
@@ -57,34 +60,42 @@ denominator.
 
 ## Status
 
-Milestones M0–M7 are complete.
-The phase-9 2XXX sweep has zero supported-scope T0 false negatives, and all
-six M7 families have zero supported-scope false negatives with every canary
-passing. The all-corpus false-positive gate remains zero.
+Milestones M0–M8 are complete, and M9 is the active frontier. M8 closed the
+frozen batch-diagnostics scope with:
 
-M8 readiness is complete at 10/10 gates. The exact semantic scope is globally
-frozen at 583 reviewed identities; the Rust function ledger, all-band
-emitter inventory, runtime coverage, differential-fuzzer smoke, performance
-baseline, M7 family rollup, and D2 emitter dependency closure are green. All
-5,513 exact declarations have owner, disposition, and immutable evidence in
-the frozen reviewed snapshot.
+- supported T0, T1, T2, and T3 each at **48,783 / 48,783**;
+- T4 rendered output at **7,691 / 7,691** supported cases;
+- zero false positives across the full corpus;
+- zero recovery or untagged escape sites; and
+- completion rows 1–10 green, with only the M9 steady-state row pending.
 
-The M7-close supported-scope M8 entry has 333 T0 residual diagnostics.
-Higher-tier entry residuals are 335 at T1, 1,516 at T2, and 3,450 at T3;
-T4 activation and escape retirement remain M8 work. These are an anchored
-planning snapshot, not count-only completion gates. See the
-[M8 execution and close contract](docs/design/greenfield/m8-execution-and-close.md).
+The all-corpus visibility denominator deliberately retains 241 reviewed
+identity-level exclusions, all in the 2XXX band. That is why the generated
+2XXX row is below 100% while the frozen supported 2XXX scope is complete.
+No fixture, diagnostic code, or glob exclusion can hide those rows.
 
-The active `checkjs-jsdoc` work is a complete TypeScript 6.0.3 JSDoc
-subsystem port. An initial bounded materialization experiment proved that
-enabling individual tags before their template, import, signature, and
-host-scope dependencies are present changes real symbol behavior. M8 is
-therefore porting the JSDoc scanner/parser, arena nodes, binder paths,
-checker utilities, and diagnostic dispatch as one dependency-complete
-chain. Acceptance requires removal of the older checker-side comment
-projections; a partially activated JSDoc subsystem is not a landing unit.
-See the
+M8 readiness is 10/10. The Rust function ledger, all-band emitter inventory,
+runtime coverage, differential-fuzzer smoke, performance baseline, family
+rollup, D2 emitter dependency closure, and full-corpus invariant attestation
+are green; the invariant attestation covers 5,908 fixtures / 7,691 programs.
+All 5,513 exact declarations have an owner, disposition, and immutable
+evidence in the frozen reviewed snapshot.
+
+The complete TypeScript 6.0.3 JSDoc subsystem port has landed. Its scanner,
+parser, arena nodes, binder paths, checker utilities, and diagnostic
+dispatch now form one dependency-complete chain; the older checker-side
+comment projections have been removed. This architecture follows an
+earlier bounded materialization experiment that showed individual tag
+activation changes real symbol behavior unless template, import, signature,
+and host-scope dependencies land together. See the
 [complete JSDoc port contract](docs/design/greenfield/m8-jsdoc-ast-materialization.md).
+
+The exact T1–T3 accepted sets and T4 rendered-diagnostic pipeline are active.
+T4 uses the genuine vendored TypeScript formatter as its pinned producer and
+an independently ported Rust formatter for the steady-state Node-free gate.
+Schema-3 goldens preserve the observable present-but-empty
+`relatedInformation` state through a sparse sidecar, so formatter equality
+does not collapse a distinction exposed by `tsc`.
 
 The expensive B2 Node coverage sweep is content-addressed. CI and local
 verification reuse the exact verified artifact when the Node pin, vendored
@@ -96,26 +107,21 @@ per-process program lifetime and library-cache buckets.
 M7 used the same evidence-led strategy that made the 2XXX sweep effective:
 measure exact oracle rows, group them into A5 owner families, trace each
 family through its emitting `tsc` declaration and Rust boundary, and port
-one bounded producer slice at a time. M8 retains that discipline with exact
+one bounded producer slice at a time. M8 applied that discipline with exact
 D2 declaration identities, static dependency paths, and B2 runtime
-evidence—same-named declarations never close one another implicitly.
-M8 owner planning adds `cargo xtask m8 trace` for an emitting probe and its
-reviewed non-emitting sibling. It instruments only selected D2 diagnostic
-sites without revisiting the full Node AST, reuses a content-addressed bundle,
-and refuses any oracle diagnostic drift. `cargo xtask m8 plan draft` consumes
-the exact supported residual identities, partitions them by owner family and
-exact producer set, and records trace, sibling proposals, frozen-disposition
-boundaries, SCC review points, and exact Rust ledger joins.
+evidence—same-named declarations never closed one another implicitly.
+`cargo xtask m8 trace` and `cargo xtask m8 plan draft` remain available for
+auditing the frozen close record without revisiting the full Node AST.
 
 <!-- STATUS:BEGIN — generated by `cargo xtask readme-status`; do not edit by hand -->
-Accepted conformance state at stage marker `M7` — the checked-in
+Accepted conformance state at stage marker `M8` — the checked-in
 `tsrs2/ratchet.toml` summaries, verified against the accepted-set
 artifacts by every `cargo xtask ci` run:
 
 | View | Exact diagnostic match (T0) |
 | --- | --- |
-| All bands | **98.9373%** (48,503 / 49,024) |
-| 2xxx all-corpus visibility | **97.7008%** (20,567 / 21,051) |
+| All bands | **99.5084%** (48,783 / 49,024) |
+| 2xxx all-corpus visibility | **98.8552%** (20,810 / 21,051) |
 | Syntactic | **100.0000%** (2,246 / 2,246) |
 
 The 2XXX supported scope is **100% complete** with zero T0 false
@@ -123,7 +129,7 @@ negatives. Its all-corpus row above deliberately retains reviewed
 out-of-scope oracle diagnostics in the denominator.
 
 False positives are a hard gate: 0 on every merge. Escape
-ceilings: untagged 0, recovery 117. Non-2XXX family
+ceilings: untagged 0, recovery 0. Non-2XXX family
 map: frozen, 15 families / 433 rows.
 
 M8 readiness: 10/10 gates ready.
@@ -150,11 +156,11 @@ at progressively stricter tiers:
 | T3 | T2 plus message chains and related information |
 | T4 | byte-equivalent rendered CLI output per case, including order and deduplication |
 
-The active corpus-wide merge gate is T0 plus absolute all-corpus `FP = 0`.
-T1–T3 are already measured as shadow evidence and are completed vertically
-for every family touched by a slice; T4 activates after the exact scope is
-globally frozen. Determinism, idempotence, job independence, ledger
-freshness, and escape inventories are separate mandatory gates.
+The active merge gate verifies the accepted T0–T4 artifacts, absolute
+all-corpus `FP = 0`, and the frozen exact scope. Determinism, idempotence,
+job independence, encoding independence, unsupported-unwind coverage,
+ledger/evidence freshness, and zero escape inventories are separate
+mandatory gates.
 
 ## Roadmap
 
@@ -163,11 +169,11 @@ freshness, and escape inventories are separate mandatory gates.
 | M0–M6 | Complete | Harness, syntax, binding, types/relations, core checking, flow, inference, and overloads |
 | Phase-9 2XXX | Complete | Supported-scope 2XXX T0 closure using emitter ownership and exact-row mining |
 | M7 | Complete | Six A5 virtual bands closed with supported FN=0, all canaries passing, and T1 active |
-| M8 | Active; readiness 10/10 | Supported-scope T0-T3/T4 closure, recovery and escapes zero |
-| M9 | After M8 | Differential-fuzzer steady state and closure of every known divergence class |
+| M8 | Complete | Supported-scope T0–T4 closure, full-corpus FP=0, and recovery/escapes zero |
+| M9 | Active | Differential-fuzzer steady state and closure of every known divergence class |
 
 M7's machine-readable A5 family map remains the permanent set of virtual
-bands for non-2XXX ownership. M8 adds the all-band D2 declaration graph:
+bands for non-2XXX ownership. M8 added the all-band D2 declaration graph:
 5,513 exact identities, 643 direct emitters, exact Rust ledger joins, B2
 runtime execution/zero-hit evidence, and static shortest paths.
 
@@ -205,10 +211,10 @@ focused commands and environment details. `cargo xtask completion` writes
 the report-only M8/M9 completion matrix; its `--require-done` form is reserved
 for the post-M9 release gate.
 
-M8 implementation work keeps Cargo at two build jobs and two test threads,
-groups related focused tests into batches, and runs the complete local CI
-once for the candidate branch. The full conformance and content-addressed B2
-Node coverage sweeps are not editing-loop commands.
+Normal implementation work keeps Cargo at two build jobs and two test
+threads, groups related focused tests into batches, and runs the complete
+local CI once for the candidate branch. Full conformance and the
+content-addressed B2 Node coverage sweep are not editing-loop commands.
 
 ## Repository Layout
 
@@ -235,10 +241,11 @@ preserved at the `v1-final` tag.
 
 Porting is evidence-led: read the matching vendored `tsc` function, probe the
 oracle when behavior is ambiguous, capture immutable before evidence, and
-then implement the smallest dependency-complete producer slice. A subsystem
-whose parser, binder, and checker semantics are inseparable—currently
-JSDoc—lands only when that whole semantic chain is coherent. Expected
-diagnostics and messages come from the oracle rather than memory.
+then implement the smallest dependency-complete producer slice. As the
+completed JSDoc port demonstrated, a subsystem whose parser, binder, and
+checker semantics are inseparable lands only when that whole semantic chain
+is coherent. Expected diagnostics and messages come from the oracle rather
+than memory.
 
 Start with:
 

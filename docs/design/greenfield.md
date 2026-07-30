@@ -511,7 +511,7 @@ modes — written so low-capability agents can implement them) live in
 | M5 | flow narrowing (resolver port) + checkNonNull family | T0 ≥ 50%; jobs/idempotence invariants green |
 | M6 | inference (inferTypes/getInferredType full port) + generics instantiation caches | T0 ≥ 58% |
 | M7 | unused/grammar/suggestion band (emit-free rules) | T0 ≥ 63% = parity with current repo; T1 measured and ratcheted |
-| M8 | long tail by classifier mining (this playbook's normal loop) | T0 ratchet climbs; T2/T3 activated |
+| M8 | long tail by classifier mining (this playbook's normal loop) | supported-scope T0-T3 and T4 complete; all-corpus FP=0; escapes zero |
 | M9 | fuzzer + coverage ledger in CI | `fuzz steady-state --require-ready`: 14 current-fingerprint nightly windows, new-signature rate < 1/night, no open signature |
 
 The single most load-bearing scheduling fact, learned here: **M1's

@@ -1,5 +1,9 @@
 # M8 scope and readiness contract
 
+Status: satisfied historical entry contract. M8 close state is graded by the
+[execution and close record](m8-execution-and-close.md#m8-exit-and-m9-handoff);
+this page remains the reproducible definition of the gate that opened M8.
+
 This page is the executable M8-entry contract. It states the two metric
 views and the ten machine rows. M8 execution, slice construction, and close
 are owned by
@@ -154,10 +158,10 @@ cargo xtask m8 readiness
 cargo xtask m8 readiness --require-ready
 ```
 
-The first command reports. The second closes M7 and opens M8 only when
-all ten rows are green. Opening M8 does not move the checked-in `STAGE`
-marker: it records the last closed milestone and remains `M7` until the M8
-close slice.
+The first command reports. The second closed M7 and opened M8 only after all
+ten rows were green. That opening did not move the checked-in `STAGE` marker:
+it records the last closed milestone and remained `M7` until the M8 close
+slice, which subsequently moved it to `M8`.
 
 1. M7 conformance: `T0 >= 63%`, `FP=0`, configured exact T1 ratchet;
 2. live T1-T3 shadow metrics;
@@ -181,10 +185,10 @@ neighbor; a frozen owner moved to a later milestone; and stale
 conformance/scope/evidence fingerprints. Each must fail the responsible
 row rather than change the denominator silently.
 
-The report is `target/m8/readiness.json`. `ready=true` authorizes M8 work; it
-does not claim M8 or the project is complete. After readiness, use the
-[M8 execution and close contract](m8-execution-and-close.md), not this entry
-gate, to grade progress.
+The report is `target/m8/readiness.json`. At entry, `ready=true` authorized
+M8 work; it did not claim M8 or the project was complete. Use the
+[M8 execution and close contract](m8-execution-and-close.md), not this
+historical entry gate, to grade the close state and M9 handoff.
 
 ## Escape end state
 
@@ -192,3 +196,4 @@ gate, to grade progress.
 it is not a Done exception. Final completion requires `sites=0` and an
 empty `escapes.toml`. Retirement order and the M8 close check are defined in
 [M8 execution and close](m8-execution-and-close.md#m8-exit-and-m9-handoff).
+M8 close satisfied both requirements.

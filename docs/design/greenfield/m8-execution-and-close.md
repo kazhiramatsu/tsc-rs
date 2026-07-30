@@ -1,9 +1,10 @@
 # M8 execution and close contract
 
-Status: active execution contract after M7 close.
+Status: M8 closed; M9 steady-state execution is active. The completed close
+state and handoff are recorded below.
 
-This page owns how M8 is executed and closed. It starts only after
-[`m8 readiness --require-ready`](m8-readiness.md#machine-gate) is green.
+This page owns how M8 was executed and closed. M8 started only after
+[`m8 readiness --require-ready`](m8-readiness.md#machine-gate) was green.
 The [completion convergence plan](completion-convergence-plan.md) still owns
 cross-track landing order, [measurement integrity](measurement-integrity.md)
 owns accepted sets, exact scope, T4 activation, and D2 identities, and the
@@ -12,14 +13,14 @@ contract.
 
 Readiness and completion are deliberately different:
 
-- `ready=true` authorizes the first M8 slice;
-- M8 closes the supported diagnostic and recovery work;
+- `ready=true` authorized the first M8 slice;
+- M8 closed the supported diagnostic and recovery work;
 - M9 proves differential-fuzzer steady state;
 - only then may `cargo xtask completion --require-done` pass.
 
-The checked-in `STAGE` marker records the last closed milestone. It therefore
-remains `M7` throughout M8 and changes to `M8` only in the M8 close slice.
-`m8 readiness --require-ready` opening M8 does not move the marker.
+The checked-in `STAGE` marker records the last closed milestone. It remained
+`M7` throughout M8 and changed to `M8` in the M8 close slice.
+`m8 readiness --require-ready` opening M8 did not move the marker.
 
 ## Entry baseline
 
@@ -73,9 +74,9 @@ Family names are scheduling labels, not scope selectors. In particular,
 JSDoc-driven identities have reviewed `jsdoc-semantics` exclusions. No whole
 family, code, pass, fixture, or directory may be excluded.
 
-## Required landing order
+## Completed landing order
 
-M8 executes these steps in order:
+M8 executed these steps in order:
 
 1. **Completion report** — implement `cargo xtask completion` in report-only
    form. It must enumerate every strict completion row and show why
@@ -103,7 +104,7 @@ M8 executes these steps in order:
    knowingly wrong category, span, message, chain, or related-information
    shape. The all-band conformance JSON includes
    `supported_tier_mismatches`, partitioned by `first_failed_tier`, with the
-   complete expected and actual bucket shapes. This report-only residual is
+   complete expected and actual bucket shapes. This report-only residual was
    the scheduling input before activation; aggregate tier counts and
    matched-only identity lists are not sufficient to assign an
    implementation owner.
@@ -114,8 +115,8 @@ M8 executes these steps in order:
 6. **Recovery and converse close** — empty `escapes.toml`, keep the frozen D2
    inventory/dispositions and current B1-B4 evidence fresh, and run the full
    invariant suite.
-7. **M8 close** — require completion rows 1-10 to be green, with only M9
-   steady state pending; update `STAGE` from `M7` to `M8` in this close slice.
+7. **M8 close** — required completion rows 1-10 to be green with only M9
+   steady state pending, then updated `STAGE` from `M7` to `M8`.
 
 Steps 3-5 describe the global activation order. Within them, a prerequisite
 slice may legitimately add no accepted diagnostic, but it must name the
@@ -343,10 +344,32 @@ M8 closes only when:
 - `cargo xtask completion` reports rows 1-10 green and only the M9 row
   pending.
 
-The M9 policy, append-only history/signature formats, attestation path, and
-scheduled producer may be implemented and tested during M8. The qualifying
-14-window streak starts only after the checker/oracle/generator/reducer and
-policy fingerprint is frozen: changing any of them resets the streak.
+### Close record
+
+The 2026-07-30 accepted-state observation records the completed M8-owned
+surface:
+
+| Signal | M8 close |
+|---|---:|
+| Supported T0 | 48,783 / 48,783 |
+| Supported T1 | 48,783 / 48,783 |
+| Supported T2 | 48,783 / 48,783 |
+| Supported T3 | 48,783 / 48,783 |
+| Supported T4 cases | 7,691 / 7,691 |
+| All-corpus FP | 0 |
+| Escape sites / manifest rows | 0 / 0 |
+| Exact tier state | T1-T3 active; schema-3 T4 active |
+| Full-corpus invariants | green; 5,908 fixtures / 7,691 programs |
+| Completion | 10 / 11 rows green; M9 pending |
+
+The fresh machine close report confirms rows 1-10 green, row 11
+`m9-steady-state` pending, and `STAGE=M8`. No M8 semantic or recovery
+implementation remains; M9 is the sole pending project-completion row.
+
+M9 now owns the append-only history/signature formats, attestation path,
+scheduled producer, and qualifying 14-window streak. The streak starts only
+after the checker/oracle/generator/reducer and policy fingerprint is frozen:
+changing any of them resets it.
 
 ## Separate follow-on design tracks
 

@@ -185,12 +185,13 @@ are allowed:
   the already-pinned schema-2 golden records and canonical identity
   encoder v1. The previously reserved A2 extension was therefore
   never consumed.
-- `t4-input-schema-extension` is reserved for A3. It may add only the
-  declared genuine oracle T4 fields, activate the T4 comparator, and
-  add the paired T4 case-identity set. The name is rejected until A3
-  teaches all of those fields and checks atomically. Missing and
-  empty remain distinct; existing oracle values and active
-  comparator entries stay byte-identical.
+- `t4-input-schema-extension` was consumed once for A3 during M8. It
+  added only the declared genuine oracle T4 fields, the schema-3
+  formatter-presence sidecar, the active T4 comparator, and the paired
+  T4 case-identity set. Repeating, downgrading, or combining that
+  transition with another input change is rejected. Missing and empty
+  remain distinct; pre-existing oracle values and active comparator
+  entries stay byte-identical.
 
 A vendor upgrade or comparator-semantic change is a separate project,
 not one of these transitions.
@@ -336,7 +337,9 @@ canaries; 65 are in 2XXX. The scope audit must exercise them.
 The oracle formatter is the explicit vendored tsc formatter path, with
 normalized virtual paths, fixed newlines, and oracle sort/dedupe order;
 it is not a hash of serialized diagnostic JSON. Golden schema 3 stores
-oracle records and genuine oracle rendered hashes only.
+oracle evidence only: the pre-existing structured oracle records, genuine
+oracle rendered hashes, and the sparse formatter-presence sidecar described
+below. It never stores a tsrs output baseline.
 
 In schema 3, `oracle_cli_hash` is the lowercase SHA-256 of the exact
 normalized rendered UTF-8 bytes (ANSI removed, LF newlines, public
@@ -345,16 +348,36 @@ tsrs bytes are always computed in memory. Schema-2 `*_cli_hash` values
 are legacy structured-JSON/FNV placeholders and are never
 reinterpreted as T4 evidence.
 
-A3's reserved one-time `t4-input-schema-extension` fills the previously
-absent T4 field and activates its comparator without changing any
-earlier oracle byte. Afterwards
+Each schema-3 case may carry
+`oracle_empty_related_information`, a strictly increasing unique list of
+indices into that case's `oracle` sequence. An index is present exactly when
+the genuine tsc diagnostic carried a present-but-empty
+`relatedInformation` array. Schema 2 collapsed that state with an absent
+property, even though JavaScript treats the empty array as truthy and the
+formatter therefore emits a different byte sequence. Keeping this
+formatter-only bit beside, rather than inside, the structured record leaves
+every pre-existing oracle JSON byte, `oracle_sha256`, A2 identity, and T0-T3
+identity unchanged.
+
+The explicit renderer report compares the stored indices with freshly
+collected genuine Node diagnostics. Every gate rejects a duplicate,
+non-increasing, out-of-range index or an index naming a diagnostic with
+non-empty serialized related information. The Node-free steady-state gate
+rehydrates the presence bit before Rust sort/dedupe/render and checks the
+result against the genuine rendered hash. Exact-scope projection carries the
+bit with its original diagnostic before rendering the retained sequence.
+
+A3's consumed one-time `t4-input-schema-extension` filled the previously
+absent T4 field and activated its comparator without changing any earlier
+oracle byte. Afterwards
 `oracle-refresh --render-hashes --check` is check-only for the fixed
 universe. Conformance computes the current tsrs hash; accepted T4 case
 identities grow through A1.
 
 The extension is one transaction: every schema-3 golden replacement,
-the new renderer-producer and per-case oracle pins, comparator
-activation, accepted T4 case set, and `[t4]` derived summary are
+the sparse formatter-presence metadata, the new renderer-producer and
+per-case oracle pins, comparator activation, accepted T4 case set, and
+`[t4]` derived summary are
 preflighted before any write and roll back together on failure. A
 retry may converge a mixed schema-2/schema-3 working tree only from a
 fresh complete renderer plan; ordinary check treats mixed schemas as
@@ -385,14 +408,15 @@ the supported oracle/tsrs projections. This prevents a shared Rust
 formatter drift from manufacturing a false T4 match, while keeping
 the steady-state gate Node-free.
 
-T4 activates only after A2 global freeze and zero live `resolved`
-entries. Supported T4 formatting applies exact scope before rendering;
+T4 was activated only after A2 global freeze and zero live `resolved`
+entries. Supported T4 formatting now applies exact scope before rendering;
 all-corpus output and absolute FP=0 remain visible.
 
 Required formatter tests cover UTF-16 ordering, adjacent dedupe, UTF-16
 spans, outer diagnostic headers, chains, related information, file-less
-diagnostics, suggestions, final ANSI removal, platform-independent
-paths, and CRLF input.
+diagnostics, absent versus present-but-empty related information,
+suggestions, final ANSI removal, platform-independent paths, and CRLF
+input.
 
 ## 5. A5 — family ownership and supported rollup
 
@@ -619,6 +643,7 @@ The implementations must pin at least these failure classes:
 | A2 pin | add/edit plus rewritten set/count/hash; non-ancestor or mismatching adjudication commit; movable-ref or non-commit anchor; anchor manifest under another encoder version |
 | A2 tombstone | proof absent, partial-view only, stale A1 pin, or duplicate bucket not multiplicity-complete; a live resolved exclusion is unreported or passes readiness; resolving commit changed or dropped against the trusted base; marked lapsed while the occurrence still exists |
 | A2 global | unpinned-band edit after freeze; status downgrade; branch add-and-reanchor; unverified band pin |
+| A3 sidecar | a schema-3 empty-related-information index is missing, duplicated, unordered, out of range, points to a non-empty related-information row, drifts from the genuine renderer producer, or changes the pre-existing structured oracle bytes/hash/identity |
 | A5 map | unmapped/duplicate row; enumerated 2XXX row; owner/canary change after freeze; old owner change disguised as extension |
 | A5 rollup | stale conformance/scope fingerprint; excluded duplicate neighbor lost; A1 summary substituted for current supported grading |
 | D1 dormant | an M8-stub/constant-false constructibility claim is absent from the escape manifest; its canary exists and passes while the old annotation remains; a family-construction exit lacks the named canary; the dormant ceiling increases; a row disappears without a real branch/pin or narrower exact escape |

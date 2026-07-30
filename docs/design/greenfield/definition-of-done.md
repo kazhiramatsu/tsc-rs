@@ -31,12 +31,13 @@ two-view contract in [m8-readiness.md](m8-readiness.md):
    exclusions are exact reviewed diagnostic identities; no
    fixture/code/glob exclusion exists.
 2. **Supported-scope T4 per case**: replaying the complete oracle records
-   through the Rust formatter first reproduces the genuine
-   `oracle_cli_hash` stored in the schema-3 golden. After that formatter
-   anchor verifies, exact A2 scope is applied and the supported oracle and
-   current tsrs rendered bytes are byte-identical — ordering and dedupe
-   included. The golden stores oracle output evidence only; it never
-   persists a tsrs output or `tsrs_cli_hash` baseline.
+   together with schema 3's formatter-only presence metadata through the
+   Rust formatter first reproduces the genuine `oracle_cli_hash` stored in
+   the schema-3 golden. After that formatter anchor verifies, exact A2 scope
+   is applied and the supported oracle and current tsrs rendered bytes are
+   byte-identical — ordering and dedupe included. The golden stores oracle
+   output evidence only; it never persists a tsrs output or
+   `tsrs_cli_hash` baseline.
 3. **Suggestion-pass rows are in scope** insofar as they are
    emit-free (the M7 band: unused/grammar/suggestion). They already
    sit in the All-band denominator (band filtering is code-based);
@@ -70,17 +71,24 @@ two-view contract in [m8-readiness.md](m8-readiness.md):
    known-open divergence class.
    This is an engineering bar, not a formal guarantee.
 
+The M8 accepted state now records supported T0-T3 at
+48,783 / 48,783 per tier, supported T4 at 7,691 / 7,691 cases,
+all-corpus `FP=0`, and zero escapes. No M8 semantic or recovery work remains.
+The fresh completion report records rows 1-10 green and row 11
+`m9-steady-state` pending; clause 6's M9 steady state is the sole pending
+project-completion row.
+
 ## Milestone gates vs slice fidelity
 
-The implementation is designed for full T0-T4 parity from the first
-ported branch, but corpus-wide activation remains staged. These are
+The implementation was designed for full T0-T4 parity from the first
+ported branch, while corpus-wide activation was staged. These were
 different obligations:
 
 - **Milestone gate**: the active corpus gate starts at T0 + absolute
   all-corpus FP=0; an exact-count T1 aggregate joins it at M7 8.4.
-  M8 replaces that aggregate authority with exact A1 T1-T3 bucket
-  sets through `tier1-3-input-schema-extension`, while A3/T4 activates
-  only under
+  M8 replaced that aggregate authority with exact A1 T1-T3 bucket
+  sets through `tier1-3-input-schema-extension`; A3/T4 then activated
+  under
   [measurement-integrity.md §4](measurement-integrity.md#4-a3--t4-activation).
 - **Touched-family fidelity**: a slice that makes a diagnostic family
   observable follows that family vertically through every tier whose
@@ -102,11 +110,12 @@ different obligations:
   transition it remains supplemental slice evidence while A1 is the
   enforcement authority. Do not reconstruct tier identities from aggregate
   rates.
-- **Pre-A3 T4**: local formatter goldens and
+- **Historical pre-A3 T4**: local formatter goldens and
   `conformance --tier t4 --report-only` are validation evidence, not
   accepted T4 identities and not corpus-wide T4 activation. The A3
-  schema transition and T4 accepted-set ratchet still wait for the
-  globally frozen A2 scope and zero live `resolved` entries.
+  schema transition and T4 accepted-set ratchet waited for the globally
+  frozen A2 scope and zero live `resolved` entries. Those prerequisites
+  were satisfied and the schema-3 T4 gate is now active.
 - **Blocked upper tier**: if a shared prerequisite (diagnostic-chain
   builder, program/global assembly, formatter, or an unconstructible
   type family) prevents vertical completion, the slice records the
@@ -119,17 +128,18 @@ different obligations:
   set unchanged, and is followed by the consuming slice rather than
   being counted as parity progress.
 
-M8 performs the formal cross-family tier sweeps and closes every
-recorded upper-tier blocker. This policy keeps the causal clarity of
-staged gates without creating a T0-only reporting architecture that
-must be replaced at the end.
+M8's completed formal cross-family tier sweeps closed every recorded
+upper-tier blocker. This policy kept the causal clarity of staged gates
+without creating a T0-only reporting architecture that had to be replaced
+at the end.
 
 Checked JavaScript, including tsc-compatible JSDoc parsing, arena nodes,
 binding, type construction, relations, and diagnostics, is part of the M8
 batch-diagnostics surface. `plainJSErrors` is a tsc dispatch rule, not a
 scope boundary. Historical exact `jsdoc-semantics` exclusions return through
-A2 tombstones when their dependencies are implemented; a broad JSDoc
-exclusion is not permitted.
+A2 tombstones when their dependencies are implemented. All such historical
+JSDoc exclusions have now returned; a broad JSDoc exclusion is not
+permitted.
 
 ## Explicitly out of scope
 
@@ -176,7 +186,6 @@ not alter this scope denominator or claim M8 acceptance credit. See
 | M8 start | `cargo xtask m8 readiness --require-ready`: M7 gate, globally identity-anchored frozen exact scope, T1-T3 shadow metrics, declaration-identity all-band emitter inventory + dependency closure + runtime coverage, current-fingerprint fuzzer evidence, and current performance/RSS evidence on an approved reference runner |
 | Done | this page's §"Done means", all six clauses |
 
-Shadow T1/T2/T3 rates are measured (non-gating) from pre-5.8a
-onward; a fixture family that reaches completion may ratchet its
-tier early, but the GATES stay T0+FP=0 until M8 activates the
-higher tiers corpus-wide.
+Shadow T1/T2/T3 rates were measured as non-gating evidence from pre-5.8a
+onward; a fixture family could ratchet its tier early, but the gates stayed
+at T0+FP=0 until M8 activated the higher tiers corpus-wide.

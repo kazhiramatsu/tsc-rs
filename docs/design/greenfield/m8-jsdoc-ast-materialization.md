@@ -1,8 +1,9 @@
 # M8: complete JSDoc subsystem port
 
 Status: approved M8 design correction; dependency-complete implementation
-landed. Formal corpus-tier and T4 acceptance remain governed by the M8
-execution contract.
+landed and subsequently accepted by the completed formal A1 tier and A3 T4
+gates. Their continuing enforcement remains governed by the M8 execution and
+measurement-integrity contracts.
 
 This page owns the complete JSDoc subsystem used by the parser, binder, and
 checker during M8. It refines the
@@ -25,9 +26,10 @@ tombstones instead of redefining the supported denominator. Superseded
 checker-side comment projections and partial-activation guards are not the
 production semantics.
 
-This result closes the representation correction described below. It does
-not by itself claim that the separate A1 tier transition or A3 rendered-output
-transition has occurred; those remain executable corpus-wide gates in the
+This result closed the representation correction described below. The
+subsystem landing did not by itself claim the separate A1 tier transition or
+A3 rendered-output transition; those independent corpus-wide gates
+subsequently activated at M8 close under the
 [M8 execution contract](m8-execution-and-close.md).
 
 ## Why the representation had to change
