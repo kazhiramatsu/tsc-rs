@@ -21,6 +21,7 @@
 
 use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_diags::{gen as diagnostics, DiagnosticCategory, DiagnosticMessage};
+use tsrs2_syntax::nodes::{JSDocFunctionTypeData, JSDocTypeLiteralData};
 use tsrs2_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
     CheckFlags, ElementFlags, ModifierFlags, NodeCheckFlags, ObjectFlags, SymbolFlags, TypeData,
@@ -5976,41 +5977,6 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsrs-native: the origin verdict shield's transitive
-    /// INSTANTIABLE probe — a type variable anywhere inside the
-    /// origin's composite shape (nested unions/intersections and
-    /// their own origins included) puts the relation in the
-    /// cross-product band the port cannot verdict yet. Iterative
-    /// (50k-chain corpus fixtures); only composite member lists are
-    /// walked, so object members cannot cycle through here, and the
-    /// seen-set bounds re-visits.
-    fn composite_shape_contains_instantiable(&self, types: &[TypeId]) -> bool {
-        let mut stack: Vec<TypeId> = types.to_vec();
-        let mut seen: std::collections::HashSet<TypeId> = std::collections::HashSet::new();
-        while let Some(ty) = stack.pop() {
-            if !seen.insert(ty) {
-                continue;
-            }
-            let flags = self.tables.flags_of(ty);
-            if flags.intersects(TypeFlags::INSTANTIABLE) {
-                return true;
-            }
-            if flags.intersects(TypeFlags::UNION | TypeFlags::INTERSECTION) {
-                match &self.tables.type_of(ty).data {
-                    TypeData::Union { types, origin } => {
-                        stack.extend(types.iter().copied());
-                        if let Some(origin) = origin {
-                            stack.push(*origin);
-                        }
-                    }
-                    TypeData::Intersection { types } => stack.extend(types.iter().copied()),
-                    _ => {}
-                }
-            }
-        }
-        false
-    }
-
     fn type_to_string_slice_structured(
         &mut self,
         ty: TypeId,
@@ -6101,32 +6067,6 @@ impl<'a> CheckerState<'a> {
                         TypeData::Intersection { types } => types.to_vec(),
                         _ => unreachable!("union/intersection flag implies composite data"),
                     };
-                    // NARROWED verdict shield: origins whose shape
-                    // contains INSTANTIABLE constituents are the
-                    // cross-product relation band where the port's
-                    // verdict is NOT yet faithful — `T & U ⊆ (A | B) &
-                    // T & U` holds in tsc through a normalized-
-                    // intersection path the port lacks (each
-                    // constituent relates individually here, and `T &
-                    // U ⊆ 2` passes standalone but fails inside the
-                    // intersection-target walk; FP-gate catch #8).
-                    // The probe is TRANSITIVE through nested
-                    // composites and their origins: a type variable
-                    // wrapped in a named union member (`type N<T, U> =
-                    // (T & U) | 4` inside `N<T, U> & (A | B)`) rides
-                    // the same unfaithful verdict band as a direct
-                    // member — the direct-member probe let it through
-                    // and fabricated a 2322 tsc does not report
-                    // (9.3b5 review r1). Rendering those origins would
-                    // report the wrong verdicts, so the shield stays
-                    // EXACTLY for them until the relation producer
-                    // lands (9.9x/M8 owner); concrete-typed origins
-                    // (the interface cross products) render.
-                    if self.composite_shape_contains_instantiable(&types) {
-                        return Err(Unsupported::new(
-                            "origin display over instantiable members (cross-product relation verdict dependency, M8)",
-                        ));
-                    }
                 } else if origin_flags.intersects(TypeFlags::INDEX) {
                     return self.index_type_to_string_slice_node(origin, fully_qualified);
                 } else {
@@ -9465,7 +9405,14 @@ impl<'a> CheckerState<'a> {
     /// standard printer's emission for cloned annotation ASTs.
     /// Initializer-free by construction (type positions); Errs on the
     /// kinds whose emission the slice has not needed yet (import
-    /// types, mapped/conditional/infer shapes, JSDoc nodes).
+    /// types, mapped/conditional/infer shapes).
+    ///
+    /// JSDoc nodes do not print in their source grammar here.
+    /// visitExistingNodeTreeSymbolsWorker lowers them to ordinary
+    /// TypeNodes before the cloned tree reaches the printer: `*` /
+    /// namepaths become `any`, `?` becomes `unknown`, nullable and
+    /// optional wrappers become unions, non-null wrappers disappear,
+    /// and variadics become arrays.
     fn type_annotation_text_slice(&mut self, node: NodeId) -> CheckResult2<String> {
         let curtain =
             || Unsupported::new("typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)");
@@ -9496,6 +9443,49 @@ impl<'a> CheckerState<'a> {
             _ => {}
         }
         match self.data_of(node).clone() {
+            // tsc-port: visitExistingNodeTreeSymbolsWorker's JSDoc
+            // lowering @6.0.3.
+            // tsc-hash: 8b4acd6f23476915bdfabab514bac75c2ea60ed2d25b510088a3f55c78028978
+            // tsc-span: _tsc.js:133393-133484
+            NodeData::JSDocTypeExpression(data) => {
+                self.type_annotation_text_slice(data.r#type.ok_or_else(curtain)?)
+            }
+            NodeData::JSDocAllType(_) | NodeData::JSDocNamepathType(_) => Ok("any".to_owned()),
+            NodeData::JSDocUnknownType(_) => Ok("unknown".to_owned()),
+            NodeData::JSDocNullableType(data) => {
+                let inner = data.r#type.ok_or_else(curtain)?;
+                let inner_text = self.type_annotation_text_slice(inner)?;
+                let inner_kind = self.type_annotation_node_kind_slice(inner);
+                let inner_text = if union_constituent_needs_parens(inner_kind) {
+                    format!("({inner_text})")
+                } else {
+                    inner_text
+                };
+                Ok(format!("{inner_text} | null"))
+            }
+            NodeData::JSDocOptionalType(data) => {
+                let inner = data.r#type.ok_or_else(curtain)?;
+                let inner_text = self.type_annotation_text_slice(inner)?;
+                let inner_kind = self.type_annotation_node_kind_slice(inner);
+                let inner_text = if union_constituent_needs_parens(inner_kind) {
+                    format!("({inner_text})")
+                } else {
+                    inner_text
+                };
+                Ok(format!("{inner_text} | undefined"))
+            }
+            NodeData::JSDocNonNullableType(data) => {
+                self.type_annotation_text_slice(data.r#type.ok_or_else(curtain)?)
+            }
+            NodeData::JSDocVariadicType(data) => {
+                let inner = data.r#type.ok_or_else(curtain)?;
+                Ok(array_type_node_text(
+                    self.type_annotation_text_slice(inner)?,
+                    self.type_annotation_node_kind_slice(inner),
+                ))
+            }
+            NodeData::JSDocFunctionType(data) => self.jsdoc_function_type_text_slice(node, data),
+            NodeData::JSDocTypeLiteral(data) => self.jsdoc_type_literal_text_slice(node, data),
             NodeData::ParenthesizedType(data) => {
                 let inner = data.r#type.ok_or_else(curtain)?;
                 Ok(format!("({})", self.type_annotation_text_slice(inner)?))
@@ -9689,6 +9679,202 @@ impl<'a> CheckerState<'a> {
             }
             _ => Err(curtain()),
         }
+    }
+
+    /// Kind carried beside a reused annotation's text for the factory
+    /// parenthesizer decisions made by JSDoc lowering. This mirrors
+    /// the ordinary TypeNode kind produced by
+    /// visitExistingNodeTreeSymbolsWorker, rather than the original
+    /// JSDoc wrapper kind.
+    fn type_annotation_node_kind_slice(&self, node: NodeId) -> SliceTypeNodeKind {
+        match self.kind_of(node) {
+            SyntaxKind::JSDocTypeExpression | SyntaxKind::JSDocNonNullableType => {
+                let inner = match self.data_of(node) {
+                    NodeData::JSDocTypeExpression(data) => data.r#type,
+                    NodeData::JSDocNonNullableType(data) => data.r#type,
+                    _ => None,
+                };
+                inner
+                    .map(|inner| self.type_annotation_node_kind_slice(inner))
+                    .unwrap_or(SliceTypeNodeKind::Keyword)
+            }
+            SyntaxKind::JSDocAllType
+            | SyntaxKind::JSDocUnknownType
+            | SyntaxKind::JSDocNamepathType => SliceTypeNodeKind::Keyword,
+            SyntaxKind::JSDocNullableType | SyntaxKind::JSDocOptionalType => {
+                SliceTypeNodeKind::Union
+            }
+            SyntaxKind::JSDocVariadicType | SyntaxKind::ArrayType => SliceTypeNodeKind::Array,
+            SyntaxKind::JSDocTypeLiteral | SyntaxKind::TypeLiteral => {
+                SliceTypeNodeKind::TypeLiteral
+            }
+            SyntaxKind::JSDocFunctionType => {
+                if node_util::is_jsdoc_construct_signature(self.binder.source_of_node(node), node) {
+                    SliceTypeNodeKind::ConstructorType
+                } else {
+                    SliceTypeNodeKind::FunctionType
+                }
+            }
+            SyntaxKind::FunctionType => SliceTypeNodeKind::FunctionType,
+            SyntaxKind::ConstructorType => SliceTypeNodeKind::ConstructorType,
+            SyntaxKind::UnionType => SliceTypeNodeKind::Union,
+            SyntaxKind::IntersectionType => SliceTypeNodeKind::Intersection,
+            SyntaxKind::TypeOperator => SliceTypeNodeKind::TypeOperator,
+            SyntaxKind::TypeQuery => SliceTypeNodeKind::TypeQuery,
+            SyntaxKind::TupleType => SliceTypeNodeKind::Tuple,
+            SyntaxKind::TemplateLiteralType => SliceTypeNodeKind::TemplateLiteral,
+            SyntaxKind::IndexedAccessType => SliceTypeNodeKind::IndexedAccess,
+            SyntaxKind::ConditionalType => SliceTypeNodeKind::Conditional,
+            SyntaxKind::LiteralType => SliceTypeNodeKind::Literal,
+            _ => SliceTypeNodeKind::Reference,
+        }
+    }
+
+    /// tsc-port: visitExistingNodeTreeSymbolsWorker's
+    /// isJSDocFunctionType arm @6.0.3.
+    /// tsc-hash: d43fea9b24f553ed46ba34a6722ab90374b8011af16ca7e3b469feaef68fbd62
+    /// tsc-span: _tsc.js:133446-133481
+    ///
+    /// JSDoc function parameters are deliberately renamed by the
+    /// syntactic builder (`argN`, `args`, with `this` preserved), and
+    /// a leading `new` pseudo-parameter supplies a constructor return
+    /// type instead of appearing in the emitted parameter list.
+    fn jsdoc_function_type_text_slice(
+        &mut self,
+        node: NodeId,
+        data: JSDocFunctionTypeData,
+    ) -> CheckResult2<String> {
+        let curtain =
+            || Unsupported::new("typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)");
+        let construct =
+            node_util::is_jsdoc_construct_signature(self.binder.source_of_node(node), node);
+        let type_parameters =
+            self.type_parameter_nodes_text_slice(self.nodes_of(data.type_parameters))?;
+        let mut return_from_new = None;
+        let mut parameters = Vec::new();
+        for (index, parameter) in self.nodes_of(data.parameters).into_iter().enumerate() {
+            let NodeData::Parameter(parameter_data) = self.data_of(parameter).clone() else {
+                return Err(curtain());
+            };
+            let original_name = parameter_data
+                .name
+                .and_then(|name| self.identifier_text_of(name))
+                .map(str::to_owned);
+            if construct && original_name.as_deref() == Some("new") {
+                return_from_new = parameter_data.r#type;
+                continue;
+            }
+            let rest = parameter_data.dot_dot_dot_token.is_some()
+                || parameter_data
+                    .r#type
+                    .is_some_and(|ty| self.kind_of(ty) == SyntaxKind::JSDocVariadicType);
+            let name = if original_name.as_deref() == Some("this") {
+                "this".to_owned()
+            } else if rest {
+                "args".to_owned()
+            } else {
+                format!("arg{index}")
+            };
+            let dots = if rest { "..." } else { "" };
+            let question = if parameter_data.question_token.is_some() {
+                "?"
+            } else {
+                ""
+            };
+            let mut text = format!("{dots}{name}{question}");
+            if let Some(annotation) = parameter_data.r#type {
+                text.push_str(": ");
+                text.push_str(&self.type_annotation_text_slice(annotation)?);
+            }
+            parameters.push(text);
+        }
+        let return_type = return_from_new.or(data.r#type);
+        let return_text = match return_type {
+            Some(return_type) => self.type_annotation_text_slice(return_type)?,
+            None => "any".to_owned(),
+        };
+        if construct {
+            Ok(format!(
+                "new {type_parameters}({}) => {return_text}",
+                parameters.join(", ")
+            ))
+        } else {
+            Ok(format!(
+                "{type_parameters}({}) => {return_text}",
+                parameters.join(", ")
+            ))
+        }
+    }
+
+    /// tsc-port: visitExistingNodeTreeSymbolsWorker's
+    /// isJSDocTypeLiteral arm @6.0.3.
+    /// tsc-hash: ba4ec70ca9817c23c31d5cbfcae6cf9a1ee2778cbcab1e89399b4c7caa5c0030
+    /// tsc-span: _tsc.js:133412-133427
+    ///
+    /// The visitor synthesizes an ordinary TypeLiteral of property
+    /// signatures. Bracketed tags and optional JSDoc types both set
+    /// `?`; a missing annotation becomes `any`.
+    fn jsdoc_type_literal_text_slice(
+        &mut self,
+        node: NodeId,
+        data: JSDocTypeLiteralData,
+    ) -> CheckResult2<String> {
+        let curtain =
+            || Unsupported::new("typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)");
+        let properties = self.nodes_of(data.js_doc_property_tags);
+        if properties.is_empty() {
+            return Ok("{}".to_owned());
+        }
+        let literal_type = self.get_type_from_type_node(node)?;
+        let mut rendered = Vec::with_capacity(properties.len());
+        for property in properties {
+            let NodeData::JSDocPropertyTag(property_data) = self.data_of(property).clone() else {
+                return Err(curtain());
+            };
+            let name_node = property_data.name.ok_or_else(curtain)?;
+            let name_node = match self.data_of(name_node) {
+                NodeData::Identifier(_) => name_node,
+                NodeData::JSDocMemberName(data) => data.right.ok_or_else(curtain)?,
+                _ => return Err(curtain()),
+            };
+            let name = self.entity_name_text_slice(name_node)?;
+            let annotation = property_data.type_expression.and_then(|expression| {
+                match self.data_of(expression) {
+                    NodeData::JSDocTypeExpression(data) => data.r#type,
+                    _ => None,
+                }
+            });
+            let optional = property_data.is_bracketed
+                || annotation.is_some_and(|ty| self.kind_of(ty) == SyntaxKind::JSDocOptionalType);
+
+            // resolver.getJsDocPropertyOverride: if resolving the
+            // enclosing literal changed this property's type, render
+            // that resolved face; otherwise visit the written JSDoc
+            // annotation.
+            let property_type = self.get_type_of_property_of_type(literal_type, &name)?;
+            let annotation_type = match annotation {
+                Some(annotation) => Some(self.get_type_from_type_node(annotation)?),
+                None => None,
+            };
+            let type_text = if let (Some(property_type), Some(annotation_type)) =
+                (property_type, annotation_type)
+            {
+                if property_type != annotation_type {
+                    self.type_to_string_slice(property_type)?
+                } else {
+                    self.type_annotation_text_slice(annotation.ok_or_else(curtain)?)?
+                }
+            } else if let Some(annotation) = annotation {
+                self.type_annotation_text_slice(annotation)?
+            } else {
+                "any".to_owned()
+            };
+            rendered.push(format!(
+                "{name}{}: {type_text}",
+                if optional { "?" } else { "" }
+            ));
+        }
+        Ok(format!("{{ {}; }}", rendered.join("; ")))
     }
 
     /// Entity names in reused annotations: Identifier / QualifiedName
@@ -12520,6 +12706,12 @@ mod tests {
 
     #[test]
     fn jsdoc_satisfies_semantics_reports_named_primitive_and_function_targets() {
+        // checkJsdocSatisfiesTag15.ts is a standard-lib fixture. Keep
+        // the unit program's Array target live as well: without it,
+        // getTypeFromArrayOrTupleTypeNode's exact missing-global arm
+        // intentionally collapses `number[]` to `{}` (pinned by the
+        // no-lib sibling below).
+        let lib = "interface Array<T> {}\n";
         let options = CompilerOptions {
             allow_js: true,
             check_js: Some(true),
@@ -12537,9 +12729,14 @@ mod tests {
                      * @param {string} a\n\
                      * @param {string} b\n\
                      */\n\
-                    const callable = (a, b) => {};\n";
-        with_program_state(&[("a.js", text)], &options, |state| {
-            state.check_source_file(0);
+                    const callable = (a, b) => {};\n\
+                    /**\n\
+                     * @satisfies {(a: string, ...args: number[]) => void}\n\
+                     * @param {string} a\n\
+                     */\n\
+                    const compatible = (a) => {};\n";
+        with_program_state(&[("lib.d.ts", lib), ("a.js", text)], &options, |state| {
+            state.check_source_file(1);
             let diagnostics = state
                 .diagnostics
                 .iter()
@@ -12556,6 +12753,7 @@ mod tests {
                 .match_indices("@satisfies")
                 .map(|(start, _)| ((start + 1) as u32, "satisfies".len() as u32))
                 .collect::<Vec<_>>();
+            assert_eq!(tags.len(), 4, "the fourth tag is the non-firing sibling");
             assert_eq!(
                 diagnostics,
                 [
@@ -12574,6 +12772,45 @@ mod tests {
                         tags[2].1,
                         "Type '(a: string, b: string) => void' does not satisfy the expected type '(a: string, ...args: number[]) => void'.".to_owned(),
                     ),
+                ]
+            );
+        });
+    }
+
+    #[test]
+    fn jsdoc_satisfies_no_lib_rest_array_target_uses_empty_object_face() {
+        // tsc-port boundary:
+        // getTypeFromArrayOrTupleTypeNode @6.0.3
+        // (_tsc.js:61118-61137) maps a missing global Array target
+        // (`emptyGenericType`) to `emptyObjectType`; and
+        // canReuseTypeNodeAnnotation (_tsc.js:50932-50955) cannot
+        // recover the written ArrayType without an enclosing
+        // declaration. A pure no-lib program therefore prints `{}`.
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/**\n\
+                     * @satisfies {(a: string, ...args: number[]) => void}\n\
+                     * @param {string} a\n\
+                     * @param {string} b\n\
+                     */\n\
+                    const callable = (a, b) => {};\n";
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let diagnostics = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 1360)
+                .map(|diagnostic| diagnostic.message_text().to_owned())
+                .collect::<Vec<_>>();
+            assert_eq!(
+                diagnostics,
+                [
+                    "Type '(a: string, b: string) => void' does not satisfy the expected type \
+                     '(a: string, ...args: {}) => void'."
+                        .to_owned()
                 ]
             );
         });
@@ -14075,6 +14312,131 @@ mod tests {
     }
 
     #[test]
+    fn signature_display_jsdoc_optional_array_annotation_reuse() {
+        // classCanExtendConstructorFunction.ts's failing base-method
+        // face: visitExistingNodeTreeSymbolsWorker lowers `*[]=`
+        // through Optional(Array(All)) to `any[] | undefined`.
+        // The `keep` assignment is the nearest non-firing sibling and
+        // guards the ordinary JSDoc annotation-reuse route.
+        let lib = "interface Array<T> { length: number; [n: number]: T }\n";
+        let text = concat!(
+            "/** @param {*[]=} supplies */\n",
+            "const load = function (supplies) {};\n",
+            "/** @type {string} */\n",
+            "let target = load;\n",
+            "/** @param {number} value */\n",
+            "const keep = function (value) {};\n",
+            "/** @type {(value: number) => void} */\n",
+            "let compatible = keep;\n",
+        );
+        let rows = program_diags_with(
+            &[("lib.d.ts", lib), ("source.js", text)],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+            "/",
+        )
+        .into_iter()
+        .filter(|row| row.1 == 2322)
+        .collect::<Vec<_>>();
+        assert_eq!(
+            rows,
+            [(
+                "source.js".to_owned(),
+                2322,
+                text.find("target").expect("failing declaration") as u32,
+                "target".len() as u32,
+                "Type '(supplies?: any[] | undefined) => void' is not assignable to type \
+                 'string'."
+                    .to_owned(),
+            )]
+        );
+    }
+
+    #[test]
+    fn reused_jsdoc_type_nodes_lower_to_typescript_nodes() {
+        fn render(annotation: &str) -> String {
+            let text = format!("/** @type {{{annotation}}} */\nlet value;\n");
+            with_program_state_allow_parse_diagnostics(
+                &[("source.js", &text)],
+                &CompilerOptions {
+                    allow_js: true,
+                    check_js: Some(true),
+                    strict: Some(true),
+                    ..CompilerOptions::default()
+                },
+                |state| {
+                    let expression = {
+                        let source = state.binder.source(0);
+                        source
+                            .arena
+                            .node_ids()
+                            .find(|&node| {
+                                source.arena.node(node).kind
+                                    == tsrs2_syntax::SyntaxKind::JSDocTypeExpression
+                            })
+                            .expect("JSDoc type expression")
+                    };
+                    state
+                        .type_annotation_text_slice(expression)
+                        .expect("reused JSDoc annotation")
+                },
+            )
+        }
+
+        assert_eq!(render("*"), "any");
+        assert_eq!(render("?"), "unknown");
+        assert_eq!(render("?number"), "number | null");
+        assert_eq!(render("number="), "number | undefined");
+        assert_eq!(render("!number"), "number");
+        assert_eq!(render("...number"), "number[]");
+        assert_eq!(
+            render("function(number, ...string): boolean"),
+            "(arg0: number, ...args: string[]) => boolean"
+        );
+
+        let literal = concat!(
+            "/**\n",
+            " * @typedef {Object} Box\n",
+            " * @property {number} value\n",
+            " * @property {string} [label]\n",
+            " */\n",
+        );
+        let rendered_literal = with_program_state(
+            &[("source.js", literal)],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+            |state| {
+                let node = {
+                    let source = state.binder.source(0);
+                    source
+                        .arena
+                        .node_ids()
+                        .find(|&node| {
+                            source.arena.node(node).kind
+                                == tsrs2_syntax::SyntaxKind::JSDocTypeLiteral
+                        })
+                        .expect("JSDoc type literal")
+                };
+                state
+                    .type_annotation_text_slice(node)
+                    .expect("reused JSDoc type literal")
+            },
+        );
+        assert_eq!(
+            rendered_literal,
+            "{ value: number; label?: string | undefined; }"
+        );
+    }
+
+    #[test]
     fn signature_display_initializer_parameters_use_minimum_arity() {
         let options = CompilerOptions {
             strict: Some(false),
@@ -14984,13 +15346,12 @@ mod tests {
     }
 
     #[test]
-    fn aliased_union_type_variables_keep_the_origin_shield() {
+    fn aliased_union_type_variables_keep_the_normalized_intersection_verdict() {
         // oracle (vendored 6.0.3, strict, noLib, 2026-07-23): clean.
         // The origin's instantiable constituents hide inside the named
-        // union member `N<T, U>`; the port's cross-product verdict is
-        // still unfaithful there, so the shield must cover the nested
-        // shape — the direct-member probe fabricated a 2322 (9.3b5
-        // review r1).
+        // union member `N<T, U>`. The relation must decide this through
+        // getEffectiveConstraintOfIntersection; display is not allowed
+        // to act as a verdict shield.
         assert_eq!(
             checked_diags(
                 "type A = 1 | 2;\ntype B = 2 | 3;\ntype N<T, U> = (T & U) | 4;\n\nfunction f<T \
@@ -16875,12 +17236,10 @@ mod tests {
     }
 
     #[test]
-    fn origin_with_instantiable_members_stays_curtained() {
-        // The narrowed verdict shield: `T & U ⊆ (A | B) & T & U` holds
-        // in tsc through a normalized-intersection path the port lacks
-        // (T & U ⊆ 2 passes standalone but fails inside the
-        // intersection-target walk), so instantiable-membered origins
-        // keep the curtain — the wrong verdict must not report.
+    fn origin_with_instantiable_members_uses_the_relation_verdict() {
+        // `T & U ⊆ (A | B) & T & U` holds in tsc through the
+        // normalized-intersection constraint path. This canary must
+        // stay clean without using typeToString as a verdict shield.
         assert_eq!(
             checked_diags(
                 "type A = 1 | 2;\ntype B = 2 | 3;\nfunction f2<T extends A, U extends B>(ab: T & U): (A | B) & T & U { return ab; }\n"
