@@ -3641,9 +3641,11 @@ impl<'a> CheckerState<'a> {
             });
         let computed = (|state: &mut Self| -> CheckResult2<TypeId> {
             let Some(declaration) = declaration else {
-                return Err(Unsupported::new(
-                    "type alias symbol without a type-alias declaration",
-                ));
+                // tsc uses Debug.checkDefined here.  A recovery symbol that
+                // has lost its declaring node has no type node to resolve;
+                // cache the checker error type while still balancing the
+                // resolution stack below.
+                return Ok(state.tables.intrinsics.error);
             };
             let type_node = match state.data_of(declaration) {
                 NodeData::TypeAliasDeclaration(data) => data.r#type,
@@ -5142,10 +5144,13 @@ impl<'a> CheckerState<'a> {
     fn late_bindable_name_type(&mut self, name: NodeId) -> CheckResult2<TypeId> {
         match self.data_of(name) {
             NodeData::ElementAccessExpression(data) => {
-                let argument = data.argument_expression.ok_or_else(|| {
-                    Unsupported::new("late-bindable element access without an argument")
-                })?;
-                self.check_expression_cached(argument, CheckMode::NORMAL)
+                match data.argument_expression {
+                    Some(argument) => self.check_expression_cached(argument, CheckMode::NORMAL),
+                    // checkExpressionCached(undefined) is unreachable in
+                    // tsc's factory-valid tree.  errorType makes the missing
+                    // property name unusable without abandoning the owner.
+                    None => Ok(self.tables.intrinsics.error),
+                }
             }
             _ => self.check_computed_property_name(name),
         }
@@ -9989,10 +9994,17 @@ impl<'a> CheckerState<'a> {
             NodeData::GetAccessor(data) => (data.type_parameters, data.parameters, None),
             NodeData::SetAccessor(data) => (data.type_parameters, data.parameters, None),
             _ => {
-                return Err(Unsupported::new(format!(
-                    "unexpected signature declaration kind {:?}",
-                    self.kind_of(declaration)
-                )))
+                // getSignatureFromDeclaration is called with a
+                // SignatureDeclaration in tsc.  Recovery callers that have
+                // lost that invariant receive the canonical error signature;
+                // cache it exactly like a constructed declaration signature.
+                let signature = self.unknown_signature;
+                self.links.set_node_resolved_signature(
+                    self.speculation_depth,
+                    declaration,
+                    LinkSlot::Resolved(signature),
+                );
+                return Ok(signature);
             }
         };
         let _ = type_parameters;
@@ -13094,6 +13106,130 @@ mod generic_signature_tests {
                 assert!(related);
             },
         );
+    }
+}
+
+#[cfg(test)]
+mod c0_annotation_recovery_tests {
+    use tsrs2_binder::bind_source_file;
+    use tsrs2_syntax::nodes::ElementAccessExpressionData;
+    use tsrs2_syntax::{
+        parse_source_file, LanguageVariant, NodeData, ParseOptions, SourceFile, SyntaxKind,
+    };
+    use tsrs2_types::{CompilerOptions, NodeFlags, SymbolFlags};
+
+    use crate::state::CheckerState;
+
+    fn parse(text: &str) -> SourceFile {
+        let source = parse_source_file(
+            "annotation-recovery.ts".to_owned(),
+            text.to_owned(),
+            ParseOptions {
+                language_variant: LanguageVariant::Standard,
+                javascript_file: false,
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        assert!(
+            source.parse_diagnostics.is_empty(),
+            "{:?}",
+            source.parse_diagnostics
+        );
+        source
+    }
+
+    #[test]
+    fn declarationless_type_alias_caches_error_while_valid_alias_keeps_its_type() {
+        let source = parse("type Live = string;\n");
+        let options = CompilerOptions::default();
+        let binder = bind_source_file(&source, &options);
+        let mut state = CheckerState::new(&source, &binder, &options);
+
+        let live = state
+            .resolve_file_scope_name("Live", SymbolFlags::TYPE_ALIAS)
+            .expect("valid alias sibling");
+        assert_eq!(
+            state
+                .get_declared_type_of_type_alias(live)
+                .expect("valid alias resolves"),
+            state.tables.intrinsics.string
+        );
+
+        let recovered = state
+            .binder
+            .create_symbol(SymbolFlags::TYPE_ALIAS, "Recovered".to_owned());
+        let error = state
+            .get_declared_type_of_type_alias(recovered)
+            .expect("declarationless recovery alias resolves to errorType");
+        assert!(state.tables.is_error_type(error));
+        assert_eq!(
+            state
+                .get_declared_type_of_type_alias(recovered)
+                .expect("recovery alias is cached"),
+            error
+        );
+    }
+
+    #[test]
+    fn unexpected_signature_uses_cached_unknown_signature_beside_a_valid_signature() {
+        let source = parse("type Live = (value: string) => number;\n");
+        let options = CompilerOptions::default();
+        let binder = bind_source_file(&source, &options);
+        let mut state = CheckerState::new(&source, &binder, &options);
+        let function_type = source
+            .arena
+            .node_ids()
+            .find(|&node| source.arena.node(node).kind == SyntaxKind::FunctionType)
+            .expect("valid signature sibling");
+        let live = state
+            .get_signature_from_declaration(function_type)
+            .expect("valid signature");
+        assert_ne!(live, state.unknown_signature);
+
+        let root = source.root;
+        let recovered = state
+            .get_signature_from_declaration(root)
+            .expect("unexpected declaration recovers");
+        assert_eq!(recovered, state.unknown_signature);
+        assert_eq!(
+            state
+                .get_signature_from_declaration(root)
+                .expect("unknown signature is cached"),
+            recovered
+        );
+    }
+
+    #[test]
+    fn missing_late_bindable_argument_is_error_type_beside_a_valid_element_name() {
+        let mut source = parse("obj[\"live\"];\n");
+        let valid = source
+            .arena
+            .node_ids()
+            .find(|&node| source.arena.node(node).kind == SyntaxKind::ElementAccessExpression)
+            .expect("valid element access sibling");
+        let missing = source.arena.alloc_node(
+            NodeData::ElementAccessExpression(ElementAccessExpressionData {
+                expression: None,
+                question_dot_token: None,
+                argument_expression: None,
+            }),
+            0,
+            0,
+            NodeFlags::NONE,
+        );
+        let options = CompilerOptions::default();
+        let binder = bind_source_file(&source, &options);
+        let mut state = CheckerState::new(&source, &binder, &options);
+
+        let live = state
+            .late_bindable_name_type(valid)
+            .expect("valid element name");
+        assert!(!state.tables.is_error_type(live));
+        let recovered = state
+            .late_bindable_name_type(missing)
+            .expect("missing element argument recovers");
+        assert!(state.tables.is_error_type(recovered));
     }
 }
 

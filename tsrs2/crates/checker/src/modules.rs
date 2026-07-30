@@ -1066,9 +1066,12 @@ impl<'a> CheckerState<'a> {
                     None => Ok(None),
                 }
             }
-            _ => Err(Unsupported::new(
-                "getTargetOfAliasDeclaration unexpected declaration kind (Debug.fail transcription)",
-            )),
+            // tsc's default is Debug.fail because callers normally provide a
+            // declaration selected by getDeclarationOfAliasSymbol.  A
+            // recovery declaration of another kind simply has no alias
+            // target; callers retain their ordinary unresolved/value
+            // fallback.
+            _ => Ok(None),
         }
     }
 
@@ -2923,21 +2926,16 @@ impl<'a> CheckerState<'a> {
         let computed = (|state: &mut Self| -> CheckResult2<(TypeId, Option<SymbolId>)> {
             let declarations = state.binder.symbol(symbol).declarations.clone();
             let target_symbol = state.resolve_alias(symbol)?;
-            let export_symbol = if declarations.is_empty() {
-                None
-            } else {
-                let declaration =
-                    state
-                        .get_declaration_of_alias_symbol(symbol)
-                        .ok_or_else(|| {
-                            Unsupported::new(
-                                "getTypeOfAlias alias symbol without alias declaration (parse-recovery shape, tsc Debug.fail)",
-                            )
-                        })?;
-                state.get_target_of_alias_declaration(
+            let export_symbol = match state.get_declaration_of_alias_symbol(symbol) {
+                Some(declaration) => state.get_target_of_alias_declaration(
                     declaration,
                     /*dont_recursively_resolve*/ true,
-                )?
+                )?,
+                // getDeclarationOfAliasSymbol is asserted by tsc.  A
+                // recovery alias without a recognized alias declaration has
+                // no export symbol; the target/value fallback below still
+                // determines its type.
+                None => None,
             };
             let declared_type = if let Some(export_symbol) = export_symbol {
                 let export_declarations = state.binder.symbol(export_symbol).declarations.clone();
@@ -3011,12 +3009,13 @@ impl<'a> CheckerState<'a> {
     /// identity to the flow walk.
     fn get_flow_type_from_common_js_export(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
         let declarations = self.binder.symbol(symbol).declarations.clone();
-        let first = declarations.first().copied().ok_or_else(|| {
-            Unsupported::new(
-                "getFlowTypeFromCommonJSExport symbol without declarations \
-                 (parse-recovery shape)",
-            )
-        })?;
+        let Some(first) = declarations.first().copied() else {
+            // tsc's synthetic reference needs the first declaration for its
+            // source file.  With no declaration there is no flow graph or
+            // source identity to query.
+            self.flow_last_query_inert = false;
+            return Ok(self.tables.intrinsics.error);
+        };
         let receiver_of = |state: &Self, declaration: NodeId| match state.data_of(declaration) {
             NodeData::PropertyAccessExpression(data) => data.expression,
             NodeData::ElementAccessExpression(data) => data.expression,
@@ -3035,45 +3034,32 @@ impl<'a> CheckerState<'a> {
         });
         let reference = if are_all_module_exports {
             first
+        } else if let Some(reference) = declarations.iter().copied().find(|&declaration| {
+            receiver_of(self, declaration).is_some_and(|receiver| {
+                tsrs2_binder::assignment::is_exports_identifier(
+                    self.binder.source_of_node(receiver),
+                    receiver,
+                )
+            })
+        }) {
+            reference
         } else {
-            declarations
-                .iter()
-                .copied()
-                .find(|&declaration| {
-                    receiver_of(self, declaration).is_some_and(|receiver| {
-                        tsrs2_binder::assignment::is_exports_identifier(
-                            self.binder.source_of_node(receiver),
-                            receiver,
-                        )
-                    })
-                })
-                .ok_or_else(|| {
-                    Unsupported::new(
-                        "getFlowTypeFromCommonJSExport declarations lack an exports reference \
-                         (tsc factory-reference invariant)",
-                    )
-                })?
+            // tsc would query a synthetic `exports.name`.  If no real
+            // declaration has an `exports` receiver, that reference cannot
+            // match an assignment in this declaration set and therefore
+            // remains at the query's initial undefined type.
+            self.flow_last_query_inert = false;
+            return Ok(self.tables.intrinsics.undefined);
         };
         let file = self.binder.file_index_of_node(first);
         let root = self.binder.source_of_node(first).root;
-        let end_flow = self
-            .binder
-            .file(file)
-            .node_end_flow
-            .get(&root)
-            .copied()
-            .ok_or_else(|| {
-                Unsupported::new(
-                    "getFlowTypeFromCommonJSExport source file without end flow \
-                     (parse-recovery shape)",
-                )
-            })?;
+        let end_flow = self.binder.file(file).node_end_flow.get(&root).copied();
         self.get_flow_type_of_reference_with_flow(
             reference,
             self.tables.intrinsics.auto,
             self.tables.intrinsics.undefined,
             None,
-            Some(end_flow),
+            end_flow,
         )
     }
 
@@ -12116,5 +12102,196 @@ let unrelated = \"\";\n",
             },
         );
         assert!(rows.iter().any(|row| row.1 == 2591 && row.2 == 14));
+    }
+}
+
+#[cfg(test)]
+mod c0_module_recovery_tests {
+    use tsrs2_binder::bind_source_file;
+    use tsrs2_syntax::{
+        parse_source_file, LanguageVariant, NodeData, NodeId, ParseOptions, SourceFile, SyntaxKind,
+    };
+    use tsrs2_types::{CompilerOptions, SymbolFlags};
+
+    use crate::links::LinkSlot;
+    use crate::state::test_support::with_program_state;
+    use crate::state::CheckerState;
+
+    fn parse_js(text: &str) -> SourceFile {
+        let source = parse_source_file(
+            "commonjs-recovery.js".to_owned(),
+            text.to_owned(),
+            ParseOptions {
+                language_variant: LanguageVariant::Standard,
+                javascript_file: true,
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        assert!(
+            source.parse_diagnostics.is_empty(),
+            "{:?}",
+            source.parse_diagnostics
+        );
+        source
+    }
+
+    fn property_access_with_text(source: &SourceFile, expected: &str) -> NodeId {
+        source
+            .arena
+            .node_ids()
+            .find(|&node| {
+                let raw = source.arena.node(node);
+                let start = tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize);
+                raw.kind == SyntaxKind::PropertyAccessExpression
+                    && &source.text[start..raw.end as usize] == expected
+            })
+            .unwrap_or_else(|| panic!("property access {expected:?}"))
+    }
+
+    #[test]
+    fn common_js_flow_recovery_values_leave_the_ordinary_flow_query_live() {
+        let source = parse_js("obj.x = 1;\nexports.x = 1;\nexports.x = 2;\n");
+        let obj_access = property_access_with_text(&source, "obj.x");
+        let exports_accesses = source
+            .arena
+            .node_ids()
+            .filter(|&node| {
+                let raw = source.arena.node(node);
+                let start = tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize);
+                raw.kind == SyntaxKind::PropertyAccessExpression
+                    && &source.text[start..raw.end as usize] == "exports.x"
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(exports_accesses.len(), 2);
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let binder = bind_source_file(&source, &options);
+        let mut state = CheckerState::new(&source, &binder, &options);
+
+        let declarationless = state
+            .binder
+            .create_symbol(SymbolFlags::PROPERTY, "none".to_owned());
+        let missing_source = state
+            .get_flow_type_from_common_js_export(declarationless)
+            .expect("declarationless export recovers");
+        assert!(state.tables.is_error_type(missing_source));
+
+        let non_exports = state
+            .binder
+            .create_symbol(SymbolFlags::PROPERTY, "x".to_owned());
+        state.binder.symbol_mut(non_exports).declarations = vec![obj_access];
+        assert_eq!(
+            state
+                .get_flow_type_from_common_js_export(non_exports)
+                .expect("synthetic exports reference cannot match"),
+            state.tables.intrinsics.undefined
+        );
+
+        let ordinary = state
+            .binder
+            .create_symbol(SymbolFlags::PROPERTY, "x".to_owned());
+        state.binder.symbol_mut(ordinary).declarations = exports_accesses;
+        let invocations = state.flow_invocation_count;
+        let result = state
+            .get_flow_type_from_common_js_export(ordinary)
+            .expect("ordinary exports flow remains live");
+        assert!(!state.tables.is_error_type(result));
+        assert!(
+            state.flow_invocation_count > invocations,
+            "the ordinary sibling must enter the flow walker"
+        );
+    }
+
+    #[test]
+    fn missing_common_js_end_flow_returns_auto_without_starting_a_flow_walk() {
+        let source = parse_js("exports.x = 1;\n");
+        let access = property_access_with_text(&source, "exports.x");
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let mut binder = bind_source_file(&source, &options);
+        assert!(
+            binder.node_end_flow.remove(&source.root).is_some(),
+            "valid sibling normally has a source-file end flow"
+        );
+        let mut state = CheckerState::new(&source, &binder, &options);
+        let symbol = state
+            .binder
+            .create_symbol(SymbolFlags::PROPERTY, "x".to_owned());
+        state.binder.symbol_mut(symbol).declarations = vec![access];
+        let invocations = state.flow_invocation_count;
+        assert_eq!(
+            state
+                .get_flow_type_from_common_js_export(symbol)
+                .expect("missing end flow uses getFlowTypeOfReference fallback"),
+            state.tables.intrinsics.auto
+        );
+        assert_eq!(state.flow_invocation_count, invocations);
+        assert!(!state.flow_last_query_inert);
+    }
+
+    #[test]
+    fn malformed_alias_declarations_have_no_target_and_keep_resolved_value_fallback() {
+        let text = "namespace N { export const value = 1; }\nimport Live = N;\nexport {};\n";
+        with_program_state(
+            &[("alias-recovery.ts", text)],
+            &CompilerOptions::default(),
+            |state| {
+                let root = state.binder.source(0).root;
+                let import = match state.data_of(root) {
+                    NodeData::SourceFile(data) => state
+                        .nodes_of(data.statements)
+                        .into_iter()
+                        .find(|&node| state.kind_of(node) == SyntaxKind::ImportEqualsDeclaration)
+                        .expect("valid alias declaration sibling"),
+                    _ => panic!("root is SourceFile"),
+                };
+                let live_symbol = state
+                    .get_symbol_of_declaration(import)
+                    .expect("valid alias symbol");
+                assert!(state
+                    .get_target_of_alias_declaration(import, false)
+                    .expect("valid target lookup")
+                    .is_some());
+                let live_type = state
+                    .get_type_of_alias(live_symbol)
+                    .expect("valid alias type");
+                assert!(!state.tables.is_error_type(live_type));
+
+                assert_eq!(
+                    state
+                        .get_target_of_alias_declaration(root, false)
+                        .expect("unexpected declaration has no alias target"),
+                    None
+                );
+
+                let number = state.tables.intrinsics.number;
+                let target = state
+                    .binder
+                    .create_symbol(SymbolFlags::PROPERTY, "target".to_owned());
+                state
+                    .links
+                    .set_fresh_symbol_type(target, LinkSlot::Resolved(number));
+                let recovered = state
+                    .binder
+                    .create_symbol(SymbolFlags::ALIAS, "Recovered".to_owned());
+                state.binder.symbol_mut(recovered).declarations = vec![root];
+                state
+                    .links
+                    .set_fresh_symbol_alias_target(recovered, LinkSlot::Resolved(target));
+                assert_eq!(
+                    state
+                        .get_type_of_alias(recovered)
+                        .expect("malformed declaration retains resolved target fallback"),
+                    number
+                );
+            },
+        );
     }
 }

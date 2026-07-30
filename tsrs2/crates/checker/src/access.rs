@@ -66,14 +66,21 @@ impl<'a> CheckerState<'a> {
                 let NodeData::JsxNamespacedName(data) = self.data_of(node) else {
                     unreachable!("kind/data agree");
                 };
-                let (Some(namespace), Some(name)) = (data.namespace, data.name) else {
-                    return Err(Unsupported::new("entityNameToString on JSX recovery node"));
-                };
-                Ok(format!(
-                    "{}:{}",
-                    self.entity_name_to_string(namespace)?,
-                    self.entity_name_to_string(name)?
-                ))
+                // createJsxNamespacedName's children are required in tsc, but
+                // parser-recovery/synthetic nodes can reach the checker with
+                // either side absent.  Missing identifiers have empty idText,
+                // so preserve the separator and whichever side is present.
+                let namespace = data
+                    .namespace
+                    .map(|namespace| self.entity_name_to_string(namespace))
+                    .transpose()?
+                    .unwrap_or_default();
+                let name = data
+                    .name
+                    .map(|name| self.entity_name_to_string(name))
+                    .transpose()?
+                    .unwrap_or_default();
+                Ok(format!("{}:{}", namespace, name))
             }
             SyntaxKind::PropertyAccessExpression => {
                 let NodeData::PropertyAccessExpression(data) = self.data_of(node) else {
@@ -104,7 +111,11 @@ impl<'a> CheckerState<'a> {
                     self.entity_name_to_string(right)?
                 ))
             }
-            _ => Err(Unsupported::new("entityNameToString beyond entity kinds")),
+            // tsc's default is Debug.assertNever.  For a recovery or
+            // checker-synthetic node, getTextOfNode is the information-
+            // preserving rendering and agrees with the entity arms for
+            // source-backed identifiers.
+            _ => self.text_of_node(node),
         }
     }
 
@@ -1065,6 +1076,73 @@ impl<'a> CheckerState<'a> {
         }
         let ty = self.check_expression(expression, CheckMode::NORMAL)?;
         self.get_non_nullable_type(ty)
+    }
+}
+
+#[cfg(test)]
+mod c0_entity_name_recovery_tests {
+    use tsrs2_binder::bind_source_file;
+    use tsrs2_syntax::nodes::{EmptyStatementData, JsxNamespacedNameData};
+    use tsrs2_syntax::{parse_source_file, LanguageVariant, NodeData, ParseOptions, SyntaxKind};
+    use tsrs2_types::{CompilerOptions, NodeFlags};
+
+    use crate::state::CheckerState;
+
+    #[test]
+    fn recovered_entity_names_keep_source_text_and_valid_siblings_keep_entity_rendering() {
+        let mut source = parse_source_file(
+            "entity-recovery.ts".to_owned(),
+            "alpha".to_owned(),
+            ParseOptions {
+                language_variant: LanguageVariant::Standard,
+                javascript_file: false,
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        assert!(source.parse_diagnostics.is_empty());
+        let identifier = source
+            .arena
+            .node_ids()
+            .find(|&node| source.arena.node(node).kind == SyntaxKind::Identifier)
+            .expect("valid identifier sibling");
+        let missing_jsx_name = source.arena.alloc_node(
+            NodeData::JsxNamespacedName(JsxNamespacedNameData {
+                namespace: Some(identifier),
+                name: None,
+            }),
+            0,
+            5,
+            NodeFlags::NONE,
+        );
+        let non_entity = source.arena.alloc_node(
+            NodeData::EmptyStatement(EmptyStatementData {}),
+            0,
+            5,
+            NodeFlags::NONE,
+        );
+        let options = CompilerOptions::default();
+        let binder = bind_source_file(&source, &options);
+        let state = CheckerState::new(&source, &binder, &options);
+
+        assert_eq!(
+            state
+                .entity_name_to_string(identifier)
+                .expect("valid entity"),
+            "alpha"
+        );
+        assert_eq!(
+            state
+                .entity_name_to_string(missing_jsx_name)
+                .expect("missing JSX child recovers"),
+            "alpha:"
+        );
+        assert_eq!(
+            state
+                .entity_name_to_string(non_entity)
+                .expect("unexpected entity kind retains source text"),
+            "alpha"
+        );
     }
 }
 
