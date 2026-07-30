@@ -76,7 +76,11 @@ jobs:
   semantic:
     name: semantic
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The cold B2 evidence build plus every full-corpus invariant made this
+    # job reach the 30-minute limit on the standard hosted runner at M8 close.
+    # Keep enough headroom for cold-cache variance without changing the
+    # single-worker evidence policy.
+    timeout-minutes: 45
     steps:
       - name: Checkout full lineage
         uses: actions/checkout@v7
