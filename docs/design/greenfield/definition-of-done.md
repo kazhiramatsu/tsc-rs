@@ -73,8 +73,11 @@ ported branch, but corpus-wide activation remains staged. These are
 different obligations:
 
 - **Milestone gate**: the active corpus gate starts at T0 + absolute
-  all-corpus FP=0; T1 joins it at M7 8.4, while A3/T4 activates only
-  under [measurement-integrity.md §4](measurement-integrity.md#4-a3--t4-activation).
+  all-corpus FP=0; an exact-count T1 aggregate joins it at M7 8.4.
+  M8 replaces that aggregate authority with exact A1 T1-T3 bucket
+  sets through `tier1-3-input-schema-extension`, while A3/T4 activates
+  only under
+  [measurement-integrity.md §4](measurement-integrity.md#4-a3--t4-activation).
 - **Touched-family fidelity**: a slice that makes a diagnostic family
   observable follows that family vertically through every tier whose
   prerequisites are live. T1 category, T2 span/top message, and T3

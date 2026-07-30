@@ -27,8 +27,12 @@ policy from
 - 8.1-8.3 remain globally gated at T0, but every touched family records
   its T1/T2/T3 shadow delta and oracle-pins the highest live tier. A
   T0 gain may not consume a previously matching upper-tier identity.
-- 8.4 activates the T1 accepted-set gate. Category is therefore part
-  of each 8.4-and-later family's close, not an M8 cleanup item.
+- 8.4 activates the exact-count T1 aggregate gate in `ratchet.toml`.
+  Category is therefore part of each 8.4-and-later family's close,
+  not an M8 cleanup item. The fixture/matrix/bucket A1 identity set was
+  not yet present; M8 replaces this legacy aggregate authority when
+  T1-T3 activate atomically through
+  `tier1-3-input-schema-extension`.
 - 8.5 lands deterministic T4 formatter and program/global assembly
   structure. Before A3, its formatter goldens and T4 conformance are
   report-only validation; they do not create accepted T4 identities.
@@ -256,17 +260,20 @@ container names count as referenced under the no-emit rules;
 (core-interfaces §8). Category plumbing: suggestions carry
 DiagnosticCategory::Suggestion and the `reportsUnnecessary` bit.
 
-Activate T1 in the comparator and ratchet:
+Activate the M7 exact-count T1 aggregate gate (the A1 tier identity
+schema intentionally waits for M8):
 
 ```sh
-cargo xtask conformance --tier t1     # first measurement; record + ratchet
+cargo xtask conformance               # measure T1 shadow count; record exact aggregate
 ```
 
 Commit: `m7 8.4: suggestion band + T1 activation`.
 
 Gate: the suggestion-pass family rows (unused suggestion half,
 infer-from-usage residue, 80XXX, deprecations, flow-derived
-surfacing) reach acceptance; T1 active and ratcheted.
+surfacing) reach acceptance; the T1 exact-count aggregate is active
+and ratcheted. This is not a claim that the A1 accepted artifact
+already stores T1 identities.
 
 ## Stage 8.5: options + program-level diagnostics [M]
 

@@ -151,20 +151,37 @@ are allowed:
   changes the producer, the producer pins) move, and totals are
   remeasured rather than monotone. The paired accepted-match version
   enumerates every lapsed identity in a `lapsed` block per fixed view
-  and per protected tier (matched and multiplicity-complete
-  separately, never pooled); its lineage edge requires the actual
-  removals to equal that enumeration identity-for-identity, and the
-  version must ride the corrected manifest. `ratchet update
+  and per protected set (T0 matched, multiplicity-complete, and each
+  active T1/T2/T3 set separately, never pooled); its lineage edge
+  requires the actual removals to equal that enumeration
+  identity-for-identity, and the version must ride the corrected
+  manifest. `ratchet update
   --transition oracle-correction` still refuses any false positive —
   the correction suspends only set monotonicity, and only through the
   enumerated lapses. The epoch PR carries the `cargo xtask
   goldens-diff` occurrence-level old→new report as its review
   surface.
-- One A2 and one A3 `input-schema-extension` may add only their declared
-  derived identity fields or oracle T4 fields/comparator entry to every
-  applicable existing record. Missing and empty remain distinct;
-  existing oracle values and active comparator entries stay
-  byte-identical.
+- `tier1-3-input-schema-extension` is the one-time M8 A1 comparator
+  activation. Its predecessor has explicit `absent` markers for T1,
+  T2, and T3; its successor activates all three at comparator schema
+  v1. Partial activation, downgrade, repeat activation, or combining
+  it with any vendor, producer, fixture/case, oracle, expansion,
+  total, T0, T4, pre-existing accepted-T0, or
+  multiplicity-complete change fails. The paired accepted artifact
+  adds the full measured T1-T3 bucket sets. Historical artifacts
+  decode their absent tier fields as empty sets, and the artifact
+  pair rejects tier membership while the corresponding input
+  comparators are absent.
+- A2 required no input-schema transition: exact scope identities use
+  the already-pinned schema-2 golden records and canonical identity
+  encoder v1. The previously reserved A2 extension was therefore
+  never consumed.
+- `t4-input-schema-extension` is reserved for A3. It may add only the
+  declared genuine oracle T4 fields, activate the T4 comparator, and
+  add the paired T4 case-identity set. The name is rejected until A3
+  teaches all of those fields and checks atomically. Missing and
+  empty remain distinct; existing oracle values and active
+  comparator entries stay byte-identical.
 
 A vendor upgrade or comparator-semantic change is a separate project,
 not one of these transitions.
@@ -312,8 +329,9 @@ normalized virtual paths, fixed newlines, and oracle sort/dedupe order;
 it is not a hash of serialized diagnostic JSON. Golden schema 3 stores
 oracle records and genuine oracle rendered hashes only.
 
-A3's one-time input-schema extension fills the previously absent T4
-field without changing any earlier oracle byte. Afterwards
+A3's reserved one-time `t4-input-schema-extension` fills the previously
+absent T4 field and activates its comparator without changing any
+earlier oracle byte. Afterwards
 `oracle-refresh --render-hashes --check` is check-only for the fixed
 universe. Conformance computes the current tsrs hash; accepted T4 case
 identities grow through A1.
@@ -540,12 +558,12 @@ The implementations must pin at least these failure classes:
 
 | Contract | Must fail |
 |---|---|
-| A1 lineage | matched or multiplicity-complete identity removed while counts, implementation, and artifact are edited together; failure names the removed identity |
+| A1 lineage | matched, multiplicity-complete, or active T1/T2/T3 identity removed while counts, implementation, and artifact are edited together; failure names the removed identity |
 | A1 lineage | shrinking intermediate version; non-immediate predecessor; stale hash; second bootstrap; missing history; branch chain smaller than PR base |
-| A1 inputs | old oracle bytes edited/deleted; partial/undeclared schema extension; inactive tier lacks its absent marker; vendor/comparator pin drift |
+| A1 inputs | old oracle bytes edited/deleted; partial/repeated/undeclared schema extension; active-tier downgrade; inactive tier lacks its absent marker; vendor/comparator pin drift |
 | A1 producer | pinned module or `.node-version` drift named per file; universe-transition touching producer pins; the pin extension riding any other change; a refresh under a mismatched LAUNCHED Node refused before any golden write |
 | A1 correction | unenumerated removal names the identity; over-enumeration fails; `lapsed` without the transition (and vice versa) fails; a lapsed identity still accepted fails; a correction with unchanged input pins fails; fixture bytes/expansion/vendor/corpus change under a correction fails; baseline across a correction accepts enumerated lapses only and still rejects further removals; universe-transition still refuses oracle edits |
-| A1 views | 2/2 to 2/1 regression; syntactic FN hidden by semantic gain; fixed or partial view skipping its accepted subset |
+| A1 views | 2/2 to 2/1 regression; complete-multiset T1/T2/T3 loss; syntactic FN hidden by semantic gain; fixed or partial view skipping its accepted subset |
 | A1 shadow diff | unchanged aggregate T1/T2/T3 rate hides an exchanged matched identity; a lost touched-family identity or its exact-row debt record is omitted from PR evidence; a report-only gain enters active accepted state |
 | A2 identity | same T0 key but different span/message/occurrence conflated; Node/Rust canonical bytes differ; stale, duplicate, or ambiguous exclusion accepted |
 | A2 pin | add/edit plus rewritten set/count/hash; non-ancestor or mismatching adjudication commit; movable-ref or non-commit anchor; anchor manifest under another encoder version |

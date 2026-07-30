@@ -29,7 +29,8 @@ are different rather than absent:
   module-format, and target gates;
 - unused diagnostics have very high volume and depend on reference
   marking across binder/checker/module paths;
-- suggestions cross pass/category boundaries and activate T1;
+- suggestions cross pass/category boundaries and activate M7's exact-count
+  T1 aggregate (the A1 bucket-identity activation waits for M8);
 - program/options work changes aggregation, skip-checking, file-less
   diagnostics, and the formatter used by T4.
 

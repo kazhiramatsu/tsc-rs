@@ -261,19 +261,21 @@ pub struct ConformanceSummary {
     pub tsrs_diagnostics: usize,
     pub matched_t0_diagnostics: usize,
     pub t0_rate: f64,
-    /// Shadow tiers (NON-GATING — greenfield §7.4; measured from
-    /// pre-5.8a per the external review, ratchets stay T0-only until
-    /// M8): of the T0-matched pairs, how many also match category
-    /// (T1), exact span + top message text (T2), and the full chain
-    /// + relatedInformation (T3). Nested: t3 ≤ t2 ≤ t1 ≤ t0.
+    /// Tier metrics. These began as pre-5.8a report-only shadow
+    /// observations; after M8's one-time A1 activation the identical
+    /// complete-multiset bucket identities are accepted-set gates.
+    /// Of the T0-matched buckets, these counts match category (T1),
+    /// exact span + top message text (T2), and the full chain +
+    /// relatedInformation (T3). Nested: t3 ≤ t2 ≤ t1 ≤ t0.
     pub shadow_t1_matched: usize,
     pub shadow_t2_matched: usize,
     pub shadow_t3_matched: usize,
     pub shadow_t1_rate: f64,
     pub shadow_t2_rate: f64,
     pub shadow_t3_rate: f64,
-    /// Exact report-only identities for the all-corpus shadow tiers.
-    /// This observation is not an accepted-state or ratchet artifact.
+    /// Exact observation identities for the all-corpus tiers. The
+    /// report remains evidence-only; A1 independently persists the
+    /// same per-case bucket sets as the active authority.
     pub shadow_tier_identities: ShadowTierObservation,
     pub exact_match_cases: usize,
     pub mismatch_cases: usize,
@@ -892,6 +894,7 @@ fn run_conformance_inner(
             };
             // Collection records every fixed view from one pass; a
             // gating run records only its selected view.
+            let mut selected_tier_matches = None;
             for view in measured_views.iter().copied() {
                 let oracle_side = golden_case
                     .oracle
@@ -906,6 +909,13 @@ fn run_conformance_inner(
                         case_tsrs.all.iter().filter(|diag| view.contains(diag.code)),
                     ),
                 };
+                if view == options.band {
+                    selected_tier_matches = Some(ShadowTierMatches {
+                        t1: case_sets.t1.clone(),
+                        t2: case_sets.t2.clone(),
+                        t3: case_sets.t3.clone(),
+                    });
+                }
                 if !case_sets.matched.is_empty() {
                     run_sets
                         .entry(view.name().to_owned())
@@ -1089,15 +1099,8 @@ fn run_conformance_inner(
             }
 
             matched_t0_diagnostics += expected.intersection(&actual).count();
-            let tier_matches = shadow_tier_matches(
-                current
-                    .iter()
-                    .filter(|diag| options.band.contains(diag.code)),
-                golden_case
-                    .oracle
-                    .iter()
-                    .filter(|diag| options.band.matches_oracle(diag)),
-            );
+            let tier_matches = selected_tier_matches
+                .expect("the selected fixed view is always included in measured_views");
             shadow_t1_matched += tier_matches.t1.len();
             shadow_t2_matched += tier_matches.t2.len();
             shadow_t3_matched += tier_matches.t3.len();
@@ -1401,12 +1404,12 @@ fn shadow_rate(matched: usize, total: usize) -> f64 {
     }
 }
 
-/// Shadow tier grading. T1 becomes ratcheted when configured at M7;
-/// T2/T3 remain non-gating until M8. Bucket both sides by T0 key; a
-/// key contributes 1 to a tier only when the two buckets are equal
-/// AS MULTISETS under that tier's OWN equivalence (review round 3:
-/// tiers compare independently — T1 must not depend on how T2's
-/// finer key would pair elements):
+/// Tier grading. Before the one-time M8 activation these fields remain
+/// report-only shadow evidence; afterwards the identical bucket sets
+/// are persisted in and gated by A1. A key contributes 1 to a tier
+/// only when the two buckets are equal AS MULTISETS under that tier's
+/// OWN equivalence (review round 3: tiers compare independently — T1
+/// must not depend on how T2's finer key would pair elements):
 ///   T1 = category
 ///   T2 = T1 + exact start/length + top message text
 ///   T3 = T2 + full chain tree + relatedInformation
@@ -1425,66 +1428,12 @@ fn shadow_tier_matches<'a>(
     actual: impl Iterator<Item = &'a GoldenDiag>,
     expected: impl Iterator<Item = &'a GoldenDiag>,
 ) -> ShadowTierMatches {
-    fn keyed<'a>(
-        diags: impl Iterator<Item = &'a GoldenDiag>,
-    ) -> BTreeMap<T0Key, Vec<&'a GoldenDiag>> {
-        let mut map: BTreeMap<T0Key, Vec<&'a GoldenDiag>> = BTreeMap::new();
-        for diag in diags {
-            map.entry(t0_key(diag)).or_default().push(diag);
-        }
-        map
+    let sets = ratchet::bucket_sets(expected, actual);
+    ShadowTierMatches {
+        t1: sets.t1,
+        t2: sets.t2,
+        t3: sets.t3,
     }
-    /// Greedy multiset equality under `eq` — buckets are tiny (almost
-    /// always 1), so O(n²) matching beats deriving Ord for chains.
-    fn multiset_eq(
-        actual: &[&GoldenDiag],
-        expected: &[&GoldenDiag],
-        eq: impl Fn(&GoldenDiag, &GoldenDiag) -> bool,
-    ) -> bool {
-        if actual.len() != expected.len() {
-            return false;
-        }
-        let mut used = vec![false; expected.len()];
-        'outer: for left in actual {
-            for (index, right) in expected.iter().enumerate() {
-                if !used[index] && eq(left, right) {
-                    used[index] = true;
-                    continue 'outer;
-                }
-            }
-            return false;
-        }
-        true
-    }
-    fn t1_eq(a: &GoldenDiag, e: &GoldenDiag) -> bool {
-        a.category == e.category
-    }
-    fn t2_eq(a: &GoldenDiag, e: &GoldenDiag) -> bool {
-        t1_eq(a, e) && a.start == e.start && a.length == e.length && a.chain.text == e.chain.text
-    }
-    fn t3_eq(a: &GoldenDiag, e: &GoldenDiag) -> bool {
-        t2_eq(a, e) && a.chain == e.chain && a.related == e.related
-    }
-    let actual = keyed(actual);
-    let expected = keyed(expected);
-    let mut matches = ShadowTierMatches::default();
-    for (key, expected_bucket) in &expected {
-        let Some(actual_bucket) = actual.get(key) else {
-            continue;
-        };
-        if !multiset_eq(actual_bucket, expected_bucket, t1_eq) {
-            continue;
-        }
-        matches.t1.insert(key.clone());
-        if !multiset_eq(actual_bucket, expected_bucket, t2_eq) {
-            continue;
-        }
-        matches.t2.insert(key.clone());
-        if multiset_eq(actual_bucket, expected_bucket, t3_eq) {
-            matches.t3.insert(key.clone());
-        }
-    }
-    matches
 }
 
 #[allow(clippy::too_many_arguments)]

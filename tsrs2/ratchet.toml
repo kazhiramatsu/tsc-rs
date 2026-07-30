@@ -627,10 +627,11 @@ total = 49024
 allowed_regression = 0.0
 
 [t1]
-# M7 close: category-aware shadow identity is now a hard, exact-count
-# ratchet. The denominator is the same pinned all-corpus oracle universe
-# as T0; future gains may raise matched, while any proportional loss
-# fails conformance.
+# M7 close: category-aware shadow identity used this aggregate,
+# exact-count gate before the accepted artifact had tier fields.
+# M8's one-time tier1-3-input-schema-extension replaces that legacy
+# authority with the fixture/matrix/T0-bucket T1 set in A1; these
+# values then remain an artifact-derived exact summary.
 # M8-P05: +7 exact-category import-defer grammar identities; the slice
 # evidence records zero losses and zero gains outside the frozen target.
 # M8-P06: +32 exact-category .mts/.cts generic-arrow identities; the
@@ -643,6 +644,26 @@ allowed_regression = 0.0
 # loss and all-corpus FP=0; this exact count closes the active T1 gate.
 rate = 0.988108
 matched = 48441
+total = 49024
+allowed_regression = 0.0
+
+[t2]
+# Written from A1's complete-multiset T2 bucket set by the reviewed
+# tier1-3-input-schema-extension. Zero is the pre-activation
+# placeholder; `cargo xtask ratchet update --transition
+# tier1-3-input-schema-extension` replaces it transactionally with
+# the exact artifact-derived count.
+rate = 0.0
+matched = 0
+total = 49024
+allowed_regression = 0.0
+
+[t3]
+# Written from A1's complete-multiset T3 bucket set by the same
+# one-time activation. As with T1/T2, this section is a verified
+# derived summary; the accepted identity set is the authority.
+rate = 0.0
+matched = 0
 total = 49024
 allowed_regression = 0.0
 

@@ -86,18 +86,31 @@ M8 executes these steps in order:
 3. **Bounded T0 closure** — close the supported T0 residual one
    dependency-closed producer slice at a time while preserving all accepted
    identities and all-corpus `FP=0`.
-4. **Formal tier closure** — activate and close the exact T1, T2, and T3
-   accepted sets in the convergence plan's order. A touched family still
-   follows the vertical slice-fidelity rule; the global sweep is not
-   permission to add a knowingly wrong category, span, message, chain, or
-   related-information shape. The all-band conformance JSON includes
+4. **Formal tier closure** — first close the report-only supported T1, T2,
+   and T3 residuals in the convergence plan's order. Then run one fresh full
+   measurement and record
+   `ratchet update --transition tier1-3-input-schema-extension`. The
+   transition changes the oracle-input manifest's T1-T3 entries atomically
+   from explicit `absent` to comparator schema v1 and stores, for every
+   fixed view / fixture / matrix / T0 bucket, the independently graded
+   complete-multiset T1, T2, and T3 identities. The nesting
+   `T3 ⊆ T2 ⊆ T1 ⊆ multiplicity-complete ⊆ T0` is validated, and all fixed
+   views plus partial fixture projections thereafter reject exact
+   `accepted - current` losses at every active tier. `ratchet.toml`'s
+   T1-T3 matched/total/rate values are verified artifact-derived summaries,
+   not another authority. A touched family still follows the vertical
+   slice-fidelity rule; the global sweep is not permission to add a
+   knowingly wrong category, span, message, chain, or related-information
+   shape. The all-band conformance JSON includes
    `supported_tier_mismatches`, partitioned by `first_failed_tier`, with the
    complete expected and actual bucket shapes. This report-only residual is
-   the scheduling input; aggregate tier counts and matched-only identity
-   lists are not sufficient to assign an implementation owner.
+   the scheduling input before activation; aggregate tier counts and
+   matched-only identity lists are not sufficient to assign an
+   implementation owner.
 5. **A3 T4 closure** — activate the rendered-output comparator through the
-   reviewed A3 universe transition, then close byte parity for every
-   supported case, including ordering and deduplication.
+   reserved one-time `t4-input-schema-extension`, then close byte parity for
+   every supported case, including ordering and deduplication. It is not a
+   universe transition and cannot ride corpus growth.
 6. **Recovery and converse close** — empty `escapes.toml`, keep the frozen D2
    inventory/dispositions and current B1-B4 evidence fresh, and run the full
    invariant suite.
