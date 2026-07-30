@@ -4948,7 +4948,7 @@ impl<'a> CheckerState<'a> {
     /// string/number computed names ride the
     /// getNameOfSymbolFromNameType value face, which the unescape
     /// tail matches for bound names.
-    fn missing_property_display_name(
+    pub(crate) fn missing_property_display_name(
         &mut self,
         prop: SymbolId,
         write_computed_props: bool,
@@ -5489,7 +5489,31 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         fully_qualified: bool,
     ) -> CheckResult2<String> {
-        let declarations = &self.binder.symbol(symbol).declarations;
+        let declarations = self.binder.symbol(symbol).declarations.clone();
+        // getNameOfSymbolAsWritten's default-export exception: at the
+        // initial, unqualified entity-name position, a declaration-backed
+        // `default` symbol uses its written declaration name while the
+        // display context remains in the same default-binding scope.
+        // Anonymous default declarations have no name and retain `default`.
+        if !fully_qualified
+            && self.binder.symbol(symbol).escaped_name == tsrs2_types::InternalSymbolName::DEFAULT
+            && self.slice_display_enclosing.is_none_or(|enclosing| {
+                declarations
+                    .first()
+                    .copied()
+                    .and_then(|declaration| self.default_binding_context_slice(declaration))
+                    == self.default_binding_context_slice(enclosing)
+            })
+        {
+            for &declaration in &declarations {
+                let source = self.binder.source_of_node(declaration);
+                if let Some(name) = node_util::get_name_of_declaration(source, declaration) {
+                    let name = node_util::declaration_name_to_string(source, Some(name));
+                    self.slice_add_bare_symbol_length(&name);
+                    return Ok(name);
+                }
+            }
+        }
         if let Some(&declaration) = declarations.first() {
             match self.kind_of(declaration) {
                 SyntaxKind::ClassExpression
@@ -5513,6 +5537,23 @@ impl<'a> CheckerState<'a> {
             }
         }
         Ok(self.symbol_type_face_slice(symbol, fully_qualified)?.0)
+    }
+
+    /// tsc isDefaultBindingContext + findAncestor: source files and
+    /// ambient modules delimit where a named default export may use
+    /// its declaration spelling.
+    fn default_binding_context_slice(&self, node: NodeId) -> Option<NodeId> {
+        let mut current = Some(node);
+        while let Some(candidate) = current {
+            let source = self.binder.source_of_node(candidate);
+            if self.kind_of(candidate) == SyntaxKind::SourceFile
+                || node_util::is_ambient_module(source, candidate)
+            {
+                return Some(candidate);
+            }
+            current = self.parent_of(candidate);
+        }
+        None
     }
 
     /// tsc-port: getParentSymbolOfTypeParameter @6.0.3
@@ -8695,9 +8736,10 @@ impl<'a> CheckerState<'a> {
         let rest = declaration
             .is_some_and(|declaration| self.is_rest_parameter_declaration(declaration))
             || check_flags.intersects(tsrs2_types::CheckFlags::REST_PARAMETER);
-        let optional = declaration
-            .is_some_and(|declaration| self.is_optional_declaration(declaration))
-            || check_flags.intersects(tsrs2_types::CheckFlags::OPTIONAL_PARAMETER);
+        let optional = match declaration {
+            Some(declaration) => self.is_optional_parameter_slice(declaration)?,
+            None => false,
+        } || check_flags.intersects(tsrs2_types::CheckFlags::OPTIONAL_PARAMETER);
         Ok(SliceParameterFace {
             symbol: Some(parameter),
             declaration,
@@ -9293,6 +9335,15 @@ impl<'a> CheckerState<'a> {
     fn type_annotation_text_slice(&mut self, node: NodeId) -> CheckResult2<String> {
         let curtain =
             || Unsupported::new("typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)");
+        // canReuseTypeNode rejects JSDoc references with an intended
+        // TypeScript type. tryReuseExistingTypeNode then replaces that
+        // subtree through serializeExistingTypeNode/typeToTypeNodeHelper
+        // while preserving the reusable parent structure.
+        if self.is_jsdoc_type_reference(node) {
+            if let Some(intended) = self.get_intended_type_from_jsdoc_type_reference(node)? {
+                return self.type_to_string_slice_ex(intended, /*fully_qualified*/ false);
+            }
+        }
         // Keyword type nodes are kind-distinguished tokens.
         match self.kind_of(node) {
             SyntaxKind::StringKeyword => return Ok("string".to_owned()),
@@ -13617,6 +13668,59 @@ mod tests {
     }
 
     #[test]
+    fn jsdoc_intended_object_type_rewrites_only_with_implicit_any_off() {
+        let files = [
+            (
+                "lib.d.ts",
+                "interface Object {}\ninterface Array<T> { length: number; [n: number]: T }\n",
+            ),
+            (
+                "a.js",
+                "/** @param {Array.<Object>} values */\n\
+                 const f = function(values) {};\n\
+                 /** @type {string} */\n\
+                 let s = f;\n",
+            ),
+        ];
+        let rows = |no_implicit_any| {
+            program_diags_with(
+                &files,
+                &CompilerOptions {
+                    allow_js: true,
+                    check_js: Some(true),
+                    strict: Some(false),
+                    no_implicit_any: Some(no_implicit_any),
+                    ..CompilerOptions::default()
+                },
+                "/",
+            )
+        };
+
+        assert_eq!(
+            rows(false),
+            [(
+                "a.js".to_owned(),
+                2322,
+                95,
+                1,
+                "Type '(values: Array<any>) => void' is not assignable to type 'string'."
+                    .to_owned()
+            )]
+        );
+        assert_eq!(
+            rows(true),
+            [(
+                "a.js".to_owned(),
+                2322,
+                95,
+                1,
+                "Type '(values: Array<Object>) => void' is not assignable to type 'string'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
     fn checked_js_async_arrow_argument_renders_promise_signature() {
         // asyncArrowFunction_allowJs.ts's virtual file, byte-for-byte:
         // the failed callback relation must display the ordinary
@@ -13832,6 +13936,44 @@ mod tests {
                 32,
                 2,
                 "Type '(x?: number) => void' is not assignable to type 'string'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn signature_display_initializer_parameters_use_minimum_arity() {
+        let options = CompilerOptions {
+            strict: Some(false),
+            ..CompilerOptions::default()
+        };
+        let text = "var v = <T>() => 1;\nvar v = <T>(a = 1, b = 2) => 1;\n";
+        assert_eq!(
+            checked_diags_with(text, &options),
+            [(
+                2403,
+                text.rfind('v').expect("second declaration") as u32,
+                1,
+                "Subsequent variable declarations must have the same type.  Variable 'v' must be of type '<T>() => number', but here has type '<T>(a?: number, b?: number) => number'."
+                    .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn signature_display_required_parameters_remain_required() {
+        let options = CompilerOptions {
+            strict: Some(false),
+            ..CompilerOptions::default()
+        };
+        let text = "var v = <T>() => 1;\nvar v = <T>(a: number, b: number) => 1;\n";
+        assert_eq!(
+            checked_diags_with(text, &options),
+            [(
+                2403,
+                text.rfind('v').expect("second declaration") as u32,
+                1,
+                "Subsequent variable declarations must have the same type.  Variable 'v' must be of type '<T>() => number', but here has type '<T>(a: number, b: number) => number'."
+                    .to_owned()
             )]
         );
     }
@@ -15957,6 +16099,40 @@ mod tests {
                 1,
                 "Type 'typeof import(\"/b\").default' is not assignable to type 'typeof import(\"/a\").default'."
                     .to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn named_default_class_uses_its_written_declaration_name() {
+        assert_eq!(
+            program_diags(&[
+                ("a.ts", "export default class Foo { p = 1 }\n"),
+                ("b.ts", "import D from \"./a\"; let s: string = new D();\n"),
+            ]),
+            [(
+                "b.ts".to_owned(),
+                2322,
+                25,
+                1,
+                "Type 'Foo' is not assignable to type 'string'.".to_owned()
+            )]
+        );
+    }
+
+    #[test]
+    fn anonymous_default_class_keeps_the_default_symbol_name() {
+        assert_eq!(
+            program_diags(&[
+                ("a.ts", "export default class { p = 1 }\n"),
+                ("b.ts", "import D from \"./a\"; let s: string = new D();\n"),
+            ]),
+            [(
+                "b.ts".to_owned(),
+                2322,
+                25,
+                1,
+                "Type 'default' is not assignable to type 'string'.".to_owned()
             )]
         );
     }

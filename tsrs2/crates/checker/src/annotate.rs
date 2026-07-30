@@ -1550,7 +1550,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getIntendedTypeFromJSDocTypeReference @6.0.3
     /// tsc-hash: c3347bbd1d5df28961991700dae4f562ccef6a187733b0abefe42846146d0967
     /// tsc-span: _tsc.js:60493-60552
-    fn get_intended_type_from_jsdoc_type_reference(
+    pub(crate) fn get_intended_type_from_jsdoc_type_reference(
         &mut self,
         node: NodeId,
     ) -> CheckResult2<Option<TypeId>> {
