@@ -123,6 +123,10 @@ impl NodeArena {
         &mut self.nodes[index]
     }
 
+    pub fn set_js_doc(&mut self, host: NodeId, js_doc: NodeArrayId) {
+        self.node_mut(host).js_doc = Some(js_doc);
+    }
+
     pub fn nodes(&self) -> &[Node] {
         &self.nodes
     }
@@ -163,6 +167,7 @@ impl NodeArena {
             pos: pos as u32,
             end: end as u32,
             parent: None,
+            js_doc: None,
             data,
         });
         id
@@ -187,14 +192,14 @@ impl NodeArena {
                     error_flags[index] = NodeFlags::from_bits(self.nodes[index].flags)
                         .contains(NodeFlags::THIS_NODE_HAS_ERROR);
                     stack.push((id, parent, Phase::Exit));
-                    let children = self.children(id);
+                    let children = self.children_including_js_doc(id);
                     for child in children.into_iter().rev() {
                         stack.push((child, Some(id), Phase::Enter));
                     }
                 }
                 Phase::Exit => {
                     let mut contains_error = error_flags[index];
-                    for child in self.children(id) {
+                    for child in self.children_including_js_doc(id) {
                         if error_flags[self.node_index(child)] {
                             contains_error = true;
                         }
@@ -216,6 +221,18 @@ impl NodeArena {
             children.push(child);
             false
         });
+        children
+    }
+
+    /// Parent finalization includes the internal Node.jsDoc attachment,
+    /// while public for_each_child deliberately does not. This mirrors
+    /// tsc setParentRecursive/bindJSDoc and keeps ordinary syntax walks
+    /// from visiting documentation twice.
+    fn children_including_js_doc(&self, id: NodeId) -> Vec<NodeId> {
+        let mut children = self.children(id);
+        if let Some(js_doc) = self.node(id).js_doc {
+            children.extend(self.node_array(js_doc).nodes.iter().copied());
+        }
         children
     }
 

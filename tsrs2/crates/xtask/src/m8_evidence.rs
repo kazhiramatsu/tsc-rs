@@ -156,6 +156,11 @@ struct FuzzCaseObservation {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct ReducerObservation {
     exercised: bool,
+    /// True only when the generated differential corpus is already exact
+    /// and a deterministic one-sided mutation is used to keep testing the
+    /// reducer/deduper machinery.
+    #[serde(default)]
+    mutation_canary: bool,
     original_signature: Option<String>,
     reduced_signature: Option<String>,
     original_bytes: usize,
@@ -917,15 +922,43 @@ fn produce_fuzz(
             source,
         });
     }
-    let (divergent_source, signature) = first_divergence.ok_or(
-        "fuzzer smoke did not exercise a divergence, so reducer/dedupe behavior is unproved",
-    )?;
+    let (divergent_source, signature, mutation_canary) = if let Some((source, signature)) =
+        first_divergence
+    {
+        (source, signature, false)
+    } else {
+        // Exact parity is a valid fuzzer outcome. Keep proving the
+        // reducer and signature deduper by mutating only this separate
+        // canary comparison; generated case observations above remain
+        // unmodified oracle/tsrs comparisons.
+        let source = "const fuzzReducerCanaryA = 0;\nconst fuzzReducerCanaryB = 0;\n".to_owned();
+        let program = tsrs2_harness::expand_fixture_text("main.ts", &source, &vendor_lib_dir)?
+            .into_iter()
+            .next()
+            .ok_or("fuzzer mutation canary expanded to no programs")?;
+        let paths = tsrs2_harness::write_program_jsons(
+            std::slice::from_ref(&program),
+            &out_dir.join("mutation-canary"),
+        )?;
+        let comparison = compare_program_with_mutation_canary(
+            &program,
+            &paths[0],
+            &vendor_lib_dir,
+            &pool,
+            true,
+        )?;
+        let signature = comparison
+            .signature
+            .ok_or("fuzzer mutation canary did not create a divergence")?;
+        (source, signature, true)
+    };
     let reduced_source = reduce_source_preserving_signature(
         &divergent_source,
         &signature,
         &vendor_lib_dir,
         &out_dir.join("reducer"),
         &pool,
+        mutation_canary,
     )?;
     let reduced_program =
         tsrs2_harness::expand_fixture_text("main.ts", &reduced_source, &vendor_lib_dir)?
@@ -936,10 +969,16 @@ fn produce_fuzz(
         std::slice::from_ref(&reduced_program),
         &out_dir.join("reduced"),
     )?;
-    let reduced_comparison =
-        compare_program(&reduced_program, &reduced_paths[0], &vendor_lib_dir, &pool)?;
+    let reduced_comparison = compare_program_with_mutation_canary(
+        &reduced_program,
+        &reduced_paths[0],
+        &vendor_lib_dir,
+        &pool,
+        mutation_canary,
+    )?;
     let reducer = ReducerObservation {
         exercised: reduced_comparison.signature.as_deref() == Some(signature.as_str()),
+        mutation_canary,
         original_signature: Some(signature.clone()),
         reduced_signature: reduced_comparison.signature.clone(),
         original_bytes: divergent_source.len(),
@@ -979,7 +1018,7 @@ fn produce_fuzz(
     verify_fuzzer_raw(&artifact)?;
     write_json(artifact_path, &artifact)?;
     println!(
-        "fuzz smoke: generated={} compared={} divergences={} reducer={} dedupe={} artifact={}",
+        "fuzz smoke: generated={} compared={} divergences={} reducer={} reducer-mode={} dedupe={} artifact={}",
         artifact.cases.len(),
         artifact.cases.len(),
         artifact
@@ -988,6 +1027,11 @@ fn produce_fuzz(
             .filter(|case| case.divergence_signature.is_some())
             .count(),
         artifact.reducer.exercised,
+        if artifact.reducer.mutation_canary {
+            "mutation-canary"
+        } else {
+            "natural-divergence"
+        },
         artifact.dedupe.exercised,
         artifact_path.display()
     );
@@ -1005,6 +1049,16 @@ fn compare_program(
     path: &Path,
     vendor_lib_dir: &Path,
     pool: &tsrs2_oracle::OraclePool,
+) -> Result<ProgramComparison, Box<dyn Error>> {
+    compare_program_with_mutation_canary(program, path, vendor_lib_dir, pool, false)
+}
+
+fn compare_program_with_mutation_canary(
+    program: &tsrs2_harness::ProgramJson,
+    path: &Path,
+    vendor_lib_dir: &Path,
+    pool: &tsrs2_oracle::OraclePool,
+    inject_mutation_canary: bool,
 ) -> Result<ProgramComparison, Box<dyn Error>> {
     let files = program
         .files
@@ -1034,11 +1088,28 @@ fn compare_program(
     );
     let oracle = pool.diagnostics(path)?;
     let oracle_values = oracle.iter().map(oracle_value).collect::<Vec<_>>();
-    let tsrs_values = result
+    let mut tsrs_values = result
         .diagnostics
         .iter()
         .map(tsrs_value)
         .collect::<Vec<_>>();
+    if inject_mutation_canary {
+        tsrs_values.push(json!({
+            "file": "/__fuzzer_mutation_canary__.ts",
+            "start": 0,
+            "length": 1,
+            "code": 99999,
+            "category": "Error",
+            "head": "Differential fuzzer mutation canary",
+            "chain": {
+                "text": "Differential fuzzer mutation canary",
+                "code": 99999,
+                "category": "Error",
+                "next": [],
+            },
+            "related": [],
+        }));
+    }
     let tiers = [
         (
             "t0",
@@ -1233,6 +1304,7 @@ fn reduce_source_preserving_signature(
     vendor_lib_dir: &Path,
     out_dir: &Path,
     pool: &tsrs2_oracle::OraclePool,
+    mutation_canary: bool,
 ) -> Result<String, Box<dyn Error>> {
     let mut current = source.to_owned();
     let lines = source.lines().map(str::to_owned).collect::<Vec<_>>();
@@ -1259,7 +1331,13 @@ fn reduce_source_preserving_signature(
             Err(_) => continue,
         };
         let paths = tsrs2_harness::write_program_jsons(std::slice::from_ref(&program), out_dir)?;
-        let comparison = compare_program(&program, &paths[0], vendor_lib_dir, pool)?;
+        let comparison = compare_program_with_mutation_canary(
+            &program,
+            &paths[0],
+            vendor_lib_dir,
+            pool,
+            mutation_canary,
+        )?;
         if comparison.signature.as_deref() == Some(signature) {
             current = candidate + "\n";
         }
@@ -1268,6 +1346,20 @@ fn reduce_source_preserving_signature(
 }
 
 fn verify_fuzzer_raw(artifact: &FuzzerArtifact) -> Result<(), Box<dyn Error>> {
+    let natural_signatures = artifact
+        .cases
+        .iter()
+        .filter_map(|case| case.divergence_signature.as_ref())
+        .collect::<BTreeSet<_>>();
+    let reducer_source_is_valid = if artifact.reducer.mutation_canary {
+        natural_signatures.is_empty()
+    } else {
+        artifact
+            .reducer
+            .original_signature
+            .as_ref()
+            .is_some_and(|signature| natural_signatures.contains(signature))
+    };
     if artifact.header.schema != ARTIFACT_SCHEMA
         || artifact.requested_cases == 0
         || artifact.cases.len() != artifact.requested_cases
@@ -1276,6 +1368,7 @@ fn verify_fuzzer_raw(artifact: &FuzzerArtifact) -> Result<(), Box<dyn Error>> {
             .iter()
             .any(|case| case.compared_tiers != ["t0", "t1", "t2", "t3", "t4"])
         || !artifact.reducer.exercised
+        || !reducer_source_is_valid
         || artifact.reducer.original_signature != artifact.reducer.reduced_signature
         || !artifact.dedupe.exercised
         || artifact.dedupe.observed_signatures.len() <= artifact.dedupe.unique_signatures.len()
@@ -2071,6 +2164,7 @@ mod tests {
             cases: Vec::new(),
             reducer: ReducerObservation {
                 exercised: false,
+                mutation_canary: false,
                 original_signature: None,
                 reduced_signature: None,
                 original_bytes: 0,

@@ -67,8 +67,6 @@ impl ModuleInstanceState {
 /// tsc-hash: 762f60f62494f6fa1a80f5b3464b7c4bc552f5cda69ebddff47c8847eaed9a81
 /// tsc-span: _tsc.js:45143-45201
 ///
-/// JSDocTypeLiteral/JSDocSignature/JSDocImportTag await full JSDoc
-/// comment parsing; source-text JSDocFunctionType is live.
 pub fn get_container_flags(source: &SourceFile, node: NodeId) -> ContainerFlags {
     match kind_of(source, node) {
         SyntaxKind::ClassExpression
@@ -76,6 +74,7 @@ pub fn get_container_flags(source: &SourceFile, node: NodeId) -> ContainerFlags 
         | SyntaxKind::EnumDeclaration
         | SyntaxKind::ObjectLiteralExpression
         | SyntaxKind::TypeLiteral
+        | SyntaxKind::JSDocTypeLiteral
         | SyntaxKind::JsxAttributes => ContainerFlags::IS_CONTAINER,
         SyntaxKind::InterfaceDeclaration => {
             ContainerFlags::IS_CONTAINER | ContainerFlags::IS_INTERFACE
@@ -112,6 +111,7 @@ pub fn get_container_flags(source: &SourceFile, node: NodeId) -> ContainerFlags 
         SyntaxKind::MethodSignature
         | SyntaxKind::CallSignature
         | SyntaxKind::JSDocFunctionType
+        | SyntaxKind::JSDocSignature
         | SyntaxKind::FunctionType
         | SyntaxKind::ConstructSignature
         | SyntaxKind::ConstructorType => {
@@ -374,7 +374,6 @@ impl<'a> Binder<'a> {
     /// tsc-hash: 1d49674ad7f6ff204b4de21213eba7d9990c9ce5574e6cef7e4b1e9dcc0edeb1
     /// tsc-span: _tsc.js:43835-43884
     ///
-    /// JSDoc container kinds await JSDoc parsing.
     pub fn declare_symbol_and_add_to_symbol_table(
         &mut self,
         node: NodeId,
@@ -405,6 +404,7 @@ impl<'a> Binder<'a> {
                 ))
             }
             SyntaxKind::TypeLiteral
+            | SyntaxKind::JSDocTypeLiteral
             | SyntaxKind::ObjectLiteralExpression
             | SyntaxKind::InterfaceDeclaration
             | SyntaxKind::JsxAttributes => {
@@ -421,6 +421,7 @@ impl<'a> Binder<'a> {
             }
             SyntaxKind::FunctionType
             | SyntaxKind::JSDocFunctionType
+            | SyntaxKind::JSDocSignature
             | SyntaxKind::ConstructorType
             | SyntaxKind::CallSignature
             | SyntaxKind::ConstructSignature

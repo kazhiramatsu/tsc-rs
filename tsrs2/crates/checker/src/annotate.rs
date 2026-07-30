@@ -266,14 +266,25 @@ impl<'a> CheckerState<'a> {
                 self.get_type_from_array_or_tuple_type_node(node)
             }
             SyntaxKind::OptionalType => self.get_type_from_optional_type_node(node),
+            SyntaxKind::JSDocOptionalType => {
+                let NodeData::JSDocOptionalType(data) = self.data_of(node) else {
+                    unreachable!("JSDocOptionalType kind implies payload");
+                };
+                let inner = data.r#type.expect("JSDoc optional operand");
+                let ty = self.get_type_from_type_node(inner)?;
+                Ok(self.tables.add_optionality(ty, /*is_property*/ false, true))
+            }
             SyntaxKind::UnionType => self.get_type_from_union_type_node(node),
             SyntaxKind::IntersectionType => self.get_type_from_intersection_type_node(node),
             SyntaxKind::JSDocNullableType => self.get_type_from_jsdoc_nullable_type_node(node),
             SyntaxKind::NamedTupleMember => self.get_type_from_named_tuple_type_node(node),
-            SyntaxKind::ParenthesizedType | SyntaxKind::JSDocNonNullableType => {
+            SyntaxKind::ParenthesizedType
+            | SyntaxKind::JSDocNonNullableType
+            | SyntaxKind::JSDocTypeExpression => {
                 let inner = match self.data_of(node) {
                     NodeData::ParenthesizedType(data) => data.r#type,
                     NodeData::JSDocNonNullableType(data) => data.r#type,
+                    NodeData::JSDocTypeExpression(data) => data.r#type,
                     _ => unreachable!("kind/data agree"),
                 };
                 let inner = inner.expect("parser invariant: unary type operand always parsed");
@@ -283,7 +294,8 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::FunctionType
             | SyntaxKind::JSDocFunctionType
             | SyntaxKind::ConstructorType
-            | SyntaxKind::TypeLiteral => self.get_type_from_type_literal_or_fn_ctor_node(node),
+            | SyntaxKind::TypeLiteral
+            | SyntaxKind::JSDocTypeLiteral => self.get_type_from_type_literal_or_fn_ctor_node(node),
             SyntaxKind::TypeOperator => self.get_type_from_type_operator_node(node),
             SyntaxKind::TemplateLiteralType => self.get_type_from_template_type_node(node),
             SyntaxKind::ThisType | SyntaxKind::ThisKeyword => {
@@ -1159,14 +1171,46 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: cfffbfaec274ec3d0403dfece197ea736c208fd8698405ab6a3696e5f41d915b
     /// tsc-span: _tsc.js:63117-63132
     ///
-    /// The JSDoc host hop and isCommonJsExportPropertyAssignment are
-    /// JS-only (elided). getSymbolOfNode tolerates unbound nodes — an
-    /// invalid position falls through to the plain `symbol` intrinsic
-    /// (the 1332-family grammar rows are parser-emitted).
+    /// The JSDoc host hop is live for parser-owned type expressions.
+    /// isCommonJsExportPropertyAssignment remains on its separate
+    /// assignment owner. getSymbolOfNode tolerates unbound nodes — an
+    /// invalid position falls through to the plain `symbol` intrinsic.
     pub(crate) fn get_es_symbol_like_type_for_node(
         &mut self,
-        node: NodeId,
+        mut node: NodeId,
     ) -> CheckResult2<TypeId> {
+        if self.is_in_js_file(node) && self.kind_of(node) == SyntaxKind::JSDocTypeExpression {
+            let source = self.binder.source_of_node(node);
+            let js_doc =
+                std::iter::successors(self.parent_of(node), |&current| self.parent_of(current))
+                    .find(|&current| self.kind_of(current) == SyntaxKind::JSDoc);
+            if let Some(js_doc) = js_doc {
+                let host = self.parent_of(js_doc).filter(|&host| {
+                    source
+                        .arena
+                        .node(host)
+                        .js_doc
+                        .and_then(|docs| source.arena.node_array(docs).nodes.last().copied())
+                        == Some(js_doc)
+                });
+                if let Some(host) = host {
+                    node = if let NodeData::VariableStatement(data) = self.data_of(host) {
+                        data.declaration_list
+                            .and_then(|list| match self.data_of(list) {
+                                NodeData::VariableDeclarationList(data) => data
+                                    .declarations
+                                    .map(|declarations| self.nodes_of(Some(declarations)))
+                                    .filter(|declarations| declarations.len() == 1)
+                                    .and_then(|declarations| declarations.first().copied()),
+                                _ => None,
+                            })
+                            .unwrap_or(host)
+                    } else {
+                        host
+                    };
+                }
+            }
+        }
         if self.is_valid_es_symbol_declaration(node) {
             let symbol = self.node_symbol(node).map(|s| self.get_merged_symbol(s));
             if let Some(symbol) = symbol {
@@ -2864,12 +2908,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 210d8f6d63e8913008a038e4878d54e360b1173134393fb2f189b9d1d7e88f97
     /// tsc-span: _tsc.js:62908-62914
     ///
-    /// JSDoc type-expression hosts are elided.
+    /// Parser-owned JSDoc type expressions hop through their typedef
+    /// declaration just like ordinary parenthesized type nodes.
     pub(crate) fn get_alias_symbol_for_type_node(&self, node: NodeId) -> Option<SymbolId> {
         let mut host = self.parent_of(node)?;
         loop {
             let hop = match self.data_of(host) {
-                NodeData::ParenthesizedType(_) => true,
+                NodeData::ParenthesizedType(_) | NodeData::JSDocTypeExpression(_) => true,
                 NodeData::TypeOperator(data) => data.operator == SyntaxKind::ReadonlyKeyword,
                 _ => false,
             };
@@ -2878,7 +2923,10 @@ impl<'a> CheckerState<'a> {
             }
             host = self.parent_of(host)?;
         }
-        if self.kind_of(host) == SyntaxKind::TypeAliasDeclaration {
+        if matches!(
+            self.kind_of(host),
+            SyntaxKind::TypeAliasDeclaration | SyntaxKind::JSDocTypedefTag
+        ) {
             // getSymbolOfDeclaration (62913).
             self.node_symbol(host).map(|s| self.get_merged_symbol(s))
         } else {
@@ -3193,8 +3241,9 @@ impl<'a> CheckerState<'a> {
     /// Slice notes: the links.typeParameters/instantiations
     /// bookkeeping is 5.2's (generic alias REFERENCES are Unsupported
     /// at the reference arm, so skipping it is verdict-neutral); the
-    /// JSDoc type-alias arms are elided; the BuiltinIteratorReturn
-    /// intrinsic-marker swap resolves through
+    /// The activated JSDoc typedef arm shares this worker; generic
+    /// JSDoc aliases remain with the generic-reference owner. The
+    /// BuiltinIteratorReturn intrinsic-marker swap resolves through
     /// get_builtin_iterator_return_type (5.8b).
     pub(crate) fn get_declared_type_of_type_alias(
         &mut self,
@@ -3215,17 +3264,24 @@ impl<'a> CheckerState<'a> {
             .declarations
             .iter()
             .copied()
-            .find(|&declaration| self.kind_of(declaration) == SyntaxKind::TypeAliasDeclaration);
+            .find(|&declaration| {
+                matches!(
+                    self.kind_of(declaration),
+                    SyntaxKind::TypeAliasDeclaration | SyntaxKind::JSDocTypedefTag
+                )
+            });
         let computed = (|state: &mut Self| -> CheckResult2<TypeId> {
             let Some(declaration) = declaration else {
                 return Err(Unsupported::new(
-                    "type alias symbol without a TypeAliasDeclaration (JSDoc aliases unmodeled, M8)",
+                    "type alias symbol without a type-alias declaration",
                 ));
             };
-            let NodeData::TypeAliasDeclaration(data) = state.data_of(declaration) else {
-                unreachable!("TypeAliasDeclaration kind implies payload");
+            let type_node = match state.data_of(declaration) {
+                NodeData::TypeAliasDeclaration(data) => data.r#type,
+                NodeData::JSDocTypedefTag(data) => data.type_expression,
+                _ => unreachable!("type-alias declaration kind implies payload"),
             };
-            match data.r#type {
+            match type_node {
                 Some(type_node) => state.get_type_from_type_node(type_node),
                 None => Ok(state.tables.intrinsics.error),
             }
@@ -4525,6 +4581,7 @@ impl<'a> CheckerState<'a> {
             NodeData::ClassDeclaration(data) => self.nodes_of(data.members),
             NodeData::ClassExpression(data) => self.nodes_of(data.members),
             NodeData::TypeLiteral(data) => self.nodes_of(data.members),
+            NodeData::JSDocTypeLiteral(data) => self.nodes_of(data.js_doc_property_tags),
             NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties),
             _ => Vec::new(),
         }
@@ -6950,7 +7007,15 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         initializer: NodeId,
     ) -> Option<TypeId> {
-        self.get_bounded_js_container_initializer(declaration, symbol, initializer)?;
+        if !self.is_in_js_file(declaration) {
+            return None;
+        }
+        let NodeData::ObjectLiteralExpression(data) = self.data_of(initializer) else {
+            return None;
+        };
+        if !self.nodes_of(data.properties).is_empty() {
+            return None;
+        }
         let members = self.binder.symbol(symbol).exports.clone();
         let properties = members.values().copied().collect();
         let ty = self.create_resolved_empty_anonymous_type(Some(symbol));
@@ -7247,7 +7312,9 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::PropertyDeclaration
                 | SyntaxKind::PropertySignature
                 | SyntaxKind::VariableDeclaration
-                | SyntaxKind::BindingElement => state
+                | SyntaxKind::BindingElement
+                | SyntaxKind::JSDocPropertyTag
+                | SyntaxKind::JSDocParameterTag => state
                     .get_widened_type_for_variable_like_declaration(
                         declaration,
                         /*report_errors*/ true,
@@ -7445,9 +7512,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 6fde6424a18e58f7812383933306b669f058a47225dc182ab1978618ce527a36
     /// tsc-span: _tsc.js:56586-56606
     ///
-    /// The ESSymbol/isGlobalSymbolConstructor arm escapes: an ESSymbol
-    /// initializer type only arrives through Symbol() calls
-    /// (getResolvedSignature, 5.7), so the arm is dormant until then.
+    /// The ESSymbol/isGlobalSymbolConstructor arm is shared by TS and JS;
+    /// parser-owned JSDoc `unique symbol` reaches the distinct
+    /// UniqueESSymbol path before this test.
     pub(crate) fn widen_type_for_variable_like_declaration(
         &mut self,
         ty: Option<TypeId>,
@@ -7461,11 +7528,6 @@ impl<'a> CheckerState<'a> {
                 // SymbolConstructor type symbol takes
                 // getESSymbolLikeTypeForNode. Everything else (ordinary
                 // `: symbol` annotations) falls through.
-                if self.is_in_js_file(declaration) {
-                    return Err(Unsupported::new(
-                        "widenTypeForVariableLikeDeclaration JS ESSymbol arm ([JSDOC] M8)",
-                    ));
-                }
                 let parent_symbol = self
                     .parent_of(declaration)
                     .and_then(|parent| self.binder.node_symbol(parent))
@@ -7540,7 +7602,12 @@ impl<'a> CheckerState<'a> {
         declaration: NodeId,
     ) -> CheckResult2<Option<TypeId>> {
         match self.effective_type_annotation_node(declaration) {
-            Some(annotation) => Ok(Some(self.get_type_from_type_node(annotation)?)),
+            Some(annotation) => {
+                if self.node_flags(annotation) & tsrs2_types::NodeFlags::JS_DOC.bits() != 0 {
+                    self.jsdoc_typed_declarations.insert(declaration);
+                }
+                Ok(Some(self.get_type_from_type_node(annotation)?))
+            }
             None => self.get_type_from_jsdoc_type_tag(declaration),
         }
     }
@@ -7868,7 +7935,10 @@ impl<'a> CheckerState<'a> {
         }
         let is_property = (kind == SyntaxKind::PropertyDeclaration
             && !node_util::has_syntactic_modifier(source, declaration, ModifierFlags::ACCESSOR))
-            || kind == SyntaxKind::PropertySignature;
+            || matches!(
+                kind,
+                SyntaxKind::PropertySignature | SyntaxKind::JSDocPropertyTag
+            );
         let is_optional = include_optionality && self.is_optional_declaration(declaration);
         let declared_type = self.try_get_type_from_effective_type_node(declaration)?;
         if self.is_catch_clause_variable_declaration_or_binding_element(declaration) {
@@ -8246,8 +8316,28 @@ impl<'a> CheckerState<'a> {
             NodeData::Parameter(data) => data.question_token.is_some(),
             NodeData::PropertyDeclaration(data) => data.question_token.is_some(),
             NodeData::PropertySignature(data) => data.question_token.is_some(),
+            NodeData::JSDocPropertyTag(data) => {
+                data.is_bracketed
+                    || self
+                        .jsdoc_property_like_type_node(data.type_expression)
+                        .is_some_and(|ty| self.kind_of(ty) == SyntaxKind::JSDocOptionalType)
+            }
+            NodeData::JSDocParameterTag(data) => {
+                data.is_bracketed
+                    || self
+                        .jsdoc_property_like_type_node(data.type_expression)
+                        .is_some_and(|ty| self.kind_of(ty) == SyntaxKind::JSDocOptionalType)
+            }
             _ => false,
         }
+    }
+
+    fn jsdoc_property_like_type_node(&self, expression: Option<NodeId>) -> Option<NodeId> {
+        let expression = expression?;
+        let NodeData::JSDocTypeExpression(data) = self.data_of(expression) else {
+            return None;
+        };
+        data.r#type
     }
 
     /// The 9.8a/9.9bi non-JSDoc initializer slice of tsc

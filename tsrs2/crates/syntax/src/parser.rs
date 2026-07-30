@@ -18,8 +18,10 @@ use crate::nodes::{
     HeritageClauseData, IdentifierData, IfStatementData, ImportAttributeData, ImportAttributesData,
     ImportClauseData, ImportDeclarationData, ImportEqualsDeclarationData, ImportSpecifierData,
     ImportTypeData, IndexSignatureData, IndexedAccessTypeData, InferTypeData,
-    InterfaceDeclarationData, IntersectionTypeData, JSDocFunctionTypeData,
-    JSDocNonNullableTypeData, JSDocNullableTypeData, JSDocOptionalTypeData, JSDocVariadicTypeData,
+    InterfaceDeclarationData, IntersectionTypeData, JSDocData, JSDocFunctionTypeData,
+    JSDocNonNullableTypeData, JSDocNullableTypeData, JSDocOptionalTypeData, JSDocParameterTagData,
+    JSDocPropertyTagData, JSDocSatisfiesTagData, JSDocTagData, JSDocTypeExpressionData,
+    JSDocTypeLiteralData, JSDocTypeTagData, JSDocTypedefTagData, JSDocVariadicTypeData,
     JsxAttributeData, JsxAttributesData, JsxClosingElementData, JsxElementData, JsxExpressionData,
     JsxFragmentData, JsxNamespacedNameData, JsxOpeningElementData, JsxSelfClosingElementData,
     JsxSpreadAttributeData, JsxTextData, LabeledStatementData, LiteralTypeData, MappedTypeData,
@@ -201,6 +203,11 @@ struct Parser<'text> {
     parse_error_before_next_finished_node: bool,
     parsing_context: u32,
     not_parenthesized_arrow: std::collections::HashSet<usize>,
+    /// tsc's `withJSDoc` is called while parser nodes are completed. Keep
+    /// only those possible hosts so attachment materialization does not
+    /// require another whole-tree walk after parsing.
+    jsdoc_candidates: Vec<NodeId>,
+    has_jsdoc_comments: bool,
 }
 
 /// tsc Tristate: the arrow-function lookahead verdict.
@@ -221,6 +228,253 @@ struct FinishedParse {
     root: NodeId,
     parse_diagnostics: DiagnosticList,
     comment_directives: Vec<crate::CommentDirective>,
+}
+
+#[derive(Clone, Debug)]
+struct JsDocTagSpec {
+    start: usize,
+    name_start: usize,
+    name_end: usize,
+    end: usize,
+    name: String,
+}
+
+fn can_have_jsdoc(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::ArrowFunction
+            | SyntaxKind::BinaryExpression
+            | SyntaxKind::Block
+            | SyntaxKind::BreakStatement
+            | SyntaxKind::CallSignature
+            | SyntaxKind::CaseClause
+            | SyntaxKind::ClassDeclaration
+            | SyntaxKind::ClassExpression
+            | SyntaxKind::ClassStaticBlockDeclaration
+            | SyntaxKind::Constructor
+            | SyntaxKind::ConstructorType
+            | SyntaxKind::ConstructSignature
+            | SyntaxKind::ContinueStatement
+            | SyntaxKind::DebuggerStatement
+            | SyntaxKind::DoStatement
+            | SyntaxKind::ElementAccessExpression
+            | SyntaxKind::EmptyStatement
+            | SyntaxKind::EndOfFileToken
+            | SyntaxKind::EnumDeclaration
+            | SyntaxKind::EnumMember
+            | SyntaxKind::ExportAssignment
+            | SyntaxKind::ExportDeclaration
+            | SyntaxKind::ExportSpecifier
+            | SyntaxKind::ExpressionStatement
+            | SyntaxKind::ForInStatement
+            | SyntaxKind::ForOfStatement
+            | SyntaxKind::ForStatement
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::FunctionType
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::Identifier
+            | SyntaxKind::IfStatement
+            | SyntaxKind::ImportDeclaration
+            | SyntaxKind::ImportEqualsDeclaration
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::JSDocFunctionType
+            | SyntaxKind::JSDocSignature
+            | SyntaxKind::LabeledStatement
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::MethodSignature
+            | SyntaxKind::ModuleDeclaration
+            | SyntaxKind::NamedTupleMember
+            | SyntaxKind::NamespaceExportDeclaration
+            | SyntaxKind::ObjectLiteralExpression
+            | SyntaxKind::Parameter
+            | SyntaxKind::ParenthesizedExpression
+            | SyntaxKind::PropertyAccessExpression
+            | SyntaxKind::PropertyAssignment
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::ReturnStatement
+            | SyntaxKind::SemicolonClassElement
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::ShorthandPropertyAssignment
+            | SyntaxKind::SpreadAssignment
+            | SyntaxKind::SwitchStatement
+            | SyntaxKind::ThrowStatement
+            | SyntaxKind::TryStatement
+            | SyntaxKind::TypeAliasDeclaration
+            | SyntaxKind::TypeParameter
+            | SyntaxKind::VariableDeclaration
+            | SyntaxKind::VariableStatement
+            | SyntaxKind::WhileStatement
+            | SyntaxKind::WithStatement
+    )
+}
+
+/// tsc getLeadingCommentRanges + getJSDocCommentRanges (leading face).
+/// Ranges include `/**` and `*/`, in parser byte-position space.
+fn leading_jsdoc_comment_ranges(text: &str, pos: usize) -> Vec<(usize, usize)> {
+    let mut cursor = pos.min(text.len());
+    let mut ranges = Vec::new();
+    loop {
+        while cursor < text.len() {
+            let ch = text[cursor..]
+                .chars()
+                .next()
+                .expect("cursor is on a UTF-8 boundary");
+            if !is_whitespace_like(ch) {
+                break;
+            }
+            cursor += ch.len_utf8();
+        }
+        if text[cursor..].starts_with("//") {
+            cursor += text[cursor..]
+                .find(['\n', '\r', '\u{2028}', '\u{2029}'])
+                .unwrap_or(text.len() - cursor);
+            continue;
+        }
+        if text[cursor..].starts_with("/*") {
+            let start = cursor;
+            let Some(relative_close) = text[cursor + 2..].find("*/") else {
+                break;
+            };
+            let end = cursor + 2 + relative_close + 2;
+            if text[start..].starts_with("/**") && text.as_bytes().get(start + 3) != Some(&b'/') {
+                ranges.push((start, end));
+            }
+            cursor = end;
+            continue;
+        }
+        break;
+    }
+    ranges
+}
+
+fn jsdoc_tag_specs(text: &str, comment_start: usize, comment_end: usize) -> Vec<JsDocTagSpec> {
+    let body_start = comment_start.saturating_add(3).min(comment_end);
+    let body_end = comment_end.saturating_sub(2).max(body_start);
+    let body = &text[body_start..body_end];
+    let mut starts = Vec::new();
+    let mut line_offset = 0usize;
+    for line_with_break in body.split_inclusive('\n') {
+        let line = line_with_break
+            .strip_suffix('\n')
+            .unwrap_or(line_with_break)
+            .strip_suffix('\r')
+            .unwrap_or_else(|| {
+                line_with_break
+                    .strip_suffix('\n')
+                    .unwrap_or(line_with_break)
+            });
+        let mut relative = line.len() - line.trim_start_matches(is_js_whitespace).len();
+        let mut candidate = &line[relative..];
+        if let Some(after_star) = candidate.strip_prefix('*') {
+            relative += 1;
+            let whitespace =
+                after_star.len() - after_star.trim_start_matches(is_js_whitespace).len();
+            relative += whitespace;
+            candidate = &after_star[whitespace..];
+        }
+        let Some(after_at) = candidate.strip_prefix('@') else {
+            line_offset += line_with_break.len();
+            continue;
+        };
+        let name_len = after_at
+            .chars()
+            .take_while(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-'))
+            .map(char::len_utf8)
+            .sum::<usize>();
+        if name_len == 0 {
+            line_offset += line_with_break.len();
+            continue;
+        }
+        let start = body_start + line_offset + relative;
+        starts.push(JsDocTagSpec {
+            start,
+            name_start: start + 1,
+            name_end: start + 1 + name_len,
+            end: body_end,
+            name: after_at[..name_len].to_owned(),
+        });
+        line_offset += line_with_break.len();
+    }
+    for index in 0..starts.len().saturating_sub(1) {
+        starts[index].end = starts[index + 1].start;
+    }
+    starts
+}
+
+fn jsdoc_braced_range(text: &str, from: usize, end: usize) -> Option<(usize, usize)> {
+    let mut cursor = from;
+    while cursor < end {
+        let ch = text[cursor..].chars().next()?;
+        if !is_whitespace_like(ch) && ch != '*' {
+            break;
+        }
+        cursor += ch.len_utf8();
+    }
+    if text.as_bytes().get(cursor) != Some(&b'{') {
+        return None;
+    }
+    let open = cursor;
+    let mut depth = 0usize;
+    let mut quote = None;
+    let mut escaped = false;
+    for (relative, ch) in text[open..end].char_indices() {
+        if let Some(active_quote) = quote {
+            if escaped {
+                escaped = false;
+            } else if ch == '\\' {
+                escaped = true;
+            } else if ch == active_quote {
+                quote = None;
+            }
+            continue;
+        }
+        if matches!(ch, '\'' | '"' | '`') {
+            quote = Some(ch);
+            continue;
+        }
+        match ch {
+            '{' => depth += 1,
+            '}' => {
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    return Some((open, open + relative));
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn jsdoc_name_range_after(
+    text: &str,
+    mut cursor: usize,
+    end: usize,
+) -> Option<(usize, usize, bool)> {
+    while cursor < end {
+        let ch = text[cursor..].chars().next()?;
+        if !is_whitespace_like(ch) && ch != '*' {
+            break;
+        }
+        cursor += ch.len_utf8();
+    }
+    let bracketed = text.as_bytes().get(cursor) == Some(&b'[');
+    if bracketed {
+        cursor += 1;
+    }
+    let start = cursor;
+    while cursor < end {
+        let ch = text[cursor..].chars().next()?;
+        if ch.is_alphanumeric() || matches!(ch, '_' | '$' | '.') {
+            cursor += ch.len_utf8();
+        } else {
+            break;
+        }
+    }
+    (cursor > start).then_some((start, cursor, bracketed))
 }
 
 #[derive(Debug)]
@@ -421,6 +675,8 @@ impl<'text> Parser<'text> {
             parse_error_before_next_finished_node: false,
             parsing_context: 0,
             not_parenthesized_arrow: std::collections::HashSet::new(),
+            jsdoc_candidates: Vec::new(),
+            has_jsdoc_comments: text.contains("/**"),
         }
     }
 
@@ -781,6 +1037,7 @@ impl<'text> Parser<'text> {
         let parse_error_before_next_finished_node = self.parse_error_before_next_finished_node;
         let context_flags = self.context_flags;
         let parsing_context = self.parsing_context;
+        let jsdoc_candidates_len = self.jsdoc_candidates.len();
 
         let result = f(self);
         if !result.is_truthy() {
@@ -789,6 +1046,7 @@ impl<'text> Parser<'text> {
             self.parse_error_before_next_finished_node = parse_error_before_next_finished_node;
             self.context_flags = context_flags;
             self.parsing_context = parsing_context;
+            self.jsdoc_candidates.truncate(jsdoc_candidates_len);
         }
         result
     }
@@ -799,12 +1057,14 @@ impl<'text> Parser<'text> {
         let parse_error_before_next_finished_node = self.parse_error_before_next_finished_node;
         let context_flags = self.context_flags;
         let parsing_context = self.parsing_context;
+        let jsdoc_candidates_len = self.jsdoc_candidates.len();
         let result = f(self);
         self.scanner.restore(scanner_state);
         self.parse_diagnostics.truncate(diagnostics_len);
         self.parse_error_before_next_finished_node = parse_error_before_next_finished_node;
         self.context_flags = context_flags;
         self.parsing_context = parsing_context;
+        self.jsdoc_candidates.truncate(jsdoc_candidates_len);
         result
     }
 
@@ -8747,6 +9007,317 @@ impl<'text> Parser<'text> {
         self.finish_node(id, pos)
     }
 
+    fn reachable_node_mask_before_root(
+        &self,
+        statements: crate::NodeArrayId,
+        end_of_file_token: NodeId,
+    ) -> Vec<bool> {
+        let mut stack = self.arena.node_array(statements).nodes.clone();
+        stack.push(end_of_file_token);
+        let mut seen = vec![false; self.arena.len()];
+        while let Some(node) = stack.pop() {
+            let index = (node.0 - self.arena.node_base()) as usize;
+            if seen[index] {
+                continue;
+            }
+            seen[index] = true;
+            for_each_child(&self.arena, self.arena.node(node), |child| {
+                stack.push(child);
+                false
+            });
+        }
+        seen
+    }
+
+    /// tsc withJSDoc/JSDocParser.parseJSDocComment, first activated
+    /// vertical slice: host attachment plus typedef/property/satisfies
+    /// declaration nodes. Hosts are captured as parser nodes finish, so
+    /// the ordinary path does not walk the tree a second time. The rare
+    /// top-level-await reparse filters discarded candidates against the
+    /// final tree. Identical trivia starts are cached, and the checker
+    /// never rescans the file for these tags.
+    fn materialize_jsdoc_attachments(
+        &mut self,
+        statements: crate::NodeArrayId,
+        end_of_file_token: NodeId,
+        filter_reparsed_nodes: bool,
+    ) {
+        if !self.has_jsdoc_comments {
+            debug_assert!(self.jsdoc_candidates.is_empty());
+            return;
+        }
+        let mut hosts = std::mem::take(&mut self.jsdoc_candidates);
+        if filter_reparsed_nodes {
+            let reachable = self.reachable_node_mask_before_root(statements, end_of_file_token);
+            hosts.retain(|host| {
+                let index = (host.0 - self.arena.node_base()) as usize;
+                reachable.get(index).copied().unwrap_or(false)
+            });
+        }
+        let mut range_cache = std::collections::HashMap::<usize, Vec<(usize, usize)>>::new();
+        for host in hosts {
+            let (kind, pos, end) = {
+                let node = self.arena.node(host);
+                (node.kind, node.pos as usize, node.end as usize)
+            };
+            if !can_have_jsdoc(kind) {
+                continue;
+            }
+            let ranges = range_cache
+                .entry(pos)
+                .or_insert_with(|| leading_jsdoc_comment_ranges(self.source_text, pos))
+                .clone();
+            let mut docs = Vec::new();
+            for (start, comment_end) in ranges {
+                if comment_end <= end {
+                    docs.push(self.parse_jsdoc_comment(start, comment_end));
+                }
+            }
+            if docs.is_empty() {
+                continue;
+            }
+            let array_start = self.arena.node(docs[0]).pos as usize;
+            let array_end = self
+                .arena
+                .node(*docs.last().expect("non-empty JSDoc list"))
+                .end as usize;
+            let js_doc = self.arena.alloc_array(docs, array_start, array_end, false);
+            self.arena.set_js_doc(host, js_doc);
+        }
+    }
+
+    fn jsdoc_flags(&self) -> NodeFlags {
+        (self.context_flags & NodeFlags::CONTEXT_FLAGS) | NodeFlags::JS_DOC
+    }
+
+    fn alloc_jsdoc_node(&mut self, data: NodeData, pos: usize, end: usize) -> NodeId {
+        self.arena.alloc_node(data, pos, end, self.jsdoc_flags())
+    }
+
+    fn alloc_jsdoc_identifier(&mut self, start: usize, end: usize) -> NodeId {
+        let text = self.source_text[start..end].to_owned();
+        self.alloc_jsdoc_node(
+            NodeData::Identifier(IdentifierData {
+                escaped_text: crate::escape_leading_underscores(&text),
+                text,
+            }),
+            start,
+            end,
+        )
+    }
+
+    fn parse_jsdoc_type_expression_range(&mut self, open: usize, close: usize) -> NodeId {
+        let scanner_state = self.scanner.save();
+        let saved_context = self.context_flags;
+        let saved_diagnostics_len = self.parse_diagnostics.len();
+        let saved_parse_error = self.parse_error_before_next_finished_node;
+
+        self.context_flags |= NodeFlags::JS_DOC;
+        self.scanner.reset_range(open + 1, close + 1);
+        self.next_token_without_check();
+        let parsed_type = self.parse_jsdoc_type();
+        // Do not activate a partial type parse. For example, the
+        // not-yet-materialized JSDoc namepath `C~A` must not silently
+        // become `C`; its owner remains on the legacy path until the
+        // JSDocNamepathType node lands.
+        let r#type = matches!(
+            self.token(),
+            SyntaxKind::CloseBraceToken | SyntaxKind::EndOfFileToken
+        )
+        .then_some(parsed_type);
+        let expression = self.alloc_jsdoc_node(
+            NodeData::JSDocTypeExpression(JSDocTypeExpressionData { r#type }),
+            open,
+            close + 1,
+        );
+
+        self.context_flags = saved_context;
+        self.scanner.restore(scanner_state);
+        self.parse_diagnostics.truncate(saved_diagnostics_len);
+        self.parse_error_before_next_finished_node = saved_parse_error;
+        expression
+    }
+
+    fn parse_jsdoc_property_tag(&mut self, spec: &JsDocTagSpec) -> NodeId {
+        let tag_name = self.alloc_jsdoc_identifier(spec.name_start, spec.name_end);
+        let braced = jsdoc_braced_range(self.source_text, spec.name_end, spec.end);
+        let type_expression =
+            braced.map(|(open, close)| self.parse_jsdoc_type_expression_range(open, close));
+        let name_from = braced.map(|(_, close)| close + 1).unwrap_or(spec.name_end);
+        let name_range = jsdoc_name_range_after(self.source_text, name_from, spec.end);
+        let (name, is_bracketed) = name_range
+            .map(|(start, end, bracketed)| {
+                (Some(self.alloc_jsdoc_identifier(start, end)), bracketed)
+            })
+            .unwrap_or((None, false));
+        self.alloc_jsdoc_node(
+            NodeData::JSDocPropertyTag(JSDocPropertyTagData {
+                tag_name: Some(tag_name),
+                comment: None,
+                name,
+                type_expression,
+                is_name_first: braced.is_none(),
+                is_bracketed,
+            }),
+            spec.start,
+            spec.end,
+        )
+    }
+
+    fn parse_jsdoc_parameter_tag(&mut self, spec: &JsDocTagSpec) -> NodeId {
+        let tag_name = self.alloc_jsdoc_identifier(spec.name_start, spec.name_end);
+        let braced = jsdoc_braced_range(self.source_text, spec.name_end, spec.end);
+        let type_expression =
+            braced.map(|(open, close)| self.parse_jsdoc_type_expression_range(open, close));
+        let name_from = braced.map(|(_, close)| close + 1).unwrap_or(spec.name_end);
+        let name_range = jsdoc_name_range_after(self.source_text, name_from, spec.end);
+        let (name, is_bracketed) = name_range
+            .map(|(start, end, bracketed)| {
+                (Some(self.alloc_jsdoc_identifier(start, end)), bracketed)
+            })
+            .unwrap_or((None, false));
+        self.alloc_jsdoc_node(
+            NodeData::JSDocParameterTag(JSDocParameterTagData {
+                tag_name: Some(tag_name),
+                comment: None,
+                name,
+                type_expression,
+                is_name_first: braced.is_none(),
+                is_bracketed,
+            }),
+            spec.start,
+            spec.end,
+        )
+    }
+
+    fn parse_jsdoc_comment(&mut self, start: usize, end: usize) -> NodeId {
+        let specs = jsdoc_tag_specs(self.source_text, start, end);
+        let mut tags = Vec::new();
+        let mut index = 0usize;
+        while index < specs.len() {
+            let spec = &specs[index];
+            match spec.name.as_str() {
+                "typedef" => {
+                    let tag_name = self.alloc_jsdoc_identifier(spec.name_start, spec.name_end);
+                    let braced = jsdoc_braced_range(self.source_text, spec.name_end, spec.end);
+                    let name_from = braced.map(|(_, close)| close + 1).unwrap_or(spec.name_end);
+                    let name = jsdoc_name_range_after(self.source_text, name_from, spec.end).map(
+                        |(name_start, name_end, _)| {
+                            self.alloc_jsdoc_identifier(name_start, name_end)
+                        },
+                    );
+
+                    let mut property_tags = Vec::new();
+                    let mut next = index + 1;
+                    while next < specs.len()
+                        && matches!(specs[next].name.as_str(), "property" | "prop")
+                    {
+                        property_tags.push(self.parse_jsdoc_property_tag(&specs[next]));
+                        next += 1;
+                    }
+                    let tag_end = property_tags
+                        .last()
+                        .map(|&property| self.arena.node(property).end as usize)
+                        .unwrap_or(spec.end);
+                    let type_expression = if property_tags.is_empty() {
+                        braced.map(|(open, close)| {
+                            self.parse_jsdoc_type_expression_range(open, close)
+                        })
+                    } else {
+                        let property_array = self.arena.alloc_array(
+                            property_tags,
+                            specs[index + 1].start,
+                            tag_end,
+                            false,
+                        );
+                        Some(self.alloc_jsdoc_node(
+                            NodeData::JSDocTypeLiteral(JSDocTypeLiteralData {
+                                js_doc_property_tags: Some(property_array),
+                                is_array_type: false,
+                            }),
+                            spec.start,
+                            tag_end,
+                        ))
+                    };
+                    tags.push(self.alloc_jsdoc_node(
+                        NodeData::JSDocTypedefTag(JSDocTypedefTagData {
+                            tag_name: Some(tag_name),
+                            comment: None,
+                            name,
+                            full_name: name,
+                            type_expression,
+                        }),
+                        spec.start,
+                        tag_end,
+                    ));
+                    index = next;
+                    continue;
+                }
+                "satisfies" => {
+                    let tag_name = self.alloc_jsdoc_identifier(spec.name_start, spec.name_end);
+                    let type_expression =
+                        jsdoc_braced_range(self.source_text, spec.name_end, spec.end).map(
+                            |(open, close)| self.parse_jsdoc_type_expression_range(open, close),
+                        );
+                    tags.push(self.alloc_jsdoc_node(
+                        NodeData::JSDocSatisfiesTag(JSDocSatisfiesTagData {
+                            tag_name: Some(tag_name),
+                            comment: None,
+                            type_expression,
+                        }),
+                        spec.start,
+                        spec.end,
+                    ));
+                }
+                "type" => {
+                    let tag_name = self.alloc_jsdoc_identifier(spec.name_start, spec.name_end);
+                    let type_expression =
+                        jsdoc_braced_range(self.source_text, spec.name_end, spec.end).map(
+                            |(open, close)| self.parse_jsdoc_type_expression_range(open, close),
+                        );
+                    tags.push(self.alloc_jsdoc_node(
+                        NodeData::JSDocTypeTag(JSDocTypeTagData {
+                            tag_name: Some(tag_name),
+                            comment: None,
+                            type_expression,
+                        }),
+                        spec.start,
+                        spec.end,
+                    ));
+                }
+                "property" | "prop" => tags.push(self.parse_jsdoc_property_tag(spec)),
+                "param" | "arg" | "argument" => tags.push(self.parse_jsdoc_parameter_tag(spec)),
+                _ => {
+                    let tag_name = self.alloc_jsdoc_identifier(spec.name_start, spec.name_end);
+                    tags.push(self.alloc_jsdoc_node(
+                        NodeData::JSDocTag(JSDocTagData {
+                            tag_name: Some(tag_name),
+                            comment: None,
+                        }),
+                        spec.start,
+                        spec.end,
+                    ));
+                }
+            }
+            index += 1;
+        }
+        let tags = if tags.is_empty() {
+            None
+        } else {
+            let tags_start = self.arena.node(tags[0]).pos as usize;
+            let tags_end = self.arena.node(*tags.last().expect("non-empty tags")).end as usize;
+            Some(self.arena.alloc_array(tags, tags_start, tags_end, false))
+        };
+        self.alloc_jsdoc_node(
+            NodeData::JSDoc(JSDocData {
+                tags,
+                comment: None,
+            }),
+            start,
+            end,
+        )
+    }
+
     fn finish(
         mut self,
         statements: crate::NodeArrayId,
@@ -8800,13 +9371,22 @@ impl<'text> Parser<'text> {
     }
 
     fn finish_node_at(&mut self, id: NodeId, pos: usize, end: usize) -> NodeId {
-        let node = self.arena.node_mut(id);
-        node.pos = pos as u32;
-        node.end = end as u32;
-        node.flags |= (self.context_flags & NodeFlags::CONTEXT_FLAGS).bits();
-        if self.parse_error_before_next_finished_node {
-            self.parse_error_before_next_finished_node = false;
-            node.flags |= NodeFlags::THIS_NODE_HAS_ERROR.bits();
+        let is_jsdoc_candidate = {
+            let node = self.arena.node_mut(id);
+            node.pos = pos as u32;
+            node.end = end as u32;
+            node.flags |=
+                (self.context_flags & (NodeFlags::CONTEXT_FLAGS | NodeFlags::JS_DOC)).bits();
+            if self.parse_error_before_next_finished_node {
+                self.parse_error_before_next_finished_node = false;
+                node.flags |= NodeFlags::THIS_NODE_HAS_ERROR.bits();
+            }
+            self.has_jsdoc_comments
+                && !NodeFlags::from_bits(node.flags).contains(NodeFlags::JS_DOC)
+                && can_have_jsdoc(node.kind)
+        };
+        if is_jsdoc_candidate {
+            self.jsdoc_candidates.push(id);
         }
         id
     }
@@ -8895,10 +9475,10 @@ pub fn parse_source_file(
             .is_file_probably_external_module(statements)
             .is_some()
         || (detects_jsx_module && parser.jsx_external_module_indicator(statements).is_some());
-    if !parser.is_declaration_file
+    let reparse_top_level_await = !parser.is_declaration_file
         && is_external_module
-        && parser.statements_possibly_contain_top_level_await(statements)
-    {
+        && parser.statements_possibly_contain_top_level_await(statements);
+    if reparse_top_level_await {
         statements = parser.reparse_top_level_await(statements);
     }
     let detected_external_module_indicator = parser
@@ -8909,6 +9489,7 @@ pub fn parse_source_file(
                 .flatten()
         });
 
+    parser.materialize_jsdoc_attachments(statements, end_of_file_token, reparse_top_level_await);
     let finished = parser.finish(statements, end_of_file_token);
     let external_module_indicator = detected_external_module_indicator
         .or_else(|| force_external_module.then_some(finished.root));
@@ -12509,5 +13090,138 @@ mod tests {
             "{:?}",
             source.parse_diagnostics
         );
+    }
+
+    #[test]
+    fn jsdoc_typedef_properties_and_satisfies_are_arena_nodes() {
+        let text = "/**\r\n\
+                    * 😀 description\r\n\
+                    * @typedef {Object} Required\r\n\
+                    * @property {number} required\r\n\
+                    */\r\n\
+                    const value = /** @satisfies {Required} */ ({});\r\n";
+        let source = parse_source_file(
+            "a.js".to_owned(),
+            text.to_owned(),
+            ParseOptions {
+                javascript_file: true,
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        let root = source
+            .arena
+            .node(source.root)
+            .data
+            .as_source_file()
+            .expect("source file");
+        let statement = source
+            .arena
+            .node_array(root.statements.expect("statements"))
+            .nodes[0];
+        let doc_array = source
+            .arena
+            .node(statement)
+            .js_doc
+            .expect("statement JSDoc");
+        let doc = source.arena.node_array(doc_array).nodes[0];
+        assert_eq!(source.arena.node(doc).parent, Some(statement));
+        assert!(NodeFlags::from_bits(source.arena.node(doc).flags).contains(NodeFlags::JS_DOC));
+        let NodeData::JSDoc(data) = &source.arena.node(doc).data else {
+            panic!("JSDoc root");
+        };
+        let tags = &source
+            .arena
+            .node_array(data.tags.expect("JSDoc tags"))
+            .nodes;
+        assert_eq!(tags.len(), 1);
+        let typedef = tags[0];
+        let NodeData::JSDocTypedefTag(data) = &source.arena.node(typedef).data else {
+            panic!("typedef tag");
+        };
+        assert_eq!(source.arena.node(typedef).parent, Some(doc));
+        let type_literal = data.type_expression.expect("typedef type literal");
+        let NodeData::JSDocTypeLiteral(data) = &source.arena.node(type_literal).data else {
+            panic!("JSDoc type literal");
+        };
+        let properties = &source
+            .arena
+            .node_array(data.js_doc_property_tags.expect("properties"))
+            .nodes;
+        assert_eq!(properties.len(), 1);
+        let property = properties[0];
+        let property_start = text.find("@property").expect("property");
+        let comment_close = text.find("*/").expect("comment close");
+        assert_eq!(
+            (
+                source.arena.node(property).pos as usize,
+                source.arena.node(property).end as usize,
+                source.arena.node(property).parent,
+            ),
+            (property_start, comment_close, Some(type_literal))
+        );
+
+        let paren = source
+            .arena
+            .node_ids()
+            .find(|&node| {
+                source.arena.node(node).kind == SyntaxKind::ParenthesizedExpression
+                    && source.arena.node(node).js_doc.is_some()
+            })
+            .expect("inline JSDoc host");
+        let inline_doc = source
+            .arena
+            .node_array(source.arena.node(paren).js_doc.expect("inline docs"))
+            .nodes[0];
+        let NodeData::JSDoc(inline) = &source.arena.node(inline_doc).data else {
+            panic!("inline JSDoc");
+        };
+        let satisfies = source
+            .arena
+            .node_array(inline.tags.expect("inline tag"))
+            .nodes[0];
+        let NodeData::JSDocSatisfiesTag(satisfies_data) = &source.arena.node(satisfies).data else {
+            panic!("satisfies tag");
+        };
+        let type_expression = satisfies_data
+            .type_expression
+            .expect("satisfies type expression");
+        let tag_name = satisfies_data.tag_name.expect("tag name");
+        let NodeData::JSDocTypeExpression(type_expression_data) =
+            &source.arena.node(type_expression).data
+        else {
+            panic!("JSDoc type expression");
+        };
+        let target = type_expression_data.r#type.expect("satisfies target");
+        assert!(NodeFlags::from_bits(source.arena.node(target).flags).contains(NodeFlags::JS_DOC));
+        assert_eq!(
+            &text[source.arena.node(tag_name).pos as usize
+                ..source.arena.node(tag_name).end as usize],
+            "satisfies"
+        );
+        assert_eq!(source.arena.node(satisfies).parent, Some(inline_doc));
+        assert_eq!(source.arena.node(inline_doc).parent, Some(paren));
+    }
+
+    #[test]
+    fn no_jsdoc_source_allocates_no_jsdoc_nodes_or_attachments() {
+        let mut text = String::new();
+        for index in 0..512 {
+            use std::fmt::Write;
+            writeln!(text, "const value_{index} = {index};").expect("write source");
+        }
+        let source = parse_source_file(
+            "large.js".to_owned(),
+            text,
+            ParseOptions {
+                javascript_file: true,
+                ..ParseOptions::default()
+            },
+            None,
+        );
+
+        assert!(source.arena.nodes().iter().all(|node| {
+            node.js_doc.is_none() && !NodeFlags::from_bits(node.flags).contains(NodeFlags::JS_DOC)
+        }));
     }
 }

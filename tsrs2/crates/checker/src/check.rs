@@ -1523,9 +1523,9 @@ impl<'a> CheckerState<'a> {
         self.current_node = Some(node);
         self.instantiation_count = 0;
         // 86557-86567: checked-JS JSDoc tags run before their host
-        // element. P15 projects checkJSDocAugmentsTag; P16 also routes
-        // cached later initializers of a comma declaration directly,
-        // while JSDoc nodes remain absent from the arena.
+        // element. The activated typedef/property/satisfies slice uses
+        // parser-owned nodes; P15 augments and P16 unmatched-parameter
+        // owners retain their bounded legacy projections.
         self.check_jsdoc_augments_tags_for_host(node);
         self.check_unmatched_jsdoc_parameters_in_following_variable_declarations(node);
         #[cfg(debug_assertions)]
@@ -1872,11 +1872,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 8f6c5add520fd318d80853065eedd5d538e71dc176a67afd17360c3686578e9d
     /// tsc-span: _tsc.js:82883-82888
     ///
-    /// Attached JSDoc tags are not materialized in the syntax arena.
-    /// Project only this producer's three accessibility tags over the
-    /// same nearest-attached-comment boundary as the existing JSDoc
-    /// type/this projections. The returned byte range is the oracle
-    /// tag-node span: `@` through the trivia immediately before `*/`.
+    /// Accessibility tags are not yet activated as typed JSDoc nodes.
+    /// Project only this producer's three tags over the same
+    /// nearest-attached-comment boundary as the legacy type/this
+    /// projections. The returned byte range is the oracle tag-node
+    /// span: `@` through the trivia immediately before `*/`.
     fn check_jsdoc_accessibility_modifiers(&mut self, host: NodeId) {
         if !self.is_in_js_file(host)
             || !matches!(
@@ -3454,8 +3454,8 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsrs-native: project parseJSDocTypeExpression's required-brace
-    /// diagnostics for JSDoc satisfies tags while JSDoc nodes are
-    /// absent from the arena.
+    /// diagnostics for malformed JSDoc satisfies tags until the parser
+    /// diagnostic owner is activated.
     ///
     /// tsc-port: parseJSDocTypeExpression @6.0.3
     /// tsc-hash: 325ea8484a74cb8af2c59724306cb66852667232a2d61cb1de369487261e7a6e
@@ -4014,9 +4014,9 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsrs-native: project checkSatisfiesExpressionWorker over the
-    /// checked-JS `@satisfies` hosts that are invisible while JSDoc
-    /// nodes are absent from the syntax arena.
+    /// tsrs-native: legacy fallback for malformed or not-yet-activated
+    /// checked-JS `@satisfies` hosts. Parser-owned tags are skipped and
+    /// run through the normal expression worker.
     ///
     /// tsc-port: checkSatisfiesExpressionWorker @6.0.3
     /// tsc-hash: 69efa22f5ce65ba834ce27bba8e4cab3bfedb94a4646cfa0944324f6f62d989e
@@ -4034,15 +4034,21 @@ impl<'a> CheckerState<'a> {
             return;
         }
         for projection in self.jsdoc_satisfies_projections(root) {
+            if self
+                .jsdoc_satisfies_type_node(projection.expression)
+                .is_some()
+            {
+                continue;
+            }
             if let Err(err) = self.check_jsdoc_satisfies_projection(root, &projection) {
                 self.mark_partially_checked_node(projection.expression, err.reason);
             }
         }
     }
 
-    /// Source-text projection of the two reportImplicitAny faces whose
-    /// declaration nodes live inside JSDoc comments and therefore are
-    /// not present in the main syntax arena:
+    /// Source-text projection of two reportImplicitAny faces whose
+    /// declaration shapes are not yet activated in the parser-owned
+    /// JSDoc slice:
     ///
     /// * a Closure `function(...)` type with no `: return` (7014);
     /// * a value arrow/function expression contextually typed only as
@@ -9368,6 +9374,7 @@ impl<'a> CheckerState<'a> {
                             && self
                                 .get_class_name_from_prototype_method(declaration)
                                 .is_none()
+                            && self.jsdoc_satisfies_type_node(declaration).is_none()
                     })
             {
                 return Err(Unsupported::new(
@@ -10715,6 +10722,25 @@ impl<'a> CheckerState<'a> {
                             )
                         })
                     });
+                let jsdoc_satisfies_empty_literal = symbol
+                    .and_then(|symbol| self.binder.symbol(symbol).value_declaration)
+                    .is_some_and(|literal| {
+                        if !matches!(
+                            self.data_of(literal),
+                            NodeData::ObjectLiteralExpression(data)
+                                if self.nodes_of(data.properties).is_empty()
+                        ) {
+                            return false;
+                        }
+                        let mut host = literal;
+                        while let Some(parent) = self.parent_of(host) {
+                            if self.kind_of(parent) != SyntaxKind::ParenthesizedExpression {
+                                break;
+                            }
+                            host = parent;
+                        }
+                        self.jsdoc_satisfies_type_node(host).is_some()
+                    });
                 if symbol.is_none()
                     || ty == self.empty_type_literal_type
                     || (born_resolved && !js_declared)
@@ -10722,6 +10748,7 @@ impl<'a> CheckerState<'a> {
                     || (born_resolved && bounded_js_container_literal.is_some())
                     || (born_resolved && js_declared && js_empty_parameter_assignment)
                     || (born_resolved && js_declared && js_empty_property_initializer)
+                    || (born_resolved && js_declared && jsdoc_satisfies_empty_literal)
                 {
                     self.slice_add_approximate_length(2);
                     return Ok(("{}".to_owned(), SliceTypeNodeKind::TypeLiteral));
@@ -11481,20 +11508,22 @@ impl<'a> CheckerState<'a> {
         // addUndefinedForParameter rides requiresAddingImplicitUndefined.
         let mut type_text = None;
         if let Some(declaration) = face.declaration {
-            let annotation = match self.data_of(declaration) {
-                NodeData::Parameter(data) => data.r#type,
-                _ => None,
-            };
+            let annotation = self.effective_type_annotation_node(declaration);
             let question = matches!(self.data_of(declaration), NodeData::Parameter(data)
                 if data.question_token.is_some());
             if let Some(annotation) = annotation {
-                type_text = self.annotation_reuse_text_slice(
-                    annotation,
-                    face.ty,
-                    requires_undefined,
-                    question,
-                    /*is_parameter*/ true,
-                )?;
+                type_text =
+                    if self.node_flags(annotation) & tsrs2_types::NodeFlags::JS_DOC.bits() != 0 {
+                        self.reusable_annotation_node_text_slice(annotation)?
+                    } else {
+                        self.annotation_reuse_text_slice(
+                            annotation,
+                            face.ty,
+                            requires_undefined,
+                            question,
+                            /*is_parameter*/ true,
+                        )?
+                    };
             }
         }
         let type_text = match type_text {
@@ -16189,6 +16218,54 @@ mod tests {
                     1360,
                 )));
             }
+        });
+    }
+
+    #[test]
+    fn jsdoc_satisfies_missing_property_keeps_relation_chain_and_declaration() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..CompilerOptions::default()
+        };
+        let text = "/**\n\
+                     * @typedef {Object} Required\n\
+                     * @property {number} required\n\
+                     */\n\
+                    const value = /** @satisfies {Required} */ ({});\n";
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 1360)
+                .expect("TS1360");
+            fn flatten(chain: &tsrs2_diags::MessageChain, codes: &mut Vec<u32>) {
+                codes.push(chain.code);
+                for child in &chain.next {
+                    flatten(child, codes);
+                }
+            }
+            let mut codes = Vec::new();
+            flatten(&diagnostic.message, &mut codes);
+            assert_eq!(codes, [1360, 2741]);
+            let related = diagnostic.related.first().expect("TS2728");
+            assert_eq!(diagnostic.related.len(), 1);
+            assert_eq!(related.file_name.as_deref(), Some("a.js"));
+            let property_start = text.find("@property").expect("property tag");
+            assert_eq!(
+                (related.start, related.length),
+                (
+                    Some(property_start as u32),
+                    Some(
+                        text[property_start..text.find("*/").expect("JSDoc close")]
+                            .encode_utf16()
+                            .count() as u32
+                    ),
+                )
+            );
+            assert_eq!(related.message.code, 2728);
+            assert_eq!(related.message.text, "'required' is declared here.");
         });
     }
 

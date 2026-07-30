@@ -367,6 +367,12 @@ impl<'a> CheckerState<'a> {
             let initializer = self.only_expression_initializer_of(node);
             if let Some(initializer) = initializer {
                 if parent_parent_kind != Some(SyntaxKind::ForInStatement) {
+                    let diagnostics_before_initializer = self.diagnostics.len();
+                    let has_jsdoc_annotation = self
+                        .effective_type_annotation_node(node)
+                        .is_some_and(|annotation| {
+                            self.node_flags(annotation) & tsrs2_types::NodeFlags::JS_DOC.bits() != 0
+                        });
                     let initializer_type =
                         self.check_expression_cached(initializer, CheckMode::NORMAL)?;
                     // THE annotated-declaration 2322 row: errorNode =
@@ -401,6 +407,12 @@ impl<'a> CheckerState<'a> {
                             Some(node),
                             &diagnostics::Type_0_is_not_assignable_to_type_1,
                         )?;
+                    }
+                    if has_jsdoc_annotation {
+                        self.mark_non_jsdoc_js_diagnostics_since_with_code(
+                            diagnostics_before_initializer,
+                            2322,
+                        );
                     }
                     let block_scope_kind =
                         node_util::get_combined_node_flags(self.binder.source_of_node(node), node)
@@ -2957,11 +2969,18 @@ impl<'a> CheckerState<'a> {
                         .flags_of(ty)
                         .intersects(TypeFlags::ANY | TypeFlags::UNKNOWN)
                     {
+                        let diagnostics_before = self.diagnostics.len();
                         self.grammar_error_on_first_token(
                             type_node,
                             &diagnostics::Catch_clause_variable_type_annotation_must_be_any_or_unknown_if_specified,
                             &[],
                         );
+                        if self.node_flags(type_node) & tsrs2_types::NodeFlags::JS_DOC.bits() != 0 {
+                            self.mark_non_jsdoc_js_diagnostics_since_with_code(
+                                diagnostics_before,
+                                1196,
+                            );
+                        }
                     }
                 } else if let Some((type_text, type_span)) =
                     self.jsdoc_catch_type_annotation_projection(declaration)

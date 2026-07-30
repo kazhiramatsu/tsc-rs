@@ -38,11 +38,11 @@ impl<'a> Binder<'a> {
     /// tsc-span: _tsc.js:42456-42505
     ///
     /// The closure-state reset tail is unnecessary (a Binder is
-    /// per-file); delayedBindJSDocTypedefTag/bindJSDocImports await
-    /// JSDoc parsing. file.symbolCount == symbols.len().
+    /// per-file). file.symbolCount == symbols.len().
     pub fn bind_source_file(&mut self) {
         self.in_strict_mode = self.bind_in_strict_mode();
         self.bind(Some(self.source.root));
+        self.delayed_bind_jsdoc_typedef_tags();
     }
 
     /// tsc-port: bindInStrictMode @6.0.3
@@ -61,7 +61,7 @@ impl<'a> Binder<'a> {
     /// tsc-span: _tsc.js:44226-44255
     ///
     /// setParent is unnecessary (arena parents are finalized at parse
-    /// time); bindJSDoc awaits JSDoc parsing.
+    /// time).
     pub fn bind(&mut self, node: Option<NodeId>) {
         let Some(node) = node else { return };
         let save_in_strict_mode = self.in_strict_mode;
@@ -73,6 +73,8 @@ impl<'a> Binder<'a> {
             } else {
                 self.bind_container(node, container_flags);
             }
+        } else {
+            self.bind_jsdoc(node);
         }
         self.in_strict_mode = save_in_strict_mode;
     }
@@ -241,8 +243,9 @@ impl<'a> Binder<'a> {
             }
             SyntaxKind::FunctionType
             | SyntaxKind::JSDocFunctionType
+            | SyntaxKind::JSDocSignature
             | SyntaxKind::ConstructorType => self.bind_function_or_constructor_type(node),
-            SyntaxKind::TypeLiteral | SyntaxKind::MappedType => {
+            SyntaxKind::TypeLiteral | SyntaxKind::JSDocTypeLiteral | SyntaxKind::MappedType => {
                 self.bind_anonymous_declaration(
                     node,
                     SymbolFlags::TYPE_LITERAL,
@@ -308,6 +311,36 @@ impl<'a> Binder<'a> {
                     SymbolFlags::PROPERTY_EXCLUDES,
                 );
             }
+            SyntaxKind::JSDocPropertyTag | SyntaxKind::JSDocParameterTag => {
+                let (is_bracketed, type_expression) = match &self.source.arena.node(node).data {
+                    NodeData::JSDocPropertyTag(data) => (data.is_bracketed, data.type_expression),
+                    NodeData::JSDocParameterTag(data) => (data.is_bracketed, data.type_expression),
+                    _ => (false, None),
+                };
+                let optional_type = type_expression
+                    .and_then(
+                        |expression| match &self.source.arena.node(expression).data {
+                            NodeData::JSDocTypeExpression(data) => data.r#type,
+                            _ => None,
+                        },
+                    )
+                    .is_some_and(|r#type| {
+                        kind_of(self.source, r#type) == SyntaxKind::JSDocOptionalType
+                    });
+                self.declare_symbol_and_add_to_symbol_table(
+                    node,
+                    SymbolFlags::PROPERTY
+                        | if is_bracketed || optional_type {
+                            SymbolFlags::OPTIONAL
+                        } else {
+                            SymbolFlags::NONE
+                        },
+                    SymbolFlags::PROPERTY_EXCLUDES,
+                );
+            }
+            SyntaxKind::JSDocTypedefTag
+            | SyntaxKind::JSDocCallbackTag
+            | SyntaxKind::JSDocEnumTag => self.delayed_type_aliases.push(node),
             SyntaxKind::ImportEqualsDeclaration
             | SyntaxKind::NamespaceImport
             | SyntaxKind::ImportSpecifier
@@ -2476,8 +2509,6 @@ impl<'a> Binder<'a> {
     /// tsc-hash: 69e5dfbb76220dae84ed056c90a443fd58a7edfda6ac555da31683f2567d41c1
     /// tsc-span: _tsc.js:42843-42976
     ///
-    /// JSDoc arms (typedef/callback/enum tags, import tag, bindJSDoc)
-    /// await JSDoc parsing.
     pub(crate) fn bind_children(&mut self, node: NodeId) {
         let save_in_assignment_pattern = self.in_assignment_pattern;
         self.in_assignment_pattern = false;
@@ -2498,6 +2529,7 @@ impl<'a> Binder<'a> {
                 self.set_flags_of(node, flags | NodeFlags::UNREACHABLE);
             }
             self.bind_each_child(node);
+            self.bind_jsdoc(node);
             self.in_assignment_pattern = save_in_assignment_pattern;
             return;
         }
@@ -2546,6 +2578,9 @@ impl<'a> Binder<'a> {
             }
             SyntaxKind::CallExpression => self.bind_call_expression_flow(node),
             SyntaxKind::NonNullExpression => self.bind_non_null_expression_flow(node),
+            SyntaxKind::JSDocTypedefTag
+            | SyntaxKind::JSDocCallbackTag
+            | SyntaxKind::JSDocEnumTag => self.bind_jsdoc_type_alias(node),
             SyntaxKind::SourceFile => {
                 let (statements, end_of_file_token) = match &self.source.arena.node(node).data {
                     NodeData::SourceFile(data) => (data.statements, data.end_of_file_token),
@@ -2570,7 +2605,121 @@ impl<'a> Binder<'a> {
                 self.bind_each_child(node);
             }
         }
+        self.bind_jsdoc(node);
         self.in_assignment_pattern = save_in_assignment_pattern;
+    }
+
+    /// tsc-port: bindJSDoc @6.0.3
+    /// tsc-hash: ed742b2f32365942039700d838f0f74592cba3a51f5483245fed312bc89c8f08
+    /// tsc-span: _tsc.js:44252-44267
+    ///
+    /// Parser finalization already owns the parent-only TS-file face.
+    /// JS files bind attached documentation through its dedicated edge;
+    /// ordinary for_each_child never sees this array.
+    fn bind_jsdoc(&mut self, host: NodeId) {
+        if !self.is_in_js_file() {
+            return;
+        }
+        let Some(js_doc) = self.source.arena.node(host).js_doc else {
+            return;
+        };
+        let docs = self.source.arena.node_array(js_doc).nodes.clone();
+        for doc in docs {
+            self.bind(Some(doc));
+        }
+    }
+
+    /// tsc-port: bindJSDocTypeAlias @6.0.3
+    /// tsc-hash: 8cf0c3b0d331c78f424f350936ce80a41890652797352500ee64a594ffab0804
+    /// tsc-span: _tsc.js:43715-43727
+    fn bind_jsdoc_type_alias(&mut self, node: NodeId) {
+        let (tag_name, comment) = match &self.source.arena.node(node).data {
+            NodeData::JSDocTypedefTag(data) => (data.tag_name, data.comment),
+            NodeData::JSDocCallbackTag(data) => (data.tag_name, data.comment),
+            NodeData::JSDocEnumTag(data) => (data.tag_name, data.comment),
+            _ => (None, None),
+        };
+        self.bind(tag_name);
+        self.bind_each(comment);
+    }
+
+    fn jsdoc_host(&self, node: NodeId) -> Option<NodeId> {
+        let doc = parent_of(self.source, node)?;
+        (kind_of(self.source, doc) == SyntaxKind::JSDoc)
+            .then(|| parent_of(self.source, doc))
+            .flatten()
+    }
+
+    fn enclosing_container_from(&self, mut node: NodeId) -> NodeId {
+        loop {
+            if get_container_flags(self.source, node).intersects(ContainerFlags::IS_CONTAINER) {
+                return node;
+            }
+            let Some(parent) = parent_of(self.source, node) else {
+                return self.source.root;
+            };
+            node = parent;
+        }
+    }
+
+    fn enclosing_block_scope_container_from(&self, mut node: NodeId) -> NodeId {
+        loop {
+            let flags = get_container_flags(self.source, node);
+            if flags.intersects(
+                ContainerFlags::IS_CONTAINER | ContainerFlags::IS_BLOCK_SCOPED_CONTAINER,
+            ) {
+                return node;
+            }
+            let Some(parent) = parent_of(self.source, node) else {
+                return self.source.root;
+            };
+            node = parent;
+        }
+    }
+
+    /// tsc-port: delayedBindJSDocTypedefTag @6.0.3
+    /// tsc-hash: 81918f8d6ca2b8ac860ef667494925641d30f765f62fb8515aa81cb3271fe57e
+    /// tsc-span: _tsc.js:43999-44072
+    ///
+    /// The first materialized slice covers identifier-named
+    /// typedef/callback declarations. Namespace/assignment names keep
+    /// their later owner cluster.
+    fn delayed_bind_jsdoc_typedef_tags(&mut self) {
+        let aliases = std::mem::take(&mut self.delayed_type_aliases);
+        for type_alias in aliases {
+            let Some(host) = self.jsdoc_host(type_alias) else {
+                continue;
+            };
+            let save_container = self.container;
+            let save_block_scope_container = self.block_scope_container;
+            let save_current_flow = self.current_flow;
+            self.container = Some(self.enclosing_container_from(host));
+            self.block_scope_container = Some(self.enclosing_block_scope_container_from(host));
+            self.current_flow = Some(self.flow.create_flow_node(
+                FlowFlags::START,
+                crate::flow::FlowPayload::None,
+                None,
+            ));
+
+            let type_expression = match &self.source.arena.node(type_alias).data {
+                NodeData::JSDocTypedefTag(data) => data.type_expression,
+                NodeData::JSDocCallbackTag(data) => data.type_expression,
+                NodeData::JSDocEnumTag(data) => data.type_expression,
+                _ => None,
+            };
+            self.bind(type_expression);
+            if crate::node_util::get_name_of_declaration(self.source, type_alias).is_some() {
+                self.bind_block_scoped_declaration(
+                    type_alias,
+                    SymbolFlags::TYPE_ALIAS,
+                    SymbolFlags::TYPE_ALIAS_EXCLUDES,
+                );
+            }
+
+            self.container = save_container;
+            self.block_scope_container = save_block_scope_container;
+            self.current_flow = save_current_flow;
+        }
     }
 
     // ---- stage 3.5: the flow-aware statement binders ----
@@ -4929,6 +5078,39 @@ function outer() {
             .symbol(locals["called"])
             .exports
             .contains_key("w"));
+    }
+
+    #[test]
+    fn jsdoc_typedef_and_properties_bind_real_declaration_nodes() {
+        let source = parse_named(
+            "a.js",
+            "/**\n\
+             * @typedef {Object} Required\n\
+             * @property {number} required\n\
+             */\n\
+             const value = {};\n",
+            true,
+        );
+        let binder = bind(&source);
+        let alias = binder.locals[&source.root]["Required"];
+        let alias_symbol = binder.symbols.symbol(alias);
+        assert!(alias_symbol.flags.intersects(SymbolFlags::TYPE_ALIAS));
+        assert_eq!(alias_symbol.declarations.len(), 1);
+        let typedef = alias_symbol.declarations[0];
+        assert_eq!(kind_of(&source, typedef), SyntaxKind::JSDocTypedefTag);
+        let type_literal = match &source.arena.node(typedef).data {
+            NodeData::JSDocTypedefTag(data) => data.type_expression.expect("type literal"),
+            _ => unreachable!(),
+        };
+        let type_symbol = binder.node_symbol[&type_literal];
+        let property = binder.symbols.symbol(type_symbol).members["required"];
+        let property_symbol = binder.symbols.symbol(property);
+        assert!(property_symbol.flags.intersects(SymbolFlags::PROPERTY));
+        assert_eq!(property_symbol.declarations.len(), 1);
+        assert_eq!(
+            kind_of(&source, property_symbol.declarations[0]),
+            SyntaxKind::JSDocPropertyTag
+        );
     }
 
     #[test]

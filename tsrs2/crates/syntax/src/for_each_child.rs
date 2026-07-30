@@ -987,6 +987,12 @@ where
             None
         }
         NodeData::JSDocSignature(data) => {
+            if let Some(result) = visit_optional_nodes(lookup, data.type_parameters, &mut cb) {
+                return Some(result);
+            }
+            if let Some(result) = visit_optional_nodes(lookup, data.parameters, &mut cb) {
+                return Some(result);
+            }
             if let Some(result) = visit_optional_node(data.r#type, &mut cb) {
                 return Some(result);
             }
@@ -1046,7 +1052,12 @@ where
             }
             None
         }
-        NodeData::JSDocTypeLiteral(_data) => None,
+        NodeData::JSDocTypeLiteral(data) => {
+            if let Some(result) = visit_optional_nodes(lookup, data.js_doc_property_tags, &mut cb) {
+                return Some(result);
+            }
+            None
+        }
         NodeData::JSDocTypeTag(data) => {
             if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {
                 return Some(result);

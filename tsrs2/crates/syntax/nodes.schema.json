@@ -910,6 +910,7 @@
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
         {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": false},
         {"name": "fullName", "rustName": "full_name", "type": "Node", "optional": true, "child": true},
         {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": false, "child": true}
       ],
@@ -1117,7 +1118,9 @@
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
         {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
-        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true}
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
+        {"name": "isNameFirst", "rustName": "is_name_first", "type": "Bool", "optional": false, "child": false},
+        {"name": "isBracketed", "rustName": "is_bracketed", "type": "Bool", "optional": false, "child": false}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1145,7 +1148,9 @@
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
         {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
         {"name": "name", "rustName": "name", "type": "Node", "optional": false, "child": true},
-        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true}
+        {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true},
+        {"name": "isNameFirst", "rustName": "is_name_first", "type": "Bool", "optional": false, "child": false},
+        {"name": "isBracketed", "rustName": "is_bracketed", "type": "Bool", "optional": false, "child": false}
       ],
       "children": [
         {"name": "tagName", "array": false},
@@ -1236,9 +1241,13 @@
       "kindName": "JSDocSignature",
       "dataName": "JSDocSignatureData",
       "fields": [
+        {"name": "typeParameters", "rustName": "type_parameters", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "parameters", "rustName": "parameters", "type": "NodeArray", "optional": false, "child": true},
         {"name": "type", "rustName": "r#type", "type": "Node", "optional": true, "child": true}
       ],
       "children": [
+        {"name": "typeParameters", "array": true},
+        {"name": "parameters", "array": true},
         {"name": "type", "array": false}
       ]
     },
@@ -1312,8 +1321,11 @@
       "kindName": "JSDocTypeLiteral",
       "dataName": "JSDocTypeLiteralData",
       "fields": [
+        {"name": "jsDocPropertyTags", "rustName": "js_doc_property_tags", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "isArrayType", "rustName": "is_array_type", "type": "Bool", "optional": false, "child": false}
       ],
       "children": [
+        {"name": "jsDocPropertyTags", "array": true}
       ]
     },
     {
@@ -1336,6 +1348,7 @@
       "fields": [
         {"name": "tagName", "rustName": "tag_name", "type": "Node", "optional": false, "child": true},
         {"name": "comment", "rustName": "comment", "type": "NodeArray", "optional": true, "child": true},
+        {"name": "name", "rustName": "name", "type": "Node", "optional": true, "child": false},
         {"name": "fullName", "rustName": "full_name", "type": "Node", "optional": true, "child": true},
         {"name": "typeExpression", "rustName": "type_expression", "type": "Node", "optional": true, "child": true}
       ],

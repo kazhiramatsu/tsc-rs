@@ -33,6 +33,8 @@ pub struct Node {
     pub pos: u32,
     pub end: u32,
     pub parent: Option<NodeId>,
+    /// tsc's internal Node.jsDoc attachment; not an ordinary forEachChild edge.
+    pub js_doc: Option<NodeArrayId>,
     pub data: NodeData,
 }
 
@@ -496,6 +498,7 @@ pub struct JSDocAuthorTagData {
 pub struct JSDocCallbackTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<NodeArrayId>,
+    pub name: Option<NodeId>,
     pub full_name: Option<NodeId>,
     pub type_expression: Option<NodeId>,
 }
@@ -601,6 +604,8 @@ pub struct JSDocParameterTagData {
     pub comment: Option<NodeArrayId>,
     pub name: Option<NodeId>,
     pub type_expression: Option<NodeId>,
+    pub is_name_first: bool,
+    pub is_bracketed: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -615,6 +620,8 @@ pub struct JSDocPropertyTagData {
     pub comment: Option<NodeArrayId>,
     pub name: Option<NodeId>,
     pub type_expression: Option<NodeId>,
+    pub is_name_first: bool,
+    pub is_bracketed: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -658,6 +665,8 @@ pub struct JSDocSeeTagData {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocSignatureData {
+    pub type_parameters: Option<NodeArrayId>,
+    pub parameters: Option<NodeArrayId>,
     pub r#type: Option<NodeId>,
 }
 
@@ -695,7 +704,10 @@ pub struct JSDocTypeExpressionData {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct JSDocTypeLiteralData {}
+pub struct JSDocTypeLiteralData {
+    pub js_doc_property_tags: Option<NodeArrayId>,
+    pub is_array_type: bool,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct JSDocTypeTagData {
@@ -708,6 +720,7 @@ pub struct JSDocTypeTagData {
 pub struct JSDocTypedefTagData {
     pub tag_name: Option<NodeId>,
     pub comment: Option<NodeArrayId>,
+    pub name: Option<NodeId>,
     pub full_name: Option<NodeId>,
     pub type_expression: Option<NodeId>,
 }
@@ -1978,6 +1991,7 @@ impl NodeData {
             SyntaxKind::JSDocCallbackTag => Self::JSDocCallbackTag(JSDocCallbackTagData {
                 tag_name: None,
                 comment: None,
+                name: None,
                 full_name: None,
                 type_expression: None,
             }),
@@ -2043,6 +2057,8 @@ impl NodeData {
                 comment: None,
                 name: None,
                 type_expression: None,
+                is_name_first: false,
+                is_bracketed: false,
             }),
             SyntaxKind::JSDocPrivateTag => Self::JSDocPrivateTag(JSDocPrivateTagData {
                 tag_name: None,
@@ -2053,6 +2069,8 @@ impl NodeData {
                 comment: None,
                 name: None,
                 type_expression: None,
+                is_name_first: false,
+                is_bracketed: false,
             }),
             SyntaxKind::JSDocProtectedTag => Self::JSDocProtectedTag(JSDocProtectedTagData {
                 tag_name: None,
@@ -2081,7 +2099,11 @@ impl NodeData {
                 comment: None,
                 name: None,
             }),
-            SyntaxKind::JSDocSignature => Self::JSDocSignature(JSDocSignatureData { r#type: None }),
+            SyntaxKind::JSDocSignature => Self::JSDocSignature(JSDocSignatureData {
+                type_parameters: None,
+                parameters: None,
+                r#type: None,
+            }),
             SyntaxKind::JSDocTag => Self::JSDocTag(JSDocTagData {
                 tag_name: None,
                 comment: None,
@@ -2105,7 +2127,10 @@ impl NodeData {
             SyntaxKind::JSDocTypeExpression => {
                 Self::JSDocTypeExpression(JSDocTypeExpressionData { r#type: None })
             }
-            SyntaxKind::JSDocTypeLiteral => Self::JSDocTypeLiteral(JSDocTypeLiteralData {}),
+            SyntaxKind::JSDocTypeLiteral => Self::JSDocTypeLiteral(JSDocTypeLiteralData {
+                js_doc_property_tags: None,
+                is_array_type: false,
+            }),
             SyntaxKind::JSDocTypeTag => Self::JSDocTypeTag(JSDocTypeTagData {
                 tag_name: None,
                 comment: None,
@@ -2114,6 +2139,7 @@ impl NodeData {
             SyntaxKind::JSDocTypedefTag => Self::JSDocTypedefTag(JSDocTypedefTagData {
                 tag_name: None,
                 comment: None,
+                name: None,
                 full_name: None,
                 type_expression: None,
             }),

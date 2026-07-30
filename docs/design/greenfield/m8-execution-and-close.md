@@ -257,6 +257,15 @@ tails merely to reduce the displayed FN count. Three probes that expose the
 same model ceiling trigger the stall playbook and a design review rather
 than a fourth local patch.
 
+The `checkjs-jsdoc` family has reached that ceiling: comments were projected
+from source text without declaration nodes, so exact relation chains and
+related declaration sites required repeated fabrication. Its approved
+design correction is the
+[M8 JSDoc AST materialization contract](m8-jsdoc-ast-materialization.md).
+JSDoc owner slices now land through parser attachment, binder declarations,
+and ordinary checker control flow; new checker-side comment projections are
+not accepted.
+
 The disposition artifact itself remains byte-identical after D2b freeze.
 When a slice ports a declaration frozen as `deferred`, the before/after row
 records the new exact `tsc-span`/`tsc-hash` ledger join as monotone

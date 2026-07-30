@@ -238,6 +238,9 @@ pub fn name_field_of(source: &SourceFile, id: NodeId) -> Option<NodeId> {
         NodeData::ImportEqualsDeclaration(data) => data.name,
         NodeData::ImportSpecifier(data) => data.name,
         NodeData::InterfaceDeclaration(data) => data.name,
+        NodeData::JSDocParameterTag(data) => data.name,
+        NodeData::JSDocPropertyTag(data) => data.name,
+        NodeData::JSDocTypedefTag(data) => data.name,
         NodeData::JsxAttribute(data) => data.name,
         NodeData::JsxNamespacedName(data) => data.name,
         NodeData::MetaProperty(data) => data.name,
@@ -565,7 +568,6 @@ pub fn get_span_of_token_at_position(source: &SourceFile, pos: usize) -> (usize,
 /// tsc-span: _tsc.js:14023-14115
 ///
 /// Byte offsets; callers convert to UTF-16 at diagnostic creation.
-/// The JSDocSatisfiesTag arm awaits JSDoc parsing.
 pub fn get_error_span_for_node(source: &SourceFile, id: NodeId) -> (usize, usize) {
     let node = source.arena.node(id);
     let mut error_node = Some(id);
@@ -598,6 +600,13 @@ pub fn get_error_span_for_node(source: &SourceFile, id: NodeId) -> (usize, usize
                     &source.text,
                     source.arena.node(expression).end as usize,
                 );
+                return get_span_of_token_at_position(source, pos);
+            }
+        }
+        NodeData::JSDocSatisfiesTag(data) => {
+            if let Some(tag_name) = data.tag_name {
+                let tag_name = source.arena.node(tag_name);
+                let pos = tsrs2_syntax::skip_trivia(&source.text, tag_name.pos as usize);
                 return get_span_of_token_at_position(source, pos);
             }
         }

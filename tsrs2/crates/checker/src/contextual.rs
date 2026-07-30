@@ -454,7 +454,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 0600ff219bea83d1d0d517f12fb743e5c806e8de147650ced5bd5568445ecb94
     /// tsc-span: _tsc.js:72720-72735
     ///
-    /// The tryGetJSDocSatisfiesTypeNode fallback is [JSDOC].
     fn get_contextual_type_for_variable_like_declaration(
         &mut self,
         declaration: NodeId,
@@ -462,6 +461,11 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<Option<TypeId>> {
         if let Some(type_node) = self.effective_type_annotation_node(declaration) {
             return Ok(Some(self.get_type_from_type_node(type_node)?));
+        }
+        if self.is_in_js_file(declaration) {
+            if let Some(type_node) = self.jsdoc_satisfies_type_node(declaration) {
+                return Ok(Some(self.get_type_from_type_node(type_node)?));
+            }
         }
         match self.kind_of(declaration) {
             SyntaxKind::Parameter => self.get_contextually_typed_parameter_type(declaration),
@@ -3619,11 +3623,136 @@ impl<'a> CheckerState<'a> {
         parameters.get(usize::from(has_this)).copied()
     }
 
-    /// tsc getEffectiveTypeAnnotationNode, TS half: the declaration's
-    /// syntactic `.type`, except that a TypeScript function
-    /// declaration's `.type` is a return annotation rather than a
-    /// variable-like type annotation ([JSDOC] carries the JS
-    /// annotations).
+    fn jsdoc_type_expression_type_node(&self, expression: Option<NodeId>) -> Option<NodeId> {
+        let expression = expression?;
+        match self.data_of(expression) {
+            NodeData::JSDocTypeExpression(data) => data.r#type,
+            _ => None,
+        }
+    }
+
+    fn direct_jsdoc_tags(&self, host: NodeId) -> Vec<NodeId> {
+        let source = self.binder.source_of_node(host);
+        let Some(js_doc) = source.arena.node(host).js_doc else {
+            return Vec::new();
+        };
+        let mut tags = Vec::new();
+        for &doc in &source.arena.node_array(js_doc).nodes {
+            let NodeData::JSDoc(data) = &source.arena.node(doc).data else {
+                continue;
+            };
+            if let Some(doc_tags) = data.tags {
+                tags.extend(source.arena.node_array(doc_tags).nodes.iter().copied());
+            }
+        }
+        tags
+    }
+
+    fn jsdoc_hosts_for_declaration(&self, declaration: NodeId) -> Vec<NodeId> {
+        let mut hosts = Vec::new();
+        if let Some(initializer) = self.initializer_of(declaration) {
+            hosts.push(initializer);
+        }
+        let mut current = Some(declaration);
+        while let Some(node) = current {
+            hosts.push(node);
+            if matches!(
+                self.kind_of(node),
+                SyntaxKind::VariableStatement
+                    | SyntaxKind::ExpressionStatement
+                    | SyntaxKind::FunctionDeclaration
+                    | SyntaxKind::MethodDeclaration
+                    | SyntaxKind::PropertyDeclaration
+            ) {
+                break;
+            }
+            let parent = self.parent_of(node);
+            if parent.is_some_and(|parent| self.kind_of(parent) == SyntaxKind::SourceFile) {
+                break;
+            }
+            current = parent;
+        }
+        hosts
+    }
+
+    /// tsc getJSDocType/getJSDocParameterTags over parser-owned
+    /// attachments. The declaration-host walk mirrors
+    /// getJSDocCommentsAndTags/getNextJSDocCommentLocation for the
+    /// variable/function faces activated in M8.
+    fn jsdoc_type_node(&self, declaration: NodeId) -> Option<NodeId> {
+        if self.kind_of(declaration) == SyntaxKind::Parameter {
+            let name = self
+                .name_of_node(declaration)
+                .and_then(|name| self.identifier_text(name))?;
+            let function = self.parent_of(declaration)?;
+            let hosts = self.jsdoc_hosts_for_declaration(function);
+            // tsc getJSDocParameterTags does not treat a function-level
+            // @type as the annotation of each parameter. Explicit
+            // @constructor signatures likewise stay on their separate
+            // constructor owner path.
+            if hosts.iter().copied().any(|host| {
+                self.direct_jsdoc_tags(host).into_iter().any(|tag| {
+                    let NodeData::JSDocTag(data) = self.data_of(tag) else {
+                        return false;
+                    };
+                    data.tag_name
+                        .and_then(|tag_name| self.identifier_text(tag_name))
+                        == Some("constructor")
+                })
+            }) {
+                return None;
+            }
+            for host in hosts {
+                for tag in self.direct_jsdoc_tags(host) {
+                    let NodeData::JSDocParameterTag(data) = self.data_of(tag) else {
+                        continue;
+                    };
+                    let tag_name = data
+                        .name
+                        .and_then(|tag_name| self.identifier_text(tag_name));
+                    if tag_name == Some(name) {
+                        if let Some(ty) = self.jsdoc_type_expression_type_node(data.type_expression)
+                        {
+                            return Some(ty);
+                        }
+                    }
+                }
+            }
+            return None;
+        }
+        for host in self.jsdoc_hosts_for_declaration(declaration) {
+            let source = self.binder.source_of_node(host);
+            let has_direct_jsdoc = source.arena.node(host).js_doc.is_some();
+            for tag in self.direct_jsdoc_tags(host) {
+                let NodeData::JSDocTypeTag(data) = self.data_of(tag) else {
+                    continue;
+                };
+                if let Some(ty) = self.jsdoc_type_expression_type_node(data.type_expression) {
+                    // Variable-level JSDocFunctionType contextual async
+                    // checking remains on the function-signature owner.
+                    // Activating it here produces a second outer 2322
+                    // after that owner has already emitted tsc's 1064.
+                    if self.kind_of(declaration) == SyntaxKind::VariableDeclaration
+                        && self.kind_of(ty) == SyntaxKind::JSDocFunctionType
+                    {
+                        return None;
+                    }
+                    return Some(ty);
+                }
+            }
+            // getJSDocCommentsAndTags advances through comment
+            // locations, not through tag kinds. A nearer inline JSDoc
+            // carrier (notably @satisfies on the initializer) shadows
+            // an outer declaration comment even when it has no @type.
+            if has_direct_jsdoc {
+                return None;
+            }
+        }
+        None
+    }
+
+    /// tsc getEffectiveTypeAnnotationNode: syntactic `.type` first,
+    /// then JSDoc property-like/type/parameter tags in JavaScript.
     /// tsc-port: getEffectiveTypeAnnotationNode @6.0.3
     /// tsc-hash: bc478fa37f444f4159e1b5e522468db266b4b7e42116029d47eea22c813b3339
     /// tsc-span: _tsc.js:16761-16767
@@ -3636,7 +3765,7 @@ impl<'a> CheckerState<'a> {
         // tsc getEffectiveTypeAnnotationNode is a kind-generic `.type`
         // read after the function-declaration exception above. Kinds
         // without a type field answer None.
-        match self.data_of(declaration) {
+        let syntactic = match self.data_of(declaration) {
             NodeData::VariableDeclaration(data) => data.r#type,
             NodeData::Parameter(data) => data.r#type,
             NodeData::PropertyDeclaration(data) => data.r#type,
@@ -3652,7 +3781,18 @@ impl<'a> CheckerState<'a> {
             NodeData::IndexSignature(data) => data.r#type,
             NodeData::FunctionType(data) => data.r#type,
             NodeData::ConstructorType(data) => data.r#type,
+            NodeData::JSDocPropertyTag(data) => {
+                self.jsdoc_type_expression_type_node(data.type_expression)
+            }
+            NodeData::JSDocParameterTag(data) => {
+                self.jsdoc_type_expression_type_node(data.type_expression)
+            }
             _ => None,
+        };
+        if syntactic.is_some() || !self.is_in_js_file(declaration) {
+            syntactic
+        } else {
+            self.jsdoc_type_node(declaration)
         }
     }
 

@@ -151,9 +151,13 @@ Rust golden tests pin classifier and signature bytes.
 
 Minimal reproducers deduplicate by signature. Reduction must retain both
 that signature and the exact failing comparator. PR CI runs fixed-seed
-smoke; scheduled CI rotates seeds. M8 readiness requires non-zero cases,
-equal generated/compared counts, reducer smoke, and dedupe evidence with
-the current B1 fingerprint.
+smoke; scheduled CI rotates seeds. If every generated case is already
+oracle-exact, PR CI records zero natural divergences and exercises the same
+reducer/deduper with a separate deterministic one-sided mutation canary.
+The canary is identified in the artifact and is never inserted into the
+generated case observations. M8 readiness requires non-zero cases, equal
+generated/compared counts, reducer smoke, and dedupe evidence with the
+current B1 fingerprint.
 
 ### 3.1 M9 steady state
 

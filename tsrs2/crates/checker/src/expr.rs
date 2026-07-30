@@ -655,8 +655,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: e09e928d312103d37dda4c13512d952ea898028cf66871324eb8b78f15db7144
     /// tsc-span: _tsc.js:81000-81010
     ///
-    /// The JSDoc satisfies/type-assertion arms are elided project-wide
-    /// (no JSDoc nodes parse).
     fn check_parenthesized_expression(
         &mut self,
         node: NodeId,
@@ -668,7 +666,86 @@ impl<'a> CheckerState<'a> {
         let expression = data.expression.ok_or_else(|| {
             Unsupported::new("parenthesized expression without operand (parse recovery)")
         })?;
+        if self.is_in_js_file(node) {
+            if let Some(target) = self.jsdoc_satisfies_type_node(node) {
+                return self.check_jsdoc_satisfies_expression_worker(expression, target);
+            }
+        }
         self.check_expression(expression, check_mode)
+    }
+
+    fn check_jsdoc_satisfies_expression_worker(
+        &mut self,
+        expression: NodeId,
+        target: NodeId,
+    ) -> CheckResult2<TypeId> {
+        let diagnostics_before = self.diagnostics.len();
+        let result = self.check_satisfies_expression_worker(expression, target);
+        self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1360);
+        result
+    }
+
+    /// tsc tryGetJSDocSatisfiesTypeNode over the parser-owned host
+    /// attachment. This is a bounded attachment-array lookup, not a
+    /// source-text scan.
+    /// tsc-port: tryGetJSDocSatisfiesTypeNode @6.0.3
+    /// tsc-hash: 5c43a45c455549c9cc17bb633aaa0d3ba781fa783992420e3deffad53e7d30c4
+    /// tsc-span: _tsc.js:19328-19331
+    pub(crate) fn jsdoc_satisfies_type_node(&self, host: NodeId) -> Option<NodeId> {
+        if let Some(target) = self.direct_jsdoc_satisfies_type_node(host) {
+            return Some(target);
+        }
+        if let Some(initializer) = self.initializer_of(host) {
+            if let Some(target) = self.direct_jsdoc_satisfies_type_node(initializer) {
+                return Some(target);
+            }
+        }
+        let mut current = Some(host);
+        while let Some(node) = current {
+            if self.kind_of(node) == SyntaxKind::VariableDeclaration {
+                let source = self.binder.source_of_node(node);
+                let statement = self
+                    .parent_of(node)
+                    .and_then(|list| self.parent_of(list))
+                    .filter(|&parent| {
+                        source.arena.node(parent).kind == SyntaxKind::VariableStatement
+                    });
+                if let Some(target) =
+                    statement.and_then(|statement| self.direct_jsdoc_satisfies_type_node(statement))
+                {
+                    return Some(target);
+                }
+                break;
+            }
+            current = self.parent_of(node);
+            if current.is_some_and(|parent| self.kind_of(parent) == SyntaxKind::SourceFile) {
+                break;
+            }
+        }
+        None
+    }
+
+    fn direct_jsdoc_satisfies_type_node(&self, host: NodeId) -> Option<NodeId> {
+        let source = self.binder.source_of_node(host);
+        let js_doc = source.arena.node(host).js_doc?;
+        for &doc in &source.arena.node_array(js_doc).nodes {
+            let NodeData::JSDoc(data) = &source.arena.node(doc).data else {
+                continue;
+            };
+            let Some(tags) = data.tags else { continue };
+            for &tag in &source.arena.node_array(tags).nodes {
+                let NodeData::JSDocSatisfiesTag(data) = &source.arena.node(tag).data else {
+                    continue;
+                };
+                let expression = data.type_expression?;
+                let NodeData::JSDocTypeExpression(data) = &source.arena.node(expression).data
+                else {
+                    continue;
+                };
+                return data.r#type;
+            }
+        }
+        None
     }
 
     // ---- literal leaves ----
@@ -3428,9 +3505,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 140897d2a5fd50d78e8cfdcf90087bec70318e099c79f4d2acef4c49302c902d
     /// tsc-span: _tsc.js:80604-80628
     ///
-    /// The JSDoc satisfies arm is [JSDOC]; getEffectiveInitializer's
-    /// JS `x || y` unwrapping likewise, so the TS read is the plain
-    /// `.initializer`.
     pub(crate) fn check_declaration_initializer(
         &mut self,
         declaration: NodeId,
@@ -3440,6 +3514,11 @@ impl<'a> CheckerState<'a> {
         let initializer = self
             .initializer_of(declaration)
             .expect("checkDeclarationInitializer callers guarantee an initializer");
+        if self.is_in_js_file(declaration) {
+            if let Some(target) = self.jsdoc_satisfies_type_node(declaration) {
+                return self.check_jsdoc_satisfies_expression_worker(initializer, target);
+            }
+        }
         let ty = match self.get_quick_type_of_expression(initializer)? {
             Some(quick) => quick,
             None => match contextual_type {

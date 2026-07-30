@@ -375,10 +375,15 @@ impl<'a> CheckerState<'a> {
         };
         let source = self.binder.source_of_node(declaration);
         let root_declaration = node_util::get_root_declaration(source, declaration);
+        let has_ast_annotation = self
+            .effective_type_annotation_node(root_declaration)
+            .is_some_and(|annotation| {
+                self.node_flags(annotation) & tsrs2_types::NodeFlags::JS_DOC.bits() != 0
+            });
         Ok(self
             .parent_of(root_declaration)
             .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::CatchClause)
-            && self.jsdoc_typed_declarations.contains(&root_declaration))
+            && (has_ast_annotation || self.jsdoc_typed_declarations.contains(&root_declaration)))
     }
 
     /// M8-P03 publication boundary for the supported JSDoc flow

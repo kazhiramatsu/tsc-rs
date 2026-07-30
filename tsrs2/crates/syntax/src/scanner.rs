@@ -110,6 +110,7 @@ impl TokenFlags {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[allow(dead_code)]
 pub(crate) struct ScannerState {
+    end: usize,
     pos: usize,
     full_start_pos: usize,
     token_start: usize,
@@ -410,6 +411,7 @@ impl<'text> Scanner<'text> {
     #[allow(dead_code)]
     pub(crate) fn save(&self) -> ScannerState {
         ScannerState {
+            end: self.end,
             pos: self.pos,
             full_start_pos: self.full_start_pos,
             token_start: self.token_start,
@@ -422,6 +424,7 @@ impl<'text> Scanner<'text> {
 
     #[allow(dead_code)]
     pub(crate) fn restore(&mut self, state: ScannerState) {
+        self.end = state.end;
         self.pos = state.pos;
         self.full_start_pos = state.full_start_pos;
         self.token_start = state.token_start;
@@ -429,6 +432,21 @@ impl<'text> Scanner<'text> {
         self.token_value = state.token_value;
         self.token_flags = state.token_flags;
         self.errors.truncate(state.error_len);
+    }
+
+    /// Enter a bounded source range for the parser-owned JSDoc type
+    /// parser. The caller saves/restores ScannerState around this
+    /// operation, matching tsc scanner.scanRange.
+    pub(crate) fn reset_range(&mut self, start: usize, end: usize) {
+        debug_assert!(start <= end);
+        debug_assert!(end <= self.text.len());
+        self.end = end;
+        self.pos = start;
+        self.full_start_pos = start;
+        self.token_start = start;
+        self.token = SyntaxKind::Unknown;
+        self.token_value.clear();
+        self.token_flags = TokenFlags::empty();
     }
 
     #[allow(dead_code)]

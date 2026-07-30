@@ -998,6 +998,20 @@ impl<'a> CheckerState<'a> {
     }
 
     fn is_valid_unused_local_declaration(&self, declaration: NodeId) -> bool {
+        // tsc does not surface ordinary unused-identifier suggestions
+        // for declarations that exist only inside attached JSDoc.
+        // Their symbols participate in type resolution, but the tags
+        // are not source-language local declarations.
+        if matches!(
+            self.kind_of(declaration),
+            SyntaxKind::JSDocTypedefTag
+                | SyntaxKind::JSDocCallbackTag
+                | SyntaxKind::JSDocEnumTag
+                | SyntaxKind::JSDocPropertyTag
+                | SyntaxKind::JSDocParameterTag
+        ) {
+            return true;
+        }
         if self.kind_of(declaration) == SyntaxKind::BindingElement {
             let (name, property_name) = match self.data_of(declaration) {
                 NodeData::BindingElement(data) => (data.name, data.property_name),

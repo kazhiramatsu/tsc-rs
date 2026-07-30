@@ -2715,7 +2715,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkSatisfiesExpressionWorker @6.0.3
     /// tsc-hash: 69efa22f5ce65ba834ce27bba8e4cab3bfedb94a4646cfa0944324f6f62d989e
     /// tsc-span: _tsc.js:78051-78060
-    fn check_satisfies_expression_worker(
+    pub(crate) fn check_satisfies_expression_worker(
         &mut self,
         expression: NodeId,
         target: NodeId,
@@ -2726,9 +2726,19 @@ impl<'a> CheckerState<'a> {
         if target_type == self.tables.intrinsics.error {
             return Ok(target_type);
         }
-        let error_node = self
-            .parent_of(target)
-            .and_then(|start| self.find_ancestor_of_kind(start, SyntaxKind::SatisfiesExpression));
+        let error_node = self.parent_of(target).and_then(|start| {
+            let mut current = Some(start);
+            while let Some(node) = current {
+                if matches!(
+                    self.kind_of(node),
+                    SyntaxKind::SatisfiesExpression | SyntaxKind::JSDocSatisfiesTag
+                ) {
+                    return Some(node);
+                }
+                current = self.parent_of(node);
+            }
+            None
+        });
         // checkTypeAssignableToAndOptionallyElaborate: elaborateError
         // runs FIRST over the expression. Object and array literals
         // report their incompatible member/element at that value and
@@ -2760,12 +2770,9 @@ impl<'a> CheckerState<'a> {
                 self.elaborated_satisfies_expressions.insert(expression);
                 return Ok(expr_type);
             }
-            if matches!(
-                self.data_of(operand),
-                NodeData::ArrowFunction(_) | NodeData::JsxAttributes(_)
-            ) {
+            if matches!(self.data_of(operand), NodeData::JsxAttributes(_)) {
                 return Err(Unsupported::new(
-                    "satisfies over an arrow/JSX operand (elaborateError, T2)",
+                    "satisfies over JSX attributes (elaborateError, T2)",
                 ));
             }
             for kind in [

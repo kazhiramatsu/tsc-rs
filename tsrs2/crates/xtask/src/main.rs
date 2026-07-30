@@ -8259,6 +8259,11 @@ fn extract_visits(text: &str) -> Vec<ChildVisit> {
     for (needle, kind) in [
         ("visitNode2(cbNode, node.", ChildKind::Node),
         ("visitNodes(cbNode, cbNodes, node.", ChildKind::Nodes),
+        // JSDocTypeLiteral/JSDocSignature use `forEach` directly
+        // because their public fields are readonly arrays rather than
+        // NodeArray in typescript.d.ts. They are nevertheless runtime
+        // child arrays and belong in the generated arena schema.
+        ("forEach(node.", ChildKind::Nodes),
     ] {
         let mut rest = text;
         while let Some(pos) = rest.find(needle) {
@@ -8497,6 +8502,11 @@ const DTS_SCALAR_ADMISSIONS: &[(&str, &[&str])] = &[
     ("ImportEqualsDeclaration", &["isTypeOnly"]),
     ("ImportSpecifier", &["isTypeOnly"]),
     ("ImportType", &["isTypeOf"]),
+    ("JSDocCallbackTag", &["name"]),
+    ("JSDocParameterTag", &["isBracketed", "isNameFirst"]),
+    ("JSDocPropertyTag", &["isBracketed", "isNameFirst"]),
+    ("JSDocTypeLiteral", &["isArrayType"]),
+    ("JSDocTypedefTag", &["name"]),
     ("JsxText", &["text", "containsOnlyTriviaWhiteSpaces"]),
     ("MetaProperty", &["keywordToken"]),
     ("NoSubstitutionTemplateLiteral", &["text", "rawText"]),
@@ -8930,6 +8940,11 @@ fn render_nodes_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
     writeln!(out, "    pub pos: u32,")?;
     writeln!(out, "    pub end: u32,")?;
     writeln!(out, "    pub parent: Option<NodeId>,")?;
+    writeln!(
+        out,
+        "    /// tsc's internal Node.jsDoc attachment; not an ordinary forEachChild edge."
+    )?;
+    writeln!(out, "    pub js_doc: Option<NodeArrayId>,")?;
     writeln!(out, "    pub data: NodeData,")?;
     writeln!(out, "}}")?;
     writeln!(out)?;
