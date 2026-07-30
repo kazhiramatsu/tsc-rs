@@ -2318,7 +2318,12 @@ impl<'a> CheckerState<'a> {
                                 let type_name1 =
                                     self.type_to_string_slice(existing_containing_type)?;
                                 let type_name2 = self.type_to_string_slice(base)?;
-                                let prop_name = self.symbol_display_name(prop);
+                                // checkInheritedPropertiesAreIdentical
+                                // 85466: the 2319 detail uses the
+                                // default symbolToString face, so
+                                // quoted/numeric and late-computed
+                                // names keep their written spelling.
+                                let prop_name = self.symbol_name_as_written_slice(prop);
                                 let type_display = self.type_to_string_slice(ty)?;
                                 let mut diagnostic = self.create_error(
                                     Some(type_node),

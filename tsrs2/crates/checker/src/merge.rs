@@ -10,11 +10,41 @@ use indexmap::IndexMap;
 use tsrs2_binder::node_util::get_name_of_declaration;
 use tsrs2_binder::{SymbolId, SymbolTable};
 use tsrs2_diags::{gen as diagnostics, RelatedInfo};
-use tsrs2_syntax::{NodeId, SyntaxKind};
+use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{NodeFlags, SymbolFlags, TypeData, TypeFlags};
 
 use crate::links::LinkSlot;
 use crate::state::{CheckResult2, CheckerState};
+
+/// tsc-port: escapeString @6.0.3 (doubleQuote flavor)
+/// tsc-hash: a41f6d5932395df14118761cfc227d8ad3266e0e2f3133c4ec5857ff7e0b4d2d
+/// tsc-span: _tsc.js:16311-16314
+fn escape_double_quoted_symbol_name(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let chars = text.chars().collect::<Vec<_>>();
+    for (index, &ch) in chars.iter().enumerate() {
+        match ch {
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            '\0' if chars.get(index + 1).is_some_and(char::is_ascii_digit) => {
+                out.push_str("\\x00");
+            }
+            '\0' => out.push_str("\\0"),
+            '\t' => out.push_str("\\t"),
+            '\u{000B}' => out.push_str("\\v"),
+            '\u{000C}' => out.push_str("\\f"),
+            '\u{0008}' => out.push_str("\\b"),
+            '\r' => out.push_str("\\r"),
+            '\n' => out.push_str("\\n"),
+            '\u{2028}' => out.push_str("\\u2028"),
+            '\u{2029}' => out.push_str("\\u2029"),
+            '\u{0085}' => out.push_str("\\u0085"),
+            '\u{0001}'..='\u{001F}' => out.push_str(&format!("\\u{:04X}", ch as u32)),
+            _ => out.push(ch),
+        }
+    }
+    out
+}
 
 /// tsc amalgamatedDuplicates value (47767): one entry per unordered
 /// file pair, conflicting symbols keyed by display name in first-seen
@@ -359,25 +389,65 @@ impl<'a> CheckerState<'a> {
             .to_owned()
     }
 
-    /// The declaration-backed face of tsc symbolToString's default
-    /// symbolToNode path. It ultimately calls getNameOfSymbolAsWritten,
-    /// so computed, quoted, numeric, and assigned names retain their
-    /// source spelling instead of exposing an internal escaped name.
-    /// tsrs-native: bounded declaration-backed symbol display adapter.
+    /// tsc-port: getNameOfSymbolAsWritten @6.0.3
+    /// tsc-hash: 6202a5dabe4ef7e7d99294b9c5e97a88c6c3dc22be8f024346eb294dc50eae1c
+    /// tsc-span: _tsc.js:55541-55575
+    ///
+    /// The default symbolToString face is declaration-backed, but an
+    /// EARLY computed string/number property first renders its cooked
+    /// nameType: identifier/numeric names are bare, other strings are
+    /// double quoted, and negative numeric names are bracketed. Late
+    /// computed names (`__@...`) deliberately keep the declaration's
+    /// written `[expression]` face. Quoted and non-canonical numeric
+    /// declaration names likewise retain their exact source spelling.
     pub(crate) fn symbol_name_as_written_slice(&self, symbol: SymbolId) -> String {
-        self.binder
-            .symbol(symbol)
-            .declarations
-            .iter()
-            .find_map(|&declaration| {
-                let source = self.binder.source_of_node(declaration);
-                let name = get_name_of_declaration(source, declaration)?;
-                Some(tsrs2_binder::node_util::declaration_name_to_string(
-                    source,
-                    Some(name),
-                ))
-            })
-            .unwrap_or_else(|| self.symbol_display_name(symbol))
+        for &declaration in &self.binder.symbol(symbol).declarations {
+            let source = self.binder.source_of_node(declaration);
+            let Some(name_node) = get_name_of_declaration(source, declaration) else {
+                continue;
+            };
+            let is_early_computed = matches!(
+                source.arena.node(name_node).data,
+                NodeData::ComputedPropertyName(_)
+            ) && !self
+                .links
+                .symbol(symbol)
+                .check_flags
+                .intersects(tsrs2_types::CheckFlags::LATE);
+            if is_early_computed {
+                if let Some(name_type) = self.links.symbol(symbol).name_type {
+                    let flags = self.tables.flags_of(name_type);
+                    if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
+                        let name = match &self.tables.type_of(name_type).data {
+                            TypeData::Literal { value } => match value {
+                                tsrs2_types::LiteralValue::String(text) => text.clone(),
+                                tsrs2_types::LiteralValue::Number(value) => {
+                                    tsrs2_types::js_number_to_string(*value)
+                                }
+                                tsrs2_types::LiteralValue::BigInt(_) => {
+                                    unreachable!(
+                                        "string/number literal flags imply string/number value"
+                                    )
+                                }
+                            },
+                            _ => unreachable!("literal flags imply literal data"),
+                        };
+                        if !tsrs2_syntax::is_identifier_text(&name)
+                            && !crate::evaluate::is_numeric_literal_name(&name)
+                        {
+                            return format!("\"{}\"", escape_double_quoted_symbol_name(&name));
+                        }
+                        if crate::evaluate::is_numeric_literal_name(&name) && name.starts_with('-')
+                        {
+                            return format!("[{name}]");
+                        }
+                        return name;
+                    }
+                }
+            }
+            return tsrs2_binder::node_util::declaration_name_to_string(source, Some(name_node));
+        }
+        self.symbol_display_name(symbol)
     }
 
     /// tsc reportMergeSymbolError (inside mergeSymbol, 47755-47775) +

@@ -2092,7 +2092,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             let target_declaration = self.st.binder.symbol(target_prop).value_declaration;
             if source_declaration != target_declaration {
                 if report_errors {
-                    let name = self.st.binder.symbol(target_prop).escaped_name.clone();
+                    let name = self.st.symbol_name_as_written_slice(target_prop);
                     if source_prop_flags.intersects(ModifierFlags::PRIVATE)
                         && target_prop_flags.intersects(ModifierFlags::PRIVATE)
                     {
@@ -2130,7 +2130,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         } else if target_prop_flags.intersects(ModifierFlags::PROTECTED) {
             if !self.st.is_valid_override_of(source_prop, target_prop)? {
                 if report_errors {
-                    let name = self.st.binder.symbol(target_prop).escaped_name.clone();
+                    let name = self.st.symbol_name_as_written_slice(target_prop);
                     let source_class = self.st.get_declaring_class(source_prop)?.unwrap_or(source);
                     let target_class = self.st.get_declaring_class(target_prop)?.unwrap_or(target);
                     let source_text = self
@@ -2149,7 +2149,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         } else if source_prop_flags.intersects(ModifierFlags::PROTECTED) {
             // 66686-66692: protected source vs public target.
             if report_errors {
-                let name = self.st.binder.symbol(target_prop).escaped_name.clone();
+                let name = self.st.symbol_name_as_written_slice(target_prop);
                 let source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
                 let target_text = self.st.type_to_string_slice_with_error_enclosing(target)?;
                 self.report_error(
@@ -2174,7 +2174,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         )?;
         if !is_true(related) {
             if report_errors {
-                let name = self.st.binder.symbol(target_prop).escaped_name.clone();
+                let name = self.st.symbol_name_as_written_slice(target_prop);
                 self.report_incompatible_error(
                     &tsrs2_diags::gen::Types_of_property_0_are_incompatible,
                     vec![name],
@@ -2196,7 +2196,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             .intersects(SymbolFlags::OPTIONAL);
         if !skip_optional && source_optional && target_class_member && !target_optional {
             if report_errors {
-                let name = self.st.binder.symbol(target_prop).escaped_name.clone();
+                let name = self.st.symbol_name_as_written_slice(target_prop);
                 let source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
                 let target_text = self.st.type_to_string_slice_with_error_enclosing(target)?;
                 self.report_error(
@@ -2678,12 +2678,15 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
 
         if properties.len() == 1 {
+            // 66736-66742: the single-property face is the one
+            // relation-property report that requests
+            // SymbolFormatFlags.WriteComputedProps. It reprints a
+            // computed declaration name structurally instead of using
+            // the default symbolToString face used by every
+            // propertyRelatedTo failure arm.
             let name = self
                 .st
-                .binder
-                .symbol(unmatched_property)
-                .escaped_name
-                .clone();
+                .missing_property_display_name(unmatched_property, true)?;
             let mut source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
             let mut target_text = self.st.type_to_string_slice_with_error_enclosing(target)?;
             if source_text == target_text {
@@ -2722,12 +2725,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
 
         let source_text = self.st.type_to_string_slice(source)?;
         let target_text = self.st.type_to_string_slice(target)?;
-        let names = properties
-            .iter()
-            .take(4)
-            .map(|&property| self.st.binder.symbol(property).escaped_name.clone())
-            .collect::<Vec<_>>()
-            .join(", ");
+        // 66757/66759: multi-property lists use the default
+        // symbolToString face (no WriteComputedProps).
+        let mut displayed_names = Vec::with_capacity(properties.len().min(4));
+        for &property in properties.iter().take(4) {
+            displayed_names.push(self.st.missing_property_display_name(property, false)?);
+        }
+        let names = displayed_names.join(", ");
         if properties.len() > 5 {
             self.report_error(
                 &tsrs2_diags::gen::Type_0_is_missing_the_following_properties_from_type_1_2_and_3_more,
@@ -4134,7 +4138,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             )?;
             if !is_true(related) {
                 if report_errors {
-                    let name = self.st.binder.symbol(prop).escaped_name.clone();
+                    let name = self.st.symbol_name_as_written_slice(prop);
                     self.report_error(
                         &tsrs2_diags::gen::Property_0_is_incompatible_with_index_signature,
                         vec![name],
@@ -5002,7 +5006,7 @@ impl<'a> CheckerState<'a> {
         for prop in properties.iter().copied() {
             if self.is_discriminant_with_never_type(prop)? {
                 let type_name = self.type_to_string_slice_no_type_reduction(ty)?;
-                let prop_name = self.symbol_display_name(prop);
+                let prop_name = self.symbol_name_as_written_slice(prop);
                 return Ok(Some(tsrs2_diags::MessageChain::new(
                     &tsrs2_diags::gen::The_intersection_0_was_reduced_to_never_because_property_1_has_conflicting_types_in_some_constituents,
                     &[type_name, prop_name],
@@ -5012,7 +5016,7 @@ impl<'a> CheckerState<'a> {
         for prop in properties.iter().copied() {
             if self.is_conflicting_private_property(prop) {
                 let type_name = self.type_to_string_slice_no_type_reduction(ty)?;
-                let prop_name = self.symbol_display_name(prop);
+                let prop_name = self.symbol_name_as_written_slice(prop);
                 return Ok(Some(tsrs2_diags::MessageChain::new(
                     &tsrs2_diags::gen::The_intersection_0_was_reduced_to_never_because_property_1_exists_in_multiple_constituents_and_is_private_in_some,
                     &[type_name, prop_name],
@@ -8925,6 +8929,83 @@ mod tests {
                 (rows, state.partial_check_records.len())
             },
         )
+    }
+
+    #[test]
+    fn relation_property_reports_use_target_symbol_to_string_faces() {
+        fn flatten(chain: &tsrs2_diags::MessageChain, texts: &mut Vec<String>) {
+            texts.push(chain.text.clone());
+            for child in &chain.next {
+                flatten(child, texts);
+            }
+        }
+
+        let texts = crate::state::test_support::with_program_state(
+            &[(
+                "a.ts",
+                "declare const sym: unique symbol;\n\
+                 declare let quotedSource: { a: number };\n\
+                 let quotedTarget: { 'a': string } = quotedSource;\n\
+                 declare let identifierSource: { 'a': number };\n\
+                 let identifierTarget: { a: string } = identifierSource;\n\
+                 declare let numericSource: { 2: string };\n\
+                 let numericTarget: { 2.0: number } = numericSource;\n\
+                 declare let hyphenSource: { \"data-foo\": number };\n\
+                 let hyphenTarget: { \"data-foo\": string } = hyphenSource;\n\
+                 declare let computedStringSource: { [\"data-foo\"]: number };\n\
+                 let computedStringTarget: { [\"data-foo\"]: string } = computedStringSource;\n\
+                 declare let underscoreSource: { __typename: number };\n\
+                 let underscoreTarget: { __typename: string } = underscoreSource;\n\
+                 declare let symbolSource: { [sym]: number };\n\
+                 let symbolTarget: { [sym]: string } = symbolSource;\n\
+                 declare let empty: {};\n\
+                 let requiredComputed: { [sym]: number } = empty;\n\
+                 declare let indexedSource: { [sym]: number };\n\
+                 let indexedTarget: { [key: symbol]: string } = indexedSource;\n\
+                 interface Left { [sym]: number }\n\
+                 interface Right { [sym]: string }\n\
+                 interface Both extends Left, Right {}\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                let mut texts = Vec::new();
+                for diagnostic in &state.diagnostics {
+                    if diagnostic.category() == tsrs2_diags::DiagnosticCategory::Error {
+                        flatten(&diagnostic.message, &mut texts);
+                    }
+                }
+                texts
+            },
+        );
+
+        for expected in [
+            "Types of property ''a'' are incompatible.",
+            "Types of property 'a' are incompatible.",
+            "Types of property '2.0' are incompatible.",
+            "Types of property '\"data-foo\"' are incompatible.",
+            "Types of property '[\"data-foo\"]' are incompatible.",
+            "Types of property '__typename' are incompatible.",
+            "Types of property '[sym]' are incompatible.",
+            "Property '[sym]' is missing in type '{}' but required in type '{ [sym]: number; }'.",
+            "Property '[sym]' is incompatible with index signature.",
+            "Named property '[sym]' of types 'Left' and 'Right' are not identical.",
+        ] {
+            assert!(
+                texts.iter().any(|text| text == expected),
+                "missing exact property-display row {expected:?}; got {texts:#?}"
+            );
+        }
+        assert!(
+            texts.iter().all(|text| !text.contains("__@sym@")),
+            "internal late-bound names must never reach diagnostics: {texts:#?}"
+        );
+        assert!(
+            texts
+                .iter()
+                .all(|text| !text.contains("Types of property '___typename'")),
+            "escaped leading underscores must be read through symbolToString: {texts:#?}"
+        );
     }
 
     #[test]
