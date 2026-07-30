@@ -6775,9 +6775,12 @@ impl<'a> CheckerState<'a> {
         Ok(params)
     }
 
-    /// getParameterNameAtPosition (78218-78232 slice): declared
-    /// positions read the parameter symbol's name; tuple-rest expanded
-    /// positions read the label declaration's name text when present.
+    /// getParameterNameAtPosition (78158-78174): declared positions
+    /// read the parameter symbol's name. Positions in a tuple-typed
+    /// rest parameter use the tuple target's associated declaration
+    /// and element flags; an unlabeled tuple element is synthesized
+    /// from the rest declaration (`args_0`, `args_1`, ...). A
+    /// non-tuple rest keeps the rest symbol name.
     /// tsc-port: getParameterNameAtPosition @6.0.3
     /// tsc-hash: 9743ec1093fde048dab12f2b7db102c09d27b4b89d6253544646b09406613e1a
     /// tsc-span: _tsc.js:78158-78174
@@ -6799,9 +6802,37 @@ impl<'a> CheckerState<'a> {
                     .clone(),
             ));
         }
-        let Some(&rest_parameter) = self.signature_of(signature).parameters.last() else {
+        let Some(&rest_parameter) = self.signature_of(signature).parameters.get(param_count) else {
             return Ok(None);
         };
+        let rest_type = self.get_type_of_symbol(rest_parameter)?;
+        if self
+            .tables
+            .object_flags_of(rest_type)
+            .intersects(ObjectFlags::REFERENCE)
+        {
+            let target = self.tables.reference_target(rest_type);
+            if let TypeData::TupleTarget(tuple) = self.tables.type_of(target).data.clone() {
+                let index = pos - param_count;
+                let declaration = tuple
+                    .labeled_element_declarations
+                    .as_ref()
+                    .and_then(|declarations| declarations.get(index).copied())
+                    .flatten()
+                    .map(NodeId);
+                let element_flags = tuple
+                    .element_flags
+                    .get(index)
+                    .copied()
+                    .expect("tuple-rest parameter position is within its tuple target");
+                return Ok(Some(self.tuple_element_label_slice(
+                    declaration,
+                    index,
+                    element_flags,
+                    Some(rest_parameter),
+                )?));
+            }
+        }
         Ok(Some(
             self.binder.symbol(rest_parameter).escaped_name.clone(),
         ))
@@ -8650,6 +8681,48 @@ mod tests {
                 let inverted = state.slice_tuple_type(tuple, 2, 2).expect("slice succeeds");
                 let inv = state.get_type_arguments(inverted).expect("elements");
                 assert_eq!(inv.len(), 0, "end before start clamps to empty");
+            },
+        );
+    }
+
+    #[test]
+    fn signature_display_parameter_name_expands_only_tuple_typed_rest_parameters() {
+        crate::state::test_support::with_program_state(
+            &[(
+                "a.ts",
+                "declare function tuple(...args: [unknown]): void;\n\
+                 declare function array(...args: unknown[]): void;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let declarations: Vec<_> = state
+                    .binder
+                    .source(0)
+                    .arena
+                    .node_ids()
+                    .filter(|&node| {
+                        state.kind_of(node) == tsrs2_syntax::SyntaxKind::FunctionDeclaration
+                    })
+                    .collect();
+                assert_eq!(declarations.len(), 2);
+                let tuple = state
+                    .get_signature_from_declaration(declarations[0])
+                    .expect("tuple-rest signature");
+                let array = state
+                    .get_signature_from_declaration(declarations[1])
+                    .expect("array-rest signature");
+                assert_eq!(
+                    state
+                        .get_parameter_name_at_position(tuple, 0)
+                        .expect("tuple label"),
+                    Some("args_0".to_owned())
+                );
+                assert_eq!(
+                    state
+                        .get_parameter_name_at_position(array, 0)
+                        .expect("rest name"),
+                    Some("args".to_owned())
+                );
             },
         );
     }

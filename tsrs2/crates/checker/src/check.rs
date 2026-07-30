@@ -5587,6 +5587,10 @@ impl<'a> CheckerState<'a> {
     /// references; ordinary generics (including Generator) keep every
     /// filled argument. A node-backed reference with an explicitly
     /// complete argument list also keeps its arguments.
+    ///
+    /// tsc-port: typeReferenceToTypeNode @6.0.3
+    /// tsc-hash: 5c22abc10910aaee0aa11e8f853b69bb6a7437fa209d7fb7194627f7a692775e
+    /// tsc-span: _tsc.js:52009-52033
     fn should_elide_iterable_default_arguments_slice(
         &mut self,
         ty: TypeId,
@@ -5627,7 +5631,22 @@ impl<'a> CheckerState<'a> {
             }
             None => return Ok(false),
         };
-        if !self.is_reference_to_type(ty, protocol_target) {
+        // The Rust speculation boundary can rebuild a declared
+        // GenericType shell after rolling back its symbol-link
+        // publication while the checker-global memo retains the
+        // earlier shell. tsc has one mutable object in both slots, so
+        // its `type.target === globalIterableType` identity still
+        // holds. The shared merged symbol is the storage-adapter
+        // identity for that otherwise-impossible duplicate shell.
+        let same_protocol_target = self.is_reference_to_type(ty, protocol_target)
+            || (self
+                .tables
+                .object_flags_of(ty)
+                .intersects(ObjectFlags::REFERENCE)
+                && self.tables.type_of(target).symbol.is_some()
+                && self.tables.type_of(target).symbol
+                    == self.tables.type_of(protocol_target).symbol);
+        if !same_protocol_target {
             return Ok(false);
         }
 
@@ -8598,7 +8617,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTupleElementLabel @6.0.3 (4-arg synthesis face)
     /// tsc-hash: cfaef41e5163a36e33fb797ca0f1cf2445bcc1cf9453ac75b2f61681f2b472b1
     /// tsc-span: _tsc.js:78150-78157
-    fn tuple_element_label_slice(
+    pub(crate) fn tuple_element_label_slice(
         &mut self,
         declaration: Option<NodeId>,
         index: usize,
@@ -8784,18 +8803,25 @@ impl<'a> CheckerState<'a> {
             let annotation = self.effective_type_annotation_node(declaration);
             let question = self.is_optional_declaration(declaration);
             if let Some(annotation) = annotation {
-                type_text =
-                    if self.node_flags(annotation) & tsrs2_types::NodeFlags::JS_DOC.bits() != 0 {
-                        self.reusable_annotation_node_text_slice(annotation)?
-                    } else {
-                        self.annotation_reuse_text_slice(
-                            annotation,
-                            face.ty,
-                            requires_undefined,
-                            question,
-                            /*is_parameter*/ true,
-                        )?
-                    };
+                // JSDoc annotations take this same semantic path.
+                // serializeExistingTypeNode resolves their type under
+                // context.mapper; reprinting the raw annotation here
+                // would leak an outer `T` from an instantiated
+                // signature even though both the parameter symbol and
+                // return type have already mapped it.
+                // tsc-port: serializeTypeForDeclaration @6.0.3
+                // tsc-hash: e8876735379b64ea1df7ad7b8717a20d509e85d78677f5425bc3b729f42d6d19
+                // tsc-span: _tsc.js:53487-53509
+                // tsc-port: serializeExistingTypeNode @6.0.3
+                // tsc-hash: 433daa463f78335a63960c6658ccab7a037a667922af31e6eb4320cadafe30ff
+                // tsc-span: _tsc.js:53712-53721
+                type_text = self.annotation_reuse_text_slice(
+                    annotation,
+                    face.ty,
+                    requires_undefined,
+                    question,
+                    /*is_parameter*/ true,
+                )?;
             }
         }
         let type_text = match type_text {
@@ -17247,7 +17273,7 @@ mod tests {
     }
 
     #[test]
-    fn iterable_protocol_faces_elide_only_trailing_default_arguments() {
+    fn signature_display_iterable_protocol_elides_only_trailing_default_arguments() {
         assert_eq!(
             checked_diags(
                 "\
@@ -17312,6 +17338,81 @@ const ff: number = f;
                     "Type 'Other<string, any>' is not assignable to type 'number'.".to_owned()
                 ),
             ]
+        );
+    }
+
+    #[test]
+    fn jsdoc_signature_display_instantiates_parameter_annotations() {
+        fn flatten(chain: &tsrs2_diags::MessageChain, out: &mut Vec<String>) {
+            out.push(chain.text.clone());
+            for child in &chain.next {
+                flatten(child, out);
+            }
+        }
+
+        fn relation_texts(text: &str) -> Vec<String> {
+            let options = CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(true),
+                target: Some(ScriptTarget::ES2015.bits()),
+                ..CompilerOptions::default()
+            };
+            with_program_state(&[("a.js", text)], &options, |state| {
+                state.check_source_file(0);
+                let mut texts = Vec::new();
+                for diagnostic in state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| diagnostic.code() == 2322)
+                {
+                    flatten(&diagnostic.message, &mut texts);
+                }
+                texts
+            })
+        }
+
+        let instantiated = relation_texts(
+            "/**\n\
+             * @template in out T\n\
+             * @typedef {Object} Invariant\n\
+             * @property {(x: T) => T} f\n\
+             */\n\
+             /** @type {Invariant<unknown>} */\n\
+             let target = { f: (x) => x };\n\
+             /** @type {Invariant<string>} */\n\
+             let source = { f: (x) => x };\n\
+             target = source;\n",
+        );
+        assert!(
+            instantiated.iter().any(|text| {
+                text == "Type '(x: string) => string' is not assignable to type '(x: unknown) => unknown'."
+            }),
+            "instantiated JSDoc signature must render mapped parameter and return types: {instantiated:?}"
+        );
+        assert!(
+            instantiated.iter().all(|text| !text.contains("(x: T)")),
+            "the source annotation must not bypass its signature mapper: {instantiated:?}"
+        );
+
+        let generic_sibling = relation_texts(
+            "/**\n\
+             * @template in out T\n\
+             * @typedef {Object} Invariant\n\
+             * @property {(x: T) => T} f\n\
+             */\n\
+             /**\n\
+             * @template T\n\
+             * @param {Invariant<T>} source\n\
+             * @param {Invariant<unknown>} target\n\
+             */\n\
+             function keep(source, target) { target = source; }\n",
+        );
+        assert!(
+            generic_sibling
+                .iter()
+                .any(|text| text.contains("Type '(x: T) => T'")),
+            "a mapper whose target is still T must retain the generic face: {generic_sibling:?}"
         );
     }
 
