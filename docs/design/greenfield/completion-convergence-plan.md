@@ -141,6 +141,20 @@ invariant run cannot satisfy row 10. A required regression keeps rows
 1-9 and 11 green while making one full-corpus invariant red; strict mode
 must fail and name that invariant.
 
+Row 10 is consumed from
+`target/invariants/full-corpus-attestation.json`, produced atomically
+only after `invariants --suite all --full-corpus` has sent every
+expanded fixture/matrix case through prefix determinism, idempotence,
+jobs independence, encodings, matrix independence, and unsupported
+unwind with its real libs, compiler options, and cwd. Every invariant
+invocation invalidates the prior attestation before parsing/running, so
+a sampled, partial, failed, or interrupted run cannot reuse an older
+success. `completion` re-fingerprints the checker, syntax, binder,
+types, diagnostics, harness, conformance-option adapter, xtask,
+Cargo/toolchain inputs, corpus/vendor libs, and immutable oracle/scope
+state in the same workspace; missing, failed, partial, or stale
+evidence leaves row 10 red by name.
+
 #### A5. Family ownership and rollup
 
 Turn [non-2xxx-first-order.md](non-2xxx-first-order.md) into a frozen

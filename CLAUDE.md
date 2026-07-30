@@ -24,7 +24,8 @@ there.
    exact-scope audit (A2) + family-map check (A5) against the same
    base, conformance all + 2xxx + syntactic with FP=0 and
    set/integer-ratchet non-regression, the A5 families rollup,
-   invariants, ledger check, `escapes --stale $(cat tsrs2/STAGE)`
+   full-corpus invariants (`invariants --suite all --full-corpus`),
+   ledger check, `escapes --stale $(cat tsrs2/STAGE)`
    incl. the untagged ceiling, and generated README-status freshness).
 4. **Merge via GitHub PR** (`gh` CLI): when the slice is done and
    local `cargo xtask ci --baseline origin/main` is green, push the

@@ -7,6 +7,7 @@ use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::sync::Arc;
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde::{Deserialize, Serialize};
@@ -15,6 +16,7 @@ use tsrs2_checker::{CompilerOptions, InputFile};
 use tsrs2_diags::DiagnosticList;
 
 mod completion;
+mod invariant_attestation;
 mod m8_evidence;
 mod m8_plan;
 mod m8_trace;
@@ -2004,6 +2006,7 @@ fn completion_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Err
             "performance-baseline",
         ],
     );
+    let invariant_attestation = invariant_attestation::verify(&workspace);
 
     let report = completion::build_report(completion::CompletionInputs {
         all_corpus_fp_zero: completion::CompletionProbe::new(
@@ -2025,8 +2028,8 @@ fn completion_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Err
         declaration_converse,
         b1_b4_evidence,
         full_corpus_invariants: completion::CompletionProbe::new(
-            false,
-            "no fresh full-corpus invariant attestation; sampled `invariants --suite all` cannot satisfy completion",
+            invariant_attestation.ready,
+            invariant_attestation.detail,
         ),
         m9_steady_state: completion::CompletionProbe::new(
             false,
@@ -4398,19 +4401,26 @@ impl InvariantSuite {
 
 struct InvariantArgs {
     suite: InvariantSuite,
-    limit: usize,
+    limit: Option<usize>,
+    full_corpus: bool,
 }
 
 #[derive(Clone, Debug)]
 struct SampleProgram {
     fixture: String,
     matrix_key: String,
+    cwd: String,
+    options: BTreeMap<String, tsrs2_harness::OptionValue>,
+    libs: Vec<String>,
     files: Vec<InputFile>,
+    compiler_options: CompilerOptions,
+    lib_files: Arc<Vec<InputFile>>,
 }
 
 fn invariants(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
-    let args = parse_invariant_args(args)?;
     let workspace = find_tsrs2_root()?;
+    invariant_attestation::invalidate(&workspace)?;
+    let args = parse_invariant_args(args)?;
     let programs = load_sample_programs(&workspace, args.limit)?;
     let fixture_count = programs
         .iter()
@@ -4429,7 +4439,7 @@ fn invariants(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> 
         let summary = tsrs2_conformance::run_prefix_conformance(
             &tsrs2_conformance::PrefixConformanceOptions {
                 workspace: workspace.clone(),
-                limit: Some(args.limit),
+                limit: args.limit,
                 files: Vec::new(),
             },
         )?;
@@ -4492,6 +4502,13 @@ fn invariants(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> 
         fixture_count,
         programs.len()
     );
+    if args.full_corpus && args.suite == InvariantSuite::All {
+        let path = invariant_attestation::write_success(&workspace, fixture_count, programs.len())?;
+        println!(
+            "full-corpus invariant attestation written atomically: {}",
+            path.display()
+        );
+    }
     Ok(())
 }
 
@@ -4499,7 +4516,8 @@ fn parse_invariant_args(
     args: impl Iterator<Item = String>,
 ) -> Result<InvariantArgs, Box<dyn Error>> {
     let mut suite = InvariantSuite::All;
-    let mut limit = 200usize;
+    let mut limit = None;
+    let mut full_corpus = false;
     let mut args = args.peekable();
 
     while let Some(arg) = args.next() {
@@ -4510,51 +4528,135 @@ fn parse_invariant_args(
             }
             "--limit" => {
                 let value = args.next().ok_or("missing value after --limit")?;
-                limit = value.parse()?;
+                if full_corpus {
+                    return Err("--limit and --full-corpus are mutually exclusive".into());
+                }
+                limit = Some(value.parse()?);
+            }
+            "--full-corpus" => {
+                if limit.is_some() {
+                    return Err("--limit and --full-corpus are mutually exclusive".into());
+                }
+                full_corpus = true;
             }
             _ => return Err(format!("unexpected invariants argument: {arg}").into()),
         }
     }
 
-    Ok(InvariantArgs { suite, limit })
+    if !full_corpus && limit.is_none() {
+        limit = Some(200);
+    }
+    Ok(InvariantArgs {
+        suite,
+        limit,
+        full_corpus,
+    })
 }
 
 fn load_sample_programs(
     workspace: &Path,
-    limit: usize,
+    limit: Option<usize>,
 ) -> Result<Vec<SampleProgram>, Box<dyn Error>> {
     let fixtures_root = workspace.join("ts-tests/tests/cases/conformance");
     let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
     let mut fixtures = collect_fixture_paths(&fixtures_root)?;
     fixtures.sort();
-    fixtures.truncate(limit);
+    if let Some(limit) = limit {
+        fixtures.truncate(limit);
+    }
 
     let mut programs = Vec::new();
+    let mut lib_cache = BTreeMap::<Vec<String>, Arc<Vec<InputFile>>>::new();
     for fixture in fixtures {
         let fixture_key = fixture
             .strip_prefix(&fixtures_root)?
             .to_string_lossy()
             .replace('\\', "/");
         for program in tsrs2_harness::expand_fixture_file(&fixture, &vendor_lib_dir)? {
+            let compiler_options = tsrs2_conformance::compiler_options_from_program(&program);
+            let lib_files = match lib_cache.get(&program.libs) {
+                Some(files) => files.clone(),
+                None => {
+                    let files = Arc::new(
+                        program
+                            .libs
+                            .iter()
+                            .map(|name| {
+                                Ok(InputFile {
+                                    name: name.clone(),
+                                    text: fs::read_to_string(vendor_lib_dir.join(name)).map_err(
+                                        |error| {
+                                            format!("failed to read invariant lib {name}: {error}")
+                                        },
+                                    )?,
+                                })
+                            })
+                            .collect::<Result<Vec<_>, Box<dyn Error>>>()?,
+                    );
+                    lib_cache.insert(program.libs.clone(), files.clone());
+                    files
+                }
+            };
             let files = program
                 .files
-                .into_iter()
+                .iter()
                 .map(|file| {
                     Ok(InputFile {
-                        name: file.name,
+                        name: file.name.clone(),
                         text: base64_decode_to_string(&file.text_b64)?,
                     })
                 })
                 .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
-            programs.push(SampleProgram {
+            let sample = SampleProgram {
                 fixture: fixture_key.clone(),
-                matrix_key: program.matrix_key,
+                matrix_key: program.matrix_key.clone(),
+                cwd: program.cwd.clone(),
+                options: program.options.clone(),
+                libs: program.libs.clone(),
                 files,
-            });
+                compiler_options,
+                lib_files,
+            };
+            validate_sample_program_semantics(&sample)?;
+            programs.push(sample);
         }
     }
 
     Ok(programs)
+}
+
+fn validate_sample_program_semantics(program: &SampleProgram) -> Result<(), Box<dyn Error>> {
+    let loaded_lib_names = program
+        .lib_files
+        .iter()
+        .map(|file| file.name.as_str())
+        .collect::<Vec<_>>();
+    let requested_lib_names = program.libs.iter().map(String::as_str).collect::<Vec<_>>();
+    if loaded_lib_names != requested_lib_names {
+        return Err(format!(
+            "invariant lib projection changed for {} [{}]: requested={requested_lib_names:?} loaded={loaded_lib_names:?}",
+            program.fixture, program.matrix_key
+        )
+        .into());
+    }
+    let options_projection = tsrs2_harness::ProgramJson {
+        schema: 1,
+        cwd: program.cwd.clone(),
+        options: program.options.clone(),
+        libs: program.libs.clone(),
+        files: Vec::new(),
+        matrix_key: program.matrix_key.clone(),
+    };
+    if tsrs2_conformance::compiler_options_from_program(&options_projection)
+        != program.compiler_options
+    {
+        return Err(format!(
+            "invariant compiler-option projection changed for {} [{}]",
+            program.fixture, program.matrix_key
+        )
+        .into());
+    }
+    Ok(())
 }
 
 fn midpoint_char_boundary(text: &str) -> usize {
@@ -4611,8 +4713,8 @@ fn prefix_determinism_holds(text: &str, variant: tsrs2_syntax::LanguageVariant) 
 
 fn run_idempotence(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
     for program in programs {
-        let first = check_bytes(&program.files);
-        let second = check_bytes(&program.files);
+        let first = check_bytes(program)?;
+        let second = check_bytes(program)?;
         if first != second {
             return Err(format!(
                 "idempotence failed for {} [{}]",
@@ -4637,15 +4739,15 @@ fn run_unsupported_unwind(programs: &[SampleProgram]) -> Result<(), Box<dyn Erro
         );
     }
     for program in programs {
-        let _ = check_bytes(&program.files);
+        let _ = check_bytes(program)?;
     }
     Ok(())
 }
 
 fn run_jobs_independence(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
-    let baseline = run_programs_in_job_order(programs, 1);
+    let baseline = run_programs_in_job_order(programs, 1)?;
     for jobs in 2..=16 {
-        let candidate = run_programs_in_job_order(programs, jobs);
+        let candidate = run_programs_in_job_order(programs, jobs)?;
         if baseline != candidate {
             return Err(format!("jobs-independence failed for jobs={jobs}").into());
         }
@@ -4655,7 +4757,7 @@ fn run_jobs_independence(programs: &[SampleProgram]) -> Result<(), Box<dyn Error
 
 fn run_encodings(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
     for program in programs {
-        let baseline = diagnostic_semantic_bytes(&check_diagnostics(&program.files));
+        let baseline = diagnostic_semantic_bytes(&check_diagnostics(program)?);
         for file_index in 0..program.files.len() {
             let original = &program.files[file_index].text;
             let variants = [
@@ -4667,7 +4769,8 @@ fn run_encodings(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
             for variant in variants {
                 let mut files = program.files.clone();
                 files[file_index].text = variant;
-                let candidate = diagnostic_semantic_bytes(&check_diagnostics(&files));
+                let candidate =
+                    diagnostic_semantic_bytes(&check_diagnostics_with_files(program, &files)?);
                 if baseline != candidate {
                     return Err(format!(
                         "encodings failed for {} [{}] file {}",
@@ -4696,13 +4799,13 @@ fn run_matrix_independence(programs: &[SampleProgram]) -> Result<(), Box<dyn Err
         }
         let forward = fixture_programs
             .iter()
-            .map(|program| (program_key(program), check_bytes(&program.files)))
-            .collect::<BTreeMap<_, _>>();
+            .map(|program| Ok((program_key(program), check_bytes(program)?)))
+            .collect::<Result<BTreeMap<_, _>, Box<dyn Error>>>()?;
         let reverse = fixture_programs
             .iter()
             .rev()
-            .map(|program| (program_key(program), check_bytes(&program.files)))
-            .collect::<BTreeMap<_, _>>();
+            .map(|program| Ok((program_key(program), check_bytes(program)?)))
+            .collect::<Result<BTreeMap<_, _>, Box<dyn Error>>>()?;
         if forward != reverse {
             return Err(format!("matrix-independence failed for {fixture}").into());
         }
@@ -4710,16 +4813,19 @@ fn run_matrix_independence(programs: &[SampleProgram]) -> Result<(), Box<dyn Err
     Ok(())
 }
 
-fn run_programs_in_job_order(programs: &[SampleProgram], jobs: usize) -> BTreeMap<String, String> {
+fn run_programs_in_job_order(
+    programs: &[SampleProgram],
+    jobs: usize,
+) -> Result<BTreeMap<String, String>, Box<dyn Error>> {
     let mut output = BTreeMap::new();
     for job in 0..jobs {
         for (index, program) in programs.iter().enumerate() {
             if index % jobs == job {
-                output.insert(program_key(program), check_bytes(&program.files));
+                output.insert(program_key(program), check_bytes(program)?);
             }
         }
     }
-    output
+    Ok(output)
 }
 
 fn program_key(program: &SampleProgram) -> String {
@@ -4730,12 +4836,25 @@ fn program_key(program: &SampleProgram) -> String {
     }
 }
 
-fn check_diagnostics(files: &[InputFile]) -> DiagnosticList {
-    tsrs2_checker::check_program(files, &CompilerOptions::default()).diagnostics
+fn check_diagnostics(program: &SampleProgram) -> Result<DiagnosticList, Box<dyn Error>> {
+    check_diagnostics_with_files(program, &program.files)
 }
 
-fn check_bytes(files: &[InputFile]) -> String {
-    diagnostic_bytes(&check_diagnostics(files))
+fn check_diagnostics_with_files(
+    program: &SampleProgram,
+    files: &[InputFile],
+) -> Result<DiagnosticList, Box<dyn Error>> {
+    Ok(tsrs2_checker::check_program_with_libs_at(
+        &program.lib_files,
+        files,
+        &program.compiler_options,
+        &program.cwd,
+    )
+    .diagnostics)
+}
+
+fn check_bytes(program: &SampleProgram) -> Result<String, Box<dyn Error>> {
+    Ok(diagnostic_bytes(&check_diagnostics(program)?))
 }
 
 fn diagnostic_bytes(diagnostics: &DiagnosticList) -> String {
@@ -6670,7 +6789,15 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
     recovery_census::check_with_summary(&workspace, &summaries.two_xxx)?;
     // The permanent syntactic gate (convergence invariant 3) is one
     // of the independently graded fixed views above.
-    invariants(["--suite", "all"].into_iter().map(str::to_owned))?;
+    // Completion row 10 runs exactly once in the semantic lane, after
+    // conformance is green. The command invalidates any prior attestation
+    // first and writes a fresh one only after every expanded program passes
+    // all six suites; there is no duplicate sampled `all` run in CI.
+    invariants(
+        ["--suite", "all", "--full-corpus"]
+            .into_iter()
+            .map(str::to_owned),
+    )?;
     ledger_check()?;
     // The expiry audit: escapes whose owner stage (per the STAGE
     // marker file) has passed must be implemented or re-marked.
@@ -10791,6 +10918,38 @@ fn lib_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
 #[cfg(test)]
 mod prefix_determinism_tests {
     use super::*;
+
+    #[test]
+    fn invariant_args_default_to_a_sample_and_full_corpus_has_no_limit() {
+        let sampled = parse_invariant_args(std::iter::empty()).unwrap();
+        assert_eq!(sampled.suite, InvariantSuite::All);
+        assert_eq!(sampled.limit, Some(200));
+        assert!(!sampled.full_corpus);
+
+        let full = parse_invariant_args(
+            ["--suite", "all", "--full-corpus"]
+                .into_iter()
+                .map(str::to_owned),
+        )
+        .unwrap();
+        assert_eq!(full.suite, InvariantSuite::All);
+        assert_eq!(full.limit, None);
+        assert!(full.full_corpus);
+    }
+
+    #[test]
+    fn invariant_args_reject_partial_full_corpus_spelling() {
+        for arguments in [
+            vec!["--limit", "10", "--full-corpus"],
+            vec!["--full-corpus", "--limit", "10"],
+        ] {
+            assert!(parse_invariant_args(arguments.into_iter().map(str::to_owned)).is_err());
+        }
+        assert!(
+            parse_invariant_args(["--full"].into_iter().map(str::to_owned)).is_err(),
+            "an approximate alias must not accidentally create completion evidence"
+        );
+    }
 
     #[test]
     fn non_ascii_prefix_compares_in_utf16() {
