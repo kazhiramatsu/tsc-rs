@@ -27,7 +27,7 @@ use tsrs2_types::{
     TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
-use crate::state::{CheckResult2, CheckerState, IndexInfo, Unsupported};
+use crate::state::{CheckResult2, CheckerState, IndexInfo};
 
 /// The per-literal accumulator checkArrayLiteral threads through its
 /// element loop while the cached contextual scope is pushed; the exits
@@ -184,9 +184,8 @@ impl<'a> CheckerState<'a> {
     /// below ES2015; the
     /// [INFER] intra-expression site is behind the Inferential
     /// checkMode bit — producible since M6 7.1 (Some-context pushes
-    /// only), so the arm below is a live named Unsupported until the
-    /// 7.4 site-recording wiring. Non-array-like spreads run the §4
-    /// iteration protocol (5.8b).
+    /// only); the 7.4 site-recording wiring is live. Non-array-like
+    /// spreads run the §4 iteration protocol (5.8b).
     pub(crate) fn check_array_literal(
         &mut self,
         node: NodeId,
@@ -229,9 +228,11 @@ impl<'a> CheckerState<'a> {
                         NodeData::SpreadElement(data) => data.expression,
                         _ => None,
                     };
-                    let expression = expression.ok_or_else(|| {
-                        Unsupported::new("spread element without expression (parse recovery)")
-                    })?;
+                    let Some(expression) = expression else {
+                        element_types.push(state.tables.intrinsics.error);
+                        element_flags.push(ElementFlags::VARIADIC);
+                        continue;
+                    };
                     let spread_type = state.check_expression_with_force_tuple(
                         expression,
                         check_mode,
@@ -437,9 +438,9 @@ impl<'a> CheckerState<'a> {
             NodeData::ComputedPropertyName(data) => data.expression,
             _ => None,
         };
-        let expression = expression.ok_or_else(|| {
-            Unsupported::new("computed property name without expression (parse recovery)")
-        })?;
+        let Some(expression) = expression else {
+            return Ok(self.tables.intrinsics.error);
+        };
         if let Some(cached) = self.links.node(expression).resolved_type.resolved() {
             return Ok(cached);
         }
@@ -1040,9 +1041,12 @@ impl<'a> CheckerState<'a> {
                 SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment
             ) || self.is_object_literal_method(member_decl)
             {
-                let member_sym = member_symbol.ok_or_else(|| {
-                    Unsupported::new("object member without a bound symbol (parse recovery)")
-                })?;
+                let Some(member_sym) = member_symbol else {
+                    // Binder-created object members always carry a symbol.
+                    // A checker-synthetic recovery member has no property to
+                    // publish; continue so valid siblings still contribute.
+                    continue;
+                };
                 let mut ty = match kind {
                     SyntaxKind::PropertyAssignment => {
                         self.check_property_assignment(member_decl, check_mode)?
@@ -1059,11 +1063,12 @@ impl<'a> CheckerState<'a> {
                         };
                         let target = match initializer {
                             Some(initializer) if !acc.in_destructuring_pattern => initializer,
-                            _ => name.ok_or_else(|| {
-                                Unsupported::new(
-                                    "shorthand property without a name (parse recovery)",
-                                )
-                            })?,
+                            _ => {
+                                let Some(name) = name else {
+                                    continue;
+                                };
+                                name
+                            }
                         };
                         self.check_expression_for_mutable_location(target, check_mode, false)?
                     }
@@ -1208,13 +1213,10 @@ impl<'a> CheckerState<'a> {
                         .expect("Inferential check mode implies an inference context (74208)");
                     let inference_node = if kind == SyntaxKind::PropertyAssignment {
                         match self.data_of(member_decl) {
-                            NodeData::PropertyAssignment(data) => {
-                                data.initializer.ok_or_else(|| {
-                                    Unsupported::new(
-                                        "property assignment without initializer (parse recovery)",
-                                    )
-                                })?
-                            }
+                            NodeData::PropertyAssignment(data) => match data.initializer {
+                                Some(initializer) => initializer,
+                                None => continue,
+                            },
                             _ => member_decl,
                         }
                     } else {
@@ -1245,9 +1247,10 @@ impl<'a> CheckerState<'a> {
                     NodeData::SpreadAssignment(data) => data.expression,
                     _ => None,
                 };
-                let expression = expression.ok_or_else(|| {
-                    Unsupported::new("spread assignment without expression (parse recovery)")
-                })?;
+                let Some(expression) = expression else {
+                    acc.spread = self.tables.intrinsics.error;
+                    continue;
+                };
                 let inner_mode =
                     CheckMode::from_bits(check_mode.bits() & CheckMode::INFERENTIAL.bits());
                 let raw = self.check_expression(expression, inner_mode)?;
@@ -1283,17 +1286,17 @@ impl<'a> CheckerState<'a> {
                 }
                 continue;
             } else {
-                // Debug.assert(Get/SetAccessor) — recovery kinds take
-                // a named escape instead of a panic (risk #6).
+                // Debug.assert(Get/SetAccessor) is guaranteed by the parser
+                // for ordinary object literals. Unknown synthetic recovery
+                // members have no value property to publish.
                 if !matches!(kind, SyntaxKind::GetAccessor | SyntaxKind::SetAccessor) {
-                    return Err(Unsupported::new(
-                        "unexpected object-literal member kind (parse recovery)",
-                    ));
+                    continue;
                 }
                 self.check_node_deferred(member_decl);
-                member = member_symbol.ok_or_else(|| {
-                    Unsupported::new("object accessor without a bound symbol (parse recovery)")
-                })?;
+                let Some(member_symbol) = member_symbol else {
+                    continue;
+                };
+                member = member_symbol;
             }
             if let Some(computed_name_type) = computed_name_type.filter(|&t| {
                 !self

@@ -4,13 +4,6 @@
 //! getReturnTypeFromBody with its aggregators and Promise wrappers,
 //! the await family's error paths (the probe half landed errorNode-less
 //! at 5.5e in operators.rs), and the yield grammar slice.
-//!
-//! Stage seams live where the extraction doc (§0/§8) puts them —
-//! the [FLOW M5] pair retired at 6.6c (functionHasImplicitReturn and
-//! checkAllCodePathsInNonVoidFunctionReturnOrThrow are real; the
-//! 2355/2366/2534/7030 band is live); [ITER 5.8] generator bodies and
-//! yield aggregation escape Unsupported; [INFER M6] the Inferential
-//! checkMode arms are dead (no producer sets the bit at M4).
 
 use tsrs2_binder::node_util;
 use tsrs2_binder::SymbolId;
@@ -22,7 +15,7 @@ use tsrs2_types::{
 
 use crate::links::LinkSlot;
 use crate::narrow::TypePredicateKind;
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState};
 use crate::structural::SignatureKind;
 use tsrs2_diags::gen as diagnostics;
 use tsrs2_diags::{DiagnosticMessage, MessageChain};
@@ -122,11 +115,7 @@ impl<'a> CheckerState<'a> {
     /// getContextualSignature may re-enter this function (through
     /// checkExpression of a discriminant or a contextual force), so
     /// tsc reads the flag once before and once after the signature
-    /// query. The `checkMode & Inferential` arms
-    /// (inferFromAnnotatedParametersAndReturn + nonFixingMapper
-    /// instantiation) stay a named Unsupported until 7.4 — no
-    /// production producer sets Inferential before then, and the
-    /// 79174 mapper instantiation is live for Some contexts (7.1).
+    /// query.
     pub(crate) fn contextually_check_function_expression_or_object_literal_method(
         &mut self,
         node: NodeId,
@@ -264,11 +253,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 62df6fd08b379a9891dc3019b29fa59ff85ec5b9c203fbdcee9fdb3b1bc695b6
     /// tsc-span: _tsc.js:79194-79213
     ///
-    /// Block bodies route through checkSourceElement, whose statement
-    /// arms are 5.8 stubs — the deferred pass drives nothing extra for
-    /// them until 5.8 (their Unsupported is contained per-element by
-    /// check_source_element). Expression bodies run the
-    /// checkReturnExpression tail live.
+    /// Block bodies route through checkSourceElement; expression
+    /// bodies run the checkReturnExpression tail directly.
     pub(crate) fn check_function_expression_or_object_literal_method_deferred(
         &mut self,
         node: NodeId,
@@ -1477,21 +1463,6 @@ impl<'a> CheckerState<'a> {
         } else {
             effective_expr
         };
-        // 6.6f: syntax-probe gate → flag-exact containment for the
-        // failed-return face. SUBTREE probe (6.6 review): a compound
-        // operand (`return { a: u }` / `return [u]`) inherits a
-        // seam-reverted descendant's wideness into its own type, so
-        // the old subtree gate's coverage keeps its strength here.
-        if let Some(effective) = effective_expr {
-            if self.flow_answer_is_seam_reverted_within(effective)
-                && !self.is_type_assignable_to(unwrapped_expr_type, unwrapped_return_type)?
-            {
-                return Err(Unsupported::new(
-                    "failed return over a seam-reverted flow answer \
-                     (unported narrowing dependency, M6/M8 seam)",
-                ));
-            }
-        }
         // checkTypeAssignableToAndOptionallyElaborate — elaboration
         // first (the Step-12 idiom): a literal return operand that
         // reports an inner member/element row suppresses the outer
@@ -1538,8 +1509,9 @@ impl<'a> CheckerState<'a> {
             NodeData::AwaitExpression(data) => data.expression,
             _ => None,
         };
-        let expression =
-            expression.ok_or_else(|| Unsupported::new("await without operand (parse recovery)"))?;
+        let Some(expression) = expression else {
+            return Ok(self.tables.intrinsics.error);
+        };
         let operand_type = self.check_expression(expression, CheckMode::NORMAL)?;
         let awaited_type = self.check_awaited_type(
             operand_type,
@@ -1892,9 +1864,10 @@ impl<'a> CheckerState<'a> {
         self.check_grammar_modifiers(node);
         self.check_variable_like_declaration(node)?;
         let Some(func) = self.get_containing_function(node) else {
-            return Err(Unsupported::new(
-                "parameter outside a function (parse recovery)",
-            ));
+            // A binder-created Parameter always belongs to a
+            // signature-like declaration. A detached synthetic recovery
+            // parameter has no function-level grammar or return checks.
+            return Ok(());
         };
         let source = self.binder.source_of_node(node);
         let func_kind = self.kind_of(func);
@@ -3976,9 +3949,10 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::ImportSpecifier
             | SyntaxKind::Identifier => Ok(EXPORT_VALUE),
             SyntaxKind::MethodSignature | SyntaxKind::PropertySignature => Ok(EXPORT_TYPE),
-            _ => Err(Unsupported::new(
-                "getDeclarationSpaces unexpected declaration kind (Debug.failBadSyntaxKind, parse recovery)",
-            )),
+            // tsc Debug.failBadSyntaxKind is guarded by declaration-kind
+            // callers. A synthetic recovery declaration contributes neither
+            // value nor type space.
+            _ => Ok(0),
         }
     }
 
@@ -5574,9 +5548,9 @@ impl<'a> CheckerState<'a> {
         if self.tables.flags_of(parent_type).intersects(TypeFlags::ANY) {
             return Ok(parent_type);
         }
-        let pattern = self.parent_of(declaration).ok_or_else(|| {
-            Unsupported::new("binding element without a pattern (parse recovery)")
-        })?;
+        let Some(pattern) = self.parent_of(declaration) else {
+            return Ok(self.tables.intrinsics.error);
+        };
         let strict_null_checks = self
             .options
             .strict_option_value(self.options.strict_null_checks);
@@ -5603,9 +5577,7 @@ impl<'a> CheckerState<'a> {
         let ty;
         if self.kind_of(pattern) == SyntaxKind::ObjectBindingPattern {
             let NodeData::BindingElement(data) = self.data_of(declaration).clone() else {
-                return Err(Unsupported::new(
-                    "malformed binding element (parse recovery)",
-                ));
+                return Ok(self.tables.intrinsics.error);
             };
             if data.dot_dot_dot_token.is_some() {
                 parent_type = self.get_reduced_type(parent_type)?;
@@ -5640,9 +5612,9 @@ impl<'a> CheckerState<'a> {
                 let symbol = self.node_symbol(declaration);
                 ty = self.get_rest_type(parent_type, &literal_members, symbol)?;
             } else {
-                let name = data.property_name.or(data.name).ok_or_else(|| {
-                    Unsupported::new("binding element without a name (parse recovery)")
-                })?;
+                let Some(name) = data.property_name.or(data.name) else {
+                    return Ok(self.tables.intrinsics.error);
+                };
                 let index_type = self.get_literal_type_from_property_name(name)?;
                 let access_flags = tsrs2_types::AccessFlags::EXPRESSION_POSITION
                     | if no_tuple_bounds_check || self.has_default_value(declaration) {
@@ -5666,9 +5638,7 @@ impl<'a> CheckerState<'a> {
             // 55984-55996: the array-pattern arm — Destructuring use,
             // PossiblyOutOfBounds only for non-rest elements.
             let NodeData::BindingElement(data) = self.data_of(declaration).clone() else {
-                return Err(Unsupported::new(
-                    "malformed binding element (parse recovery)",
-                ));
+                return Ok(self.tables.intrinsics.error);
             };
             let use_ = if data.dot_dot_dot_token.is_some() {
                 tsrs2_types::IterationUse::DESTRUCTURING
@@ -5689,12 +5659,9 @@ impl<'a> CheckerState<'a> {
                 NodeData::ArrayBindingPattern(pattern_data) => self.nodes_of(pattern_data.elements),
                 _ => Vec::new(),
             };
-            let index = elements
-                .iter()
-                .position(|&element| element == declaration)
-                .ok_or_else(|| {
-                    Unsupported::new("binding element outside its pattern (parse recovery)")
-                })?;
+            let Some(index) = elements.iter().position(|&element| element == declaration) else {
+                return Ok(self.tables.intrinsics.error);
+            };
             if data.dot_dot_dot_token.is_some() {
                 let base_constraint = self.map_type(
                     parent_type,

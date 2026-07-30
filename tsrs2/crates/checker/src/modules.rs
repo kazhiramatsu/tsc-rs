@@ -23,7 +23,7 @@ use tsrs2_types::{CheckMode, InternalSymbolName, ObjectFlags, SymbolFlags, TypeF
 
 use crate::expr::Ancestor;
 use crate::links::LinkSlot;
-use crate::state::{CheckResult2, CheckerState, PackageJsonModuleType, Unsupported};
+use crate::state::{CheckResult2, CheckerState, PackageJsonModuleType};
 use tsrs2_types::TypeId;
 
 /// The export-star collision tracker (getExportsOfModuleWorker's
@@ -597,9 +597,10 @@ impl<'a> CheckerState<'a> {
         self.links
             .set_symbol_alias_referenced(self.speculation_depth, symbol);
         let Some(declaration) = self.get_declaration_of_alias_symbol(symbol) else {
-            return Err(Unsupported::new(
-                "markAliasSymbolAsReferenced alias without a declaration (parse-recovery shape, tsc Debug.fail)",
-            ));
+            // Binder-created aliases always have a declaration. A synthetic
+            // recovery alias has no import-equals subtree to mark, but the
+            // symbol-level referenced bit written above is still definitive.
+            return Ok(());
         };
         if self.is_internal_module_import_equals_declaration(declaration) {
             let target = self.resolve_alias(symbol)?;
@@ -930,18 +931,23 @@ impl<'a> CheckerState<'a> {
         self.links
             .set_symbol_alias_target(self.speculation_depth, symbol, LinkSlot::Resolving);
         let Some(node) = self.get_declaration_of_alias_symbol(symbol) else {
-            // tsc Debug.fail() — an Alias symbol always has an alias
-            // declaration; a recovery shape without one contains.
-            self.links.revert_symbol_alias_target(symbol);
-            return Err(Unsupported::new(
-                "resolveAlias alias symbol without alias declaration (parse-recovery shape, tsc Debug.fail)",
-            ));
+            // tsc Debug.fail() is a binder invariant: real Alias symbols
+            // always have an alias declaration. Give a checker-synthetic
+            // recovery alias the same stable miss sentinel used by failed
+            // and cyclic alias resolution.
+            let unknown = self.unknown_symbol;
+            self.links.set_symbol_alias_target(
+                self.speculation_depth,
+                symbol,
+                LinkSlot::Resolved(unknown),
+            );
+            return Ok(unknown);
         };
         let target = match self.get_target_of_alias_declaration(node, false) {
             Ok(target) => target,
-            Err(unsupported) => {
+            Err(abort) => {
                 self.links.revert_symbol_alias_target(symbol);
-                return Err(unsupported);
+                return Err(abort);
             }
         };
         if self.links.symbol(symbol).alias_target.is_resolving() {
@@ -2894,9 +2900,9 @@ impl<'a> CheckerState<'a> {
             return Ok(immediate);
         }
         let Some(node) = self.get_declaration_of_alias_symbol(symbol) else {
-            return Err(Unsupported::new(
-                "getImmediateAliasedSymbol without alias declaration (parse-recovery shape, tsc Debug.fail)",
-            ));
+            self.links
+                .set_symbol_immediate_target(self.speculation_depth, symbol, None);
+            return Ok(None);
         };
         let target =
             self.get_target_of_alias_declaration(node, /*dont_recursively_resolve*/ true)?;
@@ -2979,9 +2985,9 @@ impl<'a> CheckerState<'a> {
         })(self);
         let (computed, export_symbol) = match computed {
             Ok(computed) => computed,
-            Err(unsupported) => {
+            Err(abort) => {
                 self.pop_type_resolution();
-                return Err(unsupported);
+                return Err(abort);
             }
         };
         let computed = if self.pop_type_resolution() {
@@ -3013,7 +3019,6 @@ impl<'a> CheckerState<'a> {
             // tsc's synthetic reference needs the first declaration for its
             // source file.  With no declaration there is no flow graph or
             // source identity to query.
-            self.flow_last_query_inert = false;
             return Ok(self.tables.intrinsics.error);
         };
         let receiver_of = |state: &Self, declaration: NodeId| match state.data_of(declaration) {
@@ -3048,7 +3053,6 @@ impl<'a> CheckerState<'a> {
             // declaration has an `exports` receiver, that reference cannot
             // match an assignment in this declaration set and therefore
             // remains at the query's initial undefined type.
-            self.flow_last_query_inert = false;
             return Ok(self.tables.intrinsics.undefined);
         };
         let file = self.binder.file_index_of_node(first);
@@ -12233,7 +12237,6 @@ mod c0_module_recovery_tests {
             state.tables.intrinsics.auto
         );
         assert_eq!(state.flow_invocation_count, invocations);
-        assert!(!state.flow_last_query_inert);
     }
 
     #[test]
@@ -12293,5 +12296,39 @@ mod c0_module_recovery_tests {
                 );
             },
         );
+    }
+
+    #[test]
+    fn declarationless_recovery_alias_uses_stable_miss_sentinels() {
+        let source = parse_js("export {};\n");
+        let options = CompilerOptions::default();
+        let binder = bind_source_file(&source, &options);
+        let mut state = CheckerState::new(&source, &binder, &options);
+        let recovered = state
+            .binder
+            .create_symbol(SymbolFlags::ALIAS, "Recovered".to_owned());
+
+        assert_eq!(
+            state
+                .resolve_alias(recovered)
+                .expect("declarationless alias resolves to the miss sentinel"),
+            state.unknown_symbol
+        );
+        assert_eq!(
+            state.links.symbol(recovered).alias_target,
+            LinkSlot::Resolved(state.unknown_symbol)
+        );
+        assert_eq!(
+            state
+                .get_immediate_aliased_symbol(recovered)
+                .expect("declarationless immediate target is absent"),
+            None
+        );
+        assert_eq!(state.links.symbol(recovered).immediate_target, Some(None));
+
+        state
+            .mark_alias_symbol_as_referenced(recovered)
+            .expect("declarationless alias can still be marked referenced");
+        assert!(state.links.symbol(recovered).alias_referenced);
     }
 }

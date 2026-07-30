@@ -10,10 +10,9 @@
 //! diagnostic = not related; comparable pins use `s as Target` and the
 //! 2352 family the same way).
 //!
-//! Stage 4.1 wires the probe through the MINIMAL type-from-annotation
-//! path (annotate.rs): both annotations resolve to real types in a
-//! scratch program; the relation ANSWER stays unsupported until the
-//! engine core lands (stages 4.4-4.5).
+//! Stage 4.1 wired the probe through the minimal
+//! type-from-annotation path (annotate.rs); the live relation engine
+//! now answers pins after both annotations resolve.
 
 use tsrs2_syntax::{NodeData, NodeId, SourceFile};
 use tsrs2_types::{CompilerOptions, TypeId};
@@ -56,7 +55,7 @@ pub enum RelpinVerdict {
     /// The probe cannot answer yet (machinery lands in a later stage).
     /// `xtask relpin run` counts these as failures so the M3 gate
     /// cannot pass with a stubbed engine.
-    Unsupported {
+    Unavailable {
         reason: String,
     },
 }
@@ -88,7 +87,7 @@ pub fn probe_relation(query: &RelpinQuery) -> RelpinVerdict {
         None,
     );
     if !source_file.parse_diagnostics.is_empty() {
-        return RelpinVerdict::Unsupported {
+        return RelpinVerdict::Unavailable {
             reason: format!(
                 "scratch program has parse errors (first: TS{})",
                 source_file.parse_diagnostics[0].code()
@@ -99,12 +98,12 @@ pub fn probe_relation(query: &RelpinQuery) -> RelpinVerdict {
     let mut state = CheckerState::new(&source_file, &binder, query.options);
 
     let Some(source_annotation) = find_probe_annotation(&source_file, "__relpin_source") else {
-        return RelpinVerdict::Unsupported {
+        return RelpinVerdict::Unavailable {
             reason: "probe source annotation not found in scratch program".to_owned(),
         };
     };
     let Some(target_annotation) = find_probe_annotation(&source_file, "__relpin_target") else {
-        return RelpinVerdict::Unsupported {
+        return RelpinVerdict::Unavailable {
             reason: "probe target annotation not found in scratch program".to_owned(),
         };
     };
@@ -112,16 +111,16 @@ pub fn probe_relation(query: &RelpinQuery) -> RelpinVerdict {
     let source_type = match state.get_type_from_type_node(source_annotation) {
         Ok(ty) => ty,
         Err(err) => {
-            return RelpinVerdict::Unsupported {
-                reason: format!("source type: {}", err.reason),
+            return RelpinVerdict::Unavailable {
+                reason: format!("source type: {err}"),
             }
         }
     };
     let target_type = match state.get_type_from_type_node(target_annotation) {
         Ok(ty) => ty,
         Err(err) => {
-            return RelpinVerdict::Unsupported {
-                reason: format!("target type: {}", err.reason),
+            return RelpinVerdict::Unavailable {
+                reason: format!("target type: {err}"),
             }
         }
     };
@@ -147,7 +146,9 @@ pub fn probe_relation(query: &RelpinQuery) -> RelpinVerdict {
     match related {
         Ok(true) => RelpinVerdict::Related,
         Ok(false) => RelpinVerdict::NotRelated,
-        Err(err) => RelpinVerdict::Unsupported { reason: err.reason },
+        Err(err) => RelpinVerdict::Unavailable {
+            reason: err.to_string(),
+        },
     }
 }
 

@@ -53,7 +53,7 @@ type SpeculativeResolvedTypeWrite = (
 
 // Debug-only census of OPEN `Resolving` sentinels on this thread.
 // Every slot writer below reports its transition; the
-// unsupported-unwind invariant reads the census at element/file
+// abort-unwind invariant reads the census at element/file
 // boundaries (check.rs) — a leaked sentinel after an Err unwind is
 // the "phantom mid-flight state" bug class the Err-revert twins
 // exist for. Thread-local is sound because one program's check runs
@@ -77,7 +77,7 @@ fn note_resolving_transition(before: bool, after: bool) {
     }
 }
 
-/// tsrs-native: debug census accessor for the unsupported-unwind
+/// tsrs-native: debug census accessor for the abort-unwind
 /// invariant (no tsc counterpart). The open-`Resolving` census for
 /// this thread; 0 whenever no resolution is mid-flight. Debug builds
 /// only — release answers 0.
@@ -115,7 +115,7 @@ pub struct NodeLinks {
     /// EnumMember nodes.
     pub enum_member_value: Option<crate::evaluate::EvaluatorResult>,
     /// tsc NodeLinks.flags & EnumValuesComputed (85582) on
-    /// EnumDeclaration nodes. Unlike tsc this REVERTS on Unsupported
+    /// EnumDeclaration nodes. Unlike tsc this REVERTS on CheckAbort
     /// unwind so a later query recomputes the tail of the member list.
     pub enum_values_computed: bool,
     /// tsc NodeLinks.flags (getNodeCheckFlags) — the driver's
@@ -157,7 +157,7 @@ pub struct NodeLinks {
     pub jsx_flags: tsrs2_types::JsxFlags,
     /// tsc links.resolvedJsxElementAttributesType
     /// (getIntrinsicAttributesTypeFromJsxOpeningLikeElement 74731) —
-    /// compute-once; written only on success so an Unsupported unwind
+    /// compute-once; written only on success so a CheckAbort unwind
     /// re-computes.
     pub resolved_jsx_element_attributes_type: Option<TypeId>,
     /// tsc sourceFileLinks.jsxFragmentType (getJSXFragmentType 77373)
@@ -396,7 +396,7 @@ pub struct TypeLinks {
     /// tsc type.simplifiedForReading / simplifiedForWriting
     /// (getSimplifiedIndexedAccessType 62471-62475). Resolving IS
     /// tsc's circularConstraintType in-flight sentinel (re-entry
-    /// returns the type itself); an Unsupported unwind reverts to
+    /// returns the type itself); a CheckAbort unwind reverts to
     /// Vacant per the unwind invariant.
     pub simplified_for_reading: LinkSlot<TypeId>,
     pub simplified_for_writing: LinkSlot<TypeId>,
@@ -1266,7 +1266,7 @@ impl LinksTables {
     }
 
     /// Err-unwind twin for the call protocol: tsc cannot fail inside
-    /// resolveSignature, so an Unsupported unwind that left the
+    /// resolveSignature, so a CheckAbort unwind that left the
     /// sentinel must revert to Vacant — a later query re-resolves and
     /// fails identically instead of observing a phantom mid-flight
     /// sentinel. Only the frame that WROTE the sentinel reverts
@@ -1883,7 +1883,7 @@ impl LinksTables {
     }
 
     /// Err-unwind twin for the variances slot: tsc cannot fail inside
-    /// getVariancesWorker, so a measurement cut short by Unsupported
+    /// getVariancesWorker, so a measurement cut short by CheckAbort
     /// must leave the slot re-queryable — Resolving reverts to Vacant.
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
     /// links-field access; no standalone tsc function.
@@ -2060,7 +2060,7 @@ impl LinksTables {
         self.node.entry(id).or_default().enum_values_computed = true;
     }
 
-    /// Unsupported-unwind twin of set_node_enum_values_computed — the
+    /// CheckAbort-unwind twin of set_node_enum_values_computed — the
     /// once-flag must not stay observable after a failed compute
     /// (member value slots that DID fill are correct facts and stay).
     /// Like every other revert twin this deliberately does NOT assert
@@ -2241,7 +2241,7 @@ impl LinksTables {
     /// tsrs-native: Err-unwind twin for isConstructorDeclaredProperty's leading
     /// false recursion sentinel. TypeScript cannot throw from the
     /// synchronous worker, while Rust's checked dependency chain can
-    /// return Unsupported; a failed computation must remain retryable.
+    /// return CheckAbort; a failed computation must remain retryable.
     pub fn clear_symbol_is_constructor_declared_property(&mut self, id: SymbolId) {
         self.symbol
             .entry(id)
@@ -3012,7 +3012,7 @@ impl LinksTables {
 
     /// tsrs-native: Err-unwind twin for the simplified cache — tsc
     /// cannot fail inside getSimplifiedIndexedAccessType, so an
-    /// Unsupported unwind that left the sentinel must revert to
+    /// CheckAbort unwind that left the sentinel must revert to
     /// Vacant; a later query re-simplifies instead of observing a
     /// phantom mid-flight sentinel.
     pub fn revert_type_simplified(&mut self, id: TypeId, writing: bool) {
@@ -3052,7 +3052,7 @@ impl LinksTables {
     }
 
     /// Err-unwind twin for the late-bind protocol: a container
-    /// resolution cut short by Unsupported must leave every member it
+    /// resolution cut short by CheckAbort must leave every member it
     /// touched re-bindable — a parked memo would short-circuit the
     /// retry's lateBindMember and DROP the member from the rebuilt
     /// late table (5.7b review round #2).
@@ -3706,7 +3706,7 @@ impl LinksTables {
 
     /// The Err-unwind retraction for the members slot: tsc has no
     /// failure mode here (setStructuredTypeMembers always completes),
-    /// so a partially-populated table left by an Unsupported unwind
+    /// so a partially-populated table left by a CheckAbort unwind
     /// must not be observable — the slot reverts to Vacant and a later
     /// query re-resolves.
     /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
@@ -3724,7 +3724,7 @@ impl LinksTables {
     /// here). The declared-members twin of `retract_type_members`:
     /// the 5.9c staged publication (tsc resolveDeclaredMembers fills
     /// the type in place) parks the table before the signature/index
-    /// walks; an Unsupported unwind must leave the slot Vacant, not
+    /// walks; a CheckAbort unwind must leave the slot Vacant, not
     /// partial.
     pub fn retract_type_declared_members(&mut self, id: TypeId) {
         let slot = &mut self.ty.entry(id).or_default().declared_members;

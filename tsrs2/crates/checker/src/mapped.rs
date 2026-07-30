@@ -449,7 +449,7 @@ impl<'a> CheckerState<'a> {
         }
 
         // tsc publishes an empty resolved shell before walking the key
-        // domain so recursive readers terminate. Rust Unsupported
+        // domain so recursive readers terminate. A Rust CheckAbort
         // unwinds retract it, preserving the repository cache protocol.
         let members_id = self.alloc_members(ResolvedMembers::default());
         self.links

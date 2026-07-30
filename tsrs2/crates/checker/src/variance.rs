@@ -9,7 +9,7 @@ use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_types::{ModifierFlags, ObjectFlags, TypeData, TypeFlags, TypeId, VarianceFlags};
 
 use crate::links::LinkSlot;
-use crate::state::{CheckResult2, CheckerState, Unsupported, VarianceHandlerFrame};
+use crate::state::{CheckAbort, CheckResult2, CheckerState, VarianceHandlerFrame};
 
 /// tsc arrayVariances (46460): `[VarianceFlags.Covariant]` — shared by
 /// both global array types and every tuple target
@@ -75,7 +75,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b3d0b6716d244e10697b68ff53caea57f5c265658ccd109699d7b82dc3140e05
     /// tsc-span: _tsc.js:67312-67359
     ///
-    /// The tracing push/pop is elided. On Unsupported unwind the
+    /// The tracing push/pop is elided. On CheckAbort unwind the
     /// Resolving sentinel reverts (tsc cannot fail here) and the
     /// inVarianceComputation/resolutionStart saves are restored on
     /// both paths.
@@ -98,7 +98,7 @@ impl<'a> CheckerState<'a> {
         self.links
             .set_symbol_variances(self.speculation_depth, symbol, LinkSlot::Resolving);
         let mut variances: Vec<VarianceFlags> = Vec::with_capacity(type_parameters.len());
-        let mut failure: Option<Unsupported> = None;
+        let mut failure: Option<CheckAbort> = None;
         for &tp in type_parameters {
             match self.measure_type_parameter_variance(symbol, tp) {
                 Ok(variance) => variances.push(variance),

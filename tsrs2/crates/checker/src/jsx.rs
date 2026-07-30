@@ -22,7 +22,7 @@ use tsrs2_types::{
 use crate::structural::SignatureKind;
 
 use crate::links::LinkSlot;
-use crate::state::{CheckResult2, CheckerState, SignatureId, Unsupported};
+use crate::state::{CheckResult2, CheckerState, SignatureId};
 use tsrs2_diags::gen as diagnostics;
 use tsrs2_diags::MessageChain;
 
@@ -237,9 +237,13 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult2<TypeId> {
-        let parent = self.parent_of(node).ok_or_else(|| {
-            Unsupported::new("JSX attributes without an element (parse recovery)")
-        })?;
+        let Some(parent) = self.parent_of(node) else {
+            // Parsed JsxAttributes are always installed by
+            // parse_jsx_opening_or_self_closing_element_or_opening_fragment.
+            // A detached checker-synthetic attributes node has no
+            // element whose props can be formed.
+            return Ok(self.tables.intrinsics.error);
+        };
         self.create_jsx_attributes_type_from_attributes_property(parent, check_mode)
     }
 
@@ -298,10 +302,15 @@ impl<'a> CheckerState<'a> {
                 NodeData::JsxOpeningElement(data) => data.attributes,
                 NodeData::JsxSelfClosingElement(data) => data.attributes,
                 _ => None,
-            }
-            .ok_or_else(|| {
-                Unsupported::new("JSX opening element without attributes (parse recovery)")
-            })?;
+            };
+            let Some(attributes) = attributes else {
+                // The parser always stores the JsxAttributes node,
+                // including an empty one. For a checker-synthetic
+                // opening node with the slot removed, propagate the
+                // ordinary checker error type instead of inventing a
+                // props object.
+                return Ok(self.tables.intrinsics.error);
+            };
             attributes_symbol = self.node_symbol(attributes);
             attribute_parent = attributes;
             let contextual_type = self.get_contextual_type(attributes, ContextFlags::NONE)?;
@@ -311,10 +320,15 @@ impl<'a> CheckerState<'a> {
             };
             for attribute_decl in self.nodes_of(properties) {
                 if self.kind_of(attribute_decl) == SyntaxKind::JsxAttribute {
-                    let member = self.node_symbol(attribute_decl).ok_or_else(|| {
-                        Unsupported::new("JSX attribute without a bound symbol (parse recovery)")
-                    })?;
                     let expr_type = self.check_jsx_attribute(attribute_decl, check_mode)?;
+                    let Some(member) = self.node_symbol(attribute_decl) else {
+                        // bindJsxAttributes gives every parsed named
+                        // attribute a symbol. A detached synthetic
+                        // attribute has no property to publish; its
+                        // initializer was still checked above, and
+                        // valid siblings continue through the loop.
+                        continue;
+                    };
                     object_flags |=
                         self.tables.object_flags_of(expr_type) & ObjectFlags::PROPAGATING_FLAGS;
                     let member_flags = self.binder.symbol(member).flags;
@@ -405,25 +419,26 @@ impl<'a> CheckerState<'a> {
                                 })
                             }
                             _ => None,
+                        };
+                        // isContextSensitive(JsxAttribute) reaches this
+                        // branch only through an initializer expression.
+                        // A synthetic mismatch has no inference site to
+                        // register; it does not invalidate valid sibling
+                        // sites.
+                        if let Some(initializer_expression) = initializer_expression {
+                            self.add_intra_expression_inference_site(
+                                inference_context,
+                                initializer_expression,
+                                expr_type,
+                            );
                         }
-                        .ok_or_else(|| {
-                            Unsupported::new(
-                                "JSX attribute inference site without an initializer expression (parse recovery)",
-                            )
-                        })?;
-                        self.add_intra_expression_inference_site(
-                            inference_context,
-                            initializer_expression,
-                            expr_type,
-                        );
                     }
                 } else {
-                    // Debug.assert(JsxSpreadAttribute) — recovery kinds
-                    // take a named escape instead of a panic (risk #6).
+                    // parse_jsx_attributes produces only named and
+                    // spread attributes. Ignore one unknown synthetic
+                    // child so valid siblings remain observable.
                     if self.kind_of(attribute_decl) != SyntaxKind::JsxSpreadAttribute {
-                        return Err(Unsupported::new(
-                            "unexpected JSX attribute kind (parse recovery)",
-                        ));
+                        continue;
                     }
                     if !attributes_table.is_empty() {
                         let segment = self.create_jsx_attributes_segment(
@@ -443,10 +458,14 @@ impl<'a> CheckerState<'a> {
                     let expression = match self.data_of(attribute_decl) {
                         NodeData::JsxSpreadAttribute(data) => data.expression,
                         _ => None,
-                    }
-                    .ok_or_else(|| {
-                        Unsupported::new("JSX spread without an expression (parse recovery)")
-                    })?;
+                    };
+                    let Some(expression) = expression else {
+                        // parse_jsx_spread_attribute always stores the
+                        // parsed (possibly missing) expression. A
+                        // synthetic spread without one contributes no
+                        // properties; continue with valid siblings.
+                        continue;
+                    };
                     let inner_mode =
                         CheckMode::from_bits(check_mode.bits() & CheckMode::INFERENTIAL.bits());
                     let raw = self.check_expression(expression, inner_mode)?;
@@ -733,18 +752,23 @@ impl<'a> CheckerState<'a> {
         }
         self.check_jsx_preconditions(node)?;
         self.mark_jsx_alias_referenced(node)?;
+        let tag_name = match self.data_of(node) {
+            NodeData::JsxOpeningElement(data) => data.tag_name,
+            NodeData::JsxSelfClosingElement(data) => data.tag_name,
+            _ => None,
+        };
+        if is_opening_like && tag_name.is_none() {
+            // Parsed opening-like nodes always carry a real or missing
+            // Identifier from parse_jsx_element_name. A synthetic node
+            // without that child has no signature or bound relation to
+            // check; grammar/precondition/factory checks above remain
+            // observable.
+            return Ok(());
+        }
         let signature = self.get_resolved_signature(node, CheckMode::NORMAL)?;
         self.check_deprecated_signature(signature, node)?;
-        if is_opening_like {
+        if let Some(tag_name) = tag_name.filter(|_| is_opening_like) {
             let element_type_constraint = self.get_jsx_element_type_type_at(node)?;
-            let tag_name = match self.data_of(node) {
-                NodeData::JsxOpeningElement(data) => data.tag_name,
-                NodeData::JsxSelfClosingElement(data) => data.tag_name,
-                _ => None,
-            }
-            .ok_or_else(|| {
-                Unsupported::new("JSX opening element without a tag name (parse recovery)")
-            })?;
             if let Some(constraint) = element_type_constraint {
                 let tag_type = if self.is_jsx_intrinsic_tag_name(tag_name) {
                     let text = self.intrinsic_tag_name_to_string(tag_name)?;
@@ -860,7 +884,7 @@ impl<'a> CheckerState<'a> {
                 diagnostic
             }
             // The failed verdict and JSX heads are already exact. A
-            // report-only Unsupported may elide only the relation
+            // report-only CheckAbort may elide only the relation
             // detail; it must not suppress the accepted 2786 row.
             Ok(None) | Err(_) => {
                 let source_text = self.type_to_string_slice(source)?;
@@ -1069,9 +1093,12 @@ impl<'a> CheckerState<'a> {
         match self.data_of(tag_name) {
             NodeData::Identifier(data) => Ok(data.escaped_text.clone()),
             NodeData::JsxNamespacedName(_) => Ok(self.jsx_attribute_name_text(tag_name)),
-            _ => Err(Unsupported::new(
-                "intrinsic tag with a non-identifier name (parse recovery)",
-            )),
+            _ => unreachable!(
+                "caller invariant: parse_jsx_tag_name creates Identifier/JsxNamespacedName and \
+                 is_jsx_intrinsic_tag_name (or get_intrinsic_tag_symbol's equivalent kind \
+                 guard) admits only those; valid PropertyAccess/This value-tag siblings route \
+                 around intrinsic lookup"
+            ),
         }
     }
 
@@ -1103,8 +1130,27 @@ impl<'a> CheckerState<'a> {
             NodeData::JsxSelfClosingElement(data) => data.tag_name,
             NodeData::JsxClosingElement(data) => data.tag_name,
             _ => None,
+        };
+        let Some(tag_name) = tag_name else {
+            // parse_jsx_element_name always supplies opening/closing
+            // tags (the rebalance path supplies an empty Identifier).
+            // A checker-synthetic missing tag has no intrinsic symbol.
+            self.links
+                .set_node_resolved_symbol(self.speculation_depth, node, self.unknown_symbol);
+            return Ok(self.unknown_symbol);
+        };
+        if !matches!(
+            self.data_of(tag_name),
+            NodeData::Identifier(_) | NodeData::JsxNamespacedName(_)
+        ) {
+            // tsc Debug.fail()s on this exact kind guard. Keep
+            // checker-synthetic PropertyAccess/This misuse
+            // identity-free and diagnostic-free; ordinary value-tag
+            // siblings are checked by checkExpression instead.
+            self.links
+                .set_node_resolved_symbol(self.speculation_depth, node, self.unknown_symbol);
+            return Ok(self.unknown_symbol);
         }
-        .ok_or_else(|| Unsupported::new("JSX element without a tag name (parse recovery)"))?;
         let intrinsic_elements_type = self.get_jsx_type(JSX_INTRINSIC_ELEMENTS, node)?;
         let symbol;
         if !self.tables.is_error_type(intrinsic_elements_type) {
@@ -1198,10 +1244,10 @@ impl<'a> CheckerState<'a> {
                 NodeData::JsxOpeningElement(data) => data.tag_name,
                 NodeData::JsxSelfClosingElement(data) => data.tag_name,
                 _ => None,
-            }
-            .ok_or_else(|| {
-                Unsupported::new("JSX opening element without a tag name (parse recovery)")
-            })?;
+            };
+            let Some(tag_name) = tag_name else {
+                return Ok(self.tables.intrinsics.error);
+            };
             let prop_name = self.intrinsic_tag_property_name(tag_name)?;
             let intrinsic_elements_type = self.get_jsx_type(JSX_INTRINSIC_ELEMENTS, node)?;
             self.get_applicable_index_info_for_name(intrinsic_elements_type, &prop_name)?
@@ -1230,11 +1276,13 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(self.tables.intrinsics.any));
         }
         let value = self.string_literal_type_value(ty)?;
-        let escaped = tsrs2_binder::escape_leading_underscores(&value);
-        if let Some(prop) =
-            self.get_property_of_type_full(intrinsic_elements_type, escaped.as_ref())?
-        {
-            return Ok(Some(self.get_type_of_symbol(prop)?));
+        if let Some(value) = value.to_utf8() {
+            let escaped = tsrs2_binder::escape_leading_underscores(&value);
+            if let Some(prop) =
+                self.get_property_of_type_full(intrinsic_elements_type, escaped.as_ref())?
+            {
+                return Ok(Some(self.get_type_of_symbol(prop)?));
+            }
         }
         let string = self.tables.intrinsics.string;
         if let Some(info) = self.get_index_info_of_type(intrinsic_elements_type, string)? {
@@ -1244,7 +1292,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// The StringLiteral payload read.
-    fn string_literal_type_value(&self, ty: TypeId) -> CheckResult2<String> {
+    fn string_literal_type_value(&self, ty: TypeId) -> CheckResult2<tsrs2_types::TemplateText> {
         match &self.tables.type_of(ty).data {
             TypeData::Literal {
                 value: tsrs2_types::LiteralValue::String(value),
@@ -1383,6 +1431,7 @@ impl<'a> CheckerState<'a> {
                 self.get_intrinsic_attributes_type_from_string_literal_type(element_type, caller)?;
             let Some(intrinsic_type) = intrinsic_type else {
                 let value = self.string_literal_type_value(element_type)?;
+                let value = crate::check::string_literal_type_display_text(&value);
                 let container = format!("JSX.{JSX_INTRINSIC_ELEMENTS}");
                 self.error_at(
                     Some(caller),
@@ -1498,10 +1547,12 @@ impl<'a> CheckerState<'a> {
             NodeData::JsxOpeningElement(data) => data.tag_name,
             NodeData::JsxSelfClosingElement(data) => data.tag_name,
             _ => None,
-        }
-        .ok_or_else(|| {
-            Unsupported::new("JSX opening element without a tag name (parse recovery)")
-        })?;
+        };
+        let Some(tag_name) = tag_name else {
+            // With no expression to classify, retain the neutral Mixed
+            // branch used when neither call nor construct wins.
+            return Ok(JsxReferenceKind::Mixed);
+        };
         if self.is_jsx_intrinsic_tag_name(tag_name) {
             return Ok(JsxReferenceKind::Mixed);
         }
@@ -1614,10 +1665,10 @@ impl<'a> CheckerState<'a> {
             NodeData::JsxOpeningElement(data) => data.tag_name,
             NodeData::JsxSelfClosingElement(data) => data.tag_name,
             _ => None,
-        }
-        .ok_or_else(|| {
-            Unsupported::new("JSX opening element without a tag name (parse recovery)")
-        })?;
+        };
+        let Some(tag_name) = tag_name else {
+            return Ok(self.tables.intrinsics.error);
+        };
         if self.is_jsx_intrinsic_tag_name(tag_name) {
             let result =
                 self.get_intrinsic_attributes_type_from_jsx_opening_like_element(context)?;
@@ -1809,13 +1860,10 @@ impl<'a> CheckerState<'a> {
                 // tsc's createTypeReference over a non-generic declared
                 // type reads an undefined `instantiations` map and
                 // throws TypeError — a reachable tsc crash (thisless
-                // non-generic interface as JSX.ElementType), so no
-                // golden can exist; permanent guard, crash-guard
-                // family (m4-end-sweep-steps.md).
-                return Err(Unsupported::new(
-                    "createTypeReference over a non-generic interface \
-                     (tsc TypeError crash guard, parse-recovery-class permanent containment)",
-                ));
+                // non-generic interface as JSX.ElementType). The only
+                // satisfying arity here is zero, so the declared type
+                // is already the complete no-default instantiation.
+                return Ok(Some(declared_managed_type));
             }
             let args = self
                 .fill_missing_type_arguments(
@@ -2974,5 +3022,290 @@ mod tests {
                 [2798]
             );
         });
+    }
+}
+
+#[cfg(test)]
+mod c6_recovery_tests {
+    use tsrs2_binder::bind_source_file;
+    use tsrs2_syntax::nodes::{
+        EmptyStatementData, JsxAttributeData, JsxAttributesData, JsxSelfClosingElementData,
+        JsxSpreadAttributeData,
+    };
+    use tsrs2_syntax::{parse_source_file, LanguageVariant, NodeData, ParseOptions, SyntaxKind};
+    use tsrs2_types::{CheckMode, CompilerOptions, NodeFlags};
+
+    use super::JsxReferenceKind;
+    use crate::state::test_support::with_program_state;
+    use crate::state::CheckerState;
+
+    #[test]
+    fn synthetic_attribute_recovery_preserves_a_bound_sibling() {
+        let mut source = parse_source_file(
+            "jsx-recovery.tsx".to_owned(),
+            "declare namespace JSX { interface Element {} interface IntrinsicElements { x: {} } }\n\
+             declare namespace Ns { const Tag: any; }\n\
+             (<x live />);\n\
+             (<Ns.Tag />);\n"
+                .to_owned(),
+            ParseOptions {
+                language_variant: LanguageVariant::Jsx,
+                javascript_file: false,
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        assert!(source.parse_diagnostics.is_empty());
+
+        let (tag_name, valid_attribute, value_tag_opening) = {
+            let mut intrinsic = None;
+            let mut value = None;
+            for node in source.arena.node_ids() {
+                let NodeData::JsxSelfClosingElement(data) = &source.arena.node(node).data else {
+                    continue;
+                };
+                let Some(tag_name) = data.tag_name else {
+                    continue;
+                };
+                if source.arena.node(tag_name).kind == SyntaxKind::Identifier {
+                    let valid_attribute = data
+                        .attributes
+                        .and_then(|attributes| match &source.arena.node(attributes).data {
+                            NodeData::JsxAttributes(data) => data.properties,
+                            _ => None,
+                        })
+                        .and_then(|properties| {
+                            source.arena.node_array(properties).nodes.first().copied()
+                        })
+                        .expect("bound valid attribute");
+                    intrinsic = Some((tag_name, valid_attribute));
+                } else if source.arena.node(tag_name).kind == SyntaxKind::PropertyAccessExpression {
+                    value = Some(node);
+                }
+            }
+            let (tag_name, valid_attribute) = intrinsic.expect("intrinsic opening");
+            (
+                tag_name,
+                valid_attribute,
+                value.expect("value-tag opening sibling"),
+            )
+        };
+
+        // These nodes are deliberately detached from the parsed root:
+        // the binder therefore leaves the named attribute unbound,
+        // while the parsed `live` sibling retains its real symbol.
+        let unbound_attribute = source.arena.alloc_node(
+            NodeData::JsxAttribute(JsxAttributeData {
+                name: None,
+                initializer: None,
+            }),
+            0,
+            0,
+            NodeFlags::NONE,
+        );
+        let unknown_attribute = source.arena.alloc_node(
+            NodeData::EmptyStatement(EmptyStatementData {}),
+            0,
+            0,
+            NodeFlags::NONE,
+        );
+        let missing_spread = source.arena.alloc_node(
+            NodeData::JsxSpreadAttribute(JsxSpreadAttributeData { expression: None }),
+            0,
+            0,
+            NodeFlags::NONE,
+        );
+        let synthetic_properties = source.arena.alloc_synthetic_array(vec![
+            valid_attribute,
+            unbound_attribute,
+            unknown_attribute,
+            missing_spread,
+        ]);
+        let synthetic_attributes = source.arena.alloc_node(
+            NodeData::JsxAttributes(JsxAttributesData {
+                properties: Some(synthetic_properties),
+            }),
+            0,
+            0,
+            NodeFlags::NONE,
+        );
+        let synthetic_opening = source.arena.alloc_node(
+            NodeData::JsxSelfClosingElement(JsxSelfClosingElementData {
+                tag_name: Some(tag_name),
+                type_arguments: None,
+                attributes: Some(synthetic_attributes),
+            }),
+            0,
+            0,
+            NodeFlags::NONE,
+        );
+        let attributes_missing_opening = source.arena.alloc_node(
+            NodeData::JsxSelfClosingElement(JsxSelfClosingElementData {
+                tag_name: Some(tag_name),
+                type_arguments: None,
+                attributes: None,
+            }),
+            0,
+            0,
+            NodeFlags::NONE,
+        );
+        let tag_missing_opening = source.arena.alloc_node(
+            NodeData::JsxSelfClosingElement(JsxSelfClosingElementData {
+                tag_name: None,
+                type_arguments: None,
+                attributes: Some(synthetic_attributes),
+            }),
+            0,
+            0,
+            NodeFlags::NONE,
+        );
+        // These openings are not reachable from SourceFile.children,
+        // so the binder still leaves their synthetic descendants
+        // unbound. Give the opening-like nodes a lexical parent,
+        // however: resolveName's scope walk is defined only for nodes
+        // whose parent chain terminates at the SourceFile.
+        let source_root = source.root;
+        for opening in [
+            synthetic_opening,
+            attributes_missing_opening,
+            tag_missing_opening,
+        ] {
+            source.arena.node_mut(opening).parent = Some(source_root);
+        }
+
+        let options = CompilerOptions {
+            jsx: Some(1),
+            ..CompilerOptions::default()
+        };
+        let binder = bind_source_file(&source, &options);
+        let mut state = CheckerState::new(&source, &binder, &options);
+
+        assert!(state.node_symbol(valid_attribute).is_some());
+        assert!(state.node_symbol(unbound_attribute).is_none());
+        let recovered = state
+            .create_jsx_attributes_type_from_attributes_property(
+                synthetic_opening,
+                CheckMode::NORMAL,
+            )
+            .expect("synthetic attributes recover without containment");
+        assert!(
+            state
+                .get_property_of_type_full(recovered, "live")
+                .expect("valid property lookup")
+                .is_some(),
+            "malformed synthetic attributes must not discard the bound sibling"
+        );
+
+        let missing_attributes = state
+            .create_jsx_attributes_type_from_attributes_property(
+                attributes_missing_opening,
+                CheckMode::NORMAL,
+            )
+            .expect("missing attributes recover to error type");
+        assert!(state.tables.is_error_type(missing_attributes));
+        let orphan_attributes = state
+            .check_jsx_attributes(synthetic_attributes, CheckMode::NORMAL)
+            .expect("orphan attributes recover to error type");
+        assert!(state.tables.is_error_type(orphan_attributes));
+
+        let diagnostics_before = state.diagnostics.len();
+        assert_eq!(
+            state
+                .get_intrinsic_tag_symbol(tag_missing_opening)
+                .expect("missing intrinsic tag recovers"),
+            state.unknown_symbol
+        );
+        assert_eq!(
+            state
+                .get_jsx_reference_kind(tag_missing_opening)
+                .expect("missing reference tag recovers"),
+            JsxReferenceKind::Mixed
+        );
+        let missing_static = state
+            .get_static_type_of_referenced_jsx_constructor(tag_missing_opening)
+            .expect("missing static tag recovers");
+        assert!(state.tables.is_error_type(missing_static));
+        let missing_intrinsic = state
+            .get_intrinsic_attributes_type_from_jsx_opening_like_element(tag_missing_opening)
+            .expect("missing intrinsic attributes tag recovers");
+        assert!(state.tables.is_error_type(missing_intrinsic));
+        state
+            .check_jsx_opening_like_element_or_opening_fragment(tag_missing_opening)
+            .expect("missing opening tag uses local no-signature recovery");
+        assert_eq!(state.diagnostics.len(), diagnostics_before);
+
+        let value_tag_name = match state.data_of(value_tag_opening) {
+            NodeData::JsxSelfClosingElement(data) => data.tag_name.expect("value tag"),
+            _ => unreachable!("selected a self-closing element"),
+        };
+        assert!(!state.is_jsx_intrinsic_tag_name(value_tag_name));
+        let diagnostics_before = state.diagnostics.len();
+        assert_eq!(
+            state
+                .get_intrinsic_tag_symbol(value_tag_opening)
+                .expect("intrinsic-only helper misuse recovers"),
+            state.unknown_symbol
+        );
+        assert_eq!(state.diagnostics.len(), diagnostics_before);
+    }
+
+    #[test]
+    fn non_generic_interface_element_type_uses_its_declared_type() {
+        let options = CompilerOptions {
+            jsx: Some(1),
+            ..CompilerOptions::default()
+        };
+        with_program_state(
+            &[(
+                "a.tsx",
+                "declare namespace JSX { interface Element {} interface ElementType {} interface IntrinsicElements { x: {} } }\n(<x />);\n",
+            )],
+            &options,
+            |state| {
+                let (opening, element_type_declaration) = {
+                    let source = state.binder.source(0);
+                    let opening = source
+                        .arena
+                        .node_ids()
+                        .find(|&node| {
+                            source.arena.node(node).kind == SyntaxKind::JsxSelfClosingElement
+                        })
+                        .expect("JSX opening");
+                    let declaration = source
+                        .arena
+                        .node_ids()
+                        .find(|&node| match &source.arena.node(node).data {
+                            NodeData::InterfaceDeclaration(data) => {
+                                data.name.is_some_and(|name| {
+                                    matches!(
+                                        &source.arena.node(name).data,
+                                        NodeData::Identifier(data)
+                                            if data.escaped_text == "ElementType"
+                                    )
+                                })
+                            }
+                            _ => false,
+                        })
+                        .expect("ElementType interface");
+                    (opening, declaration)
+                };
+                let symbol = state
+                    .get_symbol_of_declaration(element_type_declaration)
+                    .expect("ElementType symbol");
+                let declared = state
+                    .get_declared_type_of_symbol_slice(symbol)
+                    .expect("declared ElementType");
+                let recovered = state
+                    .instantiate_alias_or_interface_with_defaults(symbol, false, &[])
+                    .expect("non-generic interface recovery")
+                    .expect("zero-argument instantiation");
+                assert_eq!(recovered, declared);
+                let constraint = state
+                    .get_jsx_element_type_type_at(opening)
+                    .expect("non-generic interface recovery")
+                    .expect("ElementType is present");
+                assert_eq!(constraint, declared);
+            },
+        );
     }
 }

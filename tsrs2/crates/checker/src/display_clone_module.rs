@@ -16,7 +16,9 @@ struct DisplayCloneModulePrinter<'state, 'program> {
 }
 
 impl<'program> CheckerState<'program> {
-    /// tsc-port: module/import/export standard-printer closure @6.0.3.
+    /// tsrs-native: module-statement compartment adapter into the exact
+    /// standard-printer closure ledgered by
+    /// display_clone_expression_text_at_line_start.
     ///
     /// The caller owns the pending line-start indentation. Indentation and
     /// line-start state are restored even when a malformed child requests the

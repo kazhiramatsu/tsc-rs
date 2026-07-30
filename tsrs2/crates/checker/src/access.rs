@@ -20,7 +20,7 @@ use tsrs2_types::{
     TypeFlags, TypeId, UnionReduction,
 };
 
-use crate::state::{CheckResult2, CheckerState, SignatureId, Unsupported};
+use crate::state::{CheckResult2, CheckerState, SignatureId};
 
 impl<'a> CheckerState<'a> {
     /// tsc-port: entityNameToString @6.0.3
@@ -53,14 +53,22 @@ impl<'a> CheckerState<'a> {
                 let NodeData::QualifiedName(data) = self.data_of(node) else {
                     unreachable!("kind/data agree");
                 };
-                let (Some(left), Some(right)) = (data.left, data.right) else {
-                    return Err(Unsupported::new("entityNameToString on recovery node"));
-                };
-                Ok(format!(
-                    "{}.{}",
-                    self.entity_name_to_string(left)?,
-                    self.entity_name_to_string(right)?
-                ))
+                // A parsed missing identifier is a zero-width node whose
+                // `idText` is empty. Checker-synthetic recovery nodes can
+                // instead omit either slot, so mirror the same observable
+                // spelling without turning the whole source file into an
+                // checker abort.
+                let left = data
+                    .left
+                    .map(|left| self.entity_name_to_string(left))
+                    .transpose()?
+                    .unwrap_or_default();
+                let right = data
+                    .right
+                    .map(|right| self.entity_name_to_string(right))
+                    .transpose()?
+                    .unwrap_or_default();
+                Ok(format!("{left}.{right}"))
             }
             SyntaxKind::JsxNamespacedName => {
                 let NodeData::JsxNamespacedName(data) = self.data_of(node) else {
@@ -86,14 +94,17 @@ impl<'a> CheckerState<'a> {
                 let NodeData::PropertyAccessExpression(data) = self.data_of(node) else {
                     unreachable!("kind/data agree");
                 };
-                let (Some(expression), Some(name)) = (data.expression, data.name) else {
-                    return Err(Unsupported::new("entityNameToString on recovery node"));
-                };
-                Ok(format!(
-                    "{}.{}",
-                    self.entity_name_to_string(expression)?,
-                    self.entity_name_to_string(name)?
-                ))
+                let expression = data
+                    .expression
+                    .map(|expression| self.entity_name_to_string(expression))
+                    .transpose()?
+                    .unwrap_or_default();
+                let name = data
+                    .name
+                    .map(|name| self.entity_name_to_string(name))
+                    .transpose()?
+                    .unwrap_or_default();
+                Ok(format!("{expression}.{name}"))
             }
             SyntaxKind::JSDocMemberName => {
                 let NodeData::JSDocMemberName(data) = self.data_of(node) else {
@@ -301,10 +312,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkNonNullTypeWithReporter @6.0.3
     /// tsc-hash: 0754bf4b1a28b608ede342e0351520d32e9eb7561e782250fc9311d73108f497
     /// tsc-span: _tsc.js:75028-75050
-    ///
-    /// The Invoke reporter flavor (2721/2722/2723) is the [CALLS 5.7]
-    /// consumer — the reporter parameter keeps its seam. (The
-    /// [FLOW M5] narrowable-receiver gates retired at 6.6f.)
     pub(crate) fn check_non_null_type_with_reporter(
         &mut self,
         ty: TypeId,
@@ -315,13 +322,6 @@ impl<'a> CheckerState<'a> {
             .options
             .strict_option_value(self.options.strict_null_checks);
         if strict_null_checks && self.tables.flags_of(ty).intersects(TypeFlags::UNKNOWN) {
-            // 6.6f: syntax-probe gate → flag-exact containment.
-            if self.flow_answer_is_seam_reverted(node) {
-                return Err(Unsupported::new(
-                    "unknown-receiver report over a seam-reverted flow answer \
-                     (unported narrowing dependency, M6/M8 seam)",
-                ));
-            }
             if self.is_entity_name_expression(node) {
                 let node_text = self.entity_name_to_string(node)?;
                 if node_text.encode_utf16().count() < 100 {
@@ -342,13 +342,6 @@ impl<'a> CheckerState<'a> {
         }
         let facts = self.get_type_facts(ty, TypeFacts::IS_UNDEFINED_OR_NULL)?;
         if facts.intersects(TypeFacts::IS_UNDEFINED_OR_NULL) {
-            // 6.6f: syntax-probe gate → flag-exact containment.
-            if self.flow_answer_is_seam_reverted(node) {
-                return Err(Unsupported::new(
-                    "nullable-receiver report over a seam-reverted flow answer \
-                     (unported narrowing dependency, M6/M8 seam)",
-                ));
-            }
             report_error(self, node, facts)?;
             let t = self.get_non_nullable_type(ty)?;
             return Ok(
@@ -396,13 +389,6 @@ impl<'a> CheckerState<'a> {
             .flags_of(non_null_type)
             .intersects(TypeFlags::VOID)
         {
-            // 6.6f: syntax-probe gate → flag-exact containment.
-            if self.flow_answer_is_seam_reverted(node) {
-                return Err(Unsupported::new(
-                    "void-receiver report over a seam-reverted flow answer \
-                     (unported narrowing dependency, M6/M8 seam)",
-                ));
-            }
             if self.is_entity_name_expression(node) {
                 let node_text = self.entity_name_to_string(node)?;
                 if self.kind_of(node) == SyntaxKind::Identifier && node_text == "undefined" {
@@ -435,9 +421,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b3748b887956c0833de220ae247af85d956add778ef31dd09c491063e8aaf39b
     /// tsc-span: _tsc.js:75022-75027
     ///
-    /// The Invoke reporter flavor (resolveCallExpression 77002) — the
-    /// flag-exact seam containment (6.6f, ex-[FLOW M5] gate) rides in
-    /// check_non_null_type_with_reporter unchanged.
+    /// Invoke diagnostics reuse the reporter parameter of
+    /// check_non_null_type_with_reporter.
     pub(crate) fn report_cannot_invoke_possibly_null_or_undefined_error(
         &mut self,
         node: NodeId,
@@ -1060,7 +1045,11 @@ impl<'a> CheckerState<'a> {
             unreachable!("kind/data agree");
         };
         let Some(expression) = data.expression else {
-            return Err(Unsupported::new("NonNullExpression recovery node"));
+            // Parsed non-null expressions always carry an operand (a
+            // missing expression is represented by a zero-width node).
+            // Checker-synthetic recovery shapes can omit it; their
+            // deterministic semantic value is errorType.
+            return Ok(self.tables.intrinsics.error);
         };
         let source = self.binder.source_of_node(node);
         if node_util::node_flags(source, node).intersects(NodeFlags::OPTIONAL_CHAIN) {
@@ -1082,9 +1071,12 @@ impl<'a> CheckerState<'a> {
 #[cfg(test)]
 mod c0_entity_name_recovery_tests {
     use tsrs2_binder::bind_source_file;
-    use tsrs2_syntax::nodes::{EmptyStatementData, JsxNamespacedNameData};
+    use tsrs2_syntax::nodes::{
+        ElementAccessExpressionData, EmptyStatementData, JsxNamespacedNameData,
+        NonNullExpressionData, PropertyAccessExpressionData, QualifiedNameData,
+    };
     use tsrs2_syntax::{parse_source_file, LanguageVariant, NodeData, ParseOptions, SyntaxKind};
-    use tsrs2_types::{CompilerOptions, NodeFlags};
+    use tsrs2_types::{CheckMode, CompilerOptions, NodeFlags};
 
     use crate::state::CheckerState;
 
@@ -1121,9 +1113,74 @@ mod c0_entity_name_recovery_tests {
             5,
             NodeFlags::NONE,
         );
+        let missing_qualified_name = source.arena.alloc_node(
+            NodeData::QualifiedName(QualifiedNameData {
+                left: Some(identifier),
+                right: None,
+            }),
+            0,
+            5,
+            NodeFlags::NONE,
+        );
+        let missing_property_name = source.arena.alloc_node(
+            NodeData::PropertyAccessExpression(PropertyAccessExpressionData {
+                expression: Some(identifier),
+                name: None,
+                question_dot_token: None,
+            }),
+            0,
+            5,
+            NodeFlags::NONE,
+        );
+        let missing_property_chain_name = source.arena.alloc_node(
+            NodeData::PropertyAccessExpression(PropertyAccessExpressionData {
+                expression: Some(identifier),
+                name: None,
+                question_dot_token: None,
+            }),
+            0,
+            5,
+            NodeFlags::OPTIONAL_CHAIN,
+        );
+        let missing_non_null_operand = source.arena.alloc_node(
+            NodeData::NonNullExpression(NonNullExpressionData { expression: None }),
+            0,
+            5,
+            NodeFlags::NONE,
+        );
+        let missing_element_receiver = source.arena.alloc_node(
+            NodeData::ElementAccessExpression(ElementAccessExpressionData {
+                expression: None,
+                question_dot_token: None,
+                argument_expression: Some(identifier),
+            }),
+            0,
+            5,
+            NodeFlags::NONE,
+        );
+        let missing_element_argument = source.arena.alloc_node(
+            NodeData::ElementAccessExpression(ElementAccessExpressionData {
+                expression: Some(identifier),
+                question_dot_token: None,
+                argument_expression: None,
+            }),
+            0,
+            5,
+            NodeFlags::NONE,
+        );
+        let missing_element_chain_receiver = source.arena.alloc_node(
+            NodeData::ElementAccessExpression(ElementAccessExpressionData {
+                expression: None,
+                question_dot_token: None,
+                argument_expression: Some(identifier),
+            }),
+            0,
+            5,
+            NodeFlags::OPTIONAL_CHAIN,
+        );
         let options = CompilerOptions::default();
         let binder = bind_source_file(&source, &options);
-        let state = CheckerState::new(&source, &binder, &options);
+        let mut state = CheckerState::new(&source, &binder, &options);
 
         assert_eq!(
             state
@@ -1139,10 +1196,51 @@ mod c0_entity_name_recovery_tests {
         );
         assert_eq!(
             state
+                .entity_name_to_string(missing_qualified_name)
+                .expect("missing qualified child recovers"),
+            "alpha."
+        );
+        assert_eq!(
+            state
+                .entity_name_to_string(missing_property_name)
+                .expect("missing property child recovers"),
+            "alpha."
+        );
+        assert_eq!(
+            state
                 .entity_name_to_string(non_entity)
                 .expect("unexpected entity kind retains source text"),
             "alpha"
         );
+        for recovered in [
+            state
+                .check_non_null_assertion(missing_non_null_operand)
+                .expect("missing non-null operand"),
+            state
+                .check_property_access_expression(missing_property_name, CheckMode::NORMAL, false)
+                .expect("missing property name"),
+            state
+                .check_property_access_expression(
+                    missing_property_chain_name,
+                    CheckMode::NORMAL,
+                    false,
+                )
+                .expect("missing property chain name"),
+            state
+                .check_qualified_name(missing_qualified_name, CheckMode::NORMAL)
+                .expect("missing qualified name"),
+            state
+                .check_indexed_access(missing_element_receiver, CheckMode::NORMAL)
+                .expect("missing element receiver"),
+            state
+                .check_indexed_access(missing_element_argument, CheckMode::NORMAL)
+                .expect("missing element argument"),
+            state
+                .check_indexed_access(missing_element_chain_receiver, CheckMode::NORMAL)
+                .expect("missing element-chain receiver"),
+        ] {
+            assert!(state.tables.is_error_type(recovered));
+        }
     }
 }
 
@@ -1162,7 +1260,7 @@ impl<'a> CheckerState<'a> {
             unreachable!("kind/data agree");
         };
         let (Some(expression), Some(name)) = (data.expression, data.name) else {
-            return Err(Unsupported::new("PropertyAccessExpression recovery node"));
+            return Ok(self.tables.intrinsics.error);
         };
         let source = self.binder.source_of_node(node);
         if node_util::node_flags(source, node).intersects(NodeFlags::OPTIONAL_CHAIN) {
@@ -1183,7 +1281,7 @@ impl<'a> CheckerState<'a> {
             unreachable!("kind/data agree");
         };
         let (Some(expression), Some(name)) = (data.expression, data.name) else {
-            return Err(Unsupported::new("PropertyAccessExpression recovery node"));
+            return Ok(self.tables.intrinsics.error);
         };
         let left_type = self.check_expression(expression, CheckMode::NORMAL)?;
         let non_optional_type = self.get_optional_expression_type(left_type, expression)?;
@@ -1206,7 +1304,7 @@ impl<'a> CheckerState<'a> {
             unreachable!("kind/data agree");
         };
         let (Some(left), Some(right)) = (data.left, data.right) else {
-            return Err(Unsupported::new("QualifiedName recovery node"));
+            return Ok(self.tables.intrinsics.error);
         };
         let source = self.binder.source_of_node(node);
         let left_type =
@@ -2308,14 +2406,6 @@ impl<'a> CheckerState<'a> {
                 if !right_text.is_empty()
                     && !self.check_and_report_error_for_extending_interface(node)?
                 {
-                    // 6.6f: syntax-probe gate → flag-exact
-                    // containment for the miss face.
-                    if self.flow_answer_is_seam_reverted(left) {
-                        return Err(Unsupported::new(
-                            "property miss over a seam-reverted flow answer \
-                             (unported narrowing dependency, M6/M8 seam)",
-                        ));
-                    }
                     // JS assignment-declared members: tsc's binder
                     // turns `C.staticProp = 0` in a .js file into a
                     // A resolver-suppressed module augmentation never
@@ -2326,10 +2416,14 @@ impl<'a> CheckerState<'a> {
                     if self
                         .unresolved_module_augmentation_may_add_property(left_type, &right_text)?
                     {
-                        return Err(Unsupported::new(
-                            "property miss under an unresolved module augmentation \
-                             (node_modules resolver band, M8)",
-                        ));
+                        // tsc has already merged this exact member (or
+                        // applicable index signature) from the resolved
+                        // augmentation. Our in-memory resolver records
+                        // that resolver-suppressed merge separately, so
+                        // preserve the same no-diagnostic result with the
+                        // ordinary error type rather than aborting the
+                        // source-file check.
+                        return Ok(self.tables.intrinsics.error);
                     }
                     let report_target = if self.is_this_type_parameter(left_type) {
                         apparent_type
@@ -2598,9 +2692,6 @@ impl<'a> CheckerState<'a> {
             prop_type
         };
         let flow_type = self.get_flow_type_of_reference(node, prop_type, initial_type, None)?;
-        // Captured IMMEDIATELY (see check_identifier: nested queries
-        // overwrite the mirror).
-        let flow_query_inert = self.flow_last_query_inert;
         if assume_uninitialized
             && !self.contains_undefined_type(prop_type)
             && self.contains_undefined_type(flow_type)
@@ -2618,19 +2709,6 @@ impl<'a> CheckerState<'a> {
                 &[&display],
             );
             return Ok(prop_type);
-        }
-        if assume_uninitialized && !self.contains_undefined_type(prop_type) && flow_query_inert {
-            // 6.2 seam: the walk crossed a still-inert condition/
-            // switch arm (flow.rs reverted its answer to the declared
-            // type; joins are live since 6.3), so a condition-
-            // dependent 2565 is undecidable until 6.4 — keep the
-            // position partial instead of misreporting in either
-            // direction. (The reason string is a stable seam-era
-            // label; it retires whole with the flag at 6.4.)
-            self.mark_partially_checked_node(
-                node,
-                "flow-sensitive property use-before-assignment diagnostic (M6/M8 seam)",
-            );
         }
         if assignment_kind != crate::expr::AssignmentKind::None {
             self.get_base_type_of_literal_type(flow_type)
@@ -3374,76 +3452,6 @@ impl<'a> CheckerState<'a> {
         containing_type: TypeId,
         is_unchecked_js: bool,
     ) -> CheckResult2<()> {
-        // 6.6f, consult rebuilt at m6 7.6: a NEVER receiver whose
-        // reference DECLARES a non-never type went never through OUR
-        // narrowing. Genuinely-never receivers (declared never)
-        // report, and so does a declared type with NO intersection
-        // constituent anywhere (the double-typeof face) — the
-        // reduction family cannot be involved. For intersection-
-        // bearing declared types the getReducedType never-reduction
-        // (59287-59297, live since the M4-review E4 slice) is now
-        // CONSULTED: when the declared type or one of its intersection
-        // members reduces to never, tsc's own lookup at this access
-        // collapses the same way (property lookups run over the
-        // reduced type), so the 2339-band report is row-faithful and
-        // proceeds. Only a port-narrowed never whose declared type
-        // does NOT reduce keeps the containment — that shape would be
-        // a narrowing divergence, not a reduction face.
-        if self
-            .tables
-            .flags_of(containing_type)
-            .intersects(TypeFlags::NEVER)
-        {
-            let declared = self
-                .parent_of(prop_node)
-                .and_then(|access| match self.data_of(access) {
-                    NodeData::PropertyAccessExpression(data) => data.expression,
-                    NodeData::ElementAccessExpression(data) => data.expression,
-                    _ => None,
-                })
-                .and_then(|receiver| self.links.node(receiver).resolved_symbol.resolved())
-                .map(|symbol| self.get_type_of_symbol(symbol))
-                .transpose()?;
-            let reduction_involved = declared.is_some_and(|declared| {
-                let flags = self.tables.flags_of(declared);
-                if flags.intersects(TypeFlags::NEVER) {
-                    return false;
-                }
-                if flags.intersects(TypeFlags::INTERSECTION) {
-                    return true;
-                }
-                if flags.intersects(TypeFlags::UNION) {
-                    if let tsrs2_types::TypeData::Union { types, .. } =
-                        &self.tables.type_of(declared).data
-                    {
-                        return types.iter().any(|&member| {
-                            self.tables
-                                .flags_of(member)
-                                .intersects(TypeFlags::INTERSECTION)
-                        });
-                    }
-                }
-                false
-            });
-            if reduction_involved {
-                // The consult mirrors the WHOLE-type reduction: only
-                // when the declared type itself collapses does tsc's
-                // lookup fail the same way. A union that merely
-                // CONTAINS never-reduced intersections reduces to its
-                // surviving members (getReducedUnionType drops them),
-                // and tsc then resolves the property on the survivors
-                // — a verdict this never-consult cannot reproduce, so
-                // that face keeps the containment.
-                let reduced =
-                    self.get_reduced_type(declared.expect("reduction_involved implies declared"))?;
-                if !self.tables.flags_of(reduced).intersects(TypeFlags::NEVER) {
-                    return Err(Unsupported::new(
-                        "never-narrowed receiver whose declared type survives \
-                         reduction (narrowing-divergence shield, M8 audit)",
-                    ));
-                }
-            }
-        }
         let cache_key = format!("{}|{}", containing_type.0, is_unchecked_js);
         if !self.links.insert_node_non_existent_prop_key(
             self.speculation_depth,
@@ -3928,7 +3936,7 @@ impl<'a> CheckerState<'a> {
             unreachable!("kind/data agree");
         };
         let Some(expression) = data.expression else {
-            return Err(Unsupported::new("ElementAccessExpression recovery node"));
+            return Ok(self.tables.intrinsics.error);
         };
         let expr_type = self.check_non_null_expression(expression)?;
         self.check_element_access_expression(node, expr_type, check_mode)
@@ -3943,7 +3951,7 @@ impl<'a> CheckerState<'a> {
             unreachable!("kind/data agree");
         };
         let Some(expression) = data.expression else {
-            return Err(Unsupported::new("ElementAccessExpression recovery node"));
+            return Ok(self.tables.intrinsics.error);
         };
         let expr_type = self.check_expression(expression, CheckMode::NORMAL)?;
         let non_optional_type = self.get_optional_expression_type(expr_type, expression)?;
@@ -3964,7 +3972,7 @@ impl<'a> CheckerState<'a> {
         let (Some(_expression), Some(index_expression)) =
             (data.expression, data.argument_expression)
         else {
-            return Err(Unsupported::new("ElementAccessExpression recovery node"));
+            return Ok(self.tables.intrinsics.error);
         };
         // checkElementAccessExpression receiver widening (75720):
         // assignment targets and method-call receivers read the
@@ -4482,10 +4490,8 @@ mod tests {
     #[test]
     fn double_narrowed_never_receiver_reports_2339() {
         // reportNonexistentProperty reports on never receivers
-        // (75416); only intersection-bearing declared types defer to
-        // the narrowing-divergence shield (6.6 review D3, consult
-        // rebuilt at m6 7.6; oracle-pinned vs vendored tsc 6.0.3
-        // noLib).
+        // (75416), including values narrowed from a non-never
+        // declaration. Oracle-pinned vs vendored tsc 6.0.3, noLib.
         assert_eq!(
             checked_rows(
                 "declare const x: string | number;\nif (typeof x === \"string\") { if (typeof x === \"number\") { x.toFixed; } }\n"
@@ -4518,6 +4524,32 @@ mod tests {
             assert_eq!(
                 diag.message.next[0].text,
                 "The intersection 'AB' was reduced to 'never' because property 'kind' has conflicting types in some constituents."
+            );
+        });
+    }
+
+    #[test]
+    fn never_narrowed_union_with_reduced_member_reports_2339() {
+        // getReducedUnionType drops the impossible `Bad` member, after
+        // which the negative discriminant branch narrows the surviving
+        // member to never. tsc still runs reportNonexistentProperty on
+        // that never receiver; this used to stop at the M8 narrowing
+        // shield instead.
+        let text = "type Bad = { kind: \"a\" } & { kind: \"b\" };\n\
+                    type U = Bad | { kind: \"c\" };\n\
+                    declare const x: U;\n\
+                    if (x.kind !== \"c\") { x.q; }\n";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            assert!(
+                state.diagnostics.iter().any(|diag| diag.code() == 2339),
+                "{:#?}",
+                state.diagnostics
+            );
+            assert!(
+                state.partial_check_records.is_empty(),
+                "{:#?}",
+                state.partial_check_records
             );
         });
     }

@@ -24,7 +24,8 @@ struct DisplayCloneBodyPrinter<'state, 'program> {
 }
 
 impl<'program> CheckerState<'program> {
-    /// tsc-port: body-bearing emitExpression/emitStatement closure @6.0.3.
+    /// tsrs-native: compartment adapter into the exact standard-printer
+    /// closure ledgered by display_clone_expression_text_at_line_start.
     ///
     /// The expression half calls this for FunctionExpression, ArrowFunction,
     /// ClassExpression, and object-literal method/accessor members. The same
@@ -37,6 +38,7 @@ impl<'program> CheckerState<'program> {
         DisplayCloneBodyPrinter { state: self }.node(node)
     }
 
+    /// tsrs-native: line-start state adapter into the body-printer compartment.
     pub(crate) fn display_clone_body_node_text_at_line_start(
         &mut self,
         node: NodeId,
@@ -51,6 +53,7 @@ impl<'program> CheckerState<'program> {
         result
     }
 
+    /// tsrs-native: computed-name adapter into the body-printer compartment.
     pub(crate) fn display_clone_computed_property_expression_text(
         &mut self,
         expression: NodeId,
@@ -63,6 +66,7 @@ impl<'program> CheckerState<'program> {
         result
     }
 
+    /// tsrs-native: Rust node-list adapter into the body-printer compartment.
     pub(crate) fn display_clone_parameter_nodes_text(
         &mut self,
         nodes: Vec<NodeId>,
@@ -74,6 +78,7 @@ impl<'program> CheckerState<'program> {
         result
     }
 
+    /// tsrs-native: function-body adapter into the body-printer compartment.
     pub(crate) fn display_clone_function_body_text(
         &mut self,
         node: NodeId,

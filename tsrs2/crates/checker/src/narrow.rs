@@ -12,15 +12,6 @@
 //! aliased &&/||), typeof, the switch family (+ exhaustiveness,
 //! pulled forward from 6.6), effects signatures + type predicates +
 //! the call arm, optionality, and the const-variable guard inlining.
-//! The query flag (`FlowQuery::traversed_inert_arm`) survives as the
-//! narrow DEFERRAL channel for the remaining producers: the
-//! synthetic-reference generic-union-constraint guard, M8-dependency
-//! unwinds, and parser-recovery shapes (the M6 body-inference
-//! producer retired at 7.6 — getTypePredicateFromBody is LIVE and
-//! get_effects_signature decides exactly). The [FLOW M5] failure-face
-//! gates retire at 6.6 (they still shield the reachability
-//! true-stub's dead-code divergence — m5-flow-steps.md 6.4 landing
-//! note).
 
 use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
@@ -102,7 +93,7 @@ impl<'a> CheckerState<'a> {
                                         // tsc's && chain consults
                                         // isConstantReference LAST — its
                                         // binding-pattern arm is the
-                                        // Unsupported escape, so reaching it
+                                        // checker abort, so reaching it
                                         // for annotated/initializer-less
                                         // consts would widen that channel
                                         // beyond tsc. A synthetic
@@ -162,12 +153,9 @@ impl<'a> CheckerState<'a> {
                 };
                 match inner {
                     Some(inner) => self.narrow_type(query, ty, inner, assume_true),
-                    None => {
-                        // Parser-recovery wrapper with no operand —
-                        // tsc always has one; unreproducible, flag.
-                        query.traversed_inert_arm = true;
-                        Ok(ty)
-                    }
+                    // The parser normally supplies a missing operand
+                    // node; a synthetic absent slot narrows nothing.
+                    None => Ok(ty),
                 }
             }
             SyntaxKind::BinaryExpression => {
@@ -179,14 +167,8 @@ impl<'a> CheckerState<'a> {
                     _ => (SyntaxKind::Unknown, None),
                 };
                 if operator == SyntaxKind::ExclamationToken {
-                    match operand {
-                        Some(operand) => {
-                            return self.narrow_type(query, ty, operand, !assume_true);
-                        }
-                        None => {
-                            // Parser-recovery `!` with no operand.
-                            query.traversed_inert_arm = true;
-                        }
+                    if let Some(operand) = operand {
+                        return self.narrow_type(query, ty, operand, !assume_true);
                     }
                 }
                 Ok(ty)
@@ -518,7 +500,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// The operator dispatch: assignments recurse through the RHS
     /// then truthiness-narrow the LHS; (in)equality tries typeof
-    /// forms (6.4d stub), matching-reference equality, optional-chain
+    /// forms, matching-reference equality, optional-chain
     /// containment, discriminant properties, `.constructor`
     /// comparisons, and boolean-literal comparisons; `instanceof`/`in`
     /// take their own narrowers; comma recurses right; aliased
@@ -538,9 +520,8 @@ impl<'a> CheckerState<'a> {
         let (Some(expr_left), Some(operator_token), Some(expr_right)) =
             (left, operator_token, right)
         else {
-            // Parser-recovery binary with missing pieces — tsc always
-            // has all three; unreproducible, flag.
-            query.traversed_inert_arm = true;
+            // The parser normally supplies missing operand/token
+            // nodes; a synthetic absent slot narrows nothing.
             return Ok(ty);
         };
         match self.kind_of(operator_token) {
@@ -788,11 +769,9 @@ impl<'a> CheckerState<'a> {
             _ => None,
         };
         let Some(operand) = operand else {
-            query.traversed_inert_arm = true;
             return Ok(ty);
         };
         let Some(literal_text) = self.string_literal_text(literal) else {
-            query.traversed_inert_arm = true;
             return Ok(ty);
         };
         let target = self.get_reference_candidate(operand);
@@ -1189,7 +1168,7 @@ impl<'a> CheckerState<'a> {
     /// noLib miss reports the locationless 2318, a non-alias or
     /// wrong-arity global Record reports 2317 and skips the widening
     /// — each once (the memo holds the unknownSymbol verdict; an
-    /// Unsupported unwind stays unmemoized).
+    /// a checker-abort unwind stays unmemoized).
     fn get_global_record_symbol(&mut self) -> CheckResult2<Option<SymbolId>> {
         if let Some(memo) = self.deferred_global_record_symbol {
             return Ok(memo);
@@ -1916,7 +1895,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:69937-69947
     ///
     /// links.switchTypes lives state-side (see switch_types_cache);
-    /// written only on full success so an Unsupported unwind
+    /// written only on full success so a checker-abort unwind
     /// recomputes.
     pub(crate) fn get_switch_clause_types(
         &mut self,

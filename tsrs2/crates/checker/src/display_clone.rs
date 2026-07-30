@@ -68,6 +68,7 @@ impl<'program> CheckerState<'program> {
     /// The standard printer's range-line probes operate on a range's
     /// trivia-skipped start. Parser positions are bytes in this port, while
     /// `LineMap` (like tsc) is indexed in UTF-16.
+    /// tsrs-native: byte-to-UTF-16 line-map adapter for printer range probes.
     pub(crate) fn display_clone_start_line(&self, node: NodeId) -> Option<usize> {
         let source = self.binder.source_of_node(node);
         let record = source.arena.node(node);
@@ -79,6 +80,7 @@ impl<'program> CheckerState<'program> {
     }
 
     /// The standard printer compares range ends without skipping trivia.
+    /// tsrs-native: byte-to-UTF-16 line-map adapter for printer range probes.
     pub(crate) fn display_clone_end_line(&self, node: NodeId) -> Option<usize> {
         let source = self.binder.source_of_node(node);
         let record = source.arena.node(node);
@@ -90,6 +92,7 @@ impl<'program> CheckerState<'program> {
 
     /// `createTextWriter("")` drops the newline bytes but still emits four
     /// spaces at the next write for every active indentation level.
+    /// tsrs-native: string projection of the empty-newline writer's indent.
     pub(crate) fn display_clone_line_indent(&self) -> String {
         "    ".repeat(self.slice_display_clone_indent)
     }
@@ -1783,6 +1786,8 @@ impl DisplayClonePrinter<'_, '_> {
 
     /// tsc-port: getLeadingLineTerminatorCount @6.0.3 for parsed
     /// PreserveLines expression lists.
+    /// tsc-hash: 893244ddd50971f9938c07f3bb0b10b520dfbf70880816b69aa4b00cc1384819
+    /// tsc-span: _tsc.js:120268-120300
     fn list_has_leading_line(&self, parent: NodeId, first: NodeId, prefer_new_line: bool) -> bool {
         if prefer_new_line {
             return true;
@@ -1803,6 +1808,8 @@ impl DisplayClonePrinter<'_, '_> {
 
     /// tsc-port: getSeparatingLineTerminatorCount @6.0.3 for parsed
     /// PreserveLines expression lists.
+    /// tsc-hash: 78d63da04f114ae40f8ad9f012131e94a83000cf268d393c5608372aab734539
+    /// tsc-span: _tsc.js:120301-120329
     fn list_has_separating_line(
         &self,
         previous: NodeId,
@@ -1832,6 +1839,8 @@ impl DisplayClonePrinter<'_, '_> {
 
     /// tsc-port: getClosingLineTerminatorCount @6.0.3 for parsed
     /// PreserveLines expression lists.
+    /// tsc-hash: 30b0be7e1586d76d08caeaa3f4605323147137e9c73a0bd825dd3c92881635dc
+    /// tsc-span: _tsc.js:120330-120360
     fn list_has_closing_line(&self, parent: NodeId, last: NodeId, prefer_new_line: bool) -> bool {
         if prefer_new_line {
             return true;
@@ -1852,6 +1861,8 @@ impl DisplayClonePrinter<'_, '_> {
 
     /// tsc-port: getLinesBetweenNodes @6.0.3 with the typeToString
     /// printer's default `preserveSourceNewlines = false`.
+    /// tsc-hash: c5d47a80179fc3b56a4cf499a9133abaec3676a2710aeda024119b26a477524b
+    /// tsc-span: _tsc.js:120408-120432
     fn nodes_have_line_between(&self, previous: NodeId, next: NodeId) -> bool {
         let previous_source = self.state.binder.source_of_node(previous);
         let next_source = self.state.binder.source_of_node(next);

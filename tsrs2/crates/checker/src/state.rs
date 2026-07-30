@@ -28,24 +28,54 @@ pub(crate) enum PackageJsonModuleType {
     Missing,
 }
 
-/// A query the M3 slice cannot answer yet; carries the blocking
-/// machinery's name so relpin failures read as scoping facts, not bugs.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Unsupported {
-    pub reason: String,
+/// A tsc oracle crash that the Rust checker must reproduce as typed
+/// control flow instead of inventing a diagnostic or silently
+/// continuing with a partial relation result.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OracleCrashKind {
+    OuterJsdocTemplateReferenceDisplay,
 }
 
-impl Unsupported {
-    /// tsrs-native: Rust containment-error constructor for unsupported
-    /// checker paths; tsc has no Result error object counterpart.
-    pub fn new(reason: impl Into<String>) -> Self {
-        Self {
-            reason: reason.into(),
+impl OracleCrashKind {
+    /// tsrs-native: stable label for a pinned oracle-crash deviation.
+    pub const fn description(self) -> &'static str {
+        match self {
+            Self::OuterJsdocTemplateReferenceDisplay => "outer JSDoc template reference display",
         }
     }
 }
 
-pub type CheckResult2<T> = Result<T, Unsupported>;
+/// Typed checker abort. Production aborts represent an observed tsc
+/// crash, not missing implementation debt.
+///
+/// tsc has no Result error object counterpart; this Rust-only channel
+/// unwinds transactional checker state to a containment boundary.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CheckAbort {
+    OracleCrash(OracleCrashKind),
+    /// Synthetic abort used only to pin transaction rollback ordering.
+    #[cfg(test)]
+    BoundaryProbe,
+}
+
+impl CheckAbort {
+    /// tsrs-native: debug label for the Rust checker-abort channel.
+    pub const fn description(self) -> &'static str {
+        match self {
+            Self::OracleCrash(kind) => kind.description(),
+            #[cfg(test)]
+            Self::BoundaryProbe => "transaction boundary probe",
+        }
+    }
+}
+
+impl std::fmt::Display for CheckAbort {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.description())
+    }
+}
+
+pub type CheckResult2<T> = Result<T, CheckAbort>;
 
 /// A module augmentation whose target is behind resolver machinery the
 /// in-memory program resolver does not model. Keep the augmentation's
@@ -427,7 +457,7 @@ pub struct CheckerState<'a> {
     /// tsc sharedFlowNodes/sharedFlowTypes (69395-69396): one Vec of
     /// pairs; each getFlowTypeOfReference query scans only its own
     /// window (sharedFlowStart..) and truncates back on exit — also on
-    /// Unsupported unwind (the unwind invariant).
+    /// CheckAbort unwind (the unwind invariant).
     pub(crate) shared_flow: Vec<(tsrs2_binder::flow::FlowId, crate::flow::FlowType)>,
     /// The ReduceLabel antecedent swap (getTypeAtFlowNode 70473): tsc
     /// mutates `target.antecedent` in place during try/finally walks;
@@ -455,17 +485,6 @@ pub struct CheckerState<'a> {
         (usize, tsrs2_binder::flow::FlowId),
         std::collections::HashMap<String, TypeId>,
     >,
-    /// tsrs-native SEAM mirror (retires with the seam flag's last
-    /// producers — M6 body-inference, M8-dependency unwinds, parser
-    /// recovery): true iff the most recently COMPLETED top-level flow
-    /// query walked through a deferred arm. Such a query's answer was
-    /// forced back to the declared-type behavior (auto-converted)
-    /// because the deferred arms cannot reproduce tsc's narrowing;
-    /// the initialType ladder sites read this flag IMMEDIATELY after
-    /// their get_flow_type_of_reference call to keep the 2454/2565
-    /// seam partial-marked instead of misreporting on seam-traversed
-    /// paths.
-    pub(crate) flow_last_query_inert: bool,
     /// tsc lastFlowNode/lastFlowNodeReachable (47401-47402): the
     /// single-entry reachability memo — the immediately previous
     /// isReachableFlowNode query (reachability is asked per statement
@@ -494,16 +513,6 @@ pub struct CheckerState<'a> {
     /// covered by an aggregated 7027 range; cleared per checked file
     /// (86985's `= void 0`).
     pub(crate) reported_unreachable_nodes: std::collections::HashSet<NodeId>,
-    /// tsrs-native 6.6f: reference nodes whose flow query exited
-    /// FLAGGED (seam-reverted to the declared type — an unported
-    /// M6/M8 dependency was crossed, so the answer is deliberately
-    /// wider than tsc's). Diagnostic faces that would REPORT over
-    /// such an answer consult this registry and contain instead —
-    /// the flag-exact replacement for the retired [FLOW M5]
-    /// syntax-probe gates. Cleared per checked file; retires with the
-    /// seam flag's last producers.
-    pub(crate) flow_inert_answer_nodes: std::collections::HashSet<NodeId>,
-
     // ---- M4 5.4: check-driver state ----
     /// Any program file with a top-level `declare global` block
     /// tsc currentNode (46454): the element/deferred-node the driver is
@@ -715,15 +724,15 @@ pub struct CheckerState<'a> {
     /// outermost entry replaces those provisional rows with its final
     /// sink suffix after related information has been attached.
     pub(crate) tsc_eager_iteration_capture_depth: usize,
-    /// Syntax ranges whose check was partial because an Unsupported
-    /// containment boundary or an unimplemented flow-sensitive
-    /// diagnostic was reached. Only directives targeting one of these
-    /// (pos, end) ranges are exempt from unused @ts-expect-error
-    /// diagnostics — the preceding-directive-only rule (the
-    /// mapped-type blanket-exemption pin).
+    /// Syntax ranges whose check stopped at a typed abort containment
+    /// boundary or an unimplemented flow-sensitive diagnostic. Only
+    /// directives targeting one of these (pos, end) ranges are exempt
+    /// from unused @ts-expect-error diagnostics — the
+    /// preceding-directive-only rule (the mapped-type
+    /// blanket-exemption pin).
     pub(crate) partially_checked_ranges: std::collections::HashMap<usize, Vec<(u32, u32)>>,
     /// tsrs-native: call-like nodes whose getResolvedSignature frame
-    /// unwound as Unsupported and left the resolved_signature slot
+    /// unwound with CheckAbort and left the resolved_signature slot
     /// Vacant. check_deferred_node's containment skip keys on this to
     /// tell a containment-reverted Vacant from the benign mid-fixpoint
     /// clear (tsc 77505's `: cached` on a loop-dirty fresh frame),
@@ -731,9 +740,10 @@ pub struct CheckerState<'a> {
     /// A stale entry whose slot later resolves is inert (the skip
     /// requires the slot to still be Vacant).
     pub(crate) contained_call_resolutions: std::collections::HashSet<NodeId>,
-    /// Public audit records corresponding to recognized Unsupported
-    /// containment events. Unlike the byte ranges above, these use
-    /// diagnostic-compatible UTF-16 coordinates.
+    /// Public audit records for explicit partial-model containment
+    /// events. Unlike the byte ranges above, these use
+    /// diagnostic-compatible UTF-16 coordinates. Oracle-crash aborts
+    /// are range-only and deliberately do not create these records.
     pub(crate) partial_check_records: Vec<crate::PartialCheck>,
     /// Literal operands whose `satisfies` elaboration already emitted
     /// an inner diagnostic. Re-checks must not add the outer 1360.
@@ -991,14 +1001,12 @@ impl<'a> CheckerState<'a> {
             evolving_array_types: std::collections::HashMap::new(),
             final_array_types: std::collections::HashMap::new(),
             flow_loop_caches: std::collections::HashMap::new(),
-            flow_last_query_inert: false,
             last_flow_node: None,
             last_flow_node_reachable: false,
             flow_node_reachable: std::collections::HashMap::new(),
             flow_node_post_super: std::collections::HashMap::new(),
             within_unreachable_code: false,
             reported_unreachable_nodes: std::collections::HashSet::new(),
-            flow_inert_answer_nodes: std::collections::HashSet::new(),
             current_node: None,
             deferred_nodes: std::collections::HashMap::new(),
             potential_this_collisions: Vec::new(),
@@ -1671,12 +1679,24 @@ impl<'a> CheckerState<'a> {
         )
     }
 
-    /// tsrs-native: containment bookkeeping for source ranges whose
-    /// diagnostics may be incomplete.
+    /// tsrs-native: range-only containment bookkeeping for a typed
+    /// oracle-crash abort.
     ///
-    /// The program layer exempts only directives targeting one of
-    /// these ranges instead of suppressing 2578 for the entire file.
-    pub(crate) fn mark_partially_checked_node(&mut self, node: NodeId, reason: impl Into<String>) {
+    /// The program layer exempts only a directive targeting this range
+    /// from 2578. This deliberately does not publish a PartialCheck:
+    /// the abort mirrors tsc's crash rather than representing
+    /// unimplemented checker behavior.
+    pub(crate) fn mark_oracle_crash_range(&mut self, node: NodeId, abort: CheckAbort) {
+        match abort {
+            CheckAbort::OracleCrash(_) => self.mark_partially_checked_range(node),
+            #[cfg(test)]
+            CheckAbort::BoundaryProbe => {
+                panic!("test-only boundary probe reached a production containment boundary")
+            }
+        }
+    }
+
+    fn mark_partially_checked_range(&mut self, node: NodeId) {
         let file_index = self.binder.file_index_of_node(node);
         let source = self.binder.source_of_node(node);
         let raw = source.arena.node(node);
@@ -1685,6 +1705,17 @@ impl<'a> CheckerState<'a> {
         if !ranges.contains(&range) {
             ranges.push(range);
         }
+    }
+
+    /// tsrs-native: containment bookkeeping for source ranges whose
+    /// diagnostics may be incomplete.
+    ///
+    /// The program layer exempts only directives targeting one of
+    /// these ranges instead of suppressing 2578 for the entire file.
+    pub(crate) fn mark_partially_checked_node(&mut self, node: NodeId, reason: impl Into<String>) {
+        self.mark_partially_checked_range(node);
+        let source = self.binder.source_of_node(node);
+        let raw = source.arena.node(node);
         let to_utf16 = |byte: u32| {
             source
                 .line_map

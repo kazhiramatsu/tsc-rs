@@ -1,13 +1,9 @@
 //! keyof + indexed access (M4 5.2f) — getIndexType and the
 //! TYPE-POSITION slice of getIndexedAccessType.
 //!
-//! Construction commit: Index/IndexedAccess types intern, instantiate
-//! and compute base constraints; the relation arms over them stay
-//! escaped until 5.3b pins land. Error paths that need typeToString's
-//! nodeBuilder (tuple/object displays) unwind as Unsupported — display
-//! work is T2/M8; expression-position access (accessExpression, flow,
-//! deprecation, write types) is 5.5/M7 and structurally skipped, each
-//! noted in place.
+//! Index/IndexedAccess types intern, instantiate, compute base
+//! constraints, and participate in type- and expression-position
+//! access checking.
 
 use tsrs2_binder::SymbolId;
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
@@ -17,7 +13,7 @@ use tsrs2_types::{
 };
 
 use crate::links::LinkSlot;
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState};
 use tsrs2_diags::gen as diagnostics;
 
 impl<'a> CheckerState<'a> {
@@ -1555,22 +1551,6 @@ impl<'a> CheckerState<'a> {
         access_flags: AccessFlags,
         property_name: Option<&str>,
     ) -> CheckResult2<Option<TypeId>> {
-        // 6.6f: the syntax-probe ladder gate retired; the residual
-        // containment is FLAG-EXACT — a seam-reverted receiver or
-        // index answer (an unported M6/M8 dependency crossed its
-        // walk) makes every failed ladder verdict undecidable.
-        let ladder_operands = match self.data_of(access_expression) {
-            NodeData::ElementAccessExpression(data) => (data.expression, data.argument_expression),
-            _ => (None, None),
-        };
-        for operand in [ladder_operands.0, ladder_operands.1].into_iter().flatten() {
-            if self.flow_answer_is_seam_reverted(operand) {
-                return Err(Unsupported::new(
-                    "element-access ladder over a seam-reverted flow answer \
-                     (unported narrowing dependency, M6/M8 seam)",
-                ));
-            }
-        }
         let no_implicit_any = self
             .options
             .strict_option_value(self.options.no_implicit_any);
@@ -1930,7 +1910,9 @@ impl<'a> CheckerState<'a> {
             // index_literal_value_display instead.
             TypeData::Literal {
                 value: tsrs2_types::LiteralValue::String(value),
-            } => Some(tsrs2_syntax::escape_leading_underscores(value)),
+            } => value
+                .to_utf8()
+                .map(|value| tsrs2_syntax::escape_leading_underscores(&value)),
             TypeData::Literal {
                 value: tsrs2_types::LiteralValue::Number(value),
             } => Some(tsrs2_types::tables::js_number_to_string(*value)),
@@ -1948,7 +1930,7 @@ impl<'a> CheckerState<'a> {
         match &self.tables.type_of(ty).data {
             TypeData::Literal {
                 value: tsrs2_types::LiteralValue::String(value),
-            } => Some(value.clone()),
+            } => Some(crate::check::string_literal_type_display_text(value)),
             TypeData::Literal {
                 value: tsrs2_types::LiteralValue::Number(value),
             } => Some(tsrs2_types::tables::js_number_to_string(*value)),

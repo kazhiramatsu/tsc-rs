@@ -4,8 +4,8 @@
 //! lists and the 2636 variance-annotation probe).
 //!
 //! Dispatch discipline: checkSourceElementWorker's switch is ported
-//! with the FULL kind list. An Unsupported unwind abandons the CURRENT
-//! element's remaining checks only (an honest FN) — the driver
+//! with the FULL kind list. A CheckAbort unwind abandons the CURRENT
+//! element's remaining checks only — the driver
 //! continues with the next element, so one out-of-slice construct
 //! never silences a whole file.
 //!
@@ -29,13 +29,15 @@ use tsrs2_types::{
 };
 
 use crate::evaluate::EvalValue;
-use crate::state::{CheckResult2, CheckerState, SignatureId, SignatureKind, Unsupported};
+use crate::state::{
+    CheckAbort, CheckResult2, CheckerState, OracleCrashKind, SignatureId, SignatureKind,
+};
 
-/// Debug-only unwind census (the unsupported-unwind invariant):
+/// Debug-only unwind census (the abort-unwind invariant):
 /// every transient stack an element check may push must be back at
 /// its ENTRY depth when the element completes — Ok or Err alike —
 /// and no `Resolving` sentinel may stay open across elements. A
-/// deeper stack or a leaked sentinel after an Unsupported unwind is
+/// deeper stack or a leaked sentinel after a CheckAbort unwind is
 /// the state-leak bug class the Err-revert twins exist for (the
 /// 5.7b lateBind revert was one instance); this makes the whole
 /// class fail loud in dev builds instead of surfacing as downstream
@@ -129,7 +131,7 @@ impl<'a> CheckerState<'a> {
         let exit = self.unwind_snapshot();
         assert_eq!(
             &exit, entry,
-            "unsupported-unwind invariant violated after {boundary} of {node:?} \
+            "abort-unwind invariant violated after {boundary} of {node:?} \
              (an Err path left checker state behind — add/fix its revert twin)"
         );
     }
@@ -145,9 +147,6 @@ impl<'a> CheckerState<'a> {
         self.check_source_file_worker(root);
         // 86985: reportedUnreachableNodes resets per checked file.
         self.reported_unreachable_nodes.clear();
-        // The 6.6f flag registry is same-file-scoped like the report
-        // faces that consult it.
-        self.flow_inert_answer_nodes.clear();
     }
 
     /// tsc-port: checkSourceFileWorker @6.0.3
@@ -213,17 +212,16 @@ impl<'a> CheckerState<'a> {
         }
         // 87041: external/CJS module → checkExternalModuleExports
         // (§8; the checkExportAssignment-driven run dedupes through
-        // the exportsChecked once-guard). Unsupported containment
+        // the exportsChecked once-guard). CheckAbort containment
         // matches check_source_element's element boundary.
         if self.binder.is_external_or_common_js_module_of_node(root) {
             if let Err(err) = self.check_external_module_exports(root) {
-                // The exports walk spans the whole module — a
-                // contained run leaves an unknown subset unchecked, so
-                // the file's comment-directive exemption (2578) must
-                // see the gap (S8).
-                self.mark_partially_checked_node(root, err.reason.clone());
+                // Preserve only directive accounting. Oracle-crash
+                // aborts mirror tsc behavior and are not published as
+                // partial-model audit records.
+                self.mark_oracle_crash_range(root, err);
                 if std::env::var_os("TSRS_TRACE_CONTAIN").is_some() {
-                    eprintln!("contained @{root:?}: {}", err.reason);
+                    eprintln!("contained @{root:?}: {err}");
                 }
             }
         }
@@ -288,7 +286,7 @@ impl<'a> CheckerState<'a> {
             };
             assert_eq!(
                 end, baseline,
-                "unsupported-unwind invariant violated at the end of file {root:?}"
+                "abort-unwind invariant violated at the end of file {root:?}"
             );
         }
         self.links
@@ -1512,14 +1510,14 @@ impl<'a> CheckerState<'a> {
         self.instantiation_count = 0;
         #[cfg(debug_assertions)]
         let unwind_entry = self.unwind_snapshot();
-        // Unsupported containment boundary: tsc has no failure channel
-        // here; an Err abandons this element's remaining checks (FN)
+        // CheckAbort containment boundary: tsc has no failure channel
+        // here; an Err abandons this element's remaining checks
         // and the caller's loop continues. TSRS_TRACE_CONTAIN=1 prints
-        // the swallowed reasons (debug aid).
+        // the typed abort (debug aid).
         if let Err(err) = self.check_source_element_worker(node) {
-            self.mark_partially_checked_node(node, err.reason.clone());
+            self.mark_oracle_crash_range(node, err);
             if std::env::var_os("TSRS_TRACE_CONTAIN").is_some() {
-                eprintln!("contained @{node:?}: {}", err.reason);
+                eprintln!("contained @{node:?}: {err}");
             }
         }
         #[cfg(debug_assertions)]
@@ -3999,12 +3997,12 @@ impl<'a> CheckerState<'a> {
         let unwind_entry = self.unwind_snapshot();
         if let Err(err) = self.check_deferred_node_worker(node) {
             // A contained deferred check leaves this node's range
-            // unverified — record it so the comment-directive
-            // exemption (2578) does not report a directive whose
-            // suppression target was never checked (S8).
-            self.mark_partially_checked_node(node, err.reason.clone());
+            // unverified. Keep only the comment-directive range so
+            // 2578 does not report a directive whose suppression
+            // target was never checked.
+            self.mark_oracle_crash_range(node, err);
             if std::env::var_os("TSRS_TRACE_CONTAIN").is_some() {
-                eprintln!("contained deferred @{node:?}: {}", err.reason);
+                eprintln!("contained deferred @{node:?}: {err}");
             }
         }
         #[cfg(debug_assertions)]
@@ -5057,10 +5055,13 @@ impl<'a> CheckerState<'a> {
         Ok(format!("[{text}]"))
     }
 
-    /// tsc-port: synthesized expression printing for nodeBuilder
-    /// computed names @6.0.3.
-    /// tsc-hash: c71b40f15a4db7bc2b7f81386449334420661839a55443f72ec0f1eace6626cb
-    /// tsc-span: _tsc.js:13647-13687,53337-53387
+    /// tsc-port: getLiteralText @6.0.3
+    /// tsc-hash: 80004e3b921d6a73de6bfa96158bda4d14b1fc0f7515ea38e85c2aea93928326
+    /// tsc-span: _tsc.js:13647-13687
+    ///
+    /// tsc-port: symbolToExpression @6.0.3
+    /// tsc-hash: f1c7de91b82f1b2f5a3b4a2e7c1b82bd8504e06172492e073464b298e0938e03
+    /// tsc-span: _tsc.js:53337-53387
     ///
     /// getDeclarationName only binds literal/signed-literal computed
     /// properties; late binding additionally admits entity/property/
@@ -5351,9 +5352,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 197061af99891199274ec82eb08309cbb138441e9fcba571ac5aa6149bf1b3a0
     /// tsc-span: _tsc.js:49936-49938
     pub(crate) fn get_symbol_of_declaration(&mut self, node: NodeId) -> CheckResult2<SymbolId> {
-        let symbol = self.node_symbol(node).ok_or_else(|| {
-            Unsupported::new("declaration without a bound symbol (parse-recovery tree)")
-        })?;
+        let Some(symbol) = self.node_symbol(node) else {
+            // Binder-created declarations always carry a symbol. Recovery
+            // or checker-synthetic nodes without one use the same stable
+            // miss sentinel as unresolved symbol lookup.
+            return Ok(self.unknown_symbol);
+        };
         let symbol = self.get_late_bound_symbol(symbol)?;
         Ok(self.get_merged_symbol(symbol))
     }
@@ -6072,11 +6076,10 @@ impl<'a> CheckerState<'a> {
                     // runs escapeString(text, '"') WITHOUT the
                     // non-ASCII pass — `"あ"` prints raw while
                     // `"AB\r\nC"` spells its escapes (oracle-pinned).
-                    // (The string-literal domain's unpaired-surrogate
-                    // gap is the recorded 9.3b4-r1 D1a census
-                    // candidate; LiteralValue::String cannot carry
-                    // one.)
-                    self.slice_add_approximate_length(Self::slice_js_length(&text) + 2);
+                    // Unpaired surrogates are carried losslessly and
+                    // spelled as `\uXXXX` at the Rust UTF-8 display
+                    // boundary.
+                    self.slice_add_approximate_length(text.len() + 2);
                     Ok((
                         format!("\"{}\"", string_literal_type_display_text(&text)),
                         SliceTypeNodeKind::Literal,
@@ -6454,14 +6457,15 @@ impl<'a> CheckerState<'a> {
             while argument_start < outer_type_parameter_count {
                 // TypeScript 6.0.3 passes this absent JSDoc-template
                 // parent into lookupSymbolChainWorker and crashes.
-                // Keep the existing bounded crash containment: do not
-                // invent a class parent or a non-tsc display face.
+                // Preserve that oracle behavior as typed control flow:
+                // do not invent a class parent or a non-tsc display
+                // face.
                 let Some(parent) = self
                     .parent_symbol_of_type_parameter_slice(type_parameters[argument_start])
                     .filter(|_| arguments.len() >= outer_type_parameter_count)
                 else {
-                    return Err(Unsupported::new(
-                        "reference display with outer type parameters (nodeBuilder, T2 M8)",
+                    return Err(CheckAbort::OracleCrash(
+                        OracleCrashKind::OuterJsdocTemplateReferenceDisplay,
                     ));
                 };
                 let group_start = argument_start;
@@ -7348,9 +7352,9 @@ impl<'a> CheckerState<'a> {
                             // tsc always produces a specifier; a
                             // curtained one can only misorder a
                             // MULTI-parent sort.
-                            Err(unsupported) => {
+                            Err(abort) => {
                                 if parents.len() > 1 {
-                                    return Err(unsupported);
+                                    return Err(abort);
                                 }
                                 specifiers.push(None);
                             }
@@ -9823,7 +9827,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: the enclosing-scoped render for one relation-error
     /// side (the state-parked face of getTypeNamesForErrorDisplay's
     /// per-side typeToString(type, valueDeclaration) call); the
-    /// enclosing restores across the Err unwind (Unsupported rides
+    /// enclosing restores across the Err unwind (CheckAbort rides
     /// `?` past the reset otherwise).
     pub(crate) fn type_to_string_slice_with_error_enclosing(
         &mut self,
@@ -9839,7 +9843,7 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: explicit-enclosing adapter for tsc's
     /// `typeToString(type, enclosingDeclaration)` calls. The parked
     /// nodeBuilder context is restored on both success and
-    /// Unsupported unwind.
+    /// CheckAbort unwind.
     pub(crate) fn type_to_string_slice_at(
         &mut self,
         ty: TypeId,
@@ -9892,6 +9896,8 @@ impl<'a> CheckerState<'a> {
     /// namepaths become `any`, `?` becomes `unknown`, nullable and
     /// optional wrappers become unions, non-null wrappers disappear,
     /// and variadics become arrays.
+    /// tsrs-native: string-face adapter over the exact existing-TypeNode
+    /// visitor and standard-printer ledger blocks below.
     pub(crate) fn type_annotation_text_slice(&mut self, node: NodeId) -> CheckResult2<String> {
         Ok(self.type_annotation_face_slice(node)?.text)
     }
@@ -9919,10 +9925,13 @@ impl<'a> CheckerState<'a> {
         self.visit_type_annotation_face_slice(node)
     }
 
-    /// tsc-port: createRecoveryBoundary + the
-    /// visitExistingNodeTreeSymbols recovery wrapper @6.0.3.
-    /// tsc-hash: ca628b8ca5d845b69c0628ce7fa21841aca034997237b884cc01f5ef4cd28ded
-    /// tsc-span: _tsc.js:52612-52673,133293-133317
+    /// tsc-port: createRecoveryBoundary @6.0.3
+    /// tsc-hash: 458d082bf43dddc458d7af70e8d8ab78cc5d7e3e2d7614a2df953f48682a4cfe
+    /// tsc-span: _tsc.js:52612-52673
+    ///
+    /// tsc-port: tryReuseExistingTypeNode @6.0.3
+    /// tsc-hash: 1597d2da65389394062d7e4fef36939ca2d42afba2d661505d1fc104ef7e7f41
+    /// tsc-span: _tsc.js:133293-133317
     ///
     /// Each tryReuseExistingTypeNode owns a fresh boundary. Saving the
     /// parked cell/depth makes semantic serialization re-entry an
@@ -10040,10 +10049,25 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc-port: tryVisitSimpleTypeNode / tryVisitIndexedAccess /
-    /// tryVisitKeyOf / tryVisitTypeQuery / tryVisitTypeReference @6.0.3.
-    /// tsc-hash: a88448bda870327a0d444fc70b0abbc52a4c59c4e9c118a47e0613b6b79eb076
-    /// tsc-span: _tsc.js:133316-133391
+    /// tsc-port: tryVisitSimpleTypeNode @6.0.3
+    /// tsc-hash: a9055f86215bdbd7003f32be0b2dc25e3cf71b6913cbc4b97bb858033d233f1d
+    /// tsc-span: _tsc.js:133316-133332
+    ///
+    /// tsc-port: tryVisitIndexedAccess @6.0.3
+    /// tsc-hash: 4f284aaa5552320115ad8e5e2c2f6b1f482593d4015236e45dcdf533a3c779aa
+    /// tsc-span: _tsc.js:133333-133339
+    ///
+    /// tsc-port: tryVisitKeyOf @6.0.3
+    /// tsc-hash: 1af02b6f4e1a58d7e4d91d75bd9c731db04ff875c42d90ae37aab672ece1db2f
+    /// tsc-span: _tsc.js:133340-133347
+    ///
+    /// tsc-port: tryVisitTypeQuery @6.0.3
+    /// tsc-hash: 0ea38917ef4438f9065f4c7f904e3df7be0a26dc60e934e6eed5519105b32ff3
+    /// tsc-span: _tsc.js:133348-133366
+    ///
+    /// tsc-port: tryVisitTypeReference @6.0.3
+    /// tsc-hash: f20025033699cce2ad6ed94d59dde522079781878049462bbdd695b8f78694a8
+    /// tsc-span: _tsc.js:133367-133391
     ///
     /// The simple-node path intentionally strips parentheses only when
     /// the inner node is TypeReference, TypeQuery, IndexedAccess, or
@@ -11059,7 +11083,7 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
-    /// tsc-port: hasVisibleDeclarations(..., false) @6.0.3.
+    /// tsc-port: hasVisibleDeclarations @6.0.3
     /// tsc-hash: 3a5941173ae711a2e4bd9bf466cb674b521a0cb7cbd8c97fffdd7ac817dc4a6b
     /// tsc-span: _tsc.js:50544-50594
     ///
@@ -11590,8 +11614,7 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc-port: visitExistingNodeTreeSymbolsWorker's
-    /// isJSDocFunctionType arm @6.0.3.
+    /// tsc-port: visitExistingNodeTreeSymbolsWorker @6.0.3
     /// tsc-hash: d43fea9b24f553ed46ba34a6722ab90374b8011af16ca7e3b469feaef68fbd62
     /// tsc-span: _tsc.js:133446-133481
     ///
@@ -11664,8 +11687,7 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc-port: visitExistingNodeTreeSymbolsWorker's
-    /// isJSDocTypeLiteral arm @6.0.3.
+    /// tsc-port: visitExistingNodeTreeSymbolsWorker @6.0.3
     /// tsc-hash: ba4ec70ca9817c23c31d5cbfcae6cf9a1ee2778cbcab1e89399b4c7caa5c0030
     /// tsc-span: _tsc.js:133412-133427
     ///
@@ -11739,8 +11761,13 @@ impl<'a> CheckerState<'a> {
         Ok(format!("{{ {}; }}", rendered.join("; ")))
     }
 
-    /// tsc-port: ImportType attribute-clause printer @6.0.3.
-    /// tsc-span: _tsc.js:31291-31329,119663-119678
+    /// tsc-port: emitImportTypeNodeAttributes @6.0.3
+    /// tsc-hash: c2028e6703acc1bf61520b1e7d35939630903c14182894f429a798dc396a8486
+    /// tsc-span: _tsc.js:119305-119315
+    ///
+    /// tsc-port: emitImportAttribute @6.0.3
+    /// tsc-hash: a0edb1f08aefc12e25f1d599c3cf2229a8048fc7d56e28b1e0785d33726c6b6f
+    /// tsc-span: _tsc.js:119322-119332
     fn import_attributes_text_slice(&mut self, node: NodeId) -> CheckResult2<String> {
         let NodeData::ImportAttributes(data) = self.data_of(node).clone() else {
             unreachable!("ImportType attributes is an ImportAttributes node");
@@ -11846,6 +11873,7 @@ impl<'a> CheckerState<'a> {
     /// leading argument is wrapped, and only when it is a generic
     /// function/constructor TypeNode. The visitor-lowered JSDoc
     /// function shape follows the same ordinary-node rule.
+    /// tsrs-native: Rust vector adapter over the cloned TypeNode printer.
     pub(crate) fn type_argument_nodes_text_slice(
         &mut self,
         nodes: Vec<NodeId>,
@@ -11883,6 +11911,7 @@ impl<'a> CheckerState<'a> {
     /// Type-parameter declaration NODES inside reused annotations
     /// (`(x: <T>(y: T) => T)` shapes): name / constraint / default
     /// print from the AST.
+    /// tsrs-native: Rust node-list adapter over the cloned TypeNode printer.
     pub(crate) fn type_parameter_nodes_text_slice(
         &mut self,
         nodes: Vec<NodeId>,
@@ -11932,6 +11961,7 @@ impl<'a> CheckerState<'a> {
     /// printer's `[...]name[?][: type]` face. The visitor's
     /// isFunctionLike/isParameter missing-type branch synthesizes
     /// `any` when no initializer supplies a type-bearing face.
+    /// tsrs-native: Rust node-list adapter into the body-printer compartment.
     pub(crate) fn parameter_nodes_text_slice(
         &mut self,
         nodes: Vec<NodeId>,
@@ -11973,6 +12003,7 @@ impl<'a> CheckerState<'a> {
     /// Type-literal MEMBER nodes inside reused annotations, printed
     /// with the single-line `; ` joins (oracle-probed C07:
     /// `{ a: (number) }` renders `{ a: (number); }`).
+    /// tsrs-native: one-member string-face adapter over the cloned printer.
     pub(crate) fn type_literal_member_text_slice(
         &mut self,
         member: NodeId,
@@ -12148,6 +12179,8 @@ impl<'a> CheckerState<'a> {
     /// quoted string (double — clones), numeric text, and the
     /// trackExistingEntityName/serializeTypeOfExpression recovery for
     /// computed entity names.
+    /// tsrs-native: string-face adapter over the exact property-name
+    /// and entity-name ledger blocks.
     pub(crate) fn member_name_node_text_slice(&mut self, name: NodeId) -> CheckResult2<String> {
         match self.data_of(name).clone() {
             NodeData::Identifier(data) => {
@@ -12188,7 +12221,12 @@ impl<'a> CheckerState<'a> {
         let literal = match &self.tables.type_of(expression_type).data {
             TypeData::Literal {
                 value: tsrs2_types::LiteralValue::String(value),
-            } => Some(EvalValue::Str(value.clone())),
+            } => {
+                let Some(value_utf8) = value.to_utf8() else {
+                    return Ok(format!("[{}]", string_literal_name_text(value, false)?));
+                };
+                Some(EvalValue::Str(value_utf8))
+            }
             TypeData::Literal {
                 value: tsrs2_types::LiteralValue::Number(value),
             } => Some(EvalValue::Num(*value)),
@@ -12396,7 +12434,12 @@ impl<'a> CheckerState<'a> {
             if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
                 let name = match &self.tables.type_of(name_type).data {
                     TypeData::Literal { value } => match value {
-                        tsrs2_types::LiteralValue::String(text) => text.clone(),
+                        tsrs2_types::LiteralValue::String(text) => {
+                            let Some(text_utf8) = text.to_utf8() else {
+                                return string_literal_name_text(text, single_quote);
+                            };
+                            text_utf8
+                        }
                         tsrs2_types::LiteralValue::Number(value) => {
                             tsrs2_types::js_number_to_string(*value)
                         }
@@ -12902,32 +12945,50 @@ fn encode_utf16_escape_sequence(unit: u16) -> String {
 /// U+0085; escapedCharsMap first (lowercase u-escapes), NUL digit
 /// lookahead, then the UPPERCASE 4-hex fallback. Non-ASCII passes
 /// through raw — the StringLiteral face sets NoAsciiEscaping.
-fn string_literal_type_display_text(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
-    let chars: Vec<char> = text.chars().collect();
-    for (index, &c) in chars.iter().enumerate() {
-        match c {
-            '\\' => out.push_str("\\\\"),
-            '"' => out.push_str("\\\""),
-            '\0' => {
-                if chars.get(index + 1).is_some_and(char::is_ascii_digit) {
+pub(crate) fn string_literal_type_display_text(text: &tsrs2_types::TemplateText) -> String {
+    let units = text.units();
+    let mut out = String::new();
+    let mut index = 0usize;
+    while index < units.len() {
+        let unit = units[index];
+        match unit {
+            0x005C => out.push_str("\\\\"),
+            0x0022 => out.push_str("\\\""),
+            0 => {
+                if units
+                    .get(index + 1)
+                    .is_some_and(|next| (b'0' as u16..=b'9' as u16).contains(next))
+                {
                     out.push_str("\\x00");
                 } else {
                     out.push_str("\\0");
                 }
             }
-            '\t' => out.push_str("\\t"),
-            '\u{000B}' => out.push_str("\\v"),
-            '\u{000C}' => out.push_str("\\f"),
-            '\u{0008}' => out.push_str("\\b"),
-            '\r' => out.push_str("\\r"),
-            '\n' => out.push_str("\\n"),
-            '\u{2028}' => out.push_str("\\u2028"),
-            '\u{2029}' => out.push_str("\\u2029"),
-            '\u{0085}' => out.push_str("\\u0085"),
-            '\u{0001}'..='\u{001F}' => out.push_str(&encode_utf16_escape_sequence(c as u16)),
-            _ => out.push(c),
+            0x0009 => out.push_str("\\t"),
+            0x000B => out.push_str("\\v"),
+            0x000C => out.push_str("\\f"),
+            0x0008 => out.push_str("\\b"),
+            0x000D => out.push_str("\\r"),
+            0x000A => out.push_str("\\n"),
+            0x2028 => out.push_str("\\u2028"),
+            0x2029 => out.push_str("\\u2029"),
+            0x0085 => out.push_str("\\u0085"),
+            0x0001..=0x001F => out.push_str(&encode_utf16_escape_sequence(unit)),
+            0xD800..=0xDBFF
+                if units
+                    .get(index + 1)
+                    .is_some_and(|next| (0xDC00..=0xDFFF).contains(next)) =>
+            {
+                let high = u32::from(unit - 0xD800);
+                let low = u32::from(units[index + 1] - 0xDC00);
+                let scalar = 0x10000 + (high << 10) + low;
+                out.push(char::from_u32(scalar).expect("valid surrogate pair"));
+                index += 1;
+            }
+            0xD800..=0xDFFF => out.push_str(&encode_utf16_escape_sequence(unit)),
+            _ => out.push(char::from_u32(u32::from(unit)).expect("BMP scalar")),
         }
+        index += 1;
     }
     out
 }
@@ -12979,9 +13040,13 @@ fn identifier_or_literal_name_slice(
     string_literal_name_slice(name, single_quote)
 }
 
-/// tsc-port: getLiteralText + escapeNonAsciiString @6.0.3
-/// tsc-hash: 43f7c90df46cd07476c9d6cb87b165a04d6ea5d4710f023f2a7a16d7eedbc506
-/// tsc-span: _tsc.js:13647-13658,16273-16318
+/// tsc-port: getLiteralText @6.0.3
+/// tsc-hash: d0aba9b2b5367875618a7bcb2548b8bccc629c113db8cf17f3acd5d5b4710b48
+/// tsc-span: _tsc.js:13647-13658
+///
+/// tsc-port: escapeNonAsciiString @6.0.3
+/// tsc-hash: 021cee3d2e7b0591c8fe7962bb2634f8ff87967a886a64b6daae36983f2e230e
+/// tsc-span: _tsc.js:16316-16319
 ///
 /// Node-builder string names are synthesized and do not carry
 /// NoAsciiEscaping. The printer therefore applies quote-sensitive
@@ -12989,9 +13054,16 @@ fn identifier_or_literal_name_slice(
 /// Iterating code units (rather than Rust scalar values) preserves the
 /// exact surrogate-pair spelling for astral characters.
 fn string_literal_name_slice(name: &str, single_quote: bool) -> CheckResult2<String> {
+    string_literal_name_text(&tsrs2_types::TemplateText::from_utf8(name), single_quote)
+}
+
+fn string_literal_name_text(
+    name: &tsrs2_types::TemplateText,
+    single_quote: bool,
+) -> CheckResult2<String> {
     let quote = if single_quote { '\'' } else { '"' };
-    let units = name.encode_utf16().collect::<Vec<_>>();
-    let mut escaped = String::with_capacity(name.len());
+    let units = name.units();
+    let mut escaped = String::new();
     for (index, &unit) in units.iter().enumerate() {
         let quote_unit = quote as u16;
         match unit {

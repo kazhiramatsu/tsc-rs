@@ -19,7 +19,7 @@ use tsrs2_diags::gen as diagnostics;
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{ModifierFlags, NodeFlags, SymbolFlags};
 
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState};
 
 /// tsc EvaluatorResult.value: string | number | undefined (pseudo
 /// bigints never flow — the evaluator has no bigint arms).
@@ -87,7 +87,7 @@ impl<'a> CheckerState<'a> {
     /// tsc sets the EnumValuesComputed flag up front and writes each
     /// member's links entry as the loop advances — same-enum backward
     /// references re-enter through getEnumMemberValue, see the flag,
-    /// and read the already-written slot. On Unsupported unwind the
+    /// and read the already-written slot. On CheckAbort unwind the
     /// flag REVERTS (tsc cannot fail here) so a later query recomputes;
     /// already-written member slots are reused, not rewritten.
     fn compute_enum_member_values(&mut self, node: NodeId) -> CheckResult2<()> {
@@ -713,17 +713,16 @@ impl<'a> CheckerState<'a> {
                         return Ok(error_binding_element != declaration
                             || self.pos_of(declaration) < self.pos_of(error_binding_element));
                     }
-                    let variable_declaration = self
-                        .get_ancestor_of_kind_inclusive(
-                            declaration,
-                            SyntaxKind::VariableDeclaration,
-                        )
-                        .ok_or_else(|| {
-                            Unsupported::new(
-                                "binding element outside a variable declaration \
-                                 (parse recovery)",
-                            )
-                        })?;
+                    let Some(variable_declaration) = self.get_ancestor_of_kind_inclusive(
+                        declaration,
+                        SyntaxKind::VariableDeclaration,
+                    ) else {
+                        // Binder-created binding elements always belong to a
+                        // declaration. A detached recovery element cannot
+                        // establish a temporal-dead-zone relation, so use
+                        // tsc's legal/no-diagnostic tail.
+                        return Ok(true);
+                    };
                     self.is_block_scoped_name_declared_before_use(variable_declaration, usage)
                 }
                 SyntaxKind::VariableDeclaration => Ok(!self

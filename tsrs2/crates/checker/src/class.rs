@@ -126,8 +126,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:84735-84756
     ///
     /// Display band (risk §14.4): the 2411 report renders four types/
-    /// symbols — an unrenderable display unwinds Unsupported and the
-    /// report escapes whole.
+    /// symbols — a typed display abort unwinds the report whole.
     fn check_index_constraint_for_property(
         &mut self,
         ty: TypeId,
@@ -818,11 +817,13 @@ impl<'a> CheckerState<'a> {
             else {
                 unreachable!("implements heritage elements are ExpressionWithTypeArguments");
             };
-            let ref_expression = ref_data.expression.ok_or_else(|| {
-                crate::state::Unsupported::new(
-                    "implements heritage element without an expression (parse recovery)",
-                )
-            })?;
+            let Some(ref_expression) = ref_data.expression else {
+                // Parser-created heritage clauses use a zero-width missing
+                // expression node. A checker-synthetic element with no slot
+                // has no type or relation to validate, so it contributes no
+                // semantic diagnostic beyond parser recovery.
+                continue;
+            };
             let expression_is_entity = {
                 let source = self.binder.source_of_node(ref_expression);
                 tsrs2_binder::node_util::is_entity_name_expression(source, ref_expression)
@@ -1842,7 +1843,7 @@ impl<'a> CheckerState<'a> {
                             diagnostic.related = output.related;
                         }
                         // The member verdict and root are already
-                        // exact. A report-only Unsupported may defer
+                        // exact. A report-only CheckAbort may defer
                         // the nested chain but must not suppress the
                         // member row or abort later checks.
                         Ok(None) | Err(_) => diagnostic.message = root,
@@ -1902,7 +1903,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: getFullyQualifiedName @6.0.3
-    /// tsc-hash: 30098265216734ac1ab039c9b23d5a0c3c8cc578a2ea153ad77edaed4461564c
+    /// tsc-hash: 5a191778511e150e00804be9a7bfa9161921e0c9f33b2121164e298c3e31be31
     /// tsc-span: _tsc.js:49253-49260
     ///
     /// The shared checker implementation owns the exact recursive

@@ -11,7 +11,7 @@
 //! (chooseOverload 76763 — relation errors become values, never
 //! diagnostics), per-candidate fresh InferenceContexts (76809), and
 //! clearActiveMapperCaches at inference-fixing time (73624). The port
-//! needs the explicit transaction on top because (a) an Unsupported
+//! needs the explicit transaction on top because (a) a CheckAbort
 //! unwind can abort a trial at ANY depth (tsc has no such exit), and
 //! (b) the port's addLazyDiagnostic identity is EAGER, so trial-time
 //! sink pushes exist where tsc defers them.
@@ -183,6 +183,8 @@ impl Drop for SpeculationCheckpoint {
 }
 
 impl CheckerState<'_> {
+    /// tsrs-native: begin an owned journal interval for tsc's eager
+    /// reporting-mode iteration diagnostics.
     pub(crate) fn begin_tsc_eager_iteration_diagnostic_capture(
         &mut self,
     ) -> TscEagerIterationCapture {
@@ -210,6 +212,7 @@ impl CheckerState<'_> {
         }
     }
 
+    /// tsrs-native: close and reconcile an owned eager-diagnostic journal.
     pub(crate) fn end_tsc_eager_iteration_diagnostic_capture(
         &mut self,
         capture: TscEagerIterationCapture,
@@ -249,6 +252,7 @@ impl CheckerState<'_> {
     ///
     /// Rows outside a nested reporting interval are never selected, so
     /// ordinary failed-candidate diagnostics still roll back.
+    /// tsrs-native: copy completed sink rows into the speculation journal.
     pub(crate) fn record_tsc_eager_iteration_diagnostics_since(
         &mut self,
         diagnostics_start: usize,
@@ -354,7 +358,7 @@ impl CheckerState<'_> {
     /// sink pushes, budget consumption) and drop the guard. The
     /// transient stacks must already be balanced — an imbalance here is
     /// a missing pop/revert twin inside the region, the same bug class
-    /// check.rs's unsupported-unwind census catches per element.
+    /// check.rs's abort-unwind census catches per element.
     pub fn commit_speculation(&mut self, mut checkpoint: SpeculationCheckpoint) {
         assert_eq!(
             self.speculation_depth, checkpoint.depth,
@@ -609,7 +613,7 @@ impl CheckerState<'_> {
     ///
     /// Run `f` inside a speculation transaction. The closure's
     /// `SpeculationOutcome` decides commit vs rollback; an
-    /// `Err(Unsupported)` ALWAYS rolls back, and does so BEFORE the Err
+    /// `Err(CheckAbort)` ALWAYS rolls back, and does so BEFORE the Err
     /// re-propagates — outer Err-revert twins therefore fire with
     /// `speculation_depth` already restored (the boundary ordering
     /// rule, module doc).
@@ -627,9 +631,9 @@ impl CheckerState<'_> {
                 self.rollback_speculation(checkpoint);
                 Ok(value)
             }
-            Err(unsupported) => {
+            Err(abort) => {
                 self.rollback_speculation(checkpoint);
-                Err(unsupported)
+                Err(abort)
             }
         }
     }
@@ -650,7 +654,7 @@ mod tests {
     use crate::flow::FlowType;
     use crate::links::LinkSlot;
     use crate::state::test_support::with_program_state;
-    use crate::state::{CheckerState, ResolvedMembers, SignatureKind, Unsupported};
+    use crate::state::{CheckAbort, CheckerState, ResolvedMembers, SignatureKind};
 
     fn with_state<R>(run: impl FnOnce(&mut CheckerState) -> R) -> R {
         with_program_state(
@@ -1099,13 +1103,10 @@ mod tests {
     #[test]
     fn speculate_rolls_back_before_err_reaches_caller() {
         with_state(|state| {
-            // NOT a containment escape — a synthetic Err exercising the
-            // transaction boundary. Struct-literal construction keeps
-            // the escapes manifest (which scans `Unsupported::new`
-            // call sites) tracking real containment debt only.
-            let boundary_probe = || Unsupported {
-                reason: "7.0t boundary test".to_owned(),
-            };
+            // Not an oracle-crash containment event: the test-only
+            // variant exercises transaction ordering without adding a
+            // production abort kind.
+            let boundary_probe = || CheckAbort::BoundaryProbe;
             let before = observe(state);
             let result: Result<(), _> = state.speculate(|state| {
                 assert_eq!(state.speculation_depth, 1);

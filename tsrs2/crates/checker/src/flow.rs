@@ -13,7 +13,7 @@
 //! the query locals as [`FlowQuery`] threaded through the walk;
 //! `sharedFlowNodes`/`sharedFlowTypes` ARE checker globals trimmed via
 //! `sharedFlowStart` (here: one Vec truncated on query exit, ALSO on
-//! Unsupported unwind — the unwind invariant).
+//! CheckAbort unwind — the unwind invariant).
 //!
 //! FlowIds are per-file (each file binds its own FlowArena); a walk
 //! never leaves the reference's file — the Start outer-container
@@ -27,23 +27,9 @@
 //! (6.6) — is LIVE, and both caller initialType ladders are flipped
 //! (checkIdentifier + the access.rs assume-uninitialized arm).
 //!
-//! THE SEAM (retires with its last producers — M8-dependency
-//! unwinds through the JOIN-SEAM, parser recovery; the M6
-//! body-inference producer retired at 7.6): a
-//! query whose walk crossed such an arm reverts to the declared-type
-//! answer (auto-converted) at query exit — the deferred arms cannot
-//! reproduce tsc's narrowing, and letting their over-wide
-//! pass-through answer out would misreport 2454/2565 (an initial-type
-//! undefined tsc narrows away) and misfire the 7034 auto-identity
-//! test. Queries whose walk meets only live arms get the full
-//! semantics; the ladder sites partial-mark the flagged-and-
-//! suppressed diagnostic positions, and the 6.6f flag-exact registry
-//! (`CheckerState::flow_inert_answer_nodes`) carries the flag to the
-//! report faces. The loop-label fixpoint additionally refuses to
-//! CACHE a result whose query is flagged: the flowLoopCaches memo
-//! outlives the query, and a later same-key query hitting the memo
-//! would skip the walk — and with it the flag — leaking the
-//! over-wide answer past the seam.
+//! Flow queries now propagate dependency failures to the ordinary
+//! outer containment boundary. Successful walks always return their
+//! computed answer and participate in the same loop cache as tsc.
 
 use tsrs2_binder::flow::{FlowId, FlowPayload};
 use tsrs2_binder::{node_util, SymbolId};
@@ -105,17 +91,6 @@ pub(crate) struct FlowQuery {
     /// cache key — outer None = not computed yet (isKeySet false),
     /// Some(None) = computed, reference has no key.
     pub(crate) key: Option<Option<String>>,
-    /// tsrs-native SEAM flag (retires with its last producers —
-    /// M8-dependency unwinds, parser recovery; the M6 body-inference
-    /// producer retired at 7.6): set
-    /// when the walk crosses a deferred arm — the query exit forces
-    /// such answers back to the declared-type value (auto-converted),
-    /// mirrors the flag into `CheckerState::flow_last_query_inert`
-    /// for the initialType ladder sites, and records the reference in
-    /// the 6.6f flag-exact registry; the loop-label fixpoint reads it
-    /// to keep flagged results out of the cross-query flowLoopCaches
-    /// memo.
-    pub(crate) traversed_inert_arm: bool,
     /// tsc getSyntheticElementAccess (55897): a destructuring query's
     /// reference is the parse-node-factory access chain
     /// `base["p0"]["p1"]…` with the base access's flowNode. The arena
@@ -294,7 +269,6 @@ impl<'a> CheckerState<'a> {
         assume_true: bool,
     ) -> CheckResult2<TypeId> {
         if self.flow_analysis_disabled {
-            self.flow_last_query_inert = false;
             return Ok(self.tables.intrinsics.error);
         }
         self.flow_invocation_count += 1;
@@ -308,21 +282,12 @@ impl<'a> CheckerState<'a> {
             flow_depth: 0,
             shared_flow_start,
             key: None,
-            traversed_inert_arm: false,
             synthetic_props: None,
             synthetic_this_root: false,
         };
         let walk = self.synthetic_condition_walk(&mut query, antecedent, condition, assume_true);
         self.shared_flow.truncate(shared_flow_start);
-        let traversed_inert_arm = query.traversed_inert_arm;
-        let result = walk.and_then(|flow_type| {
-            self.flow_query_postlude(&query, flow_type.get_type(), traversed_inert_arm)
-        });
-        self.flow_last_query_inert = traversed_inert_arm;
-        if traversed_inert_arm {
-            self.flow_inert_answer_nodes.insert(reference);
-        }
-        result
+        walk.and_then(|flow_type| self.flow_query_postlude(&query, flow_type.get_type()))
     }
 
     /// The synthetic head's condition step — getTypeAtFlowCondition's
@@ -371,11 +336,9 @@ impl<'a> CheckerState<'a> {
         flow_node: Option<FlowId>,
     ) -> CheckResult2<TypeId> {
         if self.flow_analysis_disabled {
-            self.flow_last_query_inert = false;
             return Ok(self.tables.intrinsics.error);
         }
         let Some(flow_node) = flow_node else {
-            self.flow_last_query_inert = false;
             return Ok(declared_type);
         };
         self.flow_invocation_count += 1;
@@ -389,178 +352,26 @@ impl<'a> CheckerState<'a> {
             flow_depth: 0,
             shared_flow_start,
             key: None,
-            traversed_inert_arm: false,
             synthetic_props,
             synthetic_this_root,
         };
         let walk = self.get_type_at_flow_node(&mut query, flow_node);
         // sharedFlowCount = sharedFlowStart — restored BEFORE the `?`
-        // so an Unsupported unwind leaves no shared-cache residue (the
+        // so a CheckAbort unwind leaves no shared-cache residue (the
         // unwind invariant).
         self.shared_flow.truncate(shared_flow_start);
-        let traversed_inert_arm = query.traversed_inert_arm;
-        let result = walk.and_then(|flow_type| {
-            self.flow_query_postlude(&query, flow_type.get_type(), traversed_inert_arm)
-        });
-        // The state mirror writes LAST: the postlude itself can run
-        // NESTED flow queries (isEvolvingArrayOperationTarget types
-        // the element-write index expression), and each nested query
-        // overwrites the mirror — the ladder sites must read THIS
-        // query's flag.
-        self.flow_last_query_inert = traversed_inert_arm;
-        // The 6.6f flag REGISTRY: unlike the single-slot mirror, the
-        // per-node record survives nested queries, so a diagnostic
-        // face reached long after this query (the receiver of a
-        // property access, an argument's operand) can still see that
-        // its answer was seam-reverted and contain instead of
-        // reporting over the deliberately-wide value.
-        if traversed_inert_arm {
-            self.flow_inert_answer_nodes.insert(reference);
-        }
-        result
+        walk.and_then(|flow_type| self.flow_query_postlude(&query, flow_type.get_type()))
     }
 
-    /// The 6.6f containment probe: this node's LAST flow answer was
-    /// seam-reverted (an unported M6/M8 dependency crossed the walk),
-    /// so a failed verdict over it is undecidable — the report faces
-    /// consult this instead of the retired syntax-probe gates.
-    /// Parens/nonnull wrappers unwrap to the queried core.
-    /// tsrs-native: flag-registry read (no tsc counterpart — tsc has
-    /// no deferral channel).
-    pub(crate) fn flow_answer_is_seam_reverted(&self, node: NodeId) -> bool {
-        let mut core = node;
-        loop {
-            if self.flow_inert_answer_nodes.contains(&core) {
-                return true;
-            }
-            match self.data_of(core) {
-                NodeData::ParenthesizedExpression(data) => match data.expression {
-                    Some(inner) => core = inner,
-                    None => return false,
-                },
-                NodeData::NonNullExpression(data) => match data.expression {
-                    Some(inner) => core = inner,
-                    None => return false,
-                },
-                _ => return false,
-            }
-        }
-    }
-
-    /// The 6.6-review SUBTREE containment probe: the node itself or
-    /// any descendant carries a seam-reverted flow answer. The
-    /// compound report faces (return operands, declaration
-    /// initializers) consult this instead of the node-identity probe:
-    /// a seam-wide answer for `u` inside `return { a: u }` or `= [u]`
-    /// inherits into the literal's type, so a failed relation over
-    /// the CONTAINER is as undecidable as one over the reference
-    /// itself. The retired PR-#6 gates contained these faces through
-    /// their syntactic subtree sweep — the flag-exact registry must
-    /// not be narrower on them (the p12/p13 corpus-external FP
-    /// faces).
-    /// tsrs-native: flag-registry read (no tsc counterpart — tsc has
-    /// no deferral channel).
-    pub(crate) fn flow_answer_is_seam_reverted_within(&self, node: NodeId) -> bool {
-        if self.flow_inert_answer_nodes.is_empty() {
-            return false;
-        }
-        let source = self.binder.source_of_node(node);
-        let mut stack = vec![node];
-        while let Some(current) = stack.pop() {
-            if self.flow_inert_answer_nodes.contains(&current) {
-                return true;
-            }
-            tsrs2_syntax::for_each_child(&source.arena, source.arena.node(current), |child| {
-                stack.push(child);
-                false
-            });
-        }
-        false
-    }
-
-    /// The BOUNDED composite probe (M5 post-close review): like
-    /// `flow_answer_is_seam_reverted_within` but descends only
-    /// through nodes whose type structurally EMBEDS constituent
-    /// types — object/array literals (and their property/spread
-    /// carriers), conditional branches, parens/non-null — and stops
-    /// at machinery nodes (calls, yield, await, accesses), whose
-    /// answers do not inherit a descendant's seam-wide answer
-    /// verbatim. The assignment/argument/operator/iteration faces
-    /// consult THIS probe: the full-subtree walk over-contains there
-    /// (it swallowed the tsc-real `o = yield* o` 2322 of
-    /// yieldExpressionInControlFlow.ts — an A1 accepted-identity
-    /// regression), while the compound-literal FP shapes it was
-    /// added for stay covered. The 6.6g return/declaration consults
-    /// keep the full walk (shipped containment surface).
-    /// tsrs-native: flag-registry read (no tsc counterpart — tsc has
-    /// no deferral channel).
-    pub(crate) fn flow_answer_is_seam_reverted_in_composite(&self, node: NodeId) -> bool {
-        if self.flow_inert_answer_nodes.is_empty() {
-            return false;
-        }
-        let source = self.binder.source_of_node(node);
-        let mut stack = vec![node];
-        while let Some(current) = stack.pop() {
-            if self.flow_answer_is_seam_reverted(current) {
-                return true;
-            }
-            match &source.arena.node(current).data {
-                NodeData::ObjectLiteralExpression(_)
-                | NodeData::ArrayLiteralExpression(_)
-                | NodeData::PropertyAssignment(_)
-                | NodeData::ShorthandPropertyAssignment(_)
-                | NodeData::SpreadAssignment(_)
-                | NodeData::SpreadElement(_)
-                | NodeData::ParenthesizedExpression(_)
-                | NodeData::NonNullExpression(_) => {
-                    tsrs2_syntax::for_each_child(
-                        &source.arena,
-                        source.arena.node(current),
-                        |child| {
-                            stack.push(child);
-                            false
-                        },
-                    );
-                }
-                NodeData::ConditionalExpression(data) => {
-                    if let Some(when_true) = data.when_true {
-                        stack.push(when_true);
-                    }
-                    if let Some(when_false) = data.when_false {
-                        stack.push(when_false);
-                    }
-                }
-                _ => {}
-            }
-        }
-        false
-    }
-
-    /// The getFlowTypeOfReference tail (70407-70411): the 6.2
-    /// inert-arm override, the evolving-array finalization, and the
-    /// unreachable/NonNull declared-type reverts.
+    /// The getFlowTypeOfReference tail (70407-70411): evolving-array
+    /// finalization and the unreachable/NonNull declared-type reverts.
     /// tsrs-native: extracted tail of
     /// get_flow_type_of_reference_with_flow (same tsc span).
     fn flow_query_postlude(
         &mut self,
         query: &FlowQuery,
         evolved_type: TypeId,
-        traversed_inert_arm: bool,
     ) -> CheckResult2<TypeId> {
-        // 6.2 SEAM (retires with the 6.4 narrowers): a query that
-        // crossed a still-inert condition/switch arm answers the 6.1
-        // value — the declared type, auto-converted — because the
-        // inert arms cannot reproduce tsc's narrowing and their
-        // pass-through answer may be over-wide (an initial-type
-        // undefined tsc would have narrowed away must not leak into
-        // diagnostics). Queries meeting only live arms (start/
-        // assignment/array-mutation/join paths) get the full
-        // semantics.
-        let evolved_type = if traversed_inert_arm {
-            self.convert_auto_to_any(query.declared_type)?
-        } else {
-            evolved_type
-        };
         // The getFlowTypeOfReference postlude (70408): an
         // evolving-array answer at an array-operation reference stays
         // autoArrayType; everything else finalizes.
@@ -731,55 +542,16 @@ impl<'a> CheckerState<'a> {
                     flow = antecedents[0];
                     continue;
                 }
-                let saved_flow_depth = query.flow_depth;
                 let join = if flags.intersects(FlowFlags::BRANCH_LABEL) {
                     self.get_type_at_flow_branch_label(query, flow)
                 } else {
                     self.get_type_at_flow_loop_label(query, flow)
                 };
-                ty = match join {
-                    Ok(join) => join,
-                    // Reasons PREFIXED "[FLOW M5] " were the
-                    // narrowable-containment GATES — all retired at
-                    // 6.6f (no producer emits the prefix today). The
-                    // rethrow arm STAYS as the documented convention
-                    // (prefix = gate, rethrow; parenthetical tag =
-                    // stub, degrade — the 6.3 review caught
-                    // `.contains` sweeping stub reasons into this
-                    // set): any future gate-class reason inherits the
-                    // containment semantics by construction.
-                    Err(unsupported) if unsupported.reason.starts_with("[FLOW M5] ") => {
-                        return Err(unsupported);
-                    }
-                    Err(_unsupported) => {
-                        // [FLOW 6.3 JOIN-SEAM] Any other Unsupported
-                        // inside a JOIN computation — an antecedent
-                        // walk pulling a back-edge RHS, or the union's
-                        // Subtype reduction relating members, through
-                        // an unported M6/M8 dependency stub (e.g.
-                        // lib-esnext generator machinery hitting the
-                        // mapped-type stub) — degrades to the 6.2 seam
-                        // instead of containing the enclosing
-                        // statement: the label stubs this stage
-                        // replaced never computed any of this, so
-                        // statements they let complete must not
-                        // regress. The flag makes the query-exit
-                        // revert answer EXACTLY the 6.2 stub's value
-                        // (declared, auto-converted) — every
-                        // downstream diagnostic is the FP-vetted 6.2
-                        // one — and keeps the flagged result out of
-                        // flowLoopCaches. flow_depth rewinds to its
-                        // pre-label value (the failed chain's `?`
-                        // returns skip the decrements). Retires with
-                        // the unported dependencies. All loop-label
-                        // stack frames are popped before its Err
-                        // escapes (the unwind invariant), so no state
-                        // survives the catch.
-                        query.flow_depth = saved_flow_depth;
-                        query.traversed_inert_arm = true;
-                        FlowType::Type(query.declared_type)
-                    }
-                };
+                // Dependency failures are not flow answers. Every
+                // production Err propagates to the outer containment
+                // boundary after the join workers restore their
+                // loop/reduce-label state.
+                ty = join?;
             } else if flags.intersects(FlowFlags::ARRAY_MUTATION) {
                 match self.get_type_at_flow_array_mutation(query, flow)? {
                     Some(t) => ty = t,
@@ -1053,10 +825,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 328e509f8b61bcb0e868b8f29358dad7ce31deb3a0166d8f907204841274c2d7
     /// tsc-span: _tsc.js:70614-70627
     ///
-    /// The arm is LIVE since 6.4a (the narrow_type dispatch is real;
-    /// still-stubbed sub-narrowers flag the query themselves — see
-    /// narrow.rs). A never antecedent short-circuits (dead edge), an
-    /// identity narrowing returns the antecedent's FlowType unchanged
+    /// A never antecedent short-circuits (dead edge), an identity
+    /// narrowing returns the antecedent's FlowType unchanged
     /// (preserving Incomplete-ness), and a real narrowing re-wraps
     /// with the antecedent's completeness.
     fn get_type_at_flow_condition(
@@ -1115,9 +885,8 @@ impl<'a> CheckerState<'a> {
         let flow_type = self.get_type_at_flow_node(query, antecedent)?;
         let mut ty = flow_type.get_type();
         let Some(switch_expression) = switch_expression else {
-            // Parser-recovery switch without an expression —
-            // unreproducible, flag (declared-type revert).
-            query.traversed_inert_arm = true;
+            // The parser normally supplies a missing expression node.
+            // A synthetic absent slot contributes no narrowing.
             return Ok(self.create_flow_type(ty, flow_type.is_incomplete()));
         };
         let expr = self.skip_parentheses(switch_expression);
@@ -1191,7 +960,7 @@ impl<'a> CheckerState<'a> {
                                             &state.tables.type_of(t).data,
                                             TypeData::Literal {
                                                 value: tsrs2_types::LiteralValue::String(value)
-                                            } if value == "undefined"
+                                            } if value.eq_utf8("undefined")
                                         );
                                     !is_undefined_literal
                                 },
@@ -1339,15 +1108,6 @@ impl<'a> CheckerState<'a> {
     ///   results must not enter getTypeOfExpression's cache);
     /// - never caching while the first antecedent is incomplete.
     ///
-    /// 6.2-SEAM EXTENSION (tsrs-native, retires with 6.4): a result
-    /// computed through a still-inert arm (`query.traversed_inert_arm`)
-    /// is answered but NOT cached — flowLoopCaches outlives the query,
-    /// and a later same-key query hitting the memo would skip the
-    /// walk (and the flag), leaking the over-wide answer past the
-    /// query-exit revert. The query-global flag over-approximates the
-    /// fixpoint's own subtree, so the guard never caches a dirty
-    /// result; once 6.4 retires the flag it is permanently false and
-    /// the tsc shape is exact.
     fn get_type_at_flow_loop_label(
         &mut self,
         query: &mut FlowQuery,
@@ -1394,9 +1154,7 @@ impl<'a> CheckerState<'a> {
                 // clear the flow-type cache: types computed mid-loop
                 // are lower bounds and must not be cached (the first
                 // non-negotiable). Pop + restore BEFORE `?` so an
-                // Unsupported unwind leaves no frame behind (the
-                // unwind invariant) — the walk dispatch's join-seam
-                // catch relies on it.
+                // abort unwind leaves no frame behind.
                 self.flow_loop_stack.push(FlowLoopEntry {
                     file: query.file,
                     flow,
@@ -1443,12 +1201,10 @@ impl<'a> CheckerState<'a> {
             // The second non-negotiable: never cache while incomplete.
             return Ok(self.create_flow_type(result, true));
         }
-        if !query.traversed_inert_arm {
-            self.flow_loop_caches
-                .entry((query.file, flow))
-                .or_default()
-                .insert(key, result);
-        }
+        self.flow_loop_caches
+            .entry((query.file, flow))
+            .or_default()
+            .insert(key, result);
         Ok(FlowType::Type(result))
     }
 
@@ -2063,15 +1819,7 @@ impl<'a> CheckerState<'a> {
             // element, contextual-type probes on the synthetic
             // access): both come out false for the factory node, so
             // the substitution never applies and tsc's answer is
-            // `ty`. The one probe we cannot mirror node-free is the
-            // synthetic access's contextual type — flag the rare
-            // generic-union-constraint candidates instead of guessing
-            // (declared-type revert, FP-safe).
-            if self.some_type_result(ty, |state, t| {
-                state.is_generic_type_with_union_constraint(t)
-            })? {
-                query.traversed_inert_arm = true;
-            }
+            // `ty`.
             return Ok(ty);
         }
         self.get_narrowable_type_for_reference(ty, query.reference, CheckMode::NORMAL)
@@ -4040,7 +3788,7 @@ impl<'a> CheckerState<'a> {
             // tsc: escapeLeadingUnderscores("" + type.value).
             if let TypeData::Literal { value } = &self.tables.type_of(ty).data {
                 let text = match value {
-                    tsrs2_types::LiteralValue::String(text) => text.clone(),
+                    tsrs2_types::LiteralValue::String(text) => text.to_utf8()?,
                     tsrs2_types::LiteralValue::Number(number) => {
                         tsrs2_types::tables::js_number_to_string(*number)
                     }
@@ -4257,7 +4005,7 @@ impl<'a> CheckerState<'a> {
         }
         if let TypeData::Literal { value } = &self.tables.type_of(ty).data {
             return Ok(match value {
-                tsrs2_types::LiteralValue::String(text) => Some(text.clone()),
+                tsrs2_types::LiteralValue::String(text) => text.to_utf8(),
                 tsrs2_types::LiteralValue::Number(number) => {
                     Some(tsrs2_types::tables::js_number_to_string(*number))
                 }
@@ -5020,9 +4768,8 @@ mod tests {
 
     #[test]
     fn in_operator_fixture_body_is_clean_without_lib() {
-        // noLib twin of the seam-registry pins: without a global
-        // Record the missing-key widening is silently skipped, no
-        // seam flag arises, and the whole fixture body checks clean.
+        // Without a global Record, missing-key synthesis is skipped
+        // and the fixture body still checks clean.
         let text = "const a = 'a';\nconst b = 'b';\nconst d = 'd';\n\ntype A = { [a]: number; };\ntype B = { [b]: string; };\n\ndeclare const c: A | B;\n\nif ('a' in c) {\n    c;\n    c['a'];\n}\n\nif ('d' in c) {\n    c;\n}\n\nif (a in c) {\n    c;\n    c[a];\n}\n\nif (d in c) {\n    c;\n}\n";
         assert_eq!(checked_rows(text), []);
     }

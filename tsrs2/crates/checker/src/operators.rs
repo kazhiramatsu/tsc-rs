@@ -20,7 +20,7 @@ use tsrs2_types::{
     TypeId,
 };
 
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState};
 use crate::structural::SignatureKind;
 
 /// tsc OuterExpressionKinds (isOuterExpression 27561): the checker
@@ -112,19 +112,17 @@ enum BinaryState {
 }
 
 impl<'a> CheckerState<'a> {
-    /// The binary node's (left, operatorToken, right) with the
-    /// parse-recovery escape (a missing side never reaches the worker
-    /// in tsc because the parser inserts a missing identifier; our
-    /// recovery trees can drop the slot entirely).
-    fn binary_parts(&self, node: NodeId) -> CheckResult2<(NodeId, NodeId, NodeId)> {
+    /// The binary node's (left, operatorToken, right). tsc's parser
+    /// fills a missing operand with a missing identifier; a synthetic
+    /// recovery tree may instead omit one of the slots, so consumers
+    /// choose the recovery result appropriate to their return type.
+    fn binary_parts(&self, node: NodeId) -> Option<(NodeId, NodeId, NodeId)> {
         let NodeData::BinaryExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
         match (data.left, data.operator_token, data.right) {
-            (Some(left), Some(op), Some(right)) => Ok((left, op, right)),
-            _ => Err(Unsupported::new(
-                "binary expression with missing operand (parse-recovery tree)",
-            )),
+            (Some(left), Some(op), Some(right)) => Some((left, op, right)),
+            _ => None,
         }
     }
 
@@ -141,9 +139,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: bbbf9bef171632bd6b6df91a43e42605d3d42ed493a65f50b2334d38af83c3ff
     /// tsc-span: _tsc.js:79810-79935
     ///
-    /// An Unsupported anywhere in the walk unwinds the WHOLE binary
-    /// expression (per-element containment, risk #6) — identical to
-    /// the recursion-equivalent containment of every other band.
+    /// A checker abort anywhere in the walk unwinds the whole binary
+    /// expression, matching recursive containment in the other bands.
     pub(crate) fn check_binary_expression(
         &mut self,
         node: NodeId,
@@ -163,7 +160,9 @@ impl<'a> CheckerState<'a> {
                 BinaryState::Left => {
                     // Advance THEN maybe-push (BinaryExpressionState.left).
                     state_stack[stack_index] = BinaryState::Operator;
-                    let (left, _, _) = self.binary_parts(frame_node)?;
+                    let Some((left, _, _)) = self.binary_parts(frame_node) else {
+                        return Ok(self.tables.intrinsics.error);
+                    };
                     let state = user.as_mut().expect("onEnter ran");
                     if !state.skip {
                         if let Some(next) = self.binary_maybe_check_expression(&mut user, left)? {
@@ -181,7 +180,9 @@ impl<'a> CheckerState<'a> {
                 }
                 BinaryState::Right => {
                     state_stack[stack_index] = BinaryState::Exit;
-                    let (_, _, right) = self.binary_parts(frame_node)?;
+                    let Some((_, _, right)) = self.binary_parts(frame_node) else {
+                        return Ok(self.tables.intrinsics.error);
+                    };
                     let state = user.as_mut().expect("onEnter ran");
                     if !state.skip {
                         if let Some(next) = self.binary_maybe_check_expression(&mut user, right)? {
@@ -236,6 +237,12 @@ impl<'a> CheckerState<'a> {
                 });
             }
         }
+        let Some((left, operator_token, right)) = self.binary_parts(node) else {
+            let state = user.as_mut().expect("created above");
+            state.skip = true;
+            state.set_last_result(Some(self.tables.intrinsics.error));
+            return Ok(());
+        };
         if self.is_in_js_file(node)
             && tsrs2_binder::assignment::get_assigned_expando_initializer(
                 self.binder.source_of_node(node),
@@ -243,7 +250,6 @@ impl<'a> CheckerState<'a> {
             )
             .is_some()
         {
-            let (_, _, right) = self.binary_parts(node)?;
             let result = self.check_expression(right, check_mode)?;
             let state = user.as_mut().expect("created above");
             state.skip = true;
@@ -251,7 +257,6 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         }
         self.check_nullish_coalesce_operands(node)?;
-        let (left, operator_token, right) = self.binary_parts(node)?;
         let operator = self.operator_kind(operator_token);
         if operator == SyntaxKind::EqualsToken
             && matches!(
@@ -289,7 +294,11 @@ impl<'a> CheckerState<'a> {
             .expect("left operand checked before operator");
         state.set_left_type(Some(left_type));
         state.set_last_result(None);
-        let (left, operator_token, _) = self.binary_parts(node)?;
+        let Some((left, operator_token, _)) = self.binary_parts(node) else {
+            state.skip = true;
+            state.set_last_result(Some(self.tables.intrinsics.error));
+            return Ok(());
+        };
         let operator = self.operator_kind(operator_token);
         if node_util::is_logical_or_coalescing_binary_operator(operator) {
             let mut parent = self.parent_of(node);
@@ -338,16 +347,18 @@ impl<'a> CheckerState<'a> {
             let right_type = state
                 .last_result()
                 .expect("right operand checked before exit");
-            let (left, operator_token, right) = self.binary_parts(node)?;
-            self.check_binary_like_expression_worker(
-                left,
-                operator_token,
-                right,
-                left_type,
-                right_type,
-                state.check_mode,
-                Some(node),
-            )?
+            match self.binary_parts(node) {
+                Some((left, operator_token, right)) => self.check_binary_like_expression_worker(
+                    left,
+                    operator_token,
+                    right,
+                    left_type,
+                    right_type,
+                    state.check_mode,
+                    Some(node),
+                )?,
+                None => self.tables.intrinsics.error,
+            }
         };
         state.skip = false;
         state.set_left_type(None);
@@ -364,7 +375,13 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
     ) -> CheckResult2<Option<NodeId>> {
         if self.kind_of(node) == SyntaxKind::BinaryExpression {
-            return Ok(Some(node));
+            if self.binary_parts(node).is_some() {
+                return Ok(Some(node));
+            }
+            user.as_mut()
+                .expect("onEnter ran")
+                .set_last_result(Some(self.tables.intrinsics.error));
+            return Ok(None);
         }
         let check_mode = user.as_ref().expect("onEnter ran").check_mode;
         let ty = self.check_expression(node, check_mode)?;
@@ -1041,9 +1058,16 @@ impl<'a> CheckerState<'a> {
                 &[],
             );
         }
-        let binary = self.parent_of(left).ok_or_else(|| {
-            Unsupported::new("instanceof operand without a parent (parse recovery)")
-        })?;
+        let Some(binary) = self
+            .parent_of(left)
+            .filter(|&parent| self.kind_of(parent) == SyntaxKind::BinaryExpression)
+        else {
+            // A parsed instanceof always owns both operands. For a
+            // detached synthetic recovery operand there is no call
+            // node on which to resolve Symbol.hasInstance, so retain
+            // the operator's boolean result after the LHS check above.
+            return Ok(self.tables.intrinsics.boolean);
+        };
         debug_assert_eq!(self.kind_of(binary), SyntaxKind::BinaryExpression);
         let signature = self.get_resolved_signature(binary, check_mode)?;
         if signature == self.resolving_signature {
@@ -1299,7 +1323,7 @@ impl<'a> CheckerState<'a> {
         if !call_shape {
             return false;
         }
-        let Ok((_, _, right)) = self.binary_parts(binary) else {
+        let Some((_, _, right)) = self.binary_parts(binary) else {
             return false;
         };
         matches!(
@@ -1361,14 +1385,14 @@ impl<'a> CheckerState<'a> {
                 _ => false,
             },
             SyntaxKind::BinaryExpression => match self.binary_parts(node) {
-                Ok((left, operator_token, right)) => {
+                Some((left, operator_token, right)) => {
                     if node_util::is_assignment_operator(self.operator_kind(operator_token)) {
                         false
                     } else {
                         self.is_side_effect_free(left) && self.is_side_effect_free(right)
                     }
                 }
-                Err(_) => false,
+                None => false,
             },
             SyntaxKind::PrefixUnaryExpression | SyntaxKind::PostfixUnaryExpression => {
                 let operator = match self.data_of(node) {
@@ -1463,15 +1487,6 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<bool> {
         let number_or_bigint = self.tables.intrinsics.number_or_bigint;
         if !self.is_type_assignable_to(ty, number_or_bigint)? {
-            // 6.6f family: flag-exact containment for the arithmetic
-            // operand face — the operand may be failing only because
-            // its flow answer seam-reverted to the declared type.
-            if self.flow_answer_is_seam_reverted_in_composite(operand) {
-                return Err(Unsupported::new(
-                    "arithmetic operand face over a seam-reverted flow answer \
-                     (unported narrowing dependency, M6/M8 seam)",
-                ));
-            }
             let awaited = if is_await_valid {
                 self.get_awaited_type_of_promise(ty)?
             } else {
@@ -1595,19 +1610,6 @@ impl<'a> CheckerState<'a> {
                         head_message = Some(&tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1_with_exactOptionalPropertyTypes_true_Consider_adding_undefined_to_the_type_of_the_target);
                     }
                 }
-            }
-            // 6.6f: syntax-probe gate → flag-exact containment for
-            // the failed-assignment face. SUBTREE consult: a compound
-            // RHS (object/array literal, conditional) inherits the
-            // wide type from a seam-reverted descendant that the
-            // node-identity probe cannot see.
-            if self.flow_answer_is_seam_reverted_in_composite(right)
-                && !self.is_type_assignable_to(value_type, assignee_type)?
-            {
-                return Err(Unsupported::new(
-                    "failed assignment over a seam-reverted flow answer \
-                     (unported narrowing dependency, M6/M8 seam)",
-                ));
             }
             // checkTypeAssignableToAndOptionallyElaborate(valueType,
             // assigneeType, errorNode=LEFT, expr=RIGHT) — elaboration
@@ -1736,24 +1738,13 @@ impl<'a> CheckerState<'a> {
     fn report_operator_error(
         &mut self,
         operator_token: NodeId,
-        left: NodeId,
-        right: NodeId,
+        _left: NodeId,
+        _right: NodeId,
         left_type: TypeId,
         right_type: TypeId,
         error_node: Option<NodeId>,
         mut is_related: Option<&mut dyn FnMut(&mut Self, TypeId, TypeId) -> CheckResult2<bool>>,
     ) -> CheckResult2<()> {
-        // 6.6f family: flag-exact containment for the operator face —
-        // a failing operator check whose operand answer was
-        // seam-reverted reports over the deliberately-wide type.
-        if self.flow_answer_is_seam_reverted_in_composite(left)
-            || self.flow_answer_is_seam_reverted_in_composite(right)
-        {
-            return Err(Unsupported::new(
-                "operator face over a seam-reverted flow answer \
-                 (unported narrowing dependency, M6/M8 seam)",
-            ));
-        }
         let err_node = error_node.unwrap_or(operator_token);
         let mut would_work_with_await = false;
         if let Some(is_related) = is_related.as_deref_mut() {
@@ -2064,9 +2055,12 @@ impl<'a> CheckerState<'a> {
                 ),
                 _ => (None, None, None),
             };
-            let name = name.ok_or_else(|| {
-                Unsupported::new("shorthand assignment without a name (parse-recovery tree)")
-            })?;
+            let Some(name) = name else {
+                // The parser normally installs a missing identifier.
+                // An omitted synthetic slot has no assignment target
+                // left to check; preserve the source-side result.
+                return Ok(source_type);
+            };
             if let Some(initializer) = initializer {
                 let strict_null_checks = self
                     .options
@@ -2079,21 +2073,22 @@ impl<'a> CheckerState<'a> {
                             self.get_type_with_facts(source_type, TypeFacts::NE_UNDEFINED)?;
                     }
                 }
-                let equals_token = equals_token.ok_or_else(|| {
-                    Unsupported::new("shorthand default without `=` (parse-recovery tree)")
-                })?;
-                self.check_binary_like_expression(
-                    name,
-                    equals_token,
-                    initializer,
-                    check_mode,
-                    None,
-                )?;
+                if let Some(equals_token) = equals_token {
+                    self.check_binary_like_expression(
+                        name,
+                        equals_token,
+                        initializer,
+                        check_mode,
+                        None,
+                    )?;
+                }
             }
             target = name;
         }
         if self.kind_of(target) == SyntaxKind::BinaryExpression {
-            let (left, operator_token, _) = self.binary_parts(target)?;
+            let Some((left, operator_token, _)) = self.binary_parts(target) else {
+                return Ok(source_type);
+            };
             if self.operator_kind(operator_token) == SyntaxKind::EqualsToken {
                 self.check_binary_expression(target, check_mode)?;
                 target = left;
@@ -2171,9 +2166,12 @@ impl<'a> CheckerState<'a> {
                     NodeData::ShorthandPropertyAssignment(data) => (data.name, None),
                     _ => (None, None),
                 };
-                let name = name.ok_or_else(|| {
-                    Unsupported::new("property assignment without a name (parse-recovery tree)")
-                })?;
+                let Some(name) = name else {
+                    // The parse diagnostic owns this malformed
+                    // property; there is no key to index in the
+                    // source object type.
+                    return Ok(());
+                };
                 let expr_type = self.get_literal_type_from_property_name(name)?;
                 if let Some(text) = self.property_name_from_type_usable(expr_type) {
                     let prop = self.get_property_of_type_full(object_literal_type, &text)?;
@@ -2209,11 +2207,10 @@ impl<'a> CheckerState<'a> {
                 let target = if self.kind_of(property) == SyntaxKind::ShorthandPropertyAssignment {
                     property
                 } else {
-                    initializer.ok_or_else(|| {
-                        Unsupported::new(
-                            "property assignment without an initializer (parse-recovery tree)",
-                        )
-                    })?
+                    let Some(initializer) = initializer else {
+                        return Ok(());
+                    };
+                    initializer
                 };
                 self.check_destructuring_assignment(target, ty, CheckMode::NORMAL, false)?;
                 Ok(())
@@ -2227,6 +2224,13 @@ impl<'a> CheckerState<'a> {
                     );
                     return Ok(());
                 }
+                let expression = match self.data_of(property) {
+                    NodeData::SpreadAssignment(data) => data.expression,
+                    _ => None,
+                };
+                let Some(expression) = expression else {
+                    return Ok(());
+                };
                 let mut non_rest_names: Vec<NodeId> = Vec::new();
                 for &other in properties {
                     if self.kind_of(other) != SyntaxKind::SpreadAssignment {
@@ -2249,13 +2253,6 @@ impl<'a> CheckerState<'a> {
                     properties_array,
                     &tsrs2_diags::gen::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma,
                 );
-                let expression = match self.data_of(property) {
-                    NodeData::SpreadAssignment(data) => data.expression,
-                    _ => None,
-                };
-                let expression = expression.ok_or_else(|| {
-                    Unsupported::new("spread assignment without expression (parse-recovery tree)")
-                })?;
                 self.check_destructuring_assignment(
                     expression,
                     rest_type,
@@ -2413,18 +2410,19 @@ impl<'a> CheckerState<'a> {
             NodeData::SpreadElement(data) => data.expression,
             _ => None,
         };
-        let rest_expression = rest_expression.ok_or_else(|| {
-            Unsupported::new("spread element without expression (parse-recovery tree)")
-        })?;
+        let Some(rest_expression) = rest_expression else {
+            return Ok(());
+        };
         if self.kind_of(rest_expression) == SyntaxKind::BinaryExpression {
-            let (_, operator_token, _) = self.binary_parts(rest_expression)?;
-            if self.operator_kind(operator_token) == SyntaxKind::EqualsToken {
-                self.error_at(
-                    Some(operator_token),
-                    &tsrs2_diags::gen::A_rest_element_cannot_have_an_initializer,
-                    &[],
-                );
-                return Ok(());
+            if let Some((_, operator_token, _)) = self.binary_parts(rest_expression) {
+                if self.operator_kind(operator_token) == SyntaxKind::EqualsToken {
+                    self.error_at(
+                        Some(operator_token),
+                        &tsrs2_diags::gen::A_rest_element_cannot_have_an_initializer,
+                        &[],
+                    );
+                    return Ok(());
+                }
             }
         }
         let elements_array = match self.data_of(node) {
@@ -2525,7 +2523,9 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult2<TypeId> {
-        let (type_node, expression) = self.assertion_type_and_expression(node)?;
+        let Some((type_node, expression)) = self.assertion_type_and_expression(node) else {
+            return Ok(self.tables.intrinsics.error);
+        };
         let expr_type = self.check_expression(expression, check_mode)?;
         if self.is_const_type_reference(type_node) {
             if !self.is_valid_const_assertion_argument(expression)? {
@@ -2547,7 +2547,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getAssertionTypeAndExpression @6.0.3
     /// tsc-hash: b2792f4495599e3031324c0f4e51ab1bb93f7dca6c972ac946d482e96ae7d83c
     /// tsc-span: _tsc.js:77923-77938
-    fn assertion_type_and_expression(&mut self, node: NodeId) -> CheckResult2<(NodeId, NodeId)> {
+    fn assertion_type_and_expression(&mut self, node: NodeId) -> Option<(NodeId, NodeId)> {
         let (type_node, expression) = match self.data_of(node) {
             NodeData::AsExpression(data) => (data.r#type, data.expression),
             NodeData::TypeAssertionExpression(data) => (data.r#type, data.expression),
@@ -2557,10 +2557,8 @@ impl<'a> CheckerState<'a> {
             _ => (None, None),
         };
         match (type_node, expression) {
-            (Some(type_node), Some(expression)) => Ok((type_node, expression)),
-            _ => Err(Unsupported::new(
-                "assertion with missing type/expression (parse-recovery tree)",
-            )),
+            (Some(type_node), Some(expression)) => Some((type_node, expression)),
+            _ => None,
         }
     }
 
@@ -2586,7 +2584,9 @@ impl<'a> CheckerState<'a> {
     /// oracle-proven 2026-07-12); the comparable probe reads the
     /// widened one.
     pub(crate) fn check_assertion_deferred(&mut self, node: NodeId) -> CheckResult2<()> {
-        let (type_node, _) = self.assertion_type_and_expression(node)?;
+        let Some((type_node, _)) = self.assertion_type_and_expression(node) else {
+            return Ok(());
+        };
         let err_node = if self.kind_of(node) == SyntaxKind::ParenthesizedExpression {
             type_node
         } else {
@@ -2625,9 +2625,7 @@ impl<'a> CheckerState<'a> {
             _ => (None, None),
         };
         let (Some(type_node), Some(expression)) = (type_node, expression) else {
-            return Err(Unsupported::new(
-                "satisfies with missing type/expression (parse-recovery tree)",
-            ));
+            return Ok(self.tables.intrinsics.error);
         };
         self.check_source_element(Some(type_node));
         self.check_satisfies_expression_worker(expression, type_node)
@@ -2734,9 +2732,9 @@ impl<'a> CheckerState<'a> {
             // getTypeFromTypeNode, not this arm.
             _ => (None, None),
         };
-        let expression = expression.ok_or_else(|| {
-            Unsupported::new("expression-with-type-arguments without expression (parse recovery)")
-        })?;
+        let Some(expression) = expression else {
+            return Ok(self.tables.intrinsics.error);
+        };
         for argument in self.nodes_of(type_arguments) {
             self.check_source_element(Some(argument));
         }
@@ -2746,15 +2744,16 @@ impl<'a> CheckerState<'a> {
                 .map(|p| self.walk_up_parenthesized_expressions(p));
             if let Some(parent) = parent {
                 if self.kind_of(parent) == SyntaxKind::BinaryExpression {
-                    let (_, operator_token, right) = self.binary_parts(parent)?;
-                    if self.operator_kind(operator_token) == SyntaxKind::InstanceOfKeyword
-                        && self.is_node_descendant_of(node, right)
-                    {
-                        self.error_at(
-                            Some(node),
-                            &tsrs2_diags::gen::The_right_hand_side_of_an_instanceof_expression_must_not_be_an_instantiation_expression,
-                            &[],
-                        );
+                    if let Some((_, operator_token, right)) = self.binary_parts(parent) {
+                        if self.operator_kind(operator_token) == SyntaxKind::InstanceOfKeyword
+                            && self.is_node_descendant_of(node, right)
+                        {
+                            self.error_at(
+                                Some(node),
+                                &tsrs2_diags::gen::The_right_hand_side_of_an_instanceof_expression_must_not_be_an_instantiation_expression,
+                                &[],
+                            );
+                        }
                     }
                 }
             }
@@ -3128,6 +3127,9 @@ impl<'a> CheckerState<'a> {
     /// MetaProperty carries no keywordToken slot — the leading source
     /// token disambiguates (parser convention).
     pub(crate) fn check_meta_property(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        if self.meta_property_name_text(node).is_none() {
+            return Ok(self.tables.intrinsics.error);
+        }
         self.check_grammar_meta_property(node)?;
         if self.meta_property_is_new(node) {
             return self.check_new_target_meta_property(node);
@@ -3198,9 +3200,10 @@ impl<'a> CheckerState<'a> {
     /// the `import.defer` callee shape.
     fn check_grammar_meta_property(&mut self, node: NodeId) -> CheckResult2<()> {
         let Some(name_text) = self.meta_property_name_text(node) else {
-            return Err(Unsupported::new(
-                "meta property without a name (parse-recovery tree)",
-            ));
+            // Parsed meta-properties always have either their parsed
+            // identifier or a missing identifier. A synthetic absent
+            // name has no token span for this grammar diagnostic.
+            return Ok(());
         };
         let name = match self.data_of(node) {
             NodeData::MetaProperty(data) => data.name.expect("name text read above"),
@@ -3312,11 +3315,7 @@ impl<'a> CheckerState<'a> {
         let (condition, when_true, when_false) =
             match (data.condition, data.when_true, data.when_false) {
                 (Some(c), Some(t), Some(f)) => (c, t, f),
-                _ => {
-                    return Err(Unsupported::new(
-                        "conditional expression with missing branch (parse-recovery tree)",
-                    ))
-                }
+                _ => return Ok(self.tables.intrinsics.error),
             };
         let condition_type = self.check_truthiness_expression(condition, check_mode)?;
         self.check_testing_known_truthy_callable_or_awaitable_or_enum_member_type(
@@ -3341,9 +3340,9 @@ impl<'a> CheckerState<'a> {
         let NodeData::TemplateExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let head = data
-            .head
-            .ok_or_else(|| Unsupported::new("template without head (parse-recovery tree)"))?;
+        let Some(head) = data.head else {
+            return Ok(self.tables.intrinsics.error);
+        };
         let spans = self.nodes_of(data.template_spans);
         let mut texts: Vec<tsrs2_types::TemplateText> = Vec::with_capacity(spans.len() + 1);
         match self.data_of(head) {
@@ -3360,9 +3359,9 @@ impl<'a> CheckerState<'a> {
                 NodeData::TemplateSpan(data) => (data.expression, data.literal),
                 _ => (None, None),
             };
-            let expression = expression.ok_or_else(|| {
-                Unsupported::new("template span without expression (parse-recovery tree)")
-            })?;
+            let Some(expression) = expression else {
+                return Ok(self.tables.intrinsics.error);
+            };
             let ty = self.check_expression(expression, CheckMode::NORMAL)?;
             if self.maybe_type_of_kind_considering_base_constraint(ty, TypeFlags::ES_SYMBOL_LIKE)? {
                 self.error_at(
@@ -3371,9 +3370,9 @@ impl<'a> CheckerState<'a> {
                     &[],
                 );
             }
-            let literal = literal.ok_or_else(|| {
-                Unsupported::new("template span without literal (parse-recovery tree)")
-            })?;
+            let Some(literal) = literal else {
+                return Ok(self.tables.intrinsics.error);
+            };
             match self.data_of(literal) {
                 NodeData::TemplateMiddle(data) => {
                     texts.push(tsrs2_types::TemplateText::from_utf16(
@@ -3467,9 +3466,9 @@ impl<'a> CheckerState<'a> {
             unreachable!("kind/data agree");
         };
         let operator = data.operator;
-        let operand = data
-            .operand
-            .ok_or_else(|| Unsupported::new("prefix unary without operand (parse recovery)"))?;
+        let Some(operand) = data.operand else {
+            return Ok(self.tables.intrinsics.error);
+        };
         let operand_type = self.check_expression(operand, CheckMode::NORMAL)?;
         let silent_never = self.tables.intrinsics.silent_never;
         if operand_type == silent_never {
@@ -3585,9 +3584,9 @@ impl<'a> CheckerState<'a> {
         let NodeData::PostfixUnaryExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let operand = data
-            .operand
-            .ok_or_else(|| Unsupported::new("postfix unary without operand (parse recovery)"))?;
+        let Some(operand) = data.operand else {
+            return Ok(self.tables.intrinsics.error);
+        };
         let operand_type = self.check_expression(operand, CheckMode::NORMAL)?;
         let silent_never = self.tables.intrinsics.silent_never;
         if operand_type == silent_never {
@@ -3795,56 +3794,64 @@ impl<'a> CheckerState<'a> {
     /// The 5076 mixing rows are grammarErrorOnNode (SUPPRESSED in
     /// files with parse diagnostics — the 5.5d suppression class).
     fn check_nullish_coalesce_operands(&mut self, node: NodeId) -> CheckResult2<()> {
-        let (left, operator_token, right) = self.binary_parts(node)?;
+        let Some((left, operator_token, right)) = self.binary_parts(node) else {
+            return Ok(());
+        };
         if self.operator_kind(operator_token) != SyntaxKind::QuestionQuestionToken {
             return Ok(());
         }
         let parent = self.parent_of(node);
         if let Some(parent) = parent.filter(|&p| self.kind_of(p) == SyntaxKind::BinaryExpression) {
-            let (parent_left, parent_op, _) = self.binary_parts(parent)?;
-            if self.kind_of(parent_left) == SyntaxKind::BinaryExpression
-                && self.operator_kind(parent_op) == SyntaxKind::BarBarToken
-            {
-                let qq = tsrs2_syntax::tokens::token_to_string(SyntaxKind::QuestionQuestionToken)
-                    .expect("?? has token text");
-                let bar = tsrs2_syntax::tokens::token_to_string(self.operator_kind(parent_op))
-                    .expect("|| has token text");
-                self.grammar_error_on_node(
-                    parent_left,
-                    &tsrs2_diags::gen::_0_and_1_operations_cannot_be_mixed_without_parentheses,
-                    &[qq, bar],
-                );
+            if let Some((parent_left, parent_op, _)) = self.binary_parts(parent) {
+                if self.kind_of(parent_left) == SyntaxKind::BinaryExpression
+                    && self.operator_kind(parent_op) == SyntaxKind::BarBarToken
+                {
+                    let qq =
+                        tsrs2_syntax::tokens::token_to_string(SyntaxKind::QuestionQuestionToken)
+                            .expect("?? has token text");
+                    let bar = tsrs2_syntax::tokens::token_to_string(self.operator_kind(parent_op))
+                        .expect("|| has token text");
+                    self.grammar_error_on_node(
+                        parent_left,
+                        &tsrs2_diags::gen::_0_and_1_operations_cannot_be_mixed_without_parentheses,
+                        &[qq, bar],
+                    );
+                }
             }
         } else if self.kind_of(left) == SyntaxKind::BinaryExpression {
-            let (_, left_op, _) = self.binary_parts(left)?;
-            let left_operator = self.operator_kind(left_op);
-            if matches!(
-                left_operator,
-                SyntaxKind::BarBarToken | SyntaxKind::AmpersandAmpersandToken
-            ) {
-                let op = tsrs2_syntax::tokens::token_to_string(left_operator)
-                    .expect("logical operators have token text");
-                let qq = tsrs2_syntax::tokens::token_to_string(SyntaxKind::QuestionQuestionToken)
-                    .expect("?? has token text");
-                self.grammar_error_on_node(
-                    left,
-                    &tsrs2_diags::gen::_0_and_1_operations_cannot_be_mixed_without_parentheses,
-                    &[op, qq],
-                );
+            if let Some((_, left_op, _)) = self.binary_parts(left) {
+                let left_operator = self.operator_kind(left_op);
+                if matches!(
+                    left_operator,
+                    SyntaxKind::BarBarToken | SyntaxKind::AmpersandAmpersandToken
+                ) {
+                    let op = tsrs2_syntax::tokens::token_to_string(left_operator)
+                        .expect("logical operators have token text");
+                    let qq =
+                        tsrs2_syntax::tokens::token_to_string(SyntaxKind::QuestionQuestionToken)
+                            .expect("?? has token text");
+                    self.grammar_error_on_node(
+                        left,
+                        &tsrs2_diags::gen::_0_and_1_operations_cannot_be_mixed_without_parentheses,
+                        &[op, qq],
+                    );
+                }
             }
         } else if self.kind_of(right) == SyntaxKind::BinaryExpression {
-            let (_, right_op, _) = self.binary_parts(right)?;
-            if self.operator_kind(right_op) == SyntaxKind::AmpersandAmpersandToken {
-                let qq = tsrs2_syntax::tokens::token_to_string(SyntaxKind::QuestionQuestionToken)
-                    .expect("?? has token text");
-                let amp =
-                    tsrs2_syntax::tokens::token_to_string(SyntaxKind::AmpersandAmpersandToken)
-                        .expect("&& has token text");
-                self.grammar_error_on_node(
-                    right,
-                    &tsrs2_diags::gen::_0_and_1_operations_cannot_be_mixed_without_parentheses,
-                    &[qq, amp],
-                );
+            if let Some((_, right_op, _)) = self.binary_parts(right) {
+                if self.operator_kind(right_op) == SyntaxKind::AmpersandAmpersandToken {
+                    let qq =
+                        tsrs2_syntax::tokens::token_to_string(SyntaxKind::QuestionQuestionToken)
+                            .expect("?? has token text");
+                    let amp =
+                        tsrs2_syntax::tokens::token_to_string(SyntaxKind::AmpersandAmpersandToken)
+                            .expect("&& has token text");
+                    self.grammar_error_on_node(
+                        right,
+                        &tsrs2_diags::gen::_0_and_1_operations_cannot_be_mixed_without_parentheses,
+                        &[qq, amp],
+                    );
+                }
             }
         }
         self.check_nullish_coalesce_operand_left(node)
@@ -3854,7 +3861,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 251fcefd2d46564907d3f01a0b31b24fb40a95b124e8c1dc54c124872419a0aa
     /// tsc-span: _tsc.js:79958-79968
     fn check_nullish_coalesce_operand_left(&mut self, node: NodeId) -> CheckResult2<()> {
-        let (left, _, _) = self.binary_parts(node)?;
+        let Some((left, _, _)) = self.binary_parts(node) else {
+            return Ok(());
+        };
         let left_target = self.skip_outer_expressions(left, OuterExpressionKinds::ALL);
         let nullish_semantics = self.get_syntactic_nullishness_semantics(left_target)?;
         if nullish_semantics != SEMANTICS_SOMETIMES {
@@ -3891,7 +3900,9 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::YieldExpression
             | SyntaxKind::ThisKeyword => SEMANTICS_SOMETIMES,
             SyntaxKind::BinaryExpression => {
-                let (_, operator_token, right) = self.binary_parts(node)?;
+                let Some((_, operator_token, right)) = self.binary_parts(node) else {
+                    return Ok(SEMANTICS_SOMETIMES);
+                };
                 match self.operator_kind(operator_token) {
                     SyntaxKind::BarBarToken
                     | SyntaxKind::BarBarEqualsToken
@@ -3914,11 +3925,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let (when_true, when_false) = match (data.when_true, data.when_false) {
                     (Some(t), Some(f)) => (t, f),
-                    _ => {
-                        return Err(Unsupported::new(
-                            "conditional with missing branch (parse-recovery tree)",
-                        ))
-                    }
+                    _ => return Ok(SEMANTICS_SOMETIMES),
                 };
                 self.get_syntactic_nullishness_semantics(when_true)?
                     | self.get_syntactic_nullishness_semantics(when_false)?
@@ -4090,11 +4097,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let (when_true, when_false) = match (data.when_true, data.when_false) {
                     (Some(t), Some(f)) => (t, f),
-                    _ => {
-                        return Err(Unsupported::new(
-                            "conditional with missing branch (parse-recovery tree)",
-                        ))
-                    }
+                    _ => return Ok(SEMANTICS_SOMETIMES),
                 };
                 self.get_syntactic_truthy_semantics(when_true)?
                     | self.get_syntactic_truthy_semantics(when_false)?
@@ -4145,7 +4148,9 @@ impl<'a> CheckerState<'a> {
         let mut cond_expr2 = node_util::skip_parentheses_pub(source, walk);
         self.truthy_callable_helper(cond_expr2, cond_type, body)?;
         while self.kind_of(cond_expr2) == SyntaxKind::BinaryExpression {
-            let (left, operator_token, _) = self.binary_parts(cond_expr2)?;
+            let Some((left, operator_token, _)) = self.binary_parts(cond_expr2) else {
+                break;
+            };
             if !matches!(
                 self.operator_kind(operator_token),
                 SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
@@ -4171,8 +4176,12 @@ impl<'a> CheckerState<'a> {
         let source = self.binder.source_of_node(cond_expr2);
         let location = if node_util::is_logical_or_coalescing_binary_expression(source, cond_expr2)
         {
-            let (_, _, right) = self.binary_parts(cond_expr2)?;
-            node_util::skip_parentheses_pub(self.binder.source_of_node(right), right)
+            match self.binary_parts(cond_expr2) {
+                Some((_, _, right)) => {
+                    node_util::skip_parentheses_pub(self.binder.source_of_node(right), right)
+                }
+                None => return Ok(()),
+            }
         } else {
             cond_expr2
         };
@@ -4431,7 +4440,9 @@ impl<'a> CheckerState<'a> {
             if self.kind_of(node) != SyntaxKind::BinaryExpression {
                 break;
             }
-            let (_, operator_token, right) = self.binary_parts(node)?;
+            let Some((_, operator_token, right)) = self.binary_parts(node) else {
+                break;
+            };
             if self.operator_kind(operator_token) != SyntaxKind::AmpersandAmpersandToken {
                 break;
             }
@@ -4971,6 +4982,8 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
+    use tsrs2_binder::Binder;
+    use tsrs2_syntax::{parse_source_file, NodeData, NodeId, ParseOptions, SourceFile, SyntaxKind};
     use tsrs2_types::CompilerOptions;
 
     use crate::state::test_support::with_program_state;
@@ -5018,6 +5031,37 @@ mod tests {
         })
     }
 
+    /// Build the binder/checker after a test-only arena mutation. The
+    /// parser itself uses missing nodes for these recoveries, so an
+    /// absent required slot must be synthesized explicitly to pin the
+    /// checker-side containment contract.
+    fn with_synthetic_recovery_state<R>(
+        text: &str,
+        mutate: impl FnOnce(&mut SourceFile) -> Vec<NodeId>,
+        run: impl FnOnce(&mut CheckerState, &[NodeId]) -> R,
+    ) -> R {
+        let options = CompilerOptions::default();
+        let mut source = parse_source_file(
+            "a.ts".to_owned(),
+            text.to_owned(),
+            ParseOptions {
+                script_target: options.emit_script_target(),
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        assert!(
+            source.parse_diagnostics.is_empty(),
+            "synthetic recovery fixture must start from a valid sibling tree"
+        );
+        let nodes = mutate(&mut source);
+        let mut binder = Binder::with_bases(&source, &options, 1, 0);
+        binder.bind_source_file();
+        let mut state = CheckerState::new(&source, &binder, &options);
+        state.merge_module_augmentations();
+        run(&mut state, &nodes)
+    }
+
     fn rows(state: &CheckerState) -> Vec<(u32, u32, u32)> {
         state
             .diagnostics
@@ -5031,6 +5075,201 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    #[test]
+    fn synthetic_missing_operator_slots_are_error_typed_and_siblings_stay_valid() {
+        with_synthetic_recovery_state(
+            "1 + 2;\n3 + 4;\n-1;\n-2;\ntrue ? 1 : 2;\nfalse ? 3 : 4;\n",
+            |source| {
+                let binaries: Vec<_> = source
+                    .arena
+                    .node_ids()
+                    .filter(|&node| source.arena.node(node).kind == SyntaxKind::BinaryExpression)
+                    .collect();
+                let prefixes: Vec<_> = source
+                    .arena
+                    .node_ids()
+                    .filter(|&node| {
+                        source.arena.node(node).kind == SyntaxKind::PrefixUnaryExpression
+                    })
+                    .collect();
+                let conditionals: Vec<_> = source
+                    .arena
+                    .node_ids()
+                    .filter(|&node| {
+                        source.arena.node(node).kind == SyntaxKind::ConditionalExpression
+                    })
+                    .collect();
+                assert_eq!(binaries.len(), 2);
+                assert_eq!(prefixes.len(), 2);
+                assert_eq!(conditionals.len(), 2);
+                let NodeData::BinaryExpression(data) = &mut source.arena.node_mut(binaries[0]).data
+                else {
+                    unreachable!("selected by kind")
+                };
+                data.left = None;
+                let NodeData::PrefixUnaryExpression(data) =
+                    &mut source.arena.node_mut(prefixes[0]).data
+                else {
+                    unreachable!("selected by kind")
+                };
+                data.operand = None;
+                let NodeData::ConditionalExpression(data) =
+                    &mut source.arena.node_mut(conditionals[0]).data
+                else {
+                    unreachable!("selected by kind")
+                };
+                data.when_false = None;
+                vec![
+                    binaries[0],
+                    binaries[1],
+                    prefixes[0],
+                    prefixes[1],
+                    conditionals[0],
+                    conditionals[1],
+                ]
+            },
+            |state, nodes| {
+                let error = state.tables.intrinsics.error;
+                assert_eq!(
+                    state
+                        .check_binary_expression(nodes[0], tsrs2_types::CheckMode::NORMAL)
+                        .unwrap(),
+                    error
+                );
+                assert_ne!(
+                    state
+                        .check_binary_expression(nodes[1], tsrs2_types::CheckMode::NORMAL)
+                        .unwrap(),
+                    error
+                );
+                assert_eq!(
+                    state.check_prefix_unary_expression(nodes[2]).unwrap(),
+                    error
+                );
+                assert_ne!(
+                    state.check_prefix_unary_expression(nodes[3]).unwrap(),
+                    error
+                );
+                assert_eq!(
+                    state.get_syntactic_nullishness_semantics(nodes[4]).unwrap(),
+                    super::SEMANTICS_SOMETIMES
+                );
+                assert_eq!(
+                    state.get_syntactic_truthy_semantics(nodes[4]).unwrap(),
+                    super::SEMANTICS_SOMETIMES
+                );
+                assert_eq!(
+                    state
+                        .check_conditional_expression(nodes[4], tsrs2_types::CheckMode::NORMAL,)
+                        .unwrap(),
+                    error
+                );
+                assert_ne!(
+                    state
+                        .check_conditional_expression(nodes[5], tsrs2_types::CheckMode::NORMAL,)
+                        .unwrap(),
+                    error
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn synthetic_missing_assertion_and_template_slots_preserve_valid_siblings() {
+        with_synthetic_recovery_state(
+            "1 as number;\n\
+             2 as number;\n\
+             1 satisfies number;\n\
+             2 satisfies number;\n\
+             `a${1}b`;\n\
+             `c${2}d`;\n\
+             `e${3}f`;\n\
+             `g${4}h`;\n",
+            |source| {
+                let assertions: Vec<_> = source
+                    .arena
+                    .node_ids()
+                    .filter(|&node| source.arena.node(node).kind == SyntaxKind::AsExpression)
+                    .collect();
+                let satisfies: Vec<_> = source
+                    .arena
+                    .node_ids()
+                    .filter(|&node| source.arena.node(node).kind == SyntaxKind::SatisfiesExpression)
+                    .collect();
+                let templates: Vec<_> = source
+                    .arena
+                    .node_ids()
+                    .filter(|&node| source.arena.node(node).kind == SyntaxKind::TemplateExpression)
+                    .collect();
+                let spans: Vec<_> = source
+                    .arena
+                    .node_ids()
+                    .filter(|&node| source.arena.node(node).kind == SyntaxKind::TemplateSpan)
+                    .collect();
+                assert_eq!(assertions.len(), 2);
+                assert_eq!(satisfies.len(), 2);
+                assert_eq!(templates.len(), 4);
+                assert_eq!(spans.len(), 4);
+                let NodeData::AsExpression(data) = &mut source.arena.node_mut(assertions[0]).data
+                else {
+                    unreachable!("selected by kind")
+                };
+                data.expression = None;
+                let NodeData::SatisfiesExpression(data) =
+                    &mut source.arena.node_mut(satisfies[0]).data
+                else {
+                    unreachable!("selected by kind")
+                };
+                data.r#type = None;
+                let NodeData::TemplateExpression(data) =
+                    &mut source.arena.node_mut(templates[0]).data
+                else {
+                    unreachable!("selected by kind")
+                };
+                data.head = None;
+                let NodeData::TemplateSpan(data) = &mut source.arena.node_mut(spans[1]).data else {
+                    unreachable!("selected by kind")
+                };
+                data.expression = None;
+                let NodeData::TemplateSpan(data) = &mut source.arena.node_mut(spans[2]).data else {
+                    unreachable!("selected by kind")
+                };
+                data.literal = None;
+                vec![
+                    assertions[0],
+                    assertions[1],
+                    satisfies[0],
+                    satisfies[1],
+                    templates[0],
+                    templates[1],
+                    templates[2],
+                    templates[3],
+                ]
+            },
+            |state, nodes| {
+                let error = state.tables.intrinsics.error;
+                assert_eq!(
+                    state
+                        .check_assertion(nodes[0], tsrs2_types::CheckMode::NORMAL)
+                        .unwrap(),
+                    error
+                );
+                assert_ne!(
+                    state
+                        .check_assertion(nodes[1], tsrs2_types::CheckMode::NORMAL)
+                        .unwrap(),
+                    error
+                );
+                assert_eq!(state.check_satisfies_expression(nodes[2]).unwrap(), error);
+                assert_ne!(state.check_satisfies_expression(nodes[3]).unwrap(), error);
+                for &template in &nodes[4..7] {
+                    assert_eq!(state.check_template_expression(template).unwrap(), error);
+                }
+                assert_ne!(state.check_template_expression(nodes[7]).unwrap(), error);
+            },
+        );
     }
 
     #[test]

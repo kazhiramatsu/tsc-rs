@@ -124,10 +124,28 @@ port's report stands; it is not a mismatch. Recorded rows
    — TypeError — unless the target's `couldContainTypeVariables` early
    return fires first. The port's `infer_from_middle_slice`
    (checker/src/inference.rs) skips the harmless shape exactly like
-   the early return and reports Unsupported (recovery-class escape)
-   where tsc dies. Same-shape calls whose rest element is variable-free
-   (probe f2/f3) do not crash in either implementation and infer
-   identically.
+   the early return. Where tsc dies, the port deterministically ends
+   the remaining tuple-target inference ladder at that call boundary:
+   candidates collected before the missing slice remain, and no
+   candidate is added at or after the crash point. This is finite C6
+   no-inference containment, not an `Unsupported` escape. Same-shape
+   calls whose rest element is variable-free (probe f2/f3) continue in
+   both implementations and infer identically.
+
+5. Checked-JS reference display for a nested class whose enclosing
+   class owns a JSDoc `@template` parameter, reached while formatting
+   a diagnostic such as
+   `this.prototype.missing`. TypeScript 6.0.3 passes the outer
+   template parameter's absent parent symbol to
+   `lookupSymbolChainWorker` through `typeToString` and throws. The
+   port represents that one face as the typed
+   `OuterJsdocTemplateReferenceDisplay` oracle-crash boundary: it
+   suppresses only the diagnostic whose display crashed, continues
+   checking independent source elements, and records the source range
+   only for preceding `@ts-expect-error` accounting. It does not
+   create an `Unsupported` site or a public partial-check record.
+   Valid outer generic references and the same nested prototype read
+   without the JSDoc template continue through the ordinary renderer.
 
 ## Machine gate
 

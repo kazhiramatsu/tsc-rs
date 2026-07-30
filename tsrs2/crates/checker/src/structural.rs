@@ -20,7 +20,7 @@ use crate::engine::{is_false, is_true, ternary_and, RelationChecker};
 use crate::inference::CompareTypesFn;
 use crate::relate::RelationKind;
 pub use crate::state::SignatureKind;
-use crate::state::{CheckResult2, CheckerState, IndexInfo, SignatureId, Unsupported};
+use crate::state::{CheckResult2, CheckerState, IndexInfo, SignatureId};
 
 /// tsc SignatureCheckMode (inlined const enum).
 mod check_mode {
@@ -234,8 +234,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// - single-element generic tuples: generic tuples are M4.
     /// - target TypeParameter/Index/IndexedAccess/Mapped/Conditional
     ///   arms now dispatch to their live relation machinery.
-    /// - target TemplateLiteral arm LIVE (the 4.2/4.3 template stub
-    ///   call sites route here); target StringMapping Unsupported.
+    /// - target TemplateLiteral and StringMapping arms dispatch to
+    ///   their live relation machinery.
     /// - source TypeVariable/Index/Conditional arms are live; the
     ///   source TemplateLiteral/StringMapping constraint arms reduce
     ///   through getBaseConstraintOrType.
@@ -1668,7 +1668,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         Ok(ternary_and(constraint_result, template_result))
     }
 
-    /// tsc-port: generic-mapped target arm @6.0.3
+    /// tsc-port: structuredTypeRelatedToWorker @6.0.3
     /// tsc-hash: c3ee36a0d2ca24ac76adf73571b12f0f7c3009fed9201b9368c3b23a957efffc
     /// tsc-span: _tsc.js:66208-66240
     ///
@@ -3305,8 +3305,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-hash: ff64ccff2dd2fde3efc5b70fe05834b924d9044f53833479bf00443877912805
     /// tsc-span: _tsc.js:67574-67630
     ///
-    /// Type parameters and this-types are M4 rows; type predicates
-    /// report Unsupported via getTypePredicateOfSignature.
+    /// Type parameters, this-types, and type predicates use their live
+    /// comparison paths.
     fn compare_signatures_identical(
         &mut self,
         source: SignatureId,
@@ -5138,20 +5138,19 @@ impl<'a> CheckerState<'a> {
             {
                 continue;
             }
-            let prop = if self
-                .tables
-                .flags_of(ty)
-                .intersects(TypeFlags::UNION_OR_INTERSECTION)
-            {
-                self.get_union_or_intersection_property(ty, name, skip)?
-            } else {
-                // tsc 59109: getPropertyOfType WITH the skip flag —
-                // the augment-allowing second pass reaches
-                // Object.prototype members on intersection
-                // constituents (intersectionIncludingPropFromGlobal
-                // Augmentation pins `x.hasOwnProperty`).
-                self.get_property_of_type_ex(ty, name, skip)?
-            };
+            // tsc 59109: always enter through getPropertyOfType.  In
+            // particular, an intersection constituent must pass
+            // getReducedApparentType before its property participates
+            // in an outer union.  Calling getUnionOrIntersectionProperty
+            // directly here retains properties from an impossible
+            // intersection (for example `type: never`) and can turn a
+            // partial outer property into a false discriminant.
+            //
+            // The skip flag also preserves the augment-allowing second
+            // pass for Object.prototype members on intersection
+            // constituents (intersectionIncludingPropFromGlobal
+            // Augmentation pins `x.hasOwnProperty`).
+            let prop = self.get_property_of_type_ex(ty, name, skip)?;
             if let Some(prop) = prop {
                 let modifiers = self.get_declaration_modifier_flags_from_symbol(prop);
                 let prop_symbol_flags = self.symbol_flags(prop);
@@ -7262,8 +7261,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:59390-59396
     ///
     /// getSignaturesOfType's union call-signature fallback (59397+)
-    /// needs union signature synthesis — M4; union sources with call
-    /// signatures report Unsupported.
+    /// resolves through live union signature synthesis.
     pub fn get_signatures_of_type(
         &mut self,
         ty: TypeId,
@@ -8024,7 +8022,9 @@ impl<'a> CheckerState<'a> {
                 value: tsrs2_types::LiteralValue::String(value),
             } = &self.tables.type_of(source).data
             {
-                return Ok(is_numeric_literal_name_js(value));
+                return Ok(value
+                    .to_utf8()
+                    .is_some_and(|value| is_numeric_literal_name_js(&value)));
             }
         }
         Ok(false)
@@ -8315,11 +8315,7 @@ impl<'a> CheckerState<'a> {
             else {
                 unreachable!("string literal data");
             };
-            return self.infer_from_literal_parts_to_template_literal(
-                &[TemplateText::from_utf8(&value)],
-                &[],
-                target,
-            );
+            return self.infer_from_literal_parts_to_template_literal(&[value], &[], target);
         }
         if source_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
             let (source_texts, source_types) = self.template_parts_of(source);
@@ -8411,13 +8407,18 @@ impl<'a> CheckerState<'a> {
                 unreachable!("string literal data");
             };
             let target_flags = self.tables.flags_of(target);
+            let utf8_value = value.to_utf8();
             if target_flags.intersects(TypeFlags::NUMBER)
-                && self.is_valid_number_string(&value, /*round_trip_only*/ false)
+                && utf8_value
+                    .as_deref()
+                    .is_some_and(|value| self.is_valid_number_string(value, false))
             {
                 return Ok(true);
             }
             if target_flags.intersects(TypeFlags::BIG_INT)
-                && self.is_valid_big_int_string(&value, /*round_trip_only*/ false)
+                && utf8_value
+                    .as_deref()
+                    .is_some_and(|value| self.is_valid_big_int_string(value, false))
             {
                 return Ok(true);
             }
@@ -8425,7 +8426,7 @@ impl<'a> CheckerState<'a> {
                 TypeFlags::BOOLEAN_LITERAL.bits() | TypeFlags::NULLABLE.bits(),
             )) {
                 if let TypeData::Intrinsic { name, .. } = &self.tables.type_of(target).data {
-                    return Ok(value == *name);
+                    return Ok(value.eq_utf8(name));
                 }
             }
             if target_flags.intersects(TypeFlags::STRING_MAPPING) {
@@ -8457,10 +8458,9 @@ impl<'a> CheckerState<'a> {
     /// The pure text-matching algorithm, ported exactly — over UTF-16
     /// code units, because every JS index/length here (`pos + 1`,
     /// `indexOf`, `slice`) counts code units (the review's `é` pins
-    /// panicked the byte-indexed version). A slice that would strand
-    /// half a surrogate pair (astral char split by an empty
-    /// placeholder step) escapes as Unsupported rather than fabricate
-    /// a replacement-character literal.
+    /// panicked the byte-indexed version). String literal payloads use
+    /// the same lossless representation, so a split may retain either
+    /// half of a surrogate pair exactly as tsc does.
     #[allow(clippy::needless_range_loop)] // seg/pos cursor walk, ported as tsc wrote it
     fn infer_from_literal_parts_to_template_literal(
         &mut self,
@@ -8511,8 +8511,8 @@ impl<'a> CheckerState<'a> {
                 let s = $s;
                 let p = $p;
                 let match_type = if s == seg {
-                    let text = utf16_to_string(&get_source_units(s)[pos..p])?;
-                    self.tables.get_string_literal_type(&text)
+                    self.tables
+                        .get_string_literal_type_from_utf16(&get_source_units(s)[pos..p])
                 } else {
                     let mut texts = vec![TemplateText::from_utf16(&source_units[seg][pos..])];
                     texts.extend(source_texts[seg + 1..s].iter().cloned());
@@ -8575,17 +8575,6 @@ fn find_utf16(haystack: &[u16], needle: &[u16], from: usize) -> Option<usize> {
     (from..=haystack.len() - needle.len()).find(|&i| haystack[i..i + needle.len()] == *needle)
 }
 
-/// Decode a code-unit slice back to a Rust string; a stranded
-/// surrogate half (JS would keep it, Rust strings cannot) escapes as
-/// Unsupported instead of fabricating U+FFFD literal text.
-fn utf16_to_string(units: &[u16]) -> CheckResult2<String> {
-    String::from_utf16(units).map_err(|_| {
-        Unsupported::new(
-            "template inference strands a surrogate half (UTF-16 WTF-16 representation, M8)",
-        )
-    })
-}
-
 /// tsc isNumericLiteralName over JS number round-trip (19205): the
 /// name coerces to a number whose string form is the name — over the
 /// RAW coercion, so "NaN" (and the Infinity spellings) count exactly
@@ -8621,7 +8610,7 @@ fn js_number_to_string(value: f64) -> String {
 mod tests {
     use tsrs2_binder::bind_source_file;
     use tsrs2_syntax::{parse_source_file, LanguageVariant, ParseOptions};
-    use tsrs2_types::CompilerOptions;
+    use tsrs2_types::{CompilerOptions, LiteralValue, TemplateText, TypeData};
 
     use crate::relpin::find_probe_annotation;
     use crate::relpin::{probe_relation, RelpinQuery, RelpinRelation, RelpinVerdict};
@@ -8778,6 +8767,49 @@ mod tests {
         assert_eq!(
             ty, state.tables.intrinsics.string,
             "`${{string}}` reduces to string (62075-62078)"
+        );
+    }
+
+    #[test]
+    fn template_inference_splits_unpaired_surrogate_losslessly() {
+        crate::state::test_support::with_program_state(
+            &[("a.ts", "")],
+            &CompilerOptions::default(),
+            |state| {
+                let source = state.tables.get_string_literal_type_from_utf16(&[0xD800]);
+                let replacement = state.tables.get_string_literal_type_from_utf16(&[0xFFFD]);
+                assert_ne!(source, replacement);
+
+                // Two placeholders separated by an empty delimiter
+                // make inferFromLiteralParts split after one UTF-16
+                // code unit. tsc retains that unit even when it is an
+                // unpaired surrogate.
+                let empty = TemplateText::default();
+                let number = state.tables.intrinsics.number;
+                let target = state.get_template_literal_type_from_texts(
+                    &[empty.clone(), empty.clone(), empty],
+                    &[number, number],
+                );
+                let inferred = state
+                    .infer_types_from_template_literal_type(source, target)
+                    .expect("lossless split does not escape")
+                    .expect("literal matches the empty-delimiter shape");
+                assert_eq!(inferred.len(), 2);
+                assert_eq!(inferred[0], source);
+                assert_eq!(inferred[1], state.tables.get_string_literal_type(""));
+                assert_eq!(
+                    &state.tables.type_of(inferred[0]).data,
+                    &TypeData::Literal {
+                        value: LiteralValue::String(TemplateText::from_utf16(&[0xD800])),
+                    }
+                );
+                let replacement_inferred = state
+                    .infer_types_from_template_literal_type(replacement, target)
+                    .expect("replacement split succeeds")
+                    .expect("replacement literal matches");
+                assert_eq!(replacement_inferred[0], replacement);
+                assert_ne!(replacement_inferred[0], inferred[0]);
+            },
         );
     }
 

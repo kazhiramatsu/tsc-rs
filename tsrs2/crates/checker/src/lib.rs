@@ -64,11 +64,11 @@ pub struct CheckResult {
     pub diagnostics: DiagnosticList,
     /// tsc getSyntacticDiagnostics: the per-file parse diagnostics alone.
     pub syntactic_diagnostics: DiagnosticList,
-    /// Source ranges whose semantic check stopped at a deliberately
-    /// recognized `Unsupported` boundary. This is audit evidence, not a
-    /// diagnostic filter: conformance joins oracle-only rows to these
-    /// ranges so an intentional model ceiling is distinguishable from a
-    /// trigger the checker never recognized.
+    /// Source ranges whose semantic check stopped at an explicit
+    /// partial-model boundary. This is audit evidence, not a
+    /// diagnostic filter. Typed oracle-crash containment is
+    /// deliberately excluded; its range participates only in internal
+    /// comment-directive accounting.
     pub partial_checks: Vec<PartialCheck>,
 }
 
@@ -3269,12 +3269,10 @@ mod tests {
     }
 
     #[test]
-    fn seam_reverted_answers_contain_the_ladder_face() {
-        // The 6.6f flag-registry pin (canary FP controlFlowInOperator):
-        // the `'d' in c` walk crosses the Record mapped-type M8 stub
-        // inside a JOIN, seam-reverting c's answers — the later `c[a]`
-        // ladder must CONTAIN (partial), never 7053 over the
-        // deliberately-wide A | B.
+    fn in_operator_missing_key_join_keeps_later_const_key_narrowing() {
+        // controlFlowInOperator: the missing-key branch and the later
+        // `a in c` branch are independent; the latter narrows to A so
+        // `c[a]` remains valid.
         let libs = full_lib_bundle(&[
             "lib.es6.d.ts",
             "lib.es5.d.ts",
@@ -3320,8 +3318,7 @@ mod tests {
 
     #[test]
     fn const_key_in_narrowing_indexes_late_bound_members() {
-        // Un-poisoned baseline of the seam pin: no missing-key block,
-        // so `a in c` narrows to A and `c[a]` resolves (oracle-clean).
+        // `a in c` narrows to A and `c[a]` resolves (oracle-clean).
         let text = "const a = 'a';\nconst b = 'b';\nconst d = 'd';\ntype A = { [a]: number; };\ntype B = { [b]: string; };\ndeclare const c: A | B;\nif (a in c) {\n    c;\n    c[a];\n}\n";
         assert_eq!(
             lib_codes_of_with_options(text, &strict_options()),
@@ -3332,8 +3329,8 @@ mod tests {
     #[test]
     fn for_in_over_optional_chain_stays_clean() {
         // tsc #51941 (canary FP controlFlowOptionalChain f50): the
-        // body's obj.main read must not 18048 — the chain narrowing
-        // lands, or the Record-stub seam contains.
+        // body's obj.main read must not 18048; the optional-chain
+        // condition narrows the body read.
         let text = "type Test5 = {\n  main?: {\n    childs: Record<string, Test5>;\n  };\n};\nfunction f50(obj: Test5) {\n   for (const key in obj.main?.childs) {\n      if (obj.main.childs[key] === obj) {\n        return obj;\n      }\n   }\n   return null;\n}\n";
         assert_eq!(
             lib_codes_of_with_options(text, &strict_options()),
@@ -3469,10 +3466,9 @@ mod tests {
     }
 
     #[test]
-    fn compound_return_operand_contains_over_seam_reverted_ref() {
-        // The return face's SUBTREE consult (6.6 review A3): `[u]`
-        // inherits the seam-reverted `u`'s wideness — contain, never
-        // the 2322 tsc doesn't report.
+    fn body_predicate_narrows_reference_inside_compound_return() {
+        // The inferred predicate narrows `u` before the array literal
+        // is checked against the annotated return type.
         assert_eq!(
             lib_codes_of_with_options(
                 "function isNum(x: string | number) { return typeof x === \"number\"; }\nfunction g(u: string | number): number[] { if (isNum(u)) { return [u]; } return [0]; }\n",
@@ -3953,7 +3949,7 @@ mod tests {
 
     #[test]
     fn unresolved_module_augmentation_contains_computed_property() {
-        let diagnostics = check_program(
+        let result = check_program(
             &[
                 InputFile {
                     name: "node_modules/pkg/index.d.ts".to_owned(),
@@ -3970,12 +3966,18 @@ mod tests {
                 },
             ],
             &CompilerOptions::default(),
-        )
-        .diagnostics
-        .into_iter()
-        .filter(|diagnostic| diagnostic.category() == DiagnosticCategory::Error)
-        .collect::<Vec<_>>();
+        );
+        let diagnostics = result
+            .diagnostics
+            .into_iter()
+            .filter(|diagnostic| diagnostic.category() == DiagnosticCategory::Error)
+            .collect::<Vec<_>>();
         assert!(diagnostics.is_empty(), "{diagnostics:#?}");
+        assert!(
+            result.partial_checks.is_empty(),
+            "{:#?}",
+            result.partial_checks
+        );
     }
 
     #[test]
@@ -4274,9 +4276,9 @@ mod tests {
 
     #[test]
     fn condition_join_reports_use_before_assignment() {
-        // 6.4b flip of the old seam pin: the if-without-else join AND
-        // the condition arm are live, and a plain boolean guard
-        // narrows nothing — the join computes the REAL number ∪
+        // The if-without-else join and condition arm are live, and a
+        // plain boolean guard narrows nothing — the join computes
+        // number ∪
         // (number | undefined) and the ladder's 2454 fires like
         // tsc's. (The straight-line form reports since 6.2, the
         // condition-free try/catch join since 6.3 — pinned below.)
@@ -4426,8 +4428,7 @@ mod tests {
 
     #[test]
     fn body_inference_resolves_the_runtime_trigger() {
-        // m6 7.6 flip of the 6.4f seam trigger: the body-inference
-        // arm is LIVE — `!!v` infers no predicate, the guard call
+        // `!!v` infers no predicate, so the guard call
         // carries no effects, and the trailing use reports its
         // straight-line 2454 for real alongside the argument use
         // (oracle q6: (2454, 60, 1) + (2454, 75, 1), vendored 6.0.3
@@ -4456,8 +4457,7 @@ mod tests {
 
     #[test]
     fn join_dependent_auto_type_resolves_without_implicit_any() {
-        // 6.4b flip of the old implicit-any seam pin: with the
-        // condition arm live, the auto-typed join computes number |
+        // The auto-typed join computes number |
         // undefined for real — no implicit-any diagnostic and no
         // partial mark, like tsc.
         let result = check_program(
@@ -4483,8 +4483,7 @@ mod tests {
 
     #[test]
     fn join_dependent_auto_type_resolves_through_guard_calls() {
-        // m6 7.6 flip of the 6.4f implicit-any seam trigger: the
-        // guard call resolves through the LIVE body-inference arm
+        // The guard call resolves through body inference
         // (no predicate from `!!v`), the auto-typed join computes
         // number | undefined for real, and tsc is CLEAN on this
         // shape (oracle q7, vendored 6.0.3 strict) — no rows, no
@@ -4517,8 +4516,7 @@ mod tests {
         // antecedent terminates at the x=1 assignment arm; the
         // catch-path runs to Start), so the 6.3 branch label computes
         // the REAL union: number ∪ (number | undefined) → the ladder's
-        // 2454 fires like tsc's — previously this position was seam
-        // partial-marked.
+        // 2454 fires like tsc's.
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
@@ -4546,9 +4544,7 @@ mod tests {
         // condition node (the binder's literal-condition passthrough),
         // so both antecedents resolve through live arms. Entry assigns
         // "a" → string; the back edge re-assigns "b" → string; the
-        // fixpoint converges to string and fs(x) is clean — the 6.2
-        // seam answered the declared string | number here, a
-        // tsc-divergent 2345.
+        // fixpoint converges to string and fs(x) is clean.
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
@@ -4657,8 +4653,7 @@ mod tests {
         // this same label mid-back-edge and takes the in-progress arm
         // (the partial union tagged INCOMPLETE); the join then unions
         // element types into evolving[number], finalized to number[]
-        // at the use — clean, like tsc. The 6.2 seam partial-marked
-        // this position (auto-array declared type).
+        // at the use — clean, like tsc.
         let result = check_program_with_libs(
             &[es5_lib()],
             &[InputFile {
@@ -4711,9 +4706,8 @@ mod tests {
 
     #[test]
     fn loop_fixpoint_reports_for_real_through_guard_calls() {
-        // m6 7.6 flip of the flowLoopCaches seam pin: the guard call
-        // resolves through the LIVE body-inference arm (no
-        // predicate), the loop fixpoint runs unflagged, and all
+        // The guard call resolves through body inference (no
+        // predicate), the loop fixpoint runs, and all
         // THREE uses report their 2454 exactly like tsc (oracle q5:
         // (2454, 71/76/87), vendored 6.0.3 strict).
         let result = check_program(
@@ -4742,8 +4736,7 @@ mod tests {
         // m6 7.6 flip of the M5 post-close D2 pin: isNum's predicate
         // is INFERRED for real, u narrows to number inside the
         // guard, and the arithmetic face is clean like tsc
-        // (verify/d2_operator_face.ts + oracle q3) — no seam revert,
-        // no partial mark.
+        // (verify/d2_operator_face.ts + oracle q3).
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
@@ -4768,8 +4761,7 @@ mod tests {
         // m6 7.6 flip of the M5 post-close D1 pin: isNum's predicate
         // is INFERRED for real, u narrows to number inside the
         // compound RHS, and the assignment face relates cleanly like
-        // tsc (verify/d1_assignment_face.ts + oracle q4) — no
-        // subtree seam consult, no partial mark.
+        // tsc (verify/d1_assignment_face.ts + oracle q4).
         let result = check_program(
             &[InputFile {
                 name: "a.ts".to_owned(),
@@ -4792,7 +4784,7 @@ mod tests {
     fn dependent_parameter_narrowing_types_rest_tuple_slices() {
         // getNarrowedTypeOfSymbol arm 2 (72040-72060) over a CONCRETE
         // union-of-tuples rest type — live since the 6.2 review fix
-        // (pre-fix the whole reference contained as Unsupported).
+        // (pre-fix the whole reference stopped at a recovery boundary).
         // kind types as the [0]-slice "a" | "b", so takeAB accepts it.
         let result = check_program(
             &[InputFile {
@@ -5730,6 +5722,101 @@ mod tests {
                 "'T' is declared but its value is never read.",
             )]
         );
+        assert!(
+            result.partial_checks.is_empty(),
+            "oracle-crash control flow is not partial-model audit debt: {:#?}",
+            result.partial_checks
+        );
+    }
+
+    #[test]
+    fn checked_js_outer_template_display_crash_does_not_stop_later_errors() {
+        let source = "/** @template T */\n\
+                      class Outer {\n\
+                        method() {\n\
+                          class Inner {\n\
+                            static check() {\n\
+                              this.prototype.missing;\n\
+                            }\n\
+                          }\n\
+                          Inner;\n\
+                        }\n\
+                      }\n\
+                      const later = { present: 1 };\n\
+                      later.missing;\n";
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| matches!(diagnostic.code(), 2339 | 6133))
+                .map(|diagnostic| (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                ))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    6133,
+                    source.find("@template").expect("unused template tag") as u32,
+                    12,
+                ),
+                (
+                    2339,
+                    source.rfind("missing").expect("later independent miss") as u32,
+                    "missing".len() as u32,
+                ),
+            ]
+        );
+        assert!(result.partial_checks.is_empty());
+    }
+
+    #[test]
+    fn checked_js_outer_template_display_crash_consumes_preceding_expect_error_range_only() {
+        let source = "/** @template T */\n\
+                      class Outer {\n\
+                        method() {\n\
+                          class Inner {\n\
+                            static check() {\n\
+                              // @ts-expect-error\n\
+                              this.prototype.missing;\n\
+                            }\n\
+                          }\n\
+                          Inner;\n\
+                        }\n\
+                      }\n";
+        let result = check_program(
+            &[InputFile {
+                name: "a.js".to_owned(),
+                text: source.to_owned(),
+            }],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.code())
+                .collect::<Vec<_>>(),
+            [6133],
+            "the contained oracle crash must consume the directive without fabricating TS2578"
+        );
+        assert!(result.partial_checks.is_empty());
     }
 
     #[test]
@@ -5773,6 +5860,7 @@ mod tests {
                 "Property 'missing' does not exist on type 'Inner'.",
             )]
         );
+        assert!(result.partial_checks.is_empty());
     }
 
     #[test]

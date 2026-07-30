@@ -1,8 +1,6 @@
-//! The MINIMAL type-from-annotation path (m3-types-relations-steps.md
-//! stage 4.1) — an explicitly scoped slice of M4 5.1/5.3, each fn a
-//! ledgered (partial) port. Everything a TypeMapper would touch is
-//! Unsupported by construction; M4 5.1 replaces this module's dispatch
-//! with the full getTypeFromTypeNode port.
+//! Type-from-annotation and declared-type resolution: the full
+//! getTypeFromTypeNode dispatch plus the declared class/interface,
+//! alias, mapped, conditional, tuple, and JSDoc paths it feeds.
 
 use tsrs2_binder::{node_util, InternalSymbolName, SymbolId};
 use tsrs2_diags::{gen as diagnostics, DiagnosticCategory};
@@ -18,7 +16,6 @@ use crate::evaluate::EvalValue;
 use crate::links::LinkSlot;
 use crate::state::{
     CheckResult2, CheckerState, IndexInfo, MembersId, ResolvedMembers, Signature, SignatureId,
-    Unsupported,
 };
 
 impl<'a> CheckerState<'a> {
@@ -1258,9 +1255,12 @@ impl<'a> CheckerState<'a> {
                 if self.kind_of(inner) != SyntaxKind::SymbolKeyword {
                     return Ok(self.tables.intrinsics.error);
                 }
-                let mut parent = self.parent_of(node).ok_or_else(|| {
-                    Unsupported::new("type operator without a parent (parse recovery)")
-                })?;
+                let Some(mut parent) = self.parent_of(node) else {
+                    // Parser-created type operators are always attached to
+                    // their owning declaration/type. A detached synthetic
+                    // `unique symbol` has no declaration identity to resolve.
+                    return Ok(self.tables.intrinsics.error);
+                };
                 while self.kind_of(parent) == SyntaxKind::ParenthesizedType {
                     match self.parent_of(parent) {
                         Some(next) => parent = next,
@@ -2819,7 +2819,7 @@ impl<'a> CheckerState<'a> {
         type_object.alias_type_arguments = alias_type_arguments.map(Vec::into_boxed_slice);
 
         // Resolve the constraint eagerly like tsc, but publish the node
-        // cache only after a successful Rust result. An Unsupported
+        // cache only after a successful Rust result. A CheckAbort
         // unwind therefore cannot poison later queries with a partial
         // shell.
         self.get_constraint_type_from_mapped_type(mapped)?;
@@ -3604,11 +3604,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 65be838227a2b645257234d352a6b1a615000a261692235cd9be50c2672cb6d6
     /// tsc-span: _tsc.js:57404-57435
     ///
-    /// Slice notes: the links.typeParameters/instantiations
-    /// bookkeeping is 5.2's (generic alias REFERENCES are Unsupported
-    /// at the reference arm, so skipping it is verdict-neutral); the
-    /// The activated JSDoc typedef arm shares this worker; generic
-    /// JSDoc aliases remain with the generic-reference owner. The
+    /// The links.typeParameters/instantiations bookkeeping is shared
+    /// with the generic-reference path. The activated JSDoc typedef
+    /// arm shares this worker; generic JSDoc aliases flow through the
+    /// same generic-reference owner. The
     /// BuiltinIteratorReturn intrinsic-marker swap resolves through
     /// get_builtin_iterator_return_type (5.8b).
     pub(crate) fn get_declared_type_of_type_alias(
@@ -5666,7 +5665,7 @@ impl<'a> CheckerState<'a> {
             // decided above; only the diagnostic STRINGS ride the
             // display slice. The whole diagnostic (2507 head + the
             // type-parameter Did-you-mean 2735 related info) builds in
-            // one closure so a display Unsupported drops the report
+            // one closure so a display CheckAbort drops the report
             // whole (FN row, never a partial face) — but the
             // errorType continuation below runs regardless: tsc sets
             // resolvedBaseConstructorType = errorType on this arm, and
@@ -5724,9 +5723,7 @@ impl<'a> CheckerState<'a> {
             })(self);
             match report {
                 Ok(()) => {}
-                Err(err) => {
-                    self.mark_partially_checked_node(expression, err.reason.clone());
-                }
+                Err(abort) => self.mark_oracle_crash_range(expression, abort),
             }
             let error = self.tables.intrinsics.error;
             if self
@@ -5875,7 +5872,7 @@ impl<'a> CheckerState<'a> {
             // the strings ride the display slice. The whole diagnostic
             // (2509 head + the elaborateNeverIntersection chain tail,
             // nested like chainDiagnosticMessages) builds in one
-            // closure — a display Unsupported drops the report whole
+            // closure — a display CheckAbort drops the report whole
             // and the emptyArray continuation below runs regardless,
             // matching tsc's `return type.resolvedBaseTypes =
             // emptyArray` (the entry write already parked the empty
@@ -5898,8 +5895,8 @@ impl<'a> CheckerState<'a> {
                 state.push_error_diagnostic(diagnostic);
                 Ok(())
             })(self);
-            if let Err(err) = report {
-                self.mark_partially_checked_node(base_expression, err.reason.clone());
+            if let Err(abort) = report {
+                self.mark_oracle_crash_range(base_expression, abort);
             }
             return Ok(());
         }
@@ -7720,12 +7717,13 @@ impl<'a> CheckerState<'a> {
             // 56662: Debug.assertIsDefined(symbol.valueDeclaration) —
             // the vendored tsc throws on this shape, so the guard is
             // the permanent crash-guard family.
-            let declaration = declaration.ok_or_else(|| {
-                Unsupported::new(
-                    "symbol without a value declaration (Debug.assertIsDefined transcription, \
-                     parse recovery)",
-                )
-            })?;
+            let Some(declaration) = declaration else {
+                // tsc asserts here because binder-created variable/property
+                // symbols always have a value declaration. A recovery symbol
+                // constructed without one has no semantic source; cache the
+                // standard errorType instead of unwinding its source file.
+                return Ok(state.tables.intrinsics.error);
+            };
             // getTypeOfVariableOrParameterOrPropertyWorker dispatch
             // (56680-56711): Prototype, the bounded ModuleExports
             // head, and JSON sources have already returned; the
@@ -7740,9 +7738,9 @@ impl<'a> CheckerState<'a> {
                         NodeData::ExportAssignment(data) => data.expression,
                         _ => unreachable!("kind/data agree"),
                     };
-                    let expression = expression.ok_or_else(|| {
-                        Unsupported::new("export assignment without expression (parse recovery)")
-                    })?;
+                    let Some(expression) = expression else {
+                        return Ok(state.tables.intrinsics.error);
+                    };
                     let checked = match state.try_get_type_from_effective_type_node(declaration)? {
                         Some(declared) => declared,
                         None => state.check_expression_cached(expression, CheckMode::NORMAL)?,
@@ -7802,10 +7800,10 @@ impl<'a> CheckerState<'a> {
                             let name = match state.data_of(declaration) {
                                 NodeData::ShorthandPropertyAssignment(data) => data.name,
                                 _ => None,
-                            }
-                            .ok_or_else(|| {
-                                Unsupported::new("shorthand without a name (parse recovery)")
-                            })?;
+                            };
+                            let Some(name) = name else {
+                                return Ok(state.tables.intrinsics.error);
+                            };
                             state.check_expression_for_mutable_location(
                                 name,
                                 CheckMode::NORMAL,
@@ -7858,10 +7856,11 @@ impl<'a> CheckerState<'a> {
                 SyntaxKind::EnumDeclaration => state.get_type_of_func_class_enum_module(symbol),
                 SyntaxKind::EnumMember => state.get_type_of_enum_member(symbol),
                 // 56707-56708: the vendored tsc Debug.fails on any
-                // other declaration kind — permanent crash-guard.
-                other => Err(Unsupported::new(format!(
-                    "worker declaration kind {other:?} (Debug.fail transcription, parse recovery)"
-                ))),
+                // other declaration kind. Such a kind cannot be the value
+                // declaration of a binder-created variable/property symbol;
+                // a checker-synthetic recovery symbol deterministically
+                // resolves to errorType.
+                _ => Ok(state.tables.intrinsics.error),
             }
         })(self);
         let resolved = match computed {
@@ -8178,7 +8177,7 @@ impl<'a> CheckerState<'a> {
                         _ => None,
                     };
                     let Some(expression) = expression else {
-                        return Err(Unsupported::new("ForInStatement recovery node"));
+                        return Ok(Some(self.tables.intrinsics.error));
                     };
                     let raw = self.check_expression(expression, check_mode)?;
                     let non_nullable = self.get_non_nullable_type_if_needed(raw)?;
@@ -9650,7 +9649,7 @@ impl<'a> CheckerState<'a> {
                 let value = self.get_enum_member_value(member)?.value;
                 let base = match value {
                     Some(EvalValue::Str(text)) => self.tables.get_enum_literal_type(
-                        LiteralValue::String(text),
+                        LiteralValue::String(text.into()),
                         symbol,
                         member_symbol,
                     ),
@@ -10703,9 +10702,7 @@ impl<'a> CheckerState<'a> {
         report_errors: bool,
     ) -> CheckResult2<TypeId> {
         let NodeData::BindingElement(data) = self.data_of(element) else {
-            return Err(Unsupported::new(
-                "getTypeFromBindingElement over a non-binding-element (parse recovery)",
-            ));
+            return Ok(self.tables.intrinsics.error);
         };
         let (initializer, name) = (data.initializer, data.name);
         let source = self.binder.source_of_node(element);
@@ -13225,6 +13222,33 @@ mod c0_annotation_recovery_tests {
             .expect("missing element argument recovers");
         assert!(state.tables.is_error_type(recovered));
     }
+
+    #[test]
+    fn malformed_annotation_inputs_resolve_to_error_type_without_unwinding() {
+        let source = parse("const live = 1;\n");
+        let options = CompilerOptions::default();
+        let binder = bind_source_file(&source, &options);
+        let mut state = CheckerState::new(&source, &binder, &options);
+
+        let declarationless = state
+            .binder
+            .create_symbol(SymbolFlags::VARIABLE, "Recovered".to_owned());
+        let recovered_symbol_type = state
+            .get_type_of_variable_or_parameter_or_property(declarationless)
+            .expect("declarationless variable/property symbol recovers");
+        assert!(state.tables.is_error_type(recovered_symbol_type));
+        assert_eq!(
+            state
+                .get_type_of_variable_or_parameter_or_property(declarationless)
+                .expect("recovery result is cached"),
+            recovered_symbol_type
+        );
+
+        let recovered_binding_type = state
+            .get_type_from_binding_element(source.root, false, true)
+            .expect("non-binding element recovers");
+        assert!(state.tables.is_error_type(recovered_binding_type));
+    }
 }
 
 // ---- enum declared types + values (M4 5.3b) ----
@@ -13504,7 +13528,7 @@ mod enum_tests {
                 match &state.tables.type_of(d).data {
                     TypeData::Literal {
                         value: tsrs2_types::LiteralValue::String(text),
-                    } => assert_eq!(text, "xy"),
+                    } => assert!(text.eq_utf8("xy")),
                     other => panic!("expected string literal, got {other:?}"),
                 }
                 assert!(state.diagnostics.is_empty(), "{:?}", state.diagnostics);

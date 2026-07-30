@@ -790,7 +790,7 @@ mod tests {
             .unwrap_or_else(|| panic!("annotation for {name}"));
         state
             .get_type_from_type_node(node)
-            .unwrap_or_else(|err| panic!("{name} resolves: {}", err.reason))
+            .unwrap_or_else(|err| panic!("{name} resolves: {err}"))
     }
 
     #[test]

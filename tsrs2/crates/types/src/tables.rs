@@ -123,7 +123,12 @@ pub struct TypeTables {
     pub intrinsics: Intrinsics,
     // ---- tsc interning maps (_tsc.js 46988-47009); M3 subset ----
     /// stringLiteralTypes (46992), keyed by the string value.
-    string_literal_types: HashMap<String, TypeId>,
+    string_literal_types: HashMap<TemplateText, TypeId>,
+    /// Fast borrowed lookup for the overwhelmingly common scalar
+    /// UTF-8 entry. The UTF-16 map above remains canonical and owns
+    /// every value; this mirror avoids allocating an encoded key on
+    /// each `get_string_literal_type(&str)` cache hit.
+    utf8_string_literal_types: HashMap<String, TypeId>,
     /// numberLiteralTypes (46993), keyed by the numeric value with JS
     /// Map SameValueZero semantics (-0 and +0 share a key).
     number_literal_types: HashMap<u64, TypeId>,
@@ -210,6 +215,7 @@ impl TypeTables {
                 unique_literal: TypeId(0),
             },
             string_literal_types: HashMap::new(),
+            utf8_string_literal_types: HashMap::new(),
             number_literal_types: HashMap::new(),
             bigint_literal_types: HashMap::new(),
             enum_literal_types: HashMap::new(),
@@ -662,16 +668,33 @@ impl TypeTables {
     /// tsc-hash: e7516536a59ae1f2232f916cde9c1fd2fe6c1ab99c9469c9ce15761178d84a0d
     /// tsc-span: _tsc.js:63083-63086
     pub fn get_string_literal_type(&mut self, value: &str) -> TypeId {
+        if let Some(&id) = self.utf8_string_literal_types.get(value) {
+            return id;
+        }
+        self.get_string_literal_type_from_text(&TemplateText::from_utf8(value))
+    }
+
+    /// Lossless JavaScript-string entry. The cache key and literal
+    /// payload both retain every UTF-16 code unit, including unpaired
+    /// surrogates.
+    pub fn get_string_literal_type_from_text(&mut self, value: &TemplateText) -> TypeId {
         if let Some(&id) = self.string_literal_types.get(value) {
             return id;
         }
         let id = self.create_literal_type(
             TypeFlags::STRING_LITERAL,
-            LiteralValue::String(value.to_owned()),
+            LiteralValue::String(value.clone()),
             None,
         );
-        self.string_literal_types.insert(value.to_owned(), id);
+        self.string_literal_types.insert(value.clone(), id);
+        if let Some(value) = value.to_utf8() {
+            self.utf8_string_literal_types.insert(value, id);
+        }
         id
+    }
+
+    pub fn get_string_literal_type_from_utf16(&mut self, units: &[u16]) -> TypeId {
+        self.get_string_literal_type_from_text(&TemplateText::from_utf16(units))
     }
 
     /// tsc-port: getNumberLiteralType @6.0.3
@@ -2282,7 +2305,7 @@ impl TypeTables {
                 value: LiteralValue::String(value),
             } = &ty.data
             {
-                return Some(TemplateText::from_utf8(value));
+                return Some(value.clone());
             }
         }
         if ty.flags.intersects(TypeFlags::NUMBER_LITERAL) {
@@ -2386,11 +2409,7 @@ impl TypeTables {
             return self.intrinsics.string;
         }
         if new_types.is_empty() {
-            // tsc-dormant: canary=template_literal_utf16_fold_constructibility; owner=M8; reason=template literal constant fold crosses a lossy UTF-16 to Rust String boundary
-            // For example, `\uD800${"a"}` folds to a string literal
-            // containing U+FFFD. The related explicit M8 escape is
-            // structural::utf16_to_string.
-            return self.get_string_literal_type(&text.to_string_lossy());
+            return self.get_string_literal_type_from_text(&text);
         }
         new_texts.push(text);
         if new_texts.iter().all(|t| t.is_empty()) {
@@ -2751,7 +2770,7 @@ fn number_map_key(value: f64) -> u64 {
 /// `A = 0 / 0` in non-const enums).
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum EnumLiteralKey {
-    String(String),
+    String(TemplateText),
     Number(u64),
 }
 
@@ -3199,6 +3218,24 @@ mod tests {
         let one = t.get_number_literal_type(1.0);
         let folded = t.get_template_literal_type(&["a".into(), "b".into()], &[one]);
         assert_eq!(folded, t.get_string_literal_type("a1b"));
+        // The all-literal fold stays in the JavaScript UTF-16 domain:
+        // a lone surrogate is not interned as U+FFFD.
+        let suffix = t.get_string_literal_type("x");
+        let folded_surrogate = t.get_template_literal_type_from_texts(
+            &[TemplateText::from_utf16(&[0xD800]), TemplateText::default()],
+            &[suffix],
+        );
+        let folded_replacement = t.get_template_literal_type_from_texts(
+            &[TemplateText::from_utf16(&[0xFFFD]), TemplateText::default()],
+            &[suffix],
+        );
+        assert_ne!(folded_surrogate, folded_replacement);
+        assert_eq!(
+            &t.type_of(folded_surrogate).data,
+            &TypeData::Literal {
+                value: LiteralValue::String(TemplateText::from_utf16(&[0xD800, b'x' as u16])),
+            }
+        );
         // `${string}` with empty texts collapses to string (62075-62078).
         let s = t.get_template_literal_type(&["".into(), "".into()], &[string]);
         assert_eq!(s, string);

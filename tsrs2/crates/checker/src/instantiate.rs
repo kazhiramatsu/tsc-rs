@@ -147,26 +147,6 @@ fn js_to_lower_case(s: &str) -> String {
     s.to_lowercase()
 }
 
-/// JS `str.charAt(0).toUpperCase() + str.slice(1)`: charAt(0) is one
-/// UTF-16 CODE UNIT, so an astral first character contributes a lone
-/// surrogate whose case conversion is the identity — Capitalize/
-/// Uncapitalize are no-ops on astral-initial strings.
-fn js_capitalize(s: &str, upper: bool) -> String {
-    let mut chars = s.chars();
-    let Some(first) = chars.next() else {
-        return String::new();
-    };
-    if (first as u32) > 0xFFFF {
-        return s.to_owned();
-    }
-    let mapped = if upper {
-        first.to_uppercase().to_string()
-    } else {
-        first.to_lowercase().to_string()
-    };
-    format!("{mapped}{}", chars.as_str())
-}
-
 fn js_template_text_case(
     text: &tsrs2_types::TemplateText,
     upper: bool,
@@ -2993,7 +2973,7 @@ impl<'a> CheckerState<'a> {
             };
             let name = self.binder.symbol(symbol).escaped_name.clone();
             let mapped = apply_string_mapping(intrinsic_type_kind(&name), &value);
-            return Ok(self.tables.get_string_literal_type(&mapped));
+            return Ok(self.tables.get_string_literal_type_from_text(&mapped));
         }
         if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
             let (texts, types) = match &self.tables.type_of(ty).data {
@@ -3331,13 +3311,16 @@ impl<'a> CheckerState<'a> {
 /// tsc-port: applyStringMapping @6.0.3
 /// tsc-hash: 03303706c2ff1cce6253350ab983e924aec70581fee678721dfdeeaf6e680e72
 /// tsc-span: _tsc.js:62129-62141
-pub(crate) fn apply_string_mapping(kind: Option<IntrinsicTypeKind>, value: &str) -> String {
+pub(crate) fn apply_string_mapping(
+    kind: Option<IntrinsicTypeKind>,
+    value: &tsrs2_types::TemplateText,
+) -> tsrs2_types::TemplateText {
     match kind {
-        Some(IntrinsicTypeKind::Uppercase) => js_to_upper_case(value),
-        Some(IntrinsicTypeKind::Lowercase) => js_to_lower_case(value),
-        Some(IntrinsicTypeKind::Capitalize) => js_capitalize(value, true),
-        Some(IntrinsicTypeKind::Uncapitalize) => js_capitalize(value, false),
-        _ => value.to_owned(),
+        Some(IntrinsicTypeKind::Uppercase) => js_template_text_case(value, true),
+        Some(IntrinsicTypeKind::Lowercase) => js_template_text_case(value, false),
+        Some(IntrinsicTypeKind::Capitalize) => js_template_text_capitalize(value, true),
+        Some(IntrinsicTypeKind::Uncapitalize) => js_template_text_capitalize(value, false),
+        _ => value.clone(),
     }
 }
 

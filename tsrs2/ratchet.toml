@@ -874,7 +874,10 @@ max_untagged = 0
 # Valid class-member kinds are exhaustively handled; a parser-recovery
 # shape outside that closed set is contained at the registered class
 # boundary instead of panicking the unused drain.
-max_recovery = 117
+# M8 close: 117 -> 0 — every malformed-tree face now has its finite
+# tsc-compatible recovery result; no recovery path uses the checker
+# abort channel.
+max_recovery = 0
 # D2a/D1a initial constructibility census: 23 exact rows. Each row
 # names a test canary; once that test exists the annotation is stale
 # and its owning model slice must implement, remove, or narrow it.
@@ -883,4 +886,6 @@ max_recovery = 117
 # canary assumptions and activated the shared generic-intersection
 # exclusion; downstream mapped member/relation/inference work now
 # stops at explicit M8-owned escape sites instead of dormant guards.
-max_dormant = 13
+# M8 close: 13 -> 0 — all remaining constructibility assumptions were
+# either implemented losslessly or retired with a closed invariant.
+max_dormant = 0

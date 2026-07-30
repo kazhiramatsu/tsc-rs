@@ -25,7 +25,7 @@ use tsrs2_types::{
     CheckMode, IterationUse, ModifierFlags, NodeFlags, SymbolFlags, TypeFlags, TypeId,
 };
 
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState};
 
 impl<'a> CheckerState<'a> {
     // ---- §2 drivers ----
@@ -41,7 +41,7 @@ impl<'a> CheckerState<'a> {
             unreachable!("kind/data agree");
         };
         let Some(declaration_list) = data.declaration_list else {
-            return Err(Unsupported::new("VariableStatement recovery node"));
+            return Ok(());
         };
         if !self.check_grammar_modifiers(node)
             && !self.check_grammar_variable_declaration_list(declaration_list)?
@@ -253,25 +253,6 @@ impl<'a> CheckerState<'a> {
                     let initializer_type =
                         self.check_expression_cached(initializer, CheckMode::NORMAL)?;
                     if strict_null_checks && need_check_widened_type {
-                        // 6.6-review containment: the empty-pattern
-                        // non-null face (`const {} = u`) reports over
-                        // the initializer's flow answer, but its
-                        // internal seam consult keys the DECLARATION
-                        // node — probe the initializer here (2531/
-                        // 2532-family FP over a seam-reverted `u`).
-                        if self.flow_answer_is_seam_reverted_within(initializer)
-                            && self.maybe_type_of_kind(
-                                initializer_type,
-                                TypeFlags::from_bits(
-                                    TypeFlags::NULLABLE.bits() | TypeFlags::VOID.bits(),
-                                ),
-                            )
-                        {
-                            return Err(Unsupported::new(
-                                "empty-pattern non-null report over a seam-reverted flow \
-                                 answer (unported narrowing dependency, M6/M8 seam)",
-                            ));
-                        }
                         self.check_non_null_non_void_type(initializer_type, node)?;
                     } else {
                         // checkTypeAssignableToAndOptionallyElaborate
@@ -282,20 +263,6 @@ impl<'a> CheckerState<'a> {
                         // tsc.
                         let target =
                             self.get_widened_type_for_variable_like_declaration(node, false)?;
-                        // 6.6-review containment: the binding-pattern
-                        // initializer row was the review's first
-                        // un-consulted declaration row (`const { a }:
-                        // T = u` over a seam-reverted `u` fabricated
-                        // a 2322) — same flag-exact registry as the
-                        // Step-12 main row.
-                        if self.flow_answer_is_seam_reverted_within(initializer)
-                            && !self.is_type_assignable_to(initializer_type, target)?
-                        {
-                            return Err(Unsupported::new(
-                                "failed binding-pattern initializer over a seam-reverted \
-                                 flow answer (unported narrowing dependency, M6/M8 seam)",
-                            ));
-                        }
                         let elaborated = !self.is_type_assignable_to(initializer_type, target)?
                             && self
                                 .elaborate_literal_assignment(
@@ -386,20 +353,6 @@ impl<'a> CheckerState<'a> {
                     // THE annotated-declaration 2322 row: errorNode =
                     // node (getErrorSpanForNode's VariableDeclaration
                     // arm reports at the NAME span — pinned).
-                    // 6.6f: syntax-probe gate → flag-exact
-                    // containment for the failed-initializer face.
-                    // SUBTREE probe (6.6 review): a compound
-                    // initializer (`= [u]`, `= { a: u }`) inherits a
-                    // seam-reverted descendant's wideness — the old
-                    // subtree gate's coverage keeps its strength.
-                    if self.flow_answer_is_seam_reverted_within(initializer)
-                        && !self.is_type_assignable_to(initializer_type, ty)?
-                    {
-                        return Err(Unsupported::new(
-                            "failed declaration initializer over a seam-reverted flow \
-                             answer (unported narrowing dependency, M6/M8 seam)",
-                        ));
-                    }
                     let elaborated = !self.is_type_assignable_to(initializer_type, ty)?
                         && self
                             .elaborate_literal_assignment(
@@ -513,23 +466,6 @@ impl<'a> CheckerState<'a> {
                     .flags
                     .intersects(SymbolFlags::ASSIGNMENT)
             {
-                // 6.6-review containment: an annotation-less merged
-                // declaration DERIVES declaration_type from its
-                // initializer's flow answer — a seam-reverted answer
-                // widens it and fabricates a 2403 tsc never reports
-                // (`var v: T; var v = w;` under an unported-narrowing
-                // guard). Same flag-exact registry, derived-type face.
-                if self
-                    .only_expression_initializer_of(node)
-                    .is_some_and(|initializer| {
-                        self.flow_answer_is_seam_reverted_within(initializer)
-                    })
-                {
-                    return Err(Unsupported::new(
-                        "merged-declaration type comparison over a seam-reverted flow \
-                         answer (unported narrowing dependency, M6/M8 seam)",
-                    ));
-                }
                 self.error_next_variable_or_property_declaration_must_have_same_type(
                     value_declaration,
                     ty,
@@ -540,18 +476,6 @@ impl<'a> CheckerState<'a> {
             if let Some(initializer) = self.only_expression_initializer_of(node) {
                 let initializer_type =
                     self.check_expression_cached(initializer, CheckMode::NORMAL)?;
-                // 6.6-review: the merged row's initializer relation
-                // takes the same flag-exact containment as the main
-                // row (the review's third un-consulted declaration
-                // row).
-                if self.flow_answer_is_seam_reverted_within(initializer)
-                    && !self.is_type_assignable_to(initializer_type, declaration_type)?
-                {
-                    return Err(Unsupported::new(
-                        "failed declaration initializer over a seam-reverted flow \
-                         answer (unported narrowing dependency, M6/M8 seam)",
-                    ));
-                }
                 // checkTypeAssignableToAndOptionallyElaborate like the
                 // Step-12 row: a literal initializer's member row
                 // replaces the merged head.
@@ -602,9 +526,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 88f4f009d322e9b123f200a2f7950e6651705fc29f014dc1c3d52c98957d8678
     /// tsc-span: _tsc.js:83575-83589
     ///
-    /// Display band (risk §14.4): an unrenderable type unwinds
-    /// Unsupported and the whole report escapes — never a partial
-    /// render.
+    /// Display band (risk §14.4): an unrenderable type aborts the
+    /// whole report rather than producing a partial render.
     pub(crate) fn error_next_variable_or_property_declaration_must_have_same_type(
         &mut self,
         first_declaration: Option<NodeId>,
@@ -2008,15 +1931,14 @@ impl<'a> CheckerState<'a> {
         };
         let (expression, then_statement, else_statement) =
             (data.expression, data.then_statement, data.else_statement);
-        let Some(expression) = expression else {
-            return Err(Unsupported::new("IfStatement recovery node"));
-        };
-        let ty = self.check_truthiness_expression(expression, CheckMode::NORMAL)?;
-        self.check_testing_known_truthy_callable_or_awaitable_or_enum_member_type(
-            expression,
-            ty,
-            then_statement,
-        )?;
+        if let Some(expression) = expression {
+            let ty = self.check_truthiness_expression(expression, CheckMode::NORMAL)?;
+            self.check_testing_known_truthy_callable_or_awaitable_or_enum_member_type(
+                expression,
+                ty,
+                then_statement,
+            )?;
+        }
         self.check_source_element(then_statement);
         if let Some(then_statement) = then_statement {
             if self.kind_of(then_statement) == SyntaxKind::EmptyStatement {
@@ -2192,7 +2114,7 @@ impl<'a> CheckerState<'a> {
         };
         let (await_modifier, expression) = (data.await_modifier, data.expression);
         let Some(expression) = expression else {
-            return Err(Unsupported::new("ForOfStatement recovery node"));
+            return Ok(self.tables.intrinsics.error);
         };
         let use_ = if await_modifier.is_some() {
             IterationUse::FOR_AWAIT_OF
@@ -2214,11 +2136,13 @@ impl<'a> CheckerState<'a> {
         };
         let (initializer, expression, statement) =
             (data.initializer, data.expression, data.statement);
-        let Some(expression) = expression else {
-            return Err(Unsupported::new("ForInStatement recovery node"));
+        let right_type = match expression {
+            Some(expression) => {
+                let raw_right = self.check_expression(expression, CheckMode::NORMAL)?;
+                self.get_non_nullable_type_if_needed(raw_right)?
+            }
+            None => self.tables.intrinsics.error,
         };
-        let raw_right = self.check_expression(expression, CheckMode::NORMAL)?;
-        let right_type = self.get_non_nullable_type_if_needed(raw_right)?;
         if let Some(initializer) = initializer {
             if self.kind_of(initializer) == SyntaxKind::VariableDeclarationList {
                 let declarations = match self.data_of(initializer) {
@@ -2266,16 +2190,17 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        if right_type == self.tables.intrinsics.never
-            || !self.is_type_assignable_to_kind(
-                right_type,
-                TypeFlags::NON_PRIMITIVE | TypeFlags::INSTANTIABLE_NON_PRIMITIVE,
-                /*strict*/ false,
-            )?
+        if expression.is_some()
+            && (right_type == self.tables.intrinsics.never
+                || !self.is_type_assignable_to_kind(
+                    right_type,
+                    TypeFlags::NON_PRIMITIVE | TypeFlags::INSTANTIABLE_NON_PRIMITIVE,
+                    /*strict*/ false,
+                )?)
         {
             let display = self.type_to_string_slice(right_type)?;
             self.error_at(
-                Some(expression),
+                expression,
                 &diagnostics::The_right_hand_side_of_a_for_in_statement_must_be_of_type_any_an_object_type_or_a_type_parameter_but_here_has_type_0,
                 &[&display],
             );
@@ -2723,12 +2648,12 @@ impl<'a> CheckerState<'a> {
             unreachable!("kind/data agree");
         };
         let (expression, case_block) = (data.expression, data.case_block);
-        let Some(expression) = expression else {
-            return Err(Unsupported::new("SwitchStatement recovery node"));
-        };
         let mut first_default_clause: Option<NodeId> = None;
         let mut has_duplicate_default_clause = false;
-        let expression_type = self.check_expression(expression, CheckMode::NORMAL)?;
+        let expression_type = match expression {
+            Some(expression) => self.check_expression(expression, CheckMode::NORMAL)?,
+            None => self.tables.intrinsics.error,
+        };
         let clauses = case_block
             .map(|case_block| match self.data_of(case_block) {
                 NodeData::CaseBlock(data) => self.nodes_of(data.clauses),
@@ -3168,7 +3093,12 @@ mod tests {
     }
 
     #[test]
-    fn probe_discr() {
+    fn impossible_intersection_member_does_not_create_false_discriminant() {
+        // tsc 59109 reduces each constituent before synthesizing an
+        // outer union property.  The impossible string arm therefore
+        // contributes no `type` property, so the partial property is
+        // not a discriminant and the else arm remains accessible.
+        // Oracle-pinned vs vendored tsc 6.0.3, noLib.
         assert_eq!(
             checked_rows("type RV = { type: 'number', value: number } | { type: 'string', value: string };\nfunction foo1(x: RV & { type: 'number' }) {\n  if (x.type === 'number') { x.value; }\n  else { x.value; }\n}\n"),
             []
@@ -3231,12 +3161,11 @@ mod tests {
         });
     }
 
-    // ---- seam-reverted declaration rows contain (6.6 review; tsc
-    // 6.0.3 noLib is CLEAN on each — the body-inferred predicate
-    // narrows) ----
+    // ---- body-inferred predicate declaration rows (tsc 6.0.3 noLib
+    // is clean on each) ----
 
     #[test]
-    fn pattern_row_contains_over_seam_reverted_initializer() {
+    fn body_predicate_narrows_binding_pattern_initializer() {
         assert_eq!(
             checked_rows(
                 "interface T { a: string }\nfunction isObj(x: T | null) { return x !== null; }\ndeclare const u: T | null;\nif (isObj(u)) { const { a }: T = u; }\n"
@@ -3246,7 +3175,7 @@ mod tests {
     }
 
     #[test]
-    fn merged_row_contains_over_seam_reverted_initializer() {
+    fn body_predicate_narrows_merged_declaration_initializer() {
         assert_eq!(
             checked_rows(
                 "interface T { a: string }\nfunction isObj(x: T | null) { return x !== null; }\ndeclare const w: T | null;\nfunction h() { if (isObj(w)) { var v: T; var v = w; } }\n"
@@ -3379,7 +3308,7 @@ x.accessor = 1;\n"
     }
 
     #[test]
-    fn empty_pattern_contains_over_seam_reverted_initializer() {
+    fn body_predicate_narrows_empty_pattern_initializer() {
         assert_eq!(
             checked_rows(
                 "interface T { a: string }\nfunction isObj(x: T | null) { return x !== null; }\ndeclare const u: T | null;\nif (isObj(u)) { const {} = u; }\n"

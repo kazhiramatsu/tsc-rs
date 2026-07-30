@@ -166,10 +166,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 9aea88818c9c1ebe2075ffa20ada35d8a3a725412c6976f5c44c6dc86ae8c85f
     /// tsc-span: _tsc.js:61789-61870
     ///
-    /// M3 dispositions:
-    /// - extractRedundantTemplateLiterals (61800-61802) needs
-    ///   isTypeSubtypeOf — Unsupported until the 4.6 template relation
-    ///   arm provides the matcher.
+    /// Implementation notes:
+    /// - extractRedundantTemplateLiterals (61800-61802) uses the live
+    ///   isTypeSubtypeOf template matcher.
     /// - The 2-member type-variable constraint collapse
     ///   (checker-foundations §4.2 step 6) runs live since M4 5.1c —
     ///   getBaseConstraintOfType + strict-subtype over declared type

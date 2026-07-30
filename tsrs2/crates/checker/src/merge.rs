@@ -420,7 +420,15 @@ impl<'a> CheckerState<'a> {
                     if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
                         let name = match &self.tables.type_of(name_type).data {
                             TypeData::Literal { value } => match value {
-                                tsrs2_types::LiteralValue::String(text) => text.clone(),
+                                tsrs2_types::LiteralValue::String(text) => {
+                                    let Some(text_utf8) = text.to_utf8() else {
+                                        return format!(
+                                            "\"{}\"",
+                                            crate::check::string_literal_type_display_text(text)
+                                        );
+                                    };
+                                    text_utf8
+                                }
                                 tsrs2_types::LiteralValue::Number(value) => {
                                     tsrs2_types::js_number_to_string(*value)
                                 }
@@ -833,8 +841,8 @@ impl<'a> CheckerState<'a> {
     /// pass 2 resolves module names. The collector walks each file's
     /// TOP-LEVEL statements (tsc file.moduleAugmentations also carries
     /// augmentations nested in ambient external modules — .d.ts
-    /// bundle shapes; ledger). Per-augmentation Unsupported unwinds
-    /// contain (FN) like the check_source_element boundary.
+    /// bundle shapes; ledger). A per-augmentation CheckAbort is
+    /// contained like the check_source_element boundary.
     pub fn merge_module_augmentations(&mut self) {
         let file_count = self.binder.file_count();
         let mut global_augmentations: Vec<NodeId> = Vec::new();
@@ -905,8 +913,9 @@ impl<'a> CheckerState<'a> {
         // Pass 2: external-module augmentations resolve + merge.
         for augmentation in module_augmentations {
             if let Err(err) = self.merge_one_module_augmentation(augmentation) {
+                self.mark_oracle_crash_range(augmentation, err);
                 if std::env::var_os("TSRS_TRACE_CONTAIN").is_some() {
-                    eprintln!("contained @{augmentation:?}: {}", err.reason);
+                    eprintln!("contained @{augmentation:?}: {err}");
                 }
             }
         }

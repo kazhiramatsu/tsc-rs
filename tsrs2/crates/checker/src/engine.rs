@@ -1,8 +1,8 @@
 //! The relation engine core (m3-types-relations-steps.md stage 4.5,
 //! checker-key-functions §1.1-§1.3).
 //!
-//! Every relation function returns CheckResult2<Ternary>: an
-//! Unsupported is never cached or converted into a verdict.
+//! Every relation function returns CheckResult2<Ternary>: a
+//! CheckAbort is never cached or converted into a verdict.
 //!
 //! Boolean callers use tsc's reportErrors=false face. Diagnostic
 //! callers replay the failed relation in a fresh reporting frame,
@@ -1346,6 +1346,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// Capture tsc's nullable `errorInfo` value together with the
     /// owned revision token. A Rust snapshot with an empty chain is
     /// not equivalent to JavaScript's falsy `undefined`.
+    /// tsrs-native: Option-valued projection of the owned relation-error state.
     pub(crate) fn capture_current_error_info(&self) -> Option<RelationErrorState> {
         self.error_state
             .error_info
@@ -1370,7 +1371,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// original componentwise failure with every node in the
     /// constraint-retry failure and keeps the original on ties.
     ///
-    /// tsc-port: indexed-access errorInfo breadth selection @6.0.3
+    /// tsc-port: structuredTypeRelatedToWorker @6.0.3
     /// tsc-hash: 5345a387db70bb2a21b2012657fdc5096d8f3937d986fec396b191cbcaa4e679
     /// tsc-span: _tsc.js:66164-66207
     pub(crate) fn select_shallower_indexed_access_error_info(
@@ -1390,7 +1391,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// fallback. tsc restores only the chain here, not the other
     /// captured error-calculation fields.
     ///
-    /// tsc-port: variance structural-fallback errorInfo selection @6.0.3
+    /// tsc-port: structuredTypeRelatedToWorker @6.0.3
     /// tsc-hash: 195842bf8de93b6709fb8223a82cda92b24af29ad7c85dbddf4d6c0d03c5a853
     /// tsc-span: _tsc.js:66446-66471
     ///
@@ -2586,7 +2587,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// against reportUnmeasurable/reportUnreliable mappers) is only
     /// reachable during variance measurement — dead until M4 5.3b, as
     /// is the propagatingVarianceFlags accumulation (outofband handler
-    /// is never installed in M3). An Unsupported unwinds the stacks
+    /// is never installed in M3). A CheckAbort unwinds the stacks
     /// exactly like a False WITHOUT caching anything.
     /// tsc-port: typeArgumentsRelatedTo @6.0.3
     /// tsc-hash: 48c9af2e688dd0f7f130ca540d0bd3d9202216800c1de96f5c3f5cacdf2be4e3
@@ -2863,7 +2864,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let result = match outcome {
             Ok(result) => result,
             Err(err) => {
-                // Unsupported: unwind this frame's maybe entries
+                // CheckAbort: unwind this frame's maybe entries
                 // without caching any verdict.
                 self.reset_maybe_stack(
                     maybe_start,

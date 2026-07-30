@@ -2,23 +2,8 @@
 //! tagged-template/import/instanceof tail (m4-57-call-extraction.md;
 //! the JSX band is 5.7c).
 //!
-//! THE stub M6 swaps is inferTypeArguments (75938) plus the
-//! inference-context construction at chooseOverload (76809-76817) and
-//! inferSignatureInstantiationForOverloadFailure (76946-76954). The
-//! observability rule (extraction doc §0) is the FP=0 wall: the
-//! structure resolves for real, but any VALUE the stub would invent
-//! escapes (`Unsupported`, class M6-stub) at the moment it would
-//! become observable — generic calls without explicit type arguments
-//! contain (both success results and arg-relation failures); explicit
-//! type arguments, non-generic candidates, and every target-shape/
-//! arity/type-argument-arity error band go fully live.
-//!
-//! Error rendering follows tsc's diagnostic chains; a display the
-//! bounded nodeBuilder slice cannot render unwinds Unsupported (no
-//! diagnostic rather than an unfaithful one). Elaboration-eligible
-//! argument shapes (object/array literals, arrow bodies —
-//! elaborateError 63957) escape on the reporting path because tsc's
-//! elaboration would move the code/span into the literal.
+//! Error rendering follows tsc's diagnostic chains, including
+//! elaboration for object/array literals and function bodies.
 
 use tsrs2_binder::{node_util, SymbolId, SymbolTable};
 use tsrs2_diags::{gen as diagnostics, Diagnostic, DiagnosticMessage, MessageChain, RelatedInfo};
@@ -36,7 +21,7 @@ use crate::relate::RelationKind;
 use crate::links::LinkSlot;
 use crate::operators::OuterExpressionKinds;
 use crate::speculate::SpeculationOutcome;
-use crate::state::{CheckResult2, CheckerState, Signature, SignatureId, Unsupported};
+use crate::state::{CheckResult2, CheckerState, Signature, SignatureId};
 use crate::structural::SignatureKind;
 
 /// The Rust stand-in for tsc's fabricated SyntheticExpression parse
@@ -518,9 +503,10 @@ impl<'a> CheckerState<'a> {
         let NodeData::Decorator(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let expression = data
-            .expression
-            .ok_or_else(|| Unsupported::new("decorator without an expression (parse recovery)"))?;
+        let expression = data.expression.expect(
+            "parser invariant: try_parse_decorator always stores an expression \
+             (parse recovery stores a missing expression node)",
+        );
         let func_type = self.check_expression(expression, CheckMode::NORMAL)?;
         let apparent_type = self.get_apparent_type(func_type)?;
         if apparent_type == self.tables.intrinsics.error {
@@ -616,17 +602,18 @@ impl<'a> CheckerState<'a> {
         let NodeData::Decorator(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let expression = data
-            .expression
-            .ok_or_else(|| Unsupported::new("decorator without an expression (parse recovery)"))?;
-        let signature = self.get_decorator_call_signature(node)?.ok_or_else(|| {
-            // tsc Debug.fail(): resolveDecorator precedes and its error
-            // faces divert before the argument walk (risk #6 guard).
-            Unsupported::new(
-                "getEffectiveDecoratorArguments without a decorator signature \
-                 (Debug.fail transcription, parse recovery)",
-            )
-        })?;
+        let expression = data.expression.expect(
+            "parser invariant: try_parse_decorator always stores an expression \
+             (parse recovery stores a missing expression node)",
+        );
+        let Some(signature) = self.get_decorator_call_signature(node)? else {
+            // tsc Debug.fail(): ordinary checking reaches this helper
+            // only after resolveDecorator has established the
+            // decorated-node signature. A structurally detached
+            // recovery decorator has no effective arguments to
+            // synthesize; keep that non-oracle tree diagnostic-free.
+            return Ok(Vec::new());
+        };
         let (pos, end) = {
             let source = self.binder.source_of_node(expression);
             let raw = source.arena.node(expression);
@@ -726,7 +713,7 @@ impl<'a> CheckerState<'a> {
     /// for class-element declarations (87730). tsc builds the getter/
     /// setter target and return function types as SEPARATE (equal)
     /// types — one shared TypeId here is relation-identical. On
-    /// Unsupported unwind the sentinel REVERTS so a later query
+    /// On checker-abort unwind the sentinel reverts so a later query
     /// recomputes (tsc cannot fail here).
     fn get_es_decorator_call_signature(
         &mut self,
@@ -1059,9 +1046,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: aac60b64694cdf8eae6dcb0edbef3d765eb1c39c713cd0f3d6fea6c7eeea4b2a
     /// tsc-span: _tsc.js:87802-87816
     fn get_class_element_property_key_type(&mut self, element: NodeId) -> CheckResult2<TypeId> {
-        let name = self
-            .name_of_node(element)
-            .ok_or_else(|| Unsupported::new("class element without a name (parse recovery)"))?;
+        let name = self.name_of_node(element).expect(
+            "parser invariant: class method/accessor/property parsers always store a name \
+             (parse recovery stores a missing Identifier)",
+        );
         match self.data_of(name) {
             NodeData::Identifier(data) => {
                 let text =
@@ -1088,10 +1076,11 @@ impl<'a> CheckerState<'a> {
                     Ok(self.tables.intrinsics.string)
                 }
             }
-            _ => Err(Unsupported::new(
-                "getClassElementPropertyKeyType over an unsupported property name \
-                 (Debug.fail transcription, parse recovery)",
-            )),
+            // tsc Debug.fail("Unsupported property name."). This is
+            // reachable only on an already-invalid decorated member
+            // (for example a bigint key); propagate the checker error
+            // type instead of inventing a string/symbol key.
+            _ => Ok(self.tables.intrinsics.error),
         }
     }
 
@@ -1127,9 +1116,10 @@ impl<'a> CheckerState<'a> {
         value_type: TypeId,
     ) -> CheckResult2<TypeId> {
         let is_static = self.has_static_modifier(node);
-        let name = self
-            .name_of_node(node)
-            .ok_or_else(|| Unsupported::new("class element without a name (parse recovery)"))?;
+        let name = self.name_of_node(node).expect(
+            "parser invariant: class method/accessor/property parsers always store a name \
+             (parse recovery stores a missing Identifier)",
+        );
         let is_private = self.kind_of(name) == SyntaxKind::PrivateIdentifier;
         let name_type = if is_private {
             let text = match self.data_of(name) {
@@ -1713,9 +1703,10 @@ impl<'a> CheckerState<'a> {
             NodeData::TaggedTemplateExpression(data) => {
                 // 76299-76308: [Synthetic(TemplateStringsArray)] at the
                 // template's span + the span expressions.
-                let template = data.template.ok_or_else(|| {
-                    Unsupported::new("tagged template without a template (parse recovery)")
-                })?;
+                let template = data.template.expect(
+                    "parser invariant: parse_tagged_template_rest always stores a template \
+                     (parse recovery stores a missing TemplateTail)",
+                );
                 let strings_array = self.get_global_template_strings_array_type()?;
                 let (pos, end) = {
                     let source = self.binder.source_of_node(template);
@@ -1742,18 +1733,20 @@ impl<'a> CheckerState<'a> {
                 return Ok(args);
             }
             NodeData::BinaryExpression(data) => {
-                let left = data.left.ok_or_else(|| {
-                    Unsupported::new("instanceof without a left operand (parse recovery)")
-                })?;
+                let left = data.left.expect(
+                    "parser invariant: make_binary_expression always stores its left operand \
+                     (parse recovery stores a missing expression node)",
+                );
                 return Ok(vec![EffectiveArg::Node(left)]);
             }
             NodeData::JsxOpeningElement(JsxOpeningElementData { attributes, .. })
             | NodeData::JsxSelfClosingElement(JsxSelfClosingElementData { attributes, .. }) => {
                 // 76315-76317: the attributes node is THE argument when
                 // properties exist or an opening element has children.
-                let attributes = attributes.ok_or_else(|| {
-                    Unsupported::new("JSX opening element without attributes (parse recovery)")
-                })?;
+                let attributes = attributes.expect(
+                    "parser invariant: JSX opening/self-closing parsers always store an \
+                     attributes node (empty or recovery)",
+                );
                 let has_properties = match self.data_of(attributes) {
                     NodeData::JsxAttributes(attributes_data) => {
                         !self.nodes_of(attributes_data.properties).is_empty()
@@ -1994,14 +1987,16 @@ impl<'a> CheckerState<'a> {
                 let NodeData::TaggedTemplateExpression(data) = self.data_of(node) else {
                     unreachable!("kind/data agree");
                 };
-                let template = data.template.ok_or_else(|| {
-                    Unsupported::new("tagged template without a template (parse recovery)")
-                })?;
+                let template = data.template.expect(
+                    "parser invariant: parse_tagged_template_rest always stores a template \
+                     (parse recovery stores a missing TemplateTail)",
+                );
                 if let NodeData::TemplateExpression(template_data) = self.data_of(template) {
                     let spans = self.nodes_of(template_data.template_spans);
-                    let last_span = spans.last().copied().ok_or_else(|| {
-                        Unsupported::new("template expression without spans (parse recovery)")
-                    })?;
+                    let last_span = spans.last().copied().expect(
+                        "parser invariant: parse_template_expression always stores at least \
+                         one TemplateSpan (ending in a real or missing TemplateTail)",
+                    );
                     let literal = match self.data_of(last_span) {
                         NodeData::TemplateSpan(span_data) => span_data.literal,
                         _ => None,
@@ -2032,9 +2027,10 @@ impl<'a> CheckerState<'a> {
                     NodeData::JsxSelfClosingElement(data) => data.attributes,
                     _ => None,
                 }
-                .ok_or_else(|| {
-                    Unsupported::new("JSX opening element without attributes (parse recovery)")
-                })?;
+                .expect(
+                    "parser invariant: JSX opening/self-closing parsers always store an \
+                     attributes node (empty or recovery)",
+                );
                 let source = self.binder.source_of_node(node);
                 call_is_incomplete =
                     source.arena.node(attributes).end == source.arena.node(node).end;
@@ -2221,9 +2217,10 @@ impl<'a> CheckerState<'a> {
                         let NodeData::SpreadElement(data) = self.data_of(node) else {
                             unreachable!("spread arguments are spread elements");
                         };
-                        let expression = data.expression.ok_or_else(|| {
-                            Unsupported::new("spread without operand (parse recovery)")
-                        })?;
+                        let expression = data.expression.expect(
+                            "parser invariant: parse_spread_element always stores an operand \
+                             (parse recovery stores a missing expression node)",
+                        );
                         let ty = self.check_expression_with_contextual_type(
                             expression,
                             rest_type,
@@ -2253,9 +2250,10 @@ impl<'a> CheckerState<'a> {
                         let NodeData::SpreadElement(data) = self.data_of(node) else {
                             unreachable!("spread arguments are spread elements");
                         };
-                        let expression = data.expression.ok_or_else(|| {
-                            Unsupported::new("spread without operand (parse recovery)")
-                        })?;
+                        let expression = data.expression.expect(
+                            "parser invariant: parse_spread_element always stores an operand \
+                             (parse recovery stores a missing expression node)",
+                        );
                         let ty = self.check_expression(expression, CheckMode::NORMAL)?;
                         (ty, Some(expression))
                     }
@@ -2438,8 +2436,8 @@ impl<'a> CheckerState<'a> {
     /// and the identically-named-types message swap are both gated on
     /// `!headMessage` — reportErrorResults 65286), the source display
     /// generalizes literals, and the reporting-mode relation walk
-    /// supplies the nested errorInfo chain. Display failures unwind
-    /// Unsupported per the house discipline.
+    /// supplies the nested errorInfo chain. Display failures abort
+    /// the whole report rather than emitting a partial chain.
     /// tsrs-native: DiagSpan adapter over tsc's reportRelationError
     /// present-head path; SyntheticExpression locations have no arena
     /// NodeId in the Rust representation.
@@ -2468,7 +2466,7 @@ impl<'a> CheckerState<'a> {
             head
         };
         // The verdict is already known. Until every report-only
-        // descendant is implemented, an Unsupported while refining
+        // descendant is implemented, a checker abort while refining
         // the chain must not erase the accepted parent diagnostic.
         if let Ok(Some(output)) = self.relation_error_output(
             original_source,
@@ -2648,9 +2646,10 @@ impl<'a> CheckerState<'a> {
             NodeData::JsxSelfClosingElement(data) => data.attributes,
             _ => None,
         }
-        .ok_or_else(|| {
-            Unsupported::new("JSX opening element without attributes (parse recovery)")
-        })?;
+        .expect(
+            "parser invariant: JSX opening/self-closing parsers always store an attributes \
+             node (empty or recovery)",
+        );
         let check_attr_type = self.check_expression_with_contextual_type(
             attributes,
             param_type,
@@ -2932,9 +2931,10 @@ impl<'a> CheckerState<'a> {
                 NodeData::JsxSelfClosingElement(data) => data.attributes,
                 _ => None,
             }
-            .ok_or_else(|| {
-                Unsupported::new("JSX opening element without attributes (parse recovery)")
-            })?;
+            .expect(
+                "parser invariant: JSX opening/self-closing parsers always store an \
+                 attributes node (empty or recovery)",
+            );
             attributes_node = Some(attributes);
             self.check_expression_with_contextual_type(
                 attributes, param_type, /*inference_context*/ None, check_mode,
@@ -3413,19 +3413,6 @@ impl<'a> CheckerState<'a> {
                     EffectiveArg::Node(arg_node) => Some(self.get_effective_check_node(arg_node)),
                     EffectiveArg::Synthetic { .. } => None,
                 };
-                // 6.6f: syntax-probe gate → flag-exact containment
-                // for the failed-argument face. SUBTREE consult: a
-                // compound argument inherits the wide type from a
-                // seam-reverted descendant the node-identity probe
-                // cannot see.
-                if let Some(effective) = effective {
-                    if self.flow_answer_is_seam_reverted_in_composite(effective) {
-                        return Err(Unsupported::new(
-                            "failed argument over a seam-reverted flow answer \
-                             (unported narrowing dependency, M6/M8 seam)",
-                        ));
-                    }
-                }
                 if let Some(effective) = effective {
                     if let Some(mut errors) =
                         self.capture_argument_elaboration(effective, param_type, head, mode)?
@@ -4908,7 +4895,7 @@ impl<'a> CheckerState<'a> {
         Ok(self.diagnostic_at_span(&span, chain))
     }
 
-    /// tsc-port: the 76494 related-row selection @6.0.3
+    /// tsc-port: getArgumentArityError @6.0.3
     /// tsc-hash: b93c4ab581d5b6e865ac4ae75cb83cc787012677392b4428ad1095375cf63751
     /// tsc-span: _tsc.js:76492-76497
     ///
@@ -5253,9 +5240,10 @@ impl<'a> CheckerState<'a> {
         let NodeData::CallExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let expression = data
-            .expression
-            .ok_or_else(|| Unsupported::new("call without a callee (parse recovery)"))?;
+        let expression = data.expression.expect(
+            "parser invariant: parse_call_expression_rest always stores its callee \
+             (parse recovery stores a missing expression node)",
+        );
         let type_arguments = data.type_arguments;
         if self.kind_of(expression) == SyntaxKind::SuperKeyword {
             // 76973-76989: the super() arm.
@@ -5459,9 +5447,10 @@ impl<'a> CheckerState<'a> {
         let NodeData::NewExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let expression = data
-            .expression
-            .ok_or_else(|| Unsupported::new("new without a callee (parse recovery)"))?;
+        let expression = data.expression.expect(
+            "parser invariant: parse_new_expression_stub always stores its callee \
+             (parse recovery stores a missing Identifier)",
+        );
         let type_arguments = data.type_arguments;
         let expression_type = self.check_non_null_expression(expression)?;
         if expression_type == self.tables.intrinsics.silent_never {
@@ -5654,9 +5643,10 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(true);
         }
-        let class_declaration = self
-            .parent_of(declaration)
-            .ok_or_else(|| Unsupported::new("constructor without a class (parse recovery)"))?;
+        let class_declaration = self.parent_of(declaration).expect(
+            "tree invariant: parsed constructors are class elements and finalize_tree assigns \
+             their class parent",
+        );
         let class_symbol = self.get_symbol_of_declaration(class_declaration)?;
         let declaring_class_declaration = self.get_class_like_declaration_of_symbol(class_symbol);
         let declaring_class = self.get_declared_type_of_class_or_interface(class_symbol)?;
@@ -5798,18 +5788,20 @@ impl<'a> CheckerState<'a> {
                 }
                 _ => (None, None, None),
             };
-            let tag_name = tag_name.ok_or_else(|| {
-                Unsupported::new("JSX opening element without a tag name (parse recovery)")
-            })?;
+            let tag_name = tag_name.expect(
+                "parser invariant: JSX opening/self-closing parsers always store a tag name \
+                 (parse recovery stores a missing Identifier)",
+            );
             if self.is_jsx_intrinsic_tag_name(tag_name) {
                 let result =
                     self.get_intrinsic_attributes_type_from_jsx_opening_like_element(node)?;
                 let fake_signature = self.create_signature_for_jsx_intrinsic(node, result)?;
                 let param_type =
                     self.get_effective_first_argument_for_jsx_signature(fake_signature, node)?;
-                let attributes = attributes.ok_or_else(|| {
-                    Unsupported::new("JSX opening element without attributes (parse recovery)")
-                })?;
+                let attributes = attributes.expect(
+                    "parser invariant: JSX opening/self-closing parsers always store an \
+                     attributes node (empty or recovery)",
+                );
                 let attr_type = self.check_expression_with_contextual_type(
                     attributes,
                     param_type,
@@ -5906,9 +5898,10 @@ impl<'a> CheckerState<'a> {
         let NodeData::TaggedTemplateExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let tag = data
-            .tag
-            .ok_or_else(|| Unsupported::new("tagged template without a tag (parse recovery)"))?;
+        let tag = data.tag.expect(
+            "parser invariant: parse_tagged_template_rest always stores its tag \
+             (parse recovery stores a missing expression node)",
+        );
         let tag_type = self.check_expression(tag, CheckMode::NORMAL)?;
         let apparent_type = self.get_apparent_type(tag_type)?;
         if apparent_type == self.tables.intrinsics.error {
@@ -6011,9 +6004,10 @@ impl<'a> CheckerState<'a> {
         let NodeData::BinaryExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let right = data.right.ok_or_else(|| {
-            Unsupported::new("instanceof without a right operand (parse recovery)")
-        })?;
+        let right = data.right.expect(
+            "parser invariant: make_binary_expression always stores its right operand \
+             (parse recovery stores a missing expression node)",
+        );
         let right_type = self.check_expression(right, CheckMode::NORMAL)?;
         if !self.tables.flags_of(right_type).intersects(TypeFlags::ANY) {
             let has_instance_method_type =
@@ -6477,9 +6471,10 @@ impl<'a> CheckerState<'a> {
             // 77636-77638: `Symbol()`/`Symbol.for()` results take the
             // owning declaration's unique-symbol type when the
             // position is a valid `unique symbol` declaration.
-            let parent = self.parent_of(node).ok_or_else(|| {
-                Unsupported::new("call expression without a parent (parse recovery)")
-            })?;
+            let parent = self.parent_of(node).expect(
+                "tree invariant: parsed call/new expressions are non-root nodes and \
+                 finalize_tree assigns their parent",
+            );
             let target = self.walk_up_parenthesized_expressions(parent);
             return self.get_es_symbol_like_type_for_node(target);
         }
@@ -6676,7 +6671,9 @@ mod tests {
     use tsrs2_syntax::{NodeData, SyntaxKind};
     use tsrs2_types::{CheckMode, CompilerOptions, InferenceFlags, InferencePriority, SymbolFlags};
 
-    use crate::state::test_support::with_program_state;
+    use crate::state::test_support::{
+        with_program_state, with_program_state_allow_parse_diagnostics,
+    };
     use crate::state::CheckerState;
     use crate::structural::SignatureKind;
 
@@ -8629,6 +8626,65 @@ value();
             experimental_decorators: true,
             ..CompilerOptions::default()
         }
+    }
+
+    #[test]
+    fn invalid_legacy_parameter_decorator_has_no_effective_arguments() {
+        // getEffectiveDecoratorArguments' Debug.fail is unreachable in
+        // tsc's ordinary resolveDecorator flow. Pin the deterministic
+        // no-diagnostic value for a recovery decorator on a free
+        // function parameter, whose legacy decorator signature is
+        // intentionally absent.
+        with_program_state_allow_parse_diagnostics(
+            &[(
+                "a.ts",
+                "declare const dec: any;\nfunction f(@dec x: number) {}\n",
+            )],
+            &legacy_decorator_options(),
+            |state| {
+                let decorator = {
+                    let source = state.binder.source(0);
+                    source
+                        .arena
+                        .node_ids()
+                        .find(|&node| source.arena.node(node).kind == SyntaxKind::Decorator)
+                        .expect("decorator node")
+                };
+                let args = state
+                    .get_effective_decorator_arguments(decorator)
+                    .expect("invalid decorator recovers without containment");
+                assert!(args.is_empty());
+            },
+        );
+    }
+
+    #[test]
+    fn unsupported_decorated_member_key_recovers_to_error_type() {
+        // getClassElementPropertyKeyType Debug.fail's on a bigint
+        // property name. The parser admits that already-invalid
+        // decorated member, so C6 keeps checking with errorType rather
+        // than fabricating a string/symbol key or containing the file.
+        with_program_state_allow_parse_diagnostics(
+            &[(
+                "a.ts",
+                "declare const dec: any;\nclass C { @dec 1n() {} }\n",
+            )],
+            &legacy_decorator_options(),
+            |state| {
+                let method = {
+                    let source = state.binder.source(0);
+                    source
+                        .arena
+                        .node_ids()
+                        .find(|&node| source.arena.node(node).kind == SyntaxKind::MethodDeclaration)
+                        .expect("decorated bigint method")
+                };
+                let key_type = state
+                    .get_class_element_property_key_type(method)
+                    .expect("unsupported property key recovers without containment");
+                assert!(state.tables.is_error_type(key_type));
+            },
+        );
     }
 
     #[test]

@@ -9,7 +9,7 @@ use tsrs2_diags::{gen as diagnostics, DiagnosticCategory};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{ModifierFlags, NodeFlags, SymbolFlags};
 
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState};
 
 #[derive(Clone, Copy)]
 enum UnusedIdentifierKind {
@@ -106,8 +106,8 @@ impl<'a> CheckerState<'a> {
                     }
                 }
             };
-            if let Err(unsupported) = result {
-                self.mark_partially_checked_node(node, unsupported.reason);
+            if let Err(abort) = result {
+                self.mark_oracle_crash_range(node, abort);
             }
         }
     }
@@ -264,11 +264,10 @@ impl<'a> CheckerState<'a> {
                 SyntaxKind::IndexSignature
                 | SyntaxKind::SemicolonClassElement
                 | SyntaxKind::ClassStaticBlockDeclaration => {}
-                _ => {
-                    return Err(Unsupported::new(
-                        "checkUnusedClassMembers unexpected class member (Debug.fail transcription, parse recovery)",
-                    ));
-                }
+                // Parser-created class members are exhausted above. A
+                // checker-synthetic recovery member has no supported name
+                // ownership and therefore contributes no unused diagnostic.
+                _ => {}
             }
         }
         Ok(())

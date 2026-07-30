@@ -51,13 +51,13 @@ impl PseudoBigInt {
     }
 }
 
-/// A template literal type's fixed text, stored as JavaScript UTF-16
-/// code units rather than a Rust `String`.
+/// A JavaScript string stored as UTF-16 code units rather than a Rust
+/// `String`.
 ///
 /// JavaScript strings may contain unpaired surrogates. Keeping this
-/// narrow payload lossless lets template matching and synthesized
-/// type display preserve inputs such as `\uD800` without changing the
-/// UTF-8-facing representation used by ordinary string literal types.
+/// payload lossless lets template matching, ordinary string literal
+/// types, and synthesized type display preserve inputs such as
+/// `\uD800` without identifying them with U+FFFD.
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub struct TemplateText {
     units: Vec<u16>,
@@ -92,8 +92,15 @@ impl TemplateText {
         self.units.extend_from_slice(other.units());
     }
 
-    pub fn to_string_lossy(&self) -> String {
-        String::from_utf16_lossy(&self.units)
+    /// Convert only when every UTF-16 unit belongs to a Unicode scalar.
+    /// Callers must branch on `None`; replacing an unpaired surrogate
+    /// would change JavaScript string identity.
+    pub fn to_utf8(&self) -> Option<String> {
+        String::from_utf16(&self.units).ok()
+    }
+
+    pub fn eq_utf8(&self, text: &str) -> bool {
+        self.units.iter().copied().eq(text.encode_utf16())
     }
 }
 
@@ -112,7 +119,7 @@ impl From<&str> for TemplateText {
 /// tsc LiteralType.value: string | number | PseudoBigInt.
 #[derive(Clone, Debug, PartialEq)]
 pub enum LiteralValue {
-    String(String),
+    String(TemplateText),
     Number(f64),
     BigInt(PseudoBigInt),
 }

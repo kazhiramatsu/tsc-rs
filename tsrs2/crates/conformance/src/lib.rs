@@ -299,7 +299,7 @@ pub struct ConformanceSummary {
     pub false_positive_diagnostics: usize,
     pub false_negative_diagnostics: usize,
     /// Oracle-only rows inside a source range where the checker
-    /// actually reached a named Unsupported/partial-check boundary.
+    /// actually reached an explicit partial-check boundary.
     /// This is evidence that a blocking semantic condition was reached,
     /// not proof that the diagnostic's code-specific trigger was tested.
     pub fn_with_partial_boundary_evidence: usize,

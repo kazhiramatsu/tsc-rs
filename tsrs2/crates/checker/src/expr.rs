@@ -1,14 +1,8 @@
 //! M4 5.5a: expression checking — the driver + leaf arms.
 //!
-//! checkExpression (80960) / checkExpressionWorker (81011) ported with
-//! the FULL kind dispatch in tsc switch order; arms whose workers land
-//! in a later 5.5 slice (b contextual / c literals / d access+facts /
-//! e operators / f functions+await+JSX) or a later stage (5.7 calls,
-//! 5.8 declarations) are named Unsupported escapes (grep
-//! `expression_stub`) — NEVER unreachable!(): expression statements
-//! route arbitrary fixture code through here, and per-element
-//! containment (check_source_element) turns each escape into an honest
-//! FN for that statement only.
+//! checkExpression (80960) / checkExpressionWorker (81011) uses the
+//! full kind dispatch in tsc switch order and routes each family to
+//! its dedicated checker module.
 //!
 //! Stage-boundary notes:
 //! - [FLOW 6.1] the M4 flow stub is REPLACED: checkIdentifier calls
@@ -34,7 +28,7 @@ use tsrs2_types::{
     ScriptTarget, SymbolFlags, TypeData, TypeFlags, TypeId,
 };
 
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState};
 use crate::structural::SignatureKind;
 
 /// tsc AssignmentKind (15579 band): None / Definite / Compound.
@@ -663,9 +657,9 @@ impl<'a> CheckerState<'a> {
         let NodeData::ParenthesizedExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let expression = data.expression.ok_or_else(|| {
-            Unsupported::new("parenthesized expression without operand (parse recovery)")
-        })?;
+        let Some(expression) = data.expression else {
+            return Ok(self.tables.intrinsics.error);
+        };
         if self.is_in_js_file(node) {
             if let Some(target) = self.jsdoc_satisfies_type_node(node) {
                 return self.check_jsdoc_satisfies_expression_worker(expression, target);
@@ -1176,15 +1170,7 @@ impl<'a> CheckerState<'a> {
         } else {
             self.get_flow_type_of_reference(node, ty, initial_type, flow_container)?
         };
-        // Captured IMMEDIATELY: later calls in this chain
-        // (isEvolvingArrayOperationTarget types the index expression)
-        // can run nested flow queries that overwrite the mirror.
-        let flow_query_inert = self.flow_last_query_inert;
-        // 72203-72212: the auto-arm / 2454 else-if chain. A query that
-        // crossed an inert 6.4 condition/switch arm answered the
-        // declared type (flow.rs 6.2 seam), so neither arm can fire
-        // from it — the added third arm partial-marks that
-        // undecidable position.
+        // 72203-72212: the auto-arm / 2454 else-if chain.
         if !self.is_evolving_array_operation_target(node)? && type_is_automatic {
             if flow_type == self.tables.intrinsics.auto || self.is_auto_array_type(flow_type) {
                 let no_implicit_any = self
@@ -1209,20 +1195,6 @@ impl<'a> CheckerState<'a> {
                 }
                 return self.convert_auto_to_any(flow_type);
             }
-            if flow_query_inert {
-                // Seam flag (M8 producers; the M6 body-inference
-                // producer retired at 7.6): the walk crossed an
-                // unported-dependency arm, so the suppressed answer
-                // could have been tsc's
-                // 7034 pair OR a narrowed union. Keep the position
-                // partial so an @ts-expect-error over the suppressed
-                // row cannot misreport as unused (2578), mirroring
-                // the 2454/2565 arms below.
-                self.mark_partially_checked_node(
-                    node,
-                    "flow-sensitive implicit-any diagnostic (M6/M8 seam)",
-                );
-            }
         } else if !assume_initialized
             && !self.contains_undefined_type(ty)
             && self.contains_undefined_type(flow_type)
@@ -1234,16 +1206,6 @@ impl<'a> CheckerState<'a> {
                 &[&display],
             );
             return Ok(ty);
-        } else if !assume_initialized && !self.contains_undefined_type(ty) && flow_query_inert {
-            // Seam flag (M6/M8 producers): a condition-dependent 2454
-            // over a seam-flagged answer is undecidable until the
-            // producers port — keep the position partial instead of
-            // misreporting in either direction. (The reason string
-            // retires with the flag's last producers.)
-            self.mark_partially_checked_node(
-                node,
-                "flow-sensitive use-before-assignment diagnostic (M6/M8 seam)",
-            );
         }
         Ok(if assignment_kind != AssignmentKind::None {
             self.get_base_type_of_literal_type(flow_type)?
@@ -2379,8 +2341,9 @@ impl<'a> CheckerState<'a> {
     ///
     pub(crate) fn check_this_expression(&mut self, node: NodeId) -> CheckResult2<TypeId> {
         let is_node_in_type_query = self.is_in_type_query(node);
-        let mut container = get_this_container_full(self, node, true, true)
-            .ok_or_else(|| Unsupported::new("this outside any container (parse recovery)"))?;
+        let Some(mut container) = get_this_container_full(self, node, true, true) else {
+            return Ok(self.tables.intrinsics.error);
+        };
         let mut captured_by_arrow_function = false;
         let mut this_in_computed_property_name = false;
         if self.kind_of(container) == SyntaxKind::Constructor {
@@ -2392,25 +2355,24 @@ impl<'a> CheckerState<'a> {
         }
         loop {
             if self.kind_of(container) == SyntaxKind::ArrowFunction {
-                container = get_this_container_full(
+                let Some(next_container) = get_this_container_full(
                     self,
                     container,
                     false,
                     !this_in_computed_property_name,
-                )
-                .ok_or_else(|| {
-                    Unsupported::new("this container walk escaped the tree (parse recovery)")
-                })?;
+                ) else {
+                    return Ok(self.tables.intrinsics.error);
+                };
+                container = next_container;
                 captured_by_arrow_function = true;
             }
             if self.kind_of(container) == SyntaxKind::ComputedPropertyName {
-                container =
+                let Some(next_container) =
                     get_this_container_full(self, container, !captured_by_arrow_function, false)
-                        .ok_or_else(|| {
-                            Unsupported::new(
-                                "this container walk escaped the tree (parse recovery)",
-                            )
-                        })?;
+                else {
+                    return Ok(self.tables.intrinsics.error);
+                };
+                container = next_container;
                 this_in_computed_property_name = true;
                 continue;
             }
@@ -2552,9 +2514,9 @@ impl<'a> CheckerState<'a> {
                 self.kind_of(parent),
                 SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
             ) {
-                let symbol = self.node_symbol(parent).ok_or_else(|| {
-                    Unsupported::new("class without a bound symbol (parse recovery)")
-                })?;
+                let Some(symbol) = self.node_symbol(parent) else {
+                    return Ok(Some(self.tables.intrinsics.error));
+                };
                 let symbol = self.get_merged_symbol(symbol);
                 let ty = if self.is_static_element(container) {
                     self.get_type_of_symbol(symbol)?
@@ -2873,9 +2835,9 @@ impl<'a> CheckerState<'a> {
         &mut self,
         class_declaration: NodeId,
     ) -> CheckResult2<bool> {
-        let symbol = self
-            .node_symbol(class_declaration)
-            .ok_or_else(|| Unsupported::new("class without a bound symbol (parse recovery)"))?;
+        let Some(symbol) = self.node_symbol(class_declaration) else {
+            return Ok(false);
+        };
         let symbol = self.get_merged_symbol(symbol);
         let class_instance_type = self.get_declared_type_of_class_or_interface(symbol)?;
         let base_constructor_type = self.get_base_constructor_type_of_class(class_instance_type)?;
@@ -3098,9 +3060,9 @@ impl<'a> CheckerState<'a> {
                 self.tables.intrinsics.null_widening
             });
         }
-        let class_symbol = self
-            .node_symbol(class_like_declaration)
-            .ok_or_else(|| Unsupported::new("class without a bound symbol (parse recovery)"))?;
+        let Some(class_symbol) = self.node_symbol(class_like_declaration) else {
+            return Ok(self.tables.intrinsics.error);
+        };
         let class_symbol = self.get_merged_symbol(class_symbol);
         let class_type = self.get_declared_type_of_class_or_interface(class_symbol)?;
         let base_types = self.get_base_types(class_type)?;
@@ -3242,9 +3204,9 @@ impl<'a> CheckerState<'a> {
         let NodeData::TypeOfExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let expression = data
-            .expression
-            .ok_or_else(|| Unsupported::new("typeof without operand (parse recovery)"))?;
+        let Some(expression) = data.expression else {
+            return Ok(self.typeof_type);
+        };
         self.check_expression(expression, CheckMode::NORMAL)?;
         Ok(self.typeof_type)
     }
@@ -3272,7 +3234,7 @@ impl<'a> CheckerState<'a> {
             unreachable!("kind/data agree");
         };
         let Some(expression) = data.expression else {
-            return Err(Unsupported::new("SpreadElement recovery node"));
+            return Ok(self.tables.intrinsics.error);
         };
         if self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES2015 {
             let helpers = if self.options.downlevel_iteration == Some(true) {
@@ -3304,9 +3266,9 @@ impl<'a> CheckerState<'a> {
         let NodeData::DeleteExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let expression = data
-            .expression
-            .ok_or_else(|| Unsupported::new("delete without operand (parse recovery)"))?;
+        let Some(expression) = data.expression else {
+            return Ok(self.tables.intrinsics.boolean);
+        };
         self.check_expression(expression, CheckMode::NORMAL)?;
         let source = self.binder.source_of_node(expression);
         let expr = node_util::skip_parentheses_pub(source, expression);
@@ -4102,9 +4064,9 @@ impl<'a> CheckerState<'a> {
                 self.check_computed_property_name(name)?;
             }
         }
-        let initializer = initializer.ok_or_else(|| {
-            Unsupported::new("property assignment without initializer (parse recovery)")
-        })?;
+        let Some(initializer) = initializer else {
+            return Ok(self.tables.intrinsics.error);
+        };
         self.check_expression_for_mutable_location(initializer, check_mode, false)
     }
 
@@ -4464,9 +4426,14 @@ fn is_shift_operator_or_higher(kind: SyntaxKind) -> bool {
 /// tsc-span: _tsc.js:18909-18964
 ///
 /// Binary/octal/hex forms convert through the segment div-10 loop;
-/// decimal strips leading zeros. Scanner-invalid text (parse recovery)
-/// escapes.
+/// decimal strips leading zeros. Scanner-invalid checker-synthetic text
+/// deterministically uses the zero value: parser-created BigIntLiteral
+/// nodes always carry scanner-normalized digits.
 pub(crate) fn parse_pseudo_big_int(text: &str) -> CheckResult2<PseudoBigInt> {
+    let recovery_zero = || PseudoBigInt {
+        negative: false,
+        base10_value: "0".to_owned(),
+    };
     let bytes = text.as_bytes();
     let log2_base = match bytes.get(1) {
         Some(b'b') | Some(b'B') => Some(1u32),
@@ -4478,9 +4445,7 @@ pub(crate) fn parse_pseudo_big_int(text: &str) -> CheckResult2<PseudoBigInt> {
         // Decimal: strip the trailing `n` and leading zeros.
         let digits = text.strip_suffix('n').unwrap_or(text);
         if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
-            return Err(Unsupported::new(format!(
-                "unparsable bigint literal text {text:?} (parse recovery)"
-            )));
+            return Ok(recovery_zero());
         }
         let trimmed = digits.trim_start_matches('0');
         let base10_value = if trimmed.is_empty() { "0" } else { trimmed };
@@ -4491,10 +4456,8 @@ pub(crate) fn parse_pseudo_big_int(text: &str) -> CheckResult2<PseudoBigInt> {
     };
     let start_index = 2usize;
     let end_index = text.len().saturating_sub(1);
-    if end_index <= start_index {
-        return Err(Unsupported::new(format!(
-            "unparsable bigint literal text {text:?} (parse recovery)"
-        )));
+    if !text.ends_with('n') || end_index <= start_index {
+        return Ok(recovery_zero());
     }
     let bits_needed = (end_index - start_index) as u32 * log2_base;
     let mut segments =
@@ -4507,19 +4470,13 @@ pub(crate) fn parse_pseudo_big_int(text: &str) -> CheckResult2<PseudoBigInt> {
             b'0'..=b'9' => (digit_char - b'0') as u32,
             b'A'..=b'F' => 10 + (digit_char - b'A') as u32,
             b'a'..=b'f' => 10 + (digit_char - b'a') as u32,
-            b'_' => {
-                // Numeric separators never reach node.text (scanner
-                // strips them); recovery-only.
-                return Err(Unsupported::new(format!(
-                    "unparsable bigint literal text {text:?} (parse recovery)"
-                )));
-            }
-            _ => {
-                return Err(Unsupported::new(format!(
-                    "unparsable bigint literal text {text:?} (parse recovery)"
-                )))
-            }
+            // Numeric separators never reach node.text (scanner strips
+            // them); every other byte is checker-synthetic recovery.
+            _ => return Ok(recovery_zero()),
         };
+        if digit >= 1 << log2_base {
+            return Ok(recovery_zero());
+        }
         let shifted_digit = digit << (bit_offset & 15);
         segments[segment] |= shifted_digit & 0xFFFF;
         let residual = shifted_digit >> 16;
@@ -4552,6 +4509,115 @@ pub(crate) fn parse_pseudo_big_int(text: &str) -> CheckResult2<PseudoBigInt> {
         negative: false,
         base10_value,
     })
+}
+
+#[cfg(test)]
+mod c0_expression_recovery_tests {
+    use tsrs2_binder::bind_source_file;
+    use tsrs2_syntax::nodes::{
+        DeleteExpressionData, EmptyStatementData, ParenthesizedExpressionData,
+        PropertyAssignmentData, SpreadElementData, TypeOfExpressionData,
+    };
+    use tsrs2_syntax::{parse_source_file, LanguageVariant, NodeData, ParseOptions, SyntaxKind};
+    use tsrs2_types::{CheckMode, CompilerOptions, NodeFlags};
+
+    use crate::state::CheckerState;
+
+    #[test]
+    fn missing_expression_slots_use_operator_specific_recovery_values() {
+        let mut source = parse_source_file(
+            "expression-recovery.ts".to_owned(),
+            "const live = 1;\n".to_owned(),
+            ParseOptions {
+                language_variant: LanguageVariant::Standard,
+                javascript_file: false,
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        let parenthesized = source.arena.alloc_node(
+            NodeData::ParenthesizedExpression(ParenthesizedExpressionData { expression: None }),
+            0,
+            0,
+            NodeFlags::NONE,
+        );
+        let spread = source.arena.alloc_node(
+            NodeData::SpreadElement(SpreadElementData { expression: None }),
+            0,
+            0,
+            NodeFlags::NONE,
+        );
+        let property = source.arena.alloc_node(
+            NodeData::PropertyAssignment(PropertyAssignmentData {
+                name: None,
+                initializer: None,
+                modifiers: None,
+                question_token: None,
+                exclamation_token: None,
+            }),
+            0,
+            0,
+            NodeFlags::NONE,
+        );
+        let type_of = source.arena.alloc_node(
+            NodeData::TypeOfExpression(TypeOfExpressionData { expression: None }),
+            0,
+            0,
+            NodeFlags::NONE,
+        );
+        let delete = source.arena.alloc_node(
+            NodeData::DeleteExpression(DeleteExpressionData { expression: None }),
+            0,
+            0,
+            NodeFlags::NONE,
+        );
+        let detached_this =
+            source
+                .arena
+                .alloc_token(SyntaxKind::ThisKeyword, 0, 0, NodeFlags::NONE);
+        let unbound_class = source.arena.alloc_node(
+            NodeData::EmptyStatement(EmptyStatementData {}),
+            0,
+            0,
+            NodeFlags::NONE,
+        );
+
+        let options = CompilerOptions::default();
+        let binder = bind_source_file(&source, &options);
+        let mut state = CheckerState::new(&source, &binder, &options);
+
+        for recovered in [
+            state
+                .check_parenthesized_expression(parenthesized, CheckMode::NORMAL)
+                .expect("parenthesized recovery"),
+            state
+                .check_spread_expression(spread, CheckMode::NORMAL)
+                .expect("spread recovery"),
+            state
+                .check_property_assignment(property, CheckMode::NORMAL)
+                .expect("property recovery"),
+            state
+                .check_this_expression(detached_this)
+                .expect("detached this recovery"),
+        ] {
+            assert!(state.tables.is_error_type(recovered));
+        }
+        assert_eq!(
+            state
+                .check_type_of_expression(type_of)
+                .expect("typeof recovery"),
+            state.typeof_type
+        );
+        assert_eq!(
+            state
+                .check_delete_expression(delete)
+                .expect("delete recovery"),
+            state.tables.intrinsics.boolean
+        );
+        assert!(!state
+            .class_declaration_extends_null(unbound_class)
+            .expect("unbound class recovery"));
+    }
 }
 
 #[cfg(test)]
@@ -4935,6 +5001,15 @@ mod tests {
         assert_eq!(parsed.base10_value, "18446744073709551615");
         let parsed = super::parse_pseudo_big_int("000123n").expect("decimal strips zeros");
         assert_eq!(parsed.base10_value, "123");
+    }
+
+    #[test]
+    fn scanner_invalid_bigint_text_recovers_as_zero() {
+        for text in ["", "not-a-bigint", "0xn", "0b2n", "0o8n", "0x_n", "0x10"] {
+            let parsed = super::parse_pseudo_big_int(text).expect("invalid scanner text recovers");
+            assert_eq!(parsed.base10_value, "0", "{text:?}");
+            assert!(!parsed.negative);
+        }
     }
 
     // ---- TDZ (checkResolvedBlockScopedVariable) — oracle-pinned ----

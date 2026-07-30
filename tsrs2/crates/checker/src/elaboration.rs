@@ -17,8 +17,8 @@ use crate::state::{CheckResult2, CheckerState, SignatureKind};
 ///
 /// `Declined` is tsc's ordinary `false` result: the caller must emit its
 /// relation head. `Reported` means an inner row was emitted and the
-/// caller must suppress that head. `Unsupported` remains reserved for a
-/// known unported elaboration branch; it is never used to mean
+/// caller must suppress that head. A typed `Err(CheckAbort)` is the
+/// separate transaction-unwind channel and is never conflated with
 /// `Declined`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ElaborationOutcome {

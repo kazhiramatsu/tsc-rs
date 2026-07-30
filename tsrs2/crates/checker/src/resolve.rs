@@ -1180,7 +1180,7 @@ impl<'a> CheckerState<'a> {
         message: &'static DiagnosticMessage,
     ) {
         // checkAndReportErrorForMissingPrefix (48220-48249) runs FIRST
-        // in tsc's chain. An Unsupported unwind inside its member
+        // in tsc's chain. A CheckAbort unwind inside its member
         // probes makes the alternate-vs-plain choice undecidable:
         // suppress the whole report (honest FN).
         match self.check_and_report_error_for_missing_prefix(error_location, name) {
@@ -1297,7 +1297,7 @@ impl<'a> CheckerState<'a> {
         } else {
             let mut suggestion: Option<SymbolId> = None;
             if self.suggestion_count < MAXIMUM_SUGGESTION_COUNT {
-                // An Unsupported unwind makes plain-vs-suggested
+                // A CheckAbort unwind makes plain-vs-suggested
                 // undecidable — skip the report (the failure-band
                 // discipline above).
                 suggestion =
@@ -1963,7 +1963,7 @@ impl<'a> CheckerState<'a> {
             if self.binder.symbol(export_or_local).flags.intersects(
                 SymbolFlags::BLOCK_SCOPED_VARIABLE | SymbolFlags::CLASS | SymbolFlags::ENUM,
             ) {
-                // Unsupported unwinds inside the declared-before-use
+                // CheckAbort unwinds inside the declared-before-use
                 // walk (property/parameter arms 5.5d) drop the TDZ
                 // report for that reference — an honest FN; tsc has no
                 // failure channel here.
