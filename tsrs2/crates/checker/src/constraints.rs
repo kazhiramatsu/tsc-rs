@@ -517,8 +517,6 @@ impl<'a> CheckerState<'a> {
     /// Union/Intersection, TemplateLiteral, StringMapping,
     /// IndexedAccess, Substitution, generic tuple, and the default
     /// identity. Conditional resolution is the named 9.6c boundary.
-    /// The circular-constraint related-info (currentNode) is driver
-    /// state — 5.4.
     pub fn get_resolved_base_constraint(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
         if let Some(cached) = self.links.ty(ty).resolved_base_constraint.resolved() {
             return Ok(cached);
@@ -594,11 +592,28 @@ impl<'a> CheckerState<'a> {
                         .symbol
                         .map(|s| self.symbol_display_name(s))
                         .unwrap_or_default();
-                    self.error_at(
+                    let mut diagnostic = self.create_error(
                         Some(error_node),
                         &diagnostics::Type_parameter_0_has_a_circular_constraint,
                         &[&name],
                     );
+                    // getImmediateBaseConstraint 58939-58942: the
+                    // driver's current node identifies where the
+                    // recursive constraint computation originated.
+                    // A nested/containing node is the same declaration
+                    // face and therefore does not become related info.
+                    if let Some(current_node) = self.current_node {
+                        if !self.is_node_descendant_of(error_node, current_node)
+                            && !self.is_node_descendant_of(current_node, error_node)
+                        {
+                            diagnostic.related.push(self.related_info_for_node(
+                                current_node,
+                                &diagnostics::Circularity_originates_in_type_at_this_location,
+                                &[],
+                            ));
+                        }
+                    }
+                    self.push_error_diagnostic(diagnostic);
                 }
             }
             self.circular_constraint_type
@@ -1008,6 +1023,10 @@ mod tests {
                     .intersects(TypeFlags::INTERSECTION));
                 let codes: Vec<u32> = state.diagnostics.iter().map(|d| d.code()).collect();
                 assert_eq!(codes, [2313]);
+                assert!(
+                    state.diagnostics[0].related.is_empty(),
+                    "a direct constraint query has no independent currentNode origin"
+                );
                 let t = declared_type_parameter(state, "T");
                 let constraint = state
                     .get_constraint_of_type_parameter(t)
@@ -1015,6 +1034,50 @@ mod tests {
                 assert_eq!(constraint, None, "circular constraint yields none");
             },
         );
+    }
+
+    #[test]
+    fn circular_constraint_reports_the_independent_driver_origin() {
+        let text = "function f<T extends T>() { var v: T & string; }\nconst origin = 0;\n";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            let annotation = annotation_of_var(state, "v");
+            let source = state.binder.source(0);
+            let origin = source
+                .arena
+                .node_ids()
+                .find(|&node| {
+                    matches!(
+                        &source.arena.node(node).data,
+                        tsrs2_syntax::NodeData::Identifier(data) if data.text == "origin"
+                    )
+                })
+                .expect("origin identifier");
+            state.current_node = Some(origin);
+            state
+                .get_type_from_type_node(annotation)
+                .expect("circular constraint resolves to its sentinel");
+            state.current_node = None;
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 2313)
+                .expect("circular mapped constraint");
+            assert_eq!(diagnostic.related.len(), 1);
+            let related = &diagnostic.related[0];
+            assert_eq!(related.message.code, 2751);
+            assert_eq!(
+                related.message.text,
+                "Circularity originates in type at this location."
+            );
+            assert_eq!(
+                (related.start, related.length),
+                (
+                    Some(text.find("origin").expect("origin span") as u32),
+                    Some("origin".len() as u32)
+                )
+            );
+            assert!(related.message.next.is_empty());
+        });
     }
 
     #[test]
