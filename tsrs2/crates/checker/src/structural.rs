@@ -3874,6 +3874,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     let related = self.compare_type_predicate_related_to(
                         &source_type_predicate,
                         &target_type_predicate,
+                        report_errors,
                         intersection_state,
                     )?;
                     result = ternary_and(result, related);
@@ -3882,6 +3883,16 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     crate::narrow::TypePredicateKind::Identifier
                         | crate::narrow::TypePredicateKind::This
                 ) {
+                    if report_errors {
+                        let source_text = self.st.signature_to_string_slice_for_relation_error(
+                            source,
+                            SignatureKind::Call,
+                        )?;
+                        self.report_error(
+                            &tsrs2_diags::gen::Signature_0_must_be_a_type_predicate,
+                            vec![source_text],
+                        )?;
+                    }
                     return Ok(Ternary::FALSE);
                 }
                 return Ok(result);
@@ -3944,13 +3955,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-hash: 6eebe74bc78f1d45a4471365a7ce2ec3ef940b92c4d5dd79542dd1a14280f72b
     /// tsc-span: _tsc.js:64606-64628
     ///
-    /// Verdicts only — every reporting cell (the this-based-guard
-    /// 2518 + 1226 pair, the 1227 + 1226 parameter-position pair, and
-    /// the bare 1226 wrap) feeds tsc's elaboration chain under the
-    /// outer head and rides the port's T2 containment. compareTypes =
-    /// the frame worker
-    /// (isRelatedToWorker2 captures the caller's intersectionState;
-    /// the clamp-style two-arg call means reportErrors=false).
+    /// Every reporting cell uses the active relation reporter: the
+    /// this-based-guard 2518 + 1226 pair, the 1227 + 1226
+    /// parameter-position pair, and the bare 1226 wrap. The predicate
+    /// type comparison keeps `reportErrors2`, so its inner relation
+    /// chain and related declaration info are created before 1226
+    /// wraps them. compareTypes is the frame worker
+    /// (isRelatedToWorker2 captures the caller's intersectionState)
+    /// and receives the same `reportErrors2` value.
     /// `source.type === target.type` covers the both-None cell
     /// (asserts-form pairs — probed b7_asserts_both reaches the void
     /// early return first, but identifier pairs with equal types land
@@ -3959,9 +3971,22 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         &mut self,
         source: &crate::narrow::TypePredicate,
         target: &crate::narrow::TypePredicate,
+        report_errors: bool,
         intersection_state: IntersectionState,
     ) -> CheckResult2<Ternary> {
         if source.kind != target.kind {
+            if report_errors {
+                self.report_error(
+                    &tsrs2_diags::gen::A_this_based_type_guard_is_not_compatible_with_a_parameter_based_type_guard,
+                    vec![],
+                )?;
+                let source_text = self.type_predicate_to_string_for_relation_error(source)?;
+                let target_text = self.type_predicate_to_string_for_relation_error(target)?;
+                self.report_error(
+                    &tsrs2_diags::gen::Type_predicate_0_is_not_assignable_to_1,
+                    vec![source_text, target_text],
+                )?;
+            }
             return Ok(Ternary::FALSE);
         }
         if matches!(
@@ -3970,21 +3995,87 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 | crate::narrow::TypePredicateKind::AssertsIdentifier
         ) && source.parameter_index != target.parameter_index
         {
+            if report_errors {
+                self.report_error(
+                    &tsrs2_diags::gen::Parameter_0_is_not_in_the_same_position_as_parameter_1,
+                    vec![
+                        source.parameter_name.clone().unwrap_or_default(),
+                        target.parameter_name.clone().unwrap_or_default(),
+                    ],
+                )?;
+                let source_text = self.type_predicate_to_string_for_relation_error(source)?;
+                let target_text = self.type_predicate_to_string_for_relation_error(target)?;
+                self.report_error(
+                    &tsrs2_diags::gen::Type_predicate_0_is_not_assignable_to_1,
+                    vec![source_text, target_text],
+                )?;
+            }
             return Ok(Ternary::FALSE);
         }
         if source.ty == target.ty {
             return Ok(Ternary::TRUE);
         }
         if let (Some(source_type), Some(target_type)) = (source.ty, target.ty) {
-            return self.is_related_to(
+            let related = self.is_related_to(
                 source_type,
                 target_type,
                 RecursionFlags::BOTH,
-                /*report_errors*/ false,
+                report_errors,
                 intersection_state,
-            );
+            )?;
+            if is_false(related) && report_errors {
+                let source_text = self.type_predicate_to_string_for_relation_error(source)?;
+                let target_text = self.type_predicate_to_string_for_relation_error(target)?;
+                self.report_error(
+                    &tsrs2_diags::gen::Type_predicate_0_is_not_assignable_to_1,
+                    vec![source_text, target_text],
+                )?;
+            }
+            return Ok(related);
+        }
+        if report_errors {
+            let source_text = self.type_predicate_to_string_for_relation_error(source)?;
+            let target_text = self.type_predicate_to_string_for_relation_error(target)?;
+            self.report_error(
+                &tsrs2_diags::gen::Type_predicate_0_is_not_assignable_to_1,
+                vec![source_text, target_text],
+            )?;
         }
         Ok(Ternary::FALSE)
+    }
+
+    /// tsc's typePredicateToString display face used by
+    /// compareTypePredicateRelatedTo. Predicate names are already
+    /// stored in their unescaped display form; the type arm reuses the
+    /// relation diagnostic's isolated type printer.
+    fn type_predicate_to_string_for_relation_error(
+        &mut self,
+        predicate: &crate::narrow::TypePredicate,
+    ) -> CheckResult2<String> {
+        let asserts = if matches!(
+            predicate.kind,
+            crate::narrow::TypePredicateKind::AssertsThis
+                | crate::narrow::TypePredicateKind::AssertsIdentifier
+        ) {
+            "asserts "
+        } else {
+            ""
+        };
+        let name = if matches!(
+            predicate.kind,
+            crate::narrow::TypePredicateKind::This | crate::narrow::TypePredicateKind::AssertsThis
+        ) {
+            "this"
+        } else {
+            predicate.parameter_name.as_deref().unwrap_or("")
+        };
+        match predicate.ty {
+            Some(ty) => Ok(format!(
+                "{asserts}{name} is {}",
+                self.st.type_to_string_slice_with_error_enclosing(ty)?
+            )),
+            None => Ok(format!("{asserts}{name}")),
+        }
     }
 
     /// tsc-port: membersRelatedToIndexInfo @6.0.3
@@ -9314,6 +9405,91 @@ let primitiveSymbol: symbol = boxedSymbol;
             ),
             []
         );
+    }
+
+    #[test]
+    fn predicate_relation_reporting_keeps_tsc_chains_and_related_info() {
+        fn flatten_codes(chain: &tsrs2_diags::MessageChain, codes: &mut Vec<u32>) {
+            codes.push(chain.code);
+            for child in &chain.next {
+                flatten_codes(child, codes);
+            }
+        }
+
+        let diagnostics = crate::state::test_support::with_program_state(
+            &[(
+                "a.ts",
+                "class Guard {\n\
+                     isA(): this is A { return true; }\n\
+                     isB(): this is B { return true; }\n\
+                 }\n\
+                 class A extends Guard { a: number = 0; }\n\
+                 class B extends Guard { b: number = 0; }\n\
+                 let guard: Guard = new Guard();\n\
+                 guard.isA = guard.isB;\n\
+                 declare function plain(p1: unknown, p2: unknown): boolean;\n\
+                 const targetOnly: (p1: unknown, p2: unknown) => p1 is A = plain;\n\
+                 declare function shifted(p1: unknown, p2: unknown): p2 is A;\n\
+                 const wrongPosition: (p1: unknown, p2: unknown) => p1 is A = shifted;\n\
+                 declare function identifier(p: unknown): p is A;\n\
+                 const wrongKind: { (p: unknown): this is Guard } = identifier;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| diagnostic.code() == 2322)
+                    .map(|diagnostic| (diagnostic.message.clone(), diagnostic.related.clone()))
+                    .collect::<Vec<_>>()
+            },
+        );
+        assert_eq!(diagnostics.len(), 4);
+
+        let chains = diagnostics
+            .iter()
+            .map(|(message, _)| {
+                let mut codes = Vec::new();
+                flatten_codes(message, &mut codes);
+                codes
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            chains,
+            [
+                vec![2322, 1226, 2741],
+                vec![2322, 1224],
+                vec![2322, 1226, 1227],
+                vec![2322, 1226, 2518],
+            ]
+        );
+        assert_eq!(
+            diagnostics[0].0.next[0].text,
+            "Type predicate 'this is B' is not assignable to 'this is A'."
+        );
+        assert_eq!(
+            diagnostics[1].0.next[0].text,
+            "Signature '(p1: unknown, p2: unknown): boolean' must be a type predicate."
+        );
+        assert_eq!(
+            diagnostics[2].0.next[0].text,
+            "Type predicate 'p2 is A' is not assignable to 'p1 is A'."
+        );
+        assert_eq!(
+            diagnostics[2].0.next[0].next[0].text,
+            "Parameter 'p2' is not in the same position as parameter 'p1'."
+        );
+        assert_eq!(
+            diagnostics[3].0.next[0].text,
+            "Type predicate 'p is A' is not assignable to 'this is Guard'."
+        );
+        assert_eq!(diagnostics[0].1.len(), 1);
+        assert_eq!(diagnostics[0].1[0].message.code, 2728);
+        assert_eq!(diagnostics[0].1[0].message.text, "'a' is declared here.");
+        assert!(diagnostics[1].1.is_empty());
+        assert!(diagnostics[2].1.is_empty());
+        assert!(diagnostics[3].1.is_empty());
     }
 
     #[test]

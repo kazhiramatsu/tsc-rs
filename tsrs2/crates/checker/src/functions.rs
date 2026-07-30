@@ -4621,10 +4621,8 @@ impl<'a> CheckerState<'a> {
     /// under that chain UNCONDITIONALLY (64890-64896) — every relation
     /// failure path (generic 2322, no-common-properties 2559, missing
     /// property, readonly 4104) lands the SAME outer code 2677 at
-    /// node.type with no arguments; the varying part is only the
-    /// elided T2 chain tail. So the head-only slice needs no display
-    /// rendering and none of check_type_assignable_to's head
-    /// overrides here.
+    /// node.type with no arguments. The relation reporting replay
+    /// supplies the exact nested chain and related declaration rows.
     pub(crate) fn check_type_predicate(&mut self, node: NodeId) -> CheckResult2<()> {
         // getTypePredicateParent (81254-81268): the seven signature
         // kinds whose return-type slot may carry a predicate.
@@ -4684,11 +4682,32 @@ impl<'a> CheckerState<'a> {
             } else if let Some(predicate_type) = type_predicate.ty {
                 let parameter_type = self.get_type_of_symbol(parameter)?;
                 if !self.is_type_assignable_to(predicate_type, parameter_type)? {
-                    self.error_at(
-                        type_node,
+                    let containing = MessageChain::new(
                         &diagnostics::A_type_predicate_s_type_must_be_assignable_to_its_parameter_s_type,
                         &[],
                     );
+                    if let Ok(Some(output)) = self.relation_error_output_with_context(
+                        predicate_type,
+                        parameter_type,
+                        crate::relate::RelationKind::Assignable,
+                        None,
+                        Some(containing),
+                    ) {
+                        let mut diagnostic = self.create_error(
+                            type_node,
+                            &diagnostics::A_type_predicate_s_type_must_be_assignable_to_its_parameter_s_type,
+                            &[],
+                        );
+                        diagnostic.message = output.message;
+                        diagnostic.related = output.related;
+                        self.push_error_diagnostic(diagnostic);
+                    } else {
+                        self.error_at(
+                            type_node,
+                            &diagnostics::A_type_predicate_s_type_must_be_assignable_to_its_parameter_s_type,
+                            &[],
+                        );
+                    }
                 }
             }
         } else if let Some(parameter_name_node) = parameter_name_node {
@@ -6591,7 +6610,7 @@ mod tests {
 
     #[test]
     fn type_predicate_type_must_be_assignable_to_its_parameter() {
-        // 2677 at node.type; the chain tail is elided (T2).
+        // 2677 at node.type.
         assert_eq!(
             checked_rows(
                 "function f(x: string): x is number {\n    void x;\n    return true;\n}\n"
@@ -6640,6 +6659,53 @@ mod tests {
             checked_rows("let ft: (x: string) => x is number;\n"),
             [(2677, 28, 6)]
         );
+    }
+
+    #[test]
+    fn type_predicate_assignability_keeps_relation_chain_and_related_info() {
+        fn flatten_codes(chain: &tsrs2_diags::MessageChain, codes: &mut Vec<u32>) {
+            codes.push(chain.code);
+            for child in &chain.next {
+                flatten_codes(child, codes);
+            }
+        }
+
+        let diagnostics = crate::state::test_support::with_program_state(
+            &[(
+                "a.ts",
+                "interface A { propA: string; }\n\
+                 interface B { propB: string; }\n\
+                 declare function missing(x: A): x is B;\n\
+                 declare function primitive(x: string): x is number;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| diagnostic.code() == 2677)
+                    .map(|diagnostic| (diagnostic.message.clone(), diagnostic.related.clone()))
+                    .collect::<Vec<_>>()
+            },
+        );
+        assert_eq!(diagnostics.len(), 2);
+        let chains = diagnostics
+            .iter()
+            .map(|(message, _)| {
+                let mut codes = Vec::new();
+                flatten_codes(message, &mut codes);
+                codes
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(chains, [vec![2677, 2741], vec![2677, 2322]]);
+        assert_eq!(diagnostics[0].1.len(), 1);
+        assert_eq!(diagnostics[0].1[0].message.code, 2728);
+        assert_eq!(
+            diagnostics[0].1[0].message.text,
+            "'propA' is declared here."
+        );
+        assert!(diagnostics[1].1.is_empty());
     }
 
     #[test]
