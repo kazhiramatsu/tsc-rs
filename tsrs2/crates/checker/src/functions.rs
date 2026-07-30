@@ -5125,9 +5125,22 @@ impl<'a> CheckerState<'a> {
         let source = self.binder.source_of_node(node);
         let arrow_record = source.arena.node(arrow);
         let line_of = |byte: u32| -> usize {
-            match source.line_map.line_starts.binary_search(&byte) {
+            let utf16 = source
+                .line_map
+                .byte_to_utf16
+                .get(byte as usize)
+                .copied()
+                .unwrap_or_else(|| {
+                    source
+                        .line_map
+                        .byte_to_utf16
+                        .last()
+                        .copied()
+                        .expect("line map always contains EOF")
+                });
+            match source.line_map.line_starts.binary_search(&utf16) {
                 Ok(line) => line,
-                Err(insertion) => insertion - 1,
+                Err(insertion) => insertion.saturating_sub(1),
             }
         };
         let start_line = line_of(arrow_record.pos);

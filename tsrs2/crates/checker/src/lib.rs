@@ -716,6 +716,13 @@ fn missing_path_reference_diagnostics(
     diagnostics
 }
 
+fn parse_host_package_json(text: &str) -> Option<serde_json::Value> {
+    // tsc's JSON scanner accepts a leading BOM as whitespace;
+    // serde_json requires the host boundary to remove it first.
+    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
+    serde_json::from_str(text).ok()
+}
+
 /// tsrs-native: the cwd-carrying entry — `current_directory` is the
 /// harness ProgramJson `cwd` (tsc host.getCurrentDirectory), which the
 /// oracle host uses to absolutize every program fileName. It follows
@@ -763,8 +770,7 @@ pub fn check_program_with_libs_at(
                 .is_some_and(|name| name == "package.json")
         })
         .map(|file| {
-            let module_type = serde_json::from_str::<serde_json::Value>(&file.text)
-                .ok()
+            let module_type = parse_host_package_json(&file.text)
                 .and_then(|value| {
                     value
                         .get("type")
@@ -1075,7 +1081,7 @@ pub fn check_program_with_libs_at(
                 if file_name != "package.json" {
                     return None;
                 }
-                let value = serde_json::from_str::<serde_json::Value>(&file.text).ok()?;
+                let value = parse_host_package_json(&file.text)?;
                 Some((
                     state::CheckerState::normalize_program_path(&file.name, ""),
                     value,
@@ -1793,6 +1799,27 @@ mod tests {
             .filter(|diagnostic| diagnostic.category() == DiagnosticCategory::Error)
             .map(|d| d.code())
             .collect()
+    }
+
+    #[test]
+    fn bom_before_arrow_at_line_end_does_not_create_a_line_terminator_error() {
+        let without_bom = codes_of("const f = () =>\n  1;\n");
+        let with_bom = codes_of("\u{feff}const f = () =>\n  1;\n");
+        assert_eq!(with_bom, without_bom);
+        assert!(!with_bom.contains(&1200));
+
+        let invalid_without_bom = codes_of("const f = ()\n  => 1;\n");
+        let invalid_with_bom = codes_of("\u{feff}const f = ()\n  => 1;\n");
+        assert_eq!(invalid_with_bom, invalid_without_bom);
+        assert!(invalid_with_bom.contains(&1200));
+    }
+
+    #[test]
+    fn host_package_json_accepts_one_leading_bom() {
+        assert_eq!(
+            parse_host_package_json("\u{feff}{\"type\":\"module\"}"),
+            parse_host_package_json("{\"type\":\"module\"}")
+        );
     }
 
     fn strict_options() -> CompilerOptions {

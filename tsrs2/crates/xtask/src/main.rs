@@ -4942,21 +4942,31 @@ fn run_encodings(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
         let baseline = diagnostic_semantic_bytes(&check_diagnostics(program)?);
         for file_index in 0..program.files.len() {
             let original = &program.files[file_index].text;
+            let lf = original.replace("\r\n", "\n");
             let variants = [
-                original.trim_start_matches('\u{feff}').to_owned(),
-                format!("\u{feff}{}", original.trim_start_matches('\u{feff}')),
-                original.replace("\r\n", "\n"),
-                original.replace('\n', "\r\n"),
+                (
+                    "without-bom",
+                    original.trim_start_matches('\u{feff}').to_owned(),
+                ),
+                (
+                    "with-bom",
+                    format!("\u{feff}{}", original.trim_start_matches('\u{feff}')),
+                ),
+                ("lf", lf.clone()),
+                ("crlf", lf.replace('\n', "\r\n")),
             ];
-            for variant in variants {
+            for (variant_name, variant) in variants {
                 let mut files = program.files.clone();
                 files[file_index].text = variant;
                 let candidate =
                     diagnostic_semantic_bytes(&check_diagnostics_with_files(program, &files)?);
                 if baseline != candidate {
+                    eprintln!(
+                        "baseline diagnostics:\n{baseline}candidate diagnostics:\n{candidate}"
+                    );
                     return Err(format!(
-                        "encodings failed for {} [{}] file {}",
-                        program.fixture, program.matrix_key, files[file_index].name
+                        "encodings failed for {} [{}] file {} variant {}",
+                        program.fixture, program.matrix_key, files[file_index].name, variant_name
                     )
                     .into());
                 }
