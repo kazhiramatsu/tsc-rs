@@ -1931,7 +1931,6 @@ fn completion_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Err
     let scope_gate = readiness_probe(&readiness, &["scope-frozen"]);
     let exact_scope = combine_completion_probes(&[scope_audit.clone(), scope_gate.clone()]);
 
-    let ratchet_path = workspace.join("ratchet.toml");
     let tier_activation = tier_1_through_3_activation_probe(
         tsrs2_conformance::ratchet::verify_tier_1_through_3_activation(&workspace)
             .map_err(|error| error.to_string()),
@@ -1958,16 +1957,14 @@ fn completion_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Err
         ),
     );
 
-    let t4_active = ratchet_section_has_exact_counts(&ratchet_path, "t4")?;
-    let supported_t4 = completion::CompletionProbe::new(
-        false,
-        if t4_active {
-            "T4 accepted-set section exists, but the A3 rendered-output comparator/report is not implemented"
-                .to_owned()
-        } else {
-            "A3 T4 rendered-output comparator and accepted-set section are inactive".to_owned()
-        },
+    // A3 completion requires both the independently frozen exact scope
+    // and a fresh proof of the accepted T4 artifact/pins. A hand-written
+    // `[t4]` summary is never sufficient.
+    let t4_activation = t4_activation_probe(
+        tsrs2_conformance::ratchet::verify_t4_activation(&workspace)
+            .map_err(|error| error.to_string()),
     );
+    let supported_t4 = combine_completion_probes(&[exact_scope.clone(), t4_activation]);
 
     let escape_sites = collect_escape_sites(&workspace)?;
     let escape_audit = audit_legacy_dormant_markers(&workspace, &escape_sites)
@@ -2123,6 +2120,35 @@ fn tier_1_through_3_activation_probe(
         Err(error) => completion::CompletionProbe::new(
             false,
             format!("A1 T1-T3 activation proof failed: {error}"),
+        ),
+    }
+}
+
+fn t4_activation_probe(
+    result: Result<tsrs2_conformance::ratchet::T4Activation, String>,
+) -> completion::CompletionProbe {
+    match result {
+        Ok(activation) => {
+            let complete =
+                activation.total_cases > 0 && activation.matched_cases == activation.total_cases;
+            completion::CompletionProbe::new(
+                complete,
+                format!(
+                    "A3 rendered-output comparator and fresh schema-3 pins active; \
+                     accepted cases={}/{}{}",
+                    activation.matched_cases,
+                    activation.total_cases,
+                    if complete {
+                        ""
+                    } else {
+                        " (accepted count must equal a nonzero total)"
+                    },
+                ),
+            )
+        }
+        Err(error) => completion::CompletionProbe::new(
+            false,
+            format!("A3 T4 activation proof failed: {error}"),
         ),
     }
 }
@@ -4011,11 +4037,48 @@ fn first_diff<'a>(left: &'a str, right: &'a str) -> (usize, Option<&'a str>, Opt
 fn oracle_refresh(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let parsed = parse_conformance_args(args)?;
     let workspace = find_tsrs2_root()?;
-    let summary = tsrs2_conformance::refresh_oracle_goldens(&tsrs2_conformance::RefreshOptions {
+    let options = tsrs2_conformance::RefreshOptions {
         workspace,
         limit: parsed.limit,
         files: parsed.files,
-    })?;
+    };
+    if parsed.render_hashes {
+        if !parsed.check {
+            return Err(
+                "rendered hashes are immutable after A3; use `oracle-refresh \
+                 --render-hashes --check` (the one-time extension is \
+                 `ratchet update --transition t4-input-schema-extension`)"
+                    .into(),
+            );
+        }
+        if options.limit.is_some() || !options.files.is_empty() {
+            return Err(
+                "`oracle-refresh --render-hashes --check` requires the complete fixed universe; \
+                 use `conformance --tier t4 --report-only --files ...` for focused evidence"
+                    .into(),
+            );
+        }
+        if parsed.tier.is_some()
+            || parsed.report_only
+            || parsed.families_report
+            || parsed.out_json.is_some()
+        {
+            return Err("render-hash check does not accept conformance/report arguments".into());
+        }
+        let summary = tsrs2_conformance::check_or_extend_rendered_hashes(
+            &options,
+            tsrs2_conformance::RenderHashMode::Check,
+        )?;
+        println!(
+            "oracle rendered-hash check: fixtures={} cases={} diagnostics={} schema3={}",
+            summary.fixtures, summary.cases, summary.oracle_diagnostics, summary.schema_3_checked
+        );
+        return Ok(());
+    }
+    if parsed.check || parsed.tier.is_some() || parsed.report_only {
+        return Err("ordinary oracle-refresh does not accept --check/--tier/--report-only".into());
+    }
+    let summary = tsrs2_conformance::refresh_oracle_goldens(&options)?;
     println!(
         "oracle refresh wrote {} fixtures / {} cases / {} oracle diagnostics under {}",
         summary.fixtures, summary.cases, summary.oracle_diagnostics, summary.goldens_root
@@ -4094,7 +4157,60 @@ fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
     let workspace = find_tsrs2_root()?;
     let out_json = parsed
         .out_json
+        .clone()
         .unwrap_or_else(|| workspace.join("target/conformance/mismatches.json"));
+    if let Some(tier) = parsed.tier.as_deref() {
+        if tier != "t4" {
+            return Err(format!(
+                "unsupported explicit conformance tier {tier:?}; only report-only T4 uses \
+                 --tier (T1-T3 activation is owned by A1)"
+            )
+            .into());
+        }
+        if !parsed.report_only {
+            return Err(
+                "explicit `--tier t4` is report-only; after A3 activation the ordinary All \
+                 conformance run enforces accepted T4 cases automatically"
+                    .into(),
+            );
+        }
+        if parsed.render_hashes || parsed.check || parsed.families_report {
+            return Err("T4 report-only does not accept refresh/check/families arguments".into());
+        }
+        if parsed.band != tsrs2_conformance::DiagnosticBand::All {
+            return Err("T4 report-only currently renders the supported All view only".into());
+        }
+        let out_json = parsed
+            .out_json
+            .clone()
+            .unwrap_or_else(|| workspace.join("target/conformance/t4-report.json"));
+        let report = tsrs2_conformance::run_t4_report(&tsrs2_conformance::T4ReportOptions {
+            workspace,
+            limit: parsed.limit,
+            files: parsed.files,
+        })?;
+        if let Some(parent) = out_json.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&out_json, serde_json::to_vec_pretty(&report)?)?;
+        println!(
+            "T4 report-only: fixtures={} cases={} matched={} mismatched={} schema3-pinned={} oracle-pin-failures={} rust-formatter-failures={} report={}",
+            report.fixtures,
+            report.cases,
+            report.matched_cases,
+            report.mismatched_cases,
+            report.schema_3_pinned_cases,
+            report.oracle_pin_failures,
+            report.rust_formatter_failures,
+            out_json.display()
+        );
+        return Ok(());
+    }
+    if parsed.report_only || parsed.render_hashes || parsed.check {
+        return Err(
+            "--report-only/--render-hashes/--check require their explicit T4 command".into(),
+        );
+    }
     let options = tsrs2_conformance::ConformanceOptions {
         workspace: workspace.clone(),
         limit: parsed.limit,
@@ -4320,6 +4436,10 @@ struct ConformanceArgs {
     out_json: Option<PathBuf>,
     band: tsrs2_conformance::DiagnosticBand,
     families_report: bool,
+    tier: Option<String>,
+    report_only: bool,
+    render_hashes: bool,
+    check: bool,
 }
 
 fn parse_conformance_args(
@@ -4330,6 +4450,10 @@ fn parse_conformance_args(
     let mut out_json = None;
     let mut band = tsrs2_conformance::DiagnosticBand::All;
     let mut families_report = false;
+    let mut tier = None;
+    let mut report_only = false;
+    let mut render_hashes = false;
+    let mut check = false;
     let mut args = args.peekable();
 
     while let Some(arg) = args.next() {
@@ -4363,6 +4487,10 @@ fn parse_conformance_args(
             }
             "--syntactic-only" => band = tsrs2_conformance::DiagnosticBand::Syntactic,
             "--families-report" => families_report = true,
+            "--tier" => tier = Some(args.next().ok_or("missing value after --tier")?),
+            "--report-only" => report_only = true,
+            "--render-hashes" => render_hashes = true,
+            "--check" => check = true,
             _ => return Err(format!("unexpected conformance argument: {arg}").into()),
         }
     }
@@ -4382,6 +4510,10 @@ fn parse_conformance_args(
         out_json,
         band,
         families_report,
+        tier,
+        report_only,
+        render_hashes,
+        check,
     })
 }
 
@@ -11659,6 +11791,44 @@ mod completion_tier_activation_tests {
         assert!(!probe.ready);
         assert!(probe.detail.contains("T2=0/12 T3=0/12"));
         assert!(probe.detail.contains("must be nonzero"));
+    }
+
+    #[test]
+    fn t4_activation_failure_keeps_the_completion_row_red() {
+        let probe = t4_activation_probe(Err(
+            "render_driver_sha256 drift against the current producer".to_owned(),
+        ));
+
+        assert!(!probe.ready);
+        assert!(probe.detail.contains("T4 activation proof failed"));
+        assert!(probe.detail.contains("render_driver_sha256 drift"));
+    }
+
+    #[test]
+    fn t4_activation_requires_every_nonempty_case() {
+        let complete = t4_activation_probe(Ok(tsrs2_conformance::ratchet::T4Activation {
+            matched_cases: 12,
+            total_cases: 12,
+        }));
+        assert!(complete.ready);
+        assert!(complete.detail.contains("accepted cases=12/12"));
+
+        for activation in [
+            tsrs2_conformance::ratchet::T4Activation {
+                matched_cases: 11,
+                total_cases: 12,
+            },
+            tsrs2_conformance::ratchet::T4Activation {
+                matched_cases: 0,
+                total_cases: 0,
+            },
+        ] {
+            let probe = t4_activation_probe(Ok(activation));
+            assert!(!probe.ready);
+            assert!(probe
+                .detail
+                .contains("accepted count must equal a nonzero total"));
+        }
     }
 }
 

@@ -85,6 +85,26 @@ struct DriverRequest {
 }
 
 #[derive(Debug, Serialize)]
+struct RenderDriverRequest {
+    id: u64,
+    #[serde(rename = "programJsonPath")]
+    program_json_path: String,
+    #[serde(rename = "renderDiagnostics")]
+    render_diagnostics: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct RenderRecordsRequest<'a> {
+    id: u64,
+    #[serde(rename = "programJsonPath")]
+    program_json_path: String,
+    #[serde(rename = "renderRecords")]
+    render_records: &'a [OracleDiag],
+    #[serde(rename = "recordsAlreadySorted")]
+    records_already_sorted: bool,
+}
+
+#[derive(Debug, Serialize)]
 struct VersionRequest {
     id: u64,
     #[serde(rename = "versionProbe")]
@@ -95,8 +115,15 @@ struct VersionRequest {
 struct DriverResponse {
     id: u64,
     diagnostics: Option<Vec<OracleDiag>>,
+    rendered: Option<String>,
     version: Option<String>,
     error: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OracleRenderedDiagnostics {
+    pub diagnostics: Vec<OracleDiag>,
+    pub rendered: String,
 }
 
 pub fn oracle_diags(program_json: &Path) -> Result<Vec<OracleDiag>, OracleError> {
@@ -105,6 +132,9 @@ pub fn oracle_diags(program_json: &Path) -> Result<Vec<OracleDiag>, OracleError>
 
 pub struct OraclePool {
     workers: Vec<Mutex<DriverProcess>>,
+    /// A3 rendering is explicit, lazy, and single-worker. Ordinary
+    /// conformance never starts this Node process.
+    render_worker: Mutex<Option<DriverProcess>>,
     next_worker: AtomicUsize,
 }
 
@@ -113,12 +143,23 @@ impl OraclePool {
         let size = size.max(1);
         let mut workers = Vec::with_capacity(size);
         for _ in 0..size {
-            workers.push(Mutex::new(DriverProcess::spawn()?));
+            workers.push(Mutex::new(DriverProcess::spawn(driver_path())?));
         }
         Ok(Self {
             workers,
+            render_worker: Mutex::new(None),
             next_worker: AtomicUsize::new(0),
         })
+    }
+
+    /// Explicit A3 renderer-only pool. It starts no normal oracle
+    /// workers and lazily starts one renderer worker on first use.
+    pub fn new_render_only() -> Self {
+        Self {
+            workers: Vec::new(),
+            render_worker: Mutex::new(None),
+            next_worker: AtomicUsize::new(0),
+        }
     }
 
     pub fn default_size() -> usize {
@@ -129,6 +170,11 @@ impl OraclePool {
     }
 
     pub fn diagnostics(&self, program_json: &Path) -> Result<Vec<OracleDiag>, OracleError> {
+        if self.workers.is_empty() {
+            return Err(OracleError::new(
+                "normal diagnostics are unavailable in a renderer-only pool",
+            ));
+        }
         let index = self.next_worker.fetch_add(1, Ordering::Relaxed) % self.workers.len();
         let mut worker = self.workers[index]
             .lock()
@@ -147,12 +193,133 @@ impl OraclePool {
         }
     }
 
+    /// Collect the structured oracle records and the genuine vendored
+    /// TypeScript 6.0.3 context-formatted bytes in one checker pass.
+    ///
+    /// This is intentionally targeted. Normal conformance reads committed
+    /// goldens and does not re-run Node; A3 refresh/check uses this response
+    /// only when rendered hashes are explicitly requested.
+    pub fn diagnostics_with_rendering(
+        &self,
+        program_json: &Path,
+    ) -> Result<OracleRenderedDiagnostics, OracleError> {
+        let mut slot = self
+            .render_worker
+            .lock()
+            .map_err(|_| OracleError::new("oracle render worker mutex poisoned"))?;
+        if slot.is_none() {
+            *slot = Some(DriverProcess::spawn(render_driver_path())?);
+        }
+        let worker = slot.as_mut().expect("render worker initialized above");
+
+        match worker.diagnostics_with_rendering(program_json) {
+            Ok(rendered) => Ok(rendered),
+            Err(first_error) => {
+                worker.restart()?;
+                worker
+                    .diagnostics_with_rendering(program_json)
+                    .map_err(|second_error| {
+                        OracleError::new(format!(
+                            "oracle render worker failed after restart: {second_error}; initial error: {first_error}"
+                        ))
+                    })
+            }
+        }
+    }
+
+    /// Render a raw targeted structured-record sequence against the
+    /// source files in `program_json`. The driver reconstructs genuine
+    /// tsc diagnostics, applies the vendored sort/dedupe and context
+    /// formatter, then returns normalized color-free bytes.
+    pub fn render_records(
+        &self,
+        program_json: &Path,
+        records: &[OracleDiag],
+    ) -> Result<String, OracleError> {
+        self.render_record_sequence(program_json, records, false)
+    }
+
+    /// Render records whose order and multiplicity are already the
+    /// canonical oracle sequence.
+    ///
+    /// Golden records have already passed tsc's genuine
+    /// `sortAndDeduplicateDiagnostics` while their in-memory
+    /// diagnostics still carried `canonicalHead`. Serialized records
+    /// do not retain that private field, so sorting them again could
+    /// change the authoritative order or pairing decision.
+    pub fn render_sorted_records(
+        &self,
+        program_json: &Path,
+        records: &[OracleDiag],
+    ) -> Result<String, OracleError> {
+        self.render_record_sequence(program_json, records, true)
+    }
+
+    fn render_record_sequence(
+        &self,
+        program_json: &Path,
+        records: &[OracleDiag],
+        records_already_sorted: bool,
+    ) -> Result<String, OracleError> {
+        let mut slot = self
+            .render_worker
+            .lock()
+            .map_err(|_| OracleError::new("oracle render worker mutex poisoned"))?;
+        if slot.is_none() {
+            *slot = Some(DriverProcess::spawn(render_driver_path())?);
+        }
+        let worker = slot.as_mut().expect("render worker initialized above");
+
+        match worker.render_records(program_json, records, records_already_sorted) {
+            Ok(rendered) => Ok(rendered),
+            Err(first_error) => {
+                worker.restart()?;
+                worker
+                    .render_records(program_json, records, records_already_sorted)
+                    .map_err(|second_error| {
+                        OracleError::new(format!(
+                            "oracle record-render worker failed after restart: {second_error}; initial error: {first_error}"
+                        ))
+                    })
+            }
+        }
+    }
+
+    /// `process.version` from the separately pinned A3 renderer
+    /// producer. This explicit probe starts its one lazy worker.
+    pub fn render_node_version(&self) -> Result<String, OracleError> {
+        let mut slot = self
+            .render_worker
+            .lock()
+            .map_err(|_| OracleError::new("oracle render worker mutex poisoned"))?;
+        if slot.is_none() {
+            *slot = Some(DriverProcess::spawn(render_driver_path())?);
+        }
+        let worker = slot.as_mut().expect("render worker initialized above");
+        match worker.node_version() {
+            Ok(version) => Ok(version),
+            Err(first_error) => {
+                worker.restart()?;
+                worker.node_version().map_err(|second_error| {
+                    OracleError::new(format!(
+                        "oracle render worker failed after restart: {second_error}; initial error: {first_error}"
+                    ))
+                })
+            }
+        }
+    }
+
     /// `process.version` of a LAUNCHED driver worker (e.g. "v25.2.1").
     /// This is the enforced side of the producer Node pin: a
     /// `.node-version` file alone is a declaration that nothing
     /// verifies, while this answer comes from the process that will
     /// actually produce oracle records.
     pub fn node_version(&self) -> Result<String, OracleError> {
+        if self.workers.is_empty() {
+            return Err(OracleError::new(
+                "normal Node probe is unavailable in a renderer-only pool",
+            ));
+        }
         let mut worker = self.workers[0]
             .lock()
             .map_err(|_| OracleError::new("oracle worker mutex poisoned"))?;
@@ -175,12 +342,13 @@ struct DriverProcess {
     stdin: ChildStdin,
     stdout: BufReader<ChildStdout>,
     next_id: AtomicU64,
+    driver_path: PathBuf,
 }
 
 impl DriverProcess {
-    fn spawn() -> Result<Self, OracleError> {
+    fn spawn(driver_path: PathBuf) -> Result<Self, OracleError> {
         let mut child = Command::new("node")
-            .arg(driver_path())
+            .arg(&driver_path)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
@@ -199,6 +367,7 @@ impl DriverProcess {
             stdin,
             stdout: BufReader::new(stdout),
             next_id: AtomicU64::new(1),
+            driver_path,
         })
     }
 
@@ -213,6 +382,48 @@ impl DriverProcess {
         response
             .diagnostics
             .ok_or_else(|| OracleError::new("oracle response missing diagnostics"))
+    }
+
+    fn diagnostics_with_rendering(
+        &mut self,
+        program_json: &Path,
+    ) -> Result<OracleRenderedDiagnostics, OracleError> {
+        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
+        let program_json_path = absolute_path(program_json)?;
+        let request = RenderDriverRequest {
+            id,
+            program_json_path: program_json_path.display().to_string(),
+            render_diagnostics: true,
+        };
+        let response = self.roundtrip(&request, id)?;
+        Ok(OracleRenderedDiagnostics {
+            diagnostics: response
+                .diagnostics
+                .ok_or_else(|| OracleError::new("oracle render response missing diagnostics"))?,
+            rendered: response.rendered.ok_or_else(|| {
+                OracleError::new("oracle render response missing rendered output")
+            })?,
+        })
+    }
+
+    fn render_records(
+        &mut self,
+        program_json: &Path,
+        records: &[OracleDiag],
+        records_already_sorted: bool,
+    ) -> Result<String, OracleError> {
+        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
+        let program_json_path = absolute_path(program_json)?;
+        let request = RenderRecordsRequest {
+            id,
+            program_json_path: program_json_path.display().to_string(),
+            render_records: records,
+            records_already_sorted,
+        };
+        let response = self.roundtrip(&request, id)?;
+        response
+            .rendered
+            .ok_or_else(|| OracleError::new("oracle record-render response missing output"))
     }
 
     fn node_version(&mut self) -> Result<String, OracleError> {
@@ -266,7 +477,7 @@ impl DriverProcess {
     fn restart(&mut self) -> Result<(), OracleError> {
         let _ = self.child.kill();
         let _ = self.child.wait();
-        *self = Self::spawn()?;
+        *self = Self::spawn(self.driver_path.clone())?;
         Ok(())
     }
 }
@@ -288,6 +499,10 @@ fn default_pool() -> &'static OraclePool {
 
 fn driver_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("driver.mjs")
+}
+
+fn render_driver_path() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("render-driver.mjs")
 }
 
 fn absolute_path(path: &Path) -> Result<PathBuf, OracleError> {
@@ -384,6 +599,47 @@ mod tests {
             version.starts_with('v') && version.len() > 1,
             "process.version shape: {version}"
         );
+    }
+
+    #[test]
+    fn oracle_driver_pins_vendored_context_rendering_including_suggestions() {
+        let program_json = write_program_json("bGV0ID0gOwo=");
+        let pool = OraclePool::new_render_only();
+        assert!(pool.diagnostics(&program_json).is_err());
+        let rendered = pool
+            .diagnostics_with_rendering(&program_json)
+            .expect("rendered diagnostics");
+        assert_eq!(
+            rendered.rendered,
+            concat!(
+                "main.ts:1:1 - error TS2304: Cannot find name 'let'.\n",
+                "\n",
+                "1 let = ;\n",
+                "  ~~~\n",
+                "main.ts:1:7 - error TS1109: Expression expected.\n",
+                "\n",
+                "1 let = ;\n",
+                "        ~\n",
+            )
+        );
+        assert_eq!(rendered.diagnostics.len(), 2);
+        fs::remove_dir_all(program_json.parent().unwrap()).expect("remove temp dir");
+
+        let suggestion_json = write_program_json("ZnVuY3Rpb24gZigpIHsgbGV0IHggPSAxOyB9Cg==");
+        let suggestion = pool
+            .diagnostics_with_rendering(&suggestion_json)
+            .expect("rendered suggestion");
+        assert_eq!(
+            suggestion.rendered,
+            concat!(
+                "main.ts:1:20 - suggestion TS6133: 'x' is declared but its value is never read.\n",
+                "\n",
+                "1 function f() { let x = 1; }\n",
+                "                     ~\n",
+            )
+        );
+        assert_eq!(suggestion.diagnostics[0].category, "suggestion");
+        fs::remove_dir_all(suggestion_json.parent().unwrap()).expect("remove temp dir");
     }
 
     #[test]

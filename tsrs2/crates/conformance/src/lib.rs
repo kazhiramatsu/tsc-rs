@@ -20,6 +20,7 @@ pub mod families;
 pub mod goldens_diff;
 mod identity;
 pub mod ratchet;
+mod rendered;
 mod scope;
 mod shadow_diff;
 
@@ -28,6 +29,10 @@ pub use families::{
     verify_report_freshness as families_verify_report,
 };
 pub use identity::ExactIdentity;
+pub use rendered::{
+    check_or_extend_rendered_hashes, run_t4_report, RenderHashMode, RenderHashSummary,
+    T4CaseReport, T4Report, T4ReportOptions,
+};
 pub use scope::audit as scope_audit;
 use scope::ScopeManifest;
 pub use shadow_diff::{
@@ -171,9 +176,21 @@ pub struct GoldenFile {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GoldenCase {
     pub matrix_key: String,
+    /// Legacy schema-2 goldens always serialized this empty tsrs side.
+    /// Schema 3 is oracle-only and omits it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tsrs: Vec<GoldenDiag>,
     pub oracle: Vec<GoldenDiag>,
+    /// Schema-2 compatibility only: the old value is an FNV hash of
+    /// serialized diagnostic JSON and MUST NOT be interpreted as T4.
+    /// Schema 3 omits the field; conformance computes the current tsrs
+    /// rendered SHA-256 in memory.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub tsrs_cli_hash: String,
+    /// Schema 2: legacy JSON/FNV placeholder. Schema >=3: lowercase
+    /// SHA-256 of the normalized UTF-8 bytes produced by the vendored
+    /// TS 6.0.3 context formatter (ANSI removed, LF fixed).
+    #[serde(default)]
     pub oracle_cli_hash: String,
 }
 
@@ -573,6 +590,19 @@ pub fn refresh_oracle_goldens(options: &RefreshOptions) -> ConformanceResult<Ref
 
     for (fixture_index, fixture) in fixtures.iter().enumerate() {
         let fixture_key = fixture_key(&options.workspace, fixture)?;
+        let existing_path = golden_path(&goldens_root, &fixture_key);
+        if existing_path.exists() {
+            let existing = read_golden(&goldens_root, &fixture_key)?;
+            if existing.schema >= 3 {
+                return Err(format!(
+                    "golden {fixture_key} is schema {}; ordinary oracle-refresh may not \
+                     downgrade or reinterpret A3 rendered hashes — use \
+                     `cargo xtask oracle-refresh --render-hashes --check`",
+                    existing.schema
+                )
+                .into());
+            }
+        }
         if fixture_index > 0 && fixture_index % 250 == 0 {
             eprintln!(
                 "oracle refresh progress: {}/{} fixtures",
@@ -629,7 +659,7 @@ pub fn refresh_oracle_goldens(options: &RefreshOptions) -> ConformanceResult<Ref
 /// A gating conformance run: enforces the accepted-set ratchet
 /// (measurement-integrity.md §2) on top of the integer/FP gates.
 pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<ConformanceSummary> {
-    run_conformance_inner(options, SetGate::Enforce, false, None).map(|run| run.summary)
+    run_conformance_inner(options, SetGate::Enforce, false, None, None).map(|run| run.summary)
 }
 
 /// The A5 rollup path: the identical gating run, additionally
@@ -645,7 +675,7 @@ pub fn run_conformance_with_families_report(
     report_out: &Path,
 ) -> ConformanceResult<ConformanceSummary> {
     let preparation = families::prepare_report(&options.workspace)?;
-    let run = run_conformance_inner(options, SetGate::Enforce, true, None)?;
+    let run = run_conformance_inner(options, SetGate::Enforce, true, None, None)?;
     let observation = run
         .observation
         .expect("observing run collects an observation");
@@ -665,7 +695,14 @@ pub fn run_conformance_with_families_report(
 pub(crate) fn run_conformance_collect(
     options: &ConformanceOptions,
 ) -> ConformanceResult<ConformanceRun> {
-    run_conformance_inner(options, SetGate::Collect, false, None)
+    run_conformance_inner(options, SetGate::Collect, false, None, None)
+}
+
+pub(crate) fn run_conformance_collect_with_t4(
+    options: &ConformanceOptions,
+    planned_t4_pins: Option<&ratchet::T4OraclePins>,
+) -> ConformanceResult<ConformanceRun> {
+    run_conformance_inner(options, SetGate::Collect, false, planned_t4_pins, None)
 }
 
 /// The merge-gate shape: grade every fixed view while executing the
@@ -699,6 +736,7 @@ pub fn run_ci_conformance(
         &options_for(DiagnosticBand::All),
         SetGate::Enforce,
         true,
+        None,
         Some(&mut case_cache),
     )?;
     let all_observation = all_run
@@ -717,6 +755,7 @@ pub fn run_ci_conformance(
         &options_for(DiagnosticBand::TwoXxx),
         SetGate::Enforce,
         false,
+        None,
         Some(&mut case_cache),
     )?
     .summary;
@@ -725,6 +764,7 @@ pub fn run_ci_conformance(
         &options_for(DiagnosticBand::Syntactic),
         SetGate::Enforce,
         false,
+        None,
         Some(&mut case_cache),
     )?
     .summary;
@@ -762,6 +802,7 @@ fn run_conformance_inner(
     options: &ConformanceOptions,
     set_gate: SetGate,
     families_observe: bool,
+    planned_t4_pins: Option<&ratchet::T4OraclePins>,
     mut case_cache: Option<&mut CaseTsrsCache>,
 ) -> ConformanceResult<ConformanceRun> {
     let fixtures = select_fixtures(&RefreshOptions {
@@ -784,6 +825,9 @@ fn run_conformance_inner(
         SetGate::Enforce => Some(ratchet::load_accepted_for_gating(&options.workspace)?),
         SetGate::Collect => None,
     };
+    let measure_t4 = options.band == DiagnosticBand::All
+        && (planned_t4_pins.is_some()
+            || accepted.as_ref().is_some_and(|accepted| accepted.t4_active));
     let t1_ratchet = if options.band == DiagnosticBand::All {
         Some(read_ratchet_section(&ratchet_path, "t1")?)
     } else {
@@ -1022,6 +1066,40 @@ fn run_conformance_inner(
                         .collect::<BTreeSet<_>>(),
                 )
             };
+            if measure_t4 {
+                let oracle_t4_pin = planned_t4_pins
+                    .and_then(|fixtures| fixtures.get(&fixture_key))
+                    .and_then(|cases| cases.get(&program.matrix_key))
+                    .map(String::as_str)
+                    .or_else(|| {
+                        (golden.schema >= 3).then_some(golden_case.oracle_cli_hash.as_str())
+                    })
+                    .ok_or_else(|| {
+                        format!(
+                            "active T4 measurement lacks a genuine oracle pin for \
+                             {fixture_key} [{}]",
+                            program.matrix_key
+                        )
+                    })?;
+                if rendered::supported_case_t4_matches(
+                    &program,
+                    &vendor_lib_dir,
+                    &golden_case.oracle,
+                    &case_tsrs.all,
+                    &excluded_indices,
+                    &fully_excluded,
+                    oracle_t4_pin,
+                )? {
+                    run_sets
+                        .get_mut(DiagnosticBand::All.name())
+                        .expect("T4 is measured only with the All fixed view")
+                        .entry(fixture_key.clone())
+                        .or_default()
+                        .entry(program.matrix_key.clone())
+                        .or_default()
+                        .t4 = true;
+                }
+            }
             let supported_fn = supported_expected
                 .difference(&supported_actual)
                 .cloned()
@@ -2038,10 +2116,13 @@ fn write_golden(root: &Path, golden: &GoldenFile) -> ConformanceResult<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let json = serde_json::to_vec_pretty(golden)?;
-    let compressed = zstd::stream::encode_all(json.as_slice(), 3)?;
-    fs::write(path, compressed)?;
+    fs::write(path, encode_golden(golden)?)?;
     Ok(())
+}
+
+pub(crate) fn encode_golden(golden: &GoldenFile) -> ConformanceResult<Vec<u8>> {
+    let json = serde_json::to_vec_pretty(golden)?;
+    Ok(zstd::stream::encode_all(json.as_slice(), 3)?)
 }
 
 fn read_golden(root: &Path, fixture: &str) -> ConformanceResult<GoldenFile> {

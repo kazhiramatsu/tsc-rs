@@ -100,6 +100,15 @@ not by declaration: `oracle-refresh` refuses to write any golden
 unless the LAUNCHED driver's `process.version` equals the tree pin,
 and hosted CI installs the pinned version.
 
+A3 does not edit or repurpose that structured-record producer.
+`crates/oracle/render-driver.mjs` is a separate, optional producer pin
+added only by `t4-input-schema-extension`. Its worker is lazy,
+single-process, and starts only for an explicit T4 report, extension,
+check, or fuzzer run; those paths use a renderer-only pool and never
+eagerly start an unused normal oracle worker. The launched renderer's
+Node version is checked against `.node-version`. Ordinary conformance
+never launches Node for T4.
+
 The accepted artifact uses append-only lineage and stores, per fixture
 and matrix key:
 
@@ -329,6 +338,13 @@ normalized virtual paths, fixed newlines, and oracle sort/dedupe order;
 it is not a hash of serialized diagnostic JSON. Golden schema 3 stores
 oracle records and genuine oracle rendered hashes only.
 
+In schema 3, `oracle_cli_hash` is the lowercase SHA-256 of the exact
+normalized rendered UTF-8 bytes (ANSI removed, LF newlines, public
+virtual paths and the program cwd). `tsrs_cli_hash` is absent: current
+tsrs bytes are always computed in memory. Schema-2 `*_cli_hash` values
+are legacy structured-JSON/FNV placeholders and are never
+reinterpreted as T4 evidence.
+
 A3's reserved one-time `t4-input-schema-extension` fills the previously
 absent T4 field and activates its comparator without changing any
 earlier oracle byte. Afterwards
@@ -336,13 +352,47 @@ earlier oracle byte. Afterwards
 universe. Conformance computes the current tsrs hash; accepted T4 case
 identities grow through A1.
 
+The extension is one transaction: every schema-3 golden replacement,
+the new renderer-producer and per-case oracle pins, comparator
+activation, accepted T4 case set, and `[t4]` derived summary are
+preflighted before any write and roll back together on failure. A
+retry may converge a mixed schema-2/schema-3 working tree only from a
+fresh complete renderer plan; ordinary check treats mixed schemas as
+corruption.
+
+Golden diagnostic records already preserve tsc's canonical-head
+sort/dedupe order. Replaying either golden oracle records or the
+checker result converted to golden records therefore uses the
+already-sorted formatter entry point; exact-scope deletion preserves
+that order. The public sorting entry follows `SourceFile.path` (including
+dot-segment reduction), compares every filename and message string in
+JavaScript UTF-16 code-unit order, and keeps that comparison path
+separate from the `SourceFile.fileName` used to reconstruct displayed
+relative paths. A diagnostic's outer code/category, not possibly
+different metadata on its message-chain root, owns the rendered header
+and formatter decisions. The explicit report independently recollects
+the genuine Node records and requires them to equal the structured
+golden, compares the genuine Node full render with the Rust full render,
+and renders the supported oracle projection through a no-resort Node
+entry point before comparing it with the Rust checker projection.
+Serialized records lack tsc's private `canonicalHead`, so a report must
+never sort/dedupe a golden projection again. Its temporary program JSON
+tree is removed on both success and failure.
+
+A normal conformance gate first renders the full oracle
+sequence and checks it against the genuine schema-3 pin, then compares
+the supported oracle/tsrs projections. This prevents a shared Rust
+formatter drift from manufacturing a false T4 match, while keeping
+the steady-state gate Node-free.
+
 T4 activates only after A2 global freeze and zero live `resolved`
 entries. Supported T4 formatting applies exact scope before rendering;
 all-corpus output and absolute FP=0 remain visible.
 
-Required formatter tests cover ordering, adjacent dedupe, UTF-16 spans,
-chains, related information, file-less diagnostics, suggestions,
-platform-independent paths, and CRLF input.
+Required formatter tests cover UTF-16 ordering, adjacent dedupe, UTF-16
+spans, outer diagnostic headers, chains, related information, file-less
+diagnostics, suggestions, final ANSI removal, platform-independent
+paths, and CRLF input.
 
 ## 5. A5 — family ownership and supported rollup
 
