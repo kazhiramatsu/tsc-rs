@@ -2145,10 +2145,180 @@ pub(crate) fn git_rel_path(
     Ok(rel_to_root.to_string_lossy().replace('\\', "/"))
 }
 
-fn git_commit_parents(git_root: &Path, commit: &str) -> ConformanceResult<Vec<String>> {
-    let out = git(git_root, &["rev-list", "--parents", "-n", "1", commit])?;
-    let line = String::from_utf8(out)?;
-    Ok(line.split_whitespace().skip(1).map(str::to_owned).collect())
+/// Per-command history cache. A memo is bound to one repository root,
+/// pins HEAD once, and lives for exactly one ratchet operation. Lineage,
+/// pair, and trusted-base validation therefore share one history view
+/// while repeated queries avoid spawning Git again.
+struct GitMemo {
+    git_root: PathBuf,
+    head_commit: String,
+    blob_ids: BTreeMap<(String, String), Option<String>>,
+    blob_objects: BTreeMap<String, Vec<u8>>,
+    parents: BTreeMap<String, Vec<String>>,
+    version_commits: BTreeMap<String, Vec<String>>,
+    #[cfg(test)]
+    git_invocations: usize,
+}
+
+impl GitMemo {
+    fn new(git_root: &Path) -> ConformanceResult<Self> {
+        let head_commit = resolve_commit(git_root, "HEAD")?;
+        Ok(Self {
+            git_root: git_root.to_owned(),
+            head_commit,
+            blob_ids: BTreeMap::new(),
+            blob_objects: BTreeMap::new(),
+            parents: BTreeMap::new(),
+            version_commits: BTreeMap::new(),
+            #[cfg(test)]
+            git_invocations: 0,
+        })
+    }
+
+    fn run_git(&mut self, args: &[&str]) -> ConformanceResult<Vec<u8>> {
+        #[cfg(test)]
+        {
+            self.git_invocations += 1;
+        }
+        git(&self.git_root, args)
+    }
+
+    fn blob_optional(&mut self, commit: &str, rel: &str) -> ConformanceResult<Option<Vec<u8>>> {
+        let commit = if commit == "HEAD" {
+            self.head_commit.clone()
+        } else {
+            commit.to_owned()
+        };
+        let key = (commit.clone(), rel.to_owned());
+        if let Some(object_id) = self.blob_ids.get(&key) {
+            return match object_id {
+                None => Ok(None),
+                Some(object_id) => self
+                    .blob_objects
+                    .get(object_id)
+                    .cloned()
+                    .map(Some)
+                    .ok_or_else(|| {
+                        format!("internal Git memo lost blob object {object_id}").into()
+                    }),
+            };
+        }
+        let tree = self.run_git(&["ls-tree", "-z", &commit, "--", rel])?;
+        if tree.is_empty() {
+            self.blob_ids.insert(key, None);
+            return Ok(None);
+        }
+        let Some(tab) = tree.iter().position(|byte| *byte == b'\t') else {
+            return Err(
+                format!("git ls-tree returned malformed metadata for {commit}:{rel}").into(),
+            );
+        };
+        let header = String::from_utf8(tree[..tab].to_vec())?;
+        let object_id = header
+            .split_whitespace()
+            .nth(2)
+            .ok_or_else(|| format!("git ls-tree omitted the object id for {commit}:{rel}"))?
+            .to_owned();
+        let bytes = if let Some(bytes) = self.blob_objects.get(&object_id) {
+            bytes.clone()
+        } else {
+            let spec = format!("{commit}:{rel}");
+            let bytes = self.run_git(&["show", &spec])?;
+            self.blob_objects.insert(object_id.clone(), bytes.clone());
+            bytes
+        };
+        self.blob_ids.insert(key, Some(object_id));
+        Ok(Some(bytes))
+    }
+
+    fn commit_parents(&mut self, commit: &str) -> ConformanceResult<Vec<String>> {
+        if let Some(parents) = self.parents.get(commit) {
+            return Ok(parents.clone());
+        }
+        let out = self.run_git(&["rev-list", "--parents", "-n", "1", commit])?;
+        let line = String::from_utf8(out)?;
+        let parents = line
+            .split_whitespace()
+            .skip(1)
+            .map(str::to_owned)
+            .collect::<Vec<_>>();
+        self.parents.insert(commit.to_owned(), parents.clone());
+        Ok(parents)
+    }
+
+    fn committed_versions(&mut self, rel: &str) -> ConformanceResult<Vec<(String, Vec<u8>)>> {
+        if let Some(commits) = self.version_commits.get(rel).cloned() {
+            return commits
+                .into_iter()
+                .map(|commit| -> ConformanceResult<_> {
+                    let bytes = self
+                        .blob_ids
+                        .get(&(commit.clone(), rel.to_owned()))
+                        .and_then(|object_id| object_id.as_ref())
+                        .and_then(|object_id| self.blob_objects.get(object_id))
+                        .cloned()
+                        .ok_or_else(|| {
+                            format!(
+                                "internal Git memo lost artifact {rel} bytes at commit {commit}"
+                            )
+                        })?;
+                    Ok((commit, bytes))
+                })
+                .collect();
+        }
+        let head_commit = self.head_commit.clone();
+        let out = self.run_git(&[
+            "rev-list",
+            "--full-history",
+            "--topo-order",
+            &head_commit,
+            "--",
+            rel,
+        ])?;
+        let mut versions = Vec::new();
+        let mut version_commits = Vec::new();
+        for commit in String::from_utf8(out)?.lines() {
+            let commit = commit.trim();
+            if commit.is_empty() {
+                continue;
+            }
+            let bytes = self.blob_optional(commit, rel)?;
+            let parents = self.commit_parents(commit)?;
+            let mut carried_from_parent = false;
+            for parent in &parents {
+                if self.blob_optional(parent, rel)? == bytes {
+                    carried_from_parent = true;
+                    break;
+                }
+            }
+            if carried_from_parent {
+                continue;
+            }
+            let Some(bytes) = bytes else {
+                return Err(format!(
+                    "artifact {rel} was deleted at commit {commit} \
+                     (artifact versions are append-only)"
+                )
+                .into());
+            };
+            version_commits.push(commit.to_owned());
+            versions.push((commit.to_owned(), bytes));
+        }
+        self.version_commits.insert(rel.to_owned(), version_commits);
+        Ok(versions)
+    }
+
+    fn verify_head_unchanged(&self) -> ConformanceResult<()> {
+        let current = resolve_commit(&self.git_root, "HEAD")?;
+        if current != self.head_commit {
+            return Err(format!(
+                "ratchet history changed while it was being verified: HEAD moved from {} to {}",
+                self.head_commit, current
+            )
+            .into());
+        }
+        Ok(())
+    }
 }
 
 /// Every committed version of the path reachable from HEAD, newest
@@ -2160,43 +2330,9 @@ fn git_commit_parents(git_root: &Path, commit: &str) -> ConformanceResult<Vec<St
 /// out after the full walk; the versions on every parent remain in the
 /// graph and are still validated.
 fn committed_versions(git_root: &Path, rel: &str) -> ConformanceResult<Vec<(String, Vec<u8>)>> {
-    let out = git(
-        git_root,
-        &[
-            "rev-list",
-            "--full-history",
-            "--topo-order",
-            "HEAD",
-            "--",
-            rel,
-        ],
-    )?;
-    let mut versions = Vec::new();
-    for commit in String::from_utf8(out)?.lines() {
-        let commit = commit.trim();
-        if commit.is_empty() {
-            continue;
-        }
-        let bytes = git_blob_optional(git_root, commit, rel)?;
-        let parents = git_commit_parents(git_root, commit)?;
-        let mut carried_from_parent = false;
-        for parent in &parents {
-            if git_blob_optional(git_root, parent, rel)? == bytes {
-                carried_from_parent = true;
-                break;
-            }
-        }
-        if carried_from_parent {
-            continue;
-        }
-        let Some(bytes) = bytes else {
-            return Err(format!(
-                "artifact {rel} was deleted at commit {commit} (artifact versions are append-only)"
-            )
-            .into());
-        };
-        versions.push((commit.to_owned(), bytes));
-    }
+    let mut memo = GitMemo::new(git_root)?;
+    let versions = memo.committed_versions(rel)?;
+    memo.verify_head_unchanged()?;
     Ok(versions)
 }
 
@@ -2510,7 +2646,18 @@ fn verify_lineage<T: LineageArtifact>(
     rel: &str,
     working_bytes: &[u8],
 ) -> ConformanceResult<usize> {
-    let committed = committed_versions(git_root, rel)?;
+    let mut memo = GitMemo::new(git_root)?;
+    let versions = verify_lineage_with_memo::<T>(&mut memo, rel, working_bytes)?;
+    memo.verify_head_unchanged()?;
+    Ok(versions)
+}
+
+fn verify_lineage_with_memo<T: LineageArtifact>(
+    memo: &mut GitMemo,
+    rel: &str,
+    working_bytes: &[u8],
+) -> ConformanceResult<usize> {
+    let committed = memo.committed_versions(rel)?;
     let versions = committed
         .iter()
         .map(|(label, bytes)| {
@@ -2518,7 +2665,7 @@ fn verify_lineage<T: LineageArtifact>(
                 .map_err(|err| format!("{} version at {label}: {err}", T::WHAT).into())
         })
         .collect::<ConformanceResult<Vec<_>>>()?;
-    let ancestry = version_ancestry(git_root, &committed)?;
+    let ancestry = version_ancestry(&memo.git_root, &committed)?;
     let roots = (0..committed.len())
         .filter(|index| immediate_predecessors(*index, &ancestry).is_empty())
         .collect::<Vec<_>>();
@@ -2582,7 +2729,7 @@ fn verify_lineage<T: LineageArtifact>(
         .into());
     }
 
-    let head_bytes = git_blob_optional(git_root, "HEAD", rel)?;
+    let head_bytes = memo.blob_optional("HEAD", rel)?;
     let working_is_version = head_bytes.as_deref() != Some(working_bytes);
     if working_is_version {
         let working = T::decode_validated(working_bytes)
@@ -2698,29 +2845,38 @@ fn verify_committed_artifact_pairs(
     matches_rel: &str,
     inputs_rel: &str,
 ) -> ConformanceResult<()> {
-    let input_version_commits = committed_versions(git_root, inputs_rel)?
+    let mut memo = GitMemo::new(git_root)?;
+    verify_committed_artifact_pairs_with_memo(&mut memo, matches_rel, inputs_rel)?;
+    memo.verify_head_unchanged()
+}
+
+fn verify_committed_artifact_pairs_with_memo(
+    memo: &mut GitMemo,
+    matches_rel: &str,
+    inputs_rel: &str,
+) -> ConformanceResult<()> {
+    let input_version_commits = memo
+        .committed_versions(inputs_rel)?
         .into_iter()
         .map(|(commit, _)| commit)
         .collect::<BTreeSet<_>>();
     // Walk the combined path history, rather than only the union of
     // each path's material versions. That also exposes a merge which
     // carries matches from one parent and inputs from another.
-    let out = git(
-        git_root,
-        &[
-            "rev-list",
-            "--full-history",
-            "--topo-order",
-            "HEAD",
-            "--",
-            matches_rel,
-            inputs_rel,
-        ],
-    )?;
+    let head_commit = memo.head_commit.clone();
+    let out = memo.run_git(&[
+        "rev-list",
+        "--full-history",
+        "--topo-order",
+        &head_commit,
+        "--",
+        matches_rel,
+        inputs_rel,
+    ])?;
     for commit in String::from_utf8(out)?.lines() {
         let commit = commit.trim();
-        let matches_bytes = git_blob_optional(git_root, commit, matches_rel)?;
-        let inputs_bytes = git_blob_optional(git_root, commit, inputs_rel)?;
+        let matches_bytes = memo.blob_optional(commit, matches_rel)?;
+        let inputs_bytes = memo.blob_optional(commit, inputs_rel)?;
         let (Some(matches_bytes), Some(inputs_bytes)) = (matches_bytes, inputs_bytes) else {
             return Err(format!(
                 "incomplete ratchet artifact pair at historical version commit {commit}"
@@ -2743,6 +2899,7 @@ fn verify_committed_artifact_pairs(
 /// the resolved base artifact's protected content, so a rewritten
 /// branch cannot manufacture a smaller self-consistent chain. The
 /// only missing-base exception is the initial bootstrap PR.
+#[cfg(test)]
 fn verify_baseline(
     git_root: &Path,
     baseline: &str,
@@ -2751,11 +2908,36 @@ fn verify_baseline(
     head_matches: &MatchesArtifact,
     head_inputs: &OracleInputsArtifact,
 ) -> ConformanceResult<bool> {
-    let commit =
-        resolve_commit(git_root, baseline).map_err(|err| format!("baseline compare: {err}"))?;
+    let mut memo = GitMemo::new(git_root)?;
+    let bootstrap = verify_baseline_with_memo(
+        &mut memo,
+        baseline,
+        matches_rel,
+        inputs_rel,
+        head_matches,
+        head_inputs,
+    )?;
+    memo.verify_head_unchanged()?;
+    Ok(bootstrap)
+}
 
-    let base_matches = git_blob_optional(git_root, &commit, matches_rel)?;
-    let base_inputs = git_blob_optional(git_root, &commit, inputs_rel)?;
+fn verify_baseline_with_memo(
+    memo: &mut GitMemo,
+    baseline: &str,
+    matches_rel: &str,
+    inputs_rel: &str,
+    head_matches: &MatchesArtifact,
+    head_inputs: &OracleInputsArtifact,
+) -> ConformanceResult<bool> {
+    let commit = if baseline == "HEAD" {
+        memo.head_commit.clone()
+    } else {
+        resolve_commit(&memo.git_root, baseline)
+            .map_err(|err| format!("baseline compare: {err}"))?
+    };
+
+    let base_matches = memo.blob_optional(&commit, matches_rel)?;
+    let base_inputs = memo.blob_optional(&commit, inputs_rel)?;
     let (base_matches, base_inputs) = match (base_matches, base_inputs) {
         (None, None) => {
             // Initial bootstrap PR: the base has no artifact and the
@@ -2785,7 +2967,8 @@ fn verify_baseline(
     };
 
     let base_matches = MatchesArtifact::decode_validated(&base_matches)?;
-    let sanctioned = correction_lapses_after_base(git_root, matches_rel, &commit, head_matches)?;
+    let sanctioned =
+        correction_lapses_after_base_with_memo(memo, matches_rel, &commit, head_matches)?;
     let removals = collect_removal_sets(&base_matches.views, &head_matches.views);
     match &sanctioned {
         None => removals_error(
@@ -2813,8 +2996,8 @@ fn verify_baseline(
 /// (which may be uncommitted during the epoch slice). `None` when no
 /// such correction exists — the strict growth compare then applies
 /// unchanged, so corrections never relax an ordinary PR.
-fn correction_lapses_after_base(
-    git_root: &Path,
+fn correction_lapses_after_base_with_memo(
+    memo: &mut GitMemo,
     matches_rel: &str,
     base_commit: &str,
     head_matches: &MatchesArtifact,
@@ -2828,11 +3011,11 @@ fn correction_lapses_after_base(
         }
     }
     let base_ancestors: BTreeSet<String> =
-        String::from_utf8(git(git_root, &["rev-list", base_commit])?)?
+        String::from_utf8(git(&memo.git_root, &["rev-list", base_commit])?)?
             .lines()
             .map(|line| line.trim().to_owned())
             .collect();
-    for (commit, bytes) in committed_versions(git_root, matches_rel)? {
+    for (commit, bytes) in memo.committed_versions(matches_rel)? {
         if base_ancestors.contains(&commit) {
             continue;
         }
@@ -3161,18 +3344,22 @@ pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
     let git_root = git_root_for(workspace)?;
     let matches_rel = git_rel_path(&git_root, workspace, MATCHES_REL_PATH)?;
     let inputs_rel = git_rel_path(&git_root, workspace, ORACLE_INPUTS_REL_PATH)?;
-    if git_blob_optional(&git_root, "HEAD", &inputs_rel)?.as_deref() != Some(&inputs_bytes) {
+    let mut git_memo = GitMemo::new(&git_root)?;
+    if git_memo.blob_optional("HEAD", &inputs_rel)?.as_deref() != Some(&inputs_bytes) {
         verify_pair_transition("<working tree>", &matches, &inputs)?;
     }
     let matches_versions =
-        verify_lineage::<MatchesArtifact>(&git_root, &matches_rel, &matches_bytes)?;
-    let inputs_versions =
-        verify_lineage::<OracleInputsArtifact>(&git_root, &inputs_rel, &inputs_bytes)?;
-    verify_committed_artifact_pairs(&git_root, &matches_rel, &inputs_rel)?;
+        verify_lineage_with_memo::<MatchesArtifact>(&mut git_memo, &matches_rel, &matches_bytes)?;
+    let inputs_versions = verify_lineage_with_memo::<OracleInputsArtifact>(
+        &mut git_memo,
+        &inputs_rel,
+        &inputs_bytes,
+    )?;
+    verify_committed_artifact_pairs_with_memo(&mut git_memo, &matches_rel, &inputs_rel)?;
 
     let bootstrap_base = if let Some(baseline) = baseline {
-        verify_baseline(
-            &git_root,
+        verify_baseline_with_memo(
+            &mut git_memo,
             baseline,
             &matches_rel,
             &inputs_rel,
@@ -3197,6 +3384,7 @@ pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
         };
         verify_bootstrap_measurement(&matches.views, &run.sets)?;
     }
+    git_memo.verify_head_unchanged()?;
 
     let describe = |view: DiagnosticBand| {
         let (matched, complete) = counts.get(view.name()).copied().unwrap_or((0, 0));
@@ -5386,6 +5574,57 @@ mod tests {
     }
 
     // -- A1 lineage --------------------------------------------------------
+
+    #[test]
+    fn git_history_memo_reuses_blob_parent_and_path_queries() {
+        let repo = init_repo("history-memo");
+        let first_commit = commit_bytes(&repo, MATCHES_REL_PATH, b"first", "first");
+        let second_commit = commit_bytes(&repo, MATCHES_REL_PATH, b"second", "second");
+        let mut memo = GitMemo::new(&repo).unwrap();
+
+        let first_walk = memo.committed_versions(MATCHES_REL_PATH).unwrap();
+        assert_eq!(first_walk.len(), 2);
+        let invocations_after_walk = memo.git_invocations;
+
+        assert_eq!(
+            memo.blob_optional(&second_commit, MATCHES_REL_PATH)
+                .unwrap(),
+            Some(b"second".to_vec())
+        );
+        assert_eq!(
+            memo.commit_parents(&second_commit).unwrap(),
+            vec![first_commit]
+        );
+        assert_eq!(
+            memo.committed_versions(MATCHES_REL_PATH).unwrap(),
+            first_walk
+        );
+        assert_eq!(
+            memo.git_invocations, invocations_after_walk,
+            "cached blob, parent, and path-version queries must not spawn Git"
+        );
+    }
+
+    #[test]
+    fn git_history_memo_pins_head_and_rejects_a_mid_run_move() {
+        let repo = init_repo("history-head-pin");
+        let pinned = commit_bytes(&repo, MATCHES_REL_PATH, b"pinned", "pinned");
+        let mut memo = GitMemo::new(&repo).unwrap();
+        let moved = commit_bytes(&repo, MATCHES_REL_PATH, b"moved", "moved");
+
+        assert_eq!(memo.head_commit, pinned);
+        assert_eq!(
+            memo.blob_optional("HEAD", MATCHES_REL_PATH).unwrap(),
+            Some(b"pinned".to_vec())
+        );
+        let versions = memo.committed_versions(MATCHES_REL_PATH).unwrap();
+        assert_eq!(versions.len(), 1);
+        assert_eq!(versions[0].0, pinned);
+
+        let err = memo.verify_head_unchanged().unwrap_err().to_string();
+        assert!(err.contains("HEAD moved"), "{err}");
+        assert!(err.contains(&moved), "{err}");
+    }
 
     #[test]
     fn lineage_bootstrap_and_additions_pass_shrink_fails() {
