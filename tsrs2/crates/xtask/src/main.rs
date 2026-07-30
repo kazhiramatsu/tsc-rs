@@ -1932,21 +1932,20 @@ fn completion_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Err
     let exact_scope = combine_completion_probes(&[scope_audit.clone(), scope_gate.clone()]);
 
     let ratchet_path = workspace.join("ratchet.toml");
-    let t1_active = ratchet_section_has_exact_counts(&ratchet_path, "t1")?;
-    let t2_active = ratchet_section_has_exact_counts(&ratchet_path, "t2")?;
-    let t3_active = ratchet_section_has_exact_counts(&ratchet_path, "t3")?;
+    let tier_activation = tier_1_through_3_activation_probe(
+        tsrs2_conformance::ratchet::verify_tier_1_through_3_activation(&workspace)
+            .map_err(|error| error.to_string()),
+    );
     let tiers_complete = conformance.supported_matched_t0_diagnostics
         == conformance.supported_oracle_diagnostics
         && conformance.supported_t1_matched == conformance.supported_oracle_diagnostics
         && conformance.supported_t2_matched == conformance.supported_oracle_diagnostics
         && conformance.supported_t3_matched == conformance.supported_oracle_diagnostics
-        && t1_active
-        && t2_active
-        && t3_active;
+        && tier_activation.ready;
     let supported_t0_t3 = completion::CompletionProbe::new(
         tiers_complete,
         format!(
-            "supported T0={}/{} T1={}/{} T2={}/{} T3={}/{} active-ratchets=T1:{t1_active},T2:{t2_active},T3:{t3_active}",
+            "supported T0={}/{} T1={}/{} T2={}/{} T3={}/{}; {}",
             conformance.supported_matched_t0_diagnostics,
             conformance.supported_oracle_diagnostics,
             conformance.supported_t1_matched,
@@ -1955,6 +1954,7 @@ fn completion_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Err
             conformance.supported_oracle_diagnostics,
             conformance.supported_t3_matched,
             conformance.supported_oracle_diagnostics,
+            tier_activation.detail,
         ),
     );
 
@@ -2090,6 +2090,41 @@ fn combine_completion_probes(
             .collect::<Vec<_>>()
             .join("; "),
     )
+}
+
+fn tier_1_through_3_activation_probe(
+    result: Result<tsrs2_conformance::ratchet::Tier1Through3Activation, String>,
+) -> completion::CompletionProbe {
+    match result {
+        Ok(activation) => {
+            let populated = activation.total > 0
+                && activation.t1_matched > 0
+                && activation.t2_matched > 0
+                && activation.t3_matched > 0;
+            completion::CompletionProbe::new(
+                populated,
+                format!(
+                    "A1 oracle-input comparators active; exact accepted-artifact summaries \
+                     T1={}/{} T2={}/{} T3={}/{}{}",
+                    activation.t1_matched,
+                    activation.total,
+                    activation.t2_matched,
+                    activation.total,
+                    activation.t3_matched,
+                    activation.total,
+                    if populated {
+                        ""
+                    } else {
+                        " (each accepted count and total must be nonzero)"
+                    },
+                ),
+            )
+        }
+        Err(error) => completion::CompletionProbe::new(
+            false,
+            format!("A1 T1-T3 activation proof failed: {error}"),
+        ),
+    }
 }
 
 fn add_m8_gate(gates: &mut Vec<M8ReadinessGate>, name: &str, ready: bool, detail: String) {
@@ -11576,6 +11611,54 @@ mod m8_readiness_tests {
             families: vec![family("m8-tail", "M8", 0, 1, 1)],
         });
         assert!(!empty.ready);
+    }
+}
+
+#[cfg(test)]
+mod completion_tier_activation_tests {
+    use super::*;
+
+    #[test]
+    fn inactive_or_incoherent_artifacts_keep_the_completion_row_red() {
+        let probe = tier_1_through_3_activation_probe(Err(
+            "oracle-input comparators remain explicit \"absent\" markers".to_owned(),
+        ));
+
+        assert!(!probe.ready);
+        assert!(probe.detail.contains("activation proof failed"));
+        assert!(probe.detail.contains("comparators remain explicit"));
+    }
+
+    #[test]
+    fn exact_artifact_activation_is_reported_with_derived_counts() {
+        let probe = tier_1_through_3_activation_probe(Ok(
+            tsrs2_conformance::ratchet::Tier1Through3Activation {
+                t1_matched: 11,
+                t2_matched: 10,
+                t3_matched: 9,
+                total: 12,
+            },
+        ));
+
+        assert!(probe.ready);
+        assert!(probe.detail.contains("oracle-input comparators active"));
+        assert!(probe.detail.contains("T1=11/12 T2=10/12 T3=9/12"));
+    }
+
+    #[test]
+    fn active_but_empty_accepted_tiers_keep_the_completion_row_red() {
+        let probe = tier_1_through_3_activation_probe(Ok(
+            tsrs2_conformance::ratchet::Tier1Through3Activation {
+                t1_matched: 1,
+                t2_matched: 0,
+                t3_matched: 0,
+                total: 12,
+            },
+        ));
+
+        assert!(!probe.ready);
+        assert!(probe.detail.contains("T2=0/12 T3=0/12"));
+        assert!(probe.detail.contains("must be nonzero"));
     }
 }
 

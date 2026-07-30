@@ -2468,6 +2468,65 @@ fn verify_ratchet_summaries(
     Ok(())
 }
 
+/// Exact, cheap activation proof consumed by the M8 completion row.
+///
+/// This deliberately does not rebuild the corpus or walk lineage:
+/// `ratchet check` owns those heavier gates. It does decode and
+/// validate both current artifacts, verifies their pair pins, requires
+/// the atomic T1-T3 comparator state, and proves the three
+/// `ratchet.toml` summaries are derived exactly from the accepted
+/// bucket sets. Thus hand-writing nonzero TOML counts cannot make the
+/// completion consumer report the tier schema active.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Tier1Through3Activation {
+    pub t1_matched: u64,
+    pub t2_matched: u64,
+    pub t3_matched: u64,
+    pub total: u64,
+}
+
+pub fn verify_tier_1_through_3_activation(
+    workspace: &Path,
+) -> ConformanceResult<Tier1Through3Activation> {
+    let (matches, _matches_bytes): (MatchesArtifact, _) =
+        read_artifact(&workspace.join(MATCHES_REL_PATH), "accepted-match artifact")?;
+    matches.validate()?;
+    let (inputs, inputs_bytes): (OracleInputsArtifact, _) = read_artifact(
+        &workspace.join(ORACLE_INPUTS_REL_PATH),
+        "oracle-inputs artifact",
+    )?;
+    inputs.validate()?;
+    verify_pair_values("<working tree>", &matches, &inputs, &inputs_bytes)?;
+    if comparator_state(&inputs.comparators)? != TierComparatorState::T1ThroughT3 {
+        return Err(format!(
+            "A1 T1-T3 accepted sets are inactive: oracle-input comparators remain explicit \
+             \"absent\" markers; run the reviewed \
+             `ratchet update --transition {TIER_1_3_INPUT_SCHEMA_EXTENSION}` only after \
+             supported T0-T3 closure"
+        )
+        .into());
+    }
+
+    let view_counts = view_counts(&matches.views);
+    let tier_counts = all_view_tier_counts(&matches.views);
+    verify_ratchet_summaries(
+        &workspace.join("ratchet.toml"),
+        &view_counts,
+        &inputs.totals,
+        Some(tier_counts),
+    )?;
+    Ok(Tier1Through3Activation {
+        t1_matched: tier_counts[0],
+        t2_matched: tier_counts[1],
+        t3_matched: tier_counts[2],
+        total: inputs
+            .totals
+            .get(DiagnosticBand::All.name())
+            .copied()
+            .unwrap_or(0),
+    })
+}
+
 /// Read the accepted-state pair and verify it against the current
 /// tree: pair coherence, vendored `_tsc.js` pin, and the immutable
 /// oracle-input diff. This is the standing-proof precondition A2 §3.2
@@ -5077,6 +5136,114 @@ mod tests {
     }
 
     // -- ratchet.toml derived summaries --------------------------------------
+
+    fn write_tier_activation_state(
+        dir: &Path,
+        comparators: BTreeMap<String, ComparatorEntry>,
+        views: RunSets,
+        tier_summaries: [u64; 3],
+    ) {
+        let mut inputs = inputs_stub();
+        inputs.producer = Some(producer_stub());
+        inputs.comparators = comparators;
+        let inputs_bytes = encode_artifact(&inputs).unwrap();
+        let mut matches = matches_artifact(views.clone(), true, None, None);
+        matches.inputs = MatchesInputs {
+            oracle_inputs_sha256: sha256_hex(&inputs_bytes),
+            tsc_js_sha256: inputs.vendor.tsc_js_sha256.clone(),
+        };
+        let matches_bytes = encode_artifact(&matches).unwrap();
+        for (rel, bytes) in [
+            (ORACLE_INPUTS_REL_PATH, inputs_bytes),
+            (MATCHES_REL_PATH, matches_bytes),
+        ] {
+            let path = dir.join(rel);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, bytes).unwrap();
+        }
+
+        let counts = view_counts(&views);
+        let mut text = String::new();
+        for view in FIXED_VIEWS {
+            let matched = counts[view.name()].0;
+            let total = inputs.totals[view.name()];
+            text.push_str(&format!(
+                "[{}]\nrate = {:.6}\nmatched = {matched}\ntotal = {total}\n\
+                 allowed_regression = 0.0\n\n",
+                view.ratchet_key(),
+                canonical_summary_rate(matched, total),
+            ));
+        }
+        let total = inputs.totals[DiagnosticBand::All.name()];
+        for (tier, matched) in ["t1", "t2", "t3"].into_iter().zip(tier_summaries) {
+            text.push_str(&format!(
+                "[{tier}]\nrate = {:.6}\nmatched = {matched}\ntotal = {total}\n\
+                 allowed_regression = 0.0\n\n",
+                canonical_summary_rate(matched, total),
+            ));
+        }
+        fs::write(dir.join("ratchet.toml"), text).unwrap();
+    }
+
+    #[test]
+    fn completion_activation_proof_rejects_toml_only_claim() {
+        let dir = temp_dir("tier-activation-inactive");
+        write_tier_activation_state(
+            &dir,
+            inactive_comparators(),
+            views_with(&[100], &[100]),
+            [1, 1, 1],
+        );
+        let err = verify_tier_1_through_3_activation(&dir)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("accepted sets are inactive"), "{err}");
+        assert!(err.contains(TIER_1_3_INPUT_SCHEMA_EXTENSION), "{err}");
+    }
+
+    #[test]
+    fn completion_activation_proof_requires_exact_artifact_summaries() {
+        let views = views_with_tiers(&[100], &[100], &[100], &[100], &[100]);
+        let valid = temp_dir("tier-activation-valid");
+        write_tier_activation_state(&valid, tier_1_3_comparators(), views.clone(), [1, 1, 1]);
+        assert_eq!(
+            verify_tier_1_through_3_activation(&valid).unwrap(),
+            Tier1Through3Activation {
+                t1_matched: 1,
+                t2_matched: 1,
+                t3_matched: 1,
+                total: 1,
+            }
+        );
+
+        let stale = temp_dir("tier-activation-stale-summary");
+        write_tier_activation_state(&stale, tier_1_3_comparators(), views, [1, 0, 1]);
+        let err = verify_tier_1_through_3_activation(&stale)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("ratchet.toml [t2]"), "{err}");
+        assert!(err.contains("accepted artifact"), "{err}");
+    }
+
+    #[test]
+    fn completion_activation_proof_requires_a_coherent_artifact_pair() {
+        let dir = temp_dir("tier-activation-pair");
+        write_tier_activation_state(
+            &dir,
+            tier_1_3_comparators(),
+            views_with_tiers(&[100], &[100], &[100], &[100], &[100]),
+            [1, 1, 1],
+        );
+        let matches_path = dir.join(MATCHES_REL_PATH);
+        let (mut matches, _): (MatchesArtifact, _) =
+            read_artifact(&matches_path, "test matches").unwrap();
+        matches.inputs.oracle_inputs_sha256 = "wrong".to_owned();
+        fs::write(matches_path, encode_artifact(&matches).unwrap()).unwrap();
+        let err = verify_tier_1_through_3_activation(&dir)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("pin a different oracle-inputs blob"), "{err}");
+    }
 
     #[test]
     fn ratchet_toml_rewrite_preserves_comments() {
