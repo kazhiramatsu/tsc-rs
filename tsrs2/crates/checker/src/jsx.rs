@@ -827,9 +827,9 @@ impl<'a> CheckerState<'a> {
     /// checkTypeRelatedTo(source, target, assignable, errorNode=tagName,
     /// headMessage, generateInitialErrorChain) — the 2786-family
     /// reporter: the OUTER chain (and diagnostic code) is 2786
-    /// `_0_cannot_be_used_as_a_JSX_component` over the flavor head; the
-    /// relation-detail tail elides (T2). Display failures unwind
-    /// Unsupported per the house discipline.
+    /// `_0_cannot_be_used_as_a_JSX_component` over the flavor head.
+    /// The shared reporting relation owns the normalized source-read /
+    /// target-write detail tail and its related declaration rows.
     fn check_jsx_bound_relation(
         &mut self,
         source: TypeId,
@@ -840,16 +840,36 @@ impl<'a> CheckerState<'a> {
         if self.is_type_assignable_to(source, target)? {
             return Ok(());
         }
-        let source_text = self.type_to_string_slice(source)?;
-        let target_text = self.type_to_string_slice(target)?;
         let component_name = self.text_of_node(tag_name)?;
-        let chain = MessageChain::new(
+        let containing = MessageChain::new(
             &diagnostics::_0_cannot_be_used_as_a_JSX_component,
             &[component_name],
-        )
-        .with_next(vec![MessageChain::new(head, &[source_text, target_text])]);
+        );
         let span = self.diag_span_of_node(tag_name);
-        let diagnostic = self.diagnostic_at_span(&span, chain);
+        let output = self.relation_error_output_with_context(
+            source,
+            target,
+            crate::relate::RelationKind::Assignable,
+            Some(head),
+            Some(containing.clone()),
+        );
+        let diagnostic = match output {
+            Ok(Some(output)) => {
+                let mut diagnostic = self.diagnostic_at_span(&span, output.message);
+                diagnostic.related = output.related;
+                diagnostic
+            }
+            // The failed verdict and JSX heads are already exact. A
+            // report-only Unsupported may elide only the relation
+            // detail; it must not suppress the accepted 2786 row.
+            Ok(None) | Err(_) => {
+                let source_text = self.type_to_string_slice(source)?;
+                let target_text = self.type_to_string_slice(target)?;
+                let chain = containing
+                    .with_next(vec![MessageChain::new(head, &[source_text, target_text])]);
+                self.diagnostic_at_span(&span, chain)
+            }
+        };
         self.push_error_diagnostic(diagnostic);
         Ok(())
     }
@@ -2345,6 +2365,44 @@ mod tests {
         })
     }
 
+    fn checked_jsx_component_details_with(
+        text: &str,
+        options: &CompilerOptions,
+    ) -> Vec<(Vec<(u32, String)>, Vec<(u32, String, u32, u32)>)> {
+        fn flatten(chain: &tsrs2_diags::MessageChain, rows: &mut Vec<(u32, String)>) {
+            rows.push((chain.code, chain.text.clone()));
+            for child in &chain.next {
+                flatten(child, rows);
+            }
+        }
+
+        with_program_state(&[("a.tsx", text)], options, |state| {
+            state.check_source_file(0);
+            state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.file_name.is_some() && diagnostic.code() == 2786)
+                .map(|diagnostic| {
+                    let mut chain = Vec::new();
+                    flatten(&diagnostic.message, &mut chain);
+                    let related = diagnostic
+                        .related
+                        .iter()
+                        .map(|related| {
+                            (
+                                related.message.code,
+                                related.message.text.clone(),
+                                related.start.unwrap_or(u32::MAX),
+                                related.length.unwrap_or(u32::MAX),
+                            )
+                        })
+                        .collect();
+                    (chain, related)
+                })
+                .collect()
+        })
+    }
+
     fn jsx(value: i32) -> CompilerOptions {
         CompilerOptions {
             jsx: Some(value),
@@ -2619,6 +2677,62 @@ mod tests {
                 &jsx(1),
             ),
             [(2786, 171, 1)]
+        );
+    }
+
+    #[test]
+    fn jsx_component_relation_keeps_missing_property_detail_and_related() {
+        let text = "declare namespace JSX { interface Element { e: 1 } interface ElementClass { render(): void } }\n\
+                    declare var React: any;\n\
+                    declare function F(props: { a: string }): { x: number };\n\
+                    (<F a=\"x\" />);\n";
+        assert_eq!(
+            checked_jsx_component_details_with(text, &jsx(1)),
+            [(
+                vec![
+                    (
+                        2786,
+                        "'F' cannot be used as a JSX component.".to_owned()
+                    ),
+                    (
+                        2787,
+                        "Its return type '{ x: number; }' is not a valid JSX element."
+                            .to_owned()
+                    ),
+                    (
+                        2741,
+                        "Property 'e' is missing in type '{ x: number; }' but required in type 'Element'."
+                            .to_owned()
+                    ),
+                ],
+                vec![(
+                    2728,
+                    "'e' is declared here.".to_owned(),
+                    text.find("e: 1").expect("Element.e") as u32,
+                    1,
+                )],
+            )]
+        );
+    }
+
+    #[test]
+    fn primitive_jsx_return_does_not_fabricate_a_missing_property_detail() {
+        let text = "declare namespace JSX { interface Element { e: 1 } interface ElementClass { render(): void } }\n\
+                    declare var React: any;\n\
+                    declare function F(props: { a: string }): number;\n\
+                    (<F a=\"x\" />);\n";
+        assert_eq!(
+            checked_jsx_component_details_with(text, &jsx(1)),
+            [(
+                vec![
+                    (2786, "'F' cannot be used as a JSX component.".to_owned()),
+                    (
+                        2787,
+                        "Its return type 'number' is not a valid JSX element.".to_owned()
+                    ),
+                ],
+                Vec::new(),
+            )]
         );
     }
 
