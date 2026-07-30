@@ -1220,29 +1220,29 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     .tables
                     .object_flags_of(source)
                     .intersects(ObjectFlags::FRESH_LITERAL);
-            if is_performing_excess_property_checks {
-                if self.has_excess_properties(source, target, report_errors)? {
-                    if report_errors {
-                        // 65202-65204: discriminant incompatibility
-                        // contributes its 2326/inner relation first;
-                        // the current normalized relation level then
-                        // supplies the kept outer head. An aliased
-                        // original target is the sole display restore.
-                        let report_target = if self
-                            .st
-                            .tables
-                            .type_of(original_target)
-                            .alias_symbol
-                            .is_some()
-                        {
-                            original_target
-                        } else {
-                            target
-                        };
-                        self.report_relation_error(head_message, source, report_target)?;
-                    }
-                    return Ok(Ternary::FALSE);
+            if is_performing_excess_property_checks
+                && self.has_excess_properties(source, target, report_errors)?
+            {
+                if report_errors {
+                    // 65202-65204: discriminant incompatibility
+                    // contributes its 2326/inner relation first;
+                    // the current normalized relation level then
+                    // supplies the kept outer head. An aliased
+                    // original target is the sole display restore.
+                    let report_target = if self
+                        .st
+                        .tables
+                        .type_of(original_target)
+                        .alias_symbol
+                        .is_some()
+                    {
+                        original_target
+                    } else {
+                        target
+                    };
+                    self.report_relation_error(head_message, source, report_target)?;
                 }
+                return Ok(Ternary::FALSE);
             }
             let is_performing_common_property_checks = (self.relation != RelationKind::Comparable
                 || self.st.is_unit_type(source))

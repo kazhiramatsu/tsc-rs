@@ -240,8 +240,8 @@ impl<'a> CheckerState<'a> {
                             // construct — no synthesized nodes exist).
                             if meaning.intersects(result_flags)
                                 && (meaning & result_flags).intersects(SymbolFlags::TYPE)
-                                && !last_location
-                                    .is_some_and(|last| self.kind_of(last) == SyntaxKind::JSDoc)
+                                && last_location
+                                    .is_none_or(|last| self.kind_of(last) != SyntaxKind::JSDoc)
                             {
                                 use_result = if result_flags.intersects(SymbolFlags::TYPE_PARAMETER)
                                 {

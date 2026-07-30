@@ -357,8 +357,8 @@ impl<'a> CheckerState<'a> {
                     let source = self.binder.source_of_node(parent);
                     let parent_node = source.arena.node(parent);
                     (
-                        tsrs2_syntax::skip_trivia(&source.text, parent_node.pos.max(0) as usize),
-                        parent_node.end.max(parent_node.pos).max(0) as usize,
+                        tsrs2_syntax::skip_trivia(&source.text, parent_node.pos as usize),
+                        parent_node.end.max(parent_node.pos) as usize,
                     )
                 } else {
                     let Some(list) = self.type_parameter_declaration_list_of(parent) else {

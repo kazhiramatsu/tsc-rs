@@ -921,15 +921,13 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
         }
         let is_backquoted = self.parse_optional(SyntaxKind::BacktickToken);
         let name = self.parse_jsdoc_entity_name();
-        if is_backquoted {
-            if !self.parse_optional(SyntaxKind::BacktickToken) {
-                let _ = self.parser.create_missing_node(
-                    SyntaxKind::BacktickToken,
-                    false,
-                    Some(&gen::_0_expected),
-                    &[&super::token_to_string(SyntaxKind::BacktickToken)],
-                );
-            }
+        if is_backquoted && !self.parse_optional(SyntaxKind::BacktickToken) {
+            let _ = self.parser.create_missing_node(
+                SyntaxKind::BacktickToken,
+                false,
+                Some(&gen::_0_expected),
+                &[&super::token_to_string(SyntaxKind::BacktickToken)],
+            );
         }
         if is_bracketed {
             self.skip_whitespace();
@@ -1597,9 +1595,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
 
         let may_have_children = type_expression
             .and_then(|expression| self.jsdoc_type_expression_type(expression))
-            .map_or(true, |r#type| {
-                self.is_object_or_object_array_type_reference(r#type)
-            });
+            .is_none_or(|r#type| self.is_object_or_object_array_type_reference(r#type));
         if may_have_children {
             let mut child_type_tag: Option<NodeId> = None;
             let mut property_tags = Vec::new();

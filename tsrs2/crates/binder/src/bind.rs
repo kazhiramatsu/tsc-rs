@@ -2976,8 +2976,9 @@ impl<'a> Binder<'a> {
                 .and_then(|name| parent_of(self.source, name))
                 .filter(|&parent| is_property_access_entity_name_expression(self.source, parent));
 
-            if (is_enum || full_name.is_none()) && property_access.is_some() {
-                let property_access = property_access.expect("checked property access");
+            if let Some(property_access) =
+                property_access.filter(|_| is_enum || full_name.is_none())
+            {
                 let is_top_level = self.is_top_level_namespace_assignment(property_access);
                 if is_top_level {
                     let mut ancestor = Some(decl_name.expect("property name"));

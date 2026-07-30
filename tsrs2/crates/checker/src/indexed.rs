@@ -1157,13 +1157,18 @@ impl<'a> CheckerState<'a> {
             let property = self.get_property_of_type_full(object_type, property_name)?;
             if let Some(property) = property {
                 let declarations = self.binder.symbol(property).declarations.clone();
-                if access_flags.intersects(AccessFlags::REPORT_DEPRECATED)
-                    && access_node.is_some()
-                    && !declarations.is_empty()
-                    && self.is_deprecated_symbol(property)
-                    && self.is_uncalled_function_reference(access_node.unwrap(), property)?
-                {
-                    let access_node = access_node.unwrap();
+                let deprecated_access_node = match access_node {
+                    Some(access_node)
+                        if access_flags.intersects(AccessFlags::REPORT_DEPRECATED)
+                            && !declarations.is_empty()
+                            && self.is_deprecated_symbol(property)
+                            && self.is_uncalled_function_reference(access_node, property)? =>
+                    {
+                        Some(access_node)
+                    }
+                    _ => None,
+                };
+                if let Some(access_node) = deprecated_access_node {
                     let deprecated_node = match self.data_of(access_node) {
                         NodeData::ElementAccessExpression(data) => {
                             data.argument_expression.unwrap_or(access_node)

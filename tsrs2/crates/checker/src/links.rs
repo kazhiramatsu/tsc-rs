@@ -43,6 +43,14 @@ impl<T: Clone> LinkSlot<T> {
     }
 }
 
+type SpeculativeResolvedTypeWrite = (
+    u32,
+    NodeId,
+    LinkSlot<TypeId>,
+    LinkSlot<SymbolId>,
+    LinkSlot<TypeId>,
+);
+
 // Debug-only census of OPEN `Resolving` sentinels on this thread.
 // Every slot writer below reports its transition; the
 // unsupported-unwind invariant reads the census at element/file
@@ -537,13 +545,7 @@ pub struct LinksTables {
     /// Trial-local type-node resolution publications. A candidate
     /// needs one stable type identity (and resolving sentinels) while
     /// it runs, but the AST cache must return to its entry state.
-    speculative_resolved_type_writes: Vec<(
-        u32,
-        NodeId,
-        LinkSlot<TypeId>,
-        LinkSlot<SymbolId>,
-        LinkSlot<TypeId>,
-    )>,
+    speculative_resolved_type_writes: Vec<SpeculativeResolvedTypeWrite>,
     /// Trial-local decorator-signature protocol writes. The
     /// `any_signature` sentinel must remain visible to re-entrant
     /// decorator checks inside the same candidate.

@@ -6371,22 +6371,23 @@ impl<'a> CheckerState<'a> {
             if let Some(declaration) = declaration {
                 // 77625: a materialized JSDocSignature inherits construct
                 // semantics directly from its JSDoc root's constructor host.
-                if !matches!(
+                let is_constructor_like = matches!(
                     self.kind_of(declaration),
                     SyntaxKind::Constructor
                         | SyntaxKind::ConstructSignature
                         | SyntaxKind::ConstructorType
-                ) && !(self.kind_of(declaration) == SyntaxKind::JSDocSignature
+                ) || (self.kind_of(declaration)
+                    == SyntaxKind::JSDocSignature
                     && self
                         .get_jsdoc_root(declaration)
                         .and_then(|root| self.parent_of(root))
                         .is_some_and(|host| self.kind_of(host) == SyntaxKind::Constructor))
-                    && !node_util::is_jsdoc_construct_signature(
+                    || node_util::is_jsdoc_construct_signature(
                         self.binder.source_of_node(declaration),
                         declaration,
                     )
-                    && !self.is_js_constructor(declaration)
-                {
+                    || self.is_js_constructor(declaration);
+                if !is_constructor_like {
                     if self
                         .options
                         .strict_option_value(self.options.no_implicit_any)

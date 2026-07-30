@@ -2365,11 +2365,15 @@ mod tests {
         })
     }
 
+    type DiagnosticChainRows = Vec<(u32, String)>;
+    type RelatedDiagnosticRows = Vec<(u32, String, u32, u32)>;
+    type JsxComponentDetails = (DiagnosticChainRows, RelatedDiagnosticRows);
+
     fn checked_jsx_component_details_with(
         text: &str,
         options: &CompilerOptions,
-    ) -> Vec<(Vec<(u32, String)>, Vec<(u32, String, u32, u32)>)> {
-        fn flatten(chain: &tsrs2_diags::MessageChain, rows: &mut Vec<(u32, String)>) {
+    ) -> Vec<JsxComponentDetails> {
+        fn flatten(chain: &tsrs2_diags::MessageChain, rows: &mut DiagnosticChainRows) {
             rows.push((chain.code, chain.text.clone()));
             for child in &chain.next {
                 flatten(child, rows);

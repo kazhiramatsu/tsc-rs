@@ -4704,7 +4704,7 @@ impl<'a> CheckerState<'a> {
                         tsrs2_binder::AssignmentDeclarationKind::ObjectDefinePrototypeProperty
                             | tsrs2_binder::AssignmentDeclarationKind::Prototype
                     );
-                if is_static != !is_instance_member || !state.has_late_bindable_name(member)? {
+                if is_static == is_instance_member || !state.has_late_bindable_name(member)? {
                     continue;
                 }
                 if state
@@ -9131,8 +9131,8 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
     ) -> CheckResult2<bool> {
         let value_declaration = self.binder.symbol(symbol).value_declaration;
-        if !value_declaration
-            .is_some_and(|declaration| self.kind_of(declaration) == SyntaxKind::BinaryExpression)
+        if value_declaration
+            .is_none_or(|declaration| self.kind_of(declaration) != SyntaxKind::BinaryExpression)
         {
             return Ok(false);
         }
