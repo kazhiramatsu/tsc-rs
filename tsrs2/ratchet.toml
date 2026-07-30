@@ -888,3 +888,15 @@ max_recovery = 0
 # M8 close: 13 -> 0 — all remaining constructibility assumptions were
 # either implemented losslessly or retired with a closed invariant.
 max_dormant = 0
+
+[t4]
+# M8 formal T4 close: the one-time t4-input-schema-extension
+# atomically pins all 7,691 genuine tsc rendered case hashes and
+# activates the complete supported case set. Schema-3 goldens keep
+# present-but-empty relatedInformation in a sparse sidecar so the
+# formatter is byte-exact without changing the pre-existing
+# structured oracle records or identities.
+rate = 1.0
+matched = 7691
+total = 7691
+allowed_regression = 0.0
