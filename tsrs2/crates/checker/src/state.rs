@@ -340,6 +340,12 @@ pub struct CheckerState<'a> {
     pub(crate) slice_approximate_length: usize,
     pub(crate) slice_max_truncation_length: usize,
     pub(crate) slice_truncating: bool,
+    /// nodeBuilder context.reverseMappedStack
+    /// (shouldUsePlaceholderForProperty, 52221-52240). It contains the
+    /// reverse-mapped properties whose types are currently being
+    /// serialized, so recursive and deeply nested mapped displays
+    /// terminate through tsc's elision placeholder.
+    pub(crate) slice_reverse_mapped_stack: Vec<SymbolId>,
     /// nodeBuilder context.flags' NoTypeReduction bit. Ordinary
     /// typeToString calls leave it false; elaborateNeverIntersection
     /// sets it so the explanation can name the original intersection.
@@ -921,6 +927,7 @@ impl<'a> CheckerState<'a> {
             slice_approximate_length: 0,
             slice_max_truncation_length: 160,
             slice_truncating: false,
+            slice_reverse_mapped_stack: Vec::new(),
             slice_no_type_reduction: false,
             slice_display_enclosing: None,
             marker_types: std::collections::HashSet::new(),

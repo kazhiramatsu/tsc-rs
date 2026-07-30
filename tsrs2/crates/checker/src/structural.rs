@@ -9144,6 +9144,30 @@ mod tests {
             "This type parameter might need an `extends { a: string; }` constraint."
         );
 
+        let optional_property = crate::state::test_support::with_program_state(
+            &[(
+                "a.ts",
+                "function optional<T>(x: T) { const y: { a?: string } = x; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .find(|diagnostic| diagnostic.code() == 2322)
+                    .expect("the optional-property assignment mismatch is reported")
+                    .related
+                    .clone()
+            },
+        );
+        assert_eq!(optional_property.len(), 1);
+        assert_eq!(optional_property[0].message.code, 2208);
+        assert_eq!(
+            optional_property[0].message.text,
+            "This type parameter might need an `extends { a?: string; }` constraint."
+        );
+
         let target_parameter = crate::state::test_support::with_program_state(
             &[("a.ts", "function h<T, U>(x: T) { const y: U = x; }\n")],
             &CompilerOptions::default(),

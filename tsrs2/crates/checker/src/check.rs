@@ -5315,6 +5315,7 @@ impl<'a> CheckerState<'a> {
             },
         );
         let saved_truncating = std::mem::replace(&mut self.slice_truncating, false);
+        let saved_reverse_mapped_stack = std::mem::take(&mut self.slice_reverse_mapped_stack);
         let saved_no_type_reduction =
             std::mem::replace(&mut self.slice_no_type_reduction, no_type_reduction);
         let result = self.type_to_string_slice_ex(ty, fully_qualified);
@@ -5322,6 +5323,7 @@ impl<'a> CheckerState<'a> {
         self.slice_approximate_length = saved_approximate_length;
         self.slice_max_truncation_length = saved_max_truncation_length;
         self.slice_truncating = saved_truncating;
+        self.slice_reverse_mapped_stack = saved_reverse_mapped_stack;
         self.slice_no_type_reduction = saved_no_type_reduction;
         result
     }
@@ -8158,35 +8160,99 @@ impl<'a> CheckerState<'a> {
         Ok(format!("{readonly}[{name}: {key}]: {value}"))
     }
 
+    /// tsc-port: createElidedInformationPlaceholder @6.0.3
+    /// tsc-hash: 9fe24796b9c8dc49e718e88a66c16cac0341b79590fdec1e7b8edc49122e169f
+    /// tsc-span: _tsc.js:52212-52222
+    fn reverse_mapped_elision_placeholder_slice(&mut self) -> (String, SliceTypeNodeKind) {
+        self.slice_add_approximate_length(3);
+        if self.options.no_error_truncation == Some(true) {
+            // The printer removes the synthetic `/* elided */`
+            // comment from the AnyKeyword node.
+            ("any".to_owned(), SliceTypeNodeKind::Keyword)
+        } else {
+            ("...".to_owned(), SliceTypeNodeKind::Reference)
+        }
+    }
+
+    /// tsc-port: shouldUsePlaceholderForProperty @6.0.3
+    /// tsc-hash: 6216ae17f4795783d5b0c85fe0c09dd1c1b7fb7ccc3940cd203890b7a4dc7822
+    /// tsc-span: _tsc.js:52223-52240
+    fn should_use_reverse_mapped_placeholder_slice(&self, property: SymbolId) -> bool {
+        let links = self.links.symbol(property);
+        if !links
+            .check_flags
+            .intersects(tsrs2_types::CheckFlags::REVERSE_MAPPED)
+        {
+            return false;
+        }
+        if self.slice_reverse_mapped_stack.contains(&property) {
+            return true;
+        }
+        if let Some(&last) = self.slice_reverse_mapped_stack.last() {
+            let property_type = self
+                .links
+                .symbol(last)
+                .property_type
+                .expect("reverse-mapped properties carry propertyType");
+            if !self
+                .tables
+                .object_flags_of(property_type)
+                .intersects(ObjectFlags::ANONYMOUS)
+            {
+                return true;
+            }
+        }
+        const DEPTH: usize = 3;
+        if self.slice_reverse_mapped_stack.len() < DEPTH {
+            return false;
+        }
+        let mapped_type = links
+            .mapped_type
+            .expect("reverse-mapped properties carry mappedType");
+        let mapped_symbol = self.tables.type_of(mapped_type).symbol;
+        self.slice_reverse_mapped_stack
+            .iter()
+            .rev()
+            .take(DEPTH)
+            .all(|&stacked| {
+                let mapped = self
+                    .links
+                    .symbol(stacked)
+                    .mapped_type
+                    .expect("reverse-mapped properties carry mappedType");
+                self.tables.type_of(mapped).symbol == mapped_symbol
+            })
+    }
+
     /// tsc-port: addPropertyToElementList @6.0.3
     /// tsc-hash: 51ca73b16014f72c20c3b112b50304ef359bc84bf5820463afb782e4cda6e335
     /// tsc-span: _tsc.js:52241-52400
     ///
     /// The late-bound trackComputedName block is dead in the slice
-    /// (typeToString's tracker cannot track symbols); reverse-mapped
-    /// properties ride the shouldUsePlaceholderForProperty machinery
-    /// and the accessor/method faces are signature rungs — all out of
-    /// slice. A function/method-flagged property whose filtered type
-    /// has no call signatures and no question token emits NOTHING
-    /// (52350's early return past the emission) — transcribed as the
-    /// skip arm.
+    /// (typeToString's tracker cannot track symbols). Reverse-mapped
+    /// properties share the root context's stack and take tsc's
+    /// recursive/deep placeholder faces. A function/method-flagged
+    /// property whose filtered type has no call signatures and no
+    /// question token emits NOTHING (52350's early return past the
+    /// emission) — transcribed as the skip arm.
     fn property_signature_slice(
         &mut self,
         property: SymbolId,
         fully_qualified: bool,
         rendered: &mut Vec<String>,
     ) -> CheckResult2<()> {
-        if self
+        let property_is_reverse_mapped = self
             .links
             .symbol(property)
             .check_flags
-            .intersects(tsrs2_types::CheckFlags::REVERSE_MAPPED)
-        {
-            return Err(Unsupported::new(
-                "typeToString beyond the 5.4 display slice (nodeBuilder, T2/M8)",
-            ));
-        }
-        let property_type = self.get_non_missing_type_of_symbol(property)?;
+            .intersects(tsrs2_types::CheckFlags::REVERSE_MAPPED);
+        let use_reverse_mapped_placeholder =
+            self.should_use_reverse_mapped_placeholder_slice(property);
+        let property_type = if use_reverse_mapped_placeholder {
+            self.tables.intrinsics.any
+        } else {
+            self.get_non_missing_type_of_symbol(property)?
+        };
         let symbol_flags = self.binder.symbol(property).flags;
         let name = self.property_name_slice(property, fully_qualified)?;
         self.slice_add_approximate_length(Self::slice_js_length(&name) + 1);
@@ -8298,7 +8364,42 @@ impl<'a> CheckerState<'a> {
                 return Ok(());
             }
         }
-        let type_text = self.type_to_string_slice_ex(property_type, fully_qualified)?;
+        // serializeTypeForDeclaration → syntacticNodeBuilder.typeFromProperty
+        // (53487-53507, 133921-133940): an explicit property
+        // annotation is reusable in an enclosing-scoped render. The
+        // question-token equivalence deliberately compares the
+        // annotation against the property's undefined-stripped type.
+        let mut type_text = None;
+        if !use_reverse_mapped_placeholder {
+            if let Some(declaration) = self.binder.symbol(property).declarations.first().copied() {
+                if let Some(annotation) = self.effective_type_annotation_node(declaration) {
+                    type_text = self.annotation_reuse_text_slice(
+                        annotation,
+                        property_type,
+                        /*requires_adding_undefined*/ false,
+                        self.is_optional_declaration(declaration),
+                        /*is_parameter*/ false,
+                    )?;
+                }
+            }
+        }
+        let type_text = match type_text {
+            Some(text) => text,
+            None if use_reverse_mapped_placeholder => {
+                self.reverse_mapped_elision_placeholder_slice().0
+            }
+            None => {
+                if property_is_reverse_mapped {
+                    self.slice_reverse_mapped_stack.push(property);
+                }
+                let rendered = self.type_to_string_slice_ex(property_type, fully_qualified);
+                if property_is_reverse_mapped {
+                    let popped = self.slice_reverse_mapped_stack.pop();
+                    debug_assert_eq!(popped, Some(property));
+                }
+                rendered?
+            }
+        };
         let readonly = if self.is_readonly_symbol(property) {
             self.slice_add_approximate_length(9);
             "readonly "
@@ -8357,6 +8458,7 @@ impl<'a> CheckerState<'a> {
             },
         );
         let saved_truncating = std::mem::replace(&mut self.slice_truncating, false);
+        let saved_reverse_mapped_stack = std::mem::take(&mut self.slice_reverse_mapped_stack);
         let saved_no_type_reduction = std::mem::replace(&mut self.slice_no_type_reduction, false);
         let saved_enclosing = self.slice_display_enclosing.take();
         let result =
@@ -8365,6 +8467,7 @@ impl<'a> CheckerState<'a> {
         self.slice_approximate_length = saved_approximate_length;
         self.slice_max_truncation_length = saved_max_truncation_length;
         self.slice_truncating = saved_truncating;
+        self.slice_reverse_mapped_stack = saved_reverse_mapped_stack;
         self.slice_no_type_reduction = saved_no_type_reduction;
         self.slice_display_enclosing = saved_enclosing;
         result

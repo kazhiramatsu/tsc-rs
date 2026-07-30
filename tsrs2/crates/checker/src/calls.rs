@@ -4836,7 +4836,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let parameter = self.nodes_of(parameters).get(parameter_index).copied();
                 if let Some(parameter) = parameter {
-                    let related = self.argument_not_provided_related(parameter)?;
+                    let related = self.argument_not_provided_related(parameter, args.len())?;
                     diagnostic.related.push(related);
                 }
             }
@@ -4856,8 +4856,18 @@ impl<'a> CheckerState<'a> {
         Ok(self.diagnostic_at_span(&span, chain))
     }
 
-    /// The 76494 related-row selection: binding pattern / rest / named.
-    fn argument_not_provided_related(&mut self, parameter: NodeId) -> CheckResult2<RelatedInfo> {
+    /// tsc-port: the 76494 related-row selection @6.0.3
+    /// tsc-hash: b93c4ab581d5b6e865ac4ae75cb83cc787012677392b4428ad1095375cf63751
+    /// tsc-span: _tsc.js:76492-76497
+    ///
+    /// Binding patterns and rest parameters select their own rows.
+    /// An unnamed parameter (the JSDoc `function(string)` form) uses
+    /// the missing argument's zero-based index as its display name.
+    fn argument_not_provided_related(
+        &mut self,
+        parameter: NodeId,
+        argument_index: usize,
+    ) -> CheckResult2<RelatedInfo> {
         let (name, is_rest) = match self.data_of(parameter) {
             NodeData::Parameter(data) => (data.name, data.dot_dot_dot_token.is_some()),
             NodeData::JSDocParameterTag(data) => {
@@ -4887,7 +4897,7 @@ impl<'a> CheckerState<'a> {
                 &[&text],
             ));
         }
-        let text = name_text.unwrap_or_default();
+        let text = name_text.unwrap_or_else(|| argument_index.to_string());
         Ok(self.related_info_for_node(
             parameter,
             &diagnostics::An_argument_for_0_was_not_provided,
@@ -7179,6 +7189,50 @@ mod tests {
     }
 
     #[test]
+    fn unnamed_jsdoc_parameter_arity_related_uses_argument_index() {
+        let related = with_program_state(
+            &[(
+                "a.js",
+                "/** @type {function(string): void} */\n\
+                 const f = (value) => {};\n\
+                 /** @type {(s: string) => void} */\n\
+                 function g(s) {}\n\
+                 f();\n\
+                 g();\n",
+            )],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(true),
+                no_implicit_any: Some(true),
+                ..CompilerOptions::default()
+            },
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| diagnostic.code() == 2554)
+                    .map(|diagnostic| {
+                        let related = diagnostic
+                            .related
+                            .first()
+                            .expect("arity diagnostics carry parameter provenance");
+                        (related.message.code, related.message.text.clone())
+                    })
+                    .collect::<Vec<_>>()
+            },
+        );
+        assert_eq!(
+            related,
+            [
+                (6210, "An argument for '0' was not provided.".to_owned()),
+                (6210, "An argument for 's' was not provided.".to_owned()),
+            ]
+        );
+    }
+
+    #[test]
     fn production_overload_boundary_rolls_back_then_commits() {
         with_program_state(
             &[(
@@ -7801,6 +7855,41 @@ value();
                          '{ a: true; }'"
                     );
                 }
+            },
+        );
+    }
+
+    #[test]
+    fn reverse_mapped_inference_keeps_elementwise_property_origin() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "type ComputedOf<T> = { [K in keyof T]: () => T[K] };\n\
+                 declare function f<C>(value: { computed: ComputedOf<C> }): void;\n\
+                 f({ computed: { baz: 42 } });\n",
+            )],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+            |state| {
+                state.check_source_file(0);
+                let diagnostic = state
+                    .diagnostics
+                    .iter()
+                    .find(|diagnostic| diagnostic.code() == 2322)
+                    .expect("the reverse-mapped property mismatch is reported");
+                assert_eq!(
+                    diagnostic.message_text(),
+                    "Type 'number' is not assignable to type '() => unknown'."
+                );
+                assert_eq!(diagnostic.related.len(), 1);
+                assert_eq!(diagnostic.related[0].message.code, 6500);
+                assert_eq!(
+                    diagnostic.related[0].message.text,
+                    "The expected type comes from property 'baz' which is declared here on type \
+                     'ComputedOf<{ baz: unknown; }>'"
+                );
             },
         );
     }
