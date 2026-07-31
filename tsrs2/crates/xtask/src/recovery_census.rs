@@ -633,7 +633,7 @@ fn exact_region_ranges(rust_file: &FileDump, oracle_file: &FileDump) -> BTreeSet
 }
 
 fn rust_dump(program: &tsrs2_harness::ProgramJson) -> Result<RecoveryDump, Box<dyn Error>> {
-    let options = tsrs2_conformance::compiler_options_from_program(program);
+    let options = tsrs2_harness::compiler_options_from_program(program);
     let mut files = Vec::new();
     for file in &program.files {
         let is_js = [".js", ".jsx", ".mjs", ".cjs"]

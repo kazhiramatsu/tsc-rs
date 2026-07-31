@@ -1112,7 +1112,7 @@ fn compare_program_with_mutation_canary(
     let result = check_program_with_libs_at(
         &libs,
         &files,
-        &tsrs2_conformance::compiler_options_from_program(program),
+        &tsrs2_harness::compiler_options_from_program(program),
         &program.cwd,
     );
     let oracle = pool.diagnostics_with_rendering(path)?;

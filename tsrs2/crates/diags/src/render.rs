@@ -74,13 +74,36 @@ pub fn format_diagnostics_with_context(
     diagnostics: &[Diagnostic],
     host: &FormatDiagnosticsHost<'_>,
 ) -> Result<String, FormatDiagnosticsError> {
+    format_diagnostics_with_context_raw(diagnostics, host).map(|output| normalize_newlines(&output))
+}
+
+/// Render after the CLI sort/deduplicate boundary without rewriting
+/// CR, CRLF, U+2028, or U+2029 that originated in diagnostic data.
+pub fn format_diagnostics_with_context_raw(
+    diagnostics: &[Diagnostic],
+    host: &FormatDiagnosticsHost<'_>,
+) -> Result<String, FormatDiagnosticsError> {
+    let indices = sort_and_dedupe_diagnostic_indices_with_context(diagnostics, host);
+    let selected = indices
+        .into_iter()
+        .map(|index| diagnostics[index].clone())
+        .collect::<Vec<_>>();
+    format_sorted_diagnostics_with_context_raw(&selected, host)
+}
+
+/// Return the exact input occurrence retained by tsc's stable,
+/// cwd-aware sort/deduplicate boundary.
+pub fn sort_and_dedupe_diagnostic_indices_with_context(
+    diagnostics: &[Diagnostic],
+    host: &FormatDiagnosticsHost<'_>,
+) -> Vec<usize> {
     // The checker stores public/virtual names, while tsc sorts by the
     // host-absolutized and reduced SourceFile.path. Keep that comparison
     // twin beside the original SourceFile.fileName display record.
     let mut diagnostics = diagnostics
         .iter()
-        .cloned()
-        .map(|diagnostic| {
+        .enumerate()
+        .map(|(index, diagnostic)| {
             let mut comparison = diagnostic.clone();
             comparison.file_name = comparison
                 .file_name
@@ -92,16 +115,12 @@ pub fn format_diagnostics_with_context(
                     .as_deref()
                     .map(|name| absolute_virtual_path(name, host.current_directory));
             }
-            (comparison, diagnostic)
+            (comparison, index)
         })
         .collect::<Vec<_>>();
     diagnostics.sort_by(|(left, _), (right, _)| compare_diagnostics(left, right));
     diagnostics.dedup_by(|(right, _), (left, _)| diagnostics_equal(left, right));
-    let diagnostics = diagnostics
-        .into_iter()
-        .map(|(_, diagnostic)| diagnostic)
-        .collect::<Vec<_>>();
-    format_sorted_diagnostics_with_context(&diagnostics, host)
+    diagnostics.into_iter().map(|(_, index)| index).collect()
 }
 
 /// Render an already sorted/deduplicated diagnostic sequence.
@@ -110,6 +129,17 @@ pub fn format_diagnostics_with_context(
 /// from a sorted sequence preserves the oracle order and must not
 /// cause a second, projection-dependent pairing decision.
 pub fn format_sorted_diagnostics_with_context(
+    diagnostics: &[Diagnostic],
+    host: &FormatDiagnosticsHost<'_>,
+) -> Result<String, FormatDiagnosticsError> {
+    format_sorted_diagnostics_with_context_raw(diagnostics, host)
+        .map(|output| normalize_newlines(&output))
+}
+
+/// Render an already sorted/deduplicated sequence while preserving
+/// non-LF line separators contained in diagnostic data. ANSI SGR is
+/// still removed at the same final-string boundary as the oracle.
+pub fn format_sorted_diagnostics_with_context_raw(
     diagnostics: &[Diagnostic],
     host: &FormatDiagnosticsHost<'_>,
 ) -> Result<String, FormatDiagnosticsError> {
@@ -147,7 +177,7 @@ pub fn format_sorted_diagnostics_with_context(
     // string, not merely from formatter-owned color tokens. Preserve
     // that observable ordering for literal escape sequences embedded
     // in file names, source lines, or diagnostic messages as well.
-    Ok(normalize_newlines(&strip_ansi_sgr(&output)))
+    Ok(strip_ansi_sgr(&output))
 }
 
 fn format_related_information(
@@ -606,6 +636,7 @@ mod tests {
             code,
             category,
             text: text.to_owned(),
+            next_present: false,
             next: Vec::new(),
         }
     }
@@ -623,6 +654,7 @@ mod tests {
         );
 
         let mut message = chain(2322, DiagnosticCategory::Error, "Head");
+        message.next_present = true;
         message.next = vec![chain(2322, DiagnosticCategory::Error, "Child")];
         let mut diagnostic = Diagnostic::new(
             Some("/workspace/src/main.ts".to_owned()),
@@ -715,6 +747,51 @@ mod tests {
         assert_eq!(
             format_sorted_diagnostics_with_context(&[present_empty, absent], &host).unwrap(),
             "error TS1: first\n\nerror TS2: second\n"
+        );
+    }
+
+    #[test]
+    fn raw_formatter_preserves_message_newlines() {
+        let files = BTreeMap::new();
+        let diagnostic = Diagnostic::new(
+            None,
+            None,
+            None,
+            chain(1, DiagnosticCategory::Error, "head\rbody\r\ntail"),
+        );
+        let host = FormatDiagnosticsHost::new("/", &files);
+
+        assert_eq!(
+            format_sorted_diagnostics_with_context_raw(std::slice::from_ref(&diagnostic), &host,)
+                .unwrap(),
+            "error TS1: head\rbody\r\ntail\n"
+        );
+        assert_eq!(
+            format_sorted_diagnostics_with_context(&[diagnostic], &host).unwrap(),
+            "error TS1: head\nbody\ntail\n"
+        );
+    }
+
+    #[test]
+    fn cwd_aware_selection_returns_the_retained_input_occurrence() {
+        let files = BTreeMap::new();
+        let host = FormatDiagnosticsHost::new("/work", &files);
+        let first = Diagnostic::new(
+            Some("src/../a.ts".to_owned()),
+            Some(0),
+            Some(1),
+            chain(1, DiagnosticCategory::Error, "same"),
+        );
+        let second = Diagnostic::new(
+            Some("a.ts".to_owned()),
+            Some(0),
+            Some(1),
+            chain(1, DiagnosticCategory::Error, "same"),
+        );
+
+        assert_eq!(
+            sort_and_dedupe_diagnostic_indices_with_context(&[first, second], &host,),
+            [0]
         );
     }
 

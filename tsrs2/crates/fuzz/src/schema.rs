@@ -509,6 +509,17 @@ impl CaseSpec {
             self.options.iter().map(|option| option.name.as_str()),
             "options",
         )?;
+        let mut option_names_by_ascii_fold = BTreeMap::new();
+        for option in &self.options {
+            let folded = option.name.to_ascii_lowercase();
+            if let Some(previous) = option_names_by_ascii_fold.insert(folded, option.name.as_str())
+            {
+                return Err(FoundationError::new(format!(
+                    "options contain ASCII-case-insensitively duplicate names {previous:?} and {:?}",
+                    option.name
+                )));
+            }
+        }
         for option in &self.options {
             validate_compiler_option(&option.value, &format!("option {}", option.name))?;
         }

@@ -2331,11 +2331,13 @@ impl<'a> CheckerState<'a> {
                                     &diagnostics::Interface_0_cannot_simultaneously_extend_types_1_and_2,
                                     &[&type_display, &type_name1, &type_name2],
                                 );
-                                diagnostic.message.next =
-                                    vec![tsrs2_diags::MessageChain::new(
+                                diagnostic.message.next_present = true;
+                                diagnostic.message.next = vec![
+                                    tsrs2_diags::MessageChain::new(
                                         &diagnostics::Named_property_0_of_types_1_and_2_are_not_identical,
                                         &[prop_name, type_name1, type_name2],
-                                    )];
+                                    ),
+                                ];
                                 self.push_error_diagnostic(diagnostic);
                             }
                         }

@@ -103,6 +103,374 @@ pub enum OptionValue {
     Null,
 }
 
+/// Corpus-compatible compiler-option projection. Unknown options,
+/// invalid enum spellings, and value-kind mismatches are ignored,
+/// matching the historical conformance adapter.
+pub fn compiler_options_from_program(program: &ProgramJson) -> CompilerOptions {
+    compiler_options_from_options(&program.options)
+}
+
+/// Corpus-compatible map entry point used by adapters that already
+/// own a `ProgramJson.options` projection.
+pub fn compiler_options_from_options(options: &BTreeMap<String, OptionValue>) -> CompilerOptions {
+    project_compiler_options(options)
+}
+
+/// Closed production projection for M9. Every option must be one the
+/// Rust checker consumes, have the expected value kind, and carry a
+/// recognized enum value. `Null` represents an absent option.
+pub fn try_compiler_options_from_program(program: &ProgramJson) -> HarnessResult<CompilerOptions> {
+    try_compiler_options_from_options(&program.options)
+}
+
+/// Closed production map entry point. Option identity follows tsc's
+/// ASCII-case-insensitive matching, so case-only duplicates are
+/// rejected before projection.
+pub fn try_compiler_options_from_options(
+    options: &BTreeMap<String, OptionValue>,
+) -> HarnessResult<CompilerOptions> {
+    validate_compiler_options(options)?;
+    Ok(project_compiler_options(options))
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CompilerOptionKind {
+    Bool,
+    String,
+    StringList,
+    Target,
+    Module,
+    ModuleResolution,
+    ModuleDetection,
+    Jsx,
+}
+
+fn compiler_option_kind(name: &str) -> Option<CompilerOptionKind> {
+    use CompilerOptionKind::{
+        Bool, Jsx, Module, ModuleDetection, ModuleResolution, String, StringList, Target,
+    };
+
+    Some(match name.to_ascii_lowercase().as_str() {
+        "allowjs"
+        | "experimentaldecorators"
+        | "alwaysstrict"
+        | "strict"
+        | "strictnullchecks"
+        | "strictfunctiontypes"
+        | "strictbindcallapply"
+        | "noimplicitany"
+        | "noerrortruncation"
+        | "noimplicitthis"
+        | "noimplicitoverride"
+        | "exactoptionalpropertytypes"
+        | "nofallthroughcasesinswitch"
+        | "noimplicitreturns"
+        | "nounusedlocals"
+        | "nounusedparameters"
+        | "allowunreachablecode"
+        | "allowunusedlabels"
+        | "checkjs"
+        | "nouncheckedindexedaccess"
+        | "nopropertyaccessfromindexsignature"
+        | "nouncheckedsideeffectimports"
+        | "strictpropertyinitialization"
+        | "usedefineforclassfields"
+        | "useunknownincatchvariables"
+        | "noemit"
+        | "importhelpers"
+        | "downleveliteration"
+        | "strictbuiltiniteratorreturn"
+        | "esmoduleinterop"
+        | "allowsyntheticdefaultimports"
+        | "preserveconstenums"
+        | "isolatedmodules"
+        | "verbatimmodulesyntax"
+        | "allowumdglobalaccess"
+        | "resolvepackagejsonexports"
+        | "resolvepackagejsonimports"
+        | "nodtsresolution"
+        | "allowarbitraryextensions"
+        | "allowimportingtsextensions"
+        | "rewriterelativeimportextensions"
+        | "resolvejsonmodule"
+        | "skiplibcheck" => Bool,
+        "baseurl" | "jsxfactory" | "jsxfragmentfactory" | "jsximportsource" | "reactnamespace" => {
+            String
+        }
+        "customconditions" | "lib" => StringList,
+        "target" => Target,
+        "module" => Module,
+        "moduleresolution" => ModuleResolution,
+        "moduledetection" => ModuleDetection,
+        "jsx" => Jsx,
+        _ => return None,
+    })
+}
+
+fn validate_compiler_options(options: &BTreeMap<String, OptionValue>) -> HarnessResult<()> {
+    let mut names_by_folded = BTreeMap::new();
+    for (name, value) in options {
+        let folded = name.to_ascii_lowercase();
+        if let Some(previous) = names_by_folded.insert(folded, name.as_str()) {
+            return Err(HarnessError::new(format!(
+                "compiler option names are ASCII-case-insensitively duplicate: {previous} and {name}"
+            )));
+        }
+        let Some(kind) = compiler_option_kind(name) else {
+            return Err(HarnessError::new(format!(
+                "unsupported compiler option: {name}"
+            )));
+        };
+        if matches!(value, OptionValue::Null) {
+            continue;
+        }
+        let valid = match (kind, value) {
+            (CompilerOptionKind::Bool, OptionValue::Bool(_))
+            | (CompilerOptionKind::String, OptionValue::String(_))
+            | (
+                CompilerOptionKind::StringList,
+                OptionValue::String(_) | OptionValue::StringList(_),
+            ) => true,
+            (CompilerOptionKind::Target, OptionValue::String(value)) => {
+                target_option_value(value).is_some()
+            }
+            (CompilerOptionKind::Target, OptionValue::Number(value)) => {
+                matches!(*value, 0..=12 | 99)
+            }
+            (CompilerOptionKind::Module, OptionValue::String(value)) => {
+                module_option_value(value).is_some()
+            }
+            (CompilerOptionKind::Module, OptionValue::Number(value)) => {
+                matches!(
+                    *value,
+                    0..=7 | 99 | 100..=102 | 199 | 200
+                )
+            }
+            (CompilerOptionKind::ModuleResolution, OptionValue::String(value)) => {
+                module_resolution_option_value(value).is_some()
+            }
+            (CompilerOptionKind::ModuleResolution, OptionValue::Number(value)) => {
+                matches!(*value, 1..=3 | 99 | 100)
+            }
+            (CompilerOptionKind::ModuleDetection, OptionValue::String(value)) => {
+                module_detection_option_value(value).is_some()
+            }
+            (CompilerOptionKind::ModuleDetection, OptionValue::Number(value)) => {
+                matches!(*value, 1..=3)
+            }
+            (CompilerOptionKind::Jsx, OptionValue::String(value)) => {
+                jsx_option_value(value).is_some()
+            }
+            (CompilerOptionKind::Jsx, OptionValue::Number(value)) => {
+                matches!(*value, 1..=5)
+            }
+            _ => false,
+        };
+        if !valid {
+            return Err(HarnessError::new(format!(
+                "invalid value for compiler option {name}: {value:?}"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn project_compiler_options(options: &BTreeMap<String, OptionValue>) -> CompilerOptions {
+    let bool_option = |name: &str| {
+        option_value(options, name).and_then(|value| match value {
+            OptionValue::Bool(value) => Some(*value),
+            _ => None,
+        })
+    };
+    let enum_option = |name: &str, string_value: fn(&str) -> Option<i32>| {
+        option_value(options, name).and_then(|value| match value {
+            OptionValue::String(value) => string_value(value),
+            OptionValue::Number(value) => Some(*value),
+            _ => None,
+        })
+    };
+    let target = enum_option("target", target_option_value);
+    let module = enum_option("module", module_option_value);
+    let module_resolution = enum_option("moduleResolution", module_resolution_option_value);
+    let module_detection = enum_option("moduleDetection", module_detection_option_value);
+    CompilerOptions {
+        allow_js: bool_option("allowJs").unwrap_or_else(|| bool_option("checkJs").unwrap_or(false)),
+        experimental_decorators: bool_option("experimentalDecorators").unwrap_or(false),
+        target,
+        module,
+        module_detection,
+        always_strict: bool_option("alwaysStrict"),
+        strict: bool_option("strict"),
+        strict_null_checks: bool_option("strictNullChecks"),
+        strict_function_types: bool_option("strictFunctionTypes"),
+        strict_bind_call_apply: bool_option("strictBindCallApply"),
+        no_implicit_any: bool_option("noImplicitAny"),
+        no_error_truncation: bool_option("noErrorTruncation"),
+        no_implicit_this: bool_option("noImplicitThis"),
+        no_implicit_override: bool_option("noImplicitOverride"),
+        exact_optional_property_types: bool_option("exactOptionalPropertyTypes"),
+        no_fallthrough_cases_in_switch: bool_option("noFallthroughCasesInSwitch"),
+        no_implicit_returns: bool_option("noImplicitReturns"),
+        no_unused_locals: bool_option("noUnusedLocals"),
+        no_unused_parameters: bool_option("noUnusedParameters"),
+        allow_unreachable_code: bool_option("allowUnreachableCode"),
+        allow_unused_labels: bool_option("allowUnusedLabels"),
+        check_js: bool_option("checkJs"),
+        no_unchecked_indexed_access: bool_option("noUncheckedIndexedAccess"),
+        no_property_access_from_index_signature: bool_option("noPropertyAccessFromIndexSignature"),
+        no_unchecked_side_effect_imports: bool_option("noUncheckedSideEffectImports"),
+        strict_property_initialization: bool_option("strictPropertyInitialization"),
+        use_define_for_class_fields: bool_option("useDefineForClassFields"),
+        use_unknown_in_catch_variables: bool_option("useUnknownInCatchVariables"),
+        no_emit: bool_option("noEmit"),
+        import_helpers: bool_option("importHelpers"),
+        downlevel_iteration: bool_option("downlevelIteration"),
+        strict_builtin_iterator_return: bool_option("strictBuiltinIteratorReturn"),
+        module_resolution,
+        es_module_interop: bool_option("esModuleInterop"),
+        allow_synthetic_default_imports: bool_option("allowSyntheticDefaultImports"),
+        preserve_const_enums: bool_option("preserveConstEnums"),
+        isolated_modules: bool_option("isolatedModules"),
+        verbatim_module_syntax: bool_option("verbatimModuleSyntax"),
+        allow_umd_global_access: bool_option("allowUmdGlobalAccess"),
+        base_url: projected_string_option(options, "baseUrl"),
+        resolve_package_json_exports: bool_option("resolvePackageJsonExports"),
+        resolve_package_json_imports: bool_option("resolvePackageJsonImports"),
+        custom_conditions: projected_string_list_option(options, "customConditions", false),
+        no_dts_resolution: bool_option("noDtsResolution"),
+        allow_arbitrary_extensions: bool_option("allowArbitraryExtensions"),
+        allow_importing_ts_extensions: bool_option("allowImportingTsExtensions"),
+        rewrite_relative_import_extensions: bool_option("rewriteRelativeImportExtensions"),
+        resolve_json_module: bool_option("resolveJsonModule"),
+        skip_lib_check: bool_option("skipLibCheck"),
+        jsx: enum_option("jsx", jsx_option_value),
+        jsx_factory: projected_string_option(options, "jsxFactory"),
+        jsx_fragment_factory: projected_string_option(options, "jsxFragmentFactory"),
+        jsx_import_source: projected_string_option(options, "jsxImportSource"),
+        react_namespace: projected_string_option(options, "reactNamespace"),
+        lib: projected_string_list_option(options, "lib", true),
+    }
+}
+
+fn option_value<'a>(
+    options: &'a BTreeMap<String, OptionValue>,
+    name: &str,
+) -> Option<&'a OptionValue> {
+    options
+        .iter()
+        .find_map(|(key, value)| key.eq_ignore_ascii_case(name).then_some(value))
+}
+
+fn projected_string_option(options: &BTreeMap<String, OptionValue>, name: &str) -> Option<String> {
+    option_value(options, name).and_then(|value| match value {
+        OptionValue::String(value) => Some(value.clone()),
+        _ => None,
+    })
+}
+
+fn projected_string_list_option(
+    options: &BTreeMap<String, OptionValue>,
+    name: &str,
+    lowercase: bool,
+) -> Option<Vec<String>> {
+    option_value(options, name).and_then(|value| {
+        let values: Vec<String> = match value {
+            OptionValue::StringList(values) => values
+                .iter()
+                .map(|entry| entry.trim())
+                .filter(|entry| !entry.is_empty())
+                .map(str::to_owned)
+                .collect(),
+            OptionValue::String(value) => value
+                .split(',')
+                .map(str::trim)
+                .filter(|entry| !entry.is_empty())
+                .map(str::to_owned)
+                .collect(),
+            _ => return None,
+        };
+        Some(if lowercase {
+            values
+                .into_iter()
+                .map(|entry| entry.to_ascii_lowercase())
+                .collect()
+        } else {
+            values
+        })
+    })
+}
+
+fn module_option_value(value: &str) -> Option<i32> {
+    Some(match value.to_ascii_lowercase().as_str() {
+        "none" => 0,
+        "commonjs" => 1,
+        "amd" => 2,
+        "umd" => 3,
+        "system" => 4,
+        "es6" | "es2015" => 5,
+        "es2020" => 6,
+        "es2022" => 7,
+        "esnext" => 99,
+        "node16" => 100,
+        "node18" => 101,
+        "node20" => 102,
+        "nodenext" => 199,
+        "preserve" => 200,
+        _ => return None,
+    })
+}
+
+fn module_resolution_option_value(value: &str) -> Option<i32> {
+    Some(match value.to_ascii_lowercase().as_str() {
+        "node10" | "node" => 2,
+        "classic" => 1,
+        "node16" => 3,
+        "nodenext" => 99,
+        "bundler" => 100,
+        _ => return None,
+    })
+}
+
+fn module_detection_option_value(value: &str) -> Option<i32> {
+    Some(match value.to_ascii_lowercase().as_str() {
+        "legacy" => 1,
+        "auto" => 2,
+        "force" => 3,
+        _ => return None,
+    })
+}
+
+fn jsx_option_value(value: &str) -> Option<i32> {
+    Some(match value.to_ascii_lowercase().as_str() {
+        "preserve" => 1,
+        "react" => 2,
+        "react-native" => 3,
+        "react-jsx" => 4,
+        "react-jsxdev" => 5,
+        _ => return None,
+    })
+}
+
+fn target_option_value(value: &str) -> Option<i32> {
+    Some(match value.to_ascii_lowercase().as_str() {
+        "es3" => 0,
+        "es5" => 1,
+        "es6" | "es2015" => 2,
+        "es2016" => 3,
+        "es2017" => 4,
+        "es2018" => 5,
+        "es2019" => 6,
+        "es2020" => 7,
+        "es2021" => 8,
+        "es2022" => 9,
+        "es2023" => 10,
+        "es2024" => 11,
+        "es2025" => 12,
+        "esnext" => 99,
+        _ => return None,
+    })
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct SourceFileUnit {
     name: String,
@@ -1270,6 +1638,84 @@ mod tests {
     #[test]
     fn harness_reaches_checker_api() {
         assert!(check_empty_program().diagnostics.is_empty());
+    }
+
+    #[test]
+    fn compiler_option_projection_keeps_aliases_lists_and_null() {
+        let options = BTreeMap::from([
+            ("allowJs".to_owned(), OptionValue::Null),
+            ("checkJs".to_owned(), OptionValue::Bool(true)),
+            ("target".to_owned(), OptionValue::String("ES6".to_owned())),
+            (
+                "module".to_owned(),
+                OptionValue::String("es2015".to_owned()),
+            ),
+            (
+                "moduleResolution".to_owned(),
+                OptionValue::String("node".to_owned()),
+            ),
+            ("moduleDetection".to_owned(), OptionValue::Number(2)),
+            (
+                "jsx".to_owned(),
+                OptionValue::String("react-jsx".to_owned()),
+            ),
+            (
+                "customConditions".to_owned(),
+                OptionValue::StringList(vec!["browser".to_owned(), "development".to_owned()]),
+            ),
+            (
+                "lib".to_owned(),
+                OptionValue::String(" ES5, DOM ".to_owned()),
+            ),
+        ]);
+
+        let permissive = compiler_options_from_options(&options);
+        let closed = try_compiler_options_from_options(&options)
+            .expect("all values belong to the production projection");
+        assert_eq!(permissive, closed);
+        assert!(closed.allow_js);
+        assert_eq!(closed.target, Some(2));
+        assert_eq!(closed.module, Some(5));
+        assert_eq!(closed.module_resolution, Some(2));
+        assert_eq!(closed.module_detection, Some(2));
+        assert_eq!(closed.jsx, Some(4));
+        assert_eq!(
+            closed.custom_conditions,
+            Some(vec!["browser".to_owned(), "development".to_owned()])
+        );
+        assert_eq!(closed.lib, Some(vec!["es5".to_owned(), "dom".to_owned()]));
+    }
+
+    #[test]
+    fn closed_compiler_option_projection_rejects_invalid_inputs() {
+        for options in [
+            BTreeMap::from([("futureOption".to_owned(), OptionValue::Bool(true))]),
+            BTreeMap::from([("strict".to_owned(), OptionValue::String("true".to_owned()))]),
+            BTreeMap::from([(
+                "target".to_owned(),
+                OptionValue::String("future".to_owned()),
+            )]),
+            BTreeMap::from([("jsx".to_owned(), OptionValue::Number(99))]),
+        ] {
+            assert!(
+                try_compiler_options_from_options(&options).is_err(),
+                "{options:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn closed_compiler_option_projection_rejects_casefold_duplicates() {
+        let options = BTreeMap::from([
+            ("Strict".to_owned(), OptionValue::Bool(true)),
+            ("strict".to_owned(), OptionValue::Bool(false)),
+        ]);
+        let error = try_compiler_options_from_options(&options)
+            .expect_err("tsc option names are case-insensitive");
+        assert!(
+            error.to_string().contains("ASCII-case-insensitively"),
+            "{error}"
+        );
     }
 
     #[test]

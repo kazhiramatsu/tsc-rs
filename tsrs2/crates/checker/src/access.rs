@@ -3597,6 +3597,7 @@ impl<'a> CheckerState<'a> {
                         if let Some(mut elaborated) =
                             self.elaborate_never_intersection_row(containing_type)?
                         {
+                            elaborated.next_present = true;
                             elaborated.next = std::mem::take(&mut chain_tail);
                             chain_tail = vec![elaborated];
                         }

@@ -3710,7 +3710,7 @@ fn bind_corpus(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
         let expanded = tsrs2_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
         for program in &expanded {
             programs += 1;
-            let options = tsrs2_conformance::compiler_options_from_program(program);
+            let options = tsrs2_harness::compiler_options_from_program(program);
             let mut last_text_b64: BTreeMap<&str, &str> = BTreeMap::new();
             for file in &program.files {
                 last_text_b64.insert(file.name.as_str(), file.text_b64.as_str());
@@ -3773,7 +3773,7 @@ fn rust_symbol_dump(
         last_text_b64.insert(file.name.as_str(), file.text_b64.as_str());
     }
 
-    let options = tsrs2_conformance::compiler_options_from_program(program);
+    let options = tsrs2_harness::compiler_options_from_program(program);
     let mut out = Vec::with_capacity(program.files.len());
     for file in &program.files {
         if !is_ts_like_file_name(&file.name) {
@@ -4802,7 +4802,7 @@ fn load_sample_programs(
             .to_string_lossy()
             .replace('\\', "/");
         for program in tsrs2_harness::expand_fixture_file(&fixture, &vendor_lib_dir)? {
-            let compiler_options = tsrs2_conformance::compiler_options_from_program(&program);
+            let compiler_options = tsrs2_harness::compiler_options_from_program(&program);
             let lib_files = match lib_cache.get(&program.libs) {
                 Some(files) => files.clone(),
                 None => {
@@ -4876,8 +4876,7 @@ fn validate_sample_program_semantics(program: &SampleProgram) -> Result<(), Box<
         files: Vec::new(),
         matrix_key: program.matrix_key.clone(),
     };
-    if tsrs2_conformance::compiler_options_from_program(&options_projection)
-        != program.compiler_options
+    if tsrs2_harness::compiler_options_from_program(&options_projection) != program.compiler_options
     {
         return Err(format!(
             "invariant compiler-option projection changed for {} [{}]",
