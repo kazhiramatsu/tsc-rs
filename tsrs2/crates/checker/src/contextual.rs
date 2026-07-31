@@ -32,7 +32,7 @@ use tsrs2_types::{
 };
 
 use crate::indexed::is_numeric_literal_name;
-use crate::state::{CheckResult2, CheckerState, SignatureId};
+use crate::state::{CheckResult, CheckerState, SignatureId};
 
 /// One lazy discriminator of discriminateTypeByDiscriminableItems'
 /// contextual callers (73357/73391): tsc passes `[() => type, name]`
@@ -57,7 +57,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: pushCachedContextualType @6.0.3
     /// tsc-hash: e77fbf48ca2c7b30e00b74c2d48b22b29cfda72963d4f48cb6ed1206cb123020
     /// tsc-span: _tsc.js:73557-73568
-    pub(crate) fn push_cached_contextual_type(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn push_cached_contextual_type(&mut self, node: NodeId) -> CheckResult<()> {
         let ty = self.get_contextual_type(node, ContextFlags::NONE)?;
         self.push_contextual_type(node, ty, true);
         Ok(())
@@ -179,7 +179,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getThisTypeArgument @6.0.3
     /// tsc-hash: fbb2deb3a6643f344a59c239e50540598dffa1c9e24e26ffcf041bd0c460dc5e
     /// tsc-span: _tsc.js:72615-72617
-    fn get_this_type_argument(&mut self, ty: TypeId) -> CheckResult2<Option<TypeId>> {
+    fn get_this_type_argument(&mut self, ty: TypeId) -> CheckResult<Option<TypeId>> {
         if !self
             .tables
             .object_flags_of(ty)
@@ -200,7 +200,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getThisTypeFromContextualType @6.0.3
     /// tsc-hash: 031f9a6c212f438d45d3b3a8b852a024108659a3993c61ac1a509326937d4717
     /// tsc-span: _tsc.js:72618-72622
-    fn get_this_type_from_contextual_type(&mut self, ty: TypeId) -> CheckResult2<Option<TypeId>> {
+    fn get_this_type_from_contextual_type(&mut self, ty: TypeId) -> CheckResult<Option<TypeId>> {
         self.map_type(
             ty,
             &mut |state, t| {
@@ -230,7 +230,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         containing_literal: NodeId,
         contextual_type: Option<TypeId>,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let mut literal = containing_literal;
         let mut ty = contextual_type;
         while let Some(current) = ty {
@@ -253,7 +253,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_contextual_this_parameter_type(
         &mut self,
         func: NodeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if self.kind_of(func) == SyntaxKind::ArrowFunction {
             return Ok(None);
         }
@@ -368,7 +368,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_contextually_typed_parameter_type(
         &mut self,
         parameter: NodeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let func = self.parent_of(parameter).expect("parameter has a parent");
         if !self.is_context_sensitive_function_or_object_literal_method(func)? {
             return Ok(None);
@@ -410,7 +410,7 @@ impl<'a> CheckerState<'a> {
                     iife,
                     crate::links::LinkSlot::Resolved(self.any_signature),
                 );
-                let result = (|state: &mut Self| -> CheckResult2<Option<TypeId>> {
+                let result = (|state: &mut Self| -> CheckResult<Option<TypeId>> {
                     if index_of_parameter < args.len() {
                         let checked = state.check_effective_arg(
                             &args[index_of_parameter],
@@ -469,7 +469,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         declaration: NodeId,
         context_flags: ContextFlags,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if let Some(type_node) = self.effective_type_annotation_node(declaration) {
             return Ok(Some(self.get_type_from_type_node(type_node)?));
         }
@@ -503,7 +503,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         declaration: NodeId,
         context_flags: ContextFlags,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let pattern = self.parent_of(declaration).expect("element has a pattern");
         let parent = self.parent_of(pattern).expect("pattern has a declaration");
         let NodeData::BindingElement(data) = self.data_of(declaration) else {
@@ -571,7 +571,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         declaration: NodeId,
         context_flags: ContextFlags,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let parent = self.parent_of(declaration).expect("member has a class");
         if !node_util::is_expression_node(self.binder.source_of_node(parent), parent) {
             return Ok(None);
@@ -591,7 +591,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         context_flags: ContextFlags,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let declaration = self.parent_of(node).expect("initializer has a declaration");
         if self.initializer_of(declaration) == Some(node) {
             if let Some(result) =
@@ -638,7 +638,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         context_flags: ContextFlags,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let Some(func) = self.get_containing_function(node) else {
             return Ok(None);
         };
@@ -692,7 +692,7 @@ impl<'a> CheckerState<'a> {
     /// awaited answers None. (The return arm's outer mapType is
     /// redundant — getAwaitedTypeNoAlias already distributes over
     /// unions internally.)
-    fn awaited_or_promise_like_of(&mut self, ty: TypeId) -> CheckResult2<Option<TypeId>> {
+    fn awaited_or_promise_like_of(&mut self, ty: TypeId) -> CheckResult<Option<TypeId>> {
         let awaited = self.get_awaited_type_no_alias(ty, None)?;
         let Some(awaited) = awaited else {
             return Ok(None);
@@ -711,7 +711,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         context_flags: ContextFlags,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let Some(func) = self.get_containing_function(node) else {
             return Ok(None);
         };
@@ -792,7 +792,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         kind: tsrs2_types::IterationTypeKind,
         function_decl: NodeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let is_async = self.get_function_flags(function_decl) & FUNCTION_FLAGS_ASYNC != 0;
         let contextual_return_type =
             self.get_contextual_return_type(function_decl, ContextFlags::NONE)?;
@@ -814,7 +814,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         context_flags: ContextFlags,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let Some(contextual_type) = self.get_contextual_type(node, context_flags)? else {
             return Ok(None);
         };
@@ -833,7 +833,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         function_decl: NodeId,
         context_flags: ContextFlags,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if let Some(return_type) = self.get_return_type_from_annotation(function_decl)? {
             return Ok(Some(return_type));
         }
@@ -895,7 +895,7 @@ impl<'a> CheckerState<'a> {
     fn get_contextual_type_for_decorator(
         &mut self,
         decorator: NodeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let Some(signature) = self.get_decorator_call_signature(decorator)? else {
             return Ok(None);
         };
@@ -913,7 +913,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         call_target: NodeId,
         arg: NodeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let args = self.get_effective_call_arguments(call_target)?;
         let arg_index = args
             .iter()
@@ -940,7 +940,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         call_target: NodeId,
         arg_index: usize,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if self.is_import_call(call_target) {
             return Ok(Some(match arg_index {
                 0 => self.tables.intrinsics.string,
@@ -1005,7 +1005,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         template: NodeId,
         substitution_expression: NodeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let parent = self.parent_of(template).expect("template has a parent");
         if self.kind_of(parent) == SyntaxKind::TaggedTemplateExpression {
             return self.get_contextual_type_for_argument(parent, substitution_expression);
@@ -1020,7 +1020,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         context_flags: ContextFlags,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let binary = self.parent_of(node).expect("operand has a binary parent");
         let NodeData::BinaryExpression(data) = self.data_of(binary) else {
             unreachable!("kind/data agree");
@@ -1108,7 +1108,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getSymbolForExpression @6.0.3
     /// tsc-hash: cc13b2e3c5958fca3589c74248091883cb95c0d39a97794192a3ee6e0674a3d6
     /// tsc-span: _tsc.js:72955-72979
-    fn get_symbol_for_expression(&mut self, e: NodeId) -> CheckResult2<Option<SymbolId>> {
+    fn get_symbol_for_expression(&mut self, e: NodeId) -> CheckResult<Option<SymbolId>> {
         if let Some(symbol) = self.node_symbol(e) {
             return Ok(Some(symbol));
         }
@@ -1165,7 +1165,7 @@ impl<'a> CheckerState<'a> {
     fn get_contextual_type_for_assignment_declaration(
         &mut self,
         binary_expression: NodeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let NodeData::BinaryExpression(data) = self.data_of(binary_expression) else {
             unreachable!("kind/data agree");
         };
@@ -1291,7 +1291,7 @@ impl<'a> CheckerState<'a> {
     fn get_contextual_type_for_this_property_assignment(
         &mut self,
         binary_expression: NodeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let NodeData::BinaryExpression(data) = self.data_of(binary_expression) else {
             return Ok(None);
         };
@@ -1354,7 +1354,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         location: NodeId,
         name: &str,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         self.resolve_name(
             Some(location),
             name,
@@ -1436,7 +1436,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         name: &str,
         name_type: Option<TypeId>,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let name = name.to_owned();
         self.map_type(
             ty,
@@ -1539,7 +1539,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         constraint: TypeId,
         property_name_type: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let flags = self.tables.flags_of(constraint);
         if flags.intersects(TypeFlags::CONDITIONAL) {
             let TypeData::Conditional(data) = self.tables.type_of(constraint).data.clone() else {
@@ -1575,7 +1575,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         name: &str,
         name_type: Option<TypeId>,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let property_name_type = name_type.unwrap_or_else(|| {
             self.tables
                 .get_string_literal_type(tsrs2_binder::unescape_leading_underscores(name))
@@ -1627,7 +1627,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         name: &str,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let Some(prop) = self.get_property_of_type_full(ty, name)? else {
             return Ok(None);
         };
@@ -1666,7 +1666,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         name: &str,
         name_type: Option<TypeId>,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if self.tables.is_tuple_type(ty) && is_numeric_literal_name(name) {
             let parsed = name.parse::<f64>().unwrap_or(-1.0);
             if parsed >= 0.0 {
@@ -1705,7 +1705,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         context_flags: ContextFlags,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         debug_assert!(self.is_object_literal_method(node));
         if self.node_flags(node) & NodeFlags::IN_WITH_STATEMENT.bits() != 0 {
             return Ok(None);
@@ -1720,7 +1720,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         element: NodeId,
         context_flags: ContextFlags,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let object_literal = self.parent_of(element).expect("element has a literal");
         if self.kind_of(element) == SyntaxKind::PropertyAssignment {
             if let Some(property_assignment_type) =
@@ -1797,7 +1797,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         index: usize,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         self.get_contextual_type_for_element_expression(Some(ty), index, None, None, None)
     }
 
@@ -1810,7 +1810,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         index: usize,
         length: Option<usize>,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         self.get_contextual_type_for_element_expression(Some(ty), index, length, None, None)
     }
 
@@ -1830,7 +1830,7 @@ impl<'a> CheckerState<'a> {
         length: Option<usize>,
         first_spread_index: Option<u32>,
         last_spread_index: Option<u32>,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let Some(ty) = ty else {
             return Ok(None);
         };
@@ -1929,7 +1929,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         context_flags: ContextFlags,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let conditional = self.parent_of(node).expect("operand has a conditional");
         let NodeData::ConditionalExpression(data) = self.data_of(conditional) else {
             unreachable!("kind/data agree");
@@ -1988,7 +1988,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         union_type: TypeId,
         node: NodeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let Some(key_property_name) = self.get_key_property_name(union_type)? else {
             return Ok(None);
         };
@@ -2026,7 +2026,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         contextual_type: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let key = format!("D{},{}", node.0, contextual_type.0);
         if let Some(cached) = self.get_cached_type(&key) {
             return Ok(cached);
@@ -2117,7 +2117,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         contextual_type: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let key = format!("D{},{}", node.0, contextual_type.0);
         if let Some(cached) = self.get_cached_type(&key) {
             return Ok(cached);
@@ -2220,7 +2220,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         target: TypeId,
         discriminators: &[(ContextualDiscriminator, String)],
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let types = match &self.tables.type_of(target).data {
             TypeData::Union { types, .. } => types.to_vec(),
             _ => unreachable!("discrimination over a union"),
@@ -2302,7 +2302,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         context_flags: ContextFlags,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let contextual_type = if self.is_object_literal_method(node) {
             self.get_contextual_type_for_object_literal_method(node, context_flags)?
         } else {
@@ -2371,7 +2371,7 @@ impl<'a> CheckerState<'a> {
         contextual_type: Option<TypeId>,
         node: NodeId,
         context_flags: ContextFlags,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if let Some(ty) = contextual_type {
             if self.maybe_type_of_kind(ty, TypeFlags::INSTANTIABLE) {
                 let inference_context = self.get_inference_context(node);
@@ -2450,7 +2450,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         mapper: crate::instantiate::MapperId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::INSTANTIABLE) {
             return self.instantiate_type(ty, Some(mapper));
@@ -2490,7 +2490,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         contextual_type: Option<TypeId>,
         node: NodeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         self.instantiate_contextual_type(contextual_type, node, ContextFlags::NONE)
     }
 
@@ -2507,7 +2507,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         context_flags: ContextFlags,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if self.node_flags(node) & NodeFlags::IN_WITH_STATEMENT.bits() != 0 {
             return Ok(None);
         }
@@ -2662,7 +2662,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         context_flags: ContextFlags,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let Some(expr_parent) = self.parent_of(node) else {
             return Ok(None);
         };
@@ -2685,7 +2685,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         child: NodeId,
         context_flags: ContextFlags,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let attributes = match self.data_of(node) {
             NodeData::JsxElement(data) => data.opening_element,
             _ => None,
@@ -2764,7 +2764,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         attribute: NodeId,
         context_flags: ContextFlags,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if self.kind_of(attribute) == SyntaxKind::JsxAttribute {
             let Some(attributes) = self.parent_of(attribute) else {
                 return Ok(None);
@@ -2805,7 +2805,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         context_flags: ContextFlags,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if self.kind_of(node) == SyntaxKind::JsxOpeningElement
             && context_flags != ContextFlags::IGNORE_NODE_INFERENCES
         {
@@ -2825,7 +2825,7 @@ impl<'a> CheckerState<'a> {
     fn get_contextual_import_attribute_type(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let attributes_type = self.get_global_import_attributes_type()?;
         let Some(name) = self.get_name_from_import_attribute(node) else {
             return Ok(None);
@@ -2854,7 +2854,7 @@ impl<'a> CheckerState<'a> {
     fn get_intersected_signatures(
         &mut self,
         signatures: &[SignatureId],
-    ) -> CheckResult2<Option<SignatureId>> {
+    ) -> CheckResult<Option<SignatureId>> {
         if !self
             .options
             .strict_option_value(self.options.no_implicit_any)
@@ -2894,7 +2894,7 @@ impl<'a> CheckerState<'a> {
         left: Option<SymbolId>,
         right: Option<SymbolId>,
         mapper: Option<crate::instantiate::MapperId>,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let (Some(left), Some(right)) = (left, right) else {
             return Ok(left.or(right));
         };
@@ -2914,7 +2914,7 @@ impl<'a> CheckerState<'a> {
         left: SignatureId,
         right: SignatureId,
         mapper: Option<crate::instantiate::MapperId>,
-    ) -> CheckResult2<Vec<SymbolId>> {
+    ) -> CheckResult<Vec<SymbolId>> {
         let left_count = self.get_parameter_count(left)?;
         let right_count = self.get_parameter_count(right)?;
         let (longest, shorter) = if left_count >= right_count {
@@ -3029,7 +3029,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         left: SignatureId,
         right: SignatureId,
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         let left_tps = self.signature_of(left).type_parameters.clone();
         let right_tps = self.signature_of(right).type_parameters.clone();
         let type_params = left_tps.clone().or(right_tps.clone());
@@ -3114,7 +3114,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         node: NodeId,
-    ) -> CheckResult2<Option<SignatureId>> {
+    ) -> CheckResult<Option<SignatureId>> {
         let signatures = self.get_signatures_of_type(ty, crate::structural::SignatureKind::Call)?;
         let mut applicable_by_arity: Vec<SignatureId> = Vec::new();
         for signature in signatures {
@@ -3131,7 +3131,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isAritySmaller @6.0.3
     /// tsc-hash: 76c4b60c9f043739ab3c66041377a58eb6371b46bb05d7489a1b2e13bc536ab5
     /// tsc-span: _tsc.js:73835-73847
-    fn is_arity_smaller(&mut self, signature: SignatureId, target: NodeId) -> CheckResult2<bool> {
+    fn is_arity_smaller(&mut self, signature: SignatureId, target: NodeId) -> CheckResult<bool> {
         let parameters = self.parameters_of_function(target);
         let mut target_parameter_count = 0usize;
         while target_parameter_count < parameters.len() {
@@ -3165,7 +3165,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_contextual_signature_for_function_like_declaration(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<Option<SignatureId>> {
+    ) -> CheckResult<Option<SignatureId>> {
         if self.is_function_expression_or_arrow_function(node)
             || self.is_object_literal_method(node)
         {
@@ -3181,7 +3181,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_contextual_signature(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<Option<SignatureId>> {
+    ) -> CheckResult<Option<SignatureId>> {
         debug_assert!(
             self.kind_of(node) != SyntaxKind::MethodDeclaration
                 || self.is_object_literal_method(node)
@@ -3433,7 +3433,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn is_context_sensitive_function_or_object_literal_method(
         &mut self,
         func: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         Ok((self.is_function_expression_or_arrow_function(func)
             || self.is_object_literal_method(func))
             && self.is_context_sensitive_function_like_declaration_syntactic(func))
@@ -3737,7 +3737,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_return_type_from_annotation(
         &mut self,
         declaration: NodeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if self.kind_of(declaration) == SyntaxKind::Constructor {
             let class = self
                 .parent_of(declaration)

@@ -11,7 +11,7 @@ use tsrs2_types::{ElementFlags, ObjectFlags, TypeData, TypeFlags, TypeId, TypeSy
 
 use crate::instantiate::{DeferredMapperTargets, TypeMapper};
 use crate::links::LinkSlot;
-use crate::state::{CheckResult2, CheckerState, ResolutionTarget};
+use crate::state::{CheckResult, CheckerState, ResolutionTarget};
 
 impl<'a> CheckerState<'a> {
     /// tsc-port: getDeclaredTypeOfTypeParameter @6.0.3
@@ -83,7 +83,7 @@ impl<'a> CheckerState<'a> {
     pub fn get_constraint_from_type_parameter(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         // Tables-synthesized parameters carry their constraint inline
         // (tuple markers and reportErrorResults clones). tsc reads the
         // mutable TypeParameter.constraint field before deriving a lazy
@@ -152,7 +152,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         type_parameter: TypeId,
         omit_type_references: bool,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let Some(symbol) = self.tables.type_of(type_parameter).symbol else {
             return Ok(None);
         };
@@ -316,7 +316,7 @@ impl<'a> CheckerState<'a> {
     pub fn get_constraint_of_type_parameter(
         &mut self,
         type_parameter: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if self.has_non_circular_base_constraint(type_parameter)? {
             self.get_constraint_from_type_parameter(type_parameter)
         } else {
@@ -327,7 +327,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getConstraintOfType @6.0.3
     /// tsc-hash: 777f460fb1f80fa7dca265a22f81147c4d585c4afe7985df22dece9922edba03
     /// tsc-span: _tsc.js:58784-58786
-    pub fn get_constraint_of_type(&mut self, ty: TypeId) -> CheckResult2<Option<TypeId>> {
+    pub fn get_constraint_of_type(&mut self, ty: TypeId) -> CheckResult<Option<TypeId>> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
             return self.get_constraint_of_type_parameter(ty);
@@ -348,7 +348,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         types: &[TypeId],
         target_is_union: bool,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let mut constraints = Vec::new();
         let mut has_disjoint_domain_type = false;
         for &ty in types {
@@ -400,7 +400,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getConstraintOfIndexedAccess @6.0.3
     /// tsc-hash: a648a76d94ff4c4a99a6b6b8955914b6434c6d7de3653ff6a4ea043d938d7dc1
     /// tsc-span: _tsc.js:58798-58800
-    pub fn get_constraint_of_indexed_access(&mut self, ty: TypeId) -> CheckResult2<Option<TypeId>> {
+    pub fn get_constraint_of_indexed_access(&mut self, ty: TypeId) -> CheckResult<Option<TypeId>> {
         if self.has_non_circular_base_constraint(ty)? {
             self.get_constraint_from_indexed_access(ty)
         } else {
@@ -411,10 +411,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getSimplifiedTypeOrConstraint @6.0.3
     /// tsc-hash: ffdf0b790c2083f9e1b1989d7331f0e6c398a16d089296fee81429185ca13132
     /// tsc-span: _tsc.js:58801-58808
-    pub fn get_simplified_type_or_constraint(
-        &mut self,
-        ty: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    pub fn get_simplified_type_or_constraint(&mut self, ty: TypeId) -> CheckResult<Option<TypeId>> {
         let simplified = self.get_simplified_type(ty, /*writing*/ false)?;
         if simplified != ty {
             Ok(Some(simplified))
@@ -426,7 +423,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getConstraintFromIndexedAccess @6.0.3
     /// tsc-hash: 9b4db0b05453c8a4498e23b0bae23b37a34724a3f3778fd8d62391ba9cf6a2a4
     /// tsc-span: _tsc.js:58809-58825
-    fn get_constraint_from_indexed_access(&mut self, ty: TypeId) -> CheckResult2<Option<TypeId>> {
+    fn get_constraint_from_indexed_access(&mut self, ty: TypeId) -> CheckResult<Option<TypeId>> {
         let TypeData::IndexedAccess {
             object_type,
             index_type,
@@ -475,7 +472,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getBaseConstraintOfType @6.0.3
     /// tsc-hash: 47e7f23df7e41ce015ff767e755075856f1d6369debf1ce324188f18bf818d10
     /// tsc-span: _tsc.js:58902-58908
-    pub fn get_base_constraint_of_type(&mut self, ty: TypeId) -> CheckResult2<Option<TypeId>> {
+    pub fn get_base_constraint_of_type(&mut self, ty: TypeId) -> CheckResult<Option<TypeId>> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(
             TypeFlags::INSTANTIABLE_NON_PRIMITIVE
@@ -498,14 +495,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getBaseConstraintOrType @6.0.3
     /// tsc-hash: ebed4b0b0c7de6bb47c5051884d887d3e3f0af9e4e18c7306b27b5610000d460
     /// tsc-span: _tsc.js:58909-58911
-    pub fn get_base_constraint_or_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub fn get_base_constraint_or_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         Ok(self.get_base_constraint_of_type(ty)?.unwrap_or(ty))
     }
 
     /// tsc-port: hasNonCircularBaseConstraint @6.0.3
     /// tsc-hash: 3d434cfa6881cf8b34e77bf800c7d290a117f4e1f0c19d548b348766682798ee
     /// tsc-span: _tsc.js:58912-58914
-    pub fn has_non_circular_base_constraint(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub fn has_non_circular_base_constraint(&mut self, ty: TypeId) -> CheckResult<bool> {
         Ok(self.get_resolved_base_constraint(ty)? != self.circular_constraint_type)
     }
 
@@ -517,7 +514,7 @@ impl<'a> CheckerState<'a> {
     /// Union/Intersection, TemplateLiteral, StringMapping,
     /// IndexedAccess, Substitution, generic tuple, and the default
     /// identity. Conditional resolution is the named 9.6c boundary.
-    pub fn get_resolved_base_constraint(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub fn get_resolved_base_constraint(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if let Some(cached) = self.links.ty(ty).resolved_base_constraint.resolved() {
             return Ok(cached);
         }
@@ -542,7 +539,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         t: TypeId,
         stack: &mut Vec<crate::engine::RecursionIdentity>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.links.ty(t).immediate_base_constraint.resolved() {
             return Ok(cached);
         }
@@ -628,7 +625,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         t: TypeId,
         stack: &mut Vec<crate::engine::RecursionIdentity>,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let c = self.get_immediate_base_constraint(t, stack)?;
         Ok((c != self.no_constraint_type && c != self.circular_constraint_type).then_some(c))
     }
@@ -638,7 +635,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         t: TypeId,
         stack: &mut Vec<crate::engine::RecursionIdentity>,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let flags = self.tables.flags_of(t);
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
             let constraint = self.get_constraint_from_type_parameter(t)?;

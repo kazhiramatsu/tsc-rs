@@ -20,7 +20,7 @@ use tsrs2_types::{
 };
 
 use crate::evaluate::EvalValue;
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult, CheckerState};
 
 /// checker-key §1.5: the five relations (tsc's five checker-scope
 /// relation maps at 47450-47454).
@@ -93,7 +93,7 @@ impl<'a> CheckerState<'a> {
     /// parameters only), so the whole relation-key computation is
     /// fallible and `&mut`. A non-forcing links read would make the
     /// key depend on resolution order.
-    fn is_unconstrained_type_parameter(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    fn is_unconstrained_type_parameter(&mut self, ty: TypeId) -> CheckResult<bool> {
         Ok(self
             .tables
             .flags_of(ty)
@@ -140,7 +140,7 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         post_fix: &str,
         ignore_constraints: bool,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         let mut type_parameters: Vec<TypeId> = Vec::new();
         let mut constraint_marker = "";
         let source_id = self.get_type_reference_id(
@@ -169,7 +169,7 @@ impl<'a> CheckerState<'a> {
         ignore_constraints: bool,
         type_parameters: &mut Vec<TypeId>,
         constraint_marker: &mut &'static str,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         let mut result = self.tables.reference_target(ty).0.to_string();
         let arguments = self.tables.type_arguments(ty).to_vec();
         for t in arguments {
@@ -223,7 +223,7 @@ impl<'a> CheckerState<'a> {
         intersection_state: IntersectionState,
         relation: RelationKind,
         ignore_constraints: bool,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         let (source, target) = if relation == RelationKind::Identity && source.0 > target.0 {
             (target, source)
         } else {
@@ -260,7 +260,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         source: tsrs2_binder::SymbolId,
         target: tsrs2_binder::SymbolId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let source_symbol = if self
             .binder
             .symbol(source)

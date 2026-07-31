@@ -31,7 +31,7 @@ use tsrs2_types::{
 };
 
 use crate::calls::DiagSpan;
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult, CheckerState};
 
 /// Diagnostics in tsc's iteration walk are anchored on an errorNode.
 /// Effective tuple-spread arguments use a SyntheticExpression there;
@@ -231,7 +231,7 @@ impl<'a> CheckerState<'a> {
         target_type: TypeId,
         target: Option<IterationErrorTarget<'_>>,
         head_message: &'static tsrs2_diags::DiagnosticMessage,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         match target {
             Some(IterationErrorTarget::Node(node)) => {
                 self.check_type_assignable_to(source, target_type, Some(node), head_message)
@@ -294,7 +294,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         resolver: IterResolver,
         report_errors: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         match resolver {
             IterResolver::Sync => self.get_global_iterable_type(report_errors),
             IterResolver::Async => self.get_global_async_iterable_type(report_errors),
@@ -305,7 +305,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         resolver: IterResolver,
         report_errors: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         match resolver {
             IterResolver::Sync => self.get_global_iterator_type(report_errors),
             IterResolver::Async => self.get_global_async_iterator_type(report_errors),
@@ -316,7 +316,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         resolver: IterResolver,
         report_errors: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         match resolver {
             IterResolver::Sync => self.get_global_iterable_iterator_type(report_errors),
             IterResolver::Async => self.get_global_async_iterable_iterator_type(report_errors),
@@ -327,7 +327,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         resolver: IterResolver,
         report_errors: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         match resolver {
             IterResolver::Sync => self.get_global_iterator_object_type(report_errors),
             IterResolver::Async => self.get_global_async_iterator_object_type(report_errors),
@@ -338,7 +338,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         resolver: IterResolver,
         report_errors: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         match resolver {
             IterResolver::Sync => self.get_global_generator_type(report_errors),
             IterResolver::Async => self.get_global_async_generator_type(report_errors),
@@ -348,7 +348,7 @@ impl<'a> CheckerState<'a> {
     fn resolver_global_builtin_iterator_types(
         &mut self,
         resolver: IterResolver,
-    ) -> CheckResult2<Vec<TypeId>> {
+    ) -> CheckResult<Vec<TypeId>> {
         match resolver {
             IterResolver::Sync => self.get_global_builtin_iterator_types(),
             IterResolver::Async => self.get_global_builtin_async_iterator_types(),
@@ -362,7 +362,7 @@ impl<'a> CheckerState<'a> {
         resolver: IterResolver,
         ty: TypeId,
         error_node: Option<NodeId>,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         match resolver {
             IterResolver::Sync => Ok(Some(ty)),
             IterResolver::Async => self.get_awaited_type_with_error(
@@ -385,8 +385,8 @@ impl<'a> CheckerState<'a> {
     /// containment exactly as without the swap).
     fn with_collected_diagnostics<T>(
         &mut self,
-        f: impl FnOnce(&mut Self) -> CheckResult2<T>,
-    ) -> CheckResult2<(T, Vec<Diagnostic>)> {
+        f: impl FnOnce(&mut Self) -> CheckResult<T>,
+    ) -> CheckResult<(T, Vec<Diagnostic>)> {
         let saved = std::mem::take(&mut self.diagnostics);
         let result = f(self);
         let collected = std::mem::replace(&mut self.diagnostics, saved);
@@ -428,7 +428,7 @@ impl<'a> CheckerState<'a> {
     fn combine_iteration_types(
         &mut self,
         array: &[Option<IterationTypesResult>],
-    ) -> CheckResult2<IterationTypesResult> {
+    ) -> CheckResult<IterationTypesResult> {
         let any_iteration_types = self.any_iteration_types();
         let mut yield_types: Vec<TypeId> = Vec::new();
         let mut return_types: Vec<TypeId> = Vec::new();
@@ -516,7 +516,7 @@ impl<'a> CheckerState<'a> {
         input_type: TypeId,
         sent_type: TypeId,
         error_node: Option<NodeId>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if self.is_type_any(input_type) {
             return Ok(input_type);
         }
@@ -546,7 +546,7 @@ impl<'a> CheckerState<'a> {
         input_type: TypeId,
         sent_type: TypeId,
         span: &DiagSpan,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if self.is_type_any(input_type) {
             return Ok(input_type);
         }
@@ -572,7 +572,7 @@ impl<'a> CheckerState<'a> {
         sent_type: TypeId,
         error_node: Option<NodeId>,
         check_assignability: bool,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let target = error_node.map(IterationErrorTarget::Node);
         let capture = error_node
             .is_some()
@@ -597,7 +597,7 @@ impl<'a> CheckerState<'a> {
         sent_type: TypeId,
         error_target: Option<IterationErrorTarget<'_>>,
         check_assignability: bool,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let allow_async_iterables = use_.intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG);
         if input_type == self.tables.intrinsics.never {
             if let Some(error_target) = error_target {
@@ -773,7 +773,7 @@ impl<'a> CheckerState<'a> {
         input_type: TypeId,
         allows_strings: bool,
         downlevel_iteration: bool,
-    ) -> CheckResult2<(&'static tsrs2_diags::DiagnosticMessage, bool)> {
+    ) -> CheckResult<(&'static tsrs2_diags::DiagnosticMessage, bool)> {
         if downlevel_iteration {
             return Ok(if allows_strings {
                 (
@@ -822,7 +822,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn include_undefined_in_index_signature(
         &mut self,
         ty: Option<TypeId>,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let Some(ty) = ty else {
             return Ok(None);
         };
@@ -846,7 +846,7 @@ impl<'a> CheckerState<'a> {
         type_kind: IterationTypeKind,
         input_type: TypeId,
         error_node: Option<NodeId>,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if self.is_type_any(input_type) {
             return Ok(None);
         }
@@ -864,7 +864,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         use_: IterationUse,
         error_node: Option<NodeId>,
-    ) -> CheckResult2<Option<IterationTypes>> {
+    ) -> CheckResult<Option<IterationTypes>> {
         let target = error_node.map(IterationErrorTarget::Node);
         let capture = error_node
             .is_some()
@@ -881,7 +881,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         use_: IterationUse,
         error_target: Option<IterationErrorTarget<'_>>,
-    ) -> CheckResult2<Option<IterationTypes>> {
+    ) -> CheckResult<Option<IterationTypes>> {
         let ty = self.get_reduced_type(ty)?;
         if self.is_type_any(ty) {
             return Ok(Some(self.any_iteration_types()));
@@ -999,7 +999,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         iteration_types: IterationTypesResult,
         error_target: Option<IterationErrorTarget<'_>>,
-    ) -> CheckResult2<IterationTypesResult> {
+    ) -> CheckResult<IterationTypesResult> {
         let types = match iteration_types {
             IterationTypesResult::No => return Ok(IterationTypesResult::No),
             IterationTypesResult::Types(types) => types,
@@ -1045,7 +1045,7 @@ impl<'a> CheckerState<'a> {
         use_: IterationUse,
         error_target: Option<IterationErrorTarget<'_>>,
         container: &mut Option<IterationErrorContainer>,
-    ) -> CheckResult2<IterationTypesResult> {
+    ) -> CheckResult<IterationTypesResult> {
         if self.is_type_any(ty) {
             return Ok(IterationTypesResult::Types(self.any_iteration_types()));
         }
@@ -1143,7 +1143,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         resolver: IterResolver,
-    ) -> CheckResult2<Option<IterationTypesResult>> {
+    ) -> CheckResult<Option<IterationTypesResult>> {
         let global_iterable = self.resolver_global_iterable_type(resolver, false)?;
         let global_iterator_object = self.resolver_global_iterator_object_type(resolver, false)?;
         let global_iterable_iterator =
@@ -1209,7 +1209,7 @@ impl<'a> CheckerState<'a> {
         error_target: Option<IterationErrorTarget<'_>>,
         container: &mut Option<IterationErrorContainer>,
         no_cache: bool,
-    ) -> CheckResult2<IterationTypesResult> {
+    ) -> CheckResult<IterationTypesResult> {
         let property_name =
             self.get_property_name_for_known_symbol_name(resolver.iterator_symbol_name())?;
         let method = self.get_property_of_type_full(ty, &property_name)?;
@@ -1324,7 +1324,7 @@ impl<'a> CheckerState<'a> {
         error_target: IterationErrorTarget<'_>,
         ty: TypeId,
         allow_async_iterables: bool,
-    ) -> CheckResult2<usize> {
+    ) -> CheckResult<usize> {
         let message = if allow_async_iterables {
             &diagnostics::Type_0_must_have_a_Symbol_asyncIterator_method_that_returns_an_async_iterator
         } else {
@@ -1374,7 +1374,7 @@ impl<'a> CheckerState<'a> {
         resolver: IterResolver,
         error_node: Option<NodeId>,
         container: &mut Option<IterationErrorContainer>,
-    ) -> CheckResult2<Option<IterationTypes>> {
+    ) -> CheckResult<Option<IterationTypes>> {
         let error_target = error_node.map(IterationErrorTarget::Node);
         let capture = error_node
             .is_some()
@@ -1402,7 +1402,7 @@ impl<'a> CheckerState<'a> {
         error_target: Option<IterationErrorTarget<'_>>,
         container: &mut Option<IterationErrorContainer>,
         no_cache: bool,
-    ) -> CheckResult2<Option<IterationTypes>> {
+    ) -> CheckResult<Option<IterationTypes>> {
         if self.is_type_any(ty) {
             return Ok(Some(self.any_iteration_types()));
         }
@@ -1439,7 +1439,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         resolver: IterResolver,
-    ) -> CheckResult2<Option<IterationTypesResult>> {
+    ) -> CheckResult<Option<IterationTypesResult>> {
         let global_iterable_iterator =
             self.resolver_global_iterable_iterator_type(resolver, false)?;
         let global_iterator = self.resolver_global_iterator_type(resolver, false)?;
@@ -1488,7 +1488,7 @@ impl<'a> CheckerState<'a> {
         error_target: Option<IterationErrorTarget<'_>>,
         container: &mut Option<IterationErrorContainer>,
         no_cache: bool,
-    ) -> CheckResult2<IterationTypesResult> {
+    ) -> CheckResult<IterationTypesResult> {
         let next =
             self.get_iteration_types_of_method(ty, resolver, "next", error_target, container)?;
         let return_ =
@@ -1510,7 +1510,7 @@ impl<'a> CheckerState<'a> {
     /// (isYieldIteratorResult 84324-84326 / isReturnIteratorResult
     /// 84327-84329 are the two kind-fixing wrappers, inlined at the
     /// filter sites.)
-    fn is_iterator_result(&mut self, ty: TypeId, kind: IterationTypeKind) -> CheckResult2<bool> {
+    fn is_iterator_result(&mut self, ty: TypeId, kind: IterationTypeKind) -> CheckResult<bool> {
         let done_prop = self.get_property_of_type_full(ty, "done")?;
         let done_type = match done_prop {
             Some(prop) => self.get_type_of_symbol(prop)?,
@@ -1530,7 +1530,7 @@ impl<'a> CheckerState<'a> {
     fn get_iteration_types_of_iterator_result(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult2<IterationTypesResult> {
+    ) -> CheckResult<IterationTypesResult> {
         if self.is_type_any(ty) {
             return Ok(IterationTypesResult::Types(self.any_iteration_types()));
         }
@@ -1609,7 +1609,7 @@ impl<'a> CheckerState<'a> {
         method_name: &str,
         error_target: Option<IterationErrorTarget<'_>>,
         container: &mut Option<IterationErrorContainer>,
-    ) -> CheckResult2<Option<IterationTypesResult>> {
+    ) -> CheckResult<Option<IterationTypesResult>> {
         let method = self.get_property_of_type_full(ty, method_name)?;
         if method.is_none() && method_name != "next" {
             return Ok(None);
@@ -1807,7 +1807,7 @@ impl<'a> CheckerState<'a> {
         return_type: TypeId,
         next_type: TypeId,
         is_async_generator: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let resolver = if is_async_generator {
             IterResolver::Async
         } else {
@@ -1847,7 +1847,7 @@ impl<'a> CheckerState<'a> {
         return_type: TypeId,
         function_flags: u32,
         error_node: Option<NodeId>,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let capture = error_node
             .is_some()
             .then(|| self.begin_tsc_eager_iteration_diagnostic_capture());
@@ -1899,7 +1899,7 @@ impl<'a> CheckerState<'a> {
         kind: IterationTypeKind,
         return_type: TypeId,
         is_async_generator: bool,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if self.is_type_any(return_type) {
             return Ok(None);
         }
@@ -1917,7 +1917,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         is_async_generator: bool,
-    ) -> CheckResult2<Option<IterationTypes>> {
+    ) -> CheckResult<Option<IterationTypes>> {
         if self.is_type_any(ty) {
             return Ok(Some(self.any_iteration_types()));
         }

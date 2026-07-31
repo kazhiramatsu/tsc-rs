@@ -11,7 +11,7 @@ use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{AccessFlags, CheckMode, TypeData, TypeFlags, TypeId, UnionReduction};
 
 use crate::relate::RelationKind;
-use crate::state::{CheckResult2, CheckerState, SignatureKind};
+use crate::state::{CheckResult, CheckerState, SignatureKind};
 
 /// The semantic result of an elaboration attempt.
 ///
@@ -71,7 +71,7 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
         relation: RelationKind,
-    ) -> CheckResult2<Option<SignatureKind>> {
+    ) -> CheckResult<Option<SignatureKind>> {
         // elaborateDidYouMeanToCallOrConstruct materializes both lists
         // before testing either, then gives construct signatures
         // reporting priority.
@@ -112,7 +112,7 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
         head_message: &'static DiagnosticMessage,
-    ) -> CheckResult2<ElaborationOutcome> {
+    ) -> CheckResult<ElaborationOutcome> {
         let Some(kind) =
             self.did_you_mean_signature_kind(source, target, RelationKind::Assignable)?
         else {
@@ -145,7 +145,7 @@ impl<'a> CheckerState<'a> {
         source_type: TypeId,
         target_type: TypeId,
         name_text: &str,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if let Some(property) = self.get_property_of_type_full(target_type, name_text)? {
             return Ok(Some(self.get_type_of_symbol(property)?));
         }
@@ -183,7 +183,7 @@ impl<'a> CheckerState<'a> {
         name_text: &str,
         actual: TypeId,
         expected: TypeId,
-    ) -> CheckResult2<(TypeId, TypeId)> {
+    ) -> CheckResult<(TypeId, TypeId)> {
         let target_is_optional = self
             .get_property_of_type_full(target_type, name_text)?
             .is_some_and(|property| {
@@ -222,7 +222,7 @@ impl<'a> CheckerState<'a> {
         diagnostic_index: usize,
         target_type: TypeId,
         name_type: TypeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let property_name = self.property_name_from_type_usable(name_type);
         let target_property = match property_name.as_deref() {
             Some(property_name) => self.get_property_of_type_full(target_type, property_name)?,
@@ -326,7 +326,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         attributes: NodeId,
         target_type: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let Some(opening) = self.parent_of(attributes) else {
             return Ok(false);
         };
@@ -439,7 +439,7 @@ impl<'a> CheckerState<'a> {
         error_node: Option<NodeId>,
         expression: NodeId,
         head_message: &'static DiagnosticMessage,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if self.is_type_assignable_to(source_type, target_type)? {
             return Ok(true);
         }
@@ -465,7 +465,7 @@ impl<'a> CheckerState<'a> {
         expression: NodeId,
         target_type: TypeId,
         probe_head: Option<&'static DiagnosticMessage>,
-    ) -> CheckResult2<ElaborationOutcome> {
+    ) -> CheckResult<ElaborationOutcome> {
         let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
         self.elaborate_assignment_relation(expression, source_type, target_type, probe_head)
     }
@@ -483,7 +483,7 @@ impl<'a> CheckerState<'a> {
         source_type: TypeId,
         target_type: TypeId,
         probe_head: Option<&'static DiagnosticMessage>,
-    ) -> CheckResult2<ElaborationOutcome> {
+    ) -> CheckResult<ElaborationOutcome> {
         if self.is_or_has_generic_conditional(target_type) {
             return Ok(ElaborationOutcome::Declined);
         }

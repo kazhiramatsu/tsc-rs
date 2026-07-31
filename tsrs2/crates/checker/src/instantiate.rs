@@ -22,7 +22,7 @@ use tsrs2_types::{
 };
 
 use crate::links::LinkSlot;
-use crate::state::{CheckResult2, CheckerState, ResolutionTarget, Signature, SignatureId};
+use crate::state::{CheckResult, CheckerState, ResolutionTarget, Signature, SignatureId};
 
 pub use tsrs2_types::MapperId;
 
@@ -274,7 +274,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getMappedType @6.0.3
     /// tsc-hash: 1de145bdc6a4fc936f2d547c707305081eede73870da72023bc151fa83e65252
     /// tsc-span: _tsc.js:63327-63358
-    pub fn get_mapped_type(&mut self, ty: TypeId, mapper: MapperId) -> CheckResult2<TypeId> {
+    pub fn get_mapped_type(&mut self, ty: TypeId, mapper: MapperId) -> CheckResult<TypeId> {
         match self.mapper(mapper).clone() {
             TypeMapper::Simple { source, target } => Ok(if ty == source { target } else { ty }),
             TypeMapper::Array { sources, targets } => {
@@ -516,7 +516,7 @@ impl<'a> CheckerState<'a> {
         signature: SignatureId,
         mapper: MapperId,
         erase_type_parameters: bool,
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         let source = self.signature_of(signature).clone();
         let mut mapper = mapper;
         let mut fresh_type_parameters: Option<Vec<TypeId>> = None;
@@ -655,7 +655,7 @@ impl<'a> CheckerState<'a> {
         mapper: MapperId,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let object_flags = self.tables.object_flags_of(ty);
         let is_reference = object_flags.intersects(ObjectFlags::REFERENCE);
         let declaration = if is_reference {
@@ -942,7 +942,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         tp: TypeId,
         node: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let symbol = self.tables.type_of(tp).symbol;
         let declarations = symbol
             .map(|symbol| self.binder.symbol(symbol).declarations.clone())
@@ -976,7 +976,7 @@ impl<'a> CheckerState<'a> {
 
     /// The containsReference walker inside isTypeParameterPossiblyReferenced
     /// (63536-63561).
-    fn contains_reference(&mut self, tp: TypeId, node: NodeId) -> CheckResult2<bool> {
+    fn contains_reference(&mut self, tp: TypeId, node: NodeId) -> CheckResult<bool> {
         match self.kind_of(node) {
             SyntaxKind::ThisType => Ok(matches!(
                 self.tables.type_of(tp).data,
@@ -1127,7 +1127,7 @@ impl<'a> CheckerState<'a> {
         mapper: MapperId,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let source = self.tables.type_of(ty);
         debug_assert!(
             source.symbol.is_some(),
@@ -1212,7 +1212,7 @@ impl<'a> CheckerState<'a> {
         mapper: MapperId,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(type_variable) = self.get_homomorphic_type_variable(ty)? {
             let mapped_type_variable = self.instantiate_type(type_variable, Some(mapper))?;
             if type_variable != mapped_type_variable {
@@ -1245,7 +1245,7 @@ impl<'a> CheckerState<'a> {
         mapped_type: TypeId,
         type_variable: TypeId,
         mapper: MapperId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let flags = self.tables.flags_of(constituent);
         let eligible = flags.intersects(
             TypeFlags::ANY_OR_UNKNOWN
@@ -1335,7 +1335,7 @@ impl<'a> CheckerState<'a> {
         array_type: TypeId,
         mapped_type: TypeId,
         mapper: MapperId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let number = self.tables.intrinsics.number;
         let element_type =
             self.instantiate_mapped_type_template(mapped_type, number, true, mapper)?;
@@ -1355,7 +1355,7 @@ impl<'a> CheckerState<'a> {
         mapped_type: TypeId,
         type_variable: TypeId,
         mapper: MapperId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let target = self.tables.reference_target(tuple_type);
         let TypeData::TupleTarget(tuple) = self.tables.type_of(target).data.clone() else {
             unreachable!("tuple type points at a tuple target");
@@ -1431,7 +1431,7 @@ impl<'a> CheckerState<'a> {
         key: TypeId,
         is_optional: bool,
         mapper: MapperId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let type_parameter = self.get_type_parameter_from_mapped_type(ty)?;
         let template_mapper = self.append_type_mapping(Some(mapper), type_parameter, key);
         let target = self.mapped_type_data(ty).target.unwrap_or(ty);
@@ -1462,10 +1462,10 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn map_type_with_alias(
         &mut self,
         ty: TypeId,
-        mapper: &mut dyn FnMut(&mut Self, TypeId) -> CheckResult2<TypeId>,
+        mapper: &mut dyn FnMut(&mut Self, TypeId) -> CheckResult<TypeId>,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) && alias_symbol.is_some() {
             let TypeData::Union { types, .. } = &self.tables.type_of(ty).data else {
                 unreachable!("union flag implies union data");
@@ -1500,7 +1500,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         mapper: Option<MapperId>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         match mapper {
             Some(mapper) => self.instantiate_type_with_alias(ty, mapper, None, None),
             None => Ok(ty),
@@ -1516,7 +1516,7 @@ impl<'a> CheckerState<'a> {
         mapper: MapperId,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if !self.could_contain_type_variables(ty) {
             return Ok(ty);
         }
@@ -1571,7 +1571,7 @@ impl<'a> CheckerState<'a> {
         mapper: MapperId,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
             return self.get_mapped_type(ty, mapper);
@@ -1785,7 +1785,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         mapper: MapperId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let TypeData::ReverseMapped(reverse) = self.tables.type_of(ty).data.clone() else {
             unreachable!("reverse mapped flags imply reverse payload");
         };
@@ -1821,7 +1821,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         types: &[TypeId],
         mapper: MapperId,
-    ) -> CheckResult2<Vec<TypeId>> {
+    ) -> CheckResult<Vec<TypeId>> {
         let mut result = Vec::with_capacity(types.len());
         for &ty in types {
             result.push(self.instantiate_type(ty, Some(mapper))?);
@@ -1839,7 +1839,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         info: &crate::state::IndexInfo,
         mapper: MapperId,
-    ) -> CheckResult2<crate::state::IndexInfo> {
+    ) -> CheckResult<crate::state::IndexInfo> {
         let value_type = self.instantiate_type(info.value_type, Some(mapper))?;
         Ok(crate::state::IndexInfo {
             key_type: info.key_type,
@@ -1854,7 +1854,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getPermissiveInstantiation @6.0.3
     /// tsc-hash: b215e803aced2e65175ffa5a5f69c5bc14075e5898b9e01e29edf4d45182474b
     /// tsc-span: _tsc.js:63815-63817
-    pub fn get_permissive_instantiation(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub fn get_permissive_instantiation(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if self
             .tables
             .flags_of(ty)
@@ -1875,7 +1875,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getRestrictiveInstantiation @6.0.3
     /// tsc-hash: d450bbffe7bd10c6ad0d93eb8bacb16be8a7b92303aee9a7565e3ff43c328716
     /// tsc-span: _tsc.js:63818-63828
-    pub fn get_restrictive_instantiation(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub fn get_restrictive_instantiation(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if self
             .tables
             .flags_of(ty)
@@ -2068,7 +2068,7 @@ impl<'a> CheckerState<'a> {
     fn get_type_parameters_from_declaration(
         &mut self,
         declaration: NodeId,
-    ) -> CheckResult2<Vec<TypeId>> {
+    ) -> CheckResult<Vec<TypeId>> {
         let declarations = self.type_parameter_declarations_of(declaration);
         let result = self.append_type_parameters(Vec::new(), &declarations);
         if !result.is_empty() {
@@ -2189,7 +2189,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         include_this_types: bool,
-    ) -> CheckResult2<Option<Vec<TypeId>>> {
+    ) -> CheckResult<Option<Vec<TypeId>>> {
         let mut node = node;
         loop {
             let Some(next) = self.parent_of(node) else {
@@ -2407,7 +2407,7 @@ impl<'a> CheckerState<'a> {
         type_arguments: Option<&[TypeId]>,
         is_javascript: bool,
         inferred_type_parameters: Option<&[TypeId]>,
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         let type_parameters = self.signature_of(signature).type_parameters.clone();
         let min_type_argument_count = self.get_min_type_argument_count(type_parameters.as_deref());
         let filled = self.fill_missing_type_arguments(
@@ -2451,7 +2451,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
         type_arguments: Option<&[TypeId]>,
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         let key = self.tables.get_type_list_id(type_arguments.unwrap_or(&[]));
         if let Some(&existing) = self.signature_of(signature).instantiations.get(&key) {
             return Ok(existing);
@@ -2472,7 +2472,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
         type_arguments: Option<&[TypeId]>,
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         let mapper = self.create_signature_type_mapper(signature, type_arguments)?;
         self.instantiate_signature(signature, mapper, /*erase_type_parameters*/ true)
     }
@@ -2498,7 +2498,7 @@ impl<'a> CheckerState<'a> {
         contextual_signature: SignatureId,
         inference_context: Option<crate::inference::InferenceContextId>,
         compare_types: Option<crate::inference::CompareTypesFn>,
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         let type_parameters = self.get_type_parameters_for_mapper(signature)?;
         let context = self.create_inference_context(
             &type_parameters,
@@ -2553,7 +2553,7 @@ impl<'a> CheckerState<'a> {
     fn get_type_parameters_for_mapper(
         &mut self,
         signature: SignatureId,
-    ) -> CheckResult2<Vec<TypeId>> {
+    ) -> CheckResult<Vec<TypeId>> {
         let type_parameters = self
             .signature_of(signature)
             .type_parameters
@@ -2574,7 +2574,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
         type_arguments: Option<&[TypeId]>,
-    ) -> CheckResult2<MapperId> {
+    ) -> CheckResult<MapperId> {
         let sources = self.get_type_parameters_for_mapper(signature)?;
         Ok(self.create_type_mapper(sources, type_arguments.map(<[TypeId]>::to_vec)))
     }
@@ -2582,7 +2582,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getErasedSignature @6.0.3
     /// tsc-hash: c99518238cd42ff436e62cf150c82253ed618397b6471b3ab1af5a9b2dcb1fb5
     /// tsc-span: _tsc.js:59926-59928
-    pub fn get_erased_signature(&mut self, signature: SignatureId) -> CheckResult2<SignatureId> {
+    pub fn get_erased_signature(&mut self, signature: SignatureId) -> CheckResult<SignatureId> {
         if self.signature_of(signature).type_parameters.is_none() {
             return Ok(signature);
         }
@@ -2602,7 +2602,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_canonical_signature(
         &mut self,
         signature: SignatureId,
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         if self.signature_of(signature).type_parameters.is_none() {
             return Ok(signature);
         }
@@ -2623,7 +2623,7 @@ impl<'a> CheckerState<'a> {
     /// An INSTANTIATED type parameter (tp.target set) whose target
     /// carries no constraint re-canonicalizes to the target;
     /// everything else keeps the parameter itself.
-    fn create_canonical_signature(&mut self, signature: SignatureId) -> CheckResult2<SignatureId> {
+    fn create_canonical_signature(&mut self, signature: SignatureId) -> CheckResult<SignatureId> {
         let type_parameters = self
             .signature_of(signature)
             .type_parameters
@@ -2657,7 +2657,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_base_signature(
         &mut self,
         signature: SignatureId,
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         let Some(type_parameters) = self.signature_of(signature).type_parameters.clone() else {
             return Ok(signature);
         };
@@ -2695,7 +2695,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: createErasedSignature @6.0.3
     /// tsc-hash: dde837ead02ad3156d3060c7b3fe69207380e9bd55d1739c4c8d45437d62e74c
     /// tsc-span: _tsc.js:59929-59936
-    fn create_erased_signature(&mut self, signature: SignatureId) -> CheckResult2<SignatureId> {
+    fn create_erased_signature(&mut self, signature: SignatureId) -> CheckResult<SignatureId> {
         let type_parameters = self
             .signature_of(signature)
             .type_parameters
@@ -2750,7 +2750,7 @@ impl<'a> CheckerState<'a> {
         type_parameters: Option<&[TypeId]>,
         min_type_argument_count: usize,
         is_javascript_implicit_any: bool,
-    ) -> CheckResult2<Option<Vec<TypeId>>> {
+    ) -> CheckResult<Option<Vec<TypeId>>> {
         let num_type_parameters = type_parameters.map_or(0, <[TypeId]>::len);
         if num_type_parameters == 0 {
             return Ok(Some(Vec::new()));
@@ -2825,7 +2825,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_resolved_type_parameter_default(
         &mut self,
         tp: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(resolved) = self.links.ty(tp).type_parameter_default.resolved() {
             return Ok(resolved);
         }
@@ -2883,7 +2883,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_default_from_type_parameter(
         &mut self,
         tp: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let default_type = self.get_resolved_type_parameter_default(tp)?;
         Ok((default_type != self.no_constraint_type
             && default_type != self.circular_constraint_type)
@@ -2898,9 +2898,9 @@ impl<'a> CheckerState<'a> {
     pub fn map_type(
         &mut self,
         ty: TypeId,
-        mapper: &mut dyn FnMut(&mut Self, TypeId) -> CheckResult2<Option<TypeId>>,
+        mapper: &mut dyn FnMut(&mut Self, TypeId) -> CheckResult<Option<TypeId>>,
         no_reductions: bool,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if self.tables.flags_of(ty).intersects(TypeFlags::NEVER) {
             return Ok(Some(ty));
         }
@@ -2950,11 +2950,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getStringMappingType @6.0.3
     /// tsc-hash: 2a62cdc3f0f0656ad0c8eb91482fd7c48208dd263861d26d297dd9634a534857
     /// tsc-span: _tsc.js:62119-62128
-    pub fn get_string_mapping_type(
-        &mut self,
-        symbol: SymbolId,
-        ty: TypeId,
-    ) -> CheckResult2<TypeId> {
+    pub fn get_string_mapping_type(&mut self, symbol: SymbolId, ty: TypeId) -> CheckResult<TypeId> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::UNION | TypeFlags::NEVER) {
             let mapped = self.map_type(
@@ -3015,7 +3011,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         texts: Vec<tsrs2_types::TemplateText>,
         types: Vec<TypeId>,
-    ) -> CheckResult2<(Vec<tsrs2_types::TemplateText>, Vec<TypeId>)> {
+    ) -> CheckResult<(Vec<tsrs2_types::TemplateText>, Vec<TypeId>)> {
         let name = self.binder.symbol(symbol).escaped_name.clone();
         match intrinsic_type_kind(&name) {
             Some(IntrinsicTypeKind::Uppercase) | Some(IntrinsicTypeKind::Lowercase) => {
@@ -3053,7 +3049,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         template: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if self
             .tables
             .flags_of(template)
@@ -3072,7 +3068,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let target_flags = self.tables.flags_of(target);
         if target_flags.intersects(TypeFlags::ANY) {
             return Ok(true);

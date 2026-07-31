@@ -1,7 +1,7 @@
 //! The relation engine core (m3-types-relations-steps.md stage 4.5,
 //! checker-key-functions §1.1-§1.3).
 //!
-//! Every relation function returns CheckResult2<Ternary>: a
+//! Every relation function returns `state::CheckResult<Ternary>`: a
 //! CheckAbort is never cached or converted into a verdict.
 //!
 //! Boolean callers use tsc's reportErrors=false face. Diagnostic
@@ -22,7 +22,7 @@ use tsrs2_types::{
 use tsrs2_syntax::NodeId;
 
 use crate::relate::RelationKind;
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult, CheckerState};
 
 /// stableTypeOrdering off: binary search keyed by type id over the
 /// id-sorted member list (tsc containsType 61327).
@@ -55,14 +55,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isTypeAssignableTo @6.0.3
     /// tsc-hash: 4835b1b23e62b229e59b4a928dd4aa8d16ec671c0d71f250716bdd464b007c3b
     /// tsc-span: _tsc.js:63919-63921
-    pub fn is_type_assignable_to(&mut self, source: TypeId, target: TypeId) -> CheckResult2<bool> {
+    pub fn is_type_assignable_to(&mut self, source: TypeId, target: TypeId) -> CheckResult<bool> {
         self.is_type_related_to(source, target, RelationKind::Assignable)
     }
 
     /// tsc-port: isTypeComparableTo @6.0.3
     /// tsc-hash: 7c13d690978a6624137a3e70b740e15fa12889a761b7bb5a65d3d7775f0e8918
     /// tsc-span: _tsc.js:63925-63927
-    pub fn is_type_comparable_to(&mut self, source: TypeId, target: TypeId) -> CheckResult2<bool> {
+    pub fn is_type_comparable_to(&mut self, source: TypeId, target: TypeId) -> CheckResult<bool> {
         self.is_type_related_to(source, target, RelationKind::Comparable)
     }
 
@@ -73,7 +73,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<Ternary> {
+    ) -> CheckResult<Ternary> {
         Ok(
             if self.is_type_related_to(source, target, RelationKind::Identity)? {
                 Ternary::TRUE
@@ -94,7 +94,7 @@ impl<'a> CheckerState<'a> {
         mut source: TypeId,
         mut target: TypeId,
         relation: RelationKind,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if self.tables.is_fresh_literal_type(source) {
             source = self
                 .tables
@@ -178,7 +178,7 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
         relation: RelationKind,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let s = self.tables.flags_of(source).bits();
         let t = self.tables.flags_of(target).bits();
         if t & TypeFlags::ANY.bits() != 0
@@ -336,7 +336,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isUnknownLikeUnionType @6.0.3
     /// tsc-hash: db66676e0affd408e748429ddd64881c82c0a42b92b120e2c54f6726f6e3fed4
     /// tsc-span: _tsc.js:64653-64662
-    fn is_unknown_like_union_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    fn is_unknown_like_union_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         if !self.tables.strict_null_checks || !self.tables.flags_of(ty).intersects(TypeFlags::UNION)
         {
             return Ok(false);
@@ -386,7 +386,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// Deferred (node-carrying) references normalize to their eager
     /// twin (createNormalizedTypeReference over the forced arguments).
-    pub fn get_normalized_type(&mut self, mut ty: TypeId, writing: bool) -> CheckResult2<TypeId> {
+    pub fn get_normalized_type(&mut self, mut ty: TypeId, writing: bool) -> CheckResult<TypeId> {
         loop {
             let flags = self.tables.flags_of(ty);
             let t = if self.tables.is_fresh_literal_type(ty) {
@@ -443,7 +443,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_single_base_for_non_augmenting_subtype(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if !self
             .tables
             .object_flags_of(ty)
@@ -569,7 +569,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         writing: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let reduced = self.get_reduced_type(ty)?;
         if reduced != ty {
             return Ok(reduced);
@@ -598,7 +598,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: shouldNormalizeIntersection @6.0.3
     /// tsc-hash: ac2985b3bcb9ba84f303ae672a68613c34772919f604484580cb8cb21b69edf1
     /// tsc-span: _tsc.js:64827-64836
-    fn should_normalize_intersection(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    fn should_normalize_intersection(&mut self, ty: TypeId) -> CheckResult<bool> {
         let TypeData::Intersection { types } = self.tables.type_of(ty).data.clone() else {
             unreachable!("intersection flag implies intersection data");
         };
@@ -631,7 +631,7 @@ impl<'a> CheckerState<'a> {
     /// The checker keeps its eager re-expansion of the tuple reference,
     /// but first simplifies every SIMPLIFIABLE element in the requested
     /// reading/writing direction, matching tsc's sameMap step.
-    fn get_normalized_tuple_type(&mut self, ty: TypeId, writing: bool) -> CheckResult2<TypeId> {
+    fn get_normalized_tuple_type(&mut self, ty: TypeId, writing: bool) -> CheckResult<TypeId> {
         let target = self.tables.reference_target(ty);
         // getTypeArguments (64838) — deferred tuple references force
         // lazily; the wrapper pre-forces variadic elements for the
@@ -667,7 +667,7 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
         relation: RelationKind,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let relation_count = (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
         let mut checker = RelationChecker {
             st: self,
@@ -729,7 +729,7 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         relation: RelationKind,
         head_message: &'static DiagnosticMessage,
-    ) -> CheckResult2<Option<RelationErrorOutput>> {
+    ) -> CheckResult<Option<RelationErrorOutput>> {
         self.relation_error_output_with_context(source, target, relation, Some(head_message), None)
     }
 
@@ -746,7 +746,7 @@ impl<'a> CheckerState<'a> {
         relation: RelationKind,
         head_message: Option<&'static DiagnosticMessage>,
         containing_message_chain: Option<MessageChain>,
-    ) -> CheckResult2<Option<RelationErrorOutput>> {
+    ) -> CheckResult<Option<RelationErrorOutput>> {
         let relation_count = (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
         // reportUnmatchedProperty reads checkTypeRelatedTo's closure-
         // level `headMessage`, not the per-recursion `headMessage2`.
@@ -1067,7 +1067,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         recursion_flags: RecursionFlags,
         report_errors: bool,
         intersection_state: IntersectionState,
-    ) -> CheckResult2<Ternary> {
+    ) -> CheckResult<Ternary> {
         self.is_related_to_with_head(
             original_source,
             original_target,
@@ -1089,7 +1089,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         report_errors: bool,
         head_message: Option<&'static DiagnosticMessage>,
         intersection_state: IntersectionState,
-    ) -> CheckResult2<Ternary> {
+    ) -> CheckResult<Ternary> {
         if original_source == original_target {
             return Ok(Ternary::TRUE);
         }
@@ -1312,7 +1312,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         &mut self,
         message: &'static DiagnosticMessage,
         args: Vec<String>,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         if !self.error_state.incompatible_stack.is_empty() {
             self.report_incompatible_stack()?;
         }
@@ -1446,7 +1446,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-port: reportIncompatibleStack @6.0.3
     /// tsc-hash: a1152011911131a223fd5304339b7872a283f3a6a0757347c0b3e67216a21dd2
     /// tsc-span: _tsc.js:64948-65036
-    fn report_incompatible_stack(&mut self) -> CheckResult2<()> {
+    fn report_incompatible_stack(&mut self) -> CheckResult<()> {
         let mut stack = std::mem::take(&mut self.error_state.incompatible_stack);
         let skipped = self.error_state.last_skipped_info.take();
         if stack.len() == 1 {
@@ -1567,7 +1567,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         mut message: Option<&'static DiagnosticMessage>,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         if !self.error_state.incompatible_stack.is_empty() {
             self.report_incompatible_stack()?;
         }
@@ -1669,7 +1669,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
         let target_text = self.st.type_to_string_slice_with_error_enclosing(target)?;
         let string_type = self.st.tables.intrinsics.string;
@@ -1699,7 +1699,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         mut source: TypeId,
         mut target: TypeId,
         head_message: Option<&'static DiagnosticMessage>,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let source_has_base = self
             .st
             .get_single_base_for_non_augmenting_subtype(original_source)?
@@ -1773,7 +1773,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         if !self.flags(source).intersects(TypeFlags::TYPE_PARAMETER) {
             return Ok(());
         }
@@ -1831,7 +1831,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         source: TypeId,
         target: TypeId,
         report_errors: bool,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         Ok(!matches!(
             self.excess_properties_worker(source, target, report_errors, None)?,
             ExcessPropertyOutcome::None
@@ -1856,7 +1856,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         target: TypeId,
         report_errors: bool,
         report_node: Option<tsrs2_syntax::NodeId>,
-    ) -> CheckResult2<ExcessPropertyOutcome> {
+    ) -> CheckResult<ExcessPropertyOutcome> {
         if !self.st.is_excess_property_check_target(target)
             || !self
                 .st
@@ -1957,7 +1957,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         prop: tsrs2_binder::SymbolId,
         reduced_target: TypeId,
         error_node: tsrs2_syntax::NodeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let error_target = self.st.filter_type_with(reduced_target, |state, member| {
             Ok(state.is_excess_property_check_target(member))
         })?;
@@ -2138,7 +2138,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         &mut self,
         types: Vec<TypeId>,
         name: &str,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let mut prop_types = Vec::with_capacity(types.len());
         for ty in types {
             let apparent = self.st.get_apparent_type(ty)?;
@@ -2179,7 +2179,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if self.flags(target).intersects(TypeFlags::UNION)
             && self.flags(source).intersects(TypeFlags::from_bits(
                 TypeFlags::INTERSECTION.bits() | TypeFlags::OBJECT.bits(),
@@ -2219,7 +2219,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         target: TypeId,
         report_errors: bool,
         intersection_state: IntersectionState,
-    ) -> CheckResult2<Ternary> {
+    ) -> CheckResult<Ternary> {
         if self.flags(source).intersects(TypeFlags::UNION) {
             if self.flags(target).intersects(TypeFlags::UNION) {
                 // Named-union origin fast paths (65416-65426) key on
@@ -2330,7 +2330,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<Ternary> {
+    ) -> CheckResult<Ternary> {
         let mut result = Ternary::TRUE;
         for source_type in self.union_members(source) {
             let related = self.type_related_to_some_type(
@@ -2359,7 +2359,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         target: TypeId,
         report_errors: bool,
         intersection_state: IntersectionState,
-    ) -> CheckResult2<Ternary> {
+    ) -> CheckResult<Ternary> {
         let target_types = self.union_members(target);
         if self.flags(target).intersects(TypeFlags::UNION) {
             if contains_type(&target_types, source) {
@@ -2456,7 +2456,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         target: TypeId,
         report_errors: bool,
         intersection_state: IntersectionState,
-    ) -> CheckResult2<Ternary> {
+    ) -> CheckResult<Ternary> {
         let mut result = Ternary::TRUE;
         for target_type in self.union_members(target) {
             let related = self.is_related_to(
@@ -2483,7 +2483,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         target: TypeId,
         report_errors: bool,
         intersection_state: IntersectionState,
-    ) -> CheckResult2<Ternary> {
+    ) -> CheckResult<Ternary> {
         let source_types = self.union_members(source);
         if self.flags(source).intersects(TypeFlags::UNION) && contains_type(&source_types, target) {
             return Ok(Ternary::TRUE);
@@ -2537,7 +2537,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         target: TypeId,
         report_errors: bool,
         intersection_state: IntersectionState,
-    ) -> CheckResult2<Ternary> {
+    ) -> CheckResult<Ternary> {
         let mut result = Ternary::TRUE;
         let source_types = self.union_members(source);
         let undefined_stripped_target =
@@ -2600,7 +2600,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         variances: &[tsrs2_types::VarianceFlags],
         report_errors: bool,
         intersection_state: IntersectionState,
-    ) -> CheckResult2<Ternary> {
+    ) -> CheckResult<Ternary> {
         use tsrs2_types::VarianceFlags;
         if sources.len() != targets.len() && self.relation == RelationKind::Identity {
             return Ok(Ternary::FALSE);
@@ -2719,7 +2719,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         report_errors: bool,
         intersection_state: IntersectionState,
         recursion_flags: RecursionFlags,
-    ) -> CheckResult2<Ternary> {
+    ) -> CheckResult<Ternary> {
         if self.overflow {
             return Ok(Ternary::FALSE);
         }
@@ -2975,7 +2975,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 1953585bcdc5c930273bb00a55255f46d4aec77870ba0b1ba4526e965052b8dc
     /// tsc-span: _tsc.js:67285-67297
     ///
-    pub fn is_weak_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub fn is_weak_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         let flags = self.tables.flags_of(ty);
         // Tuple references resolve members through
         // resolveTypeReferenceMembers (M4 5.3); every tuple has the
@@ -3021,7 +3021,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: hasCommonProperties @6.0.3
     /// tsc-hash: fa8485b4fc4b88a1b9d0c08aca138b7fb718b7a06b9cd790ad2e31d28cb70004
     /// tsc-span: _tsc.js:67298-67305
-    pub fn has_common_properties(&mut self, source: TypeId, target: TypeId) -> CheckResult2<bool> {
+    pub fn has_common_properties(&mut self, source: TypeId, target: TypeId) -> CheckResult<bool> {
         let is_comparing_jsx_attributes = self
             .tables
             .object_flags_of(source)
@@ -3050,7 +3050,7 @@ impl<'a> CheckerState<'a> {
     pub fn get_properties_of_type(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult2<Vec<tsrs2_binder::SymbolId>> {
+    ) -> CheckResult<Vec<tsrs2_binder::SymbolId>> {
         self.get_properties_of_type_full(ty)
     }
 
@@ -3071,14 +3071,14 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         name: &str,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         self.get_type_of_property_of_type_full(ty, name)
     }
 
     /// tsc-port: typeHasCallOrConstructSignatures @6.0.3
     /// tsc-hash: c803fd3450a6f4d4aa94a768a66cb9b762c64228cf0591bff0a9d5e6715825d1
     /// tsc-span: _tsc.js:87834-87836
-    pub fn type_has_call_or_construct_signatures(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub fn type_has_call_or_construct_signatures(&mut self, ty: TypeId) -> CheckResult<bool> {
         if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
             return Ok(false);
         }
@@ -3100,7 +3100,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         name: &str,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if !self.tables.flags_of(ty).intersects(TypeFlags::from_bits(
             TypeFlags::OBJECT.bits() | TypeFlags::UNION_OR_INTERSECTION.bits(),
         )) {
@@ -3132,7 +3132,7 @@ impl<'a> CheckerState<'a> {
     /// string)` disjunct is live. `isComparingJsxAttributes` is owned
     /// by the callers because it depends on the source type; they
     /// admit hyphenated JSX names before this target-only recursion.
-    pub fn is_known_property(&mut self, target: TypeId, name: &str) -> CheckResult2<bool> {
+    pub fn is_known_property(&mut self, target: TypeId, name: &str) -> CheckResult<bool> {
         let flags = self.tables.flags_of(target);
         if flags.intersects(TypeFlags::OBJECT) {
             // 74828: getPropertyOfObjectType — the symbolIsValue gate
@@ -3235,7 +3235,7 @@ impl<'a> CheckerState<'a> {
     /// the first load-bearing consumer): the EnumLike base-type arm
     /// (69974-69976) resolves the parent enum's declared type through
     /// getBaseTypeOfEnumLikeType (&mut + fallible).
-    pub fn is_type_subset_of(&mut self, source: TypeId, target: TypeId) -> CheckResult2<bool> {
+    pub fn is_type_subset_of(&mut self, source: TypeId, target: TypeId) -> CheckResult<bool> {
         if source == target || self.tables.flags_of(source).intersects(TypeFlags::NEVER) {
             return Ok(true);
         }
@@ -3280,7 +3280,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isEmptyObjectType @6.0.3
     /// tsc-hash: 3c1001f65e3ebe1f4b8362dce6b6cb1ee18638b6444af9a62b651808c112c9a5
     /// tsc-span: _tsc.js:64647-64649
-    pub fn is_empty_object_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub fn is_empty_object_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::OBJECT) && self.is_generic_mapped_type_state(ty)? {
             return Ok(false);
@@ -3359,7 +3359,7 @@ impl<'a> CheckerState<'a> {
     /// properties keep their symbol (createSymbolWithType only on
     /// change). Call/construct signatures and index infos carry over
     /// from the resolved source.
-    pub fn get_regular_type_of_object_literal(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub fn get_regular_type_of_object_literal(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if !(self.is_object_literal_type(ty)
             && self
                 .tables
@@ -3422,7 +3422,7 @@ impl<'a> CheckerState<'a> {
     /// The keyPropertyName/constituentMap caches live on TypeLinks
     /// (tsc stores them on the union type object). M5's discriminant
     /// narrowing reuses this machinery.
-    pub(crate) fn get_key_property_name(&mut self, union: TypeId) -> CheckResult2<Option<String>> {
+    pub(crate) fn get_key_property_name(&mut self, union: TypeId) -> CheckResult<Option<String>> {
         if let Some(cached) = self.links.ty(union).union_key_property.resolved() {
             return Ok(cached.name);
         }
@@ -3481,7 +3481,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         types: &[TypeId],
         name: &str,
-    ) -> CheckResult2<Option<std::collections::HashMap<TypeId, TypeId>>> {
+    ) -> CheckResult<Option<std::collections::HashMap<TypeId, TypeId>>> {
         let mut map = std::collections::HashMap::new();
         let mut count = 0usize;
         let object_like = TypeFlags::from_bits(
@@ -3547,7 +3547,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         union: TypeId,
         ty: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let Some(key_property_name) = self.get_key_property_name(union)? else {
             return Ok(None);
         };
@@ -3568,7 +3568,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if let Some(matched) = self.find_matching_discriminant_type(source, target)? {
             return Ok(Some(matched));
         }
@@ -3593,7 +3593,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if !self.tables.flags_of(target).intersects(TypeFlags::UNION)
             || !self
                 .tables
@@ -3635,7 +3635,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let source_object_flags = self.tables.object_flags_of(source);
         if !source_object_flags.intersects(ObjectFlags::from_bits(
             ObjectFlags::REFERENCE.bits() | ObjectFlags::ANONYMOUS.bits(),
@@ -3679,7 +3679,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if !self
             .tables
             .object_flags_of(source)
@@ -3711,7 +3711,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let mut kind = crate::state::SignatureKind::Call;
         let has_signatures = !self.get_signatures_of_type(source, kind)?.is_empty() || {
             kind = crate::state::SignatureKind::Construct;
@@ -3741,7 +3741,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let primitive_mask = TypeFlags::from_bits(
             TypeFlags::PRIMITIVE.bits() | TypeFlags::INSTANTIABLE_PRIMITIVE.bits(),
         );
@@ -3798,7 +3798,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         union: TypeId,
         key_type: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let key = self.tables.get_regular_type_of_literal_type(key_type);
         let unknown = self.tables.intrinsics.unknown;
         let result = self
@@ -3954,7 +3954,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// The union arm maps members (tsc's `B{id}` cachedTypes entry is
     /// a perf cache, not semantics).
-    pub fn get_base_type_of_literal_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub fn get_base_type_of_literal_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::ENUM_LIKE) {
             return self.get_base_type_of_enum_like_type(ty);
@@ -3997,7 +3997,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getBaseTypeOfEnumLikeType @6.0.3
     /// tsc-hash: 858147aecede12f638a65d11df4e363261107bd21691b950f2d9b966c18bbe9d
     /// tsc-span: _tsc.js:57436-57438
-    pub(crate) fn get_base_type_of_enum_like_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_base_type_of_enum_like_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if self.tables.flags_of(ty).intersects(TypeFlags::ENUM_LIKE) {
             if let Some(symbol) = self.tables.type_of(ty).symbol {
                 if self
@@ -4029,7 +4029,7 @@ impl<'a> CheckerState<'a> {
     /// getWidenedType is the identity in M3: no constructible type
     /// carries ObjectFlags::RequiresWidening (widening contexts are
     /// M6 expression checking).
-    pub fn is_assertion_legal(&mut self, source: TypeId, target: TypeId) -> CheckResult2<bool> {
+    pub fn is_assertion_legal(&mut self, source: TypeId, target: TypeId) -> CheckResult<bool> {
         let base = self.get_base_type_of_literal_type(source)?;
         let expr_type = self.get_regular_type_of_object_literal(base)?;
         let widened = expr_type; // getWidenedType stub (identity in M3)

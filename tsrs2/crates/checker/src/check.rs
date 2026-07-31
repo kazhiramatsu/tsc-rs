@@ -30,7 +30,7 @@ use tsrs2_types::{
 
 use crate::evaluate::EvalValue;
 use crate::state::{
-    CheckAbort, CheckResult2, CheckerState, OracleCrashKind, SignatureId, SignatureKind,
+    CheckAbort, CheckResult, CheckerState, OracleCrashKind, SignatureId, SignatureKind,
 };
 
 /// Debug-only unwind census (the abort-unwind invariant):
@@ -1536,7 +1536,7 @@ impl<'a> CheckerState<'a> {
     /// (marking each reported) so ONE 7027 covers the run.
     /// addErrorOrSuggestion's tri-state option projection is preserved:
     /// absent = suggestion, explicit false = error, true = suppressed.
-    fn check_source_element_unreachable(&mut self, node: NodeId) -> CheckResult2<bool> {
+    fn check_source_element_unreachable(&mut self, node: NodeId) -> CheckResult<bool> {
         if !tsrs2_binder::node_util::is_potentially_executable_node(
             self.binder.source_of_node(node),
             node,
@@ -1622,7 +1622,7 @@ impl<'a> CheckerState<'a> {
     /// `canHaveFlowNode(node) && node.flowNode` collapses to the
     /// node_flow side-table probe — the binder records flow only for
     /// canHaveFlowNode kinds.
-    fn is_source_element_unreachable(&mut self, node: NodeId) -> CheckResult2<bool> {
+    fn is_source_element_unreachable(&mut self, node: NodeId) -> CheckResult<bool> {
         if self.node_flags(node) & tsrs2_types::NodeFlags::UNREACHABLE.bits() != 0 {
             return Ok(match self.kind_of(node) {
                 SyntaxKind::EnumDeclaration => {
@@ -1646,7 +1646,7 @@ impl<'a> CheckerState<'a> {
     /// The parser-owned `js_doc` arrays are walked before the host,
     /// exactly like tsc. This is the sole JSDoc dispatch path: checker
     /// consumers do not reconstruct tags from source text.
-    fn check_source_element_worker(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_source_element_worker(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_attached_jsdoc(node);
         if self.options.allow_unreachable_code != Some(true)
             && !self.within_unreachable_code
@@ -1865,7 +1865,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkJSDocTypeAliasTag @6.0.3.
     /// tsc-hash: e8584035fea4768c02dfe9033860570a747273628f548991de4124fed619139d
     /// tsc-span: _tsc.js:82792-82801
-    fn check_jsdoc_type_alias_tag(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_jsdoc_type_alias_tag(&mut self, node: NodeId) -> CheckResult<()> {
         let (name, type_expression) = match self.data_of(node) {
             NodeData::JSDocTypedefTag(data) => (data.name, data.type_expression),
             NodeData::JSDocCallbackTag(data) => (data.name, data.type_expression),
@@ -1893,7 +1893,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkJSDocTemplateTag @6.0.3.
     /// tsc-hash: ded4243dfc2699c2c1344c2f1c8bc4df304f588dac1493cd4ebec82e76b568ef
     /// tsc-span: _tsc.js:82802-82807
-    fn check_jsdoc_template_tag(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_jsdoc_template_tag(&mut self, node: NodeId) -> CheckResult<()> {
         let NodeData::JSDocTemplateTag(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -1909,7 +1909,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkJSDocTypeTag @6.0.3.
     /// tsc-hash: 2e202c0bf55e29a7ac3d3d5a8e96aef15064b356c66ee9bd8065012026e4ceae
     /// tsc-span: _tsc.js:82808-82810
-    fn check_jsdoc_type_tag(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_jsdoc_type_tag(&mut self, node: NodeId) -> CheckResult<()> {
         let NodeData::JSDocTypeTag(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -1920,7 +1920,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkJSDocSatisfiesTag @6.0.3.
     /// tsc-hash: 06ba243cd86ac0b5ccf0af74f1537067992744abd80f186d85d8ae427648070a
     /// tsc-span: _tsc.js:82811-82823
-    fn check_jsdoc_satisfies_tag(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_jsdoc_satisfies_tag(&mut self, node: NodeId) -> CheckResult<()> {
         let NodeData::JSDocSatisfiesTag(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -1949,7 +1949,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkJSDocLinkLikeTag @6.0.3.
     /// tsc-hash: 670de5faef306240a1f40aedcbe389e3bdcb2495dfe29b06ca8086c83118a0af
     /// tsc-span: _tsc.js:82824-82832
-    fn check_jsdoc_link_like_tag(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_jsdoc_link_like_tag(&mut self, node: NodeId) -> CheckResult<()> {
         let name = match self.data_of(node) {
             NodeData::JSDocLink(data) => data.name,
             NodeData::JSDocLinkCode(data) => data.name,
@@ -1970,7 +1970,7 @@ impl<'a> CheckerState<'a> {
         name: NodeId,
         ignore_errors: bool,
         container: Option<SymbolId>,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let meaning = SymbolFlags::TYPE | SymbolFlags::NAMESPACE | SymbolFlags::VALUE;
         if matches!(
             self.kind_of(name),
@@ -2040,7 +2040,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkJSDocPropertyTag @6.0.3.
     /// tsc-hash: bbcb0b6e77882141e513682989e45af8057e40acd9ee399e0cba630be39b34bd
     /// tsc-span: _tsc.js:82836-82838
-    fn check_jsdoc_property_like_tag(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_jsdoc_property_like_tag(&mut self, node: NodeId) -> CheckResult<()> {
         let type_expression = match self.data_of(node) {
             NodeData::JSDocParameterTag(data) => data.type_expression,
             NodeData::JSDocPropertyTag(data) => data.type_expression,
@@ -2053,7 +2053,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkJSDocFunctionType @6.0.3.
     /// tsc-hash: dcd5df8de17d4ba1c2cd700b063e6627ec2d6916778de6a0160053eaa97e9c6f
     /// tsc-span: _tsc.js:82839-82847
-    fn check_jsdoc_function_type(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_jsdoc_function_type(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_signature_declaration(node)?;
         let NodeData::JSDocFunctionType(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
@@ -2069,7 +2069,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkJSDocThisTag @6.0.3.
     /// tsc-hash: 18946feb0425c704efe0833f43e6929eb2f252e20d79493b13c4671207604afa
     /// tsc-span: _tsc.js:82848-82853
-    fn check_jsdoc_this_tag(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_jsdoc_this_tag(&mut self, node: NodeId) -> CheckResult<()> {
         if self
             .get_effective_jsdoc_host(node)
             .is_some_and(|host| self.kind_of(host) == SyntaxKind::ArrowFunction)
@@ -2090,7 +2090,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkJSDocImportTag @6.0.3.
     /// tsc-hash: d5bedc1e5d403ebe956b54ea38ea0d9ab0726319180f4e24c61b1422882e258c
     /// tsc-span: _tsc.js:82854-82856
-    fn check_jsdoc_import_tag(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_jsdoc_import_tag(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_import_attributes_of(node)
     }
 
@@ -2113,7 +2113,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkJSDocImplementsTag @6.0.3.
     /// tsc-hash: 44e500ddec853eafef3e591be086bd6d8b14f5ba03c88791117f60656274bcbb
     /// tsc-span: _tsc.js:82857-82862
-    fn check_jsdoc_implements_tag(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_jsdoc_implements_tag(&mut self, node: NodeId) -> CheckResult<()> {
         let tag_name = match self.data_of(node) {
             NodeData::JSDocImplementsTag(data) => data.tag_name,
             _ => None,
@@ -2137,7 +2137,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkJSDocAugmentsTag @6.0.3.
     /// tsc-hash: 66091283e252c6a78b8ea20c9fd3df37d75fd8db4ab430a1c02ff07652c3ce6e
     /// tsc-span: _tsc.js:82863-82882
-    fn check_jsdoc_augments_tag(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_jsdoc_augments_tag(&mut self, node: NodeId) -> CheckResult<()> {
         let (tag_name, class) = match self.data_of(node) {
             NodeData::JSDocAugmentsTag(data) => (data.tag_name, data.class),
             _ => unreachable!("kind/data agree"),
@@ -2210,7 +2210,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkJSDocAccessibilityModifiers @6.0.3.
     /// tsc-hash: 8f6c5add520fd318d80853065eedd5d538e71dc176a67afd17360c3686578e9d
     /// tsc-span: _tsc.js:82883-82888
-    fn check_jsdoc_accessibility_modifier(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_jsdoc_accessibility_modifier(&mut self, node: NodeId) -> CheckResult<()> {
         if let Some(host) = self.get_jsdoc_host(node) {
             let private_identifier_class_element = matches!(
                 self.kind_of(host),
@@ -2235,7 +2235,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkJSDocVariadicType @6.0.3.
     /// tsc-hash: 80b3b4021eb1511dec9f975d4cf804983d70c8578727f1c38bf3b5b29948ed53
     /// tsc-span: _tsc.js:86852-86878
-    fn check_jsdoc_variadic_type(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_jsdoc_variadic_type(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_jsdoc_type_is_in_js_file(node)?;
         let NodeData::JSDocVariadicType(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
@@ -2307,7 +2307,7 @@ impl<'a> CheckerState<'a> {
     /// share the upstream boundary without a parallel syntax model.
     ///
     /// d2: d2:abafc814b78c24d9620dd74abb47d59c8a8ec014f90fb0e16a1948578320740d
-    fn check_jsdoc_type_is_in_js_file(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_jsdoc_type_is_in_js_file(&mut self, node: NodeId) -> CheckResult<()> {
         if self.is_in_js_file(node) {
             return Ok(());
         }
@@ -2361,7 +2361,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkUnmatchedJSDocParameters @6.0.3
     /// tsc-hash: 24e986c3a0401df91b37f56fe493d3f88ba77f96fda7b6f3d48bc970c597b49c
     /// tsc-span: _tsc.js:84792-84829
-    pub(crate) fn check_unmatched_jsdoc_parameters(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_unmatched_jsdoc_parameters(&mut self, node: NodeId) -> CheckResult<()> {
         let jsdoc_parameters: Vec<NodeId> = self
             .get_jsdoc_tags(node)
             .into_iter()
@@ -2472,7 +2472,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn contains_arguments_reference(
         &mut self,
         declaration: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if let Some(cached) = self.links.node(declaration).contains_arguments_reference {
             return Ok(cached);
         }
@@ -2594,7 +2594,7 @@ impl<'a> CheckerState<'a> {
     /// still represented by the common statement walk. Block-local
     /// unused identifiers are registered after that walk, matching
     /// tsc's deferred producer order.
-    pub(crate) fn check_block(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_block(&mut self, node: NodeId) -> CheckResult<()> {
         if self.kind_of(node) == SyntaxKind::Block {
             self.check_grammar_statement_in_ambient_context(node);
         }
@@ -2618,7 +2618,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// The 5.5 forcing seam: the ONLY new eager driver arm at 5.5a —
     /// expression subtrees route through checkExpression from here.
-    fn check_expression_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_expression_statement(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_statement_in_ambient_context(node);
         let NodeData::ExpressionStatement(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
@@ -2643,7 +2643,7 @@ impl<'a> CheckerState<'a> {
     /// (checkSourceFileWithEagerDiagnostics 87104-87110 sets
     /// `addLazyDiagnostic = cb => cb()`), so eager execution IS the
     /// tsc order.
-    fn check_type_parameter(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_type_parameter(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_modifiers(node);
         let NodeData::TypeParameter(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
@@ -2690,7 +2690,7 @@ impl<'a> CheckerState<'a> {
     /// createCheckTypeParameterDiagnostic closures run inline (eager
     /// addLazyDiagnostic identity — see check_type_parameter), which
     /// preserves the seenDefault fold order exactly.
-    pub(crate) fn check_type_parameters(&mut self, declarations: &[NodeId]) -> CheckResult2<()> {
+    pub(crate) fn check_type_parameters(&mut self, declarations: &[NodeId]) -> CheckResult<()> {
         let mut seen_default = false;
         for (index, &node) in declarations.iter().enumerate() {
             // Direct checkTypeParameter call (no checkSourceElement
@@ -2741,7 +2741,7 @@ impl<'a> CheckerState<'a> {
         root: NodeId,
         type_parameters: &[NodeId],
         index: usize,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let mut stack = vec![root];
         while let Some(node) = stack.pop() {
             if self.kind_of(node) == SyntaxKind::TypeReference {
@@ -2810,7 +2810,7 @@ impl<'a> CheckerState<'a> {
     /// member-specific elaboration (unlike classes);
     /// registerForUnusedIdentifiersCheck is inert until M7. A missing
     /// name (parse recovery) skips the name-anchored lazy block.
-    fn check_interface_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_interface_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         // A modifier grammar error suppresses the interface grammar
         // walk (duplicate-extends family).
         if !self.check_grammar_modifiers(node) {
@@ -2898,7 +2898,7 @@ impl<'a> CheckerState<'a> {
     /// registerForUnusedIdentifiersCheck is inert until M7. The
     /// intrinsic-keyword validity arm is live (intrinsicTypeKinds
     /// membership == instantiate.rs intrinsic_type_kind).
-    fn check_type_alias_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_type_alias_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_modifiers(node);
         let NodeData::TypeAliasDeclaration(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
@@ -2963,7 +2963,7 @@ impl<'a> CheckerState<'a> {
     /// ExpressionWithTypeArguments routes here since 5.8c (§6/§7).
     ///
     /// d2: d2:a0ca43e0404dffef54d7ea308b862df5cb15a8cc5708025ff33931c2a3a9a183
-    pub(crate) fn check_type_reference_node(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_type_reference_node(&mut self, node: NodeId) -> CheckResult<()> {
         let (type_name, type_arguments) = match self.data_of(node) {
             NodeData::TypeReference(data) => (data.type_name, data.type_arguments),
             NodeData::ExpressionWithTypeArguments(data) => (None, data.type_arguments),
@@ -3018,7 +3018,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         has_type_arguments: bool,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         if has_type_arguments
             && (self.type_reference_arguments_may_resolve_alias(node)?
                 || self.is_self_referential_type_alias_reference(node)?)
@@ -3102,7 +3102,7 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    fn is_self_referential_type_alias_reference(&mut self, node: NodeId) -> CheckResult2<bool> {
+    fn is_self_referential_type_alias_reference(&mut self, node: NodeId) -> CheckResult<bool> {
         let NodeData::TypeReference(data) = self.data_of(node) else {
             return Ok(false);
         };
@@ -3142,7 +3142,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_type_parameters_for_type_reference_or_import(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<Option<Vec<TypeId>>> {
+    ) -> CheckResult<Option<Vec<TypeId>>> {
         let ty = self.get_type_from_type_node(node)?;
         if self.tables.is_error_type(ty) {
             return Ok(None);
@@ -3191,7 +3191,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         type_parameters: &[TypeId],
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let type_argument_nodes = match self.data_of(node) {
             NodeData::TypeReference(data) => data.type_arguments,
             NodeData::ImportType(data) => data.type_arguments,
@@ -3237,7 +3237,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkTypeQuery @6.0.3
     /// tsc-hash: a286ebe08d784672b568547713b5de7467388c5c12c4164d9ebe414bf021fb16
     /// tsc-span: _tsc.js:81838-81840
-    fn check_type_query(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_type_query(&mut self, node: NodeId) -> CheckResult<()> {
         self.get_type_from_type_query_node(node)?;
         Ok(())
     }
@@ -3248,7 +3248,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// addLazyDiagnostic = eager identity: the lazy block's forcing +
     /// index-constraint + duplicate checks run inline (class.rs seed).
-    fn check_type_literal(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_type_literal(&mut self, node: NodeId) -> CheckResult<()> {
         let NodeData::TypeLiteral(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -3271,7 +3271,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// Element recursion only — SELF-FORCING ABSENT (no re-entrancy
     /// trap exposure).
-    fn check_array_type(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_array_type(&mut self, node: NodeId) -> CheckResult<()> {
         let NodeData::ArrayType(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -3286,7 +3286,7 @@ impl<'a> CheckerState<'a> {
     /// The self-force rides getTypeFromTypeNode's memo (re-entrancy
     /// trap §0: reads-before-writes; the write-once panic is the
     /// tripwire for default-subtree exposure).
-    fn check_tuple_type(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_tuple_type(&mut self, node: NodeId) -> CheckResult<()> {
         let NodeData::TupleType(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -3383,7 +3383,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkUnionOrIntersectionType @6.0.3
     /// tsc-hash: fb99110bb4ec225868bfc2a8215247de48be9c3b4c2e50d4283b5bafc74da82b
     /// tsc-span: _tsc.js:81889-81892
-    fn check_union_or_intersection_type(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_union_or_intersection_type(&mut self, node: NodeId) -> CheckResult<()> {
         let types = match self.data_of(node) {
             NodeData::UnionType(data) => data.types,
             NodeData::IntersectionType(data) => data.types,
@@ -3403,7 +3403,7 @@ impl<'a> CheckerState<'a> {
     /// The CHECK-side of the 5.2g resolver rows: tsc's resolver
     /// reports through the same helper on access EXPRESSIONS, the
     /// type-node path reports HERE (pinned against double-reports).
-    fn check_indexed_access_type(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_indexed_access_type(&mut self, node: NodeId) -> CheckResult<()> {
         let NodeData::IndexedAccessType(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -3418,7 +3418,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkMappedType @6.0.3
     /// tsc-hash: 12a5060787f6d1849d7f77ba2d3beb1f786fb8263e2fcd929c49d5c9673375e4
     /// tsc-span: _tsc.js:81924-81940
-    fn check_mapped_type(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_mapped_type(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_mapped_type(node);
         let NodeData::MappedType(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
@@ -3480,7 +3480,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkThisType @6.0.3
     /// tsc-hash: 020890db1cf60fb0cc561e6645d70cb91378192c0c86dab624ba13f87ab93ffc
     /// tsc-span: _tsc.js:81947-81949
-    fn check_this_type(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_this_type(&mut self, node: NodeId) -> CheckResult<()> {
         self.get_type_from_this_type_node(node)?;
         Ok(())
     }
@@ -3488,7 +3488,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkTypeOperator @6.0.3
     /// tsc-hash: 887ed97e8defb9d4edfae94a11eec1b2fd95836cc3f6a620fc0ed3ff07edc620
     /// tsc-span: _tsc.js:81950-81953
-    fn check_type_operator(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_type_operator(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_type_operator_node(node);
         let NodeData::TypeOperator(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
@@ -3503,7 +3503,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// forEachChild recursion ONLY — the conditional-model boundary
     /// stays on the annotate side, with no self-force here.
-    fn check_conditional_type(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_conditional_type(&mut self, node: NodeId) -> CheckResult<()> {
         let source = self.binder.source_of_node(node);
         let mut children = Vec::new();
         for_each_child(&source.arena, source.arena.node(node), |child| {
@@ -3524,7 +3524,7 @@ impl<'a> CheckerState<'a> {
     /// walk consumes the §6 areTypeParametersIdentical kit
     /// (getTypeParameterDeclarations = decl => [decl], 81969);
     /// registerForUnusedIdentifiersCheck is inert until M7.
-    fn check_infer_type(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_infer_type(&mut self, node: NodeId) -> CheckResult<()> {
         let mut in_extends_clause = false;
         let mut current = Some(node);
         while let Some(candidate) = current {
@@ -3591,7 +3591,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkTemplateLiteralType @6.0.3
     /// tsc-hash: 584dbe841ce2a956ded87bd9c7646da0232693367645061bf3ff5a6989d1b196
     /// tsc-span: _tsc.js:81979-81986
-    fn check_template_literal_type(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_template_literal_type(&mut self, node: NodeId) -> CheckResult<()> {
         let NodeData::TemplateLiteralType(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -3627,7 +3627,7 @@ impl<'a> CheckerState<'a> {
     /// keyword into the node data (codegen seed). The
     /// getResolutionModeOverride grammar validation is a named escape
     /// (5.8d §9 — resolution-mode plumbing).
-    fn check_import_type(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_import_type(&mut self, node: NodeId) -> CheckResult<()> {
         let NodeData::ImportType(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -3666,7 +3666,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkNamedTupleMember @6.0.3
     /// tsc-hash: d4d925e652a06dede81d11ea41937e9285024be36e62e01e7c02ae8cf38acda8
     /// tsc-span: _tsc.js:81997-82009
-    fn check_named_tuple_member(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_named_tuple_member(&mut self, node: NodeId) -> CheckResult<()> {
         let NodeData::NamedTupleMember(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -4010,7 +4010,7 @@ impl<'a> CheckerState<'a> {
         self.current_node = save_current_node;
     }
 
-    fn check_deferred_node_worker(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_deferred_node_worker(&mut self, node: NodeId) -> CheckResult<()> {
         match self.kind_of(node) {
             SyntaxKind::CallExpression | SyntaxKind::NewExpression => {
                 // checkDeferredNode 86923-86928: the overload-failure
@@ -4105,7 +4105,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkTypeParameterDeferred @6.0.3
     /// tsc-hash: 1c07b9d8ea60523fff8b158a9833d515d943394736c9dfc43f117f6f8090cd65
     /// tsc-span: _tsc.js:81148-81170
-    fn check_type_parameter_deferred(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_type_parameter_deferred(&mut self, node: NodeId) -> CheckResult<()> {
         let Some(parent) = self.parent_of(node) else {
             return Ok(());
         };
@@ -4190,7 +4190,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if !self
             .tables
             .flags_of(source)
@@ -4237,7 +4237,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         original_source: TypeId,
         original_target: TypeId,
-    ) -> CheckResult2<(TypeId, TypeId)> {
+    ) -> CheckResult<(TypeId, TypeId)> {
         let mut source = self.get_normalized_type(original_source, /*writing*/ false)?;
         let target = self.get_normalized_type(original_target, /*writing*/ true)?;
         let mut target = self.nullable_stripped_report_target(source, target)?;
@@ -4277,7 +4277,7 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         error_node: Option<NodeId>,
         head_message: &'static DiagnosticMessage,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let original_source = source;
         let original_target = target;
         let related = self.is_type_assignable_to(source, target)?;
@@ -4464,7 +4464,7 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         error_node: NodeId,
         relation: crate::relate::RelationKind,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if !self.is_object_literal_type(source)
             || !self
                 .tables
@@ -4532,7 +4532,7 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
         error_node: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if !self
             .tables
             .flags_of(source)
@@ -4623,7 +4623,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if self.tables.is_tuple_type(source) {
             let tuple_readonly = {
                 let tuple_target = self.tables.reference_target(source);
@@ -4651,7 +4651,7 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
         error_node: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         // reportUnmatchedProperty runs over the isRelatedTo-NORMALIZED
         // pair: getNormalizedType's non-augmenting-subtype arm (64809)
         // substitutes an EMPTY single-base subclass with its base for
@@ -4972,7 +4972,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         prop: SymbolId,
         write_computed_props: bool,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         let escaped = self.binder.symbol(prop).escaped_name.clone();
         if escaped.starts_with('#') {
             return Ok(escaped);
@@ -5044,7 +5044,7 @@ impl<'a> CheckerState<'a> {
     /// operator. Other expression shapes (templates, bigints,
     /// element-access names) use the same synthesized-expression
     /// printer leaf below.
-    fn computed_property_name_face_slice(&mut self, name: NodeId) -> CheckResult2<String> {
+    fn computed_property_name_face_slice(&mut self, name: NodeId) -> CheckResult<String> {
         let NodeData::ComputedPropertyName(data) = self.data_of(name) else {
             unreachable!("WriteComputedProps supplies a ComputedPropertyName node");
         };
@@ -5070,7 +5070,7 @@ impl<'a> CheckerState<'a> {
     /// leaves are included because the factory printer owns their
     /// synthesized spelling even when a recovery tree reaches this
     /// helper.
-    fn expression_text_slice(&mut self, node: NodeId) -> CheckResult2<String> {
+    fn expression_text_slice(&mut self, node: NodeId) -> CheckResult<String> {
         match self.kind_of(node) {
             SyntaxKind::TrueKeyword => return Ok("true".to_owned()),
             SyntaxKind::FalseKeyword => return Ok("false".to_owned()),
@@ -5208,7 +5208,7 @@ impl<'a> CheckerState<'a> {
     /// printer over that complete grammar; `None` is reserved for a
     /// malformed/recovery node and therefore arms the existing
     /// TypeNode recovery boundary.
-    fn reused_initializer_expression_text_slice(&mut self, node: NodeId) -> CheckResult2<String> {
+    fn reused_initializer_expression_text_slice(&mut self, node: NodeId) -> CheckResult<String> {
         match self.display_clone_expression_text_at_line_start(node, false)? {
             Some(text) => Ok(text),
             None => {
@@ -5230,7 +5230,7 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         error_node: Option<NodeId>,
         head_message: &'static DiagnosticMessage,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let original_source = source;
         let original_target = target;
         let related = self.is_type_comparable_to(source, target)?;
@@ -5305,7 +5305,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn type_could_have_top_level_singleton_types(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::BOOLEAN) {
             return Ok(false);
@@ -5340,7 +5340,7 @@ impl<'a> CheckerState<'a> {
     fn has_non_circular_type_parameter_default(
         &mut self,
         type_parameter: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let default = self.get_resolved_type_parameter_default(type_parameter)?;
         Ok(default != self.circular_constraint_type)
     }
@@ -5351,7 +5351,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getSymbolOfDeclaration @6.0.3
     /// tsc-hash: 197061af99891199274ec82eb08309cbb138441e9fcba571ac5aa6149bf1b3a0
     /// tsc-span: _tsc.js:49936-49938
-    pub(crate) fn get_symbol_of_declaration(&mut self, node: NodeId) -> CheckResult2<SymbolId> {
+    pub(crate) fn get_symbol_of_declaration(&mut self, node: NodeId) -> CheckResult<SymbolId> {
         let Some(symbol) = self.node_symbol(node) else {
             // Binder-created declarations always carry a symbol. Recovery
             // or checker-synthetic nodes without one use the same stable
@@ -5371,7 +5371,7 @@ impl<'a> CheckerState<'a> {
     /// symbols; a symbol left unstamped self-resolves (tsc
     /// `links.lateSymbol ||= symbol`) — the stamp-as-self write is
     /// elided (pure memo).
-    pub(crate) fn get_late_bound_symbol(&mut self, symbol: SymbolId) -> CheckResult2<SymbolId> {
+    pub(crate) fn get_late_bound_symbol(&mut self, symbol: SymbolId) -> CheckResult<SymbolId> {
         let data = self.binder.symbol(symbol);
         if !data
             .flags
@@ -5419,7 +5419,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: typeToString @6.0.3
     /// tsc-hash: 4b587962e2fb137a31ea52c35aeba733ffb4c6d97a8c54c98d5c1f1666e73dda
     /// tsc-span: _tsc.js:50717-50747
-    pub(crate) fn type_to_string_slice(&mut self, ty: TypeId) -> CheckResult2<String> {
+    pub(crate) fn type_to_string_slice(&mut self, ty: TypeId) -> CheckResult<String> {
         self.type_to_string_slice_root(
             ty, /*fully_qualified*/ false, /*no_type_reduction*/ false,
         )
@@ -5432,7 +5432,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn type_to_string_slice_no_type_reduction(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         self.type_to_string_slice_root(
             ty, /*fully_qualified*/ false, /*no_type_reduction*/ true,
         )
@@ -5446,7 +5446,7 @@ impl<'a> CheckerState<'a> {
     /// follows the same symbol-chain/import-type construction as
     /// nodeBuilder, while structural shapes reuse the ordinary
     /// recursive renderer.
-    pub(crate) fn get_type_name_for_error_display(&mut self, ty: TypeId) -> CheckResult2<String> {
+    pub(crate) fn get_type_name_for_error_display(&mut self, ty: TypeId) -> CheckResult<String> {
         self.type_to_string_slice_root(
             ty, /*fully_qualified*/ true, /*no_type_reduction*/ false,
         )
@@ -5462,7 +5462,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         fully_qualified: bool,
         no_type_reduction: bool,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         let saved_visited = std::mem::take(&mut self.slice_visited_types);
         let saved_approximate_length = std::mem::replace(&mut self.slice_approximate_length, 0);
         let saved_max_truncation_length = std::mem::replace(
@@ -5491,7 +5491,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         Ok(self.type_to_string_slice_node(ty, fully_qualified)?.0)
     }
 
@@ -5560,7 +5560,7 @@ impl<'a> CheckerState<'a> {
         types: &[TypeId],
         fully_qualified: bool,
         is_bare_list: bool,
-    ) -> CheckResult2<Vec<(String, SliceTypeNodeKind)>> {
+    ) -> CheckResult<Vec<(String, SliceTypeNodeKind)>> {
         if types.is_empty() {
             return Ok(Vec::new());
         }
@@ -5651,7 +5651,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
         fully_qualified: bool,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         Ok(self.symbol_type_face_slice(symbol, fully_qualified)?.0)
     }
 
@@ -5770,7 +5770,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         type_parameter_count: usize,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let target = self.tables.reference_target(ty);
         let Some(symbol) = self.tables.type_of(target).symbol else {
             return Ok(false);
@@ -5847,7 +5847,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
-    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(String, SliceTypeNodeKind)> {
         // typeToTypeNodeWorker 51331-51333: typeToString's default
         // builder flags do not include NoTypeReduction, so every
         // recursive display frame reduces before selecting a node
@@ -6147,7 +6147,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
-    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(String, SliceTypeNodeKind)> {
         let type_of = self.tables.type_of(ty);
         if let (Some(alias_symbol), alias_arguments) =
             (type_of.alias_symbol, type_of.alias_type_arguments.clone())
@@ -6707,7 +6707,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
-    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(String, SliceTypeNodeKind)> {
         let declaration = self.mapped_type_declaration(ty);
         let NodeData::MappedType(data) = self.data_of(declaration) else {
             unreachable!("mapped payload declaration has MappedType syntax kind");
@@ -6781,7 +6781,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
-    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(String, SliceTypeNodeKind)> {
         let inner = match self.tables.type_of(ty).data {
             TypeData::Index { ty: inner, .. } => inner,
             _ => unreachable!("INDEX flag implies Index data"),
@@ -6814,7 +6814,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
-    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(String, SliceTypeNodeKind)> {
         // InstantiationExpressionType (51755-51770): the TypeQuery
         // syntactic-reuse leg needs an enclosing-armed context (the
         // 9.3b probes established the reuse channel is inert for
@@ -6946,7 +6946,7 @@ impl<'a> CheckerState<'a> {
     fn slice_base_type_variable_of_class(
         &mut self,
         symbol: SymbolId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let class_type = self.get_declared_type_of_class_or_interface(symbol)?;
         let base_constructor = self.get_base_constructor_type_of_class(class_type)?;
         let flags = self.tables.flags_of(base_constructor);
@@ -6998,7 +6998,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
         fully_qualified: bool,
-    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(String, SliceTypeNodeKind)> {
         self.symbol_to_type_face_slice(symbol, fully_qualified, tsrs2_types::SymbolFlags::TYPE)
     }
 
@@ -7006,7 +7006,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
         fully_qualified: bool,
-    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(String, SliceTypeNodeKind)> {
         self.symbol_to_type_face_slice(symbol, fully_qualified, tsrs2_types::SymbolFlags::VALUE)
     }
 
@@ -7020,7 +7020,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         meaning: tsrs2_types::SymbolFlags,
         enclosing: NodeId,
-    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(String, SliceTypeNodeKind)> {
         let chain = self
             .symbol_chain_slice(
                 symbol,
@@ -7040,7 +7040,7 @@ impl<'a> CheckerState<'a> {
         chain: &[SymbolId],
         meaning: tsrs2_types::SymbolFlags,
         enclosing: Option<NodeId>,
-    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(String, SliceTypeNodeKind)> {
         let is_type_of = meaning == tsrs2_types::SymbolFlags::VALUE;
         let root = chain[0];
         if self.symbol_has_external_module_declaration(root) {
@@ -7097,7 +7097,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         fully_qualified: bool,
         meaning: tsrs2_types::SymbolFlags,
-    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(String, SliceTypeNodeKind)> {
         let is_type_of = meaning == tsrs2_types::SymbolFlags::VALUE;
         // 53117: some(chain[0].declarations,
         // hasNonGlobalAugmentationExternalModuleSymbol) routes the
@@ -7234,7 +7234,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         enclosing: Option<NodeId>,
         fully_qualified: bool,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         let chain = if enclosing.is_some() || fully_qualified {
             // yield_module_symbol FALSE — symbolToExpression passes
             // nothing (53338), including tsc's FQ retry, which still
@@ -7333,7 +7333,7 @@ impl<'a> CheckerState<'a> {
         end_of_chain: bool,
         yield_module_symbol: bool,
         enclosing: Option<NodeId>,
-    ) -> CheckResult2<Option<Vec<SymbolId>>> {
+    ) -> CheckResult<Option<Vec<SymbolId>>> {
         let mut accessible = self.accessible_symbol_chain_at_slice(symbol, meaning, enclosing)?;
         let needs_walk = match &accessible {
             None => true,
@@ -7478,7 +7478,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         meaning: tsrs2_types::SymbolFlags,
         enclosing: Option<NodeId>,
-    ) -> CheckResult2<Option<Vec<SymbolId>>> {
+    ) -> CheckResult<Option<Vec<SymbolId>>> {
         let tables = self.symbol_tables_in_scope_slice(enclosing);
         let mut visited = Vec::new();
         for (table_key, table, is_local_name_lookup) in tables {
@@ -7567,7 +7567,7 @@ impl<'a> CheckerState<'a> {
         is_local_name_lookup: bool,
         visited: &mut Vec<ScopeTableKey>,
         enclosing: Option<NodeId>,
-    ) -> CheckResult2<Option<Vec<SymbolId>>> {
+    ) -> CheckResult<Option<Vec<SymbolId>>> {
         if visited.contains(&table_key) {
             return Ok(None);
         }
@@ -7605,7 +7605,7 @@ impl<'a> CheckerState<'a> {
         is_local_name_lookup: bool,
         visited: &mut Vec<ScopeTableKey>,
         enclosing: Option<NodeId>,
-    ) -> CheckResult2<Option<Vec<SymbolId>>> {
+    ) -> CheckResult<Option<Vec<SymbolId>>> {
         let escaped = self.binder.symbol(symbol).escaped_name.clone();
         let direct = table.get(&escaped).copied();
         if self.symbol_chain_is_accessible_slice(
@@ -7707,7 +7707,7 @@ impl<'a> CheckerState<'a> {
         ignore_qualification: bool,
         visited: &mut Vec<ScopeTableKey>,
         enclosing: Option<NodeId>,
-    ) -> CheckResult2<Option<Vec<SymbolId>>> {
+    ) -> CheckResult<Option<Vec<SymbolId>>> {
         if self.symbol_chain_is_accessible_slice(
             symbol,
             Some(entry),
@@ -7754,7 +7754,7 @@ impl<'a> CheckerState<'a> {
         meaning: tsrs2_types::SymbolFlags,
         ignore_qualification: bool,
         enclosing: Option<NodeId>,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let Some(entry) = entry else {
             return Ok(false);
         };
@@ -7779,7 +7779,7 @@ impl<'a> CheckerState<'a> {
         entry: SymbolId,
         meaning: tsrs2_types::SymbolFlags,
         enclosing: Option<NodeId>,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if !self.needs_qualification_slice(entry, meaning, enclosing)? {
             return Ok(true);
         }
@@ -7811,7 +7811,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         meaning: tsrs2_types::SymbolFlags,
         enclosing: Option<NodeId>,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let escaped = self.binder.symbol(symbol).escaped_name.clone();
         for (_, table, _) in self.symbol_tables_in_scope_slice(enclosing) {
             let Some(&entry) = table.get(&escaped) else {
@@ -7853,7 +7853,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         enclosing: Option<NodeId>,
         meaning: tsrs2_types::SymbolFlags,
-    ) -> CheckResult2<Vec<SymbolId>> {
+    ) -> CheckResult<Vec<SymbolId>> {
         if let Some(container) = self.get_parent_of_symbol(symbol) {
             return self.with_alternative_containers_slice(
                 container,
@@ -7941,7 +7941,7 @@ impl<'a> CheckerState<'a> {
         parent_container: Option<SymbolId>,
         enclosing: Option<NodeId>,
         meaning: tsrs2_types::SymbolFlags,
-    ) -> CheckResult2<Vec<SymbolId>> {
+    ) -> CheckResult<Vec<SymbolId>> {
         let mut additional = Vec::new();
         if let Some(parent_container) = parent_container {
             let declarations = self.binder.symbol(container).declarations.clone();
@@ -8004,7 +8004,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         declaration: NodeId,
         container: SymbolId,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let mut current = Some(declaration);
         let mut file_symbol = None;
         while let Some(node) = current {
@@ -8038,7 +8038,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         container: SymbolId,
         symbol: SymbolId,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         if self.get_parent_of_symbol(symbol) == Some(container) {
             return Ok(Some(symbol));
         }
@@ -8074,7 +8074,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getSymbolIfSameReference @6.0.3 (predicate face)
     /// tsc-hash: 908084bf7d1f72b02a8256627f01987eb8cd0a6897b9c7027f0cac3f156f5d3d
     /// tsc-span: _tsc.js:50084-50088
-    fn symbol_if_same_reference_slice(&mut self, s1: SymbolId, s2: SymbolId) -> CheckResult2<bool> {
+    fn symbol_if_same_reference_slice(&mut self, s1: SymbolId, s2: SymbolId) -> CheckResult<bool> {
         let merged1 = self.get_merged_symbol(s1);
         let resolved1 = self
             .resolve_symbol_ex(Some(merged1), false)?
@@ -8109,7 +8109,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         use_alias_defined_outside_current_scope: bool,
         enclosing: Option<NodeId>,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         let exports = self.get_exports_of_symbol(parent)?;
         for (name, &exported) in exports.iter() {
             if self.symbol_if_same_reference_slice(exported, symbol)?
@@ -8197,7 +8197,7 @@ impl<'a> CheckerState<'a> {
     /// fileName against the program cwd (program-host.mjs
     /// absoluteProgramFileName), the same posture as
     /// getFullyQualifiedName's source-file arm.
-    fn specifier_for_module_symbol_slice(&self, symbol: SymbolId) -> CheckResult2<String> {
+    fn specifier_for_module_symbol_slice(&self, symbol: SymbolId) -> CheckResult<String> {
         let data = self.binder.symbol(symbol);
         let escaped = &data.escaped_name;
         // ambientModuleSymbolRegex (46291): /^".+"$/.
@@ -8245,7 +8245,7 @@ impl<'a> CheckerState<'a> {
         &self,
         symbol: SymbolId,
         enclosing: NodeId,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         let source_file_module = self
             .binder
             .symbol(symbol)
@@ -8353,7 +8353,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         fully_qualified: bool,
-    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(String, SliceTypeNodeKind)> {
         if self
             .tables
             .object_flags_of(ty)
@@ -8533,7 +8533,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         info: &crate::state::IndexInfo,
         fully_qualified: bool,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         let name = match info.declaration {
             Some(declaration) => {
                 let parameter = match self.data_of(declaration) {
@@ -8644,7 +8644,7 @@ impl<'a> CheckerState<'a> {
         property: SymbolId,
         fully_qualified: bool,
         rendered: &mut Vec<String>,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let property_is_reverse_mapped = self
             .links
             .symbol(property)
@@ -8832,7 +8832,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn signature_to_string_slice_for_overload_error(
         &mut self,
         signature: SignatureId,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         self.signature_to_string_slice_for_diagnostic(signature, SliceSignatureKind::CallSignature)
     }
 
@@ -8847,7 +8847,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
         kind: SignatureKind,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         let slice_kind = match kind {
             SignatureKind::Call => SliceSignatureKind::CallSignature,
             SignatureKind::Construct => SliceSignatureKind::ConstructSignature,
@@ -8862,7 +8862,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
         kind: SliceSignatureKind,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         let saved_visited = std::mem::take(&mut self.slice_visited_types);
         let saved_approximate_length = std::mem::replace(&mut self.slice_approximate_length, 0);
         let saved_max_truncation_length = std::mem::replace(
@@ -8913,7 +8913,7 @@ impl<'a> CheckerState<'a> {
         kind: SliceSignatureKind,
         member_name: Option<(&str, bool)>,
         fully_qualified: bool,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         let mapper = self.signature_of(signature).mapper;
         if let Some(mapper) = mapper {
             self.slice_display_mappers.push(mapper);
@@ -8932,7 +8932,7 @@ impl<'a> CheckerState<'a> {
         kind: SliceSignatureKind,
         member_name: Option<(&str, bool)>,
         fully_qualified: bool,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         let expanded = self.expanded_parameter_faces_slice(signature)?;
         let sig = self.signature_of(signature);
         let type_parameters = sig.type_parameters.clone();
@@ -9050,7 +9050,7 @@ impl<'a> CheckerState<'a> {
     fn expanded_parameter_faces_slice(
         &mut self,
         signature: SignatureId,
-    ) -> CheckResult2<Option<Vec<SliceParameterFace>>> {
+    ) -> CheckResult<Option<Vec<SliceParameterFace>>> {
         let sig = self.signature_of(signature);
         if !sig
             .flags
@@ -9159,7 +9159,7 @@ impl<'a> CheckerState<'a> {
         index: usize,
         element_flags: ElementFlags,
         rest_symbol: Option<SymbolId>,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         if let Some(declaration) = declaration {
             return self.tuple_element_label(declaration);
         }
@@ -9197,7 +9197,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         index: usize,
         element_flags: ElementFlags,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         let (name, dot_dot_dot) = match self.data_of(node) {
             NodeData::Parameter(data) => (data.name, data.dot_dot_dot_token.is_some()),
             NodeData::BindingElement(data) => (data.name, data.dot_dot_dot_token.is_some()),
@@ -9267,7 +9267,7 @@ impl<'a> CheckerState<'a> {
     fn declared_parameter_face_slice(
         &mut self,
         parameter: SymbolId,
-    ) -> CheckResult2<SliceParameterFace> {
+    ) -> CheckResult<SliceParameterFace> {
         let parameter_declaration = self
             .binder
             .symbol(parameter)
@@ -9325,7 +9325,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         face: &SliceParameterFace,
         fully_qualified: bool,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         let requires_undefined = match face.declaration {
             Some(declaration) => self.requires_adding_implicit_undefined_slice(declaration)?,
             None => false,
@@ -9417,7 +9417,7 @@ impl<'a> CheckerState<'a> {
     /// (StrongArityForUntypedJS|VoidIsNonOptional), which reduces to
     /// the min-argument integer without the void-trimming loop
     /// (structural.rs's variant).
-    fn is_optional_parameter_slice(&mut self, node: NodeId) -> CheckResult2<bool> {
+    fn is_optional_parameter_slice(&mut self, node: NodeId) -> CheckResult<bool> {
         let NodeData::Parameter(data) = self.data_of(node) else {
             return Ok(false);
         };
@@ -9478,10 +9478,7 @@ impl<'a> CheckerState<'a> {
     /// isRequiredInitializedParameter + isOptionalUninitializedParameterProperty
     /// folded in. The parameter-property arms consult the syntactic modifier mask
     /// (accessibility/readonly/override) on the declaration.
-    fn requires_adding_implicit_undefined_slice(
-        &mut self,
-        parameter: NodeId,
-    ) -> CheckResult2<bool> {
+    fn requires_adding_implicit_undefined_slice(&mut self, parameter: NodeId) -> CheckResult<bool> {
         let NodeData::Parameter(data) = self.data_of(parameter) else {
             return Ok(false);
         };
@@ -9556,7 +9553,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
         fully_qualified: bool,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         let return_type = self.get_return_type_of_signature(signature)?;
         let declaration = self.signature_of(signature).declaration;
         if let Some(declaration) = declaration {
@@ -9598,7 +9595,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         predicate: &crate::narrow::TypePredicate,
         fully_qualified: bool,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         use crate::narrow::TypePredicateKind;
         let asserts = matches!(
             predicate.kind,
@@ -9640,7 +9637,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         type_parameter: TypeId,
         fully_qualified: bool,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         let symbol = self
             .tables
             .type_of(type_parameter)
@@ -9736,7 +9733,7 @@ impl<'a> CheckerState<'a> {
         requires_adding_undefined: bool,
         question_equivalence: bool,
         is_parameter: bool,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         if self.slice_display_enclosing.is_none() {
             return Ok(None);
         }
@@ -9781,7 +9778,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         annotation: NodeId,
         ty: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if !self
             .tables
             .object_flags_of(ty)
@@ -9842,7 +9839,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn type_to_string_slice_with_error_enclosing(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         let enclosing = self.slice_display_enclosing_for(ty);
         let saved = std::mem::replace(&mut self.slice_display_enclosing, enclosing);
         let result = self.type_to_string_slice(ty);
@@ -9858,7 +9855,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         enclosing: NodeId,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         let saved = self.slice_display_enclosing.replace(enclosing);
         let result = self.type_to_string_slice(ty);
         self.slice_display_enclosing = saved;
@@ -9881,10 +9878,7 @@ impl<'a> CheckerState<'a> {
     /// removed, and missing declaration annotations become `any`.
     /// The printer below covers every valid TypeNode/JSDoc TypeNode
     /// shape admitted by tryReuseExistingTypeNode.
-    fn reusable_annotation_node_text_slice(
-        &mut self,
-        node: NodeId,
-    ) -> CheckResult2<Option<String>> {
+    fn reusable_annotation_node_text_slice(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         if !self.can_reuse_existing_type_node_slice(node)? {
             return Ok(None);
         }
@@ -9908,7 +9902,7 @@ impl<'a> CheckerState<'a> {
     /// and variadics become arrays.
     /// tsrs-native: string-face adapter over the exact existing-TypeNode
     /// visitor and standard-printer ledger blocks below.
-    pub(crate) fn type_annotation_text_slice(&mut self, node: NodeId) -> CheckResult2<String> {
+    pub(crate) fn type_annotation_text_slice(&mut self, node: NodeId) -> CheckResult<String> {
         Ok(self.type_annotation_face_slice(node)?.text)
     }
 
@@ -9920,12 +9914,12 @@ impl<'a> CheckerState<'a> {
     fn type_annotation_text_and_kind_slice(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(String, SliceTypeNodeKind)> {
         let face = self.type_annotation_face_slice(node)?;
         Ok((face.text, face.kind))
     }
 
-    fn type_annotation_face_slice(&mut self, node: NodeId) -> CheckResult2<SliceTypeNodeFace> {
+    fn type_annotation_face_slice(&mut self, node: NodeId) -> CheckResult<SliceTypeNodeFace> {
         if self.slice_reuse_visit_depth == 0 {
             return match self.reused_type_node_boundary_face_slice(node)? {
                 Some(face) => Ok(face),
@@ -9949,7 +9943,7 @@ impl<'a> CheckerState<'a> {
     fn reused_type_node_boundary_face_slice(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<Option<SliceTypeNodeFace>> {
+    ) -> CheckResult<Option<SliceTypeNodeFace>> {
         let saved_had_error = std::mem::replace(&mut self.slice_reuse_had_error, false);
         let saved_depth = std::mem::replace(&mut self.slice_reuse_visit_depth, 0);
         let result = self.visit_type_annotation_face_slice(node);
@@ -9959,10 +9953,7 @@ impl<'a> CheckerState<'a> {
         result.map(|face| (!had_error).then_some(face))
     }
 
-    fn visit_type_annotation_face_slice(
-        &mut self,
-        node: NodeId,
-    ) -> CheckResult2<SliceTypeNodeFace> {
+    fn visit_type_annotation_face_slice(&mut self, node: NodeId) -> CheckResult<SliceTypeNodeFace> {
         // visitExistingNodeTreeSymbols returns the existing node
         // immediately once a sibling armed the shared boundary.
         if self.slice_reuse_had_error {
@@ -9987,7 +9978,7 @@ impl<'a> CheckerState<'a> {
     fn type_annotation_face_worker_slice(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<SliceTypeNodeFace> {
+    ) -> CheckResult<SliceTypeNodeFace> {
         if self.is_empty_jsdoc_type_reference_slice(node) {
             return Ok(SliceTypeNodeFace::new(
                 "any".to_owned(),
@@ -10087,7 +10078,7 @@ impl<'a> CheckerState<'a> {
     fn try_visit_simple_type_node_face_slice(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<Option<SliceTypeNodeFace>> {
+    ) -> CheckResult<Option<SliceTypeNodeFace>> {
         let inner = self.skip_type_parentheses_slice(node);
         match self.data_of(inner) {
             NodeData::TypeReference(_) => self.try_visit_type_reference_face_slice(inner),
@@ -10113,7 +10104,7 @@ impl<'a> CheckerState<'a> {
     fn try_visit_indexed_access_face_slice(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<Option<SliceTypeNodeFace>> {
+    ) -> CheckResult<Option<SliceTypeNodeFace>> {
         let NodeData::IndexedAccessType(data) = self.data_of(node).clone() else {
             unreachable!("tryVisitIndexedAccess receives IndexedAccessType");
         };
@@ -10141,7 +10132,7 @@ impl<'a> CheckerState<'a> {
     fn try_visit_keyof_face_slice(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<Option<SliceTypeNodeFace>> {
+    ) -> CheckResult<Option<SliceTypeNodeFace>> {
         let NodeData::TypeOperator(data) = self.data_of(node).clone() else {
             unreachable!("tryVisitKeyOf receives TypeOperator");
         };
@@ -10164,7 +10155,7 @@ impl<'a> CheckerState<'a> {
     fn try_visit_type_query_face_slice(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<Option<SliceTypeNodeFace>> {
+    ) -> CheckResult<Option<SliceTypeNodeFace>> {
         let NodeData::TypeQuery(data) = self.data_of(node).clone() else {
             unreachable!("tryVisitTypeQuery receives TypeQuery");
         };
@@ -10192,7 +10183,7 @@ impl<'a> CheckerState<'a> {
     fn try_visit_type_reference_face_slice(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<Option<SliceTypeNodeFace>> {
+    ) -> CheckResult<Option<SliceTypeNodeFace>> {
         let NodeData::TypeReference(data) = self.data_of(node).clone() else {
             unreachable!("tryVisitTypeReference receives TypeReference");
         };
@@ -10222,7 +10213,7 @@ impl<'a> CheckerState<'a> {
         )))
     }
 
-    fn type_annotation_text_slice_raw(&mut self, node: NodeId) -> CheckResult2<String> {
+    fn type_annotation_text_slice_raw(&mut self, node: NodeId) -> CheckResult<String> {
         // visitExistingNodeTreeSymbolsWorker's two TypeReference
         // special cases precede the ordinary TypeReference visitor.
         if self.is_empty_jsdoc_type_reference_slice(node) {
@@ -10746,7 +10737,7 @@ impl<'a> CheckerState<'a> {
     /// `Object<string|number, V>` lowering (133431-133445).
     /// isJSDocIndexSignature is structural and does not require the
     /// TypeReference itself to carry NodeFlags::JSDoc.
-    fn jsdoc_index_signature_text_slice(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn jsdoc_index_signature_text_slice(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::TypeReference(data) = self.data_of(node).clone() else {
             return Ok(None);
         };
@@ -10776,7 +10767,7 @@ impl<'a> CheckerState<'a> {
     fn semantic_existing_type_node_text_and_kind_slice(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(String, SliceTypeNodeKind)> {
         let face = self.semantic_existing_type_node_face_slice(node)?;
         Ok((face.text, face.kind))
     }
@@ -10784,12 +10775,12 @@ impl<'a> CheckerState<'a> {
     fn semantic_existing_type_node_face_slice(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<SliceTypeNodeFace> {
+    ) -> CheckResult<SliceTypeNodeFace> {
         let ty = self.get_type_from_type_node(node)?;
         self.semantic_type_node_face_slice(ty)
     }
 
-    fn semantic_type_node_face_slice(&mut self, mut ty: TypeId) -> CheckResult2<SliceTypeNodeFace> {
+    fn semantic_type_node_face_slice(&mut self, mut ty: TypeId) -> CheckResult<SliceTypeNodeFace> {
         if let Some(&mapper) = self.slice_display_mappers.last() {
             ty = self.instantiate_type(ty, Some(mapper))?;
         }
@@ -10818,7 +10809,7 @@ impl<'a> CheckerState<'a> {
         })
     }
 
-    fn semantic_existing_type_node_text_slice(&mut self, node: NodeId) -> CheckResult2<String> {
+    fn semantic_existing_type_node_text_slice(&mut self, node: NodeId) -> CheckResult<String> {
         Ok(self
             .semantic_existing_type_node_text_and_kind_slice(node)?
             .0)
@@ -10831,8 +10822,8 @@ impl<'a> CheckerState<'a> {
     fn with_reused_node_scope_slice<T>(
         &mut self,
         node: NodeId,
-        op: impl FnOnce(&mut Self) -> CheckResult2<T>,
-    ) -> CheckResult2<T> {
+        op: impl FnOnce(&mut Self) -> CheckResult<T>,
+    ) -> CheckResult<T> {
         let saved = self.slice_display_enclosing.replace(node);
         let result = op(self);
         self.slice_display_enclosing = saved;
@@ -10853,7 +10844,7 @@ impl<'a> CheckerState<'a> {
         name: NodeId,
         meaning: SymbolFlags,
         type_arguments: &[String],
-    ) -> CheckResult2<Option<(String, SliceTypeNodeKind)>> {
+    ) -> CheckResult<Option<(String, SliceTypeNodeKind)>> {
         let Some(enclosing) = self.slice_display_enclosing else {
             return Ok(None);
         };
@@ -10906,7 +10897,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         name: NodeId,
         meaning: SymbolFlags,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let first = self.first_identifier(name);
         // trackExistingEntityName's JS-only early error: `exports`,
         // expression-form `module.exports`, and type-position
@@ -11007,7 +10998,7 @@ impl<'a> CheckerState<'a> {
         container: NodeId,
         location: NodeId,
         meaning: SymbolFlags,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let mut candidate = container;
         if matches!(
             self.kind_of(container),
@@ -11058,7 +11049,7 @@ impl<'a> CheckerState<'a> {
         enclosing: NodeId,
         initial_symbol: SymbolId,
         seen: &mut Vec<SymbolId>,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if seen.contains(&symbol) {
             return Ok(false);
         }
@@ -11457,7 +11448,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         data: &ImportTypeData,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if !self.is_in_js_file(node) {
             return Ok(true);
         }
@@ -11502,7 +11493,7 @@ impl<'a> CheckerState<'a> {
     /// to the worker branches that tsc actually probes (TypeReference,
     /// literal ImportType, ThisType, and `unique symbol`). Ordinary
     /// child nodes therefore do not pay a semantic type read.
-    fn can_reuse_existing_type_node_slice(&mut self, node: NodeId) -> CheckResult2<bool> {
+    fn can_reuse_existing_type_node_slice(&mut self, node: NodeId) -> CheckResult<bool> {
         let mut context_type = None;
         if let Some(&mapper) = self.slice_display_mappers.last() {
             let ty = self.get_type_from_type_node(node)?;
@@ -11569,7 +11560,7 @@ impl<'a> CheckerState<'a> {
     fn visited_type_node_text_slice(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<(String, SliceTypeNodeKind)> {
+    ) -> CheckResult<(String, SliceTypeNodeKind)> {
         self.type_annotation_text_and_kind_slice(node)
     }
 
@@ -11636,7 +11627,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         data: JSDocFunctionTypeData,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         let construct =
             node_util::is_jsdoc_construct_signature(self.binder.source_of_node(node), node);
         let type_parameters =
@@ -11708,7 +11699,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         data: JSDocTypeLiteralData,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         let properties = self.nodes_of(data.js_doc_property_tags);
         if properties.is_empty() {
             return Ok("{}".to_owned());
@@ -11778,7 +11769,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: emitImportAttribute @6.0.3
     /// tsc-hash: a0edb1f08aefc12e25f1d599c3cf2229a8048fc7d56e28b1e0785d33726c6b6f
     /// tsc-span: _tsc.js:119322-119332
-    fn import_attributes_text_slice(&mut self, node: NodeId) -> CheckResult2<String> {
+    fn import_attributes_text_slice(&mut self, node: NodeId) -> CheckResult<String> {
         let NodeData::ImportAttributes(data) = self.data_of(node).clone() else {
             unreachable!("ImportType attributes is an ImportAttributes node");
         };
@@ -11806,7 +11797,7 @@ impl<'a> CheckerState<'a> {
 
     /// Entity names in reused annotations: Identifier / QualifiedName
     /// dots / the property-access spellings type queries carry.
-    fn entity_name_text_slice(&mut self, node: NodeId) -> CheckResult2<String> {
+    fn entity_name_text_slice(&mut self, node: NodeId) -> CheckResult<String> {
         match self.data_of(node).clone() {
             NodeData::Identifier(data) => {
                 Ok(tsrs2_binder::unescape_leading_underscores(&data.escaped_text).to_owned())
@@ -11847,7 +11838,7 @@ impl<'a> CheckerState<'a> {
 
     /// LiteralTypeNode literal faces: synthesized clones print cooked
     /// numeric text and double-quoted strings (oracle-probed Q01/Q02).
-    fn literal_type_node_text_slice(&mut self, literal: NodeId) -> CheckResult2<String> {
+    fn literal_type_node_text_slice(&mut self, literal: NodeId) -> CheckResult<String> {
         match self.kind_of(literal) {
             SyntaxKind::TrueKeyword => return Ok("true".to_owned()),
             SyntaxKind::FalseKeyword => return Ok("false".to_owned()),
@@ -11887,7 +11878,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn type_argument_nodes_text_slice(
         &mut self,
         nodes: Vec<NodeId>,
-    ) -> CheckResult2<Vec<String>> {
+    ) -> CheckResult<Vec<String>> {
         let mut rendered = Vec::with_capacity(nodes.len());
         for (index, node) in nodes.into_iter().enumerate() {
             let face = self.type_annotation_face_slice(node)?;
@@ -11925,7 +11916,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn type_parameter_nodes_text_slice(
         &mut self,
         nodes: Vec<NodeId>,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         if nodes.is_empty() {
             return Ok(String::new());
         }
@@ -11936,7 +11927,7 @@ impl<'a> CheckerState<'a> {
         Ok(format!("<{}>", rendered.join(", ")))
     }
 
-    fn type_parameter_node_text_slice(&mut self, node: NodeId) -> CheckResult2<String> {
+    fn type_parameter_node_text_slice(&mut self, node: NodeId) -> CheckResult<String> {
         let NodeData::TypeParameter(data) = self.data_of(node).clone() else {
             unreachable!("type-parameter lists contain TypeParameter nodes");
         };
@@ -11972,10 +11963,7 @@ impl<'a> CheckerState<'a> {
     /// isFunctionLike/isParameter missing-type branch synthesizes
     /// `any` when no initializer supplies a type-bearing face.
     /// tsrs-native: Rust node-list adapter into the body-printer compartment.
-    pub(crate) fn parameter_nodes_text_slice(
-        &mut self,
-        nodes: Vec<NodeId>,
-    ) -> CheckResult2<String> {
+    pub(crate) fn parameter_nodes_text_slice(&mut self, nodes: Vec<NodeId>) -> CheckResult<String> {
         match self.display_clone_parameter_nodes_text(nodes)? {
             Some(text) => Ok(text),
             None => {
@@ -12017,7 +12005,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn type_literal_member_text_slice(
         &mut self,
         member: NodeId,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         if matches!(
             self.kind_of(member),
             SyntaxKind::MethodSignature
@@ -12037,7 +12025,7 @@ impl<'a> CheckerState<'a> {
     fn type_literal_member_text_slice_worker(
         &mut self,
         member: NodeId,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         // 133537-133543: in this error-display context
         // shouldRemoveDeclaration is true for every unresolved dynamic
         // name. Late-bindable computed names survive and are visited.
@@ -12191,7 +12179,7 @@ impl<'a> CheckerState<'a> {
     /// computed entity names.
     /// tsrs-native: string-face adapter over the exact property-name
     /// and entity-name ledger blocks.
-    pub(crate) fn member_name_node_text_slice(&mut self, name: NodeId) -> CheckResult2<String> {
+    pub(crate) fn member_name_node_text_slice(&mut self, name: NodeId) -> CheckResult<String> {
         match self.data_of(name).clone() {
             NodeData::Identifier(data) => {
                 Ok(tsrs2_binder::unescape_leading_underscores(&data.escaped_text).to_owned())
@@ -12216,7 +12204,7 @@ impl<'a> CheckerState<'a> {
     fn reused_computed_property_name_text_slice(
         &mut self,
         expression: NodeId,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         if !self.is_entity_name_expression(expression)
             || !self.reused_entity_name_introduces_error_slice(expression, SymbolFlags::VALUE)?
         {
@@ -12271,7 +12259,7 @@ impl<'a> CheckerState<'a> {
     fn reused_computed_property_expression_text_slice(
         &mut self,
         expression: NodeId,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         match self.display_clone_computed_property_expression_text(expression)? {
             Some(text) => Ok(text),
             None => {
@@ -12290,7 +12278,7 @@ impl<'a> CheckerState<'a> {
     /// but not array patterns (`[a, b]`); omitted elements print
     /// empty (`[, x]`). Computed entity names share the visitor's
     /// tracker/recovery rewrite above.
-    fn binding_pattern_text_slice(&mut self, pattern: NodeId) -> CheckResult2<String> {
+    fn binding_pattern_text_slice(&mut self, pattern: NodeId) -> CheckResult<String> {
         self.binding_pattern_text_slice_worker(pattern, false)
     }
 
@@ -12298,7 +12286,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         pattern: NodeId,
         preserve_initializers: bool,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         match self.data_of(pattern).clone() {
             NodeData::ObjectBindingPattern(data) => {
                 let (elements, has_trailing_comma) = match data.elements {
@@ -12347,7 +12335,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         element: NodeId,
         preserve_initializers: bool,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         match self.data_of(element).clone() {
             NodeData::OmittedExpression(_) => Ok(String::new()),
             NodeData::BindingElement(data) => {
@@ -12408,7 +12396,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         property: SymbolId,
         fully_qualified: bool,
-    ) -> CheckResult2<String> {
+    ) -> CheckResult<String> {
         if let Some(value_declaration) = self.binder.symbol(property).value_declaration {
             let name = tsrs2_binder::node_util::get_name_of_declaration(
                 self.binder.source_of_node(value_declaration),
@@ -12570,7 +12558,7 @@ impl<'a> CheckerState<'a> {
     /// error-display slice never sets, so the collapse probe runs for
     /// every non-nullable member (the shipped `t.flags | EnumLike`
     /// disjunct is always-true by construction).
-    fn format_union_types(&mut self, types: &[TypeId]) -> CheckResult2<Vec<TypeId>> {
+    fn format_union_types(&mut self, types: &[TypeId]) -> CheckResult<Vec<TypeId>> {
         let mut result = Vec::new();
         let mut combined = TypeFlags::from_bits(0);
         let mut i = 0;
@@ -12627,7 +12615,7 @@ impl<'a> CheckerState<'a> {
     /// Identifier — a pattern-named label throws in shipped tsc, so the
     /// local expect deliberately preserves that invariant. The call-site
     /// unescapeLeadingUnderscores (51961) is folded in.
-    fn tuple_element_label(&self, declaration: NodeId) -> CheckResult2<String> {
+    fn tuple_element_label(&self, declaration: NodeId) -> CheckResult<String> {
         let name = match self.data_of(declaration) {
             NodeData::NamedTupleMember(data) => data.name,
             NodeData::Parameter(data) => data.name,
@@ -13033,7 +13021,7 @@ fn identifier_or_literal_name_slice(
     string_named: bool,
     single_quote: bool,
     is_method: bool,
-) -> CheckResult2<String> {
+) -> CheckResult<String> {
     let is_method_named_new = is_method && name == "new";
     if !is_method_named_new && tsrs2_syntax::is_identifier_text(name) {
         return Ok(name.to_owned());
@@ -13063,14 +13051,14 @@ fn identifier_or_literal_name_slice(
 /// `escapeString` and then escapes every non-ASCII UTF-16 code unit.
 /// Iterating code units (rather than Rust scalar values) preserves the
 /// exact surrogate-pair spelling for astral characters.
-fn string_literal_name_slice(name: &str, single_quote: bool) -> CheckResult2<String> {
+fn string_literal_name_slice(name: &str, single_quote: bool) -> CheckResult<String> {
     string_literal_name_text(&tsrs2_types::TemplateText::from_utf8(name), single_quote)
 }
 
 fn string_literal_name_text(
     name: &tsrs2_types::TemplateText,
     single_quote: bool,
-) -> CheckResult2<String> {
+) -> CheckResult<String> {
     let quote = if single_quote { '\'' } else { '"' };
     let units = name.units();
     let mut escaped = String::new();

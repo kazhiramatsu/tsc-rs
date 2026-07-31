@@ -17,13 +17,13 @@
 use tsrs2_types::{TypeData, TypeFlags, TypeId, UnionReduction};
 
 use crate::relate::RelationKind;
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult, CheckerState};
 
 impl<'a> CheckerState<'a> {
     /// tsc-port: isTypeSubtypeOf @6.0.3
     /// tsc-hash: 6c987b105e7c93ba9a28ac8aeb98020ec479f32b55236d7c3f346af47dd04617
     /// tsc-span: _tsc.js:63913-63915
-    pub fn is_type_subtype_of(&mut self, source: TypeId, target: TypeId) -> CheckResult2<bool> {
+    pub fn is_type_subtype_of(&mut self, source: TypeId, target: TypeId) -> CheckResult<bool> {
         self.is_type_related_to(source, target, RelationKind::Subtype)
     }
 
@@ -34,7 +34,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         self.is_type_related_to(source, target, RelationKind::StrictSubtype)
     }
 
@@ -57,7 +57,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         types: &[TypeId],
         reduction: UnionReduction,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         self.get_union_type_ex_with_origin(types, reduction, None, None, None)
     }
 
@@ -74,7 +74,7 @@ impl<'a> CheckerState<'a> {
         alias_symbol: Option<tsrs2_binder::SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
         origin: Option<TypeId>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if types.is_empty() {
             return Ok(self.tables.intrinsics.never);
         }
@@ -121,7 +121,7 @@ impl<'a> CheckerState<'a> {
         alias_symbol: Option<tsrs2_binder::SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
         origin: Option<TypeId>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let mut type_set: Vec<TypeId> = Vec::new();
         let includes = self.tables.add_types_to_union(&mut type_set, 0, types);
         if reduction != UnionReduction::None {
@@ -223,7 +223,7 @@ impl<'a> CheckerState<'a> {
     /// `(T & A) | (T & B) | ...` collapses to `T` when the
     /// IsConstrainedTypeVariable intersections' primitive sides cover
     /// T's base constraint.
-    fn remove_constrained_type_variables(&mut self, types: &mut Vec<TypeId>) -> CheckResult2<()> {
+    fn remove_constrained_type_variables(&mut self, types: &mut Vec<TypeId>) -> CheckResult<()> {
         let constrained_members = |state: &Self, t: TypeId| -> Option<(TypeId, TypeId)> {
             if !state.tables.flags_of(t).intersects(TypeFlags::INTERSECTION)
                 || !state
@@ -292,7 +292,7 @@ impl<'a> CheckerState<'a> {
     fn remove_string_literals_matched_by_template_literals(
         &mut self,
         types: &mut Vec<TypeId>,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let templates: Vec<TypeId> = types
             .iter()
             .copied()
@@ -344,7 +344,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         mut types: Vec<TypeId>,
         has_object_types: bool,
-    ) -> CheckResult2<Option<Vec<TypeId>>> {
+    ) -> CheckResult<Option<Vec<TypeId>>> {
         if types.len() < 2 {
             return Ok(Some(types));
         }
@@ -464,7 +464,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// Consumed by widening JOINs (M6); ported with the stage per the
     /// steps doc.
-    pub fn get_common_supertype(&mut self, types: &[TypeId]) -> CheckResult2<TypeId> {
+    pub fn get_common_supertype(&mut self, types: &[TypeId]) -> CheckResult<TypeId> {
         if types.len() == 1 {
             return Ok(types[0]);
         }
@@ -492,7 +492,7 @@ impl<'a> CheckerState<'a> {
         Ok(self.get_nullable_type(supertype_or_union, combined & TypeFlags::NULLABLE.bits()))
     }
 
-    fn get_single_common_supertype(&mut self, types: &[TypeId]) -> CheckResult2<TypeId> {
+    fn get_single_common_supertype(&mut self, types: &[TypeId]) -> CheckResult<TypeId> {
         let mut candidate = types[0];
         for &t in &types[1..] {
             if self.is_type_strict_subtype_of(candidate, t)? {
@@ -521,7 +521,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: literalTypesWithSameBaseType @6.0.3
     /// tsc-hash: 64a3b81252aff06adb46f09200c9ee8fe4c9ed322791a89307acaa682bd387db
     /// tsc-span: _tsc.js:67634-67646
-    fn literal_types_with_same_base_type(&mut self, types: &[TypeId]) -> CheckResult2<bool> {
+    fn literal_types_with_same_base_type(&mut self, types: &[TypeId]) -> CheckResult<bool> {
         let mut common_base_type: Option<TypeId> = None;
         for &t in types {
             if self.tables.flags_of(t).intersects(TypeFlags::NEVER) {
@@ -561,7 +561,7 @@ impl<'a> CheckerState<'a> {
     /// reduceLeft over the Subtype relation (M3 4.8) — first element
     /// seeds; ties keep the earlier element (strict `?:` on the later
     /// one winning only when it IS a subtype).
-    pub(crate) fn get_common_subtype(&mut self, types: &[TypeId]) -> CheckResult2<TypeId> {
+    pub(crate) fn get_common_subtype(&mut self, types: &[TypeId]) -> CheckResult<TypeId> {
         let mut candidate = types[0];
         for &t in &types[1..] {
             if self.is_type_subtype_of(t, candidate)? {
@@ -605,7 +605,7 @@ impl<'a> CheckerState<'a> {
     pub fn extract_redundant_template_literals(
         &mut self,
         types: &mut Vec<TypeId>,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let literals: Vec<TypeId> = types
             .iter()
             .copied()

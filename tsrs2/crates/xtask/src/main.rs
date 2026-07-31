@@ -11401,7 +11401,7 @@ mod escape_scanner_tests {
     #[test]
     fn wrapper_definitions_are_excluded() {
         let sites = scan(
-            r#"fn expression_stub(&self, worker: &str, owner: &str) -> CheckResult2<TypeId> {
+            r#"fn expression_stub(&self, worker: &str, owner: &str) -> CheckResult<TypeId> {
                    Err(Unsupported::new(format!(
                        "{worker} (expression band, lands at {owner})"
                    )))

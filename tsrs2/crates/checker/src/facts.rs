@@ -19,17 +19,13 @@ use tsrs2_types::{
     UnionReduction,
 };
 
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult, CheckerState};
 
 impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeFacts @6.0.3
     /// tsc-hash: 9ebc7f3fcc2cc025223d75d01134c416284c42ce877e8934427ca333d8a3cf15
     /// tsc-span: _tsc.js:69697-69699
-    pub(crate) fn get_type_facts(
-        &mut self,
-        ty: TypeId,
-        mask: TypeFacts,
-    ) -> CheckResult2<TypeFacts> {
+    pub(crate) fn get_type_facts(&mut self, ty: TypeId, mask: TypeFacts) -> CheckResult<TypeFacts> {
         Ok(TypeFacts::from_bits(
             self.get_type_facts_worker(ty, mask)?.bits() & mask.bits(),
         ))
@@ -38,21 +34,21 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: hasTypeFacts @6.0.3
     /// tsc-hash: 4f06d60bbba177c53e3a163c6144509e67902619f008771a0d4b16f8f1a423c0
     /// tsc-span: _tsc.js:69700-69702
-    pub(crate) fn has_type_facts(&mut self, ty: TypeId, mask: TypeFacts) -> CheckResult2<bool> {
+    pub(crate) fn has_type_facts(&mut self, ty: TypeId, mask: TypeFacts) -> CheckResult<bool> {
         Ok(!self.get_type_facts(ty, mask)?.is_empty())
     }
 
     /// tsc-port: isNullableType @6.0.3
     /// tsc-hash: f7b677457f8e94a6bd55aa41baf3f2dd44f4fcafb0b0c2b2ee9b5f0810c77b70
     /// tsc-span: _tsc.js:74993-74995
-    pub(crate) fn is_nullable_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_nullable_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         self.has_type_facts(ty, TypeFacts::IS_UNDEFINED_OR_NULL)
     }
 
     /// tsc-port: getNonNullableTypeIfNeeded @6.0.3
     /// tsc-hash: 49e58f1edfe3016bf12af5d2d847006af7e55b11c6027d89255c6b9c53bb52d1
     /// tsc-span: _tsc.js:74996-74998
-    pub(crate) fn get_non_nullable_type_if_needed(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_non_nullable_type_if_needed(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if self.is_nullable_type(ty)? {
             self.get_non_nullable_type(ty)
         } else {
@@ -67,7 +63,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         caller_only_needs: TypeFacts,
-    ) -> CheckResult2<TypeFacts> {
+    ) -> CheckResult<TypeFacts> {
         let mut ty = ty;
         if self
             .tables
@@ -238,7 +234,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         caller_only_needs: TypeFacts,
-    ) -> CheckResult2<TypeFacts> {
+    ) -> CheckResult<TypeFacts> {
         let ignore_objects = self.maybe_type_of_kind(ty, TypeFlags::PRIMITIVE);
         let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
             TypeData::Intersection { types } => types.to_vec(),
@@ -264,7 +260,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:69690-69696
     ///
     /// The EvolvingArray early-out is M5 shape (no producer yet).
-    pub(crate) fn is_function_object_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_function_object_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         if self
             .tables
             .object_flags_of(ty)
@@ -302,14 +298,14 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         include: TypeFacts,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         self.filter_type_with(ty, |state, t| state.has_type_facts(t, include))
     }
 
     /// tsc-port: removeDefinitelyFalsyTypes @6.0.3
     /// tsc-hash: 4b35dd27b02e56d454abacaf93da8d180122234771a27ad38f9428a382799575
     /// tsc-span: _tsc.js:67839-67841
-    pub(crate) fn remove_definitely_falsy_types(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn remove_definitely_falsy_types(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         self.filter_type_with(ty, |state, t| state.has_type_facts(t, TypeFacts::TRUTHY))
     }
 
@@ -319,7 +315,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// The exactOptionalPropertyTypes arm inlines tsc removeType
     /// (filterType with a `t !== missingType` predicate, 69993).
-    pub(crate) fn remove_missing_or_undefined_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn remove_missing_or_undefined_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if self.options.exact_optional_property_types == Some(true) {
             let missing = self.tables.intrinsics.missing;
             return Ok(self.tables.filter_type(ty, |_, t| t != missing));
@@ -339,7 +335,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         facts: TypeFacts,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let strict_null_checks = self
             .options
             .strict_option_value(self.options.strict_null_checks);
@@ -403,7 +399,7 @@ impl<'a> CheckerState<'a> {
         other_facts: TypeFacts,
         other_includes_facts: TypeFacts,
         other_type: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let facts = self.get_type_facts(
             ty,
             TypeFacts::EQ_UNDEFINED
@@ -455,7 +451,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getNonNullableType @6.0.3
     /// tsc-hash: e64e3f0d08a085a8b0a5a597fb450e623bdf865ae234a5a8565c24f338871e98
     /// tsc-span: _tsc.js:67868-67870
-    pub(crate) fn get_non_nullable_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_non_nullable_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if self
             .options
             .strict_option_value(self.options.strict_null_checks)
@@ -474,7 +470,7 @@ impl<'a> CheckerState<'a> {
     /// with NO diagnostic — no suggestion-budget interaction); the
     /// noLib fallback is `T & {}`. The miss memoizes as tsc's
     /// unknownSymbol sentinel.
-    fn get_global_non_nullable_type_instantiation(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    fn get_global_non_nullable_type_instantiation(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if self.deferred_global_non_nullable_type_alias.is_none() {
             let symbol = self.get_global_symbol("NonNullable", SymbolFlags::TYPE_ALIAS, None);
             self.deferred_global_non_nullable_type_alias = Some(symbol);
@@ -503,8 +499,8 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn filter_type_with(
         &mut self,
         ty: TypeId,
-        mut predicate: impl FnMut(&mut Self, TypeId) -> CheckResult2<bool>,
-    ) -> CheckResult2<TypeId> {
+        mut predicate: impl FnMut(&mut Self, TypeId) -> CheckResult<bool>,
+    ) -> CheckResult<TypeId> {
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
                 TypeData::Union { types, .. } => types.to_vec(),

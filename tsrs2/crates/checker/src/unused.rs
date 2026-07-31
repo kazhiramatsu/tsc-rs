@@ -9,7 +9,7 @@ use tsrs2_diags::{gen as diagnostics, DiagnosticCategory};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{ModifierFlags, NodeFlags, SymbolFlags};
 
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult, CheckerState};
 
 #[derive(Clone, Copy)]
 enum UnusedIdentifierKind {
@@ -183,7 +183,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b5c9ae6d244cc4bb01e39b9b4fd715a5417bb06e780f0a33cbb49b96ff1f65af
     /// tsc-span: _tsc.js:83008-83038
     /// d2: d2:5a2c45fdca4506945d356d1d7cf0abdfbf8b3db6c524587eb3031fd4e0169d16
-    fn check_unused_class_members(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_unused_class_members(&mut self, node: NodeId) -> CheckResult<()> {
         let members = match self.data_of(node) {
             NodeData::ClassDeclaration(data) => data.members,
             NodeData::ClassExpression(data) => data.members,
@@ -277,7 +277,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 5361f1034a082554254b852b09d2e7ae434d6e951b2527c0f511d91b1b7483e6
     /// tsc-span: _tsc.js:83039-83044
     /// d2: d2:1a7c9df7149acc8d3c6e6cc251f8528c50f63dacedad718d7f5bfff2b4783063
-    fn check_unused_infer_type_parameter(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_unused_infer_type_parameter(&mut self, node: NodeId) -> CheckResult<()> {
         let type_parameter = match self.data_of(node) {
             NodeData::InferType(data) => data.type_parameter,
             _ => None,
@@ -307,7 +307,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c6294c45ceb55de9dfec242db2e34ba86ac499530e73b118fbefe0e41acf73fe
     /// tsc-span: _tsc.js:83045-83066
     /// d2: d2:6cbef847d0eda39c3a2178516c958e766146c3da957e1c890aacaecb5e78c48c
-    fn check_unused_type_parameters(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_unused_type_parameters(&mut self, node: NodeId) -> CheckResult<()> {
         let symbol = self.get_symbol_of_declaration(node)?;
         let declarations = self.binder.symbol(symbol).declarations.clone();
         if declarations.last().copied() != Some(node) {
@@ -424,7 +424,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: d4cc4fc46164e7575e1f9964fbc87191270877a3ab40825f641d9c379c47e8fe
     /// tsc-span: _tsc.js:83067-83069
     /// d2: d2:94ef9c9390a0c96872a6bdc750aa0024387233d4c00c6d7b0c91fcd2a7049e60
-    fn is_type_parameter_unused(&mut self, type_parameter: NodeId) -> CheckResult2<bool> {
+    fn is_type_parameter_unused(&mut self, type_parameter: NodeId) -> CheckResult<bool> {
         let Some(name) = self.name_of_node(type_parameter) else {
             return Ok(false);
         };
@@ -450,7 +450,7 @@ impl<'a> CheckerState<'a> {
     /// declaration-owner complete so later block/function
     /// registrations and the 8.4 suggestion pass reuse the same
     /// grouping semantics.
-    fn check_unused_locals_and_parameters(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_unused_locals_and_parameters(&mut self, node: NodeId) -> CheckResult<()> {
         let Some(locals) = self.binder.locals_of(node) else {
             return Ok(());
         };

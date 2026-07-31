@@ -21,7 +21,7 @@ use crate::relate::RelationKind;
 use crate::links::LinkSlot;
 use crate::operators::OuterExpressionKinds;
 use crate::speculate::SpeculationOutcome;
-use crate::state::{CheckResult2, CheckerState, Signature, SignatureId};
+use crate::state::{CheckResult, CheckerState, Signature, SignatureId};
 use crate::structural::SignatureKind;
 
 /// The Rust stand-in for tsc's fabricated SyntheticExpression parse
@@ -148,7 +148,7 @@ impl<'a> CheckerState<'a> {
     /// markLinkedReferences is declaration-emit bookkeeping. The
     /// importHelpers probe is semantic and verifies the resolved
     /// helper module before decorator checking.
-    pub(crate) fn check_decorators(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_decorators(&mut self, node: NodeId) -> CheckResult<()> {
         if !crate::js_grammar::can_have_decorators(self.kind_of(node)) {
             return Ok(());
         }
@@ -417,7 +417,7 @@ impl<'a> CheckerState<'a> {
     /// The headMessage switch: the legacy PropertyDeclaration face FALLS
     /// THROUGH to the Parameter void-or-any head; Parameter itself is
     /// reachable only under experimental_decorators=true.
-    fn check_decorator(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_decorator(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_decorator(node);
         let signature = self.get_resolved_signature(node, CheckMode::NORMAL)?;
         self.check_deprecated_signature(signature, node)?;
@@ -499,7 +499,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         let NodeData::Decorator(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -568,7 +568,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         decorator: NodeId,
         signatures: &[SignatureId],
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if signatures.is_empty() {
             return Ok(false);
         }
@@ -598,7 +598,7 @@ impl<'a> CheckerState<'a> {
     fn get_effective_decorator_arguments(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<Vec<EffectiveArg>> {
+    ) -> CheckResult<Vec<EffectiveArg>> {
         let NodeData::Decorator(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -641,7 +641,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         signature: SignatureId,
-    ) -> CheckResult2<usize> {
+    ) -> CheckResult<usize> {
         if self.options.experimental_decorators {
             self.get_legacy_decorator_argument_count(node, signature)
         } else {
@@ -659,7 +659,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         signature: SignatureId,
-    ) -> CheckResult2<usize> {
+    ) -> CheckResult<usize> {
         let parent = self
             .parent_of(node)
             .expect("decorators hang off their decorated node");
@@ -697,7 +697,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_decorator_call_signature(
         &mut self,
         decorator: NodeId,
-    ) -> CheckResult2<Option<SignatureId>> {
+    ) -> CheckResult<Option<SignatureId>> {
         if self.options.experimental_decorators {
             self.get_legacy_decorator_call_signature(decorator)
         } else {
@@ -718,7 +718,7 @@ impl<'a> CheckerState<'a> {
     fn get_es_decorator_call_signature(
         &mut self,
         decorator: NodeId,
-    ) -> CheckResult2<Option<SignatureId>> {
+    ) -> CheckResult<Option<SignatureId>> {
         let parent = self
             .parent_of(decorator)
             .expect("decorators hang off their decorated node");
@@ -751,7 +751,7 @@ impl<'a> CheckerState<'a> {
     fn compute_es_decorator_call_signature(
         &mut self,
         parent: NodeId,
-    ) -> CheckResult2<Option<SignatureId>> {
+    ) -> CheckResult<Option<SignatureId>> {
         match self.kind_of(parent) {
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
                 let symbol = self.get_symbol_of_declaration(parent)?;
@@ -845,7 +845,7 @@ impl<'a> CheckerState<'a> {
     fn get_legacy_decorator_call_signature(
         &mut self,
         decorator: NodeId,
-    ) -> CheckResult2<Option<SignatureId>> {
+    ) -> CheckResult<Option<SignatureId>> {
         let parent = self
             .parent_of(decorator)
             .expect("decorators hang off their decorated node");
@@ -878,7 +878,7 @@ impl<'a> CheckerState<'a> {
     fn compute_legacy_decorator_call_signature(
         &mut self,
         parent: NodeId,
-    ) -> CheckResult2<Option<SignatureId>> {
+    ) -> CheckResult<Option<SignatureId>> {
         let void_type = self.tables.intrinsics.void;
         match self.kind_of(parent) {
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => {
@@ -1018,7 +1018,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         member: NodeId,
         class_node: NodeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let class_symbol = self.get_symbol_of_declaration(class_node)?;
         if self.has_static_modifier(member) {
             self.get_type_of_symbol(class_symbol)
@@ -1030,7 +1030,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getParentTypeOfClassElement @6.0.3
     /// tsc-hash: 3c26ce179366efa1cea432822c3cbfb5856061741314073968991eee7610b81c
     /// tsc-span: _tsc.js:87798-87801
-    fn get_parent_type_of_class_element(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    fn get_parent_type_of_class_element(&mut self, node: NodeId) -> CheckResult<TypeId> {
         let class_node = self
             .parent_of(node)
             .expect("class elements hang off their class");
@@ -1045,7 +1045,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getClassElementPropertyKeyType @6.0.3
     /// tsc-hash: aac60b64694cdf8eae6dcb0edbef3d765eb1c39c713cd0f3d6fea6c7eeea4b2a
     /// tsc-span: _tsc.js:87802-87816
-    fn get_class_element_property_key_type(&mut self, element: NodeId) -> CheckResult2<TypeId> {
+    fn get_class_element_property_key_type(&mut self, element: NodeId) -> CheckResult<TypeId> {
         let name = self.name_of_node(element).expect(
             "parser invariant: class method/accessor/property parsers always store a name \
              (parse recovery stores a missing Identifier)",
@@ -1090,7 +1090,7 @@ impl<'a> CheckerState<'a> {
     fn create_typed_property_descriptor_type(
         &mut self,
         property_type: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let target = self.get_global_typed_property_descriptor_type()?;
         Ok(self.create_type_from_generic_global_type(target, &[property_type]))
     }
@@ -1098,7 +1098,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: createClassDecoratorContextType @6.0.3
     /// tsc-hash: 4348c9337457af0838ccc26895dcc8a55ddc408fd694b54829235b2bd8fc478e
     /// tsc-span: _tsc.js:78468-78473
-    fn create_class_decorator_context_type(&mut self, class_type: TypeId) -> CheckResult2<TypeId> {
+    fn create_class_decorator_context_type(&mut self, class_type: TypeId) -> CheckResult<TypeId> {
         let target = self.get_global_class_decorator_context_type()?;
         Ok(self.try_create_type_reference(target, &[class_type]))
     }
@@ -1114,7 +1114,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         this_type: TypeId,
         value_type: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let is_static = self.has_static_modifier(node);
         let name = self.name_of_node(node).expect(
             "parser invariant: class method/accessor/property parsers always store a name \
@@ -1216,7 +1216,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         this_type: TypeId,
         value_type: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let target = self.get_global_class_accessor_decorator_target_type()?;
         Ok(self.try_create_type_reference(target, &[this_type, value_type]))
     }
@@ -1228,7 +1228,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         this_type: TypeId,
         value_type: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let target = self.get_global_class_accessor_decorator_result_type()?;
         Ok(self.try_create_type_reference(target, &[this_type, value_type]))
     }
@@ -1240,7 +1240,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         this_type: TypeId,
         value_type: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let this_param = self.create_synthetic_parameter("this", this_type);
         let value_param = self.create_synthetic_parameter("value", value_type);
         let signature =
@@ -1256,7 +1256,7 @@ impl<'a> CheckerState<'a> {
         target_type: TypeId,
         context_type: TypeId,
         non_optional_return_type: TypeId,
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         let target_param = self.create_synthetic_parameter("target", target_type);
         let context_param = self.create_synthetic_parameter("context", context_type);
         let return_type = self.get_union_type_ex(
@@ -1479,7 +1479,7 @@ impl<'a> CheckerState<'a> {
     /// failure candidate (§2 ordering). callLikeExpressionMayHaveType-
     /// Arguments = call/new/tagged/jsx-opening-like; the tagged/binary/
     /// jsx operand arms are 5.7b/c callers.
-    pub(crate) fn resolve_untyped_call(&mut self, node: NodeId) -> CheckResult2<SignatureId> {
+    pub(crate) fn resolve_untyped_call(&mut self, node: NodeId) -> CheckResult<SignatureId> {
         match self.data_of(node) {
             NodeData::CallExpression(data) => {
                 let type_arguments = data.type_arguments;
@@ -1553,7 +1553,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: resolveErrorCall @6.0.3
     /// tsc-hash: 6c240d4f52cedae55b64d4baf7391c105c57e9791fc744641e19d598212b953f
     /// tsc-span: _tsc.js:75764-75767
-    fn resolve_error_call(&mut self, node: NodeId) -> CheckResult2<SignatureId> {
+    fn resolve_error_call(&mut self, node: NodeId) -> CheckResult<SignatureId> {
         self.resolve_untyped_call(node)?;
         Ok(self.unknown_signature)
     }
@@ -1614,7 +1614,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signatures: &[SignatureId],
         call_chain_flags: SignatureFlags,
-    ) -> CheckResult2<Vec<SignatureId>> {
+    ) -> CheckResult<Vec<SignatureId>> {
         let mut result: Vec<SignatureId> = Vec::with_capacity(signatures.len());
         let mut last_parent: Option<NodeId> = None;
         let mut last_symbol: Option<SymbolId> = None;
@@ -1696,7 +1696,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_effective_call_arguments(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<Vec<EffectiveArg>> {
+    ) -> CheckResult<Vec<EffectiveArg>> {
         let arguments = match self.data_of(node) {
             NodeData::CallExpression(data) => data.arguments,
             NodeData::NewExpression(data) => data.arguments,
@@ -1875,7 +1875,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         arg: &EffectiveArg,
         check_mode: CheckMode,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         match *arg {
             EffectiveArg::Node(node) => self.check_expression(node, check_mode),
             EffectiveArg::Synthetic { ty, is_spread, .. } => {
@@ -1901,7 +1901,7 @@ impl<'a> CheckerState<'a> {
         contextual_type: TypeId,
         inference_context: Option<InferenceContextId>,
         check_mode: CheckMode,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         match *arg {
             EffectiveArg::Node(node) => self.check_expression_with_contextual_type(
                 node,
@@ -1973,7 +1973,7 @@ impl<'a> CheckerState<'a> {
         args: &[EffectiveArg],
         signature: SignatureId,
         signature_help_trailing_comma: bool,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if self.kind_of(node) == SyntaxKind::JsxOpeningFragment {
             return Ok(true);
         }
@@ -2123,7 +2123,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getMutableArrayOrTupleType @6.0.3
     /// tsc-hash: 076893146c5750d0d2244745750d89fd6cd633d1aef8084b08066c1ea12ebd0a
     /// tsc-span: _tsc.js:75993-76001
-    fn get_mutable_array_or_tuple_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    fn get_mutable_array_or_tuple_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             let mapped = self.map_type(
                 ty,
@@ -2171,7 +2171,7 @@ impl<'a> CheckerState<'a> {
         arg: &EffectiveArg,
         spread_type: TypeId,
         error_node: Option<NodeId>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let undefined_type = self.tables.intrinsics.undefined;
         if error_node.is_some() {
             return self.check_iterated_type_or_element_type(
@@ -2206,7 +2206,7 @@ impl<'a> CheckerState<'a> {
         rest_type: TypeId,
         inference_context: Option<InferenceContextId>,
         check_mode: CheckMode,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let in_const_context = self.is_const_type_variable(Some(rest_type), 0)?;
         if arg_count > 0 && index >= arg_count - 1 {
             let arg = &args[arg_count - 1];
@@ -2353,7 +2353,7 @@ impl<'a> CheckerState<'a> {
         type_argument_nodes: &[NodeId],
         report_errors: bool,
         head_message: Option<&'static DiagnosticMessage>,
-    ) -> CheckResult2<Option<Vec<TypeId>>> {
+    ) -> CheckResult<Option<Vec<TypeId>>> {
         if head_message.is_some() {
             // The chained-head flavor (2344-coded outer chain over the
             // decorator head) arrives with decorator resolution (5.8).
@@ -2425,7 +2425,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         index: usize,
         length: usize,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         self.get_contextual_type_for_element_expression_at(ty, index, Some(length))
     }
 
@@ -2447,7 +2447,7 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         span: &DiagSpan,
         head: &'static DiagnosticMessage,
-    ) -> CheckResult2<Diagnostic> {
+    ) -> CheckResult<Diagnostic> {
         let original_source = source;
         let original_target = target;
         // Applicability's direct-head fallback bypasses isRelatedTo's
@@ -2512,7 +2512,7 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
         span: &DiagSpan,
-    ) -> CheckResult2<Diagnostic> {
+    ) -> CheckResult<Diagnostic> {
         let original_source = source;
         let original_target = target;
         let (source, target) = self.normalized_relation_report_types(source, target)?;
@@ -2559,7 +2559,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if self.tables.is_tuple_type(source) && self.tables.is_tuple_type(target) {
             return Ok(false);
         }
@@ -2603,7 +2603,7 @@ impl<'a> CheckerState<'a> {
     fn get_this_argument_type(
         &mut self,
         this_argument_node: Option<NodeId>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let Some(node) = this_argument_node else {
             return Ok(self.tables.intrinsics.void);
         };
@@ -2639,7 +2639,7 @@ impl<'a> CheckerState<'a> {
         signature: SignatureId,
         check_mode: CheckMode,
         context: InferenceContextId,
-    ) -> CheckResult2<Vec<TypeId>> {
+    ) -> CheckResult<Vec<TypeId>> {
         let param_type = self.get_effective_first_argument_for_jsx_signature(signature, node)?;
         let attributes = match self.data_of(node) {
             NodeData::JsxOpeningElement(data) => data.attributes,
@@ -2694,7 +2694,7 @@ impl<'a> CheckerState<'a> {
         args: &[EffectiveArg],
         check_mode: CheckMode,
         context: InferenceContextId,
-    ) -> CheckResult2<Vec<TypeId>> {
+    ) -> CheckResult<Vec<TypeId>> {
         let node_kind = self.kind_of(node);
         if matches!(
             node_kind,
@@ -2919,7 +2919,7 @@ impl<'a> CheckerState<'a> {
         relation: RelationKind,
         check_mode: CheckMode,
         mode: ApplicabilityMode,
-    ) -> CheckResult2<Option<Vec<ApplicabilityError>>> {
+    ) -> CheckResult<Option<Vec<ApplicabilityError>>> {
         let param_type = self.get_effective_first_argument_for_jsx_signature(signature, node)?;
         let is_jsx_open_fragment = self.kind_of(node) == SyntaxKind::JsxOpeningFragment;
         let mut attributes_node = None;
@@ -2997,7 +2997,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         mode: ApplicabilityMode,
-    ) -> CheckResult2<Option<ApplicabilityError>> {
+    ) -> CheckResult<Option<ApplicabilityError>> {
         // getJsxNamespaceContainerForImplicitImport: None (guarded).
         let tag_name = match self.data_of(node) {
             NodeData::JsxOpeningElement(data) => data.tag_name,
@@ -3167,7 +3167,7 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         head: &'static DiagnosticMessage,
         mode: ApplicabilityMode,
-    ) -> CheckResult2<Option<Vec<ApplicabilityError>>> {
+    ) -> CheckResult<Option<Vec<ApplicabilityError>>> {
         let before = self.diagnostics.len();
         let outcome = self.elaborate_literal_assignment(node, target, Some(head))?;
         if !outcome.reported() {
@@ -3190,7 +3190,7 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         head: &'static DiagnosticMessage,
         mode: ApplicabilityMode,
-    ) -> CheckResult2<Vec<ApplicabilityError>> {
+    ) -> CheckResult<Vec<ApplicabilityError>> {
         let head = if head.code
             == diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1.code
             && self.options.exact_optional_property_types.unwrap_or(false)
@@ -3219,7 +3219,7 @@ impl<'a> CheckerState<'a> {
         arg: &EffectiveArg,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let EffectiveArg::Synthetic { pos, end, .. } = *arg else {
             return Ok(target);
         };
@@ -3339,7 +3339,7 @@ impl<'a> CheckerState<'a> {
         relation: RelationKind,
         check_mode: CheckMode,
         mode: ApplicabilityMode,
-    ) -> CheckResult2<Option<Vec<ApplicabilityError>>> {
+    ) -> CheckResult<Option<Vec<ApplicabilityError>>> {
         if matches!(
             self.kind_of(node),
             SyntaxKind::JsxOpeningElement
@@ -3591,7 +3591,7 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
         relation: RelationKind,
-    ) -> CheckResult2<Option<RelatedInfo>> {
+    ) -> CheckResult<Option<RelatedInfo>> {
         let span = match *arg {
             EffectiveArg::Node(arg_node) => {
                 self.diag_span_of_node(self.get_effective_check_node(arg_node))
@@ -3607,7 +3607,7 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
         relation: RelationKind,
-    ) -> CheckResult2<Option<RelatedInfo>> {
+    ) -> CheckResult<Option<RelatedInfo>> {
         let Some(span) = span else { return Ok(None) };
         if self.get_awaited_type_of_promise(target)?.is_some() {
             return Ok(None);
@@ -3655,7 +3655,7 @@ impl<'a> CheckerState<'a> {
         check_mode: CheckMode,
         call_chain_flags: SignatureFlags,
         mut head_message: Option<&'static DiagnosticMessage>,
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         let node_kind = self.kind_of(node);
         let is_decorator = node_kind == SyntaxKind::Decorator;
         let is_instanceof = node_kind == SyntaxKind::BinaryExpression;
@@ -3779,7 +3779,7 @@ impl<'a> CheckerState<'a> {
         ctx: &mut ResolveCallCtx,
         signatures: &[SignatureId],
         head_message: Option<&'static DiagnosticMessage>,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         fn append_to_linear_tail(mut prefix: MessageChain, detail: MessageChain) -> MessageChain {
             let mut tail = &mut prefix;
             while tail.next.len() == 1 {
@@ -4020,12 +4020,12 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ctx: &mut ResolveCallCtx,
         failed: SignatureId,
-    ) -> CheckResult2<Option<RelatedInfo>> {
+    ) -> CheckResult<Option<RelatedInfo>> {
         let save_candidates = ctx.candidates_for_argument_error.take();
         let save_arity = ctx.candidate_for_argument_arity_error.take();
         let save_type_argument = ctx.candidate_for_type_argument_error.take();
         let mut probe_arg_check_mode: Option<CheckMode> = None;
-        let result = (|state: &mut Self| -> CheckResult2<Option<RelatedInfo>> {
+        let result = (|state: &mut Self| -> CheckResult<Option<RelatedInfo>> {
             let Some(declaration) = state.signature_of(failed).declaration else {
                 return Ok(None);
             };
@@ -4128,7 +4128,7 @@ impl<'a> CheckerState<'a> {
         relation: RelationKind,
         is_single_non_generic_candidate: bool,
         rollback_rejected_candidates: bool,
-    ) -> CheckResult2<Option<SignatureId>> {
+    ) -> CheckResult<Option<SignatureId>> {
         ctx.candidates_for_argument_error = None;
         ctx.candidate_for_argument_arity_error = None;
         ctx.candidate_for_type_argument_error = None;
@@ -4222,7 +4222,7 @@ impl<'a> CheckerState<'a> {
         candidate: SignatureId,
         relation: RelationKind,
         mut arg_check_mode: CheckMode,
-    ) -> CheckResult2<OverloadCandidateTrial> {
+    ) -> CheckResult<OverloadCandidateTrial> {
         let mut check_candidate;
         let mut inference_context: Option<InferenceContextId> = None;
         if self.signature_of(candidate).type_parameters.is_some() {
@@ -4378,7 +4378,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         ctx: &mut ResolveCallCtx,
         check_mode: CheckMode,
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         debug_assert!(!ctx.candidates.is_empty());
         self.check_node_deferred(node);
         let any_generic = ctx
@@ -4408,7 +4408,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         ctx: &mut ResolveCallCtx,
         check_mode: CheckMode,
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         let args_count = self.apparent_argument_count.unwrap_or(ctx.args.len());
         let best_index = self.get_longest_candidate_index(&ctx.candidates, args_count)?;
         let candidate = ctx.candidates[best_index];
@@ -4462,7 +4462,7 @@ impl<'a> CheckerState<'a> {
         type_argument_nodes: &[NodeId],
         type_parameters: &[TypeId],
         is_javascript: bool,
-    ) -> CheckResult2<Vec<TypeId>> {
+    ) -> CheckResult<Vec<TypeId>> {
         let mut type_arguments: Vec<TypeId> = Vec::with_capacity(type_argument_nodes.len());
         for &node in type_argument_nodes {
             type_arguments.push(self.get_type_from_type_node(node)?);
@@ -4495,7 +4495,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         candidates: &[SignatureId],
         args_count: usize,
-    ) -> CheckResult2<usize> {
+    ) -> CheckResult<usize> {
         let mut max_params_index: usize = 0;
         let mut max_params: isize = -1;
         for (i, &candidate) in candidates.iter().enumerate() {
@@ -4520,7 +4520,7 @@ impl<'a> CheckerState<'a> {
     fn create_union_of_signatures_for_overload_failure(
         &mut self,
         candidates: &[SignatureId],
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         let this_parameters: Vec<SymbolId> = candidates
             .iter()
             .filter_map(|&c| self.signature_of(c).this_parameter)
@@ -4646,7 +4646,7 @@ impl<'a> CheckerState<'a> {
     fn try_get_rest_type_of_signature(
         &mut self,
         signature: SignatureId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let data = self.signature_of(signature);
         if !data.flags.intersects(SignatureFlags::HAS_REST_PARAMETER) {
             return Ok(None);
@@ -4677,7 +4677,7 @@ impl<'a> CheckerState<'a> {
     /// directly under `new <globalPromiseSymbol>`; getSymbolAtLocation
     /// on the constructor identifier reduces to the same resolveName
     /// probe for the identifier-callee shape this predicate demands.
-    fn is_promise_resolve_arity_error(&mut self, node: NodeId) -> CheckResult2<bool> {
+    fn is_promise_resolve_arity_error(&mut self, node: NodeId) -> CheckResult<bool> {
         let NodeData::CallExpression(data) = self.data_of(node) else {
             return Ok(false);
         };
@@ -4761,7 +4761,7 @@ impl<'a> CheckerState<'a> {
         signatures: &[SignatureId],
         args: &[EffectiveArg],
         head_message: Option<&'static DiagnosticMessage>,
-    ) -> CheckResult2<Diagnostic> {
+    ) -> CheckResult<Diagnostic> {
         let wrap_in_head = |chain: MessageChain| match head_message {
             Some(head) => MessageChain::new(head, &[]).with_next(vec![chain]),
             None => chain,
@@ -4908,7 +4908,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         parameter: NodeId,
         argument_index: usize,
-    ) -> CheckResult2<RelatedInfo> {
+    ) -> CheckResult<RelatedInfo> {
         let (name, is_rest) = match self.data_of(parameter) {
             NodeData::Parameter(data) => (data.name, data.dot_dot_dot_token.is_some()),
             NodeData::JSDocParameterTag(data) => {
@@ -4959,7 +4959,7 @@ impl<'a> CheckerState<'a> {
         signatures: &[SignatureId],
         type_arguments_array: Option<NodeArrayId>,
         type_argument_nodes: &[NodeId],
-    ) -> CheckResult2<Diagnostic> {
+    ) -> CheckResult<Diagnostic> {
         let arg_count = type_argument_nodes.len();
         let span = match type_arguments_array {
             Some(array) => {
@@ -5029,7 +5029,7 @@ impl<'a> CheckerState<'a> {
         apparent_func_type: TypeId,
         num_call_signatures: usize,
         num_construct_signatures: usize,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if self.tables.flags_of(func_type).intersects(TypeFlags::ANY) {
             return Ok(true);
         }
@@ -5070,7 +5070,7 @@ impl<'a> CheckerState<'a> {
         error_target: NodeId,
         apparent_type: TypeId,
         kind: SignatureKind,
-    ) -> CheckResult2<(MessageChain, Option<&'static DiagnosticMessage>)> {
+    ) -> CheckResult<(MessageChain, Option<&'static DiagnosticMessage>)> {
         fn prepend(
             details: Option<MessageChain>,
             message: &'static DiagnosticMessage,
@@ -5207,7 +5207,7 @@ impl<'a> CheckerState<'a> {
         apparent_type: TypeId,
         kind: SignatureKind,
         related_information: Option<RelatedInfo>,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let (chain, related_message) =
             self.invocation_error_details(error_target, apparent_type, kind)?;
         let parent = self.parent_of(error_target);
@@ -5238,7 +5238,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         let NodeData::CallExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -5427,7 +5427,7 @@ impl<'a> CheckerState<'a> {
     fn is_generic_function_returning_function(
         &mut self,
         signature: SignatureId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if self.signature_of(signature).type_parameters.is_none() {
             return Ok(false);
         }
@@ -5445,7 +5445,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         let NodeData::NewExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -5586,7 +5586,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         target: SymbolId,
         ty: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let base_types = self.get_base_types(ty)?;
         if base_types.is_empty() {
             return Ok(false);
@@ -5632,7 +5632,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         signature: SignatureId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let Some(declaration) = self.signature_of(signature).declaration else {
             return Ok(true);
         };
@@ -5697,7 +5697,7 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
         relation: RelationKind,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let properties = match self.data_of(attributes) {
             NodeData::JsxAttributes(data) => data.properties,
             _ => return Ok(false),
@@ -5776,7 +5776,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         let is_jsx_open_fragment = self.kind_of(node) == SyntaxKind::JsxOpeningFragment;
         let mut value_tag_name: Option<NodeId> = None;
         let expr_types;
@@ -5896,7 +5896,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         let NodeData::TaggedTemplateExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -5956,7 +5956,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let NodeData::TaggedTemplateExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -6002,7 +6002,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         let NodeData::BinaryExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -6071,7 +6071,7 @@ impl<'a> CheckerState<'a> {
     /// worker (the "SILENT None stub" era ended there; the stale
     /// header outlived it — m4-review F8), and resolved modules
     /// produce real Promise-wrapped module types.
-    pub(crate) fn check_import_call_expression(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn check_import_call_expression(&mut self, node: NodeId) -> CheckResult<TypeId> {
         self.check_grammar_import_call_expression(node);
         let NodeData::CallExpression(data) = self.data_of(node) else {
             unreachable!("import calls are call expressions");
@@ -6268,7 +6268,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         match self.kind_of(node) {
             SyntaxKind::CallExpression => self.resolve_call_expression(node, check_mode),
             SyntaxKind::NewExpression => self.resolve_new_expression(node, check_mode),
@@ -6312,7 +6312,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         let cached = self.links.node(node).resolved_signature.clone();
         if let LinkSlot::Resolved(cached) = cached {
             return Ok(cached);
@@ -6394,7 +6394,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let (type_arguments, expression) = match self.data_of(node) {
             NodeData::CallExpression(data) => (data.type_arguments, data.expression),
             NodeData::NewExpression(data) => (data.type_arguments, data.expression),
@@ -6559,7 +6559,7 @@ impl<'a> CheckerState<'a> {
     /// checked-JS `require` identifier in this checker. Explicit
     /// ambient function/variable declarations are accepted too;
     /// aliases and local declarations are not CommonJS require calls.
-    fn is_common_js_require(&mut self, node: NodeId) -> CheckResult2<bool> {
+    fn is_common_js_require(&mut self, node: NodeId) -> CheckResult<bool> {
         if !self.is_require_call(node, /*require_string_literal_like_argument*/ true) {
             return Ok(false);
         }
@@ -6632,7 +6632,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isSymbolOrSymbolForCall @6.0.3
     /// tsc-hash: 7f795d82739f8c0d3e0537b4833ca9e15fe55c71dd23938052fff87798ea1dfc
     /// tsc-span: _tsc.js:77692-77717
-    pub(crate) fn is_symbol_or_symbol_for_call(&mut self, node: NodeId) -> CheckResult2<bool> {
+    pub(crate) fn is_symbol_or_symbol_for_call(&mut self, node: NodeId) -> CheckResult<bool> {
         let NodeData::CallExpression(data) = self.data_of(node) else {
             return Ok(false);
         };
