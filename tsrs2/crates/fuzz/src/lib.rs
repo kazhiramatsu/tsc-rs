@@ -1,5 +1,7 @@
 #![forbid(unsafe_code)]
 
+pub mod preflight;
+
 use tsrs2_checker::{check_program, CompilerOptions, InputFile};
 
 pub fn smoke_generated_source(source: &str) -> usize {

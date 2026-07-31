@@ -312,6 +312,10 @@ version = "0.1.0"
 name = "tsrs2-fuzz"
 version = "0.1.0"
 dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+ "toml_edit",
  "tsrs2-checker",
 ]
 
@@ -384,6 +388,7 @@ dependencies = [
  "tsrs2-checker",
  "tsrs2-conformance",
  "tsrs2-diags",
+ "tsrs2-fuzz",
  "tsrs2-harness",
  "tsrs2-oracle",
  "tsrs2-syntax",

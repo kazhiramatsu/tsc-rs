@@ -1,0 +1,160 @@
+{
+  "schema": 1,
+  "status": "draft",
+  "source_references": [
+    {
+      "path": "crates/checker/src/iterate.rs",
+      "sha256": "169b0fda023610d4d041e98d886406c3fcf7655c845d75fa71b0d62541f0993d"
+    },
+    {
+      "path": "crates/checker/src/evaluate.rs",
+      "sha256": "3a369b77b657b3f7558a68566283c83ddceef052b5ce6d25e7a57a31a0bb2c63"
+    },
+    {
+      "path": "crates/checker/src/inference.rs",
+      "sha256": "40b7f27ec698c8758c45666f31b39a2c685d88de6b6574cdc7f4e85e4fe3159c"
+    },
+    {
+      "path": "crates/checker/src/check.rs",
+      "sha256": "10a31f9807068e6ad1b0643bbb603828d75989c6995c4827374aabae4f2bb707"
+    },
+    {
+      "path": "crates/checker/src/state.rs",
+      "sha256": "e92632a5285bab0988087e622435a50923919dec0cdede305a3077ec028d1b5f"
+    }
+  ],
+  "checks": [
+    {
+      "id": "oracle-deviations.source-contracts",
+      "status": "ready",
+      "detail": "All five M8 reviewed TypeScript 6.0.3 crash shapes have stable registry identities and explicit source contracts.",
+      "blocks": [],
+      "evidence": [
+        "crates/checker/src/iterate.rs:986-998",
+        "crates/checker/src/evaluate.rs:957-970",
+        "crates/checker/src/inference.rs:3418-3445",
+        "crates/checker/src/check.rs:6465-6479"
+      ]
+    },
+    {
+      "id": "oracle-deviations.authoritative-lineage",
+      "status": "pending",
+      "detail": "The draft registry names the authoritative M8 readiness rows, but schema 1 does not yet bind that repository-level document or reviewed commit as a typed source reference.",
+      "blocks": [
+        "oracle-deviation-freeze",
+        "m9-preflight-ready"
+      ],
+      "evidence": [
+        "../docs/design/greenfield/m8-readiness.md#recorded-tsc-603-crash-deviations-differential-classification"
+      ]
+    },
+    {
+      "id": "oracle-deviations.exact-input-outcome-hashes",
+      "status": "unknown",
+      "detail": "Exact input, oracle outcome, and declared Rust outcome hashes have not been captured. Optional hash fields are intentionally absent.",
+      "blocks": [
+        "oracle-deviation-freeze",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "The M8 source contract records prose shapes and Rust containment behavior, not exact replay artifacts."
+      ]
+    },
+    {
+      "id": "oracle-deviations.replay-canaries",
+      "status": "unknown",
+      "detail": "Positive and adjacent-negative real replay canary hashes have not been captured. Optional canary fields are intentionally absent.",
+      "blocks": [
+        "oracle-deviation-freeze",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "Canaries require the true M9 replay protocol."
+      ]
+    },
+    {
+      "id": "oracle-deviations.freeze",
+      "status": "pending",
+      "detail": "This registry remains draft until every row has exact input/outcome hashes, a declared Rust outcome hash, and positive plus adjacent-negative replay canaries.",
+      "blocks": [
+        "qualifying-window"
+      ],
+      "evidence": [
+        "Top-level status is draft."
+      ]
+    }
+  ],
+  "deviations": [
+    {
+      "id": "oracle-crash.async-from-sync.for-await-nonpromise-thenable",
+      "status": "unknown",
+      "detail": "The source contract is reviewed, but exact replay input/outcome hashes and both canaries have not been captured.",
+      "blocks": [
+        "oracle-deviation-freeze",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "M8 readiness recorded crash deviation row 1",
+        "crates/checker/src/iterate.rs:986-998"
+      ],
+      "source_contract": "M8 crash row 1: a for-await loop over a synchronous iterable whose yield type is a non-Promise thenable with callable then and a non-callable callback parameter. TypeScript 6.0.3 Debug-fails in getAwaitedTypeNoAlias; tsrs reports the explicit TS1320 pair at the async-from-sync boundary. See crates/checker/src/iterate.rs:986-998."
+    },
+    {
+      "id": "oracle-crash.async-from-sync.async-generator-yield-star-nonpromise-thenable",
+      "status": "unknown",
+      "detail": "The source contract is reviewed, but exact replay input/outcome hashes and positive/adjacent-negative canaries have not been captured.",
+      "blocks": [
+        "oracle-deviation-freeze",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "M8 readiness recorded crash deviation row 2",
+        "crates/checker/src/iterate.rs:986-998"
+      ],
+      "source_contract": "M8 crash row 2: yield-star of the same synchronous iterable inside an async generator. A non-delegated yield of the thenable is an adjacent negative and reports TS1321 normally. The shared async-from-sync boundary is documented at crates/checker/src/iterate.rs:986-998."
+    },
+    {
+      "id": "oracle-crash.static-block-strict-property-initialization-without-strict-null-checks",
+      "status": "unknown",
+      "detail": "The source contract is reviewed, but exact replay input/outcome hashes and both canaries have not been captured.",
+      "blocks": [
+        "oracle-deviation-freeze",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "M8 readiness recorded crash deviation row 3",
+        "crates/checker/src/evaluate.rs:957-970"
+      ],
+      "source_contract": "M8 crash row 3: the class static-block strictPropertyInitialization probe with strictNullChecks=false reaches TypeScript 6.0.3 getOptionalType and Debug-asserts. tsrs keeps the pre-swap declared-type reduction only for that regime. See crates/checker/src/evaluate.rs:957-970."
+    },
+    {
+      "id": "oracle-crash.tuple-inference-empty-middle-slice-type-variable-rest",
+      "status": "unknown",
+      "detail": "The source contract is reviewed, but exact replay input/outcome hashes and both canaries have not been captured.",
+      "blocks": [
+        "oracle-deviation-freeze",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "M8 readiness recorded crash deviation row 4",
+        "crates/checker/src/inference.rs:3418-3445"
+      ],
+      "source_contract": "M8 crash row 4: tuple inference through a variadic/rest or rest/variadic middle pair where an empty middle slice meets a rest element containing a type variable. TypeScript 6.0.3 dereferences the absent source; tsrs preserves prior candidates and stops the remaining ladder at that boundary. See crates/checker/src/inference.rs:3418-3445."
+    },
+    {
+      "id": "oracle-crash.checked-js-outer-jsdoc-template-reference-display",
+      "status": "unknown",
+      "detail": "The source contract is reviewed, but exact replay input/outcome hashes and both canaries have not been captured.",
+      "blocks": [
+        "oracle-deviation-freeze",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "M8 readiness recorded crash deviation row 5",
+        "crates/checker/src/check.rs:6465-6479",
+        "crates/checker/src/state.rs:31-55"
+      ],
+      "source_contract": "M8 crash row 5: checked-JavaScript diagnostic display for a nested class whose enclosing class owns a JSDoc @template parameter, such as a this.prototype.missing diagnostic. TypeScript 6.0.3 passes an absent parent symbol through typeToString; tsrs uses the typed OuterJsdocTemplateReferenceDisplay boundary. See crates/checker/src/check.rs:6465-6479 and crates/checker/src/state.rs:31-55."
+    }
+  ]
+}
