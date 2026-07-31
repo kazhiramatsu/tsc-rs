@@ -26,7 +26,8 @@ authority for an identity set.
 | A1 accepted state | bootstrap -> append-only versions | accepted identities only grow |
 | A2 scope | draft -> optional band pin -> global frozen | pinned deletion needs a tombstone; global additions/edits never occur |
 | A5 family map | draft -> frozen base + universe extensions | old ownership is byte-stable; extensions add new domain rows only |
-| M9 histories | bootstrap -> append-only windows/signatures | prior windows/fields are byte-stable; signature state is one-way |
+| M9 policy | draft -> reviewed frozen snapshot | freeze pins preflight/domain/calibration/burn-in-zero and producer/verifier/attestation inputs |
+| M9 histories | bootstrap -> append-only windows/classes/witnesses/incidents/owner-task events | prior canonical records are byte-stable; state is derived from appended transitions and recurrence appends |
 
 ## 1. Common anchor protocol
 

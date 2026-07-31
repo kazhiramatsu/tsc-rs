@@ -44,11 +44,16 @@ cargo xtask m8 readiness --require-ready
 The orchestration command validates a candidate B2 artifact's schema,
 producer-input fingerprint, inventory hash, raw declaration counts, and
 exact zero-hit reviews before reuse. A missing, stale, malformed, or
-incomplete candidate is regenerated. B3 and B4 are always produced, and
-the common manifest is always rewritten from the artifacts actually
-consumed. A fresh local clone regenerates B2; hosted CI may restore the
-exact content-addressed B2 artifact populated by a prior successful run.
-M9 history is separately versioned in-repo.
+incomplete candidate is regenerated. Before the reviewed M9.1 schema
+transition, B3 and B4 are always produced. At that transition, one bounded
+M9 PR-smoke artifact replaces the old B3 entry artifact: M8 readiness
+consumes its compatibility projection and M9 consumes its domain/
+classifier/replay/reducer records. The orchestration must not execute a
+second legacy smoke. B4 remains separately produced, and the common
+manifest is always rewritten from the artifacts actually consumed. A fresh
+local clone regenerates B2; hosted CI may restore the exact content-
+addressed B2 artifact populated by a prior successful run. M9 history is
+separately versioned in-repo.
 
 ## 2. B2 — runtime emitter coverage
 
@@ -118,87 +123,242 @@ cargo xtask m8 readiness
 Commands:
 
 ```sh
+cargo xtask fuzz preflight [--require-ready]
 cargo xtask fuzz run --seed <u64> --cases <n> --artifact <path>
 cargo xtask fuzz replay <case>
 cargo xtask fuzz reduce <case>
 cargo xtask fuzz nightly --policy ratchets/fuzz-steady-state-policy.toml
+cargo xtask fuzz aggregate --window <path> --attestation <path>
 cargo xtask fuzz steady-state [--require-ready]
 ```
 
-Use grammar-aware generation and corpus mutation, including compiler
-options, multi-file structure, checked JavaScript, and JSDoc syntax and
-semantics. The generated domain is the supported batch checker. Filesystem
-package-host resolution outside the in-memory program model, project
-references, and emit-dependent behavior are excluded by construction.
-Generating an out-of-domain case fails the window; it is not silently
-discarded.
+The M8 B3 entry artifact is a 32-case, eight-template smoke. It proves only
+that the generation/comparison/reducer/deduper path is callable. Its
+aggregate-pass, line-reducer, saved-JSON replay, and in-memory/per-case
+scratch representation earn no M9 window credit.
+
+Before history bootstrap, M9 replaces that entry surface with grammar-aware
+generation and corpus mutation under the ordered
+[M9 execution contract](m9-execution-and-close.md). The versioned domain
+manifest covers compiler options, single/multi-file topology, TypeScript,
+TSX, checked JavaScript/JSX, JSDoc parser/binder/checker semantics, syntax
+recovery, and the supported semantic model. It fixes stable generator-branch
+identities, witness seeds, per-window stratum/cross-stratum minima, and a
+unique-normalized-program floor. Raw observations recompute those values; a
+large count of one simple template cannot satisfy them.
+
+The generated domain is the supported batch checker. Filesystem package-host
+resolution outside the in-memory program model, project references,
+emit-dependent behavior, LSP/watch/incremental state, and public API calls
+are excluded by construction. A generated case never inherits a
+fixed-corpus A2 exclusion. Generating or silently discarding an out-of-domain
+case fails the window.
 
 Every case runs tsrs and the pinned oracle through T0-T4. The canonical
-signature is:
+class is:
 
 ```text
-schema + tier + pass + divergence side/class
+schema + first failing tier-or-terminal phase
++ real pass-or-terminal sentinel + divergence side/outcome class
 + sorted one-sided multiset of (code, normalized message head)
+  or normalized terminal key
 ```
 
-The normalized head is the exact first T2 message line after virtual-path
-and LF normalization. T4 adds the first applicable renderer class in
-fixed precedence `order`, `dedupe`, `path`, `newline`, `text`, plus the
-first affected diagnostic key. Paths, generated names, positions, seeds,
-and raw hashes do not enter the signature. Exact outputs remain in the
-repro artifact. Renderer class is derived by comparing the structured
-pre-render diagnostic sequence before falling back to `text`. Node and
-Rust golden tests pin classifier and signature bytes.
+The normalized head comes from the complete T2 record before T0/T1
+projection, after versioned virtual-path, LF, and generator-identifier
+normalization. Multiplicity is retained. T4 adds the first applicable
+renderer class in fixed precedence `order`, `dedupe`, `path`, `newline`,
+`text`, plus the first affected diagnostic key. Positions, seeds,
+timestamps, and raw hashes do not enter the class. Renderer class is derived
+by comparing the structured pre-render diagnostic sequence before falling
+back to `text`. Independent oracle fixtures and Rust tests pin classifier
+bytes for pass separation, duplicate rows, generated names, paths, terminal
+outcomes, and T4 precedence.
 
-Minimal reproducers deduplicate by signature. Reduction must retain both
-that signature and the exact failing comparator. PR CI runs fixed-seed
-smoke; scheduled CI rotates seeds. If every generated case is already
-oracle-exact, PR CI records zero natural divergences and exercises the same
-reducer/deduper with a separate deterministic one-sided mutation canary.
-The canary is identified in the artifact and is never inserted into the
-generated case observations. M8 readiness requires non-zero cases, equal
-generated/compared counts, reducer smoke, and dedupe evidence with the
-current B1 fingerprint.
+T0-T3 retains the real syntactic/semantic/suggestion pass. A pure T4
+failure compares the already assembled render sequence and uses
+`pass=aggregate-render`. A no-diagnostic terminal class uses
+`pass=terminal`, a fixed `parse|bind|check|format` phase, and the versioned
+normalized panic/timeout/OOM/unsupported key rather than an invented
+diagnostic code.
+
+A tsrs crash/panic, timeout, OOM, or unsupported unwind after a valid oracle
+result is a terminal divergence class. M9 preflight turns every prose crash
+shape enumerated by M8 readiness into a frozen machine registry with exact
+input/outcome hashes, the declared Rust outcome, and positive/adjacent-
+negative replay canaries. An oracle crash counts only when real replay
+matches one exact registry row; it is recorded as
+`recorded-oracle-deviation`, not parity. Any other oracle, generator,
+domain, harness, or controller failure makes the window unsuccessful because
+no valid observation exists; it is not resampled. Exact outputs remain in
+the witness artifact.
+
+`fuzz replay` actually reruns both engines with the exact files, options,
+cwd, generator decisions, and process policy. Reduction must retain the
+class, terminal outcome, domain validity, and exact failing comparator
+through real replay. Deduplication evidence requires independently executed
+cases; repeating one stored class value is not evidence.
+
+The long producer runs bounded serial child shards. Each child owns one
+persistent oracle/renderer Node worker launched under the pinned single-
+threaded Node/V8 policy, caps Rust's internal worker/test threads, and exits
+after a fixed case count. Successful cases stream compact domain/input/
+output/outcome digests to compressed output; only divergences and terminal
+failures retain full sources, outputs, logs, and reducer state. It does not
+retain all cases in memory, create one directory per successful case, start
+Node per case, or run B2 AST instrumentation. The producer records child and
+aggregate CPU time, peak RSS, scratch bytes, and process rollover.
+Process-rollover and shard-partition canaries must be byte-identical.
+
+Only the immutable compiler/library bundle may be shared by default inside
+one bounded child; generated programs, mutable checker state, and SourceFiles
+are case-local. Any broader lib/SourceFile cache needs a frozen finite
+capacity and an exact key covering at least oracle/library hashes, source
+text digest, script kind, and all source-file-affecting compiler options.
+Cold/warm diagnostic canaries must be byte-identical, and changing this
+cache policy resets the semantic fingerprint.
+
+After M9.2 implements the bounded domain producer and before M9.3 changes the
+CI/schema consumer, hosted calibration freezes the PR smoke's exact case
+count, seed list, domain-canary ids, and wall/RSS/scratch ceilings. The list
+is bounded and does not grow implicitly when the nightly domain manifest
+grows. PR CI invokes that smoke exactly once; its single versioned artifact
+supplies both the M8 B3 readiness projection and M9 classifier/replay/
+reducer/domain evidence. Scheduled CI alone runs the full window. A separate
+mutation canary may exercise the one-sided path when the smoke is exact, but
+it is labeled, excluded from generated observations, and cannot substitute
+for real two-case dedupe evidence. The old 32-case/eight-template producer
+is retired at the reviewed schema transition and never runs beside the M9
+smoke.
 
 ### 3.1 M9 steady state
 
-Three versioned artifacts make the final rate gate executable:
+The versioned contract is fully reconstructible from a fresh clone. The
+policy hashes these checked-in, workspace-relative machine inputs and
+results; a similarly named file under `target/` cannot satisfy them:
 
-- `ratchets/fuzz-steady-state-policy.toml` fixes 14 consecutive UTC
-  windows and the per-window minima of two hours and 100,000 completed
-  cases, plus exact generator domains and the CI attestation key/policy.
-  These three thresholds are contract constants, not tunable defaults.
-  Any other valid policy change changes the fingerprint and restarts the
-  streak.
+- `ratchets/fuzz-domain.v1.toml` owns stable generator branch/cross-stratum
+  ids, witness seeds, compiler-option/topology dimensions, nightly quotas,
+  uniqueness floor, and the independently bounded PR-smoke manifest;
+- `ratchets/fuzz-oracle-deviations.v1.json` owns the exact reviewed M8 oracle
+  crash inputs/outcomes, declared Rust outcomes, and positive/adjacent-
+  negative replay canaries;
+- `ratchets/fuzz-preflight.v1.json` owns the implementation-gap, outcome,
+  adversarial-test, static D2-candidate, and resource-survey result;
+- `ratchets/fuzz-calibration.v1.json` owns the standard-runner 100,000-case
+  pilot plus PR-smoke wall/CPU/RSS/scratch/artifact observations and the
+  reviewed ceiling derivation;
+- `ratchets/fuzz-burn-in-zero.v1.json.zst` owns canonical per-case digests,
+  quota/uniqueness/resource totals, discovery membership, artifact
+  attestations, and owner-task closure for the final full-domain burn-in;
+  and
+- `ratchets/fuzz-producer-inputs.v1.json` owns the exact semantic-
+  fingerprint path/hash manifest, schema versions, stable runner fields,
+  worker/process policy, and verifier/attestation inputs.
+
+The final rate gate then uses these versioned policy/history/registry
+artifacts:
+
+- `ratchets/fuzz-steady-state-policy.toml` moves once from `draft` to
+  `frozen` through the reviewed-snapshot protocol. Its freeze record contains
+  the adjudication commit and exact hashes of the green preflight/domain,
+  oracle-deviation registry, bounded-runner calibration, burn-in-zero,
+  producer/verifier input manifest, scheduled workflow, and attestation
+  policy. A scheduled producer refuses to mint qualifying evidence while
+  that anchor is missing, draft, or mismatched. The frozen policy fixes 14
+  consecutive UTC windows, exactly 100,000 valid cases per window (ordinary
+  exact/divergent comparisons, tsrs terminal divergences with a valid oracle,
+  and exact recorded oracle-deviation outcomes), the measured standard-
+  runner wall/RSS/disk ceilings, generator-domain quotas/uniqueness, worker/
+  process/timeout limits, deterministic seed derivation, and CI attestation
+  policy. Fourteen windows and 100,000 cases are contract constants, not
+  tunable defaults. Wall time is a maximum, never a minimum to consume. Any
+  later policy change is a new reviewed freeze, changes the semantic
+  fingerprint, and restarts the streak.
 - `ratchets/fuzz-nightly-history.v1.json.zst` appends non-overlapping
-  window records: times, seeds, cases, runtime, input fingerprint,
-  artifact hash, and new signature ids. It uses append-only lineage and
-  trusted-base comparison. Prior rows remain byte-identical.
-- `ratchets/fuzz-signatures.v1.json.zst` appends canonical signatures,
-  first window, repro hash, owner, and state. Entries are never deleted.
-  Only `open -> resolved` is allowed, with a cited conformance universe
-  transition and A1 acceptance; evidence cannot be replaced.
+  UTC-slot/attempt records: derived seeds, cases, quotas, runtime/resources,
+  semantic fingerprint, artifact/attestation hash, and new class/incident
+  ids. It uses append-only lineage and trusted-base comparison. Prior
+  canonical records remain byte-identical.
+- `ratchets/fuzz-registry.v1.json.zst` appends immutable canonical
+  classes, exact minimized witnesses, recurrence incidents, and exact owner
+  tasks. Discovery, owner-task assignment, and per-task resolution are
+  append-only transition events; current state is derived rather than
+  written back. A recurrence appends a new incident instead of reopening or
+  rewriting the old one. Diagnostic tasks use pipeline layer, A5/2XXX
+  family, exact D2 declarations/SCC, and the Rust boundary. Terminal,
+  parser/binder/program, and pure-T4 tasks use an exact pipeline-native tsc/
+  Rust boundary rather than a fake diagnostic family. A later-proven
+  generator/domain-validator/oracle-adapter/harness/controller/comparator/
+  reducer/classifier/registry-history defect uses an exact `producer-defect`
+  task without deleting the original observation. Semantic-task resolution
+  cites a passing real replay plus the regression fixture's conformance-
+  universe transition and A1 acceptance. Producer-defect resolution instead
+  cites the producer fix, independent raw observation, exact replay,
+  adversarial canary, and explicit A1-not-applicable disposition; every
+  affected window is append-only invalidated and the fingerprint/streak
+  resets.
 
-Each history row references a compact checked-in artifact under
-`ratchets/fuzz-windows/` containing per-seed outcome digests,
-failure/signature membership, aggregates, and repro hashes. Scheduled CI
-signs its manifest. Aggregation verifies repository/workflow identity,
-producer commit, current input fingerprint, artifact hash, signature,
-and raw-to-summary recomputation before appending it. An unsigned or
-hand-authored row cannot count.
+Each history row references one slot directory
+`ratchets/fuzz-windows/<UTC-slot>/`. Its `window.v1.json.zst` contains
+per-seed outcome digests, failure/class/incident membership, domain
+aggregates, and witness hashes. Its `attestation.v1.json` is the complete
+signed statement/transparency bundle; the attested subject digest must equal
+the window file, and repository/workflow/event/attempt/authority claims must
+match frozen policy. Both sidecars are mandatory and hashed by history.
+Append-only authority is the decompressed canonical record bytes plus
+previous-record hashes, not incidental compressed-container bytes.
+
+Qualifying seeds are derived from semantic policy fingerprint + UTC slot +
+shard id; a workflow input cannot select them. There is at most one
+finalized slot per UTC date, and only the scheduled workflow's attested
+`run_attempt == 1` may qualify. A failed/cancelled/interrupted first attempt
+breaks the date and streak. Reruns use the same seeds for diagnosis but are
+non-qualifying, so an artifact-less first failure cannot be hidden offline
+by a successful retry.
+
+Protected-main scheduled CI produces a GitHub artifact attestation for the
+compact raw bundle using minimal OIDC/attestation permissions and no
+long-lived signing secret. The policy pins repository identity, workflow
+path/hash, scheduled event, relevant-input fingerprint, runner profile, and
+artifact digest, and `run_attempt == 1`. PR/manual/rerun jobs cannot mint
+qualifying evidence.
+Aggregation verifies that provenance and recomputes every raw digest,
+class, incident, quota, and history edge before appending; it never reruns
+the long producer or rewrites history. Multiple independently attested
+consecutive windows may share one aggregation PR. An unsigned,
+hand-authored, seed-selected, rerun-attempt, or reordered row cannot count.
 
 `fuzz steady-state --require-ready` requires:
 
-1. all policy, history, signature, and window artifacts verify;
+1. all policy, history, class/witness/incident, window, and attestation
+   artifacts verify;
 2. the last 14 windows are consecutive, current-fingerprint, successful,
-   non-overlapping, and each meets the two fixed minima;
-3. `distinct new signatures / 14 < 1.0` from raw membership;
-4. the signature registry has zero open entries.
+   non-overlapping, each has exactly 100,000 valid cases within the frozen
+   measured wall ceiling, and every domain/resource rule passes;
+3. `distinct newly discovered canonical classes / 14 < 1.0` from raw
+   membership;
+4. the complete registry has zero untriaged incident and zero unresolved
+   owner task.
 
-A checker, oracle, generator, reducer, signature schema, policy, or
-attestation-key change resets the streak. A missing, failed,
-under-budget, overlapping, stale, rewritten, or unsigned window breaks
-it. A docs-only change outside the fingerprint does not.
+A checker, oracle, generator, reducer, comparator/class/outcome schema,
+domain/corpus-mutation input, process policy, M9 history/attestation
+verifier, scheduled workflow, or attestation-policy change resets the
+streak. UTC slot/seed/attempt metadata, append-only history/registry/window
+records, and close-only docs/`STAGE` are outside that semantic fingerprint.
+A missing, failed, under-budget, over-time, overlapping, stale, rewritten,
+manually seeded, or unattested window breaks the streak. A docs-only change
+outside the fingerprint does not.
+
+The fingerprinted runner profile contains only stable, outcome-affecting
+fields: OS/architecture ABI, standard-runner class, pinned Rust/Node/
+TypeScript toolchains, worker/process policy, and a pinned container digest
+if a container is adopted. Exact hosted-image revision, CPU model/frequency,
+runner id, and available-core observations are recorded as diagnostic
+metadata. Their ordinary rotation does not restart the streak, but a
+metadata observation that violates the stable profile or a resource ceiling
+invalidates that window. Changing a stable field is a reviewed policy change
+and does restart it.
 
 ## 4. B4 — performance and RSS
 
@@ -226,13 +386,20 @@ worker cap.
 
 ## 5. Required CI topology
 
-Required PR CI:
+A trusted-base diff containing only `.md` paths and leaving README's
+generated `STATUS` block byte-identical runs no Cargo, Node, B2, or full-
+corpus work. A lightweight hosted classifier preserves the required `gates`
+check while marking the Rust and semantic lanes skipped. Local validation is
+`git diff --check` plus review of changed links/anchors and generated-block
+boundaries. Any other path or generated-status change uses the required PR
+CI below:
 
 - fetches enough history for every A1/A2/A5/M9 anchor;
 - runs recursive and trusted-base integrity checks;
 - runs the permanent syntactic and ordinary conformance gates;
-- builds once, verifies/reuses or produces B2, produces B3-smoke/B4,
-  and invokes M8 readiness in that workspace;
+- builds once, verifies/reuses or produces B2, produces B4 and exactly one
+  M9 PR-smoke artifact whose compatibility projection supplies B3, and
+  invokes M8 readiness in that workspace;
 - uploads mismatch, readiness, and fuzz/evidence artifacts on failure.
 
 The ordinary PR semantic lane does not produce a completion report merely
@@ -253,8 +420,9 @@ standard runners. The boundary is fixed:
 - a final job named `gates` succeeds only when both lanes succeed.
 
 Thus no evidence producer/consumer or A1/A2/A5 ordering crosses a job
-boundary. The ordinary local `cargo xtask ci` remains the sequential
-union of both lanes and is still the required pre-PR/pre-merge gate.
+boundary. Except for the exact documentation-only rule above, the ordinary
+local `cargo xtask ci` remains the sequential union of both lanes and is
+still the required pre-PR/pre-merge gate.
 Main-branch runs populate the cache scope that later pull requests may
 restore. Lockfile-keyed Cargo caches contain dependency archives only;
 a pinned content-addressed compiler cache handles build outputs without
@@ -263,14 +431,20 @@ contain only the B2 raw runtime artifact; the semantic lane revalidates
 it and rewrites the manifest. Conformance, readiness, B3, B4, and other
 semantic evidence artifacts are never restored from that cache.
 
-Scheduled CI runs the two-hour/100,000-case fuzz window and retains raw
-output. A reviewed aggregation verifies and appends it without rewriting
-history.
+Normal PR CI runs the one short, calibrated, fixed-seed M9 domain/classifier/
+replay/reducer smoke described above; the M8 B3 projection is derived from
+the same artifact, and neither invocation nor case generation is duplicated.
+It never runs a qualifying window. Protected-main scheduled CI runs exactly
+100,000 valid cases within the frozen measured ceiling, streams the compact
+raw bundle, and attests it. A reviewed aggregation verifies and appends one
+or more independently attested windows without rerunning the producer or
+rewriting history. B2 AST instrumentation is not part of that scheduled job.
 
 The final release job uses the approved performance runner, regenerates
 B1-B4 evidence, runs full-corpus invariants, verifies M9 history, and
 then runs `cargo xtask completion --require-done` in the same workspace.
-Gate logic stays in local commands; YAML only executes it.
+It consumes the existing 14 windows rather than producing a fifteenth. Gate
+logic stays in local commands; YAML only executes it.
 
 ## 6. Required adversarial tests
 
@@ -286,11 +460,38 @@ Gate logic stays in local commands; YAML only executes it.
   or external frame silently dropped instead of classified fails;
 - trace or coverage absence used to shrink the static closure or justify
   a not-applicable disposition fails;
-- an out-of-domain generated case, unequal comparison count, signature
-  classifier drift, or reducer changing signature fails;
-- a deleted/rewritten/unsigned/stale/under-budget nightly window or a
-  signature entry deletion/reopen fails the M9 lineage check;
-- a policy encoding thresholds other than 14 windows, two hours, and
-  100,000 cases fails before evaluating history;
+- an out-of-domain generated case, unequal comparison count, unmet domain
+  quota/uniqueness floor, summary trusted instead of recomputed, classifier
+  drift, or reducer changing class/outcome/comparator fails;
+- pass aggregation, duplicate-diagnostic multiplicity loss, an empty T0/T1
+  head caused by projection, generated-name/path instability, or a fake
+  duplicate made by copying one class value fails the classifier/deduper
+  tests;
+- a saved-JSON-only replay, non-fixpoint/non-replaying reduction, per-case
+  Node launch/directory, unbounded scratch/vector, process-rollover drift, or
+  shard-partition-dependent output fails;
+- a tsrs terminal failure treated as exact; an unknown oracle/domain/
+  harness/controller failure silently discarded/resampled; or an oracle
+  crash called a recorded deviation without exact frozen-registry replay
+  fails the window;
+- a deleted/rewritten/unattested/stale/under-budget/over-time nightly window,
+  non-first workflow attempt, manually selected seed, duplicate UTC slot,
+  or class/witness/incident deletion or rewrite fails M9 lineage;
+- a recurrence that mutates/reopens an old incident instead of appending a
+  new one, transition state written back instead of derived from append-only
+  events, one canonical class treated as one owner, an incident with zero or
+  unresolved owner tasks called resolved, a semantic task lacking real
+  replay plus A1 regression acceptance, or a producer defect that deletes
+  its original incident/keeps its window valid/lacks an adversarial canary
+  fails;
+- a policy encoding thresholds other than 14 windows or exactly 100,000
+  valid cases; treating wall time as a minimum; or changing the
+  calibration-anchored wall/RSS/disk ceiling fails before evaluating
+  history;
+- a PR/manual/wrong-workflow/wrong-repository attestation, or a qualifying
+  seed not derived from policy fingerprint + UTC slot + shard, fails;
+- an aggregation/history/close-only change that resets the semantic
+  fingerprint, or a behavior-relevant source/workflow/policy change that
+  does not reset it, fails;
 - an unapproved runner, declared-but-unobserved ceiling, wall over 60 s,
   RSS over its ceiling, or producer fingerprint mismatch fails.

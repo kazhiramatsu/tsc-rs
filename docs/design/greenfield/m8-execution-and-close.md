@@ -366,10 +366,14 @@ The fresh machine close report confirms rows 1-10 green, row 11
 `m9-steady-state` pending, and `STAGE=M8`. No M8 semantic or recovery
 implementation remains; M9 is the sole pending project-completion row.
 
-M9 now owns the append-only history/signature formats, attestation path,
-scheduled producer, and qualifying 14-window streak. The streak starts only
-after the checker/oracle/generator/reducer and policy fingerprint is frozen:
-changing any of them resets it.
+The [M9 execution contract](m9-execution-and-close.md) now owns the
+implementation-versus-contract preflight, generator-domain audit, bounded
+producer, class/witness/recurrence formats, diagnostic-D2/pipeline-native
+owner-task closure, attestation path, non-qualifying burn-in, and qualifying
+14-window streak. The landed M8 B3 artifact is only an entry smoke.
+Qualification starts after every known incident closes and the checker/
+oracle/generator/reducer/domain/workflow/policy fingerprint freezes;
+changing any of those inputs resets it.
 
 ## Separate follow-on design tracks
 

@@ -46,6 +46,10 @@ stage step docs referenced there.
 - [greenfield/evidence-and-steady-state.md](greenfield/evidence-and-steady-state.md):
   the B1-B4 evidence contracts, required CI topology, and the M9
   steady-state window.
+- [greenfield/m9-execution-and-close.md](greenfield/m9-execution-and-close.md):
+  the active M9 preflight, bounded fuzzer/domain implementation, exact
+  owner-triage and burn-in loop, fingerprint freeze, 14-window
+  qualification, and close contract.
 - [greenfield/terminal-residue-protocol.md](greenfield/terminal-residue-protocol.md):
   the last-mile parity-sweep protocol — pipeline-layer classification,
   exact shape/provenance proof, and terminal identity-diff gates.

@@ -401,29 +401,52 @@ xtask invariants --suite prefix-conformance   # opt-in: needs the node oracle
   # diagnostic-level prefix-determinism
 ```
 
-Run on a 200-fixture rotating sample per PR; full corpus nightly.
+Focused developer runs may use a rotating sample. The current PR semantic
+lane runs the required full-corpus invariant suite and writes the attestation
+consumed by completion row 10; nightly fuzzing does not substitute for that
+merge gate.
 
 ### 7.7 Differential fuzzer
 
-- Generator: grammar-based, weighted toward historically divergent
-  constructs (error recovery, generics depth, template literals,
-  overloads, narrowing chains); seeds mutated from corpus fixtures.
-- Executor: both engines via program.json; compare T0-T4 and select the
-  first failing tier before reduction.
-- Reducer: statement-level ddmin, then expression-hole shrinking
-  (replace subtrees with `0`/`""`/`x`), fixpoint; emits minimal repro.
-- Triage: use the canonical
-  [evidence-contract B3](greenfield/evidence-and-steady-state.md#3-b3--differential-fuzzing)
-  signature — schema,
-  first failing tier, pass, divergence side/class, and sorted one-sided
-  `(code, normalized message-head)` pairs; T4 adds its deterministic
-  renderer class and first affected diagnostic key. New signatures enter
-  the versioned open/resolved registry with both exact outputs; a resolved
-  repro graduates through the append-only corpus universe transition.
-- Budget: fixed-seed smoke per PR. Steady state is 14 consecutive UTC
-  nightly windows, each at least two hours and 100,000 completed cases,
-  with versioned history, fewer than one distinct new signature per
-  window on average, and no open signature.
+The landed M8 fuzzer is a 32-case/eight-template entry smoke. M9 first
+closes its implementation-versus-contract gaps; it may not start a
+qualifying streak from that generator.
+
+- Preflight: freeze a measured generation-domain manifest spanning grammar/
+  recovery, historical type/relation/inference/flow owners, modules/JSX,
+  compiler options, multi-file programs, checked JavaScript/JSDoc, and
+  corpus mutation. Each stratum/cross-stratum has stable branch identities,
+  witness seeds, quotas, and a uniqueness floor.
+- Executor: stream both engines through bounded serial child shards with
+  one persistent Node worker per child, fixed process lifetime/timeouts, and
+  no per-success directory or 100,000-case in-memory vector. Compare the
+  real pass through T0-T4 and distinguish tsrs terminal divergences from
+  oracle/generator/infrastructure failures.
+- Reducer: remove files/options/declarations, then perform syntax-aware
+  statement/expression shrinking to a fixpoint. `replay` and every reduction
+  step really rerun both engines and preserve the class, outcome, domain,
+  and comparator.
+- Observation: use the canonical
+  [B3 class](greenfield/evidence-and-steady-state.md#3-b3--differential-fuzzing)
+  for rate/dedupe, but store exact witnesses and append-only recurrence
+  incidents and owner tasks separately. A diagnostic task uses its pipeline
+  layer, A5/2XXX family, exact D2 declaration/SCC, and Rust boundary; a
+  terminal/parser/binder/pure-T4 task uses an exact pipeline-native owner.
+  A resolved regression graduates through A1/A5 universe transitions.
+- Execution order: complete non-qualifying full-domain burn-in and close
+  every incident by one owner/dependency cluster per PR. Freeze the semantic
+  producer/policy fingerprint only afterwards.
+- Budget: PR CI runs short fixed-seed domain canaries. A qualifying UTC
+  window completes exactly 100,000 valid cases within the wall/RSS/disk
+  ceilings frozen from the optimized standard-runner pilot; faster
+  execution ends sooner. Steady state requires 14 consecutive
+  frozen-fingerprint windows, fewer than one newly discovered class per
+  window on average, zero untriaged incident, and zero unresolved owner
+  task.
+
+The complete order, full-port triggers, recurrence model, resource policy,
+attestation, and close rules live in the
+[M9 execution contract](greenfield/m9-execution-and-close.md).
 
 ### 7.8 Unit pins
 
@@ -445,9 +468,11 @@ fn get_assignment_reduced_type(…)
 - `xtask ledger check`: every pub fn in checker/binder/syntax hot
   modules has an entry; hashes match the vendored source (drift ⇒
   re-vendor happened ⇒ listed as STALE).
-- `xtask ledger coverage`: coverage-build hit counts per ported fn
-  joined against the corpus → "ports with zero corpus coverage" feeds
-  the fuzzer's weight table.
+- `xtask ledger coverage`: the frozen B2 declaration-level corpus evidence
+  joins exact D2 identities, while M9 preflight separately records generator
+  domain/direct-emitter witnesses to feed its weight table. AST
+  instrumentation is content-addressed planning evidence and is never run
+  inside each nightly window.
 - Re-vendor procedure belongs to the separate version-specific project
   required by the completion authority: create a new vendor/oracle-input
   universe and ratchet bootstrap, let `ledger check` emit the changed-port
@@ -512,7 +537,7 @@ modes — written so low-capability agents can implement them) live in
 | M6 | inference (inferTypes/getInferredType full port) + generics instantiation caches | T0 ≥ 58% |
 | M7 | unused/grammar/suggestion band (emit-free rules) | T0 ≥ 63% = parity with current repo; T1 measured and ratcheted |
 | M8 | long tail by classifier mining (this playbook's normal loop) | supported-scope T0-T3 and T4 complete; all-corpus FP=0; escapes zero |
-| M9 | fuzzer + coverage ledger in CI | `fuzz steady-state --require-ready`: 14 current-fingerprint nightly windows, new-signature rate < 1/night, no open signature |
+| M9 | bounded differential fuzzer + domain/owner coverage ledger | preflight and owner burn-in green, then `fuzz steady-state --require-ready`: 14 frozen-fingerprint 100,000-case windows, new-class rate < 1/window, no untriaged incident or unresolved owner task |
 
 The single most load-bearing scheduling fact, learned here: **M1's
 parser-with-tsc-recovery is the foundation everything else prices

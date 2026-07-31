@@ -27,9 +27,16 @@ there.
    full-corpus invariants (`invariants --suite all --full-corpus`),
    ledger check, `escapes --stale $(cat tsrs2/STAGE)`
    incl. the untagged ceiling, and generated README-status freshness).
+   **Documentation-only exception:** when every changed path relative to the
+   trusted base ends in `.md` and README's generated `STATUS` block is
+   byte-identical to the base, do not run local Cargo/Node/full-corpus CI.
+   Review the rendered diff, run `git diff --check`, and verify changed
+   relative links/anchors plus generated-block boundaries. Any non-Markdown
+   path—or any workflow, policy, schema, golden, generated artifact, or
+   generated-status change—uses the complete gate above.
 4. **Merge via GitHub PR** (`gh` CLI): when the slice is done and
-   local `cargo xtask ci --baseline origin/main` is green, push the
-   branch and open a PR whose body carries the gate summary
+   the required local gate (or the documentation-only checks above) is
+   green, push the branch and open a PR whose body carries the gate summary
    (conformance rates + FP=0, escapes, tests). Monitor the PR and fix
    failures as additional commits on the same branch. As soon as all
    required GitHub Actions checks are successful and the PR is
@@ -49,15 +56,25 @@ there.
    Neither update is deferred to the merge operation. Pull `main` after
    merging.
 7. Trivial process/docs-only changes may land directly on `main`
-   and be pushed.
+   and be pushed. Markdown-only changes intentionally skip the local and
+   hosted Rust/semantic lanes; the hosted workflow runs only its lightweight
+   change classifier and required `gates` sentinel.
 8. Pushing to `origin` is allowed and expected: push the slice branch
    with `-u` while working. PR Actions runs the same full gate as
    parallel `rust` and `semantic` lanes, with the latter receiving the
    immutable PR-base SHA; the final `gates` job requires both. Local
-   `cargo xtask ci` remains required before opening and before merging.
+   `cargo xtask ci` remains required before opening and before merging
+   except for the exact Markdown-only rule above.
 
 ## Verification quick reference
 
+- **Markdown-only changes:** if and only if every trusted-base diff path is
+  `*.md` and README's generated `STATUS` block is unchanged, run no
+  Cargo/Node/full-corpus CI. Use `git diff --check` and review links, anchors,
+  and generated-block boundaries. Hosted `classify` skips the `rust` and
+  `semantic` jobs and lets the lightweight required `gates` sentinel
+  succeed. Do not label a workflow/config/generated-artifact or generated-
+  status change as documentation-only.
 - **NEVER pipe a gate command through `tail`/`head`/`grep` — the
   pipeline's exit status is the LAST command's (tail's = 0), which
   has repeatedly masked red gates.** Run gates to a file and check
@@ -73,8 +90,8 @@ there.
   it regenerates the artifact with one single-threaded worker.
 - Hosted-lane diagnostic: `cargo xtask ci --lane <rust|semantic>
   [--baseline <trusted-ref-or-sha>]`. This is for reproducing one
-  Actions lane; slice acceptance still requires the unsplit local
-  command above.
+  Actions lane; except for the exact Markdown-only rule, slice acceptance
+  still requires the unsplit local command above.
 - Conformance single band: `cargo xtask conformance [--band 2xxx]`
   (every gating run also enforces the A1 accepted-set ratchet;
   partial `--files`/`--limit` runs gate the executed-fixture

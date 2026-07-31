@@ -14,6 +14,9 @@ It intentionally does not repeat supporting schemas:
   B1-B4 production and M9 nightly evidence;
 - [m8-execution-and-close.md](m8-execution-and-close.md) owns bounded
   owner-cluster execution and the M8-to-M9 handoff;
+- [m9-execution-and-close.md](m9-execution-and-close.md) owns M9
+  preflight, bounded producer implementation, owner triage, burn-in,
+  fingerprint freeze, qualification, and close;
 - milestone steps docs own TypeScript semantics inside their stages.
 
 The governing rule is:
@@ -144,7 +147,8 @@ strict command requires:
 8. a fresh, frozen declaration-identity inventory and dispositions;
 9. current B1-B4 evidence within approved performance/RSS ceilings;
 10. `cargo xtask invariants --suite all --full-corpus` green;
-11. M9 steady state green with zero open signature.
+11. M9 steady state green with the required class rate, zero untriaged
+    recurrence incident, and zero unresolved owner task.
 
 The report writes `target/completion/report.json`. A sampled PR
 invariant run cannot satisfy row 10. A required regression keeps rows
@@ -186,7 +190,7 @@ authority for all four producers:
 |---|---|---|
 | B1 | common producer fingerprint and artifact reader | fresh-clone, same-workspace evidence; no editable readiness claims |
 | B2 | declaration-level runtime emitter coverage | every direct emitter executed or reviewed zero-hit |
-| B3 | deterministic generator/oracle/reducer/deduper | current smoke before M8; versioned 14-window steady state at M9 |
+| B3 | deterministic generator/oracle/reducer/deduper | M8 entry smoke; M9 domain/streaming hardening, burn-in, then versioned 14-window steady state |
 | B4 | wall/RSS child-process measurement | observations within ceilings on an approved runner |
 
 `cargo xtask m8 evidence produce --all` invokes producers; it cannot
@@ -410,10 +414,28 @@ green.
 | 14 | M7 close: `m8 readiness --require-ready` | first M8 slice |
 | 15 | A4 report-only completion gate | early M8 |
 | 16 | bounded M8 tiers + recovery zero | M9 |
-| 17 | M9 14-window steady state + zero open signatures | `completion --require-done` |
+| 17 | M9 preflight, producer/history foundation, owner-task closure, frozen 14-window steady state, and zero unresolved task | `completion --require-done` |
 
 Rows 1-16 are closed, their fresh machine evidence is verified, and the stage
 marker is `M8`. Row 17 is the only remaining implementation milestone.
+
+Row 17 expands in this fixed order without renumbering the completed rows:
+
+| M9 slice | Deliverable | Required before |
+|---|---|---|
+| 17a | implementation/contract, generator-domain, tsc/D2, and resource preflight | fuzzer foundation |
+| 17b | dedicated producer, true replay/reduction, pass-aware multiplicity-preserving class, terminal outcomes, adversarial tests | long producer |
+| 17c | bounded streaming executor, fixed domain quotas/coverage ledger, one-worker/process-lifetime policy | hosted calibration |
+| 17d | class/witness/recurrence registry, owner joins, signed scheduled producer, aggregation, Node-free steady-state/completion verifier | qualifying history |
+| 17e | non-qualifying full-domain burn-in and closure of every diagnostic-D2 or pipeline-native owner task | fingerprint freeze |
+| 17f | reviewed semantic fingerprint/policy freeze, then 14 consecutive qualifying UTC windows | M9 close |
+| 17g | close-only `STAGE=M9`/documentation candidate, then final release gate on that exact tree | project completion |
+
+The detailed acceptance and reset rules are in the
+[M9 execution contract](m9-execution-and-close.md). All code that interprets
+history or completion lands before 17f. A checker or producer fix during the
+streak returns to 17e and restarts qualification; an aggregation or
+close-only commit must not do so.
 
 Rows 7-8 deliberately land flow before full inference: flow has the
 larger measured unlock family and M6 has the transaction start gate. The
@@ -450,8 +472,18 @@ inference/display/diagnostics/cache-order):
 Tests and evidence artifact hashes:
 ```
 
-For docs-only or pure tooling work, mark semantic fields not applicable
-but still run CI when gate behavior can change.
+For a Markdown-only slice with an unchanged generated README `STATUS` block,
+mark semantic fields not applicable and use the repository's documentation-
+only validation; do not run Cargo/Node/full-corpus CI. Pure tooling,
+workflow, policy, schema, generated-file, or generated-status work is not
+documentation-only and still runs the complete gate.
+
+M9 divergence slices use the stricter
+[per-owner template](m9-execution-and-close.md#10-per-owner-review-template):
+canonical class is only the observation/dedupe key; exact witness/incident,
+pipeline layer, diagnostic A5/2XXX+D2 or pipeline-native owner, Rust
+boundary, applicable emitting/non-emitting probes, and regression-universe
+transition identify the implementation slice.
 
 Mapped, conditional/substitution, elaboration, recovery, and JS
 assignment families keep the subsystem matrix in every owning PR. A
@@ -464,9 +496,19 @@ later slice. This is required review evidence, not a new machine gate.
 
 Stop and review the design if an accepted identity must be removed, an
 exclusion cannot select exactly one record, evidence can pass without its
-producer, a fuzz failure cannot replay, closure loses an identity without
-a rule, three fixes hit one model ceiling, an aggregate passes while its
-family/canary is red, or required toolchain/CI pins do not cover `main`.
+producer, a fuzz failure cannot truly replay/reduce, class/pass/multiplicity
+or recurrence hides distinct evidence, closure loses an identity without a
+rule, an aggregate passes while its family/canary/domain quota is red, or
+required toolchain/CI pins do not cover `main`.
+
+For M9, stop immediately when a witness requires a missing observable
+AST/symbol/type/signature/flow/program representation, checker/binder-side
+semantic source-text rescan/projection outside the syntax owner, a hand-built
+diagnostic chain, or a local activation guard.
+Inventory and port the dependency-complete supported-batch subsystem; do
+not wait for three local patches when the structural omission is already
+visible. Three probes at one unexplained model ceiling remain the fallback
+trigger.
 
 ## 7. Completion checkpoints
 
@@ -479,8 +521,12 @@ family/canary is red, or required toolchain/CI pins do not cover `main`.
   7,691 / 7,691 cases, all-corpus FP is zero, and escapes are zero. The
   fresh close report confirmed completion rows 1-10 green and row 11
   `m9-steady-state` pending before the M9 handoff.
-- M9: 14 consecutive current-fingerprint windows, fewer than one new
-  distinct signature per night, and zero open signature.
+- M9: after preflight, bounded-producer hardening, non-qualifying burn-in,
+  owner closure, and fingerprint freeze, 14 consecutive
+  current-fingerprint UTC windows each contain exactly 100,000 valid cases
+  within the frozen measured wall ceiling and satisfy every domain quota;
+  the distinct-new-class rate is below one per window and no recurrence
+  incident is untriaged and no owner task is unresolved.
 
 A failed checkpoint triggers design review. It never permits a weaker
 denominator, count-only ratchet, broad exclusion, or hand-written

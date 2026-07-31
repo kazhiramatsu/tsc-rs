@@ -79,8 +79,11 @@ dirty, stale, malformed, or hand-authored evidence fails.
 Runtime coverage is declaration-level, the fuzzer runs every generated
 case against tsrs and the pinned oracle with reducer/dedupe smoke, and
 wall/RSS observations must pass on an approved reference runner. See the
-[evidence contract](evidence-and-steady-state.md). M9 strengthens the
-already-running fuzzer; it does not introduce it.
+[evidence contract](evidence-and-steady-state.md). The landed artifact is
+only M9's 32-case/eight-template entry smoke. The
+[M9 execution contract](m9-execution-and-close.md) hardens its domain,
+replay, reducer, classifier, storage, history, and owner loop before any
+qualifying window; M9 does not treat the smoke as steady-state evidence.
 
 ### Recorded tsc 6.0.3 crash deviations (differential classification)
 
