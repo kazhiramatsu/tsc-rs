@@ -229,7 +229,7 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
         let fixture_name = format!("{}.ts", pin.id());
         let fixture = fixture_text(pin);
         let program_json = expand_pin_fixture(pin, &fixture_name, &fixture, &vendor_lib_dir)?;
-        let options = tsrs2_conformance::compiler_options_from_program(&program_json);
+        let options = tsrs2_harness::compiler_options_from_program(&program_json);
 
         let query = RelpinQuery {
             setup: pin.setup.as_deref().unwrap_or(""),

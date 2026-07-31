@@ -3786,6 +3786,7 @@ impl<'a> CheckerState<'a> {
                 tail = &mut tail.next[0];
             }
             debug_assert!(tail.next.is_empty(), "overload prefix is linear");
+            tail.next_present = true;
             tail.next.push(detail);
             prefix
         }

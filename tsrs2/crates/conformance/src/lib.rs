@@ -506,7 +506,7 @@ pub fn run_prefix_conformance(
                 let result = check_program_with_libs_at(
                     &libs,
                     &input_files,
-                    &compiler_options_from_program(&truncated),
+                    &tsrs2_harness::compiler_options_from_program(&truncated),
                     &truncated.cwd,
                 );
                 let actual = t0_set(
@@ -1687,9 +1687,9 @@ impl GoldenDiag {
                     chain: GoldenMessageChain::from_tsrs(&related.message),
                 })
                 .collect(),
-            reports_unnecessary: false,
-            reports_deprecated: false,
-            source: None,
+            reports_unnecessary: diag.reports_unnecessary.unwrap_or(false),
+            reports_deprecated: diag.reports_deprecated.unwrap_or(false),
+            source: diag.source.clone(),
         }
     }
 }
@@ -1786,7 +1786,7 @@ fn current_case_tsrs(
     let result = check_program_with_libs_at(
         &libs,
         &files,
-        &compiler_options_from_program(program),
+        &tsrs2_harness::compiler_options_from_program(program),
         &program.cwd,
     );
     let all_empty_related_information = result
@@ -1811,266 +1811,6 @@ fn current_case_tsrs(
             .map(|diag| GoldenDiag::from_tsrs(diag, &file_texts))
             .collect(),
         partial_checks: result.partial_checks,
-    })
-}
-
-/// tsc getAllowJSCompilerOption: allowJs ?? !!checkJs. Fixture directive
-/// keys are matched case-insensitively like the harness does.
-pub fn compiler_options_from_program(program: &tsrs2_harness::ProgramJson) -> CompilerOptions {
-    let bool_option = |name: &str| {
-        program.options.iter().find_map(|(key, value)| {
-            if key.eq_ignore_ascii_case(name) {
-                match value {
-                    tsrs2_harness::OptionValue::Bool(value) => Some(*value),
-                    _ => None,
-                }
-            } else {
-                None
-            }
-        })
-    };
-    let target = program.options.iter().find_map(|(key, value)| {
-        if key.eq_ignore_ascii_case("target") {
-            match value {
-                tsrs2_harness::OptionValue::String(value) => target_option_value(value),
-                tsrs2_harness::OptionValue::Number(value) => Some(*value),
-                _ => None,
-            }
-        } else {
-            None
-        }
-    });
-    let module = program.options.iter().find_map(|(key, value)| {
-        if key.eq_ignore_ascii_case("module") {
-            match value {
-                tsrs2_harness::OptionValue::String(value) => module_option_value(value),
-                tsrs2_harness::OptionValue::Number(value) => Some(*value),
-                _ => None,
-            }
-        } else {
-            None
-        }
-    });
-    let module_resolution = program.options.iter().find_map(|(key, value)| {
-        if key.eq_ignore_ascii_case("moduleResolution") {
-            match value {
-                tsrs2_harness::OptionValue::String(value) => module_resolution_option_value(value),
-                tsrs2_harness::OptionValue::Number(value) => Some(*value),
-                _ => None,
-            }
-        } else {
-            None
-        }
-    });
-    let module_detection = program.options.iter().find_map(|(key, value)| {
-        if key.eq_ignore_ascii_case("moduleDetection") {
-            match value {
-                tsrs2_harness::OptionValue::String(value) => {
-                    Some(match value.to_ascii_lowercase().as_str() {
-                        "legacy" => 1,
-                        "auto" => 2,
-                        "force" => 3,
-                        _ => return None,
-                    })
-                }
-                tsrs2_harness::OptionValue::Number(value) => Some(*value),
-                _ => None,
-            }
-        } else {
-            None
-        }
-    });
-    CompilerOptions {
-        allow_js: bool_option("allowJs").unwrap_or_else(|| bool_option("checkJs").unwrap_or(false)),
-        experimental_decorators: bool_option("experimentalDecorators").unwrap_or(false),
-        target,
-        module,
-        module_detection,
-        always_strict: bool_option("alwaysStrict"),
-        strict: bool_option("strict"),
-        strict_null_checks: bool_option("strictNullChecks"),
-        strict_function_types: bool_option("strictFunctionTypes"),
-        strict_bind_call_apply: bool_option("strictBindCallApply"),
-        no_implicit_any: bool_option("noImplicitAny"),
-        no_error_truncation: bool_option("noErrorTruncation"),
-        no_implicit_this: bool_option("noImplicitThis"),
-        no_implicit_override: bool_option("noImplicitOverride"),
-        exact_optional_property_types: bool_option("exactOptionalPropertyTypes"),
-        no_fallthrough_cases_in_switch: bool_option("noFallthroughCasesInSwitch"),
-        no_implicit_returns: bool_option("noImplicitReturns"),
-        no_unused_locals: bool_option("noUnusedLocals"),
-        no_unused_parameters: bool_option("noUnusedParameters"),
-        allow_unreachable_code: bool_option("allowUnreachableCode"),
-        allow_unused_labels: bool_option("allowUnusedLabels"),
-        check_js: bool_option("checkJs"),
-        no_unchecked_indexed_access: bool_option("noUncheckedIndexedAccess"),
-        no_property_access_from_index_signature: bool_option("noPropertyAccessFromIndexSignature"),
-        no_unchecked_side_effect_imports: bool_option("noUncheckedSideEffectImports"),
-        strict_property_initialization: bool_option("strictPropertyInitialization"),
-        use_define_for_class_fields: bool_option("useDefineForClassFields"),
-        use_unknown_in_catch_variables: bool_option("useUnknownInCatchVariables"),
-        no_emit: bool_option("noEmit"),
-        import_helpers: bool_option("importHelpers"),
-        downlevel_iteration: bool_option("downlevelIteration"),
-        strict_builtin_iterator_return: bool_option("strictBuiltinIteratorReturn"),
-        module_resolution,
-        es_module_interop: bool_option("esModuleInterop"),
-        allow_synthetic_default_imports: bool_option("allowSyntheticDefaultImports"),
-        preserve_const_enums: bool_option("preserveConstEnums"),
-        isolated_modules: bool_option("isolatedModules"),
-        verbatim_module_syntax: bool_option("verbatimModuleSyntax"),
-        allow_umd_global_access: bool_option("allowUmdGlobalAccess"),
-        base_url: string_option(program, "baseUrl"),
-        resolve_package_json_exports: bool_option("resolvePackageJsonExports"),
-        resolve_package_json_imports: bool_option("resolvePackageJsonImports"),
-        custom_conditions: program.options.iter().find_map(|(key, value)| {
-            if key.eq_ignore_ascii_case("customConditions") {
-                match value {
-                    tsrs2_harness::OptionValue::StringList(values) => Some(values.clone()),
-                    tsrs2_harness::OptionValue::String(value) => Some(
-                        value
-                            .split(',')
-                            .map(str::trim)
-                            .filter(|entry| !entry.is_empty())
-                            .map(str::to_owned)
-                            .collect(),
-                    ),
-                    _ => None,
-                }
-            } else {
-                None
-            }
-        }),
-        no_dts_resolution: bool_option("noDtsResolution"),
-        allow_arbitrary_extensions: bool_option("allowArbitraryExtensions"),
-        allow_importing_ts_extensions: bool_option("allowImportingTsExtensions"),
-        rewrite_relative_import_extensions: bool_option("rewriteRelativeImportExtensions"),
-        resolve_json_module: bool_option("resolveJsonModule"),
-        skip_lib_check: bool_option("skipLibCheck"),
-        jsx: program.options.iter().find_map(|(key, value)| {
-            if key.eq_ignore_ascii_case("jsx") {
-                match value {
-                    tsrs2_harness::OptionValue::String(value) => jsx_option_value(value),
-                    tsrs2_harness::OptionValue::Number(value) => Some(*value),
-                    _ => None,
-                }
-            } else {
-                None
-            }
-        }),
-        jsx_factory: string_option(program, "jsxFactory"),
-        jsx_fragment_factory: string_option(program, "jsxFragmentFactory"),
-        jsx_import_source: string_option(program, "jsxImportSource"),
-        react_namespace: string_option(program, "reactNamespace"),
-        lib: program.options.iter().find_map(|(key, value)| {
-            if key.eq_ignore_ascii_case("lib") {
-                // The harness serializes @lib as a StringList (it
-                // rejects anything else at expansion time); the String
-                // arm keeps hand-built programs working.
-                match value {
-                    tsrs2_harness::OptionValue::StringList(values) => Some(
-                        values
-                            .iter()
-                            .map(|entry| entry.trim().to_ascii_lowercase())
-                            .filter(|entry| !entry.is_empty())
-                            .collect(),
-                    ),
-                    tsrs2_harness::OptionValue::String(value) => Some(
-                        value
-                            .split(',')
-                            .map(|entry| entry.trim().to_ascii_lowercase())
-                            .filter(|entry| !entry.is_empty())
-                            .collect(),
-                    ),
-                    _ => None,
-                }
-            } else {
-                None
-            }
-        }),
-    }
-}
-
-fn string_option(program: &tsrs2_harness::ProgramJson, name: &str) -> Option<String> {
-    program.options.iter().find_map(|(key, value)| {
-        if key.eq_ignore_ascii_case(name) {
-            match value {
-                tsrs2_harness::OptionValue::String(value) => Some(value.clone()),
-                _ => None,
-            }
-        } else {
-            None
-        }
-    })
-}
-
-/// tsc moduleOptionDeclaration.type (36853-36868) — the module
-/// option's string→ModuleKind map.
-fn module_option_value(value: &str) -> Option<i32> {
-    Some(match value.to_ascii_lowercase().as_str() {
-        "none" => 0,
-        "commonjs" => 1,
-        "amd" => 2,
-        "umd" => 3,
-        "system" => 4,
-        "es6" | "es2015" => 5,
-        "es2020" => 6,
-        "es2022" => 7,
-        "esnext" => 99,
-        "node16" => 100,
-        "node18" => 101,
-        "node20" => 102,
-        "nodenext" => 199,
-        "preserve" => 200,
-        _ => return None,
-    })
-}
-
-/// tsc moduleResolutionOptionDeclaration.type (37337-37346) — the
-/// moduleResolution option's string→ModuleResolutionKind map (node/
-/// node10/classic survive as deprecated keys at the 6.0.3 pin).
-fn module_resolution_option_value(value: &str) -> Option<i32> {
-    Some(match value.to_ascii_lowercase().as_str() {
-        "node10" | "node" => 2,
-        "classic" => 1,
-        "node16" => 3,
-        "nodenext" => 99,
-        "bundler" => 100,
-        _ => return None,
-    })
-}
-
-/// tsc jsxOptionMap — the jsx option's string→JsxEmit map.
-fn jsx_option_value(value: &str) -> Option<i32> {
-    Some(match value.to_ascii_lowercase().as_str() {
-        "preserve" => 1,
-        "react" => 2,
-        "react-native" => 3,
-        "react-jsx" => 4,
-        "react-jsxdev" => 5,
-        _ => return None,
-    })
-}
-
-/// tsc targetOptionDeclaration.type — the target option's string→value
-/// map, mirrored from the vendored source.
-fn target_option_value(value: &str) -> Option<i32> {
-    Some(match value.to_ascii_lowercase().as_str() {
-        "es3" => 0,
-        "es5" => 1,
-        "es6" | "es2015" => 2,
-        "es2016" => 3,
-        "es2017" => 4,
-        "es2018" => 5,
-        "es2019" => 6,
-        "es2020" => 7,
-        "es2021" => 8,
-        "es2022" => 9,
-        "es2023" => 10,
-        "es2024" => 11,
-        "es2025" => 12,
-        "esnext" => 99,
-        _ => return None,
     })
 }
 
@@ -2684,7 +2424,7 @@ mod tests {
             files: Vec::new(),
             matrix_key: String::new(),
         };
-        let options = compiler_options_from_program(&program);
+        let options = tsrs2_harness::compiler_options_from_program(&program);
         assert_eq!(
             options.lib,
             Some(vec!["es2015".to_owned(), "dom".to_owned()])
@@ -2706,7 +2446,7 @@ mod tests {
             files: Vec::new(),
             matrix_key: String::new(),
         };
-        let options = compiler_options_from_program(&program);
+        let options = tsrs2_harness::compiler_options_from_program(&program);
         assert_eq!(
             options.lib,
             Some(vec!["es2020".to_owned(), "dom".to_owned()])
@@ -2745,7 +2485,7 @@ mod tests {
             files: Vec::new(),
             matrix_key: String::new(),
         };
-        let options = compiler_options_from_program(&program);
+        let options = tsrs2_harness::compiler_options_from_program(&program);
         assert_eq!(options.resolve_package_json_exports, Some(false));
         assert_eq!(options.resolve_package_json_imports, Some(true));
         assert_eq!(
@@ -2770,7 +2510,7 @@ mod tests {
             files: Vec::new(),
             matrix_key: String::new(),
         };
-        let options = compiler_options_from_program(&program);
+        let options = tsrs2_harness::compiler_options_from_program(&program);
         assert_eq!(options.module_detection, Some(3));
         assert_eq!(options.emit_module_detection_kind(), 3);
     }
@@ -2791,7 +2531,7 @@ mod tests {
             matrix_key: String::new(),
         };
         assert_eq!(
-            compiler_options_from_program(&program).import_helpers,
+            tsrs2_harness::compiler_options_from_program(&program).import_helpers,
             Some(true)
         );
     }
@@ -2812,7 +2552,7 @@ mod tests {
             matrix_key: String::new(),
         };
         assert_eq!(
-            compiler_options_from_program(&program).allow_arbitrary_extensions,
+            tsrs2_harness::compiler_options_from_program(&program).allow_arbitrary_extensions,
             Some(false)
         );
     }
@@ -2833,7 +2573,7 @@ mod tests {
             matrix_key: String::new(),
         };
         assert_eq!(
-            compiler_options_from_program(&program).no_error_truncation,
+            tsrs2_harness::compiler_options_from_program(&program).no_error_truncation,
             Some(true)
         );
     }

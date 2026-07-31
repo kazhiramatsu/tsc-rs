@@ -13,8 +13,9 @@ pub use line_map::{
     LineMap,
 };
 pub use render::{
-    format_diagnostics_with_context, format_sorted_diagnostics_with_context,
-    FormatDiagnosticsError, FormatDiagnosticsHost,
+    format_diagnostics_with_context, format_diagnostics_with_context_raw,
+    format_sorted_diagnostics_with_context, format_sorted_diagnostics_with_context_raw,
+    sort_and_dedupe_diagnostic_indices_with_context, FormatDiagnosticsError, FormatDiagnosticsHost,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -98,6 +99,9 @@ pub struct MessageChain {
     pub code: u32,
     pub category: DiagnosticCategory,
     pub text: String,
+    /// Whether tsc's `next` property exists. `undefined` and an empty
+    /// array sort differently and are both observable in raw outcomes.
+    pub next_present: bool,
     pub next: Vec<MessageChain>,
 }
 
@@ -107,11 +111,13 @@ impl MessageChain {
             code: message.code,
             category: message.category,
             text: format_message(message.text, args),
+            next_present: false,
             next: Vec::new(),
         }
     }
 
     pub fn with_next(mut self, next: Vec<MessageChain>) -> Self {
+        self.next_present = true;
         self.next = next;
         self
     }
@@ -149,6 +155,11 @@ pub struct Diagnostic {
     pub related_information_present: bool,
     pub related: Vec<RelatedInfo>,
     pub canonical_head: Option<CanonicalHead>,
+    /// Optional diagnostic properties propagated by
+    /// createFileDiagnostic/createCompilerDiagnostic.
+    pub reports_unnecessary: Option<bool>,
+    pub reports_deprecated: Option<bool>,
+    pub source: Option<String>,
     /// tsc Diagnostic.skippedOn (errorSkippedOn 47575): the program
     /// layer drops the diagnostic when the named option is set
     /// (filterSemanticDiagnostics 125664). "noEmit" is the only key
@@ -163,6 +174,7 @@ impl Diagnostic {
         length: Option<u32>,
         message: MessageChain,
     ) -> Self {
+        let metadata = by_code(message.code);
         Self {
             file_name,
             start,
@@ -171,8 +183,30 @@ impl Diagnostic {
             related_information_present: false,
             related: Vec::new(),
             canonical_head: None,
+            reports_unnecessary: metadata
+                .is_some_and(|message| message.reports_unnecessary)
+                .then_some(true),
+            reports_deprecated: metadata
+                .is_some_and(|message| message.reports_deprecated)
+                .then_some(true),
+            source: None,
             skipped_on_no_emit: false,
         }
+    }
+
+    pub fn with_reports_unnecessary(mut self, value: Option<bool>) -> Self {
+        self.reports_unnecessary = value;
+        self
+    }
+
+    pub fn with_reports_deprecated(mut self, value: Option<bool>) -> Self {
+        self.reports_deprecated = value;
+        self
+    }
+
+    pub fn with_source(mut self, value: impl Into<String>) -> Self {
+        self.source = Some(value.into());
+        self
     }
 
     pub fn code(&self) -> u32 {
@@ -250,7 +284,14 @@ fn compare_optional_strings_case_sensitive(left: Option<&str>, right: Option<&st
 /// canonical-bearing-sorts-first tiebreaker.
 fn compare_diagnostic_message_text(left: &Diagnostic, right: &Diagnostic) -> Ordering {
     compare_strings_case_sensitive(left.comparison_text(), right.comparison_text())
-        .then_with(|| compare_message_chain(&left.message.next, &right.message.next))
+        .then_with(|| {
+            compare_message_chain(
+                left.message.next_present,
+                &left.message.next,
+                right.message.next_present,
+                &right.message.next,
+            )
+        })
         .then_with(|| {
             match (
                 left.canonical_head.is_some(),
@@ -292,16 +333,27 @@ fn compare_related_info(left: &RelatedInfo, right: &RelatedInfo) -> Ordering {
 }
 
 fn compare_message_text(left: &MessageChain, right: &MessageChain) -> Ordering {
-    compare_strings_case_sensitive(&left.text, &right.text)
-        .then_with(|| compare_message_chain(&left.next, &right.next))
+    compare_strings_case_sensitive(&left.text, &right.text).then_with(|| {
+        compare_message_chain(
+            left.next_present,
+            &left.next,
+            right.next_present,
+            &right.next,
+        )
+    })
 }
 
-fn compare_message_chain(left: &[MessageChain], right: &[MessageChain]) -> Ordering {
-    match (left.is_empty(), right.is_empty()) {
-        (true, true) => Ordering::Equal,
-        (true, false) => Ordering::Greater,
-        (false, true) => Ordering::Less,
-        (false, false) => compare_message_chain_size(left, right)
+fn compare_message_chain(
+    left_present: bool,
+    left: &[MessageChain],
+    right_present: bool,
+    right: &[MessageChain],
+) -> Ordering {
+    match (left_present, right_present) {
+        (false, false) => Ordering::Equal,
+        (false, true) => Ordering::Greater,
+        (true, false) => Ordering::Less,
+        (true, true) => compare_message_chain_size(left, right)
             .then_with(|| compare_message_chain_content(left, right)),
     }
 }
@@ -310,10 +362,31 @@ fn compare_message_chain_size(left: &[MessageChain], right: &[MessageChain]) -> 
     right.len().cmp(&left.len()).then_with(|| {
         left.iter()
             .zip(right.iter())
-            .map(|(left, right)| compare_message_chain_size(&left.next, &right.next))
+            .map(|(left, right)| {
+                compare_message_chain_size_optional(
+                    left.next_present,
+                    &left.next,
+                    right.next_present,
+                    &right.next,
+                )
+            })
             .find(|ordering| *ordering != Ordering::Equal)
             .unwrap_or(Ordering::Equal)
     })
+}
+
+fn compare_message_chain_size_optional(
+    left_present: bool,
+    left: &[MessageChain],
+    right_present: bool,
+    right: &[MessageChain],
+) -> Ordering {
+    match (left_present, right_present) {
+        (false, false) => Ordering::Equal,
+        (false, true) => Ordering::Greater,
+        (true, false) => Ordering::Less,
+        (true, true) => compare_message_chain_size(left, right),
+    }
 }
 
 fn compare_message_chain_content(left: &[MessageChain], right: &[MessageChain]) -> Ordering {
@@ -352,6 +425,7 @@ mod tests {
             code,
             category: DiagnosticCategory::Error,
             text: text.to_owned(),
+            next_present: false,
             next: Vec::new(),
         }
     }
@@ -458,8 +532,10 @@ mod tests {
         );
 
         let mut astral_child = diagnostic(None, None, 1000, "same");
+        astral_child.message.next_present = true;
         astral_child.message.next.push(chain(1000, astral));
         let mut private_use_child = diagnostic(None, None, 1000, "same");
+        private_use_child.message.next_present = true;
         private_use_child
             .message
             .next
@@ -506,5 +582,52 @@ mod tests {
             compare_diagnostics(&astral_related_text, &private_use_related_text),
             Ordering::Less
         );
+    }
+
+    #[test]
+    fn present_empty_message_chain_sorts_before_absent_and_wins_dedupe() {
+        let absent = diagnostic(None, None, 1000, "same");
+        let mut present_empty = absent.clone();
+        present_empty.message.next_present = true;
+
+        assert_eq!(compare_diagnostics(&present_empty, &absent), Ordering::Less);
+        assert_eq!(
+            compare_diagnostics(&absent, &present_empty),
+            Ordering::Greater
+        );
+
+        let mut diagnostics = vec![absent, present_empty];
+        sort_and_dedupe_diagnostics(&mut diagnostics);
+        assert_eq!(diagnostics.len(), 1);
+        assert!(diagnostics[0].message.next_present);
+        assert!(diagnostics[0].message.next.is_empty());
+    }
+
+    #[test]
+    fn diagnostic_new_propagates_generated_flags_and_sidecars() {
+        let unnecessary = Diagnostic::new(
+            None,
+            None,
+            None,
+            MessageChain::new(
+                &gen::Left_side_of_comma_operator_is_unused_and_has_no_side_effects,
+                &[],
+            ),
+        );
+        assert_eq!(unnecessary.reports_unnecessary, Some(true));
+        assert_eq!(unnecessary.reports_deprecated, None);
+        assert_eq!(unnecessary.source, None);
+
+        let deprecated = Diagnostic::new(
+            None,
+            None,
+            None,
+            MessageChain::new(&gen::_0_is_deprecated, &args(&["old"])),
+        )
+        .with_source("typescript")
+        .with_reports_unnecessary(Some(false));
+        assert_eq!(deprecated.reports_unnecessary, Some(false));
+        assert_eq!(deprecated.reports_deprecated, Some(true));
+        assert_eq!(deprecated.source.as_deref(), Some("typescript"));
     }
 }

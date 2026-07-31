@@ -62,14 +62,45 @@ pub struct InputFile {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CheckResult {
     pub diagnostics: DiagnosticList,
-    /// tsc getSyntacticDiagnostics: the per-file parse diagnostics alone.
+    /// `program.getSyntacticDiagnostics(sourceFile)`, flattened in
+    /// fixture-file ordinal order.
     pub syntactic_diagnostics: DiagnosticList,
+    /// `program.getSemanticDiagnostics(sourceFile)`, flattened in
+    /// fixture-file ordinal order.
+    pub semantic_diagnostics: DiagnosticList,
+    /// `program.getSuggestionDiagnostics(sourceFile)`, flattened in
+    /// fixture-file ordinal order. Unlike the syntactic and semantic
+    /// getters, tsc does not sort/deduplicate this pass.
+    pub suggestion_diagnostics: DiagnosticList,
+    /// Authoritative public-getter observations. The outer vector is
+    /// fixture-file ordinal order; each pass retains the order and
+    /// multiplicity returned by its corresponding tsc getter.
+    pub file_diagnostics: Vec<FileDiagnosticPasses>,
     /// Source ranges whose semantic check stopped at an explicit
     /// partial-model boundary. This is audit evidence, not a
     /// diagnostic filter. Typed oracle-crash containment is
     /// deliberately excluded; its range participates only in internal
     /// comment-directive accounting.
     pub partial_checks: Vec<PartialCheck>,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct FileDiagnosticPasses {
+    pub file_name: String,
+    pub syntactic: DiagnosticList,
+    pub semantic: DiagnosticList,
+    pub suggestion: DiagnosticList,
+}
+
+/// Coarse production-worker boundaries in the checker driver.
+///
+/// Formatting is owned by the caller because it occurs after
+/// `CheckResult` has been produced.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CheckPhase {
+    Parse,
+    Bind,
+    Check,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -739,9 +770,25 @@ pub fn check_program_with_libs_at(
     options: &CompilerOptions,
     current_directory: &str,
 ) -> CheckResult {
-    let mut diagnostics = Vec::new();
-    let mut syntactic_diagnostics = Vec::new();
+    check_program_with_libs_at_observed(libs, files, options, current_directory, |_| {})
+}
+
+/// tsrs-native: phase-observed adapter around the batch checker driver.
+/// The production-worker entry point. The observer is invoked exactly
+/// once before each coarse checker phase and never from a node visit,
+/// keeping the ordinary checker path allocation- and branch-free at
+/// node granularity.
+pub fn check_program_with_libs_at_observed(
+    libs: &[InputFile],
+    files: &[InputFile],
+    options: &CompilerOptions,
+    current_directory: &str,
+    mut observe_phase: impl FnMut(CheckPhase),
+) -> CheckResult {
+    let mut file_diagnostics = Vec::new();
     let mut partial_checks = Vec::new();
+
+    observe_phase(CheckPhase::Parse);
 
     // tsc host semantics: files are a name-keyed map, so a fixture
     // file sharing a lib's name provides the TEXT everywhere. The
@@ -833,8 +880,14 @@ pub fn check_program_with_libs_at(
                 node_id_base,
                 node_array_id_base,
             );
-            syntactic_diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
-            diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
+            let mut syntactic = source_file.parse_diagnostics.clone();
+            tsrs2_diags::sort_and_dedupe_diagnostics(&mut syntactic);
+            file_diagnostics.push(FileDiagnosticPasses {
+                file_name: source_file.file_name.clone(),
+                syntactic,
+                semantic: Vec::new(),
+                suggestion: Vec::new(),
+            });
             program_sources.push(source_file);
             continue;
         }
@@ -934,28 +987,33 @@ pub fn check_program_with_libs_at(
         );
         // tsc getSyntacticDiagnosticsForFile: JS files prepend the
         // TypeScript-only-syntax walker output to their parse diagnostics.
-        if is_js_file_name(&file.name) {
-            let js_diagnostics = js_grammar::get_js_syntactic_diagnostics(
-                &source_file,
-                options.experimental_decorators,
-            );
-            syntactic_diagnostics.extend(js_diagnostics.iter().cloned());
-            diagnostics.extend(js_diagnostics);
-        }
-        syntactic_diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
-        diagnostics.extend(source_file.parse_diagnostics.iter().cloned());
+        let mut syntactic = if is_js_file_name(&file.name) {
+            js_grammar::get_js_syntactic_diagnostics(&source_file, options.experimental_decorators)
+        } else {
+            Vec::new()
+        };
+        syntactic.extend(source_file.parse_diagnostics.iter().cloned());
+        // program.getSyntacticDiagnostics(sourceFile) passes the raw
+        // JS-grammar + parser stream through getDiagnosticsHelper.
+        tsrs2_diags::sort_and_dedupe_diagnostics(&mut syntactic);
+        file_diagnostics.push(FileDiagnosticPasses {
+            file_name: source_file.file_name.clone(),
+            syntactic,
+            semantic: Vec::new(),
+            suggestion: Vec::new(),
+        });
         program_sources.push(source_file);
     }
 
     let host_current_directory = resolve_host_current_directory(current_directory);
-    diagnostics.extend(missing_path_reference_diagnostics(
+    let program_diagnostics = missing_path_reference_diagnostics(
         &program_sources,
         libs.iter().chain(files.iter()).map(|file| {
             state::CheckerState::normalize_program_path(&file.name, &host_current_directory)
         }),
         options,
         &host_current_directory,
-    ));
+    );
 
     // Fixture bind pass: per-file binders with contiguous SymbolId
     // bases continuing from the lib prefix (tsc bindSourceFile per
@@ -963,17 +1021,13 @@ pub fn check_program_with_libs_at(
     // Parse the per-file check directive (ts-check/ts-nocheck pragma)
     // ONCE; @ts-ignore/@ts-expect-error ride on each SourceFile's
     // scanner-collected comment_directives.
+    observe_phase(CheckPhase::Bind);
+
     let check_directives: std::collections::HashMap<&str, Option<CheckDirective>> = program_sources
         .iter()
         .map(|source| (source.file_name.as_str(), check_directive(&source.text)))
         .collect();
-    let mut used_directive_lines: std::collections::HashMap<
-        String,
-        std::collections::HashSet<usize>,
-    > = program_sources
-        .iter()
-        .map(|source| (source.file_name.clone(), std::collections::HashSet::new()))
-        .collect();
+    let mut bind_diagnostics_by_file = Vec::with_capacity(program_sources.len());
     let mut binders: Vec<tsrs2_binder::Binder<'_>> = Vec::new();
     for source_file in &program_sources {
         let (symbol_id_seed, symbol_base) = match binders.last() {
@@ -986,60 +1040,7 @@ pub fn check_program_with_libs_at(
         let mut binder =
             tsrs2_binder::Binder::with_bases(source_file, options, symbol_id_seed, symbol_base);
         binder.bind_source_file();
-        // tsc getBindAndCheckDiagnosticsForFileNoCache (123717): plain
-        // JS files filter bind diagnostics to the plainJSErrors
-        // allowlist and SKIP the comment-directive merge
-        // (includeBindAndCheckDiagnostics = !isPlainJs); TypeScript
-        // and checked JS get the directive filter.
-        let javascript_file = is_js_file_name(&source_file.file_name);
-        let directive = check_directives
-            .get(source_file.file_name.as_str())
-            .copied()
-            .flatten();
-        let include_bind_and_check = !(options.skip_lib_check == Some(true)
-            && source_file.is_declaration_file)
-            && can_include_bind_and_check_diagnostics(javascript_file, directive, options);
-        if include_bind_and_check {
-            if javascript_file {
-                if is_plain_js_file(true, directive, options) {
-                    diagnostics.extend(
-                        binder
-                            .bind_diagnostics
-                            .iter()
-                            .filter(|diagnostic| {
-                                plain_js_errors::is_plain_js_error(diagnostic.code())
-                            })
-                            .cloned(),
-                    );
-                } else {
-                    let used = used_directive_lines
-                        .get_mut(source_file.file_name.as_str())
-                        .expect("all parsed sources have a directive-use set");
-                    let filtered = filter_by_comment_directives_and_mark_used(
-                        source_file,
-                        binder
-                            .bind_diagnostics
-                            .iter()
-                            .cloned()
-                            // tsc getBindAndCheckDiagnosticsForFileNoCache:
-                            // checked JS appends SourceFile.jsDocDiagnostics
-                            // to the same directive-aware diagnostic stream.
-                            .chain(source_file.js_doc_diagnostics.iter().cloned()),
-                        Some(used),
-                    );
-                    diagnostics.extend(filtered);
-                }
-            } else {
-                let used = used_directive_lines
-                    .get_mut(source_file.file_name.as_str())
-                    .expect("all parsed sources have a directive-use set");
-                diagnostics.extend(filter_by_comment_directives_and_mark_used(
-                    source_file,
-                    binder.bind_diagnostics.iter().cloned(),
-                    Some(used),
-                ));
-            }
-        }
+        bind_diagnostics_by_file.push(binder.bind_diagnostics.clone());
         binders.push(binder);
     }
 
@@ -1051,6 +1052,8 @@ pub fn check_program_with_libs_at(
     // checker; lib files are never asked for). Options diagnostics
     // (bad option combos, core-interfaces §8) would gate ahead of this
     // block — none are modeled yet, so the gate is vacuously open.
+    observe_phase(CheckPhase::Check);
+
     let binder_refs: Vec<&tsrs2_binder::Binder<'_>> =
         lib_binders.iter().chain(binders.iter()).collect();
     if !binder_refs.is_empty() {
@@ -1103,7 +1106,11 @@ pub fn check_program_with_libs_at(
         // run here — AFTER the resolver's host view exists (pass 2
         // resolves module names), BEFORE any file checks.
         state.merge_module_augmentations();
-        for index in lib_count..state.binder.file_count() {
+        // getDiagnosticsWorker snapshots global diagnostics around each
+        // requested source. Only newly-published file-less rows are
+        // prepended to that source's checker diagnostics.
+        let mut global_checker_diagnostics_by_file = vec![Vec::new(); program_sources.len()];
+        for (source_index, index) in (lib_count..state.binder.file_count()).enumerate() {
             let source = state.binder.source(index);
             let javascript_file = is_js_file_name(&source.file_name);
             let directive = check_directives
@@ -1113,145 +1120,149 @@ pub fn check_program_with_libs_at(
             let skip = options.skip_lib_check == Some(true) && source.is_declaration_file
                 || !can_include_bind_and_check_diagnostics(javascript_file, directive, options);
             if !skip {
+                let global_start = state.visible_global_diagnostics.len();
                 state.check_source_file(index);
+                global_checker_diagnostics_by_file[source_index].extend(
+                    state.visible_global_diagnostics[global_start..]
+                        .iter()
+                        .cloned(),
+                );
             }
         }
-        let lib_names: std::collections::HashSet<&str> = lib_sources
-            .iter()
-            .map(|source| source.file_name.as_str())
-            .collect();
-        let by_name: std::collections::HashMap<&str, &tsrs2_syntax::SourceFile> = program_sources
-            .iter()
-            .map(|source| (source.file_name.as_str(), source))
-            .collect();
-        // Per-file assembly (getBindAndCheckDiagnosticsForFileNoCache
-        // 123717): plain JS files filter check diagnostics to the
-        // plainJSErrors allowlist and skip the directive merge;
-        // TypeScript and checked JS run the comment-directive filter.
-        // File-less checker diagnostics are global diagnostics in tsc.
-        // The global getters mirror getDiagnosticsWorker's snapshot and
-        // copy only observable deferred rows into
-        // visible_global_diagnostics; the raw file-less sink also contains
-        // initialization-time probes and is not collected here.
-        let mut checker_diagnostics_by_file: std::collections::BTreeMap<
-            Option<String>,
-            Vec<tsrs2_diags::Diagnostic>,
-        > = std::collections::BTreeMap::new();
-        for diagnostic in state.diagnostics.iter().cloned() {
-            checker_diagnostics_by_file
-                .entry(diagnostic.file_name.clone())
-                .or_default()
-                .push(diagnostic);
-        }
-        for (file_name, file_diagnostics) in checker_diagnostics_by_file {
-            // Diagnostics ANCHORED in a lib file (the lib-side span of
-            // a duplicate pair, a lazily-forced lib-internal error)
-            // are filed under that lib file and never collected in
-            // the oracle world — same exclusion shape as the
-            // file-less arm below.
-            if file_name
-                .as_deref()
-                .is_some_and(|name| lib_names.contains(name))
-            {
-                continue;
-            }
-            // skipLibCheck suppresses the complete bind/check stream
-            // for declaration files, including initialization-time
-            // cross-file merge diagnostics that were produced before
-            // check_source_file had a chance to skip the file.
-            if options.skip_lib_check == Some(true)
-                && file_name
-                    .as_deref()
-                    .and_then(|name| by_name.get(name))
-                    .is_some_and(|source| source.is_declaration_file)
-            {
-                continue;
-            }
-            let javascript_file = file_name.as_deref().is_some_and(is_js_file_name);
-            if javascript_file {
-                let Some(source) = file_name.as_deref().and_then(|name| by_name.get(name)) else {
-                    continue;
-                };
-                let directive = check_directives
-                    .get(source.file_name.as_str())
-                    .copied()
-                    .flatten();
-                if can_include_bind_and_check_diagnostics(true, directive, options) {
-                    if is_plain_js_file(true, directive, options) {
-                        diagnostics.extend(file_diagnostics.into_iter().filter(|diagnostic| {
-                            plain_js_errors::is_plain_js_error(diagnostic.code())
-                                || diagnostic.category() == DiagnosticCategory::Suggestion
-                        }));
-                    } else {
-                        let used = used_directive_lines
-                            .get_mut(source.file_name.as_str())
-                            .expect("all parsed sources have a directive-use set");
-                        let filtered = filter_by_comment_directives_and_mark_used(
-                            source,
-                            file_diagnostics.into_iter(),
-                            Some(used),
-                        );
-                        diagnostics.extend(filtered);
-                    }
-                }
-                continue;
-            }
-            if file_name.is_none() {
-                continue;
-            }
-            if let Some(source) = file_name.as_deref().and_then(|name| by_name.get(name)) {
-                let directive = check_directives
-                    .get(source.file_name.as_str())
-                    .copied()
-                    .flatten();
-                if !can_include_bind_and_check_diagnostics(false, directive, options) {
-                    continue;
-                }
-                let used = used_directive_lines
-                    .get_mut(source.file_name.as_str())
-                    .expect("all parsed sources have a directive-use set");
-                diagnostics.extend(filter_by_comment_directives_and_mark_used(
-                    source,
-                    file_diagnostics.into_iter(),
-                    Some(used),
-                ));
-            }
-        }
-        diagnostics.extend(state.visible_global_diagnostics.iter().cloned());
-        // getMergedBindAndCheckDiagnostics' non-partial tail: after the
-        // complete bind+check stream has marked directives used, emit
-        // 2578 for every remaining @ts-expect-error (never @ts-ignore).
+
+        // Public per-file getter assembly. This deliberately does not
+        // use a name-sorted map: the outer observation order is the
+        // CaseSpec/program fixture ordinal.
         for (source_index, source) in program_sources.iter().enumerate() {
             let javascript_file = is_js_file_name(&source.file_name);
             let directive = check_directives
                 .get(source.file_name.as_str())
                 .copied()
                 .flatten();
-            if options.skip_lib_check == Some(true) && source.is_declaration_file
-                || !can_include_bind_and_check_diagnostics(javascript_file, directive, options)
-                || is_plain_js_file(javascript_file, directive, options)
-            {
+            let skip = options.skip_lib_check == Some(true) && source.is_declaration_file
+                || !can_include_bind_and_check_diagnostics(javascript_file, directive, options);
+            if skip {
                 continue;
             }
-            let used = used_directive_lines
-                .get_mut(source.file_name.as_str())
-                .expect("all parsed sources have a directive-use set");
-            if let Some(partial_ranges) = state
-                .partially_checked_ranges
-                .get(&(lib_count + source_index))
-            {
-                mark_comment_directives_for_partial_ranges(source, partial_ranges, used);
+
+            let plain_js = is_plain_js_file(javascript_file, directive, options);
+            let checker_for_file = state.diagnostics.iter().filter(|diagnostic| {
+                diagnostic.file_name.as_deref() == Some(source.file_name.as_str())
+            });
+
+            // getSuggestionDiagnostics is a separate checker
+            // collection and does not pass through
+            // getDiagnosticsHelper. Preserve its collection order and
+            // multiplicity exactly.
+            file_diagnostics[source_index].suggestion.extend(
+                checker_for_file
+                    .clone()
+                    .filter(|diagnostic| diagnostic.category() == DiagnosticCategory::Suggestion)
+                    .cloned(),
+            );
+
+            // getBindAndCheckDiagnosticsForFileNoCache:
+            // bind -> check (new globals first) -> checked-JS JSDoc.
+            let mut bind_and_check = Vec::new();
+            bind_and_check.extend(bind_diagnostics_by_file[source_index].iter().cloned());
+            bind_and_check.extend(
+                global_checker_diagnostics_by_file[source_index]
+                    .iter()
+                    .filter(|diagnostic| diagnostic.category() != DiagnosticCategory::Suggestion)
+                    .cloned(),
+            );
+            bind_and_check.extend(
+                checker_for_file
+                    .filter(|diagnostic| diagnostic.category() != DiagnosticCategory::Suggestion)
+                    .cloned(),
+            );
+            if javascript_file && !plain_js {
+                bind_and_check.extend(source.js_doc_diagnostics.iter().cloned());
             }
-            diagnostics.extend(unused_expect_error_diagnostics(source, used));
+
+            if plain_js {
+                bind_and_check
+                    .retain(|diagnostic| plain_js_errors::is_plain_js_error(diagnostic.code()));
+            } else {
+                let mut used_directive_lines = std::collections::HashSet::new();
+                bind_and_check = filter_by_comment_directives_and_mark_used(
+                    source,
+                    bind_and_check.into_iter(),
+                    Some(&mut used_directive_lines),
+                );
+                if let Some(partial_ranges) = state
+                    .partially_checked_ranges
+                    .get(&(lib_count + source_index))
+                {
+                    mark_comment_directives_for_partial_ranges(
+                        source,
+                        partial_ranges,
+                        &mut used_directive_lines,
+                    );
+                }
+                bind_and_check.extend(unused_expect_error_diagnostics(
+                    source,
+                    &used_directive_lines,
+                ));
+            }
+
+            // filterSemanticDiagnostics applies only to the
+            // bind/check half, before getProgramDiagnostics is
+            // concatenated.
+            filter_semantic_diagnostics(&mut bind_and_check, options);
+
+            let mut program_for_file = program_diagnostics
+                .iter()
+                .filter(|diagnostic| {
+                    diagnostic.file_name.as_deref() == Some(source.file_name.as_str())
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            if !source.comment_directives.is_empty() {
+                // getProgramDiagnostics owns a fresh directive map;
+                // use in bind/check does not consume this one.
+                program_for_file = filter_by_comment_directives_and_mark_used(
+                    source,
+                    program_for_file.into_iter(),
+                    None,
+                );
+            }
+            bind_and_check.extend(program_for_file);
+
+            // program.getSemanticDiagnostics(sourceFile) uses
+            // getDiagnosticsHelper; suggestion intentionally does not.
+            tsrs2_diags::sort_and_dedupe_diagnostics(&mut bind_and_check);
+            file_diagnostics[source_index].semantic = bind_and_check;
         }
-        // The aggregate pass is sorted + deduplicated like tsc's
-        // getPreEmitDiagnostics / the oracle driver's
-        // ts.sortAndDeduplicateDiagnostics; getSyntacticDiagnostics
-        // stays per-file unsorted concatenation, matching tsc.
-        filter_semantic_diagnostics(&mut diagnostics, options);
-        tsrs2_diags::sort_and_dedupe_diagnostics(&mut diagnostics);
         partial_checks = state.partial_check_records.clone();
     }
+
+    let syntactic_diagnostics = file_diagnostics
+        .iter()
+        .flat_map(|file| file.syntactic.iter().cloned())
+        .collect();
+    let semantic_diagnostics = file_diagnostics
+        .iter()
+        .flat_map(|file| file.semantic.iter().cloned())
+        .collect();
+    let suggestion_diagnostics = file_diagnostics
+        .iter()
+        .flat_map(|file| file.suggestion.iter().cloned())
+        .collect();
+
+    // The legacy aggregate remains the oracle driver's final
+    // ts.sortAndDeduplicateDiagnostics over public getter occurrences.
+    let mut diagnostics = file_diagnostics
+        .iter()
+        .flat_map(|file| {
+            file.syntactic
+                .iter()
+                .chain(&file.semantic)
+                .chain(&file.suggestion)
+                .cloned()
+        })
+        .collect();
+    tsrs2_diags::sort_and_dedupe_diagnostics(&mut diagnostics);
 
     debug_assert!(tsrs2_binder::is_scaffolded());
     debug_assert!(tsrs2_types::is_scaffolded());
@@ -1259,6 +1270,9 @@ pub fn check_program_with_libs_at(
     CheckResult {
         diagnostics,
         syntactic_diagnostics,
+        semantic_diagnostics,
+        suggestion_diagnostics,
+        file_diagnostics,
         partial_checks,
     }
 }
@@ -1403,6 +1417,79 @@ mod tests {
     fn empty_engine_returns_no_diagnostics() {
         let result = check_program(&[], &CompilerOptions::default());
         assert!(result.diagnostics.is_empty());
+        assert!(result.syntactic_diagnostics.is_empty());
+        assert!(result.semantic_diagnostics.is_empty());
+        assert!(result.suggestion_diagnostics.is_empty());
+        assert!(result.file_diagnostics.is_empty());
+    }
+
+    #[test]
+    fn observed_entry_reports_each_coarse_phase_once() {
+        let mut phases = Vec::new();
+        let result = check_program_with_libs_at_observed(
+            &[],
+            &[],
+            &CompilerOptions::default(),
+            "/",
+            |phase| phases.push(phase),
+        );
+        assert!(result.diagnostics.is_empty());
+        assert_eq!(
+            phases,
+            [CheckPhase::Parse, CheckPhase::Bind, CheckPhase::Check]
+        );
+    }
+
+    #[test]
+    fn public_getter_passes_keep_fixture_ordinal_before_global_sort() {
+        let result = check_program(
+            &[
+                InputFile {
+                    name: "z.ts".to_owned(),
+                    text: "/// <reference path=\"/z-missing.d.ts\" />\n".to_owned(),
+                },
+                InputFile {
+                    name: "a.ts".to_owned(),
+                    text: "/// <reference path=\"/a-missing.d.ts\" />\n".to_owned(),
+                },
+            ],
+            &CompilerOptions::default(),
+        );
+
+        assert_eq!(
+            result
+                .file_diagnostics
+                .iter()
+                .map(|file| file.file_name.as_str())
+                .collect::<Vec<_>>(),
+            ["z.ts", "a.ts"]
+        );
+        assert!(result
+            .file_diagnostics
+            .iter()
+            .all(|file| file.syntactic.is_empty() && file.suggestion.is_empty()));
+        assert_eq!(
+            result
+                .semantic_diagnostics
+                .iter()
+                .map(|diagnostic| (diagnostic.file_name.as_deref(), diagnostic.code(),))
+                .collect::<Vec<_>>(),
+            [(Some("z.ts"), 6053), (Some("a.ts"), 6053)]
+        );
+
+        let mut assembled = result
+            .file_diagnostics
+            .iter()
+            .flat_map(|file| {
+                file.syntactic
+                    .iter()
+                    .chain(&file.semantic)
+                    .chain(&file.suggestion)
+                    .cloned()
+            })
+            .collect::<Vec<_>>();
+        tsrs2_diags::sort_and_dedupe_diagnostics(&mut assembled);
+        assert_eq!(result.diagnostics, assembled);
     }
 
     #[test]
@@ -4932,6 +5019,22 @@ mod tests {
                 (2578, DiagnosticCategory::Error),
                 (6133, DiagnosticCategory::Suggestion),
             ]
+        );
+        assert_eq!(
+            result
+                .semantic_diagnostics
+                .iter()
+                .map(|diagnostic| { (diagnostic.code(), diagnostic.category()) })
+                .collect::<Vec<_>>(),
+            [(2578, DiagnosticCategory::Error)]
+        );
+        assert_eq!(
+            result
+                .suggestion_diagnostics
+                .iter()
+                .map(|diagnostic| { (diagnostic.code(), diagnostic.category()) })
+                .collect::<Vec<_>>(),
+            [(6133, DiagnosticCategory::Suggestion)]
         );
     }
 

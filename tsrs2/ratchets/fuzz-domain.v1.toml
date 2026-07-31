@@ -7,11 +7,11 @@ sha256 = "d16978210177b86ff718cf9e7f90774f4bc8c9a492894edae36b9220d710abb2"
 
 [[source_references]]
 path = "crates/xtask/src/m8_evidence.rs"
-sha256 = "dcd1a885b00f54682fabdcdd31f443bcb4c3e1e45fea60721f463d465725e673"
+sha256 = "8d70c8343cbeb9c775a96e448e22ec01c727b37493c61163f22ed6a0ccfffa52"
 
 [[source_references]]
 path = "crates/harness/src/lib.rs"
-sha256 = "ac5d39ce2483c634c15488d61e7f7e0f574e229fa256d5c54de3f265d3fff489"
+sha256 = "b2bff65be175d11e1eea424395ae1b4a65ff661048284dc7c3ddbbd65b0c1daf"
 
 [[source_references]]
 path = "ratchets/oracle-inputs.v1.json.zst"
@@ -22,7 +22,7 @@ id = "domain.legacy-branch-inventory"
 status = "ready"
 detail = "The eight case%8 M8 entry-smoke templates are enumerated exactly once as legacy-smoke-only branches; this does not make them production branches or qualifying evidence."
 blocks = []
-evidence = ["crates/xtask/src/m8_evidence.rs:1510-1541", "m8-evidence.json:497-500"]
+evidence = ["crates/xtask/src/m8_evidence.rs:1496-1528", "m8-evidence.json:497-500"]
 
 [[checks]]
 id = "domain.legacy-witness-hash-verification"
@@ -36,7 +36,7 @@ id = "domain.production-branches"
 status = "pending"
 detail = "No grammar-aware or corpus-mutation production branch exists yet. Stable production branch identities must be added with their implementation rather than inferred from the legacy templates."
 blocks = ["m9-production-domain", "qualifying-window"]
-evidence = ["crates/xtask/src/m8_evidence.rs:1510-1541"]
+evidence = ["crates/xtask/src/m8_evidence.rs:1496-1528"]
 
 [[checks]]
 id = "domain.production-witnesses"
@@ -57,14 +57,14 @@ id = "domain.uniqueness-floor"
 status = "unknown"
 detail = "The minimum unique-normalized-program ratio has not been calibrated. The current smoke repeats eight template shapes across 32 cases and cannot supply the production floor."
 blocks = ["m9-production-domain", "hosted-calibration", "qualifying-window"]
-evidence = ["crates/xtask/src/m8_evidence.rs:1510-1541", "m8-evidence.json:497-500"]
+evidence = ["crates/xtask/src/m8_evidence.rs:1496-1528", "m8-evidence.json:497-500"]
 
 [[branches]]
 id = "legacy.m8.template.0.assignment"
 status = "ready"
 detail = "M8 entry-smoke assignment template; retained only as a non-qualifying legacy witness."
 blocks = []
-evidence = ["crates/xtask/src/m8_evidence.rs:1514", "source_sha256=509e1fabc66ad23263957952b2ef0425b4404f1951f9f3f33f68fd1f8a5dcf47", "program_sha256=d6b4f405c4108e10f0ba441cbfa51423de7705ef71e03e8fb66756d3f44257e3"]
+evidence = ["crates/xtask/src/m8_evidence.rs:1500", "source_sha256=509e1fabc66ad23263957952b2ef0425b4404f1951f9f3f33f68fd1f8a5dcf47", "program_sha256=d6b4f405c4108e10f0ba441cbfa51423de7705ef71e03e8fb66756d3f44257e3"]
 role = "legacy-smoke-only"
 witness_seed = 6840227782638526189
 witness_case = 0
@@ -78,7 +78,7 @@ id = "legacy.m8.template.1.function-return"
 status = "ready"
 detail = "M8 entry-smoke function-return template; retained only as a non-qualifying legacy witness."
 blocks = []
-evidence = ["crates/xtask/src/m8_evidence.rs:1515", "source_sha256=ca462ecef3b0f5461ae72236c74c1e089d22415e0639d3520f4800ec97ac4a0e", "program_sha256=7b0b95358ed205a456073e2a0d3622e6d779f698fa4ecb7b02eec923959e4db0"]
+evidence = ["crates/xtask/src/m8_evidence.rs:1501", "source_sha256=ca462ecef3b0f5461ae72236c74c1e089d22415e0639d3520f4800ec97ac4a0e", "program_sha256=7b0b95358ed205a456073e2a0d3622e6d779f698fa4ecb7b02eec923959e4db0"]
 role = "legacy-smoke-only"
 witness_seed = 6840227782638526189
 witness_case = 1
@@ -92,7 +92,7 @@ id = "legacy.m8.template.2.conditional-type"
 status = "ready"
 detail = "M8 entry-smoke conditional-type template; retained only as a non-qualifying legacy witness."
 blocks = []
-evidence = ["crates/xtask/src/m8_evidence.rs:1516-1518", "source_sha256=7428e9b6637bc2c1fd75702d0997f4add77851d74e1e07ca94f4e9b75397d662", "program_sha256=d48692ee0142ec21c70c504dfd88c65f35a1cb9a483b132c8ddb5e516d94f0d0"]
+evidence = ["crates/xtask/src/m8_evidence.rs:1502-1504", "source_sha256=7428e9b6637bc2c1fd75702d0997f4add77851d74e1e07ca94f4e9b75397d662", "program_sha256=d48692ee0142ec21c70c504dfd88c65f35a1cb9a483b132c8ddb5e516d94f0d0"]
 role = "legacy-smoke-only"
 witness_seed = 6840227782638526189
 witness_case = 2
@@ -106,7 +106,7 @@ id = "legacy.m8.template.3.mapped-type"
 status = "ready"
 detail = "M8 entry-smoke mapped-type template; retained only as a non-qualifying legacy witness."
 blocks = []
-evidence = ["crates/xtask/src/m8_evidence.rs:1519-1521", "source_sha256=6dd5ed4f00329315ef2e33353702c48ef96703ebf6ccdb9b6a8794badaa56192", "program_sha256=af7b8a6aa7d62dc103852d1f17211f52758729b2bda74904a7e58bfb2ac5eb8f"]
+evidence = ["crates/xtask/src/m8_evidence.rs:1505-1507", "source_sha256=6dd5ed4f00329315ef2e33353702c48ef96703ebf6ccdb9b6a8794badaa56192", "program_sha256=af7b8a6aa7d62dc103852d1f17211f52758729b2bda74904a7e58bfb2ac5eb8f"]
 role = "legacy-smoke-only"
 witness_seed = 6840227782638526189
 witness_case = 3
@@ -120,7 +120,7 @@ id = "legacy.m8.template.4.interface-object"
 status = "ready"
 detail = "M8 entry-smoke interface/object-literal template; retained only as a non-qualifying legacy witness."
 blocks = []
-evidence = ["crates/xtask/src/m8_evidence.rs:1522-1524", "source_sha256=a717ccab2f79ab48d0c97a1f55bbf47d9c8f21738243e5f5b849675cac5da5df", "program_sha256=bd8e14c4bb409ff2cbf068c198d2502ebf317344470de96c9701b017240e7cdd"]
+evidence = ["crates/xtask/src/m8_evidence.rs:1508-1510", "source_sha256=a717ccab2f79ab48d0c97a1f55bbf47d9c8f21738243e5f5b849675cac5da5df", "program_sha256=bd8e14c4bb409ff2cbf068c198d2502ebf317344470de96c9701b017240e7cdd"]
 role = "legacy-smoke-only"
 witness_seed = 6840227782638526189
 witness_case = 4
@@ -134,7 +134,7 @@ id = "legacy.m8.template.5.generic-call"
 status = "ready"
 detail = "M8 entry-smoke generic-call template; retained only as a non-qualifying legacy witness."
 blocks = []
-evidence = ["crates/xtask/src/m8_evidence.rs:1525-1527", "source_sha256=ccca2cc77d74c98d607ee1c19df5b73b29381b2ef7fe0a56572ee2a5151e1cf3", "program_sha256=28155b1c5df0650e6617d423816fde2d9306c2f949ddbf7ede031886b61c3d68"]
+evidence = ["crates/xtask/src/m8_evidence.rs:1511-1513", "source_sha256=ccca2cc77d74c98d607ee1c19df5b73b29381b2ef7fe0a56572ee2a5151e1cf3", "program_sha256=28155b1c5df0650e6617d423816fde2d9306c2f949ddbf7ede031886b61c3d68"]
 role = "legacy-smoke-only"
 witness_seed = 6840227782638526189
 witness_case = 5
@@ -148,7 +148,7 @@ id = "legacy.m8.template.6.jsdoc-satisfies"
 status = "ready"
 detail = "M8 entry-smoke checked-JavaScript JSDoc template; retained only as a non-qualifying legacy witness."
 blocks = []
-evidence = ["crates/xtask/src/m8_evidence.rs:1528-1536", "source_sha256=4b81c3503131a159f6629b0edcfff2c0347d9a742e3fd85c30711cc88b2c1189", "program_sha256=b259ba0d4c158ee5d688097037f86deaa385b67b7fae21746489a0e9b6e1aed7"]
+evidence = ["crates/xtask/src/m8_evidence.rs:1514-1523", "source_sha256=4b81c3503131a159f6629b0edcfff2c0347d9a742e3fd85c30711cc88b2c1189", "program_sha256=b259ba0d4c158ee5d688097037f86deaa385b67b7fae21746489a0e9b6e1aed7"]
 role = "legacy-smoke-only"
 witness_seed = 6840227782638526189
 witness_case = 6
@@ -162,7 +162,7 @@ id = "legacy.m8.template.7.overload"
 status = "ready"
 detail = "M8 entry-smoke overload template; retained only as a non-qualifying legacy witness."
 blocks = []
-evidence = ["crates/xtask/src/m8_evidence.rs:1538-1540", "source_sha256=324eab55a78f1b881bb4bc7c5788479e3c70c735cb68f50314afa5df6a55a972", "program_sha256=90e5c77da1487692cf57fb3da8c572de789f6c004ec1aee2e2a0a33d8def0614"]
+evidence = ["crates/xtask/src/m8_evidence.rs:1524-1526", "source_sha256=324eab55a78f1b881bb4bc7c5788479e3c70c735cb68f50314afa5df6a55a972", "program_sha256=90e5c77da1487692cf57fb3da8c572de789f6c004ec1aee2e2a0a33d8def0614"]
 role = "legacy-smoke-only"
 witness_seed = 6840227782638526189
 witness_case = 7

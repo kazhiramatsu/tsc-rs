@@ -4,7 +4,7 @@
   "source_references": [
     {
       "path": "ratchets/fuzz-domain.v1.toml",
-      "sha256": "c6cab05e2cbc26bcfb7d0d8607ac205285121abf5e9a3d6719826b44d9f3856e"
+      "sha256": "324b16beb25fe19643e3a1476b23b37bd5de55ec0a5a40e75aaff2b743f135c3"
     },
     {
       "path": "ratchets/fuzz-oracle-deviations.v1.json",
@@ -27,16 +27,40 @@
       "sha256": "c4ea2508df4932e471231c64a073287f348f495f7058ce8450978706d005a91d"
     },
     {
+      "path": ".node-version",
+      "sha256": "df753cffe2db3a02f70d9003df80692390d49b459150b5743ea9d4c4d3dd197c"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    {
       "path": "crates/xtask/src/m8_evidence.rs",
-      "sha256": "dcd1a885b00f54682fabdcdd31f443bcb4c3e1e45fea60721f463d465725e673"
+      "sha256": "8d70c8343cbeb9c775a96e448e22ec01c727b37493c61163f22ed6a0ccfffa52"
+    },
+    {
+      "path": "crates/checker/src/lib.rs",
+      "sha256": "50ed4c6f2b519f02919de725f8d81818632d18b97f85fe03e7df5a468f714123"
+    },
+    {
+      "path": "crates/diags/src/lib.rs",
+      "sha256": "e513ac415a81c2d6775781a8f6bd2ef3dd2a5d7008e16c87559a203de942dc96"
+    },
+    {
+      "path": "crates/diags/src/render.rs",
+      "sha256": "52f9842fa6d84ce180379a22c1b78b44076eef3e3597b2d92c8809270491edc2"
     },
     {
       "path": "crates/harness/src/lib.rs",
-      "sha256": "ac5d39ce2483c634c15488d61e7f7e0f574e229fa256d5c54de3f265d3fff489"
+      "sha256": "b2bff65be175d11e1eea424395ae1b4a65ff661048284dc7c3ddbbd65b0c1daf"
     },
     {
       "path": "crates/conformance/src/lib.rs",
-      "sha256": "f92ce55e794ccb1fc2801c6db78ac86206126a6e064ee9a1f338cc6984c71481"
+      "sha256": "13a7daa2ee4bec5a4079ed0db0b6572b845e2986b48ab17fcbb3c8004087151d"
+    },
+    {
+      "path": "crates/conformance/src/rendered.rs",
+      "sha256": "02bf82426f8ef6c789b7af39fd518b7b59aa0c6af5295771ff8da19b9e253c72"
     },
     {
       "path": "crates/oracle/render-driver.mjs",
@@ -51,8 +75,28 @@
       "sha256": "bd846b6c26d2cecb79c5320d694e2ddbf41dfce5466011d986e606fa9a3ecddb"
     },
     {
+      "path": "crates/oracle/m9-driver.mjs",
+      "sha256": "8410dae00b0ae4928d4a0530352cb99cdc590bd054b4ed61a71258aaf3821966"
+    },
+    {
+      "path": "crates/oracle/m9-driver.test.mjs",
+      "sha256": "054bed0dd2a797042dabc2e438be55ae44aece34844cd4b37c14299a9bb3566e"
+    },
+    {
+      "path": "crates/oracle/m9-observation.mjs",
+      "sha256": "6f7c713464157920bf54dbdaa91008279e3c3e14894574d8ada3407301f97484"
+    },
+    {
+      "path": "crates/oracle/m9-program-host.mjs",
+      "sha256": "13c4525c15fb492b7a2db796418ce10493629f0573b8e95ec2617149bea37e89"
+    },
+    {
+      "path": "crates/fuzz/Cargo.toml",
+      "sha256": "af0b2514ecd844763dd7e4154f35018327154567ed9c81f2a2bd8e604e245bf9"
+    },
+    {
       "path": "crates/fuzz/src/lib.rs",
-      "sha256": "f4468edd30cca5e13c788178b6a98f217e2503b544da1b34a845bef582cf1981"
+      "sha256": "15d2806cfaf59cc89e6389c38638a691abc05f2c60f29efc595ba1b36e9f051f"
     },
     {
       "path": "crates/fuzz/src/error.rs",
@@ -60,7 +104,7 @@
     },
     {
       "path": "crates/fuzz/src/schema.rs",
-      "sha256": "c13d39ccef1e1d769eca63e64b71ebb8678c83274d4947f5a87d7efb3ac8366e"
+      "sha256": "e5a991925ce498994da73116bff319c6be26c46775edad63dcb5187657695c29"
     },
     {
       "path": "crates/fuzz/src/model.rs",
@@ -72,7 +116,7 @@
     },
     {
       "path": "crates/fuzz/src/compare.rs",
-      "sha256": "008cc2e52ee5556265e262fbb24929dabb3e8a10d84286e0f5ad657d2d67129c"
+      "sha256": "b8c1a18b9579cd487ba94e1018605f7ae9d2726645e96b9ac917599f5c88d4bc"
     },
     {
       "path": "crates/fuzz/src/classify.rs",
@@ -83,12 +127,60 @@
       "sha256": "7fe2c5dde26cd241c39ae038e7798660c38fc9dfcfa0ee8fec9270fcbb84d65a"
     },
     {
+      "path": "crates/fuzz/src/adapters/mod.rs",
+      "sha256": "46d1ab68a6f9b1ca7d1e207fe047db8ed3799ae9f6b61b202bba6733bb68b580"
+    },
+    {
+      "path": "crates/fuzz/src/adapters/oracle.rs",
+      "sha256": "77ced7ea2f20fb7ac2a316fff469ad723c24ea7b4689b84df21872c86398983b"
+    },
+    {
+      "path": "crates/fuzz/src/adapters/tsrs.rs",
+      "sha256": "8416db913afc4fa14b0c7b925d6af3fd9e7372d0fedfe9c76381a48480bb2ecd"
+    },
+    {
+      "path": "crates/fuzz/src/bin/tsrs2-fuzz-producer.rs",
+      "sha256": "551db6ecec382c7c482e6fb414759709858971be952df3587c02d4668505d7da"
+    },
+    {
+      "path": "crates/fuzz/src/cli.rs",
+      "sha256": "175b8bd6eaf1392cf59666d85c3947e22fb92d94125417ec0575b41720009ed6"
+    },
+    {
+      "path": "crates/fuzz/src/executor.rs",
+      "sha256": "23ff38ee11d5c78b667d07ffdf57baf2ef67d76268c1d2db093ba5ae54dd46e1"
+    },
+    {
+      "path": "crates/fuzz/src/process_session.rs",
+      "sha256": "1b96efbd532083861c1a67afd478f5ee8a0cd33b01bd9bdc76812033bd52ec8f"
+    },
+    {
+      "path": "crates/fuzz/src/replay.rs",
+      "sha256": "4cd22fe57c4b65398e7613665cb0bbff10ab5125b5fbadbd26eb75ee22dac047"
+    },
+    {
+      "path": "crates/fuzz/src/rust_worker.rs",
+      "sha256": "6655812f3645bb0152e105115eba84fc2b210a92d4e6fa0ade2a72f6994ec7af"
+    },
+    {
+      "path": "crates/fuzz/src/worker_protocol.rs",
+      "sha256": "f4ec6331a737fb5a6e9db2c50ad5c7b03e8981e54b78f7bee1e2f83a4343dcb7"
+    },
+    {
       "path": "crates/fuzz/tests/foundation_contract.rs",
-      "sha256": "5602e9303737434b38c8328cba6fe36543f9e34f320ea6aa4b49cb6824e3007b"
+      "sha256": "20d495fd87c02ec201ef2fef21c3d23f3f378d5a7e43db00b89070669d6ca952"
     },
     {
       "path": "crates/fuzz/tests/vector_production_contract.rs",
       "sha256": "358575918a7b827bd9cd0dfe402c52a519d23ca65ba006cf0aff2567cccc5c00"
+    },
+    {
+      "path": "crates/fuzz/tests/replay_contract.rs",
+      "sha256": "caf212ec28aa439f2e4cdee913f77fde31b2b8e91f2780c02bb08dfb02ae98b9"
+    },
+    {
+      "path": "crates/fuzz/tests/executor_e2e.rs",
+      "sha256": "c1ff14865e144bc1d8d24046659bca685fb563340aaeb2c131236976183acb2a"
     },
     {
       "path": "crates/fuzz/vectors/canonical-class.schema1.json",
@@ -106,7 +198,7 @@
       "detail": "The current generator is exactly eight case%8 templates under one 32-case entry smoke. It is inventoried as legacy-smoke-only, not as the production domain.",
       "blocks": [],
       "evidence": [
-        "crates/xtask/src/m8_evidence.rs:1510-1541",
+        "crates/xtask/src/m8_evidence.rs:1496-1528",
         "m8-evidence.json:497-500"
       ]
     },
@@ -120,43 +212,43 @@
       ],
       "evidence": [
         "ratchets/fuzz-domain.v1.toml",
-        "crates/xtask/src/m8_evidence.rs:1510-1541"
+        "crates/xtask/src/m8_evidence.rs:1496-1528"
       ]
     },
     {
       "id": "preflight.matrix-and-topology-consumption",
       "status": "pending",
-      "detail": "Schema-1 CaseSpec now canonically binds exact ordered files/libs, cwd, options, generator decisions/domain memberships, matrix facts, and process policy. The production domain/topology adapter is not implemented, and the legacy producer still selects the first expanded ProgramJson and emits single-file programs.",
+      "detail": "Schema-1 CaseSpec canonically binds exact ordered files/libs, cwd, options, generator decisions/domain memberships, matrix facts, and process policy, and both true-replay adapters consume that topology. The production generator/domain adapter is not implemented, and the legacy producer still selects the first expanded ProgramJson.",
       "blocks": [
-        "m9-case-spec",
         "m9-production-domain",
         "qualifying-window"
       ],
       "evidence": [
         "crates/harness/src/lib.rs:39-47",
         "crates/harness/src/lib.rs:228-264",
-        "crates/xtask/src/m8_evidence.rs:905-912",
+        "crates/xtask/src/m8_evidence.rs:891-898",
         "crates/fuzz/src/schema.rs",
         "crates/fuzz/tests/foundation_contract.rs"
       ]
     },
     {
       "id": "preflight.pass-aware-t0-t4-outcome",
-      "status": "pending",
-      "detail": "Typed pass-aware diagnostic and renderer outcomes, tier-before-pass T0 set/T1-T3 multiset comparison, deterministic residual pairing, and final-deduped T4 order/dedupe/path/newline/text precedence are implemented and cross-pinned by Rust/Node raw vectors. Production oracle/domain adapters do not yet emit this contract.",
-      "blocks": [
-        "m9-raw-outcome",
-        "m9-classifier",
-        "qualifying-window"
-      ],
+      "status": "ready",
+      "detail": "Typed pass-aware outcomes and the tier-before-pass T0-T4 comparator are implemented. The Node and Rust production adapters emit case-bound syntactic, semantic, and suggestion occurrences plus assembled, retained-index, segment, and aggregate observations, with cross-language vectors and real-process canaries.",
+      "blocks": [],
       "evidence": [
         "crates/oracle/render-driver.mjs:12-35",
-        "crates/xtask/src/m8_evidence.rs:1118-1185",
-        "crates/xtask/src/m8_evidence.rs:1196-1206",
+        "crates/xtask/src/m8_evidence.rs:1104-1171",
+        "crates/xtask/src/m8_evidence.rs:1182-1192",
+        "crates/oracle/m9-observation.mjs",
+        "crates/fuzz/src/adapters/oracle.rs",
+        "crates/fuzz/src/adapters/tsrs.rs",
+        "crates/fuzz/src/worker_protocol.rs",
         "crates/fuzz/src/model.rs",
         "crates/fuzz/src/compare.rs",
         "crates/fuzz/src/classify.rs",
         "crates/fuzz/tests/foundation_contract.rs",
+        "crates/fuzz/tests/executor_e2e.rs",
         "crates/fuzz/tests/vector_production_contract.rs",
         "crates/fuzz/vectors/canonical-class.schema1.json",
         "crates/fuzz/vectors/verify-canonical-class.mjs"
@@ -165,15 +257,17 @@
     {
       "id": "preflight.terminal-outcome-model",
       "status": "pending",
-      "detail": "Schema-1 models every parse/bind/check/format phase, closed terminal kind/boundary pairs, and typed generator/domain/harness/malformed-response/controller/worker failures; only completed-oracle/tsrs-terminal observations produce a terminal class. Producer integration and frozen reviewed-oracle-deviation replay remain absent.",
+      "detail": "Schema-1 models every parse/bind/check/format phase and closed terminal/failure boundaries. The production adapters now flush phases and map post-phase crash/timeout, malformed responses, and pre-phase worker interruption without retry or stderr OOM inference; frozen reviewed-oracle-deviation replay remains absent.",
       "blocks": [
-        "m9-raw-outcome",
-        "m9-replay",
+        "oracle-deviation-freeze",
         "qualifying-window"
       ],
       "evidence": [
-        "crates/xtask/src/m8_evidence.rs:1063-1069",
+        "crates/xtask/src/m8_evidence.rs:1049-1055",
         "crates/oracle/src/lib.rs:350-358",
+        "crates/oracle/m9-driver.mjs",
+        "crates/fuzz/src/process_session.rs",
+        "crates/fuzz/src/rust_worker.rs",
         "crates/fuzz/src/model.rs",
         "crates/fuzz/src/compare.rs",
         "crates/fuzz/src/classify.rs",
@@ -247,31 +341,38 @@
     {
       "id": "preflight.true-replay",
       "status": "pending",
-      "detail": "Canonical CaseSpec and its case-hash-bound CaseExecution envelope now preserve reconstructible files/libs/options/cwd/decisions/matrix/process policy and raw outcomes. The command still only validates stored legacy JSON; it does not rerun both engines or require the saved comparison and class.",
+      "detail": "The dedicated producer validates a canonical saved artifact, rederives its case/execution hashes, comparison, and class before launch, validates the trusted process policy, runs pinned single-threaded Node and the same-binary Rust worker exactly once, and requires the fresh comparison and class. Replay-backed positive and adjacent-negative canaries for the five reviewed oracle deviations remain absent.",
       "blocks": [
-        "m9-replay",
         "oracle-deviation-freeze",
         "qualifying-window"
       ],
       "evidence": [
-        "crates/xtask/src/m8_evidence.rs:837-855",
+        "crates/xtask/src/m8_evidence.rs:837-858",
+        "crates/fuzz/src/replay.rs",
+        "crates/fuzz/src/executor.rs",
+        "crates/fuzz/src/process_session.rs",
+        "crates/fuzz/src/cli.rs",
+        "crates/fuzz/src/bin/tsrs2-fuzz-producer.rs",
         "crates/fuzz/src/schema.rs",
         "crates/fuzz/src/model.rs",
         "crates/fuzz/src/evaluate.rs",
-        "crates/fuzz/tests/foundation_contract.rs"
+        "crates/fuzz/tests/foundation_contract.rs",
+        "crates/fuzz/tests/replay_contract.rs",
+        "crates/fuzz/tests/executor_e2e.rs"
       ]
     },
     {
       "id": "preflight.true-fixpoint-reducer",
       "status": "pending",
-      "detail": "The legacy reducer performs one pass of line deletion and the command validates stored signatures; it does not perform structural and syntax-aware fixpoint reduction through real replay.",
+      "detail": "The legacy reducer still performs one pass of line deletion. The M9 producer and xtask route now fail closed before reading an artifact until M9.1d implements structural and syntax-aware fixpoint reduction through true replay.",
       "blocks": [
         "m9-reducer",
         "qualifying-window"
       ],
       "evidence": [
-        "crates/xtask/src/m8_evidence.rs:858-880",
-        "crates/xtask/src/m8_evidence.rs:1544-1588"
+        "crates/xtask/src/m8_evidence.rs:861-866",
+        "crates/xtask/src/m8_evidence.rs:1530-1575",
+        "crates/fuzz/src/cli.rs"
       ]
     },
     {
@@ -283,7 +384,7 @@
         "qualifying-window"
       ],
       "evidence": [
-        "crates/xtask/src/m8_evidence.rs:998-1009",
+        "crates/xtask/src/m8_evidence.rs:984-995",
         "crates/fuzz/src/classify.rs",
         "crates/fuzz/src/evaluate.rs",
         "crates/fuzz/tests/vector_production_contract.rs",
@@ -294,7 +395,7 @@
     {
       "id": "preflight.adversarial-test-coverage",
       "status": "pending",
-      "detail": "The foundation matrix now covers canonicality/hash/case binding, path/UTF-16/CRLF/normalization ownership, multiplicity/tier/pass ordering, renderer stage defects/T4 precedence and totality, every terminal kind/phase with a closed boundary, invalid outcomes, and Rust/Node raw-vector rederivation. Replay, reducer, runtime deduper, history, attestation, and production-adapter defect matrices remain incomplete.",
+      "detail": "The matrix now covers canonicality/hash/case binding, normalization ownership, multiplicity/tier/pass ordering, renderer defects, terminal boundaries, bounded protocol/hello/phase failures, artifact-command isolation, and real Node/Rust replay. Oracle-deviation canaries, reducer, runtime deduper, history, and attestation matrices remain incomplete.",
       "blocks": [
         "m9-preflight-ready",
         "qualifying-window"
@@ -302,6 +403,9 @@
       "evidence": [
         "The legacy raw verifier trusts stored summaries and has no history or attestation layer.",
         "crates/fuzz/tests/foundation_contract.rs",
+        "crates/fuzz/tests/replay_contract.rs",
+        "crates/fuzz/tests/executor_e2e.rs",
+        "crates/oracle/m9-driver.test.mjs",
         "crates/fuzz/tests/vector_production_contract.rs",
         "crates/fuzz/vectors/canonical-class.schema1.json",
         "crates/fuzz/vectors/verify-canonical-class.mjs"
@@ -310,7 +414,7 @@
     {
       "id": "preflight.typed-machine-evidence",
       "status": "pending",
-      "detail": "Schema-1 typed records now cover CaseSpec, diagnostics and renderer stages, terminal and producer failures, case-bound engine/execution envelopes, structured comparison/class, and atomic evaluation. Domain/D2 joins, real replay/resource/window observations, and acceptance recomputation remain absent.",
+      "detail": "Schema-1 typed records now cover CaseSpec, diagnostics and renderer stages, terminal and producer failures, case-bound engine/execution envelopes, structured comparison/class, atomic evaluation, and true replay observations. Domain/D2 joins, resource/window observations, and acceptance recomputation remain absent.",
       "blocks": [
         "m9-preflight-ready",
         "fingerprint-freeze",
@@ -323,6 +427,8 @@
         "crates/fuzz/src/compare.rs",
         "crates/fuzz/src/classify.rs",
         "crates/fuzz/src/evaluate.rs",
+        "crates/fuzz/src/replay.rs",
+        "crates/fuzz/src/executor.rs",
         "crates/fuzz/tests/foundation_contract.rs",
         "crates/fuzz/tests/vector_production_contract.rs"
       ]
@@ -337,13 +443,13 @@
         "qualifying-window"
       ],
       "evidence": [
-        "crates/xtask/src/m8_evidence.rs:896-933"
+        "crates/xtask/src/m8_evidence.rs:882-919"
       ]
     },
     {
       "id": "preflight.node-single-thread-policy",
       "status": "pending",
-      "detail": "CaseSpec records ordered Node argv/deadline/rollover and rejects a policy without exact --single-threaded or with a negating argument. The persistent oracle launcher still invokes node with only the driver path; argv placement, production application, freeze, and hosted measurement remain pending.",
+      "detail": "CaseSpec records ordered Node argv/deadline/rollover. True replay now constructs only the trusted node --single-threaded driver command and immediately validates the canonical hello from that launched process. Persistent production application, freeze, and hosted measurement remain pending.",
       "blocks": [
         "m9-process-policy",
         "hosted-calibration",
@@ -351,14 +457,18 @@
       ],
       "evidence": [
         "crates/oracle/src/lib.rs:350-358",
+        "crates/oracle/m9-driver.mjs",
+        "crates/fuzz/src/adapters/oracle.rs",
+        "crates/fuzz/src/executor.rs",
         "crates/fuzz/src/schema.rs",
-        "crates/fuzz/tests/foundation_contract.rs"
+        "crates/fuzz/tests/foundation_contract.rs",
+        "crates/fuzz/tests/executor_e2e.rs"
       ]
     },
     {
       "id": "preflight.rust-worker-cap",
       "status": "unknown",
-      "detail": "CaseSpec requires a positive Rust worker cap/deadline/rollover. The value 2 exists only in foundation fixtures; no production cap has been selected, applied, frozen, or measured.",
+      "detail": "CaseSpec requires a positive Rust worker cap/deadline/rollover, and true replay rejects any cap other than 2. The one-case replay executor does not yet apply that as the bounded production concurrency cap; production application, freeze, and measurement remain absent.",
       "blocks": [
         "m9-process-policy",
         "hosted-calibration",
@@ -366,6 +476,7 @@
       ],
       "evidence": [
         "Requires the bounded producer design and hosted pilot.",
+        "crates/fuzz/src/executor.rs",
         "crates/fuzz/src/schema.rs",
         "crates/fuzz/tests/foundation_contract.rs"
       ]

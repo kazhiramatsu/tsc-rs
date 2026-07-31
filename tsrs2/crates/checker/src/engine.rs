@@ -799,6 +799,7 @@ impl<'a> CheckerState<'a> {
             if let Some(inner) = message.take() {
                 fn append_to_leaf(chain: &mut MessageChain, inner: MessageChain) {
                     if chain.next.is_empty() {
+                        chain.next_present = true;
                         chain.next.push(inner);
                     } else {
                         append_to_leaf(
@@ -4080,6 +4081,7 @@ mod relation_error_state_tests {
             code: depth as u32,
             category: DiagnosticCategory::Error,
             text: format!("{label}-{depth}"),
+            next_present: depth > 1,
             next: (depth > 1)
                 .then(|| chain(depth - 1, label))
                 .into_iter()

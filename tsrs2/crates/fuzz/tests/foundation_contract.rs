@@ -13,9 +13,9 @@ use tsrs2_fuzz::model::{
 };
 use tsrs2_fuzz::normalize::NormalizationSpec;
 use tsrs2_fuzz::schema::{
-    sha256_hex, CanonicalU64, CaseProvenance, CaseSpec, ChildProcessPolicy, DecisionValue,
-    DomainMembership, EncodedFile, NodeProcessPolicy, OrderedArgument, ProcessPolicy,
-    RustProcessPolicy, StableDecision, CASE_SPEC_SCHEMA,
+    sha256_hex, CanonicalU64, CaseProvenance, CaseSpec, ChildProcessPolicy, CompilerOptionValue,
+    DecisionValue, DomainMembership, EncodedFile, NodeProcessPolicy, OrderedArgument,
+    OrderedSetting, ProcessPolicy, RustProcessPolicy, StableDecision, CASE_SPEC_SCHEMA,
 };
 
 use std::process::Command;
@@ -380,6 +380,30 @@ fn schema_uses_utf8_byte_order_for_semantic_sets() {
     assert!(
         case.validate().is_err(),
         "UTF-16 default order must not replace UTF-8 byte order"
+    );
+}
+
+#[test]
+fn case_schema_rejects_ascii_casefold_duplicate_options() {
+    let mut case = basic_case();
+    case.options = vec![
+        OrderedSetting {
+            ordinal: 0,
+            name: "Strict".to_owned(),
+            value: CompilerOptionValue::Boolean { value: true },
+        },
+        OrderedSetting {
+            ordinal: 1,
+            name: "strict".to_owned(),
+            value: CompilerOptionValue::Boolean { value: false },
+        },
+    ];
+    let error = case
+        .validate()
+        .expect_err("tsc option identity is ASCII-case-insensitive");
+    assert!(
+        error.to_string().contains("ASCII-case-insensitively"),
+        "{error}"
     );
 }
 
