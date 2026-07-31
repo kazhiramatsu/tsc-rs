@@ -1,8 +1,9 @@
 # M9 execution and close contract
 
-Status: active execution contract after M8 close. M9.0 preflight inventory
-implementation is in progress; the landed M8 fuzzer remains an entry smoke,
-not qualifying steady-state evidence.
+Status: active execution contract after M8 close. M9.0a's draft-only
+preflight inventories have landed and M9.1's typed fuzzer foundation is in
+progress; the landed M8 fuzzer remains an entry smoke, not qualifying
+steady-state evidence.
 
 This page owns how M9 is investigated, implemented, qualified, and closed.
 The [definition of done](definition-of-done.md) still owns WHAT project
@@ -260,6 +261,18 @@ Any other oracle, generator, domain, harness, or controller failure makes
 the window unsuccessful because no valid comparison exists. It cannot be
 counted as an exact case or silently resampled.
 
+Each raw execution is a versioned canonical envelope bound to the exact
+canonical `CaseSpec` hash. It retains both engine observations or the typed
+producer failure before any comparison or class projection. Authoritative
+producer and verifier code validates/indexes `CaseSpec` once and atomically
+derives that raw envelope and digest, the structured comparison, and the
+canonical class from the same execution. Independently supplied or mixed
+raw bytes, `Comparison`, and class values are not acceptance evidence.
+Schema 1 bounds every diagnostic message-chain tree to depth 32 and 4,096
+total nodes before recursive comparison/serialization. An adapter response
+over either limit is a typed malformed response, never a partially compared
+diagnostic.
+
 `fuzz replay` reconstructs the exact files, options, cwd, seed decisions,
 and process policy, reruns both engines, and requires the saved comparator
 and class. `fuzz reduce` repeatedly performs that real replay. A structural
@@ -276,27 +289,55 @@ The versioned canonical class is the rate/deduplication key:
 schema + first failing tier-or-terminal phase
 + real pass-or-terminal sentinel + divergence side/outcome class
 + sorted one-sided multiset of (code, normalized message head)
-  or normalized terminal key
+  or closed terminal kind/boundary key
 ```
 
 T4 adds the first renderer class in fixed precedence and the first affected
 diagnostic key. Multiplicity is retained. The normalized head is computed
 from the complete T2 record before any T0/T1 projection, so early-tier
 classes do not collapse to an empty message. Virtual paths and
-generator-owned identifiers are normalized by a versioned algorithm;
-positions, seeds, timestamps, and raw hashes do not enter the class.
+generator-owned identifiers are normalized by a versioned, one-way
+raw-to-normalized algorithm. Schema 1 encodes every literal raw `<` as
+`<<`; only a typed path or generator-identifier replacement emits a single
+canonical `<@...>` or `<#...>` placeholder. A normalized string is never
+fed back as raw input. This keeps literal text such as `<@2:0@>` distinct
+from an owned path placeholder without excluding valid source or diagnostic
+text. `CaseSpec` rejects an exact raw source claimed by two path/identifier
+roles while allowing ordinary prefix overlap. Positions, seeds, timestamps,
+and raw hashes do not enter the class.
+The comparator evaluates tier before pass: T0 is a set, while T1-T3 are
+complete multisets inside each T0 bucket. It computes the failing-tier
+count difference before mapping surviving raw occurrences to their
+position-free T2 heads and never re-differences those mapped heads. When
+unequal heads compete for a smaller failing-tier residual, schema 1 first
+cancels identical `(code, normalized head)` occurrences, orders the
+remaining occurrences by numeric code and UTF-8 head bytes, pairs them in
+that order across sides, and retains only the original count surplus. This
+tie-break is part of the Rust/Node canonical-vector contract.
 T0-T3 uses the real syntactic/semantic/suggestion pass. Pure T4 compares the
-already assembled render sequence and uses the explicit
-`pass=aggregate-render` sentinel. When no diagnostic/pass exists, the class
-uses `pass=terminal`, a fixed `parse|bind|check|format` phase, and a
-versioned normalized panic/timeout/OOM/unsupported key instead of inventing
-a diagnostic code.
+captured final deduped render sequence and uses the explicit
+`pass=aggregate-render` sentinel; the pre-dedupe assembled sequence is
+provenance, not the order/dedupe comparator input. Empty rendered segments,
+dropped final rows, and inflated final rows remain representable raw
+observations so the schema cannot validate a renderer defect away. When no
+diagnostic/pass exists, the class uses `pass=terminal`, a fixed
+`parse|bind|check|format` phase, and `terminal kind + adapter-owned
+boundary_id`. The boundary is a schema enum with a closed phase/kind
+allowlist, not caller-provided text; volatile process text, paths, seeds,
+timestamps, addresses, and hashes remain only in raw `detail` and never
+enter the class. T4 tries
+structured order, structured dedupe, whole-aggregate path normalization,
+whole-aggregate newline normalization, then text in that fixed order. A
+path- or newline-only segment does not outrank another residual text
+difference when the whole aggregates still differ after that normalization.
 
-Node/oracle fixtures and Rust tests pin identical classifier bytes for
-duplicate diagnostics, pass separation, generated names, paths, every
-terminal outcome, and renderer precedence. The window verifier recomputes
-classes and dedupe membership from raw outcome digests. A producer-provided
-summary or a vector containing the same class twice is not evidence.
+Node/oracle fixtures and Rust production-path tests derive identical
+classifier bytes from the same typed raw vectors for duplicate diagnostics,
+pass separation, generated names, literal-placeholder collisions, paths,
+every terminal outcome, and renderer precedence. The window verifier
+recomputes classes and dedupe membership from raw outcome digests. A
+producer-provided summary or a vector containing the same class twice is
+not evidence.
 
 ### 5.4 Streaming and process lifetime
 

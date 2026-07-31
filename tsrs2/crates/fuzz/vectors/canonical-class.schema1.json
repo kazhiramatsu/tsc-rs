@@ -1,0 +1,1358 @@
+{
+  "schema": 1,
+  "rejection_canaries": {
+    "terminal_boundary_ids": [
+      "seed42",
+      "timestamp",
+      "hash"
+    ],
+    "normalization_cross_role_source": "owned"
+  },
+  "vectors": [
+    {
+      "id": "diagnostic-signed-multiset-utf8-and-escaping",
+      "raw": {
+        "kind": "diagnostic",
+        "normalization": {
+          "paths": [],
+          "generated_identifiers": []
+        },
+        "diagnostics": [
+          {
+            "engine": "oracle",
+            "pass": "semantic",
+            "file": "main.ts",
+            "code": 10,
+            "line": 0,
+            "col": 0,
+            "category": "error",
+            "start": 0,
+            "length": 1,
+            "head": "",
+            "chain": "oracle-private-a",
+            "related": []
+          },
+          {
+            "engine": "oracle",
+            "pass": "semantic",
+            "file": "main.ts",
+            "code": 10,
+            "line": 0,
+            "col": 0,
+            "category": "error",
+            "start": 1,
+            "length": 1,
+            "head": "𐀀",
+            "chain": "oracle-private-b",
+            "related": []
+          },
+          {
+            "engine": "tsrs",
+            "pass": "semantic",
+            "file": "main.ts",
+            "code": 10,
+            "line": 0,
+            "col": 0,
+            "category": "warning",
+            "start": 0,
+            "length": 1,
+            "head": "other-",
+            "chain": "tsrs-private-a",
+            "related": []
+          },
+          {
+            "engine": "tsrs",
+            "pass": "semantic",
+            "file": "main.ts",
+            "code": 10,
+            "line": 0,
+            "col": 0,
+            "category": "warning",
+            "start": 1,
+            "length": 1,
+            "head": "other-𐀀",
+            "chain": "tsrs-private-b",
+            "related": []
+          },
+          {
+            "engine": "oracle",
+            "pass": "semantic",
+            "file": "main.ts",
+            "code": 2322,
+            "line": 1,
+            "col": 0,
+            "category": "error",
+            "start": 2,
+            "length": 1,
+            "head": "duplicate",
+            "chain": "oracle-duplicate",
+            "related": []
+          },
+          {
+            "engine": "oracle",
+            "pass": "semantic",
+            "file": "main.ts",
+            "code": 2322,
+            "line": 1,
+            "col": 0,
+            "category": "error",
+            "start": 3,
+            "length": 1,
+            "head": "duplicate",
+            "chain": "oracle-duplicate",
+            "related": []
+          },
+          {
+            "engine": "tsrs",
+            "pass": "semantic",
+            "file": "main.ts",
+            "code": 2322,
+            "line": 1,
+            "col": 0,
+            "category": "warning",
+            "start": 2,
+            "length": 1,
+            "head": "quote=\" backslash=\\ nul=\u0000 tab=\t newline=\r\n separators=\u2028\u2029",
+            "chain": "tsrs-duplicate",
+            "related": []
+          },
+          {
+            "engine": "tsrs",
+            "pass": "semantic",
+            "file": "main.ts",
+            "code": 2322,
+            "line": 1,
+            "col": 0,
+            "category": "warning",
+            "start": 3,
+            "length": 1,
+            "head": "quote=\" backslash=\\ nul=\u0000 tab=\t newline=\r\n separators=\u2028\u2029",
+            "chain": "tsrs-duplicate",
+            "related": []
+          }
+        ]
+      },
+      "class": {
+        "schema": 1,
+        "failure": {
+          "kind": "tier",
+          "tier": "t1"
+        },
+        "pass": "semantic",
+        "outcome": {
+          "side": "both",
+          "kind": "diagnostic"
+        },
+        "rows": [
+          {
+            "side": "oracle",
+            "code": 10,
+            "normalized_message_head": ""
+          },
+          {
+            "side": "oracle",
+            "code": 10,
+            "normalized_message_head": "𐀀"
+          },
+          {
+            "side": "oracle",
+            "code": 2322,
+            "normalized_message_head": "duplicate"
+          },
+          {
+            "side": "oracle",
+            "code": 2322,
+            "normalized_message_head": "duplicate"
+          },
+          {
+            "side": "tsrs",
+            "code": 10,
+            "normalized_message_head": "other-"
+          },
+          {
+            "side": "tsrs",
+            "code": 10,
+            "normalized_message_head": "other-𐀀"
+          },
+          {
+            "side": "tsrs",
+            "code": 2322,
+            "normalized_message_head": "quote=\" backslash=\\ nul=\u0000 tab=\t newline=\n separators=\u2028\u2029"
+          },
+          {
+            "side": "tsrs",
+            "code": 2322,
+            "normalized_message_head": "quote=\" backslash=\\ nul=\u0000 tab=\t newline=\n separators=\u2028\u2029"
+          }
+        ],
+        "renderer": null
+      },
+      "canonical_utf8": "{\"schema\":1,\"failure\":{\"kind\":\"tier\",\"tier\":\"t1\"},\"pass\":\"semantic\",\"outcome\":{\"side\":\"both\",\"kind\":\"diagnostic\"},\"rows\":[{\"side\":\"oracle\",\"code\":10,\"normalized_message_head\":\"\"},{\"side\":\"oracle\",\"code\":10,\"normalized_message_head\":\"𐀀\"},{\"side\":\"oracle\",\"code\":2322,\"normalized_message_head\":\"duplicate\"},{\"side\":\"oracle\",\"code\":2322,\"normalized_message_head\":\"duplicate\"},{\"side\":\"tsrs\",\"code\":10,\"normalized_message_head\":\"other-\"},{\"side\":\"tsrs\",\"code\":10,\"normalized_message_head\":\"other-𐀀\"},{\"side\":\"tsrs\",\"code\":2322,\"normalized_message_head\":\"quote=\\\" backslash=\\\\ nul=\\u0000 tab=\\t newline=\\n separators=\u2028\u2029\"},{\"side\":\"tsrs\",\"code\":2322,\"normalized_message_head\":\"quote=\\\" backslash=\\\\ nul=\\u0000 tab=\\t newline=\\n separators=\u2028\u2029\"}],\"renderer\":null}",
+      "sha256": "2c55fcd160b5524d3649d81f3d9f727b5b7b14606253ff71e1b27d54b5bfabe5"
+    },
+    {
+      "id": "diagnostic-t0-exclusive-set-with-duplicate-occurrences",
+      "raw": {
+        "kind": "diagnostic",
+        "normalization": {
+          "paths": [],
+          "generated_identifiers": []
+        },
+        "diagnostics": [
+          {
+            "engine": "oracle",
+            "pass": "semantic",
+            "file": "main.ts",
+            "code": 1001,
+            "line": 0,
+            "col": 0,
+            "category": "error",
+            "start": 0,
+            "length": 1,
+            "head": "oracle duplicate",
+            "chain": "oracle duplicate",
+            "related": []
+          },
+          {
+            "engine": "oracle",
+            "pass": "semantic",
+            "file": "main.ts",
+            "code": 1001,
+            "line": 0,
+            "col": 0,
+            "category": "error",
+            "start": 0,
+            "length": 1,
+            "head": "oracle duplicate",
+            "chain": "oracle duplicate",
+            "related": []
+          },
+          {
+            "engine": "tsrs",
+            "pass": "semantic",
+            "file": "main.ts",
+            "code": 1002,
+            "line": 0,
+            "col": 0,
+            "category": "error",
+            "start": 0,
+            "length": 1,
+            "head": "tsrs exclusive",
+            "chain": "tsrs exclusive",
+            "related": []
+          }
+        ]
+      },
+      "class": {
+        "schema": 1,
+        "failure": {
+          "kind": "tier",
+          "tier": "t0"
+        },
+        "pass": "semantic",
+        "outcome": {
+          "side": "both",
+          "kind": "diagnostic"
+        },
+        "rows": [
+          {
+            "side": "oracle",
+            "code": 1001,
+            "normalized_message_head": "oracle duplicate"
+          },
+          {
+            "side": "oracle",
+            "code": 1001,
+            "normalized_message_head": "oracle duplicate"
+          },
+          {
+            "side": "tsrs",
+            "code": 1002,
+            "normalized_message_head": "tsrs exclusive"
+          }
+        ],
+        "renderer": null
+      },
+      "canonical_utf8": "{\"schema\":1,\"failure\":{\"kind\":\"tier\",\"tier\":\"t0\"},\"pass\":\"semantic\",\"outcome\":{\"side\":\"both\",\"kind\":\"diagnostic\"},\"rows\":[{\"side\":\"oracle\",\"code\":1001,\"normalized_message_head\":\"oracle duplicate\"},{\"side\":\"oracle\",\"code\":1001,\"normalized_message_head\":\"oracle duplicate\"},{\"side\":\"tsrs\",\"code\":1002,\"normalized_message_head\":\"tsrs exclusive\"}],\"renderer\":null}",
+      "sha256": "7a62b3efdb3558cbdd91d8fc8d2dcbbbfd1c2e69cc1d8ef8d0c61eed3e733a19"
+    },
+    {
+      "id": "diagnostic-residual-tie-break-a-b-vs-c",
+      "raw": {
+        "kind": "diagnostic",
+        "normalization": {
+          "paths": [],
+          "generated_identifiers": []
+        },
+        "diagnostics": [
+          {
+            "engine": "oracle",
+            "pass": "semantic",
+            "file": "main.ts",
+            "code": 3000,
+            "line": 0,
+            "col": 0,
+            "category": "error",
+            "start": 0,
+            "length": 1,
+            "head": "alpha",
+            "chain": "alpha-chain",
+            "related": []
+          },
+          {
+            "engine": "oracle",
+            "pass": "semantic",
+            "file": "main.ts",
+            "code": 3000,
+            "line": 0,
+            "col": 0,
+            "category": "error",
+            "start": 1,
+            "length": 1,
+            "head": "beta",
+            "chain": "beta-chain",
+            "related": []
+          },
+          {
+            "engine": "tsrs",
+            "pass": "semantic",
+            "file": "main.ts",
+            "code": 3000,
+            "line": 0,
+            "col": 0,
+            "category": "error",
+            "start": 2,
+            "length": 1,
+            "head": "charlie",
+            "chain": "charlie-chain",
+            "related": []
+          }
+        ]
+      },
+      "class": {
+        "schema": 1,
+        "failure": {
+          "kind": "tier",
+          "tier": "t1"
+        },
+        "pass": "semantic",
+        "outcome": {
+          "side": "oracle",
+          "kind": "diagnostic"
+        },
+        "rows": [
+          {
+            "side": "oracle",
+            "code": 3000,
+            "normalized_message_head": "beta"
+          }
+        ],
+        "renderer": null
+      },
+      "canonical_utf8": "{\"schema\":1,\"failure\":{\"kind\":\"tier\",\"tier\":\"t1\"},\"pass\":\"semantic\",\"outcome\":{\"side\":\"oracle\",\"kind\":\"diagnostic\"},\"rows\":[{\"side\":\"oracle\",\"code\":3000,\"normalized_message_head\":\"beta\"}],\"renderer\":null}",
+      "sha256": "bab07aa42ed84dd4b5a1ecf08cd84d74f775cbc324f0279371f82363ce37d2d6"
+    },
+    {
+      "id": "diagnostic-t3-root-head-chain-swap",
+      "raw": {
+        "kind": "diagnostic",
+        "normalization": {
+          "paths": [],
+          "generated_identifiers": []
+        },
+        "diagnostics": [
+          {
+            "engine": "oracle",
+            "pass": "semantic",
+            "file": "main.ts",
+            "code": 4000,
+            "line": 0,
+            "col": 0,
+            "category": "error",
+            "start": 0,
+            "length": 1,
+            "head": "A",
+            "chain": "X",
+            "related": []
+          },
+          {
+            "engine": "oracle",
+            "pass": "semantic",
+            "file": "main.ts",
+            "code": 4000,
+            "line": 0,
+            "col": 0,
+            "category": "error",
+            "start": 0,
+            "length": 1,
+            "head": "B",
+            "chain": "Y",
+            "related": []
+          },
+          {
+            "engine": "tsrs",
+            "pass": "semantic",
+            "file": "main.ts",
+            "code": 4000,
+            "line": 0,
+            "col": 0,
+            "category": "error",
+            "start": 0,
+            "length": 1,
+            "head": "A",
+            "chain": "Y",
+            "related": []
+          },
+          {
+            "engine": "tsrs",
+            "pass": "semantic",
+            "file": "main.ts",
+            "code": 4000,
+            "line": 0,
+            "col": 0,
+            "category": "error",
+            "start": 0,
+            "length": 1,
+            "head": "B",
+            "chain": "X",
+            "related": []
+          }
+        ]
+      },
+      "class": {
+        "schema": 1,
+        "failure": {
+          "kind": "tier",
+          "tier": "t3"
+        },
+        "pass": "semantic",
+        "outcome": {
+          "side": "both",
+          "kind": "diagnostic"
+        },
+        "rows": [
+          {
+            "side": "oracle",
+            "code": 4000,
+            "normalized_message_head": "A"
+          },
+          {
+            "side": "oracle",
+            "code": 4000,
+            "normalized_message_head": "B"
+          },
+          {
+            "side": "tsrs",
+            "code": 4000,
+            "normalized_message_head": "A"
+          },
+          {
+            "side": "tsrs",
+            "code": 4000,
+            "normalized_message_head": "B"
+          }
+        ],
+        "renderer": null
+      },
+      "canonical_utf8": "{\"schema\":1,\"failure\":{\"kind\":\"tier\",\"tier\":\"t3\"},\"pass\":\"semantic\",\"outcome\":{\"side\":\"both\",\"kind\":\"diagnostic\"},\"rows\":[{\"side\":\"oracle\",\"code\":4000,\"normalized_message_head\":\"A\"},{\"side\":\"oracle\",\"code\":4000,\"normalized_message_head\":\"B\"},{\"side\":\"tsrs\",\"code\":4000,\"normalized_message_head\":\"A\"},{\"side\":\"tsrs\",\"code\":4000,\"normalized_message_head\":\"B\"}],\"renderer\":null}",
+      "sha256": "83a2a4cc6aaa8f807e569a9f115599bc6406efae8bcfae2d5b4a017e0e65231c"
+    },
+    {
+      "id": "diagnostic-literal-placeholder-vs-owned-path",
+      "raw": {
+        "kind": "diagnostic",
+        "normalization": {
+          "paths": [
+            {
+              "from": "main.ts",
+              "to": "<@2:0@>"
+            },
+            {
+              "from": "<@0@>",
+              "to": "<@2:1@>"
+            }
+          ],
+          "generated_identifiers": []
+        },
+        "diagnostics": [
+          {
+            "engine": "oracle",
+            "pass": "semantic",
+            "file": "<@0@>",
+            "code": 7006,
+            "line": 0,
+            "col": 0,
+            "category": "error",
+            "start": 0,
+            "length": 1,
+            "head": "literal <@2:0@>; other=\u0345main.ts; combining=\u0301main.ts; owned-marker=<@0@>",
+            "chain": "literal-placeholder-chain",
+            "related": []
+          },
+          {
+            "engine": "tsrs",
+            "pass": "semantic",
+            "file": "<@0@>",
+            "code": 7006,
+            "line": 0,
+            "col": 0,
+            "category": "error",
+            "start": 0,
+            "length": 1,
+            "head": "literal main.ts; other=\u0345main.ts; combining=\u0301main.ts; owned-marker=<@0@>",
+            "chain": "owned-path-chain",
+            "related": []
+          }
+        ]
+      },
+      "class": {
+        "schema": 1,
+        "failure": {
+          "kind": "tier",
+          "tier": "t2"
+        },
+        "pass": "semantic",
+        "outcome": {
+          "side": "both",
+          "kind": "diagnostic"
+        },
+        "rows": [
+          {
+            "side": "oracle",
+            "code": 7006,
+            "normalized_message_head": "literal <<@2:0@>; other=\u0345main.ts; combining=\u0301main.ts; owned-marker=<@2:1@>"
+          },
+          {
+            "side": "tsrs",
+            "code": 7006,
+            "normalized_message_head": "literal <@2:0@>; other=\u0345main.ts; combining=\u0301main.ts; owned-marker=<@2:1@>"
+          }
+        ],
+        "renderer": null
+      },
+      "canonical_utf8": "{\"schema\":1,\"failure\":{\"kind\":\"tier\",\"tier\":\"t2\"},\"pass\":\"semantic\",\"outcome\":{\"side\":\"both\",\"kind\":\"diagnostic\"},\"rows\":[{\"side\":\"oracle\",\"code\":7006,\"normalized_message_head\":\"literal <<@2:0@>; other=\u0345main.ts; combining=\u0301main.ts; owned-marker=<@2:1@>\"},{\"side\":\"tsrs\",\"code\":7006,\"normalized_message_head\":\"literal <@2:0@>; other=\u0345main.ts; combining=\u0301main.ts; owned-marker=<@2:1@>\"}],\"renderer\":null}",
+      "sha256": "eda8a62fc4c9bb4726361f6eacd53bc65237fcb7a86dcbd5d2900100b8d85dc4"
+    },
+    {
+      "id": "diagnostic-pass-syntactic-placeholders",
+      "raw": {
+        "kind": "diagnostic",
+        "normalization": {
+          "paths": [
+            {
+              "from": "/case/2/src/input.ts",
+              "to": "<@2:0@>"
+            }
+          ],
+          "generated_identifiers": [
+            {
+              "from": "__generated_947",
+              "to": "<#0#>"
+            }
+          ]
+        },
+        "diagnostics": [
+          {
+            "engine": "oracle",
+            "pass": "syntactic",
+            "file": "input.ts",
+            "code": 7006,
+            "line": 0,
+            "col": 0,
+            "category": "error",
+            "start": 0,
+            "length": 1,
+            "head": "generated __generated_947 at /case/2/src/input.ts",
+            "chain": "oracle-chain",
+            "related": []
+          },
+          {
+            "engine": "tsrs",
+            "pass": "syntactic",
+            "file": "input.ts",
+            "code": 7006,
+            "line": 0,
+            "col": 0,
+            "category": "error",
+            "start": 0,
+            "length": 1,
+            "head": "baseline",
+            "chain": "tsrs-chain",
+            "related": []
+          }
+        ]
+      },
+      "class": {
+        "schema": 1,
+        "failure": {
+          "kind": "tier",
+          "tier": "t2"
+        },
+        "pass": "syntactic",
+        "outcome": {
+          "side": "both",
+          "kind": "diagnostic"
+        },
+        "rows": [
+          {
+            "side": "oracle",
+            "code": 7006,
+            "normalized_message_head": "generated <#0#> at <@2:0@>"
+          },
+          {
+            "side": "tsrs",
+            "code": 7006,
+            "normalized_message_head": "baseline"
+          }
+        ],
+        "renderer": null
+      },
+      "canonical_utf8": "{\"schema\":1,\"failure\":{\"kind\":\"tier\",\"tier\":\"t2\"},\"pass\":\"syntactic\",\"outcome\":{\"side\":\"both\",\"kind\":\"diagnostic\"},\"rows\":[{\"side\":\"oracle\",\"code\":7006,\"normalized_message_head\":\"generated <#0#> at <@2:0@>\"},{\"side\":\"tsrs\",\"code\":7006,\"normalized_message_head\":\"baseline\"}],\"renderer\":null}",
+      "sha256": "256c192085dace825586a7a17e56bcb9ec9bda306ebfc465500b313aafb457c5"
+    },
+    {
+      "id": "diagnostic-pass-semantic-placeholders",
+      "raw": {
+        "kind": "diagnostic",
+        "normalization": {
+          "paths": [
+            {
+              "from": "/case/2/src/input.ts",
+              "to": "<@2:0@>"
+            }
+          ],
+          "generated_identifiers": [
+            {
+              "from": "__generated_947",
+              "to": "<#0#>"
+            }
+          ]
+        },
+        "diagnostics": [
+          {
+            "engine": "oracle",
+            "pass": "semantic",
+            "file": "input.ts",
+            "code": 7006,
+            "line": 0,
+            "col": 0,
+            "category": "error",
+            "start": 0,
+            "length": 1,
+            "head": "generated __generated_947 at /case/2/src/input.ts",
+            "chain": "oracle-chain",
+            "related": []
+          },
+          {
+            "engine": "tsrs",
+            "pass": "semantic",
+            "file": "input.ts",
+            "code": 7006,
+            "line": 0,
+            "col": 0,
+            "category": "error",
+            "start": 0,
+            "length": 1,
+            "head": "baseline",
+            "chain": "tsrs-chain",
+            "related": []
+          }
+        ]
+      },
+      "class": {
+        "schema": 1,
+        "failure": {
+          "kind": "tier",
+          "tier": "t2"
+        },
+        "pass": "semantic",
+        "outcome": {
+          "side": "both",
+          "kind": "diagnostic"
+        },
+        "rows": [
+          {
+            "side": "oracle",
+            "code": 7006,
+            "normalized_message_head": "generated <#0#> at <@2:0@>"
+          },
+          {
+            "side": "tsrs",
+            "code": 7006,
+            "normalized_message_head": "baseline"
+          }
+        ],
+        "renderer": null
+      },
+      "canonical_utf8": "{\"schema\":1,\"failure\":{\"kind\":\"tier\",\"tier\":\"t2\"},\"pass\":\"semantic\",\"outcome\":{\"side\":\"both\",\"kind\":\"diagnostic\"},\"rows\":[{\"side\":\"oracle\",\"code\":7006,\"normalized_message_head\":\"generated <#0#> at <@2:0@>\"},{\"side\":\"tsrs\",\"code\":7006,\"normalized_message_head\":\"baseline\"}],\"renderer\":null}",
+      "sha256": "d2219fa13e2f4bcdebf84d2a0a47814325388c4538bb0248e9cb9120a3b0505a"
+    },
+    {
+      "id": "diagnostic-pass-suggestion-placeholders",
+      "raw": {
+        "kind": "diagnostic",
+        "normalization": {
+          "paths": [
+            {
+              "from": "/case/2/src/input.ts",
+              "to": "<@2:0@>"
+            }
+          ],
+          "generated_identifiers": [
+            {
+              "from": "__generated_947",
+              "to": "<#0#>"
+            }
+          ]
+        },
+        "diagnostics": [
+          {
+            "engine": "oracle",
+            "pass": "suggestion",
+            "file": "input.ts",
+            "code": 7006,
+            "line": 0,
+            "col": 0,
+            "category": "error",
+            "start": 0,
+            "length": 1,
+            "head": "generated __generated_947 at /case/2/src/input.ts",
+            "chain": "oracle-chain",
+            "related": []
+          },
+          {
+            "engine": "tsrs",
+            "pass": "suggestion",
+            "file": "input.ts",
+            "code": 7006,
+            "line": 0,
+            "col": 0,
+            "category": "error",
+            "start": 0,
+            "length": 1,
+            "head": "baseline",
+            "chain": "tsrs-chain",
+            "related": []
+          }
+        ]
+      },
+      "class": {
+        "schema": 1,
+        "failure": {
+          "kind": "tier",
+          "tier": "t2"
+        },
+        "pass": "suggestion",
+        "outcome": {
+          "side": "both",
+          "kind": "diagnostic"
+        },
+        "rows": [
+          {
+            "side": "oracle",
+            "code": 7006,
+            "normalized_message_head": "generated <#0#> at <@2:0@>"
+          },
+          {
+            "side": "tsrs",
+            "code": 7006,
+            "normalized_message_head": "baseline"
+          }
+        ],
+        "renderer": null
+      },
+      "canonical_utf8": "{\"schema\":1,\"failure\":{\"kind\":\"tier\",\"tier\":\"t2\"},\"pass\":\"suggestion\",\"outcome\":{\"side\":\"both\",\"kind\":\"diagnostic\"},\"rows\":[{\"side\":\"oracle\",\"code\":7006,\"normalized_message_head\":\"generated <#0#> at <@2:0@>\"},{\"side\":\"tsrs\",\"code\":7006,\"normalized_message_head\":\"baseline\"}],\"renderer\":null}",
+      "sha256": "53169b3f40127d068818ed00a4d216ed399782643067be02995dec86d36a70f4"
+    },
+    {
+      "id": "renderer-order-affected-key",
+      "raw": {
+        "kind": "renderer",
+        "normalization": {
+          "paths": [],
+          "generated_identifiers": []
+        },
+        "diagnostics": [
+          {
+            "id": "a",
+            "file": "main.ts",
+            "resolved_file": "/work/main.ts",
+            "start": 0,
+            "length": 1,
+            "code": 6059,
+            "top_text": "render \"quoted\" \\ path\u2028next\u2029last",
+            "canonical_head": null,
+            "pass": "semantic",
+            "category": "error",
+            "tail": "oracle-only-tail",
+            "related": [],
+            "flags": ["reports-unnecessary"]
+          },
+          {
+            "id": "b",
+            "file": "main.ts",
+            "resolved_file": "/work/main.ts",
+            "start": 2,
+            "length": 1,
+            "code": 1005,
+            "top_text": "second",
+            "canonical_head": null,
+            "pass": "suggestion",
+            "category": "suggestion",
+            "tail": "tsrs-only-tail",
+            "related": ["ignored-by-effective-identity"],
+            "flags": []
+          }
+        ],
+        "oracle": {
+          "assembled": ["a", "b"],
+          "deduped": ["a", "b"],
+          "aggregate_text": "",
+          "segments": [
+            {
+              "diagnostic": "a",
+              "raw_text": ""
+            },
+            {
+              "diagnostic": "b",
+              "raw_text": ""
+            }
+          ]
+        },
+        "tsrs": {
+          "assembled": ["b", "a"],
+          "deduped": ["b", "a"],
+          "aggregate_text": "",
+          "segments": [
+            {
+              "diagnostic": "b",
+              "raw_text": ""
+            },
+            {
+              "diagnostic": "a",
+              "raw_text": ""
+            }
+          ]
+        }
+      },
+      "class": {
+        "schema": 1,
+        "failure": {
+          "kind": "tier",
+          "tier": "t4"
+        },
+        "pass": "aggregate-render",
+        "outcome": {
+          "side": "both",
+          "kind": "renderer"
+        },
+        "rows": [],
+        "renderer": {
+          "class": "order",
+          "affected_key": {
+            "code": 6059,
+            "normalized_message_head": "render \"quoted\" \\ path\u2028next\u2029last"
+          }
+        }
+      },
+      "canonical_utf8": "{\"schema\":1,\"failure\":{\"kind\":\"tier\",\"tier\":\"t4\"},\"pass\":\"aggregate-render\",\"outcome\":{\"side\":\"both\",\"kind\":\"renderer\"},\"rows\":[],\"renderer\":{\"class\":\"order\",\"affected_key\":{\"code\":6059,\"normalized_message_head\":\"render \\\"quoted\\\" \\\\ path\u2028next\u2029last\"}}}",
+      "sha256": "15f84ee288f79f592a66a980ed767d455f18cf7b4b7ad0baebcee7efaff2951c"
+    },
+    {
+      "id": "renderer-dedupe-affected-key",
+      "raw": {
+        "kind": "renderer",
+        "normalization": {
+          "paths": [],
+          "generated_identifiers": []
+        },
+        "diagnostics": [
+          {
+            "id": "oracle-a",
+            "file": "main.ts",
+            "resolved_file": "/work/main.ts",
+            "start": 4,
+            "length": 2,
+            "code": 9999,
+            "top_text": "oracle wrapper",
+            "canonical_head": {
+              "code": 2322,
+              "message_text": "dedupe head"
+            },
+            "pass": "syntactic",
+            "category": "error",
+            "tail": "oracle tail",
+            "related": ["oracle related"],
+            "flags": ["reports-deprecated"]
+          },
+          {
+            "id": "tsrs-a",
+            "file": "main.ts",
+            "resolved_file": "/work/main.ts",
+            "start": 4,
+            "length": 2,
+            "code": 1111,
+            "top_text": "tsrs wrapper",
+            "canonical_head": {
+              "code": 2322,
+              "message_text": "dedupe head"
+            },
+            "pass": "semantic",
+            "category": "warning",
+            "tail": "tsrs tail",
+            "related": [],
+            "flags": []
+          }
+        ],
+        "oracle": {
+          "assembled": ["oracle-a", "oracle-a"],
+          "deduped": ["oracle-a"],
+          "aggregate_text": "",
+          "segments": [
+            {
+              "diagnostic": "oracle-a",
+              "raw_text": ""
+            }
+          ]
+        },
+        "tsrs": {
+          "assembled": ["tsrs-a", "tsrs-a"],
+          "deduped": ["tsrs-a", "tsrs-a"],
+          "aggregate_text": "",
+          "segments": [
+            {
+              "diagnostic": "tsrs-a",
+              "raw_text": ""
+            },
+            {
+              "diagnostic": "tsrs-a",
+              "raw_text": ""
+            }
+          ]
+        }
+      },
+      "class": {
+        "schema": 1,
+        "failure": {
+          "kind": "tier",
+          "tier": "t4"
+        },
+        "pass": "aggregate-render",
+        "outcome": {
+          "side": "both",
+          "kind": "renderer"
+        },
+        "rows": [],
+        "renderer": {
+          "class": "dedupe",
+          "affected_key": {
+            "code": 1111,
+            "normalized_message_head": "tsrs wrapper"
+          }
+        }
+      },
+      "canonical_utf8": "{\"schema\":1,\"failure\":{\"kind\":\"tier\",\"tier\":\"t4\"},\"pass\":\"aggregate-render\",\"outcome\":{\"side\":\"both\",\"kind\":\"renderer\"},\"rows\":[],\"renderer\":{\"class\":\"dedupe\",\"affected_key\":{\"code\":1111,\"normalized_message_head\":\"tsrs wrapper\"}}}",
+      "sha256": "683a7b98be4e01e45060788a811d6b0f4bd18f2b4f9faf0ac4c55939cbb3e74a"
+    },
+    {
+      "id": "renderer-path-affected-key",
+      "raw": {
+        "kind": "renderer",
+        "normalization": {
+          "paths": [
+            {
+              "from": "main.ts",
+              "to": "<@2:0@>"
+            },
+            {
+              "from": "/work/main.ts",
+              "to": "<@2:0@>"
+            }
+          ],
+          "generated_identifiers": []
+        },
+        "diagnostics": [
+          {
+            "id": "a",
+            "file": "main.ts",
+            "resolved_file": "/work/main.ts",
+            "start": 0,
+            "length": 1,
+            "code": 6059,
+            "top_text": "path head main.ts",
+            "canonical_head": null,
+            "pass": "semantic",
+            "category": "error",
+            "tail": "",
+            "related": [],
+            "flags": []
+          },
+          {
+            "id": "b",
+            "file": "main.ts",
+            "resolved_file": "/work/main.ts",
+            "start": 2,
+            "length": 1,
+            "code": 1005,
+            "top_text": "path suffix",
+            "canonical_head": null,
+            "pass": "semantic",
+            "category": "error",
+            "tail": "",
+            "related": [],
+            "flags": []
+          }
+        ],
+        "oracle": {
+          "assembled": ["a", "b"],
+          "deduped": ["a", "b"],
+          "aggregate_text": "main.ts: path head",
+          "segments": [
+            {
+              "diagnostic": "a",
+              "raw_text": "main"
+            },
+            {
+              "diagnostic": "b",
+              "raw_text": ".ts: path head"
+            }
+          ]
+        },
+        "tsrs": {
+          "assembled": ["a", "b"],
+          "deduped": ["a", "b"],
+          "aggregate_text": "/work/main.ts: path head",
+          "segments": [
+            {
+              "diagnostic": "a",
+              "raw_text": "/work/main"
+            },
+            {
+              "diagnostic": "b",
+              "raw_text": ".ts: path head"
+            }
+          ]
+        }
+      },
+      "class": {
+        "schema": 1,
+        "failure": {
+          "kind": "tier",
+          "tier": "t4"
+        },
+        "pass": "aggregate-render",
+        "outcome": {
+          "side": "both",
+          "kind": "renderer"
+        },
+        "rows": [],
+        "renderer": {
+          "class": "path",
+          "affected_key": {
+            "code": 6059,
+            "normalized_message_head": "path head <@2:0@>"
+          }
+        }
+      },
+      "canonical_utf8": "{\"schema\":1,\"failure\":{\"kind\":\"tier\",\"tier\":\"t4\"},\"pass\":\"aggregate-render\",\"outcome\":{\"side\":\"both\",\"kind\":\"renderer\"},\"rows\":[],\"renderer\":{\"class\":\"path\",\"affected_key\":{\"code\":6059,\"normalized_message_head\":\"path head <@2:0@>\"}}}",
+      "sha256": "f414a1bd98f7f542db014085ede0b641eac2976c5bc720efd0910b8e98a815cb"
+    },
+    {
+      "id": "renderer-newline-affected-key",
+      "raw": {
+        "kind": "renderer",
+        "normalization": {
+          "paths": [],
+          "generated_identifiers": []
+        },
+        "diagnostics": [
+          {
+            "id": "a",
+            "file": "main.ts",
+            "resolved_file": "/work/main.ts",
+            "start": 0,
+            "length": 1,
+            "code": 1005,
+            "top_text": "newline head",
+            "canonical_head": null,
+            "pass": "syntactic",
+            "category": "error",
+            "tail": "",
+            "related": [],
+            "flags": []
+          }
+        ],
+        "oracle": {
+          "assembled": ["a"],
+          "deduped": ["a"],
+          "aggregate_text": "newline head\r\n",
+          "segments": [
+            {
+              "diagnostic": "a",
+              "raw_text": "newline head\r\n"
+            }
+          ]
+        },
+        "tsrs": {
+          "assembled": ["a"],
+          "deduped": ["a"],
+          "aggregate_text": "newline head\n",
+          "segments": [
+            {
+              "diagnostic": "a",
+              "raw_text": "newline head\n"
+            }
+          ]
+        }
+      },
+      "class": {
+        "schema": 1,
+        "failure": {
+          "kind": "tier",
+          "tier": "t4"
+        },
+        "pass": "aggregate-render",
+        "outcome": {
+          "side": "both",
+          "kind": "renderer"
+        },
+        "rows": [],
+        "renderer": {
+          "class": "newline",
+          "affected_key": {
+            "code": 1005,
+            "normalized_message_head": "newline head"
+          }
+        }
+      },
+      "canonical_utf8": "{\"schema\":1,\"failure\":{\"kind\":\"tier\",\"tier\":\"t4\"},\"pass\":\"aggregate-render\",\"outcome\":{\"side\":\"both\",\"kind\":\"renderer\"},\"rows\":[],\"renderer\":{\"class\":\"newline\",\"affected_key\":{\"code\":1005,\"normalized_message_head\":\"newline head\"}}}",
+      "sha256": "12776565a0f465337f3c4409bee2f59440697fbd9d8683257f1e08b6787c8950"
+    },
+    {
+      "id": "renderer-text-affected-key",
+      "raw": {
+        "kind": "renderer",
+        "normalization": {
+          "paths": [],
+          "generated_identifiers": []
+        },
+        "diagnostics": [
+          {
+            "id": "a",
+            "file": "main.ts",
+            "resolved_file": "/work/main.ts",
+            "start": 0,
+            "length": 1,
+            "code": 2345,
+            "top_text": "text head",
+            "canonical_head": null,
+            "pass": "semantic",
+            "category": "error",
+            "tail": "",
+            "related": [],
+            "flags": []
+          }
+        ],
+        "oracle": {
+          "assembled": ["a"],
+          "deduped": ["a"],
+          "aggregate_text": "oracle text",
+          "segments": [
+            {
+              "diagnostic": "a",
+              "raw_text": "oracle text"
+            }
+          ]
+        },
+        "tsrs": {
+          "assembled": ["a"],
+          "deduped": ["a"],
+          "aggregate_text": "tsrs text",
+          "segments": [
+            {
+              "diagnostic": "a",
+              "raw_text": "tsrs text"
+            }
+          ]
+        }
+      },
+      "class": {
+        "schema": 1,
+        "failure": {
+          "kind": "tier",
+          "tier": "t4"
+        },
+        "pass": "aggregate-render",
+        "outcome": {
+          "side": "both",
+          "kind": "renderer"
+        },
+        "rows": [],
+        "renderer": {
+          "class": "text",
+          "affected_key": {
+            "code": 2345,
+            "normalized_message_head": "text head"
+          }
+        }
+      },
+      "canonical_utf8": "{\"schema\":1,\"failure\":{\"kind\":\"tier\",\"tier\":\"t4\"},\"pass\":\"aggregate-render\",\"outcome\":{\"side\":\"both\",\"kind\":\"renderer\"},\"rows\":[],\"renderer\":{\"class\":\"text\",\"affected_key\":{\"code\":2345,\"normalized_message_head\":\"text head\"}}}",
+      "sha256": "9aeaa685667fca0ff09881a7f4f95c4a51e02b819c0976a30b2935f3bf658c14"
+    },
+    {
+      "id": "terminal-format-timeout",
+      "raw": {
+        "kind": "terminal",
+        "oracle": {
+          "kind": "completed"
+        },
+        "tsrs": {
+          "kind": "terminal",
+          "phase": "format",
+          "terminal_kind": "timeout",
+          "boundary_id": "deadline"
+        }
+      },
+      "class": {
+        "schema": 1,
+        "failure": {
+          "kind": "terminal",
+          "phase": "format"
+        },
+        "pass": "terminal",
+        "outcome": {
+          "side": "tsrs",
+          "kind": "timeout:deadline"
+        },
+        "rows": [],
+        "renderer": null
+      },
+      "canonical_utf8": "{\"schema\":1,\"failure\":{\"kind\":\"terminal\",\"phase\":\"format\"},\"pass\":\"terminal\",\"outcome\":{\"side\":\"tsrs\",\"kind\":\"timeout:deadline\"},\"rows\":[],\"renderer\":null}",
+      "sha256": "ed5fd9bdca83809d57b2646624adc5e9e869f9f58d2bdb0950319b63ef121b3c"
+    },
+    {
+      "id": "terminal-parse-panic",
+      "raw": {
+        "kind": "terminal",
+        "oracle": {
+          "kind": "completed"
+        },
+        "tsrs": {
+          "kind": "terminal",
+          "phase": "parse",
+          "terminal_kind": "panic",
+          "boundary_id": "parser-invariant"
+        }
+      },
+      "class": {
+        "schema": 1,
+        "failure": {
+          "kind": "terminal",
+          "phase": "parse"
+        },
+        "pass": "terminal",
+        "outcome": {
+          "side": "tsrs",
+          "kind": "panic:parser-invariant"
+        },
+        "rows": [],
+        "renderer": null
+      },
+      "canonical_utf8": "{\"schema\":1,\"failure\":{\"kind\":\"terminal\",\"phase\":\"parse\"},\"pass\":\"terminal\",\"outcome\":{\"side\":\"tsrs\",\"kind\":\"panic:parser-invariant\"},\"rows\":[],\"renderer\":null}",
+      "sha256": "1f57c524d18b64f10b21498608f0abc095a57caab7199393b59f2320b176bfea"
+    },
+    {
+      "id": "terminal-bind-crash",
+      "raw": {
+        "kind": "terminal",
+        "oracle": {
+          "kind": "completed"
+        },
+        "tsrs": {
+          "kind": "terminal",
+          "phase": "bind",
+          "terminal_kind": "crash",
+          "boundary_id": "process-signal"
+        }
+      },
+      "class": {
+        "schema": 1,
+        "failure": {
+          "kind": "terminal",
+          "phase": "bind"
+        },
+        "pass": "terminal",
+        "outcome": {
+          "side": "tsrs",
+          "kind": "crash:process-signal"
+        },
+        "rows": [],
+        "renderer": null
+      },
+      "canonical_utf8": "{\"schema\":1,\"failure\":{\"kind\":\"terminal\",\"phase\":\"bind\"},\"pass\":\"terminal\",\"outcome\":{\"side\":\"tsrs\",\"kind\":\"crash:process-signal\"},\"rows\":[],\"renderer\":null}",
+      "sha256": "592dc6fc28c9bb837580400dc00c0cd6d1a36ecd899365e5e7c8edb6c51cc3ea"
+    },
+    {
+      "id": "terminal-check-oom",
+      "raw": {
+        "kind": "terminal",
+        "oracle": {
+          "kind": "completed"
+        },
+        "tsrs": {
+          "kind": "terminal",
+          "phase": "check",
+          "terminal_kind": "oom",
+          "boundary_id": "allocation-limit"
+        }
+      },
+      "class": {
+        "schema": 1,
+        "failure": {
+          "kind": "terminal",
+          "phase": "check"
+        },
+        "pass": "terminal",
+        "outcome": {
+          "side": "tsrs",
+          "kind": "oom:allocation-limit"
+        },
+        "rows": [],
+        "renderer": null
+      },
+      "canonical_utf8": "{\"schema\":1,\"failure\":{\"kind\":\"terminal\",\"phase\":\"check\"},\"pass\":\"terminal\",\"outcome\":{\"side\":\"tsrs\",\"kind\":\"oom:allocation-limit\"},\"rows\":[],\"renderer\":null}",
+      "sha256": "85608dce084acd72884b05e8666a499800b134c4d338e2ee43a75dfb304441c9"
+    },
+    {
+      "id": "terminal-bind-unsupported",
+      "raw": {
+        "kind": "terminal",
+        "oracle": {
+          "kind": "completed"
+        },
+        "tsrs": {
+          "kind": "terminal",
+          "phase": "bind",
+          "terminal_kind": "unsupported",
+          "boundary_id": "feature-gate"
+        }
+      },
+      "class": {
+        "schema": 1,
+        "failure": {
+          "kind": "terminal",
+          "phase": "bind"
+        },
+        "pass": "terminal",
+        "outcome": {
+          "side": "tsrs",
+          "kind": "unsupported:feature-gate"
+        },
+        "rows": [],
+        "renderer": null
+      },
+      "canonical_utf8": "{\"schema\":1,\"failure\":{\"kind\":\"terminal\",\"phase\":\"bind\"},\"pass\":\"terminal\",\"outcome\":{\"side\":\"tsrs\",\"kind\":\"unsupported:feature-gate\"},\"rows\":[],\"renderer\":null}",
+      "sha256": "0cda5ea71b714b09e7026eb7f9702085b4b1c4027b5a6fc62fb31a9e4c6c100b"
+    }
+  ]
+}

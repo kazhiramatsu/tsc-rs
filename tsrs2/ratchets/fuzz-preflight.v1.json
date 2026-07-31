@@ -49,6 +49,54 @@
     {
       "path": "crates/oracle/src/lib.rs",
       "sha256": "bd846b6c26d2cecb79c5320d694e2ddbf41dfce5466011d986e606fa9a3ecddb"
+    },
+    {
+      "path": "crates/fuzz/src/lib.rs",
+      "sha256": "f4468edd30cca5e13c788178b6a98f217e2503b544da1b34a845bef582cf1981"
+    },
+    {
+      "path": "crates/fuzz/src/error.rs",
+      "sha256": "4d2c366caaf2a87982356f79327dd48e7e9ffbdccd6fddadcd21f77a66d86bd7"
+    },
+    {
+      "path": "crates/fuzz/src/schema.rs",
+      "sha256": "c13d39ccef1e1d769eca63e64b71ebb8678c83274d4947f5a87d7efb3ac8366e"
+    },
+    {
+      "path": "crates/fuzz/src/model.rs",
+      "sha256": "269756dc60e34f067ade08b858d91e68a462662026f2339d96e913e53a3a5160"
+    },
+    {
+      "path": "crates/fuzz/src/normalize.rs",
+      "sha256": "9140a83e744fea6f121475d1085698024727caf45c6df48f29cfbdc01f8f2317"
+    },
+    {
+      "path": "crates/fuzz/src/compare.rs",
+      "sha256": "008cc2e52ee5556265e262fbb24929dabb3e8a10d84286e0f5ad657d2d67129c"
+    },
+    {
+      "path": "crates/fuzz/src/classify.rs",
+      "sha256": "9fd736b1f37d9999025309a19b1a6d3432324a1bce989fa820232754957f005a"
+    },
+    {
+      "path": "crates/fuzz/src/evaluate.rs",
+      "sha256": "7fe2c5dde26cd241c39ae038e7798660c38fc9dfcfa0ee8fec9270fcbb84d65a"
+    },
+    {
+      "path": "crates/fuzz/tests/foundation_contract.rs",
+      "sha256": "382a96667b35dba6e15235799492c117cad76935d69ff0cc438a7238ed942522"
+    },
+    {
+      "path": "crates/fuzz/tests/vector_production_contract.rs",
+      "sha256": "a5a66da5585f217b21f3d319d87680049ef3f2b53c458978cc41e280ddd9396a"
+    },
+    {
+      "path": "crates/fuzz/vectors/canonical-class.schema1.json",
+      "sha256": "c74da23a063001460aef06992960cc0b3a0681160139f5fa659d38115c843d1e"
+    },
+    {
+      "path": "crates/fuzz/vectors/verify-canonical-class.mjs",
+      "sha256": "483276d3898852ace5bdba895350ccd9640e7343222f1cff74b75658a7594263"
     }
   ],
   "checks": [
@@ -78,7 +126,7 @@
     {
       "id": "preflight.matrix-and-topology-consumption",
       "status": "pending",
-      "detail": "The harness can represent multiple files and option matrices, but the legacy producer takes only the first expanded ProgramJson and emits single-file programs.",
+      "detail": "Schema-1 CaseSpec now canonically binds exact ordered files/libs, cwd, options, generator decisions/domain memberships, matrix facts, and process policy. The production domain/topology adapter is not implemented, and the legacy producer still selects the first expanded ProgramJson and emits single-file programs.",
       "blocks": [
         "m9-case-spec",
         "m9-production-domain",
@@ -87,13 +135,15 @@
       "evidence": [
         "crates/harness/src/lib.rs:39-47",
         "crates/harness/src/lib.rs:228-264",
-        "crates/xtask/src/m8_evidence.rs:905-912"
+        "crates/xtask/src/m8_evidence.rs:905-912",
+        "crates/fuzz/src/schema.rs",
+        "crates/fuzz/tests/foundation_contract.rs"
       ]
     },
     {
       "id": "preflight.pass-aware-t0-t4-outcome",
       "status": "pending",
-      "detail": "The oracle collects syntactic, semantic, and suggestion passes, but the legacy comparison drops pass provenance from its projected values and canonicalizes aggregate pass labels.",
+      "detail": "Typed pass-aware diagnostic and renderer outcomes, tier-before-pass T0 set/T1-T3 multiset comparison, deterministic residual pairing, and final-deduped T4 order/dedupe/path/newline/text precedence are implemented and cross-pinned by Rust/Node raw vectors. Production oracle/domain adapters do not yet emit this contract.",
       "blocks": [
         "m9-raw-outcome",
         "m9-classifier",
@@ -102,13 +152,20 @@
       "evidence": [
         "crates/oracle/render-driver.mjs:12-35",
         "crates/xtask/src/m8_evidence.rs:1118-1185",
-        "crates/xtask/src/m8_evidence.rs:1196-1206"
+        "crates/xtask/src/m8_evidence.rs:1196-1206",
+        "crates/fuzz/src/model.rs",
+        "crates/fuzz/src/compare.rs",
+        "crates/fuzz/src/classify.rs",
+        "crates/fuzz/tests/foundation_contract.rs",
+        "crates/fuzz/tests/vector_production_contract.rs",
+        "crates/fuzz/vectors/canonical-class.schema1.json",
+        "crates/fuzz/vectors/verify-canonical-class.mjs"
       ]
     },
     {
       "id": "preflight.terminal-outcome-model",
       "status": "pending",
-      "detail": "Typed per-engine panic, crash, timeout, OOM, unsupported, malformed-response, generator, harness, and controller outcomes with parse/bind/check/format phase are not represented by the legacy artifact.",
+      "detail": "Schema-1 models every parse/bind/check/format phase, closed terminal kind/boundary pairs, and typed generator/domain/harness/malformed-response/controller/worker failures; only completed-oracle/tsrs-terminal observations produce a terminal class. Producer integration and frozen reviewed-oracle-deviation replay remain absent.",
       "blocks": [
         "m9-raw-outcome",
         "m9-replay",
@@ -116,19 +173,30 @@
       ],
       "evidence": [
         "crates/xtask/src/m8_evidence.rs:1063-1069",
-        "crates/oracle/src/lib.rs:350-358"
+        "crates/oracle/src/lib.rs:350-358",
+        "crates/fuzz/src/model.rs",
+        "crates/fuzz/src/compare.rs",
+        "crates/fuzz/src/classify.rs",
+        "crates/fuzz/src/evaluate.rs",
+        "crates/fuzz/tests/foundation_contract.rs",
+        "crates/fuzz/tests/vector_production_contract.rs",
+        "crates/fuzz/vectors/canonical-class.schema1.json",
+        "crates/fuzz/vectors/verify-canonical-class.mjs"
       ]
     },
     {
       "id": "preflight.oracle-deviation-registry",
       "status": "unknown",
-      "detail": "Five stable M8 source-contract rows are recorded, but exact input/outcome hashes and positive plus adjacent-negative replay canaries are absent.",
+      "detail": "The draft registry contains five M8 rows, each still unknown and lacking exact input/outcome hashes and replay canaries. The foundation fails closed: every oracle terminal and producer failure is rejected before class formation, with no caller-constructible deviation whitelist. Replay-backed registry integration remains absent.",
       "blocks": [
         "oracle-deviation-freeze",
         "qualifying-window"
       ],
       "evidence": [
-        "ratchets/fuzz-oracle-deviations.v1.json"
+        "ratchets/fuzz-oracle-deviations.v1.json",
+        "crates/fuzz/src/compare.rs",
+        "crates/fuzz/src/evaluate.rs",
+        "crates/fuzz/tests/foundation_contract.rs"
       ]
     },
     {
@@ -179,14 +247,18 @@
     {
       "id": "preflight.true-replay",
       "status": "pending",
-      "detail": "The legacy replay command validates stored JSON only; it does not reconstruct files/options/cwd/decisions/process policy and rerun both engines.",
+      "detail": "Canonical CaseSpec and its case-hash-bound CaseExecution envelope now preserve reconstructible files/libs/options/cwd/decisions/matrix/process policy and raw outcomes. The command still only validates stored legacy JSON; it does not rerun both engines or require the saved comparison and class.",
       "blocks": [
         "m9-replay",
         "oracle-deviation-freeze",
         "qualifying-window"
       ],
       "evidence": [
-        "crates/xtask/src/m8_evidence.rs:837-855"
+        "crates/xtask/src/m8_evidence.rs:837-855",
+        "crates/fuzz/src/schema.rs",
+        "crates/fuzz/src/model.rs",
+        "crates/fuzz/src/evaluate.rs",
+        "crates/fuzz/tests/foundation_contract.rs"
       ]
     },
     {
@@ -205,38 +277,54 @@
     {
       "id": "preflight.independent-deduplication",
       "status": "pending",
-      "detail": "The legacy dedupe observation duplicates one stored signature instead of deriving the same class from independently executed cases.",
+      "detail": "Canonical class membership can now be independently rederived by the Rust production evaluation path and Node fixture verifier from shared raw vectors. The runtime/window deduper and evidence from independently executed cases are not implemented; the legacy observation still duplicates one stored signature.",
       "blocks": [
         "m9-deduper",
         "qualifying-window"
       ],
       "evidence": [
-        "crates/xtask/src/m8_evidence.rs:998-1009"
+        "crates/xtask/src/m8_evidence.rs:998-1009",
+        "crates/fuzz/src/classify.rs",
+        "crates/fuzz/src/evaluate.rs",
+        "crates/fuzz/tests/vector_production_contract.rs",
+        "crates/fuzz/vectors/canonical-class.schema1.json",
+        "crates/fuzz/vectors/verify-canonical-class.mjs"
       ]
     },
     {
       "id": "preflight.adversarial-test-coverage",
       "status": "pending",
-      "detail": "Classifier, terminal, reducer, replay, deduper, history, attestation, source/hash drift, and producer-defect adversarial matrices are not complete.",
+      "detail": "The foundation matrix now covers canonicality/hash/case binding, path/UTF-16/CRLF/normalization ownership, multiplicity/tier/pass ordering, renderer stage defects/T4 precedence and totality, every terminal kind/phase with a closed boundary, invalid outcomes, and Rust/Node raw-vector rederivation. Replay, reducer, runtime deduper, history, attestation, and production-adapter defect matrices remain incomplete.",
       "blocks": [
         "m9-preflight-ready",
         "qualifying-window"
       ],
       "evidence": [
-        "The legacy raw verifier trusts stored summaries and has no history or attestation layer."
+        "The legacy raw verifier trusts stored summaries and has no history or attestation layer.",
+        "crates/fuzz/tests/foundation_contract.rs",
+        "crates/fuzz/tests/vector_production_contract.rs",
+        "crates/fuzz/vectors/canonical-class.schema1.json",
+        "crates/fuzz/vectors/verify-canonical-class.mjs"
       ]
     },
     {
       "id": "preflight.typed-machine-evidence",
       "status": "pending",
-      "detail": "The M9.0a schema inventories gaps as checked rows and source pins, but it does not yet encode the required outcome, D2 join, adversarial matrix, or resource observations as typed raw records that can be recomputed.",
+      "detail": "Schema-1 typed records now cover CaseSpec, diagnostics and renderer stages, terminal and producer failures, case-bound engine/execution envelopes, structured comparison/class, and atomic evaluation. Domain/D2 joins, real replay/resource/window observations, and acceptance recomputation remain absent.",
       "blocks": [
         "m9-preflight-ready",
         "fingerprint-freeze",
         "qualifying-window"
       ],
       "evidence": [
-        "A frozen status remains unsupported until required IDs/cardinalities and typed raw evidence are enforced."
+        "A frozen status remains unsupported until required IDs/cardinalities and all remaining typed raw evidence are enforced.",
+        "crates/fuzz/src/schema.rs",
+        "crates/fuzz/src/model.rs",
+        "crates/fuzz/src/compare.rs",
+        "crates/fuzz/src/classify.rs",
+        "crates/fuzz/src/evaluate.rs",
+        "crates/fuzz/tests/foundation_contract.rs",
+        "crates/fuzz/tests/vector_production_contract.rs"
       ]
     },
     {
@@ -255,27 +343,31 @@
     {
       "id": "preflight.node-single-thread-policy",
       "status": "pending",
-      "detail": "The current persistent oracle process is launched as node plus the driver path without the frozen single-threaded Node/V8 launch flags.",
+      "detail": "CaseSpec records ordered Node argv/deadline/rollover and rejects a policy without exact --single-threaded or with a negating argument. The persistent oracle launcher still invokes node with only the driver path; argv placement, production application, freeze, and hosted measurement remain pending.",
       "blocks": [
         "m9-process-policy",
         "hosted-calibration",
         "qualifying-window"
       ],
       "evidence": [
-        "crates/oracle/src/lib.rs:350-358"
+        "crates/oracle/src/lib.rs:350-358",
+        "crates/fuzz/src/schema.rs",
+        "crates/fuzz/tests/foundation_contract.rs"
       ]
     },
     {
       "id": "preflight.rust-worker-cap",
       "status": "unknown",
-      "detail": "The production Rust internal-worker and test-thread cap has not been selected, implemented, or measured.",
+      "detail": "CaseSpec requires a positive Rust worker cap/deadline/rollover. The value 2 exists only in foundation fixtures; no production cap has been selected, applied, frozen, or measured.",
       "blocks": [
         "m9-process-policy",
         "hosted-calibration",
         "qualifying-window"
       ],
       "evidence": [
-        "Requires the bounded producer design and hosted pilot."
+        "Requires the bounded producer design and hosted pilot.",
+        "crates/fuzz/src/schema.rs",
+        "crates/fuzz/tests/foundation_contract.rs"
       ]
     },
     {
