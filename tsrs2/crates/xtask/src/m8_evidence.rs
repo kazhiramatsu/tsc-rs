@@ -2240,23 +2240,33 @@ fn collect_ts_fixtures(path: &Path, out: &mut Vec<PathBuf>) -> Result<(), Box<dy
 
 fn ensure_relevant_tree_clean(workspace: &Path) -> Result<(), Box<dyn Error>> {
     let git_root = git_root(workspace)?;
-    let relative = workspace.strip_prefix(&git_root)?;
+    let relative = workspace_git_pathspec(&git_root, workspace)?;
     let output = Command::new("git")
         .arg("-C")
         .arg(&git_root)
         .args(["status", "--porcelain", "--"])
-        .arg(relative)
+        .arg(&relative)
         .output()?;
     if !output.status.success() {
         return Err("failed to inspect relevant working-tree cleanliness".into());
     }
     if !output.stdout.is_empty() {
         return Err(
-            "M8 evidence production requires a clean tsrs2 tree; commit the reviewed inputs first"
+            "M8 evidence production requires a clean workspace tree; commit the reviewed inputs \
+             first"
                 .into(),
         );
     }
     Ok(())
+}
+
+fn workspace_git_pathspec(git_root: &Path, workspace: &Path) -> Result<PathBuf, Box<dyn Error>> {
+    let relative = workspace.strip_prefix(git_root)?;
+    if relative.as_os_str().is_empty() {
+        Ok(PathBuf::from("."))
+    } else {
+        Ok(relative.to_owned())
+    }
 }
 
 fn git_root(workspace: &Path) -> Result<PathBuf, Box<dyn Error>> {
@@ -2342,6 +2352,19 @@ fn now_unix_ms() -> Result<u128, Box<dyn Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn workspace_cleanliness_pathspec_supports_nested_and_root_layouts() {
+        let root = Path::new("/workspace");
+        assert_eq!(
+            workspace_git_pathspec(root, &root.join("tsrs2")).unwrap(),
+            PathBuf::from("tsrs2")
+        );
+        assert_eq!(
+            workspace_git_pathspec(root, root).unwrap(),
+            PathBuf::from(".")
+        );
+    }
 
     #[test]
     fn evidence_paths_cannot_escape_the_workspace() {

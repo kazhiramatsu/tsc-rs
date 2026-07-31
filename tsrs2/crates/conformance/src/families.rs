@@ -1617,13 +1617,12 @@ mod tests {
     use crate::test_git::{git_test, init_repo, temp_dir};
     use crate::{GoldenMessageChain, T0Key};
 
-    fn commit_families(root: &Path, file: &FamiliesFile, message: &str) -> String {
-        fs::write(
-            root.join(FAMILIES_REL_PATH),
-            serde_json::to_vec_pretty(file).unwrap(),
-        )
-        .unwrap();
-        git_test(root, &["add", FAMILIES_REL_PATH]);
+    fn commit_families_at(root: &Path, rel: &str, file: &FamiliesFile, message: &str) -> String {
+        if let Some(parent) = root.join(rel).parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        fs::write(root.join(rel), serde_json::to_vec_pretty(file).unwrap()).unwrap();
+        git_test(root, &["add", rel]);
         git_test(root, &["commit", "-q", "-m", message]);
         String::from_utf8(
             Command::new("git")
@@ -1637,6 +1636,10 @@ mod tests {
         .unwrap()
         .trim()
         .to_owned()
+    }
+
+    fn commit_families(root: &Path, file: &FamiliesFile, message: &str) -> String {
+        commit_families_at(root, FAMILIES_REL_PATH, file, message)
     }
 
     fn row(code: u32, pass: &str) -> FamilyRow {
@@ -1893,6 +1896,27 @@ mod tests {
             &note_tamper,
         ));
         assert!(message.contains("note changed"), "{message}");
+    }
+
+    #[test]
+    fn legacy_workspace_family_anchor_and_baseline_survive_root_promotion() {
+        let root = init_repo("legacy-families-promotion");
+        let legacy_rel = format!("tsrs2/{FAMILIES_REL_PATH}");
+        let draft = draft_file(vec![
+            family("a", "M5", &[(7027, "semantic")]),
+            family("b", "M6", &[(7034, "semantic")]),
+        ]);
+        let adjudication = commit_families_at(&root, &legacy_rel, &draft, "legacy family draft");
+        let frozen = frozen_from(&draft, &adjudication);
+        let legacy_baseline =
+            commit_families_at(&root, &legacy_rel, &frozen, "legacy frozen families");
+
+        git_test(&root, &["mv", &legacy_rel, FAMILIES_REL_PATH]);
+        git_test(&root, &["commit", "-q", "-m", "promote families to root"]);
+        let head = resolve_commit(&root, "HEAD").unwrap();
+
+        verify_freeze_anchors(&root, FAMILIES_REL_PATH, &head, &frozen).unwrap();
+        verify_families_baseline(&root, FAMILIES_REL_PATH, &legacy_baseline, &frozen).unwrap();
     }
 
     #[test]

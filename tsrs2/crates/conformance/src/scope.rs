@@ -1701,18 +1701,21 @@ mod tests {
     use crate::test_git::{git_test, init_repo, temp_dir};
     use crate::GoldenMessageChain;
 
-    fn commit_scope(root: &Path, file: &ScopeFile, message: &str) -> String {
-        fs::write(
-            root.join(SCOPE_REL_PATH),
-            serde_json::to_vec_pretty(file).unwrap(),
-        )
-        .unwrap();
-        git_test(root, &["add", SCOPE_REL_PATH]);
+    fn commit_scope_at(root: &Path, rel: &str, file: &ScopeFile, message: &str) -> String {
+        if let Some(parent) = root.join(rel).parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        fs::write(root.join(rel), serde_json::to_vec_pretty(file).unwrap()).unwrap();
+        git_test(root, &["add", rel]);
         git_test(root, &["commit", "-q", "-m", message]);
         String::from_utf8(git(root, &["rev-parse", "HEAD"]).unwrap())
             .unwrap()
             .trim()
             .to_owned()
+    }
+
+    fn commit_scope(root: &Path, file: &ScopeFile, message: &str) -> String {
+        commit_scope_at(root, SCOPE_REL_PATH, file, message)
     }
 
     fn diag(code: u32, start: u32, pass: &str, text: &str) -> GoldenDiag {
@@ -2142,6 +2145,44 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(error.contains("does not equal the band subset"), "{error}");
+    }
+
+    #[test]
+    fn legacy_workspace_scope_anchors_and_baseline_survive_root_promotion() {
+        let root = init_repo("legacy-scope-promotion");
+        let legacy_rel = format!("tsrs2/{SCOPE_REL_PATH}");
+        let oracle = in_band_oracle();
+        let adjudicated = scope_file(
+            ScopeStatus::Draft,
+            vec![exclusion_of(&oracle, 0), exclusion_of(&oracle, 1)],
+        );
+        let adjudication =
+            commit_scope_at(&root, &legacy_rel, &adjudicated, "legacy adjudicated scope");
+
+        let identities = vec![identity_at(&oracle, 0), identity_at(&oracle, 1)];
+        let mut frozen = adjudicated.clone();
+        frozen.status = ScopeStatus::Frozen;
+        frozen.band_pins = vec![pin_of("2xxx", &adjudication, identities.clone())];
+        frozen.global = Some(GlobalFreeze {
+            adjudication_commit: adjudication,
+            identities,
+        });
+        let legacy_baseline = commit_scope_at(&root, &legacy_rel, &frozen, "legacy frozen scope");
+
+        git_test(&root, &["mv", &legacy_rel, SCOPE_REL_PATH]);
+        git_test(&root, &["commit", "-q", "-m", "promote scope to root"]);
+        let head = resolve_commit(&root, "HEAD").unwrap();
+
+        verify_band_pin(&root, SCOPE_REL_PATH, &head, &frozen.band_pins[0]).unwrap();
+        verify_global_freeze(
+            &root,
+            SCOPE_REL_PATH,
+            &head,
+            &frozen,
+            frozen.global.as_ref().unwrap(),
+        )
+        .unwrap();
+        verify_scope_baseline(&root, SCOPE_REL_PATH, &legacy_baseline, &frozen).unwrap();
     }
 
     #[test]

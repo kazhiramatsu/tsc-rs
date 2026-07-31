@@ -1654,6 +1654,19 @@ fn m8_git_output(
         .output()?)
 }
 
+fn git_repository_root(workspace: &Path) -> Result<PathBuf, Box<dyn Error>> {
+    let output = m8_git_output(workspace, ["rev-parse", "--show-toplevel"])?;
+    if !output.status.success() {
+        return Err(format!(
+            "cannot resolve git repository root from {}: {}",
+            workspace.display(),
+            String::from_utf8_lossy(&output.stderr).trim()
+        )
+        .into());
+    }
+    Ok(PathBuf::from(String::from_utf8(output.stdout)?.trim()))
+}
+
 fn m8_resolve_git_commit(workspace: &Path, revision: &str) -> Result<String, Box<dyn Error>> {
     let output = m8_git_output(
         workspace,
@@ -1693,29 +1706,20 @@ fn m8_emitter_dispositions_at(
     workspace: &Path,
     commit: &str,
 ) -> Result<M8EmitterDispositions, Box<dyn Error>> {
-    let root_output = m8_git_output(workspace, ["rev-parse", "--show-toplevel"])?;
-    if !root_output.status.success() {
-        return Err("cannot resolve git root for M8 emitter dispositions".into());
-    }
-    let root = PathBuf::from(String::from_utf8(root_output.stdout)?.trim());
+    let workspace = fs::canonicalize(workspace)?;
+    let root = git_repository_root(&workspace)?;
     let relative_workspace = workspace.strip_prefix(&root).map_err(|_| {
         format!(
-            "tsrs2 workspace {} is outside git root {}",
+            "workspace {} is outside git root {}",
             workspace.display(),
             root.display()
         )
     })?;
     let relative = relative_workspace.join("m8-emitter-dispositions.json");
-    let object = format!("{commit}:{}", relative.to_string_lossy().replace('\\', "/"));
-    let output = m8_git_output(workspace, ["show", object.as_str()])?;
-    if !output.status.success() {
-        return Err(format!(
-            "cannot read M8 emitter dispositions at {commit}: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        )
-        .into());
-    }
-    Ok(serde_json::from_slice(&output.stdout)?)
+    let relative = relative.to_string_lossy().replace('\\', "/");
+    let bytes = tsrs2_conformance::ratchet::git_blob_optional(&root, commit, &relative)?
+        .ok_or_else(|| format!("cannot read M8 emitter dispositions at {commit}"))?;
+    Ok(serde_json::from_slice(&bytes)?)
 }
 
 #[derive(Debug, Deserialize)]
@@ -7244,10 +7248,7 @@ fn readme_status(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error
         }
     }
     let workspace = find_tsrs2_root()?;
-    let readme_path = workspace
-        .parent()
-        .ok_or("tsrs2 workspace has no parent directory")?
-        .join("README.md");
+    let readme_path = readme_path_for_workspace(&workspace)?;
     let block = render_readme_status(&workspace)?;
     let readme = fs::read_to_string(&readme_path)?;
     let updated = splice_readme_status(&readme, &block)?;
@@ -7263,6 +7264,30 @@ fn readme_status(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error
         println!("readme-status wrote: {}", readme_path.display());
     }
     Ok(())
+}
+
+fn readme_path_for_workspace(workspace: &Path) -> Result<PathBuf, Box<dyn Error>> {
+    Ok(git_repository_root(workspace)?.join("README.md"))
+}
+
+fn repository_relative_display_path(
+    workspace: &Path,
+    path: &Path,
+) -> Result<String, Box<dyn Error>> {
+    let root = git_repository_root(workspace)?;
+    let canonical_workspace = fs::canonicalize(workspace)?;
+    let normalized_path = path
+        .strip_prefix(workspace)
+        .map(|relative| canonical_workspace.join(relative))
+        .unwrap_or_else(|_| path.to_owned());
+    let relative = normalized_path.strip_prefix(&root).map_err(|_| {
+        format!(
+            "path {} is outside git root {}",
+            path.display(),
+            root.display()
+        )
+    })?;
+    Ok(relative.to_string_lossy().replace('\\', "/"))
 }
 
 fn read_ratchet_count(workspace: &Path, section: &str, key: &str) -> Result<usize, Box<dyn Error>> {
@@ -7286,6 +7311,8 @@ fn render_readme_status(workspace: &Path) -> Result<String, Box<dyn Error>> {
     let stage = fs::read_to_string(workspace.join("STAGE"))?
         .trim()
         .to_owned();
+    let ratchet_display =
+        repository_relative_display_path(workspace, &workspace.join("ratchet.toml"))?;
 
     let view_row = |label: &str, section: &str| -> Result<String, Box<dyn Error>> {
         let matched = read_ratchet_count(workspace, section, "matched")?;
@@ -7333,7 +7360,7 @@ fn render_readme_status(workspace: &Path) -> Result<String, Box<dyn Error>> {
     let mut block = String::new();
     block.push_str(&format!(
         "Accepted conformance state at stage marker `{stage}` — the checked-in\n\
-         `tsrs2/ratchet.toml` summaries, verified against the accepted-set\n\
+         `{ratchet_display}` summaries, verified against the accepted-set\n\
          artifacts by every `cargo xtask ci` run:\n\n"
     ));
     block.push_str("| View | Exact diagnostic match (T0) |\n| --- | --- |\n");
@@ -11691,7 +11718,50 @@ mod d2_inventory_tests {
 
 #[cfg(test)]
 mod m8_emitter_disposition_tests {
+    use std::sync::atomic::{AtomicU64, Ordering};
+
     use super::*;
+
+    static TEMP_REPO_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+    struct TempRepo(PathBuf);
+
+    impl TempRepo {
+        fn new() -> Self {
+            let sequence = TEMP_REPO_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+            let path = std::env::temp_dir().join(format!(
+                "tsrs2-emitter-history-{}-{sequence}",
+                std::process::id()
+            ));
+            fs::create_dir_all(&path).unwrap();
+            git_test(&path, &["init", "-q"]);
+            git_test(&path, &["config", "user.email", "tests@example.invalid"]);
+            git_test(&path, &["config", "user.name", "tsrs2 tests"]);
+            Self(path)
+        }
+    }
+
+    impl Drop for TempRepo {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn git_test(root: &Path, args: &[&str]) -> Vec<u8> {
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(root)
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "git {} failed: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        output.stdout
+    }
 
     fn function(id_byte: char, line: usize, hash_byte: char) -> M8EmitterFunction {
         M8EmitterFunction {
@@ -11768,6 +11838,33 @@ mod m8_emitter_disposition_tests {
                 },
             ],
         }
+    }
+
+    #[test]
+    fn historical_emitter_dispositions_follow_the_workspace_promotion() {
+        let repo = TempRepo::new();
+        let legacy = repo.0.join("tsrs2");
+        fs::create_dir_all(&legacy).unwrap();
+        let expected = dispositions();
+        fs::write(
+            legacy.join("m8-emitter-dispositions.json"),
+            serde_json::to_vec_pretty(&expected).unwrap(),
+        )
+        .unwrap();
+        git_test(&repo.0, &["add", "tsrs2/m8-emitter-dispositions.json"]);
+        git_test(
+            &repo.0,
+            &["commit", "-q", "-m", "legacy emitter dispositions"],
+        );
+        let commit = String::from_utf8(git_test(&repo.0, &["rev-parse", "HEAD"]))
+            .unwrap()
+            .trim()
+            .to_owned();
+
+        assert_eq!(
+            m8_emitter_dispositions_at(&repo.0, &commit).unwrap(),
+            expected
+        );
     }
 
     fn ledger() -> Vec<LedgerEntry> {
@@ -12062,7 +12159,43 @@ mod completion_tier_activation_tests {
 
 #[cfg(test)]
 mod readme_status_tests {
+    use std::sync::atomic::{AtomicU64, Ordering};
+
     use super::*;
+
+    static TEMP_REPO_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+    struct TempRepo(PathBuf);
+
+    impl TempRepo {
+        fn new() -> Self {
+            let sequence = TEMP_REPO_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+            let path = std::env::temp_dir().join(format!(
+                "tsrs2-readme-status-{}-{sequence}",
+                std::process::id()
+            ));
+            fs::create_dir_all(path.join("tsrs2")).unwrap();
+            let output = Command::new("git")
+                .arg("-C")
+                .arg(&path)
+                .args(["init", "-q"])
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            fs::write(path.join("README.md"), "# test\n").unwrap();
+            Self(path)
+        }
+    }
+
+    impl Drop for TempRepo {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
 
     #[test]
     fn groups_thousands() {
@@ -12104,6 +12237,25 @@ mod readme_status_tests {
         assert!(
             splice_readme_status(&format!("{README_STATUS_END}\n{README_STATUS_BEGIN}"), "x")
                 .is_err()
+        );
+    }
+
+    #[test]
+    fn readme_and_status_paths_follow_the_git_root() {
+        let repo = TempRepo::new();
+        let nested = repo.0.join("tsrs2");
+        let canonical_root = fs::canonicalize(&repo.0).unwrap();
+        let readme = canonical_root.join("README.md");
+
+        assert_eq!(readme_path_for_workspace(&nested).unwrap(), readme);
+        assert_eq!(readme_path_for_workspace(&repo.0).unwrap(), readme);
+        assert_eq!(
+            repository_relative_display_path(&nested, &nested.join("ratchet.toml")).unwrap(),
+            "tsrs2/ratchet.toml"
+        );
+        assert_eq!(
+            repository_relative_display_path(&repo.0, &repo.0.join("ratchet.toml")).unwrap(),
+            "ratchet.toml"
         );
     }
 }
