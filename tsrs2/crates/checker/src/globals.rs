@@ -16,7 +16,7 @@ use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
 use tsrs2_syntax::{NodeId, SyntaxKind};
 use tsrs2_types::{SymbolFlags, TypeId};
 
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult, CheckerState};
 
 /// The deferredGlobal* memo slots (pattern at 60679) + the init-block
 /// globals the M4 plan defers to lazy resolution. `Some` = resolved
@@ -247,7 +247,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: Option<SymbolId>,
         arity: usize,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let fallback = if arity > 0 {
             self.empty_generic_type
         } else {
@@ -316,7 +316,7 @@ impl<'a> CheckerState<'a> {
 
     /// getDeclaredTypeOfSymbol for globals: the full
     /// tryGetDeclaredTypeOfSymbol dispatch (annotate.rs slice).
-    fn get_declared_type_of_symbol_for_global(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
+    fn get_declared_type_of_symbol_for_global(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         self.get_declared_type_of_symbol_slice(symbol)
     }
 
@@ -328,7 +328,7 @@ impl<'a> CheckerState<'a> {
         name: &str,
         arity: usize,
         report_errors: bool,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let symbol = self.get_global_type_symbol(name, report_errors);
         if symbol.is_some() || report_errors {
             Ok(Some(self.get_type_of_global_symbol(symbol, arity)?))
@@ -344,7 +344,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         name: &str,
         arity: usize,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let symbol = self.get_global_symbol(name, SymbolFlags::TYPE, None);
         match symbol {
             Some(symbol) => Ok(Some(self.get_type_of_global_symbol(Some(symbol), arity)?)),
@@ -359,7 +359,7 @@ impl<'a> CheckerState<'a> {
     /// emptyObjectType memoizes a miss (the caller's `!==
     /// emptyObjectType` gate stands the band down; noLib fixtures ride
     /// the 2318 band from the reportErrors probe).
-    pub fn get_global_disposable_type(&mut self, report_errors: bool) -> CheckResult2<TypeId> {
+    pub fn get_global_disposable_type(&mut self, report_errors: bool) -> CheckResult<TypeId> {
         if let Some(memo) = self.deferred_global_disposable_type {
             return Ok(memo);
         }
@@ -374,10 +374,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getGlobalAsyncDisposableType @6.0.3
     /// tsc-hash: 53203a106cdf5a79912acb05046f34917ef4be01660b3a70c3805fbd27cd6086
     /// tsc-span: _tsc.js:60890-60897
-    pub fn get_global_async_disposable_type(
-        &mut self,
-        report_errors: bool,
-    ) -> CheckResult2<TypeId> {
+    pub fn get_global_async_disposable_type(&mut self, report_errors: bool) -> CheckResult<TypeId> {
         if let Some(memo) = self.deferred_global_async_disposable_type {
             return Ok(memo);
         }
@@ -395,7 +392,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: initializeTypeChecker @6.0.3
     /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
     /// tsc-span: _tsc.js:88732-88906
-    pub fn global_array_type(&mut self) -> CheckResult2<TypeId> {
+    pub fn global_array_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.array {
             return Ok(cached);
         }
@@ -409,7 +406,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: initializeTypeChecker @6.0.3
     /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
     /// tsc-span: _tsc.js:88732-88906
-    pub fn global_object_type(&mut self) -> CheckResult2<TypeId> {
+    pub fn global_object_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.object {
             return Ok(cached);
         }
@@ -423,7 +420,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: initializeTypeChecker @6.0.3
     /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
     /// tsc-span: _tsc.js:88732-88906
-    pub fn global_function_type(&mut self) -> CheckResult2<TypeId> {
+    pub fn global_function_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.function {
             return Ok(cached);
         }
@@ -438,7 +435,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: initializeTypeChecker @6.0.3
     /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
     /// tsc-span: _tsc.js:88732-88906
-    pub fn global_callable_function_type(&mut self) -> CheckResult2<TypeId> {
+    pub fn global_callable_function_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.callable_function {
             return Ok(cached);
         }
@@ -465,7 +462,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: initializeTypeChecker @6.0.3
     /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
     /// tsc-span: _tsc.js:88732-88906
-    pub fn global_newable_function_type(&mut self) -> CheckResult2<TypeId> {
+    pub fn global_newable_function_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.newable_function {
             return Ok(cached);
         }
@@ -488,7 +485,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: initializeTypeChecker @6.0.3
     /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
     /// tsc-span: _tsc.js:88732-88906
-    pub fn global_string_type(&mut self) -> CheckResult2<TypeId> {
+    pub fn global_string_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.string {
             return Ok(cached);
         }
@@ -502,7 +499,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: initializeTypeChecker @6.0.3
     /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
     /// tsc-span: _tsc.js:88732-88906
-    pub fn global_number_type(&mut self) -> CheckResult2<TypeId> {
+    pub fn global_number_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.number {
             return Ok(cached);
         }
@@ -516,7 +513,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: initializeTypeChecker @6.0.3
     /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
     /// tsc-span: _tsc.js:88732-88906
-    pub fn global_boolean_type(&mut self) -> CheckResult2<TypeId> {
+    pub fn global_boolean_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.boolean {
             return Ok(cached);
         }
@@ -532,7 +529,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// reportErrors=false — a failed lookup falls back to
     /// emptyObjectType WITHOUT memoizing (tsc retries per call).
-    pub fn global_es_symbol_type(&mut self) -> CheckResult2<TypeId> {
+    pub fn global_es_symbol_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.es_symbol {
             return Ok(cached);
         }
@@ -547,7 +544,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getGlobalBigIntType @6.0.3
     /// tsc-hash: 53c9b2ec3484063b340bd5a57b78efd29aff564b303c1e92c64c71c602450d69
     /// tsc-span: _tsc.js:60936-60944
-    pub fn global_big_int_type(&mut self) -> CheckResult2<TypeId> {
+    pub fn global_big_int_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.big_int {
             return Ok(cached);
         }
@@ -563,7 +560,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: initializeTypeChecker @6.0.3
     /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
     /// tsc-span: _tsc.js:88732-88906
-    pub fn global_regexp_type(&mut self) -> CheckResult2<TypeId> {
+    pub fn global_regexp_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.regexp {
             return Ok(cached);
         }
@@ -577,7 +574,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: initializeTypeChecker @6.0.3
     /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
     /// tsc-span: _tsc.js:88732-88906
-    pub fn global_readonly_array_type(&mut self) -> CheckResult2<TypeId> {
+    pub fn global_readonly_array_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.readonly_array {
             return Ok(cached);
         }
@@ -593,7 +590,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: initializeTypeChecker @6.0.3
     /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
     /// tsc-span: _tsc.js:88732-88906
-    pub fn global_this_type_alias(&mut self) -> CheckResult2<Option<TypeId>> {
+    pub fn global_this_type_alias(&mut self) -> CheckResult<Option<TypeId>> {
         if let Some(cached) = self.global_type_memos.this_type {
             return Ok(cached);
         }
@@ -612,7 +609,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_global_import_call_options_type(
         &mut self,
         report_errors: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.import_call_options {
             return Ok(cached);
         }
@@ -641,7 +638,7 @@ impl<'a> CheckerState<'a> {
         name: &str,
         arity: usize,
         report_errors: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let symbol = self.get_global_symbol(
             name,
             SymbolFlags::TYPE,
@@ -678,7 +675,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getGlobalImportMetaType @6.0.3
     /// tsc-hash: d9cb64668e7657cff3ce184045e666edf286359c9c9976767800d852e0eaaf3d
     /// tsc-span: _tsc.js:60697-60705
-    pub(crate) fn get_global_import_meta_type(&mut self) -> CheckResult2<TypeId> {
+    pub(crate) fn get_global_import_meta_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.import_meta {
             return Ok(cached);
         }
@@ -698,7 +695,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getGlobalImportAttributesType @6.0.3
     /// tsc-hash: dda5a08c113a1250008424b3ebc35f67a77158155b296ab688f68c61a2e4cbab
     /// tsc-span: _tsc.js:60727-60734
-    pub(crate) fn get_global_import_attributes_type(&mut self) -> CheckResult2<TypeId> {
+    pub(crate) fn get_global_import_attributes_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.import_attributes {
             return Ok(cached);
         }
@@ -713,7 +710,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getGlobalTypedPropertyDescriptorType @6.0.3
     /// tsc-hash: 22b2b2e9fb21cd1166f25a522e260d82e388d177541a11e582df40400572db3c
     /// tsc-span: _tsc.js:60679-60687
-    pub(crate) fn get_global_typed_property_descriptor_type(&mut self) -> CheckResult2<TypeId> {
+    pub(crate) fn get_global_typed_property_descriptor_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.typed_property_descriptor {
             return Ok(cached);
         }
@@ -729,7 +726,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getGlobalClassDecoratorContextType @6.0.3
     /// tsc-hash: c0ab9cfcf0b2d556e8e5705e833e765174f73537ac631866a5e72d653a0fb824
     /// tsc-span: _tsc.js:60945-60952
-    pub(crate) fn get_global_class_decorator_context_type(&mut self) -> CheckResult2<TypeId> {
+    pub(crate) fn get_global_class_decorator_context_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.class_decorator_context {
             return Ok(cached);
         }
@@ -745,9 +742,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getGlobalClassMethodDecoratorContextType @6.0.3
     /// tsc-hash: 5ed635f5bf4e6fa8680d87e45408498f2de6fd5cf49ee1a9a810af1027816bea
     /// tsc-span: _tsc.js:60953-60960
-    pub(crate) fn get_global_class_method_decorator_context_type(
-        &mut self,
-    ) -> CheckResult2<TypeId> {
+    pub(crate) fn get_global_class_method_decorator_context_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.class_method_decorator_context {
             return Ok(cached);
         }
@@ -766,9 +761,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getGlobalClassGetterDecoratorContextType @6.0.3
     /// tsc-hash: 3e980b8213ad276b5d0226a4251cbdab783e31adae13ab5f89f84cee13d984fb
     /// tsc-span: _tsc.js:60961-60968
-    pub(crate) fn get_global_class_getter_decorator_context_type(
-        &mut self,
-    ) -> CheckResult2<TypeId> {
+    pub(crate) fn get_global_class_getter_decorator_context_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.class_getter_decorator_context {
             return Ok(cached);
         }
@@ -787,9 +780,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getGlobalClassSetterDecoratorContextType @6.0.3
     /// tsc-hash: 6d5f4db36ddf911f42a0a06ded1380d5181f8feddd2c9f420cf42ee43ca4636b
     /// tsc-span: _tsc.js:60969-60976
-    pub(crate) fn get_global_class_setter_decorator_context_type(
-        &mut self,
-    ) -> CheckResult2<TypeId> {
+    pub(crate) fn get_global_class_setter_decorator_context_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.class_setter_decorator_context {
             return Ok(cached);
         }
@@ -810,7 +801,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:60977-60984
     pub(crate) fn get_global_class_accessor_decorator_context_type(
         &mut self,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.class_accessor_decorator_context {
             return Ok(cached);
         }
@@ -831,7 +822,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:60985-60992
     pub(crate) fn get_global_class_accessor_decorator_target_type(
         &mut self,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.class_accessor_decorator_target {
             return Ok(cached);
         }
@@ -852,7 +843,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:60993-61000
     pub(crate) fn get_global_class_accessor_decorator_result_type(
         &mut self,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.class_accessor_decorator_result {
             return Ok(cached);
         }
@@ -871,7 +862,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getGlobalClassFieldDecoratorContextType @6.0.3
     /// tsc-hash: fa092c061b0e22bc938f2a384bbe4ecb59b1eb038e3b509a3e959f8df55209d2
     /// tsc-span: _tsc.js:61001-61008
-    pub(crate) fn get_global_class_field_decorator_context_type(&mut self) -> CheckResult2<TypeId> {
+    pub(crate) fn get_global_class_field_decorator_context_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.class_field_decorator_context {
             return Ok(cached);
         }
@@ -887,7 +878,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getGlobalTemplateStringsArrayType @6.0.3
     /// tsc-hash: de0940ef152fcbf182f52f2e15a37b09cbc656cb634e07930302c7959427369d
     /// tsc-span: _tsc.js:60688-60696
-    pub(crate) fn get_global_template_strings_array_type(&mut self) -> CheckResult2<TypeId> {
+    pub(crate) fn get_global_template_strings_array_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.template_strings_array {
             return Ok(cached);
         }
@@ -901,7 +892,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getGlobalIterableType @6.0.3
     /// tsc-hash: 33c29440c03323fad8bcacecfad8edb02e4959b2b609e4b72f6d80fa5976a610
     /// tsc-span: _tsc.js:60820-60827
-    pub(crate) fn get_global_iterable_type(&mut self, report_errors: bool) -> CheckResult2<TypeId> {
+    pub(crate) fn get_global_iterable_type(&mut self, report_errors: bool) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.iterable {
             return Ok(cached);
         }
@@ -919,7 +910,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_global_promise_constructor_like_type(
         &mut self,
         report_errors: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.promise_constructor_like {
             return Ok(cached);
         }
@@ -934,7 +925,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getGlobalIteratorType @6.0.3
     /// tsc-hash: e01cd348b57917d99c019686f8d5b023e88c55802b63b47b05b6b2ca449f8c25
     /// tsc-span: _tsc.js:60828-60835
-    pub(crate) fn get_global_iterator_type(&mut self, report_errors: bool) -> CheckResult2<TypeId> {
+    pub(crate) fn get_global_iterator_type(&mut self, report_errors: bool) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.iterator {
             return Ok(cached);
         }
@@ -952,7 +943,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_global_iterable_iterator_type(
         &mut self,
         report_errors: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.iterable_iterator {
             return Ok(cached);
         }
@@ -972,7 +963,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_global_iterator_object_type(
         &mut self,
         report_errors: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.iterator_object {
             return Ok(cached);
         }
@@ -987,10 +978,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getGlobalGeneratorType @6.0.3
     /// tsc-hash: 60a6d039330a3b8c43fe9eb55d58ff30965acde70d3c95a60201f19193984437
     /// tsc-span: _tsc.js:60858-60865
-    pub(crate) fn get_global_generator_type(
-        &mut self,
-        report_errors: bool,
-    ) -> CheckResult2<TypeId> {
+    pub(crate) fn get_global_generator_type(&mut self, report_errors: bool) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.generator {
             return Ok(cached);
         }
@@ -1008,7 +996,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_global_async_iterable_type(
         &mut self,
         report_errors: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.async_iterable {
             return Ok(cached);
         }
@@ -1026,7 +1014,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_global_async_iterator_type(
         &mut self,
         report_errors: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.async_iterator {
             return Ok(cached);
         }
@@ -1044,7 +1032,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_global_async_iterable_iterator_type(
         &mut self,
         report_errors: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.async_iterable_iterator {
             return Ok(cached);
         }
@@ -1064,7 +1052,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_global_async_iterator_object_type(
         &mut self,
         report_errors: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.async_iterator_object {
             return Ok(cached);
         }
@@ -1082,7 +1070,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_global_async_generator_type(
         &mut self,
         report_errors: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.async_generator {
             return Ok(cached);
         }
@@ -1100,7 +1088,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_global_iterator_yield_result_type(
         &mut self,
         report_errors: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.iterator_yield_result {
             return Ok(cached);
         }
@@ -1118,7 +1106,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_global_iterator_return_result_type(
         &mut self,
         report_errors: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.iterator_return_result {
             return Ok(cached);
         }
@@ -1141,7 +1129,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         type_names: &[&str],
         arity: usize,
-    ) -> CheckResult2<Vec<TypeId>> {
+    ) -> CheckResult<Vec<TypeId>> {
         let mut types = Vec::new();
         for type_name in type_names {
             if let Some(resolved) = self.get_global_type(type_name, arity, false)? {
@@ -1154,7 +1142,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getGlobalBuiltinIteratorTypes @6.0.3
     /// tsc-hash: bfd64bb69a3e1655ca90dfa9c47428e519ca1838c4b52243a55884b9813f591d
     /// tsc-span: _tsc.js:60847-60849
-    pub(crate) fn get_global_builtin_iterator_types(&mut self) -> CheckResult2<Vec<TypeId>> {
+    pub(crate) fn get_global_builtin_iterator_types(&mut self) -> CheckResult<Vec<TypeId>> {
         if let Some(cached) = &self.global_type_memos.builtin_iterator_types {
             return Ok(cached.clone());
         }
@@ -1174,7 +1162,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getGlobalBuiltinAsyncIteratorTypes @6.0.3
     /// tsc-hash: e833de5aac24e9784e84d05bd92e0243cf24bf89398393008dc112a01aefb407
     /// tsc-span: _tsc.js:60801-60803
-    pub(crate) fn get_global_builtin_async_iterator_types(&mut self) -> CheckResult2<Vec<TypeId>> {
+    pub(crate) fn get_global_builtin_async_iterator_types(&mut self) -> CheckResult<Vec<TypeId>> {
         if let Some(cached) = &self.global_type_memos.builtin_async_iterator_types {
             return Ok(cached.clone());
         }
@@ -1186,7 +1174,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: createIterableType @6.0.3
     /// tsc-hash: b5802d1aa06aab8cb1671347b5ab610a89231e3bbf120a01b813a1ae4a396ce0
     /// tsc-span: _tsc.js:61032-61037
-    pub(crate) fn create_iterable_type(&mut self, iterated_type: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn create_iterable_type(&mut self, iterated_type: TypeId) -> CheckResult<TypeId> {
         let iterable = self.get_global_iterable_type(true)?;
         let void_type = self.tables.intrinsics.void;
         let undefined = self.tables.intrinsics.undefined;
@@ -1198,7 +1186,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: initializeTypeChecker @6.0.3
     /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
     /// tsc-span: _tsc.js:88732-88906
-    pub fn any_array_type(&mut self) -> CheckResult2<TypeId> {
+    pub fn any_array_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.any_array {
             return Ok(cached);
         }
@@ -1215,7 +1203,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: initializeTypeChecker @6.0.3
     /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
     /// tsc-span: _tsc.js:88732-88906
-    pub fn auto_array_type(&mut self) -> CheckResult2<TypeId> {
+    pub fn auto_array_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.auto_array {
             return Ok(cached);
         }
@@ -1232,7 +1220,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: initializeTypeChecker @6.0.3
     /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
     /// tsc-span: _tsc.js:88732-88906
-    pub fn any_readonly_array_type(&mut self) -> CheckResult2<TypeId> {
+    pub fn any_readonly_array_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.any_readonly_array {
             return Ok(cached);
         }
@@ -1249,7 +1237,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: initializeTypeChecker @6.0.3
     /// tsc-hash: afc4ef8d42d94dcf56ac2a1db86715fecc06a4579e0e9718f662cb9919182276
     /// tsc-span: _tsc.js:88732-88906
-    pub fn arguments_symbol_type(&mut self) -> CheckResult2<TypeId> {
+    pub fn arguments_symbol_type(&mut self) -> CheckResult<TypeId> {
         if let Some(cached) = self.global_type_memos.arguments_type {
             return Ok(cached);
         }
@@ -1282,7 +1270,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         element_type: TypeId,
         readonly: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let target = if readonly {
             self.global_readonly_array_type()?
         } else {

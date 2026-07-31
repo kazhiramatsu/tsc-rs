@@ -9,7 +9,7 @@ use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_types::{ModifierFlags, ObjectFlags, TypeData, TypeFlags, TypeId, VarianceFlags};
 
 use crate::links::LinkSlot;
-use crate::state::{CheckAbort, CheckResult2, CheckerState, VarianceHandlerFrame};
+use crate::state::{CheckAbort, CheckResult, CheckerState, VarianceHandlerFrame};
 
 /// tsc arrayVariances (46460): `[VarianceFlags.Covariant]` — shared by
 /// both global array types and every tuple target
@@ -28,7 +28,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getVariances @6.0.3
     /// tsc-hash: 1e9d0e5ee768931179190817e1e6d172a87e0cf756d67f73d9eac22fde95e9ac
     /// tsc-span: _tsc.js:67306-67308
-    pub(crate) fn get_variances(&mut self, ty: TypeId) -> CheckResult2<VariancesResult> {
+    pub(crate) fn get_variances(&mut self, ty: TypeId) -> CheckResult<VariancesResult> {
         if ty == self.global_array_type()?
             || ty == self.global_readonly_array_type()?
             || self
@@ -58,10 +58,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getAliasVariances @6.0.3
     /// tsc-hash: 376698f797bba63d51c9d84c710fbee8b53cad042ac55a78544c2f400f258850
     /// tsc-span: _tsc.js:67309-67311
-    pub(crate) fn get_alias_variances(
-        &mut self,
-        symbol: SymbolId,
-    ) -> CheckResult2<VariancesResult> {
+    pub(crate) fn get_alias_variances(&mut self, symbol: SymbolId) -> CheckResult<VariancesResult> {
         let type_parameters = self
             .links
             .symbol(symbol)
@@ -83,7 +80,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
         type_parameters: &[TypeId],
-    ) -> CheckResult2<VariancesResult> {
+    ) -> CheckResult<VariancesResult> {
         match &self.links.symbol(symbol).variances {
             LinkSlot::Resolved(list) => return Ok(VariancesResult::Known(list.clone())),
             LinkSlot::Resolving => return Ok(VariancesResult::InProgress),
@@ -135,7 +132,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
         tp: TypeId,
-    ) -> CheckResult2<VarianceFlags> {
+    ) -> CheckResult<VarianceFlags> {
         let modifiers = self.get_type_parameter_modifiers(tp);
         if modifiers.intersects(ModifierFlags::OUT) {
             return Ok(if modifiers.intersects(ModifierFlags::IN) {
@@ -175,7 +172,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
         tp: TypeId,
-    ) -> CheckResult2<VarianceFlags> {
+    ) -> CheckResult<VarianceFlags> {
         let marker_super = self.marker_super_type;
         let marker_sub = self.marker_sub_type;
         let marker_other = self.marker_other_type;
@@ -205,7 +202,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         source_tp: TypeId,
         target_marker: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let mapper = self.make_unary_type_mapper(source_tp, target_marker);
         let ty = self.get_declared_type_of_symbol_for_variance(symbol)?;
         if ty == self.tables.intrinsics.error {
@@ -254,7 +251,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_declared_type_of_symbol_for_variance(
         &mut self,
         symbol: SymbolId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let flags = self.binder.symbol(symbol).flags;
         if flags.intersects(tsrs2_types::SymbolFlags::CLASS | tsrs2_types::SymbolFlags::INTERFACE) {
             return self.get_declared_type_of_class_or_interface(symbol);

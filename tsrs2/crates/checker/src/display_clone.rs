@@ -12,7 +12,7 @@
 use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::NodeFlags;
 
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult, CheckerState};
 
 const PRECEDENCE_INVALID: i8 = -1;
 const PRECEDENCE_COMMA: i8 = 0;
@@ -57,7 +57,7 @@ impl<'program> CheckerState<'program> {
         &mut self,
         node: NodeId,
         at_line_start: bool,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let saved = self.slice_display_clone_at_line_start;
         self.slice_display_clone_at_line_start = at_line_start;
         let result = DisplayClonePrinter { state: self }.expression(node);
@@ -99,7 +99,7 @@ impl<'program> CheckerState<'program> {
 }
 
 impl DisplayClonePrinter<'_, '_> {
-    fn expression(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         match self.state.kind_of(node) {
             // Token/name/literal leaves.
             SyntaxKind::ThisKeyword
@@ -178,11 +178,11 @@ impl DisplayClonePrinter<'_, '_> {
         }
     }
 
-    fn token_expression(&self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn token_expression(&self, node: NodeId) -> CheckResult<Option<String>> {
         Ok(tsrs2_syntax::tokens::token_to_string(self.state.kind_of(node)).map(str::to_owned))
     }
 
-    fn identifier(&self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn identifier(&self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::Identifier(data) = self.state.data_of(node) else {
             return Ok(None);
         };
@@ -191,42 +191,42 @@ impl DisplayClonePrinter<'_, '_> {
         ))
     }
 
-    fn private_identifier(&self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn private_identifier(&self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::PrivateIdentifier(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         Ok(Some(data.text.clone()))
     }
 
-    fn numeric_literal(&self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn numeric_literal(&self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::NumericLiteral(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         Ok(Some(data.text.clone()))
     }
 
-    fn bigint_literal(&self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn bigint_literal(&self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::BigIntLiteral(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         Ok(Some(data.text.clone()))
     }
 
-    fn string_literal(&self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn string_literal(&self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::StringLiteral(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         Ok(Some(quoted_string(&data.text)))
     }
 
-    fn regular_expression_literal(&self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn regular_expression_literal(&self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::RegularExpressionLiteral(data) = self.state.data_of(node) else {
             return Ok(None);
         };
         Ok(Some(data.text.clone()))
     }
 
-    fn no_substitution_template_literal(&self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn no_substitution_template_literal(&self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::NoSubstitutionTemplateLiteral(data) = self.state.data_of(node) else {
             return Ok(None);
         };
@@ -237,7 +237,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(Some(format!("`{raw}`")))
     }
 
-    fn array_literal(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn array_literal(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ArrayLiteralExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -313,7 +313,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(Some(format!("[{contents}]")))
     }
 
-    fn object_literal(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn object_literal(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ObjectLiteralExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -400,7 +400,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(Some(format!("{{{contents}}}")))
     }
 
-    fn object_member(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn object_member(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         match self.state.data_of(node).clone() {
             NodeData::PropertyAssignment(data) => {
                 let Some(name) = data.name else {
@@ -458,7 +458,7 @@ impl DisplayClonePrinter<'_, '_> {
         }
     }
 
-    fn object_member_is_removed(&mut self, node: NodeId) -> CheckResult2<bool> {
+    fn object_member_is_removed(&mut self, node: NodeId) -> CheckResult<bool> {
         let source = self.state.binder.source_of_node(node);
         let computed_name = tsrs2_binder::node_util::get_name_of_declaration(source, node)
             .is_some_and(|name| self.state.kind_of(name) == SyntaxKind::ComputedPropertyName);
@@ -468,7 +468,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(!self.state.has_bindable_name(node)?)
     }
 
-    fn property_access(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn property_access(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::PropertyAccessExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -515,7 +515,7 @@ impl DisplayClonePrinter<'_, '_> {
         })
     }
 
-    fn element_access(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn element_access(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ElementAccessExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -542,7 +542,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(Some(format!("{expression}{optional}[{argument}]")))
     }
 
-    fn call_expression(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn call_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::CallExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -569,7 +569,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn new_expression(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn new_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::NewExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -599,7 +599,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn tagged_template(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn tagged_template(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::TaggedTemplateExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -620,7 +620,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(Some(format!("{tag}{type_arguments} {template}")))
     }
 
-    fn parenthesized_expression(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn parenthesized_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ParenthesizedExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -632,7 +632,7 @@ impl DisplayClonePrinter<'_, '_> {
             .map(|expression| format!("({expression})")))
     }
 
-    fn type_assertion(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn type_assertion(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::TypeAssertionExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -653,7 +653,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(Some(format!("<{ty}>{expression}")))
     }
 
-    fn expression_with_type_arguments(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn expression_with_type_arguments(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ExpressionWithTypeArguments(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -669,7 +669,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(Some(format!("{expression}{type_arguments}")))
     }
 
-    fn as_expression(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn as_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::AsExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -688,7 +688,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(Some(format!("{expression} as {ty}")))
     }
 
-    fn satisfies_expression(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn satisfies_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::SatisfiesExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -707,7 +707,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(Some(format!("{expression} satisfies {ty}")))
     }
 
-    fn non_null_expression(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn non_null_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::NonNullExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -723,7 +723,7 @@ impl DisplayClonePrinter<'_, '_> {
         &mut self,
         node: NodeId,
         keyword: &'static str,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let expression = match self.state.data_of(node).clone() {
             NodeData::DeleteExpression(data) => data.expression,
             NodeData::TypeOfExpression(data) => data.expression,
@@ -739,7 +739,7 @@ impl DisplayClonePrinter<'_, '_> {
             .map(|expression| format!("{keyword} {expression}")))
     }
 
-    fn prefix_unary(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn prefix_unary(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::PrefixUnaryExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -775,7 +775,7 @@ impl DisplayClonePrinter<'_, '_> {
         )))
     }
 
-    fn postfix_unary(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn postfix_unary(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::PostfixUnaryExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -791,7 +791,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(Some(format!("{operand}{operator}")))
     }
 
-    fn binary_expression(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn binary_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::BinaryExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -834,7 +834,7 @@ impl DisplayClonePrinter<'_, '_> {
         })
     }
 
-    fn conditional_expression(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn conditional_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ConditionalExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -916,7 +916,7 @@ impl DisplayClonePrinter<'_, '_> {
         })
     }
 
-    fn yield_expression(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn yield_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::YieldExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -937,7 +937,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn spread_element(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn spread_element(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::SpreadElement(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -951,7 +951,7 @@ impl DisplayClonePrinter<'_, '_> {
             .map(|expression| format!("...{expression}")))
     }
 
-    fn template_expression(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn template_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::TemplateExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -999,7 +999,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn meta_property(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn meta_property(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::MetaProperty(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -1012,7 +1012,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(Some(format!("{keyword}.{name}")))
     }
 
-    fn partially_emitted_expression(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn partially_emitted_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::PartiallyEmittedExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -1022,7 +1022,7 @@ impl DisplayClonePrinter<'_, '_> {
         }
     }
 
-    fn comma_list_expression(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn comma_list_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::CommaListExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -1030,7 +1030,7 @@ impl DisplayClonePrinter<'_, '_> {
         self.expression_list(elements, false)
     }
 
-    fn jsx(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn jsx(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         match self.state.data_of(node).clone() {
             NodeData::JsxElement(data) => {
                 let (Some(opening), Some(closing)) = (data.opening_element, data.closing_element)
@@ -1210,7 +1210,7 @@ impl DisplayClonePrinter<'_, '_> {
         }
     }
 
-    fn jsx_child(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn jsx_child(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         match self.state.kind_of(node) {
             SyntaxKind::JsxText
             | SyntaxKind::JsxTextAllWhiteSpaces
@@ -1222,7 +1222,7 @@ impl DisplayClonePrinter<'_, '_> {
         }
     }
 
-    fn jsx_attribute_value(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn jsx_attribute_value(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         if let NodeData::StringLiteral(data) = self.state.data_of(node) {
             return Ok(Some(quoted_jsx_attribute(&data.text)));
         }
@@ -1235,7 +1235,7 @@ impl DisplayClonePrinter<'_, '_> {
         }
     }
 
-    fn jsx_tag_name(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn jsx_tag_name(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         match self.state.kind_of(node) {
             SyntaxKind::Identifier
             | SyntaxKind::ThisKeyword
@@ -1259,7 +1259,7 @@ impl DisplayClonePrinter<'_, '_> {
         }
     }
 
-    fn type_arguments(&mut self, nodes: Option<NodeArrayId>) -> CheckResult2<String> {
+    fn type_arguments(&mut self, nodes: Option<NodeArrayId>) -> CheckResult<String> {
         let Some(nodes) = nodes else {
             return Ok(String::new());
         };
@@ -1274,7 +1274,7 @@ impl DisplayClonePrinter<'_, '_> {
         &mut self,
         nodes: Vec<NodeId>,
         disallow_comma: bool,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let mut rendered = Vec::with_capacity(nodes.len());
         let first_at_line_start = self.state.slice_display_clone_at_line_start;
         for (index, node) in nodes.into_iter().enumerate() {
@@ -1294,7 +1294,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(Some(rendered.join(", ")))
     }
 
-    fn conditional_branch(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn conditional_branch(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let needs_parentheses = self.is_comma_sequence(node);
         let child_at_line_start = if needs_parentheses {
             false
@@ -1312,7 +1312,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn expression_for_disallowed_comma(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn expression_for_disallowed_comma(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let needs_parentheses = self.expression_precedence(node) <= PRECEDENCE_COMMA;
         let child_at_line_start = if needs_parentheses {
             false
@@ -1330,7 +1330,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn operand_of_prefix_unary(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn operand_of_prefix_unary(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let needs_parentheses = !self.is_unary_expression(node);
         let child_at_line_start = if needs_parentheses {
             false
@@ -1348,7 +1348,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn operand_of_postfix_unary(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn operand_of_postfix_unary(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let needs_parentheses = !self.is_left_hand_side_expression(node);
         let child_at_line_start = if needs_parentheses {
             false
@@ -1370,7 +1370,7 @@ impl DisplayClonePrinter<'_, '_> {
         &mut self,
         node: NodeId,
         optional_chain: bool,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let needs_parentheses = !self.is_left_hand_side_expression(node)
             || (self.state.kind_of(self.skip_partially_emitted(node)) == SyntaxKind::NewExpression
                 && !self.new_expression_has_arguments(node))
@@ -1391,7 +1391,7 @@ impl DisplayClonePrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn expression_of_new(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn expression_of_new(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let leftmost = self.leftmost_expression(node, true);
         let leftmost_kind = self.state.kind_of(leftmost);
         let needs_parentheses = leftmost_kind == SyntaxKind::CallExpression
@@ -1424,7 +1424,7 @@ impl DisplayClonePrinter<'_, '_> {
         operand: NodeId,
         is_left: bool,
         left_operand: Option<NodeId>,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let needs_parentheses =
             self.binary_operand_needs_parentheses(operator, operand, is_left, left_operand);
         let child_at_line_start = if needs_parentheses {
@@ -1744,8 +1744,8 @@ impl DisplayClonePrinter<'_, '_> {
 
     fn with_increased_indent<T>(
         &mut self,
-        operation: impl FnOnce(&mut Self) -> CheckResult2<T>,
-    ) -> CheckResult2<T> {
+        operation: impl FnOnce(&mut Self) -> CheckResult<T>,
+    ) -> CheckResult<T> {
         self.with_restored_indent(|printer| {
             printer.state.slice_display_clone_indent += 1;
             operation(printer)
@@ -1754,8 +1754,8 @@ impl DisplayClonePrinter<'_, '_> {
 
     fn with_restored_indent<T>(
         &mut self,
-        operation: impl FnOnce(&mut Self) -> CheckResult2<T>,
-    ) -> CheckResult2<T> {
+        operation: impl FnOnce(&mut Self) -> CheckResult<T>,
+    ) -> CheckResult<T> {
         let saved = self.state.slice_display_clone_indent;
         let result = operation(self);
         self.state.slice_display_clone_indent = saved;
@@ -1765,8 +1765,8 @@ impl DisplayClonePrinter<'_, '_> {
     fn with_line_start<T>(
         &mut self,
         at_line_start: bool,
-        operation: impl FnOnce(&mut Self) -> CheckResult2<T>,
-    ) -> CheckResult2<T> {
+        operation: impl FnOnce(&mut Self) -> CheckResult<T>,
+    ) -> CheckResult<T> {
         let saved = self.state.slice_display_clone_at_line_start;
         self.state.slice_display_clone_at_line_start = at_line_start;
         let result = operation(self);

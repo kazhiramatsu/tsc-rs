@@ -18,7 +18,7 @@ use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{CheckMode, SymbolFlags, TypeData, TypeFacts, TypeFlags, TypeId};
 
 use crate::flow::FlowQuery;
-use crate::state::{CheckResult2, CheckerState, SignatureId};
+use crate::state::{CheckResult, CheckerState, SignatureId};
 
 impl<'a> CheckerState<'a> {
     /// The narrow-family caches (switch types, exhaustiveness,
@@ -50,7 +50,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         expr: NodeId,
         assume_true: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let source = self.binder.source_of_node(expr);
         let optionality = node_util::is_expression_of_optional_chain_root(source, expr) || {
             match self.parent_of(expr) {
@@ -192,7 +192,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         expr: NodeId,
         assume_true: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let facts = if assume_true {
             TypeFacts::TRUTHY
         } else {
@@ -236,7 +236,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         query: &FlowQuery,
         expr: NodeId,
-    ) -> CheckResult2<Option<NodeId>> {
+    ) -> CheckResult<Option<NodeId>> {
         let reference = query.reference;
         let source = self.binder.source_of_node(reference);
         // A synthetic destructuring reference (6.4b) is an access
@@ -376,7 +376,7 @@ impl<'a> CheckerState<'a> {
         query: &FlowQuery,
         expr: NodeId,
         computed_type: TypeId,
-    ) -> CheckResult2<Option<NodeId>> {
+    ) -> CheckResult<Option<NodeId>> {
         let declared_union = self
             .tables
             .flags_of(query.declared_type)
@@ -419,8 +419,8 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         access: NodeId,
-        mut narrow_prop_type: impl FnMut(&mut Self, TypeId) -> CheckResult2<TypeId>,
-    ) -> CheckResult2<TypeId> {
+        mut narrow_prop_type: impl FnMut(&mut Self, TypeId) -> CheckResult<TypeId>,
+    ) -> CheckResult<TypeId> {
         let Some(prop_name) = self.get_accessed_property_name(access)? else {
             return Ok(ty);
         };
@@ -475,7 +475,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         name: &str,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         match self.get_property_of_type_full(ty, name)? {
             Some(prop) => Ok(Some(self.get_type_of_symbol(prop)?)),
             None => Ok(None),
@@ -512,7 +512,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         expr: NodeId,
         assume_true: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let (left, operator_token, right) = match self.data_of(expr) {
             NodeData::BinaryExpression(data) => (data.left, data.operator_token, data.right),
             _ => (None, None, None),
@@ -731,7 +731,7 @@ impl<'a> CheckerState<'a> {
         bool_literal: NodeId,
         operator: SyntaxKind,
         assume_true: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let literal_is_true = self.kind_of(bool_literal) == SyntaxKind::TrueKeyword;
         let operator_is_equality = operator != SyntaxKind::ExclamationEqualsEqualsToken
             && operator != SyntaxKind::ExclamationEqualsToken;
@@ -756,7 +756,7 @@ impl<'a> CheckerState<'a> {
         operator: SyntaxKind,
         literal: NodeId,
         assume_true: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let assume_true = if operator == SyntaxKind::ExclamationEqualsToken
             || operator == SyntaxKind::ExclamationEqualsEqualsToken
         {
@@ -803,7 +803,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         literal_text: &str,
         assume_true: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if assume_true {
             self.narrow_type_by_type_name(ty, literal_text)
         } else {
@@ -815,7 +815,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: narrowTypeByTypeName @6.0.3
     /// tsc-hash: 29c46fe87223a05c3cfdc6b4df1ff9e99d1a501589ebe39e9f2c362e6b1aa17a
     /// tsc-span: _tsc.js:71139-71159
-    fn narrow_type_by_type_name(&mut self, ty: TypeId, type_name: &str) -> CheckResult2<TypeId> {
+    fn narrow_type_by_type_name(&mut self, ty: TypeId, type_name: &str) -> CheckResult<TypeId> {
         let intrinsics = &self.tables.intrinsics;
         let (implied, facts) = match type_name {
             "string" => (intrinsics.string, TypeFacts::TYPEOF_EQ_STRING),
@@ -877,7 +877,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         implied_type: TypeId,
         facts: TypeFacts,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         Ok(self
             .map_type(
                 ty,
@@ -924,7 +924,7 @@ impl<'a> CheckerState<'a> {
         operator: SyntaxKind,
         value: NodeId,
         assume_true: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if self.tables.flags_of(ty).intersects(TypeFlags::ANY) {
             return Ok(ty);
         }
@@ -1009,7 +1009,7 @@ impl<'a> CheckerState<'a> {
         operator: SyntaxKind,
         value: NodeId,
         assume_true: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let equals_operator = operator == SyntaxKind::EqualsEqualsToken
             || operator == SyntaxKind::EqualsEqualsEqualsToken;
         let nullable_flags = if operator == SyntaxKind::EqualsEqualsToken
@@ -1052,7 +1052,7 @@ impl<'a> CheckerState<'a> {
         operator: SyntaxKind,
         value: NodeId,
         assume_true: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if matches!(
             operator,
             SyntaxKind::EqualsEqualsEqualsToken | SyntaxKind::ExclamationEqualsEqualsToken
@@ -1097,7 +1097,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         prop_name: &str,
         assume_true: bool,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if let Some(prop) = self.get_property_of_type_full(ty, prop_name)? {
             let optional = self
                 .binder
@@ -1132,7 +1132,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         name_type: TypeId,
         assume_true: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let Some(name) = self.get_property_name_from_type(name_type) else {
             return Ok(ty);
         };
@@ -1169,7 +1169,7 @@ impl<'a> CheckerState<'a> {
     /// wrong-arity global Record reports 2317 and skips the widening
     /// — each once (the memo holds the unknownSymbol verdict; an
     /// a checker-abort unwind stays unmemoized).
-    fn get_global_record_symbol(&mut self) -> CheckResult2<Option<SymbolId>> {
+    fn get_global_record_symbol(&mut self) -> CheckResult<Option<SymbolId>> {
         if let Some(memo) = self.deferred_global_record_symbol {
             return Ok(memo);
         }
@@ -1192,7 +1192,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         expr: NodeId,
         assume_true: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let (left, right) = match self.data_of(expr) {
             NodeData::BinaryExpression(data) => (data.left, data.right),
             _ => (None, None),
@@ -1230,7 +1230,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         query: &mut FlowQuery,
         expr: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let is_constructor_access = match self.data_of(expr) {
             NodeData::PropertyAccessExpression(data) => {
                 let name = data.name;
@@ -1273,7 +1273,7 @@ impl<'a> CheckerState<'a> {
         operator: SyntaxKind,
         identifier: NodeId,
         assume_true: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let polarity_matches = if assume_true {
             matches!(
                 operator,
@@ -1321,7 +1321,7 @@ impl<'a> CheckerState<'a> {
     /// 71257 closure): class-vs-class is symbol identity; otherwise
     /// subtype.
     /// tsrs-native: extracted inner closure (same tsc span).
-    fn is_constructed_by(&mut self, source: TypeId, target: TypeId) -> CheckResult2<bool> {
+    fn is_constructed_by(&mut self, source: TypeId, target: TypeId) -> CheckResult<bool> {
         let source_is_class = self.tables.flags_of(source).intersects(TypeFlags::OBJECT)
             && self
                 .tables
@@ -1356,7 +1356,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         expr: NodeId,
         assume_true: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let (left, right) = match self.data_of(expr) {
             NodeData::BinaryExpression(data) => (data.left, data.right),
             _ => (None, None),
@@ -1426,7 +1426,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getInstanceType @6.0.3
     /// tsc-hash: 4bcb16660db689a30da8ad07250d4b02ac115580e3aff1be34af752dcbae5c41
     /// tsc-span: _tsc.js:71298-71308
-    fn get_instance_type(&mut self, constructor_type: TypeId) -> CheckResult2<TypeId> {
+    fn get_instance_type(&mut self, constructor_type: TypeId) -> CheckResult<TypeId> {
         let prototype_property_type =
             self.get_type_of_property_of_type_full(constructor_type, "prototype")?;
         if let Some(prototype_property_type) = prototype_property_type {
@@ -1464,7 +1464,7 @@ impl<'a> CheckerState<'a> {
         candidate: TypeId,
         assume_true: bool,
         check_derived: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let key = if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             Some(format!(
                 "N{},{},{}",
@@ -1504,7 +1504,7 @@ impl<'a> CheckerState<'a> {
         candidate: TypeId,
         assume_true: bool,
         check_derived: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if !assume_true {
             if ty == candidate {
                 return Ok(self.tables.intrinsics.never);
@@ -1651,7 +1651,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let source_flags = self.tables.flags_of(source);
         if source_flags.intersects(TypeFlags::UNION) {
             let members: Vec<TypeId> = match &self.tables.type_of(source).data {
@@ -1728,7 +1728,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// (pub(crate) since 7.4b: isGenericFunctionReturningFunction's
     /// return-type probe, calls.rs.)
-    pub(crate) fn is_function_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_function_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT) {
             return Ok(false);
         }
@@ -1759,7 +1759,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isUnitLikeType @6.0.3
     /// tsc-hash: 8572e35e5cc67db52dbbe0d85e6631b810647c6ea6b8d410e344666c6995ed4a
     /// tsc-span: _tsc.js:67745-67748
-    fn is_unit_like_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    fn is_unit_like_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         let t = self.get_base_constraint_or_type(ty)?;
         if self.tables.flags_of(t).intersects(TypeFlags::INTERSECTION) {
             let members: Vec<TypeId> = match &self.tables.type_of(t).data {
@@ -1791,7 +1791,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         type_with_primitives: TypeId,
         type_with_literals: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let primitives_possible = self.maybe_type_of_kind(
             type_with_primitives,
             TypeFlags::from_bits(
@@ -1876,7 +1876,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeOfSwitchClause @6.0.3
     /// tsc-hash: 885262335dc0056f9bc30ef213774cdcfc8140e7a931d31853ea544c4a582ac4
     /// tsc-span: _tsc.js:69932-69936
-    fn get_type_of_switch_clause(&mut self, clause: NodeId) -> CheckResult2<TypeId> {
+    fn get_type_of_switch_clause(&mut self, clause: NodeId) -> CheckResult<TypeId> {
         if self.kind_of(clause) == SyntaxKind::CaseClause {
             let expression = match self.data_of(clause) {
                 NodeData::CaseClause(data) => data.expression,
@@ -1900,7 +1900,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_switch_clause_types(
         &mut self,
         switch_statement: NodeId,
-    ) -> CheckResult2<Vec<TypeId>> {
+    ) -> CheckResult<Vec<TypeId>> {
         if let Some(cached) = self.switch_types_cache.get(&switch_statement) {
             return Ok(cached.clone());
         }
@@ -2007,7 +2007,7 @@ impl<'a> CheckerState<'a> {
         clause_start: usize,
         clause_end: usize,
         clause_check: impl Fn(&Self, TypeId) -> bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let every_clause_checks = clause_start != clause_end && {
             let clause_types = self.get_switch_clause_types(switch_statement)?;
             clause_types[clause_start.min(clause_types.len())..clause_end.min(clause_types.len())]
@@ -2036,7 +2036,7 @@ impl<'a> CheckerState<'a> {
         switch_statement: NodeId,
         clause_start: usize,
         clause_end: usize,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let switch_types = self.get_switch_clause_types(switch_statement)?;
         if switch_types.is_empty() {
             return Ok(ty);
@@ -2138,7 +2138,7 @@ impl<'a> CheckerState<'a> {
         switch_statement: NodeId,
         clause_start: usize,
         clause_end: usize,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if clause_start < clause_end && self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             let key_property_name = self.get_key_property_name(ty)?;
             if key_property_name.is_some()
@@ -2205,7 +2205,7 @@ impl<'a> CheckerState<'a> {
         switch_statement: NodeId,
         clause_start: usize,
         clause_end: usize,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let Some(witnesses) = self.get_switch_clause_type_of_witnesses(switch_statement) else {
             return Ok(ty);
         };
@@ -2251,7 +2251,7 @@ impl<'a> CheckerState<'a> {
         switch_statement: NodeId,
         clause_start: usize,
         clause_end: usize,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let clauses = self.switch_clauses(switch_statement);
         let default_index = clauses
             .iter()
@@ -2318,7 +2318,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn is_exhaustive_switch_statement_real(
         &mut self,
         switch_statement: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if let Some(&cached) = self.exhaustive_switch_cache.get(&switch_statement) {
             return Ok(cached);
         }
@@ -2349,7 +2349,7 @@ impl<'a> CheckerState<'a> {
     fn compute_exhaustive_switch_statement(
         &mut self,
         switch_statement: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let expression = match self.data_of(switch_statement) {
             NodeData::SwitchStatement(data) => data.expression,
             _ => None,
@@ -2459,7 +2459,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         call_expression: NodeId,
         assume_true: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if self.has_matching_argument(query, call_expression)? {
             let source = self.binder.source_of_node(call_expression);
             let is_call_chain = node_util::is_optional_chain(source, call_expression);
@@ -2546,7 +2546,7 @@ impl<'a> CheckerState<'a> {
         predicate: &TypePredicate,
         call_expression: NodeId,
         assume_true: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let Some(predicate_type) = predicate.ty else {
             return Ok(ty);
         };
@@ -2621,7 +2621,7 @@ impl<'a> CheckerState<'a> {
         query: &mut FlowQuery,
         ty: TypeId,
         expr: NodeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let node = self.skip_parentheses(expr);
         if self.kind_of(node) == SyntaxKind::FalseKeyword {
             return Ok(self.tables.intrinsics.unreachable_never);
@@ -2659,7 +2659,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         query: &FlowQuery,
         expression: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let (callee, arguments) = match self.data_of(expression) {
             NodeData::CallExpression(data) => (data.expression, data.arguments),
             _ => (None, None),
@@ -2748,7 +2748,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_effects_signature(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<Option<SignatureId>> {
+    ) -> CheckResult<Option<SignatureId>> {
         if let Some(&cached) = self.effects_signature_cache.get(&node) {
             return Ok(cached);
         }
@@ -2835,7 +2835,7 @@ impl<'a> CheckerState<'a> {
     fn has_type_predicate_or_never_return_type(
         &mut self,
         signature: SignatureId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if self.get_type_predicate_of_signature(signature)?.is_some() {
             return Ok(true);
         }
@@ -2856,7 +2856,7 @@ impl<'a> CheckerState<'a> {
     /// pass none; checkCallExpression passes its live 2775 diagnostic
     /// so the first declaration without an explicit annotation gains
     /// the 2782 related row.
-    fn get_type_of_dotted_name(&mut self, node: NodeId) -> CheckResult2<Option<TypeId>> {
+    fn get_type_of_dotted_name(&mut self, node: NodeId) -> CheckResult<Option<TypeId>> {
         self.get_type_of_dotted_name_with_diagnostic(node, None)
     }
 
@@ -2866,7 +2866,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         mut diagnostic: Option<&mut tsrs2_diags::Diagnostic>,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if self.node_flags(node) & tsrs2_types::NodeFlags::IN_WITH_STATEMENT.bits() != 0 {
             return Ok(None);
         }
@@ -2991,7 +2991,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: e746c3000673eed6afae1fa9727123a0a6bca22174a94bcd656ccd7cb6ee876c
     /// tsc-span: _tsc.js:70121-70161
     ///
-    fn get_explicit_type_of_symbol(&mut self, symbol: SymbolId) -> CheckResult2<Option<TypeId>> {
+    fn get_explicit_type_of_symbol(&mut self, symbol: SymbolId) -> CheckResult<Option<TypeId>> {
         self.get_explicit_type_of_symbol_with_diagnostic(symbol, None)
     }
 
@@ -2999,7 +2999,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
         diagnostic: Option<&mut tsrs2_diags::Diagnostic>,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let symbol = self.resolve_symbol_shallow(symbol)?;
         let flags = self.binder.symbol(symbol).flags;
         if flags.intersects(
@@ -3078,7 +3078,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getExplicitThisType @6.0.3
     /// tsc-hash: 0052ddcf8fe3e397778fc1edb69a5ba3298660e29f1eb9d2d63116370c84dd02
     /// tsc-span: _tsc.js:72464-72482
-    fn get_explicit_this_type(&mut self, node: NodeId) -> CheckResult2<Option<TypeId>> {
+    fn get_explicit_this_type(&mut self, node: NodeId) -> CheckResult<Option<TypeId>> {
         let source = self.binder.source_of_node(node);
         let Some(container) =
             node_util::get_this_container(source, node, /*include_arrow_functions*/ false)
@@ -3126,7 +3126,7 @@ impl<'a> CheckerState<'a> {
     /// (only the assignment-declaration alias overrides, 49111's
     /// second disjunct).
     /// tsrs-native: delegate to the modules family.
-    fn resolve_symbol_shallow(&mut self, symbol: SymbolId) -> CheckResult2<SymbolId> {
+    fn resolve_symbol_shallow(&mut self, symbol: SymbolId) -> CheckResult<SymbolId> {
         let flags = self.binder.symbol(symbol).flags;
         let excludes = SymbolFlags::VALUE | SymbolFlags::TYPE | SymbolFlags::NAMESPACE;
         let non_local_alias = (flags & (SymbolFlags::ALIAS | excludes)) == SymbolFlags::ALIAS
@@ -3152,7 +3152,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_type_predicate_of_signature(
         &mut self,
         signature: SignatureId,
-    ) -> CheckResult2<Option<TypePredicate>> {
+    ) -> CheckResult<Option<TypePredicate>> {
         if let Some(cached) = self.resolved_type_predicates.get(&signature) {
             return Ok(cached.clone());
         }
@@ -3174,7 +3174,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn relation_type_predicate_of_signature(
         &mut self,
         signature: SignatureId,
-    ) -> CheckResult2<Option<TypePredicate>> {
+    ) -> CheckResult<Option<TypePredicate>> {
         self.get_type_predicate_of_signature(signature)
     }
 
@@ -3183,7 +3183,7 @@ impl<'a> CheckerState<'a> {
     fn compute_type_predicate_of_signature(
         &mut self,
         signature: SignatureId,
-    ) -> CheckResult2<Option<TypePredicate>> {
+    ) -> CheckResult<Option<TypePredicate>> {
         let sig = self.signature_of(signature);
         if let Some(target) = sig.target {
             let mapper = sig.mapper;
@@ -3252,10 +3252,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypePredicateFromBody @6.0.3
     /// tsc-hash: ccbdcea8fc868b4227fba6ae22d22a28b9fb0f905517db5e47e9aa186712ae8e
     /// tsc-span: _tsc.js:79020-79040
-    fn get_type_predicate_from_body(
-        &mut self,
-        func: NodeId,
-    ) -> CheckResult2<Option<TypePredicate>> {
+    fn get_type_predicate_from_body(&mut self, func: NodeId) -> CheckResult<Option<TypePredicate>> {
         match self.kind_of(func) {
             SyntaxKind::Constructor | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
                 return Ok(None)
@@ -3302,7 +3299,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         func: NodeId,
         expr: NodeId,
-    ) -> CheckResult2<Option<TypePredicate>> {
+    ) -> CheckResult<Option<TypePredicate>> {
         let expr = self.skip_parentheses_excluding_jsdoc_type_assertions(expr);
         let return_type = self.check_expression_cached(expr, tsrs2_types::CheckMode::NORMAL)?;
         if !self
@@ -3368,7 +3365,7 @@ impl<'a> CheckerState<'a> {
         expr: NodeId,
         param_name: NodeId,
         init_type: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let antecedent = self.flow_node_of(expr).or_else(|| {
             self.parent_of(expr).and_then(|parent| {
                 if self.kind_of(parent) == SyntaxKind::ReturnStatement {
@@ -3420,7 +3417,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         signature: SignatureId,
-    ) -> CheckResult2<TypePredicate> {
+    ) -> CheckResult<TypePredicate> {
         let (asserts_modifier, parameter_name, type_node) = match self.data_of(node) {
             NodeData::TypePredicate(data) => {
                 (data.asserts_modifier, data.parameter_name, data.r#type)
@@ -3478,7 +3475,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signatures: &[SignatureId],
         kind: Option<TypeFlags>,
-    ) -> CheckResult2<Option<TypePredicate>> {
+    ) -> CheckResult<Option<TypePredicate>> {
         let mut last: Option<TypePredicate> = None;
         let mut types: Vec<TypeId> = Vec::new();
         let is_intersection = kind == Some(TypeFlags::INTERSECTION);
@@ -3538,7 +3535,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         expr: NodeId,
         assume_present: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let facts = if assume_present {
             TypeFacts::NE_UNDEFINED_OR_NULL
         } else {

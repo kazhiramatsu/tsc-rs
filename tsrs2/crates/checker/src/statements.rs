@@ -25,7 +25,7 @@ use tsrs2_types::{
     CheckMode, IterationUse, ModifierFlags, NodeFlags, SymbolFlags, TypeFlags, TypeId,
 };
 
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult, CheckerState};
 
 impl<'a> CheckerState<'a> {
     // ---- §2 drivers ----
@@ -36,7 +36,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// checkGrammarModifiers feeds the && chain so the grammar workers
     /// sit in tsc's slots.
-    pub(crate) fn check_variable_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_variable_statement(&mut self, node: NodeId) -> CheckResult<()> {
         let NodeData::VariableStatement(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -60,7 +60,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// using/await-using below ESNext requires the paired disposal
     /// helpers when importHelpers is enabled.
-    pub(crate) fn check_variable_declaration_list(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_variable_declaration_list(&mut self, node: NodeId) -> CheckResult<()> {
         let NodeData::VariableDeclarationList(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -87,7 +87,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:83600-83606
     ///
     /// The tracing push/pop pair is elided (no tracing host).
-    pub(crate) fn check_variable_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_variable_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_variable_declaration(node)?;
         self.check_variable_like_declaration(node)
     }
@@ -95,7 +95,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkBindingElement @6.0.3
     /// tsc-hash: 37fff77c1e97bd2677b90b959f8d1e0530bcc626ddcef907c7529629e2c727b7
     /// tsc-span: _tsc.js:83607-83610
-    pub(crate) fn check_binding_element(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_binding_element(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_binding_element(node);
         self.check_variable_like_declaration(node)
     }
@@ -114,7 +114,7 @@ impl<'a> CheckerState<'a> {
     /// the two checkExternalEmitHelpers probes (module note), and the
     /// remaining JS object-literal initializer exemption outside the
     /// bounded getJSContainerObjectType face.
-    pub(crate) fn check_variable_like_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_variable_like_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         let node_kind = self.kind_of(node);
         let is_binding_element = node_kind == SyntaxKind::BindingElement;
         // Step 1: checkDecorators (§10, live since 5.8c).
@@ -534,7 +534,7 @@ impl<'a> CheckerState<'a> {
         first_type: TypeId,
         next_declaration: NodeId,
         next_type: TypeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let next_declaration_name = self.name_of_node(next_declaration);
         let message = if matches!(
             self.kind_of(next_declaration),
@@ -601,7 +601,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: convertAutoToAny @6.0.3
     /// tsc-hash: a9e79a9777e78396f826a6c1016b49f68afd58a183500c99f293dbf849b6f35f
     /// tsc-span: _tsc.js:83400-83402
-    pub(crate) fn convert_auto_to_any(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn convert_auto_to_any(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if ty == self.tables.intrinsics.auto {
             return Ok(self.tables.intrinsics.any);
         }
@@ -614,7 +614,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkVarDeclaredNamesNotShadowed @6.0.3
     /// tsc-hash: 57e3c0212046b4cd336bb4f34f4e79e57b807638cda2bb54225f0e6ad2115e89
     /// tsc-span: _tsc.js:83371-83399
-    fn check_var_declared_names_not_shadowed(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_var_declared_names_not_shadowed(&mut self, node: NodeId) -> CheckResult<()> {
         let source = self.binder.source_of_node(node);
         if node_util::get_combined_node_flags(source, node).intersects(NodeFlags::BLOCK_SCOPED)
             || node_util::is_part_of_parameter_declaration(source, node)
@@ -707,7 +707,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_grammar_variable_declaration_list(
         &mut self,
         declaration_list: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let NodeData::VariableDeclarationList(data) = self.data_of(declaration_list) else {
             unreachable!("kind/data agree");
         };
@@ -856,7 +856,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkGrammarVariableDeclaration @6.0.3
     /// tsc-hash: b9957e90211a97064ed1f557b7648e68bfd5f77c0cebb3b53ca6c9d77b193903
     /// tsc-span: _tsc.js:90063-90099
-    fn check_grammar_variable_declaration(&mut self, node: NodeId) -> CheckResult2<bool> {
+    fn check_grammar_variable_declaration(&mut self, node: NodeId) -> CheckResult<bool> {
         let NodeData::VariableDeclaration(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -985,7 +985,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkAmbientInitializer @6.0.3
     /// tsc-hash: 0fb8e6d9740ef01fa649156af905db37144d09b43fc20b0516dbaea79a377df8
     /// tsc-span: _tsc.js:90049-90062
-    pub(crate) fn check_ambient_initializer(&mut self, node: NodeId) -> CheckResult2<bool> {
+    pub(crate) fn check_ambient_initializer(&mut self, node: NodeId) -> CheckResult<bool> {
         let Some(initializer) = self.initializer_of_node(node) else {
             return Ok(false);
         };
@@ -1060,7 +1060,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isSimpleLiteralEnumReference @6.0.3
     /// tsc-hash: c7fb47c14b4aca9e85ec9377bc7ebfed18e76fb43010736aa990069ff07f347b
     /// tsc-span: _tsc.js:90044-90048
-    fn is_simple_literal_enum_reference(&mut self, expr: NodeId) -> CheckResult2<bool> {
+    fn is_simple_literal_enum_reference(&mut self, expr: NodeId) -> CheckResult<bool> {
         let source = self.binder.source_of_node(expr);
         let shape_matches = match self.data_of(expr) {
             NodeData::PropertyAccessExpression(data) => data
@@ -1924,7 +1924,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkIfStatement @6.0.3
     /// tsc-hash: 2b63e389f5aac26a193f562defbd10f1bf73b620ec6293432cd8ab8318954da4
     /// tsc-span: _tsc.js:83626-83635
-    pub(crate) fn check_if_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_if_statement(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_statement_in_ambient_context(node);
         let NodeData::IfStatement(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
@@ -1956,7 +1956,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkDoStatement @6.0.3
     /// tsc-hash: 57686e3d150a3f2ac5f1e97af5f1337d8bbf1461eda3360d5c2808e93744e0b2
     /// tsc-span: _tsc.js:83738-83742
-    pub(crate) fn check_do_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_do_statement(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_statement_in_ambient_context(node);
         let NodeData::DoStatement(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
@@ -1972,7 +1972,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkWhileStatement @6.0.3
     /// tsc-hash: 241a76e376f4046953222221e540da949932dfe134639342bf04abed3629c625
     /// tsc-span: _tsc.js:83743-83747
-    pub(crate) fn check_while_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_while_statement(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_statement_in_ambient_context(node);
         let NodeData::WhileStatement(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
@@ -1991,7 +1991,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// Loop-local unused identifiers are registered after the body
     /// walk, preserving tsc's deferred producer order.
-    pub(crate) fn check_for_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_for_statement(&mut self, node: NodeId) -> CheckResult<()> {
         let NodeData::ForStatement(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -2034,7 +2034,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// Iteration semantics live since 5.8b (§4); emit-helper probes
     /// elided (module note).
-    pub(crate) fn check_for_of_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_for_of_statement(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_for_in_or_for_of_statement(node)?;
         let NodeData::ForOfStatement(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
@@ -2108,7 +2108,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_right_hand_side_of_for_of(
         &mut self,
         statement: NodeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let NodeData::ForOfStatement(data) = self.data_of(statement) else {
             unreachable!("kind/data agree");
         };
@@ -2129,7 +2129,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkForInStatement @6.0.3
     /// tsc-hash: 61579064b6101c0d86e57e90f1c2cf86ab07a63e8c92f14f8af3b9d4c4fadca1
     /// tsc-span: _tsc.js:83858-83889
-    pub(crate) fn check_for_in_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_for_in_statement(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_for_in_or_for_of_statement(node)?;
         let NodeData::ForInStatement(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
@@ -2221,7 +2221,7 @@ impl<'a> CheckerState<'a> {
     /// and stops the switch; ESM retains the target gate. This is the
     /// for-await producer corresponding to checkAwaitGrammar's
     /// ordinary-await ladder (functions.rs).
-    fn check_grammar_for_in_or_for_of_statement(&mut self, node: NodeId) -> CheckResult2<bool> {
+    fn check_grammar_for_in_or_for_of_statement(&mut self, node: NodeId) -> CheckResult<bool> {
         if self.check_grammar_statement_in_ambient_context_reported(node) {
             return Ok(true);
         }
@@ -2369,7 +2369,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkBreakOrContinueStatement @6.0.3
     /// tsc-hash: 0b9c72fdae9697d6afec768c0ed6ac98460c39571f2911d288f078e4c353afed
     /// tsc-span: _tsc.js:84497-84499
-    pub(crate) fn check_break_or_continue_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_break_or_continue_statement(&mut self, node: NodeId) -> CheckResult<()> {
         if !self.check_grammar_statement_in_ambient_context_reported(node) {
             self.check_grammar_break_or_continue_statement(node);
         }
@@ -2483,7 +2483,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkReturnStatement @6.0.3
     /// tsc-hash: c9a0f8abcefe176817b5c00491ec3ea7e140cff4d2eb807bc02a925559136718
     /// tsc-span: _tsc.js:84516-84549
-    pub(crate) fn check_return_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_return_statement(&mut self, node: NodeId) -> CheckResult<()> {
         if self.check_grammar_statement_in_ambient_context_reported(node) {
             return Ok(());
         }
@@ -2597,7 +2597,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:84589-84602
     ///
     /// node.statement is NOT checked — with bodies are unchecked.
-    pub(crate) fn check_with_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_with_statement(&mut self, node: NodeId) -> CheckResult<()> {
         if !self.check_grammar_statement_in_ambient_context_reported(node)
             && self.node_flags(node) & NodeFlags::AWAIT_CONTEXT.bits() != 0
         {
@@ -2642,7 +2642,7 @@ impl<'a> CheckerState<'a> {
     /// noFallthroughCasesInSwitch is modeled but its arm needs M5's
     /// isReachableFlowNode — dead until then (§0 note). CaseBlock
     /// locals register after all clauses are checked.
-    pub(crate) fn check_switch_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_switch_statement(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_statement_in_ambient_context(node);
         let NodeData::SwitchStatement(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
@@ -2734,7 +2734,7 @@ impl<'a> CheckerState<'a> {
     /// The binder stamps an unreferenced label with NodeFlags::UNREACHABLE.
     /// errorOrSuggestion's tri-state option projection is preserved:
     /// absent = suggestion, explicit false = error, true = suppressed.
-    pub(crate) fn check_labeled_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_labeled_statement(&mut self, node: NodeId) -> CheckResult<()> {
         let NodeData::LabeledStatement(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -2792,7 +2792,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkThrowStatement @6.0.3
     /// tsc-hash: 0290673363a1ea730a006aebe88afb8bdcd18f2e9cbef47902b8bba29fe69b83
     /// tsc-span: _tsc.js:84661-84670
-    pub(crate) fn check_throw_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_throw_statement(&mut self, node: NodeId) -> CheckResult<()> {
         let NodeData::ThrowStatement(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -2843,7 +2843,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// forEachKey over catch locals = symbol-table insertion order
     /// (IndexMap).
-    pub(crate) fn check_try_statement(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_try_statement(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_statement_in_ambient_context(node);
         let NodeData::TryStatement(data) = self.data_of(node) else {
             unreachable!("kind/data agree");

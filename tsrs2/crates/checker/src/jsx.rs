@@ -22,7 +22,7 @@ use tsrs2_types::{
 use crate::structural::SignatureKind;
 
 use crate::links::LinkSlot;
-use crate::state::{CheckResult2, CheckerState, SignatureId};
+use crate::state::{CheckResult, CheckerState, SignatureId};
 use tsrs2_diags::gen as diagnostics;
 use tsrs2_diags::MessageChain;
 
@@ -141,7 +141,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkJsxSelfClosingElement @6.0.3
     /// tsc-hash: e3207ce198d2810ef11c6b79962641dc40d79b7d3447ed72f9baa6b4a9adaf40
     /// tsc-span: _tsc.js:74307-74310
-    pub(crate) fn check_jsx_self_closing_element(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn check_jsx_self_closing_element(&mut self, node: NodeId) -> CheckResult<TypeId> {
         self.check_node_deferred(node);
         // `getJsxElementTypeAt(node) || anyType`: getJsxType answers
         // errorType (truthy) when JSX.Element is missing — the anyType
@@ -152,7 +152,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkJsxElement @6.0.3
     /// tsc-hash: 60686da722fc562e5cc36c0bd134a14ade1e9f6a32853f38c676fe9606be5427
     /// tsc-span: _tsc.js:74320-74323
-    pub(crate) fn check_jsx_element(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn check_jsx_element(&mut self, node: NodeId) -> CheckResult<TypeId> {
         self.check_node_deferred(node);
         // Same `|| anyType` note as the self-closing arm.
         self.get_jsx_element_type_at(node)
@@ -163,7 +163,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:74324-74336
     ///
     /// The 17016/17017 pragma-factory errors read jsxFactory/pragmas.
-    pub(crate) fn check_jsx_fragment(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn check_jsx_fragment(&mut self, node: NodeId) -> CheckResult<TypeId> {
         let opening_fragment = match self.data_of(node) {
             NodeData::JsxFragment(data) => data.opening_fragment,
             _ => None,
@@ -200,7 +200,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         self.check_grammar_jsx_expression(node);
         let NodeData::JsxExpression(data) = self.data_of(node).clone() else {
             return Ok(self.tables.intrinsics.error);
@@ -236,7 +236,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let Some(parent) = self.parent_of(node) else {
             // Parsed JsxAttributes are always installed by
             // parse_jsx_opening_or_self_closing_element_or_opening_fragment.
@@ -254,7 +254,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let initializer = match self.data_of(node) {
             NodeData::JsxAttribute(data) => data.initializer,
             _ => None,
@@ -281,7 +281,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         opening_like_element: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let strict_null_checks = self.tables.strict_null_checks;
         let mut all_attributes_table = strict_null_checks.then(SymbolTable::default);
         let mut attributes_table = SymbolTable::default();
@@ -662,7 +662,7 @@ impl<'a> CheckerState<'a> {
     fn contextual_children_type_is_tuple_like(
         &mut self,
         children_contextual_type: Option<TypeId>,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let Some(ty) = children_contextual_type else {
             return Ok(false);
         };
@@ -698,7 +698,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkJsxElementDeferred @6.0.3
     /// tsc-hash: 2068fd98f6f9b417a668c1ce64f5e2eddbad0fbfac7de3c282bb47c997bc6776
     /// tsc-span: _tsc.js:74311-74319
-    pub(crate) fn check_jsx_element_deferred(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_jsx_element_deferred(&mut self, node: NodeId) -> CheckResult<()> {
         let (opening_element, closing_element) = match self.data_of(node) {
             NodeData::JsxElement(data) => (data.opening_element, data.closing_element),
             _ => (None, None),
@@ -729,7 +729,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_jsx_self_closing_element_deferred(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         self.check_jsx_opening_like_element_or_opening_fragment(node)
     }
 
@@ -742,7 +742,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_jsx_opening_like_element_or_opening_fragment(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let is_opening_like = matches!(
             self.kind_of(node),
             SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement
@@ -805,7 +805,7 @@ impl<'a> CheckerState<'a> {
         elem_instance_type: TypeId,
         opening_like_element: NodeId,
         tag_name: NodeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         match ref_kind {
             JsxReferenceKind::Function => {
                 let constraint = self.get_jsx_stateless_element_type_at(opening_like_element)?;
@@ -860,7 +860,7 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         tag_name: NodeId,
         head: &'static tsrs2_diags::DiagnosticMessage,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         if self.is_type_assignable_to(source, target)? {
             return Ok(());
         }
@@ -906,7 +906,7 @@ impl<'a> CheckerState<'a> {
     /// getJsxType never returns undefined (errorType stands in), so
     /// the arm is DEAD in 6.0.3 (oracle-verified: no 2602 next to
     /// 17004); transcription keeps only the live 17004 row.
-    fn check_jsx_preconditions(&mut self, error_node: NodeId) -> CheckResult2<()> {
+    fn check_jsx_preconditions(&mut self, error_node: NodeId) -> CheckResult<()> {
         if self.options.jsx.unwrap_or(0) == 0 {
             self.error_at(
                 Some(error_node),
@@ -927,7 +927,7 @@ impl<'a> CheckerState<'a> {
     /// accessibility marks. For classic fragments the second factory
     /// probe shares the same first identifier and dedupes when
     /// appropriate.
-    fn mark_jsx_alias_referenced(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn mark_jsx_alias_referenced(&mut self, node: NodeId) -> CheckResult<()> {
         if self
             .get_jsx_namespace_container_for_implicit_import(node)?
             .is_some()
@@ -996,7 +996,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<Vec<TypeId>> {
+    ) -> CheckResult<Vec<TypeId>> {
         let children = match self.data_of(node) {
             NodeData::JsxElement(data) => data.children,
             NodeData::JsxFragment(data) => data.children,
@@ -1038,7 +1038,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a1d8bc8f8435cf258dae4bee967ba846210bafdfdd34defc3b7b2eeb8aca6e3f
     /// tsc-span: _tsc.js:74750-74752
     ///
-    fn get_jsx_element_type_at(&mut self, location: NodeId) -> CheckResult2<TypeId> {
+    fn get_jsx_element_type_at(&mut self, location: NodeId) -> CheckResult<TypeId> {
         self.get_jsx_type(JSX_ELEMENT, location)
     }
 
@@ -1046,7 +1046,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 7c6f27e0e16484dad8149ee8100c711537a059f5cd79e2202a96590e10b11ace
     /// tsc-span: _tsc.js:74525-74530
     ///
-    fn get_jsx_type(&mut self, name: &str, location: NodeId) -> CheckResult2<TypeId> {
+    fn get_jsx_type(&mut self, name: &str, location: NodeId) -> CheckResult<TypeId> {
         let namespace = self.get_jsx_namespace_at(location)?;
         let Some(namespace) = namespace else {
             return Ok(self.tables.intrinsics.error);
@@ -1069,7 +1069,7 @@ impl<'a> CheckerState<'a> {
         namespace: SymbolId,
         name: &str,
         meaning: SymbolFlags,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let exports = self.get_exports_of_symbol(namespace)?;
         self.get_symbol_in_table(&exports, name, meaning)
     }
@@ -1089,7 +1089,7 @@ impl<'a> CheckerState<'a> {
 
     /// The escaped property name an intrinsic tag looks up
     /// (tagName.escapedText ‖ getEscapedTextOfJsxNamespacedName).
-    fn intrinsic_tag_property_name(&self, tag_name: NodeId) -> CheckResult2<String> {
+    fn intrinsic_tag_property_name(&self, tag_name: NodeId) -> CheckResult<String> {
         match self.data_of(tag_name) {
             NodeData::Identifier(data) => Ok(data.escaped_text.clone()),
             NodeData::JsxNamespacedName(_) => Ok(self.jsx_attribute_name_text(tag_name)),
@@ -1107,7 +1107,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:19348-19350
     ///
     /// idText flavors: the DISPLAY form (unescaped).
-    fn intrinsic_tag_name_to_string(&self, tag_name: NodeId) -> CheckResult2<String> {
+    fn intrinsic_tag_name_to_string(&self, tag_name: NodeId) -> CheckResult<String> {
         let escaped = self.intrinsic_tag_property_name(tag_name)?;
         Ok(tsrs2_binder::unescape_leading_underscores(&escaped).to_owned())
     }
@@ -1121,7 +1121,7 @@ impl<'a> CheckerState<'a> {
     /// IntrinsicIndexedElement, and the memoized symbol identity
     /// (a filtered `__index` copy vs the container symbol) is
     /// services-only — T0 reads jsxFlags and the error rows.
-    pub(crate) fn get_intrinsic_tag_symbol(&mut self, node: NodeId) -> CheckResult2<SymbolId> {
+    pub(crate) fn get_intrinsic_tag_symbol(&mut self, node: NodeId) -> CheckResult<SymbolId> {
         if let Some(cached) = self.links.node(node).resolved_symbol.resolved() {
             return Ok(cached);
         }
@@ -1231,7 +1231,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_intrinsic_attributes_type_from_jsx_opening_like_element(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.links.node(node).resolved_jsx_element_attributes_type {
             return Ok(cached);
         }
@@ -1270,7 +1270,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         location: NodeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let intrinsic_elements_type = self.get_jsx_type(JSX_INTRINSIC_ELEMENTS, location)?;
         if self.tables.is_error_type(intrinsic_elements_type) {
             return Ok(Some(self.tables.intrinsics.any));
@@ -1292,7 +1292,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// The StringLiteral payload read.
-    fn string_literal_type_value(&self, ty: TypeId) -> CheckResult2<tsrs2_types::TemplateText> {
+    fn string_literal_type_value(&self, ty: TypeId) -> CheckResult<tsrs2_types::TemplateText> {
         match &self.tables.type_of(ty).data {
             TypeData::Literal {
                 value: tsrs2_types::LiteralValue::String(value),
@@ -1315,7 +1315,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         result: TypeId,
-    ) -> CheckResult2<SignatureId> {
+    ) -> CheckResult<SignatureId> {
         let namespace = self.get_jsx_namespace_at(node)?;
         let type_symbol = match namespace {
             Some(namespace) => {
@@ -1367,7 +1367,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_or_create_type_from_signature(
         &mut self,
         signature: SignatureId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.signature_of(signature).isolated_signature_type {
             return Ok(cached);
         }
@@ -1421,7 +1421,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         element_type: TypeId,
         caller: NodeId,
-    ) -> CheckResult2<Vec<SignatureId>> {
+    ) -> CheckResult<Vec<SignatureId>> {
         let flags = self.tables.flags_of(element_type);
         if flags.intersects(TypeFlags::STRING) && !flags.intersects(TypeFlags::STRING_LITERAL) {
             return Ok(vec![self.any_signature]);
@@ -1472,7 +1472,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 7a885aaa15a865e701ecab621cb35e8cc1e9f33b5962ab7bae27d992ee703452
     /// tsc-span: _tsc.js:77372-77396
     ///
-    pub(crate) fn get_jsx_fragment_type(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_jsx_fragment_type(&mut self, node: NodeId) -> CheckResult<TypeId> {
         let root = self.binder.source_of_node(node).root;
         if let Some(cached) = self.links.node(root).jsx_fragment_type {
             return Ok(cached);
@@ -1539,10 +1539,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getJsxReferenceKind @6.0.3
     /// tsc-hash: 2c7cc3306ba04d73d4dc86ab318c011deda247f0aacaed1ff0499e02415d4c06
     /// tsc-span: _tsc.js:76075-76087
-    pub(crate) fn get_jsx_reference_kind(
-        &mut self,
-        node: NodeId,
-    ) -> CheckResult2<JsxReferenceKind> {
+    pub(crate) fn get_jsx_reference_kind(&mut self, node: NodeId) -> CheckResult<JsxReferenceKind> {
         let tag_name = match self.data_of(node) {
             NodeData::JsxOpeningElement(data) => data.tag_name,
             NodeData::JsxSelfClosingElement(data) => data.tag_name,
@@ -1580,7 +1577,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
         node: NodeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let is_fragment = self.kind_of(node) == SyntaxKind::JsxOpeningFragment;
         if is_fragment || self.get_jsx_reference_kind(node)? != JsxReferenceKind::Component {
             self.get_jsx_props_type_from_call_signature(signature, node)
@@ -1596,7 +1593,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
         context: NodeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         // getTypeOfFirstParameterOfSignatureWithFallback(sig, unknown).
         let mut props_type = if self.signature_of(signature).parameters.is_empty() {
             self.tables.intrinsics.unknown
@@ -1621,7 +1618,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
         forced_lookup_location: &str,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if let Some(composites) = self.signature_of(signature).composite_signatures.clone() {
             let mut results: Vec<TypeId> = Vec::with_capacity(composites.len());
             for composite in composites {
@@ -1657,7 +1654,7 @@ impl<'a> CheckerState<'a> {
     fn get_static_type_of_referenced_jsx_constructor(
         &mut self,
         context: NodeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if self.kind_of(context) == SyntaxKind::JsxOpeningFragment {
             return self.get_jsx_fragment_type(context);
         }
@@ -1700,7 +1697,7 @@ impl<'a> CheckerState<'a> {
         context: NodeId,
         namespace: Option<SymbolId>,
         attributes_type: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let managed_sym = match namespace {
             Some(namespace) => self.jsx_namespace_export(
                 namespace,
@@ -1729,7 +1726,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
         context: NodeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let namespace = self.get_jsx_namespace_at(context)?;
         let forced_lookup_location = self.get_jsx_element_properties_name(namespace)?;
         let attributes_type: Option<TypeId> = match &forced_lookup_location {
@@ -1831,7 +1828,7 @@ impl<'a> CheckerState<'a> {
         managed_sym: SymbolId,
         in_js: bool,
         type_arguments: &[TypeId],
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let declared_managed_type = self.get_declared_type_of_symbol_slice(managed_sym)?;
         if self
             .symbol_flags(managed_sym)
@@ -1902,7 +1899,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         name_of_attrib_prop_container: &str,
         jsx_namespace: Option<SymbolId>,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let Some(jsx_namespace) = jsx_namespace else {
             return Ok(None);
         };
@@ -1945,7 +1942,7 @@ impl<'a> CheckerState<'a> {
     fn get_jsx_element_properties_name(
         &mut self,
         jsx_namespace: Option<SymbolId>,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         self.get_name_from_jsx_element_attributes_container(
             JSX_ELEMENT_ATTRIBUTES_PROPERTY_NAME_CONTAINER,
             jsx_namespace,
@@ -1961,7 +1958,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_jsx_element_children_property_name(
         &mut self,
         jsx_namespace: Option<SymbolId>,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         if matches!(self.options.jsx, Some(4) | Some(5)) {
             return Ok(Some("children".to_owned()));
         }
@@ -1974,7 +1971,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getJsxElementClassTypeAt @6.0.3
     /// tsc-hash: 31d63d85b4f693d040d29b074963ce0ef9ae73d19806e78b1d280057e1836fa3
     /// tsc-span: _tsc.js:74745-74749
-    fn get_jsx_element_class_type_at(&mut self, location: NodeId) -> CheckResult2<Option<TypeId>> {
+    fn get_jsx_element_class_type_at(&mut self, location: NodeId) -> CheckResult<Option<TypeId>> {
         let ty = self.get_jsx_type(JSX_ELEMENT_CLASS, location)?;
         if self.tables.is_error_type(ty) {
             return Ok(None);
@@ -1992,7 +1989,7 @@ impl<'a> CheckerState<'a> {
     fn get_jsx_stateless_element_type_at(
         &mut self,
         location: NodeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let jsx_element_type = self.get_jsx_element_type_at(location)?;
         let null = self.tables.intrinsics.null;
         Ok(Some(self.get_union_type_ex(
@@ -2004,7 +2001,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getJsxElementTypeTypeAt @6.0.3
     /// tsc-hash: 030d14a4dfacaa6c26e2e15f7df9dddcf85ea21f6d086780a054e57e8a25f96c
     /// tsc-span: _tsc.js:74759-74767
-    fn get_jsx_element_type_type_at(&mut self, location: NodeId) -> CheckResult2<Option<TypeId>> {
+    fn get_jsx_element_type_type_at(&mut self, location: NodeId) -> CheckResult<Option<TypeId>> {
         let Some(namespace) = self.get_jsx_namespace_at(location)? else {
             return Ok(None);
         };
@@ -2032,7 +2029,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_jsx_namespace_at(
         &mut self,
         location: NodeId,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let resolved_namespace =
             match self.get_jsx_namespace_container_for_implicit_import(location)? {
                 Some(container) => Some(container),
@@ -2092,7 +2089,7 @@ impl<'a> CheckerState<'a> {
     fn get_jsx_namespace_container_for_implicit_import(
         &mut self,
         location: NodeId,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let file_index = self.binder.file_index_of_node(location);
         if let Some(cached) = self.jsx_implicit_import_containers.get(&file_index) {
             return Ok(*cached);

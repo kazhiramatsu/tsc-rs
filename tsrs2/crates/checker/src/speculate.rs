@@ -63,7 +63,7 @@ use tsrs2_syntax::NodeId;
 use tsrs2_types::TypeId;
 
 use crate::links::SpeculativeLinksMarks;
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult, CheckerState};
 
 /// What a completed speculative region wants done with the state it
 /// accumulated: `Commit` selects the candidate and retains its
@@ -619,8 +619,8 @@ impl CheckerState<'_> {
     /// rule, module doc).
     pub fn speculate<T>(
         &mut self,
-        f: impl FnOnce(&mut Self) -> CheckResult2<SpeculationOutcome<T>>,
-    ) -> CheckResult2<T> {
+        f: impl FnOnce(&mut Self) -> CheckResult<SpeculationOutcome<T>>,
+    ) -> CheckResult<T> {
         let checkpoint = self.begin_speculation();
         match f(self) {
             Ok(SpeculationOutcome::Commit(value)) => {

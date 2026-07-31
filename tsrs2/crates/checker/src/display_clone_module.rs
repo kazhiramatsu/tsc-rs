@@ -9,7 +9,7 @@
 use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::NodeFlags;
 
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult, CheckerState};
 
 struct DisplayCloneModulePrinter<'state, 'program> {
     state: &'state mut CheckerState<'program>,
@@ -26,7 +26,7 @@ impl<'program> CheckerState<'program> {
     pub(crate) fn display_clone_module_statement_text(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let saved_indent = self.slice_display_clone_indent;
         let saved_line_start = self.slice_display_clone_at_line_start;
         let result = DisplayCloneModulePrinter { state: self }.node(node);
@@ -37,7 +37,7 @@ impl<'program> CheckerState<'program> {
 }
 
 impl DisplayCloneModulePrinter<'_, '_> {
-    fn node(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn node(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         match self.state.kind_of(node) {
             SyntaxKind::ModuleDeclaration => self.module_declaration(node),
             SyntaxKind::ModuleBlock => self.module_block(node),
@@ -64,7 +64,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         }
     }
 
-    fn module_declaration(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn module_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ModuleDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -121,7 +121,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn module_block(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn module_block(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ModuleBlock(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -166,7 +166,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         Ok(Some(format!("{{{rendered}{}}}", self.indent_text())))
     }
 
-    fn import_equals_declaration(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn import_equals_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ImportEqualsDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -193,7 +193,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn import_declaration(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn import_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ImportDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -226,7 +226,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn import_clause(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn import_clause(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ImportClause(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -256,7 +256,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn namespace_import(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn namespace_import(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::NamespaceImport(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -266,21 +266,21 @@ impl DisplayCloneModulePrinter<'_, '_> {
         Ok(Some(format!("* as {name}")))
     }
 
-    fn named_imports(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn named_imports(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::NamedImports(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
         self.named_imports_or_exports(data.elements, SyntaxKind::ImportSpecifier)
     }
 
-    fn import_specifier(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn import_specifier(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ImportSpecifier(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
         self.import_or_export_specifier(data.is_type_only, data.property_name, data.name)
     }
 
-    fn export_assignment(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn export_assignment(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ExportAssignment(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -305,7 +305,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         )))
     }
 
-    fn export_declaration(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn export_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ExportDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -342,7 +342,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn namespace_export(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn namespace_export(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::NamespaceExport(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -355,21 +355,21 @@ impl DisplayCloneModulePrinter<'_, '_> {
         Ok(Some(format!("* as {name}")))
     }
 
-    fn named_exports(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn named_exports(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::NamedExports(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
         self.named_imports_or_exports(data.elements, SyntaxKind::ExportSpecifier)
     }
 
-    fn export_specifier(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn export_specifier(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ExportSpecifier(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
         self.import_or_export_specifier(data.is_type_only, data.property_name, data.name)
     }
 
-    fn namespace_export_declaration(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn namespace_export_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::NamespaceExportDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -383,7 +383,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         &mut self,
         elements: Option<NodeArrayId>,
         expected_kind: SyntaxKind,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let (elements, has_trailing_comma) = self.node_array(elements);
         if elements.is_empty() {
             return Ok(Some("{}".to_owned()));
@@ -411,7 +411,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         is_type_only: bool,
         property_name: Option<NodeId>,
         name: Option<NodeId>,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let mut text = String::new();
         if is_type_only {
             text.push_str("type ");
@@ -433,7 +433,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn import_attributes(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn import_attributes(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ImportAttributes(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -490,7 +490,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         Ok(Some(format!("{keyword} {{{contents}}}")))
     }
 
-    fn import_attribute(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn import_attribute(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ImportAttribute(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -509,7 +509,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         Ok(Some(format!("{name}: {value}")))
     }
 
-    fn external_module_reference(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn external_module_reference(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ExternalModuleReference(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -522,7 +522,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         Ok(Some(format!("require({expression})")))
     }
 
-    fn module_reference(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn module_reference(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         match self.state.kind_of(node) {
             SyntaxKind::Identifier | SyntaxKind::QualifiedName => Ok(self.entity_name(node)),
             SyntaxKind::ExternalModuleReference => self.external_module_reference(node),
@@ -542,7 +542,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         }
     }
 
-    fn module_name(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn module_name(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         match self.state.kind_of(node) {
             SyntaxKind::Identifier => Ok(self.identifier(node)),
             SyntaxKind::StringLiteral => self.expression(node),
@@ -550,7 +550,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         }
     }
 
-    fn module_export_name(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn module_export_name(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         match self.state.kind_of(node) {
             SyntaxKind::Identifier => Ok(self.identifier(node)),
             SyntaxKind::StringLiteral => self.expression(node),
@@ -558,7 +558,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         }
     }
 
-    fn modifiers(&self, modifiers: Option<NodeArrayId>) -> CheckResult2<Option<String>> {
+    fn modifiers(&self, modifiers: Option<NodeArrayId>) -> CheckResult<Option<String>> {
         let mut rendered = Vec::new();
         for modifier in self.nodes(modifiers) {
             if matches!(self.state.data_of(modifier), NodeData::Decorator(_)) {
@@ -577,7 +577,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         }))
     }
 
-    fn expression(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         self.state
             .display_clone_expression_text_at_line_start(node, false)
     }
@@ -661,8 +661,8 @@ impl DisplayCloneModulePrinter<'_, '_> {
 
     fn with_increased_indent<T>(
         &mut self,
-        operation: impl FnOnce(&mut Self) -> CheckResult2<T>,
-    ) -> CheckResult2<T> {
+        operation: impl FnOnce(&mut Self) -> CheckResult<T>,
+    ) -> CheckResult<T> {
         let saved = self.state.slice_display_clone_indent;
         self.state.slice_display_clone_indent += 1;
         let result = operation(self);
@@ -673,8 +673,8 @@ impl DisplayCloneModulePrinter<'_, '_> {
     fn with_line_start<T>(
         &mut self,
         at_line_start: bool,
-        operation: impl FnOnce(&mut Self) -> CheckResult2<T>,
-    ) -> CheckResult2<T> {
+        operation: impl FnOnce(&mut Self) -> CheckResult<T>,
+    ) -> CheckResult<T> {
         let saved = self.state.slice_display_clone_at_line_start;
         self.state.slice_display_clone_at_line_start = at_line_start;
         let result = operation(self);

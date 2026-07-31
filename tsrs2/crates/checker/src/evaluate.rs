@@ -19,7 +19,7 @@ use tsrs2_diags::gen as diagnostics;
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{ModifierFlags, NodeFlags, SymbolFlags};
 
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult, CheckerState};
 
 /// tsc EvaluatorResult.value: string | number | undefined (pseudo
 /// bigints never flow — the evaluator has no bigint arms).
@@ -65,10 +65,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getEnumMemberValue @6.0.3
     /// tsc-hash: a5c901df4f0a1434d5bc7598d85a54b6cd18243641e6438d89475370d5ea6250
     /// tsc-span: _tsc.js:88231-88237
-    pub(crate) fn get_enum_member_value(
-        &mut self,
-        member: NodeId,
-    ) -> CheckResult2<EvaluatorResult> {
+    pub(crate) fn get_enum_member_value(&mut self, member: NodeId) -> CheckResult<EvaluatorResult> {
         let parent = self
             .parent_of(member)
             .expect("enum members hang off their enum declaration");
@@ -90,7 +87,7 @@ impl<'a> CheckerState<'a> {
     /// and read the already-written slot. On CheckAbort unwind the
     /// flag REVERTS (tsc cannot fail here) so a later query recomputes;
     /// already-written member slots are reused, not rewritten.
-    fn compute_enum_member_values(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn compute_enum_member_values(&mut self, node: NodeId) -> CheckResult<()> {
         if self.links.node(node).enum_values_computed {
             return Ok(());
         }
@@ -143,7 +140,7 @@ impl<'a> CheckerState<'a> {
         member: NodeId,
         auto_value: Option<f64>,
         _previous: Option<NodeId>,
-    ) -> CheckResult2<EvaluatorResult> {
+    ) -> CheckResult<EvaluatorResult> {
         let (name, initializer) = match self.data_of(member) {
             NodeData::EnumMember(data) => (data.name, data.initializer),
             _ => unreachable!("enum member lists hold enum members"),
@@ -207,7 +204,7 @@ impl<'a> CheckerState<'a> {
     fn compute_constant_enum_member_value(
         &mut self,
         member: NodeId,
-    ) -> CheckResult2<EvaluatorResult> {
+    ) -> CheckResult<EvaluatorResult> {
         let parent = self
             .parent_of(member)
             .expect("enum members hang off their enum declaration");
@@ -275,7 +272,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         expr: NodeId,
         location: Option<NodeId>,
-    ) -> CheckResult2<EvaluatorResult> {
+    ) -> CheckResult<EvaluatorResult> {
         let expr = self.skip_parentheses(expr);
         match self.data_of(expr).clone() {
             NodeData::PrefixUnaryExpression(data) => {
@@ -424,7 +421,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         expr: NodeId,
         location: Option<NodeId>,
-    ) -> CheckResult2<EvaluatorResult> {
+    ) -> CheckResult<EvaluatorResult> {
         let (head, spans) = match self.data_of(expr) {
             NodeData::TemplateExpression(data) => (data.head, self.nodes_of(data.template_spans)),
             _ => unreachable!("template expression callers check the kind"),
@@ -480,7 +477,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         expr: NodeId,
         location: Option<NodeId>,
-    ) -> CheckResult2<EvaluatorResult> {
+    ) -> CheckResult<EvaluatorResult> {
         let Some(symbol) =
             self.resolve_entity_name(expr, SymbolFlags::VALUE, /*ignore_errors*/ true, None)?
         else {
@@ -576,7 +573,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         expr: NodeId,
         location: Option<NodeId>,
-    ) -> CheckResult2<EvaluatorResult> {
+    ) -> CheckResult<EvaluatorResult> {
         let (root, argument) = match self.data_of(expr) {
             NodeData::ElementAccessExpression(data) => (data.expression, data.argument_expression),
             _ => unreachable!("element access callers check the kind"),
@@ -636,7 +633,7 @@ impl<'a> CheckerState<'a> {
         expr: NodeId,
         symbol: SymbolId,
         location: NodeId,
-    ) -> CheckResult2<EvaluatorResult> {
+    ) -> CheckResult<EvaluatorResult> {
         let declaration = self.binder.symbol(symbol).value_declaration;
         let Some(declaration) = declaration.filter(|&declaration| declaration != location) else {
             // evaluateEnumMember also uses symbolToString for TS2565.
@@ -688,7 +685,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         declaration: NodeId,
         usage: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if self.binder.file_index_of_node(declaration) != self.binder.file_index_of_node(usage) {
             return Ok(true);
         }
@@ -971,7 +968,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         declaration: NodeId,
         current: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let NodeData::PropertyDeclaration(data) = self.data_of(declaration) else {
             unreachable!("caller checked the declaration kind");
         };
@@ -1060,7 +1057,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         declaration: NodeId,
         usage: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let decl_container = self.get_enclosing_block_scope_container(declaration);
         let parent = self.parent_of(declaration);
         let grandparent = parent.and_then(|parent| self.parent_of(parent));
@@ -1099,7 +1096,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         usage: NodeId,
         declaration: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let decl_container = self.get_enclosing_block_scope_container(declaration);
         let mut current = Some(usage);
         while let Some(node) = current {
@@ -1208,7 +1205,7 @@ impl<'a> CheckerState<'a> {
         initial: NodeId,
         parent: Option<NodeId>,
         stop_at: Option<NodeId>,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let Some(parent) = parent else {
             return Ok(false);
         };
@@ -1478,7 +1475,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTextOfPropertyName @6.0.3
     /// tsc-hash: b6a070f28394bc21fdf62f528c96dee4a10060472d748602fd0bba75be70e0cd
     /// tsc-span: _tsc.js:13883-13885
-    pub(crate) fn get_text_of_property_name(&self, name: NodeId) -> CheckResult2<String> {
+    pub(crate) fn get_text_of_property_name(&self, name: NodeId) -> CheckResult<String> {
         Ok(self
             .try_get_text_of_property_name(name)
             .expect("getTextOfPropertyName requires a textual property name"))
@@ -1539,7 +1536,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:85767-85769
     ///
     /// addLazyDiagnostic = eager identity (the worker runs inline).
-    pub(crate) fn check_enum_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_enum_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_enum_declaration_worker(node)
     }
 
@@ -1550,7 +1547,7 @@ impl<'a> CheckerState<'a> {
     /// erasableSyntaxOnly is ABSENT from CompilerOptions (§13 options
     /// audit) — its row stays dead. computeEnumMemberValues'
     /// isolatedModules-gated rows stay dead behind the same audit.
-    fn check_enum_declaration_worker(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_enum_declaration_worker(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_modifiers(node);
         let NodeData::EnumDeclaration(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
@@ -1620,7 +1617,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// The initializer checkExpression is idempotent over the
     /// evaluator's checkExpressionCached demand (m4-58 §8).
-    pub(crate) fn check_enum_member(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_enum_member(&mut self, node: NodeId) -> CheckResult<()> {
         let NodeData::EnumMember(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };

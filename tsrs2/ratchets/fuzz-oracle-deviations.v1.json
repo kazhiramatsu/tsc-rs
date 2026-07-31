@@ -4,23 +4,23 @@
   "source_references": [
     {
       "path": "crates/checker/src/iterate.rs",
-      "sha256": "169b0fda023610d4d041e98d886406c3fcf7655c845d75fa71b0d62541f0993d"
+      "sha256": "83392b5281357e0ba46769f8f81d2353e30a0598d117c3e8bc339be30947dfa7"
     },
     {
       "path": "crates/checker/src/evaluate.rs",
-      "sha256": "3a369b77b657b3f7558a68566283c83ddceef052b5ce6d25e7a57a31a0bb2c63"
+      "sha256": "79e12362f258e3c097593d8a6f8237ae0dcdbde0eb4b86894214803635a02be3"
     },
     {
       "path": "crates/checker/src/inference.rs",
-      "sha256": "40b7f27ec698c8758c45666f31b39a2c685d88de6b6574cdc7f4e85e4fe3159c"
+      "sha256": "c46970ac4f99256cac5b5be3442ca40d6b6902eef180bbb9eb7cdbe4ce482f22"
     },
     {
       "path": "crates/checker/src/check.rs",
-      "sha256": "10a31f9807068e6ad1b0643bbb603828d75989c6995c4827374aabae4f2bb707"
+      "sha256": "d4762d5ce923d26b1be8db78f1f05370ab73139f378843675d0d19a08379df48"
     },
     {
       "path": "crates/checker/src/state.rs",
-      "sha256": "e92632a5285bab0988087e622435a50923919dec0cdede305a3077ec028d1b5f"
+      "sha256": "8fd864c0808eaa94a3f9e6420c4868a43a30bdc78d32ca17ea60425a582f4fbf"
     }
   ],
   "checks": [

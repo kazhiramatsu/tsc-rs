@@ -16,7 +16,7 @@ use tsrs2_diags::{gen as diagnostics, DiagnosticCategory, DiagnosticMessage};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags, TypeFlags};
 
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult, CheckerState};
 
 /// tsc maximumSuggestionCount (47424).
 const MAXIMUM_SUGGESTION_COUNT: u32 = 10;
@@ -45,7 +45,7 @@ impl<'a> CheckerState<'a> {
         table: &SymbolTable,
         name: &str,
         meaning: SymbolFlags,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         if meaning.is_empty() {
             return Ok(None);
         }
@@ -78,7 +78,7 @@ impl<'a> CheckerState<'a> {
         meaning: SymbolFlags,
         suggestion: bool,
         is_globals: bool,
-    ) -> CheckResult2<LookupProbe> {
+    ) -> CheckResult<LookupProbe> {
         if let Some(found) = self.get_symbol_in_table(table, name, meaning)? {
             return Ok(LookupProbe::Found(found));
         }
@@ -155,7 +155,7 @@ impl<'a> CheckerState<'a> {
         name_not_found_message: Option<&'static DiagnosticMessage>,
         is_use: bool,
         exclude_globals: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         self.resolve_name_full(
             location,
             name,
@@ -180,7 +180,7 @@ impl<'a> CheckerState<'a> {
         location: Option<NodeId>,
         name: &str,
         meaning: SymbolFlags,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         self.resolve_name_full(
             location, name, meaning, /*name_not_found_message*/ None, /*is_use*/ false,
             /*exclude_globals*/ false, /*suggestion*/ true,
@@ -197,7 +197,7 @@ impl<'a> CheckerState<'a> {
         is_use: bool,
         exclude_globals: bool,
         suggestion: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let original_location = location;
         let mut location = location;
         let mut result: Option<SymbolId> = None;
@@ -1388,7 +1388,7 @@ impl<'a> CheckerState<'a> {
         error_location: NodeId,
         name: &str,
         meaning: SymbolFlags,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let namespace_meaning = if self.is_in_js_file(error_location) {
             SymbolFlags::NAMESPACE | SymbolFlags::VALUE
         } else {
@@ -1449,7 +1449,7 @@ impl<'a> CheckerState<'a> {
         error_location: NodeId,
         name: &str,
         meaning: SymbolFlags,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let value_only =
             SymbolFlags::from_bits(SymbolFlags::VALUE.bits() & !SymbolFlags::TYPE.bits());
         let type_only =
@@ -1518,7 +1518,7 @@ impl<'a> CheckerState<'a> {
         error_location: NodeId,
         name: &str,
         meaning: SymbolFlags,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if !meaning.intersects(SymbolFlags::VALUE) {
             return Ok(false);
         }
@@ -1567,7 +1567,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         symbol: SymbolId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let mut current = self.parent_of(node);
         let container = loop {
             let Some(candidate) = current else {
@@ -1619,7 +1619,7 @@ impl<'a> CheckerState<'a> {
         error_location: NodeId,
         name: &str,
         meaning: SymbolFlags,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let non_namespace_type =
             SymbolFlags::from_bits(SymbolFlags::TYPE.bits() & !SymbolFlags::NAMESPACE.bits());
         if !meaning.intersects(non_namespace_type) {
@@ -1709,7 +1709,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         error_location: Option<NodeId>,
         name: &str,
-    ) -> crate::state::CheckResult2<bool> {
+    ) -> crate::state::CheckResult<bool> {
         let Some(error_location) = error_location else {
             return Ok(false);
         };
@@ -1951,7 +1951,7 @@ impl<'a> CheckerState<'a> {
         meaning: SymbolFlags,
         associated_declaration: Option<NodeId>,
         within_deferred_context: bool,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let Some(error_location) = error_location else {
             return Ok(());
         };
@@ -2116,7 +2116,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         result: SymbolId,
         error_location: NodeId,
-    ) -> crate::state::CheckResult2<()> {
+    ) -> crate::state::CheckResult<()> {
         let flags = self.binder.symbol(result).flags;
         debug_assert!(flags.intersects(
             SymbolFlags::BLOCK_SCOPED_VARIABLE | SymbolFlags::CLASS | SymbolFlags::ENUM
@@ -2194,7 +2194,7 @@ impl<'a> CheckerState<'a> {
         meaning: SymbolFlags,
         ignore_errors: bool,
         location: Option<NodeId>,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         self.resolve_entity_name_ex(name, meaning, ignore_errors, location, false)
     }
 
@@ -2214,7 +2214,7 @@ impl<'a> CheckerState<'a> {
         ignore_errors: bool,
         location: Option<NodeId>,
         dont_resolve_alias: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         if node_util::node_is_missing(self.binder.source_of_node(name), Some(name)) {
             return Ok(None);
         }
@@ -2421,7 +2421,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         name: NodeId,
         meaning: SymbolFlags,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let Some(type_reference) = self.parent_of(name) else {
             return Ok(None);
         };
@@ -2676,7 +2676,7 @@ impl<'a> CheckerState<'a> {
     /// live from 5.5a). Failure caches unknownSymbol (returned as None
     /// here) after the resolveName error path has fired, exactly once
     /// per node.
-    pub(crate) fn get_resolved_symbol(&mut self, node: NodeId) -> CheckResult2<Option<SymbolId>> {
+    pub(crate) fn get_resolved_symbol(&mut self, node: NodeId) -> CheckResult<Option<SymbolId>> {
         if let Some(cached) = self.links.node(node).resolved_symbol.resolved() {
             return Ok((cached != self.unknown_symbol).then_some(cached));
         }

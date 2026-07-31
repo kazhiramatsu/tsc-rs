@@ -10,7 +10,7 @@ use tsrs2_types::{
     InternalSymbolName, ModifierFlags, NodeFlags, ObjectFlags, SymbolFlags, TypeFlags, TypeId,
 };
 
-use crate::state::{CheckResult2, CheckerState, IndexInfo};
+use crate::state::{CheckResult, CheckerState, IndexInfo};
 
 impl<'a> CheckerState<'a> {
     /// tsc-port: checkIndexConstraints @6.0.3
@@ -25,7 +25,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         symbol: SymbolId,
         is_static_index: bool,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let index_infos = self.get_index_infos_of_type(ty)?;
         if index_infos.is_empty() {
             return Ok(());
@@ -110,7 +110,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         key_type: TypeId,
-    ) -> CheckResult2<Vec<IndexInfo>> {
+    ) -> CheckResult<Vec<IndexInfo>> {
         let infos = self.get_index_infos_of_type(ty)?;
         let mut applicable = Vec::new();
         for info in infos {
@@ -133,7 +133,7 @@ impl<'a> CheckerState<'a> {
         prop: SymbolId,
         prop_name_type: TypeId,
         prop_type: TypeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let declaration = self.binder.symbol(prop).value_declaration;
         let name = declaration.and_then(|declaration| self.name_of_node(declaration));
         if name.is_some_and(|name| self.kind_of(name) == SyntaxKind::PrivateIdentifier) {
@@ -234,7 +234,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         check_info: &IndexInfo,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let declaration = check_info.declaration;
         let index_infos = self.get_applicable_index_infos(ty, check_info.key_type)?;
         let interface_declaration = if self
@@ -324,7 +324,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_type_for_duplicate_index_signatures(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         if self.kind_of(node) == SyntaxKind::InterfaceDeclaration {
             let node_symbol = self.get_symbol_of_declaration(node)?;
             let declarations = &self.binder.symbol(node_symbol).declarations;
@@ -390,7 +390,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_object_type_for_duplicate_declarations(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let members = match self.data_of(node) {
             NodeData::TypeLiteral(data) => data.members,
             NodeData::InterfaceDeclaration(data) => data.members,
@@ -446,7 +446,7 @@ impl<'a> CheckerState<'a> {
     /// experimental_decorators=true (§10 dual mode: legacyDecorators ==
     /// the option). M7 registers the class after its members so the
     /// unused worker observes every reference mark.
-    pub(crate) fn check_class_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_class_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         let NodeData::ClassDeclaration(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -499,7 +499,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// Anonymous named-evaluation expressions may additionally require
     /// `__setFunctionName` and `__propKey`.
-    pub(crate) fn check_class_expression(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn check_class_expression(&mut self, node: NodeId) -> CheckResult<TypeId> {
         self.check_class_like_declaration(node)?;
         self.check_node_deferred(node);
         self.check_class_expression_external_helpers(node)?;
@@ -510,7 +510,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkClassExpressionExternalHelpers @6.0.3
     /// tsc-hash: 5cdf3e4e84646112ba71437925723c10e4f1d9fbf2eeccfae194c78a23386e3a
     /// tsc-span: _tsc.js:84950-84972
-    fn check_class_expression_external_helpers(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_class_expression_external_helpers(&mut self, node: NodeId) -> CheckResult<()> {
         let (name, modifiers) = match self.data_of(node) {
             NodeData::ClassExpression(data) => (data.name, data.modifiers),
             _ => return Ok(()),
@@ -609,7 +609,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkClassExpressionDeferred @6.0.3
     /// tsc-hash: a08eeee9ff34a3e1ebf619a911642f1265f37dfcb5e7523fdd112d4d2f4794d7
     /// tsc-span: _tsc.js:84978-84981
-    pub(crate) fn check_class_expression_deferred(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_class_expression_deferred(&mut self, node: NodeId) -> CheckResult<()> {
         let NodeData::ClassExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -629,7 +629,7 @@ impl<'a> CheckerState<'a> {
     /// and the final index-constraint/property-initialization block.
     /// Elision: the ES5 Extends emit-helper probe (no-op at the
     /// project target).
-    fn check_class_like_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_class_like_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_class_like_declaration(node);
         self.check_decorators(node)?;
         let (name, _type_parameters, _members) = match self.data_of(node) {
@@ -854,7 +854,7 @@ impl<'a> CheckerState<'a> {
         type_ref_node: NodeId,
         ty: TypeId,
         type_with_this: TypeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let node_type = self.get_type_from_type_node(type_ref_node)?;
         let t = self.get_reduced_type(node_type)?;
         if t == self.tables.intrinsics.error {
@@ -1100,7 +1100,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_type_parameter_lists_identical(
         &mut self,
         symbol: SymbolId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         if self.binder.symbol(symbol).declarations.len() == 1 {
             return Ok(());
         }
@@ -1143,7 +1143,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         declarations: &[NodeId],
         target_parameters: &[TypeId],
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let max_type_argument_count = target_parameters.len();
         let min_type_argument_count = self.get_min_type_argument_count(Some(target_parameters));
         for &declaration in declarations {
@@ -1230,7 +1230,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_class_for_duplicate_declarations(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         const GET_ACCESSOR: u32 = 1;
         const SET_ACCESSOR: u32 = 2;
         const GET_OR_SET_ACCESSOR: u32 = GET_ACCESSOR | SET_ACCESSOR;
@@ -1246,7 +1246,7 @@ impl<'a> CheckerState<'a> {
             location: NodeId,
             name: String,
             meaning: u32,
-        ) -> CheckResult2<()> {
+        ) -> CheckResult<()> {
             match names.get(&name).copied() {
                 Some(prev) => {
                     if (prev & PRIVATE_STATIC) != (meaning & PRIVATE_STATIC) {
@@ -1368,7 +1368,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_class_for_static_property_name_conflicts(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let members = match self.data_of(node) {
             NodeData::ClassDeclaration(data) => data.members,
             NodeData::ClassExpression(data) => data.members,
@@ -1466,7 +1466,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn effective_property_name_for_property_name_node(
         &mut self,
         name: NodeId,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         if let Some(text) = self.property_name_for_property_name_node(name) {
             return Ok(Some(text));
         }
@@ -1495,7 +1495,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         type_with_this: TypeId,
         static_type: TypeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let base_type_node = self.get_effective_base_type_node(node);
         let base_types = if base_type_node.is_some() {
             self.get_base_types(ty)?
@@ -1575,7 +1575,7 @@ impl<'a> CheckerState<'a> {
         type_with_this: TypeId,
         member: NodeId,
         member_is_parameter_property: bool,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let Some(declared_prop) = self.node_symbol(member) else {
             return Ok(());
         };
@@ -1643,7 +1643,7 @@ impl<'a> CheckerState<'a> {
         member_is_parameter_property: bool,
         member: SymbolId,
         error_node: Option<NodeId>,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let is_js = self.is_in_js_file(node);
         let source = self.binder.source_of_node(node);
         let node_in_ambient_context = self.node_flags(node) & NodeFlags::AMBIENT.bits() != 0
@@ -1790,7 +1790,7 @@ impl<'a> CheckerState<'a> {
         type_with_this: TypeId,
         base_with_this: TypeId,
         broad_diag: &'static tsrs2_diags::DiagnosticMessage,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let mut issued_member_error = false;
         let (name, members) = match self.data_of(node) {
             NodeData::ClassDeclaration(data) => (data.name, data.members),
@@ -1870,7 +1870,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// getFullyQualifiedName reduces to the unescaped symbol name for
     /// parentless symbols; qualified flavors escape (display band).
-    fn check_base_type_accessibility(&mut self, ty: TypeId, node: NodeId) -> CheckResult2<()> {
+    fn check_base_type_accessibility(&mut self, ty: TypeId, node: NodeId) -> CheckResult<()> {
         let signatures =
             self.get_signatures_of_type(ty, crate::structural::SignatureKind::Construct)?;
         let Some(&first) = signatures.first() else {
@@ -1910,7 +1910,7 @@ impl<'a> CheckerState<'a> {
     /// parent-chain face, including external source-file roots. Keep
     /// this diagnostic consumer on that implementation rather than a
     /// second parentless-only display slice.
-    fn fully_qualified_name_slice(&self, symbol: SymbolId) -> CheckResult2<String> {
+    fn fully_qualified_name_slice(&self, symbol: SymbolId) -> CheckResult<String> {
         Ok(self.get_fully_qualified_name(symbol))
     }
 
@@ -1927,7 +1927,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         base_type: TypeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         struct NotImplementedInfo {
             base_type_name: String,
             type_name: String,
@@ -2272,7 +2272,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         type_node: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let base_types = self.get_base_types(ty)?;
         if base_types.len() < 2 {
             return Ok(true);
@@ -2351,7 +2351,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkPropertyInitialization @6.0.3
     /// tsc-hash: ddc03688d84d2f003730db1971a6cd5aa2c31bbab0362f9e58138c771a001ce6
     /// tsc-span: _tsc.js:85477-85498
-    pub(crate) fn check_property_initialization(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_property_initialization(&mut self, node: NodeId) -> CheckResult<()> {
         let strict_null_checks = self
             .options
             .strict_option_value(self.options.strict_null_checks);

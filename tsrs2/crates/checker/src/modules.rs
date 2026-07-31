@@ -23,7 +23,7 @@ use tsrs2_types::{CheckMode, InternalSymbolName, ObjectFlags, SymbolFlags, TypeF
 
 use crate::expr::Ancestor;
 use crate::links::LinkSlot;
-use crate::state::{CheckResult2, CheckerState, PackageJsonModuleType};
+use crate::state::{CheckResult, CheckerState, PackageJsonModuleType};
 use tsrs2_types::TypeId;
 
 /// The export-star collision tracker (getExportsOfModuleWorker's
@@ -557,7 +557,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
         location: NodeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         // canCollectSymbolAliasAccessabilityData =
         // !compilerOptions.verbatimModuleSyntax.
         if self.options.verbatim_module_syntax == Some(true)
@@ -589,7 +589,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 46254ca64cb4e47e01100b0e164b08833e9f3d70d96a2ccd52731040d66c771d
     /// tsc-span: _tsc.js:71930-71944
     /// d2: d2:d2f9914c7e95d8ac4679e678fab00dd2c5872ed35fac7f99c5be9fb073a75c7e
-    pub(crate) fn mark_alias_symbol_as_referenced(&mut self, symbol: SymbolId) -> CheckResult2<()> {
+    pub(crate) fn mark_alias_symbol_as_referenced(&mut self, symbol: SymbolId) -> CheckResult<()> {
         debug_assert_ne!(self.options.verbatim_module_syntax, Some(true));
         if self.links.symbol(symbol).alias_referenced {
             return Ok(());
@@ -625,7 +625,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c671a302247ecd64b9bfd09dee0622c8f9fc8afc6c78e9f7c41aca58eb826850
     /// tsc-span: _tsc.js:71945-71958
     /// d2: d2:2acbba8284749967cd30ec1f4f10faf305f4d1d6ff87903ec7e639c545891f67
-    pub(crate) fn mark_export_as_referenced(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn mark_export_as_referenced(&mut self, node: NodeId) -> CheckResult<()> {
         if self.options.verbatim_module_syntax == Some(true) {
             return Ok(());
         }
@@ -681,10 +681,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: markIdentifierAliasReferenced @6.0.3
     /// tsc-hash: 4225275401c1d5fb74dde15c238b68cb619d329262e0d4ef49d301274062f822
     /// tsc-span: _tsc.js:71733-71738
-    pub(crate) fn mark_identifier_alias_referenced(
-        &mut self,
-        location: NodeId,
-    ) -> CheckResult2<()> {
+    pub(crate) fn mark_identifier_alias_referenced(&mut self, location: NodeId) -> CheckResult<()> {
         let symbol = self.get_resolved_symbol(location)?;
         if let Some(symbol) = symbol {
             if symbol != self.arguments_symbol
@@ -706,7 +703,7 @@ impl<'a> CheckerState<'a> {
         left: NodeId,
         prop: Option<SymbolId>,
         parent_type: TypeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         if self.kind_of(left) != SyntaxKind::Identifier {
             return Ok(());
         }
@@ -745,7 +742,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: markExportAssignmentAliasReferenced @6.0.3
     /// tsc-hash: 0964486eea4f65aeb62d2aa20dd480bc8ac378365e459f5ad028e75265f6a0b0
     /// tsc-span: _tsc.js:71770-71786
-    fn mark_export_assignment_alias_referenced(&mut self, location: NodeId) -> CheckResult2<()> {
+    fn mark_export_assignment_alias_referenced(&mut self, location: NodeId) -> CheckResult<()> {
         let expression = match self.data_of(location) {
             NodeData::ExportAssignment(data) => data.expression,
             _ => None,
@@ -772,7 +769,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: markImportEqualsAliasReferenced @6.0.3
     /// tsc-hash: 4a0a82f7bec6c25bc28c40fceffea2c758445b4881b1de469dc5c6a826c59d26
     /// tsc-span: _tsc.js:71836-71840
-    fn mark_import_equals_alias_referenced(&mut self, location: NodeId) -> CheckResult2<()> {
+    fn mark_import_equals_alias_referenced(&mut self, location: NodeId) -> CheckResult<()> {
         if node_util::has_syntactic_modifier(
             self.binder.source_of_node(location),
             location,
@@ -786,7 +783,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: markExportSpecifierAliasReferenced @6.0.3
     /// tsc-hash: eb0e8eb979ed216248aa58b11b6135f30285238ef35e644b7df3b6afc27289b1
     /// tsc-span: _tsc.js:71841-71866
-    fn mark_export_specifier_alias_referenced(&mut self, location: NodeId) -> CheckResult2<()> {
+    fn mark_export_specifier_alias_referenced(&mut self, location: NodeId) -> CheckResult<()> {
         let (property_name, name, is_type_only) = match self.data_of(location) {
             NodeData::ExportSpecifier(data) => (data.property_name, data.name, data.is_type_only),
             _ => return Ok(()),
@@ -887,7 +884,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: Option<SymbolId>,
         dont_resolve_alias: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         if !dont_resolve_alias && self.is_non_local_alias(symbol, Self::default_alias_excludes()) {
             Ok(Some(
                 self.resolve_alias(symbol.expect("non-local alias is Some"))?,
@@ -906,7 +903,7 @@ impl<'a> CheckerState<'a> {
     /// write AND the sentinel-on-entry cycle collapse; a re-entrant
     /// Resolved observed by the outer frame reports 5303 without
     /// writing. Err-unwind reverts the sentinel this frame wrote.
-    pub(crate) fn resolve_alias(&mut self, symbol: SymbolId) -> CheckResult2<SymbolId> {
+    pub(crate) fn resolve_alias(&mut self, symbol: SymbolId) -> CheckResult<SymbolId> {
         debug_assert!(
             self.binder
                 .symbol(symbol)
@@ -976,7 +973,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: tryResolveAlias @6.0.3
     /// tsc-hash: bab6b09fe2dcce72699b3e3f0194e26d2f371b115c231c9a18e46b2bd6d81c8f
     /// tsc-span: _tsc.js:49134-49140
-    pub(crate) fn try_resolve_alias(&mut self, symbol: SymbolId) -> CheckResult2<Option<SymbolId>> {
+    pub(crate) fn try_resolve_alias(&mut self, symbol: SymbolId) -> CheckResult<Option<SymbolId>> {
         if self.links.symbol(symbol).alias_target.is_resolving() {
             return Ok(None);
         }
@@ -993,7 +990,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         dont_recursively_resolve: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         match self.kind_of(node) {
             SyntaxKind::ImportEqualsDeclaration | SyntaxKind::VariableDeclaration => {
                 self.get_target_of_import_equals_declaration(node, dont_recursively_resolve)
@@ -1089,7 +1086,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         dont_resolve_alias: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         if self.kind_of(node) == SyntaxKind::VariableDeclaration {
             let initializer = match self.data_of(node) {
                 NodeData::VariableDeclaration(data) => data.initializer,
@@ -1238,7 +1235,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         resolved: Option<SymbolId>,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let marked = self.mark_symbol_of_alias_declaration_if_type_only(
             Some(node),
             /*immediate_target*/ None,
@@ -1307,7 +1304,7 @@ impl<'a> CheckerState<'a> {
         name: &str,
         source_node: Option<NodeId>,
         dont_resolve_alias: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let export_value = self
             .binder
             .symbol(module_symbol)
@@ -1362,7 +1359,7 @@ impl<'a> CheckerState<'a> {
         module_symbol: SymbolId,
         dont_resolve_alias: bool,
         usage: Option<NodeId>,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if let (Some(file_index), Some(usage)) = (file_index, usage) {
             let usage_mode = self.resolution_mode_for_usage(usage);
             let target_mode = self.implied_node_format_for_emit_file_index(file_index);
@@ -1453,7 +1450,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         usage: NodeId,
         resolved_module: Option<SymbolId>,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let module_kind = self.options.emit_module_kind();
         if !(100..=199).contains(&module_kind)
             || self.resolution_mode_for_usage(usage) != ModuleResolutionMode::EsNext
@@ -1509,7 +1506,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         dont_resolve_alias: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let module_specifier = self
             .parent_of(node)
             .and_then(|parent| match self.data_of(parent) {
@@ -1537,7 +1534,7 @@ impl<'a> CheckerState<'a> {
         module_symbol: SymbolId,
         node: NodeId,
         dont_resolve_alias: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let file_index = self.source_file_index_of_symbol(module_symbol);
         let specifier = self.get_module_specifier_for_import_or_export(node);
         let export_default_symbol = if self.is_shorthand_ambient_module_symbol(module_symbol) {
@@ -1726,7 +1723,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         module_symbol: SymbolId,
         node: NodeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let name = match self.data_of(node) {
             NodeData::ImportClause(data) => data.name,
             _ => None,
@@ -1802,7 +1799,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         dont_resolve_alias: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let Some(module_specifier) = self.get_module_specifier_for_import_or_export(node) else {
             return Ok(None);
         };
@@ -1831,7 +1828,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         dont_resolve_alias: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let module_specifier = self
             .parent_of(node)
             .and_then(|parent| match self.data_of(parent) {
@@ -1916,7 +1913,7 @@ impl<'a> CheckerState<'a> {
         name_text: &str,
         specifier: NodeId,
         dont_resolve_alias: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         if !self
             .binder
             .symbol(symbol)
@@ -1953,7 +1950,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
         name: &str,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         if !self
             .binder
             .symbol(symbol)
@@ -1987,7 +1984,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         specifier: NodeId,
         dont_resolve_alias: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let module_specifier =
             self.external_module_require_argument(node)
                 .or_else(|| match self.data_of(node) {
@@ -2105,7 +2102,7 @@ impl<'a> CheckerState<'a> {
         target_symbol: SymbolId,
         node: NodeId,
         name: NodeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         // getFullyQualifiedName(moduleSymbol, node): at an
         // import/export specifier the location-aware symbol builder
         // selects the written module specifier rather than exposing
@@ -2190,7 +2187,7 @@ impl<'a> CheckerState<'a> {
         declaration_name: &str,
         module_symbol: SymbolId,
         module_name: &str,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let name_text = self.module_export_name_text_escaped(name);
         let local_symbol = self
             .binder
@@ -2297,7 +2294,7 @@ impl<'a> CheckerState<'a> {
         name: NodeId,
         declaration_name: &str,
         module_name: &str,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let es_module_interop = self.options.es_module_interop_effective();
         if self.options.emit_module_kind() >= 5 {
             let message = if es_module_interop {
@@ -2331,7 +2328,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         dont_resolve_alias: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let (property_name, name) = match self.data_of(node) {
             NodeData::ImportSpecifier(data) => (data.property_name, data.name),
             NodeData::BindingElement(data) => (data.property_name, data.name),
@@ -2405,7 +2402,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         dont_resolve_alias: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let Some(parent) = self.parent_of(node) else {
             return Ok(None);
         };
@@ -2433,7 +2430,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         meaning: SymbolFlags,
         dont_resolve_alias: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let (property_name, name) = match self.data_of(node) {
             NodeData::ExportSpecifier(data) => (data.property_name, data.name),
             _ => return Ok(None),
@@ -2497,7 +2494,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         dont_resolve_alias: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let expression = match self.data_of(node) {
             NodeData::ExportAssignment(data) => data.expression,
             NodeData::BinaryExpression(data) => data.right,
@@ -2525,7 +2522,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         expression: NodeId,
         dont_resolve_alias: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         if self.kind_of(expression) == SyntaxKind::ClassExpression {
             let ty = self.check_expression_cached(expression, CheckMode::NORMAL)?;
             return Ok(self.tables.type_of(ty).symbol);
@@ -2554,7 +2551,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         entity_name: NodeId,
         dont_resolve_alias: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let mut entity_name = entity_name;
         if self.kind_of(entity_name) == SyntaxKind::Identifier
             && self.is_right_side_of_qualified_name_or_property_access(entity_name)
@@ -2594,7 +2591,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         exclude_type_only_meanings: bool,
         exclude_local_meanings: bool,
-    ) -> CheckResult2<SymbolFlags> {
+    ) -> CheckResult<SymbolFlags> {
         let type_only_declaration = if exclude_type_only_meanings {
             self.get_type_only_alias_declaration(symbol)?
         } else {
@@ -2687,7 +2684,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsrs-native: the no-excludes flavor of get_symbol_flags_full
     /// (tsc's optional-parameter defaults).
-    pub(crate) fn get_symbol_flags_of(&mut self, symbol: SymbolId) -> CheckResult2<SymbolFlags> {
+    pub(crate) fn get_symbol_flags_of(&mut self, symbol: SymbolId) -> CheckResult<SymbolFlags> {
         self.get_symbol_flags_full(symbol, false, false)
     }
 
@@ -2702,7 +2699,7 @@ impl<'a> CheckerState<'a> {
         overwrite_empty: bool,
         export_star_declaration: Option<NodeId>,
         export_star_name: Option<&str>,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let Some(alias_declaration) = alias_declaration else {
             return Ok(false);
         };
@@ -2751,7 +2748,7 @@ impl<'a> CheckerState<'a> {
         source_symbol: SymbolId,
         target: Option<SymbolId>,
         overwrite_empty: bool,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let existing = self.links.symbol(source_symbol).type_only_declaration;
         if let Some(target) = target {
             if existing.is_none() || (overwrite_empty && existing == Some(None)) {
@@ -2804,7 +2801,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_type_only_alias_declaration(
         &mut self,
         symbol: SymbolId,
-    ) -> CheckResult2<Option<NodeId>> {
+    ) -> CheckResult<Option<NodeId>> {
         self.get_type_only_alias_declaration_ex(symbol, None)
     }
 
@@ -2815,7 +2812,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
         include: Option<SymbolFlags>,
-    ) -> CheckResult2<Option<NodeId>> {
+    ) -> CheckResult<Option<NodeId>> {
         if !self
             .binder
             .symbol(symbol)
@@ -2887,7 +2884,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_immediate_aliased_symbol(
         &mut self,
         symbol: SymbolId,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         debug_assert!(
             self.binder
                 .symbol(symbol)
@@ -2919,7 +2916,7 @@ impl<'a> CheckerState<'a> {
     /// flow when reached through an alias, while the export symbol
     /// itself remains auto-typed. The export=-type-annotation arm
     /// remains behind the broader JS source-type boundary.
-    pub(crate) fn get_type_of_alias(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_type_of_alias(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
             return Ok(cached);
         }
@@ -2929,7 +2926,7 @@ impl<'a> CheckerState<'a> {
         ) {
             return Ok(self.tables.intrinsics.error);
         }
-        let computed = (|state: &mut Self| -> CheckResult2<(TypeId, Option<SymbolId>)> {
+        let computed = (|state: &mut Self| -> CheckResult<(TypeId, Option<SymbolId>)> {
             let declarations = state.binder.symbol(symbol).declarations.clone();
             let target_symbol = state.resolve_alias(symbol)?;
             let export_symbol = match state.get_declaration_of_alias_symbol(symbol) {
@@ -3013,7 +3010,7 @@ impl<'a> CheckerState<'a> {
     /// A matching real declaration access is structurally equivalent
     /// for the immutable Rust arena and supplies the same reference
     /// identity to the flow walk.
-    fn get_flow_type_from_common_js_export(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
+    fn get_flow_type_from_common_js_export(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         let declarations = self.binder.symbol(symbol).declarations.clone();
         let Some(first) = declarations.first().copied() else {
             // tsc's synthetic reference needs the first declaration for its
@@ -3074,7 +3071,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         s1: SymbolId,
         s2: SymbolId,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let merged1 = self.get_merged_symbol(s1);
         let resolved1 = self.resolve_symbol_ex(Some(merged1), false)?;
         let merged2 = self.get_merged_symbol(s2);
@@ -3100,7 +3097,7 @@ impl<'a> CheckerState<'a> {
         location: NodeId,
         module_reference_expression: NodeId,
         ignore_errors: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let is_classic = self.options.emit_module_resolution_kind() == 1;
         let error_message = match self
             .get_cannot_resolve_module_name_error_for_specific_module(module_reference_expression)
@@ -3134,7 +3131,7 @@ impl<'a> CheckerState<'a> {
         module_not_found_error: Option<&'static DiagnosticMessage>,
         ignore_errors: bool,
         is_for_augmentation: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let text = match self.data_of(module_reference_expression) {
             NodeData::StringLiteral(data) => data.text.clone(),
             NodeData::NoSubstitutionTemplateLiteral(data) => data.text.clone(),
@@ -3194,7 +3191,7 @@ impl<'a> CheckerState<'a> {
         module_not_found_error: Option<&'static DiagnosticMessage>,
         error_node: Option<NodeId>,
         is_for_augmentation: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         if let Some(error_node) = error_node {
             if let Some(without_prefix) = module_reference.strip_prefix("@types/") {
                 self.error_at(
@@ -5071,7 +5068,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         location: NodeId,
         helpers: u32,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         if self.options.import_helpers != Some(true)
             || !self.is_effective_external_module(location)
             || tsrs2_types::NodeFlags::from_bits(self.node_flags(location))
@@ -6007,7 +6004,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         module_symbol: Option<SymbolId>,
         dont_resolve_alias: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let Some(module_symbol) = module_symbol else {
             return Ok(None);
         };
@@ -6032,7 +6029,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn resolve_external_module_type_by_literal(
         &mut self,
         name: NodeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let module_symbol = self.resolve_external_module_name(name, name, false)?;
         if let Some(resolved) = self.resolve_external_module_symbol(module_symbol, false)? {
             let resolved = self.get_merged_symbol(resolved);
@@ -6066,7 +6063,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         exported: Option<SymbolId>,
         module_symbol: SymbolId,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let Some(exported) = exported else {
             return Ok(None);
         };
@@ -6138,7 +6135,7 @@ impl<'a> CheckerState<'a> {
         referencing_location: NodeId,
         dont_resolve_alias: bool,
         suppress_interop_error: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let symbol = self.resolve_external_module_symbol(module_symbol, dont_resolve_alias)?;
         let Some(symbol) = symbol else {
             return Ok(None);
@@ -6280,7 +6277,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// getSignaturesOfStructuredType for both kinds (no apparent-type
     /// hop — the interop probes hand it resolved module types).
-    fn has_interop_signatures(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    fn has_interop_signatures(&mut self, ty: TypeId) -> CheckResult<bool> {
         if !self
             .tables
             .flags_of(ty)
@@ -6301,7 +6298,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         original_symbol: Option<SymbolId>,
         anonymous_symbol: Option<SymbolId>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let new_symbol = self
             .binder
             .create_symbol(SymbolFlags::ALIAS, InternalSymbolName::DEFAULT.to_owned());
@@ -6352,7 +6349,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         original_symbol: SymbolId,
         module_specifier: NodeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if !self.is_only_importable_as_default(module_specifier, Some(original_symbol))?
             || self.tables.is_error_type(ty)
         {
@@ -6377,7 +6374,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         original_symbol: SymbolId,
         module_specifier: NodeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if !self.options.allow_synthetic_default_imports_effective()
             || self.tables.is_error_type(ty)
         {
@@ -6439,7 +6436,7 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
         module_type: TypeId,
         reference_parent: NodeId,
-    ) -> CheckResult2<SymbolId> {
+    ) -> CheckResult<SymbolId> {
         let original = self.binder.symbol(symbol);
         let flags = original.flags;
         let escaped_name = original.escaped_name.clone();
@@ -6529,7 +6526,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_exports_of_module(
         &mut self,
         module_symbol: SymbolId,
-    ) -> CheckResult2<SymbolTable> {
+    ) -> CheckResult<SymbolTable> {
         if let LinkSlot::Resolved(exports) = self.links.symbol(module_symbol).resolved_exports {
             return Ok(exports);
         }
@@ -6550,7 +6547,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_exports_of_module_worker(
         &mut self,
         module_symbol: SymbolId,
-    ) -> CheckResult2<(
+    ) -> CheckResult<(
         SymbolTable,
         Option<std::collections::HashMap<String, NodeId>>,
     )> {
@@ -6588,7 +6585,7 @@ impl<'a> CheckerState<'a> {
         visited: &mut Vec<SymbolId>,
         non_type_only_names: &mut indexmap::IndexSet<String>,
         type_only_export_star_map: &mut Option<std::collections::HashMap<String, NodeId>>,
-    ) -> CheckResult2<Option<SymbolTable>> {
+    ) -> CheckResult<Option<SymbolTable>> {
         if !is_type_only {
             if let Some(symbol) = symbol {
                 for name in self.binder.symbol(symbol).exports.keys() {
@@ -6677,7 +6674,7 @@ impl<'a> CheckerState<'a> {
         target: &mut SymbolTable,
         source: Option<&SymbolTable>,
         mut lookup: Option<(&mut ExportLookupTable, NodeId, &str)>,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let Some(source) = source else {
             return Ok(());
         };
@@ -6863,7 +6860,7 @@ impl<'a> CheckerState<'a> {
     /// global-script row remain outside this slice. A module body is
     /// registered for deferred unused checking after its elements are
     /// checked; global augmentations are excluded.
-    pub(crate) fn check_module_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_module_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         let (name, body, modifiers) = match self.data_of(node) {
             NodeData::ModuleDeclaration(data) => (data.name, data.body, data.modifiers),
             _ => return Ok(()),
@@ -7143,7 +7140,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         is_global_augmentation: bool,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         match self.kind_of(node) {
             SyntaxKind::VariableStatement => {
                 let declarations = match self.data_of(node) {
@@ -7226,7 +7223,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkExternalImportOrExportDeclaration @6.0.3
     /// tsc-hash: a5fb1551d6d2e65b3b5d0f9c6e6cc64473914dbc3742409fd1c3d503ea0ac33a
     /// tsc-span: _tsc.js:85983-86018
-    fn check_external_import_or_export_declaration(&mut self, node: NodeId) -> CheckResult2<bool> {
+    fn check_external_import_or_export_declaration(&mut self, node: NodeId) -> CheckResult<bool> {
         let module_name = self.get_external_module_name_of(node);
         let Some(module_name) = module_name else {
             return Ok(false);
@@ -7364,7 +7361,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         name: Option<NodeId>,
         allow_string_literal: bool,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let Some(name) = name else {
             return Ok(());
         };
@@ -7455,7 +7452,7 @@ impl<'a> CheckerState<'a> {
     /// format faces are ported here. Isolated import/local-value
     /// conflicts, exported import-equals, and ambient const enums
     /// remain with their separately owned producer slices.
-    pub(crate) fn check_alias_symbol(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_alias_symbol(&mut self, node: NodeId) -> CheckResult<()> {
         let symbol = self.get_symbol_of_declaration(node)?;
         let target = self.resolve_alias(symbol)?;
         if target == self.unknown_symbol {
@@ -7756,7 +7753,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// The esModuleInterop default-import probe verifies
     /// `__importDefault` when this file emits CommonJS.
-    fn check_import_binding(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_import_binding(&mut self, node: NodeId) -> CheckResult<()> {
         let name = match self.data_of(node) {
             NodeData::ImportClause(data) => data.name,
             NodeData::NamespaceImport(data) => data.name,
@@ -7794,7 +7791,7 @@ impl<'a> CheckerState<'a> {
     /// specifier's emit syntax and takes priority over the type-only
     /// (2857) and resolution-mode (1454) rows — the oracle-correction
     /// epoch made it observable corpus-wide.
-    pub(crate) fn check_import_attributes_of(&mut self, declaration: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_import_attributes_of(&mut self, declaration: NodeId) -> CheckResult<()> {
         let attributes = match self.data_of(declaration) {
             NodeData::ImportDeclaration(data) => data.attributes,
             NodeData::ExportDeclaration(data) => data.attributes,
@@ -7946,7 +7943,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         report: bool,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         match self.parse_resolution_mode_override(node) {
             ResolutionModeOverrideParse::Valid(_) => Ok(true),
             ResolutionModeOverrideParse::WrongCardinality { token } => {
@@ -8027,7 +8024,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeFromImportAttributes @6.0.3
     /// tsc-hash: 230cca270e69688831e489ada99f4658563ce2394ee48cf2beae61b44380947b
     /// tsc-span: _tsc.js:56560-56579
-    fn get_type_from_import_attributes(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    fn get_type_from_import_attributes(&mut self, node: NodeId) -> CheckResult<TypeId> {
         if let Some(cached) = self.links.node(node).resolved_type.resolved() {
             return Ok(cached);
         }
@@ -8086,7 +8083,7 @@ impl<'a> CheckerState<'a> {
     /// an earlier specific modifier error suppresses TS1191, while a
     /// syntactic modifier list left otherwise valid reports on the
     /// declaration's first token.
-    pub(crate) fn check_import_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_import_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         let context_diagnostic = if self.is_in_js_file(node) {
             &diagnostics::An_import_declaration_can_only_be_used_at_the_top_level_of_a_module
         } else {
@@ -8244,7 +8241,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkGrammarImportClause @6.0.3
     /// tsc-hash: 135005635990b013ef4d869f68234202f2703dae3e7cb87768337c7a642852c3
     /// tsc-span: _tsc.js:90396-90417
-    fn check_grammar_import_clause(&mut self, node: NodeId) -> CheckResult2<bool> {
+    fn check_grammar_import_clause(&mut self, node: NodeId) -> CheckResult<bool> {
         let (is_type_only, phase_modifier, name, named_bindings) = match self.data_of(node) {
             NodeData::ImportClause(data) => (
                 data.is_type_only,
@@ -8301,7 +8298,7 @@ impl<'a> CheckerState<'a> {
     fn check_grammar_named_imports_or_exports(
         &mut self,
         named_bindings: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let elements = match self.data_of(named_bindings) {
             NodeData::NamedImports(data) => data.elements,
             NodeData::NamedExports(data) => data.elements,
@@ -8332,7 +8329,7 @@ impl<'a> CheckerState<'a> {
     /// erasableSyntaxOnly is unmodeled-dead. The exported-alias
     /// accessibility mark is live; markLinkedReferences' declaration-emit
     /// traversal remains outside this checker slice.
-    pub(crate) fn check_import_equals_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_import_equals_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         if self.check_grammar_module_element_context(
             node,
             &diagnostics::An_import_declaration_can_only_be_used_at_the_top_level_of_a_namespace_or_module,
@@ -8428,7 +8425,7 @@ impl<'a> CheckerState<'a> {
     /// TS1193 has the same checkGrammarModifiers suppression contract
     /// as the import flavor. Import/export helper availability follows
     /// the source file's effective emit format.
-    pub(crate) fn check_export_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_export_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         let context_diagnostic = if self.is_in_js_file(node) {
             &diagnostics::An_export_declaration_can_only_be_used_at_the_top_level_of_a_module
         } else {
@@ -8530,7 +8527,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkGrammarExportDeclaration @6.0.3
     /// tsc-hash: 73214d3d7eb2caaa902d8aed441dbdcb290a02834dd7e14469c594bbc131b2fb
     /// tsc-span: _tsc.js:86340-86346
-    fn check_grammar_export_declaration(&mut self, node: NodeId) -> CheckResult2<bool> {
+    fn check_grammar_export_declaration(&mut self, node: NodeId) -> CheckResult<bool> {
         let (is_type_only, export_clause) = match self.data_of(node) {
             NodeData::ExportDeclaration(data) => (data.is_type_only, data.export_clause),
             _ => return Ok(false),
@@ -8552,7 +8549,7 @@ impl<'a> CheckerState<'a> {
     /// collectLinkedAliases remains declaration-emit bookkeeping. The
     /// alias-reference mark is live from M7 8.3a; a default re-export
     /// can require `__importDefault` under CommonJS interop.
-    fn check_export_specifier(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_export_specifier(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_alias_symbol(node)?;
         let (property_name, name) = match self.data_of(node) {
             NodeData::ExportSpecifier(data) => (data.property_name, data.name),
@@ -8635,7 +8632,7 @@ impl<'a> CheckerState<'a> {
     /// getImpliedNodeFormatForEmit: package.json `type` affects
     /// Node-format JS publication even when no ordinary module
     /// resolution is performed by this declaration.
-    pub(crate) fn check_export_assignment(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_export_assignment(&mut self, node: NodeId) -> CheckResult<()> {
         let is_export_equals = match self.data_of(node) {
             NodeData::ExportAssignment(data) => data.is_export_equals == Some(true),
             _ => false,
@@ -8846,7 +8843,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkExternalModuleExports @6.0.3
     /// tsc-hash: 2d0f81291dd10b3cf351c83edab8f11522efad0f2939cece56fa438d6e8cec05
     /// tsc-span: _tsc.js:86505-86542
-    pub(crate) fn check_external_module_exports(&mut self, container: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_external_module_exports(&mut self, container: NodeId) -> CheckResult<()> {
         let Some(module_symbol) = self.binder.node_symbol(container) else {
             return Ok(());
         };

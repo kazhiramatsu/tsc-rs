@@ -30,7 +30,7 @@ use tsrs2_types::{
 
 use crate::instantiate::{DeferredMapperTargets, MapperId, TypeMapper};
 use crate::links::LinkSlot;
-use crate::state::{CheckResult2, CheckerState, IndexInfo, SignatureId, SignatureKind};
+use crate::state::{CheckResult, CheckerState, IndexInfo, SignatureId, SignatureKind};
 use crate::variance::VariancesResult;
 
 /// Arena id — see the module doc for the identity/rollback contract.
@@ -412,7 +412,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn infer_from_intra_expression_sites(
         &mut self,
         context: InferenceContextId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         if self
             .inference_context(context)
             .intra_expression_inference_sites
@@ -474,7 +474,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         context: InferenceContextId,
         index: usize,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let captured = self.inference_context(context).mapper_infos[index];
         if !self.inference_info(captured).is_fixed {
             self.infer_from_intra_expression_sites(context)?;
@@ -496,7 +496,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         context: InferenceContextId,
         index: usize,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         self.get_inferred_type(context, index)
     }
 
@@ -553,7 +553,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         s: TypeId,
         t: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if t == self.tables.intrinsics.missing {
             return Ok(s == t);
         }
@@ -594,7 +594,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         tp: TypeId,
         depth: usize,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if ty == tp {
             return Ok(true);
         }
@@ -633,7 +633,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
         type_parameter: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if let Some(type_predicate) = self.get_type_predicate_of_signature(signature)? {
             return match type_predicate.ty {
                 Some(predicate_type) => {
@@ -749,7 +749,7 @@ impl<'a> CheckerState<'a> {
     fn get_type_from_inference(
         &mut self,
         inference: InferenceInfoId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if let Some(candidates) = self.inference_info(inference).candidates.clone() {
             return Ok(Some(
                 self.get_union_type_ex(&candidates, UnionReduction::Subtype)?,
@@ -808,7 +808,7 @@ impl<'a> CheckerState<'a> {
         original_target: TypeId,
         priority: InferencePriority,
         contravariant: bool,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let mut walker = InferTypesWalker {
             st: self,
             inferences: inferences.to_vec(),
@@ -834,7 +834,7 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
         constraint: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let key = (source, target, constraint);
         if let Some(cached) = self.reverse_homomorphic_mapped_cache.get(&key) {
             return Ok(*cached);
@@ -847,7 +847,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isPartiallyInferableType @6.0.3
     /// tsc-hash: 83b3b49b9e9ff1e05c6d4329e2cc159c1a01293d24153bdf88698bb4233cd7d2
     /// tsc-span: _tsc.js:68395-68397
-    fn is_partially_inferable_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    fn is_partially_inferable_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         if !self
             .tables
             .object_flags_of(ty)
@@ -881,7 +881,7 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
         constraint: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let string = self.tables.intrinsics.string;
         let has_string_index = self.get_index_info_of_type(source, string)?.is_some();
         let properties = self.get_properties_of_type(source)?;
@@ -961,7 +961,7 @@ impl<'a> CheckerState<'a> {
         source_type: TypeId,
         target: TypeId,
         constraint: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let TypeData::Index {
             ty: constraint_type,
             ..
@@ -1001,7 +1001,7 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
         constraint: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let key = (source, target, constraint);
         if let Some(cached) = self.reverse_mapped_cache.get(&key) {
             return Ok(Some(cached.unwrap_or(self.tables.intrinsics.unknown)));
@@ -1043,7 +1043,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: hasPrimitiveConstraint @6.0.3
     /// tsc-hash: c32a05bffced6341169f55c1becde664b444f157943fb77ed7b653ff9e09ef16
     /// tsc-span: _tsc.js:69240-69243
-    fn has_primitive_constraint(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    fn has_primitive_constraint(&mut self, ty: TypeId) -> CheckResult<bool> {
         let Some(constraint) = self.get_constraint_of_type_parameter(ty)? else {
             return Ok(false);
         };
@@ -1080,7 +1080,7 @@ impl<'a> CheckerState<'a> {
     fn union_object_and_array_literal_candidates(
         &mut self,
         candidates: Vec<TypeId>,
-    ) -> CheckResult2<Vec<TypeId>> {
+    ) -> CheckResult<Vec<TypeId>> {
         if candidates.len() > 1 {
             let object_literals: Vec<TypeId> = candidates
                 .iter()
@@ -1105,7 +1105,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getContravariantInference @6.0.3
     /// tsc-hash: b0c99208df0211cd206c6aff8b10cb54f167138438899d9f58fbcc92696501ad
     /// tsc-span: _tsc.js:69260-69262
-    fn get_contravariant_inference(&mut self, inference: InferenceInfoId) -> CheckResult2<TypeId> {
+    fn get_contravariant_inference(&mut self, inference: InferenceInfoId) -> CheckResult<TypeId> {
         let contra_candidates = self
             .inference_info(inference)
             .contra_candidates
@@ -1137,7 +1137,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         inference: InferenceInfoId,
         signature: SignatureId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let raw_candidates = self
             .inference_info(inference)
             .candidates
@@ -1203,7 +1203,7 @@ impl<'a> CheckerState<'a> {
         context: InferenceContextId,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         match self.inference_context(context).compare_types {
             CompareTypesFn::Assignable => self.is_type_assignable_to(source, target),
             CompareTypesFn::RelationFrame => {
@@ -1346,7 +1346,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         context: InferenceContextId,
         index: usize,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let inference = self.inference_context(context).inferences[index];
         if let Some(cached) = self.inference_info(inference).inferred_type {
             return Ok(cached);
@@ -1549,7 +1549,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_inferred_types(
         &mut self,
         context: InferenceContextId,
-    ) -> CheckResult2<Vec<TypeId>> {
+    ) -> CheckResult<Vec<TypeId>> {
         let len = self.inference_context(context).inferences.len();
         let mut result = Vec::with_capacity(len);
         for index in 0..len {
@@ -1574,7 +1574,7 @@ impl<'a> CheckerState<'a> {
         target: SignatureId,
         priority: InferencePriority,
         contravariant: bool,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let source_count = self.get_parameter_count(source)?;
         let target_count = self.get_parameter_count(target)?;
         let source_rest_type = self.get_effective_rest_type(source)?;
@@ -1659,7 +1659,7 @@ impl<'a> CheckerState<'a> {
         source: SignatureId,
         target: SignatureId,
         priority: InferencePriority,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         if let Some(target_predicate) = self.get_type_predicate_of_signature(target)? {
             if let Some(source_predicate) = self.get_type_predicate_of_signature(source)? {
                 if std::mem::discriminant(&source_predicate.kind)
@@ -1805,7 +1805,7 @@ impl InferTypesWalker<'_, '_> {
     }
 
     /// tsrs-native: TypeMatcher dispatch (see the enum).
-    fn matches_pair(&mut self, s: TypeId, t: TypeId, matcher: TypeMatcher) -> CheckResult2<bool> {
+    fn matches_pair(&mut self, s: TypeId, t: TypeId, matcher: TypeMatcher) -> CheckResult<bool> {
         match matcher {
             TypeMatcher::OrBaseIdenticalTo => self.st.is_type_or_base_identical_to(s, t),
             TypeMatcher::CloselyMatchedBy => Ok(self.st.is_type_closely_matched_by(s, t)),
@@ -1832,7 +1832,7 @@ impl InferTypesWalker<'_, '_> {
     ///   reaches the pairwise arm after failing to simplify).
     /// - Arms 5/6 (union/intersection reduction) rewrite source and
     ///   target in place before every later arm reads them.
-    fn infer_from_types(&mut self, source: TypeId, target: TypeId) -> CheckResult2<()> {
+    fn infer_from_types(&mut self, source: TypeId, target: TypeId) -> CheckResult<()> {
         let mut source = source;
         let mut target = target;
         if !self.st.could_contain_type_variables(target) || self.st.tables.is_no_infer_type(target)
@@ -2317,7 +2317,7 @@ impl InferTypesWalker<'_, '_> {
         source: TypeId,
         target: TypeId,
         new_priority: InferencePriority,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let save_priority = self.priority;
         self.priority |= new_priority;
         let result = self.infer_from_types(source, target);
@@ -2333,7 +2333,7 @@ impl InferTypesWalker<'_, '_> {
         source: TypeId,
         target: TypeId,
         new_priority: InferencePriority,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let save_priority = self.priority;
         self.priority |= new_priority;
         let result = self.infer_from_contravariant_types(source, target);
@@ -2350,7 +2350,7 @@ impl InferTypesWalker<'_, '_> {
         targets: &[TypeId],
         target_flags: TypeFlags,
         new_priority: InferencePriority,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let save_priority = self.priority;
         self.priority |= new_priority;
         let result = self.infer_to_multiple_types(source, targets, target_flags);
@@ -2372,7 +2372,7 @@ impl InferTypesWalker<'_, '_> {
         source: TypeId,
         target: TypeId,
         action: InferAction,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let key = (source, target);
         if let Some(&status) = self.visited.get(&key) {
             self.inference_priority = self.inference_priority.min(status);
@@ -2428,7 +2428,7 @@ impl InferTypesWalker<'_, '_> {
         sources: Vec<TypeId>,
         targets: Vec<TypeId>,
         matcher: TypeMatcher,
-    ) -> CheckResult2<(Vec<TypeId>, Vec<TypeId>)> {
+    ) -> CheckResult<(Vec<TypeId>, Vec<TypeId>)> {
         let mut matched_sources: Vec<TypeId> = Vec::new();
         let mut matched_targets: Vec<TypeId> = Vec::new();
         for &t in &targets {
@@ -2472,7 +2472,7 @@ impl InferTypesWalker<'_, '_> {
         source_types: &[TypeId],
         target_types: &[TypeId],
         variances: &[VarianceFlags],
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let count = source_types.len().min(target_types.len());
         for i in 0..count {
             if i < variances.len()
@@ -2497,7 +2497,7 @@ impl InferTypesWalker<'_, '_> {
         &mut self,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         self.contravariant = !self.contravariant;
         let result = self.infer_from_types(source, target);
         self.contravariant = !self.contravariant;
@@ -2511,7 +2511,7 @@ impl InferTypesWalker<'_, '_> {
         &mut self,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         if self.st.strict_function_types
             || self.priority.intersects(InferencePriority::ALWAYS_STRICT)
         {
@@ -2578,7 +2578,7 @@ impl InferTypesWalker<'_, '_> {
         source: TypeId,
         targets: &[TypeId],
         target_flags: TypeFlags,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let mut type_variable_count = 0usize;
         if target_flags.intersects(TypeFlags::UNION) {
             // 68921-68940: per-source match tracking decides whether
@@ -2676,7 +2676,7 @@ impl InferTypesWalker<'_, '_> {
     /// tsc-hash: bf377141643390f5d80731fa855630df43df7fee74e32c6d56c2fbb8fea2f7aa
     /// tsc-span: _tsc.js:69011-69021
     ///
-    fn infer_to_conditional_type(&mut self, source: TypeId, target: TypeId) -> CheckResult2<()> {
+    fn infer_to_conditional_type(&mut self, source: TypeId, target: TypeId) -> CheckResult<()> {
         let TypeData::Conditional(target_data) = self.st.tables.type_of(target).data.clone() else {
             unreachable!("Conditional target flag implies data");
         };
@@ -2733,7 +2733,7 @@ impl InferTypesWalker<'_, '_> {
         &mut self,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let matches = self
             .st
             .infer_types_from_template_literal_type(source, target)?;
@@ -2861,7 +2861,7 @@ impl InferTypesWalker<'_, '_> {
         source: TypeId,
         str_value: &tsrs2_types::TemplateText,
         all_type_flags: TypeFlags,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if !self.st.tables.flags_of(right).intersects(all_type_flags) {
             return Ok(left);
         }
@@ -3012,7 +3012,7 @@ impl InferTypesWalker<'_, '_> {
         &mut self,
         source: TypeId,
         target: TypeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let source_constraint = self.st.get_constraint_type_from_mapped_type(source)?;
         let target_constraint = self.st.get_constraint_type_from_mapped_type(target)?;
         self.infer_from_types(source_constraint, target_constraint)?;
@@ -3037,7 +3037,7 @@ impl InferTypesWalker<'_, '_> {
         source: TypeId,
         target: TypeId,
         constraint_type: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let constraint_flags = self.st.tables.flags_of(constraint_type);
         if constraint_flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
             let mut result = false;
@@ -3128,7 +3128,7 @@ impl InferTypesWalker<'_, '_> {
     /// clamps observed by probe (probe-tuple.mjs, 2026-07-20 — incl.
     /// the recorded tsc-crash deviation on an undefined middle-slice
     /// source meeting a type-variable rest target, m8-readiness row 4).
-    fn infer_from_object_types(&mut self, source: TypeId, target: TypeId) -> CheckResult2<()> {
+    fn infer_from_object_types(&mut self, source: TypeId, target: TypeId) -> CheckResult<()> {
         let source_object_flags = self.st.tables.object_flags_of(source);
         let target_object_flags = self.st.tables.object_flags_of(target);
         if source_object_flags.intersects(ObjectFlags::REFERENCE)
@@ -3185,7 +3185,7 @@ impl InferTypesWalker<'_, '_> {
     /// follow JS Array.prototype.slice clamping (see slice_tuple_type
     /// and js_slice_bounds).
     #[allow(clippy::needless_range_loop)] // index walk over paired lists, ported as tsc wrote it
-    fn infer_to_tuple_target(&mut self, source: TypeId, target: TypeId) -> CheckResult2<()> {
+    fn infer_to_tuple_target(&mut self, source: TypeId, target: TypeId) -> CheckResult<()> {
         let source_is_tuple = self.st.tables.is_tuple_type(source);
         let source_arity = self.st.get_type_reference_arity(source);
         let target_arity = self.st.get_type_reference_arity(target);
@@ -3394,7 +3394,7 @@ impl InferTypesWalker<'_, '_> {
     /// The shared variadic/rest middle-arm gate (69118-69120,
     /// 69125-69127): the adjacent type variable's base constraint must
     /// be a fixed-arity tuple; its fixedLength is the implied split.
-    fn middle_implied_arity(&mut self, element_type: TypeId) -> CheckResult2<Option<usize>> {
+    fn middle_implied_arity(&mut self, element_type: TypeId) -> CheckResult<Option<usize>> {
         let Some(info_id) = self.get_inference_info_for_type(element_type) else {
             return Ok(None);
         };
@@ -3427,7 +3427,7 @@ impl InferTypesWalker<'_, '_> {
         &mut self,
         source: Option<TypeId>,
         target: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         match source {
             Some(source) => {
                 self.infer_from_types(source, target)?;
@@ -3448,7 +3448,7 @@ impl InferTypesWalker<'_, '_> {
     /// tsc-port: inferFromProperties @6.0.3
     /// tsc-hash: d7581e09cb3cca44f643758bd3a498be544bb10fb35e640192072263dab91a38
     /// tsc-span: _tsc.js:69170-69181
-    fn infer_from_properties(&mut self, source: TypeId, target: TypeId) -> CheckResult2<()> {
+    fn infer_from_properties(&mut self, source: TypeId, target: TypeId) -> CheckResult<()> {
         let properties = self.st.get_properties_of_object_type_owned(target)?;
         for target_prop in properties {
             let name = self.st.binder.symbol(target_prop).escaped_name.clone();
@@ -3493,7 +3493,7 @@ impl InferTypesWalker<'_, '_> {
         source: TypeId,
         target: TypeId,
         kind: SignatureKind,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let source_signatures = self.st.get_signatures_of_type(source, kind)?;
         let source_len = source_signatures.len();
         if source_len == 0 {
@@ -3519,7 +3519,7 @@ impl InferTypesWalker<'_, '_> {
         &mut self,
         source: SignatureId,
         target: SignatureId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         if !self
             .st
             .signature_of(source)
@@ -3560,7 +3560,7 @@ impl InferTypesWalker<'_, '_> {
         &mut self,
         source: SignatureId,
         target: SignatureId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let source_count = self.st.get_parameter_count(source)?;
         let target_count = self.st.get_parameter_count(target)?;
         let source_rest_type = self.st.get_effective_rest_type(source)?;
@@ -3644,7 +3644,7 @@ impl InferTypesWalker<'_, '_> {
         &mut self,
         source: SignatureId,
         target: SignatureId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         if let Some(target_predicate) = self.st.get_type_predicate_of_signature(target)? {
             if let Some(source_predicate) = self.st.get_type_predicate_of_signature(source)? {
                 if std::mem::discriminant(&source_predicate.kind)
@@ -3673,7 +3673,7 @@ impl InferTypesWalker<'_, '_> {
     /// tsc-span: _tsc.js:69204-69232
     ///
     /// The Mapped&Mapped homomorphic priority is written 1:1.
-    fn infer_from_index_types(&mut self, source: TypeId, target: TypeId) -> CheckResult2<()> {
+    fn infer_from_index_types(&mut self, source: TypeId, target: TypeId) -> CheckResult<()> {
         let priority2 = if self
             .st
             .tables

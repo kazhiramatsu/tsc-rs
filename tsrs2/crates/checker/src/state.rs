@@ -75,7 +75,7 @@ impl std::fmt::Display for CheckAbort {
     }
 }
 
-pub type CheckResult2<T> = Result<T, CheckAbort>;
+pub type CheckResult<T> = Result<T, CheckAbort>;
 
 /// A module augmentation whose target is behind resolver machinery the
 /// in-memory program resolver does not model. Keep the augmentation's

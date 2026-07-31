@@ -17,7 +17,7 @@ use tsrs2_syntax::nodes::{
 use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::NodeFlags;
 
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult, CheckerState};
 
 struct DisplayCloneBodyPrinter<'state, 'program> {
     state: &'state mut CheckerState<'program>,
@@ -34,7 +34,7 @@ impl<'program> CheckerState<'program> {
     pub(crate) fn display_clone_body_expression_text(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         DisplayCloneBodyPrinter { state: self }.node(node)
     }
 
@@ -43,7 +43,7 @@ impl<'program> CheckerState<'program> {
         &mut self,
         node: NodeId,
         at_line_start: bool,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let saved_indent = self.slice_display_clone_indent;
         let saved = self.slice_display_clone_at_line_start;
         self.slice_display_clone_at_line_start = at_line_start;
@@ -57,7 +57,7 @@ impl<'program> CheckerState<'program> {
     pub(crate) fn display_clone_computed_property_expression_text(
         &mut self,
         expression: NodeId,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let saved = self.slice_display_clone_at_line_start;
         self.slice_display_clone_at_line_start = false;
         let result =
@@ -70,7 +70,7 @@ impl<'program> CheckerState<'program> {
     pub(crate) fn display_clone_parameter_nodes_text(
         &mut self,
         nodes: Vec<NodeId>,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let saved = self.slice_display_clone_at_line_start;
         self.slice_display_clone_at_line_start = false;
         let result = DisplayCloneBodyPrinter { state: self }.parameter_nodes_text(nodes);
@@ -82,7 +82,7 @@ impl<'program> CheckerState<'program> {
     pub(crate) fn display_clone_function_body_text(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let saved_indent = self.slice_display_clone_indent;
         let saved_line_start = self.slice_display_clone_at_line_start;
         self.slice_display_clone_at_line_start = false;
@@ -94,14 +94,14 @@ impl<'program> CheckerState<'program> {
 }
 
 impl DisplayCloneBodyPrinter<'_, '_> {
-    fn node(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn node(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         if self.node_enters_reuse_scope(node) {
             return self.with_reuse_scope(node, |printer| printer.node_worker(node));
         }
         self.node_worker(node)
     }
 
-    fn node_worker(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn node_worker(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         match self.state.kind_of(node) {
             SyntaxKind::FunctionExpression => self.function_expression(node),
             SyntaxKind::ArrowFunction => self.arrow_function(node),
@@ -162,7 +162,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         }
     }
 
-    fn expression(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         self.expression_at_line_start(node, false)
     }
 
@@ -170,12 +170,12 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         &mut self,
         node: NodeId,
         at_line_start: bool,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         self.state
             .display_clone_expression_text_at_line_start(node, at_line_start)
     }
 
-    fn function_expression(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn function_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::FunctionExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -190,7 +190,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         )
     }
 
-    fn function_declaration(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn function_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::FunctionDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -215,7 +215,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         parameters: Option<NodeArrayId>,
         return_type: Option<NodeId>,
         body: Option<NodeId>,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let Some(modifiers) = self.modifiers(modifiers)? else {
             return Ok(None);
         };
@@ -257,7 +257,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn arrow_function(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn arrow_function(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ArrowFunction(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -299,7 +299,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn class_expression(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn class_expression(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ClassExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -312,7 +312,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         )
     }
 
-    fn class_declaration(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn class_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ClassDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -332,7 +332,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         type_parameters: Option<NodeArrayId>,
         heritage_clauses: Option<NodeArrayId>,
         members: Option<NodeArrayId>,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let Some(mut text) = self.decorated_modifiers(modifiers)? else {
             return Ok(None);
         };
@@ -397,7 +397,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn block(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn block(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::Block(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -438,7 +438,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(format!("{{{rendered}{}}}", self.indent_text())))
     }
 
-    fn function_body_block(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn function_body_block(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::Block(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -484,7 +484,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(format!("{{{rendered}{}}}", self.indent_text())))
     }
 
-    fn statement(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn statement(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         if matches!(
             self.state.kind_of(node),
             SyntaxKind::ModuleDeclaration
@@ -582,7 +582,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         }
     }
 
-    fn interface_declaration(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn interface_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::InterfaceDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -649,7 +649,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn type_member(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn type_member(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         match self.state.data_of(node).clone() {
             NodeData::PropertySignature(data) => {
                 let Some(mut text) = self.modifiers(data.modifiers)? else {
@@ -762,7 +762,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         }
     }
 
-    fn type_member_entry(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn type_member_entry(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         if self.node_enters_reuse_scope(node) {
             self.with_reuse_scope(node, |printer| printer.type_member(node))
         } else {
@@ -780,7 +780,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         parameters: Option<NodeArrayId>,
         return_type: Option<NodeId>,
         body: Option<NodeId>,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let Some(mut text) = self.decorated_modifiers(modifiers)? else {
             return Ok(None);
         };
@@ -821,7 +821,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         }
     }
 
-    fn type_alias_declaration(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn type_alias_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::TypeAliasDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -847,7 +847,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn enum_declaration(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn enum_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::EnumDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -902,7 +902,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn enum_member(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn enum_member(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::EnumMember(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -923,7 +923,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn if_statement(&mut self, data: IfStatementData) -> CheckResult2<Option<String>> {
+    fn if_statement(&mut self, data: IfStatementData) -> CheckResult<Option<String>> {
         let (Some(condition), Some(then_statement)) = (data.expression, data.then_statement) else {
             return Ok(None);
         };
@@ -955,7 +955,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn do_statement(&mut self, data: DoStatementData) -> CheckResult2<Option<String>> {
+    fn do_statement(&mut self, data: DoStatementData) -> CheckResult<Option<String>> {
         let (Some(statement), Some(expression)) = (data.statement, data.expression) else {
             return Ok(None);
         };
@@ -975,7 +975,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         )))
     }
 
-    fn while_statement(&mut self, data: WhileStatementData) -> CheckResult2<Option<String>> {
+    fn while_statement(&mut self, data: WhileStatementData) -> CheckResult<Option<String>> {
         let (Some(expression), Some(statement)) = (data.expression, data.statement) else {
             return Ok(None);
         };
@@ -988,7 +988,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(format!("while ({expression}){statement}")))
     }
 
-    fn for_statement(&mut self, data: ForStatementData) -> CheckResult2<Option<String>> {
+    fn for_statement(&mut self, data: ForStatementData) -> CheckResult<Option<String>> {
         let initializer = match data.initializer {
             Some(initializer) => {
                 let Some(initializer) = self.for_initializer(initializer)? else {
@@ -1029,7 +1029,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         )))
     }
 
-    fn for_in_statement(&mut self, data: ForInStatementData) -> CheckResult2<Option<String>> {
+    fn for_in_statement(&mut self, data: ForInStatementData) -> CheckResult<Option<String>> {
         let (Some(initializer), Some(expression), Some(statement)) =
             (data.initializer, data.expression, data.statement)
         else {
@@ -1049,7 +1049,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         )))
     }
 
-    fn for_of_statement(&mut self, data: ForOfStatementData) -> CheckResult2<Option<String>> {
+    fn for_of_statement(&mut self, data: ForOfStatementData) -> CheckResult<Option<String>> {
         let (Some(initializer), Some(expression), Some(statement)) =
             (data.initializer, data.expression, data.statement)
         else {
@@ -1074,7 +1074,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         )))
     }
 
-    fn with_statement(&mut self, data: WithStatementData) -> CheckResult2<Option<String>> {
+    fn with_statement(&mut self, data: WithStatementData) -> CheckResult<Option<String>> {
         let (Some(expression), Some(statement)) = (data.expression, data.statement) else {
             return Ok(None);
         };
@@ -1087,7 +1087,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(format!("with ({expression}){statement}")))
     }
 
-    fn switch_statement(&mut self, data: SwitchStatementData) -> CheckResult2<Option<String>> {
+    fn switch_statement(&mut self, data: SwitchStatementData) -> CheckResult<Option<String>> {
         let (Some(expression), Some(case_block)) = (data.expression, data.case_block) else {
             return Ok(None);
         };
@@ -1100,7 +1100,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(format!("switch ({expression}) {case_block}")))
     }
 
-    fn try_statement(&mut self, data: TryStatementData) -> CheckResult2<Option<String>> {
+    fn try_statement(&mut self, data: TryStatementData) -> CheckResult<Option<String>> {
         let Some(try_block) = data.try_block else {
             return Ok(None);
         };
@@ -1131,7 +1131,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn case_block(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn case_block(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::CaseBlock(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -1160,7 +1160,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(format!("{{{rendered}{}}}", self.indent_text())))
     }
 
-    fn case_or_default_clause(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn case_or_default_clause(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let (head, statements) = match self.state.data_of(node).clone() {
             NodeData::CaseClause(data) => {
                 let Some(expression) = data.expression else {
@@ -1208,7 +1208,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(rendered.map(|rendered| format!("{head}{rendered}")))
     }
 
-    fn catch_clause(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn catch_clause(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::CatchClause(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -1232,7 +1232,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn variable_declaration_list(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn variable_declaration_list(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::VariableDeclarationList(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -1263,7 +1263,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(format!("{keyword} {}", rendered.join(", "))))
     }
 
-    fn variable_declaration(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn variable_declaration(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::VariableDeclaration(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -1293,7 +1293,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn heritage_clause(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn heritage_clause(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::HeritageClause(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
@@ -1314,7 +1314,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(format!(" {keyword} {}", rendered.join(", "))))
     }
 
-    fn class_or_object_member(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn class_or_object_member(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         match self.state.data_of(node).clone() {
             NodeData::PropertyDeclaration(data) => {
                 let Some(mut text) = self.decorated_modifiers(data.modifiers)? else {
@@ -1422,7 +1422,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         }
     }
 
-    fn method_declaration(&mut self, data: MethodDeclarationData) -> CheckResult2<Option<String>> {
+    fn method_declaration(&mut self, data: MethodDeclarationData) -> CheckResult<Option<String>> {
         let Some(mut text) = self.decorated_modifiers(data.modifiers)? else {
             return Ok(None);
         };
@@ -1461,7 +1461,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         parameters: Option<NodeArrayId>,
         return_type: Option<NodeId>,
         body: Option<NodeId>,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let Some(mut text) = self.decorated_modifiers(modifiers)? else {
             return Ok(None);
         };
@@ -1489,7 +1489,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         &mut self,
         mut text: String,
         body: Option<NodeId>,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         match body {
             Some(body) => {
                 let Some(body) =
@@ -1505,14 +1505,14 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn modifiers(&mut self, modifiers: Option<NodeArrayId>) -> CheckResult2<Option<String>> {
+    fn modifiers(&mut self, modifiers: Option<NodeArrayId>) -> CheckResult<Option<String>> {
         self.modifiers_worker(modifiers, false)
     }
 
     fn decorated_modifiers(
         &mut self,
         modifiers: Option<NodeArrayId>,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         self.modifiers_worker(modifiers, true)
     }
 
@@ -1520,7 +1520,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         &mut self,
         modifiers: Option<NodeArrayId>,
         allow_decorators: bool,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let modifiers = self.nodes(modifiers);
         if modifiers.is_empty() {
             return Ok(Some(String::new()));
@@ -1597,7 +1597,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn named_declaration_is_removed(&mut self, node: NodeId) -> CheckResult2<bool> {
+    fn named_declaration_is_removed(&mut self, node: NodeId) -> CheckResult<bool> {
         let source = self.state.binder.source_of_node(node);
         let computed_name = tsrs2_binder::node_util::get_name_of_declaration(source, node)
             .is_some_and(|name| self.state.kind_of(name) == SyntaxKind::ComputedPropertyName);
@@ -1607,20 +1607,20 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(!self.state.has_bindable_name(node)?)
     }
 
-    fn return_type_annotation(&mut self, ty: Option<NodeId>) -> CheckResult2<String> {
+    fn return_type_annotation(&mut self, ty: Option<NodeId>) -> CheckResult<String> {
         Ok(match ty {
             Some(ty) => format!(": {}", self.type_annotation_text(ty)?),
             None => ": any".to_owned(),
         })
     }
 
-    fn type_annotation_text(&mut self, node: NodeId) -> CheckResult2<String> {
+    fn type_annotation_text(&mut self, node: NodeId) -> CheckResult<String> {
         self.with_line_start(false, |printer| {
             printer.state.type_annotation_text_slice(node)
         })
     }
 
-    fn member_name_text(&mut self, node: NodeId) -> CheckResult2<String> {
+    fn member_name_text(&mut self, node: NodeId) -> CheckResult<String> {
         self.with_line_start(false, |printer| {
             printer.state.member_name_node_text_slice(node)
         })
@@ -1630,7 +1630,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         &mut self,
         nodes: Option<NodeArrayId>,
         allow_trailing_comma: bool,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let Some(nodes) = nodes else {
             return Ok(Some(String::new()));
         };
@@ -1684,7 +1684,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn parameter_nodes_text(&mut self, nodes: Vec<NodeId>) -> CheckResult2<Option<String>> {
+    fn parameter_nodes_text(&mut self, nodes: Vec<NodeId>) -> CheckResult<Option<String>> {
         let mut rendered = Vec::with_capacity(nodes.len());
         for node in nodes {
             let NodeData::Parameter(data) = self.state.data_of(node).clone() else {
@@ -1738,7 +1738,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(rendered.join(", ")))
     }
 
-    fn binding_name(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn binding_name(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         match self.state.data_of(node) {
             NodeData::Identifier(_) => Ok(self.identifier_name(node)),
             NodeData::ObjectBindingPattern(_) | NodeData::ArrayBindingPattern(_) => {
@@ -1748,7 +1748,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         }
     }
 
-    fn binding_pattern(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn binding_pattern(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let (elements, has_trailing_comma, open, close, padded) =
             match self.state.data_of(node).clone() {
                 NodeData::ObjectBindingPattern(data) => {
@@ -1785,7 +1785,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         }))
     }
 
-    fn binding_element(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn binding_element(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let data = match self.state.data_of(node).clone() {
             NodeData::OmittedExpression(_) => return Ok(Some(String::new())),
             NodeData::BindingElement(data) => data,
@@ -1822,7 +1822,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(text))
     }
 
-    fn binding_property_name(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn binding_property_name(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         let NodeData::ComputedPropertyName(data) = self.state.data_of(node).clone() else {
             return Ok(Some(self.member_name_text(node)?));
         };
@@ -1835,7 +1835,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         self.computed_property_expression(expression)
     }
 
-    fn computed_property_expression(&mut self, expression: NodeId) -> CheckResult2<Option<String>> {
+    fn computed_property_expression(&mut self, expression: NodeId) -> CheckResult<Option<String>> {
         let Some(mut expression_text) = self.expression(expression)? else {
             return Ok(None);
         };
@@ -1845,7 +1845,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         Ok(Some(format!("[{expression_text}]")))
     }
 
-    fn for_initializer(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn for_initializer(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         if self.state.kind_of(node) == SyntaxKind::VariableDeclarationList {
             self.variable_declaration_list(node)
         } else {
@@ -1853,7 +1853,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         }
     }
 
-    fn embedded_statement(&mut self, node: NodeId) -> CheckResult2<Option<String>> {
+    fn embedded_statement(&mut self, node: NodeId) -> CheckResult<Option<String>> {
         if self.state.kind_of(node) == SyntaxKind::Block {
             return Ok(self
                 .with_line_start(false, |printer| printer.node(node))?
@@ -1877,7 +1877,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         &self,
         keyword: &'static str,
         label: Option<NodeId>,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         match label {
             Some(label) => Ok(self
                 .identifier_name(label)
@@ -1890,7 +1890,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         &mut self,
         keyword: &'static str,
         expression: Option<NodeId>,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let mut text = keyword.to_owned();
         if let Some(expression) = expression {
             let Some(expression) = self.expression(expression)? else {
@@ -2001,8 +2001,8 @@ impl DisplayCloneBodyPrinter<'_, '_> {
 
     fn with_increased_indent<T>(
         &mut self,
-        operation: impl FnOnce(&mut Self) -> CheckResult2<T>,
-    ) -> CheckResult2<T> {
+        operation: impl FnOnce(&mut Self) -> CheckResult<T>,
+    ) -> CheckResult<T> {
         let saved = self.state.slice_display_clone_indent;
         self.state.slice_display_clone_indent = saved + 1;
         let result = operation(self);
@@ -2013,8 +2013,8 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     fn with_line_start<T>(
         &mut self,
         at_line_start: bool,
-        operation: impl FnOnce(&mut Self) -> CheckResult2<T>,
-    ) -> CheckResult2<T> {
+        operation: impl FnOnce(&mut Self) -> CheckResult<T>,
+    ) -> CheckResult<T> {
         let saved = self.state.slice_display_clone_at_line_start;
         self.state.slice_display_clone_at_line_start = at_line_start;
         let result = operation(self);
@@ -2025,8 +2025,8 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     fn with_reuse_scope<T>(
         &mut self,
         node: NodeId,
-        operation: impl FnOnce(&mut Self) -> CheckResult2<T>,
-    ) -> CheckResult2<T> {
+        operation: impl FnOnce(&mut Self) -> CheckResult<T>,
+    ) -> CheckResult<T> {
         let saved = self.state.slice_display_enclosing.replace(node);
         let result = operation(self);
         self.state.slice_display_enclosing = saved;

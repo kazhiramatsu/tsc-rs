@@ -15,7 +15,7 @@ use tsrs2_types::{
 
 use crate::links::LinkSlot;
 use crate::narrow::TypePredicateKind;
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult, CheckerState};
 use crate::structural::SignatureKind;
 use tsrs2_diags::gen as diagnostics;
 use tsrs2_diags::{DiagnosticMessage, MessageChain};
@@ -34,7 +34,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         debug_assert!(
             self.kind_of(node) != SyntaxKind::MethodDeclaration
                 || self.is_object_literal_method(node)
@@ -120,7 +120,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         if self
             .links
             .node(node)
@@ -258,7 +258,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_function_expression_or_object_literal_method_deferred(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         debug_assert!(
             self.kind_of(node) != SyntaxKind::MethodDeclaration
                 || self.is_object_literal_method(node)
@@ -307,7 +307,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: crate::state::SignatureId,
         context: crate::state::SignatureId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         if self.signature_of(context).type_parameters.is_some() {
             if self.signature_of(signature).type_parameters.is_none() {
                 let context_type_parameters = self.signature_of(context).type_parameters.clone();
@@ -408,7 +408,7 @@ impl<'a> CheckerState<'a> {
         signature: crate::state::SignatureId,
         context_signature: crate::state::SignatureId,
         inference_context: crate::inference::InferenceContextId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let parameters = self.signature_of(signature).parameters.clone();
         let has_rest = self
             .signature_of(signature)
@@ -460,7 +460,7 @@ impl<'a> CheckerState<'a> {
     fn assign_non_contextual_parameter_types(
         &mut self,
         signature: crate::state::SignatureId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         if let Some(this_parameter) = self.signature_of(signature).this_parameter {
             self.assign_parameter_type(this_parameter, None)?;
         }
@@ -483,7 +483,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         parameter: SymbolId,
         contextual_type: Option<TypeId>,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         if let Some(existing) = self.links.symbol(parameter).type_of_symbol.resolved() {
             if let Some(contextual_type) = contextual_type {
                 assert_eq!(
@@ -547,7 +547,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         pattern: NodeId,
         parent_type: TypeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let elements = match self.data_of(pattern) {
             NodeData::ObjectBindingPattern(data) => data.elements,
             NodeData::ArrayBindingPattern(data) => data.elements,
@@ -608,7 +608,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         func: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let source = self.binder.source_of_node(func);
         let Some(body) = node_util::body_of(source, func) else {
             return Ok(self.tables.intrinsics.error);
@@ -820,7 +820,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         func: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<(Vec<TypeId>, Vec<TypeId>)> {
+    ) -> CheckResult<(Vec<TypeId>, Vec<TypeId>)> {
         let mut yield_types: Vec<TypeId> = Vec::new();
         let mut next_types: Vec<TypeId> = Vec::new();
         let is_async = self.get_function_flags(func) & FUNCTION_FLAGS_ASYNC != 0;
@@ -890,7 +890,7 @@ impl<'a> CheckerState<'a> {
         expression_type: TypeId,
         sent_type: TypeId,
         is_async: bool,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let (expression, asterisk_token) = match self.data_of(node) {
             NodeData::YieldExpression(data) => (data.expression, data.asterisk_token),
             _ => (None, None),
@@ -989,7 +989,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         func: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<Option<Vec<TypeId>>> {
+    ) -> CheckResult<Option<Vec<TypeId>>> {
         let function_flags = self.get_function_flags(func);
         let mut aggregated_types: Vec<TypeId> = Vec::new();
         let mut has_return_with_no_expression = self.function_has_implicit_return(func)?;
@@ -1141,7 +1141,7 @@ impl<'a> CheckerState<'a> {
     /// over a plain identifier callee whose cached type's symbol is
     /// the function's own merged symbol, unless the function is a
     /// fn-expression/arrow whose reference is non-constant.
-    fn is_self_recursive_call_return(&mut self, expr: NodeId, func: NodeId) -> CheckResult2<bool> {
+    fn is_self_recursive_call_return(&mut self, expr: NodeId, func: NodeId) -> CheckResult<bool> {
         if self.kind_of(expr) != SyntaxKind::CallExpression {
             return Ok(false);
         }
@@ -1182,7 +1182,7 @@ impl<'a> CheckerState<'a> {
     /// (isSymbolAssigned, live since 6.2); the binding-pattern arm
     /// went live at 6.6f (isSomeSymbolAssigned landed with that
     /// family).
-    pub(crate) fn is_constant_reference(&mut self, node: NodeId) -> CheckResult2<bool> {
+    pub(crate) fn is_constant_reference(&mut self, node: NodeId) -> CheckResult<bool> {
         match self.kind_of(node) {
             SyntaxKind::ThisKeyword => Ok(true),
             SyntaxKind::Identifier => {
@@ -1264,7 +1264,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: createPromiseType @6.0.3
     /// tsc-hash: 62d5888e1a605f7c047eac534909be55e9ca148580d6d49efa7f4fa25b2d73bc
     /// tsc-span: _tsc.js:78702-78712
-    pub(crate) fn create_promise_type(&mut self, promised_type: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn create_promise_type(&mut self, promised_type: TypeId) -> CheckResult<TypeId> {
         let global_promise = self.get_global_promise_type(/*report_errors*/ true)?;
         let Some(global_promise) = global_promise else {
             return Ok(self.tables.intrinsics.unknown);
@@ -1284,7 +1284,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_global_promise_like_type(
         &mut self,
         report_errors: bool,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if let Some(memo) = self.deferred_global_promise_like_type {
             return Ok((memo != self.empty_generic_type).then_some(memo));
         }
@@ -1303,7 +1303,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn create_promise_like_type(
         &mut self,
         promised_type: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let global_promise_like = self.get_global_promise_like_type(/*report_errors*/ true)?;
         let Some(global_promise_like) = global_promise_like else {
             return Ok(self.tables.intrinsics.unknown);
@@ -1328,7 +1328,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         func: NodeId,
         promised_type: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let promise_type = self.create_promise_type(promised_type)?;
         if promise_type == self.tables.intrinsics.unknown {
             let is_import_call = self.is_import_call(func);
@@ -1377,7 +1377,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         return_type: TypeId,
         function_flags: u32,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let is_generator = function_flags & FUNCTION_FLAGS_GENERATOR != 0;
         let is_async = function_flags & FUNCTION_FLAGS_ASYNC != 0;
         if is_generator {
@@ -1413,7 +1413,7 @@ impl<'a> CheckerState<'a> {
         expr: Option<NodeId>,
         expr_type: TypeId,
         in_conditional_expression: bool,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let function_flags = self.get_function_flags(container);
         if let Some(expr) = expr {
             let unwrapped_expr =
@@ -1503,7 +1503,7 @@ impl<'a> CheckerState<'a> {
     /// addLazyDiagnostic = eager (5.4 decision) — the grammar closure
     /// runs inline. The no-op-await tail preserves tsc's strict TypeId
     /// identity check and excludes error/any/unknown operands.
-    pub(crate) fn check_await_expression(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn check_await_expression(&mut self, node: NodeId) -> CheckResult<TypeId> {
         self.check_await_grammar(node)?;
         let expression = match self.data_of(node) {
             NodeData::AwaitExpression(data) => data.expression,
@@ -1548,7 +1548,7 @@ impl<'a> CheckerState<'a> {
     /// Since 5.8a `await using` declaration LISTS route here too —
     /// every message selects on isAwaitExpression(node) like tsc
     /// (the 2865-2868 family for lists).
-    pub(crate) fn check_await_grammar(&mut self, node: NodeId) -> CheckResult2<bool> {
+    pub(crate) fn check_await_grammar(&mut self, node: NodeId) -> CheckResult<bool> {
         let is_await_expression = self.kind_of(node) == SyntaxKind::AwaitExpression;
         let mut has_error = false;
         let container = {
@@ -1680,7 +1680,7 @@ impl<'a> CheckerState<'a> {
     /// Grammar closure runs eager (the 5.4 addLazyDiagnostic
     /// decision), as does the noImplicitAny 7057 closure. Emit-helper
     /// probes are importHelpers-gated (no-op).
-    pub(crate) fn check_yield_expression(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn check_yield_expression(&mut self, node: NodeId) -> CheckResult<TypeId> {
         self.check_yield_expression_grammar(node);
         let func = self.get_containing_function(node);
         let Some(func) = func else {
@@ -1860,7 +1860,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// checkGrammarModifiers is live; the erasableSyntaxOnly row is
     /// option-absent (dead, §13 audit).
-    pub(crate) fn check_parameter(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_parameter(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_modifiers(node);
         self.check_variable_like_declaration(node)?;
         let Some(func) = self.get_containing_function(node) else {
@@ -1995,7 +1995,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// Emit-helper probes are importHelpers-gated (no-op). The lazy
     /// tail runs eager (the 5.4 addLazyDiagnostic decision).
-    pub(crate) fn check_signature_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_signature_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         let kind = self.kind_of(node);
         if kind == SyntaxKind::IndexSignature {
             self.check_grammar_index_signature(node)?;
@@ -2200,7 +2200,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         return_type_node: NodeId,
         return_type_error_location: NodeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let return_type = self.get_type_from_type_node(return_type_node)?;
         if self.options.emit_script_target() >= tsrs2_types::ScriptTarget::ES2015 {
             if self.tables.is_error_type(return_type) {
@@ -2418,7 +2418,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: hasBindableName @6.0.3
     /// tsc-hash: 45fe3426c08797ee297d285a79977d446d2cda77badbe86fcca00450c58d1c3b
     /// tsc-span: _tsc.js:57643-57645
-    pub(crate) fn has_bindable_name(&mut self, node: NodeId) -> CheckResult2<bool> {
+    pub(crate) fn has_bindable_name(&mut self, node: NodeId) -> CheckResult<bool> {
         let source = self.binder.source_of_node(node);
         if !node_util::has_dynamic_name(source, node) {
             return Ok(true);
@@ -2448,7 +2448,7 @@ impl<'a> CheckerState<'a> {
     /// adds the checker-side refinements the M4-era flag could not
     /// see: exhaustive switches and never-returning calls
     /// (getEffectsSignature).
-    pub(crate) fn function_has_implicit_return(&mut self, func: NodeId) -> CheckResult2<bool> {
+    pub(crate) fn function_has_implicit_return(&mut self, func: NodeId) -> CheckResult<bool> {
         let file = self.binder.file_index_of_node(func);
         let Some(&end_flow) = self.binder.file(file).node_end_flow.get(&func) else {
             return Ok(false);
@@ -2469,7 +2469,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         func: NodeId,
         return_type: Option<TypeId>,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let function_flags = self.get_function_flags(func);
         let ty = match return_type {
             Some(return_type) => self.unwrap_return_type(return_type, function_flags)?,
@@ -2557,7 +2557,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         func: NodeId,
         return_type: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let function_flags = self.get_function_flags(func);
         let ty = self.unwrap_return_type(return_type, function_flags)?;
         Ok(ty.is_some_and(|ty| {
@@ -2575,10 +2575,7 @@ impl<'a> CheckerState<'a> {
     /// FUNCTION DECLARATION BODIES DRIVE EAGERLY here (the 5.5f
     /// deferred path covers fn EXPRESSIONS only); the JSDoc type-tag
     /// arm is JS-only. The lazy tail runs eager.
-    pub(crate) fn check_function_or_method_declaration(
-        &mut self,
-        node: NodeId,
-    ) -> CheckResult2<()> {
+    pub(crate) fn check_function_or_method_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_decorators(node)?;
         self.check_signature_declaration(node)?;
         let function_flags = self.get_function_flags(node);
@@ -2655,7 +2652,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkFunctionOrMethodDeclaration @6.0.3
     /// tsc-hash: fcecf19b2f9ee177f4343da9f3f75b61921bb5e6ab92e9739bb00495ac588fe0
     /// tsc-span: _tsc.js:82935-82940
-    fn check_jsdoc_function_type_tag(&mut self, node: NodeId) -> CheckResult2<()> {
+    fn check_jsdoc_function_type_tag(&mut self, node: NodeId) -> CheckResult<()> {
         if !self.is_in_js_file(node) {
             return Ok(());
         }
@@ -2695,7 +2692,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkFunctionDeclaration @6.0.3
     /// tsc-hash: 956771632475180065203b669105ea260e3170c06f61bfcf41c9ecc36edfd888
     /// tsc-span: _tsc.js:82784-82791
-    pub(crate) fn check_function_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_function_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_function_or_method_declaration(node)?;
         self.check_grammar_for_generator(node);
         let name = self.name_of_node(node);
@@ -2706,7 +2703,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkMethodDeclaration @6.0.3
     /// tsc-hash: 7b7dfb1af0fea107714f252f92aa8c55ed9a6fb974e7043caf434e427c83ab0f
     /// tsc-span: _tsc.js:81522-81535
-    pub(crate) fn check_method_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_method_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         if !self.check_grammar_method(node)? {
             if let Some(name) = self.name_of_node(node) {
                 self.check_grammar_computed_property_name(name);
@@ -2772,7 +2769,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkPropertyDeclaration @6.0.3
     /// tsc-hash: fe84062922bd92bdd3e7794e8bec2e7a757490511cb4989fad1b96fecae1d88d
     /// tsc-span: _tsc.js:81508-81515
-    pub(crate) fn check_property_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_property_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         let grammar_reported = {
             let modifiers_reported = self.check_grammar_modifiers(node);
             modifiers_reported || self.check_grammar_property(node)?
@@ -2814,7 +2811,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkPropertySignature @6.0.3
     /// tsc-hash: 5ec7037fde36394f480b2002581b97e85c333f095d83c9015ff7ca1b5d281b3e
     /// tsc-span: _tsc.js:81516-81521
-    pub(crate) fn check_property_signature(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_property_signature(&mut self, node: NodeId) -> CheckResult<()> {
         if let Some(name) = self.name_of_node(node) {
             if self.kind_of(name) == SyntaxKind::PrivateIdentifier {
                 self.error_at(
@@ -2861,10 +2858,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkClassStaticBlockDeclaration @6.0.3
     /// tsc-hash: c69edb58bee2e5b97158cbe060be6384119f295fac411294c48ff6272658951c
     /// tsc-span: _tsc.js:81552-81555
-    pub(crate) fn check_class_static_block_declaration(
-        &mut self,
-        node: NodeId,
-    ) -> CheckResult2<()> {
+    pub(crate) fn check_class_static_block_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_grammar_modifiers(node);
         let source = self.binder.source_of_node(node);
         let mut children = Vec::new();
@@ -2888,7 +2882,7 @@ impl<'a> CheckerState<'a> {
     /// captureLexicalThis is emit-only (no-op); the lazy tail runs
     /// eager. emitStandardClassFields makes the root-level band dead
     /// at the default target and LIVE for low-@target fixtures.
-    pub(crate) fn check_constructor_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_constructor_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_signature_declaration(node)?;
         if !self.check_grammar_constructor_type_parameters(node) {
             self.check_grammar_constructor_type_annotation(node);
@@ -3130,7 +3124,7 @@ impl<'a> CheckerState<'a> {
     /// The lazy block runs BEFORE the body (eager identity preserves
     /// tsc's diagnostic order); the getter/setter pair rows latch on
     /// the getter's TypeChecked NodeCheckFlags bit.
-    pub(crate) fn check_accessor_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_accessor_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         let name = self.name_of_node(node);
         let source = self.binder.source_of_node(node);
         if let Some(name) = name {
@@ -3263,7 +3257,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkMissingDeclaration @6.0.3
     /// tsc-hash: 452c55461683d3ab7d952ca2d6f80d4f55796de22a8e268b0309db7b876edaef
     /// tsc-span: _tsc.js:81670-81672
-    pub(crate) fn check_missing_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_missing_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_decorators(node)
     }
 
@@ -3335,7 +3329,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_function_or_constructor_symbol(
         &mut self,
         symbol: SymbolId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let flags_to_check = tsrs2_types::ModifierFlags::from_bits(
             tsrs2_types::ModifierFlags::EXPORT.bits()
                 | tsrs2_types::ModifierFlags::AMBIENT.bits()
@@ -3587,7 +3581,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         is_constructor: bool,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let source = self.binder.source_of_node(node);
         let name = self.name_of_node(node);
         if let Some(name) = name {
@@ -3825,10 +3819,7 @@ impl<'a> CheckerState<'a> {
     /// The worker (82218-82311, hash 27bf5a2713904b795ff58d00bb0b7709
     /// eeed5818fb779c3dc557db69107ac931) runs eager; JSDoc tag arms
     /// are JS-only.
-    pub(crate) fn check_exports_on_merged_declarations(
-        &mut self,
-        node: NodeId,
-    ) -> CheckResult2<()> {
+    pub(crate) fn check_exports_on_merged_declarations(&mut self, node: NodeId) -> CheckResult<()> {
         let local_symbol = self
             .binder
             .file(self.binder.file_index_of_node(node))
@@ -3905,7 +3896,7 @@ impl<'a> CheckerState<'a> {
     /// The JSDoc typedef/callback/enum-tag rows are JS-band; alias
     /// targets resolve through resolveAlias and union their target
     /// declarations' spaces (M4 5.9d).
-    fn get_declaration_spaces(&mut self, decl: NodeId) -> CheckResult2<u32> {
+    fn get_declaration_spaces(&mut self, decl: NodeId) -> CheckResult<u32> {
         const EXPORT_VALUE: u32 = 1;
         const EXPORT_TYPE: u32 = 2;
         const EXPORT_NAMESPACE: u32 = 4;
@@ -3963,7 +3954,7 @@ impl<'a> CheckerState<'a> {
 
     /// getDeclarationSpaces' shared alias arm (82287-82295): the
     /// resolved alias target's declarations union their spaces.
-    fn declaration_spaces_of_alias_target(&mut self, d: NodeId) -> CheckResult2<u32> {
+    fn declaration_spaces_of_alias_target(&mut self, d: NodeId) -> CheckResult<u32> {
         let symbol = self.get_symbol_of_declaration(d)?;
         let target = self.resolve_alias(symbol)?;
         let declarations = self.binder.symbol(target).declarations.clone();
@@ -3986,7 +3977,7 @@ impl<'a> CheckerState<'a> {
     /// property, readonly 4104) lands the SAME outer code 2677 at
     /// node.type with no arguments. The relation reporting replay
     /// supplies the exact nested chain and related declaration rows.
-    pub(crate) fn check_type_predicate(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_type_predicate(&mut self, node: NodeId) -> CheckResult<()> {
         // getTypePredicateParent (81254-81268): the seven signature
         // kinds whose return-type slot may carry a predicate.
         let parent = self.parent_of(node).filter(|&parent| {
@@ -4176,7 +4167,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_grammar_function_like_declaration(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if self.check_grammar_modifiers(node) {
             return Ok(true);
         }
@@ -4283,7 +4274,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         name: NodeId,
         message: &'static tsrs2_diags::DiagnosticMessage,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let source = self.binder.source_of_node(name);
         if !node_util::is_dynamic_name(source, name) {
             return Ok(false);
@@ -4316,7 +4307,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkGrammarMethod @6.0.3
     /// tsc-hash: b527241eef4a0e9f52c7f1aba21a0c2d994426c4e9b937a0b184941346158068
     /// tsc-span: _tsc.js:89943-89977
-    pub(crate) fn check_grammar_method(&mut self, node: NodeId) -> CheckResult2<bool> {
+    pub(crate) fn check_grammar_method(&mut self, node: NodeId) -> CheckResult<bool> {
         if self.check_grammar_function_like_declaration(node)? {
             return Ok(true);
         }
@@ -4421,7 +4412,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkGrammarProperty @6.0.3
     /// tsc-hash: 96ee5a1ca0e98d408af24ce8c6f1d49184809528811cdd2d86069fdba2ee41f7
     /// tsc-span: _tsc.js:90262-90306
-    pub(crate) fn check_grammar_property(&mut self, node: NodeId) -> CheckResult2<bool> {
+    pub(crate) fn check_grammar_property(&mut self, node: NodeId) -> CheckResult<bool> {
         let (name, question_token, exclamation_token, type_node, initializer) =
             match self.data_of(node) {
                 NodeData::PropertyDeclaration(data) => (
@@ -4609,7 +4600,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:89843-89885
     /// (covers doesAccessorHaveCorrectParameterCount 89886-89888 +
     /// getAccessorThisParameter 89889-89893)
-    pub(crate) fn check_grammar_accessor(&mut self, accessor: NodeId) -> CheckResult2<bool> {
+    pub(crate) fn check_grammar_accessor(&mut self, accessor: NodeId) -> CheckResult<bool> {
         let is_get = self.kind_of(accessor) == SyntaxKind::GetAccessor;
         let (name, type_parameters, parameters, type_node, body) = match self.data_of(accessor) {
             NodeData::GetAccessor(data) => (
@@ -4789,7 +4780,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 2856d1455aeec93ef47683be871684d5298f850b1d5b3361f0477c67511d9c26
     /// tsc-span: _tsc.js:89525-89527
     /// (covers checkGrammarIndexSignatureParameters 89488-89524)
-    pub(crate) fn check_grammar_index_signature(&mut self, node: NodeId) -> CheckResult2<bool> {
+    pub(crate) fn check_grammar_index_signature(&mut self, node: NodeId) -> CheckResult<bool> {
         self.check_grammar_modifiers(node);
         let (parameters_array, type_node) = match self.data_of(node) {
             NodeData::IndexSignature(data) => (data.parameters, data.r#type),
@@ -5003,7 +4994,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkGrammarParameterList @6.0.3
     /// tsc-hash: 09bfdcd3a387a1c410d86c288e0a97aa1ef3fc7241a296c0a0cdcfb9f11d0c99
     /// tsc-span: _tsc.js:89415-89442
-    fn check_grammar_parameter_list(&mut self, node: NodeId) -> CheckResult2<bool> {
+    fn check_grammar_parameter_list(&mut self, node: NodeId) -> CheckResult<bool> {
         // tsc receives `node.parameters` directly. Keep that read in
         // this grammar owner: the contextual helper intentionally has
         // a narrower expression/declaration surface and omits
@@ -5311,7 +5302,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         declaration: NodeId,
         ty: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let widened = self.get_widened_literal_type_for_initializer(declaration, ty)?;
         if self.is_in_js_file(declaration) {
             if self.is_empty_literal_type(widened) {
@@ -5514,7 +5505,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_global_promise_type(
         &mut self,
         report_errors: bool,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if let Some(memo) = self.deferred_global_promise_type {
             return Ok((memo != self.empty_generic_type).then_some(memo));
         }
@@ -5533,7 +5524,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_global_promise_constructor_symbol(
         &mut self,
         report_errors: bool,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         if let Some(memo) = self.deferred_global_promise_constructor_symbol {
             return Ok(memo);
         }
@@ -5561,7 +5552,7 @@ impl<'a> CheckerState<'a> {
         declaration: NodeId,
         parent_type: TypeId,
         no_tuple_bounds_check: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let mut parent_type = parent_type;
         if self.tables.flags_of(parent_type).intersects(TypeFlags::ANY) {
             return Ok(parent_type);
@@ -5764,7 +5755,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getNonUndefinedType @6.0.3
     /// tsc-hash: 5f29daa4407d5acb7d4db0db7a6a9828b6446830de42150fee571104eabf68ba
     /// tsc-span: _tsc.js:55888-55891
-    pub(crate) fn get_non_undefined_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_non_undefined_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let has_generic_undefined_constraint = self.some_type_result(ty, |state, t| {
             // isGenericTypeWithUndefinedConstraint (55885-55887).
             if !state.tables.flags_of(t).intersects(TypeFlags::INSTANTIABLE) {
@@ -5797,7 +5788,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeOfInitializer @6.0.3
     /// tsc-hash: a634e86b085e2c5bdf1ddba28241453f81b9b4c70d742c9a589fbe2b54d6dafc
     /// tsc-span: _tsc.js:69889-69892
-    pub(crate) fn get_type_of_initializer(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_type_of_initializer(&mut self, node: NodeId) -> CheckResult<TypeId> {
         if let Some(resolved) = self.links.node(node).resolved_type.resolved() {
             return Ok(resolved);
         }

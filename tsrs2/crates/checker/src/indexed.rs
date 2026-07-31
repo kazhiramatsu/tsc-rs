@@ -13,7 +13,7 @@ use tsrs2_types::{
 };
 
 use crate::links::LinkSlot;
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult, CheckerState};
 use tsrs2_diags::gen as diagnostics;
 
 impl<'a> CheckerState<'a> {
@@ -23,7 +23,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// Miss AND wrong-arity (2317 reported inside the shared worker)
     /// both memoize unknownSymbol.
-    fn get_global_extract_symbol(&mut self) -> CheckResult2<Option<tsrs2_binder::SymbolId>> {
+    fn get_global_extract_symbol(&mut self) -> CheckResult<Option<tsrs2_binder::SymbolId>> {
         if self.deferred_global_extract_symbol.is_none() {
             let resolved =
                 self.get_global_type_alias_symbol("Extract", 2, /*report_errors*/ true)?;
@@ -40,7 +40,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getExtractStringType @6.0.3
     /// tsc-hash: e3c1341d9f62620207da8f9e6a74a7fd55301b67530491a046d2a53018028dac
     /// tsc-span: _tsc.js:62020-62023
-    pub(crate) fn get_extract_string_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_extract_string_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         match self.get_global_extract_symbol()? {
             Some(alias) => {
                 let string = self.tables.intrinsics.string;
@@ -53,7 +53,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getIndexTypeOrString @6.0.3
     /// tsc-hash: c8ecc6e8763470e9dc210f694a20ab557776d7b467a7ebbebb853f15537f3b8f
     /// tsc-span: _tsc.js:62024-62027
-    pub(crate) fn get_index_type_or_string(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_index_type_or_string(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let index_type = self.get_index_type(ty, IndexFlags::NONE)?;
         let extracted = self.get_extract_string_type(index_type)?;
         Ok(
@@ -71,7 +71,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// NoInfer preserves its inference barrier over the computed key
     /// type; mapped objects use the 9.5b key expansion path.
-    pub fn get_index_type(&mut self, ty: TypeId, index_flags: IndexFlags) -> CheckResult2<TypeId> {
+    pub fn get_index_type(&mut self, ty: TypeId, index_flags: IndexFlags) -> CheckResult<TypeId> {
         let ty = self.get_reduced_type(ty)?;
         if self.tables.is_no_infer_type(ty) {
             let TypeData::Substitution(data) = self.tables.type_of(ty).data.clone() else {
@@ -144,7 +144,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         index_flags: IndexFlags,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::INSTANTIABLE_NON_PRIMITIVE)
             || self.tables.is_generic_tuple_type(ty)
@@ -185,7 +185,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isReducibleIntersection @6.0.3
     /// tsc-hash: 3aecd44e7a52b5337e106837a97753d45348309fb3ec2d448aa93e488b231ccf
     /// tsc-span: _tsc.js:59321-59324
-    pub(crate) fn is_generic_reducible_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_generic_reducible_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::UNION)
             && self
@@ -206,7 +206,7 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
-    fn is_reducible_intersection(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    fn is_reducible_intersection(&mut self, ty: TypeId) -> CheckResult<bool> {
         let unique_filled = match self
             .links
             .ty(ty)
@@ -279,7 +279,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         include: TypeFlags,
         include_origin: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let origin = if include_origin
             && (self
                 .tables
@@ -334,7 +334,7 @@ impl<'a> CheckerState<'a> {
         property: SymbolId,
         include: TypeFlags,
         include_non_public: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let non_public = !include_non_public
             && self
                 .binder
@@ -389,7 +389,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_literal_type_from_property_name(
         &mut self,
         name: NodeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         match self.data_of(name) {
             NodeData::PrivateIdentifier(_) => Ok(self.tables.intrinsics.never),
             NodeData::NumericLiteral(data) => {
@@ -480,7 +480,7 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         kind: TypeFlags,
         strict: bool,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if self.tables.flags_of(source).intersects(kind) {
             return Ok(true);
         }
@@ -530,7 +530,7 @@ impl<'a> CheckerState<'a> {
         access_node: Option<NodeId>,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let resolved = self.get_indexed_access_type_or_undefined(
             object_type,
             index_type,
@@ -550,7 +550,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 194568789a48a4a0e08ba0b934c9acafdf81244913ba01c0b5e42a0ca99c5983
     /// tsc-span: _tsc.js:62631-62639
     ///
-    pub(crate) fn get_actual_type_variable(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_actual_type_variable(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::SUBSTITUTION) {
             let TypeData::Substitution(data) = self.tables.type_of(ty).data.clone() else {
@@ -594,13 +594,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isGenericType @6.0.3
     /// tsc-hash: 24d5fea9e8bd61b2e658f4c5d9423ee7926ff364e97370617a604cd6e4b0f5c0
     /// tsc-span: _tsc.js:62431-62433
-    pub(crate) fn is_generic_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_generic_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         Ok(!self.get_generic_object_flags(ty)?.is_empty())
     }
 
     /// tsrs-native: fallible checker-owned projection of
     /// getGenericObjectFlags' object half.
-    pub(crate) fn is_generic_object_type_state(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_generic_object_type_state(&mut self, ty: TypeId) -> CheckResult<bool> {
         Ok(self
             .get_generic_object_flags(ty)?
             .intersects(ObjectFlags::IS_GENERIC_OBJECT_TYPE))
@@ -608,7 +608,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsrs-native: fallible checker-owned projection of
     /// getGenericObjectFlags' index half.
-    pub(crate) fn is_generic_index_type_state(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_generic_index_type_state(&mut self, ty: TypeId) -> CheckResult<bool> {
         Ok(self
             .get_generic_object_flags(ty)?
             .intersects(ObjectFlags::IS_GENERIC_INDEX_TYPE))
@@ -621,7 +621,7 @@ impl<'a> CheckerState<'a> {
     /// The IsGenericTypeComputed memo (62442/62448) is elided: the
     /// port's type tables are append-only, so the composite reduction
     /// recomputes per query — cache-only deviation, verdict-identical.
-    pub(crate) fn get_generic_object_flags(&mut self, ty: TypeId) -> CheckResult2<ObjectFlags> {
+    pub(crate) fn get_generic_object_flags(&mut self, ty: TypeId) -> CheckResult<ObjectFlags> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::UNION | TypeFlags::INTERSECTION) {
             let (TypeData::Union { types, .. } | TypeData::Intersection { types }) =
@@ -667,11 +667,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: ac9c7ff358d22383776d3bf0d841ff1a331b67e77b87198ef19ad9398418adc5
     /// tsc-span: _tsc.js:62455-62457
     ///
-    pub(crate) fn get_simplified_type(
-        &mut self,
-        ty: TypeId,
-        writing: bool,
-    ) -> CheckResult2<TypeId> {
+    pub(crate) fn get_simplified_type(&mut self, ty: TypeId, writing: bool) -> CheckResult<TypeId> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::INDEXED_ACCESS) {
             self.get_simplified_indexed_access_type(ty, writing)
@@ -688,7 +684,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b26e70997196efd7e1f1d3d114b5ff87f5ea045e5856d5925477022d8f4c120c
     /// tsc-span: _tsc.js:62527-62532
     ///
-    fn get_simplified_index_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    fn get_simplified_index_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let TypeData::Index { ty: inner, .. } = self.tables.type_of(ty).data else {
             unreachable!("index flag implies index data");
         };
@@ -709,7 +705,7 @@ impl<'a> CheckerState<'a> {
         object_type: TypeId,
         index_type: TypeId,
         writing: bool,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let object_flags = self.tables.flags_of(object_type);
         let distributes = object_flags.intersects(TypeFlags::UNION)
             || (object_flags.intersects(TypeFlags::INTERSECTION)
@@ -751,7 +747,7 @@ impl<'a> CheckerState<'a> {
         object_type: TypeId,
         index_type: TypeId,
         writing: bool,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if !self
             .tables
             .flags_of(index_type)
@@ -789,7 +785,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         writing: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         {
             let links = self.links.ty(ty);
             let slot = if writing {
@@ -831,7 +827,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         writing: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let TypeData::IndexedAccess {
             object_type,
             index_type,
@@ -934,7 +930,7 @@ impl<'a> CheckerState<'a> {
         access_node: Option<NodeId>,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         self.get_indexed_access_type_or_undefined_ex(
             object_type,
             index_type,
@@ -965,7 +961,7 @@ impl<'a> CheckerState<'a> {
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
         synthetic_access: bool,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if object_type == self.tables.intrinsics.wildcard
             || index_type == self.tables.intrinsics.wildcard
         {
@@ -1125,7 +1121,7 @@ impl<'a> CheckerState<'a> {
         access_node: Option<NodeId>,
         access_flags: AccessFlags,
         synthetic_access: bool,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         // A synthetic access node (tsc SyntheticExpression) matches no
         // access-node kind probe: the element-access band stays off
         // and index-node unwraps answer the node itself.
@@ -1550,7 +1546,7 @@ impl<'a> CheckerState<'a> {
         access_expression: NodeId,
         access_flags: AccessFlags,
         property_name: Option<&str>,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let no_implicit_any = self
             .options
             .strict_option_value(self.options.no_implicit_any);
@@ -1777,7 +1773,7 @@ impl<'a> CheckerState<'a> {
         index_info: Option<&crate::state::IndexInfo>,
         object_type: TypeId,
         access_expression: Option<NodeId>,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let Some(index_info) = index_info else {
             return Ok(());
         };
@@ -1807,7 +1803,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// JSLiteral object flags are never produced (JS literal widening
     /// is 5.6), so only the flag-shape is live.
-    pub(crate) fn is_js_literal_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_js_literal_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         if self
             .options
             .strict_option_value(self.options.no_implicit_any)
@@ -1855,7 +1851,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isStringIndexSignatureOnlyType @6.0.3
     /// tsc-hash: 6914dc03c67198d748e1f8fc4d56b1e9a19c7b5abf51787203b93f70fa428411
     /// tsc-span: _tsc.js:64670-64672
-    fn is_string_index_signature_only_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    fn is_string_index_signature_only_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::OBJECT) {
             let properties = self.get_properties_of_type_full(ty)?;
@@ -1976,7 +1972,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_rest_type_of_tuple_type(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let target = self.tables.reference_target(ty);
         let fixed_length = match &self.tables.type_of(target).data {
             TypeData::TupleTarget(data) => data.fixed_length,
@@ -1988,7 +1984,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getKnownKeysOfTupleType @6.0.3
     /// tsc-hash: feea7a608c0d34daf2e00508df8313ddbd6145e7cd375785fe15482fca9dc2c2
     /// tsc-span: _tsc.js:61299-61301
-    pub(crate) fn get_known_keys_of_tuple_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_known_keys_of_tuple_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let target = self.tables.reference_target(ty);
         let TypeData::TupleTarget(data) = self.tables.type_of(target).data.clone() else {
             unreachable!("tuple type targets a tuple target");
@@ -2015,7 +2011,7 @@ impl<'a> CheckerState<'a> {
         end_skip_count: usize,
         writing: bool,
         no_reductions: bool,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         // getTypeArguments (67826) — deferred tuple references force
         // their arguments lazily here.
         let type_arguments: Vec<TypeId> = self.get_type_arguments(ty)?;
@@ -2063,7 +2059,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         index: usize,
         undefined_or_missing: Option<TypeId>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let mapped = self.map_type(
             ty,
             &mut |state, t| {

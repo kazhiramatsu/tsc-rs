@@ -15,7 +15,7 @@ use tsrs2_types::{
 
 use crate::links::LinkSlot;
 use crate::state::{
-    CheckResult2, CheckerState, IndexInfo, MembersId, ResolutionTarget, ResolvedMembers,
+    CheckResult, CheckerState, IndexInfo, MembersId, ResolutionTarget, ResolvedMembers,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -29,7 +29,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isGenericMappedType @6.0.3
     /// tsc-hash: 0de4059bb2606e0ea8b724e86d10d096d4e9fba0de0e0ee4b01cdd51d92b09a1
     /// tsc-span: _tsc.js:58659-58671
-    pub(crate) fn is_generic_mapped_type_state(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_generic_mapped_type_state(&mut self, ty: TypeId) -> CheckResult<bool> {
         if !self
             .tables
             .object_flags_of(ty)
@@ -72,7 +72,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getCombinedMappedTypeOptionality @6.0.3
     /// tsc-hash: 1ecb4167362e790cb5a669db93477c0f13ebaa79454f26830f5d7f2157e71cbf
     /// tsc-span: _tsc.js:58646-58655
-    pub(crate) fn get_combined_mapped_type_optionality(&mut self, ty: TypeId) -> CheckResult2<i8> {
+    pub(crate) fn get_combined_mapped_type_optionality(&mut self, ty: TypeId) -> CheckResult<i8> {
         if self
             .tables
             .object_flags_of(ty)
@@ -154,7 +154,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_modifiers_type_from_mapped_type(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.links.ty(ty).mapped_modifiers_type.resolved() {
             return Ok(cached);
         }
@@ -206,7 +206,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_mapped_type_name_type_kind(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult2<MappedTypeNameTypeKind> {
+    ) -> CheckResult<MappedTypeNameTypeKind> {
         let Some(name_type) = self.get_name_type_from_mapped_type(ty)? else {
             return Ok(MappedTypeNameTypeKind::None);
         };
@@ -234,7 +234,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn is_mapped_type_generic_indexed_access(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let TypeData::IndexedAccess {
             object_type,
             index_type,
@@ -266,7 +266,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         object_type: TypeId,
         index: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let type_parameter = self.get_type_parameter_from_mapped_type(object_type)?;
         let mapper = self.create_type_mapper(vec![type_parameter], Some(vec![index]));
         let mapped = self.mapped_type_data(object_type);
@@ -295,7 +295,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         object_type: TypeId,
         index_type: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let Some(index_constraint) = self.get_base_constraint_of_type(index_type)? else {
             return Ok(false);
         };
@@ -325,7 +325,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         name_type: TypeId,
         target_type: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let modifiers = self.get_modifiers_type_from_mapped_type(target_type)?;
         let apparent_modifiers = self.get_apparent_type(modifiers)?;
         let keys = self.mapped_property_and_index_key_types(
@@ -346,7 +346,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getLowerBoundOfKeyType @6.0.3
     /// tsc-hash: 2c9ed9c229f1b32a41101ab7544eb0869d9c5be62b138a7d9e7af56599933032
     /// tsc-span: _tsc.js:58456-58492
-    pub(crate) fn get_lower_bound_of_key_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_lower_bound_of_key_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::INDEX) {
             let TypeData::Index { ty: operand, .. } = self.tables.type_of(ty).data else {
@@ -415,7 +415,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         include: TypeFlags,
         strings_only: bool,
-    ) -> CheckResult2<Vec<TypeId>> {
+    ) -> CheckResult<Vec<TypeId>> {
         let properties = self.get_properties_of_type_full(ty)?;
         let mut keys = Vec::with_capacity(properties.len());
         for property in properties {
@@ -443,7 +443,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: resolveMappedTypeMembers @6.0.3
     /// tsc-hash: 24d56cfe94497835f00ce92b68c33b908ce35213aed2242621b2c7479dd3c159
     /// tsc-span: _tsc.js:58510-58576
-    pub(crate) fn resolve_mapped_type_members(&mut self, ty: TypeId) -> CheckResult2<MembersId> {
+    pub(crate) fn resolve_mapped_type_members(&mut self, ty: TypeId) -> CheckResult<MembersId> {
         if let Some(cached) = self.links.ty(ty).resolved_members.resolved() {
             return Ok(cached);
         }
@@ -454,7 +454,7 @@ impl<'a> CheckerState<'a> {
         let members_id = self.alloc_members(ResolvedMembers::default());
         self.links
             .set_type_members(self.speculation_depth, ty, LinkSlot::Resolved(members_id));
-        let filled = (|state: &mut Self| -> CheckResult2<ResolvedMembers> {
+        let filled = (|state: &mut Self| -> CheckResult<ResolvedMembers> {
             let type_parameter = state.get_type_parameter_from_mapped_type(ty)?;
             let constraint_type = state.get_constraint_type_from_mapped_type(ty)?;
             let mapped_data = state.mapped_type_data(ty);
@@ -541,7 +541,7 @@ impl<'a> CheckerState<'a> {
         mapper: Option<tsrs2_types::MapperId>,
         members: &mut SymbolTable,
         index_infos: &mut Vec<IndexInfo>,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         if self.is_type_usable_as_property_name(prop_name_type) {
             let prop_name = self
                 .get_property_name_from_type(prop_name_type)
@@ -679,7 +679,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTypeOfMappedSymbol @6.0.3
     /// tsc-hash: 85d45ee7090072ed14a4923ad21f7d37bf580d8ea2078dc0a06c428c85364c5c
     /// tsc-span: _tsc.js:58577-58600
-    pub(crate) fn get_type_of_mapped_symbol(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_type_of_mapped_symbol(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         if let Some(cached) = self.links.symbol(symbol).type_of_symbol.resolved() {
             return Ok(cached);
         }
@@ -696,7 +696,7 @@ impl<'a> CheckerState<'a> {
                 .set_mapped_contains_error(self.speculation_depth, mapped_type);
             return Ok(self.tables.intrinsics.error);
         }
-        let computed = (|state: &mut Self| -> CheckResult2<TypeId> {
+        let computed = (|state: &mut Self| -> CheckResult<TypeId> {
             let mapped = state.mapped_type_data(mapped_type);
             let target = mapped.target.unwrap_or(mapped_type);
             let template_type = state.get_template_type_from_mapped_type(target)?;
@@ -752,7 +752,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getApparentTypeOfMappedType @6.0.3
     /// tsc-hash: 63dc25b3158fd6cad94c5b30d6a17744e81d9dd7ec6dc18d1978535d1de9bee6
     /// tsc-span: _tsc.js:59071-59073
-    pub(crate) fn get_apparent_type_of_mapped_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_apparent_type_of_mapped_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if let Some(cached) = self.links.ty(ty).mapped_apparent_type.resolved() {
             return Ok(cached);
         }
@@ -768,7 +768,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getResolvedApparentTypeOfMappedType @6.0.3
     /// tsc-hash: 53d4ca8bed39f305d47dd19d644781edab281f036b776704cd1ecb745328aab9
     /// tsc-span: _tsc.js:59074-59085
-    fn get_resolved_apparent_type_of_mapped_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    fn get_resolved_apparent_type_of_mapped_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let mapped = self.mapped_type_data(ty);
         let target = mapped.target.unwrap_or(ty);
         let Some(type_variable) = self.get_homomorphic_type_variable(target)? else {
@@ -804,7 +804,7 @@ impl<'a> CheckerState<'a> {
         Ok(ty)
     }
 
-    fn is_array_or_tuple_or_intersection(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    fn is_array_or_tuple_or_intersection(&mut self, ty: TypeId) -> CheckResult<bool> {
         if self.is_array_type(ty)? || self.tables.is_tuple_type(ty) {
             return Ok(true);
         }
@@ -830,7 +830,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         index_flags: IndexFlags,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let type_parameter = self.get_type_parameter_from_mapped_type(ty)?;
         let constraint_type = self.get_constraint_type_from_mapped_type(ty)?;
         let mapped = self.mapped_type_data(ty);

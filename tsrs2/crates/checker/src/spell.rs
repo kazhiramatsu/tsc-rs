@@ -11,7 +11,7 @@ use tsrs2_binder::unescape_leading_underscores;
 use tsrs2_syntax::NodeId;
 use tsrs2_types::{SymbolFlags, SymbolId, TypeId};
 
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult, CheckerState};
 
 /// One UTF-16 code unit, lowercased the way `String.prototype
 /// .toLowerCase` treats a single-unit string: BMP scalars take the
@@ -168,7 +168,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         name: NodeId,
         target_module: SymbolId,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let Some(name_text) = self.identifier_text_of(name).map(str::to_owned) else {
             return Ok(None);
         };
@@ -188,7 +188,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         name: &str,
         base_type: TypeId,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let properties = self.get_properties_of_type(base_type)?;
         Ok(self.get_spelling_suggestion_for_name(name, &properties, SymbolFlags::CLASS_MEMBER))
     }
@@ -206,7 +206,7 @@ impl<'a> CheckerState<'a> {
         name_node: Option<tsrs2_syntax::NodeId>,
         name: &str,
         containing_type: TypeId,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let mut props = self.get_properties_of_type(containing_type)?;
         if let Some(node) = name_node {
             if let Some(parent) = self.parent_of(node) {
@@ -236,7 +236,7 @@ impl<'a> CheckerState<'a> {
         name_node: Option<tsrs2_syntax::NodeId>,
         name: &str,
         containing_type: TypeId,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let suggestion =
             self.get_suggested_symbol_for_nonexistent_property(name_node, name, containing_type)?;
         Ok(suggestion.map(|symbol| {
@@ -258,7 +258,7 @@ impl<'a> CheckerState<'a> {
         object_type: TypeId,
         expr: tsrs2_syntax::NodeId,
         keyed_type: TypeId,
-    ) -> CheckResult2<Option<String>> {
+    ) -> CheckResult<Option<String>> {
         let source = self.binder.source_of_node(expr);
         let suggested_method = if tsrs2_binder::node_util::is_assignment_target(source, expr) {
             "set"

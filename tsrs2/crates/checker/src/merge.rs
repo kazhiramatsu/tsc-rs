@@ -14,7 +14,7 @@ use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{NodeFlags, SymbolFlags, TypeData, TypeFlags};
 
 use crate::links::LinkSlot;
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult, CheckerState};
 
 /// tsc-port: escapeString @6.0.3 (doubleQuote flavor)
 /// tsc-hash: a41f6d5932395df14118761cfc227d8ad3266e0e2f3133c4ec5857ff7e0b4d2d
@@ -925,7 +925,7 @@ impl<'a> CheckerState<'a> {
         self.flush_amalgamated_duplicates();
     }
 
-    fn merge_one_module_augmentation(&mut self, augmentation: NodeId) -> CheckResult2<()> {
+    fn merge_one_module_augmentation(&mut self, augmentation: NodeId) -> CheckResult<()> {
         let Some(augmentation_symbol) = self.binder.node_symbol(augmentation) else {
             return Ok(());
         };

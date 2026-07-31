@@ -8,13 +8,13 @@ use tsrs2_types::{
     TypeId, UnionReduction,
 };
 
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult, CheckerState};
 
 impl<'a> CheckerState<'a> {
     /// tsc-port: getNoInferType @6.0.3
     /// tsc-hash: 1dfcae3e626dbcf419c9b26d662b6fa4d15c0efb6f1eaacd87b06b85d14a04dd
     /// tsc-span: _tsc.js:60421-60423
-    pub(crate) fn get_no_infer_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_no_infer_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if self.is_no_infer_target_type(ty)? {
             Ok(self
                 .tables
@@ -27,7 +27,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isNoInferTargetType @6.0.3
     /// tsc-hash: 466180cf407380cd069742ed83680cbd4e7335791a8b76318d0f4369bdf42d84
     /// tsc-span: _tsc.js:60424-60426
-    fn is_no_infer_target_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    fn is_no_infer_target_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(tsrs2_types::TypeFlags::UNION_OR_INTERSECTION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
@@ -97,7 +97,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         check_tuples: bool,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if self.is_generic_type(ty)? {
             return Ok(true);
         }
@@ -121,7 +121,7 @@ impl<'a> CheckerState<'a> {
         for_constraint: bool,
         mut alias_symbol: Option<SymbolId>,
         mut alias_type_arguments: Option<&[TypeId]>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let mut extra_types = Vec::new();
         let mut tail_count = 0usize;
         loop {
@@ -353,7 +353,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         new_type: TypeId,
         new_mapper: Option<tsrs2_types::MapperId>,
-    ) -> CheckResult2<Option<(ConditionalRootId, tsrs2_types::MapperId)>> {
+    ) -> CheckResult<Option<(ConditionalRootId, tsrs2_types::MapperId)>> {
         let Some(new_mapper) = new_mapper else {
             return Ok(None);
         };
@@ -395,7 +395,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn is_distribution_dependent(
         &mut self,
         root: ConditionalRootId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let root = self.tables.conditional_root(root).clone();
         if !root.is_distributive {
             return Ok(false);
@@ -425,7 +425,7 @@ impl<'a> CheckerState<'a> {
         for_constraint: bool,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let TypeData::Conditional(data) = self.tables.type_of(ty).data.clone() else {
             unreachable!("Conditional flag implies conditional data");
         };
@@ -498,7 +498,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_default_constraint_of_conditional_type(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.links.ty(ty).conditional_default_constraint.resolved() {
             return Ok(cached);
         }
@@ -535,7 +535,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_constraint_of_distributive_conditional_type(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if let Some(cached) = self
             .links
             .ty(ty)
@@ -592,7 +592,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_constraint_from_conditional_type(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         match self.get_constraint_of_distributive_conditional_type(ty)? {
             Some(constraint) => Ok(constraint),
             None => self.get_default_constraint_of_conditional_type(ty),
@@ -605,7 +605,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_constraint_of_conditional_type(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         if self.has_non_circular_base_constraint(ty)? {
             self.get_constraint_from_conditional_type(ty).map(Some)
         } else {
@@ -620,7 +620,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         writing: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let TypeData::Conditional(data) = self.tables.type_of(ty).data.clone() else {
             unreachable!("Conditional flag implies conditional data");
         };
@@ -668,7 +668,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isIntersectionEmpty @6.0.3
     /// tsc-hash: e2589e93386fafff767385da0f49b090b8021b31c0814151161039ae403160da
     /// tsc-span: _tsc.js:62533-62535
-    fn is_intersection_empty(&mut self, left: TypeId, right: TypeId) -> CheckResult2<bool> {
+    fn is_intersection_empty(&mut self, left: TypeId, right: TypeId) -> CheckResult<bool> {
         let intersection = self.get_intersection_type(&[left, right], IntersectionFlags::NONE)?;
         let reduced = self.get_union_type_ex(
             &[intersection, self.tables.intrinsics.never],
@@ -683,7 +683,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_true_type_from_conditional_type(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.links.ty(ty).conditional_true_type.resolved() {
             return Ok(cached);
         }
@@ -710,7 +710,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_false_type_from_conditional_type(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.links.ty(ty).conditional_false_type.resolved() {
             return Ok(cached);
         }
@@ -737,7 +737,7 @@ impl<'a> CheckerState<'a> {
     pub fn get_inferred_true_type_from_conditional_type(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if let Some(cached) = self.links.ty(ty).conditional_inferred_true_type.resolved() {
             return Ok(cached);
         }
@@ -765,7 +765,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getSubstitutionIntersection @6.0.3
     /// tsc-hash: 5bddb04660c7780c154c4dc8330df3a5cd62e27322c28dc4bb5c56b75f01162d
     /// tsc-span: _tsc.js:60446-60448
-    pub(crate) fn get_substitution_intersection(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_substitution_intersection(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let TypeData::Substitution(data) = self.tables.type_of(ty).data.clone() else {
             unreachable!("Substitution flag implies substitution data");
         };

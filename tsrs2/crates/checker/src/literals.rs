@@ -27,7 +27,7 @@ use tsrs2_types::{
     TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
-use crate::state::{CheckResult2, CheckerState, IndexInfo};
+use crate::state::{CheckResult, CheckerState, IndexInfo};
 
 /// The per-literal accumulator checkArrayLiteral threads through its
 /// element loop while the cached contextual scope is pushed; the exits
@@ -51,7 +51,7 @@ impl<'a> CheckerState<'a> {
     /// `numericLiteralFlags`. Recover Scientific from the raw token
     /// spelling after excluding radix forms, whose hex digits may
     /// themselves contain `e`/`E`.
-    pub(crate) fn check_grammar_numeric_literal(&mut self, node: NodeId) -> CheckResult2<()> {
+    pub(crate) fn check_grammar_numeric_literal(&mut self, node: NodeId) -> CheckResult<()> {
         let raw_text = self.text_of_node(node)?;
         let bytes = raw_text.as_bytes();
         let is_radix = bytes.len() >= 2
@@ -107,7 +107,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isArrayLikeType @6.0.3
     /// tsc-hash: d4052c871dd48f9db83cbe239eb03664a38aed8f521ab81203bcf22345e6972e
     /// tsc-span: _tsc.js:67680-67682
-    pub(crate) fn is_array_like_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_array_like_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         if self.is_array_type(ty)? {
             return Ok(true);
         }
@@ -121,7 +121,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isMutableArrayLikeType @6.0.3
     /// tsc-hash: 84f59dc973996df4a4a92ebe41bf5d0e9f65062dc4fba30c805914771da10094
     /// tsc-span: _tsc.js:67683-67685
-    pub(crate) fn is_mutable_array_like_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_mutable_array_like_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         if self.is_mutable_array_or_tuple(ty)? {
             return Ok(true);
         }
@@ -139,7 +139,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isTupleLikeType @6.0.3
     /// tsc-hash: 549fdab955d308326e6dd5f37054b777704e4c593cb88da89f86386c51e0ed7a
     /// tsc-span: _tsc.js:67722-67725
-    pub(crate) fn is_tuple_like_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_tuple_like_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         if self.tables.is_tuple_type(ty) {
             return Ok(true);
         }
@@ -163,7 +163,7 @@ impl<'a> CheckerState<'a> {
     /// The inTupleContext contextual disjunct (73969):
     /// `isTupleLikeType(t) || isGenericMappedType(t) && !t.nameType &&
     /// getHomomorphicTypeVariable(...)`.
-    fn is_tuple_context_constituent(&mut self, t: TypeId) -> CheckResult2<bool> {
+    fn is_tuple_context_constituent(&mut self, t: TypeId) -> CheckResult<bool> {
         if self.is_tuple_like_type(t)? {
             return Ok(true);
         }
@@ -191,9 +191,9 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
         force_tuple: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         self.push_cached_contextual_type(node)?;
-        let scan = (|state: &mut Self| -> CheckResult2<ArrayLiteralScan> {
+        let scan = (|state: &mut Self| -> CheckResult<ArrayLiteralScan> {
             let elements: Vec<NodeId> = match state.data_of(node) {
                 NodeData::ArrayLiteralExpression(data) => state.nodes_of(data.elements),
                 _ => Vec::new(),
@@ -378,7 +378,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: createArrayLiteralType @6.0.3
     /// tsc-hash: cf81899a7aafe0954eb10991a5494d2fe4da21f95384b231c35f014c6e1bdd12
     /// tsc-span: _tsc.js:74034-74044
-    fn create_array_literal_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    fn create_array_literal_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if !self
             .tables
             .object_flags_of(ty)
@@ -402,7 +402,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isNumericName @6.0.3
     /// tsc-hash: eefe1bebc12b86e536cd952d515773fc40e546f371526d1708f5e3806fc7d994
     /// tsc-span: _tsc.js:74045-74057
-    fn is_numeric_name(&mut self, name: NodeId) -> CheckResult2<bool> {
+    fn is_numeric_name(&mut self, name: NodeId) -> CheckResult<bool> {
         Ok(match self.kind_of(name) {
             SyntaxKind::ComputedPropertyName => self.is_numeric_computed_name(name)?,
             SyntaxKind::Identifier => crate::indexed::is_numeric_literal_name(
@@ -418,7 +418,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isNumericComputedName @6.0.3
     /// tsc-hash: 2c710679e57e3f5aa5207439bef6de1301b8dfb284d09d5a1c15941aa810013a
     /// tsc-span: _tsc.js:74058-74060
-    fn is_numeric_computed_name(&mut self, name: NodeId) -> CheckResult2<bool> {
+    fn is_numeric_computed_name(&mut self, name: NodeId) -> CheckResult<bool> {
         let ty = self.check_computed_property_name(name)?;
         self.is_type_assignable_to_kind(ty, TypeFlags::NUMBER_LIKE, false)
     }
@@ -433,7 +433,7 @@ impl<'a> CheckerState<'a> {
     /// nodeCheckFlags, 74067-74074) is emit-marking — elided, no
     /// diagnostic reads those bits. The cache write is guarded like
     /// checkExpressionCached: a re-entrant inner fill wins the slot.
-    pub(crate) fn check_computed_property_name(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn check_computed_property_name(&mut self, node: NodeId) -> CheckResult<TypeId> {
         let expression = match self.data_of(node) {
             NodeData::ComputedPropertyName(data) => data.expression,
             _ => None,
@@ -520,7 +520,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isSymbolWithNumericName @6.0.3
     /// tsc-hash: beb742e6e73179136a6e9921ecf8187897b5a23baa9ba1161f7233396e71ab31
     /// tsc-span: _tsc.js:74083-74087
-    fn is_symbol_with_numeric_name(&mut self, symbol: SymbolId) -> CheckResult2<bool> {
+    fn is_symbol_with_numeric_name(&mut self, symbol: SymbolId) -> CheckResult<bool> {
         if crate::indexed::is_numeric_literal_name(&self.binder.symbol(symbol).escaped_name) {
             return Ok(true);
         }
@@ -538,7 +538,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:74088-74092
     ///
     /// isKnownSymbol (19295) inlines as the "__@" escaped-name prefix.
-    fn is_symbol_with_symbol_name(&mut self, symbol: SymbolId) -> CheckResult2<bool> {
+    fn is_symbol_with_symbol_name(&mut self, symbol: SymbolId) -> CheckResult<bool> {
         if self.binder.symbol(symbol).escaped_name.starts_with("__@") {
             return Ok(true);
         }
@@ -575,7 +575,7 @@ impl<'a> CheckerState<'a> {
         offset: usize,
         properties: &[SymbolId],
         key_type: TypeId,
-    ) -> CheckResult2<IndexInfo> {
+    ) -> CheckResult<IndexInfo> {
         let string = self.tables.intrinsics.string;
         let number = self.tables.intrinsics.number;
         let es_symbol = self.tables.intrinsics.es_symbol;
@@ -701,7 +701,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         in_destructuring_pattern: bool,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         const GET_ACCESSOR: u8 = 1;
         const SET_ACCESSOR: u8 = 2;
         const GET_OR_SET_ACCESSOR: u8 = GET_ACCESSOR | SET_ACCESSOR;
@@ -907,7 +907,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let source = self.binder.source_of_node(node);
         let in_destructuring_pattern = node_util::is_assignment_target(source, node);
         self.check_grammar_object_literal_expression(node, in_destructuring_pattern)?;
@@ -978,7 +978,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
         acc: &mut ObjectLiteralAcc,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let properties: Vec<NodeId> = match self.data_of(node) {
             NodeData::ObjectLiteralExpression(data) => self.nodes_of(data.properties),
             _ => Vec::new(),
@@ -1334,7 +1334,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         acc: &ObjectLiteralAcc,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let mut index_infos: Vec<IndexInfo> = Vec::new();
         let is_readonly = self.is_const_context(node)?;
         if acc.has_computed_string_property {
@@ -1434,7 +1434,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isValidSpreadType @6.0.3
     /// tsc-hash: 74590af5838441dbda040c02216967ca483c35f1588d4e2e00cae5978bc22c0c
     /// tsc-span: _tsc.js:74300-74303
-    pub(crate) fn is_valid_spread_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_valid_spread_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         let constrained =
             self.map_type_result(ty, |state, t| state.get_base_constraint_or_type(t))?;
         let t = self.remove_definitely_falsy_types(constrained)?;
@@ -1471,7 +1471,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         props: &SymbolTable,
         spread: NodeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         for right in self.get_properties_of_type(ty)? {
             let right_flags = self.binder.symbol(right).flags;
             if right_flags.intersects(SymbolFlags::OPTIONAL) {
@@ -1507,7 +1507,7 @@ impl<'a> CheckerState<'a> {
     fn is_empty_object_type_or_spreads_into_empty_object(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if self.is_empty_object_type(ty)? {
             return Ok(true);
         }
@@ -1531,7 +1531,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         readonly: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if !self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             return Ok(ty);
         }
@@ -1577,7 +1577,7 @@ impl<'a> CheckerState<'a> {
 
     /// getAnonymousPartialType — the inner closure of
     /// tryMergeUnionOfObjectTypeAndEmptyObject (62940-62962).
-    fn get_anonymous_partial_type(&mut self, ty: TypeId, readonly: bool) -> CheckResult2<TypeId> {
+    fn get_anonymous_partial_type(&mut self, ty: TypeId, readonly: bool) -> CheckResult<TypeId> {
         let mut members = SymbolTable::default();
         let mut properties: Vec<SymbolId> = Vec::new();
         for prop in self.get_properties_of_type(ty)? {
@@ -1704,7 +1704,7 @@ impl<'a> CheckerState<'a> {
         symbol: Option<SymbolId>,
         object_flags: ObjectFlags,
         readonly: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let left_flags = self.tables.flags_of(left);
         let right_flags = self.tables.flags_of(right);
         if left_flags.intersects(TypeFlags::ANY) || right_flags.intersects(TypeFlags::ANY) {
@@ -1920,7 +1920,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         prop: SymbolId,
         readonly: bool,
-    ) -> CheckResult2<SymbolId> {
+    ) -> CheckResult<SymbolId> {
         let prop_flags = self.binder.symbol(prop).flags;
         let is_setonly_accessor = prop_flags.intersects(SymbolFlags::SET_ACCESSOR)
             && !prop_flags.intersects(SymbolFlags::GET_ACCESSOR);
@@ -1979,7 +1979,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isNonGenericObjectType @6.0.3
     /// tsc-hash: f9066c898abd87764a1de86ec94a503de2b5f88f0790920c73fc626ecf3a6b47
     /// tsc-span: _tsc.js:62918-62920
-    pub(crate) fn is_non_generic_object_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub(crate) fn is_non_generic_object_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         Ok(self.tables.flags_of(ty).intersects(TypeFlags::OBJECT)
             && !self.is_generic_mapped_type_state(ty)?)
     }

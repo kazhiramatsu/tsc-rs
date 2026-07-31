@@ -20,7 +20,7 @@ use tsrs2_types::{
     TypeFlags, TypeId, UnionReduction,
 };
 
-use crate::state::{CheckResult2, CheckerState, SignatureId};
+use crate::state::{CheckResult, CheckerState, SignatureId};
 
 impl<'a> CheckerState<'a> {
     /// tsc-port: entityNameToString @6.0.3
@@ -31,7 +31,7 @@ impl<'a> CheckerState<'a> {
     /// parsed nodes; the property-access recursion drops `?.` — which
     /// is why `x?.a`'s 18047 message says 'x.a' while the span covers
     /// the `?.` (oracle-pinned).
-    pub(crate) fn entity_name_to_string(&self, node: NodeId) -> CheckResult2<String> {
+    pub(crate) fn entity_name_to_string(&self, node: NodeId) -> CheckResult<String> {
         match self.kind_of(node) {
             SyntaxKind::ThisKeyword => Ok("this".to_owned()),
             SyntaxKind::Identifier | SyntaxKind::PrivateIdentifier => {
@@ -139,7 +139,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         is_property: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         debug_assert!(self
             .options
             .strict_option_value(self.options.strict_null_checks));
@@ -166,7 +166,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: addOptionalTypeMarker @6.0.3
     /// tsc-hash: 2f1bc5d7263e537738cfae30bb751693cb7cc8a515df0c8e66238e37eb8b1170
     /// tsc-span: _tsc.js:67871-67879
-    pub(crate) fn add_optional_type_marker(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn add_optional_type_marker(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if self
             .options
             .strict_option_value(self.options.strict_null_checks)
@@ -203,7 +203,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         node: NodeId,
         was_optional: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if !was_optional {
             return Ok(ty);
         }
@@ -222,7 +222,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         expr_type: TypeId,
         expression: NodeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let source = self.binder.source_of_node(expression);
         if node_util::is_expression_of_optional_chain_root(source, expression) {
             self.get_non_nullable_type(expr_type)
@@ -242,7 +242,7 @@ impl<'a> CheckerState<'a> {
     /// isNullableType/getNonNullableTypeIfNeeded (74993-74998) have no
     /// live consumer yet (declaration/flow bands) — unported per the
     /// ledger-unreachability rule.
-    pub(crate) fn check_non_null_expression(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn check_non_null_expression(&mut self, node: NodeId) -> CheckResult<TypeId> {
         let ty = self.check_expression(node, CheckMode::NORMAL)?;
         self.check_non_null_type(ty, node)
     }
@@ -259,7 +259,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         facts: TypeFacts,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let node_text = if self.is_entity_name_expression(node) {
             Some(self.entity_name_to_string(node)?)
         } else {
@@ -316,8 +316,8 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         node: NodeId,
-        report_error: fn(&mut Self, NodeId, TypeFacts) -> CheckResult2<()>,
-    ) -> CheckResult2<TypeId> {
+        report_error: fn(&mut Self, NodeId, TypeFacts) -> CheckResult<()>,
+    ) -> CheckResult<TypeId> {
         let strict_null_checks = self
             .options
             .strict_option_value(self.options.strict_null_checks);
@@ -362,7 +362,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkNonNullType @6.0.3
     /// tsc-hash: ea5abf00f1909afe14b1cd6b4dcabd037d6dac7517ad0602ce4d2ac16c16a10f
     /// tsc-span: _tsc.js:75048-75050
-    pub(crate) fn check_non_null_type(&mut self, ty: TypeId, node: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn check_non_null_type(&mut self, ty: TypeId, node: NodeId) -> CheckResult<TypeId> {
         self.check_non_null_type_with_reporter(
             ty,
             node,
@@ -382,7 +382,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         node: NodeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let non_null_type = self.check_non_null_type(ty, node)?;
         if self
             .tables
@@ -427,7 +427,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         facts: TypeFacts,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let message = if facts.intersects(TypeFacts::IS_UNDEFINED) {
             if facts.intersects(TypeFacts::IS_NULL) {
                 &tsrs2_diags::gen::Cannot_invoke_an_object_which_is_possibly_null_or_undefined
@@ -463,7 +463,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         prop: SymbolId,
         report_error: bool,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let error_node = if !report_error {
             None
         } else {
@@ -495,7 +495,7 @@ impl<'a> CheckerState<'a> {
         containing_type: TypeId,
         prop: SymbolId,
         error_node: Option<NodeId>,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let flags = self.get_declaration_modifier_flags_from_symbol_write(prop, writing);
         if is_super {
             if self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES2015
@@ -700,7 +700,7 @@ impl<'a> CheckerState<'a> {
     fn get_enclosing_class_from_this_parameter(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let source = self.binder.source_of_node(node);
         let this_container =
             node_util::get_this_container(source, node, /*include_arrow_functions*/ false);
@@ -737,7 +737,7 @@ impl<'a> CheckerState<'a> {
         Ok(None)
     }
 
-    fn symbol_has_non_method_declaration(&mut self, symbol: SymbolId) -> CheckResult2<bool> {
+    fn symbol_has_non_method_declaration(&mut self, symbol: SymbolId) -> CheckResult<bool> {
         self.for_each_property_bool(symbol, &mut |state, prop| {
             Ok(!state
                 .binder
@@ -757,8 +757,8 @@ impl<'a> CheckerState<'a> {
     fn for_each_property_bool(
         &mut self,
         prop: SymbolId,
-        callback: &mut dyn FnMut(&mut Self, SymbolId) -> CheckResult2<bool>,
-    ) -> CheckResult2<bool> {
+        callback: &mut dyn FnMut(&mut Self, SymbolId) -> CheckResult<bool>,
+    ) -> CheckResult<bool> {
         if self
             .get_check_flags(prop)
             .intersects(tsrs2_types::CheckFlags::SYNTHETIC)
@@ -794,7 +794,7 @@ impl<'a> CheckerState<'a> {
         check_class: TypeId,
         prop: SymbolId,
         writing: bool,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let blocked = self.for_each_property_bool(prop, &mut |state, p| {
             if state
                 .get_declaration_modifier_flags_from_symbol_write(p, writing)
@@ -968,7 +968,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         ty: TypeId,
         property: SymbolId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let is_super = self.kind_of(node) == SyntaxKind::PropertyAccessExpression
             && match self.data_of(node) {
                 NodeData::PropertyAccessExpression(data) => data
@@ -986,7 +986,7 @@ impl<'a> CheckerState<'a> {
         is_write: bool,
         containing_type: TypeId,
         property: SymbolId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         // tsc isTypeAny (type.flags & Any).
         if self
             .tables
@@ -1040,7 +1040,7 @@ impl<'a> CheckerState<'a> {
     /// NO error path (§6 corrected 2026-07-12): `x!` strips silently —
     /// checkNonNullNonVoidType's consumers are the 5.8 declaration
     /// sites. `x!` on void → never, no diagnostic (pinned).
-    pub(crate) fn check_non_null_assertion(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+    pub(crate) fn check_non_null_assertion(&mut self, node: NodeId) -> CheckResult<TypeId> {
         let NodeData::NonNullExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -1255,7 +1255,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         check_mode: CheckMode,
         write_only: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let NodeData::PropertyAccessExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -1276,7 +1276,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let NodeData::PropertyAccessExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -1299,7 +1299,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let NodeData::QualifiedName(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -1355,7 +1355,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         prop_name: &str,
         location: NodeId,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let mut containing = self.get_containing_class_excluding_class_decorators(location);
         while let Some(class) = containing {
             let Some(symbol) = self.binder.node_symbol(class) else {
@@ -1431,7 +1431,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_private_identifier_expression(
         &mut self,
         node: NodeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         self.check_grammar_private_identifier_expression(node)?;
         let symbol = self.get_symbol_for_private_identifier_expression(node)?;
         if let Some(symbol) = symbol {
@@ -1440,7 +1440,7 @@ impl<'a> CheckerState<'a> {
         Ok(self.tables.intrinsics.any)
     }
 
-    fn check_grammar_private_identifier_expression(&mut self, priv_id: NodeId) -> CheckResult2<()> {
+    fn check_grammar_private_identifier_expression(&mut self, priv_id: NodeId) -> CheckResult<()> {
         let source = self.binder.source_of_node(priv_id);
         if node_util::get_containing_class(source, priv_id).is_none() {
             self.grammar_error_on_node(
@@ -1495,7 +1495,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_symbol_for_private_identifier_expression(
         &mut self,
         priv_id: NodeId,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         if !node_util::is_expression_node(self.binder.source_of_node(priv_id), priv_id) {
             return Ok(None);
         }
@@ -1521,7 +1521,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         left_type: TypeId,
         lexically_scoped_identifier: SymbolId,
-    ) -> CheckResult2<Option<SymbolId>> {
+    ) -> CheckResult<Option<SymbolId>> {
         let name = self
             .binder
             .symbol(lexically_scoped_identifier)
@@ -1538,7 +1538,7 @@ impl<'a> CheckerState<'a> {
         left_type: TypeId,
         right: NodeId,
         lexically_scoped_identifier: Option<SymbolId>,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let mut property_on_type: Option<SymbolId> = None;
         let properties = self.get_properties_of_type(left_type)?;
         let right_text = self
@@ -1635,7 +1635,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         prop: SymbolId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let is_auto_typed = self.is_auto_typed_property(prop);
         if !(self.is_constructor_declared_property(prop)?
             || self.is_this_property(node) && is_auto_typed)
@@ -1892,7 +1892,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         signature: SignatureId,
         node: NodeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let (flags, declaration) = {
             let signature = self.signature_of(signature);
             (signature.flags, signature.declaration)
@@ -1925,7 +1925,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         mut source: NodeId,
         target: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         while matches!(
             self.kind_of(source),
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
@@ -1950,7 +1950,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         source: NodeId,
         target: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         Ok(self.is_matching_reference(source, target)?
             || self.contains_matching_reference_for_deprecation(source, target)?)
     }
@@ -1959,7 +1959,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         expression: NodeId,
         reference: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let (invoked, arguments) = match self.data_of(expression) {
             NodeData::CallExpression(data) => (data.expression, data.arguments),
             NodeData::NewExpression(data) => (data.expression, data.arguments),
@@ -1991,7 +1991,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         symbol: SymbolId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if self
             .binder
             .symbol(symbol)
@@ -2053,7 +2053,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
         location: NodeId,
-    ) -> CheckResult2<SymbolId> {
+    ) -> CheckResult<SymbolId> {
         if !self
             .binder
             .symbol(symbol)
@@ -2106,7 +2106,7 @@ impl<'a> CheckerState<'a> {
     /// merged globalThis symbol while ordinary globals remain in
     /// `self.globals`. Project the aliased-map lookup exactly at the
     /// property-access producer.
-    fn effective_global_this_export(&mut self, name: &str) -> CheckResult2<Option<SymbolId>> {
+    fn effective_global_this_export(&mut self, name: &str) -> CheckResult<Option<SymbolId>> {
         let merged = self.get_merged_symbol(self.global_this_symbol);
         // A top-level `globalThis.x = ...` reaches mergeSymbol as an
         // export of the JS `globalThis` augmentation. In tsc,
@@ -2139,7 +2139,7 @@ impl<'a> CheckerState<'a> {
         right: NodeId,
         _check_mode: CheckMode,
         write_only: bool,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let parent_symbol = match self.links.node(left).resolved_symbol {
             crate::links::LinkSlot::Resolved(symbol) => Some(symbol),
             _ => None,
@@ -2500,7 +2500,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getWriteTypeOfSymbol @6.0.3
     /// tsc-hash: 2c1e85a0c9e90a6b8acad4ad180acfd12a0afc3d8cc35e3216a643a6ab8f4380
     /// tsc-span: _tsc.js:56929-56944
-    pub(crate) fn get_write_type_of_symbol(&mut self, symbol: SymbolId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_write_type_of_symbol(&mut self, symbol: SymbolId) -> CheckResult<TypeId> {
         let check_flags = self.get_check_flags(symbol);
         if check_flags.intersects(tsrs2_types::CheckFlags::SYNTHETIC_PROPERTY) {
             // tsc's DeferredType arm (getWriteTypeOfSymbolWithDeferredType,
@@ -2570,7 +2570,7 @@ impl<'a> CheckerState<'a> {
         prop: Option<SymbolId>,
         prop_type: TypeId,
         error_node: NodeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let assignment_kind = self.get_assignment_target_kind(node);
         if assignment_kind == crate::expr::AssignmentKind::Definite {
             let is_optional = prop.is_some_and(|prop| {
@@ -3078,7 +3078,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         name: NodeId,
         parent: Option<SymbolId>,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if self.kind_of(name) == SyntaxKind::ThisKeyword {
             return Ok(true);
         }
@@ -3110,7 +3110,7 @@ impl<'a> CheckerState<'a> {
         prop: SymbolId,
         node: NodeId,
         right: NodeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let Some(value_declaration) = self.binder.symbol(prop).value_declaration else {
             return Ok(());
         };
@@ -3188,7 +3188,7 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    fn is_property_declared_in_ancestor_class(&mut self, prop: SymbolId) -> CheckResult2<bool> {
+    fn is_property_declared_in_ancestor_class(&mut self, prop: SymbolId) -> CheckResult<bool> {
         let Some(parent) = self.binder.symbol(prop).parent else {
             return Ok(false);
         };
@@ -3222,7 +3222,7 @@ impl<'a> CheckerState<'a> {
         expr: NodeId,
         symbol: SymbolId,
         assignment_kind: crate::expr::AssignmentKind,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if assignment_kind == crate::expr::AssignmentKind::None {
             return Ok(false);
         }
@@ -3321,7 +3321,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_and_report_error_for_extending_interface(
         &mut self,
         error_location: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let Some(expression) = self.get_entity_name_for_extending_interface(error_location) else {
             return Ok(false);
         };
@@ -3415,7 +3415,7 @@ impl<'a> CheckerState<'a> {
     fn is_chained_uninitialized_identifier_property_assignment(
         &mut self,
         access_expression: NodeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if !self.is_chained_identifier_property_assignment(access_expression) {
             return Ok(false);
         }
@@ -3451,7 +3451,7 @@ impl<'a> CheckerState<'a> {
         prop_node: NodeId,
         containing_type: TypeId,
         is_unchecked_js: bool,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let cache_key = format!("{}|{}", containing_type.0, is_unchecked_js);
         if !self.links.insert_node_non_existent_prop_key(
             self.speculation_depth,
@@ -3632,7 +3632,7 @@ impl<'a> CheckerState<'a> {
     /// missing-property head. Keeping this local avoids making `{}` a
     /// generic relation-error display for unrelated synthesized empty
     /// object/array fallbacks.
-    fn is_empty_anonymous_type_literal(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    fn is_empty_anonymous_type_literal(&mut self, ty: TypeId) -> CheckResult<bool> {
         if !self.tables.flags_of(ty).intersects(TypeFlags::OBJECT)
             || !self
                 .tables
@@ -3667,7 +3667,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         prop_name: &str,
         containing_type: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let Some(symbol) = self.tables.type_of(containing_type).symbol else {
             return Ok(false);
         };
@@ -3689,7 +3689,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         missing_property: &str,
         containing_type: TypeId,
-    ) -> CheckResult2<Option<&'static str>> {
+    ) -> CheckResult<Option<&'static str>> {
         let apparent = self.get_apparent_type(containing_type)?;
         let Some(container) = self.tables.type_of(apparent).symbol else {
             return Ok(None);
@@ -3707,7 +3707,7 @@ impl<'a> CheckerState<'a> {
     fn container_seems_to_be_empty_dom_element(
         &mut self,
         containing_type: TypeId,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let Some(lib) = &self.options.lib else {
             return Ok(false);
         };
@@ -3752,7 +3752,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_promised_type_of_promise(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         Ok(self
             .get_promised_type_of_promise_with_this_error(ty, None)?
             .0)
@@ -3770,7 +3770,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         error_node: Option<NodeId>,
-    ) -> CheckResult2<(Option<TypeId>, Option<TypeId>)> {
+    ) -> CheckResult<(Option<TypeId>, Option<TypeId>)> {
         if self.tables.flags_of(ty).intersects(TypeFlags::ANY) {
             return Ok((None, None));
         }
@@ -3889,7 +3889,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         source: TypeId,
         kind: TypeFlags,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if self.tables.flags_of(source).intersects(TypeFlags::UNION) {
             let constituents: Vec<TypeId> = match &self.tables.type_of(source).data {
                 tsrs2_types::TypeData::Union { types, .. } => types.to_vec(),
@@ -3909,7 +3909,7 @@ impl<'a> CheckerState<'a> {
     fn get_type_of_first_parameter_of_signature(
         &mut self,
         signature: crate::state::SignatureId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if self.signature_of(signature).parameters.is_empty() {
             return Ok(self.tables.intrinsics.never);
         }
@@ -3928,7 +3928,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let source = self.binder.source_of_node(node);
         if node_util::node_flags(source, node).intersects(NodeFlags::OPTIONAL_CHAIN) {
             return self.check_element_access_chain(node, check_mode);
@@ -3947,7 +3947,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let NodeData::ElementAccessExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -3966,7 +3966,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         expr_type: TypeId,
         _check_mode: CheckMode,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let NodeData::ElementAccessExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -4052,10 +4052,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isForInVariableForNumericPropertyNames @6.0.3
     /// tsc-hash: 5c9cd3056bea1f4fbb01e9b4f28c93e0a990b94b409ab0b8eabb0afe855960f1
     /// tsc-span: _tsc.js:75678-75710
-    fn is_for_in_variable_for_numeric_property_names(
-        &mut self,
-        expr: NodeId,
-    ) -> CheckResult2<bool> {
+    fn is_for_in_variable_for_numeric_property_names(&mut self, expr: NodeId) -> CheckResult<bool> {
         let mut e = expr;
         while self.kind_of(e) == SyntaxKind::ParenthesizedExpression {
             let NodeData::ParenthesizedExpression(data) = self.data_of(e) else {
@@ -4107,7 +4104,7 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
-    fn get_for_in_variable_symbol(&mut self, node: NodeId) -> CheckResult2<Option<SymbolId>> {
+    fn get_for_in_variable_symbol(&mut self, node: NodeId) -> CheckResult<Option<SymbolId>> {
         let NodeData::ForInStatement(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
@@ -4153,7 +4150,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         access_node: NodeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if !self
             .tables
             .flags_of(ty)
@@ -4247,7 +4244,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         property_name: &str,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if self.unresolved_module_augmentations.is_empty() {
             return Ok(false);
         }
@@ -4260,7 +4257,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         property_name: &str,
         seen: &mut std::collections::HashSet<TypeId>,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if !seen.insert(ty) {
             return Ok(false);
         }
@@ -4361,7 +4358,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         property_name: &str,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         if self.tables.flags_of(ty).intersects(TypeFlags::ANY) {
             return Ok(true);
         }
@@ -4380,7 +4377,7 @@ impl<'a> CheckerState<'a> {
     fn symbol_path_below_external_module_target(
         &mut self,
         symbol: SymbolId,
-    ) -> CheckResult2<Vec<String>> {
+    ) -> CheckResult<Vec<String>> {
         let (mut path, source_module) = self.raw_symbol_path_below_source_module(symbol);
         if let Some(source_module) = source_module {
             if let Some(target) = self.resolve_external_module_symbol(Some(source_module), false)? {
@@ -4457,7 +4454,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
         property_name: &str,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         let flags = self.symbol_flags(symbol);
         let members = if flags.intersects(SymbolFlags::MODULE) {
             self.get_exports_of_symbol(symbol)?

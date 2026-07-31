@@ -11,7 +11,7 @@ use tsrs2_diags::gen as diagnostics;
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{ObjectFlags, SymbolFlags, TypeFlags, TypeId};
 
-use crate::state::{CheckResult2, CheckerState, WideningContext, WideningContextId};
+use crate::state::{CheckResult, CheckerState, WideningContext, WideningContextId};
 
 impl<'a> CheckerState<'a> {
     /// tsc-port: getBaseTypeOfLiteralTypeForComparison @6.0.3
@@ -24,7 +24,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_base_type_of_literal_type_for_comparison(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(
             TypeFlags::STRING_LITERAL | TypeFlags::TEMPLATE_LITERAL | TypeFlags::STRING_MAPPING,
@@ -58,7 +58,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:67765-67767
     ///
     /// Only FRESH literals widen; regular literals pass through.
-    pub(crate) fn get_widened_literal_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_widened_literal_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let flags = self.tables.flags_of(ty);
         let fresh = self.tables.is_fresh_literal_type(ty);
         if flags.intersects(TypeFlags::ENUM_LIKE) && fresh {
@@ -87,7 +87,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getWidenedUniqueESSymbolType @6.0.3
     /// tsc-hash: 004e6feb812db03248e01232736667a491d945d662999742b4b85398a051d86a
     /// tsc-span: _tsc.js:67768-67770
-    pub(crate) fn get_widened_unique_es_symbol_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_widened_unique_es_symbol_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) {
             Ok(self.tables.intrinsics.es_symbol)
@@ -111,7 +111,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         contextual_type: Option<TypeId>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let mut ty = ty;
         if !self.is_literal_of_contextual_type(ty, contextual_type)? {
             let widened = self.get_widened_literal_type(ty)?;
@@ -129,7 +129,7 @@ impl<'a> CheckerState<'a> {
         ty: Option<TypeId>,
         contextual_signature_return_type: Option<TypeId>,
         is_async: bool,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let Some(current) = ty else {
             return Ok(ty);
         };
@@ -158,7 +158,7 @@ impl<'a> CheckerState<'a> {
         contextual_signature_return_type: Option<TypeId>,
         kind: tsrs2_types::IterationTypeKind,
         is_async_generator: bool,
-    ) -> CheckResult2<Option<TypeId>> {
+    ) -> CheckResult<Option<TypeId>> {
         let Some(current) = ty else {
             return Ok(ty);
         };
@@ -203,7 +203,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// Root contexts are created WITH siblings (the union arm), so the
     /// lazy fill only ever walks a parent that exists.
-    fn get_siblings_of_context(&mut self, context: WideningContextId) -> CheckResult2<Vec<TypeId>> {
+    fn get_siblings_of_context(&mut self, context: WideningContextId) -> CheckResult<Vec<TypeId>> {
         if let Some(siblings) = &self.widening_contexts[context].siblings {
             return Ok(siblings.clone());
         }
@@ -250,7 +250,7 @@ impl<'a> CheckerState<'a> {
     fn get_properties_of_context(
         &mut self,
         context: WideningContextId,
-    ) -> CheckResult2<Vec<SymbolId>> {
+    ) -> CheckResult<Vec<SymbolId>> {
         if let Some(resolved) = &self.widening_contexts[context].resolved_properties {
             return Ok(resolved.clone());
         }
@@ -288,7 +288,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         prop: SymbolId,
         context: Option<WideningContextId>,
-    ) -> CheckResult2<SymbolId> {
+    ) -> CheckResult<SymbolId> {
         if !self.symbol_flags(prop).intersects(SymbolFlags::PROPERTY) {
             // Since get_type_of_symbol is a lazily attached full-face
             // accessor in tsrs2 too, methods and accessors pass
@@ -337,7 +337,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         context: Option<WideningContextId>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let mut members = tsrs2_binder::SymbolTable::default();
         let mut properties: Vec<SymbolId> = Vec::new();
         for prop in self.get_properties_of_object_type_owned(ty)? {
@@ -384,7 +384,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getWidenedType @6.0.3
     /// tsc-hash: f2b817e75f05ad2b8275ab420eaf4c7a47af72ffd405ec668a7ef85f33732149
     /// tsc-span: _tsc.js:68013-68019
-    pub(crate) fn get_widened_type(&mut self, ty: TypeId) -> CheckResult2<TypeId> {
+    pub(crate) fn get_widened_type(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         self.get_widened_type_with_context(ty, /*context*/ None)
     }
 
@@ -395,7 +395,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         context: Option<WideningContextId>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         const REQUIRES_WIDENING: i32 = ObjectFlags::CONTAINS_WIDENING_TYPE.bits()
             | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL.bits();
         if self.tables.object_flags_of(ty).bits() & REQUIRES_WIDENING == 0 {
@@ -489,7 +489,7 @@ impl<'a> CheckerState<'a> {
     /// Returns whether an error was reported (the innermost widening
     /// property wins; reportImplicitAny only fires when nothing here
     /// found a property to blame).
-    fn report_widening_errors_in_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    fn report_widening_errors_in_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         let mut error_reported = false;
         if !self
             .tables
@@ -582,7 +582,7 @@ impl<'a> CheckerState<'a> {
         declaration: NodeId,
         ty: TypeId,
         widening_kind: Option<tsrs2_types::WideningKind>,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         use tsrs2_types::WideningKind;
         let widened = self.get_widened_type(ty)?;
         let type_as_string = self.type_to_string_slice(widened)?;
@@ -810,7 +810,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         declaration: NodeId,
         widening_kind: tsrs2_types::WideningKind,
-    ) -> CheckResult2<bool> {
+    ) -> CheckResult<bool> {
         use tsrs2_types::WideningKind;
         let Some(signature) =
             self.get_contextual_signature_for_function_like_declaration(declaration)?
@@ -878,7 +878,7 @@ impl<'a> CheckerState<'a> {
         declaration: NodeId,
         ty: TypeId,
         widening_kind: Option<tsrs2_types::WideningKind>,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let no_implicit_any = self
             .options
             .strict_option_value(self.options.no_implicit_any);

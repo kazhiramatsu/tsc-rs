@@ -8,7 +8,7 @@
 
 use tsrs2_types::{IntersectionFlags, ObjectFlags, TypeData, TypeFlags, TypeId, UnionReduction};
 
-use crate::state::{CheckResult2, CheckerState};
+use crate::state::{CheckResult, CheckerState};
 
 impl<'a> CheckerState<'a> {
     /// tsc-port: isEmptyAnonymousObjectType @6.0.3
@@ -26,7 +26,7 @@ impl<'a> CheckerState<'a> {
     /// table (5.7b review round #2: the raw early table is empty for
     /// a type literal whose only member is computed-named, which
     /// collapsed `O & "s"` intersections to the literal).
-    pub fn is_empty_anonymous_object_type(&mut self, ty: TypeId) -> CheckResult2<bool> {
+    pub fn is_empty_anonymous_object_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         if !self
             .tables
             .object_flags_of(ty)
@@ -69,7 +69,7 @@ impl<'a> CheckerState<'a> {
         type_set: &mut Vec<TypeId>,
         mut includes: i32,
         ty: TypeId,
-    ) -> CheckResult2<i32> {
+    ) -> CheckResult<i32> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::INTERSECTION) {
             let TypeData::Intersection { types } = self.tables.type_of(ty).data.clone() else {
@@ -118,7 +118,7 @@ impl<'a> CheckerState<'a> {
         type_set: &mut Vec<TypeId>,
         mut includes: i32,
         types: &[TypeId],
-    ) -> CheckResult2<i32> {
+    ) -> CheckResult<i32> {
         for &ty in types {
             let regular = self.tables.get_regular_type_of_literal_type(ty);
             includes = self.add_type_to_intersection(type_set, includes, regular)?;
@@ -133,7 +133,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         types: &mut Vec<TypeId>,
         includes: i32,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult<()> {
         let mut i = types.len();
         while i > 0 {
             i -= 1;
@@ -179,7 +179,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         types: &[TypeId],
         flags: IntersectionFlags,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         self.get_intersection_type_ex(types, flags, None, None)
     }
 
@@ -194,7 +194,7 @@ impl<'a> CheckerState<'a> {
         flags: IntersectionFlags,
         alias_symbol: Option<tsrs2_binder::SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         let mut type_set: Vec<TypeId> = Vec::new();
         let includes = self.add_types_to_intersection(&mut type_set, 0, types)?;
         // objectFlags picks up IsConstrainedTypeVariable only in the
@@ -402,7 +402,7 @@ impl<'a> CheckerState<'a> {
         alias_symbol: Option<tsrs2_binder::SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
         original_arity: usize,
-    ) -> CheckResult2<TypeId> {
+    ) -> CheckResult<TypeId> {
         if self.tables.intersect_unions_of_primitive_types(type_set) {
             return self.get_intersection_type_ex(
                 &type_set.clone(),
@@ -511,7 +511,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         types: &[TypeId],
         flags: IntersectionFlags,
-    ) -> CheckResult2<Vec<TypeId>> {
+    ) -> CheckResult<Vec<TypeId>> {
         let count = self.cross_product_union_size(types);
         let mut intersections = Vec::new();
         for i in 0..count {

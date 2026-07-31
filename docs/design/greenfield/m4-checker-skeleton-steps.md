@@ -539,7 +539,7 @@ this section's single-commit line. Implementers start there.
 
 ## Unsupported channel in M4
 
-The CheckResult2/Unsupported channel STAYS through M4 — it is the
+The `state::CheckResult<T>`/Unsupported channel STAYS through M4 — it is the
 probe/conformance escape valve; retiring it is not an M4 goal. The
 gate rule: every arm currently marked plain "(M4)" is either
 implemented by its owning stage or re-marked with an explicit
