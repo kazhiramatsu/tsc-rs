@@ -2113,17 +2113,146 @@ pub(crate) fn resolve_commit(root: &Path, reference: &str) -> ConformanceResult<
 /// real Git failure. `git show` errors must never become the bootstrap
 /// exception: missing/corrupt objects and insufficient clone data are
 /// integrity failures.
-pub(crate) fn git_blob_optional(
+///
+/// Repository history before the root-workspace promotion stores every
+/// workspace-relative path below `tsrs2/`; newer history stores the same
+/// logical path at the repository root. Both spellings are inspected in one
+/// tree query. A commit containing both is ambiguous and rejected even when
+/// the blob bytes happen to agree.
+pub fn git_blob_optional(
     root: &Path,
     commit: &str,
     rel: &str,
 ) -> ConformanceResult<Option<Vec<u8>>> {
-    let tree = git(root, &["ls-tree", "-z", commit, "--", rel])?;
-    if tree.is_empty() {
+    let paths = WorkspaceHistoryPaths::new(rel)?;
+    let tree = git(
+        root,
+        &["ls-tree", "-z", commit, "--", &paths.current, &paths.legacy],
+    )?;
+    let Some(blob) = resolve_workspace_blob_ref(&tree, commit, &paths)? else {
         return Ok(None);
-    }
-    let spec = format!("{commit}:{rel}");
+    };
+    let spec = format!("{commit}:{}", paths.path(blob.location));
     Ok(Some(git(root, &["show", &spec])?))
+}
+
+const LEGACY_WORKSPACE_PREFIX: &str = "tsrs2/";
+
+/// The two repository paths that have denoted one workspace-relative file.
+/// Normalization is deliberately symmetric so the bridge can run both before
+/// and after the atomic workspace promotion.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct WorkspaceHistoryPaths {
+    current: String,
+    legacy: String,
+}
+
+impl WorkspaceHistoryPaths {
+    fn new(rel: &str) -> ConformanceResult<Self> {
+        let path = Path::new(rel);
+        if rel.is_empty()
+            || path.is_absolute()
+            || path.components().any(|component| {
+                matches!(
+                    component,
+                    std::path::Component::Prefix(_)
+                        | std::path::Component::RootDir
+                        | std::path::Component::CurDir
+                        | std::path::Component::ParentDir
+                )
+            })
+        {
+            return Err(format!(
+                "workspace history path must be a normalized repository-relative path: {rel:?}"
+            )
+            .into());
+        }
+        let current = rel
+            .strip_prefix(LEGACY_WORKSPACE_PREFIX)
+            .unwrap_or(rel)
+            .to_owned();
+        if current.is_empty() {
+            return Err("workspace history path cannot name only the legacy prefix".into());
+        }
+        let legacy = format!("{LEGACY_WORKSPACE_PREFIX}{current}");
+        Ok(Self { current, legacy })
+    }
+
+    fn path(&self, location: WorkspaceLocation) -> &str {
+        match location {
+            WorkspaceLocation::Root => &self.current,
+            WorkspaceLocation::Legacy => &self.legacy,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum WorkspaceLocation {
+    Root,
+    Legacy,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ResolvedBlobRef {
+    object_id: String,
+    location: WorkspaceLocation,
+}
+
+/// Parse the exact two-path `ls-tree -z` result without treating a malformed
+/// or ambiguous tree as absence. The selected object's bytes are read only
+/// after this succeeds, so a real Git failure can never trigger fallback.
+fn resolve_workspace_blob_ref(
+    tree: &[u8],
+    commit: &str,
+    paths: &WorkspaceHistoryPaths,
+) -> ConformanceResult<Option<ResolvedBlobRef>> {
+    let mut resolved = None;
+    for entry in tree
+        .split(|byte| *byte == 0)
+        .filter(|entry| !entry.is_empty())
+    {
+        let Some(tab) = entry.iter().position(|byte| *byte == b'\t') else {
+            return Err(format!("git ls-tree returned malformed metadata for {commit}").into());
+        };
+        let header = String::from_utf8(entry[..tab].to_vec())?;
+        let path = String::from_utf8(entry[tab + 1..].to_vec())?;
+        let location = if path == paths.current {
+            WorkspaceLocation::Root
+        } else if path == paths.legacy {
+            WorkspaceLocation::Legacy
+        } else {
+            return Err(format!(
+                "git ls-tree returned unexpected workspace path {path:?} for {commit}"
+            )
+            .into());
+        };
+        let mut fields = header.split_whitespace();
+        let mode = fields.next();
+        let object_type = fields.next();
+        let object_id = fields.next();
+        if mode.is_none()
+            || object_type != Some("blob")
+            || object_id.is_none()
+            || fields.next().is_some()
+        {
+            return Err(format!(
+                "git ls-tree returned malformed blob metadata for {commit}:{path}"
+            )
+            .into());
+        }
+        if resolved.is_some() {
+            return Err(format!(
+                "workspace path is ambiguous at {commit}: both {} and {} exist",
+                paths.current, paths.legacy
+            )
+            .into());
+        }
+        resolved = Some(ResolvedBlobRef {
+            object_id: object_id.expect("validated above").to_owned(),
+            location,
+        });
+    }
+    Ok(resolved)
 }
 
 pub(crate) fn git_root_for(workspace: &Path) -> ConformanceResult<PathBuf> {
@@ -2131,13 +2260,15 @@ pub(crate) fn git_root_for(workspace: &Path) -> ConformanceResult<PathBuf> {
     Ok(PathBuf::from(String::from_utf8(out)?.trim()))
 }
 
-/// The artifact's path relative to the git root, forward-slashed
-/// (the workspace `tsrs2/` is a subdirectory of the repository).
+/// The artifact's path relative to the git root, forward-slashed.
+/// Historical root/legacy aliases are resolved by the blob readers rather
+/// than here, so this function always reports the checked-out layout.
 pub(crate) fn git_rel_path(
     git_root: &Path,
     workspace: &Path,
     rel: &str,
 ) -> ConformanceResult<String> {
+    let workspace = fs::canonicalize(workspace)?;
     let abs = workspace.join(rel);
     let rel_to_root = abs
         .strip_prefix(git_root)
@@ -2152,7 +2283,7 @@ pub(crate) fn git_rel_path(
 struct GitMemo {
     git_root: PathBuf,
     head_commit: String,
-    blob_ids: BTreeMap<(String, String), Option<String>>,
+    blob_ids: BTreeMap<(String, String), Option<ResolvedBlobRef>>,
     blob_objects: BTreeMap<String, Vec<u8>>,
     parents: BTreeMap<String, Vec<String>>,
     version_commits: BTreeMap<String, Vec<String>>,
@@ -2183,52 +2314,61 @@ impl GitMemo {
         git(&self.git_root, args)
     }
 
-    fn blob_optional(&mut self, commit: &str, rel: &str) -> ConformanceResult<Option<Vec<u8>>> {
+    fn blob_optional_with_location(
+        &mut self,
+        commit: &str,
+        rel: &str,
+    ) -> ConformanceResult<Option<(Vec<u8>, WorkspaceLocation)>> {
         let commit = if commit == "HEAD" {
             self.head_commit.clone()
         } else {
             commit.to_owned()
         };
-        let key = (commit.clone(), rel.to_owned());
-        if let Some(object_id) = self.blob_ids.get(&key) {
-            return match object_id {
+        let paths = WorkspaceHistoryPaths::new(rel)?;
+        let key = (commit.clone(), paths.current.clone());
+        if let Some(blob) = self.blob_ids.get(&key) {
+            return match blob {
                 None => Ok(None),
-                Some(object_id) => self
+                Some(blob) => self
                     .blob_objects
-                    .get(object_id)
+                    .get(&blob.object_id)
                     .cloned()
-                    .map(Some)
+                    .map(|bytes| Some((bytes, blob.location)))
                     .ok_or_else(|| {
-                        format!("internal Git memo lost blob object {object_id}").into()
+                        format!("internal Git memo lost blob object {}", blob.object_id).into()
                     }),
             };
         }
-        let tree = self.run_git(&["ls-tree", "-z", &commit, "--", rel])?;
-        if tree.is_empty() {
+        let tree = self.run_git(&[
+            "ls-tree",
+            "-z",
+            &commit,
+            "--",
+            &paths.current,
+            &paths.legacy,
+        ])?;
+        let Some(blob) = resolve_workspace_blob_ref(&tree, &commit, &paths)? else {
             self.blob_ids.insert(key, None);
             return Ok(None);
-        }
-        let Some(tab) = tree.iter().position(|byte| *byte == b'\t') else {
-            return Err(
-                format!("git ls-tree returned malformed metadata for {commit}:{rel}").into(),
-            );
         };
-        let header = String::from_utf8(tree[..tab].to_vec())?;
-        let object_id = header
-            .split_whitespace()
-            .nth(2)
-            .ok_or_else(|| format!("git ls-tree omitted the object id for {commit}:{rel}"))?
-            .to_owned();
-        let bytes = if let Some(bytes) = self.blob_objects.get(&object_id) {
+        let bytes = if let Some(bytes) = self.blob_objects.get(&blob.object_id) {
             bytes.clone()
         } else {
-            let spec = format!("{commit}:{rel}");
+            let spec = format!("{commit}:{}", paths.path(blob.location));
             let bytes = self.run_git(&["show", &spec])?;
-            self.blob_objects.insert(object_id.clone(), bytes.clone());
+            self.blob_objects
+                .insert(blob.object_id.clone(), bytes.clone());
             bytes
         };
-        self.blob_ids.insert(key, Some(object_id));
-        Ok(Some(bytes))
+        let location = blob.location;
+        self.blob_ids.insert(key, Some(blob));
+        Ok(Some((bytes, location)))
+    }
+
+    fn blob_optional(&mut self, commit: &str, rel: &str) -> ConformanceResult<Option<Vec<u8>>> {
+        Ok(self
+            .blob_optional_with_location(commit, rel)?
+            .map(|(bytes, _)| bytes))
     }
 
     fn commit_parents(&mut self, commit: &str) -> ConformanceResult<Vec<String>> {
@@ -2247,19 +2387,21 @@ impl GitMemo {
     }
 
     fn committed_versions(&mut self, rel: &str) -> ConformanceResult<Vec<(String, Vec<u8>)>> {
-        if let Some(commits) = self.version_commits.get(rel).cloned() {
+        let paths = WorkspaceHistoryPaths::new(rel)?;
+        if let Some(commits) = self.version_commits.get(&paths.current).cloned() {
             return commits
                 .into_iter()
                 .map(|commit| -> ConformanceResult<_> {
                     let bytes = self
                         .blob_ids
-                        .get(&(commit.clone(), rel.to_owned()))
-                        .and_then(|object_id| object_id.as_ref())
-                        .and_then(|object_id| self.blob_objects.get(object_id))
+                        .get(&(commit.clone(), paths.current.clone()))
+                        .and_then(|blob| blob.as_ref())
+                        .and_then(|blob| self.blob_objects.get(&blob.object_id))
                         .cloned()
                         .ok_or_else(|| {
                             format!(
-                                "internal Git memo lost artifact {rel} bytes at commit {commit}"
+                                "internal Git memo lost artifact {} bytes at commit {commit}",
+                                paths.current
                             )
                         })?;
                     Ok((commit, bytes))
@@ -2273,7 +2415,8 @@ impl GitMemo {
             "--topo-order",
             &head_commit,
             "--",
-            rel,
+            &paths.current,
+            &paths.legacy,
         ])?;
         let mut versions = Vec::new();
         let mut version_commits = Vec::new();
@@ -2282,11 +2425,11 @@ impl GitMemo {
             if commit.is_empty() {
                 continue;
             }
-            let bytes = self.blob_optional(commit, rel)?;
+            let bytes = self.blob_optional(commit, &paths.current)?;
             let parents = self.commit_parents(commit)?;
             let mut carried_from_parent = false;
             for parent in &parents {
-                if self.blob_optional(parent, rel)? == bytes {
+                if self.blob_optional(parent, &paths.current)? == bytes {
                     carried_from_parent = true;
                     break;
                 }
@@ -2296,15 +2439,16 @@ impl GitMemo {
             }
             let Some(bytes) = bytes else {
                 return Err(format!(
-                    "artifact {rel} was deleted at commit {commit} \
-                     (artifact versions are append-only)"
+                    "artifact {} was deleted at commit {commit} \
+                     (artifact versions are append-only)",
+                    paths.current
                 )
                 .into());
             };
             version_commits.push(commit.to_owned());
             versions.push((commit.to_owned(), bytes));
         }
-        self.version_commits.insert(rel.to_owned(), version_commits);
+        self.version_commits.insert(paths.current, version_commits);
         Ok(versions)
     }
 
@@ -2855,8 +2999,10 @@ fn verify_committed_artifact_pairs_with_memo(
     matches_rel: &str,
     inputs_rel: &str,
 ) -> ConformanceResult<()> {
+    let matches_paths = WorkspaceHistoryPaths::new(matches_rel)?;
+    let inputs_paths = WorkspaceHistoryPaths::new(inputs_rel)?;
     let input_version_commits = memo
-        .committed_versions(inputs_rel)?
+        .committed_versions(&inputs_paths.current)?
         .into_iter()
         .map(|(commit, _)| commit)
         .collect::<BTreeSet<_>>();
@@ -2870,19 +3016,30 @@ fn verify_committed_artifact_pairs_with_memo(
         "--topo-order",
         &head_commit,
         "--",
-        matches_rel,
-        inputs_rel,
+        &matches_paths.current,
+        &matches_paths.legacy,
+        &inputs_paths.current,
+        &inputs_paths.legacy,
     ])?;
     for commit in String::from_utf8(out)?.lines() {
         let commit = commit.trim();
-        let matches_bytes = memo.blob_optional(commit, matches_rel)?;
-        let inputs_bytes = memo.blob_optional(commit, inputs_rel)?;
-        let (Some(matches_bytes), Some(inputs_bytes)) = (matches_bytes, inputs_bytes) else {
+        let matches_blob = memo.blob_optional_with_location(commit, &matches_paths.current)?;
+        let inputs_blob = memo.blob_optional_with_location(commit, &inputs_paths.current)?;
+        let (Some((matches_bytes, matches_location)), Some((inputs_bytes, inputs_location))) =
+            (matches_blob, inputs_blob)
+        else {
             return Err(format!(
                 "incomplete ratchet artifact pair at historical version commit {commit}"
             )
             .into());
         };
+        if matches_location != inputs_location {
+            return Err(format!(
+                "ratchet artifact pair straddles the root and legacy workspaces at historical \
+                 version commit {commit}"
+            )
+            .into());
+        }
         let matches = MatchesArtifact::decode_validated(&matches_bytes)
             .map_err(|err| format!("accepted-match artifact at {commit}: {err}"))?;
         let inputs = OracleInputsArtifact::decode_validated(&inputs_bytes)
@@ -4103,18 +4260,46 @@ mod tests {
         inputs_bytes: &[u8],
         message: &str,
     ) -> String {
-        for (rel, bytes) in [
-            (MATCHES_REL_PATH, matches_bytes),
-            (ORACLE_INPUTS_REL_PATH, inputs_bytes),
-        ] {
+        commit_artifact_pair_at(
+            root,
+            MATCHES_REL_PATH,
+            ORACLE_INPUTS_REL_PATH,
+            matches_bytes,
+            inputs_bytes,
+            message,
+        )
+    }
+
+    fn commit_artifact_pair_at(
+        root: &Path,
+        matches_rel: &str,
+        inputs_rel: &str,
+        matches_bytes: &[u8],
+        inputs_bytes: &[u8],
+        message: &str,
+    ) -> String {
+        for (rel, bytes) in [(matches_rel, matches_bytes), (inputs_rel, inputs_bytes)] {
             let path = root.join(rel);
             fs::create_dir_all(path.parent().unwrap()).unwrap();
             fs::write(path, bytes).unwrap();
         }
-        git_test(root, &["add", MATCHES_REL_PATH, ORACLE_INPUTS_REL_PATH]);
+        git_test(root, &["add", matches_rel, inputs_rel]);
         git_test(root, &["commit", "-q", "-m", message]);
         let out = git(root, &["rev-parse", "HEAD"]).unwrap();
         String::from_utf8(out).unwrap().trim().to_owned()
+    }
+
+    fn legacy_rel(rel: &str) -> String {
+        format!("{LEGACY_WORKSPACE_PREFIX}{rel}")
+    }
+
+    fn commit_all(root: &Path, message: &str) -> String {
+        git_test(root, &["add", "-A"]);
+        git_test(root, &["commit", "-q", "-m", message]);
+        String::from_utf8(git(root, &["rev-parse", "HEAD"]).unwrap())
+            .unwrap()
+            .trim()
+            .to_owned()
     }
 
     fn key(code: u32) -> T0Key {
@@ -5574,6 +5759,220 @@ mod tests {
     }
 
     // -- A1 lineage --------------------------------------------------------
+
+    #[test]
+    fn workspace_history_paths_normalize_pre_and_post_move_names() {
+        let current = WorkspaceHistoryPaths::new(MATCHES_REL_PATH).unwrap();
+        let legacy = WorkspaceHistoryPaths::new(&legacy_rel(MATCHES_REL_PATH)).unwrap();
+        assert_eq!(current, legacy);
+        assert_eq!(current.current, MATCHES_REL_PATH);
+        assert_eq!(current.legacy, legacy_rel(MATCHES_REL_PATH));
+    }
+
+    #[test]
+    fn workspace_history_paths_reject_escaping_or_ambiguous_names() {
+        for rel in ["", ".", "../ratchets/x", "/ratchets/x", "tsrs2/"] {
+            assert!(
+                WorkspaceHistoryPaths::new(rel).is_err(),
+                "{rel:?} must not become a Git pathspec"
+            );
+        }
+    }
+
+    #[test]
+    fn git_blob_optional_reads_legacy_golden_from_either_spelling() {
+        let repo = init_repo("history-legacy-golden");
+        let current = "goldens/conformance/a.json.zst";
+        let legacy = legacy_rel(current);
+        let commit = commit_bytes(&repo, &legacy, b"legacy golden", "legacy golden");
+
+        assert_eq!(
+            git_blob_optional(&repo, &commit, current).unwrap(),
+            Some(b"legacy golden".to_vec())
+        );
+        assert_eq!(
+            git_blob_optional(&repo, &commit, &legacy).unwrap(),
+            Some(b"legacy golden".to_vec())
+        );
+    }
+
+    #[test]
+    fn git_blob_optional_reads_root_and_preserves_absence_and_git_errors() {
+        let repo = init_repo("history-root-blob");
+        let current = "goldens/conformance/a.json.zst";
+        let legacy = legacy_rel(current);
+        let commit = commit_bytes(&repo, current, b"root golden", "root golden");
+
+        assert_eq!(
+            git_blob_optional(&repo, &commit, current).unwrap(),
+            Some(b"root golden".to_vec())
+        );
+        assert_eq!(
+            git_blob_optional(&repo, &commit, &legacy).unwrap(),
+            Some(b"root golden".to_vec())
+        );
+        assert_eq!(
+            git_blob_optional(&repo, &commit, "goldens/conformance/missing.json.zst").unwrap(),
+            None
+        );
+        assert!(
+            git_blob_optional(&repo, "not-a-commit", current).is_err(),
+            "an invalid commit must not be treated as an absent path"
+        );
+    }
+
+    #[test]
+    fn workspace_bridge_rejects_dual_location_even_when_bytes_match() {
+        let repo = init_repo("history-dual-location");
+        let current = "goldens/conformance/a.json.zst";
+        let legacy = legacy_rel(current);
+        commit_bytes(&repo, current, b"same", "root golden");
+        let commit = commit_bytes(&repo, &legacy, b"same", "duplicate legacy golden");
+
+        let err = git_blob_optional(&repo, &commit, current)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("ambiguous"), "{err}");
+        assert!(err.contains(current), "{err}");
+        assert!(err.contains(&legacy), "{err}");
+    }
+
+    #[test]
+    fn lineage_pair_and_baseline_survive_atomic_workspace_promotion() {
+        let repo = init_repo("history-workspace-promotion");
+        let legacy_matches = legacy_rel(MATCHES_REL_PATH);
+        let legacy_inputs = legacy_rel(ORACLE_INPUTS_REL_PATH);
+
+        let v1_inputs = inputs_stub();
+        let v1_inputs_bytes = encode_artifact(&v1_inputs).unwrap();
+        let mut v1_matches = matches_artifact(views_with(&[2322], &[2322]), true, None, None);
+        v1_matches.inputs = MatchesInputs {
+            oracle_inputs_sha256: sha256_hex(&v1_inputs_bytes),
+            tsc_js_sha256: v1_inputs.vendor.tsc_js_sha256.clone(),
+        };
+        let v1_matches_bytes = encode_artifact(&v1_matches).unwrap();
+        let c1 = commit_artifact_pair_at(
+            &repo,
+            &legacy_matches,
+            &legacy_inputs,
+            &v1_matches_bytes,
+            &v1_inputs_bytes,
+            "legacy bootstrap pair",
+        );
+
+        let mut v2_matches = matches_artifact(
+            views_with(&[2322, 2345], &[2322]),
+            false,
+            Some(lineage_to(&c1, &v1_matches_bytes)),
+            None,
+        );
+        v2_matches.inputs = v1_matches.inputs.clone();
+        let v2_matches_bytes = encode_artifact(&v2_matches).unwrap();
+        commit_bytes(
+            &repo,
+            &legacy_matches,
+            &v2_matches_bytes,
+            "legacy matches growth",
+        );
+        git_test(&repo, &["branch", "-q", "base"]);
+
+        fs::rename(repo.join("tsrs2/ratchets"), repo.join("ratchets")).unwrap();
+        commit_all(&repo, "promote workspace to repository root");
+
+        assert_eq!(
+            verify_lineage::<MatchesArtifact>(&repo, MATCHES_REL_PATH, &v2_matches_bytes).unwrap(),
+            2,
+            "an unchanged path move must not become a material artifact version"
+        );
+        assert_eq!(
+            verify_lineage::<OracleInputsArtifact>(
+                &repo,
+                ORACLE_INPUTS_REL_PATH,
+                &v1_inputs_bytes,
+            )
+            .unwrap(),
+            1,
+        );
+        verify_committed_artifact_pairs(&repo, MATCHES_REL_PATH, ORACLE_INPUTS_REL_PATH).unwrap();
+        assert!(!verify_baseline(
+            &repo,
+            "base",
+            MATCHES_REL_PATH,
+            ORACLE_INPUTS_REL_PATH,
+            &v2_matches,
+            &v1_inputs,
+        )
+        .unwrap());
+    }
+
+    #[test]
+    fn workspace_bridge_rejects_split_pair_location() {
+        let repo = init_repo("history-split-workspace-pair");
+        let legacy_matches = legacy_rel(MATCHES_REL_PATH);
+        let legacy_inputs = legacy_rel(ORACLE_INPUTS_REL_PATH);
+        let inputs = inputs_stub();
+        let inputs_bytes = encode_artifact(&inputs).unwrap();
+        let mut matches = matches_artifact(views_with(&[2322], &[2322]), true, None, None);
+        matches.inputs = MatchesInputs {
+            oracle_inputs_sha256: sha256_hex(&inputs_bytes),
+            tsc_js_sha256: inputs.vendor.tsc_js_sha256.clone(),
+        };
+        let matches_bytes = encode_artifact(&matches).unwrap();
+        commit_artifact_pair_at(
+            &repo,
+            &legacy_matches,
+            &legacy_inputs,
+            &matches_bytes,
+            &inputs_bytes,
+            "legacy pair",
+        );
+
+        fs::create_dir_all(repo.join("ratchets")).unwrap();
+        fs::rename(repo.join(&legacy_matches), repo.join(MATCHES_REL_PATH)).unwrap();
+        commit_all(&repo, "move only matches artifact");
+
+        let err = verify_committed_artifact_pairs(&repo, MATCHES_REL_PATH, ORACLE_INPUTS_REL_PATH)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("straddles"), "{err}");
+    }
+
+    #[test]
+    fn workspace_bridge_does_not_hide_a_deletion() {
+        let repo = init_repo("history-workspace-deletion");
+        let legacy = legacy_rel(MATCHES_REL_PATH);
+        commit_bytes(&repo, &legacy, b"pinned", "legacy artifact");
+        fs::remove_file(repo.join(&legacy)).unwrap();
+        commit_all(&repo, "delete legacy artifact");
+
+        let mut memo = GitMemo::new(&repo).unwrap();
+        let err = memo
+            .committed_versions(MATCHES_REL_PATH)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("was deleted"), "{err}");
+    }
+
+    #[test]
+    fn workspace_move_with_changed_bytes_is_a_real_version() {
+        let repo = init_repo("history-workspace-move-change");
+        let legacy = legacy_rel(MATCHES_REL_PATH);
+        let v1 = matches_artifact(views_with(&[2322], &[2322]), true, None, None);
+        let v1_bytes = encode_artifact(&v1).unwrap();
+        commit_bytes(&repo, &legacy, &v1_bytes, "legacy bootstrap");
+
+        let v2 = matches_artifact(views_with(&[2322, 2345], &[2322]), true, None, None);
+        let v2_bytes = encode_artifact(&v2).unwrap();
+        fs::create_dir_all(repo.join("ratchets")).unwrap();
+        fs::rename(repo.join(&legacy), repo.join(MATCHES_REL_PATH)).unwrap();
+        fs::write(repo.join(MATCHES_REL_PATH), &v2_bytes).unwrap();
+        commit_all(&repo, "move and mutate artifact");
+
+        let err = verify_lineage::<MatchesArtifact>(&repo, MATCHES_REL_PATH, &v2_bytes)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("second bootstrap"), "{err}");
+    }
 
     #[test]
     fn git_history_memo_reuses_blob_parent_and_path_queries() {

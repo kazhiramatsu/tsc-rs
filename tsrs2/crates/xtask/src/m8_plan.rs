@@ -11,7 +11,7 @@ use tsrs2_conformance::ExactIdentity;
 
 use super::{
     collect_ledger_entries, display_relative, exact_ledger_matches, find_tsrs2_root,
-    is_full_lower_hex_commit, m8_git_is_ancestor, m8_git_output, m8_resolve_git_commit,
+    git_repository_root, is_full_lower_hex_commit, m8_git_is_ancestor, m8_resolve_git_commit,
     mechanical_family_rows, read_json, sha256_file, validate_d2_inventory, LedgerEntry,
     M8EmitterDisposition, M8EmitterDispositions, M8EmitterFunction, M8EmitterInventory,
 };
@@ -2003,25 +2003,20 @@ fn plan_at(workspace: &Path, commit: &str, path: &Path) -> Result<Value, Box<dyn
 
 fn git_blob_at(workspace: &Path, commit: &str, path: &Path) -> Result<Vec<u8>, Box<dyn Error>> {
     let relative = repository_relative_path(workspace, path)?;
-    let object = format!("{commit}:{relative}");
-    let output = m8_git_output(workspace, ["show", object.as_str()])?;
-    if !output.status.success() {
-        return Err(format!(
-            "cannot read M8 owner-plan input {relative} at commit {commit}: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        )
-        .into());
-    }
-    Ok(output.stdout)
+    let root = git_repository_root(workspace)?;
+    tsrs2_conformance::ratchet::git_blob_optional(&root, commit, &relative)?.ok_or_else(|| {
+        format!("cannot read M8 owner-plan input {relative} at commit {commit}").into()
+    })
 }
 
 fn repository_relative_path(workspace: &Path, path: &Path) -> Result<String, Box<dyn Error>> {
-    let root_output = m8_git_output(workspace, ["rev-parse", "--show-toplevel"])?;
-    if !root_output.status.success() {
-        return Err("cannot resolve git root for M8 owner plan".into());
-    }
-    let root = PathBuf::from(String::from_utf8(root_output.stdout)?.trim());
-    let relative = path.strip_prefix(&root).map_err(|_| {
+    let root = git_repository_root(workspace)?;
+    let canonical_workspace = fs::canonicalize(workspace)?;
+    let normalized_path = path
+        .strip_prefix(workspace)
+        .map(|relative| canonical_workspace.join(relative))
+        .unwrap_or_else(|_| path.to_owned());
+    let relative = normalized_path.strip_prefix(&root).map_err(|_| {
         format!(
             "M8 owner-plan path {} is outside git root {}",
             path.display(),
@@ -2080,7 +2075,50 @@ fn sha256_bytes(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicU64, Ordering};
+
     use super::*;
+
+    static TEMP_REPO_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+    struct TempRepo(PathBuf);
+
+    impl TempRepo {
+        fn new(label: &str) -> Self {
+            let sequence = TEMP_REPO_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+            let path = std::env::temp_dir().join(format!(
+                "tsrs2-m8-plan-{label}-{}-{sequence}",
+                std::process::id()
+            ));
+            fs::create_dir_all(&path).unwrap();
+            git_test(&path, &["init", "-q"]);
+            git_test(&path, &["config", "user.email", "tests@example.invalid"]);
+            git_test(&path, &["config", "user.name", "tsrs2 tests"]);
+            Self(path)
+        }
+    }
+
+    impl Drop for TempRepo {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn git_test(root: &Path, args: &[&str]) -> Vec<u8> {
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(root)
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "git {} failed: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        output.stdout
+    }
 
     #[test]
     fn draft_parser_requires_exact_inputs_and_positive_cache_bound() {
@@ -2257,5 +2295,41 @@ mod tests {
         assert!(validate_plan_transition(&trusted, &frozen, &"b".repeat(40)).is_err());
         assert!(validate_plan_transition(&frozen, &frozen, &anchor).is_ok());
         assert!(validate_plan_transition(&frozen, &trusted, &anchor).is_err());
+    }
+
+    #[test]
+    fn historical_plan_inputs_follow_the_workspace_promotion() {
+        let repo = TempRepo::new("workspace-promotion");
+        let legacy = repo.0.join("tsrs2");
+        fs::create_dir_all(&legacy).unwrap();
+        let plan = json!({"schema": 1, "status": "draft"});
+        let review = json!({"schema": 1, "review": "complete"});
+        fs::write(
+            legacy.join("m8-owner-plan.json"),
+            serde_json::to_vec(&plan).unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            legacy.join("m8-owner-plan-review.json"),
+            serde_json::to_vec(&review).unwrap(),
+        )
+        .unwrap();
+        git_test(&repo.0, &["add", "tsrs2"]);
+        git_test(&repo.0, &["commit", "-q", "-m", "legacy plan inputs"]);
+        let commit = String::from_utf8(git_test(&repo.0, &["rev-parse", "HEAD"]))
+            .unwrap()
+            .trim()
+            .to_owned();
+
+        assert_eq!(
+            plan_at(&repo.0, &commit, &repo.0.join("m8-owner-plan.json")).unwrap(),
+            plan
+        );
+        let review_bytes =
+            git_blob_at(&repo.0, &commit, &repo.0.join("m8-owner-plan-review.json")).unwrap();
+        assert_eq!(
+            serde_json::from_slice::<Value>(&review_bytes).unwrap(),
+            review
+        );
     }
 }
