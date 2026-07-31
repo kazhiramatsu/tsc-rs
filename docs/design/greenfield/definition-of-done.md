@@ -67,8 +67,14 @@ two-view contract in [m8-readiness.md](m8-readiness.md):
 6. **Corpus-external confidence** is CLAIMED ONLY as: the
    differential fuzzer introduced by the M8-start gate (generator +
    oracle comparison + reducer + signature dedupe) reaches M9's CI
-   steady state — new divergence signatures < 1/night — with no
-   known-open divergence class.
+   steady state — new canonical divergence classes < 1/window — with no
+   untriaged recurrence incident or unresolved owner task. A canonical
+   class is the rate/dedupe key, not an implementation owner: every exact
+   witness and recurrence under that class must be replayable, and every
+   exact owner task must resolve. The ordered preflight, burn-in,
+   diagnostic-D2/pipeline-native owner-task closure, fingerprint freeze, and
+   14-window procedure is normative in the
+   [M9 execution contract](m9-execution-and-close.md).
    This is an engineering bar, not a formal guarantee.
 
 The M8 accepted state now records supported T0-T3 at

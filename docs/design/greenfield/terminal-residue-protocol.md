@@ -187,30 +187,36 @@ or keep the narrower proof.
 
 ## 4. Source trivia and JSDoc rules
 
-JSDoc is not represented as ordinary nodes in the current syntax arena,
-so some exact publication proofs must inspect source trivia. Such a
-probe is allowed only for attachment/provenance. It must not invent
-JSDoc type semantics that belong in the parser/checker model.
+The complete M8 JSDoc subsystem now represents comments, tags, types, and
+declarations as arena nodes attached to their real hosts. Production
+publication and semantic proofs therefore use those exact `NodeId`s, parent
+chains, spans, binder symbols, and checker types. They must not rescan source
+text or reconstruct a tag from trivia.
+
+Raw trivia remains useful only in parser/attachment differential tests that
+prove how tsc selected a comment range. It cannot choose checker behavior,
+publication, symbol identity, a type, or a diagnostic.
 
 The following rules are mandatory:
 
-1. A node's `pos` may include its leading comment trivia. Find the
-   token anchor with `skip_trivia` before searching the prefix.
-2. Select the nearest completed `/** ... */` comment before that
-   anchor.
-3. Reject attachment when a completed statement/declaration delimiter
-   or initializer boundary intervenes.
-4. Match a tag at the start of a normalized JSDoc line, after optional
-   whitespace and `*`; require a tag-name boundary.
-5. Never use an unbounded `source.contains("@tag")` or fixture-wide
-   substring as publication proof.
+1. Start from the ordinary host's attached JSDoc array and select the exact
+   parsed tag kind/name/span used by tsc.
+2. Prove the JSDoc parent chain and host relationship; a fixture-wide or
+   nearest-comment guess is not attachment evidence.
+3. Obtain semantic types and declarations through the normal binder/checker
+   paths, never a transient comment projection.
+4. A parser attachment test may normalize `pos` with the same trivia/comment
+   range rules as tsc, but its result must be the arena attachment under
+   test, not a second semantic channel.
+5. Never use `source.contains("@tag")`, an unbounded prefix search, or a
+   local activation guard as production proof.
 6. Keep the accepted syntax no broader than the oracle-backed shape.
 
 For example, a class-field arrow annotated with `@this` retains lexical
 class `this` because the tag is invalid for an arrow. Publishing a
 missing-member verdict requires proof of the arrow/property/class
-relationship as well as proof that the exact tag is attached. The tag
-alone is insufficient.
+relationship as well as the exact attached `JSDocThisTag` node and its
+normal checker interpretation. Raw `@this` text alone is insufficient.
 
 ## 5. Slice construction
 
@@ -470,8 +476,10 @@ It also exposed three corrections to the generic mining loop:
 1. diagnostic code is too coarse for a heterogeneous terminal tail;
 2. output publication must be classified separately from verdict
    generation;
-3. source trivia positions are semantic evidence at JSDoc attachment
-   boundaries and must be normalized before inspection.
+3. source trivia positions were useful attachment evidence during the
+   Phase-9 investigation, but M8 proved that production JSDoc semantics
+   require the complete parser/arena/binder/checker representation; later
+   slices inspect the attached nodes rather than preserving a trivia scanner.
 
 Future phase plans should link this protocol when they define a
 zero-supported-FN close gate.

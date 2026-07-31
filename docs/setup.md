@@ -33,10 +33,24 @@ cargo xtask m8 trace --program-json target/probe/program.json --code 8020 \
   --out target/m8-trace.json        # targeted D2 trace; report-only
 ```
 
+If every path changed from the trusted base ends in `.md` and README's
+generated `STATUS` block is byte-identical to the base, do not run the
+Cargo/Node/full-corpus commands above. Run `git diff --check` from the
+repository root and review changed links, anchors, and generated-block
+boundaries. Any non-Markdown or generated-status change uses the full merge
+gate.
+
 `cargo xtask completion` is report-only during M8 and succeeds while naming
 pending rows in `target/completion/report.json`. The post-M9 release gate is
 `cargo xtask completion --require-done`, which fails unless all 11 rows are
 green.
+
+At the M9 entry state, `cargo xtask fuzz` exposes only the historical M8
+`run`/`replay`/`reduce` smoke commands and completion row 11 is deliberately
+pending. Do not treat that smoke as a nightly producer. The planned
+preflight, real replay/reduction, bounded nightly, aggregation, and
+steady-state commands land in the order fixed by the
+[M9 execution contract](design/greenfield/m9-execution-and-close.md).
 
 `cargo xtask m8 trace` is a planning probe, not a completion gate. Repeat
 `--program-json` and `--code` to compare an emitting probe with a reviewed

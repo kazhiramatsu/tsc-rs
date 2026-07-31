@@ -45,6 +45,13 @@ baseline, exact D2 trace/static owner-cluster method, per-slice evidence,
 global T0-T4/recovery order, M8 close record, and current M9 handoff. The
 readiness page is retained as the historical gate that opened M8.
 
+**M9 execution contract:**
+[m9-execution-and-close.md](m9-execution-and-close.md) — the active M9
+preflight, generator-domain and resource audit, bounded streaming producer,
+class/witness/recurrence registry, diagnostic-D2/pipeline-native owner-task
+closure, attested burn-in, fingerprint freeze, 14-window qualification, and
+final close.
+
 **Complete JSDoc subsystem:**
 [m8-jsdoc-ast-materialization.md](m8-jsdoc-ast-materialization.md) — the
 landed TypeScript 6.0.3 scanner/parser/arena/binder/checker port, its
@@ -55,8 +62,9 @@ subsequently completed formal A1/A3 corpus gates.
 [terminal-residue-protocol.md](terminal-residue-protocol.md) — the
 last-mile method used after a supported FN sweep becomes a small,
 heterogeneous tail. It classifies exact rows by producer, verdict,
-renderer, publication, and grading layers; defines JSDoc/trivia proof
-rules; and requires target/full identity-diff evidence before close.
+renderer, publication, and grading layers; uses the landed attached JSDoc
+arena rather than semantic trivia rescans; and requires target/full
+identity-diff evidence before close.
 
 **Band strategy (2XXX first):**
 [2xxx-first-order.md](2xxx-first-order.md) — the build is ordered
@@ -157,7 +165,7 @@ is one commit.
 | M6 inference + overloads | [m6-inference-calls-steps.md](m6-inference-calls-steps.md) | T0 ≥ 58% |
 | M7 unused/grammar/suggestion | [m7-tail-steps.md](m7-tail-steps.md) | T0 ≥ 63%; T1 measured and ratcheted |
 | M8 diagnostics close | [m8-readiness.md](m8-readiness.md) + [M8 execution](m8-execution-and-close.md) | supported-scope T0-T3 and T4 complete; escapes zero; all-corpus FP=0 |
-| M9 fuzzer hardening + coverage | greenfield §7.7 + [evidence contract](evidence-and-steady-state.md#31-m9-steady-state) | `fuzz steady-state --require-ready`: 14 current-fingerprint nightly windows, rate < 1 new signature/night, no open signature |
+| M9 differential-fuzzer steady state | [M9 execution](m9-execution-and-close.md) + [evidence contract](evidence-and-steady-state.md#31-m9-steady-state) | preflight/domain/owner burn-in green, then `fuzz steady-state --require-ready`: 14 frozen-fingerprint 100,000-case windows, rate < 1 new class/window, no untriaged incident or unresolved owner task |
 
 The T0 percentages are calibration points from the first
 implementation's history, not promises; the gate is "meets or beats,
@@ -215,6 +223,15 @@ remaining project-completion milestone. The fixed corpus continues to be
 reported whole, while only exact reviewed A2 identities leave the supported
 denominator. All historical `jsdoc-semantics` exclusions have returned
 through tombstones.
+
+M9 follows the dedicated
+[execution contract](m9-execution-and-close.md): first correct and audit the
+M8 entry fuzzer, then freeze a measured generator domain, run
+non-qualifying burn-in, and close every owner task. Diagnostic tasks use
+exact A5/2XXX and D2 owner slices; terminal/parser/binder/pure-T4 tasks use
+their exact pipeline-native owner. Only then does M9 freeze the producer
+fingerprint and start the 14 qualifying UTC windows. The M8
+32-case/eight-template smoke earns no window credit.
 
 ## Conventions
 
