@@ -272,6 +272,14 @@ Schema 1 bounds every diagnostic message-chain tree to depth 32 and 4,096
 total nodes before recursive comparison/serialization. An adapter response
 over either limit is a typed malformed response, never a partially compared
 diagnostic.
+Within one completed engine outcome, `renderer.assembled` is the exact
+ordered, multiplicity-preserving projection of `diagnostics`; only the
+renderer-owned `canonical_head` sidecar may be added. Sorting, deduplication,
+and formatting begin after that bound input. Every final `deduped` row must
+select an assembled row, but selection order and multiplicity remain raw
+observations. This prevents two executions from being spliced into one
+canonical envelope without validating away dropped, inflated, or reordered
+final rows.
 
 `fuzz replay` reconstructs the exact files, options, cwd, seed decisions,
 and process policy, reruns both engines, and requires the saved comparator
@@ -317,12 +325,13 @@ tie-break is part of the Rust/Node canonical-vector contract.
 T0-T3 uses the real syntactic/semantic/suggestion pass. Pure T4 compares the
 captured final deduped render sequence and uses the explicit
 `pass=aggregate-render` sentinel; the pre-dedupe assembled sequence is
-provenance, not the order/dedupe comparator input. Empty rendered segments,
-dropped final rows, and inflated final rows remain representable raw
-observations so the schema cannot validate a renderer defect away. When no
-diagnostic/pass exists, the class uses `pass=terminal`, a fixed
-`parse|bind|check|format` phase, and `terminal kind + adapter-owned
-boundary_id`. The boundary is a schema enum with a closed phase/kind
+case-bound provenance, not the order/dedupe comparator input. Empty
+rendered segments, dropped final rows, and inflated final rows remain
+representable raw observations so the schema cannot validate a renderer
+defect away. When no diagnostic/pass exists, the class uses
+`pass=terminal`, a fixed `parse|bind|check|format` phase, and
+`terminal kind + adapter-owned boundary_id`. The boundary is a schema enum
+with a closed phase/kind
 allowlist, not caller-provided text; volatile process text, paths, seeds,
 timestamps, addresses, and hashes remain only in raw `detail` and never
 enter the class. T4 tries

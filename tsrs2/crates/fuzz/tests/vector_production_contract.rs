@@ -32,6 +32,14 @@ struct Fixture {
 struct RejectionCanaries {
     terminal_boundary_ids: Vec<String>,
     normalization_cross_role_source: String,
+    renderer_foreign_deduped: RendererForeignDedupedCanary,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RendererForeignDedupedCanary {
+    assembled_id: String,
+    foreign_id: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -540,6 +548,34 @@ fn completed(diagnostics: Vec<DiagnosticRecord>, renderer: RendererObservation) 
     }
 }
 
+fn completed_structured(diagnostics: Vec<DiagnosticRecord>) -> EngineResult {
+    let assembled = diagnostics
+        .iter()
+        .cloned()
+        .map(|diagnostic| AssembledDiagnostic {
+            diagnostic,
+            canonical_head: CanonicalHead::absent(),
+        })
+        .collect::<Vec<_>>();
+    let segments = assembled
+        .iter()
+        .cloned()
+        .map(|diagnostic| RenderSegment {
+            diagnostic,
+            raw_text: String::new(),
+        })
+        .collect();
+    completed(
+        diagnostics,
+        RendererObservation {
+            assembled: assembled.clone(),
+            deduped: assembled,
+            segments,
+            aggregate_text: String::new(),
+        },
+    )
+}
+
 fn renderer_observation(
     raw: &RawRendererObservation,
     diagnostics: &BTreeMap<&str, AssembledDiagnostic>,
@@ -563,6 +599,19 @@ fn renderer_observation(
             .collect(),
         aggregate_text: raw.aggregate_text.clone(),
     }
+}
+
+fn renderer_completed(
+    raw: &RawRendererObservation,
+    diagnostics: &BTreeMap<&str, AssembledDiagnostic>,
+) -> EngineResult {
+    let renderer = renderer_observation(raw, diagnostics);
+    let structured = renderer
+        .assembled
+        .iter()
+        .map(|assembled| assembled.diagnostic.clone())
+        .collect();
+    completed(structured, renderer)
 }
 
 impl RawRendererObservation {
@@ -615,8 +664,8 @@ fn execution_for_vector(vector: &Vector, case: &CaseSpec) -> CaseExecution {
                 }
             }
             CaseExecution::Compared {
-                oracle: completed(oracle, empty_observation()),
-                tsrs: completed(tsrs, empty_observation()),
+                oracle: completed_structured(oracle),
+                tsrs: completed_structured(tsrs),
             }
         }
         RawVector::Renderer {
@@ -643,8 +692,8 @@ fn execution_for_vector(vector: &Vector, case: &CaseSpec) -> CaseExecution {
                 );
             }
             CaseExecution::Compared {
-                oracle: completed(Vec::new(), renderer_observation(oracle, &by_id)),
-                tsrs: completed(Vec::new(), renderer_observation(tsrs, &by_id)),
+                oracle: renderer_completed(oracle, &by_id),
+                tsrs: renderer_completed(tsrs, &by_id),
             }
         }
         RawVector::Terminal { oracle, tsrs } => CaseExecution::Compared {
@@ -728,6 +777,53 @@ fn assert_rejection_canaries(canaries: &RejectionCanaries) {
     assert!(
         collision.validate().is_err(),
         "one raw source cannot be both a path and generated identifier"
+    );
+
+    assert_ne!(
+        canaries.renderer_foreign_deduped.assembled_id,
+        canaries.renderer_foreign_deduped.foreign_id
+    );
+    let diagnostic = |code, text: &str| DiagnosticRecord {
+        pass: DiagnosticPass::Semantic,
+        file: DiagnosticFile::File {
+            path: "main.ts".to_owned(),
+        },
+        code,
+        line: present(0),
+        column: present(0),
+        category: DiagnosticCategory::Error,
+        start: present(0),
+        length: present(1),
+        chain: child_chain(text, code, DiagnosticCategory::Error),
+        related_information_present: false,
+        related: Vec::new(),
+        reports_unnecessary: OptionalBool::absent(),
+        reports_deprecated: OptionalBool::absent(),
+        source: OptionalString::absent(),
+    };
+    let assembled = AssembledDiagnostic {
+        diagnostic: diagnostic(1, &canaries.renderer_foreign_deduped.assembled_id),
+        canonical_head: CanonicalHead::absent(),
+    };
+    let foreign = AssembledDiagnostic {
+        diagnostic: diagnostic(2, &canaries.renderer_foreign_deduped.foreign_id),
+        canonical_head: CanonicalHead::absent(),
+    };
+    let foreign_deduped = CompletedOutcome {
+        diagnostics: vec![assembled.diagnostic.clone()],
+        renderer: RendererObservation {
+            assembled: vec![assembled],
+            deduped: vec![foreign.clone()],
+            segments: vec![RenderSegment {
+                diagnostic: foreign,
+                raw_text: String::new(),
+            }],
+            aggregate_text: String::new(),
+        },
+    };
+    assert!(
+        foreign_deduped.validate("foreign-deduped-canary").is_err(),
+        "a final renderer row must select an assembled diagnostic"
     );
 }
 

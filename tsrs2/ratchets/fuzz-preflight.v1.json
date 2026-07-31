@@ -64,7 +64,7 @@
     },
     {
       "path": "crates/fuzz/src/model.rs",
-      "sha256": "269756dc60e34f067ade08b858d91e68a462662026f2339d96e913e53a3a5160"
+      "sha256": "f0f5ddc1212a7222b2c69f7a1a08ee28ac4ca32298b3007982e99988514dc075"
     },
     {
       "path": "crates/fuzz/src/normalize.rs",
@@ -84,19 +84,19 @@
     },
     {
       "path": "crates/fuzz/tests/foundation_contract.rs",
-      "sha256": "382a96667b35dba6e15235799492c117cad76935d69ff0cc438a7238ed942522"
+      "sha256": "5602e9303737434b38c8328cba6fe36543f9e34f320ea6aa4b49cb6824e3007b"
     },
     {
       "path": "crates/fuzz/tests/vector_production_contract.rs",
-      "sha256": "a5a66da5585f217b21f3d319d87680049ef3f2b53c458978cc41e280ddd9396a"
+      "sha256": "358575918a7b827bd9cd0dfe402c52a519d23ca65ba006cf0aff2567cccc5c00"
     },
     {
       "path": "crates/fuzz/vectors/canonical-class.schema1.json",
-      "sha256": "c74da23a063001460aef06992960cc0b3a0681160139f5fa659d38115c843d1e"
+      "sha256": "915aeb381e09166a1f9497438b7a10c43e8c71de14078992749e19d1e7662649"
     },
     {
       "path": "crates/fuzz/vectors/verify-canonical-class.mjs",
-      "sha256": "483276d3898852ace5bdba895350ccd9640e7343222f1cff74b75658a7594263"
+      "sha256": "ae353833ddd554fb3021dfbef815212e099d3f91b3b8bb357a3ccdc031e0d1bd"
     }
   ],
   "checks": [

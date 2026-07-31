@@ -168,6 +168,13 @@ Raw diagnostic validation fixes message-chain depth at 32 and total nodes
 at 4,096 before recursive projection. Either engine adapter treats an
 over-limit tree as a typed malformed response rather than comparing a
 truncated chain.
+For each completed engine outcome, the renderer assembled sequence projects
+the structured diagnostics one-for-one in the same order and multiplicity;
+only its canonical-head sidecar is additional. Sort/dedupe/format
+observations are downstream of that join. A final row must select an
+assembled row, while its order and multiplicity remain observable. Thus
+independently supplied execution fragments cannot masquerade as one raw
+outcome.
 
 The normalized head comes from the complete T2 record before T0/T1
 projection, after versioned virtual-path, LF, and generator-identifier

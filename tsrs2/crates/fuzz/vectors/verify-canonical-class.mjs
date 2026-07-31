@@ -599,6 +599,12 @@ function validateRendererObservation(value, ids, where) {
       if (!ids.has(id)) fail(`${where}.${key}[${index}] references unknown diagnostic`);
     });
   }
+  const assembledIds = new Set(value.assembled);
+  value.deduped.forEach((id, index) => {
+    if (!assembledIds.has(id)) {
+      fail(`${where}.deduped[${index}] must select an assembled diagnostic`);
+    }
+  });
   validUnicodeString(value.aggregate_text, `${where}.aggregate_text`);
   if (!Array.isArray(value.segments)) fail(`${where}.segments must be an array`);
   if (value.segments.length !== value.deduped.length) {
@@ -1009,7 +1015,11 @@ if (fixture.schema !== 1 || !Array.isArray(fixture.vectors) || fixture.vectors.l
 }
 exactKeys(
   fixture.rejection_canaries,
-  ["terminal_boundary_ids", "normalization_cross_role_source"],
+  [
+    "terminal_boundary_ids",
+    "normalization_cross_role_source",
+    "renderer_foreign_deduped",
+  ],
   "fixture.rejection_canaries",
 );
 if (
@@ -1055,6 +1065,45 @@ try {
 }
 if (!crossRoleRejected) {
   fail("normalization cross-role ownership canary was accepted");
+}
+const foreignDeduped = fixture.rejection_canaries.renderer_foreign_deduped;
+exactKeys(
+  foreignDeduped,
+  ["assembled_id", "foreign_id"],
+  "renderer foreign-deduped rejection canary",
+);
+for (const key of ["assembled_id", "foreign_id"]) {
+  validUnicodeString(
+    foreignDeduped[key],
+    `renderer foreign-deduped rejection canary.${key}`,
+    { nonempty: true },
+  );
+}
+if (foreignDeduped.assembled_id === foreignDeduped.foreign_id) {
+  fail("renderer foreign-deduped rejection canary ids must differ");
+}
+let foreignDedupedRejected = false;
+try {
+  validateRendererObservation(
+    {
+      assembled: [foreignDeduped.assembled_id],
+      deduped: [foreignDeduped.foreign_id],
+      aggregate_text: "",
+      segments: [
+        {
+          diagnostic: foreignDeduped.foreign_id,
+          raw_text: "",
+        },
+      ],
+    },
+    new Set([foreignDeduped.assembled_id, foreignDeduped.foreign_id]),
+    "renderer foreign-deduped rejection canary",
+  );
+} catch {
+  foreignDedupedRejected = true;
+}
+if (!foreignDedupedRejected) {
+  fail("renderer foreign-deduped canary was accepted");
 }
 
 const ids = new Set();

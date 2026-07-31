@@ -6,7 +6,11 @@
       "timestamp",
       "hash"
     ],
-    "normalization_cross_role_source": "owned"
+    "normalization_cross_role_source": "owned",
+    "renderer_foreign_deduped": {
+      "assembled_id": "assembled",
+      "foreign_id": "foreign"
+    }
   },
   "vectors": [
     {
@@ -868,25 +872,7 @@
         },
         "diagnostics": [
           {
-            "id": "oracle-a",
-            "file": "main.ts",
-            "resolved_file": "/work/main.ts",
-            "start": 4,
-            "length": 2,
-            "code": 9999,
-            "top_text": "oracle wrapper",
-            "canonical_head": {
-              "code": 2322,
-              "message_text": "dedupe head"
-            },
-            "pass": "syntactic",
-            "category": "error",
-            "tail": "oracle tail",
-            "related": ["oracle related"],
-            "flags": ["reports-deprecated"]
-          },
-          {
-            "id": "tsrs-a",
+            "id": "a",
             "file": "main.ts",
             "resolved_file": "/work/main.ts",
             "start": 4,
@@ -905,27 +891,27 @@
           }
         ],
         "oracle": {
-          "assembled": ["oracle-a", "oracle-a"],
-          "deduped": ["oracle-a"],
+          "assembled": ["a", "a"],
+          "deduped": ["a"],
           "aggregate_text": "",
           "segments": [
             {
-              "diagnostic": "oracle-a",
+              "diagnostic": "a",
               "raw_text": ""
             }
           ]
         },
         "tsrs": {
-          "assembled": ["tsrs-a", "tsrs-a"],
-          "deduped": ["tsrs-a", "tsrs-a"],
+          "assembled": ["a", "a"],
+          "deduped": ["a", "a"],
           "aggregate_text": "",
           "segments": [
             {
-              "diagnostic": "tsrs-a",
+              "diagnostic": "a",
               "raw_text": ""
             },
             {
-              "diagnostic": "tsrs-a",
+              "diagnostic": "a",
               "raw_text": ""
             }
           ]

@@ -785,7 +785,7 @@ fn renderer_model_preserves_stage_defects_and_enforces_segment_boundaries() {
     let a = diagnostic(DiagnosticPass::Semantic, 1001, "a");
     let b = diagnostic(DiagnosticPass::Semantic, 1002, "b");
     let valid = completed_with_renderer(
-        vec![a.clone(), b.clone()],
+        vec![b.clone(), a.clone()],
         observation(
             &[b.clone(), a.clone()],
             &[a.clone(), b.clone()],
@@ -802,7 +802,10 @@ fn renderer_model_preserves_stage_defects_and_enforces_segment_boundaries() {
             &[("main.ts", "a\n")],
         ),
     );
-    dropped_assembled.validate("dropped").unwrap();
+    assert!(
+        dropped_assembled.validate("dropped-assembled").is_err(),
+        "the pre-sort renderer input must be the exact structured diagnostic sequence"
+    );
 
     let missing_identity = completed_with_renderer(
         vec![a.clone(), b.clone()],
@@ -833,6 +836,22 @@ fn renderer_model_preserves_stage_defects_and_enforces_segment_boundaries() {
         ),
     );
     empty_segment.validate("empty-segment").unwrap();
+
+    let mut reordered_assembled = valid.clone();
+    reordered_assembled.renderer.assembled.swap(0, 1);
+    assert!(
+        reordered_assembled.validate("reordered-assembled").is_err(),
+        "assembled provenance preserves diagnostic order and multiplicity"
+    );
+
+    let mut foreign_deduped = valid.clone();
+    let foreign = assembled(&diagnostic(DiagnosticPass::Semantic, 1003, "foreign"));
+    foreign_deduped.renderer.deduped[0] = foreign.clone();
+    foreign_deduped.renderer.segments[0].diagnostic = foreign;
+    assert!(
+        foreign_deduped.validate("foreign-deduped").is_err(),
+        "the final sequence may drop, duplicate, or reorder only assembled diagnostics"
+    );
 
     let mut bad_aggregate = valid.clone();
     bad_aggregate.renderer.aggregate_text.push('x');
@@ -1122,14 +1141,8 @@ fn diagnostic_input_permutation_does_not_change_comparison_or_class_bytes() {
     let a = diagnostic(DiagnosticPass::Semantic, 9, "\u{10000}");
     let b = diagnostic(DiagnosticPass::Semantic, 9, "\u{e000}");
     let c = diagnostic(DiagnosticPass::Semantic, 10, "ten");
-    let canonical_renderer = default_observation(&[a.clone(), b.clone(), c.clone()]);
-
-    let oracle_one = completed_with_renderer(
-        vec![c.clone(), a.clone(), b.clone()],
-        canonical_renderer.clone(),
-    );
-    let oracle_two =
-        completed_with_renderer(vec![b.clone(), c.clone(), a.clone()], canonical_renderer);
+    let oracle_one = completed(vec![c.clone(), a.clone(), b.clone()]);
+    let oracle_two = completed(vec![b.clone(), c.clone(), a.clone()]);
     let tsrs = completed(Vec::new());
     let first = compare_case(&case, &execution(oracle_one, tsrs.clone())).unwrap();
     let second = compare_case(&case, &execution(oracle_two, tsrs)).unwrap();
@@ -1437,6 +1450,8 @@ fn t4_effective_identity_handles_cross_pass_empty_and_canonical_head_cases() {
         std::slice::from_ref(&right),
         &[("main.ts", "tsrs representative\n")],
     );
+    oracle.assembled[0].canonical_head = CanonicalHead::present(9999, "canonical");
+    tsrs.assembled[1].canonical_head = CanonicalHead::present(9999, "canonical");
     for captured in oracle.deduped.iter_mut().chain(
         oracle
             .segments

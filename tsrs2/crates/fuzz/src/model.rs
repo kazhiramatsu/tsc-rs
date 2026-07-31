@@ -1,5 +1,7 @@
 //! Typed diagnostic, renderer, engine, and producer outcomes.
 
+use std::collections::BTreeSet;
+
 use serde::{Deserialize, Serialize};
 
 use crate::schema::{sha256_hex, validate_public_file_name, CaseSpec, ValidatedCaseContext};
@@ -509,6 +511,14 @@ impl RendererObservation {
         for (index, key) in self.deduped.iter().enumerate() {
             key.validate(&format!("{context}.deduped[{index}]"))?;
         }
+        let assembled = self.assembled.iter().collect::<BTreeSet<_>>();
+        for (index, diagnostic) in self.deduped.iter().enumerate() {
+            if !assembled.contains(diagnostic) {
+                return Err(FoundationError::new(format!(
+                    "{context}.deduped[{index}] must select a diagnostic from assembled"
+                )));
+            }
+        }
         if self.deduped.len() != self.segments.len() {
             return Err(FoundationError::new(format!(
                 "{context}.segments length must equal deduped length"
@@ -569,7 +579,25 @@ impl CompletedOutcome {
         for (index, diagnostic) in self.diagnostics.iter().enumerate() {
             diagnostic.validate(&format!("{context}.diagnostics[{index}]"))?;
         }
-        self.renderer.validate(&format!("{context}.renderer"))
+        self.renderer.validate(&format!("{context}.renderer"))?;
+        if self.diagnostics.len() != self.renderer.assembled.len() {
+            return Err(FoundationError::new(format!(
+                "{context}.renderer.assembled must preserve the complete diagnostics sequence"
+            )));
+        }
+        for (index, (diagnostic, assembled)) in self
+            .diagnostics
+            .iter()
+            .zip(&self.renderer.assembled)
+            .enumerate()
+        {
+            if diagnostic != &assembled.diagnostic {
+                return Err(FoundationError::new(format!(
+                    "{context}.renderer.assembled[{index}].diagnostic must equal diagnostics[{index}]"
+                )));
+            }
+        }
+        Ok(())
     }
 
     pub fn validate_for_case(&self, case: &CaseSpec, context: &str) -> FoundationResult<()> {
