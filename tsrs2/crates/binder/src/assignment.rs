@@ -6,8 +6,8 @@
 
 use crate::node_util::{
     id_text, is_entity_name_expression, is_left_hand_side_expression,
-    is_string_or_numeric_literal_like, kind_of, literal_text_of, node_flags, parent_of,
-    skip_parentheses_pub,
+    is_string_or_numeric_literal_like, kind_of, literal_text_of, name_field_of, node_flags,
+    parent_of, skip_parentheses_pub,
 };
 use crate::symbols::escape_leading_underscores;
 use tsrs2_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
@@ -388,6 +388,45 @@ pub fn get_initializer_of_binary_expression(source: &SourceFile, mut expr: NodeI
 pub fn is_prototype_access(source: &SourceFile, node: NodeId) -> bool {
     is_bindable_static_access_expression(source, node, false)
         && get_element_or_property_access_name(source, node).as_deref() == Some("prototype")
+}
+
+/// tsc-port: getEffectiveInitializer/getDeclaredExpandoInitializer @6.0.3
+/// tsc-hash: eca11ccf0f981170a15e543924cf9f73ada6af69a51a889bd5845460204a2db9
+/// tsc-span: _tsc.js:14967-14976
+pub fn get_declared_expando_initializer(source: &SourceFile, node: NodeId) -> Option<NodeId> {
+    let initializer = match &source.arena.node(node).data {
+        NodeData::VariableDeclaration(data) => data.initializer,
+        NodeData::Parameter(data) => data.initializer,
+        NodeData::BindingElement(data) => data.initializer,
+        NodeData::PropertyDeclaration(data) => data.initializer,
+        NodeData::PropertyAssignment(data) => data.initializer,
+        NodeData::EnumMember(data) => data.initializer,
+        _ => None,
+    }?;
+    let effective = if node_flags(source, source.root).intersects(NodeFlags::JAVA_SCRIPT_FILE) {
+        match &source.arena.node(initializer).data {
+            NodeData::BinaryExpression(data)
+                if data.operator_token.is_some_and(|token| {
+                    matches!(
+                        kind_of(source, token),
+                        SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
+                    )
+                }) && name_field_of(source, node).is_some_and(|name| {
+                    is_entity_name_expression(source, name)
+                        && data
+                            .left
+                            .is_some_and(|left| is_same_entity_name(source, name, left))
+                }) =>
+            {
+                data.right?
+            }
+            _ => initializer,
+        }
+    } else {
+        initializer
+    };
+    let name = name_field_of(source, node)?;
+    get_expando_initializer(source, effective, is_prototype_access(source, name))
 }
 
 /// tsc getAssignedExpandoInitializer / getExpandoInitializer family.

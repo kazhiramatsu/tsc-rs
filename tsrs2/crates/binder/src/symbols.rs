@@ -40,6 +40,10 @@ pub struct Symbol {
     pub export_symbol: Option<SymbolId>,
     pub const_enum_only_module: Option<bool>,
     pub is_replaceable_by_method: bool,
+    /// tsc Symbol.assignmentDeclarationMembers: dynamically named JS
+    /// assignments are late-bound when the containing symbol's
+    /// members/exports are resolved.
+    pub assignment_declaration_members: IndexMap<NodeId, NodeId>,
 }
 
 impl Symbol {
@@ -56,6 +60,7 @@ impl Symbol {
             export_symbol: None,
             const_enum_only_module: None,
             is_replaceable_by_method: false,
+            assignment_declaration_members: IndexMap::new(),
         }
     }
 }

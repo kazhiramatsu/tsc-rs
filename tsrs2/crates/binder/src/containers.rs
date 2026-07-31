@@ -8,9 +8,11 @@ use crate::flow::FlowPayload;
 use crate::node_util::{
     asterisk_token_of, body_of, get_combined_modifier_flags,
     get_immediately_invoked_function_expression, get_syntactic_modifier_flags,
-    has_syntactic_modifier, is_ambient_module, is_function_like_kind,
-    is_module_augmentation_external, is_object_literal_or_class_expression_method_or_accessor,
-    kind_of, node_is_missing, parent_of, statements_of, try_parse_pattern, ParsedPattern,
+    has_syntactic_modifier, is_ambient_module, is_declaration, is_function_like_kind,
+    is_jsdoc_type_alias, is_module_augmentation_external,
+    is_object_literal_or_class_expression_method_or_accessor,
+    is_property_access_entity_name_expression, jsdoc_full_name, kind_of, node_is_missing,
+    parent_of, statements_of, try_parse_pattern, ParsedPattern,
 };
 use crate::symbols::{SymbolId, SymbolTable};
 use std::collections::HashMap;
@@ -67,8 +69,6 @@ impl ModuleInstanceState {
 /// tsc-hash: 762f60f62494f6fa1a80f5b3464b7c4bc552f5cda69ebddff47c8847eaed9a81
 /// tsc-span: _tsc.js:45143-45201
 ///
-/// JSDocTypeLiteral/JSDocSignature/JSDocImportTag await full JSDoc
-/// comment parsing; source-text JSDocFunctionType is live.
 pub fn get_container_flags(source: &SourceFile, node: NodeId) -> ContainerFlags {
     match kind_of(source, node) {
         SyntaxKind::ClassExpression
@@ -76,6 +76,7 @@ pub fn get_container_flags(source: &SourceFile, node: NodeId) -> ContainerFlags 
         | SyntaxKind::EnumDeclaration
         | SyntaxKind::ObjectLiteralExpression
         | SyntaxKind::TypeLiteral
+        | SyntaxKind::JSDocTypeLiteral
         | SyntaxKind::JsxAttributes => ContainerFlags::IS_CONTAINER,
         SyntaxKind::InterfaceDeclaration => {
             ContainerFlags::IS_CONTAINER | ContainerFlags::IS_INTERFACE
@@ -112,6 +113,7 @@ pub fn get_container_flags(source: &SourceFile, node: NodeId) -> ContainerFlags 
         SyntaxKind::MethodSignature
         | SyntaxKind::CallSignature
         | SyntaxKind::JSDocFunctionType
+        | SyntaxKind::JSDocSignature
         | SyntaxKind::FunctionType
         | SyntaxKind::ConstructSignature
         | SyntaxKind::ConstructorType => {
@@ -119,6 +121,12 @@ pub fn get_container_flags(source: &SourceFile, node: NodeId) -> ContainerFlags 
                 | ContainerFlags::IS_CONTROL_FLOW_CONTAINER
                 | ContainerFlags::HAS_LOCALS
                 | ContainerFlags::IS_FUNCTION_LIKE
+                | ContainerFlags::PROPAGATES_THIS_KEYWORD
+        }
+        SyntaxKind::JSDocImportTag => {
+            ContainerFlags::IS_CONTAINER
+                | ContainerFlags::IS_CONTROL_FLOW_CONTAINER
+                | ContainerFlags::HAS_LOCALS
                 | ContainerFlags::PROPAGATES_THIS_KEYWORD
         }
         SyntaxKind::FunctionExpression => {
@@ -374,7 +382,6 @@ impl<'a> Binder<'a> {
     /// tsc-hash: 1d49674ad7f6ff204b4de21213eba7d9990c9ce5574e6cef7e4b1e9dcc0edeb1
     /// tsc-span: _tsc.js:43835-43884
     ///
-    /// JSDoc container kinds await JSDoc parsing.
     pub fn declare_symbol_and_add_to_symbol_table(
         &mut self,
         node: NodeId,
@@ -405,6 +412,7 @@ impl<'a> Binder<'a> {
                 ))
             }
             SyntaxKind::TypeLiteral
+            | SyntaxKind::JSDocTypeLiteral
             | SyntaxKind::ObjectLiteralExpression
             | SyntaxKind::InterfaceDeclaration
             | SyntaxKind::JsxAttributes => {
@@ -421,6 +429,7 @@ impl<'a> Binder<'a> {
             }
             SyntaxKind::FunctionType
             | SyntaxKind::JSDocFunctionType
+            | SyntaxKind::JSDocSignature
             | SyntaxKind::ConstructorType
             | SyntaxKind::CallSignature
             | SyntaxKind::ConstructSignature
@@ -506,8 +515,6 @@ impl<'a> Binder<'a> {
     /// tsc-hash: 321dca7a35fea34529abd83898fd2920715b40d72de2e003dad0b0ae21731ed9
     /// tsc-span: _tsc.js:42675-42733
     ///
-    /// JS-only: jsdocTreatAsExported awaits JSDoc parsing (always false
-    /// here).
     pub fn declare_module_member(
         &mut self,
         node: NodeId,
@@ -515,8 +522,9 @@ impl<'a> Binder<'a> {
         symbol_excludes: SymbolFlags,
     ) -> SymbolId {
         let container = self.container.expect("module member outside container");
-        let has_export_modifier =
-            get_combined_modifier_flags(self.source, node).intersects(ModifierFlags::EXPORT);
+        let has_export_modifier = get_combined_modifier_flags(self.source, node)
+            .intersects(ModifierFlags::EXPORT)
+            || self.jsdoc_treat_as_exported(node);
         if symbol_flags.intersects(SymbolFlags::ALIAS) {
             if kind_of(self.source, node) == SyntaxKind::ExportSpecifier
                 || kind_of(self.source, node) == SyntaxKind::ImportEqualsDeclaration
@@ -603,6 +611,37 @@ impl<'a> Binder<'a> {
                 false,
             )
         }
+    }
+
+    /// The JSDoc-only export routing tail of declareModuleMember.
+    fn jsdoc_treat_as_exported(&self, mut node: NodeId) -> bool {
+        if parent_of(self.source, node).is_some()
+            && kind_of(self.source, node) == SyntaxKind::ModuleDeclaration
+        {
+            node = parent_of(self.source, node).expect("checked parent");
+        }
+        if !is_jsdoc_type_alias(self.source, node) {
+            return false;
+        }
+        if kind_of(self.source, node) != SyntaxKind::JSDocEnumTag
+            && jsdoc_full_name(self.source, node).is_some()
+        {
+            return true;
+        }
+        let Some(decl_name) = crate::node_util::get_name_of_declaration(self.source, node) else {
+            return false;
+        };
+        let Some(decl_parent) = parent_of(self.source, decl_name) else {
+            return false;
+        };
+        if is_property_access_entity_name_expression(self.source, decl_parent)
+            && self.is_top_level_namespace_assignment(decl_parent)
+        {
+            return true;
+        }
+        is_declaration(self.source, decl_parent)
+            && get_combined_modifier_flags(self.source, decl_parent)
+                .intersects(ModifierFlags::EXPORT)
     }
 
     /// tsc-port: hasExportDeclarations @6.0.3
@@ -859,9 +898,10 @@ fn get_module_instance_state_worker(
             return get_module_instance_state(source, node, visited);
         }
         NodeData::Identifier(_) => {
-            // JS-only: IdentifierIsInJSDocNamespace (bit 4096 on an
-            // Identifier) — never set while JSDoc parsing is unported.
-            if crate::node_util::node_flags(source, node).intersects(NodeFlags::from_bits(4096)) {
+            // JSDoc namespace leaves are type-only.
+            if crate::node_util::node_flags(source, node)
+                .intersects(NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE)
+            {
                 return ModuleInstanceState::NonInstantiated;
             }
         }

@@ -19,7 +19,7 @@ use tsrs2_diags::gen as diagnostics;
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{ModifierFlags, NodeFlags, SymbolFlags};
 
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState};
 
 /// tsc EvaluatorResult.value: string | number | undefined (pseudo
 /// bigints never flow — the evaluator has no bigint arms).
@@ -87,7 +87,7 @@ impl<'a> CheckerState<'a> {
     /// tsc sets the EnumValuesComputed flag up front and writes each
     /// member's links entry as the loop advances — same-enum backward
     /// references re-enter through getEnumMemberValue, see the flag,
-    /// and read the already-written slot. On Unsupported unwind the
+    /// and read the already-written slot. On CheckAbort unwind the
     /// flag REVERTS (tsc cannot fail here) so a later query recomputes;
     /// already-written member slots are reused, not rewritten.
     fn compute_enum_member_values(&mut self, node: NodeId) -> CheckResult2<()> {
@@ -682,8 +682,7 @@ impl<'a> CheckerState<'a> {
     /// Evaluator slice. The cross-file arm reduces to `true`: the
     /// moduleKind conjunct needs an externalModuleIndicator either way
     /// and `!compilerOptions.outFile` is always true (outFile
-    /// unmodeled), so the tsc disjunction short-circuits. The JSDoc
-    /// usage-flag test is elided (no JSDoc nodes parse). All
+    /// unmodeled), so the tsc disjunction short-circuits. All
     /// declaration arms are live since 5.7b (2729 band).
     pub(crate) fn is_block_scoped_name_declared_before_use(
         &mut self,
@@ -693,7 +692,10 @@ impl<'a> CheckerState<'a> {
         if self.binder.file_index_of_node(declaration) != self.binder.file_index_of_node(usage) {
             return Ok(true);
         }
-        if self.is_in_type_query(usage) || self.is_in_ambient_or_type_node(usage) {
+        if self.node_flags(usage) & tsrs2_types::NodeFlags::JS_DOC.bits() != 0
+            || self.is_in_type_query(usage)
+            || self.is_in_ambient_or_type_node(usage)
+        {
             return Ok(true);
         }
         let declaration_pos = self.pos_of(declaration);
@@ -711,17 +713,16 @@ impl<'a> CheckerState<'a> {
                         return Ok(error_binding_element != declaration
                             || self.pos_of(declaration) < self.pos_of(error_binding_element));
                     }
-                    let variable_declaration = self
-                        .get_ancestor_of_kind_inclusive(
-                            declaration,
-                            SyntaxKind::VariableDeclaration,
-                        )
-                        .ok_or_else(|| {
-                            Unsupported::new(
-                                "binding element outside a variable declaration \
-                                 (parse recovery)",
-                            )
-                        })?;
+                    let Some(variable_declaration) = self.get_ancestor_of_kind_inclusive(
+                        declaration,
+                        SyntaxKind::VariableDeclaration,
+                    ) else {
+                        // Binder-created binding elements always belong to a
+                        // declaration. A detached recovery element cannot
+                        // establish a temporal-dead-zone relation, so use
+                        // tsc's legal/no-diagnostic tail.
+                        return Ok(true);
+                    };
                     self.is_block_scoped_name_declared_before_use(variable_declaration, usage)
                 }
                 SyntaxKind::VariableDeclaration => Ok(!self
@@ -1397,6 +1398,23 @@ impl<'a> CheckerState<'a> {
         node
     }
 
+    /// tsc-port: skipParentheses/excludeJSDocTypeAssertions @6.0.3
+    /// tsc-hash: 57477e009374b3ffadffee5b4db7695a3c33fc1710ed92ce3c06ab51d147e7f3
+    /// tsc-span: _tsc.js:15661-15664
+    pub(crate) fn skip_parentheses_excluding_jsdoc_type_assertions(&self, node: NodeId) -> NodeId {
+        let mut node = node;
+        while let NodeData::ParenthesizedExpression(data) = self.data_of(node) {
+            if node_util::is_jsdoc_type_assertion(self.binder.source_of_node(node), node) {
+                break;
+            }
+            match data.expression {
+                Some(expression) => node = expression,
+                None => break,
+            }
+        }
+        node
+    }
+
     /// tsc-port: isComputedNonLiteralName @6.0.3
     /// tsc-hash: 3d7ec42dcf0260b3223c227752413c3bb90ef31f7e40edbbf523205e2cde53ea
     /// tsc-span: _tsc.js:13860-13862
@@ -1412,30 +1430,58 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsc-port: tryGetTextOfPropertyName @6.0.3
+    /// tsc-hash: 775dd95b7a0f4d64b4b910bb31e7dd9bdcddd1c473bf9b913b2b2adbe4afd0c2
+    /// tsc-span: _tsc.js:13863-13882
+    pub(crate) fn try_get_text_of_property_name(&self, name: NodeId) -> Option<String> {
+        let source = self.binder.source_of_node(name);
+        match self.data_of(name) {
+            // emitNode.autoGenerate is not represented in the parsed
+            // arena; parsed identifiers/private identifiers therefore
+            // take the escapedText arm directly.
+            NodeData::Identifier(data) => Some(data.escaped_text.clone()),
+            NodeData::PrivateIdentifier(data) => Some(data.escaped_text.clone()),
+            NodeData::StringLiteral(data) => {
+                Some(tsrs2_binder::escape_leading_underscores(&data.text))
+            }
+            NodeData::NumericLiteral(data) => {
+                Some(tsrs2_binder::escape_leading_underscores(&data.text))
+            }
+            NodeData::BigIntLiteral(data) => {
+                Some(tsrs2_binder::escape_leading_underscores(&data.text))
+            }
+            NodeData::NoSubstitutionTemplateLiteral(data) => {
+                Some(tsrs2_binder::escape_leading_underscores(&data.text))
+            }
+            NodeData::ComputedPropertyName(data) => {
+                let expression = data.expression?;
+                match self.data_of(expression) {
+                    NodeData::StringLiteral(data) => {
+                        Some(tsrs2_binder::escape_leading_underscores(&data.text))
+                    }
+                    NodeData::NumericLiteral(data) => {
+                        Some(tsrs2_binder::escape_leading_underscores(&data.text))
+                    }
+                    NodeData::NoSubstitutionTemplateLiteral(data) => {
+                        Some(tsrs2_binder::escape_leading_underscores(&data.text))
+                    }
+                    _ => None,
+                }
+            }
+            NodeData::JsxNamespacedName(_) => {
+                node_util::get_escaped_text_of_jsx_namespaced_name(source, name)
+            }
+            _ => None,
+        }
+    }
+
     /// tsc-port: getTextOfPropertyName @6.0.3
     /// tsc-hash: b6a070f28394bc21fdf62f528c96dee4a10060472d748602fd0bba75be70e0cd
     /// tsc-span: _tsc.js:13883-13885
-    ///
-    /// Enum grammar/value validation guards the literal-name path.
-    /// Dynamic computed names and non-text declaration shapes reach
-    /// later semantic name inference, so their remaining containment
-    /// belongs to M8's semantic tail rather than an M7 owner family.
     pub(crate) fn get_text_of_property_name(&self, name: NodeId) -> CheckResult2<String> {
-        let source = self.binder.source_of_node(name);
-        if let NodeData::ComputedPropertyName(data) = self.data_of(name) {
-            let expression = data
-                .expression
-                .expect("parser invariant: ComputedPropertyName expression always parsed");
-            return node_util::get_escaped_text_of_identifier_or_literal(source, expression)
-                .ok_or_else(|| {
-                    Unsupported::new(
-                        "non-literal computed property name text (M8 semantic-tail owner)",
-                    )
-                });
-        }
-        node_util::get_escaped_text_of_identifier_or_literal(source, name).ok_or_else(|| {
-            Unsupported::new("property name shape without literal text (M8 semantic-tail owner)")
-        })
+        Ok(self
+            .try_get_text_of_property_name(name)
+            .expect("getTextOfPropertyName requires a textual property name"))
     }
 
     /// tsc-port: isEnumConst @6.0.3

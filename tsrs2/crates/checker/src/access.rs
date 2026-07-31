@@ -20,7 +20,7 @@ use tsrs2_types::{
     TypeFlags, TypeId, UnionReduction,
 };
 
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState, SignatureId};
 
 impl<'a> CheckerState<'a> {
     /// tsc-port: entityNameToString @6.0.3
@@ -30,8 +30,7 @@ impl<'a> CheckerState<'a> {
     /// The identifier arm renders SOURCE TEXT (escapes as written) for
     /// parsed nodes; the property-access recursion drops `?.` — which
     /// is why `x?.a`'s 18047 message says 'x.a' while the span covers
-    /// the `?.` (oracle-pinned). JSDocMemberName/JsxNamespacedName
-    /// arms escape (JSDoc unmodeled / JSX 5.5f).
+    /// the `?.` (oracle-pinned).
     pub(crate) fn entity_name_to_string(&self, node: NodeId) -> CheckResult2<String> {
         match self.kind_of(node) {
             SyntaxKind::ThisKeyword => Ok("this".to_owned()),
@@ -54,31 +53,80 @@ impl<'a> CheckerState<'a> {
                 let NodeData::QualifiedName(data) = self.data_of(node) else {
                     unreachable!("kind/data agree");
                 };
-                let (Some(left), Some(right)) = (data.left, data.right) else {
-                    return Err(Unsupported::new("entityNameToString on recovery node"));
+                // A parsed missing identifier is a zero-width node whose
+                // `idText` is empty. Checker-synthetic recovery nodes can
+                // instead omit either slot, so mirror the same observable
+                // spelling without turning the whole source file into an
+                // checker abort.
+                let left = data
+                    .left
+                    .map(|left| self.entity_name_to_string(left))
+                    .transpose()?
+                    .unwrap_or_default();
+                let right = data
+                    .right
+                    .map(|right| self.entity_name_to_string(right))
+                    .transpose()?
+                    .unwrap_or_default();
+                Ok(format!("{left}.{right}"))
+            }
+            SyntaxKind::JsxNamespacedName => {
+                let NodeData::JsxNamespacedName(data) = self.data_of(node) else {
+                    unreachable!("kind/data agree");
                 };
-                Ok(format!(
-                    "{}.{}",
-                    self.entity_name_to_string(left)?,
-                    self.entity_name_to_string(right)?
-                ))
+                // createJsxNamespacedName's children are required in tsc, but
+                // parser-recovery/synthetic nodes can reach the checker with
+                // either side absent.  Missing identifiers have empty idText,
+                // so preserve the separator and whichever side is present.
+                let namespace = data
+                    .namespace
+                    .map(|namespace| self.entity_name_to_string(namespace))
+                    .transpose()?
+                    .unwrap_or_default();
+                let name = data
+                    .name
+                    .map(|name| self.entity_name_to_string(name))
+                    .transpose()?
+                    .unwrap_or_default();
+                Ok(format!("{}:{}", namespace, name))
             }
             SyntaxKind::PropertyAccessExpression => {
                 let NodeData::PropertyAccessExpression(data) = self.data_of(node) else {
                     unreachable!("kind/data agree");
                 };
-                let (Some(expression), Some(name)) = (data.expression, data.name) else {
-                    return Err(Unsupported::new("entityNameToString on recovery node"));
+                let expression = data
+                    .expression
+                    .map(|expression| self.entity_name_to_string(expression))
+                    .transpose()?
+                    .unwrap_or_default();
+                let name = data
+                    .name
+                    .map(|name| self.entity_name_to_string(name))
+                    .transpose()?
+                    .unwrap_or_default();
+                Ok(format!("{expression}.{name}"))
+            }
+            SyntaxKind::JSDocMemberName => {
+                let NodeData::JSDocMemberName(data) = self.data_of(node) else {
+                    unreachable!("kind/data agree");
                 };
+                let left = data
+                    .left
+                    .expect("parser invariant: JSDocMemberName has a left name");
+                let right = data
+                    .right
+                    .expect("parser invariant: JSDocMemberName has a right name");
                 Ok(format!(
-                    "{}.{}",
-                    self.entity_name_to_string(expression)?,
-                    self.entity_name_to_string(name)?
+                    "{}#{}",
+                    self.entity_name_to_string(left)?,
+                    self.entity_name_to_string(right)?
                 ))
             }
-            _ => Err(Unsupported::new(
-                "entityNameToString beyond entity kinds (JSDoc/JSX, M8)",
-            )),
+            // tsc's default is Debug.assertNever.  For a recovery or
+            // checker-synthetic node, getTextOfNode is the information-
+            // preserving rendering and agrees with the entity arms for
+            // source-backed identifiers.
+            _ => self.text_of_node(node),
         }
     }
 
@@ -264,10 +312,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkNonNullTypeWithReporter @6.0.3
     /// tsc-hash: 0754bf4b1a28b608ede342e0351520d32e9eb7561e782250fc9311d73108f497
     /// tsc-span: _tsc.js:75028-75050
-    ///
-    /// The Invoke reporter flavor (2721/2722/2723) is the [CALLS 5.7]
-    /// consumer — the reporter parameter keeps its seam. (The
-    /// [FLOW M5] narrowable-receiver gates retired at 6.6f.)
     pub(crate) fn check_non_null_type_with_reporter(
         &mut self,
         ty: TypeId,
@@ -278,26 +322,14 @@ impl<'a> CheckerState<'a> {
             .options
             .strict_option_value(self.options.strict_null_checks);
         if strict_null_checks && self.tables.flags_of(ty).intersects(TypeFlags::UNKNOWN) {
-            // 6.6f: syntax-probe gate → flag-exact containment.
-            if self.flow_answer_is_seam_reverted(node) {
-                return Err(Unsupported::new(
-                    "unknown-receiver report over a seam-reverted flow answer \
-                     (unported narrowing dependency, M6/M8 seam)",
-                ));
-            }
-            let expose_jsdoc_unknown = self.should_publish_jsdoc_unknown_receiver(node)?;
             if self.is_entity_name_expression(node) {
                 let node_text = self.entity_name_to_string(node)?;
                 if node_text.encode_utf16().count() < 100 {
-                    let diagnostics_before = self.diagnostics.len();
                     self.error_at(
                         Some(node),
                         &tsrs2_diags::gen::_0_is_of_type_unknown,
                         &[&node_text],
                     );
-                    if expose_jsdoc_unknown {
-                        self.mark_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 18046);
-                    }
                     return Ok(self.tables.intrinsics.error);
                 }
             }
@@ -310,29 +342,7 @@ impl<'a> CheckerState<'a> {
         }
         let facts = self.get_type_facts(ty, TypeFacts::IS_UNDEFINED_OR_NULL)?;
         if facts.intersects(TypeFacts::IS_UNDEFINED_OR_NULL) {
-            // 6.6f: syntax-probe gate → flag-exact containment.
-            if self.flow_answer_is_seam_reverted(node) {
-                return Err(Unsupported::new(
-                    "nullable-receiver report over a seam-reverted flow answer \
-                     (unported narrowing dependency, M6/M8 seam)",
-                ));
-            }
-            let expose_non_jsdoc_js = self.is_non_jsdoc_js_expression_type(node, ty);
-            let expose_jsdoc_undefined = facts.intersects(TypeFacts::IS_UNDEFINED)
-                && !facts.intersects(TypeFacts::IS_NULL)
-                && self.should_publish_jsdoc_undefined_receiver(node)?;
-            let diagnostics_before = self.diagnostics.len();
             report_error(self, node, facts)?;
-            if expose_non_jsdoc_js {
-                self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
-            } else if expose_jsdoc_undefined {
-                // M8-P03: this is the exact checked-JS JSDoc
-                // parameter/required-module undefined-only face of
-                // the already-ported nullable-receiver producer.
-                // Other JSDoc nullable categories retain their own
-                // owner boundary.
-                self.mark_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 18048);
-            }
             let t = self.get_non_nullable_type(ty)?;
             return Ok(
                 if self
@@ -347,113 +357,6 @@ impl<'a> CheckerState<'a> {
             );
         }
         Ok(ty)
-    }
-
-    /// M8-P04 publication boundary for explicit checked-JS catch
-    /// variable `@type {unknown}` annotations. Unannotated catch
-    /// variables selected by `useUnknownInCatchVariables` and other
-    /// incomplete JSDoc inference paths remain outside this owner.
-    fn should_publish_jsdoc_unknown_receiver(&mut self, node: NodeId) -> CheckResult2<bool> {
-        if !self.is_in_js_file(node) {
-            return Ok(false);
-        }
-        let mut root = node;
-        while let NodeData::ParenthesizedExpression(data) = self.data_of(root) {
-            let Some(expression) = data.expression else {
-                return Ok(false);
-            };
-            root = expression;
-        }
-        if self.kind_of(root) != SyntaxKind::Identifier {
-            return Ok(false);
-        }
-        let Some(symbol) = self.get_resolved_symbol(root)? else {
-            return Ok(false);
-        };
-        let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
-            return Ok(false);
-        };
-        let source = self.binder.source_of_node(declaration);
-        let root_declaration = node_util::get_root_declaration(source, declaration);
-        Ok(self
-            .parent_of(root_declaration)
-            .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::CatchClause)
-            && self.jsdoc_typed_declarations.contains(&root_declaration))
-    }
-
-    /// M8-P03 publication boundary for the supported JSDoc flow
-    /// owner. The nullable reporter is shared by many incomplete
-    /// checked-JS inference paths, so syntax alone is not sufficient:
-    /// publish only receivers rooted in a typed JSDoc parameter, plus
-    /// the CommonJS namespace-property face reached through a direct
-    /// `require(...)` variable.
-    fn should_publish_jsdoc_undefined_receiver(&mut self, node: NodeId) -> CheckResult2<bool> {
-        if !self.is_in_js_file(node) {
-            return Ok(false);
-        }
-
-        let mut root = node;
-        loop {
-            root = match self.data_of(root) {
-                NodeData::PropertyAccessExpression(data) => match data.expression {
-                    Some(expression) => expression,
-                    None => break,
-                },
-                NodeData::ParenthesizedExpression(data) => match data.expression {
-                    Some(expression) => expression,
-                    None => break,
-                },
-                _ => break,
-            };
-        }
-        if self.kind_of(root) != SyntaxKind::Identifier {
-            return Ok(false);
-        }
-        let Some(symbol) = self.get_resolved_symbol(root)? else {
-            return Ok(false);
-        };
-        // A checked-JS `require` variable is an alias. Once its use is
-        // checked, resolved_symbol points at the target module symbol,
-        // which has no value declaration; retain the local alias
-        // declaration as the provenance source.
-        let local_alias_declaration = self.identifier_text_of(root).and_then(|name| {
-            let source_root = self.binder.source_of_node(root).root;
-            self.binder
-                .locals_of(source_root)
-                .and_then(|locals| locals.get(name))
-                .and_then(|&local| {
-                    let local = self.binder.symbol(local);
-                    local
-                        .value_declaration
-                        .or_else(|| local.declarations.first().copied())
-                })
-        });
-        let Some(declaration) = self
-            .binder
-            .symbol(symbol)
-            .value_declaration
-            .or(local_alias_declaration)
-        else {
-            return Ok(false);
-        };
-        let source = self.binder.source_of_node(declaration);
-        let root_declaration = node_util::get_root_declaration(source, declaration);
-        if self.kind_of(root_declaration) == SyntaxKind::Parameter
-            && self.has_jsdoc_parameter_type_annotation(root_declaration)
-        {
-            return Ok(true);
-        }
-
-        if self.kind_of(node) != SyntaxKind::PropertyAccessExpression
-            || self.kind_of(declaration) != SyntaxKind::VariableDeclaration
-        {
-            return Ok(false);
-        }
-        let initializer = match self.data_of(declaration) {
-            NodeData::VariableDeclaration(data) => data.initializer,
-            _ => None,
-        };
-        Ok(initializer.is_some_and(|initializer| self.is_require_call(initializer, true)))
     }
 
     /// tsc-port: checkNonNullType @6.0.3
@@ -486,13 +389,6 @@ impl<'a> CheckerState<'a> {
             .flags_of(non_null_type)
             .intersects(TypeFlags::VOID)
         {
-            // 6.6f: syntax-probe gate → flag-exact containment.
-            if self.flow_answer_is_seam_reverted(node) {
-                return Err(Unsupported::new(
-                    "void-receiver report over a seam-reverted flow answer \
-                     (unported narrowing dependency, M6/M8 seam)",
-                ));
-            }
             if self.is_entity_name_expression(node) {
                 let node_text = self.entity_name_to_string(node)?;
                 if self.kind_of(node) == SyntaxKind::Identifier && node_text == "undefined" {
@@ -525,9 +421,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b3748b887956c0833de220ae247af85d956add778ef31dd09c491063e8aaf39b
     /// tsc-span: _tsc.js:75022-75027
     ///
-    /// The Invoke reporter flavor (resolveCallExpression 77002) — the
-    /// flag-exact seam containment (6.6f, ex-[FLOW M5] gate) rides in
-    /// check_non_null_type_with_reporter unchanged.
+    /// Invoke diagnostics reuse the reporter parameter of
+    /// check_non_null_type_with_reporter.
     pub(crate) fn report_cannot_invoke_possibly_null_or_undefined_error(
         &mut self,
         node: NodeId,
@@ -985,9 +880,27 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 23e17175464d30e2bc154426a18df24b8c5ee1319551ad5bced0feff6ebcde79
     /// tsc-span: _tsc.js:12049-12058
     ///
-    /// The isInJSFile expando arm is [JSDOC]-gated (plain-JS band);
-    /// TS files take the class-parent property-declaration test.
     fn is_class_instance_property(&self, node: NodeId) -> bool {
+        let source = self.binder.source_of_node(node);
+        if self.is_in_js_file(node)
+            && matches!(
+                self.kind_of(node),
+                SyntaxKind::PropertyAccessExpression
+                    | SyntaxKind::ElementAccessExpression
+                    | SyntaxKind::BinaryExpression
+            )
+        {
+            let bindable_static_access =
+                tsrs2_binder::assignment::is_bindable_static_access_expression(source, node, false);
+            let prototype_access = tsrs2_binder::assignment::access_expression_of(source, node)
+                .is_some_and(|expression| {
+                    tsrs2_binder::assignment::is_prototype_access(source, expression)
+                });
+            return (!bindable_static_access || !prototype_access)
+                && !tsrs2_binder::assignment::is_bindable_static_name_expression(
+                    source, node, true,
+                );
+        }
         let Some(parent) = self.parent_of(node) else {
             return false;
         };
@@ -1132,7 +1045,11 @@ impl<'a> CheckerState<'a> {
             unreachable!("kind/data agree");
         };
         let Some(expression) = data.expression else {
-            return Err(Unsupported::new("NonNullExpression recovery node"));
+            // Parsed non-null expressions always carry an operand (a
+            // missing expression is represented by a zero-width node).
+            // Checker-synthetic recovery shapes can omit it; their
+            // deterministic semantic value is errorType.
+            return Ok(self.tables.intrinsics.error);
         };
         let source = self.binder.source_of_node(node);
         if node_util::node_flags(source, node).intersects(NodeFlags::OPTIONAL_CHAIN) {
@@ -1148,6 +1065,182 @@ impl<'a> CheckerState<'a> {
         }
         let ty = self.check_expression(expression, CheckMode::NORMAL)?;
         self.get_non_nullable_type(ty)
+    }
+}
+
+#[cfg(test)]
+mod c0_entity_name_recovery_tests {
+    use tsrs2_binder::bind_source_file;
+    use tsrs2_syntax::nodes::{
+        ElementAccessExpressionData, EmptyStatementData, JsxNamespacedNameData,
+        NonNullExpressionData, PropertyAccessExpressionData, QualifiedNameData,
+    };
+    use tsrs2_syntax::{parse_source_file, LanguageVariant, NodeData, ParseOptions, SyntaxKind};
+    use tsrs2_types::{CheckMode, CompilerOptions, NodeFlags};
+
+    use crate::state::CheckerState;
+
+    #[test]
+    fn recovered_entity_names_keep_source_text_and_valid_siblings_keep_entity_rendering() {
+        let mut source = parse_source_file(
+            "entity-recovery.ts".to_owned(),
+            "alpha".to_owned(),
+            ParseOptions {
+                language_variant: LanguageVariant::Standard,
+                javascript_file: false,
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        assert!(source.parse_diagnostics.is_empty());
+        let identifier = source
+            .arena
+            .node_ids()
+            .find(|&node| source.arena.node(node).kind == SyntaxKind::Identifier)
+            .expect("valid identifier sibling");
+        let missing_jsx_name = source.arena.alloc_node(
+            NodeData::JsxNamespacedName(JsxNamespacedNameData {
+                namespace: Some(identifier),
+                name: None,
+            }),
+            0,
+            5,
+            NodeFlags::NONE,
+        );
+        let non_entity = source.arena.alloc_node(
+            NodeData::EmptyStatement(EmptyStatementData {}),
+            0,
+            5,
+            NodeFlags::NONE,
+        );
+        let missing_qualified_name = source.arena.alloc_node(
+            NodeData::QualifiedName(QualifiedNameData {
+                left: Some(identifier),
+                right: None,
+            }),
+            0,
+            5,
+            NodeFlags::NONE,
+        );
+        let missing_property_name = source.arena.alloc_node(
+            NodeData::PropertyAccessExpression(PropertyAccessExpressionData {
+                expression: Some(identifier),
+                name: None,
+                question_dot_token: None,
+            }),
+            0,
+            5,
+            NodeFlags::NONE,
+        );
+        let missing_property_chain_name = source.arena.alloc_node(
+            NodeData::PropertyAccessExpression(PropertyAccessExpressionData {
+                expression: Some(identifier),
+                name: None,
+                question_dot_token: None,
+            }),
+            0,
+            5,
+            NodeFlags::OPTIONAL_CHAIN,
+        );
+        let missing_non_null_operand = source.arena.alloc_node(
+            NodeData::NonNullExpression(NonNullExpressionData { expression: None }),
+            0,
+            5,
+            NodeFlags::NONE,
+        );
+        let missing_element_receiver = source.arena.alloc_node(
+            NodeData::ElementAccessExpression(ElementAccessExpressionData {
+                expression: None,
+                question_dot_token: None,
+                argument_expression: Some(identifier),
+            }),
+            0,
+            5,
+            NodeFlags::NONE,
+        );
+        let missing_element_argument = source.arena.alloc_node(
+            NodeData::ElementAccessExpression(ElementAccessExpressionData {
+                expression: Some(identifier),
+                question_dot_token: None,
+                argument_expression: None,
+            }),
+            0,
+            5,
+            NodeFlags::NONE,
+        );
+        let missing_element_chain_receiver = source.arena.alloc_node(
+            NodeData::ElementAccessExpression(ElementAccessExpressionData {
+                expression: None,
+                question_dot_token: None,
+                argument_expression: Some(identifier),
+            }),
+            0,
+            5,
+            NodeFlags::OPTIONAL_CHAIN,
+        );
+        let options = CompilerOptions::default();
+        let binder = bind_source_file(&source, &options);
+        let mut state = CheckerState::new(&source, &binder, &options);
+
+        assert_eq!(
+            state
+                .entity_name_to_string(identifier)
+                .expect("valid entity"),
+            "alpha"
+        );
+        assert_eq!(
+            state
+                .entity_name_to_string(missing_jsx_name)
+                .expect("missing JSX child recovers"),
+            "alpha:"
+        );
+        assert_eq!(
+            state
+                .entity_name_to_string(missing_qualified_name)
+                .expect("missing qualified child recovers"),
+            "alpha."
+        );
+        assert_eq!(
+            state
+                .entity_name_to_string(missing_property_name)
+                .expect("missing property child recovers"),
+            "alpha."
+        );
+        assert_eq!(
+            state
+                .entity_name_to_string(non_entity)
+                .expect("unexpected entity kind retains source text"),
+            "alpha"
+        );
+        for recovered in [
+            state
+                .check_non_null_assertion(missing_non_null_operand)
+                .expect("missing non-null operand"),
+            state
+                .check_property_access_expression(missing_property_name, CheckMode::NORMAL, false)
+                .expect("missing property name"),
+            state
+                .check_property_access_expression(
+                    missing_property_chain_name,
+                    CheckMode::NORMAL,
+                    false,
+                )
+                .expect("missing property chain name"),
+            state
+                .check_qualified_name(missing_qualified_name, CheckMode::NORMAL)
+                .expect("missing qualified name"),
+            state
+                .check_indexed_access(missing_element_receiver, CheckMode::NORMAL)
+                .expect("missing element receiver"),
+            state
+                .check_indexed_access(missing_element_argument, CheckMode::NORMAL)
+                .expect("missing element argument"),
+            state
+                .check_indexed_access(missing_element_chain_receiver, CheckMode::NORMAL)
+                .expect("missing element-chain receiver"),
+        ] {
+            assert!(state.tables.is_error_type(recovered));
+        }
     }
 }
 
@@ -1167,7 +1260,7 @@ impl<'a> CheckerState<'a> {
             unreachable!("kind/data agree");
         };
         let (Some(expression), Some(name)) = (data.expression, data.name) else {
-            return Err(Unsupported::new("PropertyAccessExpression recovery node"));
+            return Ok(self.tables.intrinsics.error);
         };
         let source = self.binder.source_of_node(node);
         if node_util::node_flags(source, node).intersects(NodeFlags::OPTIONAL_CHAIN) {
@@ -1188,7 +1281,7 @@ impl<'a> CheckerState<'a> {
             unreachable!("kind/data agree");
         };
         let (Some(expression), Some(name)) = (data.expression, data.name) else {
-            return Err(Unsupported::new("PropertyAccessExpression recovery node"));
+            return Ok(self.tables.intrinsics.error);
         };
         let left_type = self.check_expression(expression, CheckMode::NORMAL)?;
         let non_optional_type = self.get_optional_expression_type(left_type, expression)?;
@@ -1211,7 +1304,7 @@ impl<'a> CheckerState<'a> {
             unreachable!("kind/data agree");
         };
         let (Some(left), Some(right)) = (data.left, data.right) else {
-            return Err(Unsupported::new("QualifiedName recovery node"));
+            return Ok(self.tables.intrinsics.error);
         };
         let source = self.binder.source_of_node(node);
         let left_type =
@@ -1535,7 +1628,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:75192-75200
     ///
     /// isConstructorDeclaredProperty keys on JS assignment-declared
-    /// properties (M5/JSDOC); the TS-reachable half is
+    /// properties; the TS-reachable half is
     /// isThisProperty && isAutoTypedProperty — a property declaration
     /// with neither annotation nor initializer under noImplicitAny.
     pub(crate) fn is_this_property_access_in_constructor(
@@ -1543,48 +1636,17 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         prop: SymbolId,
     ) -> CheckResult2<bool> {
-        let assignment_constructor = self.constructor_declaring_assignment_property(prop);
-        let is_auto_typed = {
-            let declaration = self.binder.symbol(prop).value_declaration;
-            match declaration {
-                Some(declaration)
-                    if self.kind_of(declaration) == SyntaxKind::PropertyDeclaration =>
-                {
-                    let NodeData::PropertyDeclaration(data) = self.data_of(declaration) else {
-                        unreachable!("kind/data agree");
-                    };
-                    data.r#type.is_none()
-                        && data.initializer.is_none()
-                        && self
-                            .options
-                            .strict_option_value(self.options.no_implicit_any)
-                }
-                _ => false,
-            }
-        };
-        if assignment_constructor.is_none() && !(self.is_this_property(node) && is_auto_typed) {
+        let is_auto_typed = self.is_auto_typed_property(prop);
+        if !(self.is_constructor_declared_property(prop)?
+            || self.is_this_property(node) && is_auto_typed)
+        {
             return Ok(false);
         }
         // getThisContainer(node, true, false) === getDeclaringConstructor(prop)
         let source = self.binder.source_of_node(node);
         let this_container =
             node_util::get_this_container(source, node, /*include_arrow_functions*/ true);
-        let declaring_ctor = assignment_constructor.or_else(|| {
-            self.binder
-                .symbol(prop)
-                .declarations
-                .iter()
-                .copied()
-                .find_map(|declaration| {
-                    let container = node_util::get_this_container(
-                        self.binder.source_of_node(declaration),
-                        declaration,
-                        /*include_arrow_functions*/ false,
-                    )?;
-                    (self.kind_of(container) == SyntaxKind::Constructor).then_some(container)
-                })
-        });
-        Ok(this_container.is_some() && this_container == declaring_ctor)
+        Ok(this_container == self.get_declaring_constructor(prop))
     }
 
     /// Related-info construction (createDiagnosticForNode on a possibly
@@ -1619,9 +1681,446 @@ impl<'a> CheckerState<'a> {
             ),
         }
     }
+
+    /// tsc-port: isDeprecatedDeclaration @6.0.3
+    /// tsc-hash: 0770c7a837e9843098d84cf804221d6b1098a3f9a41815ff22a08f16c4203b56
+    /// tsc-span: _tsc.js:47641-47643
+    pub(crate) fn is_deprecated_declaration(&self, declaration: NodeId) -> bool {
+        let source = self.binder.source_of_node(declaration);
+        node_util::node_flags(source, declaration).intersects(NodeFlags::DEPRECATED)
+            || node_util::get_combined_modifier_flags(source, declaration)
+                .intersects(ModifierFlags::DEPRECATED)
+    }
+
+    /// tsc-port: isDeprecatedSymbol @6.0.3
+    /// tsc-hash: 186bd24a3ff7473b4fe7b156f5322ba22c7d16b30d959ed48bf8401401fb522c
+    /// tsc-span: _tsc.js:47634-47640
+    pub(crate) fn is_deprecated_symbol(&self, symbol: SymbolId) -> bool {
+        let symbol = self.get_merged_symbol(symbol);
+        let declarations = &self.binder.symbol(symbol).declarations;
+        if let Some(parent) = self.get_parent_of_symbol(symbol) {
+            if declarations.len() > 1 {
+                if self
+                    .binder
+                    .symbol(parent)
+                    .flags
+                    .intersects(SymbolFlags::INTERFACE)
+                {
+                    return declarations
+                        .iter()
+                        .any(|&declaration| self.is_deprecated_declaration(declaration));
+                }
+                return declarations
+                    .iter()
+                    .all(|&declaration| self.is_deprecated_declaration(declaration));
+            }
+        }
+        self.binder
+            .symbol(symbol)
+            .value_declaration
+            .is_some_and(|declaration| self.is_deprecated_declaration(declaration))
+            || !declarations.is_empty()
+                && declarations
+                    .iter()
+                    .all(|&declaration| self.is_deprecated_declaration(declaration))
+    }
+
+    fn jsdoc_deprecated_tag_of_declarations(&self, declarations: &[NodeId]) -> Option<NodeId> {
+        declarations.iter().find_map(|&declaration| {
+            self.first_jsdoc_tag(declaration, SyntaxKind::JSDocDeprecatedTag)
+        })
+    }
+
+    /// tsc-port: addDeprecatedSuggestionWorker @6.0.3
+    /// tsc-hash: 0d6c6d15636f1c2bf9f0a80519fb6d14ff2bba78167caab77411a1195ba7ba29
+    /// tsc-span: _tsc.js:47623-47633
+    fn add_deprecated_suggestion_worker(
+        &mut self,
+        location: NodeId,
+        declarations: &[NodeId],
+        message: &'static tsrs2_diags::DiagnosticMessage,
+        args: &[&str],
+    ) {
+        let related = self
+            .jsdoc_deprecated_tag_of_declarations(declarations)
+            .map(|tag| {
+                self.related_info_for_node(
+                    tag,
+                    &tsrs2_diags::gen::The_declaration_was_marked_as_deprecated_here,
+                    &[],
+                )
+            })
+            .into_iter()
+            .collect();
+        self.error_at_with_related(Some(location), message, args, related);
+    }
+
+    /// tsc-port: addDeprecatedSuggestion @6.0.3
+    /// tsc-hash: ed7ce06032f254d3c28557044b8c2b4410fdfed576d2c968a2da5234d877ea0f
+    /// tsc-span: _tsc.js:47644-47647
+    pub(crate) fn add_deprecated_suggestion(
+        &mut self,
+        location: NodeId,
+        declarations: &[NodeId],
+        deprecated_entity: &str,
+    ) {
+        self.add_deprecated_suggestion_worker(
+            location,
+            declarations,
+            &tsrs2_diags::gen::_0_is_deprecated,
+            &[deprecated_entity],
+        );
+    }
+
+    /// tsc-port: addDeprecatedSuggestionWithSignature @6.0.3
+    /// tsc-hash: 14b3556fd5bbb1629c2cd8a8ac219981b4875f8d50ee384381e1aa53b3380f1f
+    /// tsc-span: _tsc.js:47648-47651
+    fn add_deprecated_suggestion_with_signature(
+        &mut self,
+        location: NodeId,
+        declaration: NodeId,
+        deprecated_entity: Option<&str>,
+        signature_string: &str,
+    ) {
+        if let Some(deprecated_entity) = deprecated_entity {
+            self.add_deprecated_suggestion_worker(
+                location,
+                &[declaration],
+                &tsrs2_diags::gen::The_signature_0_of_1_is_deprecated,
+                &[signature_string, deprecated_entity],
+            );
+        } else {
+            self.add_deprecated_suggestion_worker(
+                location,
+                &[declaration],
+                &tsrs2_diags::gen::_0_is_deprecated,
+                &[signature_string],
+            );
+        }
+    }
+
+    /// tsc-port: getDeprecatedSuggestionNode @6.0.3
+    /// tsc-hash: b38f2963482b5df706767ff5ccf3b74de46ebb708c3106853a52740c8d1ab613
+    /// tsc-span: _tsc.js:77669-77691
+    pub(crate) fn get_deprecated_suggestion_node(&self, node: NodeId) -> NodeId {
+        let node = self.skip_parentheses(node);
+        match self.data_of(node) {
+            NodeData::CallExpression(data) => data
+                .expression
+                .map(|expression| self.get_deprecated_suggestion_node(expression))
+                .unwrap_or(node),
+            NodeData::NewExpression(data) => data
+                .expression
+                .map(|expression| self.get_deprecated_suggestion_node(expression))
+                .unwrap_or(node),
+            NodeData::Decorator(data) => data
+                .expression
+                .map(|expression| self.get_deprecated_suggestion_node(expression))
+                .unwrap_or(node),
+            NodeData::TaggedTemplateExpression(data) => data
+                .tag
+                .map(|tag| self.get_deprecated_suggestion_node(tag))
+                .unwrap_or(node),
+            NodeData::JsxOpeningElement(data) => data
+                .tag_name
+                .map(|tag| self.get_deprecated_suggestion_node(tag))
+                .unwrap_or(node),
+            NodeData::JsxSelfClosingElement(data) => data
+                .tag_name
+                .map(|tag| self.get_deprecated_suggestion_node(tag))
+                .unwrap_or(node),
+            NodeData::ElementAccessExpression(data) => data.argument_expression.unwrap_or(node),
+            NodeData::PropertyAccessExpression(data) => data.name.unwrap_or(node),
+            NodeData::TypeReference(data) => data
+                .type_name
+                .and_then(|name| match self.data_of(name) {
+                    NodeData::QualifiedName(qualified) => qualified.right,
+                    _ => None,
+                })
+                .unwrap_or(node),
+            _ => node,
+        }
+    }
+
+    fn invoked_expression_of(&self, node: NodeId) -> Option<NodeId> {
+        match self.data_of(node) {
+            NodeData::TaggedTemplateExpression(data) => data.tag,
+            NodeData::JsxOpeningElement(data) => data.tag_name,
+            NodeData::JsxSelfClosingElement(data) => data.tag_name,
+            NodeData::BinaryExpression(data) => data.right,
+            NodeData::CallExpression(data) => data.expression,
+            NodeData::NewExpression(data) => data.expression,
+            NodeData::Decorator(data) => data.expression,
+            _ => None,
+        }
+    }
+
+    fn property_access_or_identifier_to_string(&self, expression: NodeId) -> Option<String> {
+        match self.data_of(expression) {
+            NodeData::PropertyAccessExpression(data) => {
+                let base = self.property_access_or_identifier_to_string(data.expression?)?;
+                let name = self.entity_name_to_string(data.name?).ok()?;
+                Some(format!("{base}.{name}"))
+            }
+            NodeData::ElementAccessExpression(data) => {
+                let base = self.property_access_or_identifier_to_string(data.expression?)?;
+                let argument = data.argument_expression?;
+                let name = match self.data_of(argument) {
+                    NodeData::Identifier(data) => {
+                        tsrs2_binder::unescape_leading_underscores(&data.escaped_text).to_owned()
+                    }
+                    NodeData::StringLiteral(data) => data.text.clone(),
+                    NodeData::NoSubstitutionTemplateLiteral(data) => data.text.clone(),
+                    NodeData::NumericLiteral(data) => data.text.clone(),
+                    NodeData::BigIntLiteral(data) => data.text.clone(),
+                    _ => return None,
+                };
+                Some(format!("{base}.{name}"))
+            }
+            NodeData::Identifier(data) => {
+                Some(tsrs2_binder::unescape_leading_underscores(&data.escaped_text).to_owned())
+            }
+            NodeData::JsxNamespacedName(_) => Some(self.jsx_attribute_name_text(expression)),
+            _ => None,
+        }
+    }
+
+    /// tsc-port: checkDeprecatedSignature @6.0.3
+    /// tsc-hash: 743ffba40fd7f13b51b057d3251170b2e703e9db17242e7f70b82e2eb539b211
+    /// tsc-span: _tsc.js:77661-77668
+    pub(crate) fn check_deprecated_signature(
+        &mut self,
+        signature: SignatureId,
+        node: NodeId,
+    ) -> CheckResult2<()> {
+        let (flags, declaration) = {
+            let signature = self.signature_of(signature);
+            (signature.flags, signature.declaration)
+        };
+        if flags
+            .intersects(tsrs2_types::SignatureFlags::IS_SIGNATURE_CANDIDATE_FOR_OVERLOAD_FAILURE)
+        {
+            return Ok(());
+        }
+        let Some(declaration) =
+            declaration.filter(|&declaration| self.is_deprecated_declaration(declaration))
+        else {
+            return Ok(());
+        };
+        let suggestion_node = self.get_deprecated_suggestion_node(node);
+        let deprecated_entity = self
+            .invoked_expression_of(node)
+            .and_then(|expression| self.property_access_or_identifier_to_string(expression));
+        let signature_string = self.signature_to_string_slice_for_overload_error(signature)?;
+        self.add_deprecated_suggestion_with_signature(
+            suggestion_node,
+            declaration,
+            deprecated_entity.as_deref(),
+            &signature_string,
+        );
+        Ok(())
+    }
+
+    fn contains_matching_reference_for_deprecation(
+        &mut self,
+        mut source: NodeId,
+        target: NodeId,
+    ) -> CheckResult2<bool> {
+        while matches!(
+            self.kind_of(source),
+            SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
+        ) {
+            let expression = match self.data_of(source) {
+                NodeData::PropertyAccessExpression(data) => data.expression,
+                NodeData::ElementAccessExpression(data) => data.expression,
+                _ => None,
+            };
+            let Some(expression) = expression else {
+                return Ok(false);
+            };
+            source = expression;
+            if self.is_matching_reference(source, target)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    fn is_or_contains_matching_reference_for_deprecation(
+        &mut self,
+        source: NodeId,
+        target: NodeId,
+    ) -> CheckResult2<bool> {
+        Ok(self.is_matching_reference(source, target)?
+            || self.contains_matching_reference_for_deprecation(source, target)?)
+    }
+
+    fn has_matching_argument_for_deprecation(
+        &mut self,
+        expression: NodeId,
+        reference: NodeId,
+    ) -> CheckResult2<bool> {
+        let (invoked, arguments) = match self.data_of(expression) {
+            NodeData::CallExpression(data) => (data.expression, data.arguments),
+            NodeData::NewExpression(data) => (data.expression, data.arguments),
+            _ => return Ok(false),
+        };
+        for argument in self.nodes_of(arguments) {
+            if self.is_or_contains_matching_reference_for_deprecation(reference, argument)?
+                || self.optional_chain_contains_reference(argument, reference)?
+            {
+                return Ok(true);
+            }
+        }
+        let receiver = invoked.and_then(|invoked| match self.data_of(invoked) {
+            NodeData::PropertyAccessExpression(data) => data.expression,
+            _ => None,
+        });
+        match receiver {
+            Some(receiver) => {
+                self.is_or_contains_matching_reference_for_deprecation(reference, receiver)
+            }
+            None => Ok(false),
+        }
+    }
+
+    /// tsc-port: isUncalledFunctionReference @6.0.3
+    /// tsc-hash: 8e749f69627bf4dc1a9ec4db9befbddc1de1a63f2bff16315b36da6e994b6cbd
+    /// tsc-span: _tsc.js:62201-62210
+    pub(crate) fn is_uncalled_function_reference(
+        &mut self,
+        node: NodeId,
+        symbol: SymbolId,
+    ) -> CheckResult2<bool> {
+        if self
+            .binder
+            .symbol(symbol)
+            .flags
+            .intersects(SymbolFlags::FUNCTION | SymbolFlags::METHOD)
+        {
+            let mut parent = self.parent_of(node);
+            while parent.is_some_and(|parent| {
+                matches!(
+                    self.kind_of(parent),
+                    SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
+                )
+            }) {
+                parent = parent.and_then(|parent| self.parent_of(parent));
+            }
+            if let Some(parent) = parent.filter(|&parent| self.is_call_like_expression(parent)) {
+                return Ok(matches!(
+                    self.kind_of(parent),
+                    SyntaxKind::CallExpression | SyntaxKind::NewExpression
+                ) && self.kind_of(node) == SyntaxKind::Identifier
+                    && self.has_matching_argument_for_deprecation(parent, node)?);
+            }
+            return Ok(self
+                .binder
+                .symbol(symbol)
+                .declarations
+                .iter()
+                .all(|&declaration| {
+                    !node_util::is_function_like_kind(self.kind_of(declaration))
+                        || self.is_deprecated_declaration(declaration)
+                }));
+        }
+        Ok(true)
+    }
+
+    fn is_call_like_expression(&self, node: NodeId) -> bool {
+        match self.kind_of(node) {
+            SyntaxKind::CallExpression
+            | SyntaxKind::NewExpression
+            | SyntaxKind::TaggedTemplateExpression
+            | SyntaxKind::Decorator
+            | SyntaxKind::JsxOpeningElement
+            | SyntaxKind::JsxSelfClosingElement
+            | SyntaxKind::JsxOpeningFragment => true,
+            SyntaxKind::BinaryExpression => match self.data_of(node) {
+                NodeData::BinaryExpression(data) => data.operator_token.is_some_and(|operator| {
+                    self.kind_of(operator) == SyntaxKind::InstanceOfKeyword
+                }),
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
+    /// tsc-port: resolveAliasWithDeprecationCheck @6.0.3
+    /// tsc-hash: 9aff189975b233d07cd1422be52f5463c254e6a0c45e8a2124366476bb099f36
+    /// tsc-span: _tsc.js:86138-86162
+    pub(crate) fn resolve_alias_with_deprecation_check(
+        &mut self,
+        symbol: SymbolId,
+        location: NodeId,
+    ) -> CheckResult2<SymbolId> {
+        if !self
+            .binder
+            .symbol(symbol)
+            .flags
+            .intersects(SymbolFlags::ALIAS)
+            || self.is_deprecated_symbol(symbol)
+            || self.get_declaration_of_alias_symbol(symbol).is_none()
+        {
+            return Ok(symbol);
+        }
+        let target_symbol = self.resolve_alias(symbol)?;
+        if target_symbol == self.unknown_symbol {
+            return Ok(target_symbol);
+        }
+        let mut current = symbol;
+        while self
+            .binder
+            .symbol(current)
+            .flags
+            .intersects(SymbolFlags::ALIAS)
+        {
+            let Some(target) = self.get_immediate_aliased_symbol(current)? else {
+                break;
+            };
+            if target == target_symbol {
+                break;
+            }
+            let declarations = self.binder.symbol(target).declarations.clone();
+            if declarations.is_empty() {
+                break;
+            }
+            if self.is_deprecated_symbol(target) {
+                let name = self.binder.symbol(target).escaped_name.clone();
+                self.add_deprecated_suggestion(location, &declarations, &name);
+                break;
+            }
+            if current == target_symbol {
+                break;
+            }
+            current = target;
+        }
+        Ok(target_symbol)
+    }
 }
 
 impl<'a> CheckerState<'a> {
+    /// tsc stores `globalThisSymbol.exports = globals` by Map identity
+    /// (46491-46494). Rust owns those tables separately; a top-level
+    /// checked-JS `globalThis.x = ...` augmentation is therefore on the
+    /// merged globalThis symbol while ordinary globals remain in
+    /// `self.globals`. Project the aliased-map lookup exactly at the
+    /// property-access producer.
+    fn effective_global_this_export(&mut self, name: &str) -> CheckResult2<Option<SymbolId>> {
+        let merged = self.get_merged_symbol(self.global_this_symbol);
+        // A top-level `globalThis.x = ...` reaches mergeSymbol as an
+        // export of the JS `globalThis` augmentation. In tsc,
+        // globalThisSymbol.exports and globals are the same Map, so
+        // mergeSymbolTable writes `x` into globals. Rust cannot alias
+        // those owned tables: the exact write remains on the merged
+        // symbol's binder exports. Read that projection first, then
+        // the ordinary globals table.
+        if let Some(symbol) = self.binder.symbol(merged).exports.get(name).copied() {
+            return Ok(Some(symbol));
+        }
+        Ok(self.globals.get(name).copied())
+    }
+
     /// tsc-port: checkPropertyAccessExpressionOrQualifiedName @6.0.3
     /// tsc-hash: cd288efe571bfca00aa5dea8cea66ae89c8a6d13c180bcf483606acc60c3ece3
     /// tsc-span: _tsc.js:75201-75322
@@ -1631,8 +2130,6 @@ impl<'a> CheckerState<'a> {
     /// - markLinkedReferences' non-alias bookkeeping; its
     ///   identifier/property/export/JSX alias paths are live from M7
     ///   8.3a;
-    /// - deprecation suggestions (addDeprecatedSuggestion — the
-    ///   suggestion band rides JSDoc @deprecated, unmodeled);
     /// - getWidenedType is the 5.6 [WIDEN] identity (extraction §6).
     fn check_property_access_expression_or_qualified_name(
         &mut self,
@@ -1666,7 +2163,7 @@ impl<'a> CheckerState<'a> {
             .identifier_text_of(right)
             .map(str::to_owned)
             .unwrap_or_default();
-        let prop: Option<SymbolId>;
+        let mut prop: Option<SymbolId>;
         if right_is_private {
             // Emit-helper gates skip (languageVersion probes are
             // checkExternalEmitHelpers bookkeeping).
@@ -1778,11 +2275,49 @@ impl<'a> CheckerState<'a> {
                 skip_object_function_property_augment,
                 include_type_only_members,
             )?;
+            // resolveAnonymousTypeMembers starts from
+            // getMergedSymbol(type.symbol) (58331) and then filters
+            // globalThis members to var-like exports (58343-58352).
+            // The generic Rust member resolver still sees the
+            // unmerged intrinsic symbol, so recover that exact member
+            // here before entering the missing-property producer.
+            if prop.is_none()
+                && self.tables.type_of(apparent_type).symbol == Some(self.global_this_symbol)
+            {
+                if let Some(candidate) = self.effective_global_this_export(right_text.as_str())? {
+                    let flags = self.binder.symbol(candidate).flags;
+                    let declarations = &self.binder.symbol(candidate).declarations;
+                    let ambient_module_only = flags.intersects(SymbolFlags::VALUE_MODULE)
+                        && !declarations.is_empty()
+                        && declarations.iter().all(|&declaration| {
+                            node_util::is_ambient_module(
+                                self.binder.source_of_node(declaration),
+                                declaration,
+                            )
+                        });
+                    if !flags.intersects(SymbolFlags::BLOCK_SCOPED)
+                        && !ambient_module_only
+                        && self.symbol_is_value(candidate, include_type_only_members)?
+                    {
+                        prop = Some(candidate);
+                    }
+                }
+            }
         }
         self.mark_property_alias_referenced(node, left, prop, left_type)?;
         let prop_type: TypeId;
         if let Some(prop) = prop {
-            // Deprecation-suggestion skips (unmodeled JSDoc band).
+            let target_prop_symbol = self.resolve_alias_with_deprecation_check(prop, right)?;
+            if self.is_deprecated_symbol(target_prop_symbol)
+                && self.is_uncalled_function_reference(node, target_prop_symbol)?
+            {
+                let declarations = self.binder.symbol(target_prop_symbol).declarations.clone();
+                if !declarations.is_empty() {
+                    let deprecated_entity =
+                        tsrs2_binder::unescape_leading_underscores(&right_text).to_owned();
+                    self.add_deprecated_suggestion(right, &declarations, &deprecated_entity);
+                }
+            }
             self.check_property_not_used_before_declaration(prop, node, right)?;
             let self_type_access = self.is_self_type_access(left, parent_symbol)?;
             self.mark_property_as_referenced(prop, Some(node), self_type_access);
@@ -1800,25 +2335,11 @@ impl<'a> CheckerState<'a> {
             )?;
             if self.is_assignment_to_readonly_entity(node, prop, assignment_kind)? {
                 let display = tsrs2_binder::unescape_leading_underscores(&right_text).to_owned();
-                let publish_checked_js = self.is_non_jsdoc_js_expression_type(node, apparent_type)
-                    || self.is_in_js_file(node)
-                        && self
-                            .tables
-                            .type_of(apparent_type)
-                            .symbol
-                            .map(|symbol| self.get_merged_symbol(symbol))
-                            .is_some_and(|symbol| {
-                                self.non_jsdoc_js_commonjs_require_targets.contains(&symbol)
-                            });
-                let diagnostics_before = self.diagnostics.len();
                 self.error_at(
                     Some(right),
                     &tsrs2_diags::gen::Cannot_assign_to_0_because_it_is_a_read_only_property,
                     &[&display],
                 );
-                if publish_checked_js {
-                    self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
-                }
                 return Ok(self.tables.intrinsics.error);
             }
             // 75319: the this-property-in-constructor arm selects
@@ -1852,7 +2373,7 @@ impl<'a> CheckerState<'a> {
                 }
                 let left_symbol = self.tables.type_of(left_type).symbol;
                 if left_symbol == Some(self.global_this_symbol) {
-                    let exported = self.globals.get(right_text.as_str()).copied();
+                    let exported = self.effective_global_this_export(right_text.as_str())?;
                     if let Some(exported) = exported {
                         if self
                             .binder
@@ -1885,14 +2406,6 @@ impl<'a> CheckerState<'a> {
                 if !right_text.is_empty()
                     && !self.check_and_report_error_for_extending_interface(node)?
                 {
-                    // 6.6f: syntax-probe gate → flag-exact
-                    // containment for the miss face.
-                    if self.flow_answer_is_seam_reverted(left) {
-                        return Err(Unsupported::new(
-                            "property miss over a seam-reverted flow answer \
-                             (unported narrowing dependency, M6/M8 seam)",
-                        ));
-                    }
                     // JS assignment-declared members: tsc's binder
                     // turns `C.staticProp = 0` in a .js file into a
                     // A resolver-suppressed module augmentation never
@@ -1903,27 +2416,21 @@ impl<'a> CheckerState<'a> {
                     if self
                         .unresolved_module_augmentation_may_add_property(left_type, &right_text)?
                     {
-                        return Err(Unsupported::new(
-                            "property miss under an unresolved module augmentation \
-                             (node_modules resolver band, M8)",
-                        ));
+                        // tsc has already merged this exact member (or
+                        // applicable index signature) from the resolved
+                        // augmentation. Our in-memory resolver records
+                        // that resolver-suppressed merge separately, so
+                        // preserve the same no-diagnostic result with the
+                        // ordinary error type rather than aborting the
+                        // source-file check.
+                        return Ok(self.tables.intrinsics.error);
                     }
                     let report_target = if self.is_this_type_parameter(left_type) {
                         apparent_type
                     } else {
                         left_type
                     };
-                    // Private names can only be declared by their
-                    // containing class. A JSDoc tag adjacent to an
-                    // access cannot synthesize that declaration, so a
-                    // completed private-name miss is publishable in
-                    // checked JS independently of type provenance.
-                    let expose_checked_js_private = right_is_private && self.is_in_js_file(left);
-                    let diagnostics_before = self.diagnostics.len();
                     self.report_nonexistent_property(right, report_target, is_unchecked_js)?;
-                    if expose_checked_js_private {
-                        self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
-                    }
                 }
                 return Ok(self.tables.intrinsics.error);
             };
@@ -1956,8 +2463,14 @@ impl<'a> CheckerState<'a> {
                     &[&display],
                 );
             }
-            // index_info.declaration deprecation suggestion elided
-            // (JSDoc band).
+            if let Some(declaration) = index_info
+                .declaration
+                .filter(|&declaration| self.is_deprecated_declaration(declaration))
+            {
+                let deprecated_entity =
+                    tsrs2_binder::unescape_leading_underscores(&right_text).to_owned();
+                self.add_deprecated_suggestion(right, &[declaration], &deprecated_entity);
+            }
             prop_type = index_prop_type;
         }
         self.get_flow_type_of_access_expression(node, prop, prop_type, right)
@@ -2179,9 +2692,6 @@ impl<'a> CheckerState<'a> {
             prop_type
         };
         let flow_type = self.get_flow_type_of_reference(node, prop_type, initial_type, None)?;
-        // Captured IMMEDIATELY (see check_identifier: nested queries
-        // overwrite the mirror).
-        let flow_query_inert = self.flow_last_query_inert;
         if assume_uninitialized
             && !self.contains_undefined_type(prop_type)
             && self.contains_undefined_type(flow_type)
@@ -2193,48 +2703,12 @@ impl<'a> CheckerState<'a> {
                 Some(prop) => self.symbol_name_as_written_slice(prop),
                 None => String::new(),
             };
-            let common_js_kind = tsrs2_binder::get_assignment_declaration_property_access_kind(
-                self.binder.source_of_node(node),
-                node,
-            );
-            let declaration = prop.and_then(|prop| self.binder.symbol(prop).value_declaration);
-            let initializer = declaration
-                .and_then(|declaration| self.parent_of(declaration))
-                .and_then(|parent| match self.data_of(parent) {
-                    NodeData::BinaryExpression(data) if data.left == declaration => data.right,
-                    _ => None,
-                });
-            let non_jsdoc = self.is_in_js_file(node)
-                && initializer.is_some_and(|initializer| {
-                    !self.declaration_has_jsdoc_semantics(initializer)
-                        && !self.node_contains_jsdoc_semantics(initializer)
-                });
-            let publish_common_js = common_js_kind
-                == tsrs2_binder::AssignmentDeclarationKind::ExportsProperty
-                && non_jsdoc;
-            let diagnostics_before = self.diagnostics.len();
             self.error_at(
                 Some(error_node),
                 &tsrs2_diags::gen::Property_0_is_used_before_being_assigned,
                 &[&display],
             );
-            if publish_common_js {
-                self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 2565);
-            }
             return Ok(prop_type);
-        }
-        if assume_uninitialized && !self.contains_undefined_type(prop_type) && flow_query_inert {
-            // 6.2 seam: the walk crossed a still-inert condition/
-            // switch arm (flow.rs reverted its answer to the declared
-            // type; joins are live since 6.3), so a condition-
-            // dependent 2565 is undecidable until 6.4 — keep the
-            // position partial instead of misreporting in either
-            // direction. (The reason string is a stable seam-era
-            // label; it retires whole with the flag at 6.4.)
-            self.mark_partially_checked_node(
-                node,
-                "flow-sensitive property use-before-assignment diagnostic (M6/M8 seam)",
-            );
         }
         if assignment_kind != crate::expr::AssignmentKind::None {
             self.get_base_type_of_literal_type(flow_type)
@@ -2761,8 +3235,11 @@ impl<'a> CheckerState<'a> {
                 && self.is_this_property(expr)
             {
                 let ctor = self.get_control_flow_container(expr);
-                let Some(ctor) = ctor.filter(|&c| self.kind_of(c) == SyntaxKind::Constructor)
-                else {
+                // 79263-79264: a checked-JS constructor function owns
+                // its `this` assignments just like a class constructor.
+                let Some(ctor) = ctor.filter(|&c| {
+                    self.kind_of(c) == SyntaxKind::Constructor || self.is_js_constructor(c)
+                }) else {
                     return Ok(true);
                 };
                 if let Some(value_declaration) = self.binder.symbol(symbol).value_declaration {
@@ -2930,344 +3407,6 @@ impl<'a> CheckerState<'a> {
         })
     }
 
-    /// `Ctor.prototype.member = ...` after a structural
-    /// `Ctor.prototype = { ... }` replacement. The receiver type is
-    /// the replacement literal's complete member set. For a
-    /// JSDoc-semantic constructor, tsc publishes the property-access
-    /// miss on the later assignment; ordinary incremental and
-    /// element-access prototype expandos remain on their distinct
-    /// inference paths.
-    fn is_prototype_object_replacement_property_assignment(
-        &mut self,
-        access_expression: NodeId,
-        containing_symbol: Option<SymbolId>,
-        assignment_declaration_kind: tsrs2_binder::AssignmentDeclarationKind,
-    ) -> CheckResult2<bool> {
-        if self.kind_of(access_expression) != SyntaxKind::PropertyAccessExpression
-            || assignment_declaration_kind
-                != tsrs2_binder::AssignmentDeclarationKind::PrototypeProperty
-        {
-            return Ok(false);
-        }
-        let Some(replacement) = containing_symbol
-            .and_then(|symbol| self.binder.symbol(symbol).value_declaration)
-            .filter(|&declaration| self.kind_of(declaration) == SyntaxKind::ObjectLiteralExpression)
-            .and_then(|literal| self.parent_of(literal))
-        else {
-            return Ok(false);
-        };
-        if tsrs2_binder::get_assignment_declaration_kind(
-            self.binder.source_of_node(replacement),
-            replacement,
-        ) != tsrs2_binder::AssignmentDeclarationKind::Prototype
-        {
-            return Ok(false);
-        }
-        let prototype = match self.data_of(replacement) {
-            NodeData::BinaryExpression(data) => data.left,
-            _ => None,
-        };
-        let constructor = prototype.and_then(|prototype| match self.data_of(prototype) {
-            NodeData::PropertyAccessExpression(data) => data.expression,
-            NodeData::ElementAccessExpression(data) => data.expression,
-            _ => None,
-        });
-        let declaration = match constructor {
-            Some(constructor) => self
-                .get_resolved_symbol(constructor)?
-                .and_then(|symbol| self.binder.symbol(symbol).value_declaration),
-            None => None,
-        };
-        Ok(
-            declaration
-                .is_some_and(|declaration| self.declaration_has_jsdoc_semantics(declaration)),
-        )
-    }
-
-    /// A missing read from the source object retained by an inline
-    /// JSDoc `@satisfies` tag. Satisfies preserves the expression
-    /// type, so the object literal's own complete member set decides
-    /// the later access even while the independent satisfies-relation
-    /// diagnostic remains in the JSDoc band.
-    fn is_jsdoc_satisfies_object_literal_property_read(
-        &mut self,
-        access_expression: NodeId,
-        containing_type: TypeId,
-        assignment_declaration_kind: tsrs2_binder::AssignmentDeclarationKind,
-    ) -> CheckResult2<bool> {
-        if self.kind_of(access_expression) != SyntaxKind::PropertyAccessExpression
-            || assignment_declaration_kind != tsrs2_binder::AssignmentDeclarationKind::None
-            || node_util::is_assignment_target(
-                self.binder.source_of_node(access_expression),
-                access_expression,
-            )
-        {
-            return Ok(false);
-        }
-        let receiver = match self.data_of(access_expression) {
-            NodeData::PropertyAccessExpression(data) => data.expression,
-            _ => None,
-        };
-        let Some(receiver) =
-            receiver.filter(|&receiver| self.kind_of(receiver) == SyntaxKind::Identifier)
-        else {
-            return Ok(false);
-        };
-        let declaration = self
-            .get_resolved_symbol(receiver)?
-            .and_then(|symbol| self.binder.symbol(symbol).value_declaration);
-        let Some(declaration) = declaration
-            .filter(|&declaration| self.kind_of(declaration) == SyntaxKind::VariableDeclaration)
-        else {
-            return Ok(false);
-        };
-        let Some(initializer) = self.initializer_of(declaration) else {
-            return Ok(false);
-        };
-        let literal = self.skip_parentheses(initializer);
-        if self.kind_of(literal) != SyntaxKind::ObjectLiteralExpression {
-            return Ok(false);
-        }
-        let source = self.binder.source_of_node(declaration);
-        let raw = source.arena.node(declaration);
-        let start = raw.pos as usize;
-        let end = (raw.end as usize).min(source.text.len());
-        if start >= end {
-            return Ok(false);
-        }
-        let declaration_text = source.text[start..end].to_ascii_lowercase();
-        if !declaration_text.contains("/**") || !declaration_text.contains("@satisfies") {
-            return Ok(false);
-        }
-        let type_literal = self
-            .tables
-            .type_of(containing_type)
-            .symbol
-            .and_then(|symbol| self.binder.symbol(symbol).value_declaration);
-        Ok(type_literal == Some(literal))
-    }
-
-    /// A non-assignment `this.prototype.member` read whose containing
-    /// type is a real class instance. The class member table is
-    /// complete independently of JSDoc attached to an outer function
-    /// or class, so that outer provenance must not hide the miss.
-    fn is_this_prototype_class_property_read(
-        &self,
-        access_expression: NodeId,
-        containing_symbol: Option<SymbolId>,
-        assignment_declaration_kind: tsrs2_binder::AssignmentDeclarationKind,
-    ) -> bool {
-        if self.kind_of(access_expression) != SyntaxKind::PropertyAccessExpression
-            || assignment_declaration_kind != tsrs2_binder::AssignmentDeclarationKind::None
-            || node_util::is_assignment_target(
-                self.binder.source_of_node(access_expression),
-                access_expression,
-            )
-        {
-            return false;
-        }
-        let receiver = match self.data_of(access_expression) {
-            NodeData::PropertyAccessExpression(data) => data.expression,
-            _ => None,
-        };
-        let this_prototype = receiver.is_some_and(|receiver| {
-            matches!(
-                self.data_of(receiver),
-                NodeData::PropertyAccessExpression(inner)
-                    if inner
-                        .expression
-                        .is_some_and(|base| self.kind_of(base) == SyntaxKind::ThisKeyword)
-                        && inner
-                            .name
-                            .and_then(|name| self.identifier_text_of(name))
-                            == Some("prototype")
-            )
-        });
-        this_prototype
-            && containing_symbol.is_some_and(|symbol| {
-                let flags = self.binder.symbol(symbol).flags;
-                flags.intersects(SymbolFlags::CLASS) && !flags.intersects(SymbolFlags::FUNCTION)
-            })
-    }
-
-    /// A direct `this.member` read in a class-field arrow whose
-    /// declaration carries `@this`. The tag is invalid for an arrow
-    /// and does not replace its lexical class `this`; the class member
-    /// table therefore remains the complete lookup surface.
-    fn is_jsdoc_this_annotated_arrow_class_field_read(
-        &self,
-        access_expression: NodeId,
-        containing_symbol: Option<SymbolId>,
-        assignment_declaration_kind: tsrs2_binder::AssignmentDeclarationKind,
-    ) -> bool {
-        if self.kind_of(access_expression) != SyntaxKind::PropertyAccessExpression
-            || assignment_declaration_kind != tsrs2_binder::AssignmentDeclarationKind::None
-            || node_util::is_assignment_target(
-                self.binder.source_of_node(access_expression),
-                access_expression,
-            )
-        {
-            return false;
-        }
-        let direct_this = matches!(
-            self.data_of(access_expression),
-            NodeData::PropertyAccessExpression(data)
-                if data
-                    .expression
-                    .is_some_and(|receiver| self.kind_of(receiver) == SyntaxKind::ThisKeyword)
-        );
-        let is_class_instance = containing_symbol.is_some_and(|symbol| {
-            let flags = self.binder.symbol(symbol).flags;
-            flags.intersects(SymbolFlags::CLASS) && !flags.intersects(SymbolFlags::FUNCTION)
-        });
-        if !direct_this || !is_class_instance {
-            return false;
-        }
-        let Some(arrow) = self
-            .get_containing_function(access_expression)
-            .filter(|&function| self.kind_of(function) == SyntaxKind::ArrowFunction)
-        else {
-            return false;
-        };
-        let Some(property) = self.parent_of(arrow) else {
-            return false;
-        };
-        if !matches!(
-            self.data_of(property),
-            NodeData::PropertyDeclaration(data) if data.initializer == Some(arrow)
-        ) {
-            return false;
-        }
-        self.declaration_has_attached_jsdoc_this_tag(property)
-    }
-
-    /// JSDoc is trivia in the syntax arena. Recognize only an attached
-    /// tag at the start of a JSDoc line; prose mentions and completed
-    /// declarations do not prove the invalid-arrow-tag shape above.
-    fn declaration_has_attached_jsdoc_this_tag(&self, declaration: NodeId) -> bool {
-        if !self.is_in_js_file(declaration) {
-            return false;
-        }
-        let source = self.binder.source_of_node(declaration);
-        let anchor = self.name_of_node(declaration).unwrap_or(declaration);
-        let anchor_pos =
-            tsrs2_syntax::skip_trivia(&source.text, source.arena.node(anchor).pos as usize);
-        let prefix = &source.text[..anchor_pos.min(source.text.len())];
-        let Some(comment_start) = prefix.rfind("/**") else {
-            return false;
-        };
-        let Some(relative_end) = prefix[comment_start + 3..].find("*/") else {
-            return false;
-        };
-        let comment_end = comment_start + 3 + relative_end + 2;
-        if prefix[comment_end..]
-            .chars()
-            .any(|character| matches!(character, ';' | '{' | '}' | '='))
-        {
-            return false;
-        }
-        prefix[comment_start + 3..comment_end - 2]
-            .lines()
-            .any(|line| {
-                let line = line.trim_start();
-                let line = line.strip_prefix('*').unwrap_or(line).trim_start();
-                line.strip_prefix("@this").is_some_and(|tail| {
-                    tail.chars()
-                        .next()
-                        .is_none_or(|character| character.is_whitespace() || character == '{')
-                })
-            })
-    }
-
-    /// A direct `this.member` read inside the RHS of
-    /// `Ctor.s = Ctor.t = function ...` when the outer static
-    /// assignment carries JSDoc semantics. Both assignment receivers
-    /// must resolve to the containing static-side symbol; the
-    /// constructor's instance-only members therefore cannot satisfy
-    /// this lookup.
-    fn is_jsdoc_chained_static_assignment_this_read(
-        &mut self,
-        access_expression: NodeId,
-        containing_symbol: Option<SymbolId>,
-        assignment_declaration_kind: tsrs2_binder::AssignmentDeclarationKind,
-    ) -> CheckResult2<bool> {
-        if self.kind_of(access_expression) != SyntaxKind::PropertyAccessExpression
-            || assignment_declaration_kind != tsrs2_binder::AssignmentDeclarationKind::None
-            || node_util::is_assignment_target(
-                self.binder.source_of_node(access_expression),
-                access_expression,
-            )
-        {
-            return Ok(false);
-        }
-        let direct_this = matches!(
-            self.data_of(access_expression),
-            NodeData::PropertyAccessExpression(data)
-                if data
-                    .expression
-                    .is_some_and(|receiver| self.kind_of(receiver) == SyntaxKind::ThisKeyword)
-        );
-        if !direct_this {
-            return Ok(false);
-        }
-        let Some(function) = self
-            .get_containing_function(access_expression)
-            .filter(|&function| self.kind_of(function) == SyntaxKind::FunctionExpression)
-        else {
-            return Ok(false);
-        };
-        let Some(inner_assignment) = self.parent_of(function) else {
-            return Ok(false);
-        };
-        let inner_receiver = match self.data_of(inner_assignment) {
-            NodeData::BinaryExpression(data)
-                if data.right == Some(function)
-                    && tsrs2_binder::get_assignment_declaration_kind(
-                        self.binder.source_of_node(inner_assignment),
-                        inner_assignment,
-                    ) == tsrs2_binder::AssignmentDeclarationKind::Property =>
-            {
-                data.left.and_then(|left| match self.data_of(left) {
-                    NodeData::PropertyAccessExpression(access) => access.expression,
-                    _ => None,
-                })
-            }
-            _ => None,
-        };
-        let Some(outer_assignment) = self.parent_of(inner_assignment) else {
-            return Ok(false);
-        };
-        let outer_receiver = match self.data_of(outer_assignment) {
-            NodeData::BinaryExpression(data)
-                if data.right == Some(inner_assignment)
-                    && tsrs2_binder::get_assignment_declaration_kind(
-                        self.binder.source_of_node(outer_assignment),
-                        outer_assignment,
-                    ) == tsrs2_binder::AssignmentDeclarationKind::Property =>
-            {
-                data.left.and_then(|left| match self.data_of(left) {
-                    NodeData::PropertyAccessExpression(access) => access.expression,
-                    _ => None,
-                })
-            }
-            _ => None,
-        };
-        let (Some(inner_receiver), Some(outer_receiver), Some(containing_symbol)) =
-            (inner_receiver, outer_receiver, containing_symbol)
-        else {
-            return Ok(false);
-        };
-        let inner_symbol = self.get_resolved_symbol(inner_receiver)?;
-        let outer_symbol = self.get_resolved_symbol(outer_receiver)?;
-        let containing_symbol = self.get_merged_symbol(containing_symbol);
-        Ok(
-            inner_symbol.is_some_and(|symbol| self.get_merged_symbol(symbol) == containing_symbol)
-                && outer_symbol
-                    .is_some_and(|symbol| self.get_merged_symbol(symbol) == containing_symbol)
-                && self.declaration_has_jsdoc_semantics(outer_assignment),
-        )
-    }
-
     /// The missing intermediate access in
     /// `let A; A = {}; A.prototype.b = {}`. Its parent, not the
     /// `A.prototype` node itself, is the assignment target. Requiring
@@ -3313,76 +3452,6 @@ impl<'a> CheckerState<'a> {
         containing_type: TypeId,
         is_unchecked_js: bool,
     ) -> CheckResult2<()> {
-        // 6.6f, consult rebuilt at m6 7.6: a NEVER receiver whose
-        // reference DECLARES a non-never type went never through OUR
-        // narrowing. Genuinely-never receivers (declared never)
-        // report, and so does a declared type with NO intersection
-        // constituent anywhere (the double-typeof face) — the
-        // reduction family cannot be involved. For intersection-
-        // bearing declared types the getReducedType never-reduction
-        // (59287-59297, live since the M4-review E4 slice) is now
-        // CONSULTED: when the declared type or one of its intersection
-        // members reduces to never, tsc's own lookup at this access
-        // collapses the same way (property lookups run over the
-        // reduced type), so the 2339-band report is row-faithful and
-        // proceeds. Only a port-narrowed never whose declared type
-        // does NOT reduce keeps the containment — that shape would be
-        // a narrowing divergence, not a reduction face.
-        if self
-            .tables
-            .flags_of(containing_type)
-            .intersects(TypeFlags::NEVER)
-        {
-            let declared = self
-                .parent_of(prop_node)
-                .and_then(|access| match self.data_of(access) {
-                    NodeData::PropertyAccessExpression(data) => data.expression,
-                    NodeData::ElementAccessExpression(data) => data.expression,
-                    _ => None,
-                })
-                .and_then(|receiver| self.links.node(receiver).resolved_symbol.resolved())
-                .map(|symbol| self.get_type_of_symbol(symbol))
-                .transpose()?;
-            let reduction_involved = declared.is_some_and(|declared| {
-                let flags = self.tables.flags_of(declared);
-                if flags.intersects(TypeFlags::NEVER) {
-                    return false;
-                }
-                if flags.intersects(TypeFlags::INTERSECTION) {
-                    return true;
-                }
-                if flags.intersects(TypeFlags::UNION) {
-                    if let tsrs2_types::TypeData::Union { types, .. } =
-                        &self.tables.type_of(declared).data
-                    {
-                        return types.iter().any(|&member| {
-                            self.tables
-                                .flags_of(member)
-                                .intersects(TypeFlags::INTERSECTION)
-                        });
-                    }
-                }
-                false
-            });
-            if reduction_involved {
-                // The consult mirrors the WHOLE-type reduction: only
-                // when the declared type itself collapses does tsc's
-                // lookup fail the same way. A union that merely
-                // CONTAINS never-reduced intersections reduces to its
-                // surviving members (getReducedUnionType drops them),
-                // and tsc then resolves the property on the survivors
-                // — a verdict this never-consult cannot reproduce, so
-                // that face keeps the containment.
-                let reduced =
-                    self.get_reduced_type(declared.expect("reduction_involved implies declared"))?;
-                if !self.tables.flags_of(reduced).intersects(TypeFlags::NEVER) {
-                    return Err(Unsupported::new(
-                        "never-narrowed receiver whose declared type survives \
-                         reduction (narrowing-divergence shield, M8 audit)",
-                    ));
-                }
-            }
-        }
         let cache_key = format!("{}|{}", containing_type.0, is_unchecked_js);
         if !self.links.insert_node_non_existent_prop_key(
             self.speculation_depth,
@@ -3548,209 +3617,6 @@ impl<'a> CheckerState<'a> {
         if let Some(related) = related {
             diagnostic.related.push(related);
         }
-        let access_expression = self.parent_of(prop_node).unwrap_or(prop_node);
-        let containing_symbol = self
-            .tables
-            .type_of(containing_type)
-            .symbol
-            .or(self.tables.type_of(containing_type).alias_symbol)
-            .map(|symbol| self.get_merged_symbol(symbol));
-        // A symbol-free primitive/union/intersection answer cannot
-        // acquire members from the still-incomplete checked-JS
-        // assignment-declaration producers. Symbol-bearing object and
-        // constructor types retain the narrow binder-proven paths
-        // below until those producers are complete.
-        let publish_symbol_free_non_jsdoc = containing_symbol.is_none()
-            && self.is_non_jsdoc_js_expression_type(access_expression, containing_type);
-        let has_only_non_js_declarations = containing_symbol.is_some_and(|symbol| {
-            let declarations = &self.binder.symbol(symbol).declarations;
-            !declarations.is_empty()
-                && declarations
-                    .iter()
-                    .all(|&declaration| !self.is_in_js_file(declaration))
-        });
-        let assignment_declaration_kind = self
-            .parent_of(access_expression)
-            .map(|parent| {
-                tsrs2_binder::get_assignment_declaration_kind(
-                    self.binder.source_of_node(parent),
-                    parent,
-                )
-            })
-            .unwrap_or(tsrs2_binder::AssignmentDeclarationKind::None);
-        let is_prototype_replacement_declaration =
-            assignment_declaration_kind == tsrs2_binder::AssignmentDeclarationKind::Prototype;
-        let publish_declared_non_jsdoc = has_only_non_js_declarations
-            && !is_prototype_replacement_declaration
-            && self.is_non_jsdoc_js_expression_type(access_expression, containing_type);
-        let is_plain_value_module = containing_symbol
-            .is_some_and(|symbol| self.binder.symbol(symbol).flags == SymbolFlags::VALUE_MODULE);
-        let publish_module_read_non_jsdoc = is_plain_value_module
-            && assignment_declaration_kind == tsrs2_binder::AssignmentDeclarationKind::None
-            && self.is_non_jsdoc_js_expression_type(access_expression, containing_type);
-        let is_assignment_class = containing_symbol.is_some_and(|symbol| {
-            let flags = self.binder.symbol(symbol).flags;
-            flags.intersects(SymbolFlags::CLASS)
-                && flags.intersects(SymbolFlags::ASSIGNMENT)
-                && !flags.intersects(SymbolFlags::FUNCTION)
-        });
-        let publish_assignment_class_read_non_jsdoc = is_assignment_class
-            && assignment_declaration_kind == tsrs2_binder::AssignmentDeclarationKind::None
-            && self.is_non_jsdoc_js_expression_type(access_expression, containing_type);
-        let access_receiver = match self.data_of(access_expression) {
-            NodeData::PropertyAccessExpression(data) => data.expression,
-            NodeData::ElementAccessExpression(data) => data.expression,
-            _ => None,
-        };
-        let is_direct_this_class = access_receiver
-            .is_some_and(|receiver| self.kind_of(receiver) == SyntaxKind::ThisKeyword)
-            && containing_symbol.is_some_and(|symbol| {
-                let flags = self.binder.symbol(symbol).flags;
-                flags.intersects(SymbolFlags::CLASS) && !flags.intersects(SymbolFlags::FUNCTION)
-            });
-        let publish_direct_this_class_read_non_jsdoc = is_direct_this_class
-            && assignment_declaration_kind == tsrs2_binder::AssignmentDeclarationKind::None
-            && self.is_non_jsdoc_js_expression_type(access_expression, containing_type);
-        let is_direct_alias_receiver = if let Some(receiver) =
-            access_receiver.filter(|&receiver| self.kind_of(receiver) == SyntaxKind::Identifier)
-        {
-            self.get_resolved_symbol(receiver)?.is_some_and(|symbol| {
-                self.binder
-                    .symbol(symbol)
-                    .flags
-                    .intersects(SymbolFlags::ALIAS)
-            })
-        } else {
-            false
-        };
-        let publish_commonjs_require_property_alias_read_non_jsdoc = if assignment_declaration_kind
-            == tsrs2_binder::AssignmentDeclarationKind::None
-            && is_direct_alias_receiver
-        {
-            let alias = self
-                .get_resolved_symbol(access_receiver.expect("direct alias has a receiver"))?
-                .expect("direct alias has a symbol");
-            let alias_is_commonjs_require = self
-                .binder
-                .symbol(alias)
-                .declarations
-                .iter()
-                .any(|&declaration| self.external_module_require_argument(declaration).is_some());
-            let target = self.resolve_alias(alias)?;
-            // A `const value = require("./m").value` declaration is
-            // bound as an alias directly to the exported local; that
-            // local need not carry the module symbol as its parent.
-            // Resolve the required module's own export aliases instead
-            // of admitting every JS alias with the same object type.
-            let required_modules = self
-                .non_jsdoc_js_commonjs_require_targets
-                .iter()
-                .copied()
-                .collect::<Vec<_>>();
-            let mut is_required_export = false;
-            for module in required_modules {
-                let exports = self
-                    .binder
-                    .symbol(module)
-                    .exports
-                    .values()
-                    .copied()
-                    .collect::<Vec<_>>();
-                for export in exports {
-                    if self.resolve_symbol_ex(Some(export), false)? == Some(target) {
-                        is_required_export = true;
-                        break;
-                    }
-                }
-                if is_required_export {
-                    break;
-                }
-            }
-            alias_is_commonjs_require
-                && is_required_export
-                && self.is_non_jsdoc_js_expression_type(access_expression, containing_type)
-        } else {
-            false
-        };
-        let is_actual_class = containing_symbol.is_some_and(|symbol| {
-            let flags = self.binder.symbol(symbol).flags;
-            flags.intersects(SymbolFlags::CLASS) && !flags.intersects(SymbolFlags::FUNCTION)
-        });
-        // An imported class alias cannot acquire an expando member
-        // through `Alias.missing = ...`: the binder deliberately
-        // declines that declaration. Keep ordinary object aliases and
-        // local class-member inference behind their existing
-        // assignment-declaration producers.
-        let publish_class_alias_assignment_non_jsdoc = is_direct_alias_receiver
-            && is_actual_class
-            && assignment_declaration_kind == tsrs2_binder::AssignmentDeclarationKind::Property
-            && self.is_non_jsdoc_js_expression_type(access_expression, containing_type);
-        // Only the first access in `this.x = ...` is a JS assignment
-        // declaration. A chained `this.x.missing = ...` therefore has
-        // a final missing-member verdict even when `this` belongs to a
-        // JSDoc constructor.
-        let publish_chained_this_assignment =
-            self.is_chained_this_property_assignment(access_expression);
-        let publish_prototype_object_replacement_property_assignment = self
-            .is_prototype_object_replacement_property_assignment(
-                access_expression,
-                containing_symbol,
-                assignment_declaration_kind,
-            )?;
-        let publish_jsdoc_satisfies_object_literal_property_read = self
-            .is_jsdoc_satisfies_object_literal_property_read(
-                access_expression,
-                containing_type,
-                assignment_declaration_kind,
-            )?;
-        let publish_this_prototype_class_property_read = self
-            .is_this_prototype_class_property_read(
-                access_expression,
-                containing_symbol,
-                assignment_declaration_kind,
-            );
-        let publish_jsdoc_this_annotated_arrow_class_field_read = self
-            .is_jsdoc_this_annotated_arrow_class_field_read(
-                access_expression,
-                containing_symbol,
-                assignment_declaration_kind,
-            );
-        let publish_jsdoc_chained_static_assignment_this_read = self
-            .is_jsdoc_chained_static_assignment_this_read(
-                access_expression,
-                containing_symbol,
-                assignment_declaration_kind,
-            )?;
-        // The binder cannot turn an intermediate access into a direct
-        // expando declaration. Once the empty reassignment verdict is
-        // complete, its missing member is safe to publish; initialized
-        // object/function containers retain their expando inference.
-        let publish_chained_uninitialized_identifier_empty_assignment = self.kind_of(prop_node)
-            != SyntaxKind::PrivateIdentifier
-            && self.is_chained_uninitialized_identifier_property_assignment(access_expression)?
-            && self.is_empty_anonymous_object_type(containing_type)?
-            && self.is_non_jsdoc_js_expression_type(access_expression, containing_type);
-        let expose_non_jsdoc_js = publish_symbol_free_non_jsdoc
-            || publish_declared_non_jsdoc
-            || publish_module_read_non_jsdoc
-            || publish_assignment_class_read_non_jsdoc
-            || publish_direct_this_class_read_non_jsdoc
-            || publish_class_alias_assignment_non_jsdoc
-            || publish_commonjs_require_property_alias_read_non_jsdoc
-            || publish_chained_this_assignment
-            || publish_prototype_object_replacement_property_assignment
-            || publish_jsdoc_satisfies_object_literal_property_read
-            || publish_this_prototype_class_property_read
-            || publish_jsdoc_this_annotated_arrow_class_field_read
-            || publish_jsdoc_chained_static_assignment_this_read
-            || publish_chained_uninitialized_identifier_empty_assignment
-            || containing_symbol.is_some_and(|symbol| {
-                self.non_jsdoc_js_module_exports_alias_targets
-                    .contains(&symbol)
-                    && self.is_non_jsdoc_js_expression_type(access_expression, containing_type)
-                    || self.non_jsdoc_js_commonjs_require_targets.contains(&symbol)
-            });
-        let diagnostics_before = self.diagnostics.len();
         if is_unchecked_js
             && diagnostic.code()
                 == tsrs2_diags::gen::Property_0_may_not_exist_on_type_1_Did_you_mean_2.code
@@ -3758,9 +3624,6 @@ impl<'a> CheckerState<'a> {
             diagnostic.message.category = DiagnosticCategory::Suggestion;
         }
         self.push_error_diagnostic(diagnostic);
-        if expose_non_jsdoc_js || is_unchecked_js {
-            self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
-        }
         Ok(())
     }
 
@@ -4073,7 +3936,7 @@ impl<'a> CheckerState<'a> {
             unreachable!("kind/data agree");
         };
         let Some(expression) = data.expression else {
-            return Err(Unsupported::new("ElementAccessExpression recovery node"));
+            return Ok(self.tables.intrinsics.error);
         };
         let expr_type = self.check_non_null_expression(expression)?;
         self.check_element_access_expression(node, expr_type, check_mode)
@@ -4088,7 +3951,7 @@ impl<'a> CheckerState<'a> {
             unreachable!("kind/data agree");
         };
         let Some(expression) = data.expression else {
-            return Err(Unsupported::new("ElementAccessExpression recovery node"));
+            return Ok(self.tables.intrinsics.error);
         };
         let expr_type = self.check_expression(expression, CheckMode::NORMAL)?;
         let non_optional_type = self.get_optional_expression_type(expr_type, expression)?;
@@ -4109,7 +3972,7 @@ impl<'a> CheckerState<'a> {
         let (Some(_expression), Some(index_expression)) =
             (data.expression, data.argument_expression)
         else {
-            return Err(Unsupported::new("ElementAccessExpression recovery node"));
+            return Ok(self.tables.intrinsics.error);
         };
         // checkElementAccessExpression receiver widening (75720):
         // assignment targets and method-call receivers read the
@@ -4627,10 +4490,8 @@ mod tests {
     #[test]
     fn double_narrowed_never_receiver_reports_2339() {
         // reportNonexistentProperty reports on never receivers
-        // (75416); only intersection-bearing declared types defer to
-        // the narrowing-divergence shield (6.6 review D3, consult
-        // rebuilt at m6 7.6; oracle-pinned vs vendored tsc 6.0.3
-        // noLib).
+        // (75416), including values narrowed from a non-never
+        // declaration. Oracle-pinned vs vendored tsc 6.0.3, noLib.
         assert_eq!(
             checked_rows(
                 "declare const x: string | number;\nif (typeof x === \"string\") { if (typeof x === \"number\") { x.toFixed; } }\n"
@@ -4663,6 +4524,32 @@ mod tests {
             assert_eq!(
                 diag.message.next[0].text,
                 "The intersection 'AB' was reduced to 'never' because property 'kind' has conflicting types in some constituents."
+            );
+        });
+    }
+
+    #[test]
+    fn never_narrowed_union_with_reduced_member_reports_2339() {
+        // getReducedUnionType drops the impossible `Bad` member, after
+        // which the negative discriminant branch narrows the surviving
+        // member to never. tsc still runs reportNonexistentProperty on
+        // that never receiver; this used to stop at the M8 narrowing
+        // shield instead.
+        let text = "type Bad = { kind: \"a\" } & { kind: \"b\" };\n\
+                    type U = Bad | { kind: \"c\" };\n\
+                    declare const x: U;\n\
+                    if (x.kind !== \"c\") { x.q; }\n";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            assert!(
+                state.diagnostics.iter().any(|diag| diag.code() == 2339),
+                "{:#?}",
+                state.diagnostics
+            );
+            assert!(
+                state.partial_check_records.is_empty(),
+                "{:#?}",
+                state.partial_check_records
             );
         });
     }
@@ -4796,16 +4683,16 @@ function sum({ a, b }) { return a + b; }\n";
 
     #[test]
     fn checked_js_jsdoc_commonjs_optional_export_publishes_18048() {
+        let mod_text = "/** @typedef {number} Baz */\n\
+module.exports = { Baz: class {} };\n\
+/** @typedef {number} Quack */\n\
+module.exports = { Quack: 2 };\n";
         let use_text = "var mod = require('./mod1.js');\nnew mod.Baz();\n";
         let result = check_program(
             &[
                 InputFile {
                     name: "mod1.js".to_owned(),
-                    text: "/** @typedef {number} Baz */\n\
-module.exports = { Baz: class {} };\n\
-/** @typedef {number} Quack */\n\
-module.exports = { Quack: 2 };\n"
-                        .to_owned(),
+                    text: mod_text.to_owned(),
                 },
                 InputFile {
                     name: "use.js".to_owned(),
@@ -4830,12 +4717,26 @@ module.exports = { Quack: 2 };\n"
                     diagnostic.length.unwrap_or(u32::MAX),
                 ))
                 .collect::<Vec<_>>(),
-            [(
-                Some("use.js"),
-                18048,
-                use_text.find("mod.Baz").unwrap() as u32,
-                "mod.Baz".len() as u32,
-            )]
+            [
+                (
+                    Some("mod1.js"),
+                    2300,
+                    mod_text.find("Baz").unwrap() as u32,
+                    "Baz".len() as u32,
+                ),
+                (
+                    Some("mod1.js"),
+                    2300,
+                    mod_text.rfind("Baz").unwrap() as u32,
+                    "Baz".len() as u32,
+                ),
+                (
+                    Some("use.js"),
+                    18048,
+                    use_text.find("mod.Baz").unwrap() as u32,
+                    "mod.Baz".len() as u32,
+                ),
+            ]
         );
     }
 
@@ -5559,5 +5460,143 @@ try {} catch (plain) { plain.foo; }\n";
                 "{diagnostics:?}"
             );
         }
+    }
+
+    #[test]
+    fn checked_js_global_this_assignment_uses_the_merged_augmentation() {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(true),
+            target: Some(ScriptTarget::ES2015.bits()),
+            ..CompilerOptions::default()
+        };
+        let clean = "globalThis.alpha = 4;\nglobalThis.alpha;\n";
+        assert_eq!(
+            with_program_state(&[("a.js", clean)], &options, |state| {
+                state.check_source_file(0);
+                rows(state)
+            }),
+            []
+        );
+
+        let siblings = "globalThis.missing;\nlet scoped = 1;\nglobalThis.scoped;\n";
+        assert_eq!(
+            with_program_state(&[("a.js", siblings)], &options, |state| {
+                state.check_source_file(0);
+                rows(state)
+                    .into_iter()
+                    .filter(|(code, _, _)| matches!(code, 2339 | 7017))
+                    .collect::<Vec<_>>()
+            }),
+            [
+                (
+                    7017,
+                    siblings.find("missing").expect("missing property") as u32,
+                    "missing".len() as u32,
+                ),
+                (
+                    2339,
+                    siblings.rfind("scoped").expect("block-scoped property") as u32,
+                    "scoped".len() as u32,
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn jsdoc_deprecated_symbols_and_selected_signatures_match_tsc() {
+        let text = "/** @deprecated use current */\n\
+                    function old(value: string): string { return value; }\n\
+                    const ref = old;\n\
+                    old(\"x\");\n\
+                    interface API {\n\
+                      /** @deprecated */\n\
+                      old(): void;\n\
+                    }\n\
+                    declare const api: API;\n\
+                    api.old;\n\
+                    api.old();\n\
+                    api[\"old\"];\n\
+                    interface Indexed {\n\
+                      /** @deprecated */\n\
+                      [key: string]: number;\n\
+                    }\n\
+                    declare const indexed: Indexed;\n\
+                    indexed.foo;\n\
+                    interface DeprecatedCtor {\n\
+                      /** @deprecated */\n\
+                      new (): object;\n\
+                    }\n\
+                    declare const C: DeprecatedCtor;\n\
+                    new C();\n";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            let rows = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| matches!(diagnostic.code(), 6385 | 6387))
+                .map(|diagnostic| {
+                    (
+                        diagnostic.code(),
+                        diagnostic.category(),
+                        diagnostic.message_text().to_owned(),
+                        diagnostic
+                            .related
+                            .iter()
+                            .map(|related| related.message.code)
+                            .collect::<Vec<_>>(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                rows,
+                [
+                    (
+                        6385,
+                        tsrs2_diags::DiagnosticCategory::Suggestion,
+                        "'old' is deprecated.".to_owned(),
+                        vec![2798],
+                    ),
+                    (
+                        6387,
+                        tsrs2_diags::DiagnosticCategory::Suggestion,
+                        "The signature '(value: string): string' of 'old' is deprecated."
+                            .to_owned(),
+                        vec![2798],
+                    ),
+                    (
+                        6385,
+                        tsrs2_diags::DiagnosticCategory::Suggestion,
+                        "'old' is deprecated.".to_owned(),
+                        vec![2798],
+                    ),
+                    (
+                        6387,
+                        tsrs2_diags::DiagnosticCategory::Suggestion,
+                        "The signature '(): void' of 'api.old' is deprecated.".to_owned(),
+                        vec![2798],
+                    ),
+                    (
+                        6385,
+                        tsrs2_diags::DiagnosticCategory::Suggestion,
+                        "'old' is deprecated.".to_owned(),
+                        vec![2798],
+                    ),
+                    (
+                        6385,
+                        tsrs2_diags::DiagnosticCategory::Suggestion,
+                        "'foo' is deprecated.".to_owned(),
+                        vec![2798],
+                    ),
+                    (
+                        6387,
+                        tsrs2_diags::DiagnosticCategory::Suggestion,
+                        "The signature '(): object' of 'C' is deprecated.".to_owned(),
+                        vec![2798],
+                    ),
+                ]
+            );
+        });
     }
 }

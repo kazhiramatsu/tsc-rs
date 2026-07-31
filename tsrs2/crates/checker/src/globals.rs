@@ -241,10 +241,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 439c4c26ba61de8b13d2318306893a8d8ed9e1c7b0cefb01f74631307c312714
     /// tsc-span: _tsc.js:60604-60631
     ///
-    /// The typeParameters arity check compares against the M3/5.0
-    /// declared-type slice: non-generic interfaces only, so the count
-    /// is 0 (generic interfaces unwind as Unsupported from
-    /// getDeclaredTypeOfClassOrInterface until 5.1 lands them).
+    /// The typeParameters arity check compares against the resolved
+    /// declared type's live generic parameter list.
     pub fn get_type_of_global_symbol(
         &mut self,
         symbol: Option<SymbolId>,

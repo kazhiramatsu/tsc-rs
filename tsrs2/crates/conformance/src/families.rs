@@ -2803,6 +2803,7 @@ mod tests {
             matrix_key: matrix_key.to_owned(),
             tsrs: Vec::new(),
             oracle: Vec::new(),
+            oracle_empty_related_information: Vec::new(),
             tsrs_cli_hash: String::new(),
             oracle_cli_hash: String::new(),
         };

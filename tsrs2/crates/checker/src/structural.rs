@@ -12,15 +12,15 @@ use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
     AccessFlags, CheckFlags, ElementFlags, IndexFlags, InferenceFlags, InferencePriority,
     IntersectionFlags, IntersectionState, MappedTypeModifiers, ModifierFlags, ObjectFlags,
-    PseudoBigInt, RecursionFlags, SymbolFlags, TemplateText, Ternary, TupleTargetFlags, TypeData,
-    TypeFlags, TypeId, UnionReduction,
+    PseudoBigInt, RecursionFlags, SignatureFlags, SymbolFlags, TemplateText, Ternary,
+    TupleTargetFlags, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::engine::{is_false, is_true, ternary_and, RelationChecker};
 use crate::inference::CompareTypesFn;
 use crate::relate::RelationKind;
 pub use crate::state::SignatureKind;
-use crate::state::{CheckResult2, CheckerState, IndexInfo, SignatureId, Unsupported};
+use crate::state::{CheckResult2, CheckerState, IndexInfo, SignatureId};
 
 /// tsc SignatureCheckMode (inlined const enum).
 mod check_mode {
@@ -100,7 +100,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if !report_errors || !has_invariant {
                 return Ok(Some(Ternary::FALSE));
             }
-            *original_error_info = Some(self.capture_error_calculation_state());
+            *original_error_info = self.capture_current_error_info();
             self.reset_error_info(saved_error_info);
         }
         Ok(None)
@@ -234,8 +234,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// - single-element generic tuples: generic tuples are M4.
     /// - target TypeParameter/Index/IndexedAccess/Mapped/Conditional
     ///   arms now dispatch to their live relation machinery.
-    /// - target TemplateLiteral arm LIVE (the 4.2/4.3 template stub
-    ///   call sites route here); target StringMapping Unsupported.
+    /// - target TemplateLiteral and StringMapping arms dispatch to
+    ///   their live relation machinery.
     /// - source TypeVariable/Index/Conditional arms are live; the
     ///   source TemplateLiteral/StringMapping constraint arms reduce
     ///   through getBaseConstraintOrType.
@@ -793,9 +793,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 unreachable!("indexed-access flag implies indexed-access data");
             };
             if source_flags.intersects(TypeFlags::INDEXED_ACCESS) {
-                // 66165-66177: componentwise object/index relation;
-                // the originalErrorInfo juggling is display machinery
-                // — unported like the 66468-66471 precedent.
+                // 66165-66177: componentwise object/index relation.
                 let TypeData::IndexedAccess {
                     object_type: source_object,
                     index_type: source_index,
@@ -825,6 +823,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
                 if !is_false(result) {
                     return Ok(result);
+                }
+                if report_errors {
+                    original_error_info = self.capture_current_error_info();
                 }
             }
             if self.relation == RelationKind::Assignable
@@ -861,6 +862,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         None,
                     )?;
                     if let Some(constraint) = constraint {
+                        if report_errors && original_error_info.is_some() {
+                            self.reset_error_info(saved_error_info);
+                        }
                         let result = self.is_related_to(
                             source,
                             constraint,
@@ -871,16 +875,28 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         if !is_false(result) {
                             return Ok(result);
                         }
+                        if report_errors {
+                            if let Some(original) = original_error_info.as_ref() {
+                                self.select_shallower_indexed_access_error_info(original);
+                            }
+                        }
                     }
                 }
+            }
+            if report_errors {
+                original_error_info = None;
             }
         }
         if self.relation != RelationKind::Identity
             && self.st.is_generic_mapped_type_state(target)?
         {
-            if let Some(result) =
-                self.generic_mapped_target_related_to(source, target, report_errors)?
-            {
+            if let Some(result) = self.generic_mapped_target_related_to(
+                source,
+                target,
+                report_errors,
+                saved_error_info,
+                &mut original_error_info,
+            )? {
                 return Ok(result);
             }
         }
@@ -1310,10 +1326,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if !target_flags.intersects(TypeFlags::CONDITIONAL)
                 && self.st.has_non_circular_base_constraint(source)?
             {
+                // tsc-port: distributive-constraint retry @6.0.3
+                // tsc-hash: 6de6d80ca57c45142ea7cfaa2536e6c9aefd4ef04338b569e6a9cf9fba7353bc
+                // tsc-span: _tsc.js:66388-66400
                 if let Some(distributive_constraint) = self
                     .st
                     .get_constraint_of_distributive_conditional_type(source)?
                 {
+                    self.reset_error_info(saved_error_info);
                     let result = self.is_related_to(
                         distributive_constraint,
                         target,
@@ -1648,15 +1668,23 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         Ok(ternary_and(constraint_result, template_result))
     }
 
-    /// tsrs-native: extracted generic-mapped target arm of
-    /// structuredTypeRelatedToWorker (66204-66243). `None` means that
-    /// the arm did not produce a successful relation and the
-    /// source-side dispatch must continue.
+    /// tsc-port: structuredTypeRelatedToWorker @6.0.3
+    /// tsc-hash: c3ee36a0d2ca24ac76adf73571b12f0f7c3009fed9201b9368c3b23a957efffc
+    /// tsc-span: _tsc.js:66208-66240
+    ///
+    /// tsrs-native extraction from structuredTypeRelatedToWorker.
+    /// `None` means that the arm did not produce a successful relation
+    /// and the source-side dispatch must continue. A failed
+    /// non-generic-source attempt preserves its chain as
+    /// originalErrorInfo and restores the worker-entry state before
+    /// that continuation.
     fn generic_mapped_target_related_to(
         &mut self,
         source: TypeId,
         target: TypeId,
         report_errors: bool,
+        saved_error_info: &crate::engine::RelationErrorState,
+        original_error_info: &mut Option<crate::engine::RelationErrorState>,
     ) -> CheckResult2<Option<Ternary>> {
         let keys_remapped = self.st.mapped_type_declaration_has_name_type(target);
         let template = self.st.get_template_type_from_mapped_type(target)?;
@@ -1710,6 +1738,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             )?),
         };
         if !keys_related {
+            *original_error_info = self.capture_current_error_info();
+            self.reset_error_info(saved_error_info);
             return Ok(None);
         }
         let non_null_component = self.st.tables.filter_type(template, |tables, member| {
@@ -1733,6 +1763,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     if !is_false(result) {
                         return Ok(Some(result));
                     }
+                    *original_error_info = self.capture_current_error_info();
+                    self.reset_error_info(saved_error_info);
                     return Ok(None);
                 }
             }
@@ -1760,7 +1792,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             report_errors,
             IntersectionState::NONE,
         )?;
-        Ok((!is_false(result)).then_some(result))
+        if !is_false(result) {
+            return Ok(Some(result));
+        }
+        *original_error_info = self.capture_current_error_info();
+        self.reset_error_info(saved_error_info);
+        Ok(None)
     }
 
     /// tsc-port: typeRelatedToDiscriminatedType @6.0.3
@@ -2092,7 +2129,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             let target_declaration = self.st.binder.symbol(target_prop).value_declaration;
             if source_declaration != target_declaration {
                 if report_errors {
-                    let name = self.st.binder.symbol(target_prop).escaped_name.clone();
+                    let name = self.st.symbol_name_as_written_slice(target_prop);
                     if source_prop_flags.intersects(ModifierFlags::PRIVATE)
                         && target_prop_flags.intersects(ModifierFlags::PRIVATE)
                     {
@@ -2130,7 +2167,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         } else if target_prop_flags.intersects(ModifierFlags::PROTECTED) {
             if !self.st.is_valid_override_of(source_prop, target_prop)? {
                 if report_errors {
-                    let name = self.st.binder.symbol(target_prop).escaped_name.clone();
+                    let name = self.st.symbol_name_as_written_slice(target_prop);
                     let source_class = self.st.get_declaring_class(source_prop)?.unwrap_or(source);
                     let target_class = self.st.get_declaring_class(target_prop)?.unwrap_or(target);
                     let source_text = self
@@ -2149,7 +2186,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         } else if source_prop_flags.intersects(ModifierFlags::PROTECTED) {
             // 66686-66692: protected source vs public target.
             if report_errors {
-                let name = self.st.binder.symbol(target_prop).escaped_name.clone();
+                let name = self.st.symbol_name_as_written_slice(target_prop);
                 let source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
                 let target_text = self.st.type_to_string_slice_with_error_enclosing(target)?;
                 self.report_error(
@@ -2174,7 +2211,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         )?;
         if !is_true(related) {
             if report_errors {
-                let name = self.st.binder.symbol(target_prop).escaped_name.clone();
+                let name = self.st.symbol_name_as_written_slice(target_prop);
                 self.report_incompatible_error(
                     &tsrs2_diags::gen::Types_of_property_0_are_incompatible,
                     vec![name],
@@ -2196,7 +2233,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             .intersects(SymbolFlags::OPTIONAL);
         if !skip_optional && source_optional && target_class_member && !target_optional {
             if report_errors {
-                let name = self.st.binder.symbol(target_prop).escaped_name.clone();
+                let name = self.st.symbol_name_as_written_slice(target_prop);
                 let source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
                 let target_text = self.st.type_to_string_slice_with_error_enclosing(target)?;
                 self.report_error(
@@ -2678,12 +2715,15 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
 
         if properties.len() == 1 {
+            // 66736-66742: the single-property face is the one
+            // relation-property report that requests
+            // SymbolFormatFlags.WriteComputedProps. It reprints a
+            // computed declaration name structurally instead of using
+            // the default symbolToString face used by every
+            // propertyRelatedTo failure arm.
             let name = self
                 .st
-                .binder
-                .symbol(unmatched_property)
-                .escaped_name
-                .clone();
+                .missing_property_display_name(unmatched_property, true)?;
             let mut source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
             let mut target_text = self.st.type_to_string_slice_with_error_enclosing(target)?;
             if source_text == target_text {
@@ -2722,12 +2762,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
 
         let source_text = self.st.type_to_string_slice(source)?;
         let target_text = self.st.type_to_string_slice(target)?;
-        let names = properties
-            .iter()
-            .take(4)
-            .map(|&property| self.st.binder.symbol(property).escaped_name.clone())
-            .collect::<Vec<_>>()
-            .join(", ");
+        // 66757/66759: multi-property lists use the default
+        // symbolToString face (no WriteComputedProps).
+        let mut displayed_names = Vec::with_capacity(properties.len().min(4));
+        for &property in properties.iter().take(4) {
+            displayed_names.push(self.st.missing_property_display_name(property, false)?);
+        }
+        let names = displayed_names.join(", ");
         if properties.len() > 5 {
             self.report_error(
                 &tsrs2_diags::gen::Type_0_is_missing_the_following_properties_from_type_1_2_and_3_more,
@@ -2948,18 +2989,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .type_of(source)
                 .symbol
                 .and_then(|symbol| self.st.binder.symbol(symbol).value_declaration)
-                .is_some_and(|declaration| {
-                    self.st.is_js_constructor_without_jsdoc(declaration) == Some(true)
-                });
+                .is_some_and(|declaration| self.st.is_js_constructor(declaration));
             let target_is_js_constructor = self
                 .st
                 .tables
                 .type_of(target)
                 .symbol
                 .and_then(|symbol| self.st.binder.symbol(symbol).value_declaration)
-                .is_some_and(|declaration| {
-                    self.st.is_js_constructor_without_jsdoc(declaration) == Some(true)
-                });
+                .is_some_and(|declaration| self.st.is_js_constructor(declaration));
             if source_is_js_constructor && target_is_js_constructor {
                 return self.signatures_related_to(
                     source,
@@ -3268,8 +3305,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// tsc-hash: ff64ccff2dd2fde3efc5b70fe05834b924d9044f53833479bf00443877912805
     /// tsc-span: _tsc.js:67574-67630
     ///
-    /// Type parameters and this-types are M4 rows; type predicates
-    /// report Unsupported via getTypePredicateOfSignature.
+    /// Type parameters, this-types, and type predicates use their live
+    /// comparison paths.
     fn compare_signatures_identical(
         &mut self,
         source: SignatureId,
@@ -3811,9 +3848,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .st
                 .signature_of(target)
                 .declaration
-                .filter(|&declaration| {
-                    self.st.is_js_constructor_without_jsdoc(declaration) == Some(true)
-                })
+                .filter(|&declaration| self.st.is_js_constructor(declaration))
                 .and_then(|declaration| self.st.node_symbol(declaration))
                 .map(|symbol| self.st.get_merged_symbol(symbol))
             {
@@ -3837,9 +3872,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .st
                 .signature_of(source)
                 .declaration
-                .filter(|&declaration| {
-                    self.st.is_js_constructor_without_jsdoc(declaration) == Some(true)
-                })
+                .filter(|&declaration| self.st.is_js_constructor(declaration))
                 .and_then(|declaration| self.st.node_symbol(declaration))
                 .map(|symbol| self.st.get_merged_symbol(symbol))
             {
@@ -4142,7 +4175,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             )?;
             if !is_true(related) {
                 if report_errors {
-                    let name = self.st.binder.symbol(prop).escaped_name.clone();
+                    let name = self.st.symbol_name_as_written_slice(prop);
                     self.report_error(
                         &tsrs2_diags::gen::Property_0_is_incompatible_with_index_signature,
                         vec![name],
@@ -5010,7 +5043,7 @@ impl<'a> CheckerState<'a> {
         for prop in properties.iter().copied() {
             if self.is_discriminant_with_never_type(prop)? {
                 let type_name = self.type_to_string_slice_no_type_reduction(ty)?;
-                let prop_name = self.symbol_display_name(prop);
+                let prop_name = self.symbol_name_as_written_slice(prop);
                 return Ok(Some(tsrs2_diags::MessageChain::new(
                     &tsrs2_diags::gen::The_intersection_0_was_reduced_to_never_because_property_1_has_conflicting_types_in_some_constituents,
                     &[type_name, prop_name],
@@ -5020,7 +5053,7 @@ impl<'a> CheckerState<'a> {
         for prop in properties.iter().copied() {
             if self.is_conflicting_private_property(prop) {
                 let type_name = self.type_to_string_slice_no_type_reduction(ty)?;
-                let prop_name = self.symbol_display_name(prop);
+                let prop_name = self.symbol_name_as_written_slice(prop);
                 return Ok(Some(tsrs2_diags::MessageChain::new(
                     &tsrs2_diags::gen::The_intersection_0_was_reduced_to_never_because_property_1_exists_in_multiple_constituents_and_is_private_in_some,
                     &[type_name, prop_name],
@@ -5105,20 +5138,19 @@ impl<'a> CheckerState<'a> {
             {
                 continue;
             }
-            let prop = if self
-                .tables
-                .flags_of(ty)
-                .intersects(TypeFlags::UNION_OR_INTERSECTION)
-            {
-                self.get_union_or_intersection_property(ty, name, skip)?
-            } else {
-                // tsc 59109: getPropertyOfType WITH the skip flag —
-                // the augment-allowing second pass reaches
-                // Object.prototype members on intersection
-                // constituents (intersectionIncludingPropFromGlobal
-                // Augmentation pins `x.hasOwnProperty`).
-                self.get_property_of_type_ex(ty, name, skip)?
-            };
+            // tsc 59109: always enter through getPropertyOfType.  In
+            // particular, an intersection constituent must pass
+            // getReducedApparentType before its property participates
+            // in an outer union.  Calling getUnionOrIntersectionProperty
+            // directly here retains properties from an impossible
+            // intersection (for example `type: never`) and can turn a
+            // partial outer property into a false discriminant.
+            //
+            // The skip flag also preserves the augment-allowing second
+            // pass for Object.prototype members on intersection
+            // constituents (intersectionIncludingPropFromGlobal
+            // Augmentation pins `x.hasOwnProperty`).
+            let prop = self.get_property_of_type_ex(ty, name, skip)?;
             if let Some(prop) = prop {
                 let modifiers = self.get_declaration_modifier_flags_from_symbol(prop);
                 let prop_symbol_flags = self.symbol_flags(prop);
@@ -5481,15 +5513,30 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: isPrototypeProperty @6.0.3
-    /// tsc-hash: a0150259e3d1514eb8ec0975ce264af887321e6d865c941d8a3dace7eefa0a93
-    /// tsc-span: _tsc.js:74862-74864
-    ///
-    /// The JS valueDeclaration arm is dead in TS files.
+    /// tsc-hash: 207ce788baf9b71475e96f8eb9766636491049cf22405208a4f9d3587c69dbd8
+    /// tsc-span: _tsc.js:74862-74870
     pub(crate) fn is_prototype_property(&self, prop: SymbolId) -> bool {
-        self.symbol_flags(prop).intersects(SymbolFlags::METHOD)
+        if self.symbol_flags(prop).intersects(SymbolFlags::METHOD)
             || self
                 .get_check_flags(prop)
                 .intersects(CheckFlags::SYNTHETIC_METHOD)
+        {
+            return true;
+        }
+        let Some(value_declaration) = self.binder.symbol(prop).value_declaration else {
+            return false;
+        };
+        if !self.is_in_js_file(value_declaration) {
+            return false;
+        }
+        let Some(parent) = self.parent_of(value_declaration) else {
+            return false;
+        };
+        self.kind_of(parent) == SyntaxKind::BinaryExpression
+            && tsrs2_binder::assignment::get_assignment_declaration_kind(
+                self.binder.source_of_node(parent),
+                parent,
+            ) == tsrs2_binder::AssignmentDeclarationKind::PrototypeProperty
     }
 
     fn is_literal_type_public(&self, ty: TypeId) -> bool {
@@ -6055,17 +6102,24 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 049f21cf11685ae294ad5a29441b2addc02e7c766ab94220928627f0c3d993da
     /// tsc-span: _tsc.js:67445-67447
     pub(crate) fn get_declaring_class(&mut self, prop: SymbolId) -> CheckResult2<Option<TypeId>> {
-        let Some(parent) = self.binder.symbol(prop).parent else {
+        let Some(raw_parent) = self.binder.symbol(prop).parent else {
             return Ok(None);
         };
         if !self
             .binder
-            .symbol(parent)
+            .symbol(raw_parent)
             .flags
             .intersects(SymbolFlags::CLASS)
         {
             return Ok(None);
         }
+        // tsc tests the raw `prop.parent` flags, then deliberately
+        // obtains the declaration owner through getParentOfSymbol.
+        // That second step follows the initializer merge id to the
+        // inferred JS class carrying variable/prototype members.
+        let parent = self
+            .get_parent_of_symbol(prop)
+            .expect("a property parent remains present after merge resolution");
         Ok(Some(self.get_declared_type_of_class_or_interface(parent)?))
     }
 
@@ -6720,9 +6774,12 @@ impl<'a> CheckerState<'a> {
         Ok(params)
     }
 
-    /// getParameterNameAtPosition (78218-78232 slice): declared
-    /// positions read the parameter symbol's name; tuple-rest expanded
-    /// positions read the label declaration's name text when present.
+    /// getParameterNameAtPosition (78158-78174): declared positions
+    /// read the parameter symbol's name. Positions in a tuple-typed
+    /// rest parameter use the tuple target's associated declaration
+    /// and element flags; an unlabeled tuple element is synthesized
+    /// from the rest declaration (`args_0`, `args_1`, ...). A
+    /// non-tuple rest keeps the rest symbol name.
     /// tsc-port: getParameterNameAtPosition @6.0.3
     /// tsc-hash: 9743ec1093fde048dab12f2b7db102c09d27b4b89d6253544646b09406613e1a
     /// tsc-span: _tsc.js:78158-78174
@@ -6744,9 +6801,37 @@ impl<'a> CheckerState<'a> {
                     .clone(),
             ));
         }
-        let Some(&rest_parameter) = self.signature_of(signature).parameters.last() else {
+        let Some(&rest_parameter) = self.signature_of(signature).parameters.get(param_count) else {
             return Ok(None);
         };
+        let rest_type = self.get_type_of_symbol(rest_parameter)?;
+        if self
+            .tables
+            .object_flags_of(rest_type)
+            .intersects(ObjectFlags::REFERENCE)
+        {
+            let target = self.tables.reference_target(rest_type);
+            if let TypeData::TupleTarget(tuple) = self.tables.type_of(target).data.clone() {
+                let index = pos - param_count;
+                let declaration = tuple
+                    .labeled_element_declarations
+                    .as_ref()
+                    .and_then(|declarations| declarations.get(index).copied())
+                    .flatten()
+                    .map(NodeId);
+                let element_flags = tuple
+                    .element_flags
+                    .get(index)
+                    .copied()
+                    .expect("tuple-rest parameter position is within its tuple target");
+                return Ok(Some(self.tuple_element_label_slice(
+                    declaration,
+                    index,
+                    element_flags,
+                    Some(rest_parameter),
+                )?));
+            }
+        }
         Ok(Some(
             self.binder.symbol(rest_parameter).escaped_name.clone(),
         ))
@@ -7176,8 +7261,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:59390-59396
     ///
     /// getSignaturesOfType's union call-signature fallback (59397+)
-    /// needs union signature synthesis — M4; union sources with call
-    /// signatures report Unsupported.
+    /// resolves through live union signature synthesis.
     pub fn get_signatures_of_type(
         &mut self,
         ty: TypeId,
@@ -7395,10 +7479,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:78287-78321
     ///
     /// The (StrongArityForUntypedJS|VoidIsNonOptional) flags parameter
-    /// is elided — every ported caller passes none, so the
-    /// resolvedMinArgumentCount cache reduces to recomputation; the
-    /// void-trimming loop lowers the syntactic count when trailing
-    /// parameters accept void.
+    /// is elided — every ported caller of this default face passes
+    /// none. Untyped JavaScript signatures therefore have minimum
+    /// arity zero; the void-trimming loop lowers other syntactic
+    /// counts when trailing parameters accept void.
     pub fn get_min_argument_count(&mut self, signature: SignatureId) -> CheckResult2<usize> {
         let mut computed: Option<usize> = None;
         if let Some((_, data)) = self.rest_tuple_target_data(signature)? {
@@ -7412,7 +7496,16 @@ impl<'a> CheckerState<'a> {
             }
         }
         let signature_data = self.signature_of(signature);
-        let mut min_argument_count = computed.unwrap_or(signature_data.min_argument_count as usize);
+        let mut min_argument_count = match computed {
+            Some(computed) => computed,
+            None if signature_data
+                .flags
+                .intersects(SignatureFlags::IS_UNTYPED_SIGNATURE_IN_JS_FILE) =>
+            {
+                return Ok(0);
+            }
+            None => signature_data.min_argument_count as usize,
+        };
         let mut i = min_argument_count;
         while i > 0 {
             i -= 1;
@@ -7929,7 +8022,9 @@ impl<'a> CheckerState<'a> {
                 value: tsrs2_types::LiteralValue::String(value),
             } = &self.tables.type_of(source).data
             {
-                return Ok(is_numeric_literal_name_js(value));
+                return Ok(value
+                    .to_utf8()
+                    .is_some_and(|value| is_numeric_literal_name_js(&value)));
             }
         }
         Ok(false)
@@ -8220,11 +8315,7 @@ impl<'a> CheckerState<'a> {
             else {
                 unreachable!("string literal data");
             };
-            return self.infer_from_literal_parts_to_template_literal(
-                &[TemplateText::from_utf8(&value)],
-                &[],
-                target,
-            );
+            return self.infer_from_literal_parts_to_template_literal(&[value], &[], target);
         }
         if source_flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
             let (source_texts, source_types) = self.template_parts_of(source);
@@ -8316,13 +8407,18 @@ impl<'a> CheckerState<'a> {
                 unreachable!("string literal data");
             };
             let target_flags = self.tables.flags_of(target);
+            let utf8_value = value.to_utf8();
             if target_flags.intersects(TypeFlags::NUMBER)
-                && self.is_valid_number_string(&value, /*round_trip_only*/ false)
+                && utf8_value
+                    .as_deref()
+                    .is_some_and(|value| self.is_valid_number_string(value, false))
             {
                 return Ok(true);
             }
             if target_flags.intersects(TypeFlags::BIG_INT)
-                && self.is_valid_big_int_string(&value, /*round_trip_only*/ false)
+                && utf8_value
+                    .as_deref()
+                    .is_some_and(|value| self.is_valid_big_int_string(value, false))
             {
                 return Ok(true);
             }
@@ -8330,7 +8426,7 @@ impl<'a> CheckerState<'a> {
                 TypeFlags::BOOLEAN_LITERAL.bits() | TypeFlags::NULLABLE.bits(),
             )) {
                 if let TypeData::Intrinsic { name, .. } = &self.tables.type_of(target).data {
-                    return Ok(value == *name);
+                    return Ok(value.eq_utf8(name));
                 }
             }
             if target_flags.intersects(TypeFlags::STRING_MAPPING) {
@@ -8362,10 +8458,9 @@ impl<'a> CheckerState<'a> {
     /// The pure text-matching algorithm, ported exactly — over UTF-16
     /// code units, because every JS index/length here (`pos + 1`,
     /// `indexOf`, `slice`) counts code units (the review's `é` pins
-    /// panicked the byte-indexed version). A slice that would strand
-    /// half a surrogate pair (astral char split by an empty
-    /// placeholder step) escapes as Unsupported rather than fabricate
-    /// a replacement-character literal.
+    /// panicked the byte-indexed version). String literal payloads use
+    /// the same lossless representation, so a split may retain either
+    /// half of a surrogate pair exactly as tsc does.
     #[allow(clippy::needless_range_loop)] // seg/pos cursor walk, ported as tsc wrote it
     fn infer_from_literal_parts_to_template_literal(
         &mut self,
@@ -8416,8 +8511,8 @@ impl<'a> CheckerState<'a> {
                 let s = $s;
                 let p = $p;
                 let match_type = if s == seg {
-                    let text = utf16_to_string(&get_source_units(s)[pos..p])?;
-                    self.tables.get_string_literal_type(&text)
+                    self.tables
+                        .get_string_literal_type_from_utf16(&get_source_units(s)[pos..p])
                 } else {
                     let mut texts = vec![TemplateText::from_utf16(&source_units[seg][pos..])];
                     texts.extend(source_texts[seg + 1..s].iter().cloned());
@@ -8480,17 +8575,6 @@ fn find_utf16(haystack: &[u16], needle: &[u16], from: usize) -> Option<usize> {
     (from..=haystack.len() - needle.len()).find(|&i| haystack[i..i + needle.len()] == *needle)
 }
 
-/// Decode a code-unit slice back to a Rust string; a stranded
-/// surrogate half (JS would keep it, Rust strings cannot) escapes as
-/// Unsupported instead of fabricating U+FFFD literal text.
-fn utf16_to_string(units: &[u16]) -> CheckResult2<String> {
-    String::from_utf16(units).map_err(|_| {
-        Unsupported::new(
-            "template inference strands a surrogate half (UTF-16 WTF-16 representation, M8)",
-        )
-    })
-}
-
 /// tsc isNumericLiteralName over JS number round-trip (19205): the
 /// name coerces to a number whose string form is the name — over the
 /// RAW coercion, so "NaN" (and the Infinity spellings) count exactly
@@ -8526,7 +8610,7 @@ fn js_number_to_string(value: f64) -> String {
 mod tests {
     use tsrs2_binder::bind_source_file;
     use tsrs2_syntax::{parse_source_file, LanguageVariant, ParseOptions};
-    use tsrs2_types::CompilerOptions;
+    use tsrs2_types::{CompilerOptions, LiteralValue, TemplateText, TypeData};
 
     use crate::relpin::find_probe_annotation;
     use crate::relpin::{probe_relation, RelpinQuery, RelpinRelation, RelpinVerdict};
@@ -8591,6 +8675,48 @@ mod tests {
     }
 
     #[test]
+    fn signature_display_parameter_name_expands_only_tuple_typed_rest_parameters() {
+        crate::state::test_support::with_program_state(
+            &[(
+                "a.ts",
+                "declare function tuple(...args: [unknown]): void;\n\
+                 declare function array(...args: unknown[]): void;\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                let declarations: Vec<_> = state
+                    .binder
+                    .source(0)
+                    .arena
+                    .node_ids()
+                    .filter(|&node| {
+                        state.kind_of(node) == tsrs2_syntax::SyntaxKind::FunctionDeclaration
+                    })
+                    .collect();
+                assert_eq!(declarations.len(), 2);
+                let tuple = state
+                    .get_signature_from_declaration(declarations[0])
+                    .expect("tuple-rest signature");
+                let array = state
+                    .get_signature_from_declaration(declarations[1])
+                    .expect("array-rest signature");
+                assert_eq!(
+                    state
+                        .get_parameter_name_at_position(tuple, 0)
+                        .expect("tuple label"),
+                    Some("args_0".to_owned())
+                );
+                assert_eq!(
+                    state
+                        .get_parameter_name_at_position(array, 0)
+                        .expect("rest name"),
+                    Some("args".to_owned())
+                );
+            },
+        );
+    }
+
+    #[test]
     fn excess_property_checks_fire_on_fresh_probe_sources() {
         assert!(matches!(
             probe(
@@ -8641,6 +8767,49 @@ mod tests {
         assert_eq!(
             ty, state.tables.intrinsics.string,
             "`${{string}}` reduces to string (62075-62078)"
+        );
+    }
+
+    #[test]
+    fn template_inference_splits_unpaired_surrogate_losslessly() {
+        crate::state::test_support::with_program_state(
+            &[("a.ts", "")],
+            &CompilerOptions::default(),
+            |state| {
+                let source = state.tables.get_string_literal_type_from_utf16(&[0xD800]);
+                let replacement = state.tables.get_string_literal_type_from_utf16(&[0xFFFD]);
+                assert_ne!(source, replacement);
+
+                // Two placeholders separated by an empty delimiter
+                // make inferFromLiteralParts split after one UTF-16
+                // code unit. tsc retains that unit even when it is an
+                // unpaired surrogate.
+                let empty = TemplateText::default();
+                let number = state.tables.intrinsics.number;
+                let target = state.get_template_literal_type_from_texts(
+                    &[empty.clone(), empty.clone(), empty],
+                    &[number, number],
+                );
+                let inferred = state
+                    .infer_types_from_template_literal_type(source, target)
+                    .expect("lossless split does not escape")
+                    .expect("literal matches the empty-delimiter shape");
+                assert_eq!(inferred.len(), 2);
+                assert_eq!(inferred[0], source);
+                assert_eq!(inferred[1], state.tables.get_string_literal_type(""));
+                assert_eq!(
+                    &state.tables.type_of(inferred[0]).data,
+                    &TypeData::Literal {
+                        value: LiteralValue::String(TemplateText::from_utf16(&[0xD800])),
+                    }
+                );
+                let replacement_inferred = state
+                    .infer_types_from_template_literal_type(replacement, target)
+                    .expect("replacement split succeeds")
+                    .expect("replacement literal matches");
+                assert_eq!(replacement_inferred[0], replacement);
+                assert_ne!(replacement_inferred[0], inferred[0]);
+            },
         );
     }
 
@@ -8811,6 +8980,69 @@ mod tests {
         rows_and_partials(text).0
     }
 
+    fn checked_js_rows(text: &str) -> Vec<(u32, u32, u32)> {
+        crate::state::test_support::with_program_state(
+            &[("a.js", text)],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(false),
+                ..CompilerOptions::default()
+            },
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| {
+                        diagnostic.file_name.is_some()
+                            && diagnostic.category() == tsrs2_diags::DiagnosticCategory::Error
+                    })
+                    .map(|diagnostic| {
+                        (
+                            diagnostic.code(),
+                            diagnostic.start.unwrap_or(u32::MAX),
+                            diagnostic.length.unwrap_or(u32::MAX),
+                        )
+                    })
+                    .collect()
+            },
+        )
+    }
+
+    #[test]
+    fn js_prototype_placeholder_is_a_prototype_property_override() {
+        assert_eq!(
+            checked_js_rows(
+                "class Module {}\nModule.prototype.identifier = undefined;\nclass NormalModule extends Module { identifier() { return \"normal\"; } }\n"
+            ),
+            []
+        );
+
+        let ordinary =
+            "class Base { constructor() { this.p = 1; } }\nclass Derived extends Base { p() {} }\n";
+        // The ordinary number-property/function override owns two
+        // independent tsc rows: 2416 from issueMemberSpecificError
+        // and 2425 from checkKindsOfPropertyMemberOverrides. The JS
+        // prototype placeholders above are special only to the latter
+        // predicate and remain clean in both passes.
+        assert_eq!(
+            checked_js_rows(ordinary),
+            [
+                (
+                    2416,
+                    ordinary.find("p()").expect("derived method") as u32,
+                    1
+                ),
+                (
+                    2425,
+                    ordinary.find("p()").expect("derived method") as u32,
+                    1
+                )
+            ]
+        );
+    }
+
     /// The containment-aware face (7.5d review): a `(rows, 0)` pin
     /// proves the path verdicts LIVE — a bare `checked_rows == []`
     /// cannot distinguish a clean pass from an Err-contained
@@ -8842,6 +9074,83 @@ mod tests {
     }
 
     #[test]
+    fn relation_property_reports_use_target_symbol_to_string_faces() {
+        fn flatten(chain: &tsrs2_diags::MessageChain, texts: &mut Vec<String>) {
+            texts.push(chain.text.clone());
+            for child in &chain.next {
+                flatten(child, texts);
+            }
+        }
+
+        let texts = crate::state::test_support::with_program_state(
+            &[(
+                "a.ts",
+                "declare const sym: unique symbol;\n\
+                 declare let quotedSource: { a: number };\n\
+                 let quotedTarget: { 'a': string } = quotedSource;\n\
+                 declare let identifierSource: { 'a': number };\n\
+                 let identifierTarget: { a: string } = identifierSource;\n\
+                 declare let numericSource: { 2: string };\n\
+                 let numericTarget: { 2.0: number } = numericSource;\n\
+                 declare let hyphenSource: { \"data-foo\": number };\n\
+                 let hyphenTarget: { \"data-foo\": string } = hyphenSource;\n\
+                 declare let computedStringSource: { [\"data-foo\"]: number };\n\
+                 let computedStringTarget: { [\"data-foo\"]: string } = computedStringSource;\n\
+                 declare let underscoreSource: { __typename: number };\n\
+                 let underscoreTarget: { __typename: string } = underscoreSource;\n\
+                 declare let symbolSource: { [sym]: number };\n\
+                 let symbolTarget: { [sym]: string } = symbolSource;\n\
+                 declare let empty: {};\n\
+                 let requiredComputed: { [sym]: number } = empty;\n\
+                 declare let indexedSource: { [sym]: number };\n\
+                 let indexedTarget: { [key: symbol]: string } = indexedSource;\n\
+                 interface Left { [sym]: number }\n\
+                 interface Right { [sym]: string }\n\
+                 interface Both extends Left, Right {}\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                let mut texts = Vec::new();
+                for diagnostic in &state.diagnostics {
+                    if diagnostic.category() == tsrs2_diags::DiagnosticCategory::Error {
+                        flatten(&diagnostic.message, &mut texts);
+                    }
+                }
+                texts
+            },
+        );
+
+        for expected in [
+            "Types of property ''a'' are incompatible.",
+            "Types of property 'a' are incompatible.",
+            "Types of property '2.0' are incompatible.",
+            "Types of property '\"data-foo\"' are incompatible.",
+            "Types of property '[\"data-foo\"]' are incompatible.",
+            "Types of property '__typename' are incompatible.",
+            "Types of property '[sym]' are incompatible.",
+            "Property '[sym]' is missing in type '{}' but required in type '{ [sym]: number; }'.",
+            "Property '[sym]' is incompatible with index signature.",
+            "Named property '[sym]' of types 'Left' and 'Right' are not identical.",
+        ] {
+            assert!(
+                texts.iter().any(|text| text == expected),
+                "missing exact property-display row {expected:?}; got {texts:#?}"
+            );
+        }
+        assert!(
+            texts.iter().all(|text| !text.contains("__@sym@")),
+            "internal late-bound names must never reach diagnostics: {texts:#?}"
+        );
+        assert!(
+            texts
+                .iter()
+                .all(|text| !text.contains("Types of property '___typename'")),
+            "escaped leading underscores must be read through symbolToString: {texts:#?}"
+        );
+    }
+
+    #[test]
     fn unconstrained_source_type_parameter_gets_the_constraint_hint() {
         let positive = crate::state::test_support::with_program_state(
             &[(
@@ -8865,6 +9174,30 @@ mod tests {
         assert_eq!(
             positive[0].message.text,
             "This type parameter might need an `extends { a: string; }` constraint."
+        );
+
+        let optional_property = crate::state::test_support::with_program_state(
+            &[(
+                "a.ts",
+                "function optional<T>(x: T) { const y: { a?: string } = x; }\n",
+            )],
+            &CompilerOptions::default(),
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .find(|diagnostic| diagnostic.code() == 2322)
+                    .expect("the optional-property assignment mismatch is reported")
+                    .related
+                    .clone()
+            },
+        );
+        assert_eq!(optional_property.len(), 1);
+        assert_eq!(optional_property[0].message.code, 2208);
+        assert_eq!(
+            optional_property[0].message.text,
+            "This type parameter might need an `extends { a?: string; }` constraint."
         );
 
         let target_parameter = crate::state::test_support::with_program_state(
@@ -10060,6 +10393,274 @@ let primitiveSymbol: symbol = boxedSymbol;
                 "declare function isB(a: unknown, b: unknown): b is string;\nconst m2: (a: unknown, b: unknown) => b is string = isB;\n"
             ),
             (vec![], 0)
+        );
+    }
+
+    #[test]
+    fn relation_error_state_generic_mapped_cleanup_preserves_the_tsc_boundary() {
+        fn flatten(chain: &tsrs2_diags::MessageChain, out: &mut Vec<(u32, String)>) {
+            out.push((chain.code, chain.text.clone()));
+            for child in &chain.next {
+                flatten(child, out);
+            }
+        }
+
+        fn error_chains(text: &str, options: &CompilerOptions) -> Vec<Vec<(u32, String)>> {
+            crate::state::test_support::with_program_state(&[("a.ts", text)], options, |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| {
+                        diagnostic.file_name.is_some()
+                            && diagnostic.category() == tsrs2_diags::DiagnosticCategory::Error
+                    })
+                    .map(|diagnostic| {
+                        let mut chain = Vec::new();
+                        flatten(&diagnostic.message, &mut chain);
+                        chain
+                    })
+                    .collect()
+            })
+        }
+
+        let options = CompilerOptions {
+            strict_null_checks: Some(true),
+            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            ..CompilerOptions::default()
+        };
+
+        assert_eq!(
+            error_chains(
+                "type Partial<T> = { [P in keyof T]?: T[P] };\n\
+                 type Thing = { a: string, b: string };\n\
+                 function f<T extends Thing>(x: Partial<Thing>, y: Partial<T>) {\n\
+                     y = x;\n\
+                 }\n",
+                &options,
+            ),
+            [vec![(
+                2322,
+                "Type 'Partial<Thing>' is not assignable to type 'Partial<T>'.".to_owned(),
+            )]],
+            "a non-generic mapped source cleans up the speculative detail"
+        );
+
+        assert_eq!(
+            error_chains(
+                "function g<T, U extends T>(\n\
+                     x: { [P in keyof T]: T[P] },\n\
+                     y: { [P in keyof T]: U[P] },\n\
+                 ) {\n\
+                     y = x;\n\
+                 }\n",
+                &options,
+            ),
+            [vec![
+                (
+                    2322,
+                    "Type '{ [P in keyof T]: T[P]; }' is not assignable to type \
+                     '{ [P in keyof T]: U[P]; }'."
+                        .to_owned(),
+                ),
+                (
+                    2322,
+                    "Type 'T[P]' is not assignable to type 'U[P]'.".to_owned(),
+                ),
+                (2322, "Type 'T' is not assignable to type 'U'.".to_owned(),),
+                (
+                    5082,
+                    "'U' could be instantiated with an arbitrary type which could be unrelated \
+                     to 'T'."
+                        .to_owned(),
+                ),
+            ]],
+            "a generic mapped source bypasses cleanup and keeps its detail"
+        );
+    }
+
+    #[test]
+    fn relation_reporting_keeps_union_keyof_and_class_member_failure_levels() {
+        fn flatten(chain: &tsrs2_diags::MessageChain, out: &mut Vec<(u32, String)>) {
+            out.push((chain.code, chain.text.clone()));
+            for child in &chain.next {
+                flatten(child, out);
+            }
+        }
+
+        fn error_chains(
+            files: &[(&str, &str)],
+            options: &CompilerOptions,
+        ) -> Vec<Vec<(u32, String)>> {
+            crate::state::test_support::with_program_state(files, options, |state| {
+                for index in 0..files.len() {
+                    state.check_source_file(index);
+                }
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| {
+                        diagnostic.file_name.is_some()
+                            && diagnostic.category() == tsrs2_diags::DiagnosticCategory::Error
+                    })
+                    .map(|diagnostic| {
+                        let mut chain = Vec::new();
+                        flatten(&diagnostic.message, &mut chain);
+                        chain
+                    })
+                    .collect()
+            })
+        }
+
+        let strict = CompilerOptions {
+            strict: Some(true),
+            strict_null_checks: Some(true),
+            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            error_chains(
+                &[(
+                    "a.ts",
+                    "interface Array<T> { [index: number]: T }\n\
+                     let x = [{ a: 1, b: 2 }, { a: \"abc\" }, {}][0];\n\
+                     x = { a: \"value\", b: 1 };\n",
+                )],
+                &strict,
+            ),
+            [vec![
+                (
+                    2322,
+                    "Type '{ a: string; b: number; }' is not assignable to type \
+                     '{ a: number; b: number; } | { a: string; b?: undefined; } | \
+                     { a?: undefined; b?: undefined; }'."
+                        .to_owned(),
+                ),
+                (2326, "Types of property 'b' are incompatible.".to_owned(),),
+                (
+                    2322,
+                    "Type 'number' is not assignable to type 'undefined'.".to_owned(),
+                ),
+            ]]
+        );
+
+        assert_eq!(
+            error_chains(
+                &[(
+                    "a.ts",
+                    "interface Array<T> { [index: number]: T }\n\
+                     function f<T extends string[]>(k: keyof [1, 2, ...T]) {\n\
+                         k = '2';\n\
+                     }\n",
+                )],
+                &strict,
+            ),
+            [vec![
+                (
+                    2322,
+                    "Type 'string' is not assignable to type 'keyof [1, 2, ...T]'.".to_owned(),
+                ),
+                // This noLib pin declares only a numeric Array index,
+                // so its known-key face expands to number | "0" |
+                // "1". The vendored-lib conformance fixture retains
+                // the canonical `"0" | "1" | keyof T[]` face.
+                (
+                    2322,
+                    "Type '\"2\"' is not assignable to type 'number | \"0\" | \"1\"'.".to_owned(),
+                ),
+            ]]
+        );
+
+        assert_eq!(
+            error_chains(
+                &[(
+                    "a.ts",
+                    "interface Array<T> { [index: number]: T }\n\
+                     class Base {\n\
+                         load(supplies?: any[]): void {}\n\
+                         static circle(wagons?: Base[]): number { return 0; }\n\
+                     }\n\
+                     class DerivedInstance extends Base {\n\
+                         load(files: string[], format: \"csv\" | \"json\"): void {}\n\
+                     }\n\
+                     class DerivedStatic extends Base {\n\
+                         static circle(others: (typeof Base)[]): number { return 0; }\n\
+                     }\n",
+                )],
+                &strict,
+            ),
+            [
+                vec![
+                    (
+                        2416,
+                        "Property 'load' in type 'DerivedInstance' is not assignable to the same \
+                         property in base type 'Base'."
+                            .to_owned(),
+                    ),
+                    (
+                        2322,
+                        "Type '(files: string[], format: \"csv\" | \"json\") => void' is not \
+                         assignable to type '(supplies?: any[] | undefined) => void'."
+                            .to_owned(),
+                    ),
+                    (
+                        2849,
+                        "Target signature provides too few arguments. Expected 2 or more, but got \
+                         1."
+                        .to_owned(),
+                    ),
+                ],
+                vec![
+                    (
+                        2417,
+                        "Class static side 'typeof DerivedStatic' incorrectly extends base class \
+                         static side 'typeof Base'."
+                            .to_owned(),
+                    ),
+                    (
+                        2326,
+                        "Types of property 'circle' are incompatible.".to_owned(),
+                    ),
+                    (
+                        2322,
+                        "Type '(others: (typeof Base)[]) => number' is not assignable to type \
+                         '(wagons?: Base[] | undefined) => number'."
+                            .to_owned(),
+                    ),
+                    (
+                        2328,
+                        "Types of parameters 'others' and 'wagons' are incompatible.".to_owned(),
+                    ),
+                    (
+                        2322,
+                        "Type 'Base[] | undefined' is not assignable to type \
+                         '(typeof Base)[]'."
+                            .to_owned(),
+                    ),
+                    (
+                        2322,
+                        "Type 'undefined' is not assignable to type '(typeof Base)[]'.".to_owned(),
+                    ),
+                ],
+            ]
+        );
+
+        assert_eq!(
+            error_chains(
+                &[(
+                    "a.ts",
+                    "let okUnion: { a: number } | { a: string };\n\
+                     okUnion = { a: \"value\" };\n\
+                     function okKey<T extends string[]>(k: keyof [1, 2, ...T]) {\n\
+                         k = '0';\n\
+                     }\n\
+                     class OkBase { load(supplies?: any[]): void {} }\n\
+                     class OkDerived extends OkBase { load(supplies?: any[]): void {} }\n",
+                )],
+                &strict,
+            ),
+            Vec::<Vec<(u32, String)>>::new(),
+            "non-firing siblings remain clean"
         );
     }
 }

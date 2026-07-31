@@ -12,6 +12,14 @@ visibility metric and are not chased. The metric is `T0-2xxx` (T0
 comparison restricted to codes 2000-2999); full-band T0 is tracked
 but secondary until phase 9.
 
+> **M8 scope supersession:** the `jsdoc-semantics` references in this
+> completed phase plan describe the reviewed Phase-9 scope at that time.
+> The later complete JSDoc subsystem returned resolved identities through A2
+> tombstones. They must not be read as a current broad JSDoc exclusion;
+> `m8-scope.json`, the
+> [M8 execution contract](m8-execution-and-close.md), and the
+> [complete JSDoc contract](m8-jsdoc-ast-materialization.md) are current.
+
 This doc re-sequences the m*-steps docs toward the band goal (they
 remain the stage-level instructions; the impl-*.md companions carry
 copy-level code). Phase numbers are content identities, not a

@@ -126,8 +126,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:84735-84756
     ///
     /// Display band (risk §14.4): the 2411 report renders four types/
-    /// symbols — an unrenderable display unwinds Unsupported and the
-    /// report escapes whole.
+    /// symbols — a typed display abort unwinds the report whole.
     fn check_index_constraint_for_property(
         &mut self,
         ty: TypeId,
@@ -628,20 +627,18 @@ impl<'a> CheckerState<'a> {
     /// Order is the spec (m4-58 §6). addLazyDiagnostic = eager
     /// identity for the base-type block, the implements diagnostics,
     /// and the final index-constraint/property-initialization block.
-    /// Elisions: the ES5 Extends emit-helper probe (no-op), the
-    /// getClassExtendsHeritageElement ≠ getEffectiveBaseTypeNode
-    /// divergence (JS @augments only), and isJSConstructor (constant
-    /// false in TS files).
+    /// Elision: the ES5 Extends emit-helper probe (no-op at the
+    /// project target).
     fn check_class_like_declaration(&mut self, node: NodeId) -> CheckResult2<()> {
         self.check_grammar_class_like_declaration(node);
         self.check_decorators(node)?;
-        let (name, type_parameters, _members) = match self.data_of(node) {
+        let (name, _type_parameters, _members) = match self.data_of(node) {
             NodeData::ClassDeclaration(data) => (data.name, data.type_parameters, data.members),
             NodeData::ClassExpression(data) => (data.name, data.type_parameters, data.members),
             _ => unreachable!("class-like kinds route here"),
         };
         self.check_collisions_for_declaration_name(node, name);
-        let type_parameter_nodes = self.nodes_of(type_parameters);
+        let type_parameter_nodes = self.type_parameter_declarations_of(node);
         self.check_type_parameters(&type_parameter_nodes)?;
         self.check_exports_on_merged_declarations(node)?;
         let symbol = self.get_symbol_of_declaration(node)?;
@@ -662,7 +659,7 @@ impl<'a> CheckerState<'a> {
         if !node_in_ambient_context {
             self.check_class_for_static_property_name_conflicts(node)?;
         }
-        if let Some(base_type_node) = self.get_class_extends_heritage_element(node) {
+        if let Some(base_type_node) = self.get_effective_base_type_node(node) {
             let NodeData::ExpressionWithTypeArguments(base_data) = self.data_of(base_type_node)
             else {
                 unreachable!("extends heritage elements are ExpressionWithTypeArguments");
@@ -671,6 +668,16 @@ impl<'a> CheckerState<'a> {
                 (base_data.expression, base_data.type_arguments);
             for argument in self.nodes_of(base_type_arguments) {
                 self.check_source_element(Some(argument));
+            }
+            if let Some(extends_node) = self.get_class_extends_heritage_element(node) {
+                if extends_node != base_type_node {
+                    if let NodeData::ExpressionWithTypeArguments(data) = self.data_of(extends_node)
+                    {
+                        if let Some(expression) = data.expression {
+                            self.check_expression(expression, tsrs2_types::CheckMode::NORMAL)?;
+                        }
+                    }
+                }
             }
             let base_types = self.get_base_types(ty)?;
             if !base_types.is_empty() {
@@ -780,6 +787,13 @@ impl<'a> CheckerState<'a> {
                     )?;
                     let mut return_type_mismatch = false;
                     for signature in constructors {
+                        if self
+                            .signature_of(signature)
+                            .declaration
+                            .is_some_and(|declaration| self.is_js_constructor(declaration))
+                        {
+                            continue;
+                        }
                         let return_type = self.get_return_type_of_signature(signature)?;
                         if !self.is_type_identical_to(return_type, base_type)? {
                             return_type_mismatch = true;
@@ -803,11 +817,13 @@ impl<'a> CheckerState<'a> {
             else {
                 unreachable!("implements heritage elements are ExpressionWithTypeArguments");
             };
-            let ref_expression = ref_data.expression.ok_or_else(|| {
-                crate::state::Unsupported::new(
-                    "implements heritage element without an expression (parse recovery)",
-                )
-            })?;
+            let Some(ref_expression) = ref_data.expression else {
+                // Parser-created heritage clauses use a zero-width missing
+                // expression node. A checker-synthetic element with no slot
+                // has no type or relation to validate, so it contributes no
+                // semantic diagnostic beyond parser recovery.
+                continue;
+            };
             let expression_is_entity = {
                 let source = self.binder.source_of_node(ref_expression);
                 tsrs2_binder::node_util::is_entity_name_expression(source, ref_expression)
@@ -882,12 +898,20 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    /// tsc getEffectiveImplementsTypeNodes reduced to TS files: the
-    /// FIRST implements clause's type list (getHeritageClause returns
-    /// the first matching clause — a recovery tree's second implements
-    /// clause never resolves; parserClassDeclaration2 pins the 2304
-    /// silence). The JS @implements arm is dead.
+    /// tsc-port: getEffectiveImplementsTypeNodes @6.0.3
+    /// tsc-hash: 7b48d400da24af97592c82568fc79e75d199be120737ae53e40c96d40fe74d3c
+    /// tsc-span: _tsc.js:15756-15763
     fn get_effective_implements_type_nodes(&self, node: NodeId) -> Vec<NodeId> {
+        if self.is_in_js_file(node) {
+            return self
+                .all_jsdoc_tags(node, SyntaxKind::JSDocImplementsTag)
+                .into_iter()
+                .filter_map(|tag| match self.data_of(tag) {
+                    NodeData::JSDocImplementsTag(data) => data.class,
+                    _ => None,
+                })
+                .collect();
+        }
         let heritage = match self.data_of(node) {
             NodeData::ClassDeclaration(data) => data.heritage_clauses,
             NodeData::ClassExpression(data) => data.heritage_clauses,
@@ -1115,9 +1139,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: areTypeParametersIdentical @6.0.3
     /// tsc-hash: d32883771008135db0659e692753206de6c7d8d54765f6ec01fc2defb07f0c8e
     /// tsc-span: _tsc.js:84891-84920
-    ///
-    /// getTypeParameterDeclarations reduces to node.typeParameters in
-    /// TS files (the JSDoc template arm is dead).
     pub(crate) fn are_type_parameters_identical(
         &mut self,
         declarations: &[NodeId],
@@ -1127,8 +1148,9 @@ impl<'a> CheckerState<'a> {
         let min_type_argument_count = self.get_min_type_argument_count(Some(target_parameters));
         for &declaration in declarations {
             let source_parameters = match self.data_of(declaration) {
-                NodeData::ClassDeclaration(data) => self.nodes_of(data.type_parameters),
-                NodeData::InterfaceDeclaration(data) => self.nodes_of(data.type_parameters),
+                NodeData::ClassDeclaration(_) | NodeData::InterfaceDeclaration(_) => {
+                    self.type_parameter_declarations_of(declaration)
+                }
                 // checkInferType passes the TypeParameter declarations
                 // themselves (getTypeParameterDeclarations = decl =>
                 // [decl], 81969).
@@ -1146,11 +1168,10 @@ impl<'a> CheckerState<'a> {
                 let NodeData::TypeParameter(source_data) = self.data_of(source) else {
                     continue;
                 };
-                let (source_name, source_constraint_node, source_default_node) = (
-                    source_data.name,
-                    source_data.constraint,
-                    source_data.default,
-                );
+                let source_name = source_data.name;
+                let source_constraint_node =
+                    self.effective_constraint_of_type_parameter_node(source);
+                let source_default_node = source_data.default;
                 let source_text = source_name.and_then(|name| match self.data_of(name) {
                     NodeData::Identifier(data) => Some(data.escaped_text.clone()),
                     _ => None,
@@ -1475,7 +1496,7 @@ impl<'a> CheckerState<'a> {
         type_with_this: TypeId,
         static_type: TypeId,
     ) -> CheckResult2<()> {
-        let base_type_node = self.get_class_extends_heritage_element(node);
+        let base_type_node = self.get_effective_base_type_node(node);
         let base_types = if base_type_node.is_some() {
             self.get_base_types(ty)?
         } else {
@@ -1583,40 +1604,13 @@ impl<'a> CheckerState<'a> {
         )
     }
 
+    /// tsc-port: hasOverrideModifier @6.0.3
+    /// tsc-hash: 581540d3e11337eb454edd3841e7b017d852ef75b33a9c500ba3a89c055951f4
+    /// tsc-span: _tsc.js:16940-16942
     fn has_override_modifier(&self, member: NodeId) -> bool {
         let source = self.binder.source_of_node(member);
-        if tsrs2_binder::node_util::has_syntactic_modifier(source, member, ModifierFlags::OVERRIDE)
-        {
-            return true;
-        }
-        if !self.is_in_js_file(member) {
-            return false;
-        }
-        let raw = source.arena.node(member);
-        let trivia_start = raw.pos as usize;
-        let trivia_end =
-            tsrs2_syntax::skip_trivia(&source.text, trivia_start).min(source.text.len());
-        let trivia = &source.text[trivia_start..trivia_end];
-        let Some(relative_start) = trivia.rfind("/**") else {
-            return false;
-        };
-        let body_start = trivia_start + relative_start + 3;
-        let Some(relative_end) = source.text[body_start..trivia_end].find("*/") else {
-            return false;
-        };
-        let body_end = body_start + relative_end;
-        source.text[body_start..body_end].lines().any(|line| {
-            let candidate = line
-                .trim_start()
-                .strip_prefix('*')
-                .unwrap_or(line.trim_start())
-                .trim_start();
-            candidate.strip_prefix("@override").is_some_and(|tail| {
-                tail.chars()
-                    .next()
-                    .is_none_or(|character| character.is_whitespace())
-            })
-        })
+        tsrs2_binder::node_util::get_effective_modifier_flags(source, member)
+            .intersects(ModifierFlags::OVERRIDE)
     }
 
     fn report_override_error(
@@ -1624,13 +1618,8 @@ impl<'a> CheckerState<'a> {
         error_node: Option<NodeId>,
         message: &'static tsrs2_diags::DiagnosticMessage,
         args: &[&str],
-        is_js: bool,
     ) {
-        let diagnostics_before = self.diagnostics.len();
         self.error_at(error_node, message, args);
-        if is_js {
-            self.mark_jsdoc_js_diagnostics_since_with_code(diagnostics_before, message.code);
-        }
     }
 
     /// tsc-port: checkMemberForOverrideModifier @6.0.3
@@ -1676,7 +1665,7 @@ impl<'a> CheckerState<'a> {
                     } else {
                         &diagnostics::This_member_cannot_have_an_override_modifier_because_its_name_is_dynamic
                     };
-                    self.report_override_error(error_node, message, &[], is_js);
+                    self.report_override_error(error_node, message, &[]);
                     return Ok(());
                 }
             }
@@ -1716,7 +1705,6 @@ impl<'a> CheckerState<'a> {
                                     error_node,
                                     message,
                                     &[&base_class_name, &suggestion_name],
-                                    is_js,
                                 );
                             }
                             None => {
@@ -1729,7 +1717,6 @@ impl<'a> CheckerState<'a> {
                                     error_node,
                                     message,
                                     &[&base_class_name],
-                                    is_js,
                                 );
                             }
                         }
@@ -1763,12 +1750,7 @@ impl<'a> CheckerState<'a> {
                             } else {
                                 &diagnostics::This_member_must_have_an_override_modifier_because_it_overrides_a_member_in_the_base_class_0
                             };
-                            self.report_override_error(
-                                error_node,
-                                message,
-                                &[&base_class_name],
-                                is_js,
-                            );
+                            self.report_override_error(error_node, message, &[&base_class_name]);
                             return Ok(());
                         }
                         if member_has_abstract_modifier && base_has_abstract {
@@ -1776,7 +1758,6 @@ impl<'a> CheckerState<'a> {
                                 error_node,
                                 &diagnostics::This_member_must_have_an_override_modifier_because_it_overrides_an_abstract_method_that_is_declared_in_the_base_class_0,
                                 &[&base_class_name],
-                                is_js,
                             );
                             return Ok(());
                         }
@@ -1790,7 +1771,7 @@ impl<'a> CheckerState<'a> {
             } else {
                 &diagnostics::This_member_cannot_have_an_override_modifier_because_its_containing_class_0_does_not_extend_another_class
             };
-            self.report_override_error(error_node, message, &[&class_name], is_js);
+            self.report_override_error(error_node, message, &[&class_name]);
         }
         Ok(())
     }
@@ -1862,7 +1843,7 @@ impl<'a> CheckerState<'a> {
                             diagnostic.related = output.related;
                         }
                         // The member verdict and root are already
-                        // exact. A report-only Unsupported may defer
+                        // exact. A report-only CheckAbort may defer
                         // the nested chain but must not suppress the
                         // member row or abort later checks.
                         Ok(None) | Err(_) => diagnostic.message = root,
@@ -1921,16 +1902,16 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
-    /// tsc getFullyQualifiedName (50040) sliced to the parentless
-    /// case: a symbol with a container renders `A.B` through the
-    /// nodeBuilder — escape (T2 display band).
+    /// tsc-port: getFullyQualifiedName @6.0.3
+    /// tsc-hash: 5a191778511e150e00804be9a7bfa9161921e0c9f33b2121164e298c3e31be31
+    /// tsc-span: _tsc.js:49253-49260
+    ///
+    /// The shared checker implementation owns the exact recursive
+    /// parent-chain face, including external source-file roots. Keep
+    /// this diagnostic consumer on that implementation rather than a
+    /// second parentless-only display slice.
     fn fully_qualified_name_slice(&self, symbol: SymbolId) -> CheckResult2<String> {
-        if self.binder.symbol(symbol).parent.is_some() {
-            return Err(crate::state::Unsupported::new(
-                "getFullyQualifiedName over a contained symbol (nodeBuilder display, T2)",
-            ));
-        }
-        Ok(self.symbol_display_name(symbol))
+        Ok(self.get_fully_qualified_name(symbol))
     }
 
     /// tsc-port: checkKindsOfPropertyMemberOverrides @6.0.3
@@ -2338,7 +2319,12 @@ impl<'a> CheckerState<'a> {
                                 let type_name1 =
                                     self.type_to_string_slice(existing_containing_type)?;
                                 let type_name2 = self.type_to_string_slice(base)?;
-                                let prop_name = self.symbol_display_name(prop);
+                                // checkInheritedPropertiesAreIdentical
+                                // 85466: the 2319 detail uses the
+                                // default symbolToString face, so
+                                // quoted/numeric and late-computed
+                                // names keep their written spelling.
+                                let prop_name = self.symbol_name_as_written_slice(prop);
                                 let type_display = self.type_to_string_slice(ty)?;
                                 let mut diagnostic = self.create_error(
                                     Some(type_node),
@@ -2425,17 +2411,11 @@ impl<'a> CheckerState<'a> {
             };
             if !initialized {
                 let display = self.declaration_name_display(prop_name);
-                let expose_non_jsdoc_js =
-                    self.is_non_jsdoc_js_expression_type(prop_name, member_type);
-                let diagnostics_before = self.diagnostics.len();
                 self.error_at(
                     Some(prop_name),
                     &diagnostics::Property_0_has_no_initializer_and_is_not_definitely_assigned_in_the_constructor,
                     &[&display],
                 );
-                if expose_non_jsdoc_js {
-                    self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
-                }
             }
         }
         Ok(())

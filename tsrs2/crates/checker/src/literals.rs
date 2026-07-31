@@ -27,7 +27,7 @@ use tsrs2_types::{
     TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
-use crate::state::{CheckResult2, CheckerState, IndexInfo, Unsupported};
+use crate::state::{CheckResult2, CheckerState, IndexInfo};
 
 /// The per-literal accumulator checkArrayLiteral threads through its
 /// element loop while the cached contextual scope is pushed; the exits
@@ -184,9 +184,8 @@ impl<'a> CheckerState<'a> {
     /// below ES2015; the
     /// [INFER] intra-expression site is behind the Inferential
     /// checkMode bit — producible since M6 7.1 (Some-context pushes
-    /// only), so the arm below is a live named Unsupported until the
-    /// 7.4 site-recording wiring. Non-array-like spreads run the §4
-    /// iteration protocol (5.8b).
+    /// only); the 7.4 site-recording wiring is live. Non-array-like
+    /// spreads run the §4 iteration protocol (5.8b).
     pub(crate) fn check_array_literal(
         &mut self,
         node: NodeId,
@@ -229,9 +228,11 @@ impl<'a> CheckerState<'a> {
                         NodeData::SpreadElement(data) => data.expression,
                         _ => None,
                     };
-                    let expression = expression.ok_or_else(|| {
-                        Unsupported::new("spread element without expression (parse recovery)")
-                    })?;
+                    let Some(expression) = expression else {
+                        element_types.push(state.tables.intrinsics.error);
+                        element_flags.push(ElementFlags::VARIADIC);
+                        continue;
+                    };
                     let spread_type = state.check_expression_with_force_tuple(
                         expression,
                         check_mode,
@@ -437,9 +438,9 @@ impl<'a> CheckerState<'a> {
             NodeData::ComputedPropertyName(data) => data.expression,
             _ => None,
         };
-        let expression = expression.ok_or_else(|| {
-            Unsupported::new("computed property name without expression (parse recovery)")
-        })?;
+        let Some(expression) = expression else {
+            return Ok(self.tables.intrinsics.error);
+        };
         if let Some(cached) = self.links.node(expression).resolved_type.resolved() {
             return Ok(cached);
         }
@@ -654,6 +655,9 @@ struct ObjectLiteralAcc {
     contextual_type_has_pattern: bool,
     in_const_context: bool,
     check_flags: CheckFlags,
+    is_in_javascript: bool,
+    enum_tag: Option<NodeId>,
+    is_js_object_literal: bool,
     object_flags: ObjectFlags,
     pattern_with_computed_properties: bool,
     has_computed_string_property: bool,
@@ -766,16 +770,11 @@ impl<'a> CheckerState<'a> {
             }
 
             if self.kind_of(name) == SyntaxKind::PrivateIdentifier {
-                let publish_checked_js = self.is_in_js_file(name);
-                let diagnostics_before = self.diagnostics.len();
                 self.grammar_error_on_node(
                     name,
                     &diagnostics::Private_identifiers_are_not_allowed_outside_class_bodies,
                     &[],
                 );
-                if publish_checked_js {
-                    self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 18016);
-                }
             }
 
             for modifier in self.nodes_of(node_util::modifiers_of(source, member)) {
@@ -898,9 +897,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// Elided/dead arms: checkGrammarObjectLiteralExpression (89637)
     /// is live through the M7 8.1b owner slice, with only its
-    /// private-name and suggestion rows split to 8.1f/8.4;
-    /// isInJavascript/enumTag/jsDocType/JSLiteral ride [JSDOC] (TS
-    /// files answer false — plain-JS files gate earlier); the
+    /// private-name and suggestion rows split to 8.1f/8.4; the
     /// languageVersion ObjectAssign emit-helper gate is dead at
     /// ES2025; the Inferential intra-expression site is a live named
     /// escape (Inferential producible since M6 7.1; site recording is
@@ -924,6 +921,9 @@ impl<'a> CheckerState<'a> {
             contextual_type_has_pattern: false,
             in_const_context: false,
             check_flags: CheckFlags::from_bits(0),
+            is_in_javascript: false,
+            enum_tag: None,
+            is_js_object_literal: false,
             object_flags: ObjectFlags::FRESH_LITERAL,
             pattern_with_computed_properties: false,
             has_computed_string_property: false,
@@ -999,8 +999,13 @@ impl<'a> CheckerState<'a> {
         } else {
             CheckFlags::from_bits(0)
         };
-        // isInJavascript / enumTag / isJSObjectLiteral: [JSDOC] — TS
-        // files answer false throughout.
+        acc.is_in_javascript = self.is_in_js_file(node);
+        acc.enum_tag = acc
+            .is_in_javascript
+            .then(|| self.first_jsdoc_tag(node, SyntaxKind::JSDocEnumTag))
+            .flatten();
+        acc.is_js_object_literal =
+            acc.contextual_type.is_none() && acc.is_in_javascript && acc.enum_tag.is_none();
         // Pre-pass: force every computed name (74159-74163).
         for &member_decl in &properties {
             if let Some(name) = self.name_of_named_declaration(member_decl) {
@@ -1036,10 +1041,13 @@ impl<'a> CheckerState<'a> {
                 SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment
             ) || self.is_object_literal_method(member_decl)
             {
-                let member_sym = member_symbol.ok_or_else(|| {
-                    Unsupported::new("object member without a bound symbol (parse recovery)")
-                })?;
-                let ty = match kind {
+                let Some(member_sym) = member_symbol else {
+                    // Binder-created object members always carry a symbol.
+                    // A checker-synthetic recovery member has no property to
+                    // publish; continue so valid siblings still contribute.
+                    continue;
+                };
+                let mut ty = match kind {
                     SyntaxKind::PropertyAssignment => {
                         self.check_property_assignment(member_decl, check_mode)?
                     }
@@ -1055,17 +1063,45 @@ impl<'a> CheckerState<'a> {
                         };
                         let target = match initializer {
                             Some(initializer) if !acc.in_destructuring_pattern => initializer,
-                            _ => name.ok_or_else(|| {
-                                Unsupported::new(
-                                    "shorthand property without a name (parse recovery)",
-                                )
-                            })?,
+                            _ => {
+                                let Some(name) = name else {
+                                    continue;
+                                };
+                                name
+                            }
                         };
                         self.check_expression_for_mutable_location(target, check_mode, false)?
                     }
                     _ => self.check_object_literal_method(member_decl, check_mode)?,
                 };
-                // isInJavascript jsDocType/enumTag arms — [JSDOC] dead.
+                if acc.is_in_javascript {
+                    if let Some(jsdoc_type) =
+                        self.get_type_for_declaration_from_jsdoc_comment(member_decl)?
+                    {
+                        self.check_type_assignable_to(
+                            ty,
+                            jsdoc_type,
+                            Some(member_decl),
+                            &diagnostics::Type_0_is_not_assignable_to_type_1,
+                        )?;
+                        ty = jsdoc_type;
+                    } else {
+                        let enum_type_expression =
+                            acc.enum_tag.and_then(|tag| match self.data_of(tag) {
+                                NodeData::JSDocEnumTag(data) => data.type_expression,
+                                _ => None,
+                            });
+                        if let Some(enum_type_expression) = enum_type_expression {
+                            let enum_type = self.get_type_from_type_node(enum_type_expression)?;
+                            self.check_type_assignable_to(
+                                ty,
+                                enum_type,
+                                Some(member_decl),
+                                &diagnostics::Type_0_is_not_assignable_to_type_1,
+                            )?;
+                        }
+                    }
+                }
                 acc.object_flags |=
                     self.tables.object_flags_of(ty) & ObjectFlags::PROPAGATING_FLAGS;
                 let name_type = computed_name_type
@@ -1177,13 +1213,10 @@ impl<'a> CheckerState<'a> {
                         .expect("Inferential check mode implies an inference context (74208)");
                     let inference_node = if kind == SyntaxKind::PropertyAssignment {
                         match self.data_of(member_decl) {
-                            NodeData::PropertyAssignment(data) => {
-                                data.initializer.ok_or_else(|| {
-                                    Unsupported::new(
-                                        "property assignment without initializer (parse recovery)",
-                                    )
-                                })?
-                            }
+                            NodeData::PropertyAssignment(data) => match data.initializer {
+                                Some(initializer) => initializer,
+                                None => continue,
+                            },
                             _ => member_decl,
                         }
                     } else {
@@ -1214,9 +1247,10 @@ impl<'a> CheckerState<'a> {
                     NodeData::SpreadAssignment(data) => data.expression,
                     _ => None,
                 };
-                let expression = expression.ok_or_else(|| {
-                    Unsupported::new("spread assignment without expression (parse recovery)")
-                })?;
+                let Some(expression) = expression else {
+                    acc.spread = self.tables.intrinsics.error;
+                    continue;
+                };
                 let inner_mode =
                     CheckMode::from_bits(check_mode.bits() & CheckMode::INFERENTIAL.bits());
                 let raw = self.check_expression(expression, inner_mode)?;
@@ -1252,17 +1286,17 @@ impl<'a> CheckerState<'a> {
                 }
                 continue;
             } else {
-                // Debug.assert(Get/SetAccessor) — recovery kinds take
-                // a named escape instead of a panic (risk #6).
+                // Debug.assert(Get/SetAccessor) is guaranteed by the parser
+                // for ordinary object literals. Unknown synthetic recovery
+                // members have no value property to publish.
                 if !matches!(kind, SyntaxKind::GetAccessor | SyntaxKind::SetAccessor) {
-                    return Err(Unsupported::new(
-                        "unexpected object-literal member kind (parse recovery)",
-                    ));
+                    continue;
                 }
                 self.check_node_deferred(member_decl);
-                member = member_symbol.ok_or_else(|| {
-                    Unsupported::new("object accessor without a bound symbol (parse recovery)")
-                })?;
+                let Some(member_symbol) = member_symbol else {
+                    continue;
+                };
+                member = member_symbol;
             }
             if let Some(computed_name_type) = computed_name_type.filter(|&t| {
                 !self
@@ -1335,7 +1369,9 @@ impl<'a> CheckerState<'a> {
             | acc.object_flags
             | ObjectFlags::OBJECT_LITERAL
             | ObjectFlags::CONTAINS_OBJECT_OR_ARRAY_LITERAL;
-        // isJSObjectLiteral → JSLiteral: [JSDOC] dead in TS files.
+        if acc.is_js_object_literal {
+            object_flags |= ObjectFlags::JS_LITERAL;
+        }
         if acc.pattern_with_computed_properties {
             object_flags |= ObjectFlags::OBJECT_LITERAL_PATTERN_WITH_COMPUTED_PROPERTIES;
         }

@@ -1,8 +1,8 @@
 //! The relation engine core (m3-types-relations-steps.md stage 4.5,
 //! checker-key-functions §1.1-§1.3).
 //!
-//! Every relation function returns CheckResult2<Ternary>: an
-//! Unsupported is never cached or converted into a verdict.
+//! Every relation function returns CheckResult2<Ternary>: a
+//! CheckAbort is never cached or converted into a verdict.
 //!
 //! Boolean callers use tsc's reportErrors=false face. Diagnostic
 //! callers replay the failed relation in a fresh reporting frame,
@@ -861,6 +861,43 @@ pub(crate) struct RelationErrorState {
     should_skip_elaboration: bool,
 }
 
+fn count_message_chain_breadth(info: &[MessageChain]) -> usize {
+    info.iter()
+        .map(|chain| 1 + count_message_chain_breadth(&chain.next))
+        .sum()
+}
+
+fn indexed_access_error_info_selection<'s>(
+    original: &'s RelationErrorState,
+    current: &'s RelationErrorState,
+) -> Option<&'s RelationErrorState> {
+    let (Some(original_info), Some(current_info)) =
+        (original.error_info.as_ref(), current.error_info.as_ref())
+    else {
+        return None;
+    };
+    Some(
+        if count_message_chain_breadth(std::slice::from_ref(original_info))
+            <= count_message_chain_breadth(std::slice::from_ref(current_info))
+        {
+            original
+        } else {
+            current
+        },
+    )
+}
+
+fn variance_error_info_selection<'s>(
+    original: Option<&'s RelationErrorState>,
+    current: &'s RelationErrorState,
+    saved: &'s RelationErrorState,
+) -> &'s RelationErrorState {
+    original
+        .filter(|state| state.error_info.is_some())
+        .or_else(|| current.error_info.as_ref().map(|_| current))
+        .unwrap_or(saved)
+}
+
 /// The checkTypeRelatedTo closure state (maybe stack, recursion
 /// stacks, complexity budget) — checker-key §1.2's four invariants:
 /// Maybe results are never cached mid-recursion, commit happens on
@@ -1183,7 +1220,28 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     .tables
                     .object_flags_of(source)
                     .intersects(ObjectFlags::FRESH_LITERAL);
-            if is_performing_excess_property_checks && self.has_excess_properties(source, target)? {
+            if is_performing_excess_property_checks
+                && self.has_excess_properties(source, target, report_errors)?
+            {
+                if report_errors {
+                    // 65202-65204: discriminant incompatibility
+                    // contributes its 2326/inner relation first;
+                    // the current normalized relation level then
+                    // supplies the kept outer head. An aliased
+                    // original target is the sole display restore.
+                    let report_target = if self
+                        .st
+                        .tables
+                        .type_of(original_target)
+                        .alias_symbol
+                        .is_some()
+                    {
+                        original_target
+                    } else {
+                        target
+                    };
+                    self.report_relation_error(head_message, source, report_target)?;
+                }
                 return Ok(Ternary::FALSE);
             }
             let is_performing_common_property_checks = (self.relation != RelationKind::Comparable
@@ -1285,6 +1343,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         self.error_state.clone()
     }
 
+    /// Capture tsc's nullable `errorInfo` value together with the
+    /// owned revision token. A Rust snapshot with an empty chain is
+    /// not equivalent to JavaScript's falsy `undefined`.
+    /// tsrs-native: Option-valued projection of the owned relation-error state.
+    pub(crate) fn capture_current_error_info(&self) -> Option<RelationErrorState> {
+        self.error_state
+            .error_info
+            .as_ref()
+            .map(|_| self.error_state.clone())
+    }
+
     /// tsrs-native: owned-state restore for tsc's closure-local
     /// resetErrorInfo assignment sequence.
     pub(crate) fn reset_error_info(&mut self, saved: &RelationErrorState) {
@@ -1297,10 +1366,35 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         self.error_state.error_info_revision == saved.error_info_revision
     }
 
+    /// `countMessageChainBreadth` and the indexed-access retry's
+    /// shallower-chain selection. tsc compares every node in the
+    /// original componentwise failure with every node in the
+    /// constraint-retry failure and keeps the original on ties.
+    ///
+    /// tsc-port: structuredTypeRelatedToWorker @6.0.3
+    /// tsc-hash: 5345a387db70bb2a21b2012657fdc5096d8f3937d986fec396b191cbcaa4e679
+    /// tsc-span: _tsc.js:66164-66207
+    pub(crate) fn select_shallower_indexed_access_error_info(
+        &mut self,
+        original: &RelationErrorState,
+    ) {
+        if let Some(selected) = indexed_access_error_info_selection(original, &self.error_state) {
+            let error_info = selected.error_info.clone();
+            let revision = selected.error_info_revision;
+            self.error_state.error_info = error_info;
+            self.error_state.error_info_revision = revision;
+        }
+    }
+
     /// `errorInfo = originalErrorInfo || errorInfo ||
     /// saveErrorInfo.errorInfo` at the end of the invariant variance
     /// fallback. tsc restores only the chain here, not the other
     /// captured error-calculation fields.
+    ///
+    /// tsc-port: structuredTypeRelatedToWorker @6.0.3
+    /// tsc-hash: 195842bf8de93b6709fb8223a82cda92b24af29ad7c85dbddf4d6c0d03c5a853
+    /// tsc-span: _tsc.js:66446-66471
+    ///
     /// tsrs-native: owned-chain projection of tsc's direct errorInfo
     /// fallback assignment.
     pub(crate) fn restore_variance_error_info(
@@ -1308,20 +1402,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         original: Option<&RelationErrorState>,
         saved: &RelationErrorState,
     ) {
-        let selected = original
-            .filter(|state| state.error_info.is_some())
-            .or_else(|| {
-                self.error_state
-                    .error_info
-                    .as_ref()
-                    .map(|_| &self.error_state)
-            })
-            .or_else(|| saved.error_info.as_ref().map(|_| saved))
-            .map(|state| (state.error_info.clone(), state.error_info_revision));
-        if let Some((error_info, revision)) = selected {
-            self.error_state.error_info = error_info;
-            self.error_state.error_info_revision = revision;
-        }
+        let selected = variance_error_info_selection(original, &self.error_state, saved);
+        let error_info = selected.error_info.clone();
+        let revision = selected.error_info_revision;
+        self.error_state.error_info = error_info;
+        self.error_state.error_info_revision = revision;
     }
 
     /// tsc-port: reportIncompatibleError @6.0.3
@@ -1740,9 +1825,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// justification lapsed). JSX attribute sources preserve tsc's
     /// empty-target exception and hyphenated-name exemption in both
     /// excess and common-property checks.
-    fn has_excess_properties(&mut self, source: TypeId, target: TypeId) -> CheckResult2<bool> {
+    fn has_excess_properties(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        report_errors: bool,
+    ) -> CheckResult2<bool> {
         Ok(!matches!(
-            self.excess_properties_worker(source, target, None)?,
+            self.excess_properties_worker(source, target, report_errors, None)?,
             ExcessPropertyOutcome::None
         ))
     }
@@ -1756,23 +1846,26 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// head-site reporter (check.rs report_excess_property_head)
     /// cannot drift from the relation's verdict. With `report_node`
     /// the unknown-property arm emits tsc's parent-skipped 2353/2561
-    /// at the excess property's name; the discriminant-incompatibility
-    /// arm reports only a chain row in tsc
-    /// (Types_of_property_0_are_incompatible) under the KEPT head —
-    /// chain content is the elided T2 tail, so nothing is emitted
-    /// there and the caller lets the head land.
+    /// at the excess property's name. The discriminant-incompatibility
+    /// arm threads reportErrors into the property relation, then
+    /// stacks 2326; isRelatedTo adds the kept outer relation head.
     pub(crate) fn excess_properties_worker(
         &mut self,
         source: TypeId,
         target: TypeId,
+        report_errors: bool,
         report_node: Option<tsrs2_syntax::NodeId>,
     ) -> CheckResult2<ExcessPropertyOutcome> {
         if !self.st.is_excess_property_check_target(target)
-            || self
+            || !self
                 .st
-                .tables
-                .object_flags_of(target)
-                .intersects(ObjectFlags::JS_LITERAL)
+                .options
+                .strict_option_value(self.st.options.no_implicit_any)
+                && self
+                    .st
+                    .tables
+                    .object_flags_of(target)
+                    .intersects(ObjectFlags::JS_LITERAL)
         {
             return Ok(ExcessPropertyOutcome::None);
         }
@@ -1819,13 +1912,23 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     let prop_type = self.st.get_type_of_symbol(prop)?;
                     let target_prop_type =
                         self.get_type_of_property_in_types(check_types.clone(), &name)?;
+                    // 65401-65405: this relation is diagnostic-active
+                    // in the reporting walk; suppressing it loses the
+                    // innermost failure level before 2326 is stacked.
                     if !is_true(self.is_related_to(
                         prop_type,
                         target_prop_type,
                         RecursionFlags::BOTH,
-                        /*report_errors*/ false,
+                        report_errors,
                         IntersectionState::NONE,
                     )?) {
+                        if report_errors {
+                            let name = self.st.symbol_name_as_written_slice(prop);
+                            self.report_incompatible_error(
+                                &diagnostics::Types_of_property_0_are_incompatible,
+                                vec![name],
+                            );
+                        }
                         return Ok(ExcessPropertyOutcome::Incompatible);
                     }
                 }
@@ -2484,7 +2587,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// against reportUnmeasurable/reportUnreliable mappers) is only
     /// reachable during variance measurement — dead until M4 5.3b, as
     /// is the propagatingVarianceFlags accumulation (outofband handler
-    /// is never installed in M3). An Unsupported unwinds the stacks
+    /// is never installed in M3). A CheckAbort unwinds the stacks
     /// exactly like a False WITHOUT caching anything.
     /// tsc-port: typeArgumentsRelatedTo @6.0.3
     /// tsc-hash: 48c9af2e688dd0f7f130ca540d0bd3d9202216800c1de96f5c3f5cacdf2be4e3
@@ -2761,7 +2864,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let result = match outcome {
             Ok(result) => result,
             Err(err) => {
-                // Unsupported: unwind this frame's maybe entries
+                // CheckAbort: unwind this frame's maybe entries
                 // without caching any verdict.
                 self.reset_maybe_stack(
                     maybe_start,
@@ -3963,4 +4066,85 @@ fn is_numeric_literal_name(name: &str) -> bool {
     !name.is_empty()
         && name.bytes().all(|b| b.is_ascii_digit())
         && (name == "0" || !name.starts_with('0'))
+}
+
+#[cfg(test)]
+mod relation_error_state_tests {
+    use super::{
+        indexed_access_error_info_selection, variance_error_info_selection, RelationErrorState,
+    };
+    use tsrs2_diags::{DiagnosticCategory, MessageChain};
+
+    fn chain(depth: usize, label: &str) -> MessageChain {
+        MessageChain {
+            code: depth as u32,
+            category: DiagnosticCategory::Error,
+            text: format!("{label}-{depth}"),
+            next: (depth > 1)
+                .then(|| chain(depth - 1, label))
+                .into_iter()
+                .collect(),
+        }
+    }
+
+    fn state(depth: Option<usize>, revision: u64) -> RelationErrorState {
+        RelationErrorState {
+            error_info: depth.map(|depth| chain(depth, "chain")),
+            error_info_revision: revision,
+            ..RelationErrorState::default()
+        }
+    }
+
+    #[test]
+    fn relation_error_state_selectors_follow_tsc_priority_and_breadth() {
+        let original_short = state(Some(1), 1);
+        let original_long = state(Some(3), 2);
+        let current_short = state(Some(1), 3);
+        let current_long = state(Some(3), 4);
+        let empty = state(None, 5);
+        let saved = state(Some(2), 6);
+
+        assert!(std::ptr::eq(
+            indexed_access_error_info_selection(&original_short, &current_long)
+                .expect("both chains exist"),
+            &original_short,
+        ));
+        assert!(std::ptr::eq(
+            indexed_access_error_info_selection(&original_long, &current_short)
+                .expect("both chains exist"),
+            &current_short,
+        ));
+        assert!(
+            std::ptr::eq(
+                indexed_access_error_info_selection(&original_short, &current_short)
+                    .expect("equal breadth favors original"),
+                &original_short,
+            ),
+            "tsc's <= tie break keeps originalErrorInfo"
+        );
+        assert!(
+            indexed_access_error_info_selection(&empty, &current_short).is_none(),
+            "a falsy originalErrorInfo does not trigger retry selection"
+        );
+
+        assert!(std::ptr::eq(
+            variance_error_info_selection(Some(&original_short), &current_short, &saved),
+            &original_short,
+        ));
+        assert!(std::ptr::eq(
+            variance_error_info_selection(Some(&empty), &current_short, &saved),
+            &current_short,
+        ));
+        assert!(std::ptr::eq(
+            variance_error_info_selection(Some(&empty), &empty, &saved),
+            &saved,
+        ));
+        assert!(
+            std::ptr::eq(
+                variance_error_info_selection(Some(&empty), &empty, &empty),
+                &empty,
+            ),
+            "all-falsy selection still restores the saved identity token"
+        );
+    }
 }

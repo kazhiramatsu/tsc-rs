@@ -225,9 +225,12 @@ files (audit stays TS-only until then — record the carve-out in the
 gate output).
 
 JSDOC BINDING (`bindJSDoc`, `delayedBindJSDocTypedefTag`,
-`bindJSDocImports`, the JSDoc tag arms): DEFERRED — the parser does
-not produce JSDoc nodes yet. Leave explicit `todo_port!` arms so the
-ledger tracks them; they activate when JSDoc parsing lands.
+`bindJSDocImports`, the JSDoc tag arms) was deferred in M2 because the
+parser did not produce JSDoc nodes. M8 activated that work after repeated
+checked-JS probes reached the representation ceiling. The authoritative
+activation and migration contract is
+[`m8-jsdoc-ast-materialization.md`](m8-jsdoc-ast-materialization.md);
+historical M2 commits remain unchanged.
 
 Bookkeeping the arms rely on: `seenThisKeyword` (ThisType),
 `inAssignmentPattern` (destructuring targets), `file.symbolCount` and

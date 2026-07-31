@@ -12,15 +12,6 @@
 //! aliased &&/||), typeof, the switch family (+ exhaustiveness,
 //! pulled forward from 6.6), effects signatures + type predicates +
 //! the call arm, optionality, and the const-variable guard inlining.
-//! The query flag (`FlowQuery::traversed_inert_arm`) survives as the
-//! narrow DEFERRAL channel for the remaining producers: the
-//! synthetic-reference generic-union-constraint guard, M8-dependency
-//! unwinds, and parser-recovery shapes (the M6 body-inference
-//! producer retired at 7.6 — getTypePredicateFromBody is LIVE and
-//! get_effects_signature decides exactly). The [FLOW M5] failure-face
-//! gates retire at 6.6 (they still shield the reachability
-//! true-stub's dead-code divergence — m5-flow-steps.md 6.4 landing
-//! note).
 
 use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
@@ -102,7 +93,7 @@ impl<'a> CheckerState<'a> {
                                         // tsc's && chain consults
                                         // isConstantReference LAST — its
                                         // binding-pattern arm is the
-                                        // Unsupported escape, so reaching it
+                                        // checker abort, so reaching it
                                         // for annotated/initializer-less
                                         // consts would widen that channel
                                         // beyond tsc. A synthetic
@@ -162,12 +153,9 @@ impl<'a> CheckerState<'a> {
                 };
                 match inner {
                     Some(inner) => self.narrow_type(query, ty, inner, assume_true),
-                    None => {
-                        // Parser-recovery wrapper with no operand —
-                        // tsc always has one; unreproducible, flag.
-                        query.traversed_inert_arm = true;
-                        Ok(ty)
-                    }
+                    // The parser normally supplies a missing operand
+                    // node; a synthetic absent slot narrows nothing.
+                    None => Ok(ty),
                 }
             }
             SyntaxKind::BinaryExpression => {
@@ -179,14 +167,8 @@ impl<'a> CheckerState<'a> {
                     _ => (SyntaxKind::Unknown, None),
                 };
                 if operator == SyntaxKind::ExclamationToken {
-                    match operand {
-                        Some(operand) => {
-                            return self.narrow_type(query, ty, operand, !assume_true);
-                        }
-                        None => {
-                            // Parser-recovery `!` with no operand.
-                            query.traversed_inert_arm = true;
-                        }
+                    if let Some(operand) = operand {
+                        return self.narrow_type(query, ty, operand, !assume_true);
                     }
                 }
                 Ok(ty)
@@ -518,7 +500,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// The operator dispatch: assignments recurse through the RHS
     /// then truthiness-narrow the LHS; (in)equality tries typeof
-    /// forms (6.4d stub), matching-reference equality, optional-chain
+    /// forms, matching-reference equality, optional-chain
     /// containment, discriminant properties, `.constructor`
     /// comparisons, and boolean-literal comparisons; `instanceof`/`in`
     /// take their own narrowers; comma recurses right; aliased
@@ -538,9 +520,8 @@ impl<'a> CheckerState<'a> {
         let (Some(expr_left), Some(operator_token), Some(expr_right)) =
             (left, operator_token, right)
         else {
-            // Parser-recovery binary with missing pieces — tsc always
-            // has all three; unreproducible, flag.
-            query.traversed_inert_arm = true;
+            // The parser normally supplies missing operand/token
+            // nodes; a synthetic absent slot narrows nothing.
             return Ok(ty);
         };
         match self.kind_of(operator_token) {
@@ -788,11 +769,9 @@ impl<'a> CheckerState<'a> {
             _ => None,
         };
         let Some(operand) = operand else {
-            query.traversed_inert_arm = true;
             return Ok(ty);
         };
         let Some(literal_text) = self.string_literal_text(literal) else {
-            query.traversed_inert_arm = true;
             return Ok(ty);
         };
         let target = self.get_reference_candidate(operand);
@@ -1189,7 +1168,7 @@ impl<'a> CheckerState<'a> {
     /// noLib miss reports the locationless 2318, a non-alias or
     /// wrong-arity global Record reports 2317 and skips the widening
     /// — each once (the memo holds the unknownSymbol verdict; an
-    /// Unsupported unwind stays unmemoized).
+    /// a checker-abort unwind stays unmemoized).
     fn get_global_record_symbol(&mut self) -> CheckResult2<Option<SymbolId>> {
         if let Some(memo) = self.deferred_global_record_symbol {
             return Ok(memo);
@@ -1916,7 +1895,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:69937-69947
     ///
     /// links.switchTypes lives state-side (see switch_types_cache);
-    /// written only on full success so an Unsupported unwind
+    /// written only on full success so a checker-abort unwind
     /// recomputes.
     pub(crate) fn get_switch_clause_types(
         &mut self,
@@ -2982,16 +2961,30 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isDeclarationWithExplicitTypeAnnotation @6.0.3
     /// tsc-hash: 1ce22ff5fa71bee60fc931c39179d1552c778f61d4e1fecaba74c9f4a9c54b63
     /// tsc-span: _tsc.js:70118-70120
-    ///
-    /// The JS-file initializer arm is checkJs band — elided with it.
     fn is_declaration_with_explicit_type_annotation(&self, node: NodeId) -> bool {
-        matches!(
+        let is_variable_like = matches!(
             self.kind_of(node),
             SyntaxKind::VariableDeclaration
                 | SyntaxKind::PropertyDeclaration
                 | SyntaxKind::PropertySignature
                 | SyntaxKind::Parameter
-        ) && self.effective_type_annotation_node(node).is_some()
+        );
+        if !is_variable_like {
+            return false;
+        }
+        if self.effective_type_annotation_node(node).is_some() {
+            return true;
+        }
+        if !self.is_in_js_file(node) {
+            return false;
+        }
+        let Some(initializer) = self.initializer_of(node) else {
+            return false;
+        };
+        matches!(
+            self.kind_of(initializer),
+            SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
+        ) && self.effective_return_type_node(initializer).is_some()
     }
 
     /// tsc-port: getExplicitTypeOfSymbol @6.0.3
@@ -3155,8 +3148,7 @@ impl<'a> CheckerState<'a> {
     /// materialize from the TypePredicate return node; unannotated
     /// boolean-returning function-likes take the LIVE body-inference
     /// arm (m6 7.6, getTypePredicateFromBody 79020-79074 — the
-    /// double-write pre-seed is the re-entrancy shield). The jsdoc
-    /// arm is checkJs band.
+    /// double-write pre-seed is the re-entrancy shield).
     pub(crate) fn get_type_predicate_of_signature(
         &mut self,
         signature: SignatureId,
@@ -3223,11 +3215,16 @@ impl<'a> CheckerState<'a> {
                 .create_type_predicate_from_type_predicate_node(return_type_node, signature)
                 .map(Some);
         }
+        if let Some(jsdoc_signature) = self.get_signature_of_type_tag(declaration)? {
+            if jsdoc_signature != signature {
+                if let Some(predicate) = self.get_type_predicate_of_signature(jsdoc_signature)? {
+                    return Ok(Some(predicate));
+                }
+            }
+        }
         // 59783-59788 body-inference arm (LIVE at m6 7.6): an
         // unannotated function-like whose (unforced) return-type slot
         // is vacant or Boolean proper, with at least one parameter.
-        // The jsdocPredicate leg (59774-59780) is elided with the
-        // JSDoc band (project-wide).
         if !node_util::is_function_like_declaration_kind(self.kind_of(declaration)) {
             return Ok(None);
         }
@@ -3301,16 +3298,12 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkIfExpressionRefinesAnyParameter @6.0.3
     /// tsc-hash: a2a835027b12af0c30ef0fb4ea278230f27a9436dff75c33d6e052ad032ef5b8
     /// tsc-span: _tsc.js:79041-79059
-    ///
-    /// skipParentheses(expr, /*excludeJSDocTypeAssertions*/ true) —
-    /// JSDoc type assertions are elided project-wide, so the plain
-    /// walk is the same function.
     fn check_if_expression_refines_any_parameter(
         &mut self,
         func: NodeId,
         expr: NodeId,
     ) -> CheckResult2<Option<TypePredicate>> {
-        let expr = self.skip_parentheses(expr);
+        let expr = self.skip_parentheses_excluding_jsdoc_type_assertions(expr);
         let return_type = self.check_expression_cached(expr, tsrs2_types::CheckMode::NORMAL)?;
         if !self
             .tables

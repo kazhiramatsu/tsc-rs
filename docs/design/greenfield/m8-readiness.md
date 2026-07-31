@@ -1,5 +1,9 @@
 # M8 scope and readiness contract
 
+Status: satisfied historical entry contract. M8 close state is graded by the
+[execution and close record](m8-execution-and-close.md#m8-exit-and-m9-handoff);
+this page remains the reproducible definition of the gate that opened M8.
+
 This page is the executable M8-entry contract. It states the two metric
 views and the ten machine rows. M8 execution, slice construction, and close
 are owned by
@@ -101,10 +105,12 @@ port's report stands; it is not a mismatch. Recorded rows
    arm — Debug Failure. The port's synthesis
    (`get_async_from_sync_iteration_types`, checker/src/iterate.rs)
    passes the 1320 pair explicitly, so it reports where tsc dies.
-   Under the corpus lib regime both trigger shapes currently contain
-   upstream as conditional-type (`Awaited`/`BuiltinIteratorReturn`
-   machinery) M8-stub partials, so the deviation is corpus-inert
-   today and goes observable when M8 ports conditional types.
+   At the M4 review checkpoint, both trigger shapes were upstream of
+   conditional-type (`Awaited`/`BuiltinIteratorReturn`) partials and were
+   therefore corpus-inert. The conditional-type subsystem subsequently
+   landed, so that historical blocker no longer applies. This row now
+   records only the pinned oracle-crash classification for any supported
+   generated shape that reaches the path.
 
 3. The static-block `strictPropertyInitialization` probe under
    `strictNullChecks: false` — `getOptionalType` Debug assert; the
@@ -122,10 +128,28 @@ port's report stands; it is not a mismatch. Recorded rows
    — TypeError — unless the target's `couldContainTypeVariables` early
    return fires first. The port's `infer_from_middle_slice`
    (checker/src/inference.rs) skips the harmless shape exactly like
-   the early return and reports Unsupported (recovery-class escape)
-   where tsc dies. Same-shape calls whose rest element is variable-free
-   (probe f2/f3) do not crash in either implementation and infer
-   identically.
+   the early return. Where tsc dies, the port deterministically ends
+   the remaining tuple-target inference ladder at that call boundary:
+   candidates collected before the missing slice remain, and no
+   candidate is added at or after the crash point. This is finite C6
+   no-inference containment, not an `Unsupported` escape. Same-shape
+   calls whose rest element is variable-free (probe f2/f3) continue in
+   both implementations and infer identically.
+
+5. Checked-JS reference display for a nested class whose enclosing
+   class owns a JSDoc `@template` parameter, reached while formatting
+   a diagnostic such as
+   `this.prototype.missing`. TypeScript 6.0.3 passes the outer
+   template parameter's absent parent symbol to
+   `lookupSymbolChainWorker` through `typeToString` and throws. The
+   port represents that one face as the typed
+   `OuterJsdocTemplateReferenceDisplay` oracle-crash boundary: it
+   suppresses only the diagnostic whose display crashed, continues
+   checking independent source elements, and records the source range
+   only for preceding `@ts-expect-error` accounting. It does not
+   create an `Unsupported` site or a public partial-check record.
+   Valid outer generic references and the same nested prototype read
+   without the JSDoc template continue through the ordinary renderer.
 
 ## Machine gate
 
@@ -134,10 +158,10 @@ cargo xtask m8 readiness
 cargo xtask m8 readiness --require-ready
 ```
 
-The first command reports. The second closes M7 and opens M8 only when
-all ten rows are green. Opening M8 does not move the checked-in `STAGE`
-marker: it records the last closed milestone and remains `M7` until the M8
-close slice.
+The first command reports. The second closed M7 and opened M8 only after all
+ten rows were green. That opening did not move the checked-in `STAGE` marker:
+it records the last closed milestone and remained `M7` until the M8 close
+slice, which subsequently moved it to `M8`.
 
 1. M7 conformance: `T0 >= 63%`, `FP=0`, configured exact T1 ratchet;
 2. live T1-T3 shadow metrics;
@@ -161,10 +185,10 @@ neighbor; a frozen owner moved to a later milestone; and stale
 conformance/scope/evidence fingerprints. Each must fail the responsible
 row rather than change the denominator silently.
 
-The report is `target/m8/readiness.json`. `ready=true` authorizes M8 work; it
-does not claim M8 or the project is complete. After readiness, use the
-[M8 execution and close contract](m8-execution-and-close.md), not this entry
-gate, to grade progress.
+The report is `target/m8/readiness.json`. At entry, `ready=true` authorized
+M8 work; it did not claim M8 or the project was complete. Use the
+[M8 execution and close contract](m8-execution-and-close.md), not this
+historical entry gate, to grade the close state and M9 handoff.
 
 ## Escape end state
 
@@ -172,3 +196,4 @@ gate, to grade progress.
 it is not a Done exception. Final completion requires `sites=0` and an
 empty `escapes.toml`. Retirement order and the M8 close check are defined in
 [M8 execution and close](m8-execution-and-close.md#m8-exit-and-m9-handoff).
+M8 close satisfied both requirements.

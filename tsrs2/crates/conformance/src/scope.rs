@@ -2218,6 +2218,7 @@ mod tests {
             matrix_key: String::new(),
             tsrs: Vec::new(),
             oracle,
+            oracle_empty_related_information: Vec::new(),
             tsrs_cli_hash: String::new(),
             oracle_cli_hash: String::new(),
         }

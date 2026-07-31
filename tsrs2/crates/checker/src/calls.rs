@@ -2,31 +2,17 @@
 //! tagged-template/import/instanceof tail (m4-57-call-extraction.md;
 //! the JSX band is 5.7c).
 //!
-//! THE stub M6 swaps is inferTypeArguments (75938) plus the
-//! inference-context construction at chooseOverload (76809-76817) and
-//! inferSignatureInstantiationForOverloadFailure (76946-76954). The
-//! observability rule (extraction doc §0) is the FP=0 wall: the
-//! structure resolves for real, but any VALUE the stub would invent
-//! escapes (`Unsupported`, class M6-stub) at the moment it would
-//! become observable — generic calls without explicit type arguments
-//! contain (both success results and arg-relation failures); explicit
-//! type arguments, non-generic candidates, and every target-shape/
-//! arity/type-argument-arity error band go fully live.
-//!
-//! Error rendering follows tsc's diagnostic chains; a display the
-//! bounded nodeBuilder slice cannot render unwinds Unsupported (no
-//! diagnostic rather than an unfaithful one). Elaboration-eligible
-//! argument shapes (object/array literals, arrow bodies —
-//! elaborateError 63957) escape on the reporting path because tsc's
-//! elaboration would move the code/span into the literal.
+//! Error rendering follows tsc's diagnostic chains, including
+//! elaboration for object/array literals and function bodies.
 
-use tsrs2_binder::{node_util, SymbolId};
+use tsrs2_binder::{node_util, SymbolId, SymbolTable};
 use tsrs2_diags::{gen as diagnostics, Diagnostic, DiagnosticMessage, MessageChain, RelatedInfo};
 use tsrs2_syntax::nodes::{JsxOpeningElementData, JsxSelfClosingElementData};
 use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
-    CheckMode, ContextFlags, ElementFlags, InferenceFlags, InferencePriority, ModifierFlags,
-    NodeFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags, TypeId, UnionReduction,
+    CheckMode, ContextFlags, ElementFlags, InferenceFlags, InferencePriority, IntersectionFlags,
+    ModifierFlags, NodeFlags, ObjectFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags,
+    TypeId, UnionReduction,
 };
 
 use crate::inference::InferenceContextId;
@@ -35,7 +21,7 @@ use crate::relate::RelationKind;
 use crate::links::LinkSlot;
 use crate::operators::OuterExpressionKinds;
 use crate::speculate::SpeculationOutcome;
-use crate::state::{CheckResult2, CheckerState, Signature, SignatureId, Unsupported};
+use crate::state::{CheckResult2, CheckerState, Signature, SignatureId};
 use crate::structural::SignatureKind;
 
 /// The Rust stand-in for tsc's fabricated SyntheticExpression parse
@@ -428,13 +414,13 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 8be0ce0cdee3c8c15174b3fe4697c773f73b6373f7f5f145778a0079d717b494
     /// tsc-span: _tsc.js:82628-82663
     ///
-    /// checkDeprecatedSignature is a suggestion-band no-op. The
-    /// headMessage switch: the legacy PropertyDeclaration face FALLS
+    /// The headMessage switch: the legacy PropertyDeclaration face FALLS
     /// THROUGH to the Parameter void-or-any head; Parameter itself is
     /// reachable only under experimental_decorators=true.
     fn check_decorator(&mut self, node: NodeId) -> CheckResult2<()> {
         self.check_grammar_decorator(node);
         let signature = self.get_resolved_signature(node, CheckMode::NORMAL)?;
+        self.check_deprecated_signature(signature, node)?;
         let return_type = self.get_return_type_of_signature(signature)?;
         if self.tables.flags_of(return_type).intersects(TypeFlags::ANY) {
             return Ok(());
@@ -517,9 +503,10 @@ impl<'a> CheckerState<'a> {
         let NodeData::Decorator(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let expression = data
-            .expression
-            .ok_or_else(|| Unsupported::new("decorator without an expression (parse recovery)"))?;
+        let expression = data.expression.expect(
+            "parser invariant: try_parse_decorator always stores an expression \
+             (parse recovery stores a missing expression node)",
+        );
         let func_type = self.check_expression(expression, CheckMode::NORMAL)?;
         let apparent_type = self.get_apparent_type(func_type)?;
         if apparent_type == self.tables.intrinsics.error {
@@ -615,17 +602,18 @@ impl<'a> CheckerState<'a> {
         let NodeData::Decorator(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let expression = data
-            .expression
-            .ok_or_else(|| Unsupported::new("decorator without an expression (parse recovery)"))?;
-        let signature = self.get_decorator_call_signature(node)?.ok_or_else(|| {
-            // tsc Debug.fail(): resolveDecorator precedes and its error
-            // faces divert before the argument walk (risk #6 guard).
-            Unsupported::new(
-                "getEffectiveDecoratorArguments without a decorator signature \
-                 (Debug.fail transcription, parse recovery)",
-            )
-        })?;
+        let expression = data.expression.expect(
+            "parser invariant: try_parse_decorator always stores an expression \
+             (parse recovery stores a missing expression node)",
+        );
+        let Some(signature) = self.get_decorator_call_signature(node)? else {
+            // tsc Debug.fail(): ordinary checking reaches this helper
+            // only after resolveDecorator has established the
+            // decorated-node signature. A structurally detached
+            // recovery decorator has no effective arguments to
+            // synthesize; keep that non-oracle tree diagnostic-free.
+            return Ok(Vec::new());
+        };
         let (pos, end) = {
             let source = self.binder.source_of_node(expression);
             let raw = source.arena.node(expression);
@@ -725,7 +713,7 @@ impl<'a> CheckerState<'a> {
     /// for class-element declarations (87730). tsc builds the getter/
     /// setter target and return function types as SEPARATE (equal)
     /// types — one shared TypeId here is relation-identical. On
-    /// Unsupported unwind the sentinel REVERTS so a later query
+    /// On checker-abort unwind the sentinel reverts so a later query
     /// recomputes (tsc cannot fail here).
     fn get_es_decorator_call_signature(
         &mut self,
@@ -1058,9 +1046,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: aac60b64694cdf8eae6dcb0edbef3d765eb1c39c713cd0f3d6fea6c7eeea4b2a
     /// tsc-span: _tsc.js:87802-87816
     fn get_class_element_property_key_type(&mut self, element: NodeId) -> CheckResult2<TypeId> {
-        let name = self
-            .name_of_node(element)
-            .ok_or_else(|| Unsupported::new("class element without a name (parse recovery)"))?;
+        let name = self.name_of_node(element).expect(
+            "parser invariant: class method/accessor/property parsers always store a name \
+             (parse recovery stores a missing Identifier)",
+        );
         match self.data_of(name) {
             NodeData::Identifier(data) => {
                 let text =
@@ -1087,10 +1076,11 @@ impl<'a> CheckerState<'a> {
                     Ok(self.tables.intrinsics.string)
                 }
             }
-            _ => Err(Unsupported::new(
-                "getClassElementPropertyKeyType over an unsupported property name \
-                 (Debug.fail transcription, parse recovery)",
-            )),
+            // tsc Debug.fail("Unsupported property name."). This is
+            // reachable only on an already-invalid decorated member
+            // (for example a bigint key); propagate the checker error
+            // type instead of inventing a string/symbol key.
+            _ => Ok(self.tables.intrinsics.error),
         }
     }
 
@@ -1126,9 +1116,10 @@ impl<'a> CheckerState<'a> {
         value_type: TypeId,
     ) -> CheckResult2<TypeId> {
         let is_static = self.has_static_modifier(node);
-        let name = self
-            .name_of_node(node)
-            .ok_or_else(|| Unsupported::new("class element without a name (parse recovery)"))?;
+        let name = self.name_of_node(node).expect(
+            "parser invariant: class method/accessor/property parsers always store a name \
+             (parse recovery stores a missing Identifier)",
+        );
         let is_private = self.kind_of(name) == SyntaxKind::PrivateIdentifier;
         let name_type = if is_private {
             let text = match self.data_of(name) {
@@ -1712,9 +1703,10 @@ impl<'a> CheckerState<'a> {
             NodeData::TaggedTemplateExpression(data) => {
                 // 76299-76308: [Synthetic(TemplateStringsArray)] at the
                 // template's span + the span expressions.
-                let template = data.template.ok_or_else(|| {
-                    Unsupported::new("tagged template without a template (parse recovery)")
-                })?;
+                let template = data.template.expect(
+                    "parser invariant: parse_tagged_template_rest always stores a template \
+                     (parse recovery stores a missing TemplateTail)",
+                );
                 let strings_array = self.get_global_template_strings_array_type()?;
                 let (pos, end) = {
                     let source = self.binder.source_of_node(template);
@@ -1741,18 +1733,20 @@ impl<'a> CheckerState<'a> {
                 return Ok(args);
             }
             NodeData::BinaryExpression(data) => {
-                let left = data.left.ok_or_else(|| {
-                    Unsupported::new("instanceof without a left operand (parse recovery)")
-                })?;
+                let left = data.left.expect(
+                    "parser invariant: make_binary_expression always stores its left operand \
+                     (parse recovery stores a missing expression node)",
+                );
                 return Ok(vec![EffectiveArg::Node(left)]);
             }
             NodeData::JsxOpeningElement(JsxOpeningElementData { attributes, .. })
             | NodeData::JsxSelfClosingElement(JsxSelfClosingElementData { attributes, .. }) => {
                 // 76315-76317: the attributes node is THE argument when
                 // properties exist or an opening element has children.
-                let attributes = attributes.ok_or_else(|| {
-                    Unsupported::new("JSX opening element without attributes (parse recovery)")
-                })?;
+                let attributes = attributes.expect(
+                    "parser invariant: JSX opening/self-closing parsers always store an \
+                     attributes node (empty or recovery)",
+                );
                 let has_properties = match self.data_of(attributes) {
                     NodeData::JsxAttributes(attributes_data) => {
                         !self.nodes_of(attributes_data.properties).is_empty()
@@ -1993,14 +1987,16 @@ impl<'a> CheckerState<'a> {
                 let NodeData::TaggedTemplateExpression(data) = self.data_of(node) else {
                     unreachable!("kind/data agree");
                 };
-                let template = data.template.ok_or_else(|| {
-                    Unsupported::new("tagged template without a template (parse recovery)")
-                })?;
+                let template = data.template.expect(
+                    "parser invariant: parse_tagged_template_rest always stores a template \
+                     (parse recovery stores a missing TemplateTail)",
+                );
                 if let NodeData::TemplateExpression(template_data) = self.data_of(template) {
                     let spans = self.nodes_of(template_data.template_spans);
-                    let last_span = spans.last().copied().ok_or_else(|| {
-                        Unsupported::new("template expression without spans (parse recovery)")
-                    })?;
+                    let last_span = spans.last().copied().expect(
+                        "parser invariant: parse_template_expression always stores at least \
+                         one TemplateSpan (ending in a real or missing TemplateTail)",
+                    );
                     let literal = match self.data_of(last_span) {
                         NodeData::TemplateSpan(span_data) => span_data.literal,
                         _ => None,
@@ -2031,9 +2027,10 @@ impl<'a> CheckerState<'a> {
                     NodeData::JsxSelfClosingElement(data) => data.attributes,
                     _ => None,
                 }
-                .ok_or_else(|| {
-                    Unsupported::new("JSX opening element without attributes (parse recovery)")
-                })?;
+                .expect(
+                    "parser invariant: JSX opening/self-closing parsers always store an \
+                     attributes node (empty or recovery)",
+                );
                 let source = self.binder.source_of_node(node);
                 call_is_incomplete =
                     source.arena.node(attributes).end == source.arena.node(node).end;
@@ -2166,13 +2163,12 @@ impl<'a> CheckerState<'a> {
 
     /// The non-array-like spread element walk shared by both
     /// getSpreadArgumentType arms (76012/76026): Node spreads report
-    /// at their expression; SYNTHETIC spreads are span-only (tsc
-    /// anchors at the synthetic expression NODE), so their walk runs
-    /// silently — the success face (variadic tuple elements iterating
-    /// through array constraints, probe p11) is node-free, and only a
-    /// walk that would have REPORTED keeps a containment.
+    /// at their expression; SYNTHETIC spreads report at the
+    /// createSyntheticExpression setTextRange carried by EffectiveArg.
     fn iterated_spread_element_type(
         &mut self,
+        node_in_file: NodeId,
+        arg: &EffectiveArg,
         spread_type: TypeId,
         error_node: Option<NodeId>,
     ) -> CheckResult2<TypeId> {
@@ -2185,29 +2181,25 @@ impl<'a> CheckerState<'a> {
                 error_node,
             );
         }
-        self.get_iterated_type_or_element_type(
+        let span = self.diag_span_of_effective_arg(node_in_file, arg);
+        self.check_iterated_type_or_element_type_at_span(
             tsrs2_types::IterationUse::SPREAD,
             spread_type,
             undefined_type,
-            None,
-            /*check_assignability*/ true,
-        )?
-        .ok_or_else(|| {
-            Unsupported::new(
-                "non-array-like SYNTHETIC spread whose iteration walk reports \
-                 (span-only error threading, M8)",
-            )
-        })
+            &span,
+        )
     }
 
     /// tsc-port: getSpreadArgumentType @6.0.3
     /// tsc-hash: dfdbbb36374c6ab5201a5e1f9856e353347e1d3cace2f7a7f8d6246a95d6fbce
     /// tsc-span: _tsc.js:76002-76042
     ///
-    /// Non-array-like SYNTHETIC spread walks run silently (span-only
-    /// error node) via iterated_spread_element_type.
+    /// Non-array-like SYNTHETIC spreads use their EffectiveArg range
+    /// as tsc's fabricated errorNode location.
+    #[allow(clippy::too_many_arguments)] // tsc's spread inputs stay explicit at all four callers.
     pub(crate) fn get_spread_argument_type(
         &mut self,
+        node_in_file: NodeId,
         args: &[EffectiveArg],
         index: usize,
         arg_count: usize,
@@ -2225,9 +2217,10 @@ impl<'a> CheckerState<'a> {
                         let NodeData::SpreadElement(data) = self.data_of(node) else {
                             unreachable!("spread arguments are spread elements");
                         };
-                        let expression = data.expression.ok_or_else(|| {
-                            Unsupported::new("spread without operand (parse recovery)")
-                        })?;
+                        let expression = data.expression.expect(
+                            "parser invariant: parse_spread_element always stores an operand \
+                             (parse recovery stores a missing expression node)",
+                        );
                         let ty = self.check_expression_with_contextual_type(
                             expression,
                             rest_type,
@@ -2240,7 +2233,8 @@ impl<'a> CheckerState<'a> {
                 if self.is_array_like_type(spread_type)? {
                     return self.get_mutable_array_or_tuple_type(spread_type);
                 }
-                let element = self.iterated_spread_element_type(spread_type, error_node)?;
+                let element =
+                    self.iterated_spread_element_type(node_in_file, arg, spread_type, error_node)?;
                 return self.create_array_type(element, in_const_context);
             }
         }
@@ -2256,9 +2250,10 @@ impl<'a> CheckerState<'a> {
                         let NodeData::SpreadElement(data) = self.data_of(node) else {
                             unreachable!("spread arguments are spread elements");
                         };
-                        let expression = data.expression.ok_or_else(|| {
-                            Unsupported::new("spread without operand (parse recovery)")
-                        })?;
+                        let expression = data.expression.expect(
+                            "parser invariant: parse_spread_element always stores an operand \
+                             (parse recovery stores a missing expression node)",
+                        );
                         let ty = self.check_expression(expression, CheckMode::NORMAL)?;
                         (ty, Some(expression))
                     }
@@ -2267,7 +2262,12 @@ impl<'a> CheckerState<'a> {
                     types.push(spread_type);
                     flags.push(ElementFlags::VARIADIC);
                 } else {
-                    let element = self.iterated_spread_element_type(spread_type, error_node)?;
+                    let element = self.iterated_spread_element_type(
+                        node_in_file,
+                        &arg,
+                        spread_type,
+                        error_node,
+                    )?;
                     types.push(element);
                     flags.push(ElementFlags::REST);
                 }
@@ -2436,9 +2436,12 @@ impl<'a> CheckerState<'a> {
     /// and the identically-named-types message swap are both gated on
     /// `!headMessage` — reportErrorResults 65286), the source display
     /// generalizes literals, and the reporting-mode relation walk
-    /// supplies the nested errorInfo chain. Display failures unwind
-    /// Unsupported per the house discipline.
-    fn build_relation_error_with_head(
+    /// supplies the nested errorInfo chain. Display failures abort
+    /// the whole report rather than emitting a partial chain.
+    /// tsrs-native: DiagSpan adapter over tsc's reportRelationError
+    /// present-head path; SyntheticExpression locations have no arena
+    /// NodeId in the Rust representation.
+    pub(crate) fn build_relation_error_with_head(
         &mut self,
         source: TypeId,
         target: TypeId,
@@ -2463,7 +2466,7 @@ impl<'a> CheckerState<'a> {
             head
         };
         // The verdict is already known. Until every report-only
-        // descendant is implemented, an Unsupported while refining
+        // descendant is implemented, a checker abort while refining
         // the chain must not erase the accepted parent diagnostic.
         if let Ok(Some(output)) = self.relation_error_output(
             original_source,
@@ -2490,6 +2493,56 @@ impl<'a> CheckerState<'a> {
             // getBaseTypeOfLiteralType passes through UNCHANGED and
             // whose typeof face qualifies only on the FQ chain
             // (`typeof Symbol.toPrimitive`, oracle-probed).
+            self.get_type_name_for_error_display(generalized)?
+        } else {
+            source_text
+        };
+        Ok(self.diagnostic_at_span(span, MessageChain::new(head, &[source_text, target_text])))
+    }
+
+    /// reportRelationError's no-head face for callers whose diagnostic
+    /// target is a SyntheticExpression span rather than an arena node.
+    /// This retains the relation walk's own 2322-family head selection
+    /// and nested chain.
+    /// tsrs-native: DiagSpan adapter over tsc's reportRelationError
+    /// no-head path; SyntheticExpression locations have no arena
+    /// NodeId in the Rust representation.
+    pub(crate) fn build_relation_error_without_head(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        span: &DiagSpan,
+    ) -> CheckResult2<Diagnostic> {
+        let original_source = source;
+        let original_target = target;
+        let (source, target) = self.normalized_relation_report_types(source, target)?;
+        if let Ok(Some(output)) = self.relation_error_output_with_context(
+            original_source,
+            original_target,
+            RelationKind::Assignable,
+            None,
+            None,
+        ) {
+            let mut diagnostic = self.diagnostic_at_span(span, output.message);
+            diagnostic.related = output.related;
+            return Ok(diagnostic);
+        }
+        let mut source_text = self.type_to_string_slice_with_error_enclosing(source)?;
+        let mut target_text = self.type_to_string_slice_with_error_enclosing(target)?;
+        if source_text == target_text {
+            source_text = self.get_type_name_for_error_display(source)?;
+            target_text = self.get_type_name_for_error_display(target)?;
+        }
+        let head = if source_text == target_text {
+            &diagnostics::Type_0_is_not_assignable_to_type_1_Two_different_types_with_this_name_exist_but_they_are_unrelated
+        } else {
+            &diagnostics::Type_0_is_not_assignable_to_type_1
+        };
+        let source_text = if !self.tables.flags_of(target).intersects(TypeFlags::NEVER)
+            && self.is_literal_type(source)
+            && !self.type_could_have_top_level_singleton_types(target)?
+        {
+            let generalized = self.get_base_type_of_literal_type(source)?;
             self.get_type_name_for_error_display(generalized)?
         } else {
             source_text
@@ -2593,9 +2646,10 @@ impl<'a> CheckerState<'a> {
             NodeData::JsxSelfClosingElement(data) => data.attributes,
             _ => None,
         }
-        .ok_or_else(|| {
-            Unsupported::new("JSX opening element without attributes (parse recovery)")
-        })?;
+        .expect(
+            "parser invariant: JSX opening/self-closing parsers always store an attributes \
+             node (empty or recovery)",
+        );
         let check_attr_type = self.check_expression_with_contextual_type(
             attributes,
             param_type,
@@ -2827,6 +2881,7 @@ impl<'a> CheckerState<'a> {
         if let Some(rest_type) = rest_type {
             if self.could_contain_type_variables(rest_type) {
                 let spread_type = self.get_spread_argument_type(
+                    node,
                     args,
                     arg_count,
                     args.len(),
@@ -2876,9 +2931,10 @@ impl<'a> CheckerState<'a> {
                 NodeData::JsxSelfClosingElement(data) => data.attributes,
                 _ => None,
             }
-            .ok_or_else(|| {
-                Unsupported::new("JSX opening element without attributes (parse recovery)")
-            })?;
+            .expect(
+                "parser invariant: JSX opening/self-closing parsers always store an \
+                 attributes node (empty or recovery)",
+            );
             attributes_node = Some(attributes);
             self.check_expression_with_contextual_type(
                 attributes, param_type, /*inference_context*/ None, check_mode,
@@ -3357,26 +3413,17 @@ impl<'a> CheckerState<'a> {
                     EffectiveArg::Node(arg_node) => Some(self.get_effective_check_node(arg_node)),
                     EffectiveArg::Synthetic { .. } => None,
                 };
-                // 6.6f: syntax-probe gate → flag-exact containment
-                // for the failed-argument face. SUBTREE consult: a
-                // compound argument inherits the wide type from a
-                // seam-reverted descendant the node-identity probe
-                // cannot see.
-                if let Some(effective) = effective {
-                    if self.flow_answer_is_seam_reverted_in_composite(effective) {
-                        return Err(Unsupported::new(
-                            "failed argument over a seam-reverted flow answer \
-                             (unported narrowing dependency, M6/M8 seam)",
-                        ));
-                    }
-                }
                 if let Some(effective) = effective {
                     if let Some(mut errors) =
                         self.capture_argument_elaboration(effective, param_type, head, mode)?
                     {
-                        if let Some(await_related) =
-                            self.missing_await_related(&arg, check_arg_type, param_type, relation)?
-                        {
+                        if let Some(await_related) = self.missing_await_related(
+                            node,
+                            &arg,
+                            check_arg_type,
+                            param_type,
+                            relation,
+                        )? {
                             if let Some(first) = errors.first_mut() {
                                 first.related.push(await_related.clone());
                                 if let Some(diagnostic) = first.diagnostic.as_mut() {
@@ -3393,9 +3440,13 @@ impl<'a> CheckerState<'a> {
                         head,
                         mode,
                     )?;
-                    if let Some(await_related) =
-                        self.missing_await_related(&arg, check_arg_type, param_type, relation)?
-                    {
+                    if let Some(await_related) = self.missing_await_related(
+                        node,
+                        &arg,
+                        check_arg_type,
+                        param_type,
+                        relation,
+                    )? {
                         if let Some(first) = errors.first_mut() {
                             first.related.push(await_related.clone());
                             if let Some(diagnostic) = first.diagnostic.as_mut() {
@@ -3418,7 +3469,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let mut related: Vec<RelatedInfo> = Vec::new();
                 if let Some(await_related) =
-                    self.missing_await_related(&arg, check_arg_type, param_type, relation)?
+                    self.missing_await_related(node, &arg, check_arg_type, param_type, relation)?
                 {
                     related.push(await_related);
                 }
@@ -3451,6 +3502,7 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(rest_type) = rest_type {
             let spread_type = self.get_spread_argument_type(
+                node,
                 args,
                 arg_count,
                 args.len(),
@@ -3534,31 +3586,19 @@ impl<'a> CheckerState<'a> {
     /// not promise-like.
     fn missing_await_related(
         &mut self,
+        node_in_file: NodeId,
         arg: &EffectiveArg,
         source: TypeId,
         target: TypeId,
         relation: RelationKind,
     ) -> CheckResult2<Option<RelatedInfo>> {
-        if self.get_awaited_type_of_promise(target)?.is_some() {
-            return Ok(None);
-        }
-        let Some(awaited_source) = self.get_awaited_type_of_promise(source)? else {
-            return Ok(None);
-        };
-        if !self.is_type_related_to(awaited_source, target, relation)? {
-            return Ok(None);
-        }
-        match *arg {
+        let span = match *arg {
             EffectiveArg::Node(arg_node) => {
-                let error_node = self.get_effective_check_node(arg_node);
-                Ok(Some(self.related_info_for_node(
-                    error_node,
-                    &diagnostics::Did_you_forget_to_use_await,
-                    &[],
-                )))
+                self.diag_span_of_node(self.get_effective_check_node(arg_node))
             }
-            EffectiveArg::Synthetic { .. } => Ok(None),
-        }
+            EffectiveArg::Synthetic { .. } => self.diag_span_of_effective_arg(node_in_file, arg),
+        };
+        self.missing_await_related_at(Some(&span), source, target, relation)
     }
 
     fn missing_await_related_at(
@@ -3913,6 +3953,7 @@ impl<'a> CheckerState<'a> {
                     let span = self.diag_span_of_node(error_node);
                     self.diagnostic_at_span(&span, chain)
                 };
+                diagnostic.related_information_present = true;
                 diagnostic.related = chosen.into_iter().flat_map(|error| error.related).collect();
                 if let Some(related) =
                     self.implementation_success_elaboration(ctx, candidates_for_argument_error[0])?
@@ -3925,13 +3966,7 @@ impl<'a> CheckerState<'a> {
             let args = ctx.args.clone();
             let diagnostic =
                 self.get_argument_arity_error(node, &[candidate], &args, head_message)?;
-            let publish_checked_js =
-                self.should_publish_typed_declaration_js_arity(node, &[candidate]);
-            let diagnostics_before = self.diagnostics.len();
             self.push_error_diagnostic(diagnostic);
-            if publish_checked_js {
-                self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 2554);
-            }
         } else if let Some(candidate) = ctx.candidate_for_type_argument_error {
             let type_argument_nodes = ctx.type_argument_nodes.clone();
             self.check_type_arguments(
@@ -3968,35 +4003,10 @@ impl<'a> CheckerState<'a> {
                     &args,
                     head_message,
                 )?;
-                let publish_checked_js = self.should_publish_typed_declaration_js_arity(
-                    node,
-                    &with_correct_type_argument_arity,
-                );
-                let diagnostics_before = self.diagnostics.len();
                 self.push_error_diagnostic(diagnostic);
-                if publish_checked_js {
-                    self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 2554);
-                }
             }
         }
         Ok(())
-    }
-
-    /// tsrs-native: checked JavaScript calls into typed declarations
-    /// retain their ordinary 2554 arity row. JSDoc-owned signatures
-    /// stay on the separate checked-JS/JSDoc boundary.
-    fn should_publish_typed_declaration_js_arity(
-        &self,
-        node: NodeId,
-        signatures: &[SignatureId],
-    ) -> bool {
-        self.is_in_js_file(node)
-            && !signatures.is_empty()
-            && signatures.iter().all(|&signature| {
-                self.signature_of(signature)
-                    .declaration
-                    .is_some_and(|declaration| !self.is_in_js_file(declaration))
-            })
     }
 
     /// addImplementationSuccessElaboration (76744-76762): when the
@@ -4858,13 +4868,15 @@ impl<'a> CheckerState<'a> {
                     NodeData::CallSignature(data) => data.parameters,
                     NodeData::ConstructSignature(data) => data.parameters,
                     NodeData::FunctionType(data) => data.parameters,
+                    NodeData::JSDocFunctionType(data) => data.parameters,
+                    NodeData::JSDocSignature(data) => data.parameters,
                     NodeData::ConstructorType(data) => data.parameters,
                     NodeData::Constructor(data) => data.parameters,
                     _ => None,
                 };
                 let parameter = self.nodes_of(parameters).get(parameter_index).copied();
                 if let Some(parameter) = parameter {
-                    let related = self.argument_not_provided_related(parameter)?;
+                    let related = self.argument_not_provided_related(parameter, args.len())?;
                     diagnostic.related.push(related);
                 }
             }
@@ -4884,13 +4896,25 @@ impl<'a> CheckerState<'a> {
         Ok(self.diagnostic_at_span(&span, chain))
     }
 
-    /// The 76494 related-row selection: binding pattern / rest / named.
-    fn argument_not_provided_related(&mut self, parameter: NodeId) -> CheckResult2<RelatedInfo> {
-        let NodeData::Parameter(data) = self.data_of(parameter) else {
-            unreachable!("signature declarations carry parameter nodes");
+    /// tsc-port: getArgumentArityError @6.0.3
+    /// tsc-hash: b93c4ab581d5b6e865ac4ae75cb83cc787012677392b4428ad1095375cf63751
+    /// tsc-span: _tsc.js:76492-76497
+    ///
+    /// Binding patterns and rest parameters select their own rows.
+    /// An unnamed parameter (the JSDoc `function(string)` form) uses
+    /// the missing argument's zero-based index as its display name.
+    fn argument_not_provided_related(
+        &mut self,
+        parameter: NodeId,
+        argument_index: usize,
+    ) -> CheckResult2<RelatedInfo> {
+        let (name, is_rest) = match self.data_of(parameter) {
+            NodeData::Parameter(data) => (data.name, data.dot_dot_dot_token.is_some()),
+            NodeData::JSDocParameterTag(data) => {
+                (data.name, self.is_rest_parameter_declaration(parameter))
+            }
+            _ => unreachable!("signature declarations carry parameter-like nodes"),
         };
-        let name = data.name;
-        let is_rest = data.dot_dot_dot_token.is_some();
         let name_kind = name.map(|name| self.kind_of(name));
         if matches!(
             name_kind,
@@ -4913,7 +4937,7 @@ impl<'a> CheckerState<'a> {
                 &[&text],
             ));
         }
-        let text = name_text.unwrap_or_default();
+        let text = name_text.unwrap_or_else(|| argument_index.to_string());
         Ok(self.related_info_for_node(
             parameter,
             &diagnostics::An_argument_for_0_was_not_provided,
@@ -5193,22 +5217,6 @@ impl<'a> CheckerState<'a> {
             } else {
                 self.diag_span_of_node(error_target)
             };
-        // tsrs-native: the binder admits only non-JSDoc checked-JS
-        // bare/accessed-require aliases. A call/construct failure on
-        // that exact alias is therefore safe to publish without
-        // opening arbitrary checked-JS callees.
-        let publish_checked_js_require = self.is_in_js_file(error_target)
-            && matches!(
-                self.links.node(error_target).resolved_symbol,
-                LinkSlot::Resolved(symbol)
-                    if self.symbol_flags(symbol).intersects(SymbolFlags::ALIAS)
-                        && self
-                            .get_declaration_of_alias_symbol(symbol)
-                            .is_some_and(|declaration| {
-                                self.external_module_require_argument(declaration).is_some()
-                            })
-            );
-        let head_code = chain.code;
         let mut diagnostic = self.diagnostic_at_span(&span, chain);
         if let Some(related_message) = related_message {
             diagnostic
@@ -5218,11 +5226,7 @@ impl<'a> CheckerState<'a> {
         if let Some(related) = related_information {
             diagnostic.related.push(related);
         }
-        let diagnostics_before = self.diagnostics.len();
         self.push_error_diagnostic(diagnostic);
-        if publish_checked_js_require {
-            self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, head_code);
-        }
         Ok(())
     }
 
@@ -5237,9 +5241,10 @@ impl<'a> CheckerState<'a> {
         let NodeData::CallExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let expression = data
-            .expression
-            .ok_or_else(|| Unsupported::new("call without a callee (parse recovery)"))?;
+        let expression = data.expression.expect(
+            "parser invariant: parse_call_expression_rest always stores its callee \
+             (parse recovery stores a missing expression node)",
+        );
         let type_arguments = data.type_arguments;
         if self.kind_of(expression) == SyntaxKind::SuperKeyword {
             // 76973-76989: the super() arm.
@@ -5255,12 +5260,9 @@ impl<'a> CheckerState<'a> {
                 return Ok(self.any_signature);
             }
             if super_type != self.tables.intrinsics.error {
-                // getEffectiveBaseTypeNode = the extends heritage
-                // element in TS files (the JS @augments divergence is
-                // the checkClassLikeDeclaration elision).
                 let base_type_node = self
                     .get_containing_class_of(node)
-                    .and_then(|class| self.get_class_extends_heritage_element(class));
+                    .and_then(|class| self.get_effective_base_type_node(class));
                 if let Some(base_type_node) = base_type_node {
                     let base_constructors = self.get_instantiated_constructors_for_type_arguments(
                         super_type,
@@ -5390,7 +5392,31 @@ impl<'a> CheckerState<'a> {
                 return Ok(self.resolving_signature);
             }
         }
-        // 77043-77046: the JSDoc @class arm is JS-file-gated.
+        // 77043-77046: a callable declaration carrying JSDoc
+        // `@class`/`@constructor` must be invoked with `new`.
+        let mut has_jsdoc_class_signature = false;
+        for &signature in &call_signatures {
+            let Some(declaration) = self.signature_of(signature).declaration else {
+                continue;
+            };
+            if self.is_in_js_file(declaration)
+                && self
+                    .first_jsdoc_tag(declaration, SyntaxKind::JSDocClassTag)
+                    .is_some()
+            {
+                has_jsdoc_class_signature = true;
+                break;
+            }
+        }
+        if has_jsdoc_class_signature {
+            let display = self.type_to_string_slice(func_type)?;
+            self.error_at(
+                Some(node),
+                &diagnostics::Value_of_type_0_is_not_callable_Did_you_mean_to_include_new,
+                &[&display],
+            );
+            return self.resolve_error_call(node);
+        }
         self.resolve_call(node, &call_signatures, check_mode, call_chain_flags, None)
     }
 
@@ -5422,9 +5448,10 @@ impl<'a> CheckerState<'a> {
         let NodeData::NewExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let expression = data
-            .expression
-            .ok_or_else(|| Unsupported::new("new without a callee (parse recovery)"))?;
+        let expression = data.expression.expect(
+            "parser invariant: parse_new_expression_stub always stores its callee \
+             (parse recovery stores a missing Identifier)",
+        );
         let type_arguments = data.type_arguments;
         let expression_type = self.check_non_null_expression(expression)?;
         if expression_type == self.tables.intrinsics.silent_never {
@@ -5510,13 +5537,7 @@ impl<'a> CheckerState<'a> {
             {
                 let declaration = self.signature_of(signature).declaration;
                 if let Some(declaration) = declaration {
-                    let js_constructor = self.is_js_constructor_without_jsdoc(declaration);
-                    if self.is_in_js_file(declaration) && js_constructor.is_none() {
-                        return Err(Unsupported::new(
-                            "isJSConstructor probe on a JS declaration (checkJs band, M8)",
-                        ));
-                    }
-                    if js_constructor != Some(true) {
+                    if !self.is_js_constructor(declaration) {
                         let return_type = self.get_return_type_of_signature(signature)?;
                         if return_type != self.tables.intrinsics.void {
                             self.error_at(
@@ -5623,9 +5644,10 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(true);
         }
-        let class_declaration = self
-            .parent_of(declaration)
-            .ok_or_else(|| Unsupported::new("constructor without a class (parse recovery)"))?;
+        let class_declaration = self.parent_of(declaration).expect(
+            "tree invariant: parsed constructors are class elements and finalize_tree assigns \
+             their class parent",
+        );
         let class_symbol = self.get_symbol_of_declaration(class_declaration)?;
         let declaring_class_declaration = self.get_class_like_declaration_of_symbol(class_symbol);
         let declaring_class = self.get_declared_type_of_class_or_interface(class_symbol)?;
@@ -5767,18 +5789,20 @@ impl<'a> CheckerState<'a> {
                 }
                 _ => (None, None, None),
             };
-            let tag_name = tag_name.ok_or_else(|| {
-                Unsupported::new("JSX opening element without a tag name (parse recovery)")
-            })?;
+            let tag_name = tag_name.expect(
+                "parser invariant: JSX opening/self-closing parsers always store a tag name \
+                 (parse recovery stores a missing Identifier)",
+            );
             if self.is_jsx_intrinsic_tag_name(tag_name) {
                 let result =
                     self.get_intrinsic_attributes_type_from_jsx_opening_like_element(node)?;
                 let fake_signature = self.create_signature_for_jsx_intrinsic(node, result)?;
                 let param_type =
                     self.get_effective_first_argument_for_jsx_signature(fake_signature, node)?;
-                let attributes = attributes.ok_or_else(|| {
-                    Unsupported::new("JSX opening element without attributes (parse recovery)")
-                })?;
+                let attributes = attributes.expect(
+                    "parser invariant: JSX opening/self-closing parsers always store an \
+                     attributes node (empty or recovery)",
+                );
                 let attr_type = self.check_expression_with_contextual_type(
                     attributes,
                     param_type,
@@ -5875,9 +5899,10 @@ impl<'a> CheckerState<'a> {
         let NodeData::TaggedTemplateExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let tag = data
-            .tag
-            .ok_or_else(|| Unsupported::new("tagged template without a tag (parse recovery)"))?;
+        let tag = data.tag.expect(
+            "parser invariant: parse_tagged_template_rest always stores its tag \
+             (parse recovery stores a missing expression node)",
+        );
         let tag_type = self.check_expression(tag, CheckMode::NORMAL)?;
         let apparent_type = self.get_apparent_type(tag_type)?;
         if apparent_type == self.tables.intrinsics.error {
@@ -5925,9 +5950,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:77854-77862
     ///
     /// The MakeTemplateObject emit-helper check is dead at ES2025
-    /// (languageVersion >= TaggedTemplates); checkDeprecatedSignature
-    /// is a no-op (the Deprecated node flag only ever comes from JSDoc
-    /// `@deprecated` parsing, unmodeled).
+    /// (languageVersion >= TaggedTemplates).
     pub(crate) fn check_tagged_template_expression(
         &mut self,
         node: NodeId,
@@ -5941,6 +5964,7 @@ impl<'a> CheckerState<'a> {
             self.check_grammar_type_arguments(node, type_arguments);
         }
         let signature = self.get_resolved_signature(node, check_mode)?;
+        self.check_deprecated_signature(signature, node)?;
         self.get_return_type_of_signature(signature)
     }
 
@@ -5981,9 +6005,10 @@ impl<'a> CheckerState<'a> {
         let NodeData::BinaryExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let right = data.right.ok_or_else(|| {
-            Unsupported::new("instanceof without a right operand (parse recovery)")
-        })?;
+        let right = data.right.expect(
+            "parser invariant: make_binary_expression always stores its right operand \
+             (parse recovery stores a missing expression node)",
+        );
         let right_type = self.check_expression(right, CheckMode::NORMAL)?;
         if !self.tables.flags_of(right_type).intersects(TypeFlags::ANY) {
             let has_instance_method_type =
@@ -6359,8 +6384,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:77607-77660
     ///
     /// Serves Call AND New (tsc dispatches both here).
-    /// checkDeprecatedSignature is a no-op: the Deprecated node flag
-    /// only ever comes from JSDoc `@deprecated` parsing (unmodeled).
     /// The void-return type-predicate assertion band (2775/2776)
     /// landed with the 6.6 review (its M4 "provably dead" residual
     /// lapsed when 6.6a/c made getEffectsSignature and
@@ -6384,6 +6407,7 @@ impl<'a> CheckerState<'a> {
             // resolves for real.
             return Ok(self.tables.intrinsics.silent_never);
         }
+        self.check_deprecated_signature(signature, node)?;
         if expression.is_some_and(|e| self.kind_of(e) == SyntaxKind::SuperKeyword) {
             return Ok(self.tables.intrinsics.void);
         }
@@ -6392,34 +6416,36 @@ impl<'a> CheckerState<'a> {
             // signatures — 7009 under noImplicitAny, anyType result.
             let declaration = self.signature_of(signature).declaration;
             if let Some(declaration) = declaration {
-                if !matches!(
+                // 77625: a materialized JSDocSignature inherits construct
+                // semantics directly from its JSDoc root's constructor host.
+                let is_constructor_like = matches!(
                     self.kind_of(declaration),
                     SyntaxKind::Constructor
                         | SyntaxKind::ConstructSignature
                         | SyntaxKind::ConstructorType
-                ) && !node_util::is_jsdoc_construct_signature(
-                    self.binder.source_of_node(declaration),
-                    declaration,
-                ) {
-                    let js_constructor = self.is_js_constructor_without_jsdoc(declaration);
-                    if js_constructor != Some(true) {
-                        if self.is_in_js_file(declaration) && js_constructor.is_none() {
-                            return Err(Unsupported::new(
-                                "isJSConstructor probe on a JS declaration (checkJs band, M8)",
-                            ));
-                        }
-                        if self
-                            .options
-                            .strict_option_value(self.options.no_implicit_any)
-                        {
-                            self.error_at(
+                ) || (self.kind_of(declaration)
+                    == SyntaxKind::JSDocSignature
+                    && self
+                        .get_jsdoc_root(declaration)
+                        .and_then(|root| self.parent_of(root))
+                        .is_some_and(|host| self.kind_of(host) == SyntaxKind::Constructor))
+                    || node_util::is_jsdoc_construct_signature(
+                        self.binder.source_of_node(declaration),
+                        declaration,
+                    )
+                    || self.is_js_constructor(declaration);
+                if !is_constructor_like {
+                    if self
+                        .options
+                        .strict_option_value(self.options.no_implicit_any)
+                    {
+                        self.error_at(
                                 Some(node),
                                 &diagnostics::new_expression_whose_target_lacks_a_construct_signature_implicitly_has_an_any_type,
                                 &[],
                             );
-                        }
-                        return Ok(self.tables.intrinsics.any);
                     }
+                    return Ok(self.tables.intrinsics.any);
                 }
             }
         }
@@ -6446,9 +6472,10 @@ impl<'a> CheckerState<'a> {
             // 77636-77638: `Symbol()`/`Symbol.for()` results take the
             // owning declaration's unique-symbol type when the
             // position is a valid `unique symbol` declaration.
-            let parent = self.parent_of(node).ok_or_else(|| {
-                Unsupported::new("call expression without a parent (parse recovery)")
-            })?;
+            let parent = self.parent_of(node).expect(
+                "tree invariant: parsed call/new expressions are non-root nodes and \
+                 finalize_tree assigns their parent",
+            );
             let target = self.walk_up_parenthesized_expressions(parent);
             return self.get_es_symbol_like_type_for_node(target);
         }
@@ -6498,6 +6525,25 @@ impl<'a> CheckerState<'a> {
                         )?;
                         self.push_error_diagnostic(diagnostic);
                     }
+                }
+            }
+        }
+        if self.is_in_js_file(node) {
+            if let Some(js_symbol) = self.get_symbol_of_expando(node) {
+                let exports: SymbolTable = self.binder.symbol(js_symbol).exports.clone();
+                if !exports.is_empty() {
+                    let properties = exports.values().copied().collect();
+                    let js_assignment_type = self.make_resolved_anonymous_type(
+                        Some(js_symbol),
+                        exports,
+                        properties,
+                        Vec::new(),
+                        ObjectFlags::JS_LITERAL,
+                    );
+                    return self.get_intersection_type(
+                        &[return_type, js_assignment_type],
+                        IntersectionFlags::NONE,
+                    );
                 }
             }
         }
@@ -6626,7 +6672,9 @@ mod tests {
     use tsrs2_syntax::{NodeData, SyntaxKind};
     use tsrs2_types::{CheckMode, CompilerOptions, InferenceFlags, InferencePriority, SymbolFlags};
 
-    use crate::state::test_support::with_program_state;
+    use crate::state::test_support::{
+        with_program_state, with_program_state_allow_parse_diagnostics,
+    };
     use crate::state::CheckerState;
     use crate::structural::SignatureKind;
 
@@ -6894,7 +6942,7 @@ mod tests {
         );
     }
 
-    // m6 7.6: synthetic-spread silent iteration walk + generic-rest
+    // m6 7.6/M8: synthetic-spread iteration walk + generic-rest
     // narrowing probes (tsc-probed rows, vendored 6.0.3 noLib,
     // scratchpad p11/p13).
 
@@ -6917,12 +6965,227 @@ mod tests {
     }
 
     #[test]
+    fn non_array_synthetic_spread_reports_at_its_utf16_range_with_await_related() {
+        let text = "interface Array<T> { length: number; [n: number]: T; }\n\
+                    interface Promise<T> {}\n\
+                    declare const p: Promise<number>;\n\
+                    const 名 = 0;\n\
+                    f(  ...p);\n";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            let (call, spread) = {
+                let source = state.binder.source(0);
+                let call = source
+                    .arena
+                    .node_ids()
+                    .find(|&id| source.arena.node(id).kind == SyntaxKind::CallExpression)
+                    .expect("call expression");
+                let spread = source
+                    .arena
+                    .node_ids()
+                    .find(|&id| source.arena.node(id).kind == SyntaxKind::SpreadElement)
+                    .expect("spread element");
+                (call, spread)
+            };
+            let (pos, end) = {
+                let raw = state.binder.source(0).arena.node(spread);
+                (raw.pos, raw.end)
+            };
+            let p = state
+                .resolve_file_scope_name("p", SymbolFlags::VARIABLE)
+                .expect("p resolves");
+            let promise = state.get_type_of_symbol(p).expect("promise type");
+            let args = [super::EffectiveArg::Synthetic {
+                pos,
+                end,
+                ty: promise,
+                is_spread: true,
+                tuple_name_source: None,
+            }];
+            let any = state.tables.intrinsics.any;
+            state
+                .get_spread_argument_type(
+                    call,
+                    &args,
+                    0,
+                    1,
+                    any,
+                    /*inference_context*/ None,
+                    CheckMode::NORMAL,
+                )
+                .expect("synthetic iteration reports and returns any[]");
+
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 2461)
+                .expect("non-array synthetic spread diagnostic");
+            let start_byte = text.find("...p").expect("spread text");
+            let expected_start = text[..start_byte].encode_utf16().count() as u32;
+            let expected_length = "...p".encode_utf16().count() as u32;
+            assert_eq!(
+                (diagnostic.start, diagnostic.length),
+                (Some(expected_start), Some(expected_length))
+            );
+            assert_eq!(
+                diagnostic.message.text,
+                "Type 'Promise<number>' is not an array type."
+            );
+            assert_eq!(diagnostic.related.len(), 1);
+            let related = &diagnostic.related[0];
+            assert_eq!(related.message.code, 2773);
+            assert_eq!(
+                (related.start, related.length),
+                (Some(expected_start), Some(expected_length))
+            );
+        });
+    }
+
+    #[test]
+    fn synthetic_spread_reports_end_to_end_from_effective_arguments() {
+        let text = "const 名 = 0;\n\
+                    declare function f(...xs: number[]): void;\n\
+                    function g<T>(...args: [...T]) { f(  ...args); }\n";
+        let (rows, partials) =
+            with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+                state.check_source_file(0);
+                let rows = state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| matches!(diagnostic.code(), 2461 | 2574))
+                    .map(|diagnostic| {
+                        (
+                            diagnostic.code(),
+                            diagnostic.start.expect("file diagnostic start"),
+                            diagnostic.length.expect("file diagnostic length"),
+                            diagnostic.message.text.clone(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                (rows, state.partial_check_records.clone())
+            });
+        assert_eq!(
+            rows,
+            [
+                (
+                    2574,
+                    80,
+                    4,
+                    "A rest element type must be an array type.".to_owned(),
+                ),
+                (2461, 93, 7, "Type 'T' is not an array type.".to_owned(),),
+            ]
+        );
+        assert!(partials.is_empty(), "{partials:?}");
+    }
+
+    #[test]
+    fn constrained_synthetic_spread_keeps_the_array_like_non_firing_path() {
+        let text = "declare function f(...xs: unknown[]): void;\n\
+                    function g<T extends unknown[]>(...args: [...T]) { f(...args); }\n";
+        let (codes, partials) =
+            with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+                state.check_source_file(0);
+                (
+                    state
+                        .diagnostics
+                        .iter()
+                        .filter(|diagnostic| diagnostic.code() != 2318)
+                        .map(|diagnostic| diagnostic.code())
+                        .collect::<Vec<_>>(),
+                    state.partial_check_records.clone(),
+                )
+            });
+        assert!(codes.is_empty(), "{codes:?}");
+        assert!(partials.is_empty(), "{partials:?}");
+    }
+
+    #[test]
+    fn rejected_overload_keeps_reached_synthetic_spread_iteration_diagnostic() {
+        // tsc has no candidate transaction: the first overload reaches
+        // getSpreadArgumentType and emits 2461 before its tuple-union
+        // relation fails. The later fixed overload succeeds, but that
+        // already-emitted iteration row remains in the program sink.
+        let text = "declare function f(...xs: [] | [x: string]): \"rest\";\n\
+                    declare function f(x?: unknown): \"fixed\";\n\
+                    function g<T>(...args: [...T]) { const r = f(...args); const fixed: \"fixed\" = r; return fixed; }\n";
+        let (rows, partials) =
+            with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+                state.check_source_file(0);
+                let rows = state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| matches!(diagnostic.code(), 2322 | 2461 | 2574))
+                    .map(|diagnostic| {
+                        (
+                            diagnostic.code(),
+                            diagnostic.start.expect("file diagnostic start"),
+                            diagnostic.length.expect("file diagnostic length"),
+                            diagnostic.message_text().to_owned(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                (rows, state.partial_check_records.clone())
+            });
+        assert_eq!(
+            rows,
+            [
+                (
+                    2574,
+                    119,
+                    4,
+                    "A rest element type must be an array type.".to_owned(),
+                ),
+                (2461, 140, 7, "Type 'T' is not an array type.".to_owned(),),
+            ]
+        );
+        assert!(partials.is_empty(), "{partials:?}");
+    }
+
+    #[test]
+    fn earlier_fixed_overload_does_not_precheck_later_synthetic_spread_iteration() {
+        // Order-sensitive non-firing twin: the fixed overload succeeds
+        // before the tuple-union rest candidate is visited, so tsc
+        // never calls getSpreadArgumentType and never emits 2461.
+        let text = "declare function f(x?: unknown): \"fixed\";\n\
+                    declare function f(...xs: [] | [x: string]): \"rest\";\n\
+                    function g<T>(...args: [...T]) { const r = f(...args); const fixed: \"fixed\" = r; return fixed; }\n";
+        let (rows, partials) =
+            with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+                state.check_source_file(0);
+                let rows = state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| matches!(diagnostic.code(), 2322 | 2461 | 2574))
+                    .map(|diagnostic| {
+                        (
+                            diagnostic.code(),
+                            diagnostic.start.expect("file diagnostic start"),
+                            diagnostic.length.expect("file diagnostic length"),
+                            diagnostic.message_text().to_owned(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                (rows, state.partial_check_records.clone())
+            });
+        assert_eq!(
+            rows,
+            [(
+                2574,
+                119,
+                4,
+                "A rest element type must be an array type.".to_owned(),
+            )]
+        );
+        assert!(partials.is_empty(), "{partials:?}");
+    }
+
+    #[test]
     fn generic_rest_narrowing_matches_oracle_with_type_variable_residue() {
         // Dependent-parameter narrowing over a generic rest type whose
         // CONSTRAINT still carries a type variable (B): the
         // non-fixing-mapper chain narrows and the access reports 2571
-        // exactly like tsc — the flow.rs conservative net stays
-        // corpus-dead (shield evidence for the M6-close adjudication).
+        // exactly like tsc — getReducedApparentType proceeds directly
+        // into the union-of-tuples gate even with B still present.
         assert_eq!(
             checked_rows(
                 "declare function invoke<B, A extends [\"a\", B] | [\"b\", string]>(cb: (...args: A) => void): void;\ninvoke((...args) => { if (args[0] === \"a\") { args[1].bad; } });\n",
@@ -7036,6 +7299,19 @@ mod tests {
         })
     }
 
+    fn checked_js_rows(text: &str) -> Vec<(u32, u32, u32)> {
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            strict: Some(false),
+            ..CompilerOptions::default()
+        };
+        with_program_state(&[("a.js", text)], &options, |state| {
+            state.check_source_file(0);
+            rows(state)
+        })
+    }
+
     fn rows(state: &CheckerState) -> Vec<(u32, u32, u32)> {
         state
             .diagnostics
@@ -7116,6 +7392,37 @@ mod tests {
     }
 
     #[test]
+    fn tuple_spread_fixed_parameter_await_related_uses_the_synthetic_span() {
+        let text = "interface Promise<T> {}\n\
+                    declare function take(value: string): void;\n\
+                    declare const tuple: [Promise<string>];\n\
+                    const 名 = 0;\n\
+                    take(  ...tuple);\n";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 2345)
+                .expect("tuple-spread fixed-parameter mismatch");
+            let start_byte = text.find("...tuple").expect("spread text");
+            let expected_start = text[..start_byte].encode_utf16().count() as u32;
+            let expected_length = "...tuple".encode_utf16().count() as u32;
+            assert_eq!(
+                (diagnostic.start, diagnostic.length),
+                (Some(expected_start), Some(expected_length))
+            );
+            assert_eq!(diagnostic.related.len(), 1);
+            let related = &diagnostic.related[0];
+            assert_eq!(related.message.code, 2773);
+            assert_eq!(
+                (related.start, related.length),
+                (Some(expected_start), Some(expected_length))
+            );
+        });
+    }
+
+    #[test]
     fn checked_js_missing_typed_arguments_reach_internal_arity_diagnostics() {
         let files = [
             (
@@ -7176,6 +7483,50 @@ mod tests {
                 .count()
         });
         assert_eq!(non_strict_count, 0);
+    }
+
+    #[test]
+    fn unnamed_jsdoc_parameter_arity_related_uses_argument_index() {
+        let related = with_program_state(
+            &[(
+                "a.js",
+                "/** @type {function(string): void} */\n\
+                 const f = (value) => {};\n\
+                 /** @type {(s: string) => void} */\n\
+                 function g(s) {}\n\
+                 f();\n\
+                 g();\n",
+            )],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(true),
+                no_implicit_any: Some(true),
+                ..CompilerOptions::default()
+            },
+            |state| {
+                state.check_source_file(0);
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| diagnostic.code() == 2554)
+                    .map(|diagnostic| {
+                        let related = diagnostic
+                            .related
+                            .first()
+                            .expect("arity diagnostics carry parameter provenance");
+                        (related.message.code, related.message.text.clone())
+                    })
+                    .collect::<Vec<_>>()
+            },
+        );
+        assert_eq!(
+            related,
+            [
+                (6210, "An argument for '0' was not provided.".to_owned()),
+                (6210, "An argument for 's' was not provided.".to_owned()),
+            ]
+        );
     }
 
     #[test]
@@ -7460,6 +7811,25 @@ mod tests {
     }
 
     #[test]
+    fn jsdoc_class_tag_requires_new() {
+        let rows = checked_js_rows(
+            "/** @constructor */\nfunction Dependency(j) { return j; }\nDependency({});\n",
+        );
+        assert_eq!(
+            rows.into_iter()
+                .filter(|(code, _, _)| *code == 2348)
+                .collect::<Vec<_>>(),
+            [(2348, 57, 14)]
+        );
+    }
+
+    #[test]
+    fn untyped_js_signature_has_zero_minimum_arity() {
+        let rows = checked_js_rows("function f(required) {}\nf();\n");
+        assert!(rows.into_iter().all(|(code, _, _)| code != 2554));
+    }
+
+    #[test]
     fn overload_over_arity_uses_the_union_failure_candidate() {
         assert_eq!(
             checked_rows(
@@ -7495,6 +7865,21 @@ mod tests {
             texts[3],
             "Overload 2 of 2, '(a: string): void', gave the following error."
         );
+    }
+
+    #[test]
+    fn two_failed_overloads_preserve_present_empty_related_information() {
+        let text = "declare function o(a: number): void;\ndeclare function o(a: string): void;\no(true);\n";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 2769)
+                .expect("the overload aggregate is reported");
+            assert!(diagnostic.related_information_present);
+            assert!(diagnostic.related.is_empty());
+        });
     }
 
     #[test]
@@ -7782,6 +8167,41 @@ value();
                          '{ a: true; }'"
                     );
                 }
+            },
+        );
+    }
+
+    #[test]
+    fn reverse_mapped_inference_keeps_elementwise_property_origin() {
+        with_program_state(
+            &[(
+                "a.ts",
+                "type ComputedOf<T> = { [K in keyof T]: () => T[K] };\n\
+                 declare function f<C>(value: { computed: ComputedOf<C> }): void;\n\
+                 f({ computed: { baz: 42 } });\n",
+            )],
+            &CompilerOptions {
+                strict: Some(true),
+                ..CompilerOptions::default()
+            },
+            |state| {
+                state.check_source_file(0);
+                let diagnostic = state
+                    .diagnostics
+                    .iter()
+                    .find(|diagnostic| diagnostic.code() == 2322)
+                    .expect("the reverse-mapped property mismatch is reported");
+                assert_eq!(
+                    diagnostic.message_text(),
+                    "Type 'number' is not assignable to type '() => unknown'."
+                );
+                assert_eq!(diagnostic.related.len(), 1);
+                assert_eq!(diagnostic.related[0].message.code, 6500);
+                assert_eq!(
+                    diagnostic.related[0].message.text,
+                    "The expected type comes from property 'baz' which is declared here on type \
+                     'ComputedOf<{ baz: unknown; }>'"
+                );
             },
         );
     }
@@ -8225,6 +8645,65 @@ value();
     }
 
     #[test]
+    fn invalid_legacy_parameter_decorator_has_no_effective_arguments() {
+        // getEffectiveDecoratorArguments' Debug.fail is unreachable in
+        // tsc's ordinary resolveDecorator flow. Pin the deterministic
+        // no-diagnostic value for a recovery decorator on a free
+        // function parameter, whose legacy decorator signature is
+        // intentionally absent.
+        with_program_state_allow_parse_diagnostics(
+            &[(
+                "a.ts",
+                "declare const dec: any;\nfunction f(@dec x: number) {}\n",
+            )],
+            &legacy_decorator_options(),
+            |state| {
+                let decorator = {
+                    let source = state.binder.source(0);
+                    source
+                        .arena
+                        .node_ids()
+                        .find(|&node| source.arena.node(node).kind == SyntaxKind::Decorator)
+                        .expect("decorator node")
+                };
+                let args = state
+                    .get_effective_decorator_arguments(decorator)
+                    .expect("invalid decorator recovers without containment");
+                assert!(args.is_empty());
+            },
+        );
+    }
+
+    #[test]
+    fn unsupported_decorated_member_key_recovers_to_error_type() {
+        // getClassElementPropertyKeyType Debug.fail's on a bigint
+        // property name. The parser admits that already-invalid
+        // decorated member, so C6 keeps checking with errorType rather
+        // than fabricating a string/symbol key or containing the file.
+        with_program_state_allow_parse_diagnostics(
+            &[(
+                "a.ts",
+                "declare const dec: any;\nclass C { @dec 1n() {} }\n",
+            )],
+            &legacy_decorator_options(),
+            |state| {
+                let method = {
+                    let source = state.binder.source(0);
+                    source
+                        .arena
+                        .node_ids()
+                        .find(|&node| source.arena.node(node).kind == SyntaxKind::MethodDeclaration)
+                        .expect("decorated bigint method")
+                };
+                let key_type = state
+                    .get_class_element_property_key_type(method)
+                    .expect("unsupported property key recovers without containment");
+                assert!(state.tables.is_error_type(key_type));
+            },
+        );
+    }
+
+    #[test]
     fn uncalled_decorator_reports_1329_in_both_modes() {
         // Oracle: (1329, 28, 2) under {} AND experimentalDecorators.
         let text = "declare function d(): void;\n@d class C {}\n";
@@ -8233,6 +8712,51 @@ value();
             checked_rows_with(text, &legacy_decorator_options()),
             [(1329, 28, 2)]
         );
+    }
+
+    #[test]
+    fn deprecated_decorator_and_tagged_template_signatures_report_6387() {
+        let text = "/** @deprecated */\n\
+                    declare function dec(target: Function): void;\n\
+                    @dec class C {}\n\
+                    /** @deprecated */\n\
+                    declare function tag(parts: any): void;\n\
+                    tag`x`;\n";
+        with_program_state(&[("a.ts", text)], &legacy_decorator_options(), |state| {
+            state.check_source_file(0);
+            let diagnostics = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 6387)
+                .map(|diagnostic| {
+                    (
+                        diagnostic.category(),
+                        diagnostic.message_text().to_owned(),
+                        diagnostic
+                            .related
+                            .iter()
+                            .map(|related| related.message.code)
+                            .collect::<Vec<_>>(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                diagnostics,
+                [
+                    (
+                        tsrs2_diags::DiagnosticCategory::Suggestion,
+                        "The signature '(target: Function): void' of 'dec' is deprecated."
+                            .to_owned(),
+                        vec![2798],
+                    ),
+                    (
+                        tsrs2_diags::DiagnosticCategory::Suggestion,
+                        "The signature '(parts: any): void' of 'tag' is deprecated.".to_owned(),
+                        vec![2798],
+                    ),
+                ]
+            );
+        });
     }
 
     #[test]

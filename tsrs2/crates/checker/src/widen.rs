@@ -575,8 +575,8 @@ impl<'a> CheckerState<'a> {
     /// errorOrSuggestion is error_at both ways: the !noImplicitAny
     /// constants (7043-7050) are Suggestion-category in gen.rs, so the
     /// category rides the message like tsc's addErrorOrSuggestion.
-    /// The source-text JSDocFunctionType arm is live; comment-tag
-    /// JSDocSignature overload declarations remain in [JSDOC].
+    /// Parser-owned JSDocFunctionType and JSDocSignature nodes use the
+    /// same diagnostic selection as ordinary signature declarations.
     pub(crate) fn report_implicit_any(
         &mut self,
         declaration: NodeId,
@@ -679,21 +679,26 @@ impl<'a> CheckerState<'a> {
                 &diagnostics::Binding_element_0_implicitly_has_an_1_type
             }
             SyntaxKind::JSDocFunctionType => {
-                let diagnostics_before = self.diagnostics.len();
                 self.error_at(
                     Some(declaration),
                     &diagnostics::Function_type_which_lacks_return_type_annotation_implicitly_has_an_0_return_type,
                     &[&type_as_string],
                 );
-                if self.is_in_js_file(declaration) {
-                    self.mark_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 7014);
-                }
                 return Ok(());
             }
             SyntaxKind::JSDocSignature => {
-                return Err(crate::state::Unsupported::new(
-                    "reportImplicitAny JSDocSignature overload arm ([JSDOC] M8)",
-                ));
+                if no_implicit_any {
+                    if let Some(parent) = self.parent_of(declaration) {
+                        if let NodeData::JSDocOverloadTag(data) = self.data_of(parent) {
+                            self.error_at(
+                                data.tag_name,
+                                &diagnostics::This_overload_implicitly_returns_the_type_0_because_it_lacks_a_return_type_annotation,
+                                &[&type_as_string],
+                            );
+                        }
+                    }
+                }
+                return Ok(());
             }
             SyntaxKind::FunctionDeclaration
             | SyntaxKind::MethodDeclaration
@@ -747,42 +752,11 @@ impl<'a> CheckerState<'a> {
         // names are zero-width nodes whose surrounding trivia must
         // never become a user-facing parameter/function name.
         let name_string = node_util::declaration_name_to_string(source, name);
-        let diagnostics_before = self.diagnostics.len();
         self.error_at(
             Some(declaration),
             diagnostic,
             &[&name_string, &type_as_string],
         );
-        // Checked-JS loose parameter diagnostics produced by
-        // reportImplicitAny are part of tsc's public suggestion stream
-        // unless an effective JSDoc type supplies the parameter context.
-        // The program layer keeps JS diagnostics behind exact producer
-        // provenance; do not expose the checker's conservative internal
-        // `any` when its modeled JSDoc carrier already owns the type.
-        if self.is_in_js_file(declaration) {
-            // Assignment declarations (7005) and constructor member
-            // declarations (7008) have no JSDoc/contextual parameter
-            // carrier. Parameter/binding-element rows (7006/7031) do:
-            // keep those private until their effective JSDoc/contextual
-            // type path has made the same report/no-report decision as
-            // tsc, otherwise conservative internal `any` leaks as a FP.
-            let publish_implicit_any_core = diagnostic.code == 7005
-                || diagnostic.code == 7008
-                    && self.should_publish_js_implicit_any_member(declaration, &type_as_string)
-                || diagnostic.code == 7006
-                    && self.should_publish_js_implicit_any_parameter(declaration)
-                || diagnostic.code == 7031
-                    && !self.binding_element_has_effective_jsdoc_parameter_context(declaration);
-            let publish_loose_parameter = diagnostic.code == 7044
-                && self.options.check_js == Some(true)
-                && !self.has_jsdoc_parameter_type_context(declaration);
-            if publish_implicit_any_core || publish_loose_parameter {
-                self.mark_non_jsdoc_js_diagnostics_since_with_code(
-                    diagnostics_before,
-                    diagnostic.code,
-                );
-            }
-        }
         Ok(())
     }
 
@@ -815,85 +789,6 @@ impl<'a> CheckerState<'a> {
             crate::check_directive(&source.text),
             self.options,
         )
-    }
-
-    /// Keep reportImplicitAny publication on the supported non-JSDoc
-    /// face while JSDoc contextual parameter typing remains M8-owned.
-    ///
-    /// Function expressions and arrows can carry their JSDoc before an
-    /// enclosing variable/binary/property assignment, while a parameter
-    /// may also carry an inline `@type`. Scan from the parameter name
-    /// through its nearest preceding attached doc comment. `=` is an
-    /// attachment-safe carrier token here; a completed statement or
-    /// block boundary is not. Constructor/class/enum/return-only comments
-    /// do not type a parameter and deliberately remain publishable.
-    fn has_jsdoc_parameter_type_context(&self, declaration: NodeId) -> bool {
-        let source = self.binder.source_of_node(declaration);
-        if self.node_contains_jsdoc_semantics(declaration) {
-            return true;
-        }
-        let anchor = match self.data_of(declaration) {
-            NodeData::Parameter(data) => data.name.unwrap_or(declaration),
-            _ => self.name_of_node(declaration).unwrap_or(declaration),
-        };
-        let anchor_pos = source.arena.node(anchor).pos as usize;
-        let prefix = &source.text[..anchor_pos.min(source.text.len())];
-        if let Some(comment_start) = prefix.rfind("/**") {
-            if let Some(relative_end) = prefix[comment_start + 3..].find("*/") {
-                let comment_end = comment_start + 3 + relative_end + 2;
-                let attached = !prefix[comment_end..]
-                    .chars()
-                    .any(|character| matches!(character, ';' | '{' | '}'));
-                if attached
-                    && Self::jsdoc_comment_has_parameter_type_context(
-                        &source.text[comment_start..comment_end],
-                    )
-                {
-                    return true;
-                }
-            }
-        }
-
-        // A destructuring parameter can put `{` between the carrier's
-        // comment and a later parameter name. Fall back to declaration
-        // attachment on the short function/assignment chain.
-        let mut current = self.parent_of(declaration);
-        for _ in 0..6 {
-            let Some(node) = current else {
-                break;
-            };
-            if self.kind_of(node) == SyntaxKind::MethodDeclaration
-                && self.node_contains_jsdoc_semantics(node)
-            {
-                return true;
-            }
-            if let Some((start, end)) = self.leading_jsdoc_comment_range(node) {
-                if Self::jsdoc_comment_has_parameter_type_context(&source.text[start..end]) {
-                    return true;
-                }
-            }
-            if matches!(
-                self.kind_of(node),
-                SyntaxKind::SourceFile | SyntaxKind::Block | SyntaxKind::ModuleBlock
-            ) {
-                break;
-            }
-            current = self.parent_of(node);
-        }
-        false
-    }
-
-    fn jsdoc_comment_has_parameter_type_context(comment: &str) -> bool {
-        let comment = comment.to_ascii_lowercase();
-        // tsc does not resolve legacy inner-namepath parameter types
-        // such as `C~A` as an effective annotation here; the parameter
-        // therefore remains on reportImplicitAny's public loose face.
-        if comment.contains("@param") && comment.contains('~') {
-            return false;
-        }
-        ["@param", "@arg", "@argument", "@type", "@overload"]
-            .iter()
-            .any(|tag| comment.contains(tag))
     }
 
     /// The Parameter NodeArray of a signature-like parent (the 7051
@@ -1249,9 +1144,6 @@ function g(value) { return value; }
                 emitted.iter().map(|row| row.3).collect::<Vec<_>>(),
                 [7044, 7044]
             );
-            assert!(emitted
-                .iter()
-                .all(|key| state.non_jsdoc_js_diagnostics.contains(key)));
         });
 
         let inputs = files.map(|(name, text)| InputFile {
@@ -1362,7 +1254,7 @@ function g(value) { return value; }
     }
 
     #[test]
-    fn checked_js_ports_direct_param_but_keeps_contextual_approximations_private() {
+    fn checked_js_ports_direct_inline_and_method_level_parameter_types() {
         let options = CompilerOptions {
             strict: Some(false),
             allow_js: true,
@@ -1379,6 +1271,22 @@ function g(value) { return value; }
                     inline(1);\n";
 
         with_program_state(&[("a.js", text)], &options, |state| {
+            let method = state
+                .binder
+                .source(0)
+                .arena
+                .node_ids()
+                .find(|&node| state.kind_of(node) == tsrs2_syntax::SyntaxKind::MethodDeclaration)
+                .expect("object-literal method");
+            assert!(
+                state.get_jsdoc_type(method).is_some(),
+                "method tags: {:?}",
+                state
+                    .get_jsdoc_tags(method)
+                    .into_iter()
+                    .map(|tag| state.kind_of(tag))
+                    .collect::<Vec<_>>()
+            );
             state.check_source_file(0);
             let emitted = state
                 .diagnostics
@@ -1393,22 +1301,9 @@ function g(value) { return value; }
                     )
                 })
                 .collect::<Vec<_>>();
-            // M8-P03 resolves the direct `@param {number} value`
-            // annotation. Method contextual typing and inline
-            // parameter `@type` remain separate owners and therefore
-            // retain their private approximation diagnostics.
-            assert_eq!(
-                emitted
-                    .iter()
-                    .map(|(_, start, length, _)| {
-                        &text[*start as usize..(*start + *length) as usize]
-                    })
-                    .collect::<Vec<_>>(),
-                ["more", "prop"]
-            );
-            assert!(emitted
-                .iter()
-                .all(|key| !state.non_jsdoc_js_diagnostics.contains(key)));
+            // getSignatureOfTypeTag contextually types the whole
+            // object-literal method signature, including `more`.
+            assert!(emitted.is_empty(), "{emitted:?}");
         });
 
         let published = check_program(
@@ -1418,10 +1313,18 @@ function g(value) { return value; }
             }],
             &options,
         );
-        assert!(published
+        let published_7044 = published
             .diagnostics
             .iter()
-            .all(|diagnostic| diagnostic.code() != 7044));
+            .filter(|diagnostic| diagnostic.code() == 7044)
+            .map(|diagnostic| {
+                (
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert!(published_7044.is_empty(), "{published_7044:?}");
     }
 
     // ---- reportWideningErrorsInType / reportErrorsFromWidening under

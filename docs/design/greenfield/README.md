@@ -42,8 +42,14 @@ implementing or reviewing that mechanism.
 **M8 execution contract:**
 [m8-execution-and-close.md](m8-execution-and-close.md) — the fixed M8 entry
 baseline, exact D2 trace/static owner-cluster method, per-slice evidence,
-global T0-T4/recovery order, M8 close, and M9 handoff. The readiness page
-opens M8; this page governs work after it opens.
+global T0-T4/recovery order, M8 close record, and current M9 handoff. The
+readiness page is retained as the historical gate that opened M8.
+
+**Complete JSDoc subsystem:**
+[m8-jsdoc-ast-materialization.md](m8-jsdoc-ast-materialization.md) — the
+landed TypeScript 6.0.3 scanner/parser/arena/binder/checker port, its
+performance rules, and the distinction between subsystem completion and its
+subsequently completed formal A1/A3 corpus gates.
 
 **Terminal residue protocol:**
 [terminal-residue-protocol.md](terminal-residue-protocol.md) — the
@@ -186,34 +192,29 @@ fixture must be triaged before commit.
 - You are about to hand-write any value that M0's codegen should
   produce (a flag bit, a SyntaxKind number, a message text).
 
-## M8 in one paragraph
+## M8 close and M9 handoff
 
-After M7, readiness opens the
-[M8 execution contract](m8-execution-and-close.md). Its first slices add
-the report-only completion gate and freeze the exact entry residual. Each
-mismatch then follows: exact residual identity → exact D2 emitter →
-diagnostic trace → non-emitting sibling difference → static dependency
+M8 applied the
+[execution contract](m8-execution-and-close.md) to the exact frozen entry
+residual. Each mismatch followed: exact residual identity → exact D2 emitter
+→ diagnostic trace → non-emitting sibling difference → static dependency
 closure/SCC → Rust boundary → one dependency-closed slice. A moving top-code
-list and a printed function name are never slice identities. The report-only
-`cargo xtask m8 plan draft` command builds that review surface, and
-`cargo xtask m8 plan check` rejects stale exact hashes, non-partitioning
-clusters, cross-family assignments, and stale input fingerprints.
+list and a printed function name were never slice identities.
 
-The comparison tiers climb from T0 to T2/T3 through accepted-set activation,
-followed by A3 T4 byte parity and recovery zero. This is the corpus-wide
-activation order, not a T0-only coding rule: a newly observable family
-follows the
-[slice-fidelity policy](definition-of-done.md#milestone-gates-vs-slice-fidelity)
-through every live tier, while pre-A3 T4 checks remain local/report-only.
+The accepted close state has supported T0, T1, T2, and T3 at
+48,783 / 48,783 each, supported T4 at 7,691 / 7,691 cases, all-corpus
+`FP=0`, and zero escapes. Exact T1-T3 accepted sets are active. A3's
+schema-3 T4 state pins the genuine vendored formatter output and preserves
+present-but-empty `relatedInformation` in a formatter-only sparse sidecar
+without changing the structured oracle records or diagnostic identities.
 
-M8 has an executable entry contract: see
-[m8-readiness.md](m8-readiness.md) and run `cargo xtask m8 readiness`.
-`ready=true` authorizes work but does not close M8. `STAGE` remains `M7`
-until the M8 close slice. The fixed corpus is always reported whole; only
-exact reviewed
-host-resolution/JSDoc/emit-dependent oracle diagnostics leave the
-supported-scope T1-T4 denominator. The minimal differential fuzzer
-is running before M8 begins; M9 hardens it rather than introducing it.
+The historical [readiness contract](m8-readiness.md) remains the reproducible
+entry gate. The fresh close report confirms completion rows 1-10 green,
+row 11 `m9-steady-state` pending, and `STAGE=M8`. M9 steady state is the sole
+remaining project-completion milestone. The fixed corpus continues to be
+reported whole, while only exact reviewed A2 identities leave the supported
+denominator. All historical `jsdoc-semantics` exclusions have returned
+through tombstones.
 
 ## Conventions
 

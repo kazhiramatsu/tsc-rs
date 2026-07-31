@@ -77,6 +77,17 @@ function kindLiterals(kindTypeText) {
   return kinds;
 }
 
+function interfaceIsNode(name, stack = []) {
+  if (name === "Node") return true;
+  if (stack.includes(name)) return false;
+  const decl = interfaces.get(name);
+  if (!decl) return false;
+  stack.push(name);
+  const result = decl.bases.some((base) => interfaceIsNode(base, stack));
+  stack.pop();
+  return result;
+}
+
 // Mirrors xtask rust_field_type / resolve_alias_type so categories
 // compare 1:1; the independent part of this cross-check is the FIELD
 // LIST extraction, done here by the real TypeScript parser.
@@ -87,7 +98,21 @@ function fieldCategory(rawTypeText) {
     .replace(/\s*\|\s*undefined$/, "")
     .trim();
   if (aliases.has(bare)) t = aliases.get(bare);
+  if (t.includes("string") && t.includes("NodeArray<JSDocComment>")) {
+    return "JSDocComment";
+  }
   if (t.includes("NodeArray<")) return "NodeArray";
+  const readonlyArray = t.match(/^readonly\s+(.+)\[\]$/);
+  if (readonlyArray) {
+    const elementParts = readonlyArray[1].split("|").flatMap((raw) => {
+      const part = raw.trim().split("<")[0].trim();
+      const rhs = aliases.get(part);
+      return rhs ? rhs.split("|").map((item) => item.trim().split("<")[0].trim()) : [part];
+    });
+    if (elementParts.some((part) => interfaceIsNode(part))) {
+      return "NodeArray";
+    }
+  }
   // Token<SyntaxKind.X> (and PunctuationToken/KeywordToken/ModifierToken)
   // are token NODES — classify before the bare-SyntaxKind payload check.
   if (t.includes("Token<")) return "Node";
@@ -116,7 +141,7 @@ function fieldCategory(rawTypeText) {
       parts.push(part);
     }
   }
-  if (parts.some((part) => interfaces.has(part))) {
+  if (parts.some((part) => interfaceIsNode(part))) {
     return "Node";
   }
   return "Payload";

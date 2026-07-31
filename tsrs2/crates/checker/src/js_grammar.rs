@@ -6,7 +6,9 @@
 //! isExportEquals (8003) below — the old "fields the schema does not
 //! carry yet" note lapsed when nodes.rs gained them (m4-review CL-F7).
 
-use tsrs2_diags::{compute_line_map, gen, Diagnostic, DiagnosticMessage, LineMap, MessageChain};
+use tsrs2_diags::{
+    compute_line_map, gen, Diagnostic, DiagnosticMessage, LineMap, MessageChain, RelatedInfo,
+};
 use tsrs2_syntax::{
     for_each_child, LanguageVariant, NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind,
 };
@@ -84,8 +86,44 @@ impl<'a> JsGrammarWalker<'a> {
 
     /// tsc createDiagnosticForNodeInSourceFile → getErrorSpanForNode.
     fn push_for_node(&mut self, id: NodeId, message: &'static DiagnosticMessage, args: &[&str]) {
+        let diagnostic = self.diagnostic_for_node(id, message, args);
+        self.diagnostics.push(diagnostic);
+    }
+
+    fn diagnostic_for_node(
+        &self,
+        id: NodeId,
+        message: &'static DiagnosticMessage,
+        args: &[&str],
+    ) -> Diagnostic {
         let (start, end) = self.error_span_for_node(id);
-        self.push_span(start, end, message, args);
+        let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
+        let start_utf16 = self.to_utf16(start);
+        let end_utf16 = self.to_utf16(end);
+        Diagnostic::new(
+            Some(self.source.file_name.clone()),
+            Some(start_utf16),
+            Some(end_utf16.saturating_sub(start_utf16)),
+            MessageChain::new(message, &args),
+        )
+    }
+
+    fn push_for_node_with_related(
+        &mut self,
+        id: NodeId,
+        message: &'static DiagnosticMessage,
+        related_id: NodeId,
+        related_message: &'static DiagnosticMessage,
+    ) {
+        let mut diagnostic = self.diagnostic_for_node(id, message, &[]);
+        let related = self.diagnostic_for_node(related_id, related_message, &[]);
+        diagnostic.related.push(RelatedInfo {
+            file_name: related.file_name,
+            start: related.start,
+            length: related.length,
+            message: related.message,
+        });
+        self.diagnostics.push(diagnostic);
     }
 
     /// tsc createDiagnosticForNodeArray: raw array pos, no trivia skip.
@@ -398,10 +436,11 @@ impl<'a> JsGrammarWalker<'a> {
                                 .position(|id| is_decorator(self, *id))
                                 .map(|offset| export_index + offset);
                             if let Some(trailing) = trailing {
-                                self.push_for_node(
+                                self.push_for_node_with_related(
                                     elements[trailing],
                                     &gen::Decorators_may_not_appear_after_export_or_export_default_if_they_also_appear_before_export,
-                                    &[],
+                                    elements[decorator_index],
+                                    &gen::Decorator_used_before_export_here,
                                 );
                             }
                         }
@@ -748,4 +787,64 @@ pub(crate) fn can_have_decorators(kind: SyntaxKind) -> bool {
             | SyntaxKind::ClassExpression
             | SyntaxKind::ClassDeclaration
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use tsrs2_syntax::{parse_source_file, ParseOptions};
+
+    use super::get_js_syntactic_diagnostics;
+
+    fn js_syntactic_diagnostics(text: &str) -> Vec<tsrs2_diags::Diagnostic> {
+        let source = parse_source_file(
+            "a.js".to_owned(),
+            text.to_owned(),
+            ParseOptions {
+                javascript_file: true,
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        get_js_syntactic_diagnostics(&source, false)
+    }
+
+    #[test]
+    fn decorators_split_by_export_carry_1486_related_information_in_js() {
+        for (text, trailing_start) in [
+            ("@dec export @dec class C6 {}", 12),
+            ("@dec export default @dec class C7 {}", 20),
+        ] {
+            let diagnostics = js_syntactic_diagnostics(text);
+            let diagnostic = diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 8038)
+                .expect("TS8038");
+            assert_eq!(
+                (diagnostic.start, diagnostic.length),
+                (Some(trailing_start), Some(4))
+            );
+            assert_eq!(diagnostic.related.len(), 1);
+            let related = &diagnostic.related[0];
+            assert_eq!(related.message.code, 1486);
+            assert_eq!(related.message.text, "Decorator used before 'export' here.");
+            assert_eq!((related.start, related.length), (Some(0), Some(4)));
+        }
+    }
+
+    #[test]
+    fn decorators_on_only_one_side_of_export_do_not_report_8038_in_js() {
+        for text in [
+            "@dec export class C1 {}",
+            "@dec export default class C2 {}",
+            "export @dec class C4 {}",
+            "export default @dec class C5 {}",
+        ] {
+            assert!(
+                js_syntactic_diagnostics(text)
+                    .iter()
+                    .all(|diagnostic| diagnostic.code() != 8038),
+                "unexpected TS8038 for {text}"
+            );
+        }
+    }
 }

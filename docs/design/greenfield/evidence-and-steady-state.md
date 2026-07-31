@@ -126,11 +126,12 @@ cargo xtask fuzz steady-state [--require-ready]
 ```
 
 Use grammar-aware generation and corpus mutation, including compiler
-options and multi-file structure. The generated domain is the supported
-batch checker: node_modules/package host resolution, project references,
-JSDoc-driven semantics, and emit-dependent behavior are excluded by
-construction. Generating an out-of-domain case fails the window; it is
-not silently discarded.
+options, multi-file structure, checked JavaScript, and JSDoc syntax and
+semantics. The generated domain is the supported batch checker. Filesystem
+package-host resolution outside the in-memory program model, project
+references, and emit-dependent behavior are excluded by construction.
+Generating an out-of-domain case fails the window; it is not silently
+discarded.
 
 Every case runs tsrs and the pinned oracle through T0-T4. The canonical
 signature is:
@@ -151,9 +152,13 @@ Rust golden tests pin classifier and signature bytes.
 
 Minimal reproducers deduplicate by signature. Reduction must retain both
 that signature and the exact failing comparator. PR CI runs fixed-seed
-smoke; scheduled CI rotates seeds. M8 readiness requires non-zero cases,
-equal generated/compared counts, reducer smoke, and dedupe evidence with
-the current B1 fingerprint.
+smoke; scheduled CI rotates seeds. If every generated case is already
+oracle-exact, PR CI records zero natural divergences and exercises the same
+reducer/deduper with a separate deterministic one-sided mutation canary.
+The canary is identified in the artifact and is never inserted into the
+generated case observations. M8 readiness requires non-zero cases, equal
+generated/compared counts, reducer smoke, and dedupe evidence with the
+current B1 fingerprint.
 
 ### 3.1 M9 steady state
 
@@ -228,7 +233,12 @@ Required PR CI:
 - runs the permanent syntactic and ordinary conformance gates;
 - builds once, verifies/reuses or produces B2, produces B3-smoke/B4,
   and invokes M8 readiness in that workspace;
-- uploads mismatch, readiness, completion, and fuzz artifacts on failure.
+- uploads mismatch, readiness, and fuzz/evidence artifacts on failure.
+
+The ordinary PR semantic lane does not produce a completion report merely
+for artifact upload. `cargo xtask completion` remains an explicit report-only
+command during M8, and the final release job produces and consumes its strict
+form in the same workspace.
 
 The hosted implementation may place the independent Rust
 format/clippy/build/test gates and the semantic evidence gates on two

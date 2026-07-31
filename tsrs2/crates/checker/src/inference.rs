@@ -30,9 +30,7 @@ use tsrs2_types::{
 
 use crate::instantiate::{DeferredMapperTargets, MapperId, TypeMapper};
 use crate::links::LinkSlot;
-use crate::state::{
-    CheckResult2, CheckerState, IndexInfo, SignatureId, SignatureKind, Unsupported,
-};
+use crate::state::{CheckResult2, CheckerState, IndexInfo, SignatureId, SignatureKind};
 use crate::variance::VariancesResult;
 
 /// Arena id — see the module doc for the identity/rollback contract.
@@ -409,7 +407,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// tsc clears the site list AFTER the full loop; an Err unwind
     /// mid-loop therefore leaves it in place — harmless, because
-    /// Unsupported abandons the whole surrounding resolution and the
+    /// CheckAbort abandons the whole surrounding resolution and the
     /// context with it (contexts are per-resolution transients).
     pub(crate) fn infer_from_intra_expression_sites(
         &mut self,
@@ -693,7 +691,13 @@ impl<'a> CheckerState<'a> {
             else {
                 unreachable!("StringLiteral flag implies string data");
             };
-            let name = escape_leading_underscores(value);
+            let Some(value) = value.to_utf8() else {
+                // The binder's symbol table is UTF-8 keyed. Do not
+                // alias an unpaired-surrogate literal to replacement
+                // text or to an escaped spelling.
+                continue;
+            };
+            let name = escape_leading_underscores(&value);
             let literal_prop = self
                 .binder
                 .create_symbol(SymbolFlags::PROPERTY, name.clone());
@@ -2796,17 +2800,22 @@ impl InferTypesWalker<'_, '_> {
                             else {
                                 unreachable!("StringLiteral flag implies string data");
                             };
+                            let utf8_value = str_value.to_utf8();
                             // 69038-69050: coercion families the string
                             // can never round-trip through drop out.
                             if all_type_flags.intersects(TypeFlags::NUMBER_LIKE)
-                                && !self.st.is_valid_number_string(&str_value, true)
+                                && !utf8_value.as_deref().is_some_and(|value| {
+                                    self.st.is_valid_number_string(value, true)
+                                })
                             {
                                 all_type_flags = TypeFlags::from_bits(
                                     all_type_flags.bits() & !TypeFlags::NUMBER_LIKE.bits(),
                                 );
                             }
                             if all_type_flags.intersects(TypeFlags::BIG_INT_LIKE)
-                                && !self.st.is_valid_big_int_string(&str_value, true)
+                                && !utf8_value.as_deref().is_some_and(|value| {
+                                    self.st.is_valid_big_int_string(value, true)
+                                })
                             {
                                 all_type_flags = TypeFlags::from_bits(
                                     all_type_flags.bits() & !TypeFlags::BIG_INT_LIKE.bits(),
@@ -2850,12 +2859,13 @@ impl InferTypesWalker<'_, '_> {
         left: TypeId,
         right: TypeId,
         source: TypeId,
-        str_value: &str,
+        str_value: &tsrs2_types::TemplateText,
         all_type_flags: TypeFlags,
     ) -> CheckResult2<TypeId> {
         if !self.st.tables.flags_of(right).intersects(all_type_flags) {
             return Ok(left);
         }
+        let utf8_value = str_value.to_utf8();
         let left_flags = self.st.tables.flags_of(left);
         let right_flags = self.st.tables.flags_of(right);
         if left_flags.intersects(TypeFlags::STRING) {
@@ -2881,7 +2891,7 @@ impl InferTypesWalker<'_, '_> {
                 .expect("StringMapping carries its intrinsic alias symbol");
             let name = self.st.binder.symbol(symbol).escaped_name.clone();
             str_value
-                == crate::instantiate::apply_string_mapping(
+                == &crate::instantiate::apply_string_mapping(
                     crate::instantiate::intrinsic_type_kind(&name),
                     str_value,
                 )
@@ -2899,59 +2909,77 @@ impl InferTypesWalker<'_, '_> {
         } else if left_flags.intersects(TypeFlags::NUMBER) {
             Ok(left)
         } else if right_flags.intersects(TypeFlags::NUMBER) {
-            Ok(self.coerced_number_literal(str_value))
+            Ok(utf8_value
+                .as_deref()
+                .map_or(left, |value| self.coerced_number_literal(value)))
         } else if left_flags.intersects(TypeFlags::ENUM) {
             Ok(left)
         } else if right_flags.intersects(TypeFlags::ENUM) {
-            Ok(self.coerced_number_literal(str_value))
+            Ok(utf8_value
+                .as_deref()
+                .map_or(left, |value| self.coerced_number_literal(value)))
         } else if left_flags.intersects(TypeFlags::NUMBER_LITERAL) {
             Ok(left)
         } else if right_flags.intersects(TypeFlags::NUMBER_LITERAL)
             && matches!(
                 &self.st.tables.type_of(right).data,
                 TypeData::Literal { value: LiteralValue::Number(v) }
-                    if crate::structural::js_string_to_number(str_value) == Some(*v)
+                    if utf8_value.as_deref().and_then(crate::structural::js_string_to_number)
+                        == Some(*v)
             )
         {
             Ok(right)
         } else if left_flags.intersects(TypeFlags::BIG_INT) {
             Ok(left)
         } else if right_flags.intersects(TypeFlags::BIG_INT) {
-            self.st.parse_big_int_literal_type(str_value)
+            match utf8_value.as_deref() {
+                Some(value) => self.st.parse_big_int_literal_type(value),
+                None => Ok(left),
+            }
         } else if left_flags.intersects(TypeFlags::BIG_INT_LITERAL) {
             Ok(left)
         } else if right_flags.intersects(TypeFlags::BIG_INT_LITERAL)
             && matches!(
                 &self.st.tables.type_of(right).data,
                 TypeData::Literal { value: LiteralValue::BigInt(v) }
-                    if v.to_base10_string() == str_value
+                    if utf8_value
+                        .as_deref()
+                        .is_some_and(|value| v.to_base10_string() == value)
             )
         {
             Ok(right)
         } else if left_flags.intersects(TypeFlags::BOOLEAN) {
             Ok(left)
         } else if right_flags.intersects(TypeFlags::BOOLEAN) {
-            Ok(match str_value {
-                "true" => self.st.tables.intrinsics.true_fresh,
-                "false" => self.st.tables.intrinsics.false_fresh,
-                _ => self.st.tables.intrinsics.boolean,
+            Ok(if str_value.eq_utf8("true") {
+                self.st.tables.intrinsics.true_fresh
+            } else if str_value.eq_utf8("false") {
+                self.st.tables.intrinsics.false_fresh
+            } else {
+                self.st.tables.intrinsics.boolean
             })
         } else if left_flags.intersects(TypeFlags::BOOLEAN_LITERAL) {
             Ok(left)
         } else if right_flags.intersects(TypeFlags::BOOLEAN_LITERAL)
-            && self.intrinsic_name_of(right) == Some(str_value)
+            && self
+                .intrinsic_name_of(right)
+                .is_some_and(|name| str_value.eq_utf8(name))
         {
             Ok(right)
         } else if left_flags.intersects(TypeFlags::UNDEFINED) {
             Ok(left)
         } else if right_flags.intersects(TypeFlags::UNDEFINED)
-            && self.intrinsic_name_of(right) == Some(str_value)
+            && self
+                .intrinsic_name_of(right)
+                .is_some_and(|name| str_value.eq_utf8(name))
         {
             Ok(right)
         } else if left_flags.intersects(TypeFlags::NULL) {
             Ok(left)
         } else if right_flags.intersects(TypeFlags::NULL)
-            && self.intrinsic_name_of(right) == Some(str_value)
+            && self
+                .intrinsic_name_of(right)
+                .is_some_and(|name| str_value.eq_utf8(name))
         {
             Ok(right)
         } else {
@@ -3274,7 +3302,9 @@ impl InferTypesWalker<'_, '_> {
                             /*writing*/ false,
                             /*no_reductions*/ false,
                         )?;
-                        self.infer_from_middle_slice(second, element_types[start_length + 1])?;
+                        if !self.infer_from_middle_slice(second, element_types[start_length + 1])? {
+                            return Ok(());
+                        }
                     }
                 } else if element_flags[start_length].intersects(ElementFlags::REST)
                     && element_flags[start_length + 1].intersects(ElementFlags::VARIADIC)
@@ -3314,7 +3344,9 @@ impl InferTypesWalker<'_, '_> {
                             /*writing*/ false,
                             /*no_reductions*/ false,
                         )?;
-                        self.infer_from_middle_slice(first, element_types[start_length])?;
+                        if !self.infer_from_middle_slice(first, element_types[start_length])? {
+                            return Ok(());
+                        }
                         self.infer_from_types(trailing_slice, element_types[start_length + 1])?;
                     }
                 }
@@ -3387,26 +3419,27 @@ impl InferTypesWalker<'_, '_> {
     /// inferFromTypes, which survives ONLY on the 68647 head guard —
     /// `!couldContainTypeVariables(target) || isNoInferType(target)`
     /// — and TypeErrors otherwise: the recorded tsc-crash deviation
-    /// (m8-readiness row 4, probe-tuple.mjs f6). The port skips the
-    /// harmless shape and reports the crash shape.
+    /// (m8-readiness row 4, probe-tuple.mjs f6). The port preserves
+    /// the harmless guard and finitely contains the crash shape at
+    /// this call boundary: `false` stops the remaining tuple-target
+    /// ladder without adding a candidate at or after the crash point.
     fn infer_from_middle_slice(
         &mut self,
         source: Option<TypeId>,
         target: TypeId,
-    ) -> CheckResult2<()> {
+    ) -> CheckResult2<bool> {
         match source {
-            Some(source) => self.infer_from_types(source, target),
+            Some(source) => {
+                self.infer_from_types(source, target)?;
+                Ok(true)
+            }
             None => {
                 if self.st.could_contain_type_variables(target)
                     && !self.st.tables.is_no_infer_type(target)
                 {
-                    Err(Unsupported::new(
-                        "tsc-crash deviation: undefined middle-slice source against a \
-                         type-variable rest target (m8-readiness deviation row 4, \
-                         parse-recovery-class permanent containment)",
-                    ))
+                    Ok(false)
                 } else {
-                    Ok(())
+                    Ok(true)
                 }
             }
         }
@@ -5909,10 +5942,11 @@ mod tests {
     }
 
     /// Probe f6 (the recorded tsc-crash deviation, m8-readiness row
-    /// 4): the same shape with a TYPE-VARIABLE rest target reports
-    /// where tsc TypeErrors.
+    /// 4): the same shape with a TYPE-VARIABLE rest target stops at
+    /// the contained crash boundary. Candidates recorded before that
+    /// boundary survive; the missing slice records no U candidate.
     #[test]
-    fn tuple_middle_slice_crash_shape_reports_deviation() {
+    fn tuple_middle_slice_crash_shape_stops_after_prior_inference() {
         with_program_state(
             &[(
                 "a.ts",
@@ -5925,7 +5959,7 @@ mod tests {
                 let info_t = detached_info(state, t);
                 let info_u = detached_info(state, u);
                 let (source, target) = annotated_pair(state, "s", "t");
-                let err = state
+                state
                     .infer_types(
                         &[info_t, info_u],
                         source,
@@ -5933,8 +5967,19 @@ mod tests {
                         InferencePriority::NONE,
                         false,
                     )
-                    .expect_err("tsc dies here (probe f6)");
-                assert!(err.reason.contains("tsc-crash deviation"), "{}", err.reason);
+                    .expect("contained tsc crash boundary (probe f6)");
+                let string = state.tables.intrinsics.string;
+                let expected = state
+                    .create_tuple_type_forced(&[string], None, false, None)
+                    .expect("tuple");
+                assert_eq!(
+                    state.inference_info(info_t).candidates.as_deref(),
+                    Some(&[expected][..])
+                );
+                let info_u = state.inference_info(info_u);
+                assert!(info_u.candidates.is_none());
+                assert!(info_u.contra_candidates.is_none());
+                assert!(info_u.priority.is_none());
             },
         );
     }

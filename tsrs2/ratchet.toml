@@ -615,28 +615,54 @@
 # buckets return through A1 tombstones; 30 supported TS2305 buckets
 # gain in the same resolver closure. Untyped-JS, later typed-condition,
 # and @types siblings remain suppressed; all-corpus FP stays zero.
-rate = 0.989373
-matched = 48503
+# M8 complete-JSDoc slice: +280 exact T0 buckets return from the
+# jsdoc-semantics scope through tombstones after the JSDoc AST,
+# parser, binder, checker, alias-flow, and unused-reference paths were
+# ported to the 6.0.3 behavior. The same 280 buckets are
+# multiplicity-complete; no accepted identity is lost and all-corpus
+# FP remains zero.
+rate = 0.995084
+matched = 48783
 total = 49024
 allowed_regression = 0.0
 
 [t1]
-# M7 close: category-aware shadow identity is now a hard, exact-count
-# ratchet. The denominator is the same pinned all-corpus oracle universe
-# as T0; future gains may raise matched, while any proportional loss
-# fails conformance.
+# M7 close: category-aware shadow identity used this aggregate,
+# exact-count gate before the accepted artifact had tier fields.
+# M8's one-time tier1-3-input-schema-extension replaces that legacy
+# authority with the fixture/matrix/T0-bucket T1 set in A1; these
+# values then remain an artifact-derived exact summary.
 # M8-P05: +7 exact-category import-defer grammar identities; the slice
 # evidence records zero losses and zero gains outside the frozen target.
 # M8-P06: +32 exact-category .mts/.cts generic-arrow identities; the
 # slice evidence records zero losses and zero gains outside the target.
 # M8-P07: +42 exact-category override-validation identities; the slice
 # evidence records zero losses and zero gains outside the target.
-# M8 formal T1 close: +239 already-observed M8 category identities are
-# caught up, then +2 TS7051 identities close errorOrSuggestion's loose
-# parameter-name face. Supported T1 is 48,441/48,441 with no accepted
-# loss and all-corpus FP=0; this exact count closes the active T1 gate.
-rate = 0.988108
-matched = 48441
+# M8 formal T1 close: the final full-corpus measurement has supported
+# T1 at 48,783/48,783 with no accepted loss and all-corpus FP=0. The
+# one-time tier1-3-input-schema-extension records that complete bucket
+# set; this exact artifact-derived count closes the active T1 gate.
+rate = 0.995084
+matched = 48783
+total = 49024
+allowed_regression = 0.0
+
+[t2]
+# Written from A1's complete-multiset T2 bucket set by the reviewed
+# tier1-3-input-schema-extension. The activated set is the exact
+# artifact-derived supported 48,783/48,783 measurement.
+rate = 0.995084
+matched = 48783
+total = 49024
+allowed_regression = 0.0
+
+[t3]
+# Written from A1's complete-multiset T3 bucket set by the same
+# one-time activation. The activated set is supported
+# 48,783/48,783; as with T1/T2, the accepted identity set is the
+# authority and this section is a verified derived summary.
+rate = 0.995084
+matched = 48783
 total = 49024
 allowed_regression = 0.0
 
@@ -758,8 +784,12 @@ allowed_regression = 0.0
 # M8 package-resolution owner slice adds +62 exact 2XXX T0 buckets:
 # 32 TS2694 scope returns and 30 supported TS2305 gains, with no
 # accepted loss or false positive.
-rate = 0.977008
-matched = 20567
+# M8 complete-JSDoc slice returns +243 exact 2XXX buckets from the
+# frozen jsdoc-semantics scope. The remaining +37 all-band gains are
+# non-2XXX JSDoc, unused, and suggestion identities; all are
+# multiplicity-complete and all-corpus FP remains zero.
+rate = 0.988552
+matched = 20810
 total = 21051
 allowed_regression = 0.0
 
@@ -843,7 +873,10 @@ max_untagged = 0
 # Valid class-member kinds are exhaustively handled; a parser-recovery
 # shape outside that closed set is contained at the registered class
 # boundary instead of panicking the unused drain.
-max_recovery = 117
+# M8 close: 117 -> 0 — every malformed-tree face now has its finite
+# tsc-compatible recovery result; no recovery path uses the checker
+# abort channel.
+max_recovery = 0
 # D2a/D1a initial constructibility census: 23 exact rows. Each row
 # names a test canary; once that test exists the annotation is stale
 # and its owning model slice must implement, remove, or narrow it.
@@ -852,4 +885,18 @@ max_recovery = 117
 # canary assumptions and activated the shared generic-intersection
 # exclusion; downstream mapped member/relation/inference work now
 # stops at explicit M8-owned escape sites instead of dormant guards.
-max_dormant = 13
+# M8 close: 13 -> 0 — all remaining constructibility assumptions were
+# either implemented losslessly or retired with a closed invariant.
+max_dormant = 0
+
+[t4]
+# M8 formal T4 close: the one-time t4-input-schema-extension
+# atomically pins all 7,691 genuine tsc rendered case hashes and
+# activates the complete supported case set. Schema-3 goldens keep
+# present-but-empty relatedInformation in a sparse sidecar so the
+# formatter is byte-exact without changing the pre-existing
+# structured oracle records or identities.
+rate = 1.0
+matched = 7691
+total = 7691
+allowed_regression = 0.0

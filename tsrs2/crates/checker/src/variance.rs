@@ -9,7 +9,7 @@ use tsrs2_binder::{node_util, SymbolId};
 use tsrs2_types::{ModifierFlags, ObjectFlags, TypeData, TypeFlags, TypeId, VarianceFlags};
 
 use crate::links::LinkSlot;
-use crate::state::{CheckResult2, CheckerState, Unsupported, VarianceHandlerFrame};
+use crate::state::{CheckAbort, CheckResult2, CheckerState, VarianceHandlerFrame};
 
 /// tsc arrayVariances (46460): `[VarianceFlags.Covariant]` — shared by
 /// both global array types and every tuple target
@@ -75,7 +75,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: b3d0b6716d244e10697b68ff53caea57f5c265658ccd109699d7b82dc3140e05
     /// tsc-span: _tsc.js:67312-67359
     ///
-    /// The tracing push/pop is elided. On Unsupported unwind the
+    /// The tracing push/pop is elided. On CheckAbort unwind the
     /// Resolving sentinel reverts (tsc cannot fail here) and the
     /// inVarianceComputation/resolutionStart saves are restored on
     /// both paths.
@@ -98,7 +98,7 @@ impl<'a> CheckerState<'a> {
         self.links
             .set_symbol_variances(self.speculation_depth, symbol, LinkSlot::Resolving);
         let mut variances: Vec<VarianceFlags> = Vec::with_capacity(type_parameters.len());
-        let mut failure: Option<Unsupported> = None;
+        let mut failure: Option<CheckAbort> = None;
         for &tp in type_parameters {
             match self.measure_type_parameter_variance(symbol, tp) {
                 Ok(variance) => variances.push(variance),
@@ -276,16 +276,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4d3743d83604dfbfe4837773b9ca468725d514ec6b76b25d406a7e715cbf9bca
     /// tsc-span: _tsc.js:67373-67376
     ///
-    /// getEffectiveModifierFlags reduces to the syntactic flags in TS
-    /// files (JSDoc modifiers never parse). Marker parameters are
-    /// symbol-less and answer None.
+    /// Marker parameters are symbol-less and answer None.
     pub(crate) fn get_type_parameter_modifiers(&self, tp: TypeId) -> ModifierFlags {
         let Some(symbol) = self.tables.type_of(tp).symbol else {
             return ModifierFlags::NONE;
         };
         let mut modifiers = 0;
         for &declaration in &self.binder.symbol(symbol).declarations {
-            modifiers |= node_util::get_syntactic_modifier_flags(
+            modifiers |= node_util::get_effective_modifier_flags(
                 self.binder.source_of_node(declaration),
                 declaration,
             )

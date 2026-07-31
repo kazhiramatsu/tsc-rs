@@ -147,26 +147,6 @@ fn js_to_lower_case(s: &str) -> String {
     s.to_lowercase()
 }
 
-/// JS `str.charAt(0).toUpperCase() + str.slice(1)`: charAt(0) is one
-/// UTF-16 CODE UNIT, so an astral first character contributes a lone
-/// surrogate whose case conversion is the identity — Capitalize/
-/// Uncapitalize are no-ops on astral-initial strings.
-fn js_capitalize(s: &str, upper: bool) -> String {
-    let mut chars = s.chars();
-    let Some(first) = chars.next() else {
-        return String::new();
-    };
-    if (first as u32) > 0xFFFF {
-        return s.to_owned();
-    }
-    let mapped = if upper {
-        first.to_uppercase().to_string()
-    } else {
-        first.to_lowercase().to_string()
-    };
-    format!("{mapped}{}", chars.as_str())
-}
-
 fn js_template_text_case(
     text: &tsrs2_types::TemplateText,
     upper: bool,
@@ -667,11 +647,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: fb17fb2693f1b9664336314c08f11b85b999e573f3a4b070da39a7b35e99a791
     /// tsc-span: _tsc.js:63463-63517
     ///
-    /// The Reference arms are live (deferred references, 5.2g); the
-    /// InstantiationExpressionType `type.node` read stays dead until
-    /// M6 instantiation expressions. The JS-constructor template-tag
-    /// parameters (63474-63477) ride on JSDoc binding and are elided
-    /// with it (project-wide).
+    /// The Reference and InstantiationExpressionType arms carry the
+    /// originating node through the checker-owned deferred-node slot.
     fn get_object_type_instantiation(
         &mut self,
         ty: TypeId,
@@ -739,9 +716,18 @@ impl<'a> CheckerState<'a> {
         {
             Some(cached) => cached.to_vec(),
             None => {
-                let outer = self
+                let mut outer = self
                     .get_outer_type_parameters(declaration, /*include_this_types*/ true)?
                     .unwrap_or_default();
+                if self.is_js_constructor(declaration) {
+                    let template_tag_parameters =
+                        self.get_type_parameters_from_declaration(declaration)?;
+                    for parameter in template_tag_parameters {
+                        if !outer.contains(&parameter) {
+                            outer.push(parameter);
+                        }
+                    }
+                }
                 // 63481: `target.objectFlags & (Reference |
                 // InstantiationExpressionType) || target.symbol.flags &
                 // Method || ... & TypeLiteral` — the symbol read is
@@ -2076,9 +2062,36 @@ impl<'a> CheckerState<'a> {
         type_parameters
     }
 
-    /// tsrs-native: list-identity twin for the existing
-    /// getEffectiveTypeParameterDeclarations TS slice. JSDoc template
-    /// tags are elided project-wide.
+    /// tsc-port: getTypeParametersFromDeclaration @6.0.3
+    /// tsc-hash: 600ace5af3858b9759597d4a78febb363a6524520f684e82df2f5251a23fce79
+    /// tsc-span: _tsc.js:59482-59489
+    fn get_type_parameters_from_declaration(
+        &mut self,
+        declaration: NodeId,
+    ) -> CheckResult2<Vec<TypeId>> {
+        let declarations = self.type_parameter_declarations_of(declaration);
+        let result = self.append_type_parameters(Vec::new(), &declarations);
+        if !result.is_empty() {
+            return Ok(result);
+        }
+        if self.kind_of(declaration) == SyntaxKind::FunctionDeclaration {
+            if let Some(signature) = self.get_signature_of_type_tag(declaration)? {
+                return Ok(self
+                    .signature_of(signature)
+                    .type_parameters
+                    .clone()
+                    .unwrap_or_default());
+            }
+        }
+        Ok(Vec::new())
+    }
+
+    /// tsrs-native: typed NodeData projection for tsc's direct
+    /// `node.typeParameters` reads; the Rust arena has no shared
+    /// structural field accessor.
+    ///
+    /// Effective JSDoc declarations can combine multiple template-tag
+    /// arrays and therefore use `type_parameter_declarations_of`.
     pub(crate) fn type_parameter_declaration_list_of(
         &self,
         node: NodeId,
@@ -2100,30 +2113,78 @@ impl<'a> CheckerState<'a> {
             NodeData::Constructor(data) => data.type_parameters,
             NodeData::GetAccessor(data) => data.type_parameters,
             NodeData::SetAccessor(data) => data.type_parameters,
+            NodeData::JSDocFunctionType(data) => data.type_parameters,
+            NodeData::JSDocTemplateTag(data) => data.type_parameters,
             _ => None,
         }
     }
 
-    /// getEffectiveTypeParameterDeclarations, TS-declaration slice
-    /// (JSDoc template tags are elided project-wide).
     /// tsc-port: getEffectiveTypeParameterDeclarations @6.0.3
     /// tsc-hash: 04140ebbefd68b55eef3fc021cd5423faef96e0cbd640a51ab3e612b49a56544
     /// tsc-span: _tsc.js:11782-11813
     pub(crate) fn type_parameter_declarations_of(&self, node: NodeId) -> Vec<NodeId> {
-        self.nodes_of(self.type_parameter_declaration_list_of(node))
+        if self.kind_of(node) == SyntaxKind::JSDocSignature {
+            if self
+                .parent_of(node)
+                .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::JSDocOverloadTag)
+            {
+                if let Some(document) = self.get_jsdoc_root(node) {
+                    if let NodeData::JSDoc(data) = self.data_of(document) {
+                        return self
+                            .nodes_of(data.tags)
+                            .into_iter()
+                            .filter_map(|tag| match self.data_of(tag) {
+                                NodeData::JSDocTemplateTag(data) => {
+                                    Some(self.nodes_of(data.type_parameters))
+                                }
+                                _ => None,
+                            })
+                            .flatten()
+                            .collect();
+                    }
+                }
+            }
+            return Vec::new();
+        }
+        if self.is_jsdoc_type_alias(node) {
+            if let Some(document) = self.parent_of(node) {
+                if let NodeData::JSDoc(data) = self.data_of(document) {
+                    return self
+                        .nodes_of(data.tags)
+                        .into_iter()
+                        .filter_map(|tag| match self.data_of(tag) {
+                            NodeData::JSDocTemplateTag(data) => {
+                                Some(self.nodes_of(data.type_parameters))
+                            }
+                            _ => None,
+                        })
+                        .flatten()
+                        .collect();
+                }
+            }
+            return Vec::new();
+        }
+        let syntactic = self.nodes_of(self.type_parameter_declaration_list_of(node));
+        if !syntactic.is_empty() {
+            return syntactic;
+        }
+        if self.is_in_js_file(node) {
+            let declarations = self.jsdoc_type_parameter_declarations(node);
+            if !declarations.is_empty() {
+                return declarations;
+            }
+            if let Some(ty) = self.get_jsdoc_type(node) {
+                if let NodeData::FunctionType(data) = self.data_of(ty) {
+                    return self.nodes_of(data.type_parameters);
+                }
+            }
+        }
+        Vec::new()
     }
 
     /// tsc-port: getOuterTypeParameters @6.0.3
     /// tsc-hash: c803db747a9b456f3fdf5ab1b1374d0b5426c33155735e4150eeeee52e3a6128
     /// tsc-span: _tsc.js:57014-57079
-    ///
-    /// Elisions/escapes: the BinaryExpression prototype-assignment hop
-    /// (57016-57024) rides on JS Assignment binding (M2 3.4c residual);
-    /// JSDoc kinds (JSDocFunctionType/template/typedef/enum/callback
-    /// tags, the JSDoc parameter/comment arms 57067-57078) are elided
-    /// project-wide. The context-sensitive function-expression replay
-    /// (57052-57057) is live since 5.7b; conditional-type containers
-    /// are live via getInferTypeParameters.
     pub(crate) fn get_outer_type_parameters(
         &mut self,
         node: NodeId,
@@ -2135,6 +2196,40 @@ impl<'a> CheckerState<'a> {
                 return Ok(None);
             };
             node = next;
+            if self.kind_of(node) == SyntaxKind::BinaryExpression {
+                let assignment_kind = tsrs2_binder::get_assignment_declaration_kind(
+                    self.binder.source_of_node(node),
+                    node,
+                );
+                if matches!(
+                    assignment_kind,
+                    tsrs2_binder::AssignmentDeclarationKind::Prototype
+                        | tsrs2_binder::AssignmentDeclarationKind::PrototypeProperty
+                ) {
+                    let left = match self.data_of(node) {
+                        NodeData::BinaryExpression(data) => data.left,
+                        _ => None,
+                    };
+                    let container_declaration = left
+                        .and_then(|left| self.get_symbol_of_declaration_opt(left))
+                        .and_then(|symbol| self.binder.symbol(symbol).parent)
+                        .and_then(|parent| self.binder.symbol(parent).value_declaration);
+                    if let Some(container_declaration) = container_declaration {
+                        let mut ancestor = Some(container_declaration);
+                        let mut assignment_contains_container = false;
+                        while let Some(current) = ancestor {
+                            if current == node {
+                                assignment_contains_container = true;
+                                break;
+                            }
+                            ancestor = self.parent_of(current);
+                        }
+                        if !assignment_contains_container {
+                            node = container_declaration;
+                        }
+                    }
+                }
+            }
             let kind = self.kind_of(node);
             match kind {
                 SyntaxKind::ClassDeclaration
@@ -2145,11 +2240,16 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::MethodSignature
                 | SyntaxKind::FunctionType
                 | SyntaxKind::ConstructorType
+                | SyntaxKind::JSDocFunctionType
                 | SyntaxKind::FunctionDeclaration
                 | SyntaxKind::MethodDeclaration
                 | SyntaxKind::FunctionExpression
                 | SyntaxKind::ArrowFunction
                 | SyntaxKind::TypeAliasDeclaration
+                | SyntaxKind::JSDocTemplateTag
+                | SyntaxKind::JSDocTypedefTag
+                | SyntaxKind::JSDocEnumTag
+                | SyntaxKind::JSDocCallbackTag
                 | SyntaxKind::MappedType
                 | SyntaxKind::ConditionalType => {
                     let outer = self
@@ -2207,12 +2307,12 @@ impl<'a> CheckerState<'a> {
                     let declarations = self.type_parameter_declarations_of(node);
                     let mut outer_and_own = self.append_type_parameters(outer, &declarations);
                     if include_this_types
-                        && matches!(
+                        && (matches!(
                             kind,
                             SyntaxKind::ClassDeclaration
                                 | SyntaxKind::ClassExpression
                                 | SyntaxKind::InterfaceDeclaration
-                        )
+                        ) || self.is_js_constructor(node))
                     {
                         // 57063-57066: append the declared type's
                         // thisType (GenericType shapes only — plain
@@ -2231,6 +2331,35 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                     return Ok(Some(outer_and_own));
+                }
+                SyntaxKind::JSDocParameterTag => {
+                    if let Some(symbol) = self.parameter_symbol_from_jsdoc(node) {
+                        if let Some(value_declaration) =
+                            self.binder.symbol(symbol).value_declaration
+                        {
+                            node = value_declaration;
+                        }
+                    }
+                }
+                SyntaxKind::JSDoc => {
+                    let mut outer = self
+                        .get_outer_type_parameters(node, include_this_types)?
+                        .unwrap_or_default();
+                    if let NodeData::JSDoc(data) = self.data_of(node) {
+                        let declarations: Vec<NodeId> = self
+                            .nodes_of(data.tags)
+                            .into_iter()
+                            .filter_map(|tag| match self.data_of(tag) {
+                                NodeData::JSDocTemplateTag(data) => {
+                                    Some(self.nodes_of(data.type_parameters))
+                                }
+                                _ => None,
+                            })
+                            .flatten()
+                            .collect();
+                        outer = self.append_type_parameters(outer, &declarations);
+                    }
+                    return Ok(Some(outer));
                 }
                 _ => {}
             }
@@ -2844,7 +2973,7 @@ impl<'a> CheckerState<'a> {
             };
             let name = self.binder.symbol(symbol).escaped_name.clone();
             let mapped = apply_string_mapping(intrinsic_type_kind(&name), &value);
-            return Ok(self.tables.get_string_literal_type(&mapped));
+            return Ok(self.tables.get_string_literal_type_from_text(&mapped));
         }
         if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
             let (texts, types) = match &self.tables.type_of(ty).data {
@@ -3018,11 +3147,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isPartOfTypeNode @6.0.3
     /// tsc-hash: 55a9d46da576728e248042fc0ca94da1daed14019326a3d28b945c2fcfdea441
     /// tsc-span: _tsc.js:14190-14271
-    ///
-    /// JSDoc arms (JSDocTemplateTag constraint, the implements/augments
-    /// tag checks inside isPartOfTypeExpressionWithTypeArguments) are
-    /// elided project-wide; the heritage-clause check keeps the
-    /// non-extends-expression semantics.
     pub(crate) fn is_part_of_type_node(&self, node: NodeId) -> bool {
         let kind = self.kind_of(node);
         if SyntaxKind::FirstTypeNode <= kind && kind <= SyntaxKind::LastTypeNode {
@@ -3098,6 +3222,12 @@ impl<'a> CheckerState<'a> {
                             NodeData::TypeParameter(data) if data.constraint == Some(node)
                         )
                     }
+                    SyntaxKind::JSDocTemplateTag => {
+                        matches!(
+                            self.data_of(parent),
+                            NodeData::JSDocTemplateTag(data) if data.constraint == Some(node)
+                        )
+                    }
                     SyntaxKind::PropertyDeclaration
                     | SyntaxKind::PropertySignature
                     | SyntaxKind::Parameter
@@ -3134,48 +3264,63 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// isPartOfTypeExpressionWithTypeArguments (14272-14274), JSDoc
-    /// arms elided: a heritage-clause member that is NOT the extends
-    /// expression of a class.
+    /// tsc-port: isPartOfTypeExpressionWithTypeArguments @6.0.3
+    /// tsc-hash: 0f2387b198c4ceea64de5780c0199fd0d2a34cbe4abfa7d56c44b4a3e891da24
+    /// tsc-span: _tsc.js:14272-14274
     fn is_part_of_type_expression_with_type_arguments(&self, node: NodeId) -> bool {
         let Some(parent) = self.parent_of(node) else {
             return false;
         };
-        if self.kind_of(parent) != SyntaxKind::HeritageClause {
-            return false;
+        match self.kind_of(parent) {
+            SyntaxKind::JSDocImplementsTag | SyntaxKind::JSDocAugmentsTag => true,
+            SyntaxKind::HeritageClause => {
+                !self.is_expression_with_type_arguments_in_class_extends_clause(node)
+            }
+            _ => false,
         }
-        !self.is_expression_with_type_arguments_in_class_extends_clause(node)
     }
 
-    /// isExpressionWithTypeArgumentsInClassExtendsClause (utilities).
+    /// tsc-port: isExpressionWithTypeArgumentsInClassExtendsClause @6.0.3
+    /// tsc-hash: dd340f3e994ad8dcb7bf28a1f3de22f232fe32c4364e2df5a607fff05a048c84
+    /// tsc-span: _tsc.js:17125-17127
     fn is_expression_with_type_arguments_in_class_extends_clause(&self, node: NodeId) -> bool {
-        let Some(clause) = self.parent_of(node) else {
-            return false;
-        };
-        if self.kind_of(clause) != SyntaxKind::HeritageClause {
+        if self.kind_of(node) != SyntaxKind::ExpressionWithTypeArguments {
             return false;
         }
-        let Some(container) = self.parent_of(clause) else {
-            return false;
-        };
-        let is_class = matches!(
-            self.kind_of(container),
-            SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
-        );
-        is_class && self.heritage_clause_is_extends(clause)
+        self.parent_of(node)
+            .is_some_and(|parent| match self.kind_of(parent) {
+                SyntaxKind::HeritageClause => self.parent_of(parent).is_some_and(|class_like| {
+                    matches!(
+                        self.kind_of(class_like),
+                        SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+                    ) && self.heritage_clause_is_extends(parent)
+                }),
+                SyntaxKind::JSDocAugmentsTag => {
+                    self.get_effective_jsdoc_host(parent).is_some_and(|host| {
+                        matches!(
+                            self.kind_of(host),
+                            SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+                        )
+                    })
+                }
+                _ => false,
+            })
     }
 }
 
 /// tsc-port: applyStringMapping @6.0.3
 /// tsc-hash: 03303706c2ff1cce6253350ab983e924aec70581fee678721dfdeeaf6e680e72
 /// tsc-span: _tsc.js:62129-62141
-pub(crate) fn apply_string_mapping(kind: Option<IntrinsicTypeKind>, value: &str) -> String {
+pub(crate) fn apply_string_mapping(
+    kind: Option<IntrinsicTypeKind>,
+    value: &tsrs2_types::TemplateText,
+) -> tsrs2_types::TemplateText {
     match kind {
-        Some(IntrinsicTypeKind::Uppercase) => js_to_upper_case(value),
-        Some(IntrinsicTypeKind::Lowercase) => js_to_lower_case(value),
-        Some(IntrinsicTypeKind::Capitalize) => js_capitalize(value, true),
-        Some(IntrinsicTypeKind::Uncapitalize) => js_capitalize(value, false),
-        _ => value.to_owned(),
+        Some(IntrinsicTypeKind::Uppercase) => js_template_text_case(value, true),
+        Some(IntrinsicTypeKind::Lowercase) => js_template_text_case(value, false),
+        Some(IntrinsicTypeKind::Capitalize) => js_template_text_capitalize(value, true),
+        Some(IntrinsicTypeKind::Uncapitalize) => js_template_text_capitalize(value, false),
+        _ => value.clone(),
     }
 }
 

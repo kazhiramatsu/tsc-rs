@@ -113,6 +113,13 @@ pub struct Binder<'a> {
     pub has_flow_effects: bool,
     /// tsc emitFlags (NodeFlags bits accumulated onto the SourceFile).
     pub emit_flags: i32,
+    /// tsc delayedTypeAliases: JSDoc typedef/callback/enum tags bind
+    /// their type expression and scope declaration after the ordinary
+    /// source walk has established every host container.
+    pub delayed_type_aliases: Vec<NodeId>,
+    /// tsc jsDocImports: import clauses bind after the ordinary JSDoc
+    /// walk, in the enclosing scope of the last attached JSDoc host.
+    pub js_doc_imports: Vec<NodeId>,
 }
 
 impl<'a> Binder<'a> {
@@ -190,6 +197,8 @@ impl<'a> Binder<'a> {
             in_return_position: false,
             has_flow_effects: false,
             emit_flags: 0,
+            delayed_type_aliases: Vec::new(),
+            js_doc_imports: Vec::new(),
         }
     }
 
@@ -491,7 +500,7 @@ impl<'a> Binder<'a> {
         }
         match kind_of(self.source, node) {
             SyntaxKind::Constructor => Some(InternalSymbolName::CONSTRUCTOR.to_owned()),
-            SyntaxKind::FunctionType | SyntaxKind::CallSignature => {
+            SyntaxKind::FunctionType | SyntaxKind::CallSignature | SyntaxKind::JSDocSignature => {
                 Some(InternalSymbolName::CALL.to_owned())
             }
             SyntaxKind::JSDocFunctionType => Some(

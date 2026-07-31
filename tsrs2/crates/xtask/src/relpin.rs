@@ -14,7 +14,7 @@
 //!
 //! `cargo xtask relpin run [pins/relations.toml]` asks the engine
 //! (tsrs2_checker::relpin::probe_relation) the same question and
-//! prints disagreements. Unsupported answers count as failures so the
+//! prints disagreements. Unavailable answers count as failures so the
 //! M3 gate ("0 disagreements") cannot pass with a stubbed engine.
 //!
 //! Pin file format — a deliberately small TOML subset (array-of-tables
@@ -214,7 +214,7 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
     let mut agree = 0usize;
     let mut disagreements = Vec::new();
-    let mut unsupported: Vec<(String, String)> = Vec::new();
+    let mut unavailable: Vec<(String, String)> = Vec::new();
     for pin in &pins {
         let Some(expect) = pin.expect else {
             return Err(format!(
@@ -243,12 +243,12 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
             options: &options,
         };
         match probe_relation(&query) {
-            RelpinVerdict::Unsupported { reason } => unsupported.push((pin.id(), reason)),
+            RelpinVerdict::Unavailable { reason } => unavailable.push((pin.id(), reason)),
             verdict => {
                 let engine = match verdict {
                     RelpinVerdict::Related => Expect::Yes,
                     RelpinVerdict::NotRelated => Expect::No,
-                    RelpinVerdict::Unsupported { .. } => unreachable!(),
+                    RelpinVerdict::Unavailable { .. } => unreachable!(),
                 };
                 if engine == expect {
                     agree += 1;
@@ -273,30 +273,30 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     if disagreements.len() > 50 {
         println!("(+{} more disagreements)", disagreements.len() - 50);
     }
-    if !unsupported.is_empty() {
+    if !unavailable.is_empty() {
         let mut by_reason: Vec<(String, usize)> = Vec::new();
-        for (_, reason) in &unsupported {
+        for (_, reason) in &unavailable {
             match by_reason.iter_mut().find(|(known, _)| known == reason) {
                 Some((_, count)) => *count += 1,
                 None => by_reason.push((reason.clone(), 1)),
             }
         }
         for (reason, count) in &by_reason {
-            println!("unsupported: {count} pins — {reason}");
+            println!("unavailable: {count} pins — {reason}");
         }
     }
 
     println!(
-        "relpin run: pins={} agree={agree} disagree={} unsupported={}",
+        "relpin run: pins={} agree={agree} disagree={} unavailable={}",
         pins.len(),
         disagreements.len(),
-        unsupported.len()
+        unavailable.len()
     );
-    if !disagreements.is_empty() || !unsupported.is_empty() {
+    if !disagreements.is_empty() || !unavailable.is_empty() {
         return Err(format!(
-            "relpin run failed: {} disagreements, {} unsupported",
+            "relpin run failed: {} disagreements, {} unavailable",
             disagreements.len(),
-            unsupported.len()
+            unavailable.len()
         )
         .into());
     }

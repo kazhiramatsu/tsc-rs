@@ -11,10 +11,12 @@
 //!   tiers carry an explicit `"absent"` marker. It contains no tsrs
 //!   output and no accepted-tsrs baseline.
 //! - `conformance-matches.v1.json.zst` — the accepted state: per
-//!   fixture/matrix matched T0 bucket identities plus
-//!   multiplicity-complete buckets for the fixed All/2XXX/syntactic
-//!   views. Multiplicity-complete is ratcheted separately because a
-//!   2/2 bucket can regress to 2/1 while its T0 key stays matched.
+//!   fixture/matrix matched T0 bucket identities,
+//!   multiplicity-complete buckets, and (after the reviewed M8
+//!   activation) complete-multiset T1/T2/T3 bucket identities for the
+//!   fixed All/2XXX/syntactic views. Multiplicity-complete is
+//!   ratcheted separately because a 2/2 bucket can regress to 2/1
+//!   while its T0 key stays matched.
 //!
 //! Both artifacts use the §1.1 append-only lineage anchor: every
 //! version records `previous = {commit, sha256}`, the checker walks
@@ -50,13 +52,15 @@ const ORACLE_INPUTS_SCHEMA: u32 = 1;
 /// with pass provenance; schema 1 lacks it and cannot feed the
 /// syntactic view).
 const T0_COMPARATOR_SCHEMA: u32 = 2;
+/// Comparator schema for the category (T1), span/top-message (T2),
+/// and full-chain/related-information (T3) complete-multiset
+/// comparators. These three schemas activate atomically: a partial
+/// activation would make the nesting contract unprovable.
+const T1_T3_COMPARATOR_SCHEMA: u32 = 1;
+/// Comparator schema for exact normalized rendered UTF-8 bytes.
+const T4_COMPARATOR_SCHEMA: u32 = 1;
 /// Reviewed input transition: enumerated corpus growth where every
-/// old identity and byte stays unchanged. The A3
-/// `input-schema-extension` is taught by its own slice, and A2's
-/// stays reserved: exact scope identities derive live from the pinned
-/// golden record bytes (encoder v1, `crate::identity`), so landing A2
-/// touched no manifest byte — the extension activates only if the
-/// canonical encoding itself ever changes. An unknown transition name
+/// old identity and byte stays unchanged. An unknown transition name
 /// always fails the walk.
 const UNIVERSE_TRANSITION: &str = "universe-transition";
 /// Reviewed one-time input transition that ADDS the producer pins
@@ -73,6 +77,17 @@ const PRODUCER_PIN_EXTENSION: &str = "producer-pin-extension";
 /// version's `lapsed` sets — the one sanctioned exception to
 /// append-only growth, exact to the identity.
 const ORACLE_CORRECTION: &str = "oracle-correction";
+/// Reviewed one-time M8 input-schema extension. It changes exactly the
+/// T1/T2/T3 comparator entries from explicit `"absent"` markers to
+/// schema-v1 active entries. Vendor/producer pins, fixture/case pins,
+/// T0/T4 comparator entries, totals, and pre-existing accepted T0 /
+/// multiplicity sets remain byte-for-byte unchanged. The paired
+/// accepted artifact adds the complete measured T1-T3 sets.
+const TIER_1_3_INPUT_SCHEMA_EXTENSION: &str = "tier1-3-input-schema-extension";
+/// Reviewed one-time A3 transition. It adds only the separately pinned
+/// renderer producer, genuine oracle rendered hashes, the active T4
+/// comparator, and paired accepted T4 case identities.
+const T4_INPUT_SCHEMA_EXTENSION: &str = "t4-input-schema-extension";
 
 /// The fixed recorded views (measurement-integrity.md §2). A
 /// supported fixed intersection added later needs its own declared
@@ -84,20 +99,43 @@ pub(crate) const FIXED_VIEWS: [DiagnosticBand; 3] = [
 ];
 
 /// One case's accepted/current identity sets for a single view.
-/// `multiplicity_complete` ⊆ `matched` (a complete bucket has equal
-/// nonzero oracle/tsrs record counts, so its key is matched).
+///
+/// A tier identity is fixture + matrix + this T0 bucket key. Membership
+/// means the COMPLETE oracle/tsrs bucket multisets agree under that
+/// tier's comparator, never that one conveniently paired diagnostic
+/// agrees. The coherence relation is:
+///
+/// `t3 ⊆ t2 ⊆ t1 ⊆ multiplicity_complete ⊆ matched`. T4 is a
+/// whole-case identity (stored on the All view), not a bucket identity.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct CaseSets {
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub matched: BTreeSet<T0Key>,
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub multiplicity_complete: BTreeSet<T0Key>,
+    /// T1: complete multiset equality by diagnostic category.
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub t1: BTreeSet<T0Key>,
+    /// T2: T1 plus exact span and top-level message text.
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub t2: BTreeSet<T0Key>,
+    /// T3: T2 plus the full message-chain tree and related information.
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub t3: BTreeSet<T0Key>,
+    /// T4: the supported-scope rendered output for this complete case is
+    /// byte-exact. Only the All fixed view may carry this case marker.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub t4: bool,
 }
 
 /// fixture key → matrix key → case sets (empty cases are omitted).
 pub type ViewSets = BTreeMap<String, BTreeMap<String, CaseSets>>;
 /// view name ("all" | "2xxx" | "syntactic") → view sets.
 pub type RunSets = BTreeMap<String, ViewSets>;
+
+fn is_false(value: &bool) -> bool {
+    !*value
+}
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Lineage {
@@ -126,10 +164,11 @@ pub struct MatchesArtifact {
     pub inputs: MatchesInputs,
     pub views: RunSets,
     /// Present exactly when `transition == "oracle-correction"`: the
-    /// complete enumerated identities (per view, matched and
-    /// multiplicity-complete separately — never pooled) that lapsed
-    /// under the corrected oracle. The lineage edge requires the
-    /// actual removals to equal this set identity-for-identity; the
+    /// complete enumerated identities (per view and per protected set:
+    /// T0 matched, multiplicity-complete, T1, T2, and T3 — never
+    /// pooled) that lapsed under the corrected oracle. The lineage
+    /// edge requires the actual removals to equal this set
+    /// identity-for-identity; the
     /// trusted-base compare accepts a removal only when a correction
     /// version between base and head enumerates it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -169,6 +208,10 @@ pub struct ProducerPins {
     /// driver's `process.version` against the tree pin — the file
     /// alone is a declaration, not enforcement.
     pub node_version: String,
+    /// A3-only `crates/oracle/render-driver.mjs`. Historical/pre-A3
+    /// manifests omit it; the T4 extension may add it exactly once.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub render_driver_sha256: Option<String>,
 }
 
 /// A tier's comparator entry. Inactive tiers must carry the explicit
@@ -190,6 +233,10 @@ pub struct CasePins {
     /// bytes the oracle host consumed): pins matrix expansion,
     /// options, libs, and the file split.
     pub program_sha256: String,
+    /// Genuine lowercase SHA-256 of the exact normalized oracle
+    /// rendered UTF-8 bytes. Historical/pre-A3 cases omit it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub oracle_t4_sha256: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -221,6 +268,126 @@ pub struct OracleInputsArtifact {
     pub totals: BTreeMap<String, u64>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TierComparatorState {
+    Inactive,
+    T1ThroughT3,
+    T1ThroughT4,
+}
+
+fn t1_t3_active(state: TierComparatorState) -> bool {
+    matches!(
+        state,
+        TierComparatorState::T1ThroughT3 | TierComparatorState::T1ThroughT4
+    )
+}
+
+fn t4_active(state: TierComparatorState) -> bool {
+    state == TierComparatorState::T1ThroughT4
+}
+
+fn active_comparator(schema: u32) -> ComparatorEntry {
+    ComparatorEntry::Active { schema }
+}
+
+fn absent_comparator() -> ComparatorEntry {
+    ComparatorEntry::Marker("absent".to_owned())
+}
+
+fn comparator_state(
+    comparators: &BTreeMap<String, ComparatorEntry>,
+) -> ConformanceResult<TierComparatorState> {
+    let expected_names = ["t0", "t1", "t2", "t3", "t4"];
+    if let Some(extra) = comparators
+        .keys()
+        .find(|key| !expected_names.contains(&key.as_str()))
+    {
+        return Err(format!("oracle-inputs has an undeclared comparator entry {extra}").into());
+    }
+    if comparators.len() != expected_names.len() {
+        let missing = expected_names
+            .iter()
+            .find(|tier| !comparators.contains_key(**tier))
+            .copied()
+            .unwrap_or("<unknown>");
+        return Err(format!("oracle-inputs lacks comparator entry {missing}").into());
+    }
+    match comparators.get("t0") {
+        Some(ComparatorEntry::Active { schema }) if *schema == T0_COMPARATOR_SCHEMA => {}
+        entry => {
+            return Err(format!(
+                "oracle-inputs t0 comparator must be active at schema \
+                 {T0_COMPARATOR_SCHEMA}, found {entry:?}"
+            )
+            .into());
+        }
+    }
+
+    let inactive = ["t1", "t2", "t3"].iter().all(|tier| {
+        matches!(
+            comparators.get(*tier),
+            Some(ComparatorEntry::Marker(marker)) if marker == "absent"
+        )
+    });
+    let active = ["t1", "t2", "t3"].iter().all(|tier| {
+        matches!(
+            comparators.get(*tier),
+            Some(ComparatorEntry::Active { schema }) if *schema == T1_T3_COMPARATOR_SCHEMA
+        )
+    });
+    let t1_t3_state = match (inactive, active) {
+        (true, false) => TierComparatorState::Inactive,
+        (false, true) => TierComparatorState::T1ThroughT3,
+        _ => {
+            return Err(format!(
+                "oracle-inputs T1-T3 comparators must be either all explicit \"absent\" markers \
+                 or all active at schema {T1_T3_COMPARATOR_SCHEMA}; found t1={:?}, t2={:?}, \
+                 t3={:?}",
+                comparators.get("t1"),
+                comparators.get("t2"),
+                comparators.get("t3")
+            )
+            .into());
+        }
+    };
+    match (t1_t3_state, comparators.get("t4")) {
+        (state, Some(ComparatorEntry::Marker(marker))) if marker == "absent" => Ok(state),
+        (TierComparatorState::T1ThroughT3, Some(ComparatorEntry::Active { schema }))
+            if *schema == T4_COMPARATOR_SCHEMA =>
+        {
+            Ok(TierComparatorState::T1ThroughT4)
+        }
+        (TierComparatorState::Inactive, Some(ComparatorEntry::Active { .. })) => Err(
+            "oracle-inputs t4 comparator cannot activate before the T1-T3 comparators"
+                .to_string()
+                .into(),
+        ),
+        (_, entry) => Err(format!(
+            "oracle-inputs t4 comparator must be explicit \"absent\" or active at schema \
+             {T4_COMPARATOR_SCHEMA} after {T4_INPUT_SCHEMA_EXTENSION:?}; found {entry:?}"
+        )
+        .into()),
+    }
+}
+
+fn case_sets_have_t1_t3_membership(views: &RunSets) -> bool {
+    views.values().any(|fixtures| {
+        fixtures.values().any(|cases| {
+            cases
+                .values()
+                .any(|sets| !sets.t1.is_empty() || !sets.t2.is_empty() || !sets.t3.is_empty())
+        })
+    })
+}
+
+fn case_sets_have_t4_membership(views: &RunSets) -> bool {
+    views.values().any(|fixtures| {
+        fixtures
+            .values()
+            .any(|cases| cases.values().any(|sets| sets.t4))
+    })
+}
+
 impl MatchesArtifact {
     fn validate(&self) -> ConformanceResult<()> {
         if self.schema != MATCHES_SCHEMA {
@@ -247,9 +414,34 @@ impl MatchesArtifact {
         for (view, fixtures) in &self.views {
             for (fixture, cases) in fixtures {
                 for (matrix, sets) in cases {
+                    if sets.t4 && view != DiagnosticBand::All.name() {
+                        return Err(format!(
+                            "accepted-match artifact incoherent: T4 case identity may appear \
+                             only in the All view, found {view} {fixture} [{matrix}]"
+                        )
+                        .into());
+                    }
                     if !sets.multiplicity_complete.is_subset(&sets.matched) {
                         return Err(format!(
                             "accepted-match artifact incoherent: {view} {fixture} [{matrix}] has a multiplicity-complete bucket outside the matched set"
+                        )
+                        .into());
+                    }
+                    if !sets.t1.is_subset(&sets.multiplicity_complete) {
+                        return Err(format!(
+                            "accepted-match artifact incoherent: {view} {fixture} [{matrix}] has a T1 bucket outside the multiplicity-complete set"
+                        )
+                        .into());
+                    }
+                    if !sets.t2.is_subset(&sets.t1) {
+                        return Err(format!(
+                            "accepted-match artifact incoherent: {view} {fixture} [{matrix}] has a T2 bucket outside T1"
+                        )
+                        .into());
+                    }
+                    if !sets.t3.is_subset(&sets.t2) {
+                        return Err(format!(
+                            "accepted-match artifact incoherent: {view} {fixture} [{matrix}] has a T3 bucket outside T2"
                         )
                         .into());
                     }
@@ -292,6 +484,13 @@ impl MatchesArtifact {
                 let current_view = self.views.get(view).expect("fixed views verified above");
                 for (fixture, cases) in fixtures {
                     for (matrix, sets) in cases {
+                        if sets.t4 && view != DiagnosticBand::All.name() {
+                            return Err(format!(
+                                "lapsed T4 case identity may appear only in the All view, \
+                                 found {view} {fixture} [{matrix}]"
+                            )
+                            .into());
+                        }
                         let current = current_view
                             .get(fixture)
                             .and_then(|cases| cases.get(matrix));
@@ -311,6 +510,27 @@ impl MatchesArtifact {
                             return Err(format!(
                                 "lapsed identity is still accepted: multiplicity-complete ({view}): {fixture} [{matrix}] {}",
                                 t0_label(key)
+                            )
+                            .into());
+                        }
+                        for (tier, lapsed_tier, current_tier) in [
+                            ("T1", &sets.t1, &current.t1),
+                            ("T2", &sets.t2, &current.t2),
+                            ("T3", &sets.t3, &current.t3),
+                        ] {
+                            if let Some(key) = lapsed_tier.intersection(current_tier).next() {
+                                return Err(format!(
+                                    "lapsed identity is still accepted: {tier} ({view}): \
+                                     {fixture} [{matrix}] {}",
+                                    t0_label(key)
+                                )
+                                .into());
+                            }
+                        }
+                        if sets.t4 && current.t4 {
+                            return Err(format!(
+                                "lapsed identity is still accepted: T4 ({view}): \
+                                 {fixture} [{matrix}]"
                             )
                             .into());
                         }
@@ -337,41 +557,7 @@ impl OracleInputsArtifact {
             &self.previous,
             &self.transition,
         )?;
-        for tier in ["t0", "t1", "t2", "t3", "t4"] {
-            match (tier, self.comparators.get(tier)) {
-                ("t0", Some(ComparatorEntry::Active { schema })) => {
-                    if *schema != T0_COMPARATOR_SCHEMA {
-                        return Err(format!(
-                            "oracle-inputs t0 comparator schema {schema} unsupported (expected {T0_COMPARATOR_SCHEMA})"
-                        )
-                        .into());
-                    }
-                }
-                ("t0", entry) => {
-                    return Err(format!(
-                        "oracle-inputs t0 comparator must be active, found {entry:?}"
-                    )
-                    .into());
-                }
-                (_, Some(ComparatorEntry::Marker(marker))) if marker == "absent" => {}
-                // Tier activation (T1-T3 comparators, A3's T4) lands
-                // through its declared input-schema-extension, which
-                // teaches this validator the activated shape.
-                (_, entry) => {
-                    return Err(format!(
-                        "oracle-inputs inactive tier {tier} lacks its explicit \"absent\" marker (found {entry:?})"
-                    )
-                    .into());
-                }
-            }
-        }
-        if let Some(extra) = self
-            .comparators
-            .keys()
-            .find(|key| !["t0", "t1", "t2", "t3", "t4"].contains(&key.as_str()))
-        {
-            return Err(format!("oracle-inputs has an undeclared comparator entry {extra}").into());
-        }
+        let comparator_state = comparator_state(&self.comparators)?;
         if let Some(producer) = &self.producer {
             for (label, value) in [
                 ("driver_sha256", &producer.driver_sha256),
@@ -384,6 +570,53 @@ impl OracleInputsArtifact {
                         format!("oracle-inputs producer pin {label} is present but empty").into(),
                     );
                 }
+            }
+            if matches!(producer.render_driver_sha256.as_deref(), Some("")) {
+                return Err("oracle-inputs A3 render-driver pin is present but empty".into());
+            }
+        }
+        let render_pin = self
+            .producer
+            .as_ref()
+            .and_then(|producer| producer.render_driver_sha256.as_deref());
+        if t4_active(comparator_state) {
+            if !render_pin.is_some_and(valid_sha256) {
+                return Err(
+                    "oracle-inputs active T4 comparator requires the pinned A3 render driver"
+                        .into(),
+                );
+            }
+            for (fixture, fixture_pins) in &self.fixtures {
+                for (matrix, case) in &fixture_pins.cases {
+                    if !case.oracle_t4_sha256.as_deref().is_some_and(valid_sha256) {
+                        return Err(format!(
+                            "oracle-inputs active T4 comparator lacks a genuine rendered \
+                             SHA-256 for {fixture} [{matrix}]"
+                        )
+                        .into());
+                    }
+                }
+            }
+        } else {
+            if render_pin.is_some() {
+                return Err(
+                    "oracle-inputs renderer producer pin exists while T4 is inactive".into(),
+                );
+            }
+            if let Some((fixture, matrix)) =
+                self.fixtures.iter().find_map(|(fixture, fixture_pins)| {
+                    fixture_pins
+                        .cases
+                        .iter()
+                        .find(|(_, case)| case.oracle_t4_sha256.is_some())
+                        .map(|(matrix, _)| (fixture, matrix))
+                })
+            {
+                return Err(format!(
+                    "oracle-inputs T4 pin exists while its comparator is absent: \
+                     {fixture} [{matrix}]"
+                )
+                .into());
             }
         }
         let totals: BTreeSet<&str> = self.totals.keys().map(String::as_str).collect();
@@ -484,26 +717,78 @@ fn read_optional_bytes(path: &Path, what: &str) -> ConformanceResult<Option<Vec<
 /// the key are EQUAL after the view's fixed predicate — the separate
 /// ratchet that catches a 2/2 bucket regressing to 2/1 while its T0
 /// key stays matched.
+///
+/// T1-T3 are graded independently as complete multisets. Greedy
+/// matching is sufficient because each tier comparator is an
+/// equivalence relation; buckets are tiny (almost always one), so the
+/// O(n²) walk avoids inventing a second sortable serialization.
 pub(crate) fn bucket_sets<'a>(
     oracle: impl Iterator<Item = &'a GoldenDiag>,
     tsrs: impl Iterator<Item = &'a GoldenDiag>,
 ) -> CaseSets {
-    let mut oracle_counts: BTreeMap<T0Key, usize> = BTreeMap::new();
-    for diag in oracle {
-        *oracle_counts.entry(t0_key(diag)).or_default() += 1;
+    fn keyed<'a>(
+        diags: impl Iterator<Item = &'a GoldenDiag>,
+    ) -> BTreeMap<T0Key, Vec<&'a GoldenDiag>> {
+        let mut map: BTreeMap<T0Key, Vec<&'a GoldenDiag>> = BTreeMap::new();
+        for diag in diags {
+            map.entry(t0_key(diag)).or_default().push(diag);
+        }
+        map
     }
-    let mut tsrs_counts: BTreeMap<T0Key, usize> = BTreeMap::new();
-    for diag in tsrs {
-        *tsrs_counts.entry(t0_key(diag)).or_default() += 1;
+    fn multiset_eq(
+        left: &[&GoldenDiag],
+        right: &[&GoldenDiag],
+        eq: impl Fn(&GoldenDiag, &GoldenDiag) -> bool,
+    ) -> bool {
+        if left.len() != right.len() {
+            return false;
+        }
+        let mut used = vec![false; right.len()];
+        'left: for left_diag in left {
+            for (index, right_diag) in right.iter().enumerate() {
+                if !used[index] && eq(left_diag, right_diag) {
+                    used[index] = true;
+                    continue 'left;
+                }
+            }
+            return false;
+        }
+        true
     }
+    fn t1_eq(left: &GoldenDiag, right: &GoldenDiag) -> bool {
+        left.category == right.category
+    }
+    fn t2_eq(left: &GoldenDiag, right: &GoldenDiag) -> bool {
+        t1_eq(left, right)
+            && left.start == right.start
+            && left.length == right.length
+            && left.chain.text == right.chain.text
+    }
+    fn t3_eq(left: &GoldenDiag, right: &GoldenDiag) -> bool {
+        t2_eq(left, right) && left.chain == right.chain && left.related == right.related
+    }
+
+    let oracle = keyed(oracle);
+    let tsrs = keyed(tsrs);
     let mut sets = CaseSets::default();
-    for (key, oracle_count) in &oracle_counts {
-        let Some(tsrs_count) = tsrs_counts.get(key) else {
+    for (key, oracle_bucket) in &oracle {
+        let Some(tsrs_bucket) = tsrs.get(key) else {
             continue;
         };
         sets.matched.insert(key.clone());
-        if tsrs_count == oracle_count {
+        if tsrs_bucket.len() == oracle_bucket.len() {
             sets.multiplicity_complete.insert(key.clone());
+        }
+        if !multiset_eq(oracle_bucket, tsrs_bucket, t1_eq) {
+            continue;
+        }
+        sets.t1.insert(key.clone());
+        if !multiset_eq(oracle_bucket, tsrs_bucket, t2_eq) {
+            continue;
+        }
+        sets.t2.insert(key.clone());
+        if multiset_eq(oracle_bucket, tsrs_bucket, t3_eq) {
+            sets.t3.insert(key.clone());
         }
     }
     sets
@@ -551,7 +836,29 @@ fn collect_removal_sets(older: &RunSets, newer: &RunSets) -> RunSets {
                     .difference(&newer_sets.multiplicity_complete)
                     .cloned()
                     .collect();
-                if matched.is_empty() && multiplicity_complete.is_empty() {
+                let t1 = older_sets
+                    .t1
+                    .difference(&newer_sets.t1)
+                    .cloned()
+                    .collect::<BTreeSet<_>>();
+                let t2 = older_sets
+                    .t2
+                    .difference(&newer_sets.t2)
+                    .cloned()
+                    .collect::<BTreeSet<_>>();
+                let t3 = older_sets
+                    .t3
+                    .difference(&newer_sets.t3)
+                    .cloned()
+                    .collect::<BTreeSet<_>>();
+                let t4 = older_sets.t4 && !newer_sets.t4;
+                if matched.is_empty()
+                    && multiplicity_complete.is_empty()
+                    && t1.is_empty()
+                    && t2.is_empty()
+                    && t3.is_empty()
+                    && !t4
+                {
                     continue;
                 }
                 removal_view.entry(fixture.clone()).or_default().insert(
@@ -559,6 +866,10 @@ fn collect_removal_sets(older: &RunSets, newer: &RunSets) -> RunSets {
                     CaseSets {
                         matched,
                         multiplicity_complete,
+                        t1,
+                        t2,
+                        t3,
+                        t4,
                     },
                 );
             }
@@ -586,6 +897,17 @@ fn removal_labels(removals: &RunSets) -> Vec<String> {
                         t0_label(key)
                     ));
                 }
+                for (tier, identities) in [("T1", &sets.t1), ("T2", &sets.t2), ("T3", &sets.t3)] {
+                    for key in identities {
+                        labels.push(format!(
+                            "{tier} ({view}): {fixture} [{matrix}] {}",
+                            t0_label(key)
+                        ));
+                    }
+                }
+                if sets.t4 {
+                    labels.push(format!("T4 ({view}): {fixture} [{matrix}]"));
+                }
             }
         }
     }
@@ -610,9 +932,48 @@ fn merge_run_sets(acc: &mut RunSets, other: &RunSets) {
                 acc_sets
                     .multiplicity_complete
                     .extend(sets.multiplicity_complete.iter().cloned());
+                acc_sets.t1.extend(sets.t1.iter().cloned());
+                acc_sets.t2.extend(sets.t2.iter().cloned());
+                acc_sets.t3.extend(sets.t3.iter().cloned());
+                acc_sets.t4 |= sets.t4;
             }
         }
     }
+}
+
+fn t0_and_multiplicity_projection(views: &RunSets) -> RunSets {
+    let mut projected = views.clone();
+    for fixtures in projected.values_mut() {
+        for cases in fixtures.values_mut() {
+            for sets in cases.values_mut() {
+                sets.t1.clear();
+                sets.t2.clear();
+                sets.t3.clear();
+                sets.t4 = false;
+            }
+        }
+    }
+    projected
+}
+
+fn t0_through_t3_projection(views: &RunSets) -> RunSets {
+    let mut projected = views.clone();
+    for fixtures in projected.values_mut() {
+        for cases in fixtures.values_mut() {
+            for sets in cases.values_mut() {
+                sets.t4 = false;
+            }
+            cases.retain(|_, sets| {
+                !sets.matched.is_empty()
+                    || !sets.multiplicity_complete.is_empty()
+                    || !sets.t1.is_empty()
+                    || !sets.t2.is_empty()
+                    || !sets.t3.is_empty()
+            });
+        }
+        fixtures.retain(|_, cases| !cases.is_empty());
+    }
+    projected
 }
 
 fn removals_error(context: &str, removals: Vec<String>) -> ConformanceResult<()> {
@@ -639,6 +1000,7 @@ fn removals_error(context: &str, removals: Vec<String>) -> ConformanceResult<()>
 /// verification is `ratchet check`'s job).
 pub(crate) struct AcceptedState {
     pub(crate) artifact: MatchesArtifact,
+    pub(crate) t4_active: bool,
 }
 
 pub(crate) fn load_accepted_for_gating(workspace: &Path) -> ConformanceResult<AcceptedState> {
@@ -665,7 +1027,12 @@ pub(crate) fn load_accepted_for_gating(workspace: &Path) -> ConformanceResult<Ac
                 .into(),
         );
     }
-    Ok(AcceptedState { artifact })
+    let inputs: OracleInputsArtifact = decode_artifact(&inputs_bytes, "oracle-inputs artifact")?;
+    inputs.validate()?;
+    Ok(AcceptedState {
+        artifact,
+        t4_active: t4_active(comparator_state(&inputs.comparators)?),
+    })
 }
 
 /// Reject `accepted − current ≠ ∅` for both protected sets in the
@@ -766,7 +1133,7 @@ pub(crate) fn pinned_node_version(workspace: &Path) -> ConformanceResult<String>
     Ok(version)
 }
 
-fn producer_pins(workspace: &Path) -> ConformanceResult<ProducerPins> {
+fn producer_pins(workspace: &Path, include_render_driver: bool) -> ConformanceResult<ProducerPins> {
     let mut hashes = Vec::with_capacity(3);
     for (label, path) in producer_module_paths(workspace) {
         let bytes = fs::read(&path)
@@ -780,6 +1147,13 @@ fn producer_pins(workspace: &Path) -> ConformanceResult<ProducerPins> {
         program_host_sha256,
         typescript_js_sha256,
         node_version: pinned_node_version(workspace)?,
+        render_driver_sha256: if include_render_driver {
+            Some(sha256_hex(&fs::read(
+                workspace.join("crates/oracle/render-driver.mjs"),
+            )?))
+        } else {
+            None
+        },
     })
 }
 
@@ -802,6 +1176,28 @@ pub(crate) fn verify_launched_node(
             "oracle launch refused: the driver is running Node v{launched} but {NODE_VERSION_REL_PATH} \
              pins v{pinned} — install the pinned Node; changing the pin is a reviewed producer \
              transition, never a refresh side effect"
+        )
+        .into());
+    }
+    Ok(())
+}
+
+/// Launch-time enforcement for A3's separately pinned, lazy renderer
+/// producer. It is called only by explicit render report/extension/check
+/// paths and therefore never starts Node during ordinary conformance.
+pub fn verify_launched_render_node(
+    workspace: &Path,
+    pool: &tsrs2_oracle::OraclePool,
+) -> ConformanceResult<()> {
+    let pinned = pinned_node_version(workspace)?;
+    let launched = pool
+        .render_node_version()
+        .map_err(|err| format!("failed to query the launched renderer Node version: {err}"))?;
+    let launched = normalize_node_version(&launched);
+    if launched != pinned {
+        return Err(format!(
+            "oracle render launch refused: render-driver is running Node v{launched} but \
+             {NODE_VERSION_REL_PATH} pins v{pinned}"
         )
         .into());
     }
@@ -837,20 +1233,28 @@ fn vendor_pins(workspace: &Path) -> ConformanceResult<VendorPins> {
 
 fn inactive_comparators() -> BTreeMap<String, ComparatorEntry> {
     let mut comparators = BTreeMap::new();
-    comparators.insert(
-        "t0".to_owned(),
-        ComparatorEntry::Active {
-            schema: T0_COMPARATOR_SCHEMA,
-        },
-    );
+    comparators.insert("t0".to_owned(), active_comparator(T0_COMPARATOR_SCHEMA));
     for tier in ["t1", "t2", "t3", "t4"] {
-        comparators.insert(
-            tier.to_owned(),
-            ComparatorEntry::Marker("absent".to_owned()),
-        );
+        comparators.insert(tier.to_owned(), absent_comparator());
     }
     comparators
 }
+
+fn tier_1_3_comparators() -> BTreeMap<String, ComparatorEntry> {
+    let mut comparators = inactive_comparators();
+    for tier in ["t1", "t2", "t3"] {
+        comparators.insert(tier.to_owned(), active_comparator(T1_T3_COMPARATOR_SCHEMA));
+    }
+    comparators
+}
+
+fn tier_1_4_comparators() -> BTreeMap<String, ComparatorEntry> {
+    let mut comparators = tier_1_3_comparators();
+    comparators.insert("t4".to_owned(), active_comparator(T4_COMPARATOR_SCHEMA));
+    comparators
+}
+
+pub(crate) type T4OraclePins = BTreeMap<String, BTreeMap<String, String>>;
 
 /// Rebuild the oracle-input manifest content from the current tree:
 /// corpus fixture bytes, harness matrix expansion, and golden oracle
@@ -858,6 +1262,13 @@ fn inactive_comparators() -> BTreeMap<String, ComparatorEntry> {
 /// so an edited/deleted golden, a changed fixture, expansion drift, or
 /// undeclared corpus growth fails with the divergent entry named.
 pub(crate) fn build_oracle_inputs(workspace: &Path) -> ConformanceResult<OracleInputsArtifact> {
+    build_oracle_inputs_with_t4_pins(workspace, None)
+}
+
+fn build_oracle_inputs_with_t4_pins(
+    workspace: &Path,
+    planned_t4_pins: Option<&T4OraclePins>,
+) -> ConformanceResult<OracleInputsArtifact> {
     let fixtures = select_fixtures(&RefreshOptions {
         workspace: workspace.to_owned(),
         limit: None,
@@ -866,6 +1277,8 @@ pub(crate) fn build_oracle_inputs(workspace: &Path) -> ConformanceResult<OracleI
     let lib_dir = vendor_lib_dir(workspace);
     let goldens_root = workspace.join("goldens");
     let mut entries = BTreeMap::new();
+    let mut has_t4_inputs = planned_t4_pins.is_some();
+    let mut observed_golden_schema = None;
     let mut totals: BTreeMap<String, u64> = FIXED_VIEWS
         .iter()
         .map(|view| (view.name().to_owned(), 0u64))
@@ -876,13 +1289,28 @@ pub(crate) fn build_oracle_inputs(workspace: &Path) -> ConformanceResult<OracleI
         let bytes = fs::read(fixture)?;
         let golden = read_golden(&goldens_root, &key)
             .map_err(|err| format!("golden for {key} unreadable: {err}"))?;
-        if golden.schema != T0_COMPARATOR_SCHEMA {
+        if ![T0_COMPARATOR_SCHEMA, 3].contains(&golden.schema) {
             return Err(format!(
-                "golden {key} has schema {} (t0 comparator pins schema {T0_COMPARATOR_SCHEMA}); \
-                 run `cargo xtask oracle-refresh`",
+                "golden {key} has unsupported schema {} (expected schema 2 before A3 or \
+                 schema 3 after A3)",
                 golden.schema
             )
             .into());
+        }
+        let golden_has_t4 = golden.schema == 3;
+        if let Some(previous) = observed_golden_schema {
+            if planned_t4_pins.is_none() && previous != golden_has_t4 {
+                return Err(
+                    "mixed schema-2/schema-3 goldens are not a valid A3 state; the T4 \
+                     extension commits the complete universe atomically"
+                        .into(),
+                );
+            }
+        } else {
+            observed_golden_schema = Some(golden_has_t4);
+        }
+        if planned_t4_pins.is_none() {
+            has_t4_inputs = golden_has_t4;
         }
         let programs = tsrs2_harness::expand_fixture_file(fixture, &lib_dir)?;
         if programs.len() != golden.cases.len() {
@@ -919,6 +1347,28 @@ pub(crate) fn build_oracle_inputs(workspace: &Path) -> ConformanceResult<OracleI
                 CasePins {
                     oracle_sha256: sha256_hex(&serde_json::to_vec(&golden_case.oracle)?),
                     program_sha256: sha256_hex(program.to_json().as_bytes()),
+                    oracle_t4_sha256: if let Some(planned) = planned_t4_pins {
+                        Some(
+                            planned
+                                .get(&key)
+                                .and_then(|cases| cases.get(&program.matrix_key))
+                                .cloned()
+                                .ok_or_else(|| {
+                                    format!("A3 render plan lacks {key} [{}]", program.matrix_key)
+                                })?,
+                        )
+                    } else if golden_has_t4 {
+                        if !valid_sha256(&golden_case.oracle_cli_hash) {
+                            return Err(format!(
+                                "schema-3 golden {key} [{}] has invalid oracle rendered SHA-256",
+                                program.matrix_key
+                            )
+                            .into());
+                        }
+                        Some(golden_case.oracle_cli_hash.clone())
+                    } else {
+                        None
+                    },
                 },
             );
         }
@@ -937,11 +1387,22 @@ pub(crate) fn build_oracle_inputs(workspace: &Path) -> ConformanceResult<OracleI
         previous: None,
         transition: None,
         vendor: vendor_pins(workspace)?,
-        producer: Some(producer_pins(workspace)?),
-        comparators: inactive_comparators(),
+        producer: Some(producer_pins(workspace, has_t4_inputs)?),
+        comparators: if has_t4_inputs {
+            tier_1_4_comparators()
+        } else {
+            tier_1_3_comparators()
+        },
         fixtures: entries,
         totals,
     })
+}
+
+fn valid_sha256(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 /// Stored manifest vs freshly built content: any divergence names the
@@ -997,6 +1458,13 @@ fn diff_oracle_inputs(
                 )
                 .into());
             }
+            if stored_producer.render_driver_sha256 != built_producer.render_driver_sha256 {
+                return Err(
+                    "A3 render-driver pin drifted (renderer changes require a reviewed \
+                     comparator-semantic transition, never a silent edit)"
+                        .into(),
+                );
+            }
         }
         (None, _) => {
             return Err(format!(
@@ -1045,6 +1513,11 @@ fn diff_oracle_inputs(
                     "matrix expansion/options/libs drifted under the pin: {key} [{matrix}]"
                 )
                 .into());
+            }
+            if stored_case.oracle_t4_sha256 != built_case.oracle_t4_sha256 {
+                return Err(
+                    format!("oracle rendered hash edited under the pin: {key} [{matrix}]").into(),
+                );
             }
         }
         if let Some(extra) = built_entry
@@ -1100,11 +1573,24 @@ fn verify_input_growth(
     older: &OracleInputsArtifact,
     newer: &OracleInputsArtifact,
 ) -> ConformanceResult<()> {
+    verify_input_growth_with_comparators(context, older, newer, false)
+}
+
+fn verify_input_growth_with_comparators(
+    context: &str,
+    older: &OracleInputsArtifact,
+    newer: &OracleInputsArtifact,
+    allow_schema_extensions: bool,
+) -> ConformanceResult<()> {
     if older.vendor != newer.vendor {
         return Err(format!("{context} cannot change vendor pins").into());
     }
     if older.comparators != newer.comparators {
-        return Err(format!("{context} cannot change comparator entries").into());
+        if !allow_schema_extensions {
+            return Err(format!("{context} cannot change comparator entries").into());
+        }
+        verify_comparator_schema_growth(older, newer)
+            .map_err(|err| format!("{context} comparator transition is invalid: {err}"))?;
     }
     for (key, older_entry) in &older.fixtures {
         let Some(newer_entry) = newer.fixtures.get(key) else {
@@ -1120,10 +1606,29 @@ fn verify_input_growth(
                         format!("{context} removed pinned matrix case {key} [{matrix}]").into(),
                     );
                 }
-                Some(newer_case) if newer_case != older_case => {
+                Some(newer_case)
+                    if newer_case.oracle_sha256 != older_case.oracle_sha256
+                        || newer_case.program_sha256 != older_case.program_sha256
+                        || (newer_case.oracle_t4_sha256 != older_case.oracle_t4_sha256
+                            && (!allow_schema_extensions
+                                || older_case.oracle_t4_sha256.is_some())) =>
+                {
                     return Err(format!(
                         "{context} changed pinned matrix case {key} [{matrix}] \
                          (old identities and bytes must remain unchanged)"
+                    )
+                    .into());
+                }
+                Some(newer_case)
+                    if allow_schema_extensions
+                        && older_case.oracle_t4_sha256.is_none()
+                        && newer_case
+                            .oracle_t4_sha256
+                            .as_deref()
+                            .is_some_and(|hash| !valid_sha256(hash)) =>
+                {
+                    return Err(format!(
+                        "{context} added an invalid oracle T4 pin for {key} [{matrix}]"
                     )
                     .into());
                 }
@@ -1140,6 +1645,197 @@ fn verify_input_growth(
                 view.name()
             )
             .into());
+        }
+    }
+    Ok(())
+}
+
+fn verify_comparator_schema_growth(
+    older: &OracleInputsArtifact,
+    newer: &OracleInputsArtifact,
+) -> ConformanceResult<()> {
+    match (
+        comparator_state(&older.comparators)?,
+        comparator_state(&newer.comparators)?,
+    ) {
+        (left, right) if left == right => {
+            if older.comparators != newer.comparators {
+                return Err("comparator entries changed without a schema-state change".into());
+            }
+            Ok(())
+        }
+        (TierComparatorState::Inactive, TierComparatorState::T1ThroughT3) => {
+            verify_tier_1_3_comparator_change(older, newer)
+        }
+        (TierComparatorState::T1ThroughT3, TierComparatorState::T1ThroughT4) => {
+            verify_t4_comparator_change(older, newer)
+        }
+        // A trusted-base direct compare may span both committed one-time
+        // extensions even though each lineage edge remains atomic.
+        (TierComparatorState::Inactive, TierComparatorState::T1ThroughT4) => {
+            if older.comparators.get("t0") != newer.comparators.get("t0") {
+                return Err("composed comparator growth changed T0".into());
+            }
+            Ok(())
+        }
+        (left, right) => {
+            Err(format!("comparator schema state cannot move from {left:?} to {right:?}").into())
+        }
+    }
+}
+
+/// Comparator-only half of the M8 input schema transition. The strict
+/// lineage-edge wrapper below additionally freezes every
+/// non-comparator field; the trusted-base composition calls this half
+/// because independent universe growth may also exist between base
+/// and head.
+fn verify_tier_1_3_comparator_change(
+    older: &OracleInputsArtifact,
+    newer: &OracleInputsArtifact,
+) -> ConformanceResult<()> {
+    if comparator_state(&older.comparators)? != TierComparatorState::Inactive {
+        return Err(format!(
+            "{TIER_1_3_INPUT_SCHEMA_EXTENSION} requires an inactive predecessor \
+             (the extension is one-time)"
+        )
+        .into());
+    }
+    if comparator_state(&newer.comparators)? != TierComparatorState::T1ThroughT3 {
+        return Err(format!(
+            "{TIER_1_3_INPUT_SCHEMA_EXTENSION} must activate T1, T2, and T3 together"
+        )
+        .into());
+    }
+    if older.comparators.get("t0") != newer.comparators.get("t0")
+        || older.comparators.get("t4") != newer.comparators.get("t4")
+    {
+        return Err(format!(
+            "{TIER_1_3_INPUT_SCHEMA_EXTENSION} may not change the T0 or T4 comparator"
+        )
+        .into());
+    }
+    Ok(())
+}
+
+fn verify_tier_1_3_input_schema_extension(
+    older: &OracleInputsArtifact,
+    newer: &OracleInputsArtifact,
+) -> ConformanceResult<()> {
+    verify_tier_1_3_comparator_change(older, newer)?;
+    if older.vendor != newer.vendor
+        || older.producer != newer.producer
+        || older.fixtures != newer.fixtures
+        || older.totals != newer.totals
+    {
+        return Err(format!(
+            "{TIER_1_3_INPUT_SCHEMA_EXTENSION} may only activate the T1-T3 comparator \
+             entries; every vendor, producer, fixture/case, oracle, expansion, and total \
+             pin must stay unchanged"
+        )
+        .into());
+    }
+    Ok(())
+}
+
+fn verify_t4_comparator_change(
+    older: &OracleInputsArtifact,
+    newer: &OracleInputsArtifact,
+) -> ConformanceResult<()> {
+    if comparator_state(&older.comparators)? != TierComparatorState::T1ThroughT3 {
+        return Err(format!(
+            "{T4_INPUT_SCHEMA_EXTENSION} requires an active T1-T3 predecessor with T4 absent"
+        )
+        .into());
+    }
+    if comparator_state(&newer.comparators)? != TierComparatorState::T1ThroughT4 {
+        return Err(
+            format!("{T4_INPUT_SCHEMA_EXTENSION} must activate exactly the T4 comparator").into(),
+        );
+    }
+    for tier in ["t0", "t1", "t2", "t3"] {
+        if older.comparators.get(tier) != newer.comparators.get(tier) {
+            return Err(format!(
+                "{T4_INPUT_SCHEMA_EXTENSION} may not change the {tier} comparator"
+            )
+            .into());
+        }
+    }
+    Ok(())
+}
+
+fn verify_t4_input_schema_extension(
+    older: &OracleInputsArtifact,
+    newer: &OracleInputsArtifact,
+) -> ConformanceResult<()> {
+    verify_t4_comparator_change(older, newer)?;
+    if older.vendor != newer.vendor || older.totals != newer.totals {
+        return Err(
+            format!("{T4_INPUT_SCHEMA_EXTENSION} may not change vendor pins or T0 totals").into(),
+        );
+    }
+    let (Some(older_producer), Some(newer_producer)) = (&older.producer, &newer.producer) else {
+        return Err(
+            format!("{T4_INPUT_SCHEMA_EXTENSION} requires the existing producer pins").into(),
+        );
+    };
+    if older_producer.render_driver_sha256.is_some()
+        || !newer_producer
+            .render_driver_sha256
+            .as_deref()
+            .is_some_and(valid_sha256)
+    {
+        return Err(format!(
+            "{T4_INPUT_SCHEMA_EXTENSION} must add one genuine render-driver SHA-256"
+        )
+        .into());
+    }
+    let mut older_without_render = older_producer.clone();
+    let mut newer_without_render = newer_producer.clone();
+    older_without_render.render_driver_sha256 = None;
+    newer_without_render.render_driver_sha256 = None;
+    if older_without_render != newer_without_render {
+        return Err(format!(
+            "{T4_INPUT_SCHEMA_EXTENSION} may not change any pre-existing producer pin"
+        )
+        .into());
+    }
+    if older.fixtures.keys().collect::<Vec<_>>() != newer.fixtures.keys().collect::<Vec<_>>() {
+        return Err(format!("{T4_INPUT_SCHEMA_EXTENSION} may not add or remove fixtures").into());
+    }
+    for (fixture, older_fixture) in &older.fixtures {
+        let newer_fixture = &newer.fixtures[fixture];
+        if older_fixture.fixture_sha256 != newer_fixture.fixture_sha256
+            || older_fixture.cases.keys().collect::<Vec<_>>()
+                != newer_fixture.cases.keys().collect::<Vec<_>>()
+        {
+            return Err(format!(
+                "{T4_INPUT_SCHEMA_EXTENSION} changed fixture/case identity {fixture}"
+            )
+            .into());
+        }
+        for (matrix, older_case) in &older_fixture.cases {
+            let newer_case = &newer_fixture.cases[matrix];
+            if older_case.oracle_sha256 != newer_case.oracle_sha256
+                || older_case.program_sha256 != newer_case.program_sha256
+            {
+                return Err(format!(
+                    "{T4_INPUT_SCHEMA_EXTENSION} changed existing oracle/program bytes for \
+                     {fixture} [{matrix}]"
+                )
+                .into());
+            }
+            if older_case.oracle_t4_sha256.is_some()
+                || !newer_case
+                    .oracle_t4_sha256
+                    .as_deref()
+                    .is_some_and(valid_sha256)
+            {
+                return Err(format!(
+                    "{T4_INPUT_SCHEMA_EXTENSION} must add exactly one genuine oracle T4 \
+                     SHA-256 for {fixture} [{matrix}]"
+                )
+                .into());
+            }
         }
     }
     Ok(())
@@ -1201,6 +1897,21 @@ fn verify_producer_correction(
     if newer.producer.is_none() {
         return Err(format!(
             "{ORACLE_CORRECTION} requires producer pins on the corrected manifest"
+        )
+        .into());
+    }
+    if older
+        .producer
+        .as_ref()
+        .and_then(|producer| producer.render_driver_sha256.as_ref())
+        != newer
+            .producer
+            .as_ref()
+            .and_then(|producer| producer.render_driver_sha256.as_ref())
+    {
+        return Err(format!(
+            "{ORACLE_CORRECTION} cannot change the A3 render-driver pin; renderer semantics \
+             require a separate reviewed comparator transition"
         )
         .into());
     }
@@ -1280,21 +1991,63 @@ fn verify_baseline_inputs(
     corrected: bool,
 ) -> ConformanceResult<()> {
     if !corrected {
-        if older.producer.is_some() && older.producer != newer.producer {
-            return Err("baseline compare: producer pins changed against the trusted base".into());
+        if let Some(older_producer) = &older.producer {
+            let Some(newer_producer) = &newer.producer else {
+                return Err("baseline compare: producer pins were removed".into());
+            };
+            let mut older_base = older_producer.clone();
+            let mut newer_base = newer_producer.clone();
+            let older_render = older_base.render_driver_sha256.take();
+            let newer_render = newer_base.render_driver_sha256.take();
+            if older_base != newer_base {
+                return Err(
+                    "baseline compare: pre-A3 producer pins changed against the trusted base"
+                        .into(),
+                );
+            }
+            if older_render.is_some() && older_render != newer_render {
+                return Err(
+                    "baseline compare: A3 render-driver pin changed against the trusted base"
+                        .into(),
+                );
+            }
+            if older_render.is_none()
+                && newer_render
+                    .as_deref()
+                    .is_some_and(|hash| !valid_sha256(hash))
+            {
+                return Err("baseline compare: invalid A3 render-driver pin".into());
+            }
         }
-        return verify_input_growth("baseline compare", older, newer);
+        return verify_input_growth_with_comparators("baseline compare", older, newer, true);
     }
     if older.vendor != newer.vendor {
         return Err("baseline compare cannot change vendor pins".into());
     }
     if older.comparators != newer.comparators {
-        return Err("baseline compare cannot change comparator entries".into());
+        verify_comparator_schema_growth(older, newer)
+            .map_err(|err| format!("baseline compare comparator transition is invalid: {err}"))?;
     }
     if newer.producer.is_none() {
         return Err(
             "baseline compare: head manifest lacks producer pins across a correction".into(),
         );
+    }
+    let older_render = older
+        .producer
+        .as_ref()
+        .and_then(|producer| producer.render_driver_sha256.as_ref());
+    let newer_render = newer
+        .producer
+        .as_ref()
+        .and_then(|producer| producer.render_driver_sha256.as_ref());
+    if older_render.is_some() && older_render != newer_render {
+        return Err(
+            "baseline compare changed the A3 render-driver pin across an oracle correction".into(),
+        );
+    }
+    if older_render.is_none() && newer_render.is_some_and(|hash| !valid_sha256(hash)) {
+        return Err("baseline compare added an invalid A3 render-driver pin".into());
     }
     for (key, older_entry) in &older.fixtures {
         let Some(newer_entry) = newer.fixtures.get(key) else {
@@ -1392,10 +2145,180 @@ pub(crate) fn git_rel_path(
     Ok(rel_to_root.to_string_lossy().replace('\\', "/"))
 }
 
-fn git_commit_parents(git_root: &Path, commit: &str) -> ConformanceResult<Vec<String>> {
-    let out = git(git_root, &["rev-list", "--parents", "-n", "1", commit])?;
-    let line = String::from_utf8(out)?;
-    Ok(line.split_whitespace().skip(1).map(str::to_owned).collect())
+/// Per-command history cache. A memo is bound to one repository root,
+/// pins HEAD once, and lives for exactly one ratchet operation. Lineage,
+/// pair, and trusted-base validation therefore share one history view
+/// while repeated queries avoid spawning Git again.
+struct GitMemo {
+    git_root: PathBuf,
+    head_commit: String,
+    blob_ids: BTreeMap<(String, String), Option<String>>,
+    blob_objects: BTreeMap<String, Vec<u8>>,
+    parents: BTreeMap<String, Vec<String>>,
+    version_commits: BTreeMap<String, Vec<String>>,
+    #[cfg(test)]
+    git_invocations: usize,
+}
+
+impl GitMemo {
+    fn new(git_root: &Path) -> ConformanceResult<Self> {
+        let head_commit = resolve_commit(git_root, "HEAD")?;
+        Ok(Self {
+            git_root: git_root.to_owned(),
+            head_commit,
+            blob_ids: BTreeMap::new(),
+            blob_objects: BTreeMap::new(),
+            parents: BTreeMap::new(),
+            version_commits: BTreeMap::new(),
+            #[cfg(test)]
+            git_invocations: 0,
+        })
+    }
+
+    fn run_git(&mut self, args: &[&str]) -> ConformanceResult<Vec<u8>> {
+        #[cfg(test)]
+        {
+            self.git_invocations += 1;
+        }
+        git(&self.git_root, args)
+    }
+
+    fn blob_optional(&mut self, commit: &str, rel: &str) -> ConformanceResult<Option<Vec<u8>>> {
+        let commit = if commit == "HEAD" {
+            self.head_commit.clone()
+        } else {
+            commit.to_owned()
+        };
+        let key = (commit.clone(), rel.to_owned());
+        if let Some(object_id) = self.blob_ids.get(&key) {
+            return match object_id {
+                None => Ok(None),
+                Some(object_id) => self
+                    .blob_objects
+                    .get(object_id)
+                    .cloned()
+                    .map(Some)
+                    .ok_or_else(|| {
+                        format!("internal Git memo lost blob object {object_id}").into()
+                    }),
+            };
+        }
+        let tree = self.run_git(&["ls-tree", "-z", &commit, "--", rel])?;
+        if tree.is_empty() {
+            self.blob_ids.insert(key, None);
+            return Ok(None);
+        }
+        let Some(tab) = tree.iter().position(|byte| *byte == b'\t') else {
+            return Err(
+                format!("git ls-tree returned malformed metadata for {commit}:{rel}").into(),
+            );
+        };
+        let header = String::from_utf8(tree[..tab].to_vec())?;
+        let object_id = header
+            .split_whitespace()
+            .nth(2)
+            .ok_or_else(|| format!("git ls-tree omitted the object id for {commit}:{rel}"))?
+            .to_owned();
+        let bytes = if let Some(bytes) = self.blob_objects.get(&object_id) {
+            bytes.clone()
+        } else {
+            let spec = format!("{commit}:{rel}");
+            let bytes = self.run_git(&["show", &spec])?;
+            self.blob_objects.insert(object_id.clone(), bytes.clone());
+            bytes
+        };
+        self.blob_ids.insert(key, Some(object_id));
+        Ok(Some(bytes))
+    }
+
+    fn commit_parents(&mut self, commit: &str) -> ConformanceResult<Vec<String>> {
+        if let Some(parents) = self.parents.get(commit) {
+            return Ok(parents.clone());
+        }
+        let out = self.run_git(&["rev-list", "--parents", "-n", "1", commit])?;
+        let line = String::from_utf8(out)?;
+        let parents = line
+            .split_whitespace()
+            .skip(1)
+            .map(str::to_owned)
+            .collect::<Vec<_>>();
+        self.parents.insert(commit.to_owned(), parents.clone());
+        Ok(parents)
+    }
+
+    fn committed_versions(&mut self, rel: &str) -> ConformanceResult<Vec<(String, Vec<u8>)>> {
+        if let Some(commits) = self.version_commits.get(rel).cloned() {
+            return commits
+                .into_iter()
+                .map(|commit| -> ConformanceResult<_> {
+                    let bytes = self
+                        .blob_ids
+                        .get(&(commit.clone(), rel.to_owned()))
+                        .and_then(|object_id| object_id.as_ref())
+                        .and_then(|object_id| self.blob_objects.get(object_id))
+                        .cloned()
+                        .ok_or_else(|| {
+                            format!(
+                                "internal Git memo lost artifact {rel} bytes at commit {commit}"
+                            )
+                        })?;
+                    Ok((commit, bytes))
+                })
+                .collect();
+        }
+        let head_commit = self.head_commit.clone();
+        let out = self.run_git(&[
+            "rev-list",
+            "--full-history",
+            "--topo-order",
+            &head_commit,
+            "--",
+            rel,
+        ])?;
+        let mut versions = Vec::new();
+        let mut version_commits = Vec::new();
+        for commit in String::from_utf8(out)?.lines() {
+            let commit = commit.trim();
+            if commit.is_empty() {
+                continue;
+            }
+            let bytes = self.blob_optional(commit, rel)?;
+            let parents = self.commit_parents(commit)?;
+            let mut carried_from_parent = false;
+            for parent in &parents {
+                if self.blob_optional(parent, rel)? == bytes {
+                    carried_from_parent = true;
+                    break;
+                }
+            }
+            if carried_from_parent {
+                continue;
+            }
+            let Some(bytes) = bytes else {
+                return Err(format!(
+                    "artifact {rel} was deleted at commit {commit} \
+                     (artifact versions are append-only)"
+                )
+                .into());
+            };
+            version_commits.push(commit.to_owned());
+            versions.push((commit.to_owned(), bytes));
+        }
+        self.version_commits.insert(rel.to_owned(), version_commits);
+        Ok(versions)
+    }
+
+    fn verify_head_unchanged(&self) -> ConformanceResult<()> {
+        let current = resolve_commit(&self.git_root, "HEAD")?;
+        if current != self.head_commit {
+            return Err(format!(
+                "ratchet history changed while it was being verified: HEAD moved from {} to {}",
+                self.head_commit, current
+            )
+            .into());
+        }
+        Ok(())
+    }
 }
 
 /// Every committed version of the path reachable from HEAD, newest
@@ -1407,43 +2330,9 @@ fn git_commit_parents(git_root: &Path, commit: &str) -> ConformanceResult<Vec<St
 /// out after the full walk; the versions on every parent remain in the
 /// graph and are still validated.
 fn committed_versions(git_root: &Path, rel: &str) -> ConformanceResult<Vec<(String, Vec<u8>)>> {
-    let out = git(
-        git_root,
-        &[
-            "rev-list",
-            "--full-history",
-            "--topo-order",
-            "HEAD",
-            "--",
-            rel,
-        ],
-    )?;
-    let mut versions = Vec::new();
-    for commit in String::from_utf8(out)?.lines() {
-        let commit = commit.trim();
-        if commit.is_empty() {
-            continue;
-        }
-        let bytes = git_blob_optional(git_root, commit, rel)?;
-        let parents = git_commit_parents(git_root, commit)?;
-        let mut carried_from_parent = false;
-        for parent in &parents {
-            if git_blob_optional(git_root, parent, rel)? == bytes {
-                carried_from_parent = true;
-                break;
-            }
-        }
-        if carried_from_parent {
-            continue;
-        }
-        let Some(bytes) = bytes else {
-            return Err(format!(
-                "artifact {rel} was deleted at commit {commit} (artifact versions are append-only)"
-            )
-            .into());
-        };
-        versions.push((commit.to_owned(), bytes));
-    }
+    let mut memo = GitMemo::new(git_root)?;
+    let versions = memo.committed_versions(rel)?;
+    memo.verify_head_unchanged()?;
     Ok(versions)
 }
 
@@ -1537,6 +2426,62 @@ impl LineageArtifact for MatchesArtifact {
             // change itself; the accepted sets stay monotone either
             // way.
             Some(UNIVERSE_TRANSITION) | Some(PRODUCER_PIN_EXTENSION) => {}
+            Some(TIER_1_3_INPUT_SCHEMA_EXTENSION) => {
+                if newer.inputs.oracle_inputs_sha256 == older.inputs.oracle_inputs_sha256 {
+                    return Err(format!(
+                        "{}: {TIER_1_3_INPUT_SCHEMA_EXTENSION:?} must ride the activated \
+                         oracle-inputs manifest (input pins are unchanged)",
+                        Self::WHAT
+                    )
+                    .into());
+                }
+                if case_sets_have_t1_t3_membership(&older.views) {
+                    return Err(format!(
+                        "{}: {TIER_1_3_INPUT_SCHEMA_EXTENSION:?} predecessor already contains \
+                         active tier identities (the extension is one-time)",
+                        Self::WHAT
+                    )
+                    .into());
+                }
+                if t0_and_multiplicity_projection(&newer.views)
+                    != t0_and_multiplicity_projection(&older.views)
+                {
+                    return Err(format!(
+                        "{}: {TIER_1_3_INPUT_SCHEMA_EXTENSION:?} may add only T1-T3 \
+                         identities; pre-existing T0 and multiplicity-complete sets must stay \
+                         unchanged",
+                        Self::WHAT
+                    )
+                    .into());
+                }
+            }
+            Some(T4_INPUT_SCHEMA_EXTENSION) => {
+                if newer.inputs.oracle_inputs_sha256 == older.inputs.oracle_inputs_sha256 {
+                    return Err(format!(
+                        "{}: {T4_INPUT_SCHEMA_EXTENSION:?} must ride the activated \
+                         oracle-inputs manifest",
+                        Self::WHAT
+                    )
+                    .into());
+                }
+                if case_sets_have_t4_membership(&older.views) {
+                    return Err(format!(
+                        "{}: {T4_INPUT_SCHEMA_EXTENSION:?} predecessor already contains T4 \
+                         case identities (the extension is one-time)",
+                        Self::WHAT
+                    )
+                    .into());
+                }
+                if t0_through_t3_projection(&newer.views) != t0_through_t3_projection(&older.views)
+                {
+                    return Err(format!(
+                        "{}: {T4_INPUT_SCHEMA_EXTENSION:?} may add only T4 case identities; \
+                         every pre-existing T0-T3 and multiplicity set must stay unchanged",
+                        Self::WHAT
+                    )
+                    .into());
+                }
+            }
             // The one sanctioned exception to append-only growth:
             // removals are allowed but must equal the version's
             // lapsed enumeration identity-for-identity, and the
@@ -1578,8 +2523,9 @@ impl LineageArtifact for MatchesArtifact {
             Some(other) => {
                 return Err(format!(
                     "{}: unknown transition {other:?} (A1 knows {UNIVERSE_TRANSITION:?}, \
-                     {PRODUCER_PIN_EXTENSION:?}, and {ORACLE_CORRECTION:?}; the A2/A3 \
-                     input-schema-extensions land with their own slices)",
+                     {PRODUCER_PIN_EXTENSION:?}, {ORACLE_CORRECTION:?}, and \
+                     {TIER_1_3_INPUT_SCHEMA_EXTENSION:?}, and \
+                     {T4_INPUT_SCHEMA_EXTENSION:?})",
                     Self::WHAT
                 )
                 .into());
@@ -1625,9 +2571,15 @@ impl LineageArtifact for OracleInputsArtifact {
             Some(UNIVERSE_TRANSITION) => verify_universe_growth(older, newer),
             Some(PRODUCER_PIN_EXTENSION) => verify_producer_pin_extension(older, newer),
             Some(ORACLE_CORRECTION) => verify_producer_correction(older, newer),
+            Some(TIER_1_3_INPUT_SCHEMA_EXTENSION) => {
+                verify_tier_1_3_input_schema_extension(older, newer)
+            }
+            Some(T4_INPUT_SCHEMA_EXTENSION) => verify_t4_input_schema_extension(older, newer),
             Some(other) => Err(format!(
                 "{}: unknown transition {other:?} (A1 knows {UNIVERSE_TRANSITION:?}, \
-                 {PRODUCER_PIN_EXTENSION:?}, and {ORACLE_CORRECTION:?})",
+                 {PRODUCER_PIN_EXTENSION:?}, {ORACLE_CORRECTION:?}, and \
+                 {TIER_1_3_INPUT_SCHEMA_EXTENSION:?}, and \
+                 {T4_INPUT_SCHEMA_EXTENSION:?})",
                 Self::WHAT
             )
             .into()),
@@ -1694,7 +2646,18 @@ fn verify_lineage<T: LineageArtifact>(
     rel: &str,
     working_bytes: &[u8],
 ) -> ConformanceResult<usize> {
-    let committed = committed_versions(git_root, rel)?;
+    let mut memo = GitMemo::new(git_root)?;
+    let versions = verify_lineage_with_memo::<T>(&mut memo, rel, working_bytes)?;
+    memo.verify_head_unchanged()?;
+    Ok(versions)
+}
+
+fn verify_lineage_with_memo<T: LineageArtifact>(
+    memo: &mut GitMemo,
+    rel: &str,
+    working_bytes: &[u8],
+) -> ConformanceResult<usize> {
+    let committed = memo.committed_versions(rel)?;
     let versions = committed
         .iter()
         .map(|(label, bytes)| {
@@ -1702,7 +2665,7 @@ fn verify_lineage<T: LineageArtifact>(
                 .map_err(|err| format!("{} version at {label}: {err}", T::WHAT).into())
         })
         .collect::<ConformanceResult<Vec<_>>>()?;
-    let ancestry = version_ancestry(git_root, &committed)?;
+    let ancestry = version_ancestry(&memo.git_root, &committed)?;
     let roots = (0..committed.len())
         .filter(|index| immediate_predecessors(*index, &ancestry).is_empty())
         .collect::<Vec<_>>();
@@ -1766,7 +2729,7 @@ fn verify_lineage<T: LineageArtifact>(
         .into());
     }
 
-    let head_bytes = git_blob_optional(git_root, "HEAD", rel)?;
+    let head_bytes = memo.blob_optional("HEAD", rel)?;
     let working_is_version = head_bytes.as_deref() != Some(working_bytes);
     if working_is_version {
         let working = T::decode_validated(working_bytes)
@@ -1839,6 +2802,37 @@ fn verify_pair_values(
         )
         .into());
     }
+    let state = comparator_state(&inputs.comparators)?;
+    if !t1_t3_active(state) && case_sets_have_t1_t3_membership(&matches.views) {
+        return Err(format!(
+            "artifact pair at {label} is incoherent: accepted T1-T3 identities exist while \
+             their oracle-input comparators are explicitly absent"
+        )
+        .into());
+    }
+    if !t4_active(state) && case_sets_have_t4_membership(&matches.views) {
+        return Err(format!(
+            "artifact pair at {label} is incoherent: accepted T4 case identities exist while \
+             their oracle-input comparator is explicitly absent"
+        )
+        .into());
+    }
+    Ok(())
+}
+
+fn verify_pair_transition(
+    label: &str,
+    matches: &MatchesArtifact,
+    inputs: &OracleInputsArtifact,
+) -> ConformanceResult<()> {
+    if matches.transition != inputs.transition {
+        return Err(format!(
+            "artifact pair at {label} is incoherent: the oracle-input version records \
+             transition {:?} but its same-commit accepted-match version records {:?}",
+            inputs.transition, matches.transition
+        )
+        .into());
+    }
     Ok(())
 }
 
@@ -1851,25 +2845,38 @@ fn verify_committed_artifact_pairs(
     matches_rel: &str,
     inputs_rel: &str,
 ) -> ConformanceResult<()> {
+    let mut memo = GitMemo::new(git_root)?;
+    verify_committed_artifact_pairs_with_memo(&mut memo, matches_rel, inputs_rel)?;
+    memo.verify_head_unchanged()
+}
+
+fn verify_committed_artifact_pairs_with_memo(
+    memo: &mut GitMemo,
+    matches_rel: &str,
+    inputs_rel: &str,
+) -> ConformanceResult<()> {
+    let input_version_commits = memo
+        .committed_versions(inputs_rel)?
+        .into_iter()
+        .map(|(commit, _)| commit)
+        .collect::<BTreeSet<_>>();
     // Walk the combined path history, rather than only the union of
     // each path's material versions. That also exposes a merge which
     // carries matches from one parent and inputs from another.
-    let out = git(
-        git_root,
-        &[
-            "rev-list",
-            "--full-history",
-            "--topo-order",
-            "HEAD",
-            "--",
-            matches_rel,
-            inputs_rel,
-        ],
-    )?;
+    let head_commit = memo.head_commit.clone();
+    let out = memo.run_git(&[
+        "rev-list",
+        "--full-history",
+        "--topo-order",
+        &head_commit,
+        "--",
+        matches_rel,
+        inputs_rel,
+    ])?;
     for commit in String::from_utf8(out)?.lines() {
         let commit = commit.trim();
-        let matches_bytes = git_blob_optional(git_root, commit, matches_rel)?;
-        let inputs_bytes = git_blob_optional(git_root, commit, inputs_rel)?;
+        let matches_bytes = memo.blob_optional(commit, matches_rel)?;
+        let inputs_bytes = memo.blob_optional(commit, inputs_rel)?;
         let (Some(matches_bytes), Some(inputs_bytes)) = (matches_bytes, inputs_bytes) else {
             return Err(format!(
                 "incomplete ratchet artifact pair at historical version commit {commit}"
@@ -1881,6 +2888,9 @@ fn verify_committed_artifact_pairs(
         let inputs = OracleInputsArtifact::decode_validated(&inputs_bytes)
             .map_err(|err| format!("oracle-inputs artifact at {commit}: {err}"))?;
         verify_pair_values(commit, &matches, &inputs, &inputs_bytes)?;
+        if input_version_commits.contains(commit) {
+            verify_pair_transition(commit, &matches, &inputs)?;
+        }
     }
     Ok(())
 }
@@ -1889,6 +2899,7 @@ fn verify_committed_artifact_pairs(
 /// the resolved base artifact's protected content, so a rewritten
 /// branch cannot manufacture a smaller self-consistent chain. The
 /// only missing-base exception is the initial bootstrap PR.
+#[cfg(test)]
 fn verify_baseline(
     git_root: &Path,
     baseline: &str,
@@ -1897,11 +2908,36 @@ fn verify_baseline(
     head_matches: &MatchesArtifact,
     head_inputs: &OracleInputsArtifact,
 ) -> ConformanceResult<bool> {
-    let commit =
-        resolve_commit(git_root, baseline).map_err(|err| format!("baseline compare: {err}"))?;
+    let mut memo = GitMemo::new(git_root)?;
+    let bootstrap = verify_baseline_with_memo(
+        &mut memo,
+        baseline,
+        matches_rel,
+        inputs_rel,
+        head_matches,
+        head_inputs,
+    )?;
+    memo.verify_head_unchanged()?;
+    Ok(bootstrap)
+}
 
-    let base_matches = git_blob_optional(git_root, &commit, matches_rel)?;
-    let base_inputs = git_blob_optional(git_root, &commit, inputs_rel)?;
+fn verify_baseline_with_memo(
+    memo: &mut GitMemo,
+    baseline: &str,
+    matches_rel: &str,
+    inputs_rel: &str,
+    head_matches: &MatchesArtifact,
+    head_inputs: &OracleInputsArtifact,
+) -> ConformanceResult<bool> {
+    let commit = if baseline == "HEAD" {
+        memo.head_commit.clone()
+    } else {
+        resolve_commit(&memo.git_root, baseline)
+            .map_err(|err| format!("baseline compare: {err}"))?
+    };
+
+    let base_matches = memo.blob_optional(&commit, matches_rel)?;
+    let base_inputs = memo.blob_optional(&commit, inputs_rel)?;
     let (base_matches, base_inputs) = match (base_matches, base_inputs) {
         (None, None) => {
             // Initial bootstrap PR: the base has no artifact and the
@@ -1931,7 +2967,8 @@ fn verify_baseline(
     };
 
     let base_matches = MatchesArtifact::decode_validated(&base_matches)?;
-    let sanctioned = correction_lapses_after_base(git_root, matches_rel, &commit, head_matches)?;
+    let sanctioned =
+        correction_lapses_after_base_with_memo(memo, matches_rel, &commit, head_matches)?;
     let removals = collect_removal_sets(&base_matches.views, &head_matches.views);
     match &sanctioned {
         None => removals_error(
@@ -1959,8 +2996,8 @@ fn verify_baseline(
 /// (which may be uncommitted during the epoch slice). `None` when no
 /// such correction exists — the strict growth compare then applies
 /// unchanged, so corrections never relax an ordinary PR.
-fn correction_lapses_after_base(
-    git_root: &Path,
+fn correction_lapses_after_base_with_memo(
+    memo: &mut GitMemo,
     matches_rel: &str,
     base_commit: &str,
     head_matches: &MatchesArtifact,
@@ -1974,11 +3011,11 @@ fn correction_lapses_after_base(
         }
     }
     let base_ancestors: BTreeSet<String> =
-        String::from_utf8(git(git_root, &["rev-list", base_commit])?)?
+        String::from_utf8(git(&memo.git_root, &["rev-list", base_commit])?)?
             .lines()
             .map(|line| line.trim().to_owned())
             .collect();
-    for (commit, bytes) in committed_versions(git_root, matches_rel)? {
+    for (commit, bytes) in memo.committed_versions(matches_rel)? {
         if base_ancestors.contains(&commit) {
             continue;
         }
@@ -2041,6 +3078,39 @@ fn view_counts(views: &RunSets) -> BTreeMap<String, (u64, u64)> {
     counts
 }
 
+fn all_view_tier_counts(views: &RunSets) -> [u64; 3] {
+    let mut counts = [0u64; 3];
+    let Some(all) = views.get(DiagnosticBand::All.name()) else {
+        return counts;
+    };
+    for cases in all.values() {
+        for sets in cases.values() {
+            counts[0] += sets.t1.len() as u64;
+            counts[1] += sets.t2.len() as u64;
+            counts[2] += sets.t3.len() as u64;
+        }
+    }
+    counts
+}
+
+fn all_view_t4_count(views: &RunSets) -> u64 {
+    views
+        .get(DiagnosticBand::All.name())
+        .into_iter()
+        .flat_map(|fixtures| fixtures.values())
+        .flat_map(|cases| cases.values())
+        .filter(|sets| sets.t4)
+        .count() as u64
+}
+
+fn total_case_count(inputs: &OracleInputsArtifact) -> u64 {
+    inputs
+        .fixtures
+        .values()
+        .map(|fixture| fixture.cases.len() as u64)
+        .sum()
+}
+
 fn canonical_summary_rate(matched: u64, total: u64) -> f64 {
     let rate = if total == 0 {
         1.0
@@ -2056,6 +3126,8 @@ fn verify_ratchet_summaries(
     path: &Path,
     counts: &BTreeMap<String, (u64, u64)>,
     totals: &BTreeMap<String, u64>,
+    tier_counts: Option<[u64; 3]>,
+    t4_counts: Option<(u64, u64)>,
 ) -> ConformanceResult<()> {
     for view in FIXED_VIEWS {
         let (matched, _) = counts.get(view.name()).copied().unwrap_or((0, 0));
@@ -2077,7 +3149,146 @@ fn verify_ratchet_summaries(
             .into());
         }
     }
+    if let Some(tier_counts) = tier_counts {
+        let total = totals.get(DiagnosticBand::All.name()).copied().unwrap_or(0);
+        for (section_name, matched) in ["t1", "t2", "t3"].into_iter().zip(tier_counts) {
+            let section = read_ratchet_section(path, section_name)?;
+            let expected_rate = canonical_summary_rate(matched, total);
+            if section.matched != Some(matched)
+                || section.total != Some(total)
+                || section.rate != expected_rate
+            {
+                return Err(format!(
+                    "ratchet.toml [{section_name}] rate/matched/total \
+                     ({:.6}/{:?}/{:?}) diverges from the accepted artifact \
+                     ({expected_rate:.6}/{matched}/{total}) — run \
+                     `cargo xtask ratchet update`",
+                    section.rate, section.matched, section.total
+                )
+                .into());
+            }
+        }
+    }
+    if let Some((matched, total)) = t4_counts {
+        let section = read_ratchet_section(path, "t4")?;
+        let expected_rate = canonical_summary_rate(matched, total);
+        if section.matched != Some(matched)
+            || section.total != Some(total)
+            || section.rate != expected_rate
+        {
+            return Err(format!(
+                "ratchet.toml [t4] rate/matched/total ({:.6}/{:?}/{:?}) diverges from the \
+                 accepted case identities ({expected_rate:.6}/{matched}/{total}) — run \
+                 `cargo xtask ratchet update`",
+                section.rate, section.matched, section.total
+            )
+            .into());
+        }
+    }
     Ok(())
+}
+
+/// Exact, cheap activation proof consumed by the M8 completion row.
+///
+/// This deliberately does not rebuild the corpus or walk lineage:
+/// `ratchet check` owns those heavier gates. It does decode and
+/// validate both current artifacts, verifies their pair pins, requires
+/// the atomic T1-T3 comparator state, and proves the three
+/// `ratchet.toml` summaries are derived exactly from the accepted
+/// bucket sets. Thus hand-writing nonzero TOML counts cannot make the
+/// completion consumer report the tier schema active.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Tier1Through3Activation {
+    pub t1_matched: u64,
+    pub t2_matched: u64,
+    pub t3_matched: u64,
+    pub total: u64,
+}
+
+pub fn verify_tier_1_through_3_activation(
+    workspace: &Path,
+) -> ConformanceResult<Tier1Through3Activation> {
+    let (matches, _matches_bytes): (MatchesArtifact, _) =
+        read_artifact(&workspace.join(MATCHES_REL_PATH), "accepted-match artifact")?;
+    matches.validate()?;
+    let (inputs, inputs_bytes): (OracleInputsArtifact, _) = read_artifact(
+        &workspace.join(ORACLE_INPUTS_REL_PATH),
+        "oracle-inputs artifact",
+    )?;
+    inputs.validate()?;
+    verify_pair_values("<working tree>", &matches, &inputs, &inputs_bytes)?;
+    if !t1_t3_active(comparator_state(&inputs.comparators)?) {
+        return Err(format!(
+            "A1 T1-T3 accepted sets are inactive: oracle-input comparators remain explicit \
+             \"absent\" markers; run the reviewed \
+             `ratchet update --transition {TIER_1_3_INPUT_SCHEMA_EXTENSION}` only after \
+             supported T0-T3 closure"
+        )
+        .into());
+    }
+
+    let view_counts = view_counts(&matches.views);
+    let tier_counts = all_view_tier_counts(&matches.views);
+    verify_ratchet_summaries(
+        &workspace.join("ratchet.toml"),
+        &view_counts,
+        &inputs.totals,
+        Some(tier_counts),
+        t4_active(comparator_state(&inputs.comparators)?)
+            .then(|| (all_view_t4_count(&matches.views), total_case_count(&inputs))),
+    )?;
+    Ok(Tier1Through3Activation {
+        t1_matched: tier_counts[0],
+        t2_matched: tier_counts[1],
+        t3_matched: tier_counts[2],
+        total: inputs
+            .totals
+            .get(DiagnosticBand::All.name())
+            .copied()
+            .unwrap_or(0),
+    })
+}
+
+/// Fresh, Node-free A3 activation proof consumed after completion's
+/// ordinary full conformance run. That run has already enforced
+/// accepted T4 case losses; this consumer rebuilds the current
+/// schema-3 oracle-input manifest and proves the comparator, pair,
+/// renderer, and every per-case oracle pin before checking that the
+/// `[t4]` summary is exactly derived from the accepted artifact.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct T4Activation {
+    pub matched_cases: u64,
+    pub total_cases: u64,
+}
+
+pub fn verify_t4_activation(workspace: &Path) -> ConformanceResult<T4Activation> {
+    // Freshly rebuild the manifest view from the current schema-3
+    // goldens and producer files. This proves the accepted pair pin,
+    // every genuine per-case oracle hash, and the separate renderer
+    // producer pin instead of trusting a hand-written summary.
+    let (matches, _, inputs, _) = verify_current_pair(workspace)?;
+    let state = comparator_state(&inputs.comparators)?;
+    if !t4_active(state) {
+        return Err(format!(
+            "A3 T4 accepted cases are inactive: oracle-input comparator remains explicit \
+             \"absent\"; run the reviewed `ratchet update --transition \
+             {T4_INPUT_SCHEMA_EXTENSION}` only after A2 freeze"
+        )
+        .into());
+    }
+    let matched_cases = all_view_t4_count(&matches.views);
+    let total_cases = total_case_count(&inputs);
+    verify_ratchet_summaries(
+        &workspace.join("ratchet.toml"),
+        &view_counts(&matches.views),
+        &inputs.totals,
+        Some(all_view_tier_counts(&matches.views)),
+        Some((matched_cases, total_cases)),
+    )?;
+    Ok(T4Activation {
+        matched_cases,
+        total_cases,
+    })
 }
 
 /// Read the accepted-state pair and verify it against the current
@@ -2118,20 +3329,37 @@ pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
     // ratchet.toml counts are derived summaries of the artifact, never
     // an independent authority.
     let counts = view_counts(&matches.views);
-    verify_ratchet_summaries(&workspace.join("ratchet.toml"), &counts, &inputs.totals)?;
+    let comparator_state = comparator_state(&inputs.comparators)?;
+    let tier_counts = t1_t3_active(comparator_state).then(|| all_view_tier_counts(&matches.views));
+    let t4_counts = t4_active(comparator_state)
+        .then(|| (all_view_t4_count(&matches.views), total_case_count(&inputs)));
+    verify_ratchet_summaries(
+        &workspace.join("ratchet.toml"),
+        &counts,
+        &inputs.totals,
+        tier_counts,
+        t4_counts,
+    )?;
 
     let git_root = git_root_for(workspace)?;
     let matches_rel = git_rel_path(&git_root, workspace, MATCHES_REL_PATH)?;
     let inputs_rel = git_rel_path(&git_root, workspace, ORACLE_INPUTS_REL_PATH)?;
+    let mut git_memo = GitMemo::new(&git_root)?;
+    if git_memo.blob_optional("HEAD", &inputs_rel)?.as_deref() != Some(&inputs_bytes) {
+        verify_pair_transition("<working tree>", &matches, &inputs)?;
+    }
     let matches_versions =
-        verify_lineage::<MatchesArtifact>(&git_root, &matches_rel, &matches_bytes)?;
-    let inputs_versions =
-        verify_lineage::<OracleInputsArtifact>(&git_root, &inputs_rel, &inputs_bytes)?;
-    verify_committed_artifact_pairs(&git_root, &matches_rel, &inputs_rel)?;
+        verify_lineage_with_memo::<MatchesArtifact>(&mut git_memo, &matches_rel, &matches_bytes)?;
+    let inputs_versions = verify_lineage_with_memo::<OracleInputsArtifact>(
+        &mut git_memo,
+        &inputs_rel,
+        &inputs_bytes,
+    )?;
+    verify_committed_artifact_pairs_with_memo(&mut git_memo, &matches_rel, &inputs_rel)?;
 
     let bootstrap_base = if let Some(baseline) = baseline {
-        verify_baseline(
-            &git_root,
+        verify_baseline_with_memo(
+            &mut git_memo,
             baseline,
             &matches_rel,
             &inputs_rel,
@@ -2142,15 +3370,21 @@ pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
         false
     };
     if bootstrap_base {
-        let run = super::run_conformance_collect(&ConformanceOptions {
+        let options = ConformanceOptions {
             workspace: workspace.to_owned(),
             limit: None,
             files: Vec::new(),
             out_json: workspace.join("target/conformance/bootstrap-check.json"),
             band: DiagnosticBand::All,
-        })?;
+        };
+        let run = if t4_active(comparator_state) {
+            super::run_conformance_collect_with_t4(&options, None, None)?
+        } else {
+            super::run_conformance_collect(&options)?
+        };
         verify_bootstrap_measurement(&matches.views, &run.sets)?;
     }
+    git_memo.verify_head_unchanged()?;
 
     let describe = |view: DiagnosticBand| {
         let (matched, complete) = counts.get(view.name()).copied().unwrap_or((0, 0));
@@ -2158,10 +3392,26 @@ pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
         format!("{}={matched}/{total} (complete {complete})", view.name())
     };
     println!(
-        "ratchet check ok: {} {} {}; fixtures={} versions matches={matches_versions} inputs={inputs_versions} baseline={}",
+        "ratchet check ok: {} {} {}; tiers={}; t4={}; fixtures={} versions matches={matches_versions} inputs={inputs_versions} baseline={}",
         describe(DiagnosticBand::All),
         describe(DiagnosticBand::TwoXxx),
         describe(DiagnosticBand::Syntactic),
+        tier_counts.map_or_else(
+            || "inactive".to_owned(),
+            |counts| format!(
+                "T1={}/{} T2={}/{} T3={}/{}",
+                counts[0],
+                inputs.totals[DiagnosticBand::All.name()],
+                counts[1],
+                inputs.totals[DiagnosticBand::All.name()],
+                counts[2],
+                inputs.totals[DiagnosticBand::All.name()],
+            )
+        ),
+        t4_counts.map_or_else(
+            || "inactive".to_owned(),
+            |(matched, total)| format!("{matched}/{total}")
+        ),
         inputs.fixtures.len(),
         baseline.unwrap_or("none"),
     );
@@ -2177,24 +3427,57 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
             UNIVERSE_TRANSITION,
             PRODUCER_PIN_EXTENSION,
             ORACLE_CORRECTION,
+            TIER_1_3_INPUT_SCHEMA_EXTENSION,
+            T4_INPUT_SCHEMA_EXTENSION,
         ]
         .contains(&transition)
         {
             return Err(format!(
                 "unknown transition {transition:?} (A1 knows {UNIVERSE_TRANSITION:?}, \
-                 {PRODUCER_PIN_EXTENSION:?}, and {ORACLE_CORRECTION:?})"
+                 {PRODUCER_PIN_EXTENSION:?}, {ORACLE_CORRECTION:?}, and \
+                 {TIER_1_3_INPUT_SCHEMA_EXTENSION:?}, and \
+                 {T4_INPUT_SCHEMA_EXTENSION:?})"
             )
             .into());
         }
     }
 
-    let run = super::run_conformance_collect(&ConformanceOptions {
+    // The one-time A3 plan runs the separately pinned renderer first,
+    // but performs no write. Its schema-3 golden bytes, manifest pins,
+    // accepted T4 cases, and summaries commit together only after every
+    // lineage/transition preflight below succeeds.
+    let render_plan = if transition == Some(T4_INPUT_SCHEMA_EXTENSION) {
+        Some(super::rendered::plan_rendered_hash_extension(
+            &RefreshOptions {
+                workspace: workspace.to_owned(),
+                limit: None,
+                files: Vec::new(),
+            },
+        )?)
+    } else {
+        None
+    };
+    let built =
+        build_oracle_inputs_with_t4_pins(workspace, render_plan.as_ref().map(|plan| &plan.pins))?;
+    let built_comparator_state = comparator_state(&built.comparators)?;
+    let conformance_options = ConformanceOptions {
         workspace: workspace.to_owned(),
         limit: None,
         files: Vec::new(),
         out_json: workspace.join("target/conformance/mismatches.json"),
         band: DiagnosticBand::All,
-    })?;
+    };
+    let run = if t4_active(built_comparator_state) {
+        super::run_conformance_collect_with_t4(
+            &conformance_options,
+            render_plan.as_ref().map(|plan| &plan.pins),
+            render_plan
+                .as_ref()
+                .map(|plan| &plan.empty_related_information),
+        )?
+    } else {
+        super::run_conformance_collect(&conformance_options)?
+    };
     if run.summary.false_positive_diagnostics > 0 {
         return Err(format!(
             "refusing to accept a state with {} false positive diagnostic(s)",
@@ -2202,11 +3485,22 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
         )
         .into());
     }
+    if transition == Some(T4_INPUT_SCHEMA_EXTENSION)
+        && (run.summary.scope_status != "frozen" || run.summary.scope_resolved_t0_diagnostics > 0)
+    {
+        return Err(format!(
+            "{T4_INPUT_SCHEMA_EXTENSION} requires the globally frozen A2 scope and zero live \
+             resolved exclusions (status={}, resolved={})",
+            run.summary.scope_status, run.summary.scope_resolved_t0_diagnostics
+        )
+        .into());
+    }
 
     let git_root = git_root_for(workspace)?;
-    let built = build_oracle_inputs(workspace)?;
     let vendor = built.vendor.clone();
     let totals = built.totals.clone();
+    let total_cases = total_case_count(&built);
+    let tier_comparators_active = t1_t3_active(built_comparator_state);
 
     // Plan the oracle-inputs manifest first, but do not write it yet:
     // the accepted-set additions check below must succeed before either
@@ -2265,7 +3559,9 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
                     "oracle inputs changed (fixtures / goldens / vendor / producer). Inputs are \
                      immutable: enumerated corpus growth needs `ratchet update --transition \
                      universe-transition`; recording the producer pins needs `--transition \
-                     producer-pin-extension`; a vendor or comparator change is a separate project"
+                     producer-pin-extension`; activating the M8 T1-T3 comparators needs \
+                     `--transition tier1-3-input-schema-extension`; a vendor or comparator \
+                     semantic change is a separate project"
                         .into(),
                 );
             };
@@ -2273,6 +3569,10 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
                 UNIVERSE_TRANSITION => verify_universe_growth(reference, &built)?,
                 PRODUCER_PIN_EXTENSION => verify_producer_pin_extension(reference, &built)?,
                 ORACLE_CORRECTION => verify_producer_correction(reference, &built)?,
+                TIER_1_3_INPUT_SCHEMA_EXTENSION => {
+                    verify_tier_1_3_input_schema_extension(reference, &built)?
+                }
+                T4_INPUT_SCHEMA_EXTENSION => verify_t4_input_schema_extension(reference, &built)?,
                 // The allow-list at the top of `update` admits exactly
                 // the names dispatched here.
                 other => unreachable!("transition {other:?} validated above"),
@@ -2317,6 +3617,23 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
         )
         .into());
     }
+    let effective_tier_activation =
+        inputs_transition.as_deref() == Some(TIER_1_3_INPUT_SCHEMA_EXTENSION);
+    if transition == Some(TIER_1_3_INPUT_SCHEMA_EXTENSION) && !effective_tier_activation {
+        return Err(format!(
+            "{TIER_1_3_INPUT_SCHEMA_EXTENSION} requires an inactive T1-T3 manifest to \
+             activate; the current input content has no such one-time transition"
+        )
+        .into());
+    }
+    let effective_t4_activation = inputs_transition.as_deref() == Some(T4_INPUT_SCHEMA_EXTENSION);
+    if transition == Some(T4_INPUT_SCHEMA_EXTENSION) && !effective_t4_activation {
+        return Err(format!(
+            "{T4_INPUT_SCHEMA_EXTENSION} requires a T1-T3 manifest with T4 absent; the \
+             current input content has no such one-time transition"
+        )
+        .into());
+    }
 
     // Accepted-match artifact: additions only, against the working
     // version when present (never lose an identity someone measured
@@ -2336,6 +3653,14 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
         .as_ref()
         .map(|(artifact, _)| view_counts(&artifact.views))
         .unwrap_or_default();
+    let old_tier_counts = existing_matches
+        .as_ref()
+        .map(|(artifact, _)| all_view_tier_counts(&artifact.views))
+        .unwrap_or_default();
+    let old_t4_count = existing_matches
+        .as_ref()
+        .map(|(artifact, _)| all_view_t4_count(&artifact.views))
+        .unwrap_or(0);
     if let Some((existing, _)) = &existing_matches {
         existing.validate()?;
         if !effective_correction {
@@ -2355,8 +3680,11 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
     // Render and validate every required summary section before either
     // artifact changes. Missing fields are repaired in the rendered
     // value; a missing/duplicate section is an error with no mutation.
+    let tier_counts = tier_comparators_active.then(|| all_view_tier_counts(&run.sets));
+    let t4_counts =
+        t4_active(built_comparator_state).then(|| (all_view_t4_count(&run.sets), total_cases));
     let (original_ratchet, ratchet_update) =
-        render_ratchet_summaries(&ratchet_path, &counts, &totals)?;
+        render_ratchet_summaries(&ratchet_path, &counts, &totals, tier_counts, t4_counts)?;
     if let Some((existing, existing_bytes)) = &existing_matches {
         if existing.views == run.sets && existing.inputs == inputs {
             // Validate both complete lineages before repairing any
@@ -2369,6 +3697,15 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
             // those repairs as one transaction so a summary failure
             // cannot leave only the input artifact changed.
             let mut updates = Vec::new();
+            if let Some(plan) = &render_plan {
+                for golden in &plan.updates {
+                    updates.push(AtomicFileUpdate {
+                        path: &golden.path,
+                        original: Some(&golden.original),
+                        replacement: &golden.replacement,
+                    });
+                }
+            }
             if write_inputs {
                 updates.push(AtomicFileUpdate {
                     path: &inputs_path,
@@ -2468,6 +3805,15 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
     verify_committed_artifact_pairs(&git_root, &matches_rel, &inputs_rel)?;
 
     let mut updates = Vec::new();
+    if let Some(plan) = &render_plan {
+        for golden in &plan.updates {
+            updates.push(AtomicFileUpdate {
+                path: &golden.path,
+                original: Some(&golden.original),
+                replacement: &golden.replacement,
+            });
+        }
+    }
     if write_inputs {
         updates.push(AtomicFileUpdate {
             path: &inputs_path,
@@ -2499,6 +3845,25 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
             complete as i64 - old_complete as i64,
         );
     }
+    if let Some(tier_counts) = tier_counts {
+        for (tier, old, new) in ["T1", "T2", "T3"]
+            .into_iter()
+            .zip(old_tier_counts)
+            .zip(tier_counts)
+            .map(|((tier, old), new)| (tier, old, new))
+        {
+            println!(
+                "ratchet update {tier}: matched {old} -> {new} ({:+})",
+                new as i64 - old as i64
+            );
+        }
+    }
+    if let Some((t4_count, total)) = t4_counts {
+        println!(
+            "ratchet update T4: matched {old_t4_count} -> {t4_count} ({:+}) / {total} cases",
+            t4_count as i64 - old_t4_count as i64
+        );
+    }
     println!(
         "ratchet update: wrote {} ({} KB) and {} ({} KB){}",
         MATCHES_REL_PATH,
@@ -2507,6 +3872,13 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
         inputs_bytes.len() / 1024,
         if bootstrap { " [bootstrap]" } else { "" },
     );
+    if let Some(plan) = &render_plan {
+        println!(
+            "ratchet update T4: atomically upgraded {} golden fixture(s), {} case(s), {} \
+             oracle diagnostic(s)",
+            plan.summary.schema_2_upgraded, plan.summary.cases, plan.summary.oracle_diagnostics
+        );
+    }
     Ok(())
 }
 
@@ -2584,8 +3956,9 @@ fn rewrite_ratchet_summaries(
     path: &Path,
     counts: &BTreeMap<String, (u64, u64)>,
     totals: &BTreeMap<String, u64>,
+    tier_counts: Option<[u64; 3]>,
 ) -> ConformanceResult<()> {
-    let (_, rendered) = render_ratchet_summaries(path, counts, totals)?;
+    let (_, rendered) = render_ratchet_summaries(path, counts, totals, tier_counts, None)?;
     if let Some(bytes) = rendered {
         atomic_write(path, &bytes)?;
     }
@@ -2619,6 +3992,8 @@ fn render_ratchet_summaries(
     path: &Path,
     counts: &BTreeMap<String, (u64, u64)>,
     totals: &BTreeMap<String, u64>,
+    tier_counts: Option<[u64; 3]>,
+    t4_counts: Option<(u64, u64)>,
 ) -> ConformanceResult<(Vec<u8>, Option<Vec<u8>>)> {
     let text = fs::read_to_string(path)?;
     let original = text.as_bytes().to_vec();
@@ -2645,6 +4020,49 @@ fn render_ratchet_summaries(
         set_summary_value(table, section, "rate", toml_value(rate))?;
         set_summary_value(table, section, "matched", toml_value(matched))?;
         set_summary_value(table, section, "total", toml_value(total))?;
+    }
+    if let Some(tier_counts) = tier_counts {
+        let total = totals.get(DiagnosticBand::All.name()).copied().unwrap_or(0);
+        for (section, matched) in ["t1", "t2", "t3"].into_iter().zip(tier_counts) {
+            let table = document
+                .as_table_mut()
+                .get_mut(section)
+                .and_then(Item::as_table_mut)
+                .ok_or_else(|| {
+                    format!(
+                        "missing active-tier ratchet summary section [{section}] in {}",
+                        path.display()
+                    )
+                })?;
+            let rate = canonical_summary_rate(matched, total);
+            let matched = i64::try_from(matched)
+                .map_err(|_| format!("[{section}].matched exceeds TOML's integer range"))?;
+            let total = i64::try_from(total)
+                .map_err(|_| format!("[{section}].total exceeds TOML's integer range"))?;
+            set_summary_value(table, section, "rate", toml_value(rate))?;
+            set_summary_value(table, section, "matched", toml_value(matched))?;
+            set_summary_value(table, section, "total", toml_value(total))?;
+        }
+    }
+    if let Some((matched, total)) = t4_counts {
+        if !document.as_table().contains_key("t4") {
+            document
+                .as_table_mut()
+                .insert("t4", Item::Table(Table::new()));
+        }
+        let table = document
+            .as_table_mut()
+            .get_mut("t4")
+            .and_then(Item::as_table_mut)
+            .expect("T4 table inserted above");
+        let rate = canonical_summary_rate(matched, total);
+        let matched =
+            i64::try_from(matched).map_err(|_| "[t4].matched exceeds TOML's integer range")?;
+        let total = i64::try_from(total).map_err(|_| "[t4].total exceeds TOML's integer range")?;
+        set_summary_value(table, "t4", "rate", toml_value(rate))?;
+        set_summary_value(table, "t4", "matched", toml_value(matched))?;
+        set_summary_value(table, "t4", "total", toml_value(total))?;
+        set_summary_value(table, "t4", "allowed_regression", toml_value(0.0))?;
     }
     let rendered = document.to_string();
     if rendered != text {
@@ -2711,12 +4129,31 @@ mod tests {
     /// One case in the "all" view on fixture `conformance/a.ts`; the
     /// other fixed views stay present-but-empty.
     fn views_with(matched: &[u32], complete: &[u32]) -> RunSets {
+        views_with_tiers(matched, complete, &[], &[], &[])
+    }
+
+    fn views_with_tiers(
+        matched: &[u32],
+        complete: &[u32],
+        t1: &[u32],
+        t2: &[u32],
+        t3: &[u32],
+    ) -> RunSets {
         let mut sets = CaseSets::default();
         for code in matched {
             sets.matched.insert(key(*code));
         }
         for code in complete {
             sets.multiplicity_complete.insert(key(*code));
+        }
+        for code in t1 {
+            sets.t1.insert(key(*code));
+        }
+        for code in t2 {
+            sets.t2.insert(key(*code));
+        }
+        for code in t3 {
+            sets.t3.insert(key(*code));
         }
         let mut views: RunSets = FIXED_VIEWS
             .iter()
@@ -2769,6 +4206,7 @@ mod tests {
                     CasePins {
                         oracle_sha256: "o".to_owned(),
                         program_sha256: "p".to_owned(),
+                        oracle_t4_sha256: None,
                     },
                 )]
                 .into_iter()
@@ -2800,7 +4238,24 @@ mod tests {
             program_host_sha256: "host".to_owned(),
             typescript_js_sha256: "tsjs".to_owned(),
             node_version: "25.2.1".to_owned(),
+            render_driver_sha256: None,
         }
+    }
+
+    fn active_t4_inputs() -> OracleInputsArtifact {
+        let mut inputs = inputs_stub();
+        inputs.producer = Some(producer_stub());
+        inputs.producer.as_mut().unwrap().render_driver_sha256 = Some("a".repeat(64));
+        inputs.comparators = tier_1_4_comparators();
+        inputs
+            .fixtures
+            .get_mut("conformance/a.ts")
+            .unwrap()
+            .cases
+            .get_mut("")
+            .unwrap()
+            .oracle_t4_sha256 = Some("b".repeat(64));
+        inputs
     }
 
     fn diag(code: u32, start: u32, pass: &str) -> GoldenDiag {
@@ -2846,6 +4301,9 @@ mod tests {
         let complete = bucket_sets(oracle.iter(), [a.clone(), b.clone()].iter());
         assert!(complete.matched.contains(&t0_key(&a)));
         assert!(complete.multiplicity_complete.contains(&t0_key(&a)));
+        assert!(complete.t1.contains(&t0_key(&a)));
+        assert!(complete.t2.contains(&t0_key(&a)));
+        assert!(complete.t3.contains(&t0_key(&a)));
         assert!(!complete.matched.contains(&t0_key(&oracle[2])));
 
         let partial = bucket_sets(oracle.iter(), std::slice::from_ref(&a).iter());
@@ -2854,11 +4312,99 @@ mod tests {
             !partial.multiplicity_complete.contains(&t0_key(&a)),
             "a 2/1 bucket must not be multiplicity-complete"
         );
+        assert!(!partial.t1.contains(&t0_key(&a)));
+        assert!(!partial.t2.contains(&t0_key(&a)));
+        assert!(!partial.t3.contains(&t0_key(&a)));
 
         let fp_side = diag(9999, 1, "semantic");
         let fp = bucket_sets(oracle.iter(), std::slice::from_ref(&fp_side).iter());
         assert!(!fp.matched.contains(&t0_key(&fp_side)));
         assert!(!fp.multiplicity_complete.contains(&t0_key(&fp_side)));
+    }
+
+    #[test]
+    fn bucket_sets_grade_complete_multisets_at_each_tier() {
+        let oracle = diag(2322, 5, "semantic");
+        let mut category = oracle.clone();
+        category.category = "suggestion".to_owned();
+        assert!(bucket_sets([&oracle].into_iter(), [&category].into_iter())
+            .t1
+            .is_empty());
+
+        let mut span = oracle.clone();
+        span.length = Some(2);
+        let span_sets = bucket_sets([&oracle].into_iter(), [&span].into_iter());
+        assert!(span_sets.t1.contains(&t0_key(&oracle)));
+        assert!(span_sets.t2.is_empty());
+
+        let mut chain = oracle.clone();
+        chain.chain.next.push(GoldenMessageChain {
+            text: "nested".to_owned(),
+            code: 2322,
+            category: "error".to_owned(),
+            next: Vec::new(),
+        });
+        let chain_sets = bucket_sets([&oracle].into_iter(), [&chain].into_iter());
+        assert!(chain_sets.t2.contains(&t0_key(&oracle)));
+        assert!(chain_sets.t3.is_empty());
+
+        // Independent complete-multiset matching: reversing duplicate
+        // records does not change the tier identity.
+        let mut second = oracle.clone();
+        second.category = "warning".to_owned();
+        let permuted = bucket_sets(
+            [&oracle, &second].into_iter(),
+            [&second, &oracle].into_iter(),
+        );
+        assert!(permuted.t3.contains(&t0_key(&oracle)));
+    }
+
+    #[test]
+    fn accepted_artifact_validates_nested_tier_sets() {
+        let valid = matches_artifact(
+            views_with_tiers(&[100], &[100], &[100], &[100], &[100]),
+            true,
+            None,
+            None,
+        );
+        valid.validate().unwrap();
+
+        for (label, views) in [
+            ("T1", views_with_tiers(&[100], &[], &[100], &[], &[])),
+            ("T2", views_with_tiers(&[100], &[100], &[], &[100], &[])),
+            ("T3", views_with_tiers(&[100], &[100], &[100], &[], &[100])),
+        ] {
+            let err = matches_artifact(views, true, None, None)
+                .validate()
+                .unwrap_err()
+                .to_string();
+            assert!(err.contains(label), "{label}: {err}");
+        }
+    }
+
+    #[test]
+    fn enforce_names_exact_tier_removal_and_projects_partial_runs() {
+        let mut accepted_views = views_with_tiers(&[2322], &[2322], &[2322], &[2322], &[2322]);
+        accepted_views.get_mut("all").unwrap().insert(
+            "conformance/b.ts".to_owned(),
+            [(
+                String::new(),
+                views_with_tiers(&[2345], &[2345], &[2345], &[2345], &[2345])["all"]
+                    ["conformance/a.ts"][""]
+                    .clone(),
+            )]
+            .into_iter()
+            .collect(),
+        );
+        let accepted = matches_artifact(accepted_views, true, None, None);
+        let current = views_with_tiers(&[2322], &[2322], &[2322], &[2322], &[]);
+        let executed: BTreeSet<String> = [String::from("conformance/a.ts")].into_iter().collect();
+        let err = enforce_accepted(&accepted, &current, DiagnosticBand::All, &executed, false)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("T3 (all)"), "{err}");
+        assert!(err.contains("code 2322"), "{err}");
+        assert!(!err.contains("code 2345"), "{err}");
     }
 
     #[test]
@@ -2903,10 +4449,30 @@ mod tests {
                 CaseSets {
                     matched: [key(1005)].into_iter().collect(),
                     multiplicity_complete: [key(1005)].into_iter().collect(),
+                    t1: [key(1005)].into_iter().collect(),
+                    t2: [key(1005)].into_iter().collect(),
+                    t3: [key(1005)].into_iter().collect(),
+                    t4: false,
                 },
             );
         let accepted = matches_artifact(accepted_views, true, None, None);
-        let current = views_with(&[1005, 2322, 2345], &[1005]);
+        let mut current = views_with(&[1005, 2322, 2345], &[1005]);
+        current
+            .get_mut("syntactic")
+            .unwrap()
+            .entry("conformance/a.ts".to_owned())
+            .or_default()
+            .insert(
+                String::new(),
+                CaseSets {
+                    matched: [key(1005)].into_iter().collect(),
+                    multiplicity_complete: [key(1005)].into_iter().collect(),
+                    t1: [key(1005)].into_iter().collect(),
+                    t2: [key(1005)].into_iter().collect(),
+                    t3: BTreeSet::new(),
+                    t4: false,
+                },
+            );
         let executed: BTreeSet<String> = [String::from("conformance/a.ts")].into_iter().collect();
         enforce_accepted(&accepted, &current, DiagnosticBand::All, &executed, true).unwrap();
         let err = enforce_accepted(
@@ -2918,7 +4484,7 @@ mod tests {
         )
         .unwrap_err()
         .to_string();
-        assert!(err.contains("(syntactic)"), "{err}");
+        assert!(err.contains("T3 (syntactic)"), "{err}");
         assert!(err.contains("code 1005"), "{err}");
     }
 
@@ -2935,6 +4501,7 @@ mod tests {
                 CaseSets {
                     matched: [key(2345)].into_iter().collect(),
                     multiplicity_complete: BTreeSet::new(),
+                    ..CaseSets::default()
                 },
             );
         let accepted = matches_artifact(accepted_views, true, None, None);
@@ -3031,7 +4598,7 @@ mod tests {
         let mut inputs = inputs_stub();
         inputs.comparators.remove("t2");
         let err = inputs.validate().unwrap_err().to_string();
-        assert!(err.contains("t2") && err.contains("absent"), "{err}");
+        assert!(err.contains("lacks comparator entry t2"), "{err}");
 
         let mut inputs = inputs_stub();
         inputs
@@ -3101,6 +4668,7 @@ mod tests {
                 CasePins {
                     oracle_sha256: "new-oracle".to_owned(),
                     program_sha256: "new-program".to_owned(),
+                    oracle_t4_sha256: None,
                 },
             );
         verify_universe_growth(&older, &case_grown).unwrap();
@@ -3207,6 +4775,371 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(err.contains("must add"), "{err}");
+    }
+
+    // -- T1-T3 input-schema activation ---------------------------------------
+
+    #[test]
+    fn comparator_state_accepts_only_atomic_tier_activation_states() {
+        assert_eq!(
+            comparator_state(&inactive_comparators()).unwrap(),
+            TierComparatorState::Inactive
+        );
+        assert_eq!(
+            comparator_state(&tier_1_3_comparators()).unwrap(),
+            TierComparatorState::T1ThroughT3
+        );
+        assert_eq!(
+            comparator_state(&tier_1_4_comparators()).unwrap(),
+            TierComparatorState::T1ThroughT4
+        );
+
+        let mut partial = inactive_comparators();
+        partial.insert("t1".to_owned(), active_comparator(T1_T3_COMPARATOR_SCHEMA));
+        let err = comparator_state(&partial).unwrap_err().to_string();
+        assert!(err.contains("all active"), "{err}");
+
+        let mut wrong_schema = tier_1_3_comparators();
+        wrong_schema.insert("t2".to_owned(), active_comparator(99));
+        let err = comparator_state(&wrong_schema).unwrap_err().to_string();
+        assert!(err.contains("all active"), "{err}");
+
+        let mut t4_early = inactive_comparators();
+        t4_early.insert("t4".to_owned(), active_comparator(1));
+        let err = comparator_state(&t4_early).unwrap_err().to_string();
+        assert!(err.contains("before the T1-T3"), "{err}");
+    }
+
+    #[test]
+    fn tier_1_3_input_schema_extension_changes_only_three_comparators_once() {
+        let older = inputs_stub();
+        let mut activated = older.clone();
+        activated.comparators = tier_1_3_comparators();
+        verify_tier_1_3_input_schema_extension(&older, &activated).unwrap();
+
+        let err = verify_tier_1_3_input_schema_extension(&activated, &activated)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("one-time"), "{err}");
+
+        let err = verify_tier_1_3_input_schema_extension(&activated, &older)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("inactive predecessor"), "{err}");
+
+        let mut riding_oracle_edit = activated.clone();
+        riding_oracle_edit
+            .fixtures
+            .get_mut("conformance/a.ts")
+            .unwrap()
+            .cases
+            .get_mut("")
+            .unwrap()
+            .oracle_sha256 = "edited".to_owned();
+        let err = verify_tier_1_3_input_schema_extension(&older, &riding_oracle_edit)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("may only activate"), "{err}");
+
+        let mut partial = older.clone();
+        partial
+            .comparators
+            .insert("t1".to_owned(), active_comparator(T1_T3_COMPARATOR_SCHEMA));
+        let err = verify_tier_1_3_input_schema_extension(&older, &partial)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("all active"), "{err}");
+    }
+
+    #[test]
+    fn trusted_baseline_accepts_activation_but_rejects_downgrade() {
+        let older = inputs_stub();
+        let mut activated = older.clone();
+        activated.comparators = tier_1_3_comparators();
+        verify_baseline_inputs(&older, &activated, false).unwrap();
+
+        let err = verify_baseline_inputs(&activated, &older, false)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("cannot move"), "{err}");
+    }
+
+    #[test]
+    fn t4_input_schema_extension_adds_only_renderer_and_case_pins_once() {
+        let mut older = inputs_stub();
+        older.producer = Some(producer_stub());
+        older.comparators = tier_1_3_comparators();
+
+        let mut activated = older.clone();
+        activated.comparators = tier_1_4_comparators();
+        activated.producer.as_mut().unwrap().render_driver_sha256 = Some("a".repeat(64));
+        activated
+            .fixtures
+            .get_mut("conformance/a.ts")
+            .unwrap()
+            .cases
+            .get_mut("")
+            .unwrap()
+            .oracle_t4_sha256 = Some("b".repeat(64));
+        verify_t4_input_schema_extension(&older, &activated).unwrap();
+        verify_baseline_inputs(&older, &activated, false).unwrap();
+
+        let err = verify_t4_input_schema_extension(&activated, &activated)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("T1-T3 predecessor"), "{err}");
+
+        let mut riding_program_edit = activated.clone();
+        riding_program_edit
+            .fixtures
+            .get_mut("conformance/a.ts")
+            .unwrap()
+            .cases
+            .get_mut("")
+            .unwrap()
+            .program_sha256 = "edited".to_owned();
+        let err = verify_t4_input_schema_extension(&older, &riding_program_edit)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("existing oracle/program"), "{err}");
+
+        let mut riding_old_producer_edit = activated.clone();
+        riding_old_producer_edit
+            .producer
+            .as_mut()
+            .unwrap()
+            .driver_sha256 = "edited".to_owned();
+        let err = verify_t4_input_schema_extension(&older, &riding_old_producer_edit)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("pre-existing producer"), "{err}");
+
+        let mut riding_oracle_edit = activated.clone();
+        riding_oracle_edit
+            .fixtures
+            .get_mut("conformance/a.ts")
+            .unwrap()
+            .cases
+            .get_mut("")
+            .unwrap()
+            .oracle_sha256 = "edited".to_owned();
+        let err = verify_t4_input_schema_extension(&older, &riding_oracle_edit)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("existing oracle/program"), "{err}");
+
+        let mut riding_vendor_edit = activated.clone();
+        riding_vendor_edit.vendor.lib_sha256 = "edited".to_owned();
+        let err = verify_t4_input_schema_extension(&older, &riding_vendor_edit)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("vendor pins"), "{err}");
+
+        let err = verify_baseline_inputs(&activated, &older, false)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("render-driver pin changed"), "{err}");
+    }
+
+    #[test]
+    fn active_t4_manifest_requires_nonempty_valid_complete_pins() {
+        active_t4_inputs().validate().unwrap();
+
+        let mut missing_renderer = active_t4_inputs();
+        missing_renderer
+            .producer
+            .as_mut()
+            .unwrap()
+            .render_driver_sha256 = None;
+        let err = missing_renderer.validate().unwrap_err().to_string();
+        assert!(err.contains("render driver"), "{err}");
+
+        let mut empty_renderer = active_t4_inputs();
+        empty_renderer
+            .producer
+            .as_mut()
+            .unwrap()
+            .render_driver_sha256 = Some(String::new());
+        let err = empty_renderer.validate().unwrap_err().to_string();
+        assert!(err.contains("empty"), "{err}");
+
+        let mut missing_case = active_t4_inputs();
+        missing_case
+            .fixtures
+            .get_mut("conformance/a.ts")
+            .unwrap()
+            .cases
+            .get_mut("")
+            .unwrap()
+            .oracle_t4_sha256 = None;
+        let err = missing_case.validate().unwrap_err().to_string();
+        assert!(err.contains("lacks a genuine"), "{err}");
+
+        let mut invalid_case = active_t4_inputs();
+        invalid_case
+            .fixtures
+            .get_mut("conformance/a.ts")
+            .unwrap()
+            .cases
+            .get_mut("")
+            .unwrap()
+            .oracle_t4_sha256 = Some("not-a-hash".to_owned());
+        let err = invalid_case.validate().unwrap_err().to_string();
+        assert!(err.contains("lacks a genuine"), "{err}");
+
+        let mut partial = active_t4_inputs();
+        partial
+            .fixtures
+            .get_mut("conformance/a.ts")
+            .unwrap()
+            .cases
+            .insert(
+                "second".to_owned(),
+                CasePins {
+                    oracle_sha256: "o2".to_owned(),
+                    program_sha256: "p2".to_owned(),
+                    oracle_t4_sha256: None,
+                },
+            );
+        let err = partial.validate().unwrap_err().to_string();
+        assert!(err.contains("[second]"), "{err}");
+    }
+
+    #[test]
+    fn trusted_base_accepts_composed_t1_t3_and_t4_extensions() {
+        let older = inputs_stub();
+        let mut newer = active_t4_inputs();
+        // The producer-pin extension may also sit between the trusted
+        // base and head; direct compare validates the composition.
+        newer.producer.as_mut().unwrap().render_driver_sha256 = Some("c".repeat(64));
+        verify_baseline_inputs(&older, &newer, false).unwrap();
+    }
+
+    #[test]
+    fn oracle_correction_cannot_change_active_renderer_semantics() {
+        let older = active_t4_inputs();
+        let mut newer = older.clone();
+        newer.producer.as_mut().unwrap().render_driver_sha256 = Some("c".repeat(64));
+        let err = verify_producer_correction(&older, &newer)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("render-driver pin"), "{err}");
+        let err = verify_baseline_inputs(&older, &newer, true)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("render-driver pin"), "{err}");
+    }
+
+    #[test]
+    fn t4_transition_and_gate_protect_complete_case_identity_including_empty_buckets() {
+        let older_views = views_with(&[], &[]);
+        let mut newer_views = older_views.clone();
+        newer_views
+            .get_mut("all")
+            .unwrap()
+            .get_mut("conformance/a.ts")
+            .unwrap()
+            .get_mut("")
+            .unwrap()
+            .t4 = true;
+        let older = matches_artifact(older_views.clone(), false, None, None);
+        let mut newer = matches_artifact(
+            newer_views.clone(),
+            false,
+            None,
+            Some(T4_INPUT_SCHEMA_EXTENSION.to_owned()),
+        );
+        newer.inputs.oracle_inputs_sha256 = "activated-inputs".to_owned();
+        <MatchesArtifact as LineageArtifact>::verify_edge(&newer, &older).unwrap();
+
+        let executed = BTreeSet::from(["conformance/a.ts".to_owned()]);
+        let err = enforce_accepted(&newer, &older_views, DiagnosticBand::All, &executed, true)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("T4 (all)"), "{err}");
+
+        let mut illegal = newer.clone();
+        illegal
+            .views
+            .get_mut("all")
+            .unwrap()
+            .get_mut("conformance/a.ts")
+            .unwrap()
+            .get_mut("")
+            .unwrap()
+            .matched
+            .insert(key(9999));
+        let err = <MatchesArtifact as LineageArtifact>::verify_edge(&illegal, &older)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("only T4 case identities"), "{err}");
+
+        let mut outside_all = newer.clone();
+        outside_all.bootstrap = true;
+        outside_all.previous = None;
+        outside_all.transition = None;
+        outside_all
+            .views
+            .get_mut("2xxx")
+            .unwrap()
+            .entry("conformance/a.ts".to_owned())
+            .or_default()
+            .entry(String::new())
+            .or_default()
+            .t4 = true;
+        let err = outside_all.validate().unwrap_err().to_string();
+        assert!(err.contains("only in the All view"), "{err}");
+    }
+
+    #[test]
+    fn artifact_pair_requires_comparators_before_tier_membership() {
+        let inactive = inputs_stub();
+        let matches = matches_artifact(
+            views_with_tiers(&[100], &[100], &[100], &[100], &[100]),
+            true,
+            None,
+            None,
+        );
+        let input_bytes = encode_artifact(&inactive).unwrap();
+        let mut matches = matches;
+        matches.inputs.oracle_inputs_sha256 = sha256_hex(&input_bytes);
+        let err = verify_pair_values("test", &matches, &inactive, &input_bytes)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("comparators are explicitly absent"), "{err}");
+
+        let mut active = inactive;
+        active.comparators = tier_1_3_comparators();
+        let active_bytes = encode_artifact(&active).unwrap();
+        matches.inputs.oracle_inputs_sha256 = sha256_hex(&active_bytes);
+        verify_pair_values("test", &matches, &active, &active_bytes).unwrap();
+    }
+
+    #[test]
+    fn matches_activation_edge_adds_only_tier_sets() {
+        let older = matches_artifact(views_with(&[100], &[100]), true, None, None);
+        let mut activated = matches_artifact(
+            views_with_tiers(&[100], &[100], &[100], &[100], &[100]),
+            false,
+            Some(lineage_to("c0", b"prev")),
+            Some(TIER_1_3_INPUT_SCHEMA_EXTENSION.to_owned()),
+        );
+        activated.inputs.oracle_inputs_sha256 = "active-inputs".to_owned();
+        MatchesArtifact::verify_edge(&activated, &older).unwrap();
+
+        let mut riding_t0_gain = activated.clone();
+        riding_t0_gain.views = views_with_tiers(&[100, 101], &[100, 101], &[100], &[100], &[100]);
+        let err = MatchesArtifact::verify_edge(&riding_t0_gain, &older)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("may add only T1-T3"), "{err}");
+
+        let mut activated_again = activated.clone();
+        activated_again.inputs.oracle_inputs_sha256 = "active-inputs-again".to_owned();
+        let err = MatchesArtifact::verify_edge(&activated_again, &activated)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("predecessor already contains"), "{err}");
     }
 
     #[test]
@@ -3341,6 +5274,31 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(err.contains("must ride a corrected"), "{err}");
+    }
+
+    #[test]
+    fn correction_enumerates_tier_lapses_independently() {
+        let older = matches_artifact(
+            views_with_tiers(&[100], &[100], &[100], &[100], &[100]),
+            true,
+            None,
+            None,
+        );
+        let corrected = correction_artifact(
+            views_with_tiers(&[100], &[100], &[100], &[100], &[]),
+            views_with_tiers(&[], &[], &[], &[], &[100]),
+        );
+        MatchesArtifact::verify_edge(&corrected, &older).unwrap();
+
+        let missing = correction_artifact(
+            views_with_tiers(&[100], &[100], &[100], &[100], &[]),
+            views_with(&[], &[]),
+        );
+        let err = MatchesArtifact::verify_edge(&missing, &older)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("T3"), "{err}");
+        assert!(err.contains("code 100"), "{err}");
     }
 
     #[test]
@@ -3616,6 +5574,57 @@ mod tests {
     }
 
     // -- A1 lineage --------------------------------------------------------
+
+    #[test]
+    fn git_history_memo_reuses_blob_parent_and_path_queries() {
+        let repo = init_repo("history-memo");
+        let first_commit = commit_bytes(&repo, MATCHES_REL_PATH, b"first", "first");
+        let second_commit = commit_bytes(&repo, MATCHES_REL_PATH, b"second", "second");
+        let mut memo = GitMemo::new(&repo).unwrap();
+
+        let first_walk = memo.committed_versions(MATCHES_REL_PATH).unwrap();
+        assert_eq!(first_walk.len(), 2);
+        let invocations_after_walk = memo.git_invocations;
+
+        assert_eq!(
+            memo.blob_optional(&second_commit, MATCHES_REL_PATH)
+                .unwrap(),
+            Some(b"second".to_vec())
+        );
+        assert_eq!(
+            memo.commit_parents(&second_commit).unwrap(),
+            vec![first_commit]
+        );
+        assert_eq!(
+            memo.committed_versions(MATCHES_REL_PATH).unwrap(),
+            first_walk
+        );
+        assert_eq!(
+            memo.git_invocations, invocations_after_walk,
+            "cached blob, parent, and path-version queries must not spawn Git"
+        );
+    }
+
+    #[test]
+    fn git_history_memo_pins_head_and_rejects_a_mid_run_move() {
+        let repo = init_repo("history-head-pin");
+        let pinned = commit_bytes(&repo, MATCHES_REL_PATH, b"pinned", "pinned");
+        let mut memo = GitMemo::new(&repo).unwrap();
+        let moved = commit_bytes(&repo, MATCHES_REL_PATH, b"moved", "moved");
+
+        assert_eq!(memo.head_commit, pinned);
+        assert_eq!(
+            memo.blob_optional("HEAD", MATCHES_REL_PATH).unwrap(),
+            Some(b"pinned".to_vec())
+        );
+        let versions = memo.committed_versions(MATCHES_REL_PATH).unwrap();
+        assert_eq!(versions.len(), 1);
+        assert_eq!(versions[0].0, pinned);
+
+        let err = memo.verify_head_unchanged().unwrap_err().to_string();
+        assert!(err.contains("HEAD moved"), "{err}");
+        assert!(err.contains(&moved), "{err}");
+    }
 
     #[test]
     fn lineage_bootstrap_and_additions_pass_shrink_fails() {
@@ -4029,6 +6038,46 @@ mod tests {
         assert!(err.contains("different oracle-inputs blob"), "{err}");
     }
 
+    #[test]
+    fn historical_input_transition_requires_the_same_transition_name() {
+        let repo = init_repo("historical-transition-name");
+        let v1_inputs = inputs_stub();
+        let v1_inputs_bytes = encode_artifact(&v1_inputs).unwrap();
+        let mut v1_matches = matches_artifact(views_with(&[2322], &[2322]), true, None, None);
+        v1_matches.inputs.oracle_inputs_sha256 = sha256_hex(&v1_inputs_bytes);
+        let v1_matches_bytes = encode_artifact(&v1_matches).unwrap();
+        let c1 = commit_artifact_pair(&repo, &v1_matches_bytes, &v1_inputs_bytes, "bootstrap pair");
+
+        let mut v2_inputs = v1_inputs.clone();
+        v2_inputs.comparators = tier_1_3_comparators();
+        v2_inputs.bootstrap = false;
+        v2_inputs.previous = Some(lineage_to(&c1, &v1_inputs_bytes));
+        v2_inputs.transition = Some(TIER_1_3_INPUT_SCHEMA_EXTENSION.to_owned());
+        let v2_inputs_bytes = encode_artifact(&v2_inputs).unwrap();
+
+        let mut v2_matches = matches_artifact(
+            views_with_tiers(&[2322], &[2322], &[2322], &[2322], &[2322]),
+            false,
+            Some(lineage_to(&c1, &v1_matches_bytes)),
+            Some(UNIVERSE_TRANSITION.to_owned()),
+        );
+        v2_matches.inputs.oracle_inputs_sha256 = sha256_hex(&v2_inputs_bytes);
+        let v2_matches_bytes = encode_artifact(&v2_matches).unwrap();
+        commit_artifact_pair(
+            &repo,
+            &v2_matches_bytes,
+            &v2_inputs_bytes,
+            "mismatched transition pair",
+        );
+
+        let err = verify_committed_artifact_pairs(&repo, MATCHES_REL_PATH, ORACLE_INPUTS_REL_PATH)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("same-commit"), "{err}");
+        assert!(err.contains(TIER_1_3_INPUT_SCHEMA_EXTENSION), "{err}");
+        assert!(err.contains(UNIVERSE_TRANSITION), "{err}");
+    }
+
     // -- Trusted PR-base compare --------------------------------------------
 
     #[test]
@@ -4089,6 +6138,7 @@ mod tests {
                 CasePins {
                     oracle_sha256: "new-oracle".to_owned(),
                     program_sha256: "new-program".to_owned(),
+                    oracle_t4_sha256: None,
                 },
             );
         verify_baseline(
@@ -4202,6 +6252,7 @@ mod tests {
                 matrix_key: String::new(),
                 tsrs: Vec::new(),
                 oracle: vec![diag(2322, 4, "semantic")],
+                oracle_empty_related_information: Vec::new(),
                 tsrs_cli_hash: String::new(),
                 oracle_cli_hash: String::new(),
             }],
@@ -4276,7 +6327,176 @@ mod tests {
         assert!(err.contains("fixture bytes edited"), "{err}");
     }
 
+    #[test]
+    fn planned_t4_pins_recover_a_mixed_schema_working_tree_atomically() {
+        let real_workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .canonicalize()
+            .unwrap();
+        let ws = temp_dir("mixed-t4-retry");
+        fs::create_dir_all(ws.join("ts-tests/tests/cases/conformance")).unwrap();
+        std::os::unix::fs::symlink(real_workspace.join("vendor"), ws.join("vendor")).unwrap();
+        fs::create_dir_all(ws.join("crates/oracle")).unwrap();
+        for module in ["driver.mjs", "program-host.mjs", "render-driver.mjs"] {
+            fs::copy(
+                real_workspace.join("crates/oracle").join(module),
+                ws.join("crates/oracle").join(module),
+            )
+            .unwrap();
+        }
+        fs::write(ws.join(NODE_VERSION_REL_PATH), "25.2.1\n").unwrap();
+
+        let mut pins = T4OraclePins::new();
+        for (name, schema, hash_byte) in [("a.ts", 2, 'a'), ("b.ts", 3, 'b')] {
+            fs::write(
+                ws.join("ts-tests/tests/cases/conformance").join(name),
+                "var x: number = 1;\n",
+            )
+            .unwrap();
+            let fixture = format!("conformance/{name}");
+            crate::write_golden(
+                &ws.join("goldens"),
+                &crate::GoldenFile {
+                    schema,
+                    fixture: fixture.clone(),
+                    cases: vec![crate::GoldenCase {
+                        matrix_key: String::new(),
+                        tsrs: Vec::new(),
+                        oracle: vec![diag(2322, 4, "semantic")],
+                        oracle_empty_related_information: Vec::new(),
+                        tsrs_cli_hash: String::new(),
+                        oracle_cli_hash: hash_byte.to_string().repeat(64),
+                    }],
+                },
+            )
+            .unwrap();
+            pins.insert(
+                fixture,
+                [(String::new(), hash_byte.to_string().repeat(64))]
+                    .into_iter()
+                    .collect(),
+            );
+        }
+
+        let err = build_oracle_inputs(&ws).unwrap_err().to_string();
+        assert!(err.contains("mixed schema-2/schema-3"), "{err}");
+        let recovered = build_oracle_inputs_with_t4_pins(&ws, Some(&pins)).unwrap();
+        assert!(t4_active(comparator_state(&recovered.comparators).unwrap()));
+        assert!(recovered.fixtures.values().all(|fixture| fixture
+            .cases
+            .values()
+            .all(|case| case.oracle_t4_sha256.is_some())));
+    }
+
     // -- ratchet.toml derived summaries --------------------------------------
+
+    fn write_tier_activation_state(
+        dir: &Path,
+        comparators: BTreeMap<String, ComparatorEntry>,
+        views: RunSets,
+        tier_summaries: [u64; 3],
+    ) {
+        let mut inputs = inputs_stub();
+        inputs.producer = Some(producer_stub());
+        inputs.comparators = comparators;
+        let inputs_bytes = encode_artifact(&inputs).unwrap();
+        let mut matches = matches_artifact(views.clone(), true, None, None);
+        matches.inputs = MatchesInputs {
+            oracle_inputs_sha256: sha256_hex(&inputs_bytes),
+            tsc_js_sha256: inputs.vendor.tsc_js_sha256.clone(),
+        };
+        let matches_bytes = encode_artifact(&matches).unwrap();
+        for (rel, bytes) in [
+            (ORACLE_INPUTS_REL_PATH, inputs_bytes),
+            (MATCHES_REL_PATH, matches_bytes),
+        ] {
+            let path = dir.join(rel);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, bytes).unwrap();
+        }
+
+        let counts = view_counts(&views);
+        let mut text = String::new();
+        for view in FIXED_VIEWS {
+            let matched = counts[view.name()].0;
+            let total = inputs.totals[view.name()];
+            text.push_str(&format!(
+                "[{}]\nrate = {:.6}\nmatched = {matched}\ntotal = {total}\n\
+                 allowed_regression = 0.0\n\n",
+                view.ratchet_key(),
+                canonical_summary_rate(matched, total),
+            ));
+        }
+        let total = inputs.totals[DiagnosticBand::All.name()];
+        for (tier, matched) in ["t1", "t2", "t3"].into_iter().zip(tier_summaries) {
+            text.push_str(&format!(
+                "[{tier}]\nrate = {:.6}\nmatched = {matched}\ntotal = {total}\n\
+                 allowed_regression = 0.0\n\n",
+                canonical_summary_rate(matched, total),
+            ));
+        }
+        fs::write(dir.join("ratchet.toml"), text).unwrap();
+    }
+
+    #[test]
+    fn completion_activation_proof_rejects_toml_only_claim() {
+        let dir = temp_dir("tier-activation-inactive");
+        write_tier_activation_state(
+            &dir,
+            inactive_comparators(),
+            views_with(&[100], &[100]),
+            [1, 1, 1],
+        );
+        let err = verify_tier_1_through_3_activation(&dir)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("accepted sets are inactive"), "{err}");
+        assert!(err.contains(TIER_1_3_INPUT_SCHEMA_EXTENSION), "{err}");
+    }
+
+    #[test]
+    fn completion_activation_proof_requires_exact_artifact_summaries() {
+        let views = views_with_tiers(&[100], &[100], &[100], &[100], &[100]);
+        let valid = temp_dir("tier-activation-valid");
+        write_tier_activation_state(&valid, tier_1_3_comparators(), views.clone(), [1, 1, 1]);
+        assert_eq!(
+            verify_tier_1_through_3_activation(&valid).unwrap(),
+            Tier1Through3Activation {
+                t1_matched: 1,
+                t2_matched: 1,
+                t3_matched: 1,
+                total: 1,
+            }
+        );
+
+        let stale = temp_dir("tier-activation-stale-summary");
+        write_tier_activation_state(&stale, tier_1_3_comparators(), views, [1, 0, 1]);
+        let err = verify_tier_1_through_3_activation(&stale)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("ratchet.toml [t2]"), "{err}");
+        assert!(err.contains("accepted artifact"), "{err}");
+    }
+
+    #[test]
+    fn completion_activation_proof_requires_a_coherent_artifact_pair() {
+        let dir = temp_dir("tier-activation-pair");
+        write_tier_activation_state(
+            &dir,
+            tier_1_3_comparators(),
+            views_with_tiers(&[100], &[100], &[100], &[100], &[100]),
+            [1, 1, 1],
+        );
+        let matches_path = dir.join(MATCHES_REL_PATH);
+        let (mut matches, _): (MatchesArtifact, _) =
+            read_artifact(&matches_path, "test matches").unwrap();
+        matches.inputs.oracle_inputs_sha256 = "wrong".to_owned();
+        fs::write(matches_path, encode_artifact(&matches).unwrap()).unwrap();
+        let err = verify_tier_1_through_3_activation(&dir)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("pin a different oracle-inputs blob"), "{err}");
+    }
 
     #[test]
     fn ratchet_toml_rewrite_preserves_comments() {
@@ -4286,6 +6506,8 @@ mod tests {
             &path,
             "[\"t0\"]\n# integer gate commentary\n\"rate\" = 0.1 # display-only\nmatched = 1\ntotal = 10\nallowed_regression = 0.0\n\n\
              [t1]\nrate = 0.0\nallowed_regression = 0.0\n\n\
+             [t2]\nrate = 0.0\nallowed_regression = 0.0\n\n\
+             [t3]\nrate = 0.0\nallowed_regression = 0.0\n\n\
              [t0-2xxx]\nrate = 0.2\nmatched = 2\ntotal = 10\nallowed_regression = 0.0\n\n\
              [t0-syntactic]\nallowed_regression = 0.0\n\n\
              [escapes]\n# escape commentary\nmax_untagged = 9\n",
@@ -4305,7 +6527,7 @@ mod tests {
         ]
         .into_iter()
         .collect();
-        rewrite_ratchet_summaries(&path, &counts, &totals).unwrap();
+        rewrite_ratchet_summaries(&path, &counts, &totals, Some([19000, 18000, 17000])).unwrap();
         let text = fs::read_to_string(&path).unwrap();
         assert!(text.contains("# integer gate commentary"));
         assert!(text.contains("\"rate\" = 0.411585 # display-only"));
@@ -4318,24 +6540,62 @@ mod tests {
         assert!(text.contains("total = 2246"));
         assert!(text.contains("rate = 0.998219"));
         assert!(text.contains("max_untagged = 9"));
-        // The t1 section has no matched/total and stays untouched.
-        assert!(text.contains("[t1]\nrate = 0.0"));
+        assert!(text.contains("[t1]\nrate = 0.389992"));
+        assert!(text.contains("matched = 19000"));
+        assert!(text.contains("[t2]\nrate = 0.369466"));
+        assert!(text.contains("matched = 18000"));
+        assert!(text.contains("[t3]\nrate = 0.34894"));
+        assert!(text.contains("matched = 17000"));
 
-        verify_ratchet_summaries(&path, &counts, &totals).unwrap();
+        verify_ratchet_summaries(&path, &counts, &totals, Some([19000, 18000, 17000]), None)
+            .unwrap();
+        let (_, with_t4) = render_ratchet_summaries(
+            &path,
+            &counts,
+            &totals,
+            Some([19000, 18000, 17000]),
+            Some((7, 10)),
+        )
+        .unwrap();
+        fs::write(&path, with_t4.unwrap()).unwrap();
+        verify_ratchet_summaries(
+            &path,
+            &counts,
+            &totals,
+            Some([19000, 18000, 17000]),
+            Some((7, 10)),
+        )
+        .unwrap();
+        let stale_t4 = fs::read_to_string(&path)
+            .unwrap()
+            .replacen("matched = 7", "matched = 6", 1);
+        fs::write(&path, stale_t4).unwrap();
+        let err = verify_ratchet_summaries(
+            &path,
+            &counts,
+            &totals,
+            Some([19000, 18000, 17000]),
+            Some((7, 10)),
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(err.contains("ratchet.toml [t4]"), "{err}");
+
         let stale = text.replacen(
             "\"rate\" = 0.411585 # display-only",
             "\"rate\" = 0.000000 # display-only",
             1,
         );
         fs::write(&path, &stale).unwrap();
-        let err = verify_ratchet_summaries(&path, &counts, &totals)
-            .unwrap_err()
-            .to_string();
+        let err =
+            verify_ratchet_summaries(&path, &counts, &totals, Some([19000, 18000, 17000]), None)
+                .unwrap_err()
+                .to_string();
         assert!(err.contains("rate/matched/total"), "{err}");
 
         let duplicate = stale.replacen("matched = 20052", "matched = 20052\nmatched = 20052", 1);
         fs::write(&path, duplicate).unwrap();
-        let err = rewrite_ratchet_summaries(&path, &counts, &totals)
+        let err = rewrite_ratchet_summaries(&path, &counts, &totals, Some([19000, 18000, 17000]))
             .unwrap_err()
             .to_string();
         assert!(err.contains("invalid ratchet.toml"), "{err}");

@@ -1,13 +1,9 @@
 //! keyof + indexed access (M4 5.2f) — getIndexType and the
 //! TYPE-POSITION slice of getIndexedAccessType.
 //!
-//! Construction commit: Index/IndexedAccess types intern, instantiate
-//! and compute base constraints; the relation arms over them stay
-//! escaped until 5.3b pins land. Error paths that need typeToString's
-//! nodeBuilder (tuple/object displays) unwind as Unsupported — display
-//! work is T2/M8; expression-position access (accessExpression, flow,
-//! deprecation, write types) is 5.5/M7 and structurally skipped, each
-//! noted in place.
+//! Index/IndexedAccess types intern, instantiate, compute base
+//! constraints, and participate in type- and expression-position
+//! access checking.
 
 use tsrs2_binder::SymbolId;
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
@@ -17,7 +13,7 @@ use tsrs2_types::{
 };
 
 use crate::links::LinkSlot;
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState};
 use tsrs2_diags::gen as diagnostics;
 
 impl<'a> CheckerState<'a> {
@@ -1114,9 +1110,9 @@ impl<'a> CheckerState<'a> {
     /// noImplicitAny ladder (2576/7015/2551/7052/7053+7054 — the
     /// LADDER ORDER is the observable, risk #1), the write rows, and
     /// the flow tail. Escapes, each named: displays outside the T2
-    /// slice (tuples/anonymous shapes render through nodeBuilder),
-    /// deprecation suggestions (JSDoc band), the Contextual arm's miss
-    /// fallback (anyType — M6 wires the flag), autoType flow ([FLOW
+    /// slice (tuples/anonymous shapes render through nodeBuilder), the
+    /// Contextual arm's miss fallback (anyType — M6 wires the flag),
+    /// autoType flow ([FLOW
     /// M5] via the caller's flow tail), unique-symbol index heads
     /// (unique symbol types unconstructible until their annotate arm).
     #[allow(clippy::too_many_arguments)]
@@ -1156,7 +1152,34 @@ impl<'a> CheckerState<'a> {
             }
             let property = self.get_property_of_type_full(object_type, property_name)?;
             if let Some(property) = property {
-                // ReportDeprecated suggestions elided (JSDoc band).
+                let declarations = self.binder.symbol(property).declarations.clone();
+                let deprecated_access_node = match access_node {
+                    Some(access_node)
+                        if access_flags.intersects(AccessFlags::REPORT_DEPRECATED)
+                            && !declarations.is_empty()
+                            && self.is_deprecated_symbol(property)
+                            && self.is_uncalled_function_reference(access_node, property)? =>
+                    {
+                        Some(access_node)
+                    }
+                    _ => None,
+                };
+                if let Some(access_node) = deprecated_access_node {
+                    let deprecated_node = match self.data_of(access_node) {
+                        NodeData::ElementAccessExpression(data) => {
+                            data.argument_expression.unwrap_or(access_node)
+                        }
+                        NodeData::IndexedAccessType(data) => data.index_type.unwrap_or(access_node),
+                        _ => access_node,
+                    };
+                    let deprecated_entity =
+                        tsrs2_binder::unescape_leading_underscores(property_name).to_owned();
+                    self.add_deprecated_suggestion(
+                        deprecated_node,
+                        &declarations,
+                        &deprecated_entity,
+                    );
+                }
                 if let Some(access_expression) = access_expression {
                     let receiver = match self.data_of(access_expression) {
                         NodeData::ElementAccessExpression(data) => data.expression,
@@ -1528,22 +1551,6 @@ impl<'a> CheckerState<'a> {
         access_flags: AccessFlags,
         property_name: Option<&str>,
     ) -> CheckResult2<Option<TypeId>> {
-        // 6.6f: the syntax-probe ladder gate retired; the residual
-        // containment is FLAG-EXACT — a seam-reverted receiver or
-        // index answer (an unported M6/M8 dependency crossed its
-        // walk) makes every failed ladder verdict undecidable.
-        let ladder_operands = match self.data_of(access_expression) {
-            NodeData::ElementAccessExpression(data) => (data.expression, data.argument_expression),
-            _ => (None, None),
-        };
-        for operand in [ladder_operands.0, ladder_operands.1].into_iter().flatten() {
-            if self.flow_answer_is_seam_reverted(operand) {
-                return Err(Unsupported::new(
-                    "element-access ladder over a seam-reverted flow answer \
-                     (unported narrowing dependency, M6/M8 seam)",
-                ));
-            }
-        }
         let no_implicit_any = self
             .options
             .strict_option_value(self.options.no_implicit_any);
@@ -1731,7 +1738,6 @@ impl<'a> CheckerState<'a> {
                             }
                             let full_display = self.type_to_string_slice(full_index_type)?;
                             let object_display = self.type_to_string_slice(object_type)?;
-                            let diagnostics_before = self.diagnostics.len();
                             let head = tsrs2_diags::MessageChain::new(
                                 &diagnostics::Element_implicitly_has_an_any_type_because_expression_of_type_0_can_t_be_used_to_index_type_1,
                                 &[full_display, object_display],
@@ -1743,73 +1749,12 @@ impl<'a> CheckerState<'a> {
                             );
                             diagnostic.message = head.with_next(tail);
                             self.push_error_diagnostic(diagnostic);
-                            if self.should_publish_checked_js_implicit_any_index(
-                                object_type,
-                                access_expression,
-                            ) {
-                                self.mark_non_jsdoc_js_diagnostics_since_with_code(
-                                    diagnostics_before,
-                                    7053,
-                                );
-                            }
                         }
                     }
                 }
             }
         }
         Ok(None)
-    }
-
-    /// tsrs-native: checked-JS publication frontier for TS7053.
-    ///
-    /// The direct producer is exact, but checked-JS JSDoc index
-    /// carriers and late-bound class/function members still rely on
-    /// owner slices that follow P11. Keep those raw diagnostics
-    /// private until the receiver type has crossed the corresponding
-    /// semantic boundary.
-    fn should_publish_checked_js_implicit_any_index(
-        &self,
-        object_type: TypeId,
-        access_expression: NodeId,
-    ) -> bool {
-        if !self.is_effectively_checked_js_node(access_expression) {
-            return false;
-        }
-        let receiver = match self.data_of(access_expression) {
-            NodeData::ElementAccessExpression(data) => data.expression,
-            _ => None,
-        };
-        let receiver_has_jsdoc_type_context = receiver
-            .and_then(|receiver| self.links.node(receiver).resolved_symbol.resolved())
-            .is_some_and(|symbol| {
-                self.binder
-                    .symbol(symbol)
-                    .declarations
-                    .iter()
-                    .copied()
-                    .any(|declaration| self.declaration_has_jsdoc_semantics(declaration))
-            });
-        if receiver_has_jsdoc_type_context {
-            return false;
-        }
-        let Some(object_symbol) = self.tables.type_of(object_type).symbol else {
-            return true;
-        };
-        let Some(object_declaration) = self.binder.symbol(object_symbol).value_declaration else {
-            return true;
-        };
-        match self.kind_of(object_declaration) {
-            SyntaxKind::ClassDeclaration => false,
-            SyntaxKind::FunctionDeclaration
-                if self
-                    .tables
-                    .object_flags_of(object_type)
-                    .intersects(ObjectFlags::ANONYMOUS) =>
-            {
-                false
-            }
-            _ => true,
-        }
     }
 
     /// tsc-port: getIndexNodeForAccessExpression @6.0.3
@@ -1965,7 +1910,9 @@ impl<'a> CheckerState<'a> {
             // index_literal_value_display instead.
             TypeData::Literal {
                 value: tsrs2_types::LiteralValue::String(value),
-            } => Some(tsrs2_syntax::escape_leading_underscores(value)),
+            } => value
+                .to_utf8()
+                .map(|value| tsrs2_syntax::escape_leading_underscores(&value)),
             TypeData::Literal {
                 value: tsrs2_types::LiteralValue::Number(value),
             } => Some(tsrs2_types::tables::js_number_to_string(*value)),
@@ -1976,14 +1923,24 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// The `"" + indexType.value` rendering the 2339/7053 display rows
-    /// pass (62295/62343/62388) — the raw literal value, NOT the
-    /// escaped propName.
+    /// getPropertyTypeForIndexType's `"" + indexType.value`
+    /// diagnostic arguments @6.0.3 (62296, 62347, 62355, 62390): the
+    /// raw JavaScript string value, NOT the escaped propName and NOT a
+    /// quoted-literal printer face.
+    ///
+    /// Rust strings cannot carry an unpaired UTF-16 surrogate. Only
+    /// that non-UTF-8 boundary falls back to the lossless `\uXXXX`
+    /// spelling; every representable JavaScript string passes through
+    /// verbatim, including quotes and backslashes.
     fn index_literal_value_display(&self, ty: TypeId) -> Option<String> {
         match &self.tables.type_of(ty).data {
             TypeData::Literal {
                 value: tsrs2_types::LiteralValue::String(value),
-            } => Some(value.clone()),
+            } => Some(
+                value
+                    .to_utf8()
+                    .unwrap_or_else(|| crate::check::string_literal_type_display_text(value)),
+            ),
             TypeData::Literal {
                 value: tsrs2_types::LiteralValue::Number(value),
             } => Some(tsrs2_types::tables::js_number_to_string(*value)),
@@ -2455,6 +2412,32 @@ mod tests {
     }
 
     #[test]
+    fn indexed_access_missing_property_uses_raw_string_literal_value() {
+        // getPropertyTypeForIndexType passes indexType.value directly
+        // to TS2339. The diagnostic template already uses single
+        // quotes, so double quotes inside the property value are not
+        // escaped a second time.
+        let text = "declare module \"ambientModule\" {\n\
+                        export type typ = 1;\n\
+                        export var val: typ;\n\
+                    }\n\
+                    type Bad = (typeof globalThis)[\"\\\"ambientModule\\\"\"];\n";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            let rows: Vec<_> = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 2339)
+                .collect();
+            assert_eq!(rows.len(), 1, "{rows:#?}");
+            assert_eq!(
+                rows[0].message_text(),
+                "Property '\"ambientModule\"' does not exist on type 'typeof globalThis'."
+            );
+        });
+    }
+
+    #[test]
     fn keyof_typeof_enum_excludes_the_reverse_map_number() {
         // S3: tsc clean — enumNumberIndexInfo is excluded from
         // getLiteralTypeFromProperties, so K = "A" | "B" and the
@@ -2568,6 +2551,45 @@ mod tests {
             .diagnostics
             .iter()
             .all(|diagnostic| diagnostic.code() != 7053));
+    }
+
+    #[test]
+    fn jsdoc_template_prototype_index_carriers_keep_their_annotations() {
+        for (fixture, text) in [
+            (
+                "jsdocTemplateTag4",
+                include_str!(
+                    "../../../ts-tests/tests/cases/conformance/jsdoc/jsdocTemplateTag4.ts"
+                ),
+            ),
+            (
+                "jsdocTemplateTag5",
+                include_str!(
+                    "../../../ts-tests/tests/cases/conformance/jsdoc/jsdocTemplateTag5.ts"
+                ),
+            ),
+        ] {
+            let result = check_program(
+                &[InputFile {
+                    name: "a.js".to_owned(),
+                    text: text.to_owned(),
+                }],
+                &CompilerOptions {
+                    allow_js: true,
+                    check_js: Some(true),
+                    strict: Some(true),
+                    target: Some(2),
+                    ..CompilerOptions::default()
+                },
+            );
+            let rows = result
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 7053)
+                .map(|diagnostic| (diagnostic.start, diagnostic.length))
+                .collect::<Vec<_>>();
+            assert_eq!(rows, [], "{fixture}: {:#?}", result.diagnostics);
+        }
     }
 
     #[test]

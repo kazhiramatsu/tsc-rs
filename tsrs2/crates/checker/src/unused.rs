@@ -9,7 +9,7 @@ use tsrs2_diags::{gen as diagnostics, DiagnosticCategory};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{ModifierFlags, NodeFlags, SymbolFlags};
 
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState};
 
 #[derive(Clone, Copy)]
 enum UnusedIdentifierKind {
@@ -23,58 +23,15 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:82942-82953
     /// d2: d2:08b79e6517d01e5d88bb72d904893471db59fd488401a64241687e5df4e9affe
     ///
-    /// The Rust checker stores only the current file's entry and
-    /// drains after deferred nodes; this is the eager equivalent of
-    /// tsc's addLazyDiagnostic + source-file map.
+    /// The Rust checker stores registrations in their owning file's
+    /// entry and drains it after that file's deferred nodes. The
+    /// source-root key is essential because checking one file can force
+    /// declarations owned by another before the latter's deferred body walk.
     pub(crate) fn register_for_unused_identifiers_check(&mut self, node: NodeId) {
-        self.potentially_unused_identifiers.push(node);
-    }
-
-    /// tsrs-native: recovery adapter for a checked-JS expression statement
-    /// whose assignment LHS hits an `Unsupported` boundary before the
-    /// RHS function reaches `checkSignatureDeclaration`.
-    ///
-    /// tsc has no failure channel, so its RHS reaches the ordinary
-    /// function checker, which marks parameter reads and then reaches
-    /// the registerForUnusedIdentifiersCheck tail. Resume that bounded
-    /// RHS check after Rust contains the LHS failure. Recover only the
-    /// direct `=` function/arrow shape, and avoid a duplicate when the
-    /// RHS registered before a later failure.
-    pub(crate) fn recover_contained_js_assignment_function_for_unused(&mut self, node: NodeId) {
-        if !self.is_in_js_file(node) {
-            return;
-        }
-        let expression = match self.data_of(node) {
-            NodeData::ExpressionStatement(data) => data.expression,
-            _ => None,
-        };
-        let Some(expression) = expression else {
-            return;
-        };
-        let (operator_token, right) = match self.data_of(expression) {
-            NodeData::BinaryExpression(data) => (data.operator_token, data.right),
-            _ => (None, None),
-        };
-        if operator_token.is_none_or(|token| self.kind_of(token) != SyntaxKind::EqualsToken) {
-            return;
-        }
-        let Some(right) = right else {
-            return;
-        };
-        if !matches!(
-            self.kind_of(right),
-            SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
-        ) {
-            return;
-        }
-        if self
-            .check_expression(right, tsrs2_types::CheckMode::NORMAL)
-            .is_err()
-        {
-            return;
-        }
-        if !self.potentially_unused_identifiers.contains(&right) {
-            self.register_for_unused_identifiers_check(right);
+        let root = self.binder.source_of_node(node).root;
+        let nodes = self.potentially_unused_identifiers.entry(root).or_default();
+        if !nodes.contains(&node) {
+            nodes.push(node);
         }
     }
 
@@ -90,19 +47,17 @@ impl<'a> CheckerState<'a> {
     /// kind-aware at each addDiagnostic call so mixed function owners
     /// preserve the independent noUnusedLocals/noUnusedParameters
     /// gates.
-    pub(crate) fn check_registered_unused_identifiers(&mut self) {
-        let nodes = std::mem::take(&mut self.potentially_unused_identifiers);
+    pub(crate) fn check_registered_unused_identifiers(&mut self, root: NodeId) {
+        let nodes = self
+            .potentially_unused_identifiers
+            .remove(&root)
+            .unwrap_or_default();
         for node in nodes {
-            let diagnostics_before = self.diagnostics.len();
             let result = match self.kind_of(node) {
                 SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => self
                     .check_unused_class_members(node)
                     .and_then(|()| self.check_unused_type_parameters(node)),
-                SyntaxKind::SourceFile => {
-                    self.mark_jsdoc_references_for_unused(node);
-                    self.mark_checked_js_source_references_for_unused(node);
-                    self.check_unused_locals_and_parameters(node)
-                }
+                SyntaxKind::SourceFile => self.check_unused_locals_and_parameters(node),
                 SyntaxKind::ModuleDeclaration
                 | SyntaxKind::Block
                 | SyntaxKind::CaseBlock
@@ -132,143 +87,28 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::TypeAliasDeclaration
                 | SyntaxKind::InterfaceDeclaration => self.check_unused_type_parameters(node),
                 SyntaxKind::InferType => self.check_unused_infer_type_parameter(node),
-                _ => Ok(()),
-            };
-            if self.is_in_js_file(node) {
-                self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
-            }
-            if let Err(unsupported) = result {
-                self.mark_partially_checked_node(node, unsupported.reason);
-            }
-        }
-    }
-
-    /// Checked-JS CommonJS declarations can bind as aliases or ordinary
-    /// destructured variables. Some expression paths consume their
-    /// resolved module type or shorthand export without forcing
-    /// checkIdentifier on the receiver; tsc's linked-reference pass
-    /// still marks the local. Project only matching read sites whose
-    /// nearest locals table resolves to that source local, preserving
-    /// destructuring, shadowing, and write-only rules.
-    fn mark_checked_js_source_references_for_unused(&mut self, root: NodeId) {
-        if !self.is_in_js_file(root) {
-            return;
-        }
-        let candidates = self
-            .binder
-            .locals_of(root)
-            .into_iter()
-            .flat_map(|locals| locals.values().copied())
-            .filter_map(|symbol| {
-                let raw = self.binder.symbol(symbol);
-                let declaration = if raw.flags.intersects(SymbolFlags::ALIAS) {
-                    self.get_declaration_of_alias_symbol(symbol)?
-                } else {
-                    let declaration = raw.declarations.iter().copied().find(|&declaration| {
-                        self.kind_of(declaration) == SyntaxKind::BindingElement
-                    })?;
-                    let variable =
-                        std::iter::successors(Some(declaration), |&node| self.parent_of(node))
-                            .find(|&node| self.kind_of(node) == SyntaxKind::VariableDeclaration)?;
-                    let initializer = match self.data_of(variable) {
-                        NodeData::VariableDeclaration(data) => data.initializer?,
-                        _ => return None,
+                // registerForUnusedIdentifiersCheck is shape-driven in
+                // binder/checkBlock while tsc's consumer switch is
+                // kind-driven.  Recovery and newly materialized node kinds
+                // can therefore own the same two data sets without appearing
+                // in the historical switch: drain whichever ownership shape
+                // is present instead of abandoning the node.
+                _ => {
+                    let locals = if self.binder.locals_of(node).is_some() {
+                        self.check_unused_locals_and_parameters(node)
+                    } else {
+                        Ok(())
                     };
-                    if !self.is_require_call(initializer, true) {
-                        return None;
+                    if self.type_parameter_declarations_of(node).is_empty() {
+                        locals
+                    } else {
+                        locals.and_then(|()| self.check_unused_type_parameters(node))
                     }
-                    declaration
-                };
-                if !matches!(
-                    self.kind_of(declaration),
-                    SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement
-                ) {
-                    return None;
                 }
-                Some((raw.escaped_name.clone(), symbol, declaration))
-            })
-            .collect::<Vec<_>>();
-        if candidates.is_empty() {
-            return;
-        }
-
-        let mut stack = vec![root];
-        let mut identifiers = Vec::new();
-        while let Some(node) = stack.pop() {
-            if self.kind_of(node) == SyntaxKind::Identifier {
-                identifiers.push(node);
+            };
+            if let Err(abort) = result {
+                self.mark_oracle_crash_range(node, abort);
             }
-            stack.extend(self.children_of(node));
-        }
-        for (name, symbol, declaration) in candidates {
-            let declaration_name = self.name_of_node(declaration);
-            for &identifier in &identifiers {
-                if Some(identifier) == declaration_name
-                    || self.identifier_text_of(identifier) != Some(name.as_str())
-                    || self.is_non_reference_identifier_name_for_unused(identifier)
-                    || self.is_write_only_access(identifier)
-                    || !self.identifier_resolves_to_source_local_for_unused(
-                        identifier, &name, symbol, root,
-                    )
-                {
-                    continue;
-                }
-                self.links
-                    .set_symbol_is_referenced(self.speculation_depth, symbol);
-                break;
-            }
-        }
-    }
-
-    fn identifier_resolves_to_source_local_for_unused(
-        &self,
-        node: NodeId,
-        escaped_name: &str,
-        source_symbol: tsrs2_types::SymbolId,
-        root: NodeId,
-    ) -> bool {
-        let mut current = self.parent_of(node);
-        while let Some(scope) = current {
-            if let Some(symbol) = self
-                .binder
-                .locals_of(scope)
-                .and_then(|locals| locals.get(escaped_name))
-            {
-                return *symbol == source_symbol;
-            }
-            if scope == root {
-                break;
-            }
-            current = self.parent_of(scope);
-        }
-        false
-    }
-
-    fn is_non_reference_identifier_name_for_unused(&self, node: NodeId) -> bool {
-        let Some(parent) = self.parent_of(node) else {
-            return false;
-        };
-        match self.data_of(parent) {
-            NodeData::PropertyAccessExpression(data) => data.name == Some(node),
-            NodeData::PropertyAssignment(data) => data.name == Some(node),
-            NodeData::MethodDeclaration(data) => data.name == Some(node),
-            NodeData::GetAccessor(data) => data.name == Some(node),
-            NodeData::SetAccessor(data) => data.name == Some(node),
-            NodeData::PropertyDeclaration(data) => data.name == Some(node),
-            NodeData::PropertySignature(data) => data.name == Some(node),
-            NodeData::MethodSignature(data) => data.name == Some(node),
-            NodeData::ClassDeclaration(data) => data.name == Some(node),
-            NodeData::ClassExpression(data) => data.name == Some(node),
-            NodeData::FunctionDeclaration(data) => data.name == Some(node),
-            NodeData::FunctionExpression(data) => data.name == Some(node),
-            NodeData::InterfaceDeclaration(data) => data.name == Some(node),
-            NodeData::TypeAliasDeclaration(data) => data.name == Some(node),
-            NodeData::EnumDeclaration(data) => data.name == Some(node),
-            NodeData::EnumMember(data) => data.name == Some(node),
-            NodeData::ModuleDeclaration(data) => data.name == Some(node),
-            NodeData::Parameter(data) => data.name == Some(node),
-            NodeData::BindingElement(data) => data.name == Some(node),
-            _ => false,
         }
     }
 
@@ -305,6 +145,9 @@ impl<'a> CheckerState<'a> {
         message: &'static tsrs2_diags::DiagnosticMessage,
         args: &[&str],
     ) {
+        if self.is_recovery_only_unused_declaration(containing_node) {
+            return;
+        }
         let mut diagnostic = self.create_error(location, message, args);
         if !self.unused_is_error(containing_node, kind) {
             diagnostic.message.category = DiagnosticCategory::Suggestion;
@@ -321,6 +164,9 @@ impl<'a> CheckerState<'a> {
         message: &'static tsrs2_diags::DiagnosticMessage,
         args: &[&str],
     ) {
+        if self.is_recovery_only_unused_declaration(containing_node) {
+            return;
+        }
         let index = self.error_at_byte_range_with_args(
             containing_node,
             start_byte,
@@ -371,14 +217,14 @@ impl<'a> CheckerState<'a> {
                     )
                     .intersects(ModifierFlags::PRIVATE)
                         || self.kind_of(name) == SyntaxKind::PrivateIdentifier;
-                    if !self.links.symbol(symbol).is_referenced
+                    if self.links.symbol(symbol).is_referenced.is_empty()
                         && private
                         && !NodeFlags::from_bits(self.node_flags(member))
                             .intersects(NodeFlags::AMBIENT)
                     {
                         let display = self.declaration_name_display(name);
                         self.add_unused_diagnostic_at(
-                            node,
+                            member,
                             UnusedIdentifierKind::Local,
                             Some(name),
                             &diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -393,7 +239,7 @@ impl<'a> CheckerState<'a> {
                     };
                     for parameter in self.nodes_of(parameters) {
                         let symbol = self.get_symbol_of_declaration(parameter)?;
-                        if self.links.symbol(symbol).is_referenced
+                        if !self.links.symbol(symbol).is_referenced.is_empty()
                             || !node_util::has_syntactic_modifier(
                                 self.binder.source_of_node(parameter),
                                 parameter,
@@ -407,7 +253,7 @@ impl<'a> CheckerState<'a> {
                         };
                         let display = self.symbol_display_name(symbol);
                         self.add_unused_diagnostic_at(
-                            node,
+                            parameter,
                             UnusedIdentifierKind::Local,
                             Some(name),
                             &diagnostics::Property_0_is_declared_but_its_value_is_never_read,
@@ -418,11 +264,10 @@ impl<'a> CheckerState<'a> {
                 SyntaxKind::IndexSignature
                 | SyntaxKind::SemicolonClassElement
                 | SyntaxKind::ClassStaticBlockDeclaration => {}
-                _ => {
-                    return Err(Unsupported::new(
-                        "checkUnusedClassMembers unexpected class member (Debug.fail transcription, parse recovery)",
-                    ));
-                }
+                // Parser-created class members are exhausted above. A
+                // checker-synthetic recovery member has no supported name
+                // ownership and therefore contributes no unused diagnostic.
+                _ => {}
             }
         }
         Ok(())
@@ -462,11 +307,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: c6294c45ceb55de9dfec242db2e34ba86ac499530e73b118fbefe0e41acf73fe
     /// tsc-span: _tsc.js:83045-83066
     /// d2: d2:6cbef847d0eda39c3a2178516c958e766146c3da957e1c890aacaecb5e78c48c
-    ///
-    /// Effective JSDoc template declarations are elided with the
-    /// project-wide JSDoc-node boundary. Every supported TS owner has
-    /// one concrete type-parameter list, so tsc's parent set reduces
-    /// to one aggregated diagnostic when the whole list is unused.
     fn check_unused_type_parameters(&mut self, node: NodeId) -> CheckResult2<()> {
         let symbol = self.get_symbol_of_declaration(node)?;
         let declarations = self.binder.symbol(symbol).declarations.clone();
@@ -474,66 +314,90 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         }
 
-        let Some(list) = self.type_parameter_declaration_list_of(node) else {
-            return Ok(());
-        };
-        let type_parameters = self.nodes_of(Some(list));
-        if type_parameters.is_empty() {
-            return Ok(());
-        }
-
-        let mut unused = Vec::with_capacity(type_parameters.len());
-        for &type_parameter in &type_parameters {
-            if self.is_type_parameter_unused(type_parameter)? {
-                unused.push(type_parameter);
+        let type_parameters = self.type_parameter_declarations_of(node);
+        let mut seen_parents_with_every_unused = Vec::new();
+        for type_parameter in type_parameters {
+            if !self.is_type_parameter_unused(type_parameter)? {
+                continue;
             }
-        }
-        if unused.is_empty() {
-            return Ok(());
-        }
-
-        if unused.len() == type_parameters.len() {
-            let (start_byte, end_byte) = self.range_of_type_parameters(node, list);
-            if type_parameters.len() == 1 {
-                let name = self
-                    .name_of_node(type_parameters[0])
-                    .and_then(|name| self.identifier_text_of(name))
-                    .unwrap_or_default()
-                    .to_owned();
-                self.add_unused_diagnostic_at_byte_range(
-                    node,
-                    UnusedIdentifierKind::Parameter,
-                    start_byte,
-                    end_byte,
-                    &diagnostics::_0_is_declared_but_its_value_is_never_read,
-                    &[&name],
-                );
-            } else {
-                self.add_unused_diagnostic_at_byte_range(
-                    node,
-                    UnusedIdentifierKind::Parameter,
-                    start_byte,
-                    end_byte,
-                    &diagnostics::All_type_parameters_are_unused,
-                    &[],
-                );
-            }
-            return Ok(());
-        }
-
-        for type_parameter in unused {
             let name = self
                 .name_of_node(type_parameter)
                 .and_then(|name| self.identifier_text_of(name))
                 .unwrap_or_default()
                 .to_owned();
-            self.add_unused_diagnostic_at(
-                node,
-                UnusedIdentifierKind::Parameter,
-                Some(type_parameter),
-                &diagnostics::_0_is_declared_but_its_value_is_never_read,
-                &[&name],
-            );
+            let Some(parent) = self.parent_of(type_parameter) else {
+                continue;
+            };
+            let parent_type_parameters = match self.data_of(parent) {
+                NodeData::JSDocTemplateTag(data) => self.nodes_of(data.type_parameters),
+                _ => self
+                    .type_parameter_declaration_list_of(parent)
+                    .map_or_else(Vec::new, |list| self.nodes_of(Some(list))),
+            };
+            let every_unused = self.kind_of(parent) != SyntaxKind::InferType
+                && !parent_type_parameters.is_empty()
+                && {
+                    let mut all_unused = true;
+                    for &candidate in &parent_type_parameters {
+                        if !self.is_type_parameter_unused(candidate)? {
+                            all_unused = false;
+                            break;
+                        }
+                    }
+                    all_unused
+                };
+            if every_unused {
+                if seen_parents_with_every_unused.contains(&parent) {
+                    continue;
+                }
+                seen_parents_with_every_unused.push(parent);
+                let (start_byte, end_byte) = if self.kind_of(parent) == SyntaxKind::JSDocTemplateTag
+                {
+                    let source = self.binder.source_of_node(parent);
+                    let parent_node = source.arena.node(parent);
+                    (
+                        tsrs2_syntax::skip_trivia(&source.text, parent_node.pos as usize),
+                        parent_node.end.max(parent_node.pos) as usize,
+                    )
+                } else {
+                    let Some(list) = self.type_parameter_declaration_list_of(parent) else {
+                        continue;
+                    };
+                    self.range_of_type_parameters(parent, list)
+                };
+                if parent_type_parameters.len() == 1 {
+                    self.add_unused_diagnostic_at_byte_range(
+                        type_parameter,
+                        UnusedIdentifierKind::Parameter,
+                        start_byte,
+                        end_byte,
+                        &diagnostics::_0_is_declared_but_its_value_is_never_read,
+                        &[&name],
+                    );
+                } else {
+                    self.add_unused_diagnostic_at_byte_range(
+                        type_parameter,
+                        UnusedIdentifierKind::Parameter,
+                        start_byte,
+                        end_byte,
+                        &diagnostics::All_type_parameters_are_unused,
+                        &[],
+                    );
+                }
+            } else {
+                let name = self
+                    .name_of_node(type_parameter)
+                    .and_then(|name| self.identifier_text_of(name))
+                    .unwrap_or_default()
+                    .to_owned();
+                self.add_unused_diagnostic_at(
+                    type_parameter,
+                    UnusedIdentifierKind::Parameter,
+                    Some(type_parameter),
+                    &diagnostics::_0_is_declared_but_its_value_is_never_read,
+                    &[&name],
+                );
+            }
         }
         Ok(())
     }
@@ -570,66 +434,12 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         let symbol = self.get_symbol_of_declaration(type_parameter)?;
-        Ok(!self.links.symbol(symbol).is_referenced
+        Ok(!self
+            .links
+            .symbol(symbol)
+            .is_referenced
+            .intersects(SymbolFlags::TYPE_PARAMETER)
             && !self.identifier_starts_with_underscore(name))
-    }
-
-    /// tsc-port: checkJSDocLinkLikeTag @6.0.3
-    /// tsc-hash: 670de5faef306240a1f40aedcbe389e3bdcb2495dfe29b06ca8086c83118a0af
-    /// tsc-span: _tsc.js:82824-82832
-    /// d2: d2:7af838c0f26203b767a593b87d8fd7b70f904695e93e35e87d432846ed7799f5
-    ///
-    /// This also projects checked-JS JSDoc type resolution effects.
-    /// The syntax arena does not materialize JSDocLink nodes yet.
-    /// Project their root entity names over the existing parser-owned
-    /// JSDoc trivia ranges, then apply the same reference effect to
-    /// source-file locals. Besides link-like tags, checked-JS `typeof`
-    /// type queries and the value declaration paired with a same-name
-    /// `@typedef` are observable prerequisites of the unused worker.
-    /// Qualified references mark only their root.
-    fn mark_jsdoc_references_for_unused(&mut self, root: NodeId) {
-        let ranges = self.jsdoc_comment_body_ranges(root);
-        let (names, typedef_names) = {
-            let source = self.binder.source_of_node(root);
-            let mut names = jsdoc_link_root_names(&source.text, &ranges);
-            let mut typedef_names = Vec::new();
-            if self.is_in_js_file(root) {
-                names.extend(jsdoc_type_reference_root_names(&source.text, &ranges));
-                typedef_names = jsdoc_typedef_names(&source.text, &ranges);
-            }
-            (names, typedef_names)
-        };
-        let symbols = {
-            let Some(locals) = self.binder.locals_of(root) else {
-                return;
-            };
-            let mut symbols = names
-                .into_iter()
-                .filter_map(|name| {
-                    locals
-                        .get(&tsrs2_binder::escape_leading_underscores(&name))
-                        .copied()
-                })
-                .collect::<Vec<_>>();
-            symbols.extend(typedef_names.into_iter().filter_map(|name| {
-                let symbol = locals
-                    .get(&tsrs2_binder::escape_leading_underscores(&name))
-                    .copied()?;
-                self.binder
-                    .symbol(symbol)
-                    .declarations
-                    .iter()
-                    .any(|&declaration| {
-                        self.kind_of(declaration) == SyntaxKind::VariableDeclaration
-                    })
-                    .then_some(symbol)
-            }));
-            symbols
-        };
-        for symbol in symbols {
-            self.links
-                .set_symbol_is_referenced(self.speculation_depth, symbol);
-        }
     }
 
     /// tsc-port: checkUnusedLocalsAndParameters @6.0.3
@@ -656,23 +466,16 @@ impl<'a> CheckerState<'a> {
             let symbol = self.binder.symbol(local);
             let referenced = self.links.symbol(local).is_referenced;
             if symbol.flags.intersects(SymbolFlags::TYPE_PARAMETER) {
-                if !symbol.flags.intersects(SymbolFlags::VARIABLE) || referenced {
+                if !symbol.flags.intersects(SymbolFlags::VARIABLE)
+                    || referenced.intersects(SymbolFlags::VARIABLE)
+                {
                     continue;
                 }
-            } else if referenced || symbol.export_symbol.is_some() {
+            } else if !referenced.is_empty() || symbol.export_symbol.is_some() {
                 continue;
             }
             let declarations = symbol.declarations.clone();
             for declaration in declarations {
-                // Rust recovery can retain a declaration symbol whose own
-                // subtree contains a missing-node parse error (for example
-                // `const broken = ;`). tsc does not put that recovery-only
-                // symbol in the unused worker's locals table. Keep valid
-                // bound siblings visible without manufacturing a diagnostic
-                // for the recovery declaration itself.
-                if self.is_recovery_only_unused_declaration(declaration) {
-                    continue;
-                }
                 if self.is_recovery_only_imported_declaration(declaration) {
                     continue;
                 }
@@ -756,7 +559,7 @@ impl<'a> CheckerState<'a> {
                                     )
                                     .to_owned();
                                     self.add_unused_diagnostic_at(
-                                        node,
+                                        parameter,
                                         UnusedIdentifierKind::Parameter,
                                         Some(name),
                                         &diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -766,7 +569,7 @@ impl<'a> CheckerState<'a> {
                             }
                         }
                     } else {
-                        self.error_unused_local(node, declaration, local);
+                        self.error_unused_local(declaration, local);
                     }
                 }
             }
@@ -788,7 +591,7 @@ impl<'a> CheckerState<'a> {
                         .map(|name| self.declaration_name_display(name))
                         .unwrap_or_default();
                     self.add_unused_diagnostic_at(
-                        node,
+                        import_decl,
                         UnusedIdentifierKind::Local,
                         Some(import_decl),
                         &diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -796,7 +599,7 @@ impl<'a> CheckerState<'a> {
                     );
                 } else {
                     self.add_unused_diagnostic_at(
-                        node,
+                        import_decl,
                         UnusedIdentifierKind::Local,
                         Some(import_decl),
                         &diagnostics::All_imports_in_import_declaration_are_unused,
@@ -808,7 +611,7 @@ impl<'a> CheckerState<'a> {
                     let Some(symbol) = self.binder.node_symbol(unused) else {
                         continue;
                     };
-                    self.error_unused_local(node, unused, symbol);
+                    self.error_unused_local(unused, symbol);
                 }
             }
         }
@@ -840,7 +643,7 @@ impl<'a> CheckerState<'a> {
                         .map(|name| self.unused_binding_name_text(name))
                         .unwrap_or_default();
                     self.add_unused_diagnostic_at(
-                        node,
+                        binding_pattern,
                         kind,
                         Some(binding_pattern),
                         &diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -848,7 +651,7 @@ impl<'a> CheckerState<'a> {
                     );
                 } else {
                     self.add_unused_diagnostic_at(
-                        node,
+                        binding_pattern,
                         kind,
                         Some(binding_pattern),
                         &diagnostics::All_destructured_elements_are_unused,
@@ -862,7 +665,7 @@ impl<'a> CheckerState<'a> {
                         .map(|name| self.unused_binding_name_text(name))
                         .unwrap_or_default();
                     self.add_unused_diagnostic_at(
-                        node,
+                        element,
                         kind,
                         Some(element),
                         &diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -887,7 +690,7 @@ impl<'a> CheckerState<'a> {
                         .map(|name| self.unused_binding_name_text(name))
                         .unwrap_or_default();
                     self.add_unused_diagnostic_at(
-                        node,
+                        declaration_list,
                         UnusedIdentifierKind::Local,
                         name,
                         &diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -899,7 +702,7 @@ impl<'a> CheckerState<'a> {
                         .filter(|parent| self.kind_of(*parent) == SyntaxKind::VariableStatement)
                         .unwrap_or(declaration_list);
                     self.add_unused_diagnostic_at(
-                        node,
+                        declaration_list,
                         UnusedIdentifierKind::Local,
                         Some(range),
                         &diagnostics::All_variables_are_unused,
@@ -913,7 +716,7 @@ impl<'a> CheckerState<'a> {
                         .map(|name| self.unused_binding_name_text(name))
                         .unwrap_or_default();
                     self.add_unused_diagnostic_at(
-                        node,
+                        declaration,
                         UnusedIdentifierKind::Local,
                         Some(declaration),
                         &diagnostics::_0_is_declared_but_its_value_is_never_read,
@@ -929,12 +732,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a0859bf31f12b34a4d97492b714654753bd5d7f9b198bfa8529d878e28eb06d3
     /// tsc-span: _tsc.js:83000-83004
     /// d2: d2:435cd87c2bcdcc3eb69b3135503cdb119fce2de337927782eb67ee038afe8576
-    fn error_unused_local(
-        &mut self,
-        containing_node: NodeId,
-        declaration: NodeId,
-        symbol: tsrs2_types::SymbolId,
-    ) {
+    fn error_unused_local(&mut self, declaration: NodeId, symbol: tsrs2_types::SymbolId) {
         let node = node_util::get_name_of_declaration(
             self.binder.source_of_node(declaration),
             declaration,
@@ -949,7 +747,7 @@ impl<'a> CheckerState<'a> {
             &diagnostics::_0_is_declared_but_its_value_is_never_read
         };
         self.add_unused_diagnostic_at(
-            containing_node,
+            declaration,
             UnusedIdentifierKind::Local,
             Some(node),
             message,
@@ -998,6 +796,35 @@ impl<'a> CheckerState<'a> {
     }
 
     fn is_valid_unused_local_declaration(&self, declaration: NodeId) -> bool {
+        // A JSDoc import is bound into its effective host's locals for
+        // type resolution, but the tag is not itself an
+        // external/CommonJS SourceFile unused owner in tsc
+        // (bindJSDocImports 44073-44103; SourceFile registration
+        // 87025-87027). Keep its synthetic import-clause declarations
+        // out of an enclosing recovery drain.
+        if matches!(
+            self.kind_of(declaration),
+            SyntaxKind::ImportClause | SyntaxKind::ImportSpecifier | SyntaxKind::NamespaceImport
+        ) && std::iter::successors(Some(declaration), |&node| self.parent_of(node))
+            .take(4)
+            .any(|node| self.kind_of(node) == SyntaxKind::JSDocImportTag)
+        {
+            return true;
+        }
+        // tsc does not surface ordinary unused-identifier suggestions
+        // for declarations that exist only inside attached JSDoc.
+        // Their symbols participate in type resolution, but the tags
+        // are not source-language local declarations.
+        if matches!(
+            self.kind_of(declaration),
+            SyntaxKind::JSDocTypedefTag
+                | SyntaxKind::JSDocCallbackTag
+                | SyntaxKind::JSDocEnumTag
+                | SyntaxKind::JSDocPropertyTag
+                | SyntaxKind::JSDocParameterTag
+        ) {
+            return true;
+        }
         if self.kind_of(declaration) == SyntaxKind::BindingElement {
             let (name, property_name) = match self.data_of(declaration) {
                 NodeData::BindingElement(data) => (data.name, data.property_name),
@@ -1134,246 +961,9 @@ fn add_to_unused_group(groups: &mut Vec<(NodeId, Vec<NodeId>)>, key: NodeId, val
     }
 }
 
-fn jsdoc_link_root_names(text: &str, ranges: &[(usize, usize)]) -> Vec<String> {
-    let mut names = Vec::new();
-    for &(start, end) in ranges {
-        let Some(body) = text.get(start..end) else {
-            continue;
-        };
-        let mut cursor = 0;
-        while let Some(relative) = body[cursor..].find("{@") {
-            let tag_start = cursor + relative + 2;
-            let tail = &body[tag_start..];
-            let tag_len = tail
-                .char_indices()
-                .take_while(|(_, character)| character.is_ascii_alphabetic())
-                .last()
-                .map_or(0, |(index, character)| index + character.len_utf8());
-            let tag = &tail[..tag_len];
-            if matches!(tag, "link" | "linkcode" | "linkplain") {
-                let after_tag = &tail[tag_len..];
-                let whitespace_len = after_tag
-                    .char_indices()
-                    .take_while(|(_, character)| matches!(character, ' ' | '\t' | '\r' | '\n'))
-                    .last()
-                    .map_or(0, |(index, character)| index + character.len_utf8());
-                if whitespace_len > 0 {
-                    let name_tail = &after_tag[whitespace_len..];
-                    let name_len = name_tail
-                        .char_indices()
-                        .take_while(|(index, character)| {
-                            if *index == 0 {
-                                *character == '_' || *character == '$' || character.is_alphabetic()
-                            } else {
-                                *character == '_'
-                                    || *character == '$'
-                                    || character.is_alphanumeric()
-                            }
-                        })
-                        .last()
-                        .map_or(0, |(index, character)| index + character.len_utf8());
-                    if name_len > 0 {
-                        names.push(name_tail[..name_len].to_owned());
-                    }
-                }
-            }
-            cursor = tag_start;
-            if cursor >= body.len() {
-                break;
-            }
-        }
-    }
-    names
-}
-
-#[cfg(test)]
-fn jsdoc_type_query_root_names(text: &str, ranges: &[(usize, usize)]) -> Vec<String> {
-    let mut names = Vec::new();
-    for &(start, end) in ranges {
-        let Some(body) = text.get(start..end) else {
-            continue;
-        };
-
-        // JSDoc type expressions are brace-delimited. Resolve the root
-        // of each `typeof Name` query, matching TypeQuery's value-use
-        // side effect without manufacturing names from prose.
-        let mut cursor = 0;
-        while let Some(open_relative) = body[cursor..].find('{') {
-            let open = cursor + open_relative + 1;
-            let Some(close_relative) = body[open..].find('}') else {
-                break;
-            };
-            let close = open + close_relative;
-            let type_text = &body[open..close];
-            let mut type_cursor = 0;
-            while let Some(typeof_relative) = type_text[type_cursor..].find("typeof") {
-                let typeof_start = type_cursor + typeof_relative;
-                let before_ok = typeof_start == 0
-                    || !is_jsdoc_identifier_part(
-                        type_text[..typeof_start]
-                            .chars()
-                            .next_back()
-                            .expect("nonzero has a previous char"),
-                    );
-                let after_keyword = typeof_start + "typeof".len();
-                let after_ok = type_text[after_keyword..]
-                    .chars()
-                    .next()
-                    .is_none_or(|character| !is_jsdoc_identifier_part(character));
-                if before_ok && after_ok {
-                    let tail = type_text[after_keyword..].trim_start_matches(char::is_whitespace);
-                    if let Some(name) = jsdoc_root_identifier(tail) {
-                        names.push(name.to_owned());
-                    }
-                }
-                type_cursor = after_keyword;
-            }
-            cursor = close + 1;
-        }
-    }
-    names
-}
-
-fn jsdoc_type_reference_root_names(text: &str, ranges: &[(usize, usize)]) -> Vec<String> {
-    let mut names = Vec::new();
-    for &(start, end) in ranges {
-        let Some(body) = text.get(start..end) else {
-            continue;
-        };
-        let mut cursor = 0;
-        let mut brace_depth = 0_u32;
-        let mut quote = None;
-        while cursor < body.len() {
-            let Some(character) = body[cursor..].chars().next() else {
-                break;
-            };
-            let character_len = character.len_utf8();
-            if let Some(delimiter) = quote {
-                if character == '\\' {
-                    cursor += character_len;
-                    if let Some(escaped) = body[cursor..].chars().next() {
-                        cursor += escaped.len_utf8();
-                    }
-                    continue;
-                }
-                if character == delimiter {
-                    quote = None;
-                }
-                cursor += character_len;
-                continue;
-            }
-            match character {
-                '\'' | '"' | '`' if brace_depth > 0 => {
-                    quote = Some(character);
-                    cursor += character_len;
-                    continue;
-                }
-                '{' => {
-                    brace_depth += 1;
-                    cursor += character_len;
-                    continue;
-                }
-                '}' => {
-                    brace_depth = brace_depth.saturating_sub(1);
-                    cursor += character_len;
-                    continue;
-                }
-                _ => {}
-            }
-            if brace_depth == 0 || !is_jsdoc_identifier_start(character) {
-                cursor += character_len;
-                continue;
-            }
-
-            let identifier_start = cursor;
-            cursor += character_len;
-            while cursor < body.len() {
-                let Some(next) = body[cursor..].chars().next() else {
-                    break;
-                };
-                if !is_jsdoc_identifier_part(next) {
-                    break;
-                }
-                cursor += next.len_utf8();
-            }
-            let previous = body[..identifier_start]
-                .chars()
-                .rev()
-                .find(|candidate| !candidate.is_whitespace());
-            let next = body[cursor..]
-                .chars()
-                .find(|candidate| !candidate.is_whitespace());
-            // A name after `.` is a qualified member, and a name
-            // before `:` is a record property. Neither resolves
-            // independently in the source-file locals table.
-            if previous != Some('.') && next != Some(':') {
-                names.push(body[identifier_start..cursor].to_owned());
-            }
-        }
-    }
-    names
-}
-
-fn jsdoc_typedef_names(text: &str, ranges: &[(usize, usize)]) -> Vec<String> {
-    let mut names = Vec::new();
-    for &(start, end) in ranges {
-        let Some(body) = text.get(start..end) else {
-            continue;
-        };
-        let mut cursor = 0;
-        while let Some(tag_relative) = body[cursor..].find("@typedef") {
-            let tag_start = cursor + tag_relative;
-            let after_tag = tag_start + "@typedef".len();
-            let tag_tail = &body[after_tag..];
-            let tag_tail = tag_tail.trim_start_matches(char::is_whitespace);
-            let name_tail = if let Some(type_tail) = tag_tail.strip_prefix('{') {
-                type_tail
-                    .find('}')
-                    .map(|close| &type_tail[close + 1..])
-                    .unwrap_or("")
-            } else {
-                tag_tail
-            };
-            if let Some(name) =
-                jsdoc_root_identifier(name_tail.trim_start_matches(char::is_whitespace))
-            {
-                names.push(name.to_owned());
-            }
-            cursor = after_tag;
-        }
-    }
-    names
-}
-
-fn jsdoc_root_identifier(text: &str) -> Option<&str> {
-    let mut chars = text.char_indices();
-    let (_, first) = chars.next()?;
-    if !is_jsdoc_identifier_start(first) {
-        return None;
-    }
-    let end = chars
-        .take_while(|(_, character)| is_jsdoc_identifier_part(*character))
-        .last()
-        .map_or(first.len_utf8(), |(index, character)| {
-            index + character.len_utf8()
-        });
-    text.get(..end)
-}
-
-fn is_jsdoc_identifier_start(character: char) -> bool {
-    character == '_' || character == '$' || character.is_alphabetic()
-}
-
-fn is_jsdoc_identifier_part(character: char) -> bool {
-    is_jsdoc_identifier_start(character) || character.is_alphanumeric()
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{
-        jsdoc_link_root_names, jsdoc_type_query_root_names, jsdoc_type_reference_root_names,
-        jsdoc_typedef_names,
-    };
+    use crate::state::test_support::with_program_state;
     use crate::{check_program, CompilerOptions, InputFile};
     use tsrs2_diags::DiagnosticCategory;
 
@@ -1416,6 +1006,44 @@ mod tests {
             .collect()
     }
 
+    fn unused_rows_with_file_for_files(
+        files: &[(&str, &str)],
+        options: &CompilerOptions,
+    ) -> Vec<(String, u32, DiagnosticCategory, u32, u32, String)> {
+        let files = files
+            .iter()
+            .map(|(name, text)| InputFile {
+                name: (*name).to_owned(),
+                text: (*text).to_owned(),
+            })
+            .collect::<Vec<_>>();
+        check_program(&files, options)
+            .diagnostics
+            .into_iter()
+            .filter(|diagnostic| {
+                matches!(
+                    diagnostic.code(),
+                    6133 | 6138 | 6192 | 6196 | 6198 | 6199 | 6205
+                )
+            })
+            .map(|diagnostic| {
+                let code = diagnostic.code();
+                let category = diagnostic.category();
+                let start = diagnostic.start.unwrap_or(u32::MAX);
+                let length = diagnostic.length.unwrap_or(u32::MAX);
+                let message = diagnostic.message_text().to_owned();
+                (
+                    diagnostic.file_name.unwrap_or_default(),
+                    code,
+                    category,
+                    start,
+                    length,
+                    message,
+                )
+            })
+            .collect()
+    }
+
     #[test]
     fn unused_identifier_drain_preserves_bound_siblings_of_parse_errors() {
         let text = "export {}; const unused = 1; const used = 2; used; const broken = ;";
@@ -1435,6 +1063,18 @@ mod tests {
         assert!(unused_rows(
             "const globalUnused = 1; const broken = ;",
             &CompilerOptions::default(),
+        )
+        .is_empty());
+    }
+
+    #[test]
+    fn parse_error_suppresses_the_nearest_unused_declaration_group() {
+        assert!(unused_rows(
+            "export {}; const hidden = 1, broken = ;",
+            &CompilerOptions {
+                no_unused_locals: Some(true),
+                ..CompilerOptions::default()
+            },
         )
         .is_empty());
     }
@@ -1472,6 +1112,50 @@ export {};
                     "'type' is declared but never used.".to_owned(),
                 ),
             ]
+        );
+    }
+
+    #[test]
+    fn merged_type_and_value_parameter_references_keep_their_meaning_masks() {
+        let options = CompilerOptions {
+            no_unused_locals: Some(true),
+            no_unused_parameters: Some(true),
+            ..CompilerOptions::default()
+        };
+
+        let value_only = "export function f<T>(T: number) { return T; }";
+        assert_eq!(
+            unused_rows(value_only, &options),
+            [(
+                6133,
+                DiagnosticCategory::Error,
+                value_only.find("<T>").expect("type parameter range") as u32,
+                3,
+                "'T' is declared but its value is never read.".to_owned(),
+            )],
+            "a value-meaning read must not mark the merged type-parameter face"
+        );
+
+        let type_only = "export function g<T>(T: number): T { throw 0; }";
+        assert_eq!(
+            unused_rows(type_only, &options),
+            [(
+                6133,
+                DiagnosticCategory::Error,
+                type_only.find("(T:").expect("value parameter") as u32 + 1,
+                1,
+                "'T' is declared but its value is never read.".to_owned(),
+            )],
+            "a type-meaning read must not mark the merged value-parameter face"
+        );
+
+        assert!(
+            unused_rows(
+                "export function h<T>(value: T): T { return value; }",
+                &options,
+            )
+            .is_empty(),
+            "the non-colliding sibling keeps both reference meanings"
         );
     }
 
@@ -2957,6 +2641,28 @@ const test2 = mod2;
     }
 
     #[test]
+    fn ambient_declaration_in_source_file_is_an_unused_suggestion() {
+        let text = "export {};\ndeclare const dead: number;\n";
+        let rows = unused_rows(
+            text,
+            &CompilerOptions {
+                no_unused_locals: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
+        assert_eq!(
+            rows,
+            [(
+                6133,
+                DiagnosticCategory::Suggestion,
+                text.find("dead").expect("ambient declaration") as u32,
+                4,
+                "'dead' is declared but its value is never read.".to_owned(),
+            )]
+        );
+    }
+
+    #[test]
     fn jsdoc_links_mark_direct_and_qualified_import_roots_as_referenced() {
         let rows = unused_rows_for_files(
             &[
@@ -3096,34 +2802,427 @@ pos.line;
     }
 
     #[test]
-    fn jsdoc_link_projection_rejects_similar_text_and_keeps_root_names() {
-        let text = "{@link A} {@linkcode ns.Member label} {@linkplain $value} {@linkish Wrong}";
+    fn checked_js_contained_reads_mark_nested_and_commonjs_locals() {
+        let rows = unused_rows_for_files(
+            &[
+                (
+                    "node.d.ts",
+                    "declare var exports: any;\n\
+                     declare var module: { exports: any };\n",
+                ),
+                (
+                    "main.js",
+                    "/// <reference path='node.d.ts' />\n\
+                     exports = module.exports = C;\n\
+                     function C() {\n\
+                       var x = {};\n\
+                       return x;\n\
+                     }\n\
+                     function build() {\n\
+                       const obj = {};\n\
+                       return obj;\n\
+                     }\n\
+                     build();\n",
+                ),
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+                ..CompilerOptions::default()
+            },
+        );
+        assert!(rows.is_empty(), "{rows:?}");
+    }
+
+    #[test]
+    fn checked_js_reference_reconciliation_preserves_non_reads() {
+        let text = "export {};\n\
+                    function recursive() { recursive(); }\n\
+                    function write() { let assigned; assigned = 1; }\n\
+                    function labels() { let marker = 1; marker: { break marker; } }\n\
+                    write();\n\
+                    labels();\n";
+        let rows = unused_rows_for_files(
+            &[("main.js", text)],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                ..CompilerOptions::default()
+            },
+        );
         assert_eq!(
-            jsdoc_link_root_names(text, &[(0, text.len())]),
-            ["A", "ns", "$value"]
+            rows.iter()
+                .map(|row| (row.0, row.4.as_str()))
+                .collect::<Vec<_>>(),
+            [
+                (6133, "'recursive' is declared but its value is never read."),
+                (6133, "'assigned' is declared but its value is never read."),
+                (6133, "'marker' is declared but its value is never read."),
+            ]
         );
     }
 
     #[test]
-    fn jsdoc_type_projection_keeps_type_query_and_typedef_roots() {
-        let text = "@param {typeof exemplar.Member} x prose typeof Wrong\n@typedef {number} Local";
-        assert_eq!(
-            jsdoc_type_query_root_names(text, &[(0, text.len())]),
-            ["exemplar"]
+    fn unused_jsdoc_import_tag_does_not_become_a_source_local_diagnostic() {
+        let rows = unused_rows_for_files(
+            &[
+                ("types.ts", "export interface Foo { a: number; }\n"),
+                ("foo.js", "/** @import x = require(\"types\") */\n"),
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+                ..CompilerOptions::default()
+            },
         );
-        assert_eq!(
-            jsdoc_type_reference_root_names(text, &[(0, text.len())]),
-            ["typeof", "exemplar", "number"]
-        );
-        assert_eq!(jsdoc_typedef_names(text, &[(0, text.len())]), ["Local"]);
+        assert!(rows.is_empty(), "{rows:?}");
     }
 
     #[test]
-    fn jsdoc_type_reference_projection_skips_members_and_record_properties() {
-        let text = "/** @typedef {{field: Local} | ns.Member | typeof Value} Result */";
-        assert_eq!(
-            jsdoc_type_reference_root_names(text, &[(3, text.len() - 2)]),
-            ["Local", "ns", "typeof", "Value"]
-        );
+    fn checked_js_conformance_reference_reads_mark_source_locals() {
+        let cases = [
+            (
+                "jsDeclarationsReferenceToClassInstanceCrossFile",
+                vec![
+                    (
+                        "/rectangle.js",
+                        r#"class Rectangle {
+    constructor() {
+        console.log("I'm a rectangle!");
+    }
+}
+
+module.exports = { Rectangle };
+"#,
+                    ),
+                    (
+                        "/index.js",
+                        r#"const {Rectangle} = require('./rectangle');
+
+class Render {
+    constructor() {
+        /**
+         * Object list
+         * @type {Rectangle[]}
+         */
+        this.objects = [];
+    }
+    /**
+     * Adds a rectangle
+     *
+     * @returns {Rectangle} the rect
+     */
+    addRectangle() {
+        const obj = new Rectangle();
+        this.objects.push(obj);
+        return obj;
+    }
+}
+
+module.exports = { Render };
+"#,
+                    ),
+                    (
+                        "/test.js",
+                        r#"const {Render} = require("./index");
+let render = new Render();
+
+render.addRectangle();
+console.log("Objects", render.objects);
+"#,
+                    ),
+                ],
+            ),
+            (
+                "importTag13",
+                vec![
+                    ("/types.ts", "export interface Foo {\n    a: number;\n}\n"),
+                    ("/foo.js", "/** @import x = require(\"types\") */\n"),
+                ],
+            ),
+            (
+                "jsdocTypeReferenceToImportOfFunctionExpression",
+                vec![
+                    (
+                        "/MW.js",
+                        r#"/** @typedef {import("./MC")} MC */
+
+class MW {
+  /**
+   * @param {MC} compiler the compiler
+   */
+  constructor(compiler) {
+    this.compiler = compiler;
+  }
+}
+
+module.exports = MW;
+"#,
+                    ),
+                    (
+                        "/MC.js",
+                        r#"const MW = require("./MW");
+
+/** @typedef {number} Meyerhauser */
+
+/** @class */
+module.exports = function MC() {
+    /** @type {any} */
+    var x = {}
+    return new MW(x);
+};
+"#,
+                    ),
+                ],
+            ),
+            (
+                "moduleExportAlias2",
+                vec![
+                    (
+                        "/node.d.ts",
+                        "declare function require(name: string): any;\n\
+declare var exports: any;\n\
+declare var module: { exports: any };\n",
+                    ),
+                    (
+                        "/semver.js",
+                        r#"/// <reference path='node.d.ts' />
+exports = module.exports = C
+exports.f = n => n + 1
+function C() {
+    this.p = 1
+}
+"#,
+                    ),
+                    (
+                        "/index.js",
+                        r#"/// <reference path='node.d.ts' />
+const C = require("./semver")
+var two = C.f(1)
+var c = new C
+"#,
+                    ),
+                ],
+            ),
+            (
+                "moduleExportAlias5",
+                vec![(
+                    "/bug24754.js",
+                    r#"// #24754
+const webpack = function (){
+}
+exports = module.exports = webpack;
+exports.version = 1001;
+
+webpack.WebpackOptionsDefaulter = 1111;
+"#,
+                )],
+            ),
+            (
+                "typeFromPropertyAssignment19",
+                vec![
+                    (
+                        "/types.d.ts",
+                        "declare var require: any;\ndeclare var module: any;\n",
+                    ),
+                    (
+                        "/semver.js",
+                        r#"/// <reference path='./types.d.ts'/>
+exports = module.exports = C
+C.f = n => n + 1
+function C() {
+    this.p = 1
+}
+"#,
+                    ),
+                    (
+                        "/index.js",
+                        r#"/// <reference path='./types.d.ts'/>
+const C = require("./semver")
+var two = C.f(1)
+"#,
+                    ),
+                ],
+            ),
+        ];
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            module_resolution: Some(100),
+            ..CompilerOptions::default()
+        };
+        let failures = cases
+            .into_iter()
+            .filter_map(|(name, files)| {
+                let rows = unused_rows_with_file_for_files(&files, &options);
+                let expected = match name {
+                    "moduleExportAlias2" => vec![
+                        (
+                            "/index.js".to_owned(),
+                            6133,
+                            DiagnosticCategory::Suggestion,
+                            69,
+                            3,
+                            "'two' is declared but its value is never read.".to_owned(),
+                        ),
+                        (
+                            "/index.js".to_owned(),
+                            6133,
+                            DiagnosticCategory::Suggestion,
+                            86,
+                            1,
+                            "'c' is declared but its value is never read.".to_owned(),
+                        ),
+                    ],
+                    "typeFromPropertyAssignment19" => vec![(
+                        "/index.js".to_owned(),
+                        6133,
+                        DiagnosticCategory::Suggestion,
+                        71,
+                        3,
+                        "'two' is declared but its value is never read.".to_owned(),
+                    )],
+                    _ => Vec::new(),
+                };
+                (rows != expected).then_some((name, expected, rows))
+            })
+            .collect::<Vec<_>>();
+        assert!(failures.is_empty(), "{failures:#?}");
+    }
+
+    #[test]
+    fn checked_js_cross_file_unused_registrations_are_source_owned_and_deduplicated() {
+        let mw = r#"/** @typedef {import("./MC")} MC */
+class MW {
+    /** @param {MC} compiler */
+    constructor(compiler) {
+        this.compiler = compiler;
+    }
+}
+module.exports = MW;
+"#;
+        let mc = r#"const MW = require("./MW");
+/** @class */
+module.exports = function MC() {
+    var y = 0;
+    var x = {};
+    return new MW(x);
+};
+"#;
+        let options = CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            module_resolution: Some(100),
+            ..CompilerOptions::default()
+        };
+        with_program_state(&[("/MW.js", mw), ("/MC.js", mc)], &options, |state| {
+            state.check_source_file(0);
+            let mc_root = state.binder.source(1).root;
+            assert_eq!(
+                state
+                    .potentially_unused_identifiers
+                    .get(&mc_root)
+                    .map(Vec::len),
+                Some(1),
+                "a cross-file forced registration belongs to MC.js"
+            );
+
+            state.check_source_file(1);
+            assert!(
+                !state.potentially_unused_identifiers.contains_key(&mc_root),
+                "the owning source-file drain removes its entry"
+            );
+            let y_start = mc.find("y = 0").expect("fixture y") as u32;
+            let rows = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code() == 6133)
+                .map(|diagnostic| {
+                    (
+                        diagnostic.file_name.as_deref(),
+                        diagnostic.start.unwrap_or(u32::MAX),
+                        diagnostic.length.unwrap_or(u32::MAX),
+                        diagnostic.message_text(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                rows,
+                [(
+                    Some("/MC.js"),
+                    y_start,
+                    1,
+                    "'y' is declared but its value is never read.",
+                )],
+                "x is read and the duplicated function registration emits y only once"
+            );
+
+            let diagnostic_count = state.diagnostics.len();
+            state.check_source_file(1);
+            assert_eq!(
+                state.diagnostics.len(),
+                diagnostic_count,
+                "rechecking a type-checked source file is idempotent"
+            );
+        });
+    }
+}
+
+#[cfg(test)]
+mod c0_unused_owner_recovery_tests {
+    use tsrs2_syntax::SyntaxKind;
+    use tsrs2_types::CompilerOptions;
+
+    use crate::state::test_support::with_program_state;
+
+    #[test]
+    fn unexpected_scope_owner_drains_by_shape_beside_a_known_block_owner() {
+        let text = "export {};\n\
+                    try {} catch (caught) {}\n\
+                    if (true) { const local = 1; }\n";
+        let options = CompilerOptions {
+            no_unused_locals: Some(true),
+            ..CompilerOptions::default()
+        };
+        with_program_state(&[("unused-owner.ts", text)], &options, |state| {
+            let source = state.binder.source(0);
+            let catch = source
+                .arena
+                .node_ids()
+                .find(|&node| state.kind_of(node) == SyntaxKind::CatchClause)
+                .expect("unexpected but scope-owning recovery canary");
+            assert!(
+                state.binder.locals_of(catch).is_some(),
+                "the fallback must be exercised with a real locals owner"
+            );
+            let block = source
+                .arena
+                .node_ids()
+                .find(|&node| {
+                    state.kind_of(node) == SyntaxKind::Block
+                        && state.binder.locals_of(node).is_some()
+                })
+                .expect("known Block sibling with locals");
+
+            state.register_for_unused_identifiers_check(catch);
+            state.register_for_unused_identifiers_check(block);
+            state.check_registered_unused_identifiers(source.root);
+
+            assert!(
+                state.partially_checked_ranges.is_empty(),
+                "neither the shape fallback nor the known sibling is partial"
+            );
+            assert!(
+                state
+                    .diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.message_text().contains("'local'")),
+                "the known Block sibling still runs its ordinary unused worker"
+            );
+        });
     }
 }

@@ -1,9 +1,10 @@
 # M8 execution and close contract
 
-Status: active execution contract after M7 close.
+Status: M8 closed; M9 steady-state execution is active. The completed close
+state and handoff are recorded below.
 
-This page owns how M8 is executed and closed. It starts only after
-[`m8 readiness --require-ready`](m8-readiness.md#machine-gate) is green.
+This page owns how M8 was executed and closed. M8 started only after
+[`m8 readiness --require-ready`](m8-readiness.md#machine-gate) was green.
 The [completion convergence plan](completion-convergence-plan.md) still owns
 cross-track landing order, [measurement integrity](measurement-integrity.md)
 owns accepted sets, exact scope, T4 activation, and D2 identities, and the
@@ -12,14 +13,14 @@ contract.
 
 Readiness and completion are deliberately different:
 
-- `ready=true` authorizes the first M8 slice;
-- M8 closes the supported diagnostic and recovery work;
+- `ready=true` authorized the first M8 slice;
+- M8 closed the supported diagnostic and recovery work;
 - M9 proves differential-fuzzer steady state;
 - only then may `cargo xtask completion --require-done` pass.
 
-The checked-in `STAGE` marker records the last closed milestone. It therefore
-remains `M7` throughout M8 and changes to `M8` only in the M8 close slice.
-`m8 readiness --require-ready` opening M8 does not move the marker.
+The checked-in `STAGE` marker records the last closed milestone. It remained
+`M7` throughout M8 and changed to `M8` in the M8 close slice.
+`m8 readiness --require-ready` opening M8 did not move the marker.
 
 ## Entry baseline
 
@@ -73,9 +74,9 @@ Family names are scheduling labels, not scope selectors. In particular,
 JSDoc-driven identities have reviewed `jsdoc-semantics` exclusions. No whole
 family, code, pass, fixture, or directory may be excluded.
 
-## Required landing order
+## Completed landing order
 
-M8 executes these steps in order:
+M8 executed these steps in order:
 
 1. **Completion report** — implement `cargo xtask completion` in report-only
    form. It must enumerate every strict completion row and show why
@@ -86,23 +87,36 @@ M8 executes these steps in order:
 3. **Bounded T0 closure** — close the supported T0 residual one
    dependency-closed producer slice at a time while preserving all accepted
    identities and all-corpus `FP=0`.
-4. **Formal tier closure** — activate and close the exact T1, T2, and T3
-   accepted sets in the convergence plan's order. A touched family still
-   follows the vertical slice-fidelity rule; the global sweep is not
-   permission to add a knowingly wrong category, span, message, chain, or
-   related-information shape. The all-band conformance JSON includes
+4. **Formal tier closure** — first close the report-only supported T1, T2,
+   and T3 residuals in the convergence plan's order. Then run one fresh full
+   measurement and record
+   `ratchet update --transition tier1-3-input-schema-extension`. The
+   transition changes the oracle-input manifest's T1-T3 entries atomically
+   from explicit `absent` to comparator schema v1 and stores, for every
+   fixed view / fixture / matrix / T0 bucket, the independently graded
+   complete-multiset T1, T2, and T3 identities. The nesting
+   `T3 ⊆ T2 ⊆ T1 ⊆ multiplicity-complete ⊆ T0` is validated, and all fixed
+   views plus partial fixture projections thereafter reject exact
+   `accepted - current` losses at every active tier. `ratchet.toml`'s
+   T1-T3 matched/total/rate values are verified artifact-derived summaries,
+   not another authority. A touched family still follows the vertical
+   slice-fidelity rule; the global sweep is not permission to add a
+   knowingly wrong category, span, message, chain, or related-information
+   shape. The all-band conformance JSON includes
    `supported_tier_mismatches`, partitioned by `first_failed_tier`, with the
-   complete expected and actual bucket shapes. This report-only residual is
-   the scheduling input; aggregate tier counts and matched-only identity
-   lists are not sufficient to assign an implementation owner.
+   complete expected and actual bucket shapes. This report-only residual was
+   the scheduling input before activation; aggregate tier counts and
+   matched-only identity lists are not sufficient to assign an
+   implementation owner.
 5. **A3 T4 closure** — activate the rendered-output comparator through the
-   reviewed A3 universe transition, then close byte parity for every
-   supported case, including ordering and deduplication.
+   reserved one-time `t4-input-schema-extension`, then close byte parity for
+   every supported case, including ordering and deduplication. It is not a
+   universe transition and cannot ride corpus growth.
 6. **Recovery and converse close** — empty `escapes.toml`, keep the frozen D2
    inventory/dispositions and current B1-B4 evidence fresh, and run the full
    invariant suite.
-7. **M8 close** — require completion rows 1-10 to be green, with only M9
-   steady state pending; update `STAGE` from `M7` to `M8` in this close slice.
+7. **M8 close** — required completion rows 1-10 to be green with only M9
+   steady state pending, then updated `STAGE` from `M7` to `M8`.
 
 Steps 3-5 describe the global activation order. Within them, a prerequisite
 slice may legitimately add no accepted diagnostic, but it must name the
@@ -138,7 +152,7 @@ frozen inventory gives it an exact reviewed disposition.
 The low-level evidence command is:
 
 ```bash
-cargo xtask m8 trace \
+CARGO_BUILD_JOBS=2 cargo xtask m8 trace \
   --program-json target/emitting/program.json \
   --program-json target/non-emitting/program.json \
   --code 8020 \
@@ -162,21 +176,21 @@ freeze an owner cluster. Those remain plan-generator and review decisions.
 The entry-plan commands are:
 
 ```bash
-cargo xtask conformance \
+CARGO_BUILD_JOBS=2 cargo xtask conformance \
   --band all \
   --out-json target/m8/entry-conformance.json
-cargo xtask m8 plan draft \
+CARGO_BUILD_JOBS=2 cargo xtask m8 plan draft \
   --conformance-json target/m8/entry-conformance.json \
   --sibling-fixture 'conformance/node/nodeModulesTripleSlashReferenceModeOverride4.ts#module=node16' \
   --out target/m8/owner-plan-draft.json
-cargo xtask m8 plan apply-review \
+CARGO_BUILD_JOBS=2 cargo xtask m8 plan apply-review \
   --plan target/m8/owner-plan-draft.json \
   --review m8-owner-plan-review.json \
   --out m8-owner-plan.json
 # Land the reviewed draft, return to a clean main, then freeze it in place.
-cargo xtask m8 plan freeze \
+CARGO_BUILD_JOBS=2 cargo xtask m8 plan freeze \
   --plan m8-owner-plan.json
-cargo xtask m8 plan check \
+CARGO_BUILD_JOBS=2 cargo xtask m8 plan check \
   --plan m8-owner-plan.json \
   --baseline origin/main
 ```
@@ -257,6 +271,34 @@ tails merely to reduce the displayed FN count. Three probes that expose the
 same model ceiling trigger the stall playbook and a design review rather
 than a fourth local patch.
 
+The `checkjs-jsdoc` family exposed that ceiling: comments had been projected
+from source text without declaration nodes, so exact relation chains and
+related declaration sites required repeated fabrication. A first bounded
+materialization experiment then showed that activating a subset of tags
+before template, import, signature, and host-scope dependencies were present
+changed real symbol and relation behavior. Its approved design correction was
+therefore the
+[complete M8 JSDoc subsystem port](m8-jsdoc-ast-materialization.md).
+That dependency-complete parser/AST/binder/checker chain has landed, and
+resolved historical scope rows return through A2 tombstones. The lasting
+rule is unchanged: no partial semantic JSDoc slice, new checker-side comment
+projection, or local activation guard is an accepted implementation unit.
+The landed subsystem is a prerequisite for the formal A1/A3 corpus gates,
+not evidence that either transition has already occurred.
+
+Relation reporting follows the vendored control flow at every failure level.
+Whenever tsc renders a source/target pair, the source is read-normalized and
+the target is write-normalized at that same level before display. Applying
+normalization only to the final diagnostic head, or repairing a nested chain
+after the relation returns, is not equivalent and is not accepted.
+
+Checked-JS object and member behavior is likewise producer-owned. The former
+checker-side memberless/symbol-carrying empty-resolution admission heuristic
+has been deleted and must not be restored. Object display and property
+publication follow the TypeScript 6.0.3 binder/type/checker path; the
+plain-JS nested-object to TypeScript-consumer canary therefore retains tsc's
+2339 when that member is absent.
+
 The disposition artifact itself remains byte-identical after D2b freeze.
 When a slice ports a declaration frozen as `deferred`, the before/after row
 records the new exact `tsc-span`/`tsc-hash` ledger join as monotone
@@ -266,10 +308,20 @@ disposition. Losing a join frozen as `ported`, or adding one to
 
 Focused probes, crate tests, and the target family report are the iteration
 loop. Generated artifacts and README status are refreshed before the final
-verification. Run the complete local `cargo xtask ci --baseline origin/main`
-once on the clean candidate branch, then let the required GitHub Actions
-lanes verify the same slice. Do not repeatedly run full conformance, the B2
-Node sweep, or long fuzz windows while editing.
+verification. Run the complete local
+`CARGO_BUILD_JOBS=2 cargo xtask ci --baseline origin/main` once on the clean
+candidate branch, then let the required GitHub Actions lanes verify the same
+slice. As soon as every required hosted check passes and the PR is mergeable,
+merge it automatically with `gh pr merge --merge --delete-branch`; no fresh
+per-PR approval is required unless the work introduces a substantial design
+or scope change. Do not repeatedly run full conformance, the B2 Node sweep, or
+long fuzz windows while editing.
+
+Local M8 validation uses `CARGO_BUILD_JOBS=2` and at most two Rust test
+threads. Related focused tests are batched into one invocation; repeatedly
+starting one Cargo process per fixture is not the iteration model. Higher
+parallelism is allowed only for an explicitly owned performance experiment,
+not for semantic closure or routine CI preparation.
 
 The B2 runtime artifact remains content-addressed. An unrelated Rust or
 documentation change revalidates and reuses it; only an exact producer
@@ -292,10 +344,32 @@ M8 closes only when:
 - `cargo xtask completion` reports rows 1-10 green and only the M9 row
   pending.
 
-The M9 policy, append-only history/signature formats, attestation path, and
-scheduled producer may be implemented and tested during M8. The qualifying
-14-window streak starts only after the checker/oracle/generator/reducer and
-policy fingerprint is frozen: changing any of them resets the streak.
+### Close record
+
+The 2026-07-30 accepted-state observation records the completed M8-owned
+surface:
+
+| Signal | M8 close |
+|---|---:|
+| Supported T0 | 48,783 / 48,783 |
+| Supported T1 | 48,783 / 48,783 |
+| Supported T2 | 48,783 / 48,783 |
+| Supported T3 | 48,783 / 48,783 |
+| Supported T4 cases | 7,691 / 7,691 |
+| All-corpus FP | 0 |
+| Escape sites / manifest rows | 0 / 0 |
+| Exact tier state | T1-T3 active; schema-3 T4 active |
+| Full-corpus invariants | green; 5,908 fixtures / 7,691 programs |
+| Completion | 10 / 11 rows green; M9 pending |
+
+The fresh machine close report confirms rows 1-10 green, row 11
+`m9-steady-state` pending, and `STAGE=M8`. No M8 semantic or recovery
+implementation remains; M9 is the sole pending project-completion row.
+
+M9 now owns the append-only history/signature formats, attestation path,
+scheduled producer, and qualifying 14-window streak. The streak starts only
+after the checker/oracle/generator/reducer and policy fingerprint is frozen:
+changing any of them resets it.
 
 ## Separate follow-on design tracks
 

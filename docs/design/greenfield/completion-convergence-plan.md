@@ -1,7 +1,8 @@
 # Completion convergence plan
 
-Status: active execution plan. Adopted after the 2026-07-16 full-project
-review.
+Status: M8 closed; active execution plan through M9. The current
+implementation frontier is M9 steady state. Adopted after the 2026-07-16
+full-project review.
 
 This document owns delivery order, dependencies, and acceptance gates.
 It intentionally does not repeat supporting schemas:
@@ -104,24 +105,33 @@ conformance crate tests. Schema 1 cannot freeze or satisfy readiness.
 
 #### A3. Real T4
 
-M7 lands deterministic formatter structure; M8 activates byte parity.
-Oracle T4 hashes come from the vendored formatter, enter the immutable
-oracle manifest through A3's one schema extension, and remain check-only
-afterwards. Accepted T4 cases grow through A1. See
+The M7 plan required deterministic formatter structure before M8. The later
+M8 audit established that the landed schema-2 CLI-hash fields and fuzzer T4
+path were hashes/comparisons of structured diagnostic JSON, not genuine
+rendered bytes. They are historical placeholders and confer no T4 acceptance
+credit. M8 replaced them with the deterministic Rust formatter and the
+vendored formatter's actual rendered bytes, then consumed A3's one schema
+extension. Genuine oracle T4 hashes entered the immutable oracle manifest and
+remain check-only afterwards; accepted T4 cases are protected through A1.
+The extension also preserves tsc's present-but-empty `relatedInformation`
+state in schema 3's formatter-only sparse sidecar without changing the
+pre-existing structured oracle records. See
 [T4 activation](measurement-integrity.md#4-a3--t4-activation).
 
-M7 acceptance:
+A3 preparation and acceptance commands:
 
 ```sh
-cargo xtask oracle-refresh --render-hashes --check
 cargo xtask conformance --tier t4 --report-only
+cargo xtask ratchet update --transition t4-input-schema-extension
+cargo xtask oracle-refresh --render-hashes --check
+cargo xtask conformance
 cargo xtask ci
 ```
 
 #### A4. Executable completion gate
 
-Add `cargo xtask completion` early in report-only form and
-`cargo xtask completion --require-done` as the post-M9 release gate. The
+`cargo xtask completion` is the report-only completion gate and
+`cargo xtask completion --require-done` is the post-M9 release gate. The
 strict command requires:
 
 1. all-corpus FP zero;
@@ -140,6 +150,20 @@ The report writes `target/completion/report.json`. A sampled PR
 invariant run cannot satisfy row 10. A required regression keeps rows
 1-9 and 11 green while making one full-corpus invariant red; strict mode
 must fail and name that invariant.
+
+Row 10 is consumed from
+`target/invariants/full-corpus-attestation.json`, produced atomically
+only after `invariants --suite all --full-corpus` has sent every
+expanded fixture/matrix case through prefix determinism, idempotence,
+jobs independence, encodings, matrix independence, and unsupported
+unwind with its real libs, compiler options, and cwd. Every invariant
+invocation invalidates the prior attestation before parsing/running, so
+a sampled, partial, failed, or interrupted run cannot reuse an older
+success. `completion` re-fingerprints the checker, syntax, binder,
+types, diagnostics, harness, conformance-option adapter, xtask,
+Cargo/toolchain inputs, corpus/vendor libs, and immutable oracle/scope
+state in the same workspace; missing, failed, partial, or stale
+evidence leaves row 10 red by name.
 
 #### A5. Family ownership and rollup
 
@@ -230,11 +254,11 @@ evidence, and close conditions are consolidated in
 [M8 execution and close](m8-execution-and-close.md). This section owns the
 global tier order.
 
-Each branch declares one family, oracle anchors, fixtures, expected
-escape/disposition removals, and tier. The entry report fixes the family
-residual snapshot; every slice reports its family before/after against
-that snapshot, never against a moving top-FN list. Work in order: T0
-family residue, T1 category, T2 span/top message, T3 chain/related
+Each M8 branch declared one family, oracle anchors, fixtures, expected
+escape/disposition removals, and tier. The entry report fixed the family
+residual snapshot; every slice reported its family before/after against
+that snapshot, never against a moving top-FN list. Work proceeded through
+T0 family residue, T1 category, T2 span/top message, T3 chain/related
 information, T4 rendering, recovery, then the final emitter/dependency
 converse.
 
@@ -244,23 +268,23 @@ T0-only. Under the
 a family made observable before M8 is carried vertically through the
 highest tier whose shared prerequisites are live, and every unavailable
 upper tier has an exact-row blocker record with an owner and retirement
-stage. M8's tier sweeps activate the formal accepted-set gates and close
-the cross-family residue; they do not replace knowingly wrong reporter,
+stage. M8's tier sweeps activated the formal accepted-set gates and closed
+the cross-family residue; they did not replace knowingly wrong reporter,
 chain, or formatter structures admitted by an earlier T0 slice. Pre-A3
-T4 evidence remains local/report-only until the measurement-integrity
-activation preconditions hold.
+T4 evidence remained local/report-only until the measurement-integrity
+activation preconditions held.
 
-Every slice removes an exact mismatch or measured prerequisite. Three
+Every slice removed an exact mismatch or measured prerequisite. Three
 probes exposing the same model ceiling trigger the
 [stall playbook](../stall-playbook.md), not more local patches.
 
 #### C6. Recovery zero
 
-Move every graceful recovery off `Unsupported` using a deterministic
+M8 moved every graceful recovery off `Unsupported` using a deterministic
 error/unknown type, missing-node control-flow result, oracle-compatible
-no-diagnostic value, or proved parser invariant. The close empties
-`escapes.toml`, sets both ceilings to zero, and runs fuzzer crash and
-determinism suites.
+no-diagnostic value, or proved parser invariant. The accepted close state has
+an empty `escapes.toml` and zero escape ceilings. The close verification
+reran and passed the required crash and determinism suites.
 
 ### Track D — completeness converse
 
@@ -388,6 +412,9 @@ green.
 | 16 | bounded M8 tiers + recovery zero | M9 |
 | 17 | M9 14-window steady state + zero open signatures | `completion --require-done` |
 
+Rows 1-16 are closed, their fresh machine evidence is verified, and the stage
+marker is `M8`. Row 17 is the only remaining implementation milestone.
+
 Rows 7-8 deliberately land flow before full inference: flow has the
 larger measured unlock family and M6 has the transaction start gate. The
 baseline counts and decision record remain in the
@@ -448,8 +475,10 @@ family/canary is red, or required toolchain/CI pins do not cover `main`.
 - M6 start: scoped transaction rollback proof exists.
 - M7 start: row 9's 2XXX band gate and A2 pin are green.
 - M7 close: all ten M8 readiness rows are produced and verified.
-- M8 midpoint: accepted sets still grow and no repeated architectural
-  ceiling is being patched locally.
+- M8 close: supported T0-T3 are each 48,783 / 48,783, supported T4 is
+  7,691 / 7,691 cases, all-corpus FP is zero, and escapes are zero. The
+  fresh close report confirmed completion rows 1-10 green and row 11
+  `m9-steady-state` pending before the M9 handoff.
 - M9: 14 consecutive current-fingerprint windows, fewer than one new
   distinct signature per night, and zero open signature.
 

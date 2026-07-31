@@ -1,9 +1,10 @@
 # M7 band and owner reconnaissance
 
-Status: active M7 entry supplement. Adopted after the phase-9 2XXX
-close on 2026-07-26. This document owns the investigation that happens
-before an M7 semantic slice. [m7-tail-steps.md](m7-tail-steps.md) still
-owns semantic stage order and acceptance.
+Status: historical M7 entry supplement, retained as the owner-reconnaissance
+precedent used by M8. Adopted after the phase-9 2XXX close on 2026-07-26.
+This document owns the investigation that preceded an M7 semantic slice;
+[m7-tail-steps.md](m7-tail-steps.md) owns the historical semantic stage order
+and acceptance.
 
 ## 1. What carries forward from the 2XXX sweep
 
@@ -29,7 +30,8 @@ are different rather than absent:
   module-format, and target gates;
 - unused diagnostics have very high volume and depend on reference
   marking across binder/checker/module paths;
-- suggestions cross pass/category boundaries and activate T1;
+- suggestions cross pass/category boundaries and activate M7's exact-count
+  T1 aggregate (the A1 bucket-identity activation waits for M8);
 - program/options work changes aggregation, skip-checking, file-less
   diagnostics, and the formatter used by T4.
 

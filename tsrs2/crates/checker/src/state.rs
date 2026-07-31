@@ -28,24 +28,54 @@ pub(crate) enum PackageJsonModuleType {
     Missing,
 }
 
-/// A query the M3 slice cannot answer yet; carries the blocking
-/// machinery's name so relpin failures read as scoping facts, not bugs.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Unsupported {
-    pub reason: String,
+/// A tsc oracle crash that the Rust checker must reproduce as typed
+/// control flow instead of inventing a diagnostic or silently
+/// continuing with a partial relation result.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OracleCrashKind {
+    OuterJsdocTemplateReferenceDisplay,
 }
 
-impl Unsupported {
-    /// tsrs-native: Rust containment-error constructor for unsupported
-    /// checker paths; tsc has no Result error object counterpart.
-    pub fn new(reason: impl Into<String>) -> Self {
-        Self {
-            reason: reason.into(),
+impl OracleCrashKind {
+    /// tsrs-native: stable label for a pinned oracle-crash deviation.
+    pub const fn description(self) -> &'static str {
+        match self {
+            Self::OuterJsdocTemplateReferenceDisplay => "outer JSDoc template reference display",
         }
     }
 }
 
-pub type CheckResult2<T> = Result<T, Unsupported>;
+/// Typed checker abort. Production aborts represent an observed tsc
+/// crash, not missing implementation debt.
+///
+/// tsc has no Result error object counterpart; this Rust-only channel
+/// unwinds transactional checker state to a containment boundary.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CheckAbort {
+    OracleCrash(OracleCrashKind),
+    /// Synthetic abort used only to pin transaction rollback ordering.
+    #[cfg(test)]
+    BoundaryProbe,
+}
+
+impl CheckAbort {
+    /// tsrs-native: debug label for the Rust checker-abort channel.
+    pub const fn description(self) -> &'static str {
+        match self {
+            Self::OracleCrash(kind) => kind.description(),
+            #[cfg(test)]
+            Self::BoundaryProbe => "transaction boundary probe",
+        }
+    }
+}
+
+impl std::fmt::Display for CheckAbort {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.description())
+    }
+}
+
+pub type CheckResult2<T> = Result<T, CheckAbort>;
 
 /// A module augmentation whose target is behind resolver machinery the
 /// in-memory program resolver does not model. Keep the augmentation's
@@ -340,20 +370,50 @@ pub struct CheckerState<'a> {
     pub(crate) slice_approximate_length: usize,
     pub(crate) slice_max_truncation_length: usize,
     pub(crate) slice_truncating: bool,
+    /// nodeBuilder context.reverseMappedStack
+    /// (shouldUsePlaceholderForProperty, 52221-52240). It contains the
+    /// reverse-mapped properties whose types are currently being
+    /// serialized, so recursive and deeply nested mapped displays
+    /// terminate through tsc's elision placeholder.
+    pub(crate) slice_reverse_mapped_stack: Vec<SymbolId>,
     /// nodeBuilder context.flags' NoTypeReduction bit. Ordinary
     /// typeToString calls leave it false; elaborateNeverIntersection
     /// sets it so the explanation can name the original intersection.
     pub(crate) slice_no_type_reduction: bool,
-    /// The display slice's face of the nodeBuilder's
-    /// context.enclosingDeclaration for the ANNOTATION-REUSE gates
-    /// only (canReuseTypeNodeAnnotation, 50932-50955: `undefined →
-    /// false`). getTypeNamesForErrorDisplay (50748) passes the
-    /// symbol's value declaration for non-context-sensitive
-    /// expression-valued symbols; every other slice entry renders
-    /// with None. The 5.4 slice prints bare symbol names, so the
-    /// node's OTHER context roles (symbol-chain qualification, fake
-    /// scopes, unique-symbol ancestry) stay out of slice.
+    /// The display slice's face of nodeBuilder
+    /// context.enclosingDeclaration. getTypeNamesForErrorDisplay
+    /// (50748) seeds it with the symbol's value declaration for a
+    /// non-context-sensitive expression; reusable signatures/mapped
+    /// nodes temporarily enter their own scope. Annotation reuse,
+    /// entity-name accessibility/shortest symbol chains, and
+    /// unique-symbol ancestry all consume the parked declaration.
     pub(crate) slice_display_enclosing: Option<NodeId>,
+    /// nodeBuilder context.mapper while rendering instantiated
+    /// signatures. This is deliberately separate from
+    /// active_type_mappers, which is instantiateType's recursion/cache
+    /// stack rather than display context. Nested signature rendering
+    /// pushes another mapper and restores it on every exit.
+    pub(crate) slice_display_mappers: Vec<MapperId>,
+    /// createRecoveryBoundary's `hadError` cell and the nested
+    /// visitExistingNodeTreeSymbols depth for the bounded reused-node
+    /// printer. A TypePredicate deliberately leaves the error armed so
+    /// the nearest enclosing non-predicate TypeNode is rebuilt
+    /// semantically; IndexedAccess/keyof simple-node probes bypass a
+    /// child boundary for the same reason.
+    pub(crate) slice_reuse_had_error: bool,
+    pub(crate) slice_reuse_visit_depth: usize,
+    /// Standard-printer indentation while an existing TypeNode clone
+    /// recursively prints initializer expressions and their bodies.
+    /// typeToString supplies a writer whose newline text is empty, but
+    /// whose indentation remains four spaces per nesting level.
+    pub(crate) slice_display_clone_indent: usize,
+    /// The standard display writer's virtual `lineStart` state at the
+    /// entry of the current cloned expression/body node. Callers that
+    /// materialize a line event's indentation into their local String
+    /// still pass `true`: a nested decorator list's leading writeLine
+    /// must not add that indentation a second time. Every recursive
+    /// entry saves and restores this bit.
+    pub(crate) slice_display_clone_at_line_start: bool,
     /// tsc markerTypes (47005): ids of createMarkerType results.
     pub(crate) marker_types: std::collections::HashSet<TypeId>,
     /// tsc inVarianceComputation (47422).
@@ -397,7 +457,7 @@ pub struct CheckerState<'a> {
     /// tsc sharedFlowNodes/sharedFlowTypes (69395-69396): one Vec of
     /// pairs; each getFlowTypeOfReference query scans only its own
     /// window (sharedFlowStart..) and truncates back on exit — also on
-    /// Unsupported unwind (the unwind invariant).
+    /// CheckAbort unwind (the unwind invariant).
     pub(crate) shared_flow: Vec<(tsrs2_binder::flow::FlowId, crate::flow::FlowType)>,
     /// The ReduceLabel antecedent swap (getTypeAtFlowNode 70473): tsc
     /// mutates `target.antecedent` in place during try/finally walks;
@@ -425,17 +485,6 @@ pub struct CheckerState<'a> {
         (usize, tsrs2_binder::flow::FlowId),
         std::collections::HashMap<String, TypeId>,
     >,
-    /// tsrs-native SEAM mirror (retires with the seam flag's last
-    /// producers — M6 body-inference, M8-dependency unwinds, parser
-    /// recovery): true iff the most recently COMPLETED top-level flow
-    /// query walked through a deferred arm. Such a query's answer was
-    /// forced back to the declared-type behavior (auto-converted)
-    /// because the deferred arms cannot reproduce tsc's narrowing;
-    /// the initialType ladder sites read this flag IMMEDIATELY after
-    /// their get_flow_type_of_reference call to keep the 2454/2565
-    /// seam partial-marked instead of misreporting on seam-traversed
-    /// paths.
-    pub(crate) flow_last_query_inert: bool,
     /// tsc lastFlowNode/lastFlowNodeReachable (47401-47402): the
     /// single-entry reachability memo — the immediately previous
     /// isReachableFlowNode query (reachability is asked per statement
@@ -464,16 +513,6 @@ pub struct CheckerState<'a> {
     /// covered by an aggregated 7027 range; cleared per checked file
     /// (86985's `= void 0`).
     pub(crate) reported_unreachable_nodes: std::collections::HashSet<NodeId>,
-    /// tsrs-native 6.6f: reference nodes whose flow query exited
-    /// FLAGGED (seam-reverted to the declared type — an unported
-    /// M6/M8 dependency was crossed, so the answer is deliberately
-    /// wider than tsc's). Diagnostic faces that would REPORT over
-    /// such an answer consult this registry and contain instead —
-    /// the flag-exact replacement for the retired [FLOW M5]
-    /// syntax-probe gates. Cleared per checked file; retires with the
-    /// seam flag's last producers.
-    pub(crate) flow_inert_answer_nodes: std::collections::HashSet<NodeId>,
-
     // ---- M4 5.4: check-driver state ----
     /// Any program file with a top-level `declare global` block
     /// tsc currentNode (46454): the element/deferred-node the driver is
@@ -501,11 +540,11 @@ pub struct CheckerState<'a> {
     pub(crate) potential_weak_map_set_collisions: Vec<NodeId>,
     pub(crate) potential_reflect_collisions: Vec<NodeId>,
     pub(crate) potential_unused_renamed_binding_elements_in_types: Vec<NodeId>,
-    /// tsc allPotentiallyUnusedIdentifiers' current-file entry. The
-    /// Rust checker drains each file eagerly at the same lazy-
-    /// diagnostic boundary, so a per-file vector preserves ordering
-    /// without retaining the source-file map.
-    pub(crate) potentially_unused_identifiers: Vec<NodeId>,
+    /// tsc allPotentiallyUnusedIdentifiers, keyed by the owning source
+    /// file's root. A checker visit can force a declaration in another
+    /// file, so registrations cannot be attributed to the file whose
+    /// worker happens to be active.
+    pub(crate) potentially_unused_identifiers: std::collections::HashMap<NodeId, Vec<NodeId>>,
     /// tsc deferredGlobalDisposableType (60882) — emptyObjectType memo
     /// on miss, like the Promise pair above.
     pub(crate) deferred_global_disposable_type: Option<TypeId>,
@@ -669,15 +708,31 @@ pub struct CheckerState<'a> {
     /// getSemanticDiagnostics. Lazy initialization diagnostics not
     /// registered here remain program-global.
     pub visible_global_diagnostics: DiagnosticList,
-    /// Syntax ranges whose check was partial because an Unsupported
-    /// containment boundary or an unimplemented flow-sensitive
-    /// diagnostic was reached. Only directives targeting one of these
-    /// (pos, end) ranges are exempt from unused @ts-expect-error
-    /// diagnostics — the preceding-directive-only rule (the
-    /// mapped-type blanket-exemption pin).
+    /// Completed diagnostics emitted by reporting-mode iteration walks
+    /// while an overload candidate transaction is active. tsc has no
+    /// such transaction, so these eager side effects survive a
+    /// rejected candidate; speculate.rs replays the journal after
+    /// rolling every other diagnostic back.
+    pub(crate) tsc_eager_diagnostics: DiagnosticList,
+    /// The visible-global counterpart of `tsc_eager_diagnostics`.
+    /// Some reporting iteration paths force global getters whose
+    /// file-less rows must remain observable after candidate rollback.
+    pub(crate) tsc_eager_visible_global_diagnostics: DiagnosticList,
+    /// Nesting depth of reporting-mode iteration entries. Nested
+    /// entries provisionally journal their completed sink suffix
+    /// before an inner overload transaction can roll it back; the
+    /// outermost entry replaces those provisional rows with its final
+    /// sink suffix after related information has been attached.
+    pub(crate) tsc_eager_iteration_capture_depth: usize,
+    /// Syntax ranges whose check stopped at a typed abort containment
+    /// boundary or an unimplemented flow-sensitive diagnostic. Only
+    /// directives targeting one of these (pos, end) ranges are exempt
+    /// from unused @ts-expect-error diagnostics — the
+    /// preceding-directive-only rule (the mapped-type
+    /// blanket-exemption pin).
     pub(crate) partially_checked_ranges: std::collections::HashMap<usize, Vec<(u32, u32)>>,
     /// tsrs-native: call-like nodes whose getResolvedSignature frame
-    /// unwound as Unsupported and left the resolved_signature slot
+    /// unwound with CheckAbort and left the resolved_signature slot
     /// Vacant. check_deferred_node's containment skip keys on this to
     /// tell a containment-reverted Vacant from the benign mid-fixpoint
     /// clear (tsc 77505's `: cached` on a loop-dirty fresh frame),
@@ -685,9 +740,10 @@ pub struct CheckerState<'a> {
     /// A stale entry whose slot later resolves is inert (the skip
     /// requires the slot to still be Vacant).
     pub(crate) contained_call_resolutions: std::collections::HashSet<NodeId>,
-    /// Public audit records corresponding to recognized Unsupported
-    /// containment events. Unlike the byte ranges above, these use
-    /// diagnostic-compatible UTF-16 coordinates.
+    /// Public audit records for explicit partial-model containment
+    /// events. Unlike the byte ranges above, these use
+    /// diagnostic-compatible UTF-16 coordinates. Oracle-crash aborts
+    /// are range-only and deliberately do not create these records.
     pub(crate) partial_check_records: Vec<crate::PartialCheck>,
     /// Literal operands whose `satisfies` elaboration already emitted
     /// an inner diagnostic. Re-checks must not add the outer 1360.
@@ -781,39 +837,10 @@ pub struct CheckerState<'a> {
     /// `Some(None)` records an attempted miss so repeated JSX nodes do
     /// not duplicate the runtime-module diagnostic.
     pub(crate) jsx_implicit_import_containers: std::collections::HashMap<usize, Option<SymbolId>>,
-    /// Variable-like declarations whose effective type came from the
-    /// modeled JSDoc @type subset. Checked-JS assembly uses their exact
-    /// diagnostic spans to expose the resulting semantic diagnostics
-    /// without admitting unrelated JSDoc-dependent approximations.
-    pub(crate) jsdoc_typed_declarations: std::collections::HashSet<NodeId>,
-    /// Diagnostics produced by a phase-9 non-JSDoc checked-JS path.
-    /// The public program layer still filters checked-JS output while
-    /// JSDoc is incomplete; this exact key set lets newly ported
-    /// assignment/constructor paths opt in without opening unrelated
-    /// JSDoc-dependent diagnostics.
-    pub(crate) non_jsdoc_js_diagnostics: std::collections::HashSet<(String, u32, u32, u32)>,
-    /// Diagnostics produced by an explicitly ported checked-JS JSDoc
-    /// semantic path. Keep this separate from the non-JSDoc set so
-    /// provenance tests and later JSDoc owner slices cannot mistake a
-    /// bounded publication decision for a general frontier opening.
-    pub(crate) jsdoc_js_diagnostics: std::collections::HashSet<(String, u32, u32, u32)>,
-    /// File-less diagnostics produced by an explicitly ported
-    /// checked-JS JSDoc path. `error(undefined, ...)` is a real tsc
-    /// producer face (for example, a non-effective earlier JSDoc
-    /// comment), but it cannot use the file/span publication key
-    /// above.
-    pub(crate) fileless_jsdoc_js_diagnostic_codes: std::collections::HashSet<u32>,
-    /// Exact semantic provenance for checked-JS property-miss rows
-    /// whose receiver type came through a `module.exports = Alias`
-    /// declaration. The assignment alias target is trustworthy even
-    /// while general JS expando/member inference remains incomplete.
-    pub(crate) non_jsdoc_js_module_exports_alias_targets: std::collections::HashSet<SymbolId>,
-    /// Module symbols whose types were produced by an exact checked-JS
-    /// CommonJS require resolution. These permit the access checker to
-    /// publish diagnostics that do not depend on unported JSDoc type
-    /// construction even when an unrelated declaration in the target
-    /// module carries JSDoc.
-    pub(crate) non_jsdoc_js_commonjs_require_targets: std::collections::HashSet<SymbolId>,
+    /// tsc `node.jsDoc.jsDocCache` (getJSDocTagsWorker): effective,
+    /// ownership-filtered tags are syntax-stable and computed once per
+    /// host. The checker keeps the cache outside the immutable arena.
+    pub(crate) jsdoc_tag_cache: std::cell::RefCell<std::collections::HashMap<NodeId, Vec<NodeId>>>,
     /// Lazy getGlobal*Type memos (deferredGlobal* pattern 60679 for the
     /// deferred ones; the core init block 88788+ is deliberately LAZY
     /// here — m4-checker-skeleton-steps.md 5.0 — so each global starts
@@ -950,8 +977,14 @@ impl<'a> CheckerState<'a> {
             slice_approximate_length: 0,
             slice_max_truncation_length: 160,
             slice_truncating: false,
+            slice_reverse_mapped_stack: Vec::new(),
             slice_no_type_reduction: false,
             slice_display_enclosing: None,
+            slice_display_mappers: Vec::new(),
+            slice_reuse_had_error: false,
+            slice_reuse_visit_depth: 0,
+            slice_display_clone_indent: 0,
+            slice_display_clone_at_line_start: false,
             marker_types: std::collections::HashSet::new(),
             in_variance_computation: false,
             variance_handler_stack: Vec::new(),
@@ -968,14 +1001,12 @@ impl<'a> CheckerState<'a> {
             evolving_array_types: std::collections::HashMap::new(),
             final_array_types: std::collections::HashMap::new(),
             flow_loop_caches: std::collections::HashMap::new(),
-            flow_last_query_inert: false,
             last_flow_node: None,
             last_flow_node_reachable: false,
             flow_node_reachable: std::collections::HashMap::new(),
             flow_node_post_super: std::collections::HashMap::new(),
             within_unreachable_code: false,
             reported_unreachable_nodes: std::collections::HashSet::new(),
-            flow_inert_answer_nodes: std::collections::HashSet::new(),
             current_node: None,
             deferred_nodes: std::collections::HashMap::new(),
             potential_this_collisions: Vec::new(),
@@ -983,7 +1014,7 @@ impl<'a> CheckerState<'a> {
             potential_weak_map_set_collisions: Vec::new(),
             potential_reflect_collisions: Vec::new(),
             potential_unused_renamed_binding_elements_in_types: Vec::new(),
-            potentially_unused_identifiers: Vec::new(),
+            potentially_unused_identifiers: std::collections::HashMap::new(),
             deferred_global_disposable_type: None,
             deferred_global_async_disposable_type: None,
             deferred_global_extract_symbol: None,
@@ -1023,6 +1054,9 @@ impl<'a> CheckerState<'a> {
             resolved_type_predicates: std::collections::HashMap::new(),
             diagnostics: Vec::new(),
             visible_global_diagnostics: Vec::new(),
+            tsc_eager_diagnostics: Vec::new(),
+            tsc_eager_visible_global_diagnostics: Vec::new(),
+            tsc_eager_iteration_capture_depth: 0,
             partially_checked_ranges: std::collections::HashMap::new(),
             contained_call_resolutions: std::collections::HashSet::new(),
             partial_check_records: Vec::new(),
@@ -1048,12 +1082,7 @@ impl<'a> CheckerState<'a> {
             external_helpers_modules: std::collections::HashMap::new(),
             requested_external_emit_helpers: std::collections::HashMap::new(),
             jsx_implicit_import_containers: std::collections::HashMap::new(),
-            jsdoc_typed_declarations: std::collections::HashSet::new(),
-            non_jsdoc_js_diagnostics: std::collections::HashSet::new(),
-            jsdoc_js_diagnostics: std::collections::HashSet::new(),
-            fileless_jsdoc_js_diagnostic_codes: std::collections::HashSet::new(),
-            non_jsdoc_js_module_exports_alias_targets: std::collections::HashSet::new(),
-            non_jsdoc_js_commonjs_require_targets: std::collections::HashSet::new(),
+            jsdoc_tag_cache: Default::default(),
             global_type_memos: Default::default(),
             decorator_context_override_type_cache: Default::default(),
             relation_frame_loan: crate::engine::RelationFrameLoan::None,
@@ -1650,12 +1679,24 @@ impl<'a> CheckerState<'a> {
         )
     }
 
-    /// tsrs-native: containment bookkeeping for source ranges whose
-    /// diagnostics may be incomplete.
+    /// tsrs-native: range-only containment bookkeeping for a typed
+    /// oracle-crash abort.
     ///
-    /// The program layer exempts only directives targeting one of
-    /// these ranges instead of suppressing 2578 for the entire file.
-    pub(crate) fn mark_partially_checked_node(&mut self, node: NodeId, reason: impl Into<String>) {
+    /// The program layer exempts only a directive targeting this range
+    /// from 2578. This deliberately does not publish a PartialCheck:
+    /// the abort mirrors tsc's crash rather than representing
+    /// unimplemented checker behavior.
+    pub(crate) fn mark_oracle_crash_range(&mut self, node: NodeId, abort: CheckAbort) {
+        match abort {
+            CheckAbort::OracleCrash(_) => self.mark_partially_checked_range(node),
+            #[cfg(test)]
+            CheckAbort::BoundaryProbe => {
+                panic!("test-only boundary probe reached a production containment boundary")
+            }
+        }
+    }
+
+    fn mark_partially_checked_range(&mut self, node: NodeId) {
         let file_index = self.binder.file_index_of_node(node);
         let source = self.binder.source_of_node(node);
         let raw = source.arena.node(node);
@@ -1664,6 +1705,17 @@ impl<'a> CheckerState<'a> {
         if !ranges.contains(&range) {
             ranges.push(range);
         }
+    }
+
+    /// tsrs-native: containment bookkeeping for source ranges whose
+    /// diagnostics may be incomplete.
+    ///
+    /// The program layer exempts only directives targeting one of
+    /// these ranges instead of suppressing 2578 for the entire file.
+    pub(crate) fn mark_partially_checked_node(&mut self, node: NodeId, reason: impl Into<String>) {
+        self.mark_partially_checked_range(node);
+        let source = self.binder.source_of_node(node);
+        let raw = source.arena.node(node);
         let to_utf16 = |byte: u32| {
             source
                 .line_map
@@ -1682,71 +1734,6 @@ impl<'a> CheckerState<'a> {
         };
         if !self.partial_check_records.contains(&record) {
             self.partial_check_records.push(record);
-        }
-    }
-
-    /// tsrs-native: publish exact diagnostic keys produced by a
-    /// provenance-checked non-JSDoc JavaScript path.
-    pub(crate) fn mark_non_jsdoc_js_diagnostics_since(&mut self, start: usize) {
-        let keys: Vec<_> = self.diagnostics[start..]
-            .iter()
-            .filter_map(|diagnostic| {
-                Some((
-                    diagnostic.file_name.clone()?,
-                    diagnostic.start?,
-                    diagnostic.length?,
-                    diagnostic.code(),
-                ))
-            })
-            .collect();
-        self.non_jsdoc_js_diagnostics.extend(keys);
-    }
-
-    /// tsrs-native: publish only one exact diagnostic code from a
-    /// provenance-checked JavaScript path. Nested suggestion/module
-    /// probes may emit other diagnostics while the path runs; those
-    /// retain their own publication decision.
-    pub(crate) fn mark_non_jsdoc_js_diagnostics_since_with_code(
-        &mut self,
-        start: usize,
-        code: u32,
-    ) {
-        let keys: Vec<_> = self.diagnostics[start..]
-            .iter()
-            .filter(|diagnostic| diagnostic.code() == code)
-            .filter_map(|diagnostic| {
-                Some((
-                    diagnostic.file_name.clone()?,
-                    diagnostic.start?,
-                    diagnostic.length?,
-                    diagnostic.code(),
-                ))
-            })
-            .collect();
-        self.non_jsdoc_js_diagnostics.extend(keys);
-    }
-
-    /// tsrs-native: publish one diagnostic code from an explicitly
-    /// ported checked-JS JSDoc semantic path.
-    pub(crate) fn mark_jsdoc_js_diagnostics_since_with_code(&mut self, start: usize, code: u32) {
-        let keys: Vec<_> = self.diagnostics[start..]
-            .iter()
-            .filter(|diagnostic| diagnostic.code() == code)
-            .filter_map(|diagnostic| {
-                Some((
-                    diagnostic.file_name.clone()?,
-                    diagnostic.start?,
-                    diagnostic.length?,
-                    diagnostic.code(),
-                ))
-            })
-            .collect();
-        self.jsdoc_js_diagnostics.extend(keys);
-        if self.diagnostics[start..]
-            .iter()
-            .any(|diagnostic| diagnostic.code() == code && diagnostic.file_name.is_none())
-        {
-            self.fileless_jsdoc_js_diagnostic_codes.insert(code);
         }
     }
 
@@ -2019,6 +2006,7 @@ pub(crate) mod test_support {
                     javascript_file,
                     node_id_base,
                     node_array_id_base,
+                    js_doc_parsing_mode: tsrs2_syntax::JSDocParsingMode::ParseAll,
                     ..ParseOptions::default()
                 },
                 None,

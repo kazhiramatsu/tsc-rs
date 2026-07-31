@@ -11,7 +11,7 @@
 //! (chooseOverload 76763 — relation errors become values, never
 //! diagnostics), per-candidate fresh InferenceContexts (76809), and
 //! clearActiveMapperCaches at inference-fixing time (73624). The port
-//! needs the explicit transaction on top because (a) an Unsupported
+//! needs the explicit transaction on top because (a) a CheckAbort
 //! unwind can abort a trial at ANY depth (tsc has no such exit), and
 //! (b) the port's addLazyDiagnostic identity is EAGER, so trial-time
 //! sink pushes exist where tsc defers them.
@@ -39,9 +39,12 @@
 //!   monotone and candidate-independent, as in tsc.
 //! - D (diagnostics sinks): truncated to the checkpoint marks on
 //!   rollback (push-dedupe is order-safe under truncation), kept on
-//!   commit. `deferred_nodes` deliberately survives rollback — tsc
-//!   checkNodeDeferred (86899-86908) registers unconditionally, and
-//!   deferred nodes registered under a failed candidate are still
+//!   commit. One explicit journal preserves completed diagnostics from
+//!   reporting-mode iteration walks: tsc runs those eagerly while
+//!   trying an overload and has no transaction to remove them when the
+//!   candidate fails. `deferred_nodes` deliberately survives rollback
+//!   — tsc checkNodeDeferred (86899-86908) registers unconditionally,
+//!   and deferred nodes registered under a failed candidate are still
 //!   checked (verified against 6.0.3 source; the inventory's VERIFY
 //!   item).
 //!
@@ -69,6 +72,21 @@ use crate::state::{CheckResult2, CheckerState};
 pub enum SpeculationOutcome<T> {
     Commit(T),
     Rollback(T),
+}
+
+/// One balanced reporting-mode iteration capture. Every entry carries
+/// sink marks: a nested entry may complete inside an enclosing
+/// iteration walk before a nested overload transaction rolls back, so
+/// its rows must reach the journal at that inner completion boundary.
+/// Only the outermost entry carries journal marks; when it completes,
+/// provisional nested clones are discarded and the surviving sink
+/// suffix is captured again with final related information.
+#[must_use = "an iteration diagnostic capture must be ended"]
+pub(crate) struct TscEagerIterationCapture {
+    active: bool,
+    depth: usize,
+    sink_marks: Option<(usize, usize)>,
+    journal_marks: Option<(usize, usize)>,
 }
 
 /// Everything `begin_speculation` captures. Vec-backed state stores its
@@ -106,6 +124,7 @@ pub struct SpeculationCheckpoint {
     flow_loop_stack: usize,
     flow_loop_start: u32,
     shared_flow: usize,
+    tsc_eager_iteration_capture_depth: usize,
     /// Snapshot map (inventory: "snapshot map or forbid across
     /// speculation") — entries are strictly scoped to an in-progress
     /// ReduceLabel arm, so this is empty except when a trial opens
@@ -130,6 +149,11 @@ pub struct SpeculationCheckpoint {
     // ---- D: diagnostics sinks ----
     diagnostics: usize,
     visible_global_diagnostics: usize,
+    /// Marks into the completed-diagnostic journals. Entries above a
+    /// nested checkpoint are promoted to its parent on either commit
+    /// or rollback; only the outermost resolution clears the journals.
+    tsc_eager_diagnostics: usize,
+    tsc_eager_visible_global_diagnostics: usize,
     partial_check_records: usize,
     /// Per-file range-vector lengths; files absent here were inserted
     /// by the trial and are removed wholesale on rollback. A
@@ -159,6 +183,100 @@ impl Drop for SpeculationCheckpoint {
 }
 
 impl CheckerState<'_> {
+    /// tsrs-native: begin an owned journal interval for tsc's eager
+    /// reporting-mode iteration diagnostics.
+    pub(crate) fn begin_tsc_eager_iteration_diagnostic_capture(
+        &mut self,
+    ) -> TscEagerIterationCapture {
+        if self.speculation_depth == 0 {
+            return TscEagerIterationCapture {
+                active: false,
+                depth: 0,
+                sink_marks: None,
+                journal_marks: None,
+            };
+        }
+        let is_outermost = self.tsc_eager_iteration_capture_depth == 0;
+        self.tsc_eager_iteration_capture_depth += 1;
+        TscEagerIterationCapture {
+            active: true,
+            depth: self.tsc_eager_iteration_capture_depth,
+            sink_marks: Some((
+                self.diagnostics.len(),
+                self.visible_global_diagnostics.len(),
+            )),
+            journal_marks: is_outermost.then_some((
+                self.tsc_eager_diagnostics.len(),
+                self.tsc_eager_visible_global_diagnostics.len(),
+            )),
+        }
+    }
+
+    /// tsrs-native: close and reconcile an owned eager-diagnostic journal.
+    pub(crate) fn end_tsc_eager_iteration_diagnostic_capture(
+        &mut self,
+        capture: TscEagerIterationCapture,
+    ) {
+        if !capture.active {
+            return;
+        }
+        assert_eq!(
+            self.tsc_eager_iteration_capture_depth, capture.depth,
+            "iteration diagnostic captures must resolve LIFO"
+        );
+        self.tsc_eager_iteration_capture_depth -= 1;
+        let (diagnostics_start, visible_global_diagnostics_start) = capture
+            .sink_marks
+            .expect("active iteration captures carry sink marks");
+        if let Some((diagnostics_journal_start, visible_global_diagnostics_journal_start)) =
+            capture.journal_marks
+        {
+            self.tsc_eager_diagnostics
+                .truncate(diagnostics_journal_start);
+            self.tsc_eager_visible_global_diagnostics
+                .truncate(visible_global_diagnostics_journal_start);
+        }
+        self.record_tsc_eager_iteration_diagnostics_since(
+            diagnostics_start,
+            visible_global_diagnostics_start,
+        );
+    }
+
+    /// Record completed diagnostics emitted by one reporting-mode
+    /// iteration entry. Capturing at every completed entry prevents a
+    /// nested rejected-candidate rollback from erasing its reporting
+    /// rows. When the outermost entry completes, it first truncates the
+    /// provisional rows recorded since its journal marks and then
+    /// records its current sink suffix, including any related
+    /// information attached by the enclosing walk.
+    ///
+    /// Rows outside a nested reporting interval are never selected, so
+    /// ordinary failed-candidate diagnostics still roll back.
+    /// tsrs-native: copy completed sink rows into the speculation journal.
+    pub(crate) fn record_tsc_eager_iteration_diagnostics_since(
+        &mut self,
+        diagnostics_start: usize,
+        visible_global_diagnostics_start: usize,
+    ) {
+        if self.speculation_depth == 0 {
+            return;
+        }
+        for diagnostic in &self.diagnostics[diagnostics_start..] {
+            if !self.tsc_eager_diagnostics.contains(diagnostic) {
+                self.tsc_eager_diagnostics.push(diagnostic.clone());
+            }
+        }
+        for diagnostic in &self.visible_global_diagnostics[visible_global_diagnostics_start..] {
+            if !self
+                .tsc_eager_visible_global_diagnostics
+                .contains(diagnostic)
+            {
+                self.tsc_eager_visible_global_diagnostics
+                    .push(diagnostic.clone());
+            }
+        }
+    }
+
     /// tsrs-native: the 7.0t transaction open — no tsc counterpart
     /// (module doc: tsc keeps trials clean via checkMode bypasses).
     ///
@@ -172,6 +290,13 @@ impl CheckerState<'_> {
             self.exhaustive_switch_computing.is_empty(),
             "exhaustive-switch computation may not straddle a speculation boundary (7.0t inventory)"
         );
+        if self.speculation_depth == 0 {
+            debug_assert!(
+                self.tsc_eager_diagnostics.is_empty()
+                    && self.tsc_eager_visible_global_diagnostics.is_empty(),
+                "outermost speculation must start with empty tsc-eager diagnostic journals"
+            );
+        }
         self.speculation_depth += 1;
         SpeculationCheckpoint {
             depth: self.speculation_depth,
@@ -197,6 +322,7 @@ impl CheckerState<'_> {
             flow_loop_stack: self.flow_loop_stack.len(),
             flow_loop_start: self.flow_loop_start,
             shared_flow: self.shared_flow.len(),
+            tsc_eager_iteration_capture_depth: self.tsc_eager_iteration_capture_depth,
             reduce_label_overrides: self.reduce_label_overrides.clone(),
             exhaustive_switch_computing: self.exhaustive_switch_computing.clone(),
             instantiation_depth: self.instantiation_depth,
@@ -207,6 +333,8 @@ impl CheckerState<'_> {
             is_inference_partially_blocked: self.is_inference_partially_blocked,
             diagnostics: self.diagnostics.len(),
             visible_global_diagnostics: self.visible_global_diagnostics.len(),
+            tsc_eager_diagnostics: self.tsc_eager_diagnostics.len(),
+            tsc_eager_visible_global_diagnostics: self.tsc_eager_visible_global_diagnostics.len(),
             partial_check_records: self.partial_check_records.len(),
             partially_checked_ranges: self
                 .partially_checked_ranges
@@ -230,11 +358,15 @@ impl CheckerState<'_> {
     /// sink pushes, budget consumption) and drop the guard. The
     /// transient stacks must already be balanced — an imbalance here is
     /// a missing pop/revert twin inside the region, the same bug class
-    /// check.rs's unsupported-unwind census catches per element.
+    /// check.rs's abort-unwind census catches per element.
     pub fn commit_speculation(&mut self, mut checkpoint: SpeculationCheckpoint) {
         assert_eq!(
             self.speculation_depth, checkpoint.depth,
             "speculation transactions must resolve LIFO"
+        );
+        debug_assert_eq!(
+            self.tsc_eager_iteration_capture_depth, checkpoint.tsc_eager_iteration_capture_depth,
+            "a speculation transaction committed with an unbalanced reporting iteration capture"
         );
         self.links
             .commit_speculative_writes(checkpoint.speculative_links, checkpoint.depth - 1);
@@ -244,6 +376,10 @@ impl CheckerState<'_> {
         );
         checkpoint.resolved = true;
         self.speculation_depth -= 1;
+        if self.speculation_depth == 0 {
+            self.tsc_eager_diagnostics.clear();
+            self.tsc_eager_visible_global_diagnostics.clear();
+        }
         #[cfg(test)]
         {
             self.speculation_commit_count += 1;
@@ -304,6 +440,10 @@ impl CheckerState<'_> {
                 ),
                 (self.shared_flow.len(), checkpoint.shared_flow),
                 (
+                    self.tsc_eager_iteration_capture_depth,
+                    checkpoint.tsc_eager_iteration_capture_depth,
+                ),
+                (
                     self.instantiation_depth as usize,
                     checkpoint.instantiation_depth as usize,
                 ),
@@ -353,6 +493,15 @@ impl CheckerState<'_> {
             self.speculation_depth, checkpoint.depth,
             "speculation transactions must resolve LIFO"
         );
+        debug_assert_eq!(
+            self.tsc_eager_iteration_capture_depth, checkpoint.tsc_eager_iteration_capture_depth,
+            "a speculation transaction rolled back with an unbalanced reporting iteration capture"
+        );
+        let tsc_eager_diagnostics =
+            self.tsc_eager_diagnostics[checkpoint.tsc_eager_diagnostics..].to_vec();
+        let tsc_eager_visible_global_diagnostics = self.tsc_eager_visible_global_diagnostics
+            [checkpoint.tsc_eager_visible_global_diagnostics..]
+            .to_vec();
         self.links
             .restore_speculative_writes(checkpoint.speculative_links);
         self.restore_speculative_signature_returns(checkpoint.speculative_signature_returns);
@@ -397,6 +546,7 @@ impl CheckerState<'_> {
         self.flow_loop_stack.truncate(checkpoint.flow_loop_stack);
         self.flow_loop_start = checkpoint.flow_loop_start;
         self.shared_flow.truncate(checkpoint.shared_flow);
+        self.tsc_eager_iteration_capture_depth = checkpoint.tsc_eager_iteration_capture_depth;
         self.reduce_label_overrides = std::mem::take(&mut checkpoint.reduce_label_overrides);
         self.exhaustive_switch_computing =
             std::mem::take(&mut checkpoint.exhaustive_switch_computing);
@@ -413,6 +563,22 @@ impl CheckerState<'_> {
         self.diagnostics.truncate(checkpoint.diagnostics);
         self.visible_global_diagnostics
             .truncate(checkpoint.visible_global_diagnostics);
+        for diagnostic in tsc_eager_diagnostics {
+            self.push_error_diagnostic(diagnostic);
+        }
+        for diagnostic in tsc_eager_visible_global_diagnostics {
+            if !self.visible_global_diagnostics.contains(&diagnostic) {
+                self.visible_global_diagnostics.push(diagnostic);
+            }
+        }
+        // Nested resolution promotes its completed iteration rows to
+        // the parent by leaving both journals intact. The outermost
+        // boundary has replayed their final copies and can release the
+        // temporary storage.
+        if self.speculation_depth == 0 {
+            self.tsc_eager_diagnostics.clear();
+            self.tsc_eager_visible_global_diagnostics.clear();
+        }
         self.partial_check_records
             .truncate(checkpoint.partial_check_records);
         let saved_ranges: HashMap<usize, usize> = checkpoint
@@ -447,7 +613,7 @@ impl CheckerState<'_> {
     ///
     /// Run `f` inside a speculation transaction. The closure's
     /// `SpeculationOutcome` decides commit vs rollback; an
-    /// `Err(Unsupported)` ALWAYS rolls back, and does so BEFORE the Err
+    /// `Err(CheckAbort)` ALWAYS rolls back, and does so BEFORE the Err
     /// re-propagates — outer Err-revert twins therefore fire with
     /// `speculation_depth` already restored (the boundary ordering
     /// rule, module doc).
@@ -465,9 +631,9 @@ impl CheckerState<'_> {
                 self.rollback_speculation(checkpoint);
                 Ok(value)
             }
-            Err(unsupported) => {
+            Err(abort) => {
                 self.rollback_speculation(checkpoint);
-                Err(unsupported)
+                Err(abort)
             }
         }
     }
@@ -481,14 +647,14 @@ impl CheckerState<'_> {
 #[cfg(test)]
 mod tests {
     use tsrs2_binder::flow::FlowId;
-    use tsrs2_diags::gen as diagnostics;
+    use tsrs2_diags::{gen as diagnostics, RelatedInfo};
     use tsrs2_types::{CompilerOptions, SymbolFlags, TypeData, TypeFlags, TypeSystemPropertyName};
 
     use super::SpeculationOutcome;
     use crate::flow::FlowType;
     use crate::links::LinkSlot;
     use crate::state::test_support::with_program_state;
-    use crate::state::{CheckerState, ResolvedMembers, SignatureKind, Unsupported};
+    use crate::state::{CheckAbort, CheckerState, ResolvedMembers, SignatureKind};
 
     fn with_state<R>(run: impl FnOnce(&mut CheckerState) -> R) -> R {
         with_program_state(
@@ -937,13 +1103,10 @@ mod tests {
     #[test]
     fn speculate_rolls_back_before_err_reaches_caller() {
         with_state(|state| {
-            // NOT a containment escape — a synthetic Err exercising the
-            // transaction boundary. Struct-literal construction keeps
-            // the escapes manifest (which scans `Unsupported::new`
-            // call sites) tracking real containment debt only.
-            let boundary_probe = || Unsupported {
-                reason: "7.0t boundary test".to_owned(),
-            };
+            // Not an oracle-crash containment event: the test-only
+            // variant exercises transaction ordering without adding a
+            // production abort kind.
+            let boundary_probe = || CheckAbort::BoundaryProbe;
             let before = observe(state);
             let result: Result<(), _> = state.speculate(|state| {
                 assert_eq!(state.speculation_depth, 1);
@@ -970,6 +1133,204 @@ mod tests {
             state.rollback_speculation(outer);
             assert_eq!(state.speculation_depth, 0);
             assert_eq!(state.awaited_type_stack.len(), 0);
+        });
+    }
+
+    #[test]
+    fn tsc_eager_nested_reporting_rows_survive_inner_rollback_while_ordinary_rows_do_not() {
+        with_state(|state| {
+            let diagnostics_before = state.diagnostics.len();
+            let visible_before = state.visible_global_diagnostics.len();
+            let outer = state.begin_speculation();
+            let outer_capture = state.begin_tsc_eager_iteration_diagnostic_capture();
+            let inner = state.begin_speculation();
+
+            let ordinary_before =
+                state.create_error(None, &diagnostics::Cannot_find_name_0, &["ordinary before"]);
+            state.push_error_diagnostic(ordinary_before.clone());
+
+            let nested_capture = state.begin_tsc_eager_iteration_diagnostic_capture();
+            let eager = state.create_error(
+                None,
+                &diagnostics::Cannot_find_name_0,
+                &["nested reporting"],
+            );
+            state.push_error_diagnostic(eager.clone());
+            state.visible_global_diagnostics.push(eager.clone());
+            state.end_tsc_eager_iteration_diagnostic_capture(nested_capture);
+
+            let ordinary_after =
+                state.create_error(None, &diagnostics::Cannot_find_name_0, &["ordinary after"]);
+            state.push_error_diagnostic(ordinary_after.clone());
+            assert_eq!(state.tsc_eager_diagnostics, std::slice::from_ref(&eager));
+            assert_eq!(
+                state.tsc_eager_visible_global_diagnostics,
+                std::slice::from_ref(&eager)
+            );
+
+            state.rollback_speculation(inner);
+            assert!(!state.diagnostics.contains(&ordinary_before));
+            assert!(!state.diagnostics.contains(&ordinary_after));
+            assert!(state.diagnostics.contains(&eager));
+            assert!(state.visible_global_diagnostics.contains(&eager));
+            assert_eq!(state.tsc_eager_iteration_capture_depth, 1);
+
+            state.end_tsc_eager_iteration_diagnostic_capture(outer_capture);
+            state.rollback_speculation(outer);
+            assert_eq!(state.diagnostics.len(), diagnostics_before + 1);
+            assert_eq!(state.visible_global_diagnostics.len(), visible_before + 1);
+            assert_eq!(
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| **diagnostic == eager)
+                    .count(),
+                1
+            );
+            assert!(state.tsc_eager_diagnostics.is_empty());
+            assert!(state.tsc_eager_visible_global_diagnostics.is_empty());
+            assert_eq!(state.tsc_eager_iteration_capture_depth, 0);
+        });
+    }
+
+    #[test]
+    fn tsc_eager_nested_speculation_commit_is_balanced_inside_reporting_capture() {
+        with_state(|state| {
+            let diagnostics_before = state.diagnostics.len();
+            let outer = state.begin_speculation();
+            let outer_capture = state.begin_tsc_eager_iteration_diagnostic_capture();
+            let inner = state.begin_speculation();
+            let nested_capture = state.begin_tsc_eager_iteration_diagnostic_capture();
+            let eager =
+                state.create_error(None, &diagnostics::Cannot_find_name_0, &["nested commit"]);
+            state.push_error_diagnostic(eager.clone());
+            state.end_tsc_eager_iteration_diagnostic_capture(nested_capture);
+
+            state.commit_speculation(inner);
+            assert_eq!(state.speculation_depth, 1);
+            assert_eq!(state.tsc_eager_iteration_capture_depth, 1);
+            state.end_tsc_eager_iteration_diagnostic_capture(outer_capture);
+            state.rollback_speculation(outer);
+
+            assert_eq!(state.diagnostics.len(), diagnostics_before + 1);
+            assert_eq!(
+                state
+                    .diagnostics
+                    .iter()
+                    .filter(|diagnostic| **diagnostic == eager)
+                    .count(),
+                1
+            );
+            assert!(state.tsc_eager_diagnostics.is_empty());
+            assert!(state.tsc_eager_visible_global_diagnostics.is_empty());
+            assert_eq!(state.tsc_eager_iteration_capture_depth, 0);
+        });
+    }
+
+    #[test]
+    fn tsc_eager_iteration_diagnostic_survives_nested_and_outer_rollback_in_both_sinks() {
+        with_state(|state| {
+            let diagnostics_before = state.diagnostics.len();
+            let visible_before = state.visible_global_diagnostics.len();
+            let outer = state.begin_speculation();
+            let inner = state.begin_speculation();
+
+            let ordinary =
+                state.create_error(None, &diagnostics::Cannot_find_name_0, &["ordinary trial"]);
+            state.push_error_diagnostic(ordinary.clone());
+
+            let outer_capture = state.begin_tsc_eager_iteration_diagnostic_capture();
+            let nested_capture = state.begin_tsc_eager_iteration_diagnostic_capture();
+            let eager =
+                state.create_error(None, &diagnostics::Cannot_find_name_0, &["eager iteration"]);
+            let root_index = state.push_error_diagnostic(eager);
+            state.end_tsc_eager_iteration_diagnostic_capture(nested_capture);
+            assert_eq!(state.tsc_eager_diagnostics.len(), 1);
+            assert!(state.tsc_eager_diagnostics[0].related.is_empty());
+
+            let related = state.create_error(None, &diagnostics::Did_you_forget_to_use_await, &[]);
+            state.diagnostics[root_index].related.push(RelatedInfo {
+                file_name: related.file_name,
+                start: related.start,
+                length: related.length,
+                message: related.message,
+            });
+            let eager = state.diagnostics[root_index].clone();
+            state.visible_global_diagnostics.push(eager.clone());
+            state.end_tsc_eager_iteration_diagnostic_capture(outer_capture);
+
+            assert_eq!(state.tsc_eager_diagnostics, std::slice::from_ref(&eager));
+            assert_eq!(
+                state.tsc_eager_visible_global_diagnostics,
+                std::slice::from_ref(&eager)
+            );
+            assert_eq!(state.tsc_eager_diagnostics[0].related.len(), 1);
+
+            state.rollback_speculation(inner);
+            assert!(!state.diagnostics.contains(&ordinary));
+            assert!(state.diagnostics.contains(&eager));
+            assert!(state.visible_global_diagnostics.contains(&eager));
+            assert_eq!(state.tsc_eager_diagnostics, std::slice::from_ref(&eager));
+
+            state.rollback_speculation(outer);
+            assert_eq!(state.diagnostics.len(), diagnostics_before + 1);
+            assert_eq!(state.visible_global_diagnostics.len(), visible_before + 1);
+            assert!(state.diagnostics.contains(&eager));
+            assert!(state.visible_global_diagnostics.contains(&eager));
+            assert!(state.tsc_eager_diagnostics.is_empty());
+            assert!(state.tsc_eager_visible_global_diagnostics.is_empty());
+            assert_eq!(state.tsc_eager_iteration_capture_depth, 0);
+        });
+    }
+
+    #[test]
+    fn nested_commit_promotes_tsc_eager_iteration_diagnostic_to_outer_rollback() {
+        with_state(|state| {
+            let diagnostics_before = state.diagnostics.len();
+            let outer = state.begin_speculation();
+            let inner = state.begin_speculation();
+            let capture = state.begin_tsc_eager_iteration_diagnostic_capture();
+            let eager =
+                state.create_error(None, &diagnostics::Cannot_find_name_0, &["nested commit"]);
+            state.push_error_diagnostic(eager.clone());
+            state.end_tsc_eager_iteration_diagnostic_capture(capture);
+
+            state.commit_speculation(inner);
+            assert_eq!(state.speculation_depth, 1);
+            assert_eq!(state.tsc_eager_diagnostics, std::slice::from_ref(&eager));
+            state.rollback_speculation(outer);
+
+            assert_eq!(state.diagnostics.len(), diagnostics_before + 1);
+            assert!(state.diagnostics.contains(&eager));
+            assert!(state.tsc_eager_diagnostics.is_empty());
+            assert!(state.tsc_eager_visible_global_diagnostics.is_empty());
+        });
+    }
+
+    #[test]
+    fn outermost_commit_keeps_tsc_eager_rows_and_clears_journals() {
+        with_state(|state| {
+            let diagnostics_before = state.diagnostics.len();
+            let visible_before = state.visible_global_diagnostics.len();
+            let checkpoint = state.begin_speculation();
+            let capture = state.begin_tsc_eager_iteration_diagnostic_capture();
+            let eager =
+                state.create_error(None, &diagnostics::Cannot_find_name_0, &["outer commit"]);
+            state.push_error_diagnostic(eager.clone());
+            state.visible_global_diagnostics.push(eager.clone());
+            state.end_tsc_eager_iteration_diagnostic_capture(capture);
+            assert_eq!(state.tsc_eager_diagnostics.len(), 1);
+            assert_eq!(state.tsc_eager_visible_global_diagnostics.len(), 1);
+
+            state.commit_speculation(checkpoint);
+
+            assert_eq!(state.diagnostics.len(), diagnostics_before + 1);
+            assert_eq!(state.visible_global_diagnostics.len(), visible_before + 1);
+            assert!(state.diagnostics.contains(&eager));
+            assert!(state.visible_global_diagnostics.contains(&eager));
+            assert!(state.tsc_eager_diagnostics.is_empty());
+            assert!(state.tsc_eager_visible_global_diagnostics.is_empty());
+            assert_eq!(state.tsc_eager_iteration_capture_depth, 0);
         });
     }
 

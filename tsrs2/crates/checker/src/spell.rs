@@ -130,7 +130,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// The `"`-prefixed (quoted) names are rejected; the Alias-chase
     /// arm (tryResolveAlias + meaning re-test) is LIVE (M4 5.8d). An
-    /// Unsupported unwind inside the chase demotes to no-suggestion
+    /// CheckAbort unwind inside the chase demotes to no-suggestion
     /// (tsc cannot fail here; the suggestion band is the only consumer
     /// and a missing suggestion picks the plain message flavor).
     pub(crate) fn get_spelling_suggestion_for_name(

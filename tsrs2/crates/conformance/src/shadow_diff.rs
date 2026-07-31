@@ -1,5 +1,7 @@
 //! Report-only identity snapshots and before/after diffs for the
-//! non-gating T1/T2/T3 shadow tiers (phase 9.3c).
+//! T1/T2/T3 observations (phase 9.3c). After M8 activation A1 gates
+//! its own per-case copies of these bucket sets; this report remains
+//! evidence-only and never mutates accepted state.
 
 use std::collections::BTreeSet;
 use std::fs;

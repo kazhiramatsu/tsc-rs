@@ -26,7 +26,8 @@ cd tsrs2
 cargo xtask ci                      # full merge-gate suite (must be green on main)
 cargo xtask conformance             # conformance sweep (optionally --band 2xxx)
 cargo xtask conformance --syntactic-only
-cargo xtask invariants --suite all  # determinism/idempotence invariants
+cargo xtask invariants --suite all  # sampled determinism/idempotence developer run
+cargo xtask invariants --suite all --full-corpus  # completion/CI row 10
 cargo xtask completion              # report all 11 final completion rows
 cargo xtask m8 trace --program-json target/probe/program.json --code 8020 \
   --out target/m8-trace.json        # targeted D2 trace; report-only

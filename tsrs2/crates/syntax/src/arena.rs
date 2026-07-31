@@ -105,6 +105,13 @@ impl NodeArena {
         self.alloc_array(Vec::new(), pos, pos, false)
     }
 
+    /// tsc factory-created arrays that are not parsed list ranges carry
+    /// `pos = end = -1`. NodeArray uses unsigned parser offsets, so the
+    /// all-ones value is the arena representation of that synthetic span.
+    pub fn alloc_synthetic_array(&mut self, nodes: Vec<NodeId>) -> NodeArrayId {
+        self.alloc_array(nodes, u32::MAX as usize, u32::MAX as usize, false)
+    }
+
     /// tsc createMissingList: an empty list tagged so isMissingList checks
     /// (typeHasArrowFunctionBlockingParseError) can distinguish it from `()`.
     pub fn missing_array(&mut self, pos: usize) -> NodeArrayId {
@@ -121,6 +128,10 @@ impl NodeArena {
     pub fn node_mut(&mut self, id: NodeId) -> &mut Node {
         let index = self.node_index(id);
         &mut self.nodes[index]
+    }
+
+    pub fn set_js_doc(&mut self, host: NodeId, js_doc: NodeArrayId) {
+        self.node_mut(host).js_doc = Some(js_doc);
     }
 
     pub fn nodes(&self) -> &[Node] {
@@ -160,9 +171,12 @@ impl NodeArena {
         self.nodes.push(Node {
             kind,
             flags: flags.bits(),
+            numeric_literal_flags: 0,
+            multi_line: None,
             pos: pos as u32,
             end: end as u32,
             parent: None,
+            js_doc: None,
             data,
         });
         id
@@ -187,22 +201,30 @@ impl NodeArena {
                     error_flags[index] = NodeFlags::from_bits(self.nodes[index].flags)
                         .contains(NodeFlags::THIS_NODE_HAS_ERROR);
                     stack.push((id, parent, Phase::Exit));
-                    let children = self.children(id);
+                    let children = self.children_including_js_doc(id);
                     for child in children.into_iter().rev() {
                         stack.push((child, Some(id), Phase::Enter));
                     }
                 }
                 Phase::Exit => {
                     let mut contains_error = error_flags[index];
-                    for child in self.children(id) {
-                        if error_flags[self.node_index(child)] {
-                            contains_error = true;
+                    let flags = NodeFlags::from_bits(self.nodes[index].flags);
+                    if !flags.contains(NodeFlags::JS_DOC) {
+                        // tsc's lazy aggregateChildData follows public
+                        // forEachChild, which excludes node.jsDoc. JSDoc
+                        // parents are fixed up recursively, but their parse
+                        // errors are not aggregated into the attached host
+                        // (or eagerly through the JSDoc subtree).
+                        for child in self.children(id) {
+                            if error_flags[self.node_index(child)] {
+                                contains_error = true;
+                            }
                         }
-                    }
-                    if contains_error {
-                        self.nodes[index].flags |=
-                            NodeFlags::THIS_NODE_OR_ANY_SUB_NODES_HAS_ERROR.bits();
-                        error_flags[index] = true;
+                        if contains_error {
+                            self.nodes[index].flags |=
+                                NodeFlags::THIS_NODE_OR_ANY_SUB_NODES_HAS_ERROR.bits();
+                            error_flags[index] = true;
+                        }
                     }
                 }
             }
@@ -216,6 +238,18 @@ impl NodeArena {
             children.push(child);
             false
         });
+        children
+    }
+
+    /// Parent finalization includes the internal Node.jsDoc attachment,
+    /// while public for_each_child deliberately does not. This mirrors
+    /// tsc setParentRecursive/bindJSDoc and keeps ordinary syntax walks
+    /// from visiting documentation twice.
+    fn children_including_js_doc(&self, id: NodeId) -> Vec<NodeId> {
+        let mut children = self.children(id);
+        if let Some(js_doc) = self.node(id).js_doc {
+            children.extend(self.node_array(js_doc).nodes.iter().copied());
+        }
         children
     }
 
@@ -243,6 +277,10 @@ impl NodeArena {
 }
 
 impl NodeLookup for NodeArena {
+    fn node(&self, id: NodeId) -> &Node {
+        self.node(id)
+    }
+
     fn node_array(&self, id: NodeArrayId) -> &NodeArray {
         self.node_array(id)
     }
@@ -251,7 +289,11 @@ impl NodeLookup for NodeArena {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::nodes::{SourceFileData, StringLiteralData};
+    use crate::nodes::{
+        IdentifierData, JSDocComment, JSDocParameterTagData, JSDocTextData,
+        JSDocTypeExpressionData, JSDocTypeLiteralData, JSDocTypedefTagData, SourceFileData,
+        StringLiteralData,
+    };
 
     #[test]
     fn finalizes_parent_links_and_error_aggregation() {
@@ -259,6 +301,7 @@ mod tests {
         let stmt = arena.alloc_node(
             NodeData::StringLiteral(StringLiteralData {
                 text: "x".to_owned(),
+                has_extended_unicode_escape: None,
             }),
             0,
             1,
@@ -282,5 +325,124 @@ mod tests {
         assert_eq!(arena.node(eof).parent, Some(root));
         assert!(NodeFlags::from_bits(arena.node(root).flags)
             .contains(NodeFlags::THIS_NODE_OR_ANY_SUB_NODES_HAS_ERROR));
+    }
+
+    #[test]
+    fn jsdoc_child_order_and_comment_union_follow_tsc() {
+        let mut arena = NodeArena::new();
+        let identifier = |arena: &mut NodeArena, text: &str, pos: usize| {
+            arena.alloc_node(
+                NodeData::Identifier(IdentifierData {
+                    escaped_text: text.to_owned(),
+                    text: text.to_owned(),
+                }),
+                pos,
+                pos + text.len(),
+                NodeFlags::JS_DOC,
+            )
+        };
+        let tag_name = identifier(&mut arena, "param", 1);
+        let name = identifier(&mut arena, "value", 7);
+        let type_node = identifier(&mut arena, "T", 14);
+        let type_expression = arena.alloc_node(
+            NodeData::JSDocTypeExpression(JSDocTypeExpressionData {
+                r#type: Some(type_node),
+            }),
+            13,
+            16,
+            NodeFlags::JS_DOC,
+        );
+        let comment_text = arena.alloc_node(
+            NodeData::JSDocText(JSDocTextData {
+                text: "description".to_owned(),
+            }),
+            17,
+            28,
+            NodeFlags::JS_DOC,
+        );
+        let comments = arena.alloc_array(vec![comment_text], 17, 28, false);
+
+        for (is_name_first, expected) in [
+            (true, vec![tag_name, name, type_expression, comment_text]),
+            (false, vec![tag_name, type_expression, name, comment_text]),
+        ] {
+            let parameter = arena.alloc_node(
+                NodeData::JSDocParameterTag(JSDocParameterTagData {
+                    tag_name: Some(tag_name),
+                    comment: Some(JSDocComment::Nodes(comments)),
+                    name: Some(name),
+                    type_expression: Some(type_expression),
+                    is_name_first,
+                    is_bracketed: false,
+                }),
+                0,
+                28,
+                NodeFlags::JS_DOC,
+            );
+            let mut actual = Vec::new();
+            for_each_child(&arena, arena.node(parameter), |child| {
+                actual.push(child);
+                false
+            });
+            assert_eq!(actual, expected);
+        }
+
+        let full_name = identifier(&mut arena, "Alias", 29);
+        let typedef = arena.alloc_node(
+            NodeData::JSDocTypedefTag(JSDocTypedefTagData {
+                tag_name: Some(tag_name),
+                comment: Some(JSDocComment::Text("plain".to_owned())),
+                name: Some(full_name),
+                full_name: Some(full_name),
+                type_expression: Some(type_expression),
+            }),
+            29,
+            40,
+            NodeFlags::JS_DOC,
+        );
+        let mut actual = Vec::new();
+        for_each_child(&arena, arena.node(typedef), |child| {
+            actual.push(child);
+            false
+        });
+        assert_eq!(actual, [tag_name, type_expression, full_name]);
+
+        let property_tags = arena.empty_array(41);
+        let type_literal = arena.alloc_node(
+            NodeData::JSDocTypeLiteral(JSDocTypeLiteralData {
+                js_doc_property_tags: Some(property_tags),
+                is_array_type: false,
+            }),
+            41,
+            41,
+            NodeFlags::JS_DOC,
+        );
+        let typedef = arena.alloc_node(
+            NodeData::JSDocTypedefTag(JSDocTypedefTagData {
+                tag_name: Some(tag_name),
+                comment: None,
+                name: Some(full_name),
+                full_name: Some(full_name),
+                type_expression: Some(type_literal),
+            }),
+            41,
+            42,
+            NodeFlags::JS_DOC,
+        );
+        let mut actual = Vec::new();
+        for_each_child(&arena, arena.node(typedef), |child| {
+            actual.push(child);
+            false
+        });
+        assert_eq!(actual, [tag_name, full_name, type_literal]);
+    }
+
+    #[test]
+    fn synthetic_node_array_preserves_tsc_negative_span() {
+        let mut arena = NodeArena::new();
+        let array = arena.alloc_synthetic_array(Vec::new());
+        assert_eq!(arena.node_array(array).pos, u32::MAX);
+        assert_eq!(arena.node_array(array).end, u32::MAX);
+        assert!(!arena.node_array(array).has_trailing_comma);
     }
 }

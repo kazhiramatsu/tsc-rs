@@ -100,6 +100,15 @@ not by declaration: `oracle-refresh` refuses to write any golden
 unless the LAUNCHED driver's `process.version` equals the tree pin,
 and hosted CI installs the pinned version.
 
+A3 does not edit or repurpose that structured-record producer.
+`crates/oracle/render-driver.mjs` is a separate, optional producer pin
+added only by `t4-input-schema-extension`. Its worker is lazy,
+single-process, and starts only for an explicit T4 report, extension,
+check, or fuzzer run; those paths use a renderer-only pool and never
+eagerly start an unused normal oracle worker. The launched renderer's
+Node version is checked against `.node-version`. Ordinary conformance
+never launches Node for T4.
+
 The accepted artifact uses append-only lineage and stores, per fixture
 and matrix key:
 
@@ -151,20 +160,38 @@ are allowed:
   changes the producer, the producer pins) move, and totals are
   remeasured rather than monotone. The paired accepted-match version
   enumerates every lapsed identity in a `lapsed` block per fixed view
-  and per protected tier (matched and multiplicity-complete
-  separately, never pooled); its lineage edge requires the actual
-  removals to equal that enumeration identity-for-identity, and the
-  version must ride the corrected manifest. `ratchet update
+  and per protected set (T0 matched, multiplicity-complete, and each
+  active T1/T2/T3 set separately, never pooled); its lineage edge
+  requires the actual removals to equal that enumeration
+  identity-for-identity, and the version must ride the corrected
+  manifest. `ratchet update
   --transition oracle-correction` still refuses any false positive —
   the correction suspends only set monotonicity, and only through the
   enumerated lapses. The epoch PR carries the `cargo xtask
   goldens-diff` occurrence-level old→new report as its review
   surface.
-- One A2 and one A3 `input-schema-extension` may add only their declared
-  derived identity fields or oracle T4 fields/comparator entry to every
-  applicable existing record. Missing and empty remain distinct;
-  existing oracle values and active comparator entries stay
-  byte-identical.
+- `tier1-3-input-schema-extension` is the one-time M8 A1 comparator
+  activation. Its predecessor has explicit `absent` markers for T1,
+  T2, and T3; its successor activates all three at comparator schema
+  v1. Partial activation, downgrade, repeat activation, or combining
+  it with any vendor, producer, fixture/case, oracle, expansion,
+  total, T0, T4, pre-existing accepted-T0, or
+  multiplicity-complete change fails. The paired accepted artifact
+  adds the full measured T1-T3 bucket sets. Historical artifacts
+  decode their absent tier fields as empty sets, and the artifact
+  pair rejects tier membership while the corresponding input
+  comparators are absent.
+- A2 required no input-schema transition: exact scope identities use
+  the already-pinned schema-2 golden records and canonical identity
+  encoder v1. The previously reserved A2 extension was therefore
+  never consumed.
+- `t4-input-schema-extension` was consumed once for A3 during M8. It
+  added only the declared genuine oracle T4 fields, the schema-3
+  formatter-presence sidecar, the active T4 comparator, and the paired
+  T4 case-identity set. Repeating, downgrading, or combining that
+  transition with another input change is rejected. Missing and empty
+  remain distinct; pre-existing oracle values and active comparator
+  entries stay byte-identical.
 
 A vendor upgrade or comparator-semantic change is a separate project,
 not one of these transitions.
@@ -310,21 +337,86 @@ canaries; 65 are in 2XXX. The scope audit must exercise them.
 The oracle formatter is the explicit vendored tsc formatter path, with
 normalized virtual paths, fixed newlines, and oracle sort/dedupe order;
 it is not a hash of serialized diagnostic JSON. Golden schema 3 stores
-oracle records and genuine oracle rendered hashes only.
+oracle evidence only: the pre-existing structured oracle records, genuine
+oracle rendered hashes, and the sparse formatter-presence sidecar described
+below. It never stores a tsrs output baseline.
 
-A3's one-time input-schema extension fills the previously absent T4
-field without changing any earlier oracle byte. Afterwards
+In schema 3, `oracle_cli_hash` is the lowercase SHA-256 of the exact
+normalized rendered UTF-8 bytes (ANSI removed, LF newlines, public
+virtual paths and the program cwd). `tsrs_cli_hash` is absent: current
+tsrs bytes are always computed in memory. Schema-2 `*_cli_hash` values
+are legacy structured-JSON/FNV placeholders and are never
+reinterpreted as T4 evidence.
+
+Each schema-3 case may carry
+`oracle_empty_related_information`, a strictly increasing unique list of
+indices into that case's `oracle` sequence. An index is present exactly when
+the genuine tsc diagnostic carried a present-but-empty
+`relatedInformation` array. Schema 2 collapsed that state with an absent
+property, even though JavaScript treats the empty array as truthy and the
+formatter therefore emits a different byte sequence. Keeping this
+formatter-only bit beside, rather than inside, the structured record leaves
+every pre-existing oracle JSON byte, `oracle_sha256`, A2 identity, and T0-T3
+identity unchanged.
+
+The explicit renderer report compares the stored indices with freshly
+collected genuine Node diagnostics. Every gate rejects a duplicate,
+non-increasing, out-of-range index or an index naming a diagnostic with
+non-empty serialized related information. The Node-free steady-state gate
+rehydrates the presence bit before Rust sort/dedupe/render and checks the
+result against the genuine rendered hash. Exact-scope projection carries the
+bit with its original diagnostic before rendering the retained sequence.
+
+A3's consumed one-time `t4-input-schema-extension` filled the previously
+absent T4 field and activated its comparator without changing any earlier
+oracle byte. Afterwards
 `oracle-refresh --render-hashes --check` is check-only for the fixed
 universe. Conformance computes the current tsrs hash; accepted T4 case
 identities grow through A1.
 
-T4 activates only after A2 global freeze and zero live `resolved`
-entries. Supported T4 formatting applies exact scope before rendering;
+The extension is one transaction: every schema-3 golden replacement,
+the sparse formatter-presence metadata, the new renderer-producer and
+per-case oracle pins, comparator activation, accepted T4 case set, and
+`[t4]` derived summary are
+preflighted before any write and roll back together on failure. A
+retry may converge a mixed schema-2/schema-3 working tree only from a
+fresh complete renderer plan; ordinary check treats mixed schemas as
+corruption.
+
+Golden diagnostic records already preserve tsc's canonical-head
+sort/dedupe order. Replaying either golden oracle records or the
+checker result converted to golden records therefore uses the
+already-sorted formatter entry point; exact-scope deletion preserves
+that order. The public sorting entry follows `SourceFile.path` (including
+dot-segment reduction), compares every filename and message string in
+JavaScript UTF-16 code-unit order, and keeps that comparison path
+separate from the `SourceFile.fileName` used to reconstruct displayed
+relative paths. A diagnostic's outer code/category, not possibly
+different metadata on its message-chain root, owns the rendered header
+and formatter decisions. The explicit report independently recollects
+the genuine Node records and requires them to equal the structured
+golden, compares the genuine Node full render with the Rust full render,
+and renders the supported oracle projection through a no-resort Node
+entry point before comparing it with the Rust checker projection.
+Serialized records lack tsc's private `canonicalHead`, so a report must
+never sort/dedupe a golden projection again. Its temporary program JSON
+tree is removed on both success and failure.
+
+A normal conformance gate first renders the full oracle
+sequence and checks it against the genuine schema-3 pin, then compares
+the supported oracle/tsrs projections. This prevents a shared Rust
+formatter drift from manufacturing a false T4 match, while keeping
+the steady-state gate Node-free.
+
+T4 was activated only after A2 global freeze and zero live `resolved`
+entries. Supported T4 formatting now applies exact scope before rendering;
 all-corpus output and absolute FP=0 remain visible.
 
-Required formatter tests cover ordering, adjacent dedupe, UTF-16 spans,
-chains, related information, file-less diagnostics, suggestions,
-platform-independent paths, and CRLF input.
+Required formatter tests cover UTF-16 ordering, adjacent dedupe, UTF-16
+spans, outer diagnostic headers, chains, related information, file-less
+diagnostics, absent versus present-but-empty related information,
+suggestions, final ANSI removal, platform-independent paths, and CRLF
+input.
 
 ## 5. A5 — family ownership and supported rollup
 
@@ -540,17 +632,18 @@ The implementations must pin at least these failure classes:
 
 | Contract | Must fail |
 |---|---|
-| A1 lineage | matched or multiplicity-complete identity removed while counts, implementation, and artifact are edited together; failure names the removed identity |
+| A1 lineage | matched, multiplicity-complete, or active T1/T2/T3 identity removed while counts, implementation, and artifact are edited together; failure names the removed identity |
 | A1 lineage | shrinking intermediate version; non-immediate predecessor; stale hash; second bootstrap; missing history; branch chain smaller than PR base |
-| A1 inputs | old oracle bytes edited/deleted; partial/undeclared schema extension; inactive tier lacks its absent marker; vendor/comparator pin drift |
+| A1 inputs | old oracle bytes edited/deleted; partial/repeated/undeclared schema extension; active-tier downgrade; inactive tier lacks its absent marker; vendor/comparator pin drift |
 | A1 producer | pinned module or `.node-version` drift named per file; universe-transition touching producer pins; the pin extension riding any other change; a refresh under a mismatched LAUNCHED Node refused before any golden write |
 | A1 correction | unenumerated removal names the identity; over-enumeration fails; `lapsed` without the transition (and vice versa) fails; a lapsed identity still accepted fails; a correction with unchanged input pins fails; fixture bytes/expansion/vendor/corpus change under a correction fails; baseline across a correction accepts enumerated lapses only and still rejects further removals; universe-transition still refuses oracle edits |
-| A1 views | 2/2 to 2/1 regression; syntactic FN hidden by semantic gain; fixed or partial view skipping its accepted subset |
+| A1 views | 2/2 to 2/1 regression; complete-multiset T1/T2/T3 loss; syntactic FN hidden by semantic gain; fixed or partial view skipping its accepted subset |
 | A1 shadow diff | unchanged aggregate T1/T2/T3 rate hides an exchanged matched identity; a lost touched-family identity or its exact-row debt record is omitted from PR evidence; a report-only gain enters active accepted state |
 | A2 identity | same T0 key but different span/message/occurrence conflated; Node/Rust canonical bytes differ; stale, duplicate, or ambiguous exclusion accepted |
 | A2 pin | add/edit plus rewritten set/count/hash; non-ancestor or mismatching adjudication commit; movable-ref or non-commit anchor; anchor manifest under another encoder version |
 | A2 tombstone | proof absent, partial-view only, stale A1 pin, or duplicate bucket not multiplicity-complete; a live resolved exclusion is unreported or passes readiness; resolving commit changed or dropped against the trusted base; marked lapsed while the occurrence still exists |
 | A2 global | unpinned-band edit after freeze; status downgrade; branch add-and-reanchor; unverified band pin |
+| A3 sidecar | a schema-3 empty-related-information index is missing, duplicated, unordered, out of range, points to a non-empty related-information row, drifts from the genuine renderer producer, or changes the pre-existing structured oracle bytes/hash/identity |
 | A5 map | unmapped/duplicate row; enumerated 2XXX row; owner/canary change after freeze; old owner change disguised as extension |
 | A5 rollup | stale conformance/scope fingerprint; excluded duplicate neighbor lost; A1 summary substituted for current supported grading |
 | D1 dormant | an M8-stub/constant-false constructibility claim is absent from the escape manifest; its canary exists and passes while the old annotation remains; a family-construction exit lacks the named canary; the dormant ceiling increases; a row disappears without a real branch/pin or narrower exact escape |

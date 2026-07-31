@@ -1,8 +1,6 @@
 //! tsc utility ports the binder needs: modifier flags, declaration
-//! names, dynamic-name predicates, and error spans. Anchors are into
-//! the vendored `_tsc.js`; JS-only branches (assignment declarations,
-//! JSDoc) are carved out to stage 3.4 / JSDoc parsing and return the
-//! TS-only result, each marked with a `JS-only:` comment.
+//! names, JSDoc host/tag lookup, dynamic-name predicates, and error
+//! spans. Anchors are into the vendored `_tsc.js`.
 
 use crate::symbols::{escape_leading_underscores, unescape_leading_underscores};
 use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind};
@@ -42,6 +40,331 @@ pub fn is_jsdoc_construct_signature(source: &SourceFile, node: NodeId) -> bool {
             NodeData::Identifier(data) if data.escaped_text == "new"
         )
     })
+}
+
+pub fn is_jsdoc_type_alias(source: &SourceFile, node: NodeId) -> bool {
+    matches!(
+        kind_of(source, node),
+        SyntaxKind::JSDocTypedefTag | SyntaxKind::JSDocCallbackTag | SyntaxKind::JSDocEnumTag
+    )
+}
+
+pub fn jsdoc_full_name(source: &SourceFile, node: NodeId) -> Option<NodeId> {
+    match &source.arena.node(node).data {
+        NodeData::JSDocTypedefTag(data) => data.full_name,
+        NodeData::JSDocCallbackTag(data) => data.full_name,
+        _ => None,
+    }
+}
+
+pub fn jsdoc_type_expression(source: &SourceFile, node: NodeId) -> Option<NodeId> {
+    match &source.arena.node(node).data {
+        NodeData::JSDocCallbackTag(data) => data.type_expression,
+        NodeData::JSDocEnumTag(data) => data.type_expression,
+        NodeData::JSDocOverloadTag(data) => data.type_expression,
+        NodeData::JSDocParameterTag(data) => data.type_expression,
+        NodeData::JSDocPropertyTag(data) => data.type_expression,
+        NodeData::JSDocReturnTag(data) => data.type_expression,
+        NodeData::JSDocSatisfiesTag(data) => data.type_expression,
+        NodeData::JSDocThisTag(data) => data.type_expression,
+        NodeData::JSDocThrowsTag(data) => data.type_expression,
+        NodeData::JSDocTypeTag(data) => data.type_expression,
+        NodeData::JSDocTypedefTag(data) => data.type_expression,
+        _ => None,
+    }
+}
+
+/// tsc-port: getJSDocRoot @6.0.3
+/// tsc-hash: fde1a04a62f04dca02d69fdd109ba7580c4892c11a8a7dd56c2e40e7326bec00
+/// tsc-span: _tsc.js:15525-15527
+pub fn get_jsdoc_root(source: &SourceFile, node: NodeId) -> Option<NodeId> {
+    let mut current = parent_of(source, node);
+    while let Some(candidate) = current {
+        if kind_of(source, candidate) == SyntaxKind::JSDoc {
+            return Some(candidate);
+        }
+        current = parent_of(source, candidate);
+    }
+    None
+}
+
+/// tsc-port: getJSDocHost @6.0.3
+/// tsc-hash: b693b84ddd06dca629b90d76ea5060d059793320ad0b808c90a9bd575cbccbe1
+/// tsc-span: _tsc.js:15515-15524
+pub fn get_jsdoc_host(source: &SourceFile, node: NodeId) -> Option<NodeId> {
+    let js_doc = get_jsdoc_root(source, node)?;
+    let host = parent_of(source, js_doc)?;
+    let docs = source.arena.node(host).js_doc?;
+    (source.arena.node_array(docs).nodes.last().copied() == Some(js_doc)).then_some(host)
+}
+
+pub fn get_source_of_assignment(source: &SourceFile, node: NodeId) -> Option<NodeId> {
+    let NodeData::ExpressionStatement(statement) = &source.arena.node(node).data else {
+        return None;
+    };
+    let expression = statement.expression?;
+    let NodeData::BinaryExpression(binary) = &source.arena.node(expression).data else {
+        return None;
+    };
+    binary
+        .operator_token
+        .is_some_and(|token| kind_of(source, token) == SyntaxKind::EqualsToken)
+        .then(|| crate::assignment::get_right_most_assigned_expression(source, expression))
+}
+
+pub fn get_source_of_defaulted_assignment(source: &SourceFile, node: NodeId) -> Option<NodeId> {
+    let NodeData::ExpressionStatement(statement) = &source.arena.node(node).data else {
+        return None;
+    };
+    let expression = statement.expression?;
+    let NodeData::BinaryExpression(binary) = &source.arena.node(expression).data else {
+        return None;
+    };
+    if crate::assignment::get_assignment_declaration_kind(source, expression)
+        == crate::assignment::AssignmentDeclarationKind::None
+    {
+        return None;
+    }
+    let right = binary.right?;
+    let NodeData::BinaryExpression(defaulted) = &source.arena.node(right).data else {
+        return None;
+    };
+    let operator = defaulted.operator_token.map(|token| kind_of(source, token));
+    matches!(
+        operator,
+        Some(SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken)
+    )
+    .then_some(defaulted.right)
+    .flatten()
+}
+
+pub fn get_single_variable_of_variable_statement(
+    source: &SourceFile,
+    node: NodeId,
+) -> Option<NodeId> {
+    let NodeData::VariableStatement(statement) = &source.arena.node(node).data else {
+        return None;
+    };
+    let list = statement.declaration_list?;
+    let NodeData::VariableDeclarationList(list) = &source.arena.node(list).data else {
+        return None;
+    };
+    list.declarations
+        .and_then(|declarations| source.arena.node_array(declarations).nodes.first().copied())
+}
+
+pub fn get_single_initializer_of_variable_statement_or_property_declaration(
+    source: &SourceFile,
+    node: NodeId,
+) -> Option<NodeId> {
+    match &source.arena.node(node).data {
+        NodeData::VariableStatement(_) => {
+            let declaration = get_single_variable_of_variable_statement(source, node)?;
+            match &source.arena.node(declaration).data {
+                NodeData::VariableDeclaration(data) => data.initializer,
+                _ => None,
+            }
+        }
+        NodeData::PropertyDeclaration(data) => data.initializer,
+        NodeData::PropertyAssignment(data) => data.initializer,
+        _ => None,
+    }
+}
+
+pub fn get_nested_module_declaration(source: &SourceFile, node: NodeId) -> Option<NodeId> {
+    let NodeData::ModuleDeclaration(data) = &source.arena.node(node).data else {
+        return None;
+    };
+    data.body
+        .filter(|&body| kind_of(source, body) == SyntaxKind::ModuleDeclaration)
+}
+
+/// tsc-port: getEffectiveJSDocHost @6.0.3
+/// tsc-hash: ca435509b2c5c1c6e598a84874ed1acb719e56d826668972fc0fd3a374dfaee3
+/// tsc-span: _tsc.js:15509-15514
+pub fn get_effective_jsdoc_host(source: &SourceFile, node: NodeId) -> Option<NodeId> {
+    let host = get_jsdoc_host(source, node)?;
+    get_source_of_defaulted_assignment(source, host)
+        .or_else(|| get_source_of_assignment(source, host))
+        .or_else(|| {
+            get_single_initializer_of_variable_statement_or_property_declaration(source, host)
+        })
+        .or_else(|| get_single_variable_of_variable_statement(source, host))
+        .or_else(|| get_nested_module_declaration(source, host))
+        .or(Some(host))
+}
+
+/// tsc-port: getHostSignatureFromJSDoc @6.0.3
+/// tsc-hash: 9b5b1bbaafdcf0b45d4aa46856b689a0795ac0eda656dec2cf3159b905045bb4
+/// tsc-span: _tsc.js:15502-15508
+pub fn get_host_signature_from_jsdoc(source: &SourceFile, node: NodeId) -> Option<NodeId> {
+    let host = get_effective_jsdoc_host(source, node)?;
+    if let NodeData::PropertySignature(data) = &source.arena.node(host).data {
+        if let Some(r#type) = data.r#type {
+            if is_function_like_kind(kind_of(source, r#type))
+                || kind_of(source, r#type) == SyntaxKind::JSDocSignature
+            {
+                return Some(r#type);
+            }
+        }
+    }
+    (is_function_like_kind(kind_of(source, host))
+        || kind_of(source, host) == SyntaxKind::JSDocSignature)
+        .then_some(host)
+}
+
+fn jsdoc_tags(source: &SourceFile, doc: NodeId) -> &[NodeId] {
+    let NodeData::JSDoc(data) = &source.arena.node(doc).data else {
+        return &[];
+    };
+    data.tags
+        .map(|tags| source.arena.node_array(tags).nodes.as_slice())
+        .unwrap_or(&[])
+}
+
+fn owns_jsdoc_tag(source: &SourceFile, host: NodeId, tag: NodeId) -> bool {
+    if !matches!(
+        kind_of(source, tag),
+        SyntaxKind::JSDocTypeTag | SyntaxKind::JSDocSatisfiesTag
+    ) {
+        return true;
+    }
+    let Some(doc) = parent_of(source, tag) else {
+        return true;
+    };
+    if kind_of(source, doc) != SyntaxKind::JSDoc {
+        return true;
+    }
+    let Some(doc_parent) = parent_of(source, doc) else {
+        return true;
+    };
+    kind_of(source, doc_parent) != SyntaxKind::ParenthesizedExpression || doc_parent == host
+}
+
+fn visit_owned_jsdoc_tags_from_attachment(
+    source: &SourceFile,
+    host: NodeId,
+    docs: NodeArrayId,
+    visitor: &mut impl FnMut(NodeId) -> bool,
+) -> bool {
+    let docs = &source.arena.node_array(docs).nodes;
+    let last = docs.last().copied();
+    for &doc in docs {
+        for &tag in jsdoc_tags(source, doc) {
+            if Some(doc) != last && kind_of(source, tag) != SyntaxKind::JSDocOverloadTag {
+                continue;
+            }
+            if (Some(doc) != last || owns_jsdoc_tag(source, host, tag)) && visitor(tag) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn is_assignment_expression_node(source: &SourceFile, node: NodeId) -> bool {
+    let NodeData::BinaryExpression(data) = &source.arena.node(node).data else {
+        return false;
+    };
+    data.operator_token
+        .is_some_and(|token| is_assignment_operator(kind_of(source, token)))
+}
+
+fn get_next_jsdoc_comment_location(source: &SourceFile, node: NodeId) -> Option<NodeId> {
+    let parent = parent_of(source, node)?;
+    if matches!(
+        kind_of(source, parent),
+        SyntaxKind::PropertyAssignment
+            | SyntaxKind::ExportAssignment
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::ReturnStatement
+    ) || kind_of(source, parent) == SyntaxKind::ExpressionStatement
+        && kind_of(source, node) == SyntaxKind::PropertyAccessExpression
+        || get_nested_module_declaration(source, parent).is_some()
+        || is_assignment_expression_node(source, node)
+    {
+        return Some(parent);
+    }
+    if let Some(grand) = parent_of(source, parent) {
+        if get_single_variable_of_variable_statement(source, grand) == Some(node)
+            || is_assignment_expression_node(source, parent)
+        {
+            return Some(grand);
+        }
+        if let Some(great) = parent_of(source, grand) {
+            if get_single_variable_of_variable_statement(source, great).is_some()
+                || get_single_initializer_of_variable_statement_or_property_declaration(
+                    source, great,
+                ) == Some(node)
+                || get_source_of_defaulted_assignment(source, great).is_some()
+            {
+                return Some(great);
+            }
+        }
+    }
+    None
+}
+
+fn visit_owned_jsdoc_tags(
+    source: &SourceFile,
+    host: NodeId,
+    mut visitor: impl FnMut(NodeId) -> bool,
+) {
+    let initializer = match &source.arena.node(host).data {
+        NodeData::BindingElement(data) => data.initializer,
+        NodeData::Parameter(data) => data.initializer,
+        NodeData::PropertyAssignment(data) => data.initializer,
+        NodeData::PropertyDeclaration(data) => data.initializer,
+        NodeData::PropertySignature(data) => data.initializer,
+        NodeData::VariableDeclaration(data) => data.initializer,
+        _ => None,
+    };
+    if initializer
+        .and_then(|initializer| source.arena.node(initializer).js_doc)
+        .is_some_and(|docs| {
+            visit_owned_jsdoc_tags_from_attachment(source, host, docs, &mut visitor)
+        })
+    {
+        return;
+    }
+
+    let mut location = Some(host);
+    while let Some(node) = location {
+        if source.arena.node(node).js_doc.is_some_and(|docs| {
+            visit_owned_jsdoc_tags_from_attachment(source, host, docs, &mut visitor)
+        }) {
+            return;
+        }
+        location = get_next_jsdoc_comment_location(source, node);
+    }
+}
+
+/// AST-only port of tsc getJSDocTypeTag. JSDoc attachments are
+/// materialized by the parser; binder must never rescan source text.
+pub fn get_jsdoc_type_tag(source: &SourceFile, host: NodeId) -> Option<NodeId> {
+    let mut first = None;
+    visit_owned_jsdoc_tags(source, host, |tag| {
+        if kind_of(source, tag) == SyntaxKind::JSDocTypeTag {
+            first = Some(tag);
+            true
+        } else {
+            false
+        }
+    });
+    first.filter(|&tag| {
+        jsdoc_type_expression(source, tag).is_some_and(|expression| {
+            matches!(
+                &source.arena.node(expression).data,
+                NodeData::JSDocTypeExpression(data) if data.r#type.is_some()
+            )
+        })
+    })
+}
+
+pub fn is_jsdoc_type_assertion(source: &SourceFile, node: NodeId) -> bool {
+    kind_of(source, node) == SyntaxKind::ParenthesizedExpression
+        && node_flags(source, source.root).intersects(NodeFlags::JAVA_SCRIPT_FILE)
+        && get_jsdoc_type_tag(source, node).is_some()
 }
 
 /// tsc `node.modifiers` dynamic access: the modifiers array of any kind
@@ -126,16 +449,14 @@ pub fn modifiers_to_flags(source: &SourceFile, modifiers: Option<NodeArrayId>) -
 /// tsc-hash: 1b7cb8845b02b8a88b15a70b861ff5cfa0e1959d0f056d0316c204da7dcf7644
 /// tsc-span: _tsc.js:17019-17025
 ///
-/// JS-only: bit 4096 on an Identifier is tsc's repurposed
-/// IdentifierIsInJSDocNamespace flag (the generated NodeFlags names the
-/// bit HasAsyncFunctions); it never appears while JSDoc parsing is
-/// unported, the check is kept for shape.
+/// Bit 4096 on an Identifier is tsc's repurposed
+/// IdentifierIsInJSDocNamespace flag.
 pub fn get_syntactic_modifier_flags_no_cache(source: &SourceFile, id: NodeId) -> ModifierFlags {
     let mut flags = modifiers_to_flags(source, modifiers_of(source, id));
     let node_flags = node_flags(source, id);
     if node_flags.intersects(NodeFlags::NESTED_NAMESPACE)
         || kind_of(source, id) == SyntaxKind::Identifier
-            && node_flags.intersects(NodeFlags::from_bits(4096))
+            && node_flags.intersects(NodeFlags::IDENTIFIER_IS_IN_JS_DOC_NAMESPACE)
     {
         flags |= ModifierFlags::EXPORT;
     }
@@ -212,11 +533,36 @@ fn get_combined_flags(
     flags
 }
 
-/// tsc getCombinedModifierFlags — via getEffectiveModifierFlags, which
-/// only differs from the syntactic flags through JSDoc modifier tags
-/// (unported: JSDoc parsing absent), so the syntactic flags are exact.
+/// tsc getJSDocModifierFlagsNoCache/getRawJSDocModifierFlagsNoCache
+/// (_tsc.js 16983-17015).
+pub fn get_jsdoc_modifier_flags_no_cache(source: &SourceFile, id: NodeId) -> ModifierFlags {
+    if parent_of(source, id).is_none() || kind_of(source, id) == SyntaxKind::Parameter {
+        return ModifierFlags::NONE;
+    }
+    let in_js = node_flags(source, source.root).intersects(NodeFlags::JAVA_SCRIPT_FILE);
+    let mut flags = ModifierFlags::NONE;
+    visit_owned_jsdoc_tags(source, id, |tag| {
+        match kind_of(source, tag) {
+            SyntaxKind::JSDocPublicTag if in_js => flags |= ModifierFlags::PUBLIC,
+            SyntaxKind::JSDocPrivateTag if in_js => flags |= ModifierFlags::PRIVATE,
+            SyntaxKind::JSDocProtectedTag if in_js => flags |= ModifierFlags::PROTECTED,
+            SyntaxKind::JSDocReadonlyTag if in_js => flags |= ModifierFlags::READONLY,
+            SyntaxKind::JSDocOverrideTag if in_js => flags |= ModifierFlags::OVERRIDE,
+            SyntaxKind::JSDocDeprecatedTag => flags |= ModifierFlags::DEPRECATED,
+            _ => {}
+        }
+        false
+    });
+    flags
+}
+
+pub fn get_effective_modifier_flags(source: &SourceFile, id: NodeId) -> ModifierFlags {
+    get_syntactic_modifier_flags(source, id) | get_jsdoc_modifier_flags_no_cache(source, id)
+}
+
+/// tsc getCombinedModifierFlags via getEffectiveModifierFlags.
 pub fn get_combined_modifier_flags(source: &SourceFile, id: NodeId) -> ModifierFlags {
-    get_combined_flags(source, id, get_syntactic_modifier_flags)
+    get_combined_flags(source, id, get_effective_modifier_flags)
 }
 
 /// tsc `declaration.name` dynamic access: the name field of any kind
@@ -238,6 +584,11 @@ pub fn name_field_of(source: &SourceFile, id: NodeId) -> Option<NodeId> {
         NodeData::ImportEqualsDeclaration(data) => data.name,
         NodeData::ImportSpecifier(data) => data.name,
         NodeData::InterfaceDeclaration(data) => data.name,
+        NodeData::JSDocCallbackTag(data) => data.name,
+        NodeData::JSDocFunctionType(data) => data.name,
+        NodeData::JSDocParameterTag(data) => data.name,
+        NodeData::JSDocPropertyTag(data) => data.name,
+        NodeData::JSDocTypedefTag(data) => data.name,
         NodeData::JsxAttribute(data) => data.name,
         NodeData::JsxNamespacedName(data) => data.name,
         NodeData::MetaProperty(data) => data.name,
@@ -262,20 +613,135 @@ pub fn name_field_of(source: &SourceFile, id: NodeId) -> Option<NodeId> {
     }
 }
 
+/// tsc isDeclaration/isDeclarationKind (_tsc.js 12455-12469).
+pub fn is_declaration(source: &SourceFile, node: NodeId) -> bool {
+    let kind = kind_of(source, node);
+    if kind == SyntaxKind::TypeParameter {
+        return parent_of(source, node)
+            .is_some_and(|parent| kind_of(source, parent) != SyntaxKind::JSDocTemplateTag)
+            || node_flags(source, node).intersects(NodeFlags::JAVA_SCRIPT_FILE);
+    }
+    matches!(
+        kind,
+        SyntaxKind::ArrowFunction
+            | SyntaxKind::BindingElement
+            | SyntaxKind::ClassDeclaration
+            | SyntaxKind::ClassExpression
+            | SyntaxKind::ClassStaticBlockDeclaration
+            | SyntaxKind::Constructor
+            | SyntaxKind::EnumDeclaration
+            | SyntaxKind::EnumMember
+            | SyntaxKind::ExportSpecifier
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::FunctionExpression
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::ImportClause
+            | SyntaxKind::ImportEqualsDeclaration
+            | SyntaxKind::ImportSpecifier
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::JsxAttribute
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::MethodSignature
+            | SyntaxKind::ModuleDeclaration
+            | SyntaxKind::NamespaceExportDeclaration
+            | SyntaxKind::NamespaceImport
+            | SyntaxKind::NamespaceExport
+            | SyntaxKind::Parameter
+            | SyntaxKind::PropertyAssignment
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::ShorthandPropertyAssignment
+            | SyntaxKind::TypeAliasDeclaration
+            | SyntaxKind::VariableDeclaration
+            | SyntaxKind::JSDocTypedefTag
+            | SyntaxKind::JSDocCallbackTag
+            | SyntaxKind::JSDocPropertyTag
+            | SyntaxKind::NamedTupleMember
+    )
+}
+
+fn get_declaration_identifier(source: &SourceFile, node: NodeId) -> Option<NodeId> {
+    get_name_of_declaration(source, node)
+        .filter(|&name| kind_of(source, name) == SyntaxKind::Identifier)
+}
+
+/// tsc-port: nameForNamelessJSDocTypedef @6.0.3
+/// tsc-hash: 1b1cad41dcb89eba97157c6673e3b16f10c71fe6676dc8f6b77a86630a264592
+/// tsc-span: _tsc.js:11458-11497
+pub fn name_for_nameless_jsdoc_typedef(source: &SourceFile, declaration: NodeId) -> Option<NodeId> {
+    let host = parent_of(source, declaration).and_then(|doc| parent_of(source, doc))?;
+    if is_declaration(source, host) {
+        return get_declaration_identifier(source, host);
+    }
+    match &source.arena.node(host).data {
+        NodeData::VariableStatement(data) => {
+            let declaration =
+                data.declaration_list
+                    .and_then(|list| match &source.arena.node(list).data {
+                        NodeData::VariableDeclarationList(data) => {
+                            data.declarations.and_then(|declarations| {
+                                source.arena.node_array(declarations).nodes.first().copied()
+                            })
+                        }
+                        _ => None,
+                    })?;
+            get_declaration_identifier(source, declaration)
+        }
+        NodeData::ExpressionStatement(data) => {
+            let mut expression = data.expression?;
+            if let NodeData::BinaryExpression(binary) = &source.arena.node(expression).data {
+                if binary
+                    .operator_token
+                    .is_some_and(|token| kind_of(source, token) == SyntaxKind::EqualsToken)
+                {
+                    expression = binary.left?;
+                }
+            }
+            match &source.arena.node(expression).data {
+                NodeData::PropertyAccessExpression(data) => data.name,
+                NodeData::ElementAccessExpression(data) => data
+                    .argument_expression
+                    .filter(|&argument| kind_of(source, argument) == SyntaxKind::Identifier),
+                _ => None,
+            }
+        }
+        NodeData::ParenthesizedExpression(data) => data
+            .expression
+            .and_then(|node| get_declaration_identifier(source, node)),
+        NodeData::LabeledStatement(data) => data.statement.and_then(|statement| {
+            (is_declaration(source, statement) || is_expression_node(source, statement))
+                .then(|| get_declaration_identifier(source, statement))
+                .flatten()
+        }),
+        _ => None,
+    }
+}
+
 /// tsc-port: getNonAssignedNameOfDeclaration @6.0.3
 /// tsc-hash: 382ebe3aca3c5b65c264f1177b6f9ed47454cdc918c228f8469456fb504d617b
 /// tsc-span: _tsc.js:11517-11561
 ///
 /// JS assignment declarations reuse the binder's authoritative
 /// assignment-kind classifier. This became a checker prerequisite when
-/// M7 activated unused-local diagnostics for function owners. JSDoc
-/// tag arms await JSDoc parsing.
+/// M7 activated unused-local diagnostics for function owners.
 pub fn get_non_assigned_name_of_declaration(source: &SourceFile, id: NodeId) -> Option<NodeId> {
     match kind_of(source, id) {
         SyntaxKind::Identifier => Some(id),
+        SyntaxKind::JSDocPropertyTag | SyntaxKind::JSDocParameterTag => {
+            let name = name_field_of(source, id)?;
+            match &source.arena.node(name).data {
+                NodeData::QualifiedName(data) => data.right,
+                _ => Some(name),
+            }
+        }
         SyntaxKind::CallExpression | SyntaxKind::BinaryExpression => {
             crate::assignment::get_assignment_declaration_name(source, id)
         }
+        SyntaxKind::JSDocTypedefTag => {
+            name_field_of(source, id).or_else(|| name_for_nameless_jsdoc_typedef(source, id))
+        }
+        SyntaxKind::JSDocEnumTag => name_for_nameless_jsdoc_typedef(source, id),
         SyntaxKind::ExportAssignment => match &source.arena.node(id).data {
             NodeData::ExportAssignment(data) => data
                 .expression
@@ -309,6 +775,14 @@ fn get_assigned_name(source: &SourceFile, id: NodeId) -> Option<NodeId> {
                 let left = data.left?;
                 if kind_of(source, left) == SyntaxKind::Identifier {
                     return Some(left);
+                }
+                if matches!(
+                    kind_of(source, left),
+                    SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
+                ) {
+                    return crate::assignment::get_element_or_property_access_argument_expression_or_name(
+                        source, left,
+                    );
                 }
             }
             None
@@ -565,7 +1039,6 @@ pub fn get_span_of_token_at_position(source: &SourceFile, pos: usize) -> (usize,
 /// tsc-span: _tsc.js:14023-14115
 ///
 /// Byte offsets; callers convert to UTF-16 at diagnostic creation.
-/// The JSDocSatisfiesTag arm awaits JSDoc parsing.
 pub fn get_error_span_for_node(source: &SourceFile, id: NodeId) -> (usize, usize) {
     let node = source.arena.node(id);
     let mut error_node = Some(id);
@@ -598,6 +1071,13 @@ pub fn get_error_span_for_node(source: &SourceFile, id: NodeId) -> (usize, usize
                     &source.text,
                     source.arena.node(expression).end as usize,
                 );
+                return get_span_of_token_at_position(source, pos);
+            }
+        }
+        NodeData::JSDocSatisfiesTag(data) => {
+            if let Some(tag_name) = data.tag_name {
+                let tag_name = source.arena.node(tag_name);
+                let pos = tsrs2_syntax::skip_trivia(&source.text, tag_name.pos as usize);
                 return get_span_of_token_at_position(source, pos);
             }
         }
@@ -699,6 +1179,7 @@ pub fn is_function_like_kind(kind: SyntaxKind) -> bool {
         kind,
         SyntaxKind::MethodSignature
             | SyntaxKind::CallSignature
+            | SyntaxKind::JSDocSignature
             | SyntaxKind::ConstructSignature
             | SyntaxKind::IndexSignature
             | SyntaxKind::FunctionType
@@ -1225,8 +1706,9 @@ pub fn is_identifier_name(source: &SourceFile, node: NodeId) -> bool {
     }
 }
 
-/// tsc isExpressionNode (14739). JSDoc link/member-name arms await
-/// JSDoc parsing.
+/// tsc-port: isExpressionNode @6.0.3
+/// tsc-hash: dbdda74b7f80ed1103f600e9472a5e4449f2b936cf0eb3cca4e3cf845bd2e3e3
+/// tsc-span: _tsc.js:14739-14803
 pub fn is_expression_node(source: &SourceFile, node: NodeId) -> bool {
     match kind_of(source, node) {
         SyntaxKind::SuperKeyword
@@ -1270,8 +1752,12 @@ pub fn is_expression_node(source: &SourceFile, node: NodeId) -> bool {
             // expression in parse trees; keep true.
             true
         }
-        SyntaxKind::ExpressionWithTypeArguments => parent_of(source, node)
-            .is_some_and(|parent| kind_of(source, parent) != SyntaxKind::HeritageClause),
+        SyntaxKind::ExpressionWithTypeArguments => parent_of(source, node).is_some_and(|parent| {
+            !matches!(
+                kind_of(source, parent),
+                SyntaxKind::HeritageClause | SyntaxKind::JSDocAugmentsTag
+            )
+        }),
         SyntaxKind::QualifiedName => {
             let mut current = node;
             while let Some(parent) = parent_of(source, current) {
@@ -1281,9 +1767,18 @@ pub fn is_expression_node(source: &SourceFile, node: NodeId) -> bool {
                     break;
                 }
             }
-            parent_of(source, current)
-                .is_some_and(|parent| kind_of(source, parent) == SyntaxKind::TypeQuery)
-                || is_jsx_tag_name(source, current)
+            is_expression_name_parent(source, current)
+        }
+        SyntaxKind::JSDocMemberName => {
+            let mut current = node;
+            while let Some(parent) = parent_of(source, current) {
+                if kind_of(source, parent) == SyntaxKind::JSDocMemberName {
+                    current = parent;
+                } else {
+                    break;
+                }
+            }
+            is_expression_name_parent(source, current)
         }
         SyntaxKind::PrivateIdentifier => {
             let Some(parent) = parent_of(source, node) else {
@@ -1300,10 +1795,7 @@ pub fn is_expression_node(source: &SourceFile, node: NodeId) -> bool {
             }
         }
         SyntaxKind::Identifier => {
-            if parent_of(source, node)
-                .is_some_and(|parent| kind_of(source, parent) == SyntaxKind::TypeQuery)
-                || is_jsx_tag_name(source, node)
-            {
+            if is_expression_name_parent(source, node) {
                 return true;
             }
             is_in_expression_context(source, node)
@@ -1315,6 +1807,20 @@ pub fn is_expression_node(source: &SourceFile, node: NodeId) -> bool {
         | SyntaxKind::ThisKeyword => is_in_expression_context(source, node),
         _ => false,
     }
+}
+
+fn is_expression_name_parent(source: &SourceFile, node: NodeId) -> bool {
+    parent_of(source, node).is_some_and(|parent| {
+        matches!(
+            kind_of(source, parent),
+            SyntaxKind::TypeQuery
+                | SyntaxKind::JSDocLink
+                | SyntaxKind::JSDocLinkCode
+                | SyntaxKind::JSDocLinkPlain
+                | SyntaxKind::JSDocNameReference
+                | SyntaxKind::JSDocMemberName
+        )
+    }) || is_jsx_tag_name(source, node)
 }
 
 /// tsc isJSXTagName.
@@ -1334,12 +1840,16 @@ fn is_jsx_tag_name(source: &SourceFile, node: NodeId) -> bool {
 /// tsc-hash: 0f2387b198c4ceea64de5780c0199fd0d2a34cbe4abfa7d56c44b4a3e891da24
 /// tsc-span: _tsc.js:14272-14274
 ///
-/// JSDoc implements/augments tag arms carved to the JS band (stage
-/// 3.4c) — the in-scope producers are heritage clauses only.
 fn is_part_of_type_expression_with_type_arguments(source: &SourceFile, node: NodeId) -> bool {
     let Some(clause) = parent_of(source, node) else {
         return false;
     };
+    if matches!(
+        kind_of(source, clause),
+        SyntaxKind::JSDocImplementsTag | SyntaxKind::JSDocAugmentsTag
+    ) {
+        return true;
+    }
     if kind_of(source, clause) != SyntaxKind::HeritageClause {
         return false;
     }
@@ -1352,8 +1862,8 @@ fn is_part_of_type_expression_with_type_arguments(source: &SourceFile, node: Nod
 ///
 /// tryGetClassExtendingExpressionWithTypeArguments (17093-17095) over
 /// the parse-tree half: heritage-clause parent, class-like
-/// grandparent, non-implements token (the JSDoc augments-tag arm is
-/// carved with its host machinery).
+/// grandparent, non-implements token, or an effective class-like host
+/// for a JSDoc augments tag.
 fn is_expression_with_type_arguments_in_class_extends_clause(
     source: &SourceFile,
     node: NodeId,
@@ -1361,6 +1871,14 @@ fn is_expression_with_type_arguments_in_class_extends_clause(
     let Some(clause) = parent_of(source, node) else {
         return false;
     };
+    if kind_of(source, clause) == SyntaxKind::JSDocAugmentsTag {
+        return get_effective_jsdoc_host(source, clause).is_some_and(|host| {
+            matches!(
+                kind_of(source, host),
+                SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+            )
+        });
+    }
     if kind_of(source, clause) != SyntaxKind::HeritageClause {
         return false;
     }
@@ -1454,19 +1972,22 @@ pub fn is_in_expression_context(source: &SourceFile, node: NodeId) -> bool {
 /// tsc-port: isNarrowingExpression @6.0.3
 /// tsc-hash: dc515ab05fc84edb32f842d53b4a216db3d3dbbe042fb02eb8174aa4d6950d82
 /// tsc-span: _tsc.js:42977-43002
-///
-/// JS-only: the JSDocTypeAssertion parenthesized-expression carve-out
-/// awaits JSDoc parsing (always false here).
 pub fn is_narrowing_expression(source: &SourceFile, expr: NodeId) -> bool {
+    if kind_of(source, expr) == SyntaxKind::ThisKeyword {
+        return true;
+    }
     match &source.arena.node(expr).data {
         NodeData::Identifier(_) => true,
         NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
             contains_narrowable_reference(source, expr)
         }
         NodeData::CallExpression(_) => has_narrowable_argument(source, expr),
-        NodeData::ParenthesizedExpression(data) => data
-            .expression
-            .is_some_and(|expression| is_narrowing_expression(source, expression)),
+        NodeData::ParenthesizedExpression(data) => {
+            !is_jsdoc_type_assertion(source, expr)
+                && data
+                    .expression
+                    .is_some_and(|expression| is_narrowing_expression(source, expression))
+        }
         NodeData::NonNullExpression(data) => data
             .expression
             .is_some_and(|expression| is_narrowing_expression(source, expression)),
@@ -1980,4 +2501,42 @@ fn get_end_line_position(text: &str, starts: &[usize], line: usize) -> usize {
         }
     }
     pos
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tsrs2_syntax::{parse_source_file, ParseOptions};
+
+    #[test]
+    fn assigned_expression_names_include_static_property_and_element_accesses() {
+        let source = parse_source_file(
+            "a.js",
+            "ns.member = function() {};\nns['key'] = class {};\n",
+            ParseOptions {
+                javascript_file: true,
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        let function = (0..source.arena.len() as u32)
+            .map(NodeId)
+            .find(|&node| kind_of(&source, node) == SyntaxKind::FunctionExpression)
+            .expect("function expression");
+        let class = (0..source.arena.len() as u32)
+            .map(NodeId)
+            .find(|&node| kind_of(&source, node) == SyntaxKind::ClassExpression)
+            .expect("class expression");
+
+        let function_name = get_name_of_declaration(&source, function).expect("property name");
+        let class_name = get_name_of_declaration(&source, class).expect("element name");
+        assert!(matches!(
+            &source.arena.node(function_name).data,
+            NodeData::Identifier(data) if data.escaped_text == "member"
+        ));
+        assert!(matches!(
+            &source.arena.node(class_name).data,
+            NodeData::StringLiteral(data) if data.text == "key"
+        ));
+    }
 }

@@ -11,7 +11,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tsrs2_checker::{check_program_with_libs_at, InputFile};
-use tsrs2_diags::{Diagnostic, MessageChain, RelatedInfo};
+use tsrs2_diags::{
+    format_diagnostics_with_context, Diagnostic, FormatDiagnosticsHost, MessageChain, RelatedInfo,
+};
 
 const CONFIG_REL: &str = "m8-evidence.json";
 const INVENTORY_REL: &str = "m8-emitter-inventory.json";
@@ -149,6 +151,12 @@ struct FuzzCaseObservation {
     compared_tiers: Vec<String>,
     oracle_sha256: String,
     tsrs_sha256: String,
+    /// Exact normalized T4 bytes. Optional only for deserializing stale
+    /// pre-A3 artifacts; current verification requires both fields.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    oracle_rendered: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    tsrs_rendered: Option<String>,
     divergence_signature: Option<String>,
     source: String,
 }
@@ -156,6 +164,11 @@ struct FuzzCaseObservation {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct ReducerObservation {
     exercised: bool,
+    /// True only when the generated differential corpus is already exact
+    /// and a deterministic one-sided mutation is used to keep testing the
+    /// reducer/deduper machinery.
+    #[serde(default)]
+    mutation_canary: bool,
     original_signature: Option<String>,
     reduced_signature: Option<String>,
     original_bytes: usize,
@@ -885,7 +898,7 @@ fn produce_fuzz(
         fs::remove_dir_all(&out_dir)?;
     }
     fs::create_dir_all(&out_dir)?;
-    let pool = tsrs2_oracle::OraclePool::new(1)?;
+    let pool = verified_fuzzer_oracle_pool(workspace)?;
     let mut observations = Vec::with_capacity(cases);
     let mut first_divergence = None;
     for case in 0..cases {
@@ -913,19 +926,49 @@ fn produce_fuzz(
             ],
             oracle_sha256: comparison.oracle_sha256,
             tsrs_sha256: comparison.tsrs_sha256,
+            oracle_rendered: Some(comparison.oracle_rendered),
+            tsrs_rendered: Some(comparison.tsrs_rendered),
             divergence_signature: comparison.signature,
             source,
         });
     }
-    let (divergent_source, signature) = first_divergence.ok_or(
-        "fuzzer smoke did not exercise a divergence, so reducer/dedupe behavior is unproved",
-    )?;
+    let (divergent_source, signature, mutation_canary) = if let Some((source, signature)) =
+        first_divergence
+    {
+        (source, signature, false)
+    } else {
+        // Exact parity is a valid fuzzer outcome. Keep proving the
+        // reducer and signature deduper by mutating only this separate
+        // canary comparison; generated case observations above remain
+        // unmodified oracle/tsrs comparisons.
+        let source = "const fuzzReducerCanaryA = 0;\nconst fuzzReducerCanaryB = 0;\n".to_owned();
+        let program = tsrs2_harness::expand_fixture_text("main.ts", &source, &vendor_lib_dir)?
+            .into_iter()
+            .next()
+            .ok_or("fuzzer mutation canary expanded to no programs")?;
+        let paths = tsrs2_harness::write_program_jsons(
+            std::slice::from_ref(&program),
+            &out_dir.join("mutation-canary"),
+        )?;
+        let comparison = compare_program_with_mutation_canary(
+            &program,
+            &paths[0],
+            &vendor_lib_dir,
+            &pool,
+            true,
+        )?;
+        let signature = comparison
+            .signature
+            .ok_or("fuzzer mutation canary did not create a divergence")?;
+        (source, signature, true)
+    };
     let reduced_source = reduce_source_preserving_signature(
         &divergent_source,
         &signature,
         &vendor_lib_dir,
         &out_dir.join("reducer"),
         &pool,
+        mutation_canary,
     )?;
     let reduced_program =
         tsrs2_harness::expand_fixture_text("main.ts", &reduced_source, &vendor_lib_dir)?
@@ -936,10 +979,16 @@ fn produce_fuzz(
         std::slice::from_ref(&reduced_program),
         &out_dir.join("reduced"),
     )?;
-    let reduced_comparison =
-        compare_program(&reduced_program, &reduced_paths[0], &vendor_lib_dir, &pool)?;
+    let reduced_comparison = compare_program_with_mutation_canary(
+        &reduced_program,
+        &reduced_paths[0],
+        &vendor_lib_dir,
+        &pool,
+        mutation_canary,
+    )?;
     let reducer = ReducerObservation {
         exercised: reduced_comparison.signature.as_deref() == Some(signature.as_str()),
+        mutation_canary,
         original_signature: Some(signature.clone()),
         reduced_signature: reduced_comparison.signature.clone(),
         original_bytes: divergent_source.len(),
@@ -979,7 +1028,7 @@ fn produce_fuzz(
     verify_fuzzer_raw(&artifact)?;
     write_json(artifact_path, &artifact)?;
     println!(
-        "fuzz smoke: generated={} compared={} divergences={} reducer={} dedupe={} artifact={}",
+        "fuzz smoke: generated={} compared={} divergences={} reducer={} reducer-mode={} dedupe={} artifact={}",
         artifact.cases.len(),
         artifact.cases.len(),
         artifact
@@ -988,15 +1037,34 @@ fn produce_fuzz(
             .filter(|case| case.divergence_signature.is_some())
             .count(),
         artifact.reducer.exercised,
+        if artifact.reducer.mutation_canary {
+            "mutation-canary"
+        } else {
+            "natural-divergence"
+        },
         artifact.dedupe.exercised,
         artifact_path.display()
     );
     Ok(())
 }
 
+fn verified_fuzzer_oracle_pool(
+    workspace: &Path,
+) -> Result<tsrs2_oracle::OraclePool, Box<dyn Error>> {
+    // The fuzzer needs only the explicit A3 renderer response. A
+    // renderer-only pool avoids eagerly launching an unused normal
+    // oracle worker, and the launch probe verifies the actual single
+    // lazy worker against the workspace Node pin.
+    let pool = tsrs2_oracle::OraclePool::new_render_only();
+    tsrs2_conformance::ratchet::verify_launched_render_node(workspace, &pool)?;
+    Ok(pool)
+}
+
 struct ProgramComparison {
     oracle_sha256: String,
     tsrs_sha256: String,
+    oracle_rendered: String,
+    tsrs_rendered: String,
     signature: Option<String>,
 }
 
@@ -1006,23 +1074,38 @@ fn compare_program(
     vendor_lib_dir: &Path,
     pool: &tsrs2_oracle::OraclePool,
 ) -> Result<ProgramComparison, Box<dyn Error>> {
-    let files = program
-        .files
-        .iter()
-        .map(|file| {
-            Ok(InputFile {
-                name: file.name.clone(),
-                text: String::from_utf8(BASE64.decode(&file.text_b64)?)?,
-            })
-        })
-        .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
+    compare_program_with_mutation_canary(program, path, vendor_lib_dir, pool, false)
+}
+
+fn compare_program_with_mutation_canary(
+    program: &tsrs2_harness::ProgramJson,
+    path: &Path,
+    vendor_lib_dir: &Path,
+    pool: &tsrs2_oracle::OraclePool,
+    inject_mutation_canary: bool,
+) -> Result<ProgramComparison, Box<dyn Error>> {
+    let mut file_texts = BTreeMap::new();
     let libs = program
         .libs
         .iter()
         .map(|name| {
+            let text = fs::read_to_string(vendor_lib_dir.join(name))?;
+            file_texts.insert(name.clone(), text.clone());
             Ok(InputFile {
                 name: name.clone(),
-                text: fs::read_to_string(vendor_lib_dir.join(name))?,
+                text,
+            })
+        })
+        .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
+    let files = program
+        .files
+        .iter()
+        .map(|file| {
+            let text = String::from_utf8(BASE64.decode(&file.text_b64)?)?;
+            file_texts.insert(file.name.clone(), text.clone());
+            Ok(InputFile {
+                name: file.name.clone(),
+                text,
             })
         })
         .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
@@ -1032,13 +1115,38 @@ fn compare_program(
         &tsrs2_conformance::compiler_options_from_program(program),
         &program.cwd,
     );
-    let oracle = pool.diagnostics(path)?;
-    let oracle_values = oracle.iter().map(oracle_value).collect::<Vec<_>>();
-    let tsrs_values = result
+    let oracle = pool.diagnostics_with_rendering(path)?;
+    let oracle_values = oracle
+        .diagnostics
+        .iter()
+        .map(oracle_value)
+        .collect::<Vec<_>>();
+    let tsrs_rendered = format_diagnostics_with_context(
+        &result.diagnostics,
+        &FormatDiagnosticsHost::new(&program.cwd, &file_texts),
+    )?;
+    let mut tsrs_values = result
         .diagnostics
         .iter()
         .map(tsrs_value)
         .collect::<Vec<_>>();
+    if inject_mutation_canary {
+        tsrs_values.push(json!({
+            "file": "/__fuzzer_mutation_canary__.ts",
+            "start": 0,
+            "length": 1,
+            "code": 99999,
+            "category": "Error",
+            "head": "Differential fuzzer mutation canary",
+            "chain": {
+                "text": "Differential fuzzer mutation canary",
+                "code": 99999,
+                "category": "Error",
+                "next": [],
+            },
+            "related": [],
+        }));
+    }
     let tiers = [
         (
             "t0",
@@ -1060,16 +1168,27 @@ fn compare_program(
             project_tier(&oracle_values, 3),
             project_tier(&tsrs_values, 3),
         ),
-        ("t4", oracle_values.clone(), tsrs_values.clone()),
     ];
-    let signature = tiers
+    let signature = if let Some((tier, oracle, tsrs)) = tiers
         .iter()
-        .find(|(_, oracle, tsrs)| oracle != tsrs)
-        .map(|(tier, oracle, tsrs)| divergence_signature(tier, oracle, tsrs))
-        .transpose()?;
+        .find(|(_, oracle, tsrs)| !tier_multisets_equal(oracle, tsrs))
+    {
+        Some(divergence_signature(tier, oracle, tsrs)?)
+    } else if oracle.rendered != tsrs_rendered {
+        Some(t4_divergence_signature(
+            &oracle_values,
+            &tsrs_values,
+            &oracle.rendered,
+            &tsrs_rendered,
+        )?)
+    } else {
+        None
+    };
     Ok(ProgramComparison {
-        oracle_sha256: sha256_bytes(&serde_json::to_vec(&oracle_values)?),
-        tsrs_sha256: sha256_bytes(&serde_json::to_vec(&tsrs_values)?),
+        oracle_sha256: sha256_bytes(oracle.rendered.as_bytes()),
+        tsrs_sha256: sha256_bytes(tsrs_rendered.as_bytes()),
+        oracle_rendered: oracle.rendered,
+        tsrs_rendered,
         signature,
     })
 }
@@ -1147,6 +1266,201 @@ fn project_tier(values: &[Value], tier: usize) -> Vec<Value> {
             _ => unreachable!(),
         })
         .collect()
+}
+
+fn tier_multisets_equal(oracle: &[Value], tsrs: &[Value]) -> bool {
+    canonical_rows(oracle) == canonical_rows(tsrs)
+}
+
+fn canonical_rows(values: &[Value]) -> Vec<String> {
+    let mut rows = values
+        .iter()
+        .map(serde_json::to_string)
+        .collect::<Result<Vec<_>, _>>()
+        .expect("serde_json::Value serializes");
+    rows.sort();
+    rows
+}
+
+fn t4_divergence_signature(
+    oracle_values: &[Value],
+    tsrs_values: &[Value],
+    oracle_rendered: &str,
+    tsrs_rendered: &str,
+) -> Result<String, Box<dyn Error>> {
+    let renderer_class =
+        renderer_divergence_class(oracle_values, tsrs_values, oracle_rendered, tsrs_rendered);
+    let oracle_rows = canonical_rows(oracle_values);
+    let tsrs_rows = canonical_rows(tsrs_values);
+    let one_sided = multiset_symmetric_rows(&oracle_rows, &tsrs_rows)?
+        .into_iter()
+        .map(|value| {
+            format!(
+                "{}:{}",
+                value["code"].as_u64().unwrap_or(0),
+                value["head"].as_str().unwrap_or("")
+            )
+        })
+        .collect::<Vec<_>>();
+    let side = match (
+        multiset_has_difference(&oracle_rows, &tsrs_rows),
+        multiset_has_difference(&tsrs_rows, &oracle_rows),
+    ) {
+        (true, true) => "both",
+        (true, false) => "oracle-only",
+        (false, true) => "tsrs-only",
+        (false, false) => "both",
+    };
+    let first_key = first_affected_diagnostic_key(oracle_values, tsrs_values);
+    let canonical = format!(
+        "schema=1;tier=t4;pass=aggregate;side={side};renderer={renderer_class};key={first_key};rows={}",
+        one_sided.join("|")
+    );
+    Ok(format!(
+        "fuzzsig:{}:{}",
+        sha256_bytes(canonical.as_bytes()),
+        canonical
+    ))
+}
+
+fn renderer_divergence_class(
+    oracle_values: &[Value],
+    tsrs_values: &[Value],
+    oracle_rendered: &str,
+    tsrs_rendered: &str,
+) -> &'static str {
+    let oracle_rows = oracle_values
+        .iter()
+        .map(serde_json::to_string)
+        .collect::<Result<Vec<_>, _>>()
+        .expect("serde_json::Value serializes");
+    let tsrs_rows = tsrs_values
+        .iter()
+        .map(serde_json::to_string)
+        .collect::<Result<Vec<_>, _>>()
+        .expect("serde_json::Value serializes");
+    let oracle_multiset = {
+        let mut rows = oracle_rows.clone();
+        rows.sort();
+        rows
+    };
+    let tsrs_multiset = {
+        let mut rows = tsrs_rows.clone();
+        rows.sort();
+        rows
+    };
+    if oracle_multiset == tsrs_multiset && oracle_rows != tsrs_rows {
+        return "order";
+    }
+    let oracle_set = oracle_multiset.iter().collect::<BTreeSet<_>>();
+    let tsrs_set = tsrs_multiset.iter().collect::<BTreeSet<_>>();
+    if oracle_set == tsrs_set && oracle_multiset != tsrs_multiset {
+        return "dedupe";
+    }
+    if normalize_rendered_paths(oracle_rendered) == normalize_rendered_paths(tsrs_rendered) {
+        return "path";
+    }
+    if normalize_rendered_newlines(oracle_rendered) == normalize_rendered_newlines(tsrs_rendered) {
+        return "newline";
+    }
+    "text"
+}
+
+fn multiset_has_difference(left: &[String], right: &[String]) -> bool {
+    let mut right_counts = BTreeMap::<&str, usize>::new();
+    for row in right {
+        *right_counts.entry(row).or_default() += 1;
+    }
+    for row in left {
+        let count = right_counts.entry(row).or_default();
+        if *count == 0 {
+            return true;
+        }
+        *count -= 1;
+    }
+    false
+}
+
+fn multiset_symmetric_rows(
+    oracle: &[String],
+    tsrs: &[String],
+) -> Result<Vec<Value>, Box<dyn Error>> {
+    let mut counts = BTreeMap::<&str, i64>::new();
+    for row in oracle {
+        *counts.entry(row).or_default() += 1;
+    }
+    for row in tsrs {
+        *counts.entry(row).or_default() -= 1;
+    }
+    let mut values = Vec::new();
+    for (row, count) in counts {
+        for _ in 0..count.unsigned_abs() {
+            values.push(serde_json::from_str(row)?);
+        }
+    }
+    Ok(values)
+}
+
+fn first_affected_diagnostic_key(oracle: &[Value], tsrs: &[Value]) -> String {
+    oracle
+        .iter()
+        .zip(tsrs)
+        .find(|(oracle, tsrs)| oracle != tsrs)
+        .map(|(oracle, _)| oracle)
+        .or_else(|| oracle.get(tsrs.len()))
+        .or_else(|| tsrs.get(oracle.len()))
+        .or_else(|| oracle.first())
+        .or_else(|| tsrs.first())
+        .map(|value| {
+            format!(
+                "{}:{}",
+                value["code"].as_u64().unwrap_or(0),
+                value["head"].as_str().unwrap_or("")
+            )
+        })
+        .unwrap_or_else(|| "none".to_owned())
+}
+
+fn normalize_rendered_paths(rendered: &str) -> String {
+    let mut normalized = String::with_capacity(rendered.len());
+    for line in rendered.split_inclusive('\n') {
+        let (body, newline) = line
+            .strip_suffix('\n')
+            .map_or((line, ""), |body| (body, "\n"));
+        normalized.push_str(&normalize_rendered_location_line(body));
+        normalized.push_str(newline);
+    }
+    normalized
+}
+
+fn normalize_rendered_location_line(line: &str) -> String {
+    let (location, suffix) = line
+        .split_once(" - ")
+        .map_or((line, ""), |(location, suffix)| (location, suffix));
+    let Some((before_column, column)) = location.rsplit_once(':') else {
+        return line.to_owned();
+    };
+    let Some((path, row)) = before_column.rsplit_once(':') else {
+        return line.to_owned();
+    };
+    if !row.bytes().all(|byte| byte.is_ascii_digit())
+        || !column.bytes().all(|byte| byte.is_ascii_digit())
+        || row.is_empty()
+        || column.is_empty()
+    {
+        return line.to_owned();
+    }
+    let indent_len = path.len() - path.trim_start_matches(' ').len();
+    let indent = &path[..indent_len];
+    if suffix.is_empty() {
+        format!("{indent}<path>:{row}:{column}")
+    } else {
+        format!("{indent}<path>:{row}:{column} - {suffix}")
+    }
+}
+
+fn normalize_rendered_newlines(rendered: &str) -> String {
+    rendered.replace("\r\n", "\n").replace('\r', "\n")
 }
 
 fn divergence_signature(
@@ -1233,6 +1547,7 @@ fn reduce_source_preserving_signature(
     vendor_lib_dir: &Path,
     out_dir: &Path,
     pool: &tsrs2_oracle::OraclePool,
+    mutation_canary: bool,
 ) -> Result<String, Box<dyn Error>> {
     let mut current = source.to_owned();
     let lines = source.lines().map(str::to_owned).collect::<Vec<_>>();
@@ -1259,7 +1574,13 @@ fn reduce_source_preserving_signature(
             Err(_) => continue,
         };
         let paths = tsrs2_harness::write_program_jsons(std::slice::from_ref(&program), out_dir)?;
-        let comparison = compare_program(&program, &paths[0], vendor_lib_dir, pool)?;
+        let comparison = compare_program_with_mutation_canary(
+            &program,
+            &paths[0],
+            vendor_lib_dir,
+            pool,
+            mutation_canary,
+        )?;
         if comparison.signature.as_deref() == Some(signature) {
             current = candidate + "\n";
         }
@@ -1268,6 +1589,20 @@ fn reduce_source_preserving_signature(
 }
 
 fn verify_fuzzer_raw(artifact: &FuzzerArtifact) -> Result<(), Box<dyn Error>> {
+    let natural_signatures = artifact
+        .cases
+        .iter()
+        .filter_map(|case| case.divergence_signature.as_ref())
+        .collect::<BTreeSet<_>>();
+    let reducer_source_is_valid = if artifact.reducer.mutation_canary {
+        natural_signatures.is_empty()
+    } else {
+        artifact
+            .reducer
+            .original_signature
+            .as_ref()
+            .is_some_and(|signature| natural_signatures.contains(signature))
+    };
     if artifact.header.schema != ARTIFACT_SCHEMA
         || artifact.requested_cases == 0
         || artifact.cases.len() != artifact.requested_cases
@@ -1275,7 +1610,15 @@ fn verify_fuzzer_raw(artifact: &FuzzerArtifact) -> Result<(), Box<dyn Error>> {
             .cases
             .iter()
             .any(|case| case.compared_tiers != ["t0", "t1", "t2", "t3", "t4"])
+        || artifact.cases.iter().any(|case| {
+            let (Some(oracle), Some(tsrs)) = (&case.oracle_rendered, &case.tsrs_rendered) else {
+                return true;
+            };
+            sha256_bytes(oracle.as_bytes()) != case.oracle_sha256
+                || sha256_bytes(tsrs.as_bytes()) != case.tsrs_sha256
+        })
         || !artifact.reducer.exercised
+        || !reducer_source_is_valid
         || artifact.reducer.original_signature != artifact.reducer.reduced_signature
         || !artifact.dedupe.exercised
         || artifact.dedupe.observed_signatures.len() <= artifact.dedupe.unique_signatures.len()
@@ -2037,6 +2380,87 @@ mod tests {
     }
 
     #[test]
+    fn t4_renderer_classifier_pins_precedence_and_stable_signature() {
+        let a = json!({"code":2322,"head":"Type mismatch","start":1});
+        let b = json!({"code":2345,"head":"Bad argument","start":9});
+        assert_eq!(
+            renderer_divergence_class(
+                &[a.clone(), b.clone()],
+                &[b.clone(), a.clone()],
+                "oracle",
+                "tsrs",
+            ),
+            "order"
+        );
+        assert_eq!(
+            renderer_divergence_class(
+                &[a.clone(), a.clone()],
+                std::slice::from_ref(&a),
+                "oracle",
+                "tsrs",
+            ),
+            "dedupe"
+        );
+        let oracle_path = "/oracle/main.ts:1:1 - error TS2322: Type mismatch\n";
+        let tsrs_path = "C:/work/main.ts:1:1 - error TS2322: Type mismatch\n";
+        assert_eq!(
+            renderer_divergence_class(
+                std::slice::from_ref(&a),
+                std::slice::from_ref(&a),
+                oracle_path,
+                tsrs_path,
+            ),
+            "path"
+        );
+        assert_eq!(
+            renderer_divergence_class(
+                std::slice::from_ref(&a),
+                std::slice::from_ref(&a),
+                "error TS2322: x\r\n",
+                "error TS2322: x\n",
+            ),
+            "newline"
+        );
+        assert_eq!(
+            renderer_divergence_class(
+                std::slice::from_ref(&a),
+                std::slice::from_ref(&a),
+                "error TS2322: x\n",
+                "error TS2322: y\n",
+            ),
+            "text"
+        );
+
+        let signature = t4_divergence_signature(
+            std::slice::from_ref(&a),
+            std::slice::from_ref(&a),
+            oracle_path,
+            tsrs_path,
+        )
+        .unwrap();
+        assert!(signature.contains("tier=t4"));
+        assert!(signature.contains("renderer=path"));
+        assert!(signature.contains("key=2322:Type mismatch"));
+        assert!(!signature.contains("/oracle"));
+        assert!(!signature.contains("start"));
+    }
+
+    #[test]
+    fn fuzzer_pool_is_pinned_and_has_no_normal_oracle_worker() {
+        let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .canonicalize()
+            .unwrap();
+        let pool = verified_fuzzer_oracle_pool(&workspace).unwrap();
+
+        assert!(
+            pool.node_version().is_err(),
+            "fuzzer must not eagerly launch or retain a normal oracle worker"
+        );
+        assert!(pool.render_node_version().is_ok());
+    }
+
+    #[test]
     fn rss_parsers_pin_backend_units() {
         assert_eq!(
             parse_max_rss("  123456  maximum resident set size\n", "bsd-time-l").unwrap(),
@@ -2071,6 +2495,7 @@ mod tests {
             cases: Vec::new(),
             reducer: ReducerObservation {
                 exercised: false,
+                mutation_canary: false,
                 original_signature: None,
                 reduced_signature: None,
                 original_bytes: 0,

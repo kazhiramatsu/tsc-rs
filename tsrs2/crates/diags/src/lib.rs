@@ -3,12 +3,18 @@
 #[allow(non_upper_case_globals)]
 pub mod gen;
 pub mod line_map;
+/// TypeScript 6.0.3-compatible, deterministic diagnostic rendering.
+pub mod render;
 
 use std::cmp::Ordering;
 
 pub use line_map::{
     compute_line_map, compute_line_starts, get_line_and_character_of_position, LineAndCharacter,
     LineMap,
+};
+pub use render::{
+    format_diagnostics_with_context, format_sorted_diagnostics_with_context,
+    FormatDiagnosticsError, FormatDiagnosticsHost,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -136,6 +142,11 @@ pub struct Diagnostic {
     pub start: Option<u32>,
     pub length: Option<u32>,
     pub message: MessageChain,
+    /// Whether tsc's `relatedInformation` property exists, including
+    /// the observable present-but-empty `[]` case. Non-empty `related`
+    /// is treated as present even when legacy producers leave this
+    /// marker false.
+    pub related_information_present: bool,
     pub related: Vec<RelatedInfo>,
     pub canonical_head: Option<CanonicalHead>,
     /// tsc Diagnostic.skippedOn (errorSkippedOn 47575): the program
@@ -157,6 +168,7 @@ impl Diagnostic {
             start,
             length,
             message,
+            related_information_present: false,
             related: Vec::new(),
             canonical_head: None,
             skipped_on_no_emit: false,
@@ -193,8 +205,14 @@ impl Diagnostic {
 pub type DiagnosticList = Vec<Diagnostic>;
 
 pub fn compare_diagnostics(left: &Diagnostic, right: &Diagnostic) -> Ordering {
-    compare_diagnostics_skip_related(left, right)
-        .then_with(|| compare_related_information(&left.related, &right.related))
+    compare_diagnostics_skip_related(left, right).then_with(|| {
+        compare_related_information(
+            left.related_information_present || !left.related.is_empty(),
+            &left.related,
+            right.related_information_present || !right.related.is_empty(),
+            &right.related,
+        )
+    })
 }
 
 pub fn sort_and_dedupe_diagnostics(diagnostics: &mut DiagnosticList) {
@@ -203,20 +221,35 @@ pub fn sort_and_dedupe_diagnostics(diagnostics: &mut DiagnosticList) {
 }
 
 fn compare_diagnostics_skip_related(left: &Diagnostic, right: &Diagnostic) -> Ordering {
-    left.file_name
-        .cmp(&right.file_name)
+    compare_optional_strings_case_sensitive(left.file_name.as_deref(), right.file_name.as_deref())
         .then_with(|| left.start.cmp(&right.start))
         .then_with(|| left.length.cmp(&right.length))
         .then_with(|| left.comparison_code().cmp(&right.comparison_code()))
         .then_with(|| compare_diagnostic_message_text(left, right))
 }
 
+/// JavaScript relational string comparison is lexicographic over UTF-16
+/// code units. Rust's `str::cmp` instead compares UTF-8 bytes, which differs
+/// when an astral character is compared with a BMP character above its high
+/// surrogate.
+fn compare_strings_case_sensitive(left: &str, right: &str) -> Ordering {
+    left.encode_utf16().cmp(right.encode_utf16())
+}
+
+fn compare_optional_strings_case_sensitive(left: Option<&str>, right: Option<&str>) -> Ordering {
+    match (left, right) {
+        (None, None) => Ordering::Equal,
+        (None, Some(_)) => Ordering::Less,
+        (Some(_), None) => Ordering::Greater,
+        (Some(left), Some(right)) => compare_strings_case_sensitive(left, right),
+    }
+}
+
 /// tsc compareMessageText (17863-17888): head text through the
 /// canonical head, chains from the RAW message, then the
 /// canonical-bearing-sorts-first tiebreaker.
 fn compare_diagnostic_message_text(left: &Diagnostic, right: &Diagnostic) -> Ordering {
-    left.comparison_text()
-        .cmp(right.comparison_text())
+    compare_strings_case_sensitive(left.comparison_text(), right.comparison_text())
         .then_with(|| compare_message_chain(&left.message.next, &right.message.next))
         .then_with(|| {
             match (
@@ -230,12 +263,17 @@ fn compare_diagnostic_message_text(left: &Diagnostic, right: &Diagnostic) -> Ord
         })
 }
 
-fn compare_related_information(left: &[RelatedInfo], right: &[RelatedInfo]) -> Ordering {
-    match (left.is_empty(), right.is_empty()) {
-        (true, true) => Ordering::Equal,
-        (false, true) => Ordering::Less,
-        (true, false) => Ordering::Greater,
-        (false, false) => right.len().cmp(&left.len()).then_with(|| {
+fn compare_related_information(
+    left_present: bool,
+    left: &[RelatedInfo],
+    right_present: bool,
+    right: &[RelatedInfo],
+) -> Ordering {
+    match (left_present, right_present) {
+        (false, false) => Ordering::Equal,
+        (true, false) => Ordering::Less,
+        (false, true) => Ordering::Greater,
+        (true, true) => right.len().cmp(&left.len()).then_with(|| {
             left.iter()
                 .zip(right.iter())
                 .map(|(left, right)| compare_related_info(left, right))
@@ -246,8 +284,7 @@ fn compare_related_information(left: &[RelatedInfo], right: &[RelatedInfo]) -> O
 }
 
 fn compare_related_info(left: &RelatedInfo, right: &RelatedInfo) -> Ordering {
-    left.file_name
-        .cmp(&right.file_name)
+    compare_optional_strings_case_sensitive(left.file_name.as_deref(), right.file_name.as_deref())
         .then_with(|| left.start.cmp(&right.start))
         .then_with(|| left.length.cmp(&right.length))
         .then_with(|| left.message.code.cmp(&right.message.code))
@@ -255,8 +292,7 @@ fn compare_related_info(left: &RelatedInfo, right: &RelatedInfo) -> Ordering {
 }
 
 fn compare_message_text(left: &MessageChain, right: &MessageChain) -> Ordering {
-    left.text
-        .cmp(&right.text)
+    compare_strings_case_sensitive(&left.text, &right.text)
         .then_with(|| compare_message_chain(&left.next, &right.next))
 }
 
@@ -284,8 +320,7 @@ fn compare_message_chain_content(left: &[MessageChain], right: &[MessageChain]) 
     left.iter()
         .zip(right.iter())
         .map(|(left, right)| {
-            left.text
-                .cmp(&right.text)
+            compare_strings_case_sensitive(&left.text, &right.text)
                 .then_with(|| compare_message_chain_content(&left.next, &right.next))
         })
         .find(|ordering| *ordering != Ordering::Equal)
@@ -370,5 +405,106 @@ mod tests {
         assert_eq!(diagnostics[0].file_name, None);
         assert_eq!(diagnostics[1].file_name.as_deref(), Some("a.ts"));
         assert_eq!(diagnostics[2].file_name.as_deref(), Some("b.ts"));
+    }
+
+    #[test]
+    fn present_empty_related_information_sorts_before_absent_and_wins_dedupe() {
+        let absent = diagnostic(Some("a.ts"), Some(0), 1005, "';' expected.");
+        let mut present_empty = absent.clone();
+        present_empty.related_information_present = true;
+
+        assert_eq!(compare_diagnostics(&present_empty, &absent), Ordering::Less);
+        assert_eq!(
+            compare_diagnostics(&absent, &present_empty),
+            Ordering::Greater
+        );
+
+        let mut diagnostics = vec![absent, present_empty];
+        sort_and_dedupe_diagnostics(&mut diagnostics);
+        assert_eq!(diagnostics.len(), 1);
+        assert!(diagnostics[0].related_information_present);
+        assert!(diagnostics[0].related.is_empty());
+    }
+
+    #[test]
+    fn diagnostic_sort_uses_javascript_utf16_code_unit_order() {
+        let astral = "\u{1f600}";
+        let private_use = "\u{e000}";
+        assert_eq!(
+            compare_strings_case_sensitive(astral, private_use),
+            Ordering::Less
+        );
+
+        let astral_file = diagnostic(Some(astral), Some(0), 1000, "same");
+        let private_use_file = diagnostic(Some(private_use), Some(0), 1000, "same");
+        assert_eq!(
+            compare_diagnostics(&astral_file, &private_use_file),
+            Ordering::Less
+        );
+
+        let mut astral_head = diagnostic(None, None, 2000, "same raw head");
+        astral_head.canonical_head = Some(CanonicalHead {
+            code: 1000,
+            text: astral.to_owned(),
+        });
+        let mut private_use_head = diagnostic(None, None, 2000, "same raw head");
+        private_use_head.canonical_head = Some(CanonicalHead {
+            code: 1000,
+            text: private_use.to_owned(),
+        });
+        assert_eq!(
+            compare_diagnostics(&astral_head, &private_use_head),
+            Ordering::Less
+        );
+
+        let mut astral_child = diagnostic(None, None, 1000, "same");
+        astral_child.message.next.push(chain(1000, astral));
+        let mut private_use_child = diagnostic(None, None, 1000, "same");
+        private_use_child
+            .message
+            .next
+            .push(chain(1000, private_use));
+        assert_eq!(
+            compare_diagnostics(&astral_child, &private_use_child),
+            Ordering::Less
+        );
+
+        let mut astral_related_file = diagnostic(None, None, 1000, "same");
+        astral_related_file.related.push(RelatedInfo {
+            file_name: Some(astral.to_owned()),
+            start: Some(0),
+            length: Some(1),
+            message: chain(1000, "same"),
+        });
+        let mut private_use_related_file = diagnostic(None, None, 1000, "same");
+        private_use_related_file.related.push(RelatedInfo {
+            file_name: Some(private_use.to_owned()),
+            start: Some(0),
+            length: Some(1),
+            message: chain(1000, "same"),
+        });
+        assert_eq!(
+            compare_diagnostics(&astral_related_file, &private_use_related_file),
+            Ordering::Less
+        );
+
+        let mut astral_related_text = diagnostic(None, None, 1000, "same");
+        astral_related_text.related.push(RelatedInfo {
+            file_name: None,
+            start: None,
+            length: None,
+            message: chain(1000, astral),
+        });
+        let mut private_use_related_text = diagnostic(None, None, 1000, "same");
+        private_use_related_text.related.push(RelatedInfo {
+            file_name: None,
+            start: None,
+            length: None,
+            message: chain(1000, private_use),
+        });
+        assert_eq!(
+            compare_diagnostics(&astral_related_text, &private_use_related_text),
+            Ordering::Less
+        );
     }
 }

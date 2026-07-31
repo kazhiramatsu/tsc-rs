@@ -7,6 +7,7 @@ use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::sync::Arc;
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde::{Deserialize, Serialize};
@@ -15,6 +16,7 @@ use tsrs2_checker::{CompilerOptions, InputFile};
 use tsrs2_diags::DiagnosticList;
 
 mod completion;
+mod invariant_attestation;
 mod m8_evidence;
 mod m8_plan;
 mod m8_trace;
@@ -34,6 +36,7 @@ fn main() {
         Some("token-diff") => run_or_exit(token_diff(args)),
         Some("ast-dump") => run_or_exit(ast_dump(args)),
         Some("ast-diff") => run_or_exit(ast_diff(args)),
+        Some("jsdoc-ast-diff") => run_or_exit(jsdoc_ast_diff(args)),
         Some("recovery-census") => run_or_exit(recovery_census::run(args)),
         Some("symbol-diff") => run_or_exit(symbol_diff(args)),
         Some("lib-gate") => run_or_exit(lib_gate(args)),
@@ -1928,22 +1931,20 @@ fn completion_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Err
     let scope_gate = readiness_probe(&readiness, &["scope-frozen"]);
     let exact_scope = combine_completion_probes(&[scope_audit.clone(), scope_gate.clone()]);
 
-    let ratchet_path = workspace.join("ratchet.toml");
-    let t1_active = ratchet_section_has_exact_counts(&ratchet_path, "t1")?;
-    let t2_active = ratchet_section_has_exact_counts(&ratchet_path, "t2")?;
-    let t3_active = ratchet_section_has_exact_counts(&ratchet_path, "t3")?;
+    let tier_activation = tier_1_through_3_activation_probe(
+        tsrs2_conformance::ratchet::verify_tier_1_through_3_activation(&workspace)
+            .map_err(|error| error.to_string()),
+    );
     let tiers_complete = conformance.supported_matched_t0_diagnostics
         == conformance.supported_oracle_diagnostics
         && conformance.supported_t1_matched == conformance.supported_oracle_diagnostics
         && conformance.supported_t2_matched == conformance.supported_oracle_diagnostics
         && conformance.supported_t3_matched == conformance.supported_oracle_diagnostics
-        && t1_active
-        && t2_active
-        && t3_active;
+        && tier_activation.ready;
     let supported_t0_t3 = completion::CompletionProbe::new(
         tiers_complete,
         format!(
-            "supported T0={}/{} T1={}/{} T2={}/{} T3={}/{} active-ratchets=T1:{t1_active},T2:{t2_active},T3:{t3_active}",
+            "supported T0={}/{} T1={}/{} T2={}/{} T3={}/{}; {}",
             conformance.supported_matched_t0_diagnostics,
             conformance.supported_oracle_diagnostics,
             conformance.supported_t1_matched,
@@ -1952,19 +1953,18 @@ fn completion_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Err
             conformance.supported_oracle_diagnostics,
             conformance.supported_t3_matched,
             conformance.supported_oracle_diagnostics,
+            tier_activation.detail,
         ),
     );
 
-    let t4_active = ratchet_section_has_exact_counts(&ratchet_path, "t4")?;
-    let supported_t4 = completion::CompletionProbe::new(
-        false,
-        if t4_active {
-            "T4 accepted-set section exists, but the A3 rendered-output comparator/report is not implemented"
-                .to_owned()
-        } else {
-            "A3 T4 rendered-output comparator and accepted-set section are inactive".to_owned()
-        },
+    // A3 completion requires both the independently frozen exact scope
+    // and a fresh proof of the accepted T4 artifact/pins. A hand-written
+    // `[t4]` summary is never sufficient.
+    let t4_activation = t4_activation_probe(
+        tsrs2_conformance::ratchet::verify_t4_activation(&workspace)
+            .map_err(|error| error.to_string()),
     );
+    let supported_t4 = combine_completion_probes(&[exact_scope.clone(), t4_activation]);
 
     let escape_sites = collect_escape_sites(&workspace)?;
     let escape_audit = audit_legacy_dormant_markers(&workspace, &escape_sites)
@@ -2003,6 +2003,7 @@ fn completion_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Err
             "performance-baseline",
         ],
     );
+    let invariant_attestation = invariant_attestation::verify(&workspace);
 
     let report = completion::build_report(completion::CompletionInputs {
         all_corpus_fp_zero: completion::CompletionProbe::new(
@@ -2024,8 +2025,8 @@ fn completion_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Err
         declaration_converse,
         b1_b4_evidence,
         full_corpus_invariants: completion::CompletionProbe::new(
-            false,
-            "no fresh full-corpus invariant attestation; sampled `invariants --suite all` cannot satisfy completion",
+            invariant_attestation.ready,
+            invariant_attestation.detail,
         ),
         m9_steady_state: completion::CompletionProbe::new(
             false,
@@ -2086,6 +2087,70 @@ fn combine_completion_probes(
             .collect::<Vec<_>>()
             .join("; "),
     )
+}
+
+fn tier_1_through_3_activation_probe(
+    result: Result<tsrs2_conformance::ratchet::Tier1Through3Activation, String>,
+) -> completion::CompletionProbe {
+    match result {
+        Ok(activation) => {
+            let populated = activation.total > 0
+                && activation.t1_matched > 0
+                && activation.t2_matched > 0
+                && activation.t3_matched > 0;
+            completion::CompletionProbe::new(
+                populated,
+                format!(
+                    "A1 oracle-input comparators active; exact accepted-artifact summaries \
+                     T1={}/{} T2={}/{} T3={}/{}{}",
+                    activation.t1_matched,
+                    activation.total,
+                    activation.t2_matched,
+                    activation.total,
+                    activation.t3_matched,
+                    activation.total,
+                    if populated {
+                        ""
+                    } else {
+                        " (each accepted count and total must be nonzero)"
+                    },
+                ),
+            )
+        }
+        Err(error) => completion::CompletionProbe::new(
+            false,
+            format!("A1 T1-T3 activation proof failed: {error}"),
+        ),
+    }
+}
+
+fn t4_activation_probe(
+    result: Result<tsrs2_conformance::ratchet::T4Activation, String>,
+) -> completion::CompletionProbe {
+    match result {
+        Ok(activation) => {
+            let complete =
+                activation.total_cases > 0 && activation.matched_cases == activation.total_cases;
+            completion::CompletionProbe::new(
+                complete,
+                format!(
+                    "A3 rendered-output comparator and fresh schema-3 pins active; \
+                     accepted cases={}/{}{}",
+                    activation.matched_cases,
+                    activation.total_cases,
+                    if complete {
+                        ""
+                    } else {
+                        " (accepted count must equal a nonzero total)"
+                    },
+                ),
+            )
+        }
+        Err(error) => completion::CompletionProbe::new(
+            false,
+            format!("A3 T4 activation proof failed: {error}"),
+        ),
+    }
 }
 
 fn add_m8_gate(gates: &mut Vec<M8ReadinessGate>, name: &str, ready: bool, detail: String) {
@@ -2646,6 +2711,581 @@ struct AstDumpResult {
     dump: String,
     #[serde(rename = "parseErrors")]
     parse_errors: usize,
+}
+
+/// Compare the parser-owned JSDoc attachment graph against the vendored
+/// TypeScript runtime.  Ordinary `ast-diff` intentionally follows
+/// `forEachChild`, which does not enter `node.jsDoc`; this command owns that
+/// separate tree and compares every observable stored field.
+fn jsdoc_ast_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let args = parse_token_diff_args(args)?;
+    let workspace = find_tsrs2_root()?;
+    let mut files = if args.corpus {
+        collect_fixture_paths(&workspace.join("ts-tests/tests/cases/conformance"))?
+            .into_iter()
+            .filter(|path| is_javascript_or_typescript_path(path))
+            .collect()
+    } else {
+        args.files
+    };
+    if files.is_empty() {
+        return Err("jsdoc-ast-diff requires --files or a file path".into());
+    }
+    files.sort();
+    if let Some(limit) = args.limit {
+        files.truncate(limit);
+    }
+
+    let mut oracle = JsDocAstDumpOracle::spawn(&workspace)?;
+    let mut compared = 0usize;
+    let mut with_jsdoc = 0usize;
+    let mut differing = 0usize;
+    let mut failures = String::new();
+    let mut failure_details = Vec::new();
+    for file in &files {
+        let text = fs::read_to_string(file)?;
+        let file_name = file.to_string_lossy();
+        let rust = rust_jsdoc_ast_dump(&file_name, &text);
+        let oracle_raw = oracle.jsdoc_ast_dump(file, &text, &file_name)?;
+        let expected = project_oracle_jsdoc_dump(&oracle_raw)?;
+        compared += 1;
+        if rust
+            .get("jsDocAttachments")
+            .and_then(serde_json::Value::as_array)
+            .is_some_and(|attachments| !attachments.is_empty())
+            || expected
+                .get("jsDocAttachments")
+                .and_then(serde_json::Value::as_array)
+                .is_some_and(|attachments| !attachments.is_empty())
+        {
+            with_jsdoc += 1;
+        }
+        if rust != expected {
+            differing += 1;
+            let rust_text = serde_json::to_string_pretty(&rust)?;
+            let expected_text = serde_json::to_string_pretty(&expected)?;
+            let (line, left, right) = first_diff(&rust_text, &expected_text);
+            let entry = format!(
+                "diff {} line {}:\n  tsrs:   {}\n  oracle: {}",
+                file.display(),
+                line,
+                left.unwrap_or("<missing>"),
+                right.unwrap_or("<missing>")
+            );
+            if differing <= 10 {
+                println!("{entry}");
+            }
+            failures.push_str(&entry);
+            failures.push('\n');
+            failure_details.push(serde_json::json!({
+                "file": file,
+                "tsrs": rust,
+                "oracle": expected,
+            }));
+        }
+    }
+
+    let failures_path = workspace.join("target/jsdoc-ast-diff-failures.txt");
+    if let Some(parent) = failures_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(&failures_path, failures)?;
+    let details_path = workspace.join("target/jsdoc-ast-diff-details.json");
+    fs::write(
+        &details_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "schema": 1,
+            "differing": failure_details.len(),
+            "failures": failure_details,
+        }))?,
+    )?;
+    println!("JSDoc AST diff: files={compared} with-jsdoc={with_jsdoc} differing={differing}");
+    println!("failures: {}", failures_path.display());
+    println!("details: {}", details_path.display());
+    if differing > 0 {
+        return Err(format!("JSDoc AST diff failed: {differing}/{compared} files differ").into());
+    }
+    Ok(())
+}
+
+fn is_javascript_or_typescript_path(path: &Path) -> bool {
+    matches!(
+        path.extension().and_then(|extension| extension.to_str()),
+        Some("js" | "jsx" | "mjs" | "cjs" | "ts" | "tsx" | "mts" | "cts")
+    )
+}
+
+fn is_javascript_path(path: &Path) -> bool {
+    matches!(
+        path.extension().and_then(|extension| extension.to_str()),
+        Some("js" | "jsx" | "mjs" | "cjs")
+    )
+}
+
+#[derive(Clone, Debug)]
+struct JsDocDumpEntry {
+    node: tsrs2_syntax::NodeId,
+    depth: usize,
+    children: Vec<String>,
+}
+
+fn add_jsdoc_dump_node(
+    arena: &tsrs2_syntax::NodeArena,
+    node: tsrs2_syntax::NodeId,
+    prefix: char,
+    depth: usize,
+    ids: &mut BTreeMap<tsrs2_syntax::NodeId, String>,
+    entries: &mut Vec<JsDocDumpEntry>,
+) -> String {
+    if let Some(id) = ids.get(&node) {
+        return id.clone();
+    }
+    let id = format!("{prefix}{}", entries.len());
+    ids.insert(node, id.clone());
+    let entry_index = entries.len();
+    entries.push(JsDocDumpEntry {
+        node,
+        depth,
+        children: Vec::new(),
+    });
+    let mut children = Vec::new();
+    tsrs2_syntax::for_each_child(arena, arena.node(node), |child| {
+        children.push(child);
+        false
+    });
+    for child in children {
+        let child_id = add_jsdoc_dump_node(arena, child, prefix, depth + 1, ids, entries);
+        entries[entry_index].children.push(child_id);
+    }
+    id
+}
+
+fn rust_jsdoc_ast_dump(file_name: &str, text: &str) -> serde_json::Value {
+    let path = Path::new(file_name);
+    let source = tsrs2_syntax::parse_source_file(
+        file_name,
+        text,
+        tsrs2_syntax::ParseOptions {
+            language_variant: language_variant_for_path(path),
+            javascript_file: is_javascript_path(path),
+            js_doc_parsing_mode: tsrs2_syntax::JSDocParsingMode::ParseAll,
+            ..tsrs2_syntax::ParseOptions::default()
+        },
+        None,
+    );
+    let to_utf16 = |pos: u32| -> u32 {
+        source
+            .line_map
+            .byte_to_utf16
+            .get(pos as usize)
+            .copied()
+            .unwrap_or(pos)
+    };
+
+    let mut ast_ids = BTreeMap::new();
+    let mut ast_entries = Vec::new();
+    add_jsdoc_dump_node(
+        &source.arena,
+        source.root,
+        'a',
+        0,
+        &mut ast_ids,
+        &mut ast_entries,
+    );
+
+    let mut jsdoc_ids = BTreeMap::new();
+    let mut jsdoc_entries = Vec::new();
+    let mut attachments = Vec::new();
+    let mut attachment_owners = BTreeSet::new();
+
+    let mut collect_attachment =
+        |owner: tsrs2_syntax::NodeId,
+         jsdoc_ids: &mut BTreeMap<tsrs2_syntax::NodeId, String>,
+         jsdoc_entries: &mut Vec<JsDocDumpEntry>,
+         attachments: &mut Vec<(tsrs2_syntax::NodeId, tsrs2_syntax::NodeArrayId)>| {
+            if !attachment_owners.insert(owner) {
+                return;
+            }
+            let Some(documents) = source.arena.node(owner).js_doc else {
+                return;
+            };
+            for document in &source.arena.node_array(documents).nodes {
+                add_jsdoc_dump_node(&source.arena, *document, 'j', 0, jsdoc_ids, jsdoc_entries);
+            }
+            attachments.push((owner, documents));
+        };
+
+    for entry in &ast_entries {
+        collect_attachment(
+            entry.node,
+            &mut jsdoc_ids,
+            &mut jsdoc_entries,
+            &mut attachments,
+        );
+    }
+    let mut index = 0usize;
+    while index < jsdoc_entries.len() {
+        let owner = jsdoc_entries[index].node;
+        collect_attachment(owner, &mut jsdoc_ids, &mut jsdoc_entries, &mut attachments);
+        index += 1;
+    }
+
+    let node_ref = |node: tsrs2_syntax::NodeId| {
+        rust_jsdoc_node_ref(&source.arena, &jsdoc_ids, node, &to_utf16)
+    };
+    let attachment_values = attachments
+        .iter()
+        .map(|(owner, documents)| {
+            let owner_ref = rust_jsdoc_node_ref(&source.arena, &BTreeMap::new(), *owner, &to_utf16);
+            let elements = source
+                .arena
+                .node_array(*documents)
+                .nodes
+                .iter()
+                .map(|node| node_ref(*node))
+                .collect::<Vec<_>>();
+            serde_json::json!({
+                "owner": owner_ref,
+                "property": "jsDoc",
+                "elements": elements,
+            })
+        })
+        .collect::<Vec<_>>();
+    let node_values = jsdoc_entries
+        .iter()
+        .map(|entry| {
+            let node = source.arena.node(entry.node);
+            let parent = node
+                .parent
+                .map(&node_ref)
+                .unwrap_or(serde_json::Value::Null);
+            let children = entry
+                .children
+                .iter()
+                .map(|id| serde_json::json!({ "id": id }))
+                .collect::<Vec<_>>();
+            let mut fields = Vec::new();
+            tsrs2_syntax::for_each_observable_field(node, |name, value| {
+                let (field_type, value) = match value {
+                    tsrs2_syntax::ObservableField::Node(value) => ("node", node_ref(value)),
+                    tsrs2_syntax::ObservableField::NodeArray(value) => (
+                        "nodeArray",
+                        rust_jsdoc_node_array(&source.arena, &jsdoc_ids, value, &to_utf16),
+                    ),
+                    tsrs2_syntax::ObservableField::Bool(value) => {
+                        ("boolean", serde_json::json!(value))
+                    }
+                    tsrs2_syntax::ObservableField::String(value) => {
+                        ("string", serde_json::json!(value))
+                    }
+                };
+                fields.push(serde_json::json!({
+                    "name": name,
+                    "type": field_type,
+                    "value": value,
+                }));
+            });
+            serde_json::json!({
+                "id": jsdoc_ids.get(&entry.node),
+                "kind": node.kind as u16,
+                "pos": to_utf16(node.pos),
+                "end": to_utf16(node.end),
+                "flags": node.flags,
+                "parent": parent,
+                "depth": entry.depth,
+                "children": children,
+                "fields": fields,
+            })
+        })
+        .collect::<Vec<_>>();
+    let diagnostics = source
+        .js_doc_diagnostics
+        .iter()
+        .map(|diagnostic| {
+            let start = diagnostic.start.map(to_utf16);
+            let length = diagnostic
+                .start
+                .zip(diagnostic.length)
+                .map(|(start, length)| {
+                    to_utf16(start.saturating_add(length)).saturating_sub(to_utf16(start))
+                });
+            let category = match diagnostic.category() {
+                tsrs2_diags::DiagnosticCategory::Warning => 0,
+                tsrs2_diags::DiagnosticCategory::Error => 1,
+                tsrs2_diags::DiagnosticCategory::Suggestion => 2,
+                tsrs2_diags::DiagnosticCategory::Message => 3,
+            };
+            serde_json::json!({
+                "code": diagnostic.code(),
+                "category": category,
+                "start": start,
+                "length": length,
+                "message": diagnostic.message_text(),
+            })
+        })
+        .collect::<Vec<_>>();
+
+    serde_json::json!({
+        "jsDocAttachments": attachment_values,
+        "jsDocNodes": node_values,
+        "jsDocDiagnostics": diagnostics,
+    })
+}
+
+fn rust_jsdoc_node_ref(
+    arena: &tsrs2_syntax::NodeArena,
+    jsdoc_ids: &BTreeMap<tsrs2_syntax::NodeId, String>,
+    node: tsrs2_syntax::NodeId,
+    to_utf16: &impl Fn(u32) -> u32,
+) -> serde_json::Value {
+    let value = arena.node(node);
+    serde_json::json!({
+        "id": jsdoc_ids.get(&node),
+        "kind": value.kind as u16,
+        "pos": to_utf16(value.pos),
+        "end": to_utf16(value.end),
+    })
+}
+
+fn rust_jsdoc_node_array(
+    arena: &tsrs2_syntax::NodeArena,
+    jsdoc_ids: &BTreeMap<tsrs2_syntax::NodeId, String>,
+    array: tsrs2_syntax::NodeArrayId,
+    to_utf16: &impl Fn(u32) -> u32,
+) -> serde_json::Value {
+    let array = arena.node_array(array);
+    let pos = if array.pos == u32::MAX {
+        serde_json::json!(-1)
+    } else {
+        serde_json::json!(to_utf16(array.pos))
+    };
+    let end = if array.end == u32::MAX {
+        serde_json::json!(-1)
+    } else {
+        serde_json::json!(to_utf16(array.end))
+    };
+    serde_json::json!({
+        "pos": pos,
+        "end": end,
+        "hasTrailingComma": array.has_trailing_comma,
+        "elements": array.nodes.iter().map(|node| {
+            rust_jsdoc_node_ref(arena, jsdoc_ids, *node, to_utf16)
+        }).collect::<Vec<_>>(),
+    })
+}
+
+fn project_oracle_jsdoc_dump(raw: &serde_json::Value) -> Result<serde_json::Value, Box<dyn Error>> {
+    let attachments = raw
+        .get("jsDocAttachments")
+        .and_then(serde_json::Value::as_array)
+        .ok_or("JSDoc AST oracle response missing jsDocAttachments")?
+        .iter()
+        .map(|attachment| {
+            let owner = project_oracle_jsdoc_ref(&attachment["owner"]);
+            let elements = attachment["value"]["elements"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(project_oracle_jsdoc_ref)
+                .collect::<Vec<_>>();
+            serde_json::json!({
+                "owner": owner,
+                "property": "jsDoc",
+                "elements": elements,
+            })
+        })
+        .collect::<Vec<_>>();
+    let nodes = raw
+        .get("jsDocNodes")
+        .and_then(serde_json::Value::as_array)
+        .ok_or("JSDoc AST oracle response missing jsDocNodes")?
+        .iter()
+        .map(|node| {
+            let fields = node["fields"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|field| {
+                    let field_type = field["type"].as_str().unwrap_or_default();
+                    let value = match field_type {
+                        "node" => project_oracle_jsdoc_ref(&field["value"]),
+                        "nodeArray" => project_oracle_jsdoc_node_array(&field["value"]),
+                        _ => field["value"].clone(),
+                    };
+                    serde_json::json!({
+                        "name": field["name"],
+                        "type": field["type"],
+                        "value": value,
+                    })
+                })
+                .collect::<Vec<_>>();
+            let children = node["children"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|child| serde_json::json!({ "id": child["id"] }))
+                .collect::<Vec<_>>();
+            serde_json::json!({
+                "id": node["id"],
+                "kind": node["kind"],
+                "pos": node["pos"],
+                "end": node["end"],
+                "flags": node["flags"],
+                "parent": if node["parent"].is_null() {
+                    serde_json::Value::Null
+                } else {
+                    project_oracle_jsdoc_ref(&node["parent"])
+                },
+                "depth": node["depth"],
+                "children": children,
+                "fields": fields,
+            })
+        })
+        .collect::<Vec<_>>();
+    let diagnostics = raw
+        .get("jsDocDiagnostics")
+        .and_then(serde_json::Value::as_array)
+        .ok_or("JSDoc AST oracle response missing jsDocDiagnostics")?
+        .iter()
+        .map(|diagnostic| {
+            serde_json::json!({
+                "code": diagnostic["code"],
+                "category": diagnostic["category"],
+                "start": diagnostic["start"],
+                "length": diagnostic["length"],
+                "message": diagnostic["message"],
+            })
+        })
+        .collect::<Vec<_>>();
+    Ok(serde_json::json!({
+        "jsDocAttachments": attachments,
+        "jsDocNodes": nodes,
+        "jsDocDiagnostics": diagnostics,
+    }))
+}
+
+fn project_oracle_jsdoc_ref(value: &serde_json::Value) -> serde_json::Value {
+    let id = value["id"]
+        .as_str()
+        .filter(|id| id.starts_with('j'))
+        .map_or(serde_json::Value::Null, |id| serde_json::json!(id));
+    serde_json::json!({
+        "id": id,
+        "kind": value["kind"],
+        "pos": value["pos"],
+        "end": value["end"],
+    })
+}
+
+fn project_oracle_jsdoc_node_array(value: &serde_json::Value) -> serde_json::Value {
+    serde_json::json!({
+        "pos": value["pos"],
+        "end": value["end"],
+        "hasTrailingComma": value["hasTrailingComma"],
+        "elements": value["elements"].as_array().into_iter().flatten()
+            .map(project_oracle_jsdoc_ref).collect::<Vec<_>>(),
+    })
+}
+
+struct JsDocAstDumpOracle {
+    child: Child,
+    stdin: ChildStdin,
+    stdout: BufReader<ChildStdout>,
+    next_id: u64,
+}
+
+impl JsDocAstDumpOracle {
+    fn spawn(workspace: &Path) -> Result<Self, Box<dyn Error>> {
+        let mut child = Command::new("node")
+            .arg(workspace.join("crates/oracle/jsdoc-ast-dump.mjs"))
+            .arg("--server-jsonl")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit())
+            .spawn()?;
+        let stdin = child
+            .stdin
+            .take()
+            .ok_or("JSDoc AST oracle stdin unavailable")?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or("JSDoc AST oracle stdout unavailable")?;
+        Ok(Self {
+            child,
+            stdin,
+            stdout: BufReader::new(stdout),
+            next_id: 1,
+        })
+    }
+
+    fn jsdoc_ast_dump(
+        &mut self,
+        path: &Path,
+        text: &str,
+        file_name: &str,
+    ) -> Result<serde_json::Value, Box<dyn Error>> {
+        let id = self.next_id;
+        self.next_id += 1;
+        let text_base64 = BASE64.encode(text);
+        let request = serde_json::to_string(&AstDumpRequest {
+            id,
+            payload: AstDumpPayload {
+                text_base64: &text_base64,
+                file_name,
+            },
+        })?;
+        writeln!(self.stdin, "{request}")?;
+        self.stdin.flush()?;
+
+        let mut line = String::new();
+        if self.stdout.read_line(&mut line)? == 0 {
+            return Err(format!(
+                "JSDoc AST oracle exited without a response for {}",
+                path.display()
+            )
+            .into());
+        }
+        let response: JsDocAstDumpResponse = serde_json::from_str(&line)?;
+        if response.id != Some(id) {
+            return Err(format!(
+                "JSDoc AST oracle response id mismatch for {}: expected {id}, got {:?}",
+                path.display(),
+                response.id
+            )
+            .into());
+        }
+        if !response.ok {
+            return Err(format!(
+                "JSDoc AST oracle failed for {}: {}",
+                path.display(),
+                response.error.unwrap_or_else(|| "unknown error".to_owned())
+            )
+            .into());
+        }
+        response.result.ok_or_else(|| {
+            format!(
+                "JSDoc AST oracle response missing result for {}",
+                path.display()
+            )
+            .into()
+        })
+    }
+}
+
+impl Drop for JsDocAstDumpOracle {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct JsDocAstDumpResponse {
+    id: Option<u64>,
+    ok: bool,
+    result: Option<serde_json::Value>,
+    error: Option<String>,
 }
 
 /// m2-binder-steps.md stage 3.0: compare the Rust symbol audit against
@@ -3397,11 +4037,48 @@ fn first_diff<'a>(left: &'a str, right: &'a str) -> (usize, Option<&'a str>, Opt
 fn oracle_refresh(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let parsed = parse_conformance_args(args)?;
     let workspace = find_tsrs2_root()?;
-    let summary = tsrs2_conformance::refresh_oracle_goldens(&tsrs2_conformance::RefreshOptions {
+    let options = tsrs2_conformance::RefreshOptions {
         workspace,
         limit: parsed.limit,
         files: parsed.files,
-    })?;
+    };
+    if parsed.render_hashes {
+        if !parsed.check {
+            return Err(
+                "rendered hashes are immutable after A3; use `oracle-refresh \
+                 --render-hashes --check` (the one-time extension is \
+                 `ratchet update --transition t4-input-schema-extension`)"
+                    .into(),
+            );
+        }
+        if options.limit.is_some() || !options.files.is_empty() {
+            return Err(
+                "`oracle-refresh --render-hashes --check` requires the complete fixed universe; \
+                 use `conformance --tier t4 --report-only --files ...` for focused evidence"
+                    .into(),
+            );
+        }
+        if parsed.tier.is_some()
+            || parsed.report_only
+            || parsed.families_report
+            || parsed.out_json.is_some()
+        {
+            return Err("render-hash check does not accept conformance/report arguments".into());
+        }
+        let summary = tsrs2_conformance::check_or_extend_rendered_hashes(
+            &options,
+            tsrs2_conformance::RenderHashMode::Check,
+        )?;
+        println!(
+            "oracle rendered-hash check: fixtures={} cases={} diagnostics={} schema3={}",
+            summary.fixtures, summary.cases, summary.oracle_diagnostics, summary.schema_3_checked
+        );
+        return Ok(());
+    }
+    if parsed.check || parsed.tier.is_some() || parsed.report_only {
+        return Err("ordinary oracle-refresh does not accept --check/--tier/--report-only".into());
+    }
+    let summary = tsrs2_conformance::refresh_oracle_goldens(&options)?;
     println!(
         "oracle refresh wrote {} fixtures / {} cases / {} oracle diagnostics under {}",
         summary.fixtures, summary.cases, summary.oracle_diagnostics, summary.goldens_root
@@ -3480,7 +4157,60 @@ fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
     let workspace = find_tsrs2_root()?;
     let out_json = parsed
         .out_json
+        .clone()
         .unwrap_or_else(|| workspace.join("target/conformance/mismatches.json"));
+    if let Some(tier) = parsed.tier.as_deref() {
+        if tier != "t4" {
+            return Err(format!(
+                "unsupported explicit conformance tier {tier:?}; only report-only T4 uses \
+                 --tier (T1-T3 activation is owned by A1)"
+            )
+            .into());
+        }
+        if !parsed.report_only {
+            return Err(
+                "explicit `--tier t4` is report-only; after A3 activation the ordinary All \
+                 conformance run enforces accepted T4 cases automatically"
+                    .into(),
+            );
+        }
+        if parsed.render_hashes || parsed.check || parsed.families_report {
+            return Err("T4 report-only does not accept refresh/check/families arguments".into());
+        }
+        if parsed.band != tsrs2_conformance::DiagnosticBand::All {
+            return Err("T4 report-only currently renders the supported All view only".into());
+        }
+        let out_json = parsed
+            .out_json
+            .clone()
+            .unwrap_or_else(|| workspace.join("target/conformance/t4-report.json"));
+        let report = tsrs2_conformance::run_t4_report(&tsrs2_conformance::T4ReportOptions {
+            workspace,
+            limit: parsed.limit,
+            files: parsed.files,
+        })?;
+        if let Some(parent) = out_json.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&out_json, serde_json::to_vec_pretty(&report)?)?;
+        println!(
+            "T4 report-only: fixtures={} cases={} matched={} mismatched={} schema3-pinned={} oracle-pin-failures={} rust-formatter-failures={} report={}",
+            report.fixtures,
+            report.cases,
+            report.matched_cases,
+            report.mismatched_cases,
+            report.schema_3_pinned_cases,
+            report.oracle_pin_failures,
+            report.rust_formatter_failures,
+            out_json.display()
+        );
+        return Ok(());
+    }
+    if parsed.report_only || parsed.render_hashes || parsed.check {
+        return Err(
+            "--report-only/--render-hashes/--check require their explicit T4 command".into(),
+        );
+    }
     let options = tsrs2_conformance::ConformanceOptions {
         workspace: workspace.clone(),
         limit: parsed.limit,
@@ -3706,6 +4436,10 @@ struct ConformanceArgs {
     out_json: Option<PathBuf>,
     band: tsrs2_conformance::DiagnosticBand,
     families_report: bool,
+    tier: Option<String>,
+    report_only: bool,
+    render_hashes: bool,
+    check: bool,
 }
 
 fn parse_conformance_args(
@@ -3716,6 +4450,10 @@ fn parse_conformance_args(
     let mut out_json = None;
     let mut band = tsrs2_conformance::DiagnosticBand::All;
     let mut families_report = false;
+    let mut tier = None;
+    let mut report_only = false;
+    let mut render_hashes = false;
+    let mut check = false;
     let mut args = args.peekable();
 
     while let Some(arg) = args.next() {
@@ -3749,6 +4487,10 @@ fn parse_conformance_args(
             }
             "--syntactic-only" => band = tsrs2_conformance::DiagnosticBand::Syntactic,
             "--families-report" => families_report = true,
+            "--tier" => tier = Some(args.next().ok_or("missing value after --tier")?),
+            "--report-only" => report_only = true,
+            "--render-hashes" => render_hashes = true,
+            "--check" => check = true,
             _ => return Err(format!("unexpected conformance argument: {arg}").into()),
         }
     }
@@ -3768,6 +4510,10 @@ fn parse_conformance_args(
         out_json,
         band,
         families_report,
+        tier,
+        report_only,
+        render_hashes,
+        check,
     })
 }
 
@@ -3822,19 +4568,26 @@ impl InvariantSuite {
 
 struct InvariantArgs {
     suite: InvariantSuite,
-    limit: usize,
+    limit: Option<usize>,
+    full_corpus: bool,
 }
 
 #[derive(Clone, Debug)]
 struct SampleProgram {
     fixture: String,
     matrix_key: String,
+    cwd: String,
+    options: BTreeMap<String, tsrs2_harness::OptionValue>,
+    libs: Vec<String>,
     files: Vec<InputFile>,
+    compiler_options: CompilerOptions,
+    lib_files: Arc<Vec<InputFile>>,
 }
 
 fn invariants(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
-    let args = parse_invariant_args(args)?;
     let workspace = find_tsrs2_root()?;
+    invariant_attestation::invalidate(&workspace)?;
+    let args = parse_invariant_args(args)?;
     let programs = load_sample_programs(&workspace, args.limit)?;
     let fixture_count = programs
         .iter()
@@ -3853,7 +4606,7 @@ fn invariants(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> 
         let summary = tsrs2_conformance::run_prefix_conformance(
             &tsrs2_conformance::PrefixConformanceOptions {
                 workspace: workspace.clone(),
-                limit: Some(args.limit),
+                limit: args.limit,
                 files: Vec::new(),
             },
         )?;
@@ -3916,6 +4669,13 @@ fn invariants(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> 
         fixture_count,
         programs.len()
     );
+    if args.full_corpus && args.suite == InvariantSuite::All {
+        let path = invariant_attestation::write_success(&workspace, fixture_count, programs.len())?;
+        println!(
+            "full-corpus invariant attestation written atomically: {}",
+            path.display()
+        );
+    }
     Ok(())
 }
 
@@ -3923,7 +4683,8 @@ fn parse_invariant_args(
     args: impl Iterator<Item = String>,
 ) -> Result<InvariantArgs, Box<dyn Error>> {
     let mut suite = InvariantSuite::All;
-    let mut limit = 200usize;
+    let mut limit = None;
+    let mut full_corpus = false;
     let mut args = args.peekable();
 
     while let Some(arg) = args.next() {
@@ -3934,51 +4695,135 @@ fn parse_invariant_args(
             }
             "--limit" => {
                 let value = args.next().ok_or("missing value after --limit")?;
-                limit = value.parse()?;
+                if full_corpus {
+                    return Err("--limit and --full-corpus are mutually exclusive".into());
+                }
+                limit = Some(value.parse()?);
+            }
+            "--full-corpus" => {
+                if limit.is_some() {
+                    return Err("--limit and --full-corpus are mutually exclusive".into());
+                }
+                full_corpus = true;
             }
             _ => return Err(format!("unexpected invariants argument: {arg}").into()),
         }
     }
 
-    Ok(InvariantArgs { suite, limit })
+    if !full_corpus && limit.is_none() {
+        limit = Some(200);
+    }
+    Ok(InvariantArgs {
+        suite,
+        limit,
+        full_corpus,
+    })
 }
 
 fn load_sample_programs(
     workspace: &Path,
-    limit: usize,
+    limit: Option<usize>,
 ) -> Result<Vec<SampleProgram>, Box<dyn Error>> {
     let fixtures_root = workspace.join("ts-tests/tests/cases/conformance");
     let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
     let mut fixtures = collect_fixture_paths(&fixtures_root)?;
     fixtures.sort();
-    fixtures.truncate(limit);
+    if let Some(limit) = limit {
+        fixtures.truncate(limit);
+    }
 
     let mut programs = Vec::new();
+    let mut lib_cache = BTreeMap::<Vec<String>, Arc<Vec<InputFile>>>::new();
     for fixture in fixtures {
         let fixture_key = fixture
             .strip_prefix(&fixtures_root)?
             .to_string_lossy()
             .replace('\\', "/");
         for program in tsrs2_harness::expand_fixture_file(&fixture, &vendor_lib_dir)? {
+            let compiler_options = tsrs2_conformance::compiler_options_from_program(&program);
+            let lib_files = match lib_cache.get(&program.libs) {
+                Some(files) => files.clone(),
+                None => {
+                    let files = Arc::new(
+                        program
+                            .libs
+                            .iter()
+                            .map(|name| {
+                                Ok(InputFile {
+                                    name: name.clone(),
+                                    text: fs::read_to_string(vendor_lib_dir.join(name)).map_err(
+                                        |error| {
+                                            format!("failed to read invariant lib {name}: {error}")
+                                        },
+                                    )?,
+                                })
+                            })
+                            .collect::<Result<Vec<_>, Box<dyn Error>>>()?,
+                    );
+                    lib_cache.insert(program.libs.clone(), files.clone());
+                    files
+                }
+            };
             let files = program
                 .files
-                .into_iter()
+                .iter()
                 .map(|file| {
                     Ok(InputFile {
-                        name: file.name,
+                        name: file.name.clone(),
                         text: base64_decode_to_string(&file.text_b64)?,
                     })
                 })
                 .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
-            programs.push(SampleProgram {
+            let sample = SampleProgram {
                 fixture: fixture_key.clone(),
-                matrix_key: program.matrix_key,
+                matrix_key: program.matrix_key.clone(),
+                cwd: program.cwd.clone(),
+                options: program.options.clone(),
+                libs: program.libs.clone(),
                 files,
-            });
+                compiler_options,
+                lib_files,
+            };
+            validate_sample_program_semantics(&sample)?;
+            programs.push(sample);
         }
     }
 
     Ok(programs)
+}
+
+fn validate_sample_program_semantics(program: &SampleProgram) -> Result<(), Box<dyn Error>> {
+    let loaded_lib_names = program
+        .lib_files
+        .iter()
+        .map(|file| file.name.as_str())
+        .collect::<Vec<_>>();
+    let requested_lib_names = program.libs.iter().map(String::as_str).collect::<Vec<_>>();
+    if loaded_lib_names != requested_lib_names {
+        return Err(format!(
+            "invariant lib projection changed for {} [{}]: requested={requested_lib_names:?} loaded={loaded_lib_names:?}",
+            program.fixture, program.matrix_key
+        )
+        .into());
+    }
+    let options_projection = tsrs2_harness::ProgramJson {
+        schema: 1,
+        cwd: program.cwd.clone(),
+        options: program.options.clone(),
+        libs: program.libs.clone(),
+        files: Vec::new(),
+        matrix_key: program.matrix_key.clone(),
+    };
+    if tsrs2_conformance::compiler_options_from_program(&options_projection)
+        != program.compiler_options
+    {
+        return Err(format!(
+            "invariant compiler-option projection changed for {} [{}]",
+            program.fixture, program.matrix_key
+        )
+        .into());
+    }
+    Ok(())
 }
 
 fn midpoint_char_boundary(text: &str) -> usize {
@@ -4025,18 +4870,33 @@ fn prefix_determinism_holds(text: &str, variant: tsrs2_syntax::LanguageVariant) 
     let cut_utf16: u32 = text[..cut].chars().map(|ch| ch.len_utf16() as u32).sum();
     let full = tsrs2_syntax::scan_tokens(text, variant);
     let prefix = tsrs2_syntax::scan_tokens(&text[..cut], variant);
-    // Tokens touching the cut are inherently ambiguous (they may be
-    // truncated or merge with later text); everything strictly
-    // before it must be byte-identical.
-    let full_before = full.iter().filter(|token| token.end < cut_utf16);
-    let prefix_before = prefix.iter().filter(|token| token.end < cut_utf16);
+    // The whole boundary token is inherently ambiguous. A truncated
+    // numeric prefix such as `0B` is scanned as `0` + `B`, while the
+    // complete invalid literal starts with one `0B` token. Filtering
+    // only records that touch the cut would retain the prefix's `0`
+    // fragment even though it overlaps the full scan's boundary token.
+    // Compare only through the start of the full scan's token that
+    // touches the cut. When no full token touches the cut, use the cut
+    // as the frontier but exclude prefix tokens ending exactly there:
+    // the missing next byte can still turn a trailing `/` into comment
+    // trivia.
+    let boundary_start = full
+        .iter()
+        .find(|token| token.start < cut_utf16 && token.end >= cut_utf16)
+        .map(|token| token.start);
+    let stable_token = |token: &&tsrs2_syntax::TokenRecord| match boundary_start {
+        Some(stable_end) => token.end <= stable_end,
+        None => token.end < cut_utf16,
+    };
+    let full_before = full.iter().filter(stable_token);
+    let prefix_before = prefix.iter().filter(stable_token);
     full_before.eq(prefix_before)
 }
 
 fn run_idempotence(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
     for program in programs {
-        let first = check_bytes(&program.files);
-        let second = check_bytes(&program.files);
+        let first = check_bytes(program)?;
+        let second = check_bytes(program)?;
         if first != second {
             return Err(format!(
                 "idempotence failed for {} [{}]",
@@ -4061,15 +4921,15 @@ fn run_unsupported_unwind(programs: &[SampleProgram]) -> Result<(), Box<dyn Erro
         );
     }
     for program in programs {
-        let _ = check_bytes(&program.files);
+        let _ = check_bytes(program)?;
     }
     Ok(())
 }
 
 fn run_jobs_independence(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
-    let baseline = run_programs_in_job_order(programs, 1);
+    let baseline = run_programs_in_job_order(programs, 1)?;
     for jobs in 2..=16 {
-        let candidate = run_programs_in_job_order(programs, jobs);
+        let candidate = run_programs_in_job_order(programs, jobs)?;
         if baseline != candidate {
             return Err(format!("jobs-independence failed for jobs={jobs}").into());
         }
@@ -4079,23 +4939,21 @@ fn run_jobs_independence(programs: &[SampleProgram]) -> Result<(), Box<dyn Error
 
 fn run_encodings(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
     for program in programs {
-        let baseline = diagnostic_semantic_bytes(&check_diagnostics(&program.files));
+        let baseline = diagnostic_semantic_bytes(&check_diagnostics(program)?);
         for file_index in 0..program.files.len() {
             let original = &program.files[file_index].text;
-            let variants = [
-                original.trim_start_matches('\u{feff}').to_owned(),
-                format!("\u{feff}{}", original.trim_start_matches('\u{feff}')),
-                original.replace("\r\n", "\n"),
-                original.replace('\n', "\r\n"),
-            ];
-            for variant in variants {
+            for (variant_name, variant) in distinct_encoding_variants(original) {
                 let mut files = program.files.clone();
                 files[file_index].text = variant;
-                let candidate = diagnostic_semantic_bytes(&check_diagnostics(&files));
+                let candidate =
+                    diagnostic_semantic_bytes(&check_diagnostics_with_files(program, &files)?);
                 if baseline != candidate {
+                    eprintln!(
+                        "baseline diagnostics:\n{baseline}candidate diagnostics:\n{candidate}"
+                    );
                     return Err(format!(
-                        "encodings failed for {} [{}] file {}",
-                        program.fixture, program.matrix_key, files[file_index].name
+                        "encodings failed for {} [{}] file {} variant {}",
+                        program.fixture, program.matrix_key, files[file_index].name, variant_name
                     )
                     .into());
                 }
@@ -4103,6 +4961,126 @@ fn run_encodings(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
         }
     }
     Ok(())
+}
+
+/// Return each distinct transformed text exactly once. The baseline checker
+/// call above already covers transforms that leave the original bytes
+/// unchanged; retaining those candidates here only repeats the same check.
+fn distinct_encoding_variants(original: &str) -> Vec<(&'static str, String)> {
+    let lf = original.replace("\r\n", "\n");
+    let candidates = [
+        (
+            "without-bom",
+            original.trim_start_matches('\u{feff}').to_owned(),
+        ),
+        (
+            "with-bom",
+            format!("\u{feff}{}", original.trim_start_matches('\u{feff}')),
+        ),
+        ("lf", lf.clone()),
+        ("crlf", lf.replace('\n', "\r\n")),
+    ];
+    let mut distinct = Vec::<(&'static str, String)>::new();
+    for (name, text) in candidates {
+        if text == original || distinct.iter().any(|(_, seen)| seen == &text) {
+            continue;
+        }
+        distinct.push((name, text));
+    }
+    distinct
+}
+
+#[cfg(test)]
+mod encoding_variant_tests {
+    use std::collections::BTreeSet;
+
+    use super::distinct_encoding_variants;
+
+    fn texts(original: &str) -> Vec<String> {
+        distinct_encoding_variants(original)
+            .into_iter()
+            .map(|(_, text)| text)
+            .collect()
+    }
+
+    #[test]
+    fn skips_lf_and_no_bom_transforms_that_equal_the_baseline() {
+        let original = "let value = 1;\n";
+        assert_eq!(
+            distinct_encoding_variants(original),
+            vec![
+                ("with-bom", "\u{feff}let value = 1;\n".to_owned()),
+                ("crlf", "let value = 1;\r\n".to_owned()),
+            ]
+        );
+    }
+
+    #[test]
+    fn skips_bom_and_crlf_transforms_that_equal_the_baseline() {
+        let original = "\u{feff}let value = 1;\r\n";
+        assert_eq!(
+            distinct_encoding_variants(original),
+            vec![
+                ("without-bom", "let value = 1;\r\n".to_owned()),
+                ("lf", "\u{feff}let value = 1;\n".to_owned()),
+            ]
+        );
+    }
+
+    #[test]
+    fn deduplicates_all_equivalent_no_newline_transforms() {
+        let original = "value";
+        assert_eq!(
+            distinct_encoding_variants(original),
+            vec![("with-bom", "\u{feff}value".to_owned())]
+        );
+    }
+
+    #[test]
+    fn preserves_every_distinct_mixed_eol_transform() {
+        let original = "a\r\nb\n";
+        assert_eq!(
+            texts(original),
+            vec![
+                "\u{feff}a\r\nb\n".to_owned(),
+                "a\nb\n".to_owned(),
+                "a\r\nb\r\n".to_owned(),
+            ]
+        );
+    }
+
+    #[test]
+    fn keeps_exactly_the_distinct_transformed_text_set() {
+        for original in [
+            "",
+            "value",
+            "a\nb\n",
+            "a\r\nb\r\n",
+            "a\r\nb\n",
+            "\u{feff}a\r\nb\r\n",
+            "\u{feff}\u{feff}value",
+        ] {
+            let lf = original.replace("\r\n", "\n");
+            let mut expected = [
+                original.trim_start_matches('\u{feff}').to_owned(),
+                format!("\u{feff}{}", original.trim_start_matches('\u{feff}')),
+                lf.clone(),
+                lf.replace('\n', "\r\n"),
+            ]
+            .into_iter()
+            .collect::<BTreeSet<_>>();
+            expected.remove(original);
+
+            let observed = texts(original);
+            let observed_set = observed.iter().cloned().collect::<BTreeSet<_>>();
+            assert_eq!(
+                observed.len(),
+                observed_set.len(),
+                "duplicate output for {original:?}"
+            );
+            assert_eq!(observed_set, expected, "lost transform for {original:?}");
+        }
+    }
 }
 
 fn run_matrix_independence(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
@@ -4120,13 +5098,13 @@ fn run_matrix_independence(programs: &[SampleProgram]) -> Result<(), Box<dyn Err
         }
         let forward = fixture_programs
             .iter()
-            .map(|program| (program_key(program), check_bytes(&program.files)))
-            .collect::<BTreeMap<_, _>>();
+            .map(|program| Ok((program_key(program), check_bytes(program)?)))
+            .collect::<Result<BTreeMap<_, _>, Box<dyn Error>>>()?;
         let reverse = fixture_programs
             .iter()
             .rev()
-            .map(|program| (program_key(program), check_bytes(&program.files)))
-            .collect::<BTreeMap<_, _>>();
+            .map(|program| Ok((program_key(program), check_bytes(program)?)))
+            .collect::<Result<BTreeMap<_, _>, Box<dyn Error>>>()?;
         if forward != reverse {
             return Err(format!("matrix-independence failed for {fixture}").into());
         }
@@ -4134,16 +5112,19 @@ fn run_matrix_independence(programs: &[SampleProgram]) -> Result<(), Box<dyn Err
     Ok(())
 }
 
-fn run_programs_in_job_order(programs: &[SampleProgram], jobs: usize) -> BTreeMap<String, String> {
+fn run_programs_in_job_order(
+    programs: &[SampleProgram],
+    jobs: usize,
+) -> Result<BTreeMap<String, String>, Box<dyn Error>> {
     let mut output = BTreeMap::new();
     for job in 0..jobs {
         for (index, program) in programs.iter().enumerate() {
             if index % jobs == job {
-                output.insert(program_key(program), check_bytes(&program.files));
+                output.insert(program_key(program), check_bytes(program)?);
             }
         }
     }
-    output
+    Ok(output)
 }
 
 fn program_key(program: &SampleProgram) -> String {
@@ -4154,12 +5135,25 @@ fn program_key(program: &SampleProgram) -> String {
     }
 }
 
-fn check_diagnostics(files: &[InputFile]) -> DiagnosticList {
-    tsrs2_checker::check_program(files, &CompilerOptions::default()).diagnostics
+fn check_diagnostics(program: &SampleProgram) -> Result<DiagnosticList, Box<dyn Error>> {
+    check_diagnostics_with_files(program, &program.files)
 }
 
-fn check_bytes(files: &[InputFile]) -> String {
-    diagnostic_bytes(&check_diagnostics(files))
+fn check_diagnostics_with_files(
+    program: &SampleProgram,
+    files: &[InputFile],
+) -> Result<DiagnosticList, Box<dyn Error>> {
+    Ok(tsrs2_checker::check_program_with_libs_at(
+        &program.lib_files,
+        files,
+        &program.compiler_options,
+        &program.cwd,
+    )
+    .diagnostics)
+}
+
+fn check_bytes(program: &SampleProgram) -> Result<String, Box<dyn Error>> {
+    Ok(diagnostic_bytes(&check_diagnostics(program)?))
 }
 
 fn diagnostic_bytes(diagnostics: &DiagnosticList) -> String {
@@ -6094,7 +7088,15 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
     recovery_census::check_with_summary(&workspace, &summaries.two_xxx)?;
     // The permanent syntactic gate (convergence invariant 3) is one
     // of the independently graded fixed views above.
-    invariants(["--suite", "all"].into_iter().map(str::to_owned))?;
+    // Completion row 10 runs exactly once in the semantic lane, after
+    // conformance is green. The command invalidates any prior attestation
+    // first and writes a fresh one only after every expanded program passes
+    // all six suites; there is no duplicate sampled `all` run in CI.
+    invariants(
+        ["--suite", "all", "--full-corpus"]
+            .into_iter()
+            .map(str::to_owned),
+    )?;
     ledger_check()?;
     // The expiry audit: escapes whose owner stage (per the STAGE
     // marker file) has passed must be implemented or re-marked.
@@ -6276,12 +7278,15 @@ fn render_readme_status(workspace: &Path) -> Result<String, Box<dyn Error>> {
     block.push_str("| View | Exact diagnostic match (T0) |\n| --- | --- |\n");
     block.push_str(&view_row("All bands", "t0")?);
     block.push('\n');
-    block.push_str(&view_row("2xxx band", "t0-2xxx")?);
+    block.push_str(&view_row("2xxx all-corpus visibility", "t0-2xxx")?);
     block.push('\n');
     block.push_str(&view_row("Syntactic", "t0-syntactic")?);
     block.push('\n');
     block.push_str(&format!(
-        "\nFalse positives are a hard gate: 0 on every merge. Escape\n\
+        "\nThe 2XXX supported scope is **100% complete** with zero T0 false\n\
+         negatives. Its all-corpus row above deliberately retains reviewed\n\
+         out-of-scope oracle diagnostics in the denominator.\n\n\
+         False positives are a hard gate: 0 on every merge. Escape\n\
          ceilings: untagged {max_untagged}, recovery {max_recovery}. Non-2XXX family\n\
          map: {}, {} families / {} rows.\n",
         families.status,
@@ -7840,6 +8845,7 @@ struct SchemaField {
     ty: RustFieldType,
     optional: bool,
     child: bool,
+    rust_optional: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -7850,6 +8856,7 @@ enum RustFieldType {
     String,
     Number,
     SyntaxKind,
+    JSDocComment,
     Payload,
 }
 
@@ -7866,6 +8873,7 @@ fn codegen_nodes(check: bool) -> Result<(), Box<dyn Error>> {
 
     let nodes_rs = rustfmt_text(&render_nodes_rs(&schemas)?)?;
     let for_each_child_rs = rustfmt_text(&render_for_each_child_rs(&schemas)?)?;
+    let observable_fields_rs = rustfmt_text(&render_observable_fields_rs(&schemas)?)?;
     let schema_json = render_nodes_schema_json(&schemas)?;
 
     write_generated(
@@ -7876,6 +8884,11 @@ fn codegen_nodes(check: bool) -> Result<(), Box<dyn Error>> {
     write_generated(
         &workspace.join("crates/syntax/src/for_each_child.rs"),
         &for_each_child_rs,
+        check,
+    )?;
+    write_generated(
+        &workspace.join("crates/syntax/src/observable_fields.rs"),
+        &observable_fields_rs,
         check,
     )?;
     write_generated(
@@ -8259,6 +9272,11 @@ fn extract_visits(text: &str) -> Vec<ChildVisit> {
     for (needle, kind) in [
         ("visitNode2(cbNode, node.", ChildKind::Node),
         ("visitNodes(cbNode, cbNodes, node.", ChildKind::Nodes),
+        // JSDocTypeLiteral/JSDocSignature use `forEach` directly
+        // because their public fields are readonly arrays rather than
+        // NodeArray in typescript.d.ts. They are nevertheless runtime
+        // child arrays and belong in the generated arena schema.
+        ("forEach(node.", ChildKind::Nodes),
     ] {
         let mut rest = text;
         while let Some(pos) = rest.find(needle) {
@@ -8492,11 +9510,24 @@ const DTS_SCALAR_ADMISSIONS: &[(&str, &[&str])] = &[
     ("ExportSpecifier", &["isTypeOnly"]),
     ("HeritageClause", &["token"]),
     ("Identifier", &["escapedText", "text"]),
-    ("ImportAttributes", &["token"]),
+    ("ImportAttributes", &["token", "multiLine"]),
     ("ImportClause", &["isTypeOnly", "phaseModifier"]),
     ("ImportEqualsDeclaration", &["isTypeOnly"]),
     ("ImportSpecifier", &["isTypeOnly"]),
     ("ImportType", &["isTypeOf"]),
+    ("JSDocCallbackTag", &["name"]),
+    ("JSDocFunctionType", &["name", "typeParameters"]),
+    ("JSDocLink", &["text"]),
+    ("JSDocLinkCode", &["text"]),
+    ("JSDocLinkPlain", &["text"]),
+    ("JSDocNamepathType", &["type"]),
+    ("JSDocNonNullableType", &["postfix"]),
+    ("JSDocNullableType", &["postfix"]),
+    ("JSDocParameterTag", &["isBracketed", "isNameFirst"]),
+    ("JSDocPropertyTag", &["isBracketed", "isNameFirst"]),
+    ("JSDocText", &["text"]),
+    ("JSDocTypeLiteral", &["isArrayType"]),
+    ("JSDocTypedefTag", &["name"]),
     ("JsxText", &["text", "containsOnlyTriviaWhiteSpaces"]),
     ("MetaProperty", &["keywordToken"]),
     ("NoSubstitutionTemplateLiteral", &["text", "rawText"]),
@@ -8505,7 +9536,7 @@ const DTS_SCALAR_ADMISSIONS: &[(&str, &[&str])] = &[
     ("PrefixUnaryExpression", &["operator"]),
     ("PrivateIdentifier", &["escapedText", "text"]),
     ("RegularExpressionLiteral", &["text", "isUnterminated"]),
-    ("StringLiteral", &["text"]),
+    ("StringLiteral", &["text", "hasExtendedUnicodeEscape"]),
     ("TemplateHead", &["text", "rawText"]),
     ("TemplateMiddle", &["text", "rawText"]),
     ("TemplateTail", &["text", "rawText"]),
@@ -8517,6 +9548,8 @@ const DTS_SCALAR_ADMISSIONS: &[(&str, &[&str])] = &[
 const FIELDLESS_KINDS: &[&str] = &[
     "DebuggerStatement",
     "EmptyStatement",
+    "JSDocAllType",
+    "JSDocUnknownType",
     "OmittedExpression",
     "SyntaxList",
 ];
@@ -8543,14 +9576,6 @@ const UNMATERIALIZED_KINDS: &[&str] = &[
     "ThisKeyword",
     "ThisType",
     "TrueKeyword",
-    // JSDoc: All/Unknown are kind-only sentinel types the parser emits
-    // in type positions; JSDocText/JSDocNamepathType occur only inside
-    // JSDoc comment bodies the port does not parse yet (M8 umbrella) —
-    // their fields are tracked as debt.
-    "JSDocAllType",
-    "JSDocNamepathType",
-    "JSDocText",
-    "JSDocUnknownType",
     // Synthetic kinds tsc itself never parses: checker/transform/emit
     // fabrications.
     "Bundle",
@@ -8781,7 +9806,12 @@ fn build_node_schema(
     let mut fields = Vec::new();
     for dts_field in dts_fields {
         let child = children.iter().find(|child| child.name == dts_field.name);
-        let ty = if let Some(child) = child {
+        let ty = if dts_field.name == "comment"
+            && dts_field.type_text.contains("string")
+            && dts_field.type_text.contains("NodeArray<JSDocComment>")
+        {
+            RustFieldType::JSDocComment
+        } else if let Some(child) = child {
             match child.kind {
                 ChildKind::Node => RustFieldType::Node,
                 ChildKind::Nodes => RustFieldType::NodeArray,
@@ -8790,12 +9820,20 @@ fn build_node_schema(
             rust_field_type(&dts_field.type_text)
         };
         let optional = dts_field.optional;
+        // JSDocParser creates JSDocNamepathType(undefined) while recovering
+        // even though the public d.ts declares `type` as required. Preserve
+        // the honest schema bit and model the observable runtime shape in
+        // Rust, just as all forEachChild-backed children are Option-typed.
+        let rust_optional = optional
+            || child.is_some()
+            || (kind_name == "JSDocNamepathType" && dts_field.name == "type");
         fields.push(SchemaField {
             rust_name: rust_field_name(&dts_field.name),
             ts_name: dts_field.name,
             ty,
             optional,
             child: child.is_some(),
+            rust_optional,
         });
     }
     for child in &children {
@@ -8809,6 +9847,7 @@ fn build_node_schema(
                 },
                 optional: true,
                 child: true,
+                rust_optional: true,
             });
         }
     }
@@ -8822,7 +9861,9 @@ fn build_node_schema(
 }
 
 fn rust_field_type(type_text: &str) -> RustFieldType {
-    if type_text.contains("NodeArray<") {
+    if type_text.contains("string") && type_text.contains("NodeArray<JSDocComment>") {
+        RustFieldType::JSDocComment
+    } else if type_text.contains("NodeArray<") {
         RustFieldType::NodeArray
     } else if type_text.contains("boolean") {
         RustFieldType::Bool
@@ -8906,6 +9947,19 @@ fn render_nodes_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
     writeln!(out, "pub struct NodeArrayId(pub u32);")?;
     writeln!(out)?;
     writeln!(out, "#[derive(Clone, Debug, Eq, PartialEq)]")?;
+    writeln!(out, "pub enum JSDocComment {{")?;
+    writeln!(out, "    Text(String),")?;
+    writeln!(out, "    Nodes(NodeArrayId),")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(out, "impl JSDocComment {{")?;
+    writeln!(
+        out,
+        "    pub fn nodes(&self) -> Option<NodeArrayId> {{ match self {{ Self::Nodes(nodes) => Some(*nodes), Self::Text(_) => None }} }}"
+    )?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(out, "#[derive(Clone, Debug, Eq, PartialEq)]")?;
     writeln!(out, "pub struct NodeArray {{")?;
     writeln!(out, "    pub nodes: Vec<NodeId>,")?;
     writeln!(out, "    pub pos: u32,")?;
@@ -8927,9 +9981,24 @@ fn render_nodes_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
     writeln!(out, "pub struct Node {{")?;
     writeln!(out, "    pub kind: SyntaxKind,")?;
     writeln!(out, "    pub flags: i32,")?;
+    writeln!(
+        out,
+        "    /// tsc NumericLiteral.numericLiteralFlags; zero on every other node kind."
+    )?;
+    writeln!(out, "    pub numeric_literal_flags: i32,")?;
+    writeln!(
+        out,
+        "    /// tsc's internal Array/Object/Block.multiLine parser bit."
+    )?;
+    writeln!(out, "    pub multi_line: Option<bool>,")?;
     writeln!(out, "    pub pos: u32,")?;
     writeln!(out, "    pub end: u32,")?;
     writeln!(out, "    pub parent: Option<NodeId>,")?;
+    writeln!(
+        out,
+        "    /// tsc's internal Node.jsDoc attachment; not an ordinary forEachChild edge."
+    )?;
+    writeln!(out, "    pub js_doc: Option<NodeArrayId>,")?;
     writeln!(out, "    pub data: NodeData,")?;
     writeln!(out, "}}")?;
     writeln!(out)?;
@@ -9046,7 +10115,7 @@ fn render_nodes_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
 /// children to bare NodeId needs the recovery-guarantee census first and
 /// is tracked pre-M7 debt (m1-review-2026-07-22.md #8).
 fn rust_optional(field: &SchemaField) -> bool {
-    field.optional || field.child
+    field.rust_optional
 }
 
 fn render_missing_field_value(field: &SchemaField, kind_name: &str) -> String {
@@ -9061,6 +10130,7 @@ fn render_missing_field_value(field: &SchemaField, kind_name: &str) -> String {
         RustFieldType::String => "String::new()".to_owned(),
         RustFieldType::Number => "0.0".to_owned(),
         RustFieldType::SyntaxKind => format!("SyntaxKind::{kind_name}"),
+        RustFieldType::JSDocComment => "JSDocComment::Text(String::new())".to_owned(),
         RustFieldType::Payload => "NodePayload::String(String::new())".to_owned(),
     }
 }
@@ -9073,6 +10143,7 @@ fn render_field_type(field: &SchemaField) -> String {
         RustFieldType::String => "String",
         RustFieldType::Number => "f64",
         RustFieldType::SyntaxKind => "SyntaxKind",
+        RustFieldType::JSDocComment => "JSDocComment",
         RustFieldType::Payload => "NodePayload",
     };
     if rust_optional(field) {
@@ -9091,10 +10162,12 @@ fn render_for_each_child_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Er
     writeln!(out)?;
     writeln!(
         out,
-        "use crate::nodes::{{Node, NodeArray, NodeArrayId, NodeData, NodeId}};"
+        "use crate::nodes::{{JSDocComment, Node, NodeArray, NodeArrayId, NodeData, NodeId}};"
     )?;
+    writeln!(out, "use crate::SyntaxKind;")?;
     writeln!(out)?;
     writeln!(out, "pub trait NodeLookup {{")?;
+    writeln!(out, "    fn node(&self, id: NodeId) -> &Node;")?;
     writeln!(
         out,
         "    fn node_array(&self, id: NodeArrayId) -> &NodeArray;"
@@ -9120,12 +10193,91 @@ fn render_for_each_child_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Er
             )?;
         } else {
             writeln!(out, "        NodeData::{}(data) => {{", schema.kind_name)?;
+            if matches!(
+                schema.kind_name.as_str(),
+                "JSDocParameterTag" | "JSDocPropertyTag"
+            ) {
+                writeln!(
+                    out,
+                    "            if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(out, "            if data.is_name_first {{")?;
+                writeln!(
+                    out,
+                    "                if let Some(result) = visit_optional_node(data.name, &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(
+                    out,
+                    "                if let Some(result) = visit_optional_node(data.type_expression, &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(out, "            }} else {{")?;
+                writeln!(
+                    out,
+                    "                if let Some(result) = visit_optional_node(data.type_expression, &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(
+                    out,
+                    "                if let Some(result) = visit_optional_node(data.name, &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(out, "            }}")?;
+                writeln!(
+                    out,
+                    "            if let Some(result) = visit_optional_jsdoc_comment(lookup, data.comment.as_ref(), &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(out, "            None")?;
+                writeln!(out, "        }}")?;
+                continue;
+            }
+            if schema.kind_name == "JSDocTypedefTag" {
+                writeln!(
+                    out,
+                    "            if let Some(result) = visit_optional_node(data.tag_name, &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(
+                    out,
+                    "            let type_expression_first = data.type_expression.is_some_and(|node| lookup.node(node).kind == SyntaxKind::JSDocTypeExpression);"
+                )?;
+                writeln!(out, "            if type_expression_first {{")?;
+                writeln!(
+                    out,
+                    "                if let Some(result) = visit_optional_node(data.type_expression, &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(
+                    out,
+                    "                if let Some(result) = visit_optional_node(data.full_name, &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(out, "            }} else {{")?;
+                writeln!(
+                    out,
+                    "                if let Some(result) = visit_optional_node(data.full_name, &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(
+                    out,
+                    "                if let Some(result) = visit_optional_node(data.type_expression, &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(out, "            }}")?;
+                writeln!(
+                    out,
+                    "            if let Some(result) = visit_optional_jsdoc_comment(lookup, data.comment.as_ref(), &mut cb) {{ return Some(result); }}"
+                )?;
+                writeln!(out, "            None")?;
+                writeln!(out, "        }}")?;
+                continue;
+            }
             for child in &schema.children {
                 let field = schema
                     .fields
                     .iter()
                     .find(|field| field.ts_name == child.name)
                     .ok_or_else(|| format!("missing generated field for child {}", child.name))?;
+                if field.ty == RustFieldType::JSDocComment {
+                    writeln!(
+                        out,
+                        "            if let Some(result) = visit_optional_jsdoc_comment(lookup, data.{}.as_ref(), &mut cb) {{ return Some(result); }}",
+                        field.rust_name
+                    )?;
+                    continue;
+                }
                 let helper = match (child.kind, rust_optional(field)) {
                     (ChildKind::Node, false) => "visit_node",
                     (ChildKind::Node, true) => "visit_optional_node",
@@ -9182,8 +10334,230 @@ fn render_for_each_child_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Er
     writeln!(out, "    None")?;
     writeln!(out, "}}")?;
     writeln!(out)?;
+    writeln!(out, "fn visit_optional_jsdoc_comment<L, F>(lookup: &L, comment: Option<&JSDocComment>, cb: &mut F) -> Option<NodeId>")?;
+    writeln!(out, "where L: NodeLookup, F: FnMut(NodeId) -> bool {{")?;
+    writeln!(out, "    match comment {{")?;
+    writeln!(
+        out,
+        "        Some(JSDocComment::Nodes(nodes)) => visit_nodes(lookup, *nodes, cb),"
+    )?;
+    writeln!(out, "        _ => None,")?;
+    writeln!(out, "    }}")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
     writeln!(out, "fn visit_optional_nodes<L, F>(lookup: &L, id: Option<NodeArrayId>, cb: &mut F) -> Option<NodeId>")?;
     writeln!(out, "where L: NodeLookup, F: FnMut(NodeId) -> bool {{ id.and_then(|id| visit_nodes(lookup, id, cb)) }}")?;
+    Ok(out)
+}
+
+/// Generate the runtime field view used by exact AST oracles.
+///
+/// `forEachChild` is deliberately not a field reflection API: tsc stores
+/// compatibility fields that it does not visit, and JSDoc comment payloads
+/// may be either strings or node arrays.  Keeping this table generated from
+/// the same schema as `NodeData` prevents inspection tools from growing a
+/// second, hand-maintained node model.
+fn render_observable_fields_rs(schemas: &[NodeSchema]) -> Result<String, Box<dyn Error>> {
+    let mut out = String::new();
+    let has_payload = schemas
+        .iter()
+        .flat_map(|schema| &schema.fields)
+        .any(|field| field.ty == RustFieldType::Payload);
+    writeln!(
+        out,
+        "// @generated by `cargo xtask codegen nodes`. Do not edit by hand."
+    )?;
+    writeln!(out)?;
+    if has_payload {
+        writeln!(
+            out,
+            "use crate::nodes::{{JSDocComment, Node, NodeArrayId, NodeData, NodeId, NodePayload}};"
+        )?;
+    } else {
+        writeln!(
+            out,
+            "use crate::nodes::{{JSDocComment, Node, NodeArrayId, NodeData, NodeId}};"
+        )?;
+    }
+    writeln!(out)?;
+    writeln!(out, "#[derive(Clone, Copy, Debug, PartialEq)]")?;
+    writeln!(out, "pub enum ObservableField<'a> {{")?;
+    writeln!(out, "    Node(NodeId),")?;
+    writeln!(out, "    NodeArray(NodeArrayId),")?;
+    writeln!(out, "    Bool(bool),")?;
+    writeln!(out, "    String(&'a str),")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(
+        out,
+        "pub fn for_each_observable_field<'a, F>(node: &'a Node, mut cb: F)"
+    )?;
+    writeln!(out, "where")?;
+    writeln!(out, "    F: FnMut(&'static str, ObservableField<'a>),")?;
+    writeln!(out, "{{")?;
+    writeln!(out, "    match &node.data {{")?;
+    writeln!(out, "        NodeData::Token => {{}}")?;
+
+    for schema in schemas {
+        let mut fields = schema
+            .fields
+            .iter()
+            .filter(|field| {
+                !(matches!(field.ty, RustFieldType::Number | RustFieldType::SyntaxKind)
+                    || field.ts_name == "text"
+                        && matches!(
+                            schema.kind_name.as_str(),
+                            "Identifier" | "PrivateIdentifier"
+                        ))
+            })
+            .collect::<Vec<_>>();
+        fields.sort_by(|left, right| left.ts_name.cmp(&right.ts_name));
+        let binding = if fields.is_empty() { "_data" } else { "data" };
+        writeln!(
+            out,
+            "        NodeData::{}({binding}) => {{",
+            schema.kind_name
+        )?;
+        for field in fields {
+            match (field.ty, rust_optional(field)) {
+                (RustFieldType::Node, true) => {
+                    writeln!(
+                        out,
+                        "            if let Some(value) = data.{} {{ cb({:?}, ObservableField::Node(value)); }}",
+                        field.rust_name, field.ts_name
+                    )?;
+                }
+                (RustFieldType::Node, false) => {
+                    writeln!(
+                        out,
+                        "            cb({:?}, ObservableField::Node(data.{}));",
+                        field.ts_name, field.rust_name
+                    )?;
+                }
+                (RustFieldType::NodeArray, true) => {
+                    writeln!(
+                        out,
+                        "            if let Some(value) = data.{} {{ cb({:?}, ObservableField::NodeArray(value)); }}",
+                        field.rust_name, field.ts_name
+                    )?;
+                }
+                (RustFieldType::NodeArray, false) => {
+                    writeln!(
+                        out,
+                        "            cb({:?}, ObservableField::NodeArray(data.{}));",
+                        field.ts_name, field.rust_name
+                    )?;
+                }
+                (RustFieldType::Bool, true) => {
+                    writeln!(
+                        out,
+                        "            if let Some(value) = data.{} {{ cb({:?}, ObservableField::Bool(value)); }}",
+                        field.rust_name, field.ts_name
+                    )?;
+                }
+                (RustFieldType::Bool, false) => {
+                    writeln!(
+                        out,
+                        "            cb({:?}, ObservableField::Bool(data.{}));",
+                        field.ts_name, field.rust_name
+                    )?;
+                }
+                (RustFieldType::String, true) => {
+                    writeln!(
+                        out,
+                        "            if let Some(value) = data.{}.as_deref() {{ cb({:?}, ObservableField::String(value)); }}",
+                        field.rust_name, field.ts_name
+                    )?;
+                }
+                (RustFieldType::String, false) => {
+                    writeln!(
+                        out,
+                        "            cb({:?}, ObservableField::String(&data.{}));",
+                        field.ts_name, field.rust_name
+                    )?;
+                }
+                (RustFieldType::JSDocComment, true) => {
+                    writeln!(
+                        out,
+                        "            if let Some(value) = data.{}.as_ref() {{ emit_jsdoc_comment({:?}, value, &mut cb); }}",
+                        field.rust_name, field.ts_name
+                    )?;
+                }
+                (RustFieldType::JSDocComment, false) => {
+                    writeln!(
+                        out,
+                        "            emit_jsdoc_comment({:?}, &data.{}, &mut cb);",
+                        field.ts_name, field.rust_name
+                    )?;
+                }
+                (RustFieldType::Payload, true) => {
+                    writeln!(
+                        out,
+                        "            if let Some(value) = data.{}.as_ref() {{ emit_payload({:?}, value, &mut cb); }}",
+                        field.rust_name, field.ts_name
+                    )?;
+                }
+                (RustFieldType::Payload, false) => {
+                    writeln!(
+                        out,
+                        "            emit_payload({:?}, &data.{}, &mut cb);",
+                        field.ts_name, field.rust_name
+                    )?;
+                }
+                // The TypeScript oracle intentionally records only the
+                // string/boolean/node/node-array surface. Numeric and
+                // SyntaxKind-valued fields are outside that contract.
+                (RustFieldType::Number | RustFieldType::SyntaxKind, _) => {}
+            }
+        }
+        writeln!(out, "        }}")?;
+    }
+    writeln!(out, "    }}")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(
+        out,
+        "fn emit_jsdoc_comment<'a, F>(name: &'static str, value: &'a JSDocComment, cb: &mut F)"
+    )?;
+    writeln!(out, "where")?;
+    writeln!(out, "    F: FnMut(&'static str, ObservableField<'a>),")?;
+    writeln!(out, "{{")?;
+    writeln!(out, "    match value {{")?;
+    writeln!(
+        out,
+        "        JSDocComment::Text(text) => cb(name, ObservableField::String(text)),"
+    )?;
+    writeln!(
+        out,
+        "        JSDocComment::Nodes(nodes) => cb(name, ObservableField::NodeArray(*nodes)),"
+    )?;
+    writeln!(out, "    }}")?;
+    writeln!(out, "}}")?;
+    if has_payload {
+        writeln!(out)?;
+        writeln!(
+            out,
+            "fn emit_payload<'a, F>(name: &'static str, value: &'a NodePayload, cb: &mut F)"
+        )?;
+        writeln!(out, "where")?;
+        writeln!(out, "    F: FnMut(&'static str, ObservableField<'a>),")?;
+        writeln!(out, "{{")?;
+        writeln!(out, "    match value {{")?;
+        writeln!(
+            out,
+            "        NodePayload::Bool(value) => cb(name, ObservableField::Bool(*value)),"
+        )?;
+        writeln!(
+            out,
+            "        NodePayload::String(value) => cb(name, ObservableField::String(value)),"
+        )?;
+        writeln!(
+            out,
+            "        NodePayload::Number(_) | NodePayload::Kind(_) => {{}}"
+        )?;
+        writeln!(out, "    }}")?;
+        writeln!(out, "}}")?;
+    }
     Ok(out)
 }
 
@@ -9855,6 +11229,38 @@ mod prefix_determinism_tests {
     use super::*;
 
     #[test]
+    fn invariant_args_default_to_a_sample_and_full_corpus_has_no_limit() {
+        let sampled = parse_invariant_args(std::iter::empty()).unwrap();
+        assert_eq!(sampled.suite, InvariantSuite::All);
+        assert_eq!(sampled.limit, Some(200));
+        assert!(!sampled.full_corpus);
+
+        let full = parse_invariant_args(
+            ["--suite", "all", "--full-corpus"]
+                .into_iter()
+                .map(str::to_owned),
+        )
+        .unwrap();
+        assert_eq!(full.suite, InvariantSuite::All);
+        assert_eq!(full.limit, None);
+        assert!(full.full_corpus);
+    }
+
+    #[test]
+    fn invariant_args_reject_partial_full_corpus_spelling() {
+        for arguments in [
+            vec!["--limit", "10", "--full-corpus"],
+            vec!["--full-corpus", "--limit", "10"],
+        ] {
+            assert!(parse_invariant_args(arguments.into_iter().map(str::to_owned)).is_err());
+        }
+        assert!(
+            parse_invariant_args(["--full"].into_iter().map(str::to_owned)).is_err(),
+            "an approximate alias must not accidentally create completion evidence"
+        );
+    }
+
+    #[test]
     fn non_ascii_prefix_compares_in_utf16() {
         // Six 3-byte U+2028 chars make UTF-16 offsets lag UTF-8 byte
         // offsets by 12 in the ASCII tail, so every token in the 12
@@ -9875,6 +11281,31 @@ mod prefix_determinism_tests {
         let text = "const value = 1;\nconst other = value + 2;\n".to_string();
         assert!(prefix_determinism_holds(
             &text,
+            tsrs2_syntax::LanguageVariant::Standard
+        ));
+    }
+
+    #[test]
+    fn invalid_numeric_prefix_excludes_the_fragmented_boundary_token() {
+        let text = "// Error\r\nvar binary = 0b21010;\r\n\
+                    var binary1 = 0B21010;\r\n\
+                    var octal = 0o81010;\r\n\
+                    var octal = 0O91010;";
+        assert_eq!(midpoint_char_boundary(text), 49);
+        assert!(prefix_determinism_holds(
+            text,
+            tsrs2_syntax::LanguageVariant::Standard
+        ));
+    }
+
+    #[test]
+    fn possible_comment_opener_at_the_cut_is_a_boundary_token() {
+        let text = "let x = 1;// comment!!";
+        let cut = midpoint_char_boundary(text);
+        assert_eq!(cut, 11);
+        assert_eq!(&text[cut - 1..cut + 1], "//");
+        assert!(prefix_determinism_holds(
+            text,
             tsrs2_syntax::LanguageVariant::Standard
         ));
     }
@@ -10479,6 +11910,92 @@ mod m8_readiness_tests {
             families: vec![family("m8-tail", "M8", 0, 1, 1)],
         });
         assert!(!empty.ready);
+    }
+}
+
+#[cfg(test)]
+mod completion_tier_activation_tests {
+    use super::*;
+
+    #[test]
+    fn inactive_or_incoherent_artifacts_keep_the_completion_row_red() {
+        let probe = tier_1_through_3_activation_probe(Err(
+            "oracle-input comparators remain explicit \"absent\" markers".to_owned(),
+        ));
+
+        assert!(!probe.ready);
+        assert!(probe.detail.contains("activation proof failed"));
+        assert!(probe.detail.contains("comparators remain explicit"));
+    }
+
+    #[test]
+    fn exact_artifact_activation_is_reported_with_derived_counts() {
+        let probe = tier_1_through_3_activation_probe(Ok(
+            tsrs2_conformance::ratchet::Tier1Through3Activation {
+                t1_matched: 11,
+                t2_matched: 10,
+                t3_matched: 9,
+                total: 12,
+            },
+        ));
+
+        assert!(probe.ready);
+        assert!(probe.detail.contains("oracle-input comparators active"));
+        assert!(probe.detail.contains("T1=11/12 T2=10/12 T3=9/12"));
+    }
+
+    #[test]
+    fn active_but_empty_accepted_tiers_keep_the_completion_row_red() {
+        let probe = tier_1_through_3_activation_probe(Ok(
+            tsrs2_conformance::ratchet::Tier1Through3Activation {
+                t1_matched: 1,
+                t2_matched: 0,
+                t3_matched: 0,
+                total: 12,
+            },
+        ));
+
+        assert!(!probe.ready);
+        assert!(probe.detail.contains("T2=0/12 T3=0/12"));
+        assert!(probe.detail.contains("must be nonzero"));
+    }
+
+    #[test]
+    fn t4_activation_failure_keeps_the_completion_row_red() {
+        let probe = t4_activation_probe(Err(
+            "render_driver_sha256 drift against the current producer".to_owned(),
+        ));
+
+        assert!(!probe.ready);
+        assert!(probe.detail.contains("T4 activation proof failed"));
+        assert!(probe.detail.contains("render_driver_sha256 drift"));
+    }
+
+    #[test]
+    fn t4_activation_requires_every_nonempty_case() {
+        let complete = t4_activation_probe(Ok(tsrs2_conformance::ratchet::T4Activation {
+            matched_cases: 12,
+            total_cases: 12,
+        }));
+        assert!(complete.ready);
+        assert!(complete.detail.contains("accepted cases=12/12"));
+
+        for activation in [
+            tsrs2_conformance::ratchet::T4Activation {
+                matched_cases: 11,
+                total_cases: 12,
+            },
+            tsrs2_conformance::ratchet::T4Activation {
+                matched_cases: 0,
+                total_cases: 0,
+            },
+        ] {
+            let probe = t4_activation_probe(Ok(activation));
+            assert!(!probe.ready);
+            assert!(probe
+                .detail
+                .contains("accepted count must equal a nonzero total"));
+        }
     }
 }
 

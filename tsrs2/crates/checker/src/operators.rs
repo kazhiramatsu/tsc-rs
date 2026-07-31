@@ -20,11 +20,12 @@ use tsrs2_types::{
     TypeId,
 };
 
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::state::{CheckResult2, CheckerState};
 use crate::structural::SignatureKind;
 
 /// tsc OuterExpressionKinds (isOuterExpression 27561): the checker
-/// consumers use All (63) and Assertions|Parentheses (39).
+/// consumers use All (63), Assertions|Parentheses (39), and the sign
+/// bit to retain JSDoc type-assertion parentheses.
 #[derive(Clone, Copy)]
 pub(crate) struct OuterExpressionKinds(pub i32);
 
@@ -40,6 +41,7 @@ impl OuterExpressionKinds {
     pub(crate) const SATISFIES: Self = Self(32);
     pub(crate) const ASSERTIONS: Self = Self(Self::TYPE_ASSERTIONS.0 | Self::NON_NULL_ASSERTIONS.0);
     pub(crate) const ALL: Self = Self(63);
+    pub(crate) const EXCLUDE_JSDOC_TYPE_ASSERTIONS: Self = Self(i32::MIN);
 
     fn intersects(self, other: Self) -> bool {
         (self.0 & other.0) != 0
@@ -110,19 +112,17 @@ enum BinaryState {
 }
 
 impl<'a> CheckerState<'a> {
-    /// The binary node's (left, operatorToken, right) with the
-    /// parse-recovery escape (a missing side never reaches the worker
-    /// in tsc because the parser inserts a missing identifier; our
-    /// recovery trees can drop the slot entirely).
-    fn binary_parts(&self, node: NodeId) -> CheckResult2<(NodeId, NodeId, NodeId)> {
+    /// The binary node's (left, operatorToken, right). tsc's parser
+    /// fills a missing operand with a missing identifier; a synthetic
+    /// recovery tree may instead omit one of the slots, so consumers
+    /// choose the recovery result appropriate to their return type.
+    fn binary_parts(&self, node: NodeId) -> Option<(NodeId, NodeId, NodeId)> {
         let NodeData::BinaryExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
         match (data.left, data.operator_token, data.right) {
-            (Some(left), Some(op), Some(right)) => Ok((left, op, right)),
-            _ => Err(Unsupported::new(
-                "binary expression with missing operand (parse-recovery tree)",
-            )),
+            (Some(left), Some(op), Some(right)) => Some((left, op, right)),
+            _ => None,
         }
     }
 
@@ -139,9 +139,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: bbbf9bef171632bd6b6df91a43e42605d3d42ed493a65f50b2334d38af83c3ff
     /// tsc-span: _tsc.js:79810-79935
     ///
-    /// An Unsupported anywhere in the walk unwinds the WHOLE binary
-    /// expression (per-element containment, risk #6) — identical to
-    /// the recursion-equivalent containment of every other band.
+    /// A checker abort anywhere in the walk unwinds the whole binary
+    /// expression, matching recursive containment in the other bands.
     pub(crate) fn check_binary_expression(
         &mut self,
         node: NodeId,
@@ -161,7 +160,9 @@ impl<'a> CheckerState<'a> {
                 BinaryState::Left => {
                     // Advance THEN maybe-push (BinaryExpressionState.left).
                     state_stack[stack_index] = BinaryState::Operator;
-                    let (left, _, _) = self.binary_parts(frame_node)?;
+                    let Some((left, _, _)) = self.binary_parts(frame_node) else {
+                        return Ok(self.tables.intrinsics.error);
+                    };
                     let state = user.as_mut().expect("onEnter ran");
                     if !state.skip {
                         if let Some(next) = self.binary_maybe_check_expression(&mut user, left)? {
@@ -179,7 +180,9 @@ impl<'a> CheckerState<'a> {
                 }
                 BinaryState::Right => {
                     state_stack[stack_index] = BinaryState::Exit;
-                    let (_, _, right) = self.binary_parts(frame_node)?;
+                    let Some((_, _, right)) = self.binary_parts(frame_node) else {
+                        return Ok(self.tables.intrinsics.error);
+                    };
                     let state = user.as_mut().expect("onEnter ran");
                     if !state.skip {
                         if let Some(next) = self.binary_maybe_check_expression(&mut user, right)? {
@@ -234,6 +237,12 @@ impl<'a> CheckerState<'a> {
                 });
             }
         }
+        let Some((left, operator_token, right)) = self.binary_parts(node) else {
+            let state = user.as_mut().expect("created above");
+            state.skip = true;
+            state.set_last_result(Some(self.tables.intrinsics.error));
+            return Ok(());
+        };
         if self.is_in_js_file(node)
             && tsrs2_binder::assignment::get_assigned_expando_initializer(
                 self.binder.source_of_node(node),
@@ -241,7 +250,6 @@ impl<'a> CheckerState<'a> {
             )
             .is_some()
         {
-            let (_, _, right) = self.binary_parts(node)?;
             let result = self.check_expression(right, check_mode)?;
             let state = user.as_mut().expect("created above");
             state.skip = true;
@@ -249,7 +257,6 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         }
         self.check_nullish_coalesce_operands(node)?;
-        let (left, operator_token, right) = self.binary_parts(node)?;
         let operator = self.operator_kind(operator_token);
         if operator == SyntaxKind::EqualsToken
             && matches!(
@@ -287,7 +294,11 @@ impl<'a> CheckerState<'a> {
             .expect("left operand checked before operator");
         state.set_left_type(Some(left_type));
         state.set_last_result(None);
-        let (left, operator_token, _) = self.binary_parts(node)?;
+        let Some((left, operator_token, _)) = self.binary_parts(node) else {
+            state.skip = true;
+            state.set_last_result(Some(self.tables.intrinsics.error));
+            return Ok(());
+        };
         let operator = self.operator_kind(operator_token);
         if node_util::is_logical_or_coalescing_binary_operator(operator) {
             let mut parent = self.parent_of(node);
@@ -336,16 +347,18 @@ impl<'a> CheckerState<'a> {
             let right_type = state
                 .last_result()
                 .expect("right operand checked before exit");
-            let (left, operator_token, right) = self.binary_parts(node)?;
-            self.check_binary_like_expression_worker(
-                left,
-                operator_token,
-                right,
-                left_type,
-                right_type,
-                state.check_mode,
-                Some(node),
-            )?
+            match self.binary_parts(node) {
+                Some((left, operator_token, right)) => self.check_binary_like_expression_worker(
+                    left,
+                    operator_token,
+                    right,
+                    left_type,
+                    right_type,
+                    state.check_mode,
+                    Some(node),
+                )?,
+                None => self.tables.intrinsics.error,
+            }
         };
         state.skip = false;
         state.set_left_type(None);
@@ -362,7 +375,13 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
     ) -> CheckResult2<Option<NodeId>> {
         if self.kind_of(node) == SyntaxKind::BinaryExpression {
-            return Ok(Some(node));
+            if self.binary_parts(node).is_some() {
+                return Ok(Some(node));
+            }
+            user.as_mut()
+                .expect("onEnter ran")
+                .set_last_result(Some(self.tables.intrinsics.error));
+            return Ok(None);
         }
         let check_mode = user.as_ref().expect("onEnter ran").check_mode;
         let ty = self.check_expression(node, check_mode)?;
@@ -849,14 +868,55 @@ impl<'a> CheckerState<'a> {
                 Ok(result_type)
             }
             SyntaxKind::EqualsToken => {
-                // getAssignmentDeclarationKind in TS files is
-                // None/Property only (contextual.rs twin);
-                // checkAssignmentDeclaration acts on ModuleExports
-                // alone (a JS kind) and isAssignmentDeclaration2's
-                // Property arm needs a JS expando initializer — both
-                // reduce to the plain-assignment else branch in TS.
-                self.check_assignment_operator(left, operator_token, right, left_type, right_type)?;
-                Ok(right_type)
+                let declaration_kind = self
+                    .parent_of(left)
+                    .filter(|&parent| self.kind_of(parent) == SyntaxKind::BinaryExpression)
+                    .map_or(
+                        tsrs2_binder::AssignmentDeclarationKind::None,
+                        |assignment| {
+                            tsrs2_binder::get_assignment_declaration_kind(
+                                self.binder.source_of_node(assignment),
+                                assignment,
+                            )
+                        },
+                    );
+                self.check_assignment_declaration(declaration_kind, right_type)?;
+                if self.is_assignment_declaration_worker(declaration_kind, left, right) {
+                    let right_is_object = self
+                        .tables
+                        .flags_of(right_type)
+                        .intersects(TypeFlags::OBJECT);
+                    let object_can_supply_assignment_declaration = right_is_object
+                        && (matches!(
+                            declaration_kind,
+                            tsrs2_binder::AssignmentDeclarationKind::ModuleExports
+                                | tsrs2_binder::AssignmentDeclarationKind::Prototype
+                        ) || self.is_empty_object_type(right_type)?
+                            || self.is_function_object_type(right_type)?
+                            || self
+                                .tables
+                                .object_flags_of(right_type)
+                                .intersects(tsrs2_types::ObjectFlags::CLASS));
+                    if !object_can_supply_assignment_declaration {
+                        self.check_assignment_operator(
+                            left,
+                            operator_token,
+                            right,
+                            left_type,
+                            right_type,
+                        )?;
+                    }
+                    Ok(left_type)
+                } else {
+                    self.check_assignment_operator(
+                        left,
+                        operator_token,
+                        right,
+                        left_type,
+                        right_type,
+                    )?;
+                    Ok(right_type)
+                }
             }
             SyntaxKind::CommaToken => {
                 if !self.options.allow_unreachable_code.unwrap_or(false)
@@ -873,6 +933,96 @@ impl<'a> CheckerState<'a> {
                 Ok(right_type)
             }
             _ => unreachable!("parser operator domain is closed (tsc Debug.fail)"),
+        }
+    }
+
+    /// tsc-port: checkAssignmentDeclaration @6.0.3
+    /// tsc-hash: 1daea1c4ab15e44151d23835b48f2a4c89eb86dae278cbc47b5753c6eae555b8
+    /// tsc-span: _tsc.js:80273-80295
+    fn check_assignment_declaration(
+        &mut self,
+        kind: tsrs2_binder::AssignmentDeclarationKind,
+        right_type: TypeId,
+    ) -> CheckResult2<()> {
+        if kind != tsrs2_binder::AssignmentDeclarationKind::ModuleExports {
+            return Ok(());
+        }
+        for property in self.get_properties_of_object_type_owned(right_type)? {
+            let property_type = self.get_type_of_symbol(property)?;
+            let Some(property_type_symbol) = self.tables.type_of(property_type).symbol else {
+                continue;
+            };
+            if !self
+                .binder
+                .symbol(property_type_symbol)
+                .flags
+                .intersects(SymbolFlags::CLASS)
+            {
+                continue;
+            }
+            let name = self.binder.symbol(property).escaped_name.clone();
+            let location = self.binder.symbol(property).value_declaration;
+            let Some(symbol) =
+                self.resolve_name(location, &name, SymbolFlags::TYPE, None, false, false)?
+            else {
+                continue;
+            };
+            if !self
+                .binder
+                .symbol(symbol)
+                .declarations
+                .iter()
+                .any(|&declaration| self.kind_of(declaration) == SyntaxKind::JSDocTypedefTag)
+            {
+                continue;
+            }
+            let display = tsrs2_binder::unescape_leading_underscores(&name);
+            self.add_duplicate_declaration_errors_for_symbols(
+                symbol,
+                &tsrs2_diags::gen::Duplicate_identifier_0,
+                display,
+                property,
+            );
+            self.add_duplicate_declaration_errors_for_symbols(
+                property,
+                &tsrs2_diags::gen::Duplicate_identifier_0,
+                display,
+                symbol,
+            );
+        }
+        Ok(())
+    }
+
+    /// tsc-port: isAssignmentDeclaration @6.0.3
+    /// tsc-hash: 3ef6382442624f2ab23f2a5e2bff71731c55316e24582fa8ca6aeed23e68efd0
+    /// tsc-span: _tsc.js:80350-80365
+    fn is_assignment_declaration_worker(
+        &self,
+        kind: tsrs2_binder::AssignmentDeclarationKind,
+        left: NodeId,
+        right: NodeId,
+    ) -> bool {
+        match kind {
+            tsrs2_binder::AssignmentDeclarationKind::ModuleExports => true,
+            tsrs2_binder::AssignmentDeclarationKind::ExportsProperty
+            | tsrs2_binder::AssignmentDeclarationKind::Property
+            | tsrs2_binder::AssignmentDeclarationKind::Prototype
+            | tsrs2_binder::AssignmentDeclarationKind::PrototypeProperty
+            | tsrs2_binder::AssignmentDeclarationKind::ThisProperty => {
+                let Some(symbol) = self.node_symbol(left) else {
+                    return false;
+                };
+                let symbol = self.get_merged_symbol(symbol);
+                let Some(initializer) = tsrs2_binder::assignment::get_assigned_expando_initializer(
+                    self.binder.source_of_node(right),
+                    right,
+                ) else {
+                    return false;
+                };
+                self.kind_of(initializer) == SyntaxKind::ObjectLiteralExpression
+                    && !self.binder.symbol(symbol).exports.is_empty()
+            }
+            _ => false,
         }
     }
 
@@ -908,9 +1058,16 @@ impl<'a> CheckerState<'a> {
                 &[],
             );
         }
-        let binary = self.parent_of(left).ok_or_else(|| {
-            Unsupported::new("instanceof operand without a parent (parse recovery)")
-        })?;
+        let Some(binary) = self
+            .parent_of(left)
+            .filter(|&parent| self.kind_of(parent) == SyntaxKind::BinaryExpression)
+        else {
+            // A parsed instanceof always owns both operands. For a
+            // detached synthetic recovery operand there is no call
+            // node on which to resolve Symbol.hasInstance, so retain
+            // the operator's boolean result after the LHS check above.
+            return Ok(self.tables.intrinsics.boolean);
+        };
         debug_assert_eq!(self.kind_of(binary), SyntaxKind::BinaryExpression);
         let signature = self.get_resolved_signature(binary, check_mode)?;
         if signature == self.resolving_signature {
@@ -1166,7 +1323,7 @@ impl<'a> CheckerState<'a> {
         if !call_shape {
             return false;
         }
-        let Ok((_, _, right)) = self.binary_parts(binary) else {
+        let Some((_, _, right)) = self.binary_parts(binary) else {
             return false;
         };
         matches!(
@@ -1228,14 +1385,14 @@ impl<'a> CheckerState<'a> {
                 _ => false,
             },
             SyntaxKind::BinaryExpression => match self.binary_parts(node) {
-                Ok((left, operator_token, right)) => {
+                Some((left, operator_token, right)) => {
                     if node_util::is_assignment_operator(self.operator_kind(operator_token)) {
                         false
                     } else {
                         self.is_side_effect_free(left) && self.is_side_effect_free(right)
                     }
                 }
-                Err(_) => false,
+                None => false,
             },
             SyntaxKind::PrefixUnaryExpression | SyntaxKind::PostfixUnaryExpression => {
                 let operator = match self.data_of(node) {
@@ -1330,15 +1487,6 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult2<bool> {
         let number_or_bigint = self.tables.intrinsics.number_or_bigint;
         if !self.is_type_assignable_to(ty, number_or_bigint)? {
-            // 6.6f family: flag-exact containment for the arithmetic
-            // operand face — the operand may be failing only because
-            // its flow answer seam-reverted to the declared type.
-            if self.flow_answer_is_seam_reverted_in_composite(operand) {
-                return Err(Unsupported::new(
-                    "arithmetic operand face over a seam-reverted flow answer \
-                     (unported narrowing dependency, M6/M8 seam)",
-                ));
-            }
             let awaited = if is_await_valid {
                 self.get_awaited_type_of_promise(ty)?
             } else {
@@ -1352,201 +1500,6 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         Ok(true)
-    }
-
-    fn jsdoc_provenance_of_symbol(
-        &mut self,
-        symbol: SymbolId,
-        symbols: &mut std::collections::HashSet<SymbolId>,
-        types: &mut std::collections::HashSet<TypeId>,
-    ) -> bool {
-        let symbol = self.get_merged_symbol(symbol);
-        if !symbols.insert(symbol) {
-            return false;
-        }
-        let declarations = self.binder.symbol(symbol).declarations.clone();
-        for declaration in declarations {
-            let mut cursor = Some(declaration);
-            for _ in 0..5 {
-                let Some(current) = cursor else { break };
-                // A source file is only a declaration container, not
-                // provenance for every symbol it contains. Inspecting
-                // its whole subtree made one unrelated JSDoc tag hide
-                // all checked-JS assignment diagnostics in the file.
-                if self.kind_of(current) == SyntaxKind::SourceFile {
-                    break;
-                }
-                if self.jsdoc_typed_declarations.contains(&current)
-                    || self.declaration_has_jsdoc_semantics(current)
-                    || self.node_contains_jsdoc_semantics(current)
-                {
-                    return true;
-                }
-                cursor = match self.kind_of(current) {
-                    SyntaxKind::SourceFile
-                    | SyntaxKind::Block
-                    | SyntaxKind::ModuleBlock
-                    | SyntaxKind::ClassDeclaration
-                    | SyntaxKind::ClassExpression => None,
-                    _ => self.parent_of(current),
-                };
-            }
-            let initializer = match self.data_of(declaration) {
-                NodeData::BinaryExpression(data) => data.right,
-                _ => self.initializer_of(declaration),
-            };
-            if initializer.is_some_and(|initializer| {
-                self.jsdoc_provenance_of_expression(initializer, symbols, types)
-            }) {
-                return true;
-            }
-        }
-        false
-    }
-
-    fn jsdoc_provenance_of_expression(
-        &mut self,
-        expression: NodeId,
-        symbols: &mut std::collections::HashSet<SymbolId>,
-        types: &mut std::collections::HashSet<TypeId>,
-    ) -> bool {
-        if self.declaration_has_jsdoc_semantics(expression)
-            || self.node_contains_jsdoc_semantics(expression)
-        {
-            return true;
-        }
-        let expression = self.skip_parentheses(expression);
-        match self.data_of(expression) {
-            NodeData::Identifier(_) => match self.get_resolved_symbol(expression) {
-                Ok(Some(symbol)) => self.jsdoc_provenance_of_symbol(symbol, symbols, types),
-                Ok(None) => false,
-                Err(_) => true,
-            },
-            NodeData::PropertyAccessExpression(data) => {
-                let property = self.links.node(expression).resolved_symbol.resolved();
-                property.is_some_and(|symbol| {
-                    symbol != self.unknown_symbol
-                        && self.jsdoc_provenance_of_symbol(symbol, symbols, types)
-                }) || data.expression.is_some_and(|receiver| {
-                    self.jsdoc_provenance_of_expression(receiver, symbols, types)
-                })
-            }
-            NodeData::ElementAccessExpression(data) => {
-                let property = self.links.node(expression).resolved_symbol.resolved();
-                property.is_some_and(|symbol| {
-                    symbol != self.unknown_symbol
-                        && self.jsdoc_provenance_of_symbol(symbol, symbols, types)
-                }) || data.expression.is_some_and(|receiver| {
-                    self.jsdoc_provenance_of_expression(receiver, symbols, types)
-                }) || data.argument_expression.is_some_and(|argument| {
-                    self.jsdoc_provenance_of_expression(argument, symbols, types)
-                })
-            }
-            NodeData::AsExpression(data) => data
-                .expression
-                .is_some_and(|inner| self.jsdoc_provenance_of_expression(inner, symbols, types)),
-            NodeData::SatisfiesExpression(data) => data
-                .expression
-                .is_some_and(|inner| self.jsdoc_provenance_of_expression(inner, symbols, types)),
-            _ => self
-                .node_symbol(expression)
-                .is_some_and(|symbol| self.jsdoc_provenance_of_symbol(symbol, symbols, types)),
-        }
-    }
-
-    fn jsdoc_provenance_of_type(
-        &mut self,
-        ty: TypeId,
-        symbols: &mut std::collections::HashSet<SymbolId>,
-        types: &mut std::collections::HashSet<TypeId>,
-    ) -> bool {
-        if !types.insert(ty) {
-            return false;
-        }
-        let type_data = self.tables.type_of(ty).data.clone();
-        match type_data {
-            TypeData::Union { types: members, .. } | TypeData::Intersection { types: members } => {
-                if members
-                    .into_vec()
-                    .into_iter()
-                    .any(|member| self.jsdoc_provenance_of_type(member, symbols, types))
-                {
-                    return true;
-                }
-            }
-            TypeData::Reference {
-                target,
-                resolved_type_arguments,
-            } => {
-                if self.jsdoc_provenance_of_type(target, symbols, types)
-                    || resolved_type_arguments.is_some_and(|arguments| {
-                        arguments
-                            .into_vec()
-                            .into_iter()
-                            .any(|argument| self.jsdoc_provenance_of_type(argument, symbols, types))
-                    })
-                {
-                    return true;
-                }
-            }
-            _ => {}
-        }
-        let type_symbol = self
-            .tables
-            .type_of(ty)
-            .symbol
-            .or(self.tables.type_of(ty).alias_symbol);
-        if type_symbol.is_some_and(|symbol| self.jsdoc_provenance_of_symbol(symbol, symbols, types))
-        {
-            return true;
-        }
-        if !self
-            .tables
-            .flags_of(ty)
-            .intersects(TypeFlags::OBJECT | TypeFlags::UNION | TypeFlags::INTERSECTION)
-        {
-            return false;
-        }
-        match self.get_properties_of_type(ty) {
-            Ok(properties) => properties
-                .into_iter()
-                .any(|property| self.jsdoc_provenance_of_symbol(property, symbols, types)),
-            Err(_) => true,
-        }
-    }
-
-    fn is_non_jsdoc_js_assignment_relation(
-        &mut self,
-        left: NodeId,
-        right: NodeId,
-        assignee_type: TypeId,
-        value_type: TypeId,
-    ) -> bool {
-        if !self.is_in_js_file(left) {
-            return false;
-        }
-        let mut symbols = std::collections::HashSet::new();
-        let mut types = std::collections::HashSet::new();
-        !self.jsdoc_provenance_of_expression(left, &mut symbols, &mut types)
-            && !self.jsdoc_provenance_of_expression(right, &mut symbols, &mut types)
-            && !self.jsdoc_provenance_of_type(assignee_type, &mut symbols, &mut types)
-            && !self.jsdoc_provenance_of_type(value_type, &mut symbols, &mut types)
-    }
-
-    /// tsrs-native: checked-JS publication gate for one expression and
-    /// its resulting type.
-    pub(crate) fn is_non_jsdoc_js_expression_type(
-        &mut self,
-        expression: NodeId,
-        ty: TypeId,
-    ) -> bool {
-        if !self.is_in_js_file(expression) {
-            return false;
-        }
-        let mut symbols = std::collections::HashSet::new();
-        let mut types = std::collections::HashSet::new();
-        !self.jsdoc_provenance_of_expression(expression, &mut symbols, &mut types)
-            && !self.jsdoc_provenance_of_type(ty, &mut symbols, &mut types)
     }
 
     fn report_primitive_module_exports_property_assignment(
@@ -1635,13 +1588,6 @@ impl<'a> CheckerState<'a> {
             &tsrs2_diags::gen::The_left_hand_side_of_an_assignment_expression_must_be_a_variable_or_a_property_access,
             &tsrs2_diags::gen::The_left_hand_side_of_an_assignment_expression_may_not_be_an_optional_property_access,
         ) {
-            let expose_non_jsdoc_js = self.is_non_jsdoc_js_assignment_relation(
-                left,
-                right,
-                assignee_type,
-                value_type,
-            );
-            let diagnostics_before = self.diagnostics.len();
             let mut head_message: Option<&'static tsrs2_diags::DiagnosticMessage> = None;
             if self.tables.exact_optional_property_types
                 && self.kind_of(left) == SyntaxKind::PropertyAccessExpression
@@ -1665,19 +1611,6 @@ impl<'a> CheckerState<'a> {
                     }
                 }
             }
-            // 6.6f: syntax-probe gate → flag-exact containment for
-            // the failed-assignment face. SUBTREE consult: a compound
-            // RHS (object/array literal, conditional) inherits the
-            // wide type from a seam-reverted descendant that the
-            // node-identity probe cannot see.
-            if self.flow_answer_is_seam_reverted_in_composite(right)
-                && !self.is_type_assignable_to(value_type, assignee_type)?
-            {
-                return Err(Unsupported::new(
-                    "failed assignment over a seam-reverted flow answer \
-                     (unported narrowing dependency, M6/M8 seam)",
-                ));
-            }
             // checkTypeAssignableToAndOptionallyElaborate(valueType,
             // assigneeType, errorNode=LEFT, expr=RIGHT) — elaboration
             // first (the Step-12 idiom): a literal RIGHT operand that
@@ -1697,9 +1630,6 @@ impl<'a> CheckerState<'a> {
                     Some(left),
                     head_message.unwrap_or(&tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1),
                 )?;
-            }
-            if expose_non_jsdoc_js {
-                self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
             }
         }
         Ok(())
@@ -1808,24 +1738,13 @@ impl<'a> CheckerState<'a> {
     fn report_operator_error(
         &mut self,
         operator_token: NodeId,
-        left: NodeId,
-        right: NodeId,
+        _left: NodeId,
+        _right: NodeId,
         left_type: TypeId,
         right_type: TypeId,
         error_node: Option<NodeId>,
         mut is_related: Option<&mut dyn FnMut(&mut Self, TypeId, TypeId) -> CheckResult2<bool>>,
     ) -> CheckResult2<()> {
-        // 6.6f family: flag-exact containment for the operator face —
-        // a failing operator check whose operand answer was
-        // seam-reverted reports over the deliberately-wide type.
-        if self.flow_answer_is_seam_reverted_in_composite(left)
-            || self.flow_answer_is_seam_reverted_in_composite(right)
-        {
-            return Err(Unsupported::new(
-                "operator face over a seam-reverted flow answer \
-                 (unported narrowing dependency, M6/M8 seam)",
-            ));
-        }
         let err_node = error_node.unwrap_or(operator_token);
         let mut would_work_with_await = false;
         if let Some(is_related) = is_related.as_deref_mut() {
@@ -1848,9 +1767,6 @@ impl<'a> CheckerState<'a> {
         }
         let (left_str, right_str) =
             self.get_type_names_for_error_display(effective_left, effective_right)?;
-        let publish_checked_js = self.is_non_jsdoc_js_expression_type(left, left_type)
-            && self.is_non_jsdoc_js_expression_type(right, right_type);
-        let diagnostics_before = self.diagnostics.len();
         if !self.try_give_better_primary_error(
             operator_token,
             err_node,
@@ -1865,9 +1781,6 @@ impl<'a> CheckerState<'a> {
                 &tsrs2_diags::gen::Operator_0_cannot_be_applied_to_types_1_and_2,
                 &[token_text(operator), &left_str, &right_str],
             );
-        }
-        if publish_checked_js {
-            self.mark_non_jsdoc_js_diagnostics_since(diagnostics_before);
         }
         Ok(())
     }
@@ -2142,9 +2055,12 @@ impl<'a> CheckerState<'a> {
                 ),
                 _ => (None, None, None),
             };
-            let name = name.ok_or_else(|| {
-                Unsupported::new("shorthand assignment without a name (parse-recovery tree)")
-            })?;
+            let Some(name) = name else {
+                // The parser normally installs a missing identifier.
+                // An omitted synthetic slot has no assignment target
+                // left to check; preserve the source-side result.
+                return Ok(source_type);
+            };
             if let Some(initializer) = initializer {
                 let strict_null_checks = self
                     .options
@@ -2157,21 +2073,22 @@ impl<'a> CheckerState<'a> {
                             self.get_type_with_facts(source_type, TypeFacts::NE_UNDEFINED)?;
                     }
                 }
-                let equals_token = equals_token.ok_or_else(|| {
-                    Unsupported::new("shorthand default without `=` (parse-recovery tree)")
-                })?;
-                self.check_binary_like_expression(
-                    name,
-                    equals_token,
-                    initializer,
-                    check_mode,
-                    None,
-                )?;
+                if let Some(equals_token) = equals_token {
+                    self.check_binary_like_expression(
+                        name,
+                        equals_token,
+                        initializer,
+                        check_mode,
+                        None,
+                    )?;
+                }
             }
             target = name;
         }
         if self.kind_of(target) == SyntaxKind::BinaryExpression {
-            let (left, operator_token, _) = self.binary_parts(target)?;
+            let Some((left, operator_token, _)) = self.binary_parts(target) else {
+                return Ok(source_type);
+            };
             if self.operator_kind(operator_token) == SyntaxKind::EqualsToken {
                 self.check_binary_expression(target, check_mode)?;
                 target = left;
@@ -2249,9 +2166,12 @@ impl<'a> CheckerState<'a> {
                     NodeData::ShorthandPropertyAssignment(data) => (data.name, None),
                     _ => (None, None),
                 };
-                let name = name.ok_or_else(|| {
-                    Unsupported::new("property assignment without a name (parse-recovery tree)")
-                })?;
+                let Some(name) = name else {
+                    // The parse diagnostic owns this malformed
+                    // property; there is no key to index in the
+                    // source object type.
+                    return Ok(());
+                };
                 let expr_type = self.get_literal_type_from_property_name(name)?;
                 if let Some(text) = self.property_name_from_type_usable(expr_type) {
                     let prop = self.get_property_of_type_full(object_literal_type, &text)?;
@@ -2287,11 +2207,10 @@ impl<'a> CheckerState<'a> {
                 let target = if self.kind_of(property) == SyntaxKind::ShorthandPropertyAssignment {
                     property
                 } else {
-                    initializer.ok_or_else(|| {
-                        Unsupported::new(
-                            "property assignment without an initializer (parse-recovery tree)",
-                        )
-                    })?
+                    let Some(initializer) = initializer else {
+                        return Ok(());
+                    };
+                    initializer
                 };
                 self.check_destructuring_assignment(target, ty, CheckMode::NORMAL, false)?;
                 Ok(())
@@ -2305,6 +2224,13 @@ impl<'a> CheckerState<'a> {
                     );
                     return Ok(());
                 }
+                let expression = match self.data_of(property) {
+                    NodeData::SpreadAssignment(data) => data.expression,
+                    _ => None,
+                };
+                let Some(expression) = expression else {
+                    return Ok(());
+                };
                 let mut non_rest_names: Vec<NodeId> = Vec::new();
                 for &other in properties {
                     if self.kind_of(other) != SyntaxKind::SpreadAssignment {
@@ -2327,13 +2253,6 @@ impl<'a> CheckerState<'a> {
                     properties_array,
                     &tsrs2_diags::gen::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma,
                 );
-                let expression = match self.data_of(property) {
-                    NodeData::SpreadAssignment(data) => data.expression,
-                    _ => None,
-                };
-                let expression = expression.ok_or_else(|| {
-                    Unsupported::new("spread assignment without expression (parse-recovery tree)")
-                })?;
                 self.check_destructuring_assignment(
                     expression,
                     rest_type,
@@ -2491,18 +2410,19 @@ impl<'a> CheckerState<'a> {
             NodeData::SpreadElement(data) => data.expression,
             _ => None,
         };
-        let rest_expression = rest_expression.ok_or_else(|| {
-            Unsupported::new("spread element without expression (parse-recovery tree)")
-        })?;
+        let Some(rest_expression) = rest_expression else {
+            return Ok(());
+        };
         if self.kind_of(rest_expression) == SyntaxKind::BinaryExpression {
-            let (_, operator_token, _) = self.binary_parts(rest_expression)?;
-            if self.operator_kind(operator_token) == SyntaxKind::EqualsToken {
-                self.error_at(
-                    Some(operator_token),
-                    &tsrs2_diags::gen::A_rest_element_cannot_have_an_initializer,
-                    &[],
-                );
-                return Ok(());
+            if let Some((_, operator_token, _)) = self.binary_parts(rest_expression) {
+                if self.operator_kind(operator_token) == SyntaxKind::EqualsToken {
+                    self.error_at(
+                        Some(operator_token),
+                        &tsrs2_diags::gen::A_rest_element_cannot_have_an_initializer,
+                        &[],
+                    );
+                    return Ok(());
+                }
             }
         }
         let elements_array = match self.data_of(node) {
@@ -2598,12 +2518,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkAssertionWorker @6.0.3
     /// tsc-hash: 4e26da5a8bfd5e25ade6ed74a9c0f354580d933097740b60c4fb75e87c35aa78
     /// tsc-span: _tsc.js:77908-77922
-    fn check_assertion_worker(
+    pub(crate) fn check_assertion_worker(
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
     ) -> CheckResult2<TypeId> {
-        let (type_node, expression) = self.assertion_type_and_expression(node)?;
+        let Some((type_node, expression)) = self.assertion_type_and_expression(node) else {
+            return Ok(self.tables.intrinsics.error);
+        };
         let expr_type = self.check_expression(expression, check_mode)?;
         if self.is_const_type_reference(type_node) {
             if !self.is_valid_const_assertion_argument(expression)? {
@@ -2622,24 +2544,21 @@ impl<'a> CheckerState<'a> {
         self.get_type_from_type_node(type_node)
     }
 
-    /// getAssertionTypeAndExpression (77925-77938). The parenthesized
-    /// arm is the JS `/** @type */` assertion — plain-JS band gated.
-    fn assertion_type_and_expression(&mut self, node: NodeId) -> CheckResult2<(NodeId, NodeId)> {
+    /// tsc-port: getAssertionTypeAndExpression @6.0.3
+    /// tsc-hash: b2792f4495599e3031324c0f4e51ab1bb93f7dca6c972ac946d482e96ae7d83c
+    /// tsc-span: _tsc.js:77923-77938
+    fn assertion_type_and_expression(&mut self, node: NodeId) -> Option<(NodeId, NodeId)> {
         let (type_node, expression) = match self.data_of(node) {
             NodeData::AsExpression(data) => (data.r#type, data.expression),
             NodeData::TypeAssertionExpression(data) => (data.r#type, data.expression),
-            NodeData::ParenthesizedExpression(_) => {
-                return Err(Unsupported::new(
-                    "getJSDocTypeAssertionType (JS type assertion, plain-JS band, M8)",
-                ))
+            NodeData::ParenthesizedExpression(data) => {
+                (self.jsdoc_type_assertion_type_node(node), data.expression)
             }
             _ => (None, None),
         };
         match (type_node, expression) {
-            (Some(type_node), Some(expression)) => Ok((type_node, expression)),
-            _ => Err(Unsupported::new(
-                "assertion with missing type/expression (parse-recovery tree)",
-            )),
+            (Some(type_node), Some(expression)) => Some((type_node, expression)),
+            _ => None,
         }
     }
 
@@ -2665,7 +2584,9 @@ impl<'a> CheckerState<'a> {
     /// oracle-proven 2026-07-12); the comparable probe reads the
     /// widened one.
     pub(crate) fn check_assertion_deferred(&mut self, node: NodeId) -> CheckResult2<()> {
-        let (type_node, _) = self.assertion_type_and_expression(node)?;
+        let Some((type_node, _)) = self.assertion_type_and_expression(node) else {
+            return Ok(());
+        };
         let err_node = if self.kind_of(node) == SyntaxKind::ParenthesizedExpression {
             type_node
         } else {
@@ -2704,9 +2625,7 @@ impl<'a> CheckerState<'a> {
             _ => (None, None),
         };
         let (Some(type_node), Some(expression)) = (type_node, expression) else {
-            return Err(Unsupported::new(
-                "satisfies with missing type/expression (parse-recovery tree)",
-            ));
+            return Ok(self.tables.intrinsics.error);
         };
         self.check_source_element(Some(type_node));
         self.check_satisfies_expression_worker(expression, type_node)
@@ -2715,7 +2634,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: checkSatisfiesExpressionWorker @6.0.3
     /// tsc-hash: 69efa22f5ce65ba834ce27bba8e4cab3bfedb94a4646cfa0944324f6f62d989e
     /// tsc-span: _tsc.js:78051-78060
-    fn check_satisfies_expression_worker(
+    pub(crate) fn check_satisfies_expression_worker(
         &mut self,
         expression: NodeId,
         target: NodeId,
@@ -2726,67 +2645,48 @@ impl<'a> CheckerState<'a> {
         if target_type == self.tables.intrinsics.error {
             return Ok(target_type);
         }
-        let error_node = self
-            .parent_of(target)
-            .and_then(|start| self.find_ancestor_of_kind(start, SyntaxKind::SatisfiesExpression));
-        // checkTypeAssignableToAndOptionallyElaborate: elaborateError
-        // runs FIRST over the expression. Object and array literals
-        // report their incompatible member/element at that value and
-        // suppress the outer 1360 head when elaboration reported.
-        if !self.is_type_assignable_to(expr_type, target_type)? {
-            if self.elaborated_satisfies_expressions.contains(&expression) {
-                return Ok(expr_type);
-            }
-            let mut operand = expression;
-            while let NodeData::ParenthesizedExpression(data) = self.data_of(operand) {
-                match data.expression {
-                    Some(inner) => operand = inner,
-                    None => break,
+        let error_node = self.parent_of(target).and_then(|start| {
+            let mut current = Some(start);
+            while let Some(node) = current {
+                if matches!(
+                    self.kind_of(node),
+                    SyntaxKind::SatisfiesExpression | SyntaxKind::JSDocSatisfiesTag
+                ) {
+                    return Some(node);
                 }
+                current = self.parent_of(node);
             }
-            if self.literal_operand_reported_since(operand, diagnostics_before_expression)
-                && matches!(
-                    self.data_of(operand),
-                    NodeData::ObjectLiteralExpression(_) | NodeData::ArrayLiteralExpression(_)
-                )
-            {
-                self.elaborated_satisfies_expressions.insert(expression);
-                return Ok(expr_type);
-            }
-            if self
-                .elaborate_literal_assignment(operand, target_type, None)?
-                .reported()
-            {
-                self.elaborated_satisfies_expressions.insert(expression);
-                return Ok(expr_type);
-            }
-            if matches!(
-                self.data_of(operand),
-                NodeData::ArrowFunction(_) | NodeData::JsxAttributes(_)
-            ) {
-                return Err(Unsupported::new(
-                    "satisfies over an arrow/JSX operand (elaborateError, T2)",
-                ));
-            }
-            for kind in [
-                crate::state::SignatureKind::Call,
-                crate::state::SignatureKind::Construct,
-            ] {
-                let signatures = self.get_signatures_of_type(expr_type, kind)?;
-                if let Some(&first) = signatures.first() {
-                    let return_type = self.get_return_type_of_signature(first)?;
-                    if self.is_type_assignable_to(return_type, target_type)? {
-                        return Err(Unsupported::new(
-                            "satisfies over a callable source (elaborateDidYouMeanToCallOrConstruct, T2)",
-                        ));
-                    }
-                }
+            None
+        });
+        // Contextual literal checking can already have emitted the
+        // elementwise row before the shared optional-elaboration entry
+        // is reached. Keep that existing de-duplication boundary, then
+        // let the generic dependency own every elaboration arm and the
+        // ordinary normalized relation fallback.
+        if self.elaborated_satisfies_expressions.contains(&expression) {
+            return Ok(expr_type);
+        }
+        let mut operand = expression;
+        while let NodeData::ParenthesizedExpression(data) = self.data_of(operand) {
+            match data.expression {
+                Some(inner) => operand = inner,
+                None => break,
             }
         }
-        self.check_type_assignable_to(
+        if self.literal_operand_reported_since(operand, diagnostics_before_expression)
+            && matches!(
+                self.data_of(operand),
+                NodeData::ObjectLiteralExpression(_) | NodeData::ArrayLiteralExpression(_)
+            )
+        {
+            self.elaborated_satisfies_expressions.insert(expression);
+            return Ok(expr_type);
+        }
+        self.check_type_assignable_to_and_optionally_elaborate(
             expr_type,
             target_type,
             error_node,
+            expression,
             &tsrs2_diags::gen::Type_0_does_not_satisfy_the_expected_type_1,
         )?;
         Ok(expr_type)
@@ -2832,9 +2732,9 @@ impl<'a> CheckerState<'a> {
             // getTypeFromTypeNode, not this arm.
             _ => (None, None),
         };
-        let expression = expression.ok_or_else(|| {
-            Unsupported::new("expression-with-type-arguments without expression (parse recovery)")
-        })?;
+        let Some(expression) = expression else {
+            return Ok(self.tables.intrinsics.error);
+        };
         for argument in self.nodes_of(type_arguments) {
             self.check_source_element(Some(argument));
         }
@@ -2844,15 +2744,16 @@ impl<'a> CheckerState<'a> {
                 .map(|p| self.walk_up_parenthesized_expressions(p));
             if let Some(parent) = parent {
                 if self.kind_of(parent) == SyntaxKind::BinaryExpression {
-                    let (_, operator_token, right) = self.binary_parts(parent)?;
-                    if self.operator_kind(operator_token) == SyntaxKind::InstanceOfKeyword
-                        && self.is_node_descendant_of(node, right)
-                    {
-                        self.error_at(
-                            Some(node),
-                            &tsrs2_diags::gen::The_right_hand_side_of_an_instanceof_expression_must_not_be_an_instantiation_expression,
-                            &[],
-                        );
+                    if let Some((_, operator_token, right)) = self.binary_parts(parent) {
+                        if self.operator_kind(operator_token) == SyntaxKind::InstanceOfKeyword
+                            && self.is_node_descendant_of(node, right)
+                        {
+                            self.error_at(
+                                Some(node),
+                                &tsrs2_diags::gen::The_right_hand_side_of_an_instanceof_expression_must_not_be_an_instantiation_expression,
+                                &[],
+                            );
+                        }
                     }
                 }
             }
@@ -3226,6 +3127,9 @@ impl<'a> CheckerState<'a> {
     /// MetaProperty carries no keywordToken slot — the leading source
     /// token disambiguates (parser convention).
     pub(crate) fn check_meta_property(&mut self, node: NodeId) -> CheckResult2<TypeId> {
+        if self.meta_property_name_text(node).is_none() {
+            return Ok(self.tables.intrinsics.error);
+        }
         self.check_grammar_meta_property(node)?;
         if self.meta_property_is_new(node) {
             return self.check_new_target_meta_property(node);
@@ -3251,16 +3155,11 @@ impl<'a> CheckerState<'a> {
             if self.implied_node_format_for_file(node)
                 == Some(crate::modules::ModuleResolutionMode::CommonJs)
             {
-                let publish_checked_js = self.is_in_js_file(node);
-                let diagnostics_before = self.diagnostics.len();
                 self.error_at(
                     Some(node),
                     &tsrs2_diags::gen::The_import_meta_meta_property_is_not_allowed_in_files_which_will_build_into_CommonJS_output,
                     &[],
                 );
-                if publish_checked_js {
-                    self.mark_non_jsdoc_js_diagnostics_since_with_code(diagnostics_before, 1470);
-                }
             }
         } else if module_kind < 6 && module_kind != 4 {
             self.error_at(
@@ -3301,9 +3200,10 @@ impl<'a> CheckerState<'a> {
     /// the `import.defer` callee shape.
     fn check_grammar_meta_property(&mut self, node: NodeId) -> CheckResult2<()> {
         let Some(name_text) = self.meta_property_name_text(node) else {
-            return Err(Unsupported::new(
-                "meta property without a name (parse-recovery tree)",
-            ));
+            // Parsed meta-properties always have either their parsed
+            // identifier or a missing identifier. A synthetic absent
+            // name has no token span for this grammar diagnostic.
+            return Ok(());
         };
         let name = match self.data_of(node) {
             NodeData::MetaProperty(data) => data.name.expect("name text read above"),
@@ -3415,11 +3315,7 @@ impl<'a> CheckerState<'a> {
         let (condition, when_true, when_false) =
             match (data.condition, data.when_true, data.when_false) {
                 (Some(c), Some(t), Some(f)) => (c, t, f),
-                _ => {
-                    return Err(Unsupported::new(
-                        "conditional expression with missing branch (parse-recovery tree)",
-                    ))
-                }
+                _ => return Ok(self.tables.intrinsics.error),
             };
         let condition_type = self.check_truthiness_expression(condition, check_mode)?;
         self.check_testing_known_truthy_callable_or_awaitable_or_enum_member_type(
@@ -3444,9 +3340,9 @@ impl<'a> CheckerState<'a> {
         let NodeData::TemplateExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let head = data
-            .head
-            .ok_or_else(|| Unsupported::new("template without head (parse-recovery tree)"))?;
+        let Some(head) = data.head else {
+            return Ok(self.tables.intrinsics.error);
+        };
         let spans = self.nodes_of(data.template_spans);
         let mut texts: Vec<tsrs2_types::TemplateText> = Vec::with_capacity(spans.len() + 1);
         match self.data_of(head) {
@@ -3463,9 +3359,9 @@ impl<'a> CheckerState<'a> {
                 NodeData::TemplateSpan(data) => (data.expression, data.literal),
                 _ => (None, None),
             };
-            let expression = expression.ok_or_else(|| {
-                Unsupported::new("template span without expression (parse-recovery tree)")
-            })?;
+            let Some(expression) = expression else {
+                return Ok(self.tables.intrinsics.error);
+            };
             let ty = self.check_expression(expression, CheckMode::NORMAL)?;
             if self.maybe_type_of_kind_considering_base_constraint(ty, TypeFlags::ES_SYMBOL_LIKE)? {
                 self.error_at(
@@ -3474,9 +3370,9 @@ impl<'a> CheckerState<'a> {
                     &[],
                 );
             }
-            let literal = literal.ok_or_else(|| {
-                Unsupported::new("template span without literal (parse-recovery tree)")
-            })?;
+            let Some(literal) = literal else {
+                return Ok(self.tables.intrinsics.error);
+            };
             match self.data_of(literal) {
                 NodeData::TemplateMiddle(data) => {
                     texts.push(tsrs2_types::TemplateText::from_utf16(
@@ -3570,9 +3466,9 @@ impl<'a> CheckerState<'a> {
             unreachable!("kind/data agree");
         };
         let operator = data.operator;
-        let operand = data
-            .operand
-            .ok_or_else(|| Unsupported::new("prefix unary without operand (parse recovery)"))?;
+        let Some(operand) = data.operand else {
+            return Ok(self.tables.intrinsics.error);
+        };
         let operand_type = self.check_expression(operand, CheckMode::NORMAL)?;
         let silent_never = self.tables.intrinsics.silent_never;
         if operand_type == silent_never {
@@ -3688,9 +3584,9 @@ impl<'a> CheckerState<'a> {
         let NodeData::PostfixUnaryExpression(data) = self.data_of(node) else {
             unreachable!("kind/data agree");
         };
-        let operand = data
-            .operand
-            .ok_or_else(|| Unsupported::new("postfix unary without operand (parse recovery)"))?;
+        let Some(operand) = data.operand else {
+            return Ok(self.tables.intrinsics.error);
+        };
         let operand_type = self.check_expression(operand, CheckMode::NORMAL)?;
         let silent_never = self.tables.intrinsics.silent_never;
         if operand_type == silent_never {
@@ -3898,56 +3794,64 @@ impl<'a> CheckerState<'a> {
     /// The 5076 mixing rows are grammarErrorOnNode (SUPPRESSED in
     /// files with parse diagnostics — the 5.5d suppression class).
     fn check_nullish_coalesce_operands(&mut self, node: NodeId) -> CheckResult2<()> {
-        let (left, operator_token, right) = self.binary_parts(node)?;
+        let Some((left, operator_token, right)) = self.binary_parts(node) else {
+            return Ok(());
+        };
         if self.operator_kind(operator_token) != SyntaxKind::QuestionQuestionToken {
             return Ok(());
         }
         let parent = self.parent_of(node);
         if let Some(parent) = parent.filter(|&p| self.kind_of(p) == SyntaxKind::BinaryExpression) {
-            let (parent_left, parent_op, _) = self.binary_parts(parent)?;
-            if self.kind_of(parent_left) == SyntaxKind::BinaryExpression
-                && self.operator_kind(parent_op) == SyntaxKind::BarBarToken
-            {
-                let qq = tsrs2_syntax::tokens::token_to_string(SyntaxKind::QuestionQuestionToken)
-                    .expect("?? has token text");
-                let bar = tsrs2_syntax::tokens::token_to_string(self.operator_kind(parent_op))
-                    .expect("|| has token text");
-                self.grammar_error_on_node(
-                    parent_left,
-                    &tsrs2_diags::gen::_0_and_1_operations_cannot_be_mixed_without_parentheses,
-                    &[qq, bar],
-                );
+            if let Some((parent_left, parent_op, _)) = self.binary_parts(parent) {
+                if self.kind_of(parent_left) == SyntaxKind::BinaryExpression
+                    && self.operator_kind(parent_op) == SyntaxKind::BarBarToken
+                {
+                    let qq =
+                        tsrs2_syntax::tokens::token_to_string(SyntaxKind::QuestionQuestionToken)
+                            .expect("?? has token text");
+                    let bar = tsrs2_syntax::tokens::token_to_string(self.operator_kind(parent_op))
+                        .expect("|| has token text");
+                    self.grammar_error_on_node(
+                        parent_left,
+                        &tsrs2_diags::gen::_0_and_1_operations_cannot_be_mixed_without_parentheses,
+                        &[qq, bar],
+                    );
+                }
             }
         } else if self.kind_of(left) == SyntaxKind::BinaryExpression {
-            let (_, left_op, _) = self.binary_parts(left)?;
-            let left_operator = self.operator_kind(left_op);
-            if matches!(
-                left_operator,
-                SyntaxKind::BarBarToken | SyntaxKind::AmpersandAmpersandToken
-            ) {
-                let op = tsrs2_syntax::tokens::token_to_string(left_operator)
-                    .expect("logical operators have token text");
-                let qq = tsrs2_syntax::tokens::token_to_string(SyntaxKind::QuestionQuestionToken)
-                    .expect("?? has token text");
-                self.grammar_error_on_node(
-                    left,
-                    &tsrs2_diags::gen::_0_and_1_operations_cannot_be_mixed_without_parentheses,
-                    &[op, qq],
-                );
+            if let Some((_, left_op, _)) = self.binary_parts(left) {
+                let left_operator = self.operator_kind(left_op);
+                if matches!(
+                    left_operator,
+                    SyntaxKind::BarBarToken | SyntaxKind::AmpersandAmpersandToken
+                ) {
+                    let op = tsrs2_syntax::tokens::token_to_string(left_operator)
+                        .expect("logical operators have token text");
+                    let qq =
+                        tsrs2_syntax::tokens::token_to_string(SyntaxKind::QuestionQuestionToken)
+                            .expect("?? has token text");
+                    self.grammar_error_on_node(
+                        left,
+                        &tsrs2_diags::gen::_0_and_1_operations_cannot_be_mixed_without_parentheses,
+                        &[op, qq],
+                    );
+                }
             }
         } else if self.kind_of(right) == SyntaxKind::BinaryExpression {
-            let (_, right_op, _) = self.binary_parts(right)?;
-            if self.operator_kind(right_op) == SyntaxKind::AmpersandAmpersandToken {
-                let qq = tsrs2_syntax::tokens::token_to_string(SyntaxKind::QuestionQuestionToken)
-                    .expect("?? has token text");
-                let amp =
-                    tsrs2_syntax::tokens::token_to_string(SyntaxKind::AmpersandAmpersandToken)
-                        .expect("&& has token text");
-                self.grammar_error_on_node(
-                    right,
-                    &tsrs2_diags::gen::_0_and_1_operations_cannot_be_mixed_without_parentheses,
-                    &[qq, amp],
-                );
+            if let Some((_, right_op, _)) = self.binary_parts(right) {
+                if self.operator_kind(right_op) == SyntaxKind::AmpersandAmpersandToken {
+                    let qq =
+                        tsrs2_syntax::tokens::token_to_string(SyntaxKind::QuestionQuestionToken)
+                            .expect("?? has token text");
+                    let amp =
+                        tsrs2_syntax::tokens::token_to_string(SyntaxKind::AmpersandAmpersandToken)
+                            .expect("&& has token text");
+                    self.grammar_error_on_node(
+                        right,
+                        &tsrs2_diags::gen::_0_and_1_operations_cannot_be_mixed_without_parentheses,
+                        &[qq, amp],
+                    );
+                }
             }
         }
         self.check_nullish_coalesce_operand_left(node)
@@ -3957,7 +3861,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 251fcefd2d46564907d3f01a0b31b24fb40a95b124e8c1dc54c124872419a0aa
     /// tsc-span: _tsc.js:79958-79968
     fn check_nullish_coalesce_operand_left(&mut self, node: NodeId) -> CheckResult2<()> {
-        let (left, _, _) = self.binary_parts(node)?;
+        let Some((left, _, _)) = self.binary_parts(node) else {
+            return Ok(());
+        };
         let left_target = self.skip_outer_expressions(left, OuterExpressionKinds::ALL);
         let nullish_semantics = self.get_syntactic_nullishness_semantics(left_target)?;
         if nullish_semantics != SEMANTICS_SOMETIMES {
@@ -3994,7 +3900,9 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::YieldExpression
             | SyntaxKind::ThisKeyword => SEMANTICS_SOMETIMES,
             SyntaxKind::BinaryExpression => {
-                let (_, operator_token, right) = self.binary_parts(node)?;
+                let Some((_, operator_token, right)) = self.binary_parts(node) else {
+                    return Ok(SEMANTICS_SOMETIMES);
+                };
                 match self.operator_kind(operator_token) {
                     SyntaxKind::BarBarToken
                     | SyntaxKind::BarBarEqualsToken
@@ -4017,11 +3925,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let (when_true, when_false) = match (data.when_true, data.when_false) {
                     (Some(t), Some(f)) => (t, f),
-                    _ => {
-                        return Err(Unsupported::new(
-                            "conditional with missing branch (parse-recovery tree)",
-                        ))
-                    }
+                    _ => return Ok(SEMANTICS_SOMETIMES),
                 };
                 self.get_syntactic_nullishness_semantics(when_true)?
                     | self.get_syntactic_nullishness_semantics(when_false)?
@@ -4055,8 +3959,6 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 8b1eff7c004dde6bbe6b5940ba064195f1aea6668ca5d8b1f4a69bf9cec4dec1
     /// tsc-span: _tsc.js:27582-27587
     ///
-    /// The ExcludeJSDocTypeAssertion paren refinement only changes
-    /// verdicts for JS `/** @type */` parens — plain-JS band gated.
     pub(crate) fn skip_outer_expressions(
         &self,
         mut node: NodeId,
@@ -4065,7 +3967,16 @@ impl<'a> CheckerState<'a> {
         loop {
             let is_outer = match self.kind_of(node) {
                 SyntaxKind::ParenthesizedExpression => {
-                    kinds.intersects(OuterExpressionKinds::PARENTHESES)
+                    if kinds.intersects(OuterExpressionKinds::EXCLUDE_JSDOC_TYPE_ASSERTIONS)
+                        && node_util::is_jsdoc_type_assertion(
+                            self.binder.source_of_node(node),
+                            node,
+                        )
+                    {
+                        false
+                    } else {
+                        kinds.intersects(OuterExpressionKinds::PARENTHESES)
+                    }
                 }
                 SyntaxKind::TypeAssertionExpression | SyntaxKind::AsExpression => {
                     kinds.intersects(OuterExpressionKinds::TYPE_ASSERTIONS)
@@ -4136,15 +4047,7 @@ impl<'a> CheckerState<'a> {
                 } else {
                     &tsrs2_diags::gen::This_kind_of_expression_is_always_falsy
                 };
-                let publish_checked_js = self.is_in_js_file(node);
-                let diagnostics_before = self.diagnostics.len();
                 self.error_at(Some(node), message, &[]);
-                if publish_checked_js {
-                    self.mark_non_jsdoc_js_diagnostics_since_with_code(
-                        diagnostics_before,
-                        message.code,
-                    );
-                }
             }
         }
         Ok(ty)
@@ -4194,11 +4097,7 @@ impl<'a> CheckerState<'a> {
                 };
                 let (when_true, when_false) = match (data.when_true, data.when_false) {
                     (Some(t), Some(f)) => (t, f),
-                    _ => {
-                        return Err(Unsupported::new(
-                            "conditional with missing branch (parse-recovery tree)",
-                        ))
-                    }
+                    _ => return Ok(SEMANTICS_SOMETIMES),
                 };
                 self.get_syntactic_truthy_semantics(when_true)?
                     | self.get_syntactic_truthy_semantics(when_false)?
@@ -4249,7 +4148,9 @@ impl<'a> CheckerState<'a> {
         let mut cond_expr2 = node_util::skip_parentheses_pub(source, walk);
         self.truthy_callable_helper(cond_expr2, cond_type, body)?;
         while self.kind_of(cond_expr2) == SyntaxKind::BinaryExpression {
-            let (left, operator_token, _) = self.binary_parts(cond_expr2)?;
+            let Some((left, operator_token, _)) = self.binary_parts(cond_expr2) else {
+                break;
+            };
             if !matches!(
                 self.operator_kind(operator_token),
                 SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
@@ -4275,8 +4176,12 @@ impl<'a> CheckerState<'a> {
         let source = self.binder.source_of_node(cond_expr2);
         let location = if node_util::is_logical_or_coalescing_binary_expression(source, cond_expr2)
         {
-            let (_, _, right) = self.binary_parts(cond_expr2)?;
-            node_util::skip_parentheses_pub(self.binder.source_of_node(right), right)
+            match self.binary_parts(cond_expr2) {
+                Some((_, _, right)) => {
+                    node_util::skip_parentheses_pub(self.binder.source_of_node(right), right)
+                }
+                None => return Ok(()),
+            }
         } else {
             cond_expr2
         };
@@ -4535,7 +4440,9 @@ impl<'a> CheckerState<'a> {
             if self.kind_of(node) != SyntaxKind::BinaryExpression {
                 break;
             }
-            let (_, operator_token, right) = self.binary_parts(node)?;
+            let Some((_, operator_token, right)) = self.binary_parts(node) else {
+                break;
+            };
             if self.operator_kind(operator_token) != SyntaxKind::AmpersandAmpersandToken {
                 break;
             }
@@ -4744,10 +4651,10 @@ impl<'a> CheckerState<'a> {
     ///
     /// Error paths live since 5.5f: the circularity arms report 1062
     /// at the caller's errorNode; the thenable tail reports the
-    /// caller's head message (1320/1058-family). tsc chains a 2684
-    /// this-context row plus the head into ONE message chain — the
-    /// chain TAIL is elided with the 5.4 head-only discipline (code
-    /// and span are the head's; only text depth differs, T2).
+    /// caller's head message (1320/1058-family). When
+    /// getPromisedTypeOfPromise rejected every `then` signature on
+    /// its explicit-this relation, tsc appends the 2684 this-context
+    /// row under that head in one message chain.
     pub(crate) fn get_awaited_type_no_alias(
         &mut self,
         ty: TypeId,
@@ -4818,12 +4725,24 @@ impl<'a> CheckerState<'a> {
         }
         if self.is_thenable_type(ty)? {
             if let Some((error_node, message)) = error_info {
-                // chainDiagnosticMessages([2684 this-context?], head):
-                // the head's code+span emit; the chain tail (incl. the
-                // 2684 row when thisTypeForError is set) is elided
-                // with the 5.4 head-only discipline.
-                let _ = this_type_for_error;
-                self.error_at(Some(error_node), message, &[]);
+                // getAwaitedTypeNoAlias 82485-82490:
+                // chainDiagnosticMessages first creates the optional
+                // 2684 detail, then prepends the caller's head.
+                let detail = match this_type_for_error {
+                    Some(this_type) => {
+                        let type_text = self.type_to_string_slice(ty)?;
+                        let this_text = self.type_to_string_slice(this_type)?;
+                        vec![tsrs2_diags::MessageChain::new(
+                            &tsrs2_diags::gen::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1,
+                            &[type_text, this_text],
+                        )]
+                    }
+                    None => Vec::new(),
+                };
+                let chain = tsrs2_diags::MessageChain::new(message, &[]).with_next(detail);
+                let span = self.diag_span_of_node(error_node);
+                let diagnostic = self.diagnostic_at_span(&span, chain);
+                self.push_error_diagnostic(diagnostic);
             }
             return Ok(None);
         }
@@ -5063,6 +4982,8 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
+    use tsrs2_binder::Binder;
+    use tsrs2_syntax::{parse_source_file, NodeData, NodeId, ParseOptions, SourceFile, SyntaxKind};
     use tsrs2_types::CompilerOptions;
 
     use crate::state::test_support::with_program_state;
@@ -5110,6 +5031,37 @@ mod tests {
         })
     }
 
+    /// Build the binder/checker after a test-only arena mutation. The
+    /// parser itself uses missing nodes for these recoveries, so an
+    /// absent required slot must be synthesized explicitly to pin the
+    /// checker-side containment contract.
+    fn with_synthetic_recovery_state<R>(
+        text: &str,
+        mutate: impl FnOnce(&mut SourceFile) -> Vec<NodeId>,
+        run: impl FnOnce(&mut CheckerState, &[NodeId]) -> R,
+    ) -> R {
+        let options = CompilerOptions::default();
+        let mut source = parse_source_file(
+            "a.ts".to_owned(),
+            text.to_owned(),
+            ParseOptions {
+                script_target: options.emit_script_target(),
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        assert!(
+            source.parse_diagnostics.is_empty(),
+            "synthetic recovery fixture must start from a valid sibling tree"
+        );
+        let nodes = mutate(&mut source);
+        let mut binder = Binder::with_bases(&source, &options, 1, 0);
+        binder.bind_source_file();
+        let mut state = CheckerState::new(&source, &binder, &options);
+        state.merge_module_augmentations();
+        run(&mut state, &nodes)
+    }
+
     fn rows(state: &CheckerState) -> Vec<(u32, u32, u32)> {
         state
             .diagnostics
@@ -5123,6 +5075,247 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    #[test]
+    fn synthetic_missing_operator_slots_are_error_typed_and_siblings_stay_valid() {
+        with_synthetic_recovery_state(
+            "1 + 2;\n3 + 4;\n-1;\n-2;\ntrue ? 1 : 2;\nfalse ? 3 : 4;\n",
+            |source| {
+                let binaries: Vec<_> = source
+                    .arena
+                    .node_ids()
+                    .filter(|&node| source.arena.node(node).kind == SyntaxKind::BinaryExpression)
+                    .collect();
+                let prefixes: Vec<_> = source
+                    .arena
+                    .node_ids()
+                    .filter(|&node| {
+                        source.arena.node(node).kind == SyntaxKind::PrefixUnaryExpression
+                    })
+                    .collect();
+                let conditionals: Vec<_> = source
+                    .arena
+                    .node_ids()
+                    .filter(|&node| {
+                        source.arena.node(node).kind == SyntaxKind::ConditionalExpression
+                    })
+                    .collect();
+                assert_eq!(binaries.len(), 2);
+                assert_eq!(prefixes.len(), 2);
+                assert_eq!(conditionals.len(), 2);
+                let NodeData::BinaryExpression(data) = &mut source.arena.node_mut(binaries[0]).data
+                else {
+                    unreachable!("selected by kind")
+                };
+                data.left = None;
+                let NodeData::PrefixUnaryExpression(data) =
+                    &mut source.arena.node_mut(prefixes[0]).data
+                else {
+                    unreachable!("selected by kind")
+                };
+                data.operand = None;
+                let NodeData::ConditionalExpression(data) =
+                    &mut source.arena.node_mut(conditionals[0]).data
+                else {
+                    unreachable!("selected by kind")
+                };
+                data.when_false = None;
+                vec![
+                    binaries[0],
+                    binaries[1],
+                    prefixes[0],
+                    prefixes[1],
+                    conditionals[0],
+                    conditionals[1],
+                ]
+            },
+            |state, nodes| {
+                let error = state.tables.intrinsics.error;
+                assert_eq!(
+                    state
+                        .check_binary_expression(nodes[0], tsrs2_types::CheckMode::NORMAL)
+                        .unwrap(),
+                    error
+                );
+                assert_ne!(
+                    state
+                        .check_binary_expression(nodes[1], tsrs2_types::CheckMode::NORMAL)
+                        .unwrap(),
+                    error
+                );
+                assert_eq!(
+                    state.check_prefix_unary_expression(nodes[2]).unwrap(),
+                    error
+                );
+                assert_ne!(
+                    state.check_prefix_unary_expression(nodes[3]).unwrap(),
+                    error
+                );
+                assert_eq!(
+                    state.get_syntactic_nullishness_semantics(nodes[4]).unwrap(),
+                    super::SEMANTICS_SOMETIMES
+                );
+                assert_eq!(
+                    state.get_syntactic_truthy_semantics(nodes[4]).unwrap(),
+                    super::SEMANTICS_SOMETIMES
+                );
+                assert_eq!(
+                    state
+                        .check_conditional_expression(nodes[4], tsrs2_types::CheckMode::NORMAL,)
+                        .unwrap(),
+                    error
+                );
+                assert_ne!(
+                    state
+                        .check_conditional_expression(nodes[5], tsrs2_types::CheckMode::NORMAL,)
+                        .unwrap(),
+                    error
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn synthetic_missing_assertion_and_template_slots_preserve_valid_siblings() {
+        with_synthetic_recovery_state(
+            "1 as number;\n\
+             2 as number;\n\
+             1 satisfies number;\n\
+             2 satisfies number;\n\
+             `a${1}b`;\n\
+             `c${2}d`;\n\
+             `e${3}f`;\n\
+             `g${4}h`;\n",
+            |source| {
+                let assertions: Vec<_> = source
+                    .arena
+                    .node_ids()
+                    .filter(|&node| source.arena.node(node).kind == SyntaxKind::AsExpression)
+                    .collect();
+                let satisfies: Vec<_> = source
+                    .arena
+                    .node_ids()
+                    .filter(|&node| source.arena.node(node).kind == SyntaxKind::SatisfiesExpression)
+                    .collect();
+                let templates: Vec<_> = source
+                    .arena
+                    .node_ids()
+                    .filter(|&node| source.arena.node(node).kind == SyntaxKind::TemplateExpression)
+                    .collect();
+                let spans: Vec<_> = source
+                    .arena
+                    .node_ids()
+                    .filter(|&node| source.arena.node(node).kind == SyntaxKind::TemplateSpan)
+                    .collect();
+                assert_eq!(assertions.len(), 2);
+                assert_eq!(satisfies.len(), 2);
+                assert_eq!(templates.len(), 4);
+                assert_eq!(spans.len(), 4);
+                let NodeData::AsExpression(data) = &mut source.arena.node_mut(assertions[0]).data
+                else {
+                    unreachable!("selected by kind")
+                };
+                data.expression = None;
+                let NodeData::SatisfiesExpression(data) =
+                    &mut source.arena.node_mut(satisfies[0]).data
+                else {
+                    unreachable!("selected by kind")
+                };
+                data.r#type = None;
+                let NodeData::TemplateExpression(data) =
+                    &mut source.arena.node_mut(templates[0]).data
+                else {
+                    unreachable!("selected by kind")
+                };
+                data.head = None;
+                let NodeData::TemplateSpan(data) = &mut source.arena.node_mut(spans[1]).data else {
+                    unreachable!("selected by kind")
+                };
+                data.expression = None;
+                let NodeData::TemplateSpan(data) = &mut source.arena.node_mut(spans[2]).data else {
+                    unreachable!("selected by kind")
+                };
+                data.literal = None;
+                vec![
+                    assertions[0],
+                    assertions[1],
+                    satisfies[0],
+                    satisfies[1],
+                    templates[0],
+                    templates[1],
+                    templates[2],
+                    templates[3],
+                ]
+            },
+            |state, nodes| {
+                let error = state.tables.intrinsics.error;
+                assert_eq!(
+                    state
+                        .check_assertion(nodes[0], tsrs2_types::CheckMode::NORMAL)
+                        .unwrap(),
+                    error
+                );
+                assert_ne!(
+                    state
+                        .check_assertion(nodes[1], tsrs2_types::CheckMode::NORMAL)
+                        .unwrap(),
+                    error
+                );
+                assert_eq!(state.check_satisfies_expression(nodes[2]).unwrap(), error);
+                assert_ne!(state.check_satisfies_expression(nodes[3]).unwrap(), error);
+                for &template in &nodes[4..7] {
+                    assert_eq!(state.check_template_expression(template).unwrap(), error);
+                }
+                assert_ne!(state.check_template_expression(nodes[7]).unwrap(), error);
+            },
+        );
+    }
+
+    #[test]
+    fn awaited_thenable_with_incompatible_this_appends_2684_detail() {
+        let text = "interface EPromise<E, A> {\n\
+                        e: E;\n\
+                        then<B>(this: EPromise<never, A>, onfulfilled?: (value: A) => B): B;\n\
+                    }\n\
+                    declare const value: EPromise<number, string>;\n\
+                    async function f() { await value; }\n";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 1320)
+                .expect("invalid await operand");
+            assert_eq!(
+                diagnostic.message.text,
+                "Type of 'await' operand must either be a valid promise or must not contain a callable 'then' member."
+            );
+            assert_eq!(diagnostic.message.next.len(), 1);
+            assert_eq!(diagnostic.message.next[0].code, 2684);
+            assert_eq!(
+                diagnostic.message.next[0].text,
+                "The 'this' context of type 'EPromise<number, string>' is not assignable to method's 'this' of type 'EPromise<never, string>'."
+            );
+            assert!(diagnostic.message.next[0].next.is_empty());
+            assert!(diagnostic.related.is_empty());
+        });
+    }
+
+    #[test]
+    fn awaited_thenable_without_this_rejection_keeps_1320_head_only() {
+        let text = "declare const value: { then(onfulfilled: number): void };\n\
+                    async function f() { await value; }\n";
+        with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+            state.check_source_file(0);
+            let diagnostic = state
+                .diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code() == 1320)
+                .expect("invalid await operand");
+            assert!(diagnostic.message.next.is_empty());
+            assert!(diagnostic.related.is_empty());
+        });
     }
 
     // ---- arithmetic / + / relational / equality arms ----
@@ -5181,6 +5374,31 @@ mod tests {
             checked_rows("declare let ln: number;\ndeclare const s0: string;\nln = s0;\n"),
             [(2322, 50, 2)]
         );
+    }
+
+    #[test]
+    fn cross_file_js_expando_assignment_uses_the_merged_symbol() {
+        let rows = with_program_state(
+            &[
+                ("file1.js", "var N = {};\nN.commands = {};\n"),
+                (
+                    "file2.js",
+                    "N.commands.a = 111;\nN.commands.b = function () {};\n",
+                ),
+            ],
+            &CompilerOptions {
+                allow_js: true,
+                check_js: Some(true),
+                strict: Some(false),
+                ..CompilerOptions::default()
+            },
+            |state| {
+                state.check_source_file(0);
+                state.check_source_file(1);
+                rows(state)
+            },
+        );
+        assert_eq!(rows, []);
     }
 
     #[test]

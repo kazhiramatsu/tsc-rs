@@ -23,14 +23,34 @@
 //! diagnostics.add dedupes the exact duplicate away), so one explicit
 //! add is byte-equivalent.
 
-use tsrs2_diags::{gen as diagnostics, Diagnostic, RelatedInfo};
+use tsrs2_diags::{gen as diagnostics, Diagnostic, MessageChain, RelatedInfo};
 use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
 use tsrs2_types::{
     IterationTypeKind, IterationUse, ScriptTarget, SymbolFlags, TypeFacts, TypeFlags, TypeId,
     UnionReduction,
 };
 
-use crate::state::{CheckResult2, CheckerState, Unsupported};
+use crate::calls::DiagSpan;
+use crate::state::{CheckResult2, CheckerState};
+
+/// Diagnostics in tsc's iteration walk are anchored on an errorNode.
+/// Effective tuple-spread arguments use a SyntheticExpression there;
+/// the Rust arena deliberately does not fabricate that node, so its
+/// setTextRange location is carried as an explicit span instead.
+#[derive(Clone, Copy, Debug)]
+enum IterationErrorTarget<'a> {
+    Node(NodeId),
+    Span(&'a DiagSpan),
+}
+
+impl IterationErrorTarget<'_> {
+    fn node(self) -> Option<NodeId> {
+        match self {
+            Self::Node(node) => Some(node),
+            Self::Span(_) => None,
+        }
+    }
+}
 
 /// tsc IterationTypes triple (the non-poison shape). Copy value
 /// semantics; see the module note on the interning deviation.
@@ -166,6 +186,80 @@ fn related_info_from_diagnostic(diagnostic: &Diagnostic) -> RelatedInfo {
 }
 
 impl<'a> CheckerState<'a> {
+    fn create_iteration_error(
+        &self,
+        target: IterationErrorTarget<'_>,
+        message: &'static tsrs2_diags::DiagnosticMessage,
+        args: &[&str],
+    ) -> Diagnostic {
+        match target {
+            IterationErrorTarget::Node(node) => self.create_error(Some(node), message, args),
+            IterationErrorTarget::Span(span) => {
+                let args = args
+                    .iter()
+                    .map(|argument| (*argument).to_owned())
+                    .collect::<Vec<_>>();
+                self.diagnostic_at_span(span, MessageChain::new(message, &args))
+            }
+        }
+    }
+
+    fn error_and_maybe_suggest_await_at_iteration_target(
+        &mut self,
+        target: IterationErrorTarget<'_>,
+        maybe_missing_await: bool,
+        message: &'static tsrs2_diags::DiagnosticMessage,
+        args: &[&str],
+    ) -> usize {
+        if let IterationErrorTarget::Node(node) = target {
+            return self.error_and_maybe_suggest_await(node, maybe_missing_await, message, args);
+        }
+        let mut diagnostic = self.create_iteration_error(target, message, args);
+        if maybe_missing_await {
+            let related =
+                self.create_iteration_error(target, &diagnostics::Did_you_forget_to_use_await, &[]);
+            diagnostic
+                .related
+                .push(related_info_from_diagnostic(&related));
+        }
+        self.push_error_diagnostic(diagnostic)
+    }
+
+    fn check_type_assignable_to_at_iteration_target(
+        &mut self,
+        source: TypeId,
+        target_type: TypeId,
+        target: Option<IterationErrorTarget<'_>>,
+        head_message: &'static tsrs2_diags::DiagnosticMessage,
+    ) -> CheckResult2<bool> {
+        match target {
+            Some(IterationErrorTarget::Node(node)) => {
+                self.check_type_assignable_to(source, target_type, Some(node), head_message)
+            }
+            Some(IterationErrorTarget::Span(span)) => {
+                let related = self.is_type_assignable_to(source, target_type)?;
+                if !related {
+                    let diagnostic = if std::ptr::eq(
+                        head_message,
+                        &diagnostics::Type_0_is_not_assignable_to_type_1,
+                    ) {
+                        self.build_relation_error_without_head(source, target_type, span)?
+                    } else {
+                        self.build_relation_error_with_head(
+                            source,
+                            target_type,
+                            span,
+                            head_message,
+                        )?
+                    };
+                    self.push_error_diagnostic(diagnostic);
+                }
+                Ok(related)
+            }
+            None => self.check_type_assignable_to(source, target_type, None, head_message),
+        }
+    }
+
     /// tsc-port: getBuiltinIteratorReturnType @6.0.3
     /// tsc-hash: 35680cc5c91b52cf0674aa86001a96d335d4274f01a92592b28ca2e98bf4474a
     /// tsc-span: _tsc.js:60844-60846
@@ -426,11 +520,46 @@ impl<'a> CheckerState<'a> {
         if self.is_type_any(input_type) {
             return Ok(input_type);
         }
-        Ok(self
-            .get_iterated_type_or_element_type(
-                use_, input_type, sent_type, error_node, /*check_assignability*/ true,
-            )?
-            .unwrap_or(self.tables.intrinsics.any))
+        let target = error_node.map(IterationErrorTarget::Node);
+        let capture = error_node
+            .is_some()
+            .then(|| self.begin_tsc_eager_iteration_diagnostic_capture());
+        let result = self.get_iterated_type_or_element_type_at_target(
+            use_, input_type, sent_type, target, /*check_assignability*/ true,
+        );
+        if let Some(capture) = capture {
+            self.end_tsc_eager_iteration_diagnostic_capture(capture);
+        }
+        Ok(result?.unwrap_or(self.tables.intrinsics.any))
+    }
+
+    /// SyntheticExpression-location twin of
+    /// checkIteratedTypeOrElementType. The semantic walk is identical;
+    /// only createDiagnosticForNode consumes the carried setTextRange
+    /// span instead of an arena NodeId.
+    /// tsrs-native: DiagSpan entry adapter for tsc's fabricated
+    /// SyntheticExpression errorNode, which the Rust arena does not
+    /// allocate.
+    pub(crate) fn check_iterated_type_or_element_type_at_span(
+        &mut self,
+        use_: IterationUse,
+        input_type: TypeId,
+        sent_type: TypeId,
+        span: &DiagSpan,
+    ) -> CheckResult2<TypeId> {
+        if self.is_type_any(input_type) {
+            return Ok(input_type);
+        }
+        let capture = self.begin_tsc_eager_iteration_diagnostic_capture();
+        let result = self.get_iterated_type_or_element_type_at_target(
+            use_,
+            input_type,
+            sent_type,
+            Some(IterationErrorTarget::Span(span)),
+            /*check_assignability*/ true,
+        );
+        self.end_tsc_eager_iteration_diagnostic_capture(capture);
+        Ok(result?.unwrap_or(self.tables.intrinsics.any))
     }
 
     /// tsc-port: getIteratedTypeOrElementType @6.0.3
@@ -444,10 +573,39 @@ impl<'a> CheckerState<'a> {
         error_node: Option<NodeId>,
         check_assignability: bool,
     ) -> CheckResult2<Option<TypeId>> {
+        let target = error_node.map(IterationErrorTarget::Node);
+        let capture = error_node
+            .is_some()
+            .then(|| self.begin_tsc_eager_iteration_diagnostic_capture());
+        let result = self.get_iterated_type_or_element_type_at_target(
+            use_,
+            input_type,
+            sent_type,
+            target,
+            check_assignability,
+        );
+        if let Some(capture) = capture {
+            self.end_tsc_eager_iteration_diagnostic_capture(capture);
+        }
+        result
+    }
+
+    fn get_iterated_type_or_element_type_at_target(
+        &mut self,
+        use_: IterationUse,
+        input_type: TypeId,
+        sent_type: TypeId,
+        error_target: Option<IterationErrorTarget<'_>>,
+        check_assignability: bool,
+    ) -> CheckResult2<Option<TypeId>> {
         let allow_async_iterables = use_.intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG);
         if input_type == self.tables.intrinsics.never {
-            if let Some(error_node) = error_node {
-                self.report_type_not_iterable_error(error_node, input_type, allow_async_iterables)?;
+            if let Some(error_target) = error_target {
+                self.report_type_not_iterable_error(
+                    error_target,
+                    input_type,
+                    allow_async_iterables,
+                )?;
             }
             return Ok(None);
         }
@@ -460,10 +618,14 @@ impl<'a> CheckerState<'a> {
         let possible_out_of_bounds = self.options.no_unchecked_indexed_access.unwrap_or(false)
             && use_.intersects(IterationUse::POSSIBLY_OUT_OF_BOUNDS);
         if uplevel_iteration || downlevel_iteration || allow_async_iterables {
-            let iteration_types = self.get_iteration_types_of_iterable(
+            let iteration_types = self.get_iteration_types_of_iterable_at_target(
                 input_type,
                 use_,
-                if uplevel_iteration { error_node } else { None },
+                if uplevel_iteration {
+                    error_target
+                } else {
+                    None
+                },
             )?;
             if check_assignability {
                 if let Some(iteration_types) = iteration_types {
@@ -479,10 +641,10 @@ impl<'a> CheckerState<'a> {
                         None
                     };
                     if let Some(diagnostic) = diagnostic {
-                        self.check_type_assignable_to(
+                        self.check_type_assignable_to_at_iteration_target(
                             sent_type,
                             iteration_types.next_type,
-                            error_node,
+                            error_target,
                             diagnostic,
                         )?;
                     }
@@ -541,17 +703,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         if !self.is_array_like_type(array_type)? {
-            if let Some(error_node) = error_node {
-                // 6.6f family: flag-exact containment for the
-                // iteration face — the iterated operand may fail only
-                // because its flow answer seam-reverted to the
-                // declared type.
-                if self.flow_answer_is_seam_reverted_in_composite(error_node) {
-                    return Err(Unsupported::new(
-                        "iteration face over a seam-reverted flow answer \
-                         (unported narrowing dependency, M6/M8 seam)",
-                    ));
-                }
+            if let Some(error_target) = error_target {
                 let allows_strings = use_.intersects(IterationUse::ALLOWS_STRING_INPUT_FLAG)
                     && !has_string_constituent;
                 let (default_diagnostic, maybe_missing_await) = self
@@ -564,8 +716,8 @@ impl<'a> CheckerState<'a> {
                 let suggest_await =
                     maybe_missing_await && self.get_awaited_type_of_promise(array_type)?.is_some();
                 let display = self.type_to_string_slice(array_type)?;
-                self.error_and_maybe_suggest_await(
-                    error_node,
+                self.error_and_maybe_suggest_await_at_iteration_target(
+                    error_target,
                     suggest_await,
                     default_diagnostic,
                     &[&display],
@@ -713,21 +865,42 @@ impl<'a> CheckerState<'a> {
         use_: IterationUse,
         error_node: Option<NodeId>,
     ) -> CheckResult2<Option<IterationTypes>> {
+        let target = error_node.map(IterationErrorTarget::Node);
+        let capture = error_node
+            .is_some()
+            .then(|| self.begin_tsc_eager_iteration_diagnostic_capture());
+        let result = self.get_iteration_types_of_iterable_at_target(ty, use_, target);
+        if let Some(capture) = capture {
+            self.end_tsc_eager_iteration_diagnostic_capture(capture);
+        }
+        result
+    }
+
+    fn get_iteration_types_of_iterable_at_target(
+        &mut self,
+        ty: TypeId,
+        use_: IterationUse,
+        error_target: Option<IterationErrorTarget<'_>>,
+    ) -> CheckResult2<Option<IterationTypes>> {
         let ty = self.get_reduced_type(ty)?;
         if self.is_type_any(ty) {
             return Ok(Some(self.any_iteration_types()));
         }
         if !self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
-            let mut container = error_node.map(|_| IterationErrorContainer {
+            let mut container = error_target.map(|_| IterationErrorContainer {
                 errors: Vec::new(),
                 skip_logging: true,
             });
-            let iteration_types =
-                self.get_iteration_types_of_iterable_worker(ty, use_, error_node, &mut container)?;
+            let iteration_types = self.get_iteration_types_of_iterable_worker(
+                ty,
+                use_,
+                error_target,
+                &mut container,
+            )?;
             if iteration_types == IterationTypesResult::No {
-                if let Some(error_node) = error_node {
+                if let Some(error_target) = error_target {
                     let root_index = self.report_type_not_iterable_error(
-                        error_node,
+                        error_target,
                         ty,
                         use_.intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG),
                     )?;
@@ -765,20 +938,20 @@ impl<'a> CheckerState<'a> {
         };
         let mut all_iteration_types: Vec<Option<IterationTypesResult>> = Vec::new();
         for constituent in constituents {
-            let mut container = error_node.map(|_| IterationErrorContainer {
+            let mut container = error_target.map(|_| IterationErrorContainer {
                 errors: Vec::new(),
                 skip_logging: false,
             });
             let iteration_types = self.get_iteration_types_of_iterable_worker(
                 constituent,
                 use_,
-                error_node,
+                error_target,
                 &mut container,
             )?;
             if iteration_types == IterationTypesResult::No {
-                if let Some(error_node) = error_node {
+                if let Some(error_target) = error_target {
                     let root_index = self.report_type_not_iterable_error(
-                        error_node,
+                        error_target,
                         ty,
                         use_.intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG),
                     )?;
@@ -825,7 +998,7 @@ impl<'a> CheckerState<'a> {
     fn get_async_from_sync_iteration_types(
         &mut self,
         iteration_types: IterationTypesResult,
-        error_node: Option<NodeId>,
+        error_target: Option<IterationErrorTarget<'_>>,
     ) -> CheckResult2<IterationTypesResult> {
         let types = match iteration_types {
             IterationTypesResult::No => return Ok(IterationTypesResult::No),
@@ -834,12 +1007,16 @@ impl<'a> CheckerState<'a> {
         if types == self.any_iteration_types() {
             return Ok(iteration_types);
         }
-        if error_node.is_some() {
+        if error_target.is_some() {
             // The reportErrors=true Awaited-symbol probe (84118-84121)
             // burns/dedupes the global lookup exactly once.
             self.get_global_awaited_symbol(/*report_errors*/ true)?;
         }
         let any = self.tables.intrinsics.any;
+        // Span targets currently arise only from synchronous spread
+        // iteration. Async consumers still carry their real AST node
+        // into getAwaitedType's own diagnostic path.
+        let error_node = error_target.and_then(IterationErrorTarget::node);
         let awaited_yield = self
             .get_awaited_type_with_error(
                 types.yield_type,
@@ -866,7 +1043,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         use_: IterationUse,
-        error_node: Option<NodeId>,
+        error_target: Option<IterationErrorTarget<'_>>,
         container: &mut Option<IterationErrorContainer>,
     ) -> CheckResult2<IterationTypesResult> {
         if self.is_type_any(ty) {
@@ -881,12 +1058,12 @@ impl<'a> CheckerState<'a> {
                 None => self.get_iteration_types_of_iterable_fast(ty, IterResolver::Async)?,
             };
             if let Some(found) = iteration_types {
-                if found == IterationTypesResult::No && error_node.is_some() {
+                if found == IterationTypesResult::No && error_target.is_some() {
                     no_cache = true;
                 } else {
                     return if use_.intersects(IterationUse::FOR_OF_FLAG) {
                         // for-await over an async iterable re-awaits.
-                        self.get_async_from_sync_iteration_types(found, error_node)
+                        self.get_async_from_sync_iteration_types(found, error_target)
                     } else {
                         Ok(found)
                     };
@@ -895,7 +1072,7 @@ impl<'a> CheckerState<'a> {
             iteration_types = Some(self.get_iteration_types_of_iterable_slow(
                 ty,
                 IterResolver::Async,
-                error_node,
+                error_target,
                 container,
                 no_cache,
             )?);
@@ -911,12 +1088,12 @@ impl<'a> CheckerState<'a> {
                 None => self.get_iteration_types_of_iterable_fast(ty, IterResolver::Sync)?,
             };
             if let Some(found) = iteration_types {
-                if found == IterationTypesResult::No && error_node.is_some() {
+                if found == IterationTypesResult::No && error_target.is_some() {
                     no_cache = true;
                 } else if use_.intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG) {
                     if found != IterationTypesResult::No {
                         let async_types =
-                            self.get_async_from_sync_iteration_types(found, error_node)?;
+                            self.get_async_from_sync_iteration_types(found, error_target)?;
                         return Ok(if no_cache {
                             async_types
                         } else {
@@ -934,7 +1111,7 @@ impl<'a> CheckerState<'a> {
             iteration_types = Some(self.get_iteration_types_of_iterable_slow(
                 ty,
                 IterResolver::Sync,
-                error_node,
+                error_target,
                 container,
                 no_cache,
             )?);
@@ -942,7 +1119,7 @@ impl<'a> CheckerState<'a> {
                 let found = iteration_types.expect("just assigned");
                 if use_.intersects(IterationUse::ALLOWS_ASYNC_ITERABLES_FLAG) {
                     let async_types =
-                        self.get_async_from_sync_iteration_types(found, error_node)?;
+                        self.get_async_from_sync_iteration_types(found, error_target)?;
                     return Ok(if no_cache {
                         async_types
                     } else {
@@ -1029,7 +1206,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         resolver: IterResolver,
-        error_node: Option<NodeId>,
+        error_target: Option<IterationErrorTarget<'_>>,
         container: &mut Option<IterationErrorContainer>,
         no_cache: bool,
     ) -> CheckResult2<IterationTypesResult> {
@@ -1069,7 +1246,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         if valid_signatures.is_empty() {
-            if let Some(error_node) = error_node {
+            if let Some(error_target) = error_target {
                 if !all_signatures.is_empty() {
                     let global_iterable = self.resolver_global_iterable_type(resolver, true)?;
                     // Collect-only container discipline (module note):
@@ -1078,10 +1255,10 @@ impl<'a> CheckerState<'a> {
                     let verdict = self.is_type_assignable_to(ty, global_iterable)?;
                     if !verdict {
                         let (_, collected) = self.with_collected_diagnostics(|state| {
-                            state.check_type_assignable_to(
+                            state.check_type_assignable_to_at_iteration_target(
                                 ty,
                                 global_iterable,
-                                Some(error_node),
+                                Some(error_target),
                                 &diagnostics::Type_0_is_not_assignable_to_type_1,
                             )
                         })?;
@@ -1123,7 +1300,7 @@ impl<'a> CheckerState<'a> {
             .get_iteration_types_of_iterator_worker(
                 iterator_type,
                 resolver,
-                error_node,
+                error_target,
                 container,
                 no_cache,
             )?
@@ -1144,19 +1321,10 @@ impl<'a> CheckerState<'a> {
     /// container rows as related info).
     fn report_type_not_iterable_error(
         &mut self,
-        error_node: NodeId,
+        error_target: IterationErrorTarget<'_>,
         ty: TypeId,
         allow_async_iterables: bool,
     ) -> CheckResult2<usize> {
-        // 6.6f family: flag-exact containment for the not-iterable
-        // face — the operand may fail only because its flow answer
-        // seam-reverted to the declared type.
-        if self.flow_answer_is_seam_reverted_in_composite(error_node) {
-            return Err(Unsupported::new(
-                "not-iterable face over a seam-reverted flow answer \
-                 (unported narrowing dependency, M6/M8 seam)",
-            ));
-        }
         let message = if allow_async_iterables {
             &diagnostics::Type_0_must_have_a_Symbol_asyncIterator_method_that_returns_an_async_iterator
         } else {
@@ -1164,13 +1332,15 @@ impl<'a> CheckerState<'a> {
         };
         let mut suggest_await = self.get_awaited_type_of_promise(ty)?.is_some();
         if !suggest_await && !allow_async_iterables {
-            let parent = self.parent_of(error_node);
-            let is_for_of_expression = parent.is_some_and(|parent| {
-                self.kind_of(parent) == SyntaxKind::ForOfStatement
-                    && matches!(
-                        self.data_of(parent),
-                        NodeData::ForOfStatement(data) if data.expression == Some(error_node)
-                    )
+            let is_for_of_expression = error_target.node().is_some_and(|error_node| {
+                let parent = self.parent_of(error_node);
+                parent.is_some_and(|parent| {
+                    self.kind_of(parent) == SyntaxKind::ForOfStatement
+                        && matches!(
+                            self.data_of(parent),
+                            NodeData::ForOfStatement(data) if data.expression == Some(error_node)
+                        )
+                })
             });
             if is_for_of_expression {
                 let global_async_iterable = self.get_global_async_iterable_type(false)?;
@@ -1185,7 +1355,12 @@ impl<'a> CheckerState<'a> {
             }
         }
         let display = self.type_to_string_slice(ty)?;
-        Ok(self.error_and_maybe_suggest_await(error_node, suggest_await, message, &[&display]))
+        Ok(self.error_and_maybe_suggest_await_at_iteration_target(
+            error_target,
+            suggest_await,
+            message,
+            &[&display],
+        ))
     }
 
     // ---- iterator side ----
@@ -1200,9 +1375,21 @@ impl<'a> CheckerState<'a> {
         error_node: Option<NodeId>,
         container: &mut Option<IterationErrorContainer>,
     ) -> CheckResult2<Option<IterationTypes>> {
-        self.get_iteration_types_of_iterator_worker(
-            ty, resolver, error_node, container, /*no_cache*/ false,
-        )
+        let error_target = error_node.map(IterationErrorTarget::Node);
+        let capture = error_node
+            .is_some()
+            .then(|| self.begin_tsc_eager_iteration_diagnostic_capture());
+        let result = self.get_iteration_types_of_iterator_worker(
+            ty,
+            resolver,
+            error_target,
+            container,
+            /*no_cache*/ false,
+        );
+        if let Some(capture) = capture {
+            self.end_tsc_eager_iteration_diagnostic_capture(capture);
+        }
+        result
     }
 
     /// tsc-port: getIterationTypesOfIteratorWorker @6.0.3
@@ -1212,7 +1399,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         resolver: IterResolver,
-        error_node: Option<NodeId>,
+        error_target: Option<IterationErrorTarget<'_>>,
         container: &mut Option<IterationErrorContainer>,
         no_cache: bool,
     ) -> CheckResult2<Option<IterationTypes>> {
@@ -1225,14 +1412,18 @@ impl<'a> CheckerState<'a> {
                 Some(cached) => Some(cached),
                 None => self.get_iteration_types_of_iterator_fast(ty, resolver)?,
             };
-        if iteration_types == Some(IterationTypesResult::No) && error_node.is_some() {
+        if iteration_types == Some(IterationTypesResult::No) && error_target.is_some() {
             iteration_types = None;
             no_cache = true;
         }
         let iteration_types = match iteration_types {
             Some(found) => found,
             None => self.get_iteration_types_of_iterator_slow(
-                ty, resolver, error_node, container, no_cache,
+                ty,
+                resolver,
+                error_target,
+                container,
+                no_cache,
             )?,
         };
         Ok(iteration_types.types())
@@ -1294,16 +1485,16 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: TypeId,
         resolver: IterResolver,
-        error_node: Option<NodeId>,
+        error_target: Option<IterationErrorTarget<'_>>,
         container: &mut Option<IterationErrorContainer>,
         no_cache: bool,
     ) -> CheckResult2<IterationTypesResult> {
         let next =
-            self.get_iteration_types_of_method(ty, resolver, "next", error_node, container)?;
+            self.get_iteration_types_of_method(ty, resolver, "next", error_target, container)?;
         let return_ =
-            self.get_iteration_types_of_method(ty, resolver, "return", error_node, container)?;
+            self.get_iteration_types_of_method(ty, resolver, "return", error_target, container)?;
         let throw =
-            self.get_iteration_types_of_method(ty, resolver, "throw", error_node, container)?;
+            self.get_iteration_types_of_method(ty, resolver, "throw", error_target, container)?;
         let iteration_types = self.combine_iteration_types(&[next, return_, throw])?;
         Ok(if no_cache {
             iteration_types
@@ -1416,7 +1607,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         resolver: IterResolver,
         method_name: &str,
-        error_node: Option<NodeId>,
+        error_target: Option<IterationErrorTarget<'_>>,
         container: &mut Option<IterationErrorContainer>,
     ) -> CheckResult2<Option<IterationTypesResult>> {
         let method = self.get_property_of_type_full(ty, method_name)?;
@@ -1453,13 +1644,13 @@ impl<'a> CheckerState<'a> {
             None => Vec::new(),
         };
         if method_signatures.is_empty() {
-            if let Some(error_node) = error_node {
+            if let Some(error_target) = error_target {
                 let diagnostic = if method_name == "next" {
                     resolver.must_have_a_next_method_diagnostic()
                 } else {
                     resolver.must_be_a_method_diagnostic()
                 };
-                let built = self.create_error(Some(error_node), diagnostic, &[method_name]);
+                let built = self.create_iteration_error(error_target, diagnostic, &[method_name]);
                 match container {
                     Some(container) => container.errors.push(built),
                     None => {
@@ -1545,6 +1736,7 @@ impl<'a> CheckerState<'a> {
         }
         let mut return_types: Vec<TypeId> = Vec::new();
         let mut next_type: Option<TypeId> = None;
+        let error_node = error_target.and_then(IterationErrorTarget::node);
         if method_name != "throw" {
             let method_parameter_type = if method_parameter_types.is_empty() {
                 self.tables.intrinsics.unknown
@@ -1575,9 +1767,9 @@ impl<'a> CheckerState<'a> {
             self.get_iteration_types_of_iterator_result(resolved_method_return_type)?;
         let yield_type = match iteration_types {
             IterationTypesResult::No => {
-                if let Some(error_node) = error_node {
-                    let built = self.create_error(
-                        Some(error_node),
+                if let Some(error_target) = error_target {
+                    let built = self.create_iteration_error(
+                        error_target,
                         resolver.must_have_a_value_diagnostic(),
                         &[method_name],
                     );
@@ -1656,36 +1848,45 @@ impl<'a> CheckerState<'a> {
         function_flags: u32,
         error_node: Option<NodeId>,
     ) -> CheckResult2<bool> {
-        let is_async = function_flags & crate::functions::FUNCTION_FLAGS_ASYNC != 0;
-        let yield_type = self
-            .get_iteration_type_of_generator_function_return_type(
-                IterationTypeKind::YIELD,
+        let capture = error_node
+            .is_some()
+            .then(|| self.begin_tsc_eager_iteration_diagnostic_capture());
+        let result = (|| {
+            let is_async = function_flags & crate::functions::FUNCTION_FLAGS_ASYNC != 0;
+            let yield_type = self
+                .get_iteration_type_of_generator_function_return_type(
+                    IterationTypeKind::YIELD,
+                    return_type,
+                    is_async,
+                )?
+                .unwrap_or(self.tables.intrinsics.any);
+            let generator_return_type = self
+                .get_iteration_type_of_generator_function_return_type(
+                    IterationTypeKind::RETURN,
+                    return_type,
+                    is_async,
+                )?
+                .unwrap_or(yield_type);
+            let next_type = self
+                .get_iteration_type_of_generator_function_return_type(
+                    IterationTypeKind::NEXT,
+                    return_type,
+                    is_async,
+                )?
+                .unwrap_or(self.tables.intrinsics.unknown);
+            let generator_instantiation =
+                self.create_generator_type(yield_type, generator_return_type, next_type, is_async)?;
+            self.check_type_assignable_to(
+                generator_instantiation,
                 return_type,
-                is_async,
-            )?
-            .unwrap_or(self.tables.intrinsics.any);
-        let generator_return_type = self
-            .get_iteration_type_of_generator_function_return_type(
-                IterationTypeKind::RETURN,
-                return_type,
-                is_async,
-            )?
-            .unwrap_or(yield_type);
-        let next_type = self
-            .get_iteration_type_of_generator_function_return_type(
-                IterationTypeKind::NEXT,
-                return_type,
-                is_async,
-            )?
-            .unwrap_or(self.tables.intrinsics.unknown);
-        let generator_instantiation =
-            self.create_generator_type(yield_type, generator_return_type, next_type, is_async)?;
-        self.check_type_assignable_to(
-            generator_instantiation,
-            return_type,
-            error_node,
-            &diagnostics::Type_0_is_not_assignable_to_type_1,
-        )
+                error_node,
+                &diagnostics::Type_0_is_not_assignable_to_type_1,
+            )
+        })();
+        if let Some(capture) = capture {
+            self.end_tsc_eager_iteration_diagnostic_capture(capture);
+        }
+        result
     }
 
     // ---- generator return-type readers ----

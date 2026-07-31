@@ -20,6 +20,7 @@ pub mod families;
 pub mod goldens_diff;
 mod identity;
 pub mod ratchet;
+mod rendered;
 mod scope;
 mod shadow_diff;
 
@@ -28,6 +29,10 @@ pub use families::{
     verify_report_freshness as families_verify_report,
 };
 pub use identity::ExactIdentity;
+pub use rendered::{
+    check_or_extend_rendered_hashes, run_t4_report, RenderHashMode, RenderHashSummary,
+    T4CaseReport, T4Report, T4ReportOptions,
+};
 pub use scope::audit as scope_audit;
 use scope::ScopeManifest;
 pub use shadow_diff::{
@@ -171,9 +176,30 @@ pub struct GoldenFile {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GoldenCase {
     pub matrix_key: String,
+    /// Legacy schema-2 goldens always serialized this empty tsrs side.
+    /// Schema 3 is oracle-only and omits it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tsrs: Vec<GoldenDiag>,
     pub oracle: Vec<GoldenDiag>,
+    /// Schema-3 formatter-only metadata. Each entry is an index into
+    /// `oracle` whose genuine tsc diagnostic carried a truthy but empty
+    /// `relatedInformation` array. Schema-2's structured diagnostic
+    /// records deliberately collapsed that state with `undefined`, so
+    /// keep the sparse presence data beside (not inside) `oracle`: the
+    /// A3 extension must leave every pre-existing oracle JSON byte and
+    /// its `oracle_sha256` unchanged.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub oracle_empty_related_information: Vec<usize>,
+    /// Schema-2 compatibility only: the old value is an FNV hash of
+    /// serialized diagnostic JSON and MUST NOT be interpreted as T4.
+    /// Schema 3 omits the field; conformance computes the current tsrs
+    /// rendered SHA-256 in memory.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub tsrs_cli_hash: String,
+    /// Schema 2: legacy JSON/FNV placeholder. Schema >=3: lowercase
+    /// SHA-256 of the normalized UTF-8 bytes produced by the vendored
+    /// TS 6.0.3 context formatter (ANSI removed, LF fixed).
+    #[serde(default)]
     pub oracle_cli_hash: String,
 }
 
@@ -261,26 +287,28 @@ pub struct ConformanceSummary {
     pub tsrs_diagnostics: usize,
     pub matched_t0_diagnostics: usize,
     pub t0_rate: f64,
-    /// Shadow tiers (NON-GATING — greenfield §7.4; measured from
-    /// pre-5.8a per the external review, ratchets stay T0-only until
-    /// M8): of the T0-matched pairs, how many also match category
-    /// (T1), exact span + top message text (T2), and the full chain
-    /// + relatedInformation (T3). Nested: t3 ≤ t2 ≤ t1 ≤ t0.
+    /// Tier metrics. These began as pre-5.8a report-only shadow
+    /// observations; after M8's one-time A1 activation the identical
+    /// complete-multiset bucket identities are accepted-set gates.
+    /// Of the T0-matched buckets, these counts match category (T1),
+    /// exact span + top message text (T2), and the full chain +
+    /// relatedInformation (T3). Nested: t3 ≤ t2 ≤ t1 ≤ t0.
     pub shadow_t1_matched: usize,
     pub shadow_t2_matched: usize,
     pub shadow_t3_matched: usize,
     pub shadow_t1_rate: f64,
     pub shadow_t2_rate: f64,
     pub shadow_t3_rate: f64,
-    /// Exact report-only identities for the all-corpus shadow tiers.
-    /// This observation is not an accepted-state or ratchet artifact.
+    /// Exact observation identities for the all-corpus tiers. The
+    /// report remains evidence-only; A1 independently persists the
+    /// same per-case bucket sets as the active authority.
     pub shadow_tier_identities: ShadowTierObservation,
     pub exact_match_cases: usize,
     pub mismatch_cases: usize,
     pub false_positive_diagnostics: usize,
     pub false_negative_diagnostics: usize,
     /// Oracle-only rows inside a source range where the checker
-    /// actually reached a named Unsupported/partial-check boundary.
+    /// actually reached an explicit partial-check boundary.
     /// This is evidence that a blocking semantic condition was reached,
     /// not proof that the diagnostic's code-specific trigger was tested.
     pub fn_with_partial_boundary_evidence: usize,
@@ -571,6 +599,19 @@ pub fn refresh_oracle_goldens(options: &RefreshOptions) -> ConformanceResult<Ref
 
     for (fixture_index, fixture) in fixtures.iter().enumerate() {
         let fixture_key = fixture_key(&options.workspace, fixture)?;
+        let existing_path = golden_path(&goldens_root, &fixture_key);
+        if existing_path.exists() {
+            let existing = read_golden(&goldens_root, &fixture_key)?;
+            if existing.schema >= 3 {
+                return Err(format!(
+                    "golden {fixture_key} is schema {}; ordinary oracle-refresh may not \
+                     downgrade or reinterpret A3 rendered hashes — use \
+                     `cargo xtask oracle-refresh --render-hashes --check`",
+                    existing.schema
+                )
+                .into());
+            }
+        }
         if fixture_index > 0 && fixture_index % 250 == 0 {
             eprintln!(
                 "oracle refresh progress: {}/{} fixtures",
@@ -601,6 +642,7 @@ pub fn refresh_oracle_goldens(options: &RefreshOptions) -> ConformanceResult<Ref
             cases.push(GoldenCase {
                 matrix_key: program.matrix_key.clone(),
                 tsrs: Vec::new(),
+                oracle_empty_related_information: Vec::new(),
                 oracle_cli_hash: stable_json_hash(&oracle)?,
                 oracle,
                 tsrs_cli_hash: stable_json_hash(&Vec::<GoldenDiag>::new())?,
@@ -627,7 +669,7 @@ pub fn refresh_oracle_goldens(options: &RefreshOptions) -> ConformanceResult<Ref
 /// A gating conformance run: enforces the accepted-set ratchet
 /// (measurement-integrity.md §2) on top of the integer/FP gates.
 pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<ConformanceSummary> {
-    run_conformance_inner(options, SetGate::Enforce, false, None).map(|run| run.summary)
+    run_conformance_inner(options, SetGate::Enforce, false, None, None, None).map(|run| run.summary)
 }
 
 /// The A5 rollup path: the identical gating run, additionally
@@ -643,7 +685,7 @@ pub fn run_conformance_with_families_report(
     report_out: &Path,
 ) -> ConformanceResult<ConformanceSummary> {
     let preparation = families::prepare_report(&options.workspace)?;
-    let run = run_conformance_inner(options, SetGate::Enforce, true, None)?;
+    let run = run_conformance_inner(options, SetGate::Enforce, true, None, None, None)?;
     let observation = run
         .observation
         .expect("observing run collects an observation");
@@ -663,7 +705,22 @@ pub fn run_conformance_with_families_report(
 pub(crate) fn run_conformance_collect(
     options: &ConformanceOptions,
 ) -> ConformanceResult<ConformanceRun> {
-    run_conformance_inner(options, SetGate::Collect, false, None)
+    run_conformance_inner(options, SetGate::Collect, false, None, None, None)
+}
+
+pub(crate) fn run_conformance_collect_with_t4(
+    options: &ConformanceOptions,
+    planned_t4_pins: Option<&ratchet::T4OraclePins>,
+    planned_t4_empty_related_information: Option<&rendered::T4OracleEmptyRelatedInformation>,
+) -> ConformanceResult<ConformanceRun> {
+    run_conformance_inner(
+        options,
+        SetGate::Collect,
+        false,
+        planned_t4_pins,
+        planned_t4_empty_related_information,
+        None,
+    )
 }
 
 /// The merge-gate shape: grade every fixed view while executing the
@@ -697,6 +754,8 @@ pub fn run_ci_conformance(
         &options_for(DiagnosticBand::All),
         SetGate::Enforce,
         true,
+        None,
+        None,
         Some(&mut case_cache),
     )?;
     let all_observation = all_run
@@ -715,6 +774,8 @@ pub fn run_ci_conformance(
         &options_for(DiagnosticBand::TwoXxx),
         SetGate::Enforce,
         false,
+        None,
+        None,
         Some(&mut case_cache),
     )?
     .summary;
@@ -723,6 +784,8 @@ pub fn run_ci_conformance(
         &options_for(DiagnosticBand::Syntactic),
         SetGate::Enforce,
         false,
+        None,
+        None,
         Some(&mut case_cache),
     )?
     .summary;
@@ -760,6 +823,8 @@ fn run_conformance_inner(
     options: &ConformanceOptions,
     set_gate: SetGate,
     families_observe: bool,
+    planned_t4_pins: Option<&ratchet::T4OraclePins>,
+    planned_t4_empty_related_information: Option<&rendered::T4OracleEmptyRelatedInformation>,
     mut case_cache: Option<&mut CaseTsrsCache>,
 ) -> ConformanceResult<ConformanceRun> {
     let fixtures = select_fixtures(&RefreshOptions {
@@ -782,6 +847,15 @@ fn run_conformance_inner(
         SetGate::Enforce => Some(ratchet::load_accepted_for_gating(&options.workspace)?),
         SetGate::Collect => None,
     };
+    if planned_t4_pins.is_some() != planned_t4_empty_related_information.is_some() {
+        return Err(
+            "planned T4 pins and empty-related-information metadata must be supplied together"
+                .into(),
+        );
+    }
+    let measure_t4 = options.band == DiagnosticBand::All
+        && (planned_t4_pins.is_some()
+            || accepted.as_ref().is_some_and(|accepted| accepted.t4_active));
     let t1_ratchet = if options.band == DiagnosticBand::All {
         Some(read_ratchet_section(&ratchet_path, "t1")?)
     } else {
@@ -892,6 +966,7 @@ fn run_conformance_inner(
             };
             // Collection records every fixed view from one pass; a
             // gating run records only its selected view.
+            let mut selected_tier_matches = None;
             for view in measured_views.iter().copied() {
                 let oracle_side = golden_case
                     .oracle
@@ -906,6 +981,13 @@ fn run_conformance_inner(
                         case_tsrs.all.iter().filter(|diag| view.contains(diag.code)),
                     ),
                 };
+                if view == options.band {
+                    selected_tier_matches = Some(ShadowTierMatches {
+                        t1: case_sets.t1.clone(),
+                        t2: case_sets.t2.clone(),
+                        t3: case_sets.t3.clone(),
+                    });
+                }
                 if !case_sets.matched.is_empty() {
                     run_sets
                         .entry(view.name().to_owned())
@@ -1012,6 +1094,58 @@ fn run_conformance_inner(
                         .collect::<BTreeSet<_>>(),
                 )
             };
+            if measure_t4 {
+                let oracle_t4_pin = if let Some(fixtures) = planned_t4_pins {
+                    fixtures
+                        .get(&fixture_key)
+                        .and_then(|cases| cases.get(&program.matrix_key))
+                        .map(String::as_str)
+                } else {
+                    (golden.schema >= 3).then_some(golden_case.oracle_cli_hash.as_str())
+                }
+                .ok_or_else(|| {
+                    format!(
+                        "active T4 measurement lacks a genuine oracle pin for \
+                         {fixture_key} [{}]",
+                        program.matrix_key
+                    )
+                })?;
+                let oracle_empty_related_information =
+                    if let Some(fixtures) = planned_t4_empty_related_information {
+                        fixtures
+                            .get(&fixture_key)
+                            .and_then(|cases| cases.get(&program.matrix_key))
+                            .map(Vec::as_slice)
+                    } else {
+                        (golden.schema >= 3)
+                            .then_some(golden_case.oracle_empty_related_information.as_slice())
+                    }
+                    .ok_or_else(|| {
+                        format!(
+                            "active T4 measurement lacks empty-related-information metadata for \
+                             {fixture_key} [{}]",
+                            program.matrix_key
+                        )
+                    })?;
+                if rendered::supported_case_t4_matches(
+                    &program,
+                    &vendor_lib_dir,
+                    (&golden_case.oracle, oracle_empty_related_information),
+                    (&case_tsrs.all, &case_tsrs.all_empty_related_information),
+                    &excluded_indices,
+                    &fully_excluded,
+                    oracle_t4_pin,
+                )? {
+                    run_sets
+                        .get_mut(DiagnosticBand::All.name())
+                        .expect("T4 is measured only with the All fixed view")
+                        .entry(fixture_key.clone())
+                        .or_default()
+                        .entry(program.matrix_key.clone())
+                        .or_default()
+                        .t4 = true;
+                }
+            }
             let supported_fn = supported_expected
                 .difference(&supported_actual)
                 .cloned()
@@ -1089,15 +1223,8 @@ fn run_conformance_inner(
             }
 
             matched_t0_diagnostics += expected.intersection(&actual).count();
-            let tier_matches = shadow_tier_matches(
-                current
-                    .iter()
-                    .filter(|diag| options.band.contains(diag.code)),
-                golden_case
-                    .oracle
-                    .iter()
-                    .filter(|diag| options.band.matches_oracle(diag)),
-            );
+            let tier_matches = selected_tier_matches
+                .expect("the selected fixed view is always included in measured_views");
             shadow_t1_matched += tier_matches.t1.len();
             shadow_t2_matched += tier_matches.t2.len();
             shadow_t3_matched += tier_matches.t3.len();
@@ -1401,12 +1528,12 @@ fn shadow_rate(matched: usize, total: usize) -> f64 {
     }
 }
 
-/// Shadow tier grading. T1 becomes ratcheted when configured at M7;
-/// T2/T3 remain non-gating until M8. Bucket both sides by T0 key; a
-/// key contributes 1 to a tier only when the two buckets are equal
-/// AS MULTISETS under that tier's OWN equivalence (review round 3:
-/// tiers compare independently — T1 must not depend on how T2's
-/// finer key would pair elements):
+/// Tier grading. Before the one-time M8 activation these fields remain
+/// report-only shadow evidence; afterwards the identical bucket sets
+/// are persisted in and gated by A1. A key contributes 1 to a tier
+/// only when the two buckets are equal AS MULTISETS under that tier's
+/// OWN equivalence (review round 3: tiers compare independently — T1
+/// must not depend on how T2's finer key would pair elements):
 ///   T1 = category
 ///   T2 = T1 + exact start/length + top message text
 ///   T3 = T2 + full chain tree + relatedInformation
@@ -1425,66 +1552,12 @@ fn shadow_tier_matches<'a>(
     actual: impl Iterator<Item = &'a GoldenDiag>,
     expected: impl Iterator<Item = &'a GoldenDiag>,
 ) -> ShadowTierMatches {
-    fn keyed<'a>(
-        diags: impl Iterator<Item = &'a GoldenDiag>,
-    ) -> BTreeMap<T0Key, Vec<&'a GoldenDiag>> {
-        let mut map: BTreeMap<T0Key, Vec<&'a GoldenDiag>> = BTreeMap::new();
-        for diag in diags {
-            map.entry(t0_key(diag)).or_default().push(diag);
-        }
-        map
+    let sets = ratchet::bucket_sets(expected, actual);
+    ShadowTierMatches {
+        t1: sets.t1,
+        t2: sets.t2,
+        t3: sets.t3,
     }
-    /// Greedy multiset equality under `eq` — buckets are tiny (almost
-    /// always 1), so O(n²) matching beats deriving Ord for chains.
-    fn multiset_eq(
-        actual: &[&GoldenDiag],
-        expected: &[&GoldenDiag],
-        eq: impl Fn(&GoldenDiag, &GoldenDiag) -> bool,
-    ) -> bool {
-        if actual.len() != expected.len() {
-            return false;
-        }
-        let mut used = vec![false; expected.len()];
-        'outer: for left in actual {
-            for (index, right) in expected.iter().enumerate() {
-                if !used[index] && eq(left, right) {
-                    used[index] = true;
-                    continue 'outer;
-                }
-            }
-            return false;
-        }
-        true
-    }
-    fn t1_eq(a: &GoldenDiag, e: &GoldenDiag) -> bool {
-        a.category == e.category
-    }
-    fn t2_eq(a: &GoldenDiag, e: &GoldenDiag) -> bool {
-        t1_eq(a, e) && a.start == e.start && a.length == e.length && a.chain.text == e.chain.text
-    }
-    fn t3_eq(a: &GoldenDiag, e: &GoldenDiag) -> bool {
-        t2_eq(a, e) && a.chain == e.chain && a.related == e.related
-    }
-    let actual = keyed(actual);
-    let expected = keyed(expected);
-    let mut matches = ShadowTierMatches::default();
-    for (key, expected_bucket) in &expected {
-        let Some(actual_bucket) = actual.get(key) else {
-            continue;
-        };
-        if !multiset_eq(actual_bucket, expected_bucket, t1_eq) {
-            continue;
-        }
-        matches.t1.insert(key.clone());
-        if !multiset_eq(actual_bucket, expected_bucket, t2_eq) {
-            continue;
-        }
-        matches.t2.insert(key.clone());
-        if multiset_eq(actual_bucket, expected_bucket, t3_eq) {
-            matches.t3.insert(key.clone());
-        }
-    }
-    matches
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1682,6 +1755,11 @@ fn read_lib_inputs(
 /// syntactic pass, so one run grades every fixed view.
 struct CaseTsrs {
     all: Vec<GoldenDiag>,
+    /// Indices in the canonical aggregate stream whose Rust
+    /// Diagnostic has a present-but-empty related-information property.
+    /// GoldenDiag intentionally cannot serialize this formatter-only
+    /// distinction because schema 2 fixed the structured oracle bytes.
+    all_empty_related_information: BTreeSet<usize>,
     syntactic: Vec<GoldenDiag>,
     partial_checks: Vec<PartialCheck>,
 }
@@ -1711,12 +1789,22 @@ fn current_case_tsrs(
         &compiler_options_from_program(program),
         &program.cwd,
     );
+    let all_empty_related_information = result
+        .diagnostics
+        .iter()
+        .enumerate()
+        .filter_map(|(index, diagnostic)| {
+            (diagnostic.related_information_present && diagnostic.related.is_empty())
+                .then_some(index)
+        })
+        .collect();
     Ok(CaseTsrs {
         all: result
             .diagnostics
             .iter()
             .map(|diag| GoldenDiag::from_tsrs(diag, &file_texts))
             .collect(),
+        all_empty_related_information,
         syntactic: result
             .syntactic_diagnostics
             .iter()
@@ -2089,10 +2177,13 @@ fn write_golden(root: &Path, golden: &GoldenFile) -> ConformanceResult<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let json = serde_json::to_vec_pretty(golden)?;
-    let compressed = zstd::stream::encode_all(json.as_slice(), 3)?;
-    fs::write(path, compressed)?;
+    fs::write(path, encode_golden(golden)?)?;
     Ok(())
+}
+
+pub(crate) fn encode_golden(golden: &GoldenFile) -> ConformanceResult<Vec<u8>> {
+    let json = serde_json::to_vec_pretty(golden)?;
+    Ok(zstd::stream::encode_all(json.as_slice(), 3)?)
 }
 
 fn read_golden(root: &Path, fixture: &str) -> ConformanceResult<GoldenFile> {
