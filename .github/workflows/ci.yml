@@ -126,7 +126,7 @@ jobs:
       - name: Pin the oracle Node runtime
         uses: actions/setup-node@v7
         with:
-          node-version-file: tsrs2/.node-version
+          node-version-file: .node-version
           package-manager-cache: false
 
       # Dependency archives are safe to restore by lockfile. Cargo
@@ -139,7 +139,7 @@ jobs:
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             ~/.cargo/git/db
-          key: cargo-v2-${{ runner.os }}-rust-${{ hashFiles('tsrs2/Cargo.lock', 'tsrs2/rust-toolchain.toml') }}
+          key: cargo-v2-${{ runner.os }}-rust-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
           restore-keys: |
             cargo-v2-${{ runner.os }}-rust-
 
@@ -155,7 +155,6 @@ jobs:
       # cannot drift. The lane boundary only lets the two independent
       # halves run on separate standard hosted runners.
       - name: Run Rust gates
-        working-directory: tsrs2
         run: cargo xtask ci --lane rust
 
   semantic:
@@ -180,7 +179,7 @@ jobs:
       - name: Pin the oracle Node runtime
         uses: actions/setup-node@v7
         with:
-          node-version-file: tsrs2/.node-version
+          node-version-file: .node-version
           package-manager-cache: false
 
       - name: Restore Cargo dependencies
@@ -190,7 +189,7 @@ jobs:
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             ~/.cargo/git/db
-          key: cargo-v2-${{ runner.os }}-semantic-${{ hashFiles('tsrs2/Cargo.lock', 'tsrs2/rust-toolchain.toml') }}
+          key: cargo-v2-${{ runner.os }}-semantic-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
           restore-keys: |
             cargo-v2-${{ runner.os }}-semantic-
 
@@ -206,7 +205,6 @@ jobs:
       # reviews before reuse; a miss or invalid entry regenerates it.
       - name: Compute B2 runtime evidence fingerprint
         id: m8-b2-fingerprint
-        working-directory: tsrs2
         run: |
           fingerprint="$(cargo xtask m8 evidence fingerprint --kind runtime)"
           printf 'sha256=%s\n' "$fingerprint" >> "$GITHUB_OUTPUT"
@@ -214,8 +212,8 @@ jobs:
       - name: Restore exact B2 runtime evidence
         uses: actions/cache@v5
         with:
-          path: tsrs2/target/m8/evidence/runtime-coverage.json
-          key: m8-b2-v1-${{ runner.os }}-${{ steps.m8-b2-fingerprint.outputs.sha256 }}
+          path: target/m8/evidence/runtime-coverage.json
+          key: m8-b2-v2-${{ runner.os }}-${{ steps.m8-b2-fingerprint.outputs.sha256 }}
 
       # Full-corpus passes once peaked at ~11.5 GB RSS. The underlying
       # multiplication bug is fixed (~1.7 GB now), but the headroom
@@ -235,7 +233,6 @@ jobs:
       # in one workspace. Only the independent Rust compiler/test
       # gates run on the parallel runner.
       - name: Run semantic gates against trusted baseline
-        working-directory: tsrs2
         env:
           BASELINE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           TSRS_M8_RUNNER_PROFILE: github-ubuntu-x64-standard
@@ -248,10 +245,10 @@ jobs:
           name: semantic-gate-artifacts
           if-no-files-found: ignore
           path: |
-            tsrs2/target/conformance/mismatches.json
-            tsrs2/target/families/report.json
-            tsrs2/target/m8/
-            tsrs2/target/recovery-census.json
+            target/conformance/mismatches.json
+            target/families/report.json
+            target/m8/
+            target/recovery-census.json
 
   # Preserve the historical required-check name. Branch protection
   # needs only `gates`; this job turns either parallel lane's failure,

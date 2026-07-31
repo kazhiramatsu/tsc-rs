@@ -1,8 +1,10 @@
 # tsc-rs
 
-A Rust port of the TypeScript compiler (tsc 6.0.3). Active development
-lives in `tsrs2/` (the greenfield rewrite). The paused v1 codebase was
-removed from the working tree and is preserved at tag `v1-final`
+A Rust port of the TypeScript compiler (tsc 6.0.3). Active development uses
+the Oxc-style virtual Cargo workspace at the repository root: `Cargo.toml`
+owns members under `crates/`, each member has its own `src/`, and no
+top-level `src/` exists. The paused v1 codebase was removed from the working
+tree and is preserved at tag `v1-final`
 (check out that tag to resume it; `scripts/bootstrap.sh` there rebuilds
 its corpus/oracle). Design docs under `docs/design/greenfield/` are
 authoritative; implementers start from the stage step docs referenced
@@ -25,7 +27,7 @@ there.
    base, conformance all + 2xxx + syntactic with FP=0 and
    set/integer-ratchet non-regression, the A5 families rollup,
    full-corpus invariants (`invariants --suite all --full-corpus`),
-   ledger check, `escapes --stale $(cat tsrs2/STAGE)`
+   ledger check, `escapes --stale $(cat STAGE)`
    incl. the untagged ceiling, and generated README-status freshness).
    **Documentation-only exception:** when every changed path relative to the
    trusted base ends in `.md` and README's generated `STATUS` block is
@@ -51,8 +53,8 @@ there.
    scope/architecture. Ordinary producer-owned implementation,
    evidence/ratchet updates, PR creation, CI fixes, and green-PR
    merges do not require approval.
-6. Update `tsrs2/ratchet.toml` in the slice that changes accepted state,
-   and update `tsrs2/STAGE` only in the slice that closes a milestone.
+6. Update `ratchet.toml` in the slice that changes accepted state,
+   and update `STAGE` only in the slice that closes a milestone.
    Neither update is deferred to the merge operation. Pull `main` after
    merging.
 7. Trivial process/docs-only changes may land directly on `main`
@@ -84,7 +86,7 @@ there.
   `ratchet check`, `scope audit`, `families check`, `escapes`,
   `ledger check`, `invariants`).
 - Full gate suite: `cargo xtask ci [--baseline <trusted-ref-or-sha>]`
-  (from `tsrs2/`; PR Actions supplies the immutable base SHA). Its
+  (from the repository root; PR Actions supplies the immutable base SHA). Its
   full-corpus B2 producer reuses an existing exact-fingerprint artifact
   only after raw schema/hash/inventory/count/review validation; otherwise
   it regenerates the artifact with one single-threaded worker.

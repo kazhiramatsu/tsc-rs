@@ -1,7 +1,7 @@
 # M4 stage 5.8: statements + declarations — semantic extraction
 
 Extracted 2026-07-14 from the vendored bundle
-`tsrs2/vendor/typescript-6.0.3/lib/_tsc.js` (all `L`-anchors are lines
+`vendor/typescript-6.0.3/lib/_tsc.js` (all `L`-anchors are lines
 in THAT file; re-grep on re-vendor). Parents: skeleton-steps §5.8
 (scope + the RE-ENTRANCY TRAP), m4-55 §0 (stub-policy tags), m4-57
 (links/EffectiveArg discipline — carried forward). Implementers start

@@ -10,9 +10,16 @@ Gate: the oracle side of the goldens exists for the full corpus, and
 every xtask runs green against an engine that returns zero
 diagnostics.
 
+> **Current layout:** M0 originally created the isolated `tsrs2/`
+> workspace described below. That workspace has since been promoted intact
+> to the repository root. Do not create a new nested workspace: use the root
+> `Cargo.toml`, whose members remain under `crates/` and whose sources live in
+> `crates/*/src` (there is no top-level `src/`).
+
 ## Stage 0.1: workspace scaffold [M]
 
-Create the `tsrs2/` cargo workspace with the greenfield §2 crates:
+Historical M0 action: create the `tsrs2/` Cargo workspace with the greenfield
+§2 crates:
 
 ```toml
 # Cargo.toml

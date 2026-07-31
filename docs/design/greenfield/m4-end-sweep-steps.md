@@ -19,7 +19,7 @@ The sweep is stage **5.9** (`parse_stage_key`: letterless `5.8`
 owners expire the moment STAGE names any 5.9 value, because
 `StageKey(4,8,MAX) <= StageKey(4,9,_)`). Therefore:
 
-- Intermediate slices (5.9a-c) keep `tsrs2/STAGE` at `5.8e` — the
+- Intermediate slices (5.9a-c) keep `STAGE` at `5.8e` — the
   44 owner="5.8" entries are being worked, not yet expired.
 - The close slice (5.9d) bumps STAGE to `5.9`, which makes the
   stale gate ENFORCE that zero owner<=5.8 entries remain, and

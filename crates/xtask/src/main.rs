@@ -6544,6 +6544,7 @@ fn ledger_source_path(workspace: &Path, span_file: &str) -> Result<PathBuf, Box<
         workspace
             .join("vendor/typescript-6.0.3/lib")
             .join(span_file),
+        workspace.join("ts-tests/src/compiler").join(span_file),
     ];
     if let Some(parent) = workspace.parent() {
         candidates.push(parent.join("ts-tests/src/compiler").join(span_file));
@@ -7032,6 +7033,7 @@ fn ci_rust_gates() -> Result<(), Box<dyn Error>> {
     let workspace = find_tsrs2_root()?;
     run_command(
         Command::new("cargo")
+            .current_dir(&workspace)
             .arg("fmt")
             .arg("--all")
             .arg("--")
@@ -7039,6 +7041,7 @@ fn ci_rust_gates() -> Result<(), Box<dyn Error>> {
     )?;
     run_command(
         Command::new("cargo")
+            .current_dir(&workspace)
             .arg("clippy")
             .arg("--workspace")
             .arg("--all-targets")
@@ -7046,8 +7049,18 @@ fn ci_rust_gates() -> Result<(), Box<dyn Error>> {
             .arg("-D")
             .arg("warnings"),
     )?;
-    run_command(Command::new("cargo").arg("build").arg("--workspace"))?;
-    run_command(Command::new("cargo").arg("test").arg("--workspace"))?;
+    run_command(
+        Command::new("cargo")
+            .current_dir(&workspace)
+            .arg("build")
+            .arg("--workspace"),
+    )?;
+    run_command(
+        Command::new("cargo")
+            .current_dir(&workspace)
+            .arg("test")
+            .arg("--workspace"),
+    )?;
     run_command(
         Command::new("node")
             .arg("--check")
@@ -8215,6 +8228,13 @@ fn compiler_source_path(workspace: &Path, file: &str) -> Result<PathBuf, Box<dyn
         return Ok(vendored);
     }
 
+    let in_workspace_checkout = workspace.join("ts-tests/src/compiler").join(file);
+    if in_workspace_checkout.is_file() {
+        return Ok(in_workspace_checkout);
+    }
+
+    // Compatibility with the former nested-workspace layout, where a
+    // full TypeScript checkout could live beside `tsrs2/`.
     let checkout = workspace
         .parent()
         .ok_or("tsrs2 workspace has no parent")?

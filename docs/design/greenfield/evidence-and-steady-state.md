@@ -10,7 +10,7 @@ owns shared history-anchor and identity rules.
 
 ## 1. B1 — one evidence protocol
 
-`tsrs2/m8-evidence.json` contains producer configuration, reviewed
+`m8-evidence.json` contains producer configuration, reviewed
 ceilings, and approved runner profile ids. It contains no editable
 `ready` boolean or copied observation count.
 

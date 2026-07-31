@@ -1,10 +1,11 @@
 # Setup and verification
 
-Active development lives in `tsrs2/`, a self-contained Cargo
-workspace: the conformance corpus (`tsrs2/ts-tests/`), the pinned
-TypeScript oracle (`tsrs2/vendor/typescript-6.0.3/`), and all goldens
-are checked in, so a plain clone builds and verifies with no bootstrap
-step.
+Active development uses a self-contained, Oxc-style virtual Cargo workspace
+at the repository root. The root `Cargo.toml` has no package of its own;
+member sources live under `crates/*/src`, and there is intentionally no
+top-level `src/`. The conformance corpus (`ts-tests/`), pinned TypeScript
+oracle (`vendor/typescript-6.0.3/`), and all goldens are checked in, so a
+plain clone builds and verifies with no bootstrap step.
 
 ## Requirements
 
@@ -14,15 +15,14 @@ step.
   Bumping the pin is a deliberate, reviewed change.
 - **Node** — only needed when running the oracle (probes, driver
   tests, golden refresh). The required version is pinned in
-  `tsrs2/.node-version`; `oracle-refresh` refuses to write goldens
+  `.node-version`; `oracle-refresh` refuses to write goldens
   from any other launched version.
 
 ## Verification
 
-All gates run from `tsrs2/`:
+All gates run from the repository root:
 
 ```sh
-cd tsrs2
 cargo xtask ci                      # full merge-gate suite (must be green on main)
 cargo xtask conformance             # conformance sweep (optionally --band 2xxx)
 cargo xtask conformance --syntactic-only
