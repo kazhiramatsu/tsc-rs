@@ -4,14 +4,23 @@
 //! tsc's checker sees one heap: nodes and symbols from every file (and
 //! the checker's own transient symbols) share an identity space. The
 //! greenfield equivalent: each file parses with a NodeId/NodeArrayId
-//! base and binds with a SymbolId base (both continuing where the
-//! previous file ended), so ids are program-unique by construction and
-//! this struct only routes an id to its owning per-file arena. Checker
-//! transient symbols (tsc createSymbol 47652) allocate above all files.
+//! base and binds with a SymbolId base, so ids are program-unique by
+//! construction and this struct only routes an id to its owning
+//! per-file arena. Parse allocation order may differ from tsc's final
+//! program order; node/array owner indexes are therefore independently
+//! base-sorted while symbols retain bind/program order. Checker transient
+//! symbols (tsc createSymbol 47652) allocate above all files.
 
 use tsrs2_binder::{Binder, Symbol, SymbolArena, SymbolId, SymbolTable};
 use tsrs2_syntax::{NodeArray, NodeArrayId, NodeId, SourceFile};
 use tsrs2_types::SymbolFlags;
+
+#[derive(Clone, Copy, Debug)]
+struct ArenaOwner {
+    start: u32,
+    end: u32,
+    file: usize,
+}
 
 pub struct ProgramBinder<'a> {
     /// Per-file binder runs in program order — BORROWED so cached lib
@@ -20,10 +29,10 @@ pub struct ProgramBinder<'a> {
     /// bind_source_file (M2 design), which the shared reference now
     /// enforces structurally.
     file_binders: Vec<&'a Binder<'a>>,
-    /// Cached per-file node-id bases (ascending) for owner lookup.
-    node_bases: Vec<u32>,
-    /// Cached per-file node-array-id bases (ascending).
-    array_bases: Vec<u32>,
+    /// Node-id intervals in parse allocation order (ascending by start).
+    node_owners: Vec<ArenaOwner>,
+    /// Node-array-id intervals in parse allocation order.
+    array_owners: Vec<ArenaOwner>,
     /// Cached per-file symbol-id bases (ascending) for owner lookup.
     symbol_bases: Vec<u32>,
     /// Checker-side symbols (tsc createSymbol 47652 adds Transient).
@@ -31,33 +40,71 @@ pub struct ProgramBinder<'a> {
 }
 
 impl<'a> ProgramBinder<'a> {
-    /// tsrs-native: constructs the contiguous multi-file arena routing
-    /// table; tsc nodes and symbols are direct JavaScript references.
+    /// tsrs-native: constructs the multi-file arena routing tables; tsc
+    /// nodes and symbols are direct JavaScript references.
     pub fn new(file_binders: Vec<&'a Binder<'a>>) -> Self {
         assert!(
             !file_binders.is_empty(),
             "a program has at least one source file"
         );
-        let node_bases: Vec<u32> = file_binders
+
+        let mut node_owners: Vec<ArenaOwner> = file_binders
             .iter()
-            .map(|binder| binder.source.arena.node_base())
+            .enumerate()
+            .map(|(file, binder)| ArenaOwner {
+                start: binder.source.arena.node_base(),
+                end: binder.source.arena.node_end(),
+                file,
+            })
             .collect();
-        let array_bases: Vec<u32> = file_binders
+        node_owners.sort_unstable_by_key(|owner| (owner.start, owner.end, owner.file));
+
+        let mut array_owners: Vec<ArenaOwner> = file_binders
             .iter()
-            .map(|binder| binder.source.arena.array_base())
+            .enumerate()
+            .map(|(file, binder)| ArenaOwner {
+                start: binder.source.arena.array_base(),
+                end: binder.source.arena.array_end(),
+                file,
+            })
             .collect();
+        array_owners.sort_unstable_by_key(|owner| (owner.start, owner.end, owner.file));
+
         let symbol_bases: Vec<u32> = file_binders
             .iter()
             .map(|binder| binder.symbols.base())
             .collect();
-        // The bases must be ascending and contiguous with each file's
-        // allocation count, or owner lookup by range is meaningless.
-        for pair in file_binders.windows(2) {
+
+        // Node and node-array arenas remain one contiguous allocation
+        // space, but their allocation order is independent of final
+        // program order.
+        for owner in &node_owners {
+            assert!(
+                owner.start < owner.end,
+                "program source files must own at least one node"
+            );
+        }
+        for pair in node_owners.windows(2) {
             assert_eq!(
-                pair[1].source.arena.node_base(),
-                pair[0].source.arena.node_end(),
+                pair[1].start, pair[0].end,
                 "program files must parse with contiguous node bases"
             );
+        }
+        for owner in &array_owners {
+            assert!(
+                owner.start < owner.end,
+                "program source files must own at least one node array"
+            );
+        }
+        for pair in array_owners.windows(2) {
+            assert_eq!(
+                pair[1].start, pair[0].end,
+                "program files must parse with contiguous node-array bases"
+            );
+        }
+
+        // Symbols allocate in final bind/program order.
+        for pair in file_binders.windows(2) {
             assert_eq!(
                 pair[1].symbols.base(),
                 pair[0].symbols.next_id().0,
@@ -67,8 +114,8 @@ impl<'a> ProgramBinder<'a> {
         let transient_base = file_binders.last().expect("non-empty").symbols.next_id().0;
         Self {
             file_binders,
-            node_bases,
-            array_bases,
+            node_owners,
+            array_owners,
             symbol_bases,
             transient: SymbolArena::with_base(transient_base),
         }
@@ -99,21 +146,13 @@ impl<'a> ProgramBinder<'a> {
     /// tsrs-native: binary-search routing for Rust's process-wide
     /// numeric NodeId arena; tsc carries object identity directly.
     pub fn file_index_of_node(&self, node: NodeId) -> usize {
-        match self.node_bases.binary_search(&node.0) {
-            Ok(index) => index,
-            Err(insert) => insert - 1,
-        }
+        Self::owner_file(&self.node_owners, node.0, "NodeId")
     }
 
     /// tsrs-native: multi-file arena routing for a numeric NodeId; tsc
     /// carries the SourceFile/object relationship directly.
     pub fn source_of_node(&self, node: NodeId) -> &'a SourceFile {
-        let source = self.file_binders[self.file_index_of_node(node)].source;
-        debug_assert!(
-            source.arena.contains_node(node),
-            "NodeId {node:?} out of range"
-        );
-        source
+        self.file_binders[self.file_index_of_node(node)].source
     }
 
     fn binder_of_node(&self, node: NodeId) -> &'a Binder<'a> {
@@ -125,11 +164,18 @@ impl<'a> ProgramBinder<'a> {
     /// tsrs-native: multi-file arena routing for Rust's numeric
     /// NodeArrayId.
     pub fn node_array(&self, id: NodeArrayId) -> &'a NodeArray {
-        let index = match self.array_bases.binary_search(&id.0) {
-            Ok(index) => index,
-            Err(insert) => insert - 1,
-        };
+        let index = Self::owner_file(&self.array_owners, id.0, "NodeArrayId");
         self.file_binders[index].source.arena.node_array(id)
+    }
+
+    fn owner_file(owners: &[ArenaOwner], id: u32, kind: &str) -> usize {
+        let index = owners
+            .partition_point(|owner| owner.start <= id)
+            .checked_sub(1)
+            .unwrap_or_else(|| panic!("{kind} {id} precedes the first program arena"));
+        let owner = owners[index];
+        assert!(id < owner.end, "{kind} {id} is outside every program arena");
+        owner.file
     }
 
     fn owner_of_symbol(&self, id: SymbolId) -> Result<usize, ()> {
@@ -222,5 +268,121 @@ impl<'a> ProgramBinder<'a> {
             .source
             .external_module_indicator
             .is_some()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tsrs2_syntax::{parse_source_file, ParseOptions};
+    use tsrs2_types::CompilerOptions;
+
+    #[test]
+    fn routes_parse_order_arenas_without_changing_program_order() {
+        // tsc may request the root before its dependency while exposing
+        // the dependency first from Program.getSourceFiles().
+        let root = parse_source_file(
+            "/a.ts",
+            r#"import { b } from "./b"; export const a = b;"#,
+            ParseOptions::default(),
+            None,
+        );
+        let dependency = parse_source_file(
+            "/b.ts",
+            "export const b = 1;",
+            ParseOptions {
+                node_id_base: root.arena.node_end(),
+                node_array_id_base: root.arena.array_end(),
+                ..ParseOptions::default()
+            },
+            None,
+        );
+        let options = CompilerOptions::default();
+
+        let mut dependency_binder = Binder::with_bases(&dependency, &options, 1, 0);
+        dependency_binder.bind_source_file();
+        let mut root_binder = Binder::with_bases(
+            &root,
+            &options,
+            dependency_binder.next_symbol_id(),
+            dependency_binder.symbols.next_id().0,
+        );
+        root_binder.bind_source_file();
+
+        let program = ProgramBinder::new(vec![&dependency_binder, &root_binder]);
+        assert_eq!(
+            program
+                .files()
+                .map(|binder| binder.source.file_name.as_str())
+                .collect::<Vec<_>>(),
+            ["/b.ts", "/a.ts"]
+        );
+        assert_eq!(program.source(0).file_name, "/b.ts");
+        assert_eq!(program.source(1).file_name, "/a.ts");
+
+        for id in dependency.arena.node_ids() {
+            assert_eq!(program.file_index_of_node(id), 0);
+            assert!(std::ptr::eq(program.source_of_node(id), &dependency));
+        }
+        for id in root.arena.node_ids() {
+            assert_eq!(program.file_index_of_node(id), 1);
+            assert!(std::ptr::eq(program.source_of_node(id), &root));
+        }
+
+        for raw in dependency.arena.array_base()..dependency.arena.array_end() {
+            let id = NodeArrayId(raw);
+            assert!(std::ptr::eq(
+                program.node_array(id),
+                dependency.arena.node_array(id)
+            ));
+        }
+        for raw in root.arena.array_base()..root.arena.array_end() {
+            let id = NodeArrayId(raw);
+            assert!(std::ptr::eq(
+                program.node_array(id),
+                root.arena.node_array(id)
+            ));
+        }
+
+        for raw in dependency_binder.symbols.base()..dependency_binder.symbols.next_id().0 {
+            let id = SymbolId(raw);
+            assert!(std::ptr::eq(
+                program.symbol(id),
+                dependency_binder.symbols.symbol(id)
+            ));
+        }
+        for raw in root_binder.symbols.base()..root_binder.symbols.next_id().0 {
+            let id = SymbolId(raw);
+            assert!(std::ptr::eq(
+                program.symbol(id),
+                root_binder.symbols.symbol(id)
+            ));
+        }
+    }
+
+    #[test]
+    fn owner_lookup_rejects_ids_outside_every_interval() {
+        let owners = [
+            ArenaOwner {
+                start: 10,
+                end: 12,
+                file: 1,
+            },
+            ArenaOwner {
+                start: 15,
+                end: 18,
+                file: 0,
+            },
+        ];
+
+        assert_eq!(ProgramBinder::owner_file(&owners, 10, "test id"), 1);
+        assert_eq!(ProgramBinder::owner_file(&owners, 17, "test id"), 0);
+        for id in [9, 12, 14, 18] {
+            assert!(
+                std::panic::catch_unwind(|| ProgramBinder::owner_file(&owners, id, "test id"))
+                    .is_err(),
+                "id {id} must fail closed"
+            );
+        }
     }
 }
