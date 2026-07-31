@@ -835,49 +835,35 @@ pub(crate) fn fuzz_run(args: impl Iterator<Item = String>) -> Result<(), Box<dyn
 }
 
 pub(crate) fn fuzz_replay(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
-    let mut args = args.collect::<Vec<_>>();
+    let args = args.collect::<Vec<_>>();
     if args.len() != 1 {
         return Err("fuzz replay requires one artifact path".into());
     }
-    let path = PathBuf::from(args.remove(0));
-    let artifact: FuzzerArtifact = read_json(&path)?;
-    verify_fuzzer_raw(&artifact)?;
-    println!(
-        "fuzz replay verified: cases={} divergences={} artifact={}",
-        artifact.cases.len(),
-        artifact
-            .cases
-            .iter()
-            .filter(|case| case.divergence_signature.is_some())
-            .count(),
-        path.display()
-    );
+    let workspace = super::find_tsrs2_root()?;
+    let status = Command::new("cargo")
+        .current_dir(workspace)
+        .arg("run")
+        .arg("--quiet")
+        .arg("-p")
+        .arg("tsrs2-fuzz")
+        .arg("--bin")
+        .arg("tsrs2-fuzz-producer")
+        .arg("--")
+        .arg("replay")
+        .args(args)
+        .status()?;
+    if !status.success() {
+        return Err(format!("dedicated fuzz producer failed with status {status:?}").into());
+    }
     Ok(())
 }
 
 pub(crate) fn fuzz_reduce(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
-    let mut args = args.collect::<Vec<_>>();
+    let args = args.collect::<Vec<_>>();
     if args.len() != 1 {
         return Err("fuzz reduce requires one artifact path".into());
     }
-    let path = PathBuf::from(args.remove(0));
-    let artifact: FuzzerArtifact = read_json(&path)?;
-    if !artifact.reducer.exercised
-        || artifact.reducer.original_signature != artifact.reducer.reduced_signature
-    {
-        return Err("fuzz artifact has no signature-preserving reducer observation".into());
-    }
-    println!(
-        "fuzz reducer verified: {} -> {} bytes signature={}",
-        artifact.reducer.original_bytes,
-        artifact.reducer.reduced_bytes,
-        artifact
-            .reducer
-            .original_signature
-            .as_deref()
-            .unwrap_or("none")
-    );
-    Ok(())
+    Err("fuzz reduce is fail-closed until the M9.1d real-replay reducer lands".into())
 }
 
 fn produce_fuzz(
@@ -2511,6 +2497,17 @@ mod tests {
         assert!(verify_fuzzer_raw(&artifact).is_err());
         artifact.requested_cases = 0;
         assert!(verify_fuzzer_raw(&artifact).is_err());
+    }
+
+    #[test]
+    fn m9_reduce_is_fail_closed_before_reading_an_artifact() {
+        let error = fuzz_reduce(["/tmp/does-not-need-to-exist.json".to_owned()].into_iter())
+            .unwrap_err()
+            .to_string();
+        assert_eq!(
+            error,
+            "fuzz reduce is fail-closed until the M9.1d real-replay reducer lands"
+        );
     }
 
     #[test]

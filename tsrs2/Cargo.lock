@@ -317,6 +317,8 @@ dependencies = [
  "sha2",
  "toml_edit",
  "tsrs2-checker",
+ "tsrs2-diags",
+ "tsrs2-harness",
 ]
 
 [[package]]

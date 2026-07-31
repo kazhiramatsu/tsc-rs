@@ -747,10 +747,8 @@ fn diagnostic_from_golden(
         .collect::<ConformanceResult<Vec<_>>>()?;
     diagnostic.related_information_present =
         empty_related_information || !diagnostic.related.is_empty();
-    diagnostic.reports_unnecessary =
-        record.reports_unnecessary.then_some(true);
-    diagnostic.reports_deprecated =
-        record.reports_deprecated.then_some(true);
+    diagnostic.reports_unnecessary = record.reports_unnecessary.then_some(true);
+    diagnostic.reports_deprecated = record.reports_deprecated.then_some(true);
     diagnostic.source = record.source.clone();
     Ok(diagnostic)
 }

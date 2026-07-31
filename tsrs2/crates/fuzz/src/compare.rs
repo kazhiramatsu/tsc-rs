@@ -44,36 +44,111 @@ pub enum RendererDifference {
     Text,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct OneSidedDiagnostic {
     pub side: DifferenceSide,
     pub diagnostic: DiagnosticRecord,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct DiagnosticDivergence {
     pub tier: ComparisonTier,
     pub pass: DiagnosticPass,
     pub one_sided: Vec<OneSidedDiagnostic>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct RendererDivergence {
     pub class: RendererDifference,
     pub affected: DiagnosticRecord,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(
+    tag = "kind",
+    content = "divergence",
+    rename_all = "kebab-case",
+    deny_unknown_fields
+)]
 pub enum Divergence {
     Diagnostic(DiagnosticDivergence),
     Renderer(RendererDivergence),
     TsrsTerminal(TerminalOutcome),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(
+    tag = "status",
+    content = "divergence",
+    rename_all = "kebab-case",
+    deny_unknown_fields
+)]
 pub enum Comparison {
     Exact,
     Divergence(Divergence),
+}
+
+impl Comparison {
+    pub fn validate(&self) -> FoundationResult<()> {
+        match self {
+            Self::Exact => Ok(()),
+            Self::Divergence(Divergence::Diagnostic(divergence)) => {
+                if divergence.tier == ComparisonTier::T4 {
+                    return Err(FoundationError::new(
+                        "diagnostic comparison divergence cannot use renderer tier t4",
+                    ));
+                }
+                if divergence.one_sided.is_empty() {
+                    return Err(FoundationError::new(
+                        "diagnostic comparison divergence must retain at least one one-sided row",
+                    ));
+                }
+                for (index, row) in divergence.one_sided.iter().enumerate() {
+                    if row.diagnostic.pass != divergence.pass {
+                        return Err(FoundationError::new(format!(
+                            "comparison one_sided[{index}] pass does not match its diagnostic divergence"
+                        )));
+                    }
+                    row.diagnostic
+                        .validate(&format!("comparison.one_sided[{index}].diagnostic"))?;
+                }
+                Ok(())
+            }
+            Self::Divergence(Divergence::Renderer(divergence)) => {
+                divergence.affected.validate("comparison.renderer.affected")
+            }
+            Self::Divergence(Divergence::TsrsTerminal(outcome)) => EngineResult::Terminal {
+                outcome: outcome.clone(),
+            }
+            .validate("comparison.tsrs_terminal"),
+        }
+    }
+
+    pub fn canonical_bytes(&self) -> FoundationResult<Vec<u8>> {
+        self.validate()?;
+        serde_json::to_vec(self)
+            .map_err(|error| FoundationError::new(format!("cannot serialize comparison: {error}")))
+    }
+
+    pub fn from_json_slice(bytes: &[u8]) -> FoundationResult<Self> {
+        let comparison: Self = serde_json::from_slice(bytes)
+            .map_err(|error| FoundationError::new(format!("invalid comparison JSON: {error}")))?;
+        comparison.validate()?;
+        Ok(comparison)
+    }
+
+    pub fn from_canonical_slice(bytes: &[u8]) -> FoundationResult<Self> {
+        let comparison = Self::from_json_slice(bytes)?;
+        if comparison.canonical_bytes()? != bytes {
+            return Err(FoundationError::new(
+                "comparison input is valid JSON but not canonical compact schema-1 bytes",
+            ));
+        }
+        Ok(comparison)
+    }
 }
 
 /// Standalone comparison helper for tests and inspection.

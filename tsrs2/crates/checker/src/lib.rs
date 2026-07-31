@@ -773,6 +773,7 @@ pub fn check_program_with_libs_at(
     check_program_with_libs_at_observed(libs, files, options, current_directory, |_| {})
 }
 
+/// tsrs-native: phase-observed adapter around the batch checker driver.
 /// The production-worker entry point. The observer is invoked exactly
 /// once before each coarse checker phase and never from a node visit,
 /// keeping the ordinary checker path allocation- and branch-free at
