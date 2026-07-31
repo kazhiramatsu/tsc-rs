@@ -10,7 +10,7 @@ review's checkpoint table is folded in below.
 
 A batch **diagnostics checker** for TypeScript, byte-compatible with
 **TypeScript 6.0.3 exactly** (the vendored
-`tsrs2/vendor/typescript-6.0.3/lib/_tsc.js` bundle and its lib set —
+`vendor/typescript-6.0.3/lib/_tsc.js` bundle and its lib set —
 the same artifact the oracle runs). "tsc compatibility" in any tsrs2
 context means THIS bundle, not tsc-at-large.
 
@@ -47,7 +47,7 @@ two-view contract in [m8-readiness.md](m8-readiness.md):
    omission.
 4. **Zero escapes**: no `Unsupported` containment sites remain
    (`cargo xtask escapes` reports sites=0), the site manifest
-   (`tsrs2/escapes.toml`) is empty, and every ledger entry is
+   (`escapes.toml`) is empty, and every ledger entry is
    hash-fresh against the vendored bundle. Every checker
    pub/pub(crate) function carries a DISPOSITION (the tsc-port
    header family / tsrs-native / tsc-deferred / tsc-not-applicable
@@ -160,8 +160,9 @@ permitted.
   visibility metric; the separate active
   [H0 no-emit track](noemit-cli.md) closes them without rewriting the M8
   denominator.
-- **LSP / watch / incremental** ([lsp-and-incremental.md](
-  lsp-and-incremental.md) is design-only). Preconditions if ever
+- **LSP / watch / incremental**
+  ([lsp-and-incremental.md](lsp-and-incremental.md) is design-only).
+  Preconditions if ever
   started: owned lib cache (no `Box::leak`), collision-safe keys.
 - **Public TypeChecker API** surface.
 - **Upstream tracking** (>6.0.3): a separate project with its own
@@ -181,7 +182,7 @@ claim M8 acceptance credit. See
 - Full-corpus conformance stays at or below **60 s wall** on an approved
   runner profile.
 - Peak RSS stays within the reviewed ceiling declared for that approved
-  profile in `tsrs2/m8-evidence.json`. Completion consumes a fresh B4
+  profile in `m8-evidence.json`. Completion consumes a fresh B4
   observation against those ceilings; this document does not embed a
   transient current measurement.
 

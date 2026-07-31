@@ -1,8 +1,9 @@
 # Documentation
 
 This directory contains project notes that should be tracked with the
-repository. Active development targets `tsrs2/` (the greenfield
-rewrite); the paused v1 codebase is preserved at tag `v1-final`.
+repository. Active development targets the repository-root virtual Cargo
+workspace produced by the greenfield rewrite; the paused v1 codebase is
+preserved at tag `v1-final`.
 
 - [design/](design/README.md): the design set. Durable architecture
   docs plus `design/greenfield/` — the authoritative milestone step

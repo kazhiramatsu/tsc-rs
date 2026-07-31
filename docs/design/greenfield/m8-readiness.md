@@ -20,7 +20,7 @@ Every conformance run reports both:
 1. **All corpus** — the versioned oracle-input universe. It owns the set
    ratchet, top-FN visibility, and absolute `FP=0`.
 2. **Supported scope** — the same universe after subtracting only exact,
-   reviewed oracle diagnostic occurrences from `tsrs2/m8-scope.json`.
+   reviewed oracle diagnostic occurrences from `m8-scope.json`.
    M8's T1-T4 target uses this denominator.
 
 Scope identity is A2 schema 2:

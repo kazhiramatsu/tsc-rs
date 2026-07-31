@@ -1,7 +1,7 @@
 # M4 stage 5.5: expression checking, non-call arms — semantic extraction
 
 Companion to `m4-checker-skeleton-steps.md` §5.5. Extracted 2026-07-12
-from `tsrs2/vendor/typescript-6.0.3/lib/_tsc.js` (the oracle bundle) by
+from `vendor/typescript-6.0.3/lib/_tsc.js` (the oracle bundle) by
 a 6-way parallel source audit; every line number and diagnostic code
 below was re-verified by the orchestrator against the bundle. The tsc
 source at the cited lines stays the transcription source of truth —

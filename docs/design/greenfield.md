@@ -1,12 +1,12 @@
 # Greenfield: the from-scratch design (v2, implementation-grade)
 
-Purpose: (1) the north-star architecture against which retrofits are
-judged, (2) the answer to "mirror tsc or do better?", (3) a design
-detailed enough that a rebuild could START from this document alone:
-crate layout, core types, wire schemas, harness, and a milestone plan
-with acceptance gates. **Recommendation unchanged: do NOT rebuild
-today** — §10 maps which pieces the current repo adopts incrementally,
-and §11 states the only conditions under which a rebuild wins.
+Purpose: (1) the north-star architecture against which implementation
+changes are judged, (2) the answer to "mirror tsc or do better?", and
+(3) the implementation-grade design that drove the completed greenfield
+rebuild: crate layout, core types, wire schemas, harness, and milestone
+acceptance gates. Sections 10–11 preserve the original rebuild decision
+record; the resulting implementation now occupies the repository-root
+workspace described below.
 
 ---
 
@@ -29,23 +29,26 @@ each rejected because each one is observable through diagnostics.
 ## 2. Workspace layout
 
 ```
-tsrs2/
-  Cargo.toml                 # workspace
-  crates/
-    syntax/        # scanner + parser + AST arena + recovery (no deps on sema)
-    binder/        # symbols, scopes, flow-graph construction
-    types/         # type objects, arenas, interning maps, flags
-    checker/       # the ported checker (largest crate, checker.ts-ordered)
-    diags/         # message tables (generated), chains, span utils
-    harness/       # fixture expansion, program.json, batch runner
-    oracle/        # node driver + rust client for diagnostics.json
-    conformance/   # classifier, tiers, ratchets, goldens
-    fuzz/          # generator + reducer + triage
-    xtask/         # ledger, codegen (flags/messages/syntaxkind), CI entry
-  vendor/typescript-6.0.3/   # pinned tsc (source of ports + oracle impl)
-  goldens/                   # in-repo golden shards (see §7.3)
-  ratchet.toml
+.
+├── Cargo.toml                 # virtual workspace; no root package
+├── crates/
+│   ├── syntax/        # scanner + parser + AST arena + recovery (no deps on sema)
+│   ├── binder/        # symbols, scopes, flow-graph construction
+│   ├── types/         # type objects, arenas, interning maps, flags
+│   ├── checker/       # the ported checker (largest crate, checker.ts-ordered)
+│   ├── diags/         # message tables (generated), chains, span utils
+│   ├── harness/       # fixture expansion, program.json, batch runner
+│   ├── oracle/        # node driver + rust client for diagnostics.json
+│   ├── conformance/   # classifier, tiers, ratchets, goldens
+│   ├── fuzz/          # generator + reducer + triage
+│   └── xtask/         # ledger, codegen (flags/messages/syntaxkind), CI entry
+├── vendor/typescript-6.0.3/   # pinned tsc (source of ports + oracle impl)
+├── goldens/                    # in-repo golden shards (see §7.3)
+└── ratchet.toml
 ```
+
+This is an Oxc-style virtual workspace: Rust sources live only in each
+member's `crates/*/src`, with no top-level `src/` directory.
 
 Dependency direction: `syntax ← binder ← checker`, `types ← checker`,
 everything ← `diags`. `harness`/`conformance`/`fuzz` depend on the
@@ -312,9 +315,9 @@ pub struct Diagnostic {
 }
 ```
 
-- `tsrs2 expand <fixture.ts> --out-dir …` produces N program.json
+- `cargo xtask expand <fixture.ts> --out-dir …` produces N program.json
   files (matrix expansion INCLUDED — the current repo bails 6054).
-- The oracle driver (`oracle/driver.mjs`) consumes program.json — the
+- The oracle driver (`crates/oracle/driver.mjs`) consumes program.json — the
   Rust side never re-implements expansion, node never parses
   directives. The BOM/double-blind class is structurally dead.
 - Libs: layered lib set VERBATIM from the vendored tsc (no curated

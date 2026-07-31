@@ -1,7 +1,7 @@
 # M4 stage 5.7: call resolution with stubbed inference — semantic extraction
 
 Extracted 2026-07-13 from the vendored bundle
-`tsrs2/vendor/typescript-6.0.3/lib/_tsc.js` (all `L`-anchors are lines
+`vendor/typescript-6.0.3/lib/_tsc.js` (all `L`-anchors are lines
 in THAT file; re-grep on re-vendor). Parents: skeleton-steps §5.7
 (scope), checker-key-functions §3 (resolveCall/chooseOverload
 skeletons — this doc supersedes its M4 details where they differ),

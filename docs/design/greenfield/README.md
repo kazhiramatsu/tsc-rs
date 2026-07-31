@@ -121,9 +121,12 @@ the successful 2XXX survey/mining method to those A5 virtual bands:
 mandatory pre-implementation owner reconnaissance, immutable slice
 evidence, and the concrete 8.1a-g checker-grammar producer split.
 
-This is a FROM-SCRATCH build (workspace `tsrs2/`). Nothing in the
-existing `src/` is consulted; the only implementation references are
-the vendored tsc and these documents.
+This implementation began as a FROM-SCRATCH build, isolated from the former
+v1 `src/`. It now occupies the repository-root virtual Cargo workspace:
+`Cargo.toml` owns the members under `crates/`, Rust sources live in each
+`crates/*/src`, and there is no top-level `src/`. The implementation
+references remain the vendored tsc and these documents; v1 is retained only
+at tag `v1-final`.
 
 ## The prime directive
 
@@ -250,7 +253,7 @@ the same implementation to the filesystem, tsconfig, and CLI.
 
 ## Conventions
 
-- Workspace paths are relative to `tsrs2/` (greenfield §2 layout).
+- Workspace paths are relative to the repository root (greenfield §2 layout).
 - Rust: `#[repr(u16)]`/bitflags types come ONLY from `xtask codegen`
   output; iteration over any symbol/member table uses ordered maps
   (IndexMap) or sorted keys — `cargo clippy` denies raw `HashMap`
