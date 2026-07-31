@@ -1,0 +1,331 @@
+{
+  "schema": 1,
+  "status": "draft",
+  "source_references": [
+    {
+      "path": "ratchets/fuzz-domain.v1.toml",
+      "sha256": "c6cab05e2cbc26bcfb7d0d8607ac205285121abf5e9a3d6719826b44d9f3856e"
+    },
+    {
+      "path": "ratchets/fuzz-oracle-deviations.v1.json",
+      "sha256": "82db33b8b442ccbb400d6e2fcbb34e4441de69ede15c3cf3a982d8cd41ed1641"
+    },
+    {
+      "path": "m8-evidence.json",
+      "sha256": "d16978210177b86ff718cf9e7f90774f4bc8c9a492894edae36b9220d710abb2"
+    },
+    {
+      "path": "m8-emitter-inventory.json",
+      "sha256": "77a1ab1dea3367cb6d913f158ee97932d8c256f5c907f7a3846a1a2fc99f6f38"
+    },
+    {
+      "path": "m8-emitter-dispositions.json",
+      "sha256": "b0647092e86d77f7e75ef3cf04181e9fb8805a377bdca2eac93c6399436489e1"
+    },
+    {
+      "path": "ratchets/oracle-inputs.v1.json.zst",
+      "sha256": "c4ea2508df4932e471231c64a073287f348f495f7058ce8450978706d005a91d"
+    },
+    {
+      "path": "crates/xtask/src/m8_evidence.rs",
+      "sha256": "dcd1a885b00f54682fabdcdd31f443bcb4c3e1e45fea60721f463d465725e673"
+    },
+    {
+      "path": "crates/harness/src/lib.rs",
+      "sha256": "ac5d39ce2483c634c15488d61e7f7e0f574e229fa256d5c54de3f265d3fff489"
+    },
+    {
+      "path": "crates/conformance/src/lib.rs",
+      "sha256": "f92ce55e794ccb1fc2801c6db78ac86206126a6e064ee9a1f338cc6984c71481"
+    },
+    {
+      "path": "crates/oracle/render-driver.mjs",
+      "sha256": "27fcd1132b7c3835edc6907f45690452fe41192329a2fc5d560a1d925695d5ad"
+    },
+    {
+      "path": "crates/oracle/program-host.mjs",
+      "sha256": "43c129168403d60017eec3b1014c1192cdc8d09e52e834790987160bdefd2f6f"
+    },
+    {
+      "path": "crates/oracle/src/lib.rs",
+      "sha256": "bd846b6c26d2cecb79c5320d694e2ddbf41dfce5466011d986e606fa9a3ecddb"
+    }
+  ],
+  "checks": [
+    {
+      "id": "preflight.legacy-generator-inventory",
+      "status": "ready",
+      "detail": "The current generator is exactly eight case%8 templates under one 32-case entry smoke. It is inventoried as legacy-smoke-only, not as the production domain.",
+      "blocks": [],
+      "evidence": [
+        "crates/xtask/src/m8_evidence.rs:1510-1541",
+        "m8-evidence.json:497-500"
+      ]
+    },
+    {
+      "id": "preflight.required-domain-surfaces",
+      "status": "pending",
+      "detail": "Production coverage is missing required syntax/recovery, flow, module, TSX/JSX, broad checked-JS/JSDoc, renderer, multi-file, option-profile, clean-outcome, and corpus-mutation surfaces.",
+      "blocks": [
+        "m9-production-domain",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "ratchets/fuzz-domain.v1.toml",
+        "crates/xtask/src/m8_evidence.rs:1510-1541"
+      ]
+    },
+    {
+      "id": "preflight.matrix-and-topology-consumption",
+      "status": "pending",
+      "detail": "The harness can represent multiple files and option matrices, but the legacy producer takes only the first expanded ProgramJson and emits single-file programs.",
+      "blocks": [
+        "m9-case-spec",
+        "m9-production-domain",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "crates/harness/src/lib.rs:39-47",
+        "crates/harness/src/lib.rs:228-264",
+        "crates/xtask/src/m8_evidence.rs:905-912"
+      ]
+    },
+    {
+      "id": "preflight.pass-aware-t0-t4-outcome",
+      "status": "pending",
+      "detail": "The oracle collects syntactic, semantic, and suggestion passes, but the legacy comparison drops pass provenance from its projected values and canonicalizes aggregate pass labels.",
+      "blocks": [
+        "m9-raw-outcome",
+        "m9-classifier",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "crates/oracle/render-driver.mjs:12-35",
+        "crates/xtask/src/m8_evidence.rs:1118-1185",
+        "crates/xtask/src/m8_evidence.rs:1196-1206"
+      ]
+    },
+    {
+      "id": "preflight.terminal-outcome-model",
+      "status": "pending",
+      "detail": "Typed per-engine panic, crash, timeout, OOM, unsupported, malformed-response, generator, harness, and controller outcomes with parse/bind/check/format phase are not represented by the legacy artifact.",
+      "blocks": [
+        "m9-raw-outcome",
+        "m9-replay",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "crates/xtask/src/m8_evidence.rs:1063-1069",
+        "crates/oracle/src/lib.rs:350-358"
+      ]
+    },
+    {
+      "id": "preflight.oracle-deviation-registry",
+      "status": "unknown",
+      "detail": "Five stable M8 source-contract rows are recorded, but exact input/outcome hashes and positive plus adjacent-negative replay canaries are absent.",
+      "blocks": [
+        "oracle-deviation-freeze",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "ratchets/fuzz-oracle-deviations.v1.json"
+      ]
+    },
+    {
+      "id": "preflight.d2-frozen-inputs",
+      "status": "ready",
+      "detail": "The frozen static input is available: 5513 D2 declarations, 643 direct emitters, 27352 graph edges, 9681 property candidates, and 1563 unresolved calls; dispositions enumerate 1676 ported and 3837 deferred declarations.",
+      "blocks": [],
+      "evidence": [
+        "m8-emitter-inventory.json",
+        "m8-emitter-dispositions.json"
+      ]
+    },
+    {
+      "id": "preflight.b2-boundary-input",
+      "status": "ready",
+      "detail": "The checked-in M8 evidence config contains 121 reviewed zero-hit direct-emitter identities. Against the frozen 643-direct-emitter inventory, the complement is the 522 presence-only B2 hit set; this remains historical fixed-corpus observation, not generated-domain coverage or ownership.",
+      "blocks": [],
+      "evidence": [
+        "m8-evidence.json:4-10",
+        "m8-emitter-inventory.json"
+      ]
+    },
+    {
+      "id": "preflight.d2-static-candidate-join",
+      "status": "pending",
+      "detail": "The report-only ordinary-oracle join from witness pass/code shapes to every matching D2 direct emitter, frozen disposition, B2 observation, exact lexical deferred frontier, SCC, property candidates, and unresolved calls is not implemented.",
+      "blocks": [
+        "m9-preflight-ready",
+        "owner-triage-after-discovery",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "m8-emitter-inventory.json",
+        "m8-emitter-dispositions.json",
+        "No generator-wide Node/V8 instrumentation is authorized by this check."
+      ]
+    },
+    {
+      "id": "preflight.band-owner-separation",
+      "status": "ready",
+      "detail": "Discovery bands are recorded only as quota and scheduling axes. Static D2 rows remain candidates, and an exact diagnostic-D2 or pipeline-native owner is assigned only after a real divergence.",
+      "blocks": [],
+      "evidence": [
+        "ratchets/fuzz-domain.v1.toml",
+        "m8-emitter-inventory.json"
+      ]
+    },
+    {
+      "id": "preflight.true-replay",
+      "status": "pending",
+      "detail": "The legacy replay command validates stored JSON only; it does not reconstruct files/options/cwd/decisions/process policy and rerun both engines.",
+      "blocks": [
+        "m9-replay",
+        "oracle-deviation-freeze",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "crates/xtask/src/m8_evidence.rs:837-855"
+      ]
+    },
+    {
+      "id": "preflight.true-fixpoint-reducer",
+      "status": "pending",
+      "detail": "The legacy reducer performs one pass of line deletion and the command validates stored signatures; it does not perform structural and syntax-aware fixpoint reduction through real replay.",
+      "blocks": [
+        "m9-reducer",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "crates/xtask/src/m8_evidence.rs:858-880",
+        "crates/xtask/src/m8_evidence.rs:1544-1588"
+      ]
+    },
+    {
+      "id": "preflight.independent-deduplication",
+      "status": "pending",
+      "detail": "The legacy dedupe observation duplicates one stored signature instead of deriving the same class from independently executed cases.",
+      "blocks": [
+        "m9-deduper",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "crates/xtask/src/m8_evidence.rs:998-1009"
+      ]
+    },
+    {
+      "id": "preflight.adversarial-test-coverage",
+      "status": "pending",
+      "detail": "Classifier, terminal, reducer, replay, deduper, history, attestation, source/hash drift, and producer-defect adversarial matrices are not complete.",
+      "blocks": [
+        "m9-preflight-ready",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "The legacy raw verifier trusts stored summaries and has no history or attestation layer."
+      ]
+    },
+    {
+      "id": "preflight.typed-machine-evidence",
+      "status": "pending",
+      "detail": "The M9.0a schema inventories gaps as checked rows and source pins, but it does not yet encode the required outcome, D2 join, adversarial matrix, or resource observations as typed raw records that can be recomputed.",
+      "blocks": [
+        "m9-preflight-ready",
+        "fingerprint-freeze",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "A frozen status remains unsupported until required IDs/cardinalities and typed raw evidence are enforced."
+      ]
+    },
+    {
+      "id": "preflight.streaming-bounded-producer",
+      "status": "pending",
+      "detail": "The legacy producer retains all full observations in memory and writes one directory and ProgramJson per case instead of streaming compact compressed success records through bounded child shards.",
+      "blocks": [
+        "m9-bounded-producer",
+        "hosted-calibration",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "crates/xtask/src/m8_evidence.rs:896-933"
+      ]
+    },
+    {
+      "id": "preflight.node-single-thread-policy",
+      "status": "pending",
+      "detail": "The current persistent oracle process is launched as node plus the driver path without the frozen single-threaded Node/V8 launch flags.",
+      "blocks": [
+        "m9-process-policy",
+        "hosted-calibration",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "crates/oracle/src/lib.rs:350-358"
+      ]
+    },
+    {
+      "id": "preflight.rust-worker-cap",
+      "status": "unknown",
+      "detail": "The production Rust internal-worker and test-thread cap has not been selected, implemented, or measured.",
+      "blocks": [
+        "m9-process-policy",
+        "hosted-calibration",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "Requires the bounded producer design and hosted pilot."
+      ]
+    },
+    {
+      "id": "preflight.hosted-resource-survey",
+      "status": "unknown",
+      "detail": "Standard-runner cases/second, wall time, child and aggregate CPU, peak RSS, scratch bytes, artifact bytes, and Node/process lifetime have not been measured. Unknown values are intentionally absent.",
+      "blocks": [
+        "hosted-calibration",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "Local M8 smoke observations are not standard hosted-runner acceptance measurements."
+      ]
+    },
+    {
+      "id": "preflight.production-calibration",
+      "status": "unknown",
+      "detail": "The 100000-case hosted pilot, reviewed resource ceilings, nightly quotas, uniqueness floor, and independently bounded PR-smoke case and seed list do not exist yet.",
+      "blocks": [
+        "hosted-calibration",
+        "single-smoke-transition",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "Requires the streaming production generator before measurement."
+      ]
+    },
+    {
+      "id": "preflight.history-registry-attestation",
+      "status": "pending",
+      "detail": "Append-only class/witness/incident/owner-task history, UTC-window aggregation, policy anchoring, artifact attestation, and Node-free steady-state verification are not implemented.",
+      "blocks": [
+        "m9-history",
+        "m9-attestation",
+        "qualifying-window"
+      ],
+      "evidence": [
+        "No M9 history, policy, or attestation machine records exist."
+      ]
+    },
+    {
+      "id": "preflight.qualification",
+      "status": "pending",
+      "detail": "This report is inventory-only. Draft, pending, or unknown state cannot create history or qualify a window.",
+      "blocks": [
+        "qualifying-window"
+      ],
+      "evidence": [
+        "Top-level status is draft."
+      ]
+    }
+  ]
+}

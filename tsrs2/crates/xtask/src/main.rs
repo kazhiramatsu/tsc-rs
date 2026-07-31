@@ -89,6 +89,7 @@ fn main() {
             }
         },
         Some("fuzz") => match args.next().as_deref() {
+            Some("preflight") => run_or_exit(fuzz_preflight(args)),
             Some("run") => run_or_exit(m8_evidence::fuzz_run(args)),
             Some("replay") => run_or_exit(m8_evidence::fuzz_replay(args)),
             Some("reduce") => run_or_exit(m8_evidence::fuzz_reduce(args)),
@@ -97,7 +98,7 @@ fn main() {
                 std::process::exit(2);
             }
             None => {
-                eprintln!("missing fuzz command (run|replay|reduce)");
+                eprintln!("missing fuzz command (preflight|run|replay|reduce)");
                 std::process::exit(2);
             }
         },
@@ -201,6 +202,67 @@ fn main() {
             eprintln!("unknown xtask command: {other}");
             std::process::exit(2);
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct FuzzPreflightArgs {
+    require_ready: bool,
+}
+
+fn parse_fuzz_preflight_args(
+    args: impl Iterator<Item = String>,
+) -> Result<FuzzPreflightArgs, Box<dyn Error>> {
+    let mut parsed = FuzzPreflightArgs::default();
+    for arg in args {
+        match arg.as_str() {
+            "--require-ready" => parsed.require_ready = true,
+            _ => return Err(format!("unexpected fuzz preflight argument: {arg}").into()),
+        }
+    }
+    Ok(parsed)
+}
+
+fn fuzz_preflight(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let args = parse_fuzz_preflight_args(args)?;
+    let workspace = find_tsrs2_root()?;
+    let inventory = tsrs2_fuzz::preflight::load_preflight_inventory(workspace)?;
+
+    println!("{}", inventory.summary().render_text());
+    if args.require_ready {
+        inventory.require_ready()?;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod fuzz_preflight_cli_tests {
+    use super::*;
+
+    #[test]
+    fn defaults_to_report_only() {
+        assert_eq!(
+            parse_fuzz_preflight_args(std::iter::empty()).unwrap(),
+            FuzzPreflightArgs {
+                require_ready: false,
+            }
+        );
+    }
+
+    #[test]
+    fn accepts_require_ready() {
+        assert_eq!(
+            parse_fuzz_preflight_args(["--require-ready"].into_iter().map(str::to_owned)).unwrap(),
+            FuzzPreflightArgs {
+                require_ready: true,
+            }
+        );
+    }
+
+    #[test]
+    fn rejects_every_other_argument() {
+        assert!(parse_fuzz_preflight_args(["--ready"].into_iter().map(str::to_owned)).is_err());
+        assert!(parse_fuzz_preflight_args(["extra"].into_iter().map(str::to_owned)).is_err());
     }
 }
 

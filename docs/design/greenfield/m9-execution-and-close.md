@@ -1,8 +1,8 @@
 # M9 execution and close contract
 
-Status: active execution contract after M8 close. M9 implementation has not
-started; the landed M8 fuzzer is an entry smoke, not qualifying steady-state
-evidence.
+Status: active execution contract after M8 close. M9.0 preflight inventory
+implementation is in progress; the landed M8 fuzzer remains an entry smoke,
+not qualifying steady-state evidence.
 
 This page owns how M9 is investigated, implemented, qualified, and closed.
 The [definition of done](definition-of-done.md) still owns WHAT project
@@ -122,6 +122,13 @@ history-schema change.
 The first implementation slice adds a report-only `fuzz preflight` view.
 It reports facts; it neither creates history nor decides that a gap is
 acceptable.
+
+The initial M9.0a landing is deliberately draft-only. Its schema loader
+accepts and reports the three `draft` inventories, but rejects a premature
+`frozen` status and cannot satisfy `--require-ready`. A later slice may
+enable `frozen` only together with the complete required-identity and
+cardinality set, typed raw evidence, and recomputation needed to prevent an
+edited or truncated inventory from becoming ready.
 
 The report inventories:
 
