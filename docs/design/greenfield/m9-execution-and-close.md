@@ -1,9 +1,12 @@
 # M9 execution and close contract
 
-Status: active execution contract after M8 close. M9.0a's draft-only
-preflight inventories have landed and M9.1's typed fuzzer foundation is in
-progress; the landed M8 fuzzer remains an entry smoke, not qualifying
-steady-state evidence.
+Status: paused after M9.1b. M9.0's draft preflight inventory, M9.1a's typed
+outcome/class model, and M9.1b's canonical true replay plus bounded one-case
+Node/Rust adapters have landed. M9.1c through M9.7 remain pending; no
+burn-in, frozen fingerprint, or qualifying window is running. The active
+follow-on work is the separate
+[H0 filesystem-hosted `--noEmit` track](noemit-cli.md). This contract remains
+the authority when M9 resumes.
 
 This page owns how M9 is investigated, implemented, qualified, and closed.
 The [definition of done](definition-of-done.md) still owns WHAT project

@@ -156,8 +156,10 @@ permitted.
   ([program-and-modules.md](program-and-modules.md)) — the checker
   resolves only in-program files + ambient/pattern-ambient modules
   (m4-58 §9). Exact affected oracle diagnostics receive
-  `host-resolution` scope dispositions. They stay FN in the
-  all-corpus visibility metric and are not chased.
+  `host-resolution` scope dispositions. They stay FN in the frozen M8
+  visibility metric; the separate active
+  [H0 no-emit track](noemit-cli.md) closes them without rewriting the M8
+  denominator.
 - **LSP / watch / incremental** ([lsp-and-incremental.md](
   lsp-and-incremental.md) is design-only). Preconditions if ever
   started: owned lib cache (no `Box::leak`), collision-safe keys.
@@ -166,11 +168,12 @@ permitted.
   re-vendor + goldens-regeneration + ledger-refresh loop; nothing
   here promises forward compatibility.
 
-Emitter, LSP/watch/incremental, and a public TypeChecker API are separate
-follow-on design tracks, not deferred M8 slices. Each requires its own goal,
-compatibility surface, oracle/reference contract, performance bounds, and
-definition of done. Work in those tracks may reuse the batch checker but may
-not alter this scope denominator or claim M8 acceptance credit. See
+Host-backed no-emit execution, emitter, LSP/watch/incremental, and a public
+TypeChecker API are separate follow-on design tracks, not deferred M8
+slices. Each requires its own goal, compatibility surface, oracle/reference
+contract, performance bounds, and definition of done. Work in those tracks
+may reuse the batch checker but may not alter this scope denominator or
+claim M8 acceptance credit. See
 [M8 execution and close](m8-execution-and-close.md#separate-follow-on-design-tracks).
 
 ## Performance / memory bounds
