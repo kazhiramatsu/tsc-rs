@@ -161,26 +161,45 @@ class is:
 schema + first failing tier-or-terminal phase
 + real pass-or-terminal sentinel + divergence side/outcome class
 + sorted one-sided multiset of (code, normalized message head)
-  or normalized terminal key
+  or closed terminal kind/boundary key
 ```
+
+Raw diagnostic validation fixes message-chain depth at 32 and total nodes
+at 4,096 before recursive projection. Either engine adapter treats an
+over-limit tree as a typed malformed response rather than comparing a
+truncated chain.
+For each completed engine outcome, the renderer assembled sequence projects
+the structured diagnostics one-for-one in the same order and multiplicity;
+only its canonical-head sidecar is additional. Sort/dedupe/format
+observations are downstream of that join. A final row must select an
+assembled row, while its order and multiplicity remain observable. Thus
+independently supplied execution fragments cannot masquerade as one raw
+outcome.
 
 The normalized head comes from the complete T2 record before T0/T1
 projection, after versioned virtual-path, LF, and generator-identifier
-normalization. Multiplicity is retained. T4 adds the first applicable
-renderer class in fixed precedence `order`, `dedupe`, `path`, `newline`,
-`text`, plus the first affected diagnostic key. Positions, seeds,
-timestamps, and raw hashes do not enter the class. Renderer class is derived
-by comparing the structured pre-render diagnostic sequence before falling
-back to `text`. Independent oracle fixtures and Rust tests pin classifier
-bytes for pass separation, duplicate rows, generated names, paths, terminal
-outcomes, and T4 precedence.
+normalization. Schema 1 is a one-way raw-to-normalized encoding: every
+literal raw `<` becomes `<<`, while only typed owned-path and generated-
+identifier replacements emit single canonical `<@...>` and `<#...>`
+placeholders. Normalized text is never re-entered as raw text, and one exact
+raw source cannot be owned by both path and identifier roles. Multiplicity
+is retained. T4 adds the first applicable renderer class in fixed precedence
+`order`, `dedupe`, `path`, `newline`, `text`, plus the first affected
+diagnostic key. Positions, seeds, timestamps, and raw hashes do not enter
+the class. Renderer `order` and `dedupe` are derived from the captured final
+deduped sequence; the assembled sequence remains provenance. Empty
+segments and dropped/inflated final rows remain representable before the
+comparator falls back to whole-aggregate path/newline/text checks.
+Independent Node fixtures and Rust production-path tests derive classifier
+bytes from the same typed raw vectors.
 
 T0-T3 retains the real syntactic/semantic/suggestion pass. A pure T4
-failure compares the already assembled render sequence and uses
+failure compares the final deduped render sequence and uses
 `pass=aggregate-render`. A no-diagnostic terminal class uses
-`pass=terminal`, a fixed `parse|bind|check|format` phase, and the versioned
-normalized panic/timeout/OOM/unsupported key rather than an invented
-diagnostic code.
+`pass=terminal`, a fixed `parse|bind|check|format` phase, and terminal kind
+plus adapter-owned `boundary_id` from a schema enum with a closed phase/kind
+allowlist rather than an invented diagnostic code. Volatile raw process
+detail never enters that class.
 
 A tsrs crash/panic, timeout, OOM, or unsupported unwind after a valid oracle
 result is a terminal divergence class. M9 preflight turns every prose crash
