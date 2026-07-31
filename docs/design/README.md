@@ -47,9 +47,13 @@ stage step docs referenced there.
   the B1-B4 evidence contracts, required CI topology, and the M9
   steady-state window.
 - [greenfield/m9-execution-and-close.md](greenfield/m9-execution-and-close.md):
-  the active M9 preflight, bounded fuzzer/domain implementation, exact
-  owner-triage and burn-in loop, fingerprint freeze, 14-window
+  the paused-after-M9.1b preflight, bounded fuzzer/domain implementation,
+  exact owner-triage and burn-in loop, fingerprint freeze, 14-window
   qualification, and close contract.
+- [greenfield/noemit-cli.md](greenfield/noemit-cli.md):
+  the active H0 contract that turns the completed prepared-program checker
+  into a filesystem-hosted `--noEmit` compiler through exact host-owner
+  closure, program/config loading, and CLI behavior.
 - [greenfield/terminal-residue-protocol.md](greenfield/terminal-residue-protocol.md):
   the last-mile parity-sweep protocol — pipeline-layer classification,
   exact shape/provenance proof, and terminal identity-diff gates.

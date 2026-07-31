@@ -380,6 +380,9 @@ changing any of those inputs resets it.
 M8 is exclusively the TypeScript 6.0.3 batch-diagnostics completion phase.
 It neither implements nor silently reserves acceptance credit for:
 
+- **H0 track** — the now-active filesystem-hosted
+  [`--noEmit` compiler](noemit-cli.md), including general module/package
+  resolution, tsconfig, and CLI behavior;
 - **Emitter track** — JavaScript and declaration-file emission;
 - **L-track** — LSP, watch, and incremental operation;
 - **Public-API track** — a public `TypeChecker` API.

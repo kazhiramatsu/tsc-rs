@@ -46,11 +46,17 @@ global T0-T4/recovery order, M8 close record, and current M9 handoff. The
 readiness page is retained as the historical gate that opened M8.
 
 **M9 execution contract:**
-[m9-execution-and-close.md](m9-execution-and-close.md) — the active M9
-preflight, generator-domain and resource audit, bounded streaming producer,
+[m9-execution-and-close.md](m9-execution-and-close.md) — the M9 preflight,
+generator-domain and resource audit, bounded streaming producer,
 class/witness/recurrence registry, diagnostic-D2/pipeline-native owner-task
 closure, attested burn-in, fingerprint freeze, 14-window qualification, and
-final close.
+final close. It is paused after the landed M9.1b true-replay foundation.
+
+**H0 filesystem-hosted no-emit contract:**
+[noemit-cli.md](noemit-cli.md) — the active follow-on plan for the missing
+host boundary: owned program/session seams, exact module and package
+resolution, filesystem/config loading, no-emit diagnostics, rendering, and
+exit behavior.
 
 **Complete JSDoc subsystem:**
 [m8-jsdoc-ast-materialization.md](m8-jsdoc-ast-materialization.md) — the
@@ -165,7 +171,8 @@ is one commit.
 | M6 inference + overloads | [m6-inference-calls-steps.md](m6-inference-calls-steps.md) | T0 ≥ 58% |
 | M7 unused/grammar/suggestion | [m7-tail-steps.md](m7-tail-steps.md) | T0 ≥ 63%; T1 measured and ratcheted |
 | M8 diagnostics close | [m8-readiness.md](m8-readiness.md) + [M8 execution](m8-execution-and-close.md) | supported-scope T0-T3 and T4 complete; escapes zero; all-corpus FP=0 |
-| M9 differential-fuzzer steady state | [M9 execution](m9-execution-and-close.md) + [evidence contract](evidence-and-steady-state.md#31-m9-steady-state) | preflight/domain/owner burn-in green, then `fuzz steady-state --require-ready`: 14 frozen-fingerprint 100,000-case windows, rate < 1 new class/window, no untriaged incident or unresolved owner task |
+| M9 differential-fuzzer steady state — paused after M9.1b | [M9 execution](m9-execution-and-close.md) + [evidence contract](evidence-and-steady-state.md#31-m9-steady-state) | preflight/domain/owner burn-in green, then `fuzz steady-state --require-ready`: 14 frozen-fingerprint 100,000-case windows, rate < 1 new class/window, no untriaged incident or unresolved owner task |
+| H0 filesystem-hosted `--noEmit` — active | [H0 execution](noemit-cli.md) | exact closure of the 241 host-resolution identities, MemoryHost/FsHost equivalence, config/CLI/output parity, no emitted files |
 
 The T0 percentages are calibration points from the first
 implementation's history, not promises; the gate is "meets or beats,
@@ -218,11 +225,12 @@ without changing the structured oracle records or diagnostic identities.
 
 The historical [readiness contract](m8-readiness.md) remains the reproducible
 entry gate. The fresh close report confirms completion rows 1-10 green,
-row 11 `m9-steady-state` pending, and `STAGE=M8`. M9 steady state is the sole
-remaining project-completion milestone. The fixed corpus continues to be
-reported whole, while only exact reviewed A2 identities leave the supported
-denominator. All historical `jsdoc-semantics` exclusions have returned
-through tombstones.
+row 11 `m9-steady-state` pending, and `STAGE=M8`. M9 steady state remains the
+sole pending completion row, but its execution is paused after M9.1b while
+the independent H0 productization track runs. The fixed corpus continues to
+be reported whole, while only exact reviewed A2 identities leave the
+supported denominator. All historical `jsdoc-semantics` exclusions have
+returned through tombstones.
 
 M9 follows the dedicated
 [execution contract](m9-execution-and-close.md): first correct and audit the
@@ -232,6 +240,13 @@ exact A5/2XXX and D2 owner slices; terminal/parser/binder/pure-T4 tasks use
 their exact pipeline-native owner. Only then does M9 freeze the producer
 fingerprint and start the 14 qualifying UTC windows. The M8
 32-case/eight-template smoke earns no window credit.
+
+H0 follows its separate
+[filesystem-hosted no-emit contract](noemit-cli.md). Its entry inventory is
+the 241 remaining exact host-resolution identities, not a new diagnostic
+band. It begins with the shared host/session and resolution-table seam, then
+closes package/module owners under `MemoryCompilerHost` before connecting
+the same implementation to the filesystem, tsconfig, and CLI.
 
 ## Conventions
 
