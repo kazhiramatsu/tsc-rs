@@ -75,6 +75,12 @@ CARGO_BUILD_JOBS=2 cargo xtask test host -- --test-threads=2
 CARGO_BUILD_JOBS=2 cargo xtask test program -- --test-threads=2
 ```
 
+`checker`, `host`, and `program` are stable workspace roles rather than Cargo
+package names. Contributor commands and CI use `cargo xtask test <role>`, so an
+internal package rename does not require every workflow and document to be
+rewritten. `cargo xtask workspace audit` verifies the role metadata and rejects
+direct package or binary selectors in repository automation.
+
 These commands run internal libraries and tests; there is no end-user command
 that accepts a project or source file yet, and no production
 `cargo run -- ...` workflow. The complete local acceptance gate is intended
@@ -159,6 +165,15 @@ repository root. There is intentionally no top-level `src/` directory.
 | `ts-tests` | Checked-in TypeScript conformance corpus |
 | `vendor/typescript-6.0.3` | Pinned compiler bundle and standard library files |
 | `docs/design/greenfield` | Authoritative architecture, execution plans, and completion contracts |
+
+Internal Cargo packages currently follow `tsc-rs-<role>`, while shared
+dependency aliases use `tsc-<role>` and Rust crate identifiers use
+`tsc_<role>`. The full word `diagnostics` is used consistently. These names are
+implementation details; contributor commands should use the stable roles shown
+in the path table above. The `cargo xtask` alias selects the `tsc-rs-xtask`
+package through the checked-in Cargo configuration. See
+[setup and verification](docs/setup.md#workspace-package-roles) for the rename
+and audit workflow.
 
 The original v1 implementation is preserved at the `v1-final` tag and is no
 longer present in the working tree.
