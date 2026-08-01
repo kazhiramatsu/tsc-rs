@@ -329,6 +329,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "tsrs2-host"
+version = "0.1.0"
+
+[[package]]
 name = "tsrs2-oracle"
 version = "0.1.0"
 dependencies = [

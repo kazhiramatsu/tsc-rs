@@ -265,6 +265,7 @@ content-addressed B2 Node coverage sweep are not editing-loop commands.
 | `crates/syntax` | Scanner, parser, generated AST schema, traversal, and source-file representation |
 | `crates/binder` | Symbols, scopes, declarations, assignments, and flow graph construction |
 | `crates/types` | Shared compiler options, symbols, types, signatures, and relation data |
+| `crates/host` | Read-only compiler-host contract and deterministic in-memory host adapter |
 | `crates/checker` | Program assembly and semantic diagnostic checking |
 | `crates/diags` | Generated diagnostic messages, diagnostic structures, line maps, sorting, and deduplication |
 | `crates/harness` | TypeScript fixture expansion and program-input construction |
