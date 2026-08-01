@@ -18,7 +18,7 @@ pub mod worker_protocol;
 
 pub use error::{FoundationError, FoundationResult};
 
-use tsrs2_checker::{check_program, CompilerOptions, InputFile};
+use tsc_checker::{check_program, CompilerOptions, InputFile};
 
 pub fn smoke_generated_source(source: &str) -> usize {
     let files = [InputFile {

@@ -20,7 +20,7 @@ not a ratchet — the rollup owns current numbers.
 
 The v1 roadmap (`docs/design/non-2xxx-blockers.md`) is v1-only
 (`src/`, EXECUTION-GUIDE, classifier discipline) and is not reused.
-Everything below is regenerated from tsrs2 artifacts: the all-band
+Everything below is regenerated from tsc-rs artifacts: the all-band
 conformance artifact (`target/m8/conformance.json`) joined back to
 the schema-2 goldens for pass provenance.
 

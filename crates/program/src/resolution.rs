@@ -2,8 +2,8 @@ use std::error::Error;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-use tsrs2_diags::{Diagnostic, DiagnosticList};
-use tsrs2_host::HostError;
+use tsc_diagnostics::{Diagnostic, DiagnosticList};
+use tsc_host::HostError;
 
 use crate::path::{CanonicalPath, ProgramPath};
 use crate::prepared::SourceFileId;

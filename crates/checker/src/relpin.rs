@@ -14,8 +14,8 @@
 //! type-from-annotation path (annotate.rs); the live relation engine
 //! now answers pins after both annotations resolve.
 
-use tsrs2_syntax::{NodeData, NodeId, SourceFile};
-use tsrs2_types::{CompilerOptions, TypeId};
+use tsc_syntax::{NodeData, NodeId, SourceFile};
+use tsc_types::{CompilerOptions, TypeId};
 
 use crate::state::CheckerState;
 
@@ -76,13 +76,13 @@ pub fn probe_relation(query: &RelpinQuery) -> RelpinVerdict {
     text.push_str(&format!("declare var __relpin_source: {};\n", query.source));
     text.push_str(&format!("declare var __relpin_target: {};\n", query.target));
 
-    let source_file = tsrs2_syntax::parse_source_file(
+    let source_file = tsc_syntax::parse_source_file(
         "relpin.ts".to_owned(),
         text,
-        tsrs2_syntax::ParseOptions {
-            language_variant: tsrs2_syntax::LanguageVariant::Standard,
+        tsc_syntax::ParseOptions {
+            language_variant: tsc_syntax::LanguageVariant::Standard,
             javascript_file: false,
-            ..tsrs2_syntax::ParseOptions::default()
+            ..tsc_syntax::ParseOptions::default()
         },
         None,
     );
@@ -94,7 +94,7 @@ pub fn probe_relation(query: &RelpinQuery) -> RelpinVerdict {
             ),
         };
     }
-    let binder = tsrs2_binder::bind_source_file(&source_file, query.options);
+    let binder = tsc_binder::bind_source_file(&source_file, query.options);
     let mut state = CheckerState::new(&source_file, &binder, query.options);
 
     let Some(source_annotation) = find_probe_annotation(&source_file, "__relpin_source") else {
@@ -154,7 +154,7 @@ pub fn probe_relation(query: &RelpinQuery) -> RelpinVerdict {
 
 /// checkExpression's freshness for the probe's expression pins.
 fn mark_fresh_probe_source(state: &mut CheckerState, ty: TypeId) -> TypeId {
-    use tsrs2_types::{ObjectFlags, TypeFlags};
+    use tsc_types::{ObjectFlags, TypeFlags};
     if state.tables.flags_of(ty).intersects(TypeFlags::FRESHABLE) {
         return state.tables.get_fresh_type_of_literal_type(ty);
     }
@@ -167,7 +167,7 @@ fn mark_fresh_probe_source(state: &mut CheckerState, ty: TypeId) -> TypeId {
         let flags = state.tables.object_flags_of(ty).bits()
             | ObjectFlags::OBJECT_LITERAL.bits()
             | ObjectFlags::FRESH_LITERAL.bits();
-        state.tables.type_mut(ty).object_flags = tsrs2_types::ObjectFlags::from_bits(flags);
+        state.tables.type_mut(ty).object_flags = tsc_types::ObjectFlags::from_bits(flags);
         state.tables.type_mut(ty).fresh_type = Some(ty);
         // A REAL object literal's symbol is a VALUE symbol whose
         // valueDeclaration is the literal node, and every own

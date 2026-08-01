@@ -5,8 +5,8 @@
 //! shared-emptyArray in-progress sentinel (getVariances call sites
 //! answer Ternary.Unknown while a measurement is on the stack).
 
-use tsrs2_binder::{node_util, SymbolId};
-use tsrs2_types::{ModifierFlags, ObjectFlags, TypeData, TypeFlags, TypeId, VarianceFlags};
+use tsc_binder::{node_util, SymbolId};
+use tsc_types::{ModifierFlags, ObjectFlags, TypeData, TypeFlags, TypeId, VarianceFlags};
 
 use crate::links::LinkSlot;
 use crate::state::{CheckAbort, CheckResult, CheckerState, VarianceHandlerFrame};
@@ -212,7 +212,7 @@ impl<'a> CheckerState<'a> {
             .binder
             .symbol(symbol)
             .flags
-            .intersects(tsrs2_types::SymbolFlags::TYPE_ALIAS)
+            .intersects(tsc_types::SymbolFlags::TYPE_ALIAS)
         {
             let type_parameters = self
                 .links
@@ -253,10 +253,10 @@ impl<'a> CheckerState<'a> {
         symbol: SymbolId,
     ) -> CheckResult<TypeId> {
         let flags = self.binder.symbol(symbol).flags;
-        if flags.intersects(tsrs2_types::SymbolFlags::CLASS | tsrs2_types::SymbolFlags::INTERFACE) {
+        if flags.intersects(tsc_types::SymbolFlags::CLASS | tsc_types::SymbolFlags::INTERFACE) {
             return self.get_declared_type_of_class_or_interface(symbol);
         }
-        if flags.intersects(tsrs2_types::SymbolFlags::TYPE_ALIAS) {
+        if flags.intersects(tsc_types::SymbolFlags::TYPE_ALIAS) {
             return self.get_declared_type_of_type_alias(symbol);
         }
         unreachable!("variance symbols are class/interface/alias by caller guarantee: {flags:?}")
@@ -319,7 +319,7 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_types::{CompilerOptions, RelationComparisonResult, VarianceFlags};
+    use tsc_types::{CompilerOptions, RelationComparisonResult, VarianceFlags};
 
     use crate::links::LinkSlot;
     use crate::relate::RelationKind;
@@ -331,7 +331,7 @@ mod tests {
         with_program_state(&[("a.ts", text)], &CompilerOptions::default(), run)
     }
 
-    fn annotation_type(state: &mut CheckerState, name: &str) -> tsrs2_types::TypeId {
+    fn annotation_type(state: &mut CheckerState, name: &str) -> tsc_types::TypeId {
         let annotation = find_probe_annotation(state.binder.source(0), name)
             .expect("declared var with annotation");
         state

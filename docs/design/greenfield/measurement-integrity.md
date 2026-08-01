@@ -327,7 +327,7 @@ Acceptance:
 cargo xtask scope audit
 cargo xtask scope audit --baseline origin/main
 cargo xtask conformance
-cargo test -p tsrs2-conformance
+cargo xtask test conformance
 ```
 
 The 68 duplicate T0 buckets in the adopted corpus are permanent

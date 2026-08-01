@@ -13,9 +13,9 @@
 //! (left-to-right, one eager call per non-binary operand) is observable
 //! through type interning.
 
-use tsrs2_binder::node_util;
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{
+use tsc_binder::node_util;
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{
     CheckMode, IterationUse, LiteralValue, SymbolFlags, SymbolId, TypeData, TypeFacts, TypeFlags,
     TypeId,
 };
@@ -58,7 +58,7 @@ const SEMANTICS_SOMETIMES: u8 = 3;
 /// tokenToString for operator tokens — every kind this band passes is
 /// in the generated textToToken reverse map.
 fn token_text(kind: SyntaxKind) -> &'static str {
-    tsrs2_syntax::tokens::token_to_string(kind).expect("operator tokens have token text")
+    tsc_syntax::tokens::token_to_string(kind).expect("operator tokens have token text")
 }
 
 /// createCheckBinaryExpression's user state (79827-79832): ONE record
@@ -244,7 +244,7 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         };
         if self.is_in_js_file(node)
-            && tsrs2_binder::assignment::get_assigned_expando_initializer(
+            && tsc_binder::assignment::get_assigned_expando_initializer(
                 self.binder.source_of_node(node),
                 node,
             )
@@ -505,7 +505,7 @@ impl<'a> CheckerState<'a> {
                     let err_node = error_node.unwrap_or(operator_token);
                     self.error_at(
                         Some(err_node),
-                        &tsrs2_diags::gen::The_0_operator_is_not_allowed_for_boolean_types_Consider_using_1_instead,
+                        &tsc_diagnostics::gen::The_0_operator_is_not_allowed_for_boolean_types_Consider_using_1_instead,
                         &[token_text(operator), token_text(suggested)],
                     );
                     return Ok(self.tables.intrinsics.number);
@@ -513,13 +513,13 @@ impl<'a> CheckerState<'a> {
                 let left_ok = self.check_arithmetic_operand_type(
                     left,
                     left_type,
-                    &tsrs2_diags::gen::The_left_hand_side_of_an_arithmetic_operation_must_be_of_type_any_number_bigint_or_an_enum_type,
+                    &tsc_diagnostics::gen::The_left_hand_side_of_an_arithmetic_operation_must_be_of_type_any_number_bigint_or_an_enum_type,
                     true,
                 )?;
                 let right_ok = self.check_arithmetic_operand_type(
                     right,
                     right_type,
-                    &tsrs2_diags::gen::The_right_hand_side_of_an_arithmetic_operation_must_be_of_type_any_number_bigint_or_an_enum_type,
+                    &tsc_diagnostics::gen::The_right_hand_side_of_an_arithmetic_operation_must_be_of_type_any_number_bigint_or_an_enum_type,
                     true,
                 )?;
                 let result_type;
@@ -552,11 +552,11 @@ impl<'a> CheckerState<'a> {
                         SyntaxKind::AsteriskAsteriskToken
                         | SyntaxKind::AsteriskAsteriskEqualsToken => {
                             if self.options.emit_script_target().bits()
-                                < tsrs2_types::ScriptTarget::ES2016.bits()
+                                < tsc_types::ScriptTarget::ES2016.bits()
                             {
                                 self.error_at(
                                     error_node,
-                                    &tsrs2_diags::gen::Exponentiation_cannot_be_performed_on_bigint_values_unless_the_target_option_is_set_to_es2016_or_later,
+                                    &tsc_diagnostics::gen::Exponentiation_cannot_be_performed_on_bigint_values_unless_the_target_option_is_set_to_es2016_or_later,
                                     &[],
                                 );
                             }
@@ -758,7 +758,7 @@ impl<'a> CheckerState<'a> {
                         );
                         self.error_at(
                             error_node.or(Some(operator_token)),
-                            &tsrs2_diags::gen::This_condition_will_always_return_0_since_JavaScript_compares_objects_by_reference_not_value,
+                            &tsc_diagnostics::gen::This_condition_will_always_return_0_since_JavaScript_compares_objects_by_reference_not_value,
                             &[if eq { "false" } else { "true" }],
                         );
                     }
@@ -807,7 +807,7 @@ impl<'a> CheckerState<'a> {
                     let falsy = self.extract_definitely_falsy_types(falsy_source)?;
                     self.get_union_type_ex(
                         &[falsy, right_type],
-                        tsrs2_types::UnionReduction::Literal,
+                        tsc_types::UnionReduction::Literal,
                     )?
                 } else {
                     left_type
@@ -829,7 +829,7 @@ impl<'a> CheckerState<'a> {
                     let non_nullable = self.get_non_nullable_type(non_falsy)?;
                     self.get_union_type_ex(
                         &[non_nullable, right_type],
-                        tsrs2_types::UnionReduction::Subtype,
+                        tsc_types::UnionReduction::Subtype,
                     )?
                 } else {
                     left_type
@@ -851,7 +851,7 @@ impl<'a> CheckerState<'a> {
                         let non_nullable = self.get_non_nullable_type(left_type)?;
                         self.get_union_type_ex(
                             &[non_nullable, right_type],
-                            tsrs2_types::UnionReduction::Subtype,
+                            tsc_types::UnionReduction::Subtype,
                         )?
                     } else {
                         left_type
@@ -871,15 +871,12 @@ impl<'a> CheckerState<'a> {
                 let declaration_kind = self
                     .parent_of(left)
                     .filter(|&parent| self.kind_of(parent) == SyntaxKind::BinaryExpression)
-                    .map_or(
-                        tsrs2_binder::AssignmentDeclarationKind::None,
-                        |assignment| {
-                            tsrs2_binder::get_assignment_declaration_kind(
-                                self.binder.source_of_node(assignment),
-                                assignment,
-                            )
-                        },
-                    );
+                    .map_or(tsc_binder::AssignmentDeclarationKind::None, |assignment| {
+                        tsc_binder::get_assignment_declaration_kind(
+                            self.binder.source_of_node(assignment),
+                            assignment,
+                        )
+                    });
                 self.check_assignment_declaration(declaration_kind, right_type)?;
                 if self.is_assignment_declaration_worker(declaration_kind, left, right) {
                     let right_is_object = self
@@ -889,14 +886,14 @@ impl<'a> CheckerState<'a> {
                     let object_can_supply_assignment_declaration = right_is_object
                         && (matches!(
                             declaration_kind,
-                            tsrs2_binder::AssignmentDeclarationKind::ModuleExports
-                                | tsrs2_binder::AssignmentDeclarationKind::Prototype
+                            tsc_binder::AssignmentDeclarationKind::ModuleExports
+                                | tsc_binder::AssignmentDeclarationKind::Prototype
                         ) || self.is_empty_object_type(right_type)?
                             || self.is_function_object_type(right_type)?
                             || self
                                 .tables
                                 .object_flags_of(right_type)
-                                .intersects(tsrs2_types::ObjectFlags::CLASS));
+                                .intersects(tsc_types::ObjectFlags::CLASS));
                     if !object_can_supply_assignment_declaration {
                         self.check_assignment_operator(
                             left,
@@ -926,7 +923,7 @@ impl<'a> CheckerState<'a> {
                 {
                     self.error_at(
                         Some(left),
-                        &tsrs2_diags::gen::Left_side_of_comma_operator_is_unused_and_has_no_side_effects,
+                        &tsc_diagnostics::gen::Left_side_of_comma_operator_is_unused_and_has_no_side_effects,
                         &[],
                     );
                 }
@@ -941,10 +938,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:80273-80295
     fn check_assignment_declaration(
         &mut self,
-        kind: tsrs2_binder::AssignmentDeclarationKind,
+        kind: tsc_binder::AssignmentDeclarationKind,
         right_type: TypeId,
     ) -> CheckResult<()> {
-        if kind != tsrs2_binder::AssignmentDeclarationKind::ModuleExports {
+        if kind != tsc_binder::AssignmentDeclarationKind::ModuleExports {
             return Ok(());
         }
         for property in self.get_properties_of_object_type_owned(right_type)? {
@@ -976,16 +973,16 @@ impl<'a> CheckerState<'a> {
             {
                 continue;
             }
-            let display = tsrs2_binder::unescape_leading_underscores(&name);
+            let display = tsc_binder::unescape_leading_underscores(&name);
             self.add_duplicate_declaration_errors_for_symbols(
                 symbol,
-                &tsrs2_diags::gen::Duplicate_identifier_0,
+                &tsc_diagnostics::gen::Duplicate_identifier_0,
                 display,
                 property,
             );
             self.add_duplicate_declaration_errors_for_symbols(
                 property,
-                &tsrs2_diags::gen::Duplicate_identifier_0,
+                &tsc_diagnostics::gen::Duplicate_identifier_0,
                 display,
                 symbol,
             );
@@ -998,22 +995,22 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:80350-80365
     fn is_assignment_declaration_worker(
         &self,
-        kind: tsrs2_binder::AssignmentDeclarationKind,
+        kind: tsc_binder::AssignmentDeclarationKind,
         left: NodeId,
         right: NodeId,
     ) -> bool {
         match kind {
-            tsrs2_binder::AssignmentDeclarationKind::ModuleExports => true,
-            tsrs2_binder::AssignmentDeclarationKind::ExportsProperty
-            | tsrs2_binder::AssignmentDeclarationKind::Property
-            | tsrs2_binder::AssignmentDeclarationKind::Prototype
-            | tsrs2_binder::AssignmentDeclarationKind::PrototypeProperty
-            | tsrs2_binder::AssignmentDeclarationKind::ThisProperty => {
+            tsc_binder::AssignmentDeclarationKind::ModuleExports => true,
+            tsc_binder::AssignmentDeclarationKind::ExportsProperty
+            | tsc_binder::AssignmentDeclarationKind::Property
+            | tsc_binder::AssignmentDeclarationKind::Prototype
+            | tsc_binder::AssignmentDeclarationKind::PrototypeProperty
+            | tsc_binder::AssignmentDeclarationKind::ThisProperty => {
                 let Some(symbol) = self.node_symbol(left) else {
                     return false;
                 };
                 let symbol = self.get_merged_symbol(symbol);
-                let Some(initializer) = tsrs2_binder::assignment::get_assigned_expando_initializer(
+                let Some(initializer) = tsc_binder::assignment::get_assigned_expando_initializer(
                     self.binder.source_of_node(right),
                     right,
                 ) else {
@@ -1054,7 +1051,7 @@ impl<'a> CheckerState<'a> {
         {
             self.error_at(
                 Some(left),
-                &tsrs2_diags::gen::The_left_hand_side_of_an_instanceof_expression_must_be_of_type_any_an_object_type_or_a_type_parameter,
+                &tsc_diagnostics::gen::The_left_hand_side_of_an_instanceof_expression_must_be_of_type_any_an_object_type_or_a_type_parameter,
                 &[],
             );
         }
@@ -1080,7 +1077,7 @@ impl<'a> CheckerState<'a> {
             return_type,
             boolean,
             Some(right),
-            &tsrs2_diags::gen::An_object_s_Symbol_hasInstance_method_must_return_a_boolean_value_for_it_to_be_used_on_the_right_hand_side_of_an_instanceof_expression,
+            &tsc_diagnostics::gen::An_object_s_Symbol_hasInstance_method_must_return_a_boolean_value_for_it_to_be_used_on_the_right_hand_side_of_an_instanceof_expression,
         )?;
         Ok(boolean)
     }
@@ -1167,7 +1164,7 @@ impl<'a> CheckerState<'a> {
                 nonnull,
                 string_number_symbol,
                 Some(left),
-                &tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1,
+                &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
             )?;
         }
         let nonnull_right = self.check_non_null_type(right_type, right)?;
@@ -1176,13 +1173,13 @@ impl<'a> CheckerState<'a> {
             nonnull_right,
             non_primitive,
             Some(right),
-            &tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1,
+            &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
         )? && self.has_empty_object_intersection(right_type)?
         {
             let display = self.type_to_string_slice(right_type)?;
             self.error_at(
                 Some(right),
-                &tsrs2_diags::gen::Type_0_may_represent_a_primitive_value_which_is_not_permitted_as_the_right_operand_of_the_in_operator,
+                &tsc_diagnostics::gen::Type_0_may_represent_a_primitive_value_which_is_not_permitted_as_the_right_operand_of_the_in_operator,
                 &[&display],
             );
         }
@@ -1247,10 +1244,10 @@ impl<'a> CheckerState<'a> {
         // (suggestion band unmodeled, like 80008).
         if is_enum_member {
             let left_text = self.text_of_node(left)?;
-            let simplified = tsrs2_types::tables::js_number_to_string(value % 32.0);
+            let simplified = tsc_types::tables::js_number_to_string(value % 32.0);
             self.error_at(
                 Some(error_node.unwrap_or(operator_token)),
-                &tsrs2_diags::gen::This_operation_can_be_simplified_This_shift_is_identical_to_0_1_2,
+                &tsc_diagnostics::gen::This_operation_can_be_simplified_This_shift_is_identical_to_0_1_2,
                 &[&left_text, token_text(operator), &simplified],
             );
         }
@@ -1286,7 +1283,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn text_of_node(&self, node: NodeId) -> CheckResult<String> {
         let source = self.binder.source_of_node(node);
         let raw = source.arena.node(node);
-        let start = tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize);
+        let start = tsc_syntax::skip_trivia(&source.text, raw.pos as usize);
         let end = raw.end as usize;
         let (begin, finish) = if start <= end {
             (start, end)
@@ -1339,7 +1336,7 @@ impl<'a> CheckerState<'a> {
     fn comma_left_inside_jsx_2657_span(&self, left: NodeId) -> bool {
         let source = self.binder.source_of_node(left);
         let raw = source.arena.node(left);
-        let start = tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize) as u32;
+        let start = tsc_syntax::skip_trivia(&source.text, raw.pos as usize) as u32;
         source.parse_diagnostics.iter().any(|diag| {
             let (Some(diag_start), Some(length)) = (diag.start, diag.length) else {
                 return false;
@@ -1453,7 +1450,7 @@ impl<'a> CheckerState<'a> {
         if let Some(operand) = offending {
             self.error_at(
                 Some(operand),
-                &tsrs2_diags::gen::The_0_operator_cannot_be_applied_to_type_symbol,
+                &tsc_diagnostics::gen::The_0_operator_cannot_be_applied_to_type_symbol,
                 &[token_text(operator)],
             );
             return Ok(false);
@@ -1482,7 +1479,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         operand: NodeId,
         ty: TypeId,
-        diagnostic: &'static tsrs2_diags::DiagnosticMessage,
+        diagnostic: &'static tsc_diagnostics::DiagnosticMessage,
         is_await_valid: bool,
     ) -> CheckResult<bool> {
         let number_or_bigint = self.tables.intrinsics.number_or_bigint;
@@ -1521,7 +1518,7 @@ impl<'a> CheckerState<'a> {
         let (Some(receiver), Some(name)) = (access.expression, access.name) else {
             return Ok(());
         };
-        if !tsrs2_binder::assignment::is_module_exports_access_expression(
+        if !tsc_binder::assignment::is_module_exports_access_expression(
             self.binder.source_of_node(receiver),
             receiver,
         ) {
@@ -1543,7 +1540,7 @@ impl<'a> CheckerState<'a> {
                         self.binder
                             .symbol(symbol)
                             .exports
-                            .get(tsrs2_types::InternalSymbolName::EXPORT_EQUALS)
+                            .get(tsc_types::InternalSymbolName::EXPORT_EQUALS)
                             .copied()
                     })
             };
@@ -1585,10 +1582,10 @@ impl<'a> CheckerState<'a> {
         }
         if self.check_reference_expression(
             left,
-            &tsrs2_diags::gen::The_left_hand_side_of_an_assignment_expression_must_be_a_variable_or_a_property_access,
-            &tsrs2_diags::gen::The_left_hand_side_of_an_assignment_expression_may_not_be_an_optional_property_access,
+            &tsc_diagnostics::gen::The_left_hand_side_of_an_assignment_expression_must_be_a_variable_or_a_property_access,
+            &tsc_diagnostics::gen::The_left_hand_side_of_an_assignment_expression_may_not_be_an_optional_property_access,
         ) {
-            let mut head_message: Option<&'static tsrs2_diags::DiagnosticMessage> = None;
+            let mut head_message: Option<&'static tsc_diagnostics::DiagnosticMessage> = None;
             if self.tables.exact_optional_property_types
                 && self.kind_of(left) == SyntaxKind::PropertyAccessExpression
                 && self.maybe_type_of_kind(value_type, TypeFlags::UNDEFINED)
@@ -1607,7 +1604,7 @@ impl<'a> CheckerState<'a> {
                     let receiver_type = self.get_type_of_expression(receiver)?;
                     let target = self.get_type_of_property_of_type(receiver_type, &name_text)?;
                     if self.is_exact_optional_property_mismatch(Some(value_type), target)? {
-                        head_message = Some(&tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1_with_exactOptionalPropertyTypes_true_Consider_adding_undefined_to_the_type_of_the_target);
+                        head_message = Some(&tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1_with_exactOptionalPropertyTypes_true_Consider_adding_undefined_to_the_type_of_the_target);
                     }
                 }
             }
@@ -1620,7 +1617,7 @@ impl<'a> CheckerState<'a> {
                 && self.elaborate_literal_assignment(
                     right,
                     assignee_type,
-                    Some(&tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1),
+                    Some(&tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1),
                 )?
                 .reported();
             if !elaborated {
@@ -1628,7 +1625,7 @@ impl<'a> CheckerState<'a> {
                     value_type,
                     assignee_type,
                     Some(left),
-                    head_message.unwrap_or(&tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1),
+                    head_message.unwrap_or(&tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1),
                 )?;
             }
         }
@@ -1676,8 +1673,8 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_reference_expression(
         &mut self,
         expr: NodeId,
-        invalid_reference_message: &'static tsrs2_diags::DiagnosticMessage,
-        invalid_optional_chain_message: &'static tsrs2_diags::DiagnosticMessage,
+        invalid_reference_message: &'static tsc_diagnostics::DiagnosticMessage,
+        invalid_optional_chain_message: &'static tsc_diagnostics::DiagnosticMessage,
     ) -> bool {
         let node = self.skip_outer_expressions(
             expr,
@@ -1695,7 +1692,7 @@ impl<'a> CheckerState<'a> {
             return false;
         }
         let source = self.binder.source_of_node(node);
-        if node_util::node_flags(source, node).intersects(tsrs2_types::NodeFlags::OPTIONAL_CHAIN) {
+        if node_util::node_flags(source, node).intersects(tsc_types::NodeFlags::OPTIONAL_CHAIN) {
             self.error_at(Some(expr), invalid_optional_chain_message, &[]);
             return false;
         }
@@ -1778,7 +1775,7 @@ impl<'a> CheckerState<'a> {
             self.error_and_maybe_suggest_await(
                 err_node,
                 would_work_with_await,
-                &tsrs2_diags::gen::Operator_0_cannot_be_applied_to_types_1_and_2,
+                &tsc_diagnostics::gen::Operator_0_cannot_be_applied_to_types_1_and_2,
                 &[token_text(operator), &left_str, &right_str],
             );
         }
@@ -1803,7 +1800,7 @@ impl<'a> CheckerState<'a> {
                 self.error_and_maybe_suggest_await(
                     err_node,
                     maybe_missing_await,
-                    &tsrs2_diags::gen::This_comparison_appears_to_be_unintentional_because_the_types_0_and_1_have_no_overlap,
+                    &tsc_diagnostics::gen::This_comparison_appears_to_be_unintentional_because_the_types_0_and_1_have_no_overlap,
                     &[left_str, right_str],
                 );
                 true
@@ -1843,7 +1840,7 @@ impl<'a> CheckerState<'a> {
         if is_left_nan && is_right_nan {
             self.error_at(
                 error_node.or(Some(operator_token)),
-                &tsrs2_diags::gen::This_condition_will_always_return_0,
+                &tsc_diagnostics::gen::This_condition_will_always_return_0,
                 &[token_text(verdict_token)],
             );
             return Ok(());
@@ -1866,14 +1863,14 @@ impl<'a> CheckerState<'a> {
         };
         let related = self.related_info_for_node(
             location,
-            &tsrs2_diags::gen::Did_you_mean_0,
+            &tsc_diagnostics::gen::Did_you_mean_0,
             &[&format!(
                 "{operator_string}Number.isNaN({suggestion_target})"
             )],
         );
         self.error_at_with_related(
             error_node.or(Some(operator_token)),
-            &tsrs2_diags::gen::This_condition_will_always_return_0,
+            &tsc_diagnostics::gen::This_condition_will_always_return_0,
             &[token_text(verdict_token)],
             vec![related],
         );
@@ -1999,7 +1996,7 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::BIG_INT) {
             return Ok(self
                 .tables
-                .get_bigint_literal_type(tsrs2_types::PseudoBigInt {
+                .get_bigint_literal_type(tsc_types::PseudoBigInt {
                     negative: false,
                     base10_value: "0".to_owned(),
                 }));
@@ -2155,7 +2152,7 @@ impl<'a> CheckerState<'a> {
         object_literal_type: TypeId,
         property_index: usize,
         properties: &[NodeId],
-        properties_array: Option<tsrs2_syntax::NodeArrayId>,
+        properties_array: Option<tsc_syntax::NodeArrayId>,
         right_is_this: bool,
     ) -> CheckResult<()> {
         let property = properties[property_index];
@@ -2187,10 +2184,10 @@ impl<'a> CheckerState<'a> {
                         )?;
                     }
                 }
-                let access_flags = tsrs2_types::AccessFlags::from_bits(
-                    tsrs2_types::AccessFlags::EXPRESSION_POSITION.bits()
+                let access_flags = tsc_types::AccessFlags::from_bits(
+                    tsc_types::AccessFlags::EXPRESSION_POSITION.bits()
                         | if self.has_default_value(property) {
-                            tsrs2_types::AccessFlags::ALLOW_MISSING.bits()
+                            tsc_types::AccessFlags::ALLOW_MISSING.bits()
                         } else {
                             0
                         },
@@ -2219,7 +2216,7 @@ impl<'a> CheckerState<'a> {
                 if property_index < properties.len() - 1 {
                     self.error_at(
                         Some(property),
-                        &tsrs2_diags::gen::A_rest_element_must_be_last_in_a_destructuring_pattern,
+                        &tsc_diagnostics::gen::A_rest_element_must_be_last_in_a_destructuring_pattern,
                         &[],
                     );
                     return Ok(());
@@ -2251,7 +2248,7 @@ impl<'a> CheckerState<'a> {
                 let rest_type = self.get_rest_type(object_literal_type, &non_rest_names, symbol)?;
                 self.check_grammar_for_disallowed_trailing_comma(
                     properties_array,
-                    &tsrs2_diags::gen::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma,
+                    &tsc_diagnostics::gen::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma,
                 );
                 self.check_destructuring_assignment(
                     expression,
@@ -2264,7 +2261,7 @@ impl<'a> CheckerState<'a> {
             _ => {
                 self.error_at(
                     Some(property),
-                    &tsrs2_diags::gen::Property_assignment_expected,
+                    &tsc_diagnostics::gen::Property_assignment_expected,
                     &[],
                 );
                 Ok(())
@@ -2366,10 +2363,10 @@ impl<'a> CheckerState<'a> {
                 return Ok(());
             }
             let index_type = self.tables.get_number_literal_type(element_index as f64);
-            let access_flags = tsrs2_types::AccessFlags::from_bits(
-                tsrs2_types::AccessFlags::EXPRESSION_POSITION.bits()
+            let access_flags = tsc_types::AccessFlags::from_bits(
+                tsc_types::AccessFlags::EXPRESSION_POSITION.bits()
                     | if self.has_default_value(element) {
-                        tsrs2_types::AccessFlags::ALLOW_MISSING.bits()
+                        tsc_types::AccessFlags::ALLOW_MISSING.bits()
                     } else {
                         0
                     },
@@ -2401,7 +2398,7 @@ impl<'a> CheckerState<'a> {
         if element_index < elements.len() - 1 {
             self.error_at(
                 Some(element),
-                &tsrs2_diags::gen::A_rest_element_must_be_last_in_a_destructuring_pattern,
+                &tsc_diagnostics::gen::A_rest_element_must_be_last_in_a_destructuring_pattern,
                 &[],
             );
             return Ok(());
@@ -2418,7 +2415,7 @@ impl<'a> CheckerState<'a> {
                 if self.operator_kind(operator_token) == SyntaxKind::EqualsToken {
                     self.error_at(
                         Some(operator_token),
-                        &tsrs2_diags::gen::A_rest_element_cannot_have_an_initializer,
+                        &tsc_diagnostics::gen::A_rest_element_cannot_have_an_initializer,
                         &[],
                     );
                     return Ok(());
@@ -2431,7 +2428,7 @@ impl<'a> CheckerState<'a> {
         };
         self.check_grammar_for_disallowed_trailing_comma(
             elements_array,
-            &tsrs2_diags::gen::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma,
+            &tsc_diagnostics::gen::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma,
         );
         let all_tuples = self.every_type(source_type, |state, t| state.tables.is_tuple_type(t));
         let rest_type = if all_tuples {
@@ -2468,13 +2465,13 @@ impl<'a> CheckerState<'a> {
             .is_some_and(|p| self.kind_of(p) == SyntaxKind::SpreadAssignment);
         let (reference_message, optional_message) = if parent_is_spread {
             (
-                &tsrs2_diags::gen::The_target_of_an_object_rest_assignment_must_be_a_variable_or_a_property_access,
-                &tsrs2_diags::gen::The_target_of_an_object_rest_assignment_may_not_be_an_optional_property_access,
+                &tsc_diagnostics::gen::The_target_of_an_object_rest_assignment_must_be_a_variable_or_a_property_access,
+                &tsc_diagnostics::gen::The_target_of_an_object_rest_assignment_may_not_be_an_optional_property_access,
             )
         } else {
             (
-                &tsrs2_diags::gen::The_left_hand_side_of_an_assignment_expression_must_be_a_variable_or_a_property_access,
-                &tsrs2_diags::gen::The_left_hand_side_of_an_assignment_expression_may_not_be_an_optional_property_access,
+                &tsc_diagnostics::gen::The_left_hand_side_of_an_assignment_expression_must_be_a_variable_or_a_property_access,
+                &tsc_diagnostics::gen::The_left_hand_side_of_an_assignment_expression_may_not_be_an_optional_property_access,
             )
         };
         if self.check_reference_expression(target, reference_message, optional_message) {
@@ -2482,7 +2479,7 @@ impl<'a> CheckerState<'a> {
                 source_type,
                 target_type,
                 Some(target),
-                &tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1,
+                &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
             )?;
         }
         Ok(source_type)
@@ -2507,7 +2504,7 @@ impl<'a> CheckerState<'a> {
             if file_name.ends_with(".cts") || file_name.ends_with(".mts") {
                 self.grammar_error_on_node(
                     node,
-                    &tsrs2_diags::gen::This_syntax_is_reserved_in_files_with_the_mts_or_cts_extension_Use_an_as_expression_instead,
+                    &tsc_diagnostics::gen::This_syntax_is_reserved_in_files_with_the_mts_or_cts_extension_Use_an_as_expression_instead,
                     &[],
                 );
             }
@@ -2531,7 +2528,7 @@ impl<'a> CheckerState<'a> {
             if !self.is_valid_const_assertion_argument(expression)? {
                 self.error_at(
                     Some(expression),
-                    &tsrs2_diags::gen::A_const_assertion_can_only_be_applied_to_references_to_enum_members_or_string_number_boolean_array_or_object_literals,
+                    &tsc_diagnostics::gen::A_const_assertion_can_only_be_applied_to_references_to_enum_members_or_string_number_boolean_array_or_object_literals,
                     &[],
                 );
             }
@@ -2610,7 +2607,7 @@ impl<'a> CheckerState<'a> {
                 expr_type,
                 target_type,
                 Some(err_node),
-                &tsrs2_diags::gen::Conversion_of_type_0_to_type_1_may_be_a_mistake_because_neither_type_sufficiently_overlaps_with_the_other_If_this_was_intentional_convert_the_expression_to_unknown_first,
+                &tsc_diagnostics::gen::Conversion_of_type_0_to_type_1_may_be_a_mistake_because_neither_type_sufficiently_overlaps_with_the_other_If_this_was_intentional_convert_the_expression_to_unknown_first,
             )?;
         }
         Ok(())
@@ -2687,7 +2684,7 @@ impl<'a> CheckerState<'a> {
             target_type,
             error_node,
             expression,
-            &tsrs2_diags::gen::Type_0_does_not_satisfy_the_expected_type_1,
+            &tsc_diagnostics::gen::Type_0_does_not_satisfy_the_expected_type_1,
         )?;
         Ok(expr_type)
     }
@@ -2699,7 +2696,7 @@ impl<'a> CheckerState<'a> {
     fn literal_operand_reported_since(&self, operand: NodeId, before: usize) -> bool {
         let source = self.binder.source_of_node(operand);
         let node = source.arena.node(operand);
-        let start_byte = tsrs2_syntax::skip_trivia(&source.text, node.pos as usize);
+        let start_byte = tsc_syntax::skip_trivia(&source.text, node.pos as usize);
         let to_utf16 = |byte: usize| -> u32 {
             source
                 .line_map
@@ -2750,7 +2747,7 @@ impl<'a> CheckerState<'a> {
                         {
                             self.error_at(
                                 Some(node),
-                                &tsrs2_diags::gen::The_right_hand_side_of_an_instanceof_expression_must_not_be_an_instantiation_expression,
+                                &tsc_diagnostics::gen::The_right_hand_side_of_an_instanceof_expression_must_not_be_an_instantiation_expression,
                                 &[],
                             );
                         }
@@ -2769,7 +2766,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         expr_type: TypeId,
         node: NodeId,
-        type_arguments: Option<tsrs2_syntax::NodeArrayId>,
+        type_arguments: Option<tsc_syntax::NodeArrayId>,
     ) -> CheckResult<TypeId> {
         let argument_nodes = self.nodes_of(type_arguments);
         if expr_type == self.tables.intrinsics.silent_never
@@ -2809,7 +2806,7 @@ impl<'a> CheckerState<'a> {
             self.error_at_node_array_range(
                 node,
                 type_arguments,
-                &tsrs2_diags::gen::Type_0_has_no_signatures_for_which_the_type_argument_list_is_applicable,
+                &tsc_diagnostics::gen::Type_0_has_no_signatures_for_which_the_type_argument_list_is_applicable,
                 &[&display],
             );
         }
@@ -2882,8 +2879,8 @@ impl<'a> CheckerState<'a> {
                     .binder
                     .create_symbol(SymbolFlags::NONE, "__instantiationExpression".to_owned());
                 let result = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
-                self.tables.type_mut(result).object_flags = tsrs2_types::ObjectFlags::ANONYMOUS
-                    | tsrs2_types::ObjectFlags::INSTANTIATION_EXPRESSION_TYPE;
+                self.tables.type_mut(result).object_flags = tsc_types::ObjectFlags::ANONYMOUS
+                    | tsc_types::ObjectFlags::INSTANTIATION_EXPRESSION_TYPE;
                 self.tables.type_mut(result).symbol = Some(symbol);
                 let members_id = self.alloc_members(crate::state::ResolvedMembers {
                     members,
@@ -2962,7 +2959,7 @@ impl<'a> CheckerState<'a> {
                 mapped.push(instantiated);
             }
             if changed {
-                return self.get_intersection_type(&mapped, tsrs2_types::IntersectionFlags::NONE);
+                return self.get_intersection_type(&mapped, tsc_types::IntersectionFlags::NONE);
             }
             return Ok(ty);
         }
@@ -3007,8 +3004,8 @@ impl<'a> CheckerState<'a> {
     fn error_at_node_array_range(
         &mut self,
         node: NodeId,
-        array: Option<tsrs2_syntax::NodeArrayId>,
-        message: &'static tsrs2_diags::DiagnosticMessage,
+        array: Option<tsc_syntax::NodeArrayId>,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
         args: &[&str],
     ) {
         let Some(array) = array else {
@@ -3017,7 +3014,7 @@ impl<'a> CheckerState<'a> {
         };
         let source = self.binder.source_of_node(node);
         let array = source.arena.node_array(array);
-        let start_byte = tsrs2_syntax::skip_trivia(&source.text, array.pos as usize);
+        let start_byte = tsc_syntax::skip_trivia(&source.text, array.pos as usize);
         let to_utf16 = |byte: usize| -> u32 {
             source
                 .line_map
@@ -3029,11 +3026,11 @@ impl<'a> CheckerState<'a> {
         let start = to_utf16(start_byte);
         let end = to_utf16(array.end as usize);
         let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
-        let diagnostic = tsrs2_diags::Diagnostic::new(
+        let diagnostic = tsc_diagnostics::Diagnostic::new(
             Some(source.file_name.clone()),
             Some(start),
             Some(end.saturating_sub(start)),
-            tsrs2_diags::MessageChain::new(message, &args),
+            tsc_diagnostics::MessageChain::new(message, &args),
         );
         self.push_error_diagnostic(diagnostic);
     }
@@ -3055,7 +3052,7 @@ impl<'a> CheckerState<'a> {
             if self.kind_of(expression) == SyntaxKind::ImportKeyword {
                 return self.grammar_error_on_node(
                     node,
-                    &tsrs2_diags::gen::This_use_of_import_is_invalid_import_calls_can_be_written_but_they_must_have_parentheses_and_cannot_have_type_arguments,
+                    &tsc_diagnostics::gen::This_use_of_import_is_invalid_import_calls_can_be_written_but_they_must_have_parentheses_and_cannot_have_type_arguments,
                     &[],
                 );
             }
@@ -3070,11 +3067,11 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_grammar_type_arguments(
         &mut self,
         node: NodeId,
-        type_arguments: Option<tsrs2_syntax::NodeArrayId>,
+        type_arguments: Option<tsc_syntax::NodeArrayId>,
     ) -> bool {
         self.check_grammar_for_disallowed_trailing_comma(
             type_arguments,
-            &tsrs2_diags::gen::Trailing_comma_not_allowed,
+            &tsc_diagnostics::gen::Trailing_comma_not_allowed,
         ) || self.check_grammar_for_at_least_one_type_argument(node, type_arguments)
     }
 
@@ -3082,7 +3079,7 @@ impl<'a> CheckerState<'a> {
     fn check_grammar_for_at_least_one_type_argument(
         &mut self,
         node: NodeId,
-        type_arguments: Option<tsrs2_syntax::NodeArrayId>,
+        type_arguments: Option<tsc_syntax::NodeArrayId>,
     ) -> bool {
         let Some(array_id) = type_arguments else {
             return false;
@@ -3096,7 +3093,7 @@ impl<'a> CheckerState<'a> {
             return false;
         }
         let start_byte = array.pos as usize - "<".len();
-        let end_byte = tsrs2_syntax::skip_trivia(&source.text, array.end as usize) + ">".len();
+        let end_byte = tsc_syntax::skip_trivia(&source.text, array.end as usize) + ">".len();
         let to_utf16 = |byte: usize| -> u32 {
             source
                 .line_map
@@ -3107,12 +3104,12 @@ impl<'a> CheckerState<'a> {
         };
         let start = to_utf16(start_byte);
         let end = to_utf16(end_byte);
-        let diagnostic = tsrs2_diags::Diagnostic::new(
+        let diagnostic = tsc_diagnostics::Diagnostic::new(
             Some(source.file_name.clone()),
             Some(start),
             Some(end.saturating_sub(start)),
-            tsrs2_diags::MessageChain::new(
-                &tsrs2_diags::gen::Type_argument_list_cannot_be_empty,
+            tsc_diagnostics::MessageChain::new(
+                &tsc_diagnostics::gen::Type_argument_list_cannot_be_empty,
                 &[],
             ),
         );
@@ -3157,14 +3154,14 @@ impl<'a> CheckerState<'a> {
             {
                 self.error_at(
                     Some(node),
-                    &tsrs2_diags::gen::The_import_meta_meta_property_is_not_allowed_in_files_which_will_build_into_CommonJS_output,
+                    &tsc_diagnostics::gen::The_import_meta_meta_property_is_not_allowed_in_files_which_will_build_into_CommonJS_output,
                     &[],
                 );
             }
         } else if module_kind < 6 && module_kind != 4 {
             self.error_at(
                 Some(node),
-                &tsrs2_diags::gen::The_import_meta_meta_property_is_only_allowed_when_the_module_option_is_es2020_es2022_esnext_system_node16_node18_node20_or_nodenext,
+                &tsc_diagnostics::gen::The_import_meta_meta_property_is_only_allowed_when_the_module_option_is_es2020_es2022_esnext_system_node16_node18_node20_or_nodenext,
                 &[],
             );
         }
@@ -3182,7 +3179,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn meta_property_is_new(&self, node: NodeId) -> bool {
         let source = self.binder.source_of_node(node);
         let raw = source.arena.node(node);
-        let start = tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize);
+        let start = tsc_syntax::skip_trivia(&source.text, raw.pos as usize);
         source.text[start..].starts_with("new")
     }
 
@@ -3213,7 +3210,7 @@ impl<'a> CheckerState<'a> {
             if name_text != "target" {
                 self.grammar_error_on_node(
                     name,
-                    &tsrs2_diags::gen::_0_is_not_a_valid_meta_property_for_keyword_1_Did_you_mean_2,
+                    &tsc_diagnostics::gen::_0_is_not_a_valid_meta_property_for_keyword_1_Did_you_mean_2,
                     &[&name_text, "new", "target"],
                 );
             }
@@ -3238,12 +3235,12 @@ impl<'a> CheckerState<'a> {
                                 .unwrap_or(byte as u32)
                         };
                         let pos = to_utf16(raw.end as usize);
-                        let diagnostic = tsrs2_diags::Diagnostic::new(
+                        let diagnostic = tsc_diagnostics::Diagnostic::new(
                             Some(source.file_name.clone()),
                             Some(pos),
                             Some(0),
-                            tsrs2_diags::MessageChain::new(
-                                &tsrs2_diags::gen::_0_expected,
+                            tsc_diagnostics::MessageChain::new(
+                                &tsc_diagnostics::gen::_0_expected,
                                 &["(".to_owned()],
                             ),
                         );
@@ -3253,13 +3250,13 @@ impl<'a> CheckerState<'a> {
             } else if is_callee {
                 self.grammar_error_on_node(
                     name,
-                    &tsrs2_diags::gen::_0_is_not_a_valid_meta_property_for_keyword_import_Did_you_mean_meta_or_defer,
+                    &tsc_diagnostics::gen::_0_is_not_a_valid_meta_property_for_keyword_import_Did_you_mean_meta_or_defer,
                     &[&name_text],
                 );
             } else {
                 self.grammar_error_on_node(
                     name,
-                    &tsrs2_diags::gen::_0_is_not_a_valid_meta_property_for_keyword_1_Did_you_mean_2,
+                    &tsc_diagnostics::gen::_0_is_not_a_valid_meta_property_for_keyword_1_Did_you_mean_2,
                     &[&name_text, "import", "meta"],
                 );
             }
@@ -3283,7 +3280,7 @@ impl<'a> CheckerState<'a> {
         let Some(container) = container else {
             self.error_at(
                 Some(node),
-                &tsrs2_diags::gen::Meta_property_0_is_only_allowed_in_the_body_of_a_function_declaration_function_expression_or_constructor,
+                &tsc_diagnostics::gen::Meta_property_0_is_only_allowed_in_the_body_of_a_function_declaration_function_expression_or_constructor,
                 &["new.target"],
             );
             return Ok(self.tables.intrinsics.error);
@@ -3325,7 +3322,7 @@ impl<'a> CheckerState<'a> {
         )?;
         let type1 = self.check_expression(when_true, check_mode)?;
         let type2 = self.check_expression(when_false, check_mode)?;
-        self.get_union_type_ex(&[type1, type2], tsrs2_types::UnionReduction::Subtype)
+        self.get_union_type_ex(&[type1, type2], tsc_types::UnionReduction::Subtype)
     }
 
     /// tsc-port: checkTemplateExpression @6.0.3
@@ -3344,11 +3341,11 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.intrinsics.error);
         };
         let spans = self.nodes_of(data.template_spans);
-        let mut texts: Vec<tsrs2_types::TemplateText> = Vec::with_capacity(spans.len() + 1);
+        let mut texts: Vec<tsc_types::TemplateText> = Vec::with_capacity(spans.len() + 1);
         match self.data_of(head) {
             NodeData::TemplateHead(data) => {
-                texts.push(tsrs2_types::TemplateText::from_utf16(
-                    &tsrs2_syntax::template_text_utf16(&data.text, data.raw_text.as_deref()),
+                texts.push(tsc_types::TemplateText::from_utf16(
+                    &tsc_syntax::template_text_utf16(&data.text, data.raw_text.as_deref()),
                 ));
             }
             _ => unreachable!("parser invariant: template heads carry TemplateHead data"),
@@ -3366,7 +3363,7 @@ impl<'a> CheckerState<'a> {
             if self.maybe_type_of_kind_considering_base_constraint(ty, TypeFlags::ES_SYMBOL_LIKE)? {
                 self.error_at(
                     Some(expression),
-                    &tsrs2_diags::gen::Implicit_conversion_of_a_symbol_to_a_string_will_fail_at_runtime_Consider_wrapping_this_expression_in_String,
+                    &tsc_diagnostics::gen::Implicit_conversion_of_a_symbol_to_a_string_will_fail_at_runtime_Consider_wrapping_this_expression_in_String,
                     &[],
                 );
             }
@@ -3375,13 +3372,13 @@ impl<'a> CheckerState<'a> {
             };
             match self.data_of(literal) {
                 NodeData::TemplateMiddle(data) => {
-                    texts.push(tsrs2_types::TemplateText::from_utf16(
-                        &tsrs2_syntax::template_text_utf16(&data.text, data.raw_text.as_deref()),
+                    texts.push(tsc_types::TemplateText::from_utf16(
+                        &tsc_syntax::template_text_utf16(&data.text, data.raw_text.as_deref()),
                     ));
                 }
                 NodeData::TemplateTail(data) => {
-                    texts.push(tsrs2_types::TemplateText::from_utf16(
-                        &tsrs2_syntax::template_text_utf16(&data.text, data.raw_text.as_deref()),
+                    texts.push(tsc_types::TemplateText::from_utf16(
+                        &tsc_syntax::template_text_utf16(&data.text, data.raw_text.as_deref()),
                     ));
                 }
                 _ => unreachable!(
@@ -3409,7 +3406,7 @@ impl<'a> CheckerState<'a> {
         }
         let contextual_template = {
             let contextual = self
-                .get_contextual_type(node, tsrs2_types::ContextFlags::NONE)?
+                .get_contextual_type(node, tsc_types::ContextFlags::NONE)?
                 .unwrap_or(self.tables.intrinsics.unknown);
             self.some_type_result(contextual, |state, t| {
                 state.is_template_literal_contextual_type(t)
@@ -3503,7 +3500,7 @@ impl<'a> CheckerState<'a> {
                     let parsed = crate::expr::parse_pseudo_big_int(&text)?;
                     let literal = self
                         .tables
-                        .get_bigint_literal_type(tsrs2_types::PseudoBigInt {
+                        .get_bigint_literal_type(tsc_types::PseudoBigInt {
                             negative: true,
                             base10_value: parsed.base10_value,
                         });
@@ -3521,7 +3518,7 @@ impl<'a> CheckerState<'a> {
                 )? {
                     self.error_at(
                         Some(operand),
-                        &tsrs2_diags::gen::The_0_operator_cannot_be_applied_to_type_symbol,
+                        &tsc_diagnostics::gen::The_0_operator_cannot_be_applied_to_type_symbol,
                         &[token_text(operator)],
                     );
                 }
@@ -3534,7 +3531,7 @@ impl<'a> CheckerState<'a> {
                         let display = self.type_to_string_slice(base)?;
                         self.error_at(
                             Some(operand),
-                            &tsrs2_diags::gen::Operator_0_cannot_be_applied_to_type_1,
+                            &tsc_diagnostics::gen::Operator_0_cannot_be_applied_to_type_1,
                             &[token_text(operator), &display],
                         );
                     }
@@ -3561,14 +3558,14 @@ impl<'a> CheckerState<'a> {
                 let ok = self.check_arithmetic_operand_type(
                     operand,
                     nonnull,
-                    &tsrs2_diags::gen::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type,
+                    &tsc_diagnostics::gen::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type,
                     false,
                 )?;
                 if ok {
                     self.check_reference_expression(
                         operand,
-                        &tsrs2_diags::gen::The_operand_of_an_increment_or_decrement_operator_must_be_a_variable_or_a_property_access,
-                        &tsrs2_diags::gen::The_operand_of_an_increment_or_decrement_operator_may_not_be_an_optional_property_access,
+                        &tsc_diagnostics::gen::The_operand_of_an_increment_or_decrement_operator_must_be_a_variable_or_a_property_access,
+                        &tsc_diagnostics::gen::The_operand_of_an_increment_or_decrement_operator_may_not_be_an_optional_property_access,
                     );
                 }
                 self.get_unary_result_type(operand_type)
@@ -3596,14 +3593,14 @@ impl<'a> CheckerState<'a> {
         let ok = self.check_arithmetic_operand_type(
             operand,
             nonnull,
-            &tsrs2_diags::gen::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type,
+            &tsc_diagnostics::gen::An_arithmetic_operand_must_be_of_type_any_number_bigint_or_an_enum_type,
             false,
         )?;
         if ok {
             self.check_reference_expression(
                 operand,
-                &tsrs2_diags::gen::The_operand_of_an_increment_or_decrement_operator_must_be_a_variable_or_a_property_access,
-                &tsrs2_diags::gen::The_operand_of_an_increment_or_decrement_operator_may_not_be_an_optional_property_access,
+                &tsc_diagnostics::gen::The_operand_of_an_increment_or_decrement_operator_must_be_a_variable_or_a_property_access,
+                &tsc_diagnostics::gen::The_operand_of_an_increment_or_decrement_operator_may_not_be_an_optional_property_access,
             );
         }
         self.get_unary_result_type(operand_type)
@@ -3634,8 +3631,8 @@ impl<'a> CheckerState<'a> {
     /// suppressed like every grammar row.
     pub(crate) fn check_grammar_for_disallowed_trailing_comma(
         &mut self,
-        list: Option<tsrs2_syntax::NodeArrayId>,
-        message: &'static tsrs2_diags::DiagnosticMessage,
+        list: Option<tsc_syntax::NodeArrayId>,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
     ) -> bool {
         let Some(list) = list else {
             return false;
@@ -3661,11 +3658,11 @@ impl<'a> CheckerState<'a> {
         };
         let start = to_utf16(array.end as usize - 1);
         let end = to_utf16(array.end as usize);
-        let diagnostic = tsrs2_diags::Diagnostic::new(
+        let diagnostic = tsc_diagnostics::Diagnostic::new(
             Some(source.file_name.clone()),
             Some(start),
             Some(end.saturating_sub(start)),
-            tsrs2_diags::MessageChain::new(message, &[]),
+            tsc_diagnostics::MessageChain::new(message, &[]),
         );
         self.push_error_diagnostic(diagnostic);
         true
@@ -3699,7 +3696,7 @@ impl<'a> CheckerState<'a> {
             key_types.push(self.get_literal_type_from_property_name(name)?);
         }
         let mut omit_key_type =
-            self.get_union_type_ex(&key_types, tsrs2_types::UnionReduction::Literal)?;
+            self.get_union_type_ex(&key_types, tsc_types::UnionReduction::Literal)?;
         let mut spreadable_properties: Vec<SymbolId> = Vec::new();
         let mut unspreadable_to_rest_keys: Vec<TypeId> = Vec::new();
         for prop in self.get_properties_of_type(source)? {
@@ -3711,9 +3708,9 @@ impl<'a> CheckerState<'a> {
             let omitted = self.is_type_assignable_to(literal_type_from_property, omit_key_type)?;
             let private_or_protected = self
                 .get_declaration_modifier_flags_from_symbol(prop)
-                .intersects(tsrs2_types::ModifierFlags::from_bits(
-                    tsrs2_types::ModifierFlags::PRIVATE.bits()
-                        | tsrs2_types::ModifierFlags::PROTECTED.bits(),
+                .intersects(tsc_types::ModifierFlags::from_bits(
+                    tsc_types::ModifierFlags::PRIVATE.bits()
+                        | tsc_types::ModifierFlags::PROTECTED.bits(),
                 ));
             if !omitted && !private_or_protected && self.is_spreadable_property(prop) {
                 spreadable_properties.push(prop);
@@ -3727,8 +3724,7 @@ impl<'a> CheckerState<'a> {
             if !unspreadable_to_rest_keys.is_empty() {
                 let mut all = vec![omit_key_type];
                 all.extend(unspreadable_to_rest_keys);
-                omit_key_type =
-                    self.get_union_type_ex(&all, tsrs2_types::UnionReduction::Literal)?;
+                omit_key_type = self.get_union_type_ex(&all, tsc_types::UnionReduction::Literal)?;
             }
             if self
                 .tables
@@ -3748,7 +3744,7 @@ impl<'a> CheckerState<'a> {
                 None,
             );
         }
-        let mut members = tsrs2_binder::SymbolTable::default();
+        let mut members = tsc_binder::SymbolTable::default();
         let mut result_properties = Vec::with_capacity(spreadable_properties.len());
         for prop in spreadable_properties {
             let spread = self.get_spread_symbol(prop, /*readonly*/ false)?;
@@ -3761,7 +3757,7 @@ impl<'a> CheckerState<'a> {
             members,
             result_properties,
             index_infos,
-            tsrs2_types::ObjectFlags::OBJECT_REST_TYPE,
+            tsc_types::ObjectFlags::OBJECT_REST_TYPE,
         );
         Ok(result)
     }
@@ -3806,14 +3802,13 @@ impl<'a> CheckerState<'a> {
                 if self.kind_of(parent_left) == SyntaxKind::BinaryExpression
                     && self.operator_kind(parent_op) == SyntaxKind::BarBarToken
                 {
-                    let qq =
-                        tsrs2_syntax::tokens::token_to_string(SyntaxKind::QuestionQuestionToken)
-                            .expect("?? has token text");
-                    let bar = tsrs2_syntax::tokens::token_to_string(self.operator_kind(parent_op))
+                    let qq = tsc_syntax::tokens::token_to_string(SyntaxKind::QuestionQuestionToken)
+                        .expect("?? has token text");
+                    let bar = tsc_syntax::tokens::token_to_string(self.operator_kind(parent_op))
                         .expect("|| has token text");
                     self.grammar_error_on_node(
                         parent_left,
-                        &tsrs2_diags::gen::_0_and_1_operations_cannot_be_mixed_without_parentheses,
+                        &tsc_diagnostics::gen::_0_and_1_operations_cannot_be_mixed_without_parentheses,
                         &[qq, bar],
                     );
                 }
@@ -3825,14 +3820,13 @@ impl<'a> CheckerState<'a> {
                     left_operator,
                     SyntaxKind::BarBarToken | SyntaxKind::AmpersandAmpersandToken
                 ) {
-                    let op = tsrs2_syntax::tokens::token_to_string(left_operator)
+                    let op = tsc_syntax::tokens::token_to_string(left_operator)
                         .expect("logical operators have token text");
-                    let qq =
-                        tsrs2_syntax::tokens::token_to_string(SyntaxKind::QuestionQuestionToken)
-                            .expect("?? has token text");
+                    let qq = tsc_syntax::tokens::token_to_string(SyntaxKind::QuestionQuestionToken)
+                        .expect("?? has token text");
                     self.grammar_error_on_node(
                         left,
-                        &tsrs2_diags::gen::_0_and_1_operations_cannot_be_mixed_without_parentheses,
+                        &tsc_diagnostics::gen::_0_and_1_operations_cannot_be_mixed_without_parentheses,
                         &[op, qq],
                     );
                 }
@@ -3840,15 +3834,14 @@ impl<'a> CheckerState<'a> {
         } else if self.kind_of(right) == SyntaxKind::BinaryExpression {
             if let Some((_, right_op, _)) = self.binary_parts(right) {
                 if self.operator_kind(right_op) == SyntaxKind::AmpersandAmpersandToken {
-                    let qq =
-                        tsrs2_syntax::tokens::token_to_string(SyntaxKind::QuestionQuestionToken)
-                            .expect("?? has token text");
+                    let qq = tsc_syntax::tokens::token_to_string(SyntaxKind::QuestionQuestionToken)
+                        .expect("?? has token text");
                     let amp =
-                        tsrs2_syntax::tokens::token_to_string(SyntaxKind::AmpersandAmpersandToken)
+                        tsc_syntax::tokens::token_to_string(SyntaxKind::AmpersandAmpersandToken)
                             .expect("&& has token text");
                     self.grammar_error_on_node(
                         right,
-                        &tsrs2_diags::gen::_0_and_1_operations_cannot_be_mixed_without_parentheses,
+                        &tsc_diagnostics::gen::_0_and_1_operations_cannot_be_mixed_without_parentheses,
                         &[qq, amp],
                     );
                 }
@@ -3870,13 +3863,13 @@ impl<'a> CheckerState<'a> {
             if nullish_semantics == SEMANTICS_ALWAYS {
                 self.error_at(
                     Some(left_target),
-                    &tsrs2_diags::gen::This_expression_is_always_nullish,
+                    &tsc_diagnostics::gen::This_expression_is_always_nullish,
                     &[],
                 );
             } else {
                 self.error_at(
                     Some(left_target),
-                    &tsrs2_diags::gen::Right_operand_of_is_unreachable_because_the_left_operand_is_never_nullish,
+                    &tsc_diagnostics::gen::Right_operand_of_is_unreachable_because_the_left_operand_is_never_nullish,
                     &[],
                 );
             }
@@ -4036,16 +4029,16 @@ impl<'a> CheckerState<'a> {
         if self.tables.flags_of(ty).intersects(TypeFlags::VOID) {
             self.error_at(
                 Some(node),
-                &tsrs2_diags::gen::An_expression_of_type_void_cannot_be_tested_for_truthiness,
+                &tsc_diagnostics::gen::An_expression_of_type_void_cannot_be_tested_for_truthiness,
                 &[],
             );
         } else {
             let semantics = self.get_syntactic_truthy_semantics(node)?;
             if semantics != SEMANTICS_SOMETIMES {
                 let message = if semantics == SEMANTICS_ALWAYS {
-                    &tsrs2_diags::gen::This_kind_of_expression_is_always_truthy
+                    &tsc_diagnostics::gen::This_kind_of_expression_is_always_truthy
                 } else {
-                    &tsrs2_diags::gen::This_kind_of_expression_is_always_falsy
+                    &tsc_diagnostics::gen::This_kind_of_expression_is_always_falsy
                 };
                 self.error_at(Some(node), message, &[]);
             }
@@ -4219,7 +4212,7 @@ impl<'a> CheckerState<'a> {
                 let truthy = self.enum_literal_type_is_truthy(ty)?;
                 self.error_at(
                     Some(location),
-                    &tsrs2_diags::gen::This_condition_will_always_return_0,
+                    &tsc_diagnostics::gen::This_condition_will_always_return_0,
                     &[if truthy { "true" } else { "false" }],
                 );
                 return Ok(());
@@ -4284,13 +4277,13 @@ impl<'a> CheckerState<'a> {
                 self.error_and_maybe_suggest_await(
                     location,
                     true,
-                    &tsrs2_diags::gen::This_condition_will_always_return_true_since_this_0_is_always_defined,
+                    &tsc_diagnostics::gen::This_condition_will_always_return_true_since_this_0_is_always_defined,
                     &[&display],
                 );
             } else {
                 self.error_at(
                     Some(location),
-                    &tsrs2_diags::gen::This_condition_will_always_return_true_since_this_function_is_always_defined_Did_you_mean_to_call_it_instead,
+                    &tsc_diagnostics::gen::This_condition_will_always_return_true_since_this_function_is_always_defined_Did_you_mean_to_call_it_instead,
                     &[],
                 );
             }
@@ -4469,7 +4462,7 @@ impl<'a> CheckerState<'a> {
     fn push_children(&self, node: NodeId, worklist: &mut Vec<NodeId>) {
         let source = self.binder.source_of_node(node);
         let raw = source.arena.node(node);
-        tsrs2_syntax::for_each_child(&source.arena, raw, |child| {
+        tsc_syntax::for_each_child(&source.arena, raw, |child| {
             worklist.push(child);
             false
         });
@@ -4658,7 +4651,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_awaited_type_no_alias(
         &mut self,
         ty: TypeId,
-        error_info: Option<(NodeId, &'static tsrs2_diags::DiagnosticMessage)>,
+        error_info: Option<(NodeId, &'static tsc_diagnostics::DiagnosticMessage)>,
     ) -> CheckResult<Option<TypeId>> {
         if self.tables.flags_of(ty).intersects(TypeFlags::ANY) {
             return Ok(Some(ty));
@@ -4674,7 +4667,7 @@ impl<'a> CheckerState<'a> {
                 if let Some((error_node, _)) = error_info {
                     self.error_at(
                         Some(error_node),
-                        &tsrs2_diags::gen::Type_is_referenced_directly_or_indirectly_in_the_fulfillment_callback_of_its_own_then_method,
+                        &tsc_diagnostics::gen::Type_is_referenced_directly_or_indirectly_in_the_fulfillment_callback_of_its_own_then_method,
                         &[],
                     );
                 }
@@ -4706,7 +4699,7 @@ impl<'a> CheckerState<'a> {
                 if let Some((error_node, _)) = error_info {
                     self.error_at(
                         Some(error_node),
-                        &tsrs2_diags::gen::Type_is_referenced_directly_or_indirectly_in_the_fulfillment_callback_of_its_own_then_method,
+                        &tsc_diagnostics::gen::Type_is_referenced_directly_or_indirectly_in_the_fulfillment_callback_of_its_own_then_method,
                         &[],
                     );
                 }
@@ -4732,14 +4725,14 @@ impl<'a> CheckerState<'a> {
                     Some(this_type) => {
                         let type_text = self.type_to_string_slice(ty)?;
                         let this_text = self.type_to_string_slice(this_type)?;
-                        vec![tsrs2_diags::MessageChain::new(
-                            &tsrs2_diags::gen::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1,
+                        vec![tsc_diagnostics::MessageChain::new(
+                            &tsc_diagnostics::gen::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1,
                             &[type_text, this_text],
                         )]
                     }
                     None => Vec::new(),
                 };
-                let chain = tsrs2_diags::MessageChain::new(message, &[]).with_next(detail);
+                let chain = tsc_diagnostics::MessageChain::new(message, &[]).with_next(detail);
                 let span = self.diag_span_of_node(error_node);
                 let diagnostic = self.diagnostic_at_span(&span, chain);
                 self.push_error_diagnostic(diagnostic);
@@ -4879,7 +4872,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_awaited_type_with_error(
         &mut self,
         ty: TypeId,
-        error_info: Option<(NodeId, &'static tsrs2_diags::DiagnosticMessage)>,
+        error_info: Option<(NodeId, &'static tsc_diagnostics::DiagnosticMessage)>,
     ) -> CheckResult<Option<TypeId>> {
         let awaited = self.get_awaited_type_no_alias(ty, error_info)?;
         match awaited {
@@ -4896,7 +4889,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         with_alias: bool,
         error_node: NodeId,
-        message: &'static tsrs2_diags::DiagnosticMessage,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
     ) -> CheckResult<TypeId> {
         let awaited = if with_alias {
             self.get_awaited_type_with_error(ty, Some((error_node, message)))?
@@ -4964,13 +4957,13 @@ impl<'a> CheckerState<'a> {
         &mut self,
         location: NodeId,
         maybe_missing_await: bool,
-        message: &'static tsrs2_diags::DiagnosticMessage,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
         args: &[&str],
     ) -> usize {
         if maybe_missing_await {
             let related = self.related_info_for_node(
                 location,
-                &tsrs2_diags::gen::Did_you_forget_to_use_await,
+                &tsc_diagnostics::gen::Did_you_forget_to_use_await,
                 &[],
             );
             self.error_at_with_related(Some(location), message, args, vec![related])
@@ -4982,9 +4975,9 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_binder::Binder;
-    use tsrs2_syntax::{parse_source_file, NodeData, NodeId, ParseOptions, SourceFile, SyntaxKind};
-    use tsrs2_types::CompilerOptions;
+    use tsc_binder::Binder;
+    use tsc_syntax::{parse_source_file, NodeData, NodeId, ParseOptions, SourceFile, SyntaxKind};
+    use tsc_types::CompilerOptions;
 
     use crate::state::test_support::with_program_state;
     use crate::state::CheckerState;
@@ -5134,13 +5127,13 @@ mod tests {
                 let error = state.tables.intrinsics.error;
                 assert_eq!(
                     state
-                        .check_binary_expression(nodes[0], tsrs2_types::CheckMode::NORMAL)
+                        .check_binary_expression(nodes[0], tsc_types::CheckMode::NORMAL)
                         .unwrap(),
                     error
                 );
                 assert_ne!(
                     state
-                        .check_binary_expression(nodes[1], tsrs2_types::CheckMode::NORMAL)
+                        .check_binary_expression(nodes[1], tsc_types::CheckMode::NORMAL)
                         .unwrap(),
                     error
                 );
@@ -5162,13 +5155,13 @@ mod tests {
                 );
                 assert_eq!(
                     state
-                        .check_conditional_expression(nodes[4], tsrs2_types::CheckMode::NORMAL,)
+                        .check_conditional_expression(nodes[4], tsc_types::CheckMode::NORMAL,)
                         .unwrap(),
                     error
                 );
                 assert_ne!(
                     state
-                        .check_conditional_expression(nodes[5], tsrs2_types::CheckMode::NORMAL,)
+                        .check_conditional_expression(nodes[5], tsc_types::CheckMode::NORMAL,)
                         .unwrap(),
                     error
                 );
@@ -5252,13 +5245,13 @@ mod tests {
                 let error = state.tables.intrinsics.error;
                 assert_eq!(
                     state
-                        .check_assertion(nodes[0], tsrs2_types::CheckMode::NORMAL)
+                        .check_assertion(nodes[0], tsc_types::CheckMode::NORMAL)
                         .unwrap(),
                     error
                 );
                 assert_ne!(
                     state
-                        .check_assertion(nodes[1], tsrs2_types::CheckMode::NORMAL)
+                        .check_assertion(nodes[1], tsc_types::CheckMode::NORMAL)
                         .unwrap(),
                     error
                 );

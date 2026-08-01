@@ -14,7 +14,7 @@
 //! the tuple rest-window — skip the string-literal-vs-template
 //! reduction until the constructors move checker-side with M4.
 
-use tsrs2_types::{TypeData, TypeFlags, TypeId, UnionReduction};
+use tsc_types::{TypeData, TypeFlags, TypeId, UnionReduction};
 
 use crate::relate::RelationKind;
 use crate::state::{CheckResult, CheckerState};
@@ -71,7 +71,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         types: &[TypeId],
         reduction: UnionReduction,
-        alias_symbol: Option<tsrs2_binder::SymbolId>,
+        alias_symbol: Option<tsc_binder::SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
         origin: Option<TypeId>,
     ) -> CheckResult<TypeId> {
@@ -118,7 +118,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         types: &[TypeId],
         reduction: UnionReduction,
-        alias_symbol: Option<tsrs2_binder::SymbolId>,
+        alias_symbol: Option<tsc_binder::SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
         origin: Option<TypeId>,
     ) -> CheckResult<TypeId> {
@@ -229,7 +229,7 @@ impl<'a> CheckerState<'a> {
                 || !state
                     .tables
                     .object_flags_of(t)
-                    .intersects(tsrs2_types::ObjectFlags::IS_CONSTRAINED_TYPE_VARIABLE)
+                    .intersects(tsc_types::ObjectFlags::IS_CONSTRAINED_TYPE_VARIABLE)
             {
                 return None;
             }
@@ -257,7 +257,7 @@ impl<'a> CheckerState<'a> {
             for &t in types.iter() {
                 if let Some((candidate, primitive)) = constrained_members(self, t) {
                     if candidate == type_variable {
-                        tsrs2_types::tables::insert_type(&mut primitives, primitive);
+                        tsc_types::tables::insert_type(&mut primitives, primitive);
                     }
                 }
             }
@@ -269,7 +269,7 @@ impl<'a> CheckerState<'a> {
                 .get_base_constraint_of_type(type_variable)?
                 .expect("IsConstrainedTypeVariable implies a base constraint");
             if self.every_type(constraint, |_, t| {
-                tsrs2_types::tables::contains_type(&primitives, t)
+                tsc_types::tables::contains_type(&primitives, t)
             }) {
                 let mut i = types.len();
                 while i > 0 {
@@ -277,13 +277,13 @@ impl<'a> CheckerState<'a> {
                     let t = types[i];
                     if let Some((candidate, primitive)) = constrained_members(self, t) {
                         if candidate == type_variable
-                            && tsrs2_types::tables::contains_type(&primitives, primitive)
+                            && tsc_types::tables::contains_type(&primitives, primitive)
                         {
                             types.remove(i);
                         }
                     }
                 }
-                tsrs2_types::tables::insert_type(types, type_variable);
+                tsc_types::tables::insert_type(types, type_variable);
             }
         }
         Ok(())
@@ -641,9 +641,9 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_binder::bind_source_file;
-    use tsrs2_syntax::{parse_source_file, LanguageVariant, ParseOptions};
-    use tsrs2_types::{CompilerOptions, TypeData, TypeFlags, UnionReduction};
+    use tsc_binder::bind_source_file;
+    use tsc_syntax::{parse_source_file, LanguageVariant, ParseOptions};
+    use tsc_types::{CompilerOptions, TypeData, TypeFlags, UnionReduction};
 
     use crate::relpin::find_probe_annotation;
     use crate::relpin::{probe_relation, RelpinQuery, RelpinRelation, RelpinVerdict};
@@ -667,7 +667,7 @@ mod tests {
         run(&mut state)
     }
 
-    fn annotation(state: &mut CheckerState, name: &str) -> tsrs2_types::TypeId {
+    fn annotation(state: &mut CheckerState, name: &str) -> tsc_types::TypeId {
         let node = find_probe_annotation(state.binder.source(0), name).expect("annotation");
         state.get_type_from_type_node(node).expect("resolves")
     }

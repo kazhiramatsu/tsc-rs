@@ -13,8 +13,8 @@ mod regex_unicode;
 pub mod scanner;
 pub mod tokens;
 
-use tsrs2_diags::{DiagnosticList, LineMap};
-use tsrs2_types::ScriptTarget;
+use tsc_diagnostics::{DiagnosticList, LineMap};
+use tsc_types::ScriptTarget;
 
 pub use arena::NodeArena;
 pub use for_each_child::{for_each_child, NodeLookup};

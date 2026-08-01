@@ -7,10 +7,10 @@ use std::process::Command;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use tsrs2_conformance::ExactIdentity;
+use tsc_conformance::ExactIdentity;
 
 use super::{
-    collect_ledger_entries, display_relative, exact_ledger_matches, find_tsrs2_root,
+    collect_ledger_entries, display_relative, exact_ledger_matches, find_workspace_root,
     git_repository_root, is_full_lower_hex_commit, m8_git_is_ancestor, m8_resolve_git_commit,
     mechanical_family_rows, read_json, sha256_file, validate_d2_inventory, LedgerEntry,
     M8EmitterDisposition, M8EmitterDispositions, M8EmitterFunction, M8EmitterInventory,
@@ -101,7 +101,7 @@ struct FreezeRecord {
 
 pub(crate) fn draft(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let args = parse_draft_args(args)?;
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let conformance_path = workspace_path(&workspace, &args.conformance_json);
     let out = workspace_path(&workspace, &args.out);
     let raw_trace = args
@@ -469,7 +469,7 @@ pub(crate) fn apply_review(args: impl Iterator<Item = String>) -> Result<(), Box
                 .ok_or_else(|| format!("missing value after {arg}"))?,
         ));
     }
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let plan_path = workspace_path(
         &workspace,
         &plan_path.ok_or("m8 plan apply-review requires --plan")?,
@@ -613,7 +613,7 @@ pub(crate) fn freeze(args: impl Iterator<Item = String>) -> Result<(), Box<dyn E
             _ => return Err(format!("unexpected m8 plan freeze argument: {arg}").into()),
         }
     }
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let path = workspace_path(&workspace, &plan.ok_or("m8 plan freeze requires --plan")?);
     let mut value: Value = read_json(&path)?;
     audit_plan(&workspace, &value, false)?;
@@ -673,7 +673,7 @@ pub(crate) fn check(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Er
             _ => return Err(format!("unexpected m8 plan check argument: {arg}").into()),
         }
     }
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let path = workspace_path(&workspace, &plan.ok_or("m8 plan check requires --plan")?);
     let value: Value = read_json(&path)?;
     let frozen = value["status"].as_str() == Some("frozen");
@@ -809,7 +809,7 @@ fn materialize_programs(
     let mut result = Vec::new();
     for (fixture, matrices) in by_fixture {
         let fixture_path = workspace.join("ts-tests/tests/cases").join(&fixture);
-        let expanded = tsrs2_harness::expand_fixture_file(&fixture_path, &vendor)?;
+        let expanded = tsc_harness::expand_fixture_file(&fixture_path, &vendor)?;
         let by_matrix = expanded
             .iter()
             .map(|program| (program.matrix_key.as_str(), program))
@@ -829,7 +829,7 @@ fn materialize_programs(
             })?;
             let key = program_key(&fixture, &matrix_key);
             let dir = out_dir.join(&sha256_bytes(key.as_bytes())[..16]);
-            let paths = tsrs2_harness::write_program_jsons(std::slice::from_ref(*program), &dir)?;
+            let paths = tsc_harness::write_program_jsons(std::slice::from_ref(*program), &dir)?;
             let path = paths
                 .into_iter()
                 .next()
@@ -2004,7 +2004,7 @@ fn plan_at(workspace: &Path, commit: &str, path: &Path) -> Result<Value, Box<dyn
 fn git_blob_at(workspace: &Path, commit: &str, path: &Path) -> Result<Vec<u8>, Box<dyn Error>> {
     let relative = repository_relative_path(workspace, path)?;
     let root = git_repository_root(workspace)?;
-    tsrs2_conformance::ratchet::git_blob_optional(&root, commit, &relative)?.ok_or_else(|| {
+    tsc_conformance::ratchet::git_blob_optional(&root, commit, &relative)?.ok_or_else(|| {
         format!("cannot read M8 owner-plan input {relative} at commit {commit}").into()
     })
 }
@@ -2087,13 +2087,13 @@ mod tests {
         fn new(label: &str) -> Self {
             let sequence = TEMP_REPO_SEQUENCE.fetch_add(1, Ordering::Relaxed);
             let path = std::env::temp_dir().join(format!(
-                "tsrs2-m8-plan-{label}-{}-{sequence}",
+                "tsc-rs-m8-plan-{label}-{}-{sequence}",
                 std::process::id()
             ));
             fs::create_dir_all(&path).unwrap();
             git_test(&path, &["init", "-q"]);
             git_test(&path, &["config", "user.email", "tests@example.invalid"]);
-            git_test(&path, &["config", "user.name", "tsrs2 tests"]);
+            git_test(&path, &["config", "user.name", "tsc-rs tests"]);
             Self(path)
         }
     }

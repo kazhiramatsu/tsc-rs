@@ -12,8 +12,8 @@ use std::sync::Arc;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use tsrs2_checker::{CompilerOptions, InputFile};
-use tsrs2_diags::DiagnosticList;
+use tsc_checker::{CompilerOptions, InputFile};
+use tsc_diagnostics::DiagnosticList;
 
 mod completion;
 mod invariant_attestation;
@@ -24,6 +24,8 @@ mod recovery_census;
 mod relpin;
 mod slice_evidence;
 mod symbol_audit;
+mod workspace_catalog;
+mod workspace_maintenance;
 
 fn main() {
     let mut args = std::env::args().skip(1);
@@ -41,7 +43,7 @@ fn main() {
         Some("symbol-diff") => run_or_exit(symbol_diff(args)),
         Some("lib-gate") => run_or_exit(lib_gate(args)),
         Some("bind-corpus") => run_or_exit(bind_corpus(args)),
-        Some("parse-diags") => run_or_exit(parse_diags(args)),
+        Some("parse-diagnostics") => run_or_exit(parse_diagnostics(args)),
         Some("oracle-smoke") => run_or_exit(oracle_smoke(args)),
         Some("oracle-refresh") => run_or_exit(oracle_refresh(args)),
         Some("goldens-diff") => run_or_exit(goldens_diff(args)),
@@ -174,13 +176,22 @@ fn main() {
                 std::process::exit(2);
             }
         },
+        Some("test") => run_or_exit(
+            find_workspace_root()
+                .and_then(|workspace| workspace_maintenance::run_role_test(args, &workspace)),
+        ),
+        Some("workspace") => {
+            run_or_exit(find_workspace_root().and_then(|workspace| {
+                workspace_maintenance::run_workspace_command(args, &workspace)
+            }))
+        }
         Some("ci") => run_or_exit(ci(args)),
         Some("schema-audit") => run_or_exit(schema_audit(args)),
         Some("escapes") => run_or_exit(escapes(args)),
         Some("readme-status") => run_or_exit(readme_status(args)),
         Some("codegen") => match args.next().as_deref() {
-            Some("diags") => run_or_exit(codegen_diags(false)),
-            Some("diags-check") => run_or_exit(codegen_diags(true)),
+            Some("diagnostics") => run_or_exit(codegen_diagnostics(false)),
+            Some("diagnostics-check") => run_or_exit(codegen_diagnostics(true)),
             Some("nodes") => run_or_exit(codegen_nodes(false)),
             Some("nodes-check") => run_or_exit(codegen_nodes(true)),
             Some("enums") => run_or_exit(codegen_enums(false)),
@@ -225,8 +236,8 @@ fn parse_fuzz_preflight_args(
 
 fn fuzz_preflight(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let args = parse_fuzz_preflight_args(args)?;
-    let workspace = find_tsrs2_root()?;
-    let inventory = tsrs2_fuzz::preflight::load_preflight_inventory(workspace)?;
+    let workspace = find_workspace_root()?;
+    let inventory = tsc_fuzz::preflight::load_preflight_inventory(workspace)?;
 
     println!("{}", inventory.summary().render_text());
     if args.require_ready {
@@ -267,7 +278,7 @@ mod fuzz_preflight_cli_tests {
 }
 
 fn codegen_band_inventory(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let mut band = "all".to_owned();
     let mut check = false;
     let mut by_function = false;
@@ -656,7 +667,7 @@ fn port_plan(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
         );
     }
 
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let inventory_path = workspace.join("m8-emitter-inventory.json");
     let inventory: M8EmitterInventory = read_json(&inventory_path)?;
     validate_d2_inventory(&inventory)?;
@@ -672,11 +683,11 @@ fn port_plan(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
 
     let exact_diagnostic = diagnostic_json
         .as_ref()
-        .map(|path| read_json::<tsrs2_conformance::ExactIdentity>(path))
+        .map(|path| read_json::<tsc_conformance::ExactIdentity>(path))
         .transpose()?;
     let resolved_diagnostic = exact_diagnostic
         .as_ref()
-        .map(|identity| tsrs2_conformance::resolve_exact_oracle_identity(&workspace, identity))
+        .map(|identity| tsc_conformance::resolve_exact_oracle_identity(&workspace, identity))
         .transpose()?;
     let selected = if let Some(id) = declaration.as_deref() {
         if !by_id.contains_key(id) {
@@ -742,7 +753,7 @@ fn port_plan(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     if let Some(diagnostic) = &resolved_diagnostic {
         codes.insert(diagnostic.code);
     }
-    let fixture_evidence = tsrs2_conformance::oracle_fixtures_for_codes(&workspace, &codes)?;
+    let fixture_evidence = tsc_conformance::oracle_fixtures_for_codes(&workspace, &codes)?;
     let pass = exact_diagnostic
         .as_ref()
         .map(|diagnostic| diagnostic.pass.as_str());
@@ -1095,7 +1106,7 @@ fn codegen_emitter_dispositions(args: impl Iterator<Item = String>) -> Result<()
         return Err("emitter-dispositions --baseline requires --check".into());
     }
 
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let inventory_path = workspace.join("m8-emitter-inventory.json");
     let inventory: M8EmitterInventory = read_json(&inventory_path)?;
     validate_d2_inventory(&inventory)?;
@@ -1717,7 +1728,7 @@ fn m8_emitter_dispositions_at(
     })?;
     let relative = relative_workspace.join("m8-emitter-dispositions.json");
     let relative = relative.to_string_lossy().replace('\\', "/");
-    let bytes = tsrs2_conformance::ratchet::git_blob_optional(&root, commit, &relative)?
+    let bytes = tsc_conformance::ratchet::git_blob_optional(&root, commit, &relative)?
         .ok_or_else(|| format!("cannot read M8 emitter dispositions at {commit}"))?;
     Ok(serde_json::from_slice(&bytes)?)
 }
@@ -1765,11 +1776,11 @@ fn m8_readiness(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>
 
 fn m8_readiness_inner(
     require_ready: bool,
-    reused_conformance: Option<&tsrs2_conformance::ConformanceSummary>,
+    reused_conformance: Option<&tsc_conformance::ConformanceSummary>,
     prerequisites_already_checked: bool,
     trusted_baseline: Option<&str>,
 ) -> Result<M8ReadinessReport, Box<dyn Error>> {
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let out_dir = workspace.join("target/m8");
     fs::create_dir_all(&out_dir)?;
     let families_report_path = workspace.join("target/families/report.json");
@@ -1782,13 +1793,13 @@ fn m8_readiness_inner(
         )?;
     }
     let measured_conformance = if reused_conformance.is_none() {
-        Some(tsrs2_conformance::run_conformance_with_families_report(
-            &tsrs2_conformance::ConformanceOptions {
+        Some(tsc_conformance::run_conformance_with_families_report(
+            &tsc_conformance::ConformanceOptions {
                 workspace: workspace.clone(),
                 limit: None,
                 files: Vec::new(),
                 out_json: out_dir.join("conformance.json"),
-                band: tsrs2_conformance::DiagnosticBand::All,
+                band: tsc_conformance::DiagnosticBand::All,
             },
             &families_report_path,
         )?)
@@ -1804,7 +1815,7 @@ fn m8_readiness_inner(
             serde_json::to_string_pretty(conformance)?,
         )?;
     }
-    tsrs2_conformance::families_verify_report(&workspace, &families_report_path)?;
+    tsc_conformance::families_verify_report(&workspace, &families_report_path)?;
     let families_report: M8FamiliesReport = read_json(&families_report_path)?;
     if families_report.schema != 1 {
         return Err("families readiness report must be schema 1".into());
@@ -1966,7 +1977,7 @@ fn m8_readiness_inner(
 
 fn completion_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let args = completion::parse_args(args)?;
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let out_dir = workspace.join("target/completion");
     fs::create_dir_all(&out_dir)?;
 
@@ -1977,19 +1988,19 @@ fn completion_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Err
     // this workspace by CI/release topology.
     let conformance_path = out_dir.join("conformance.json");
     let families_path = workspace.join("target/families/report.json");
-    let conformance = tsrs2_conformance::run_conformance_with_families_report(
-        &tsrs2_conformance::ConformanceOptions {
+    let conformance = tsc_conformance::run_conformance_with_families_report(
+        &tsc_conformance::ConformanceOptions {
             workspace: workspace.clone(),
             limit: None,
             files: Vec::new(),
             out_json: conformance_path,
-            band: tsrs2_conformance::DiagnosticBand::All,
+            band: tsc_conformance::DiagnosticBand::All,
         },
         &families_path,
     )?;
     let readiness = m8_readiness_inner(false, Some(&conformance), false, None)?;
 
-    let scope_audit = tsrs2_conformance::scope_audit(&workspace, None)
+    let scope_audit = tsc_conformance::scope_audit(&workspace, None)
         .map(|_| completion::CompletionProbe::new(true, "frozen exact-scope audit passed"))
         .unwrap_or_else(|error| {
             completion::CompletionProbe::new(false, format!("exact-scope audit failed: {error}"))
@@ -1998,7 +2009,7 @@ fn completion_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Err
     let exact_scope = combine_completion_probes(&[scope_audit.clone(), scope_gate.clone()]);
 
     let tier_activation = tier_1_through_3_activation_probe(
-        tsrs2_conformance::ratchet::verify_tier_1_through_3_activation(&workspace)
+        tsc_conformance::ratchet::verify_tier_1_through_3_activation(&workspace)
             .map_err(|error| error.to_string()),
     );
     let tiers_complete = conformance.supported_matched_t0_diagnostics
@@ -2027,7 +2038,7 @@ fn completion_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Err
     // and a fresh proof of the accepted T4 artifact/pins. A hand-written
     // `[t4]` summary is never sufficient.
     let t4_activation = t4_activation_probe(
-        tsrs2_conformance::ratchet::verify_t4_activation(&workspace)
+        tsc_conformance::ratchet::verify_t4_activation(&workspace)
             .map_err(|error| error.to_string()),
     );
     let supported_t4 = combine_completion_probes(&[exact_scope.clone(), t4_activation]);
@@ -2156,7 +2167,7 @@ fn combine_completion_probes(
 }
 
 fn tier_1_through_3_activation_probe(
-    result: Result<tsrs2_conformance::ratchet::Tier1Through3Activation, String>,
+    result: Result<tsc_conformance::ratchet::Tier1Through3Activation, String>,
 ) -> completion::CompletionProbe {
     match result {
         Ok(activation) => {
@@ -2191,7 +2202,7 @@ fn tier_1_through_3_activation_probe(
 }
 
 fn t4_activation_probe(
-    result: Result<tsrs2_conformance::ratchet::T4Activation, String>,
+    result: Result<tsc_conformance::ratchet::T4Activation, String>,
 ) -> completion::CompletionProbe {
     match result {
         Ok(activation) => {
@@ -2321,10 +2332,10 @@ fn expand_fixture(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
 
     let fixture = fixture.ok_or("missing fixture path for expand")?;
     let out_dir = out_dir.ok_or("missing --out-dir for expand")?;
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
-    let programs = tsrs2_harness::expand_fixture_file(&fixture, &vendor_lib_dir)?;
-    let paths = tsrs2_harness::write_program_jsons(&programs, &out_dir)?;
+    let programs = tsc_harness::expand_fixture_file(&fixture, &vendor_lib_dir)?;
+    let paths = tsc_harness::write_program_jsons(&programs, &out_dir)?;
 
     for path in paths {
         println!("{}", path.display());
@@ -2347,7 +2358,7 @@ struct TokenDiffArgs {
 
 fn token_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let args = parse_token_diff_args(args)?;
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let mut files = if args.corpus {
         collect_fixture_paths(&workspace.join("ts-tests/tests/cases/conformance"))?
     } else {
@@ -2451,9 +2462,9 @@ fn rust_token_dump(path: &Path) -> Result<String, Box<dyn Error>> {
     Ok(rust_token_dump_text(&text, variant))
 }
 
-fn rust_token_dump_text(text: &str, variant: tsrs2_syntax::LanguageVariant) -> String {
+fn rust_token_dump_text(text: &str, variant: tsc_syntax::LanguageVariant) -> String {
     let mut out = String::new();
-    for token in tsrs2_syntax::scan_tokens(text, variant) {
+    for token in tsc_syntax::scan_tokens(text, variant) {
         let _ = writeln!(
             out,
             "{}\t{}\t{}\t{}",
@@ -2487,21 +2498,21 @@ struct TokenDumpResponse {
     error: Option<String>,
 }
 
-fn parse_diags(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
-    let path = parse_single_path_arg("parse-diags", args)?;
+fn parse_diagnostics(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let path = parse_single_path_arg("parse-diagnostics", args)?;
     let text = fs::read_to_string(&path)?;
     let file_name = path.to_string_lossy();
     let source = if file_name.ends_with(".json") {
-        tsrs2_syntax::parse_json_text(file_name.to_string(), text)
+        tsc_syntax::parse_json_text(file_name.to_string(), text)
     } else {
-        tsrs2_syntax::parse_source_file(
+        tsc_syntax::parse_source_file(
             file_name.to_string(),
             text,
-            tsrs2_syntax::ParseOptions {
+            tsc_syntax::ParseOptions {
                 language_variant: language_variant_for_path(&path),
                 // ast-dump.mjs uses ScriptKind TS/TSX, never JS.
                 javascript_file: false,
-                ..tsrs2_syntax::ParseOptions::default()
+                ..tsc_syntax::ParseOptions::default()
             },
             None,
         )
@@ -2534,18 +2545,18 @@ fn ast_dump(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
 /// tree comparison.
 fn rust_ast_dump_text(file_name: &str, text: &str) -> (String, usize) {
     let variant = language_variant_for_path(Path::new(file_name));
-    let source = tsrs2_syntax::parse_source_file(
+    let source = tsc_syntax::parse_source_file(
         file_name,
         text,
-        tsrs2_syntax::ParseOptions {
+        tsc_syntax::ParseOptions {
             language_variant: variant,
             // ast-dump.mjs uses ScriptKind TS/TSX, never JS.
             javascript_file: false,
-            ..tsrs2_syntax::ParseOptions::default()
+            ..tsc_syntax::ParseOptions::default()
         },
         None,
     );
-    let map = tsrs2_diags::compute_line_map(text);
+    let map = tsc_diagnostics::compute_line_map(text);
     let to_utf16 =
         |pos: u32| -> u32 { map.byte_to_utf16.get(pos as usize).copied().unwrap_or(pos) };
 
@@ -2562,7 +2573,7 @@ fn rust_ast_dump_text(file_name: &str, text: &str) -> (String, usize) {
             to_utf16(node.end)
         );
         let mut children = Vec::new();
-        tsrs2_syntax::for_each_child(&source.arena, node, |child| {
+        tsc_syntax::for_each_child(&source.arena, node, |child| {
             children.push(child);
             false
         });
@@ -2575,7 +2586,7 @@ fn rust_ast_dump_text(file_name: &str, text: &str) -> (String, usize) {
 
 fn ast_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let args = parse_token_diff_args(args)?;
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let mut files = if args.corpus {
         collect_fixture_paths(&workspace.join("ts-tests/tests/cases/conformance"))?
     } else {
@@ -2785,7 +2796,7 @@ struct AstDumpResult {
 /// separate tree and compares every observable stored field.
 fn jsdoc_ast_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let args = parse_token_diff_args(args)?;
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let mut files = if args.corpus {
         collect_fixture_paths(&workspace.join("ts-tests/tests/cases/conformance"))?
             .into_iter()
@@ -2890,17 +2901,17 @@ fn is_javascript_path(path: &Path) -> bool {
 
 #[derive(Clone, Debug)]
 struct JsDocDumpEntry {
-    node: tsrs2_syntax::NodeId,
+    node: tsc_syntax::NodeId,
     depth: usize,
     children: Vec<String>,
 }
 
 fn add_jsdoc_dump_node(
-    arena: &tsrs2_syntax::NodeArena,
-    node: tsrs2_syntax::NodeId,
+    arena: &tsc_syntax::NodeArena,
+    node: tsc_syntax::NodeId,
     prefix: char,
     depth: usize,
-    ids: &mut BTreeMap<tsrs2_syntax::NodeId, String>,
+    ids: &mut BTreeMap<tsc_syntax::NodeId, String>,
     entries: &mut Vec<JsDocDumpEntry>,
 ) -> String {
     if let Some(id) = ids.get(&node) {
@@ -2915,7 +2926,7 @@ fn add_jsdoc_dump_node(
         children: Vec::new(),
     });
     let mut children = Vec::new();
-    tsrs2_syntax::for_each_child(arena, arena.node(node), |child| {
+    tsc_syntax::for_each_child(arena, arena.node(node), |child| {
         children.push(child);
         false
     });
@@ -2928,14 +2939,14 @@ fn add_jsdoc_dump_node(
 
 fn rust_jsdoc_ast_dump(file_name: &str, text: &str) -> serde_json::Value {
     let path = Path::new(file_name);
-    let source = tsrs2_syntax::parse_source_file(
+    let source = tsc_syntax::parse_source_file(
         file_name,
         text,
-        tsrs2_syntax::ParseOptions {
+        tsc_syntax::ParseOptions {
             language_variant: language_variant_for_path(path),
             javascript_file: is_javascript_path(path),
-            js_doc_parsing_mode: tsrs2_syntax::JSDocParsingMode::ParseAll,
-            ..tsrs2_syntax::ParseOptions::default()
+            js_doc_parsing_mode: tsc_syntax::JSDocParsingMode::ParseAll,
+            ..tsc_syntax::ParseOptions::default()
         },
         None,
     );
@@ -2965,10 +2976,10 @@ fn rust_jsdoc_ast_dump(file_name: &str, text: &str) -> serde_json::Value {
     let mut attachment_owners = BTreeSet::new();
 
     let mut collect_attachment =
-        |owner: tsrs2_syntax::NodeId,
-         jsdoc_ids: &mut BTreeMap<tsrs2_syntax::NodeId, String>,
+        |owner: tsc_syntax::NodeId,
+         jsdoc_ids: &mut BTreeMap<tsc_syntax::NodeId, String>,
          jsdoc_entries: &mut Vec<JsDocDumpEntry>,
-         attachments: &mut Vec<(tsrs2_syntax::NodeId, tsrs2_syntax::NodeArrayId)>| {
+         attachments: &mut Vec<(tsc_syntax::NodeId, tsc_syntax::NodeArrayId)>| {
             if !attachment_owners.insert(owner) {
                 return;
             }
@@ -2996,9 +3007,8 @@ fn rust_jsdoc_ast_dump(file_name: &str, text: &str) -> serde_json::Value {
         index += 1;
     }
 
-    let node_ref = |node: tsrs2_syntax::NodeId| {
-        rust_jsdoc_node_ref(&source.arena, &jsdoc_ids, node, &to_utf16)
-    };
+    let node_ref =
+        |node: tsc_syntax::NodeId| rust_jsdoc_node_ref(&source.arena, &jsdoc_ids, node, &to_utf16);
     let attachment_values = attachments
         .iter()
         .map(|(owner, documents)| {
@@ -3031,17 +3041,17 @@ fn rust_jsdoc_ast_dump(file_name: &str, text: &str) -> serde_json::Value {
                 .map(|id| serde_json::json!({ "id": id }))
                 .collect::<Vec<_>>();
             let mut fields = Vec::new();
-            tsrs2_syntax::for_each_observable_field(node, |name, value| {
+            tsc_syntax::for_each_observable_field(node, |name, value| {
                 let (field_type, value) = match value {
-                    tsrs2_syntax::ObservableField::Node(value) => ("node", node_ref(value)),
-                    tsrs2_syntax::ObservableField::NodeArray(value) => (
+                    tsc_syntax::ObservableField::Node(value) => ("node", node_ref(value)),
+                    tsc_syntax::ObservableField::NodeArray(value) => (
                         "nodeArray",
                         rust_jsdoc_node_array(&source.arena, &jsdoc_ids, value, &to_utf16),
                     ),
-                    tsrs2_syntax::ObservableField::Bool(value) => {
+                    tsc_syntax::ObservableField::Bool(value) => {
                         ("boolean", serde_json::json!(value))
                     }
-                    tsrs2_syntax::ObservableField::String(value) => {
+                    tsc_syntax::ObservableField::String(value) => {
                         ("string", serde_json::json!(value))
                     }
                 };
@@ -3076,10 +3086,10 @@ fn rust_jsdoc_ast_dump(file_name: &str, text: &str) -> serde_json::Value {
                     to_utf16(start.saturating_add(length)).saturating_sub(to_utf16(start))
                 });
             let category = match diagnostic.category() {
-                tsrs2_diags::DiagnosticCategory::Warning => 0,
-                tsrs2_diags::DiagnosticCategory::Error => 1,
-                tsrs2_diags::DiagnosticCategory::Suggestion => 2,
-                tsrs2_diags::DiagnosticCategory::Message => 3,
+                tsc_diagnostics::DiagnosticCategory::Warning => 0,
+                tsc_diagnostics::DiagnosticCategory::Error => 1,
+                tsc_diagnostics::DiagnosticCategory::Suggestion => 2,
+                tsc_diagnostics::DiagnosticCategory::Message => 3,
             };
             serde_json::json!({
                 "code": diagnostic.code(),
@@ -3099,9 +3109,9 @@ fn rust_jsdoc_ast_dump(file_name: &str, text: &str) -> serde_json::Value {
 }
 
 fn rust_jsdoc_node_ref(
-    arena: &tsrs2_syntax::NodeArena,
-    jsdoc_ids: &BTreeMap<tsrs2_syntax::NodeId, String>,
-    node: tsrs2_syntax::NodeId,
+    arena: &tsc_syntax::NodeArena,
+    jsdoc_ids: &BTreeMap<tsc_syntax::NodeId, String>,
+    node: tsc_syntax::NodeId,
     to_utf16: &impl Fn(u32) -> u32,
 ) -> serde_json::Value {
     let value = arena.node(node);
@@ -3114,9 +3124,9 @@ fn rust_jsdoc_node_ref(
 }
 
 fn rust_jsdoc_node_array(
-    arena: &tsrs2_syntax::NodeArena,
-    jsdoc_ids: &BTreeMap<tsrs2_syntax::NodeId, String>,
-    array: tsrs2_syntax::NodeArrayId,
+    arena: &tsc_syntax::NodeArena,
+    jsdoc_ids: &BTreeMap<tsc_syntax::NodeId, String>,
+    array: tsc_syntax::NodeArrayId,
     to_utf16: &impl Fn(u32) -> u32,
 ) -> serde_json::Value {
     let array = arena.node_array(array);
@@ -3409,7 +3419,7 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
         return Err("--expected and --write-expected are mutually exclusive".into());
     }
 
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
     let workspace_canonical = workspace.canonicalize()?;
     let expected_keys: Option<BTreeSet<SymbolDiffKey>> = match &expected_path {
@@ -3463,7 +3473,7 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
         fixtures.truncate(limit);
     }
 
-    let temp_root = std::env::temp_dir().join(format!("tsrs2-symbol-diff-{}", std::process::id()));
+    let temp_root = std::env::temp_dir().join(format!("tsc-rs-symbol-diff-{}", std::process::id()));
     if temp_root.exists() {
         fs::remove_dir_all(&temp_root)?;
     }
@@ -3494,9 +3504,9 @@ fn symbol_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
             .display()
             .to_string();
         executed_fixtures.insert(rel_fixture.clone());
-        let expanded = tsrs2_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
+        let expanded = tsc_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
         let out_dir = temp_root.join(fixture_index.to_string());
-        let paths = tsrs2_harness::write_program_jsons(&expanded, &out_dir)?;
+        let paths = tsc_harness::write_program_jsons(&expanded, &out_dir)?;
         for (program, path) in expanded.iter().zip(&paths) {
             programs += 1;
             let oracle_files = oracle.symbol_dump(path)?;
@@ -3698,7 +3708,7 @@ fn bind_corpus(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
             other => return Err(format!("unexpected bind-corpus argument: {other}").into()),
         }
     }
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
     let mut fixtures = collect_fixture_paths(&workspace.join("ts-tests/tests/cases/conformance"))?;
     fixtures.sort();
@@ -3711,10 +3721,10 @@ fn bind_corpus(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
     let mut flow_nodes = 0usize;
     let mut symbols = 0usize;
     for fixture in &fixtures {
-        let expanded = tsrs2_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
+        let expanded = tsc_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
         for program in &expanded {
             programs += 1;
-            let options = tsrs2_harness::compiler_options_from_program(program);
+            let options = tsc_harness::compiler_options_from_program(program);
             let mut last_text_b64: BTreeMap<&str, &str> = BTreeMap::new();
             for file in &program.files {
                 last_text_b64.insert(file.name.as_str(), file.text_b64.as_str());
@@ -3734,22 +3744,22 @@ fn bind_corpus(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
                     continue;
                 };
                 let language_variant = if file.name.ends_with(".tsx") || is_js {
-                    tsrs2_syntax::LanguageVariant::Jsx
+                    tsc_syntax::LanguageVariant::Jsx
                 } else {
-                    tsrs2_syntax::LanguageVariant::Standard
+                    tsc_syntax::LanguageVariant::Standard
                 };
-                let source = tsrs2_syntax::parse_source_file(
+                let source = tsc_syntax::parse_source_file(
                     file.name.clone(),
                     text,
-                    tsrs2_syntax::ParseOptions {
+                    tsc_syntax::ParseOptions {
                         script_target: options.emit_script_target(),
                         language_variant,
                         javascript_file: is_js,
-                        ..tsrs2_syntax::ParseOptions::default()
+                        ..tsc_syntax::ParseOptions::default()
                     },
                     None,
                 );
-                let binder = tsrs2_binder::bind_source_file(&source, &options);
+                let binder = tsc_binder::bind_source_file(&source, &options);
                 files_bound += 1;
                 flow_nodes += binder.flow.len();
                 symbols += binder.symbols.len();
@@ -3768,7 +3778,7 @@ fn bind_corpus(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
 }
 
 fn rust_symbol_dump(
-    program: &tsrs2_harness::ProgramJson,
+    program: &tsc_harness::ProgramJson,
 ) -> Result<Vec<Option<symbol_audit::FileAudit>>, Box<dyn Error>> {
     // tsc host semantics: files are a name-keyed map, so a later file with
     // the same name shadows an earlier one entirely.
@@ -3777,7 +3787,7 @@ fn rust_symbol_dump(
         last_text_b64.insert(file.name.as_str(), file.text_b64.as_str());
     }
 
-    let options = tsrs2_harness::compiler_options_from_program(program);
+    let options = tsc_harness::compiler_options_from_program(program);
     let mut out = Vec::with_capacity(program.files.len());
     for file in &program.files {
         if !is_ts_like_file_name(&file.name) {
@@ -3787,22 +3797,22 @@ fn rust_symbol_dump(
         let bytes = BASE64.decode(last_text_b64[file.name.as_str()])?;
         let text = String::from_utf8(bytes)?;
         let language_variant = if file.name.ends_with(".tsx") {
-            tsrs2_syntax::LanguageVariant::Jsx
+            tsc_syntax::LanguageVariant::Jsx
         } else {
-            tsrs2_syntax::LanguageVariant::Standard
+            tsc_syntax::LanguageVariant::Standard
         };
-        let source = tsrs2_syntax::parse_source_file(
+        let source = tsc_syntax::parse_source_file(
             file.name.clone(),
             text,
-            tsrs2_syntax::ParseOptions {
+            tsc_syntax::ParseOptions {
                 script_target: options.emit_script_target(),
                 language_variant,
                 javascript_file: false,
-                ..tsrs2_syntax::ParseOptions::default()
+                ..tsc_syntax::ParseOptions::default()
             },
             None,
         );
-        let binder = tsrs2_binder::bind_source_file(&source, &options);
+        let binder = tsc_binder::bind_source_file(&source, &options);
         let lines = symbol_audit::audit_source_file(&source, &binder);
         out.push(Some(symbol_audit::FileAudit {
             name: file.name.clone(),
@@ -4070,17 +4080,17 @@ impl Drop for TokenDumpOracle {
     }
 }
 
-fn language_variant_for_path(path: &Path) -> tsrs2_syntax::LanguageVariant {
+fn language_variant_for_path(path: &Path) -> tsc_syntax::LanguageVariant {
     match path.extension().and_then(|extension| extension.to_str()) {
-        Some("tsx" | "jsx") => tsrs2_syntax::LanguageVariant::Jsx,
-        _ => tsrs2_syntax::LanguageVariant::Standard,
+        Some("tsx" | "jsx") => tsc_syntax::LanguageVariant::Jsx,
+        _ => tsc_syntax::LanguageVariant::Standard,
     }
 }
 
 fn language_variant_arg(path: &Path) -> &'static str {
     match language_variant_for_path(path) {
-        tsrs2_syntax::LanguageVariant::Standard => "standard",
-        tsrs2_syntax::LanguageVariant::Jsx => "jsx",
+        tsc_syntax::LanguageVariant::Standard => "standard",
+        tsc_syntax::LanguageVariant::Jsx => "jsx",
     }
 }
 
@@ -4102,8 +4112,8 @@ fn first_diff<'a>(left: &'a str, right: &'a str) -> (usize, Option<&'a str>, Opt
 
 fn oracle_refresh(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let parsed = parse_conformance_args(args)?;
-    let workspace = find_tsrs2_root()?;
-    let options = tsrs2_conformance::RefreshOptions {
+    let workspace = find_workspace_root()?;
+    let options = tsc_conformance::RefreshOptions {
         workspace,
         limit: parsed.limit,
         files: parsed.files,
@@ -4131,9 +4141,9 @@ fn oracle_refresh(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
         {
             return Err("render-hash check does not accept conformance/report arguments".into());
         }
-        let summary = tsrs2_conformance::check_or_extend_rendered_hashes(
+        let summary = tsc_conformance::check_or_extend_rendered_hashes(
             &options,
-            tsrs2_conformance::RenderHashMode::Check,
+            tsc_conformance::RenderHashMode::Check,
         )?;
         println!(
             "oracle rendered-hash check: fixtures={} cases={} diagnostics={} schema3={}",
@@ -4144,7 +4154,7 @@ fn oracle_refresh(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
     if parsed.check || parsed.tier.is_some() || parsed.report_only {
         return Err("ordinary oracle-refresh does not accept --check/--tier/--report-only".into());
     }
-    let summary = tsrs2_conformance::refresh_oracle_goldens(&options)?;
+    let summary = tsc_conformance::refresh_oracle_goldens(&options)?;
     println!(
         "oracle refresh wrote {} fixtures / {} cases / {} oracle diagnostics under {}",
         summary.fixtures, summary.cases, summary.oracle_diagnostics, summary.goldens_root
@@ -4174,10 +4184,10 @@ fn goldens_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>
             _ => return Err(format!("unexpected goldens-diff argument: {arg}").into()),
         }
     }
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let out_json = out.unwrap_or_else(|| workspace.join("target/goldens-diff.json"));
-    let report = tsrs2_conformance::goldens_diff::goldens_diff(
-        &tsrs2_conformance::goldens_diff::GoldensDiffOptions {
+    let report = tsc_conformance::goldens_diff::goldens_diff(
+        &tsc_conformance::goldens_diff::GoldensDiffOptions {
             workspace,
             baseline,
             out_json: out_json.clone(),
@@ -4220,7 +4230,7 @@ fn goldens_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>
 
 fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let parsed = parse_conformance_args(args)?;
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let out_json = parsed
         .out_json
         .clone()
@@ -4243,14 +4253,14 @@ fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
         if parsed.render_hashes || parsed.check || parsed.families_report {
             return Err("T4 report-only does not accept refresh/check/families arguments".into());
         }
-        if parsed.band != tsrs2_conformance::DiagnosticBand::All {
+        if parsed.band != tsc_conformance::DiagnosticBand::All {
             return Err("T4 report-only currently renders the supported All view only".into());
         }
         let out_json = parsed
             .out_json
             .clone()
             .unwrap_or_else(|| workspace.join("target/conformance/t4-report.json"));
-        let report = tsrs2_conformance::run_t4_report(&tsrs2_conformance::T4ReportOptions {
+        let report = tsc_conformance::run_t4_report(&tsc_conformance::T4ReportOptions {
             workspace,
             limit: parsed.limit,
             files: parsed.files,
@@ -4277,7 +4287,7 @@ fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
             "--report-only/--render-hashes/--check require their explicit T4 command".into(),
         );
     }
-    let options = tsrs2_conformance::ConformanceOptions {
+    let options = tsc_conformance::ConformanceOptions {
         workspace: workspace.clone(),
         limit: parsed.limit,
         files: parsed.files,
@@ -4289,16 +4299,16 @@ fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
     // The library additionally refuses non-full or banded runs.
     let summary = if parsed.families_report {
         let report_out = workspace.join("target/families/report.json");
-        tsrs2_conformance::run_conformance_with_families_report(&options, &report_out)?
+        tsc_conformance::run_conformance_with_families_report(&options, &report_out)?
     } else {
-        tsrs2_conformance::run_conformance(&options)?
+        tsc_conformance::run_conformance(&options)?
     };
     print_conformance_summary(&summary, &out_json);
     Ok(())
 }
 
 fn conformance_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let mut positional = Vec::new();
     let mut out_json = None;
     let mut args = args.peekable();
@@ -4322,7 +4332,7 @@ fn conformance_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Er
         );
     }
 
-    let report = tsrs2_conformance::conformance_diff(&positional[0], &positional[1])?;
+    let report = tsc_conformance::conformance_diff(&positional[0], &positional[1])?;
     let out_json =
         out_json.unwrap_or_else(|| workspace.join("target/conformance/shadow-diff.json"));
     if let Some(parent) = out_json.parent() {
@@ -4340,7 +4350,7 @@ fn conformance_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Er
     Ok(())
 }
 
-fn print_shadow_tier_diff(view: &str, diff: &tsrs2_conformance::ShadowTierSetDiff) {
+fn print_shadow_tier_diff(view: &str, diff: &tsc_conformance::ShadowTierSetDiff) {
     for (tier, tier_diff) in [("T1", &diff.t1), ("T2", &diff.t2), ("T3", &diff.t3)] {
         println!(
             "  {view} {tier}: {} -> {} lost={} gained={}",
@@ -4352,7 +4362,7 @@ fn print_shadow_tier_diff(view: &str, diff: &tsrs2_conformance::ShadowTierSetDif
     }
 }
 
-fn print_conformance_summary(summary: &tsrs2_conformance::ConformanceSummary, out_json: &Path) {
+fn print_conformance_summary(summary: &tsc_conformance::ConformanceSummary, out_json: &Path) {
     println!(
         "conformance band={} fixtures={} cases={} T0={:.4}% matched={}/{} FP={} FN={} mismatches={}",
         summary.band,
@@ -4412,7 +4422,7 @@ fn ratchet_check(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error
             _ => return Err(format!("unexpected ratchet check argument: {arg}").into()),
         }
     }
-    tsrs2_conformance::ratchet::check(&find_tsrs2_root()?, baseline.as_deref())
+    tsc_conformance::ratchet::check(&find_workspace_root()?, baseline.as_deref())
 }
 
 /// `cargo xtask scope audit [--baseline <trusted-ref>]`: the A2 exact
@@ -4432,7 +4442,7 @@ fn scope_audit(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
             _ => return Err(format!("unexpected scope audit argument: {arg}").into()),
         }
     }
-    tsrs2_conformance::scope_audit(&find_tsrs2_root()?, baseline.as_deref())
+    tsc_conformance::scope_audit(&find_workspace_root()?, baseline.as_deref())
 }
 
 /// `cargo xtask families check [--baseline <trusted-ref>]`: the A5
@@ -4451,7 +4461,7 @@ fn families_check(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
             _ => return Err(format!("unexpected families check argument: {arg}").into()),
         }
     }
-    tsrs2_conformance::families_check(&find_tsrs2_root()?, baseline.as_deref())
+    tsc_conformance::families_check(&find_workspace_root()?, baseline.as_deref())
 }
 
 /// `cargo xtask families report [--out-json <path>] [--verify]`: the
@@ -4459,7 +4469,7 @@ fn families_check(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
 /// (never from A1 summaries). `--verify` re-checks an existing
 /// report's input fingerprints against the tree instead of running.
 fn families_report(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
-    let root = find_tsrs2_root()?;
+    let root = find_workspace_root()?;
     let mut out_json: Option<PathBuf> = None;
     let mut verify = false;
     let mut args = args.peekable();
@@ -4476,9 +4486,9 @@ fn families_report(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Err
     }
     let out_json = out_json.unwrap_or_else(|| root.join("target/families/report.json"));
     if verify {
-        tsrs2_conformance::families_verify_report(&root, &out_json)
+        tsc_conformance::families_verify_report(&root, &out_json)
     } else {
-        tsrs2_conformance::families_report(&root, &out_json)
+        tsc_conformance::families_report(&root, &out_json)
     }
 }
 
@@ -4493,14 +4503,14 @@ fn ratchet_update(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
             _ => return Err(format!("unexpected ratchet update argument: {arg}").into()),
         }
     }
-    tsrs2_conformance::ratchet::update(&find_tsrs2_root()?, transition.as_deref())
+    tsc_conformance::ratchet::update(&find_workspace_root()?, transition.as_deref())
 }
 
 struct ConformanceArgs {
     limit: Option<usize>,
     files: Vec<PathBuf>,
     out_json: Option<PathBuf>,
-    band: tsrs2_conformance::DiagnosticBand,
+    band: tsc_conformance::DiagnosticBand,
     families_report: bool,
     tier: Option<String>,
     report_only: bool,
@@ -4514,7 +4524,7 @@ fn parse_conformance_args(
     let mut limit = None;
     let mut files = Vec::new();
     let mut out_json = None;
-    let mut band = tsrs2_conformance::DiagnosticBand::All;
+    let mut band = tsc_conformance::DiagnosticBand::All;
     let mut families_report = false;
     let mut tier = None;
     let mut report_only = false;
@@ -4545,13 +4555,13 @@ fn parse_conformance_args(
             "--band" => {
                 let value = args.next().ok_or("missing value after --band")?;
                 band = match value.as_str() {
-                    "all" => tsrs2_conformance::DiagnosticBand::All,
-                    "2xxx" => tsrs2_conformance::DiagnosticBand::TwoXxx,
-                    "syntactic" => tsrs2_conformance::DiagnosticBand::Syntactic,
+                    "all" => tsc_conformance::DiagnosticBand::All,
+                    "2xxx" => tsc_conformance::DiagnosticBand::TwoXxx,
+                    "syntactic" => tsc_conformance::DiagnosticBand::Syntactic,
                     _ => return Err(format!("unknown conformance band: {value}").into()),
                 };
             }
-            "--syntactic-only" => band = tsrs2_conformance::DiagnosticBand::Syntactic,
+            "--syntactic-only" => band = tsc_conformance::DiagnosticBand::Syntactic,
             "--families-report" => families_report = true,
             "--tier" => tier = Some(args.next().ok_or("missing value after --tier")?),
             "--report-only" => report_only = true,
@@ -4561,7 +4571,7 @@ fn parse_conformance_args(
         }
     }
     if families_report
-        && (band != tsrs2_conformance::DiagnosticBand::All || limit.is_some() || !files.is_empty())
+        && (band != tsc_conformance::DiagnosticBand::All || limit.is_some() || !files.is_empty())
     {
         return Err(
             "--families-report requires the full band=all run; the A5 rollup never comes \
@@ -4643,7 +4653,7 @@ struct SampleProgram {
     fixture: String,
     matrix_key: String,
     cwd: String,
-    options: BTreeMap<String, tsrs2_harness::OptionValue>,
+    options: BTreeMap<String, tsc_harness::OptionValue>,
     libs: Vec<String>,
     files: Vec<InputFile>,
     compiler_options: CompilerOptions,
@@ -4651,7 +4661,7 @@ struct SampleProgram {
 }
 
 fn invariants(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     invariant_attestation::invalidate(&workspace)?;
     let args = parse_invariant_args(args)?;
     let programs = load_sample_programs(&workspace, args.limit)?;
@@ -4669,13 +4679,12 @@ fn invariants(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> 
         );
     }
     if args.suite.includes(InvariantSuite::PrefixConformance) {
-        let summary = tsrs2_conformance::run_prefix_conformance(
-            &tsrs2_conformance::PrefixConformanceOptions {
+        let summary =
+            tsc_conformance::run_prefix_conformance(&tsc_conformance::PrefixConformanceOptions {
                 workspace: workspace.clone(),
                 limit: args.limit,
                 files: Vec::new(),
-            },
-        )?;
+            })?;
         for mismatch in summary.mismatches.iter().take(10) {
             println!(
                 "prefix-conformance mismatch: {} [{}] file {} cut {} FP={:?} FN={:?}",
@@ -4805,8 +4814,8 @@ fn load_sample_programs(
             .strip_prefix(&fixtures_root)?
             .to_string_lossy()
             .replace('\\', "/");
-        for program in tsrs2_harness::expand_fixture_file(&fixture, &vendor_lib_dir)? {
-            let compiler_options = tsrs2_harness::compiler_options_from_program(&program);
+        for program in tsc_harness::expand_fixture_file(&fixture, &vendor_lib_dir)? {
+            let compiler_options = tsc_harness::compiler_options_from_program(&program);
             let lib_files = match lib_cache.get(&program.libs) {
                 Some(files) => files.clone(),
                 None => {
@@ -4872,7 +4881,7 @@ fn validate_sample_program_semantics(program: &SampleProgram) -> Result<(), Box<
         )
         .into());
     }
-    let options_projection = tsrs2_harness::ProgramJson {
+    let options_projection = tsc_harness::ProgramJson {
         schema: 1,
         cwd: program.cwd.clone(),
         options: program.options.clone(),
@@ -4880,8 +4889,7 @@ fn validate_sample_program_semantics(program: &SampleProgram) -> Result<(), Box<
         files: Vec::new(),
         matrix_key: program.matrix_key.clone(),
     };
-    if tsrs2_harness::compiler_options_from_program(&options_projection) != program.compiler_options
-    {
+    if tsc_harness::compiler_options_from_program(&options_projection) != program.compiler_options {
         return Err(format!(
             "invariant compiler-option projection changed for {} [{}]",
             program.fixture, program.matrix_key
@@ -4927,14 +4935,14 @@ fn run_prefix_determinism(programs: &[SampleProgram]) -> Result<(), Box<dyn Erro
     Ok(())
 }
 
-fn prefix_determinism_holds(text: &str, variant: tsrs2_syntax::LanguageVariant) -> bool {
+fn prefix_determinism_holds(text: &str, variant: tsc_syntax::LanguageVariant) -> bool {
     let cut = midpoint_char_boundary(text);
     // TokenRecord offsets are UTF-16 code units while `cut` indexes UTF-8
     // bytes; both filters must use one coordinate system, or non-ASCII
     // prefixes admit full-scan tokens that lie at or past the byte cut.
     let cut_utf16: u32 = text[..cut].chars().map(|ch| ch.len_utf16() as u32).sum();
-    let full = tsrs2_syntax::scan_tokens(text, variant);
-    let prefix = tsrs2_syntax::scan_tokens(&text[..cut], variant);
+    let full = tsc_syntax::scan_tokens(text, variant);
+    let prefix = tsc_syntax::scan_tokens(&text[..cut], variant);
     // The whole boundary token is inherently ambiguous. A truncated
     // numeric prefix such as `0B` is scanned as `0` + `B`, while the
     // complete invalid literal starts with one `0B` token. Filtering
@@ -4949,7 +4957,7 @@ fn prefix_determinism_holds(text: &str, variant: tsrs2_syntax::LanguageVariant) 
         .iter()
         .find(|token| token.start < cut_utf16 && token.end >= cut_utf16)
         .map(|token| token.start);
-    let stable_token = |token: &&tsrs2_syntax::TokenRecord| match boundary_start {
+    let stable_token = |token: &&tsc_syntax::TokenRecord| match boundary_start {
         Some(stable_end) => token.end <= stable_end,
         None => token.end < cut_utf16,
     };
@@ -5208,7 +5216,7 @@ fn check_diagnostics_with_files(
     program: &SampleProgram,
     files: &[InputFile],
 ) -> Result<DiagnosticList, Box<dyn Error>> {
-    Ok(tsrs2_checker::check_program_with_libs_at(
+    Ok(tsc_checker::check_program_with_libs_at(
         &program.lib_files,
         files,
         &program.compiler_options,
@@ -5280,7 +5288,7 @@ fn exact_ledger_matches<'a>(
 }
 
 fn ledger_check() -> Result<(), Box<dyn Error>> {
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let entries = collect_ledger_entries(&workspace)?;
     let stale = verify_ledger_entries(&workspace, &entries)?;
     let public_functions = collect_hot_public_functions(&workspace)?;
@@ -5378,7 +5386,7 @@ fn ledger_check() -> Result<(), Box<dyn Error>> {
 }
 
 fn ledger_write_backlog() -> Result<(), Box<dyn Error>> {
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let undispositioned = collect_undispositioned_checker_fns(&workspace)?;
     let map = backlog_map(&undispositioned, &workspace);
     fs::write(
@@ -5394,7 +5402,7 @@ fn ledger_write_backlog() -> Result<(), Box<dyn Error>> {
 }
 
 fn ledger_coverage() -> Result<(), Box<dyn Error>> {
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let entries = collect_ledger_entries(&workspace)?;
     let public_functions = collect_hot_public_functions(&workspace)?;
     let unported = unported_public_functions(&entries, &public_functions);
@@ -5884,7 +5892,7 @@ fn escapes(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
             other => return Err(format!("unexpected escapes argument: {other}").into()),
         }
     }
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let sites = collect_escape_sites(&workspace)?;
     audit_legacy_dormant_markers(&workspace, &sites)?;
     let test_functions = collect_test_function_names(&workspace)?;
@@ -7020,6 +7028,7 @@ fn parse_ci_args(args: impl Iterator<Item = String>) -> Result<CiArgs, Box<dyn E
 
 fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let args = parse_ci_args(args)?;
+    workspace_maintenance::audit(&find_workspace_root()?)?;
     if args.lane.includes(CiLane::Rust) {
         ci_rust_gates()?;
     }
@@ -7030,7 +7039,7 @@ fn ci(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
 }
 
 fn ci_rust_gates() -> Result<(), Box<dyn Error>> {
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     run_command(
         Command::new("cargo")
             .current_dir(&workspace)
@@ -7075,7 +7084,7 @@ fn ci_rust_gates() -> Result<(), Box<dyn Error>> {
 }
 
 fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     // Keep the reusable checker/conformance phases in-process. The
     // history-heavy trusted audits below use this already-built binary
     // as short-lived children so their allocator pages cannot overlap
@@ -7153,7 +7162,7 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
     // ratchet/FP/scope gates without increasing CPU concurrency.
     let conformance_out = workspace.join("target/conformance/mismatches.json");
     let families_out = workspace.join("target/families/report.json");
-    let summaries = tsrs2_conformance::run_ci_conformance(
+    let summaries = tsc_conformance::run_ci_conformance(
         &workspace,
         &conformance_out,
         &families_out,
@@ -7260,7 +7269,7 @@ fn readme_status(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error
             _ => return Err(format!("unexpected readme-status argument: {arg}").into()),
         }
     }
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let readme_path = readme_path_for_workspace(&workspace)?;
     let block = render_readme_status(&workspace)?;
     let readme = fs::read_to_string(&readme_path)?;
@@ -7450,10 +7459,11 @@ fn oracle_smoke(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>
         }
     }
 
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let fixtures_root = workspace.join("ts-tests/tests/cases/conformance");
     let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
-    let temp_root = std::env::temp_dir().join(format!("tsrs2-oracle-smoke-{}", std::process::id()));
+    let temp_root =
+        std::env::temp_dir().join(format!("tsc-rs-oracle-smoke-{}", std::process::id()));
     if temp_root.exists() {
         fs::remove_dir_all(&temp_root)?;
     }
@@ -7463,12 +7473,12 @@ fn oracle_smoke(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>
     fixtures.sort();
     fixtures.truncate(limit);
 
-    let pool = tsrs2_oracle::OraclePool::new(tsrs2_oracle::OraclePool::default_size())?;
+    let pool = tsc_oracle::OraclePool::new(tsc_oracle::OraclePool::default_size())?;
     let mut program_count = 0usize;
     for (index, fixture) in fixtures.iter().enumerate() {
-        let programs = tsrs2_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
+        let programs = tsc_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
         let out_dir = temp_root.join(index.to_string());
-        let paths = tsrs2_harness::write_program_jsons(&programs, &out_dir)?;
+        let paths = tsc_harness::write_program_jsons(&programs, &out_dir)?;
         for path in paths {
             let first = pool.diagnostics(&path)?;
             let second = pool.diagnostics(&path)?;
@@ -7522,15 +7532,15 @@ fn run_or_exit(result: Result<(), Box<dyn Error>>) {
 }
 
 fn scaffold_smoke() {
-    let harness_diags = tsrs2_harness::check_empty_program().diagnostics.len();
-    let conformance_diags = tsrs2_conformance::run_empty_engine_smoke();
+    let harness_diags = tsc_harness::check_empty_program().diagnostics.len();
+    let conformance_diags = tsc_conformance::run_empty_engine_smoke();
 
     if harness_diags != 0 || conformance_diags != 0 {
         eprintln!("empty-engine scaffold emitted diagnostics");
         std::process::exit(1);
     }
 
-    println!("tsrs2 scaffold ready");
+    println!("tsc-rs scaffold ready");
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -7681,7 +7691,7 @@ const CONST_ENUMS: &[SourceEnum] = &[
 ];
 
 fn codegen_enums(check: bool) -> Result<(), Box<dyn Error>> {
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let tsc_path = workspace.join("vendor/typescript-6.0.3/lib/_tsc.js");
     let tsc = fs::read_to_string(&tsc_path)?;
 
@@ -7724,7 +7734,7 @@ fn codegen_enums(check: bool) -> Result<(), Box<dyn Error>> {
 }
 
 fn codegen_scanner(check: bool) -> Result<(), Box<dyn Error>> {
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let tsc_path = workspace.join("vendor/typescript-6.0.3/lib/_tsc.js");
     let tsc = fs::read_to_string(&tsc_path)?;
 
@@ -8081,7 +8091,7 @@ fn render_scanner_chars_rs(
         out,
         "// @generated by `cargo xtask codegen scanner`. Do not edit by hand.\n"
     )?;
-    writeln!(out, "use tsrs2_types::ScriptTarget;\n")?;
+    writeln!(out, "use tsc_types::ScriptTarget;\n")?;
     writeln!(
         out,
         "pub(crate) fn is_identifier_start(ch: char, language_version: ScriptTarget) -> bool {{"
@@ -8204,20 +8214,22 @@ fn render_scanner_keywords_rs(keywords: &[(String, u16)]) -> Result<String, Box<
     Ok(out)
 }
 
-fn find_tsrs2_root() -> Result<PathBuf, Box<dyn Error>> {
+fn find_workspace_root() -> Result<PathBuf, Box<dyn Error>> {
     let cwd = std::env::current_dir()?;
     for dir in cwd.ancestors() {
         if dir.join("vendor/typescript-6.0.3/lib/_tsc.js").is_file() {
             return Ok(dir.to_owned());
         }
 
-        let nested = dir.join("tsrs2");
-        if nested.join("vendor/typescript-6.0.3/lib/_tsc.js").is_file() {
-            return Ok(nested);
+        for workspace_name in ["tsc-rs", "tsrs2"] {
+            let nested = dir.join(workspace_name);
+            if nested.join("vendor/typescript-6.0.3/lib/_tsc.js").is_file() {
+                return Ok(nested);
+            }
         }
     }
 
-    Err("could not find tsrs2 workspace root".into())
+    Err("could not find tsc-rs workspace root".into())
 }
 
 fn compiler_source_path(workspace: &Path, file: &str) -> Result<PathBuf, Box<dyn Error>> {
@@ -8237,7 +8249,7 @@ fn compiler_source_path(workspace: &Path, file: &str) -> Result<PathBuf, Box<dyn
     // full TypeScript checkout could live beside `tsrs2/`.
     let checkout = workspace
         .parent()
-        .ok_or("tsrs2 workspace has no parent")?
+        .ok_or("tsc-rs workspace has no parent")?
         .join("ts-tests/src/compiler")
         .join(file);
     if checkout.is_file() {
@@ -8969,7 +8981,7 @@ enum RustFieldType {
 }
 
 fn codegen_nodes(check: bool) -> Result<(), Box<dyn Error>> {
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let tsc = fs::read_to_string(workspace.join("vendor/typescript-6.0.3/lib/_tsc.js"))?;
     let dts = fs::read_to_string(workspace.join("vendor/typescript-6.0.3/lib/typescript.d.ts"))?;
 
@@ -9037,7 +9049,7 @@ fn schema_audit(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>
             other => return Err(format!("unexpected schema-audit argument: {other}").into()),
         }
     }
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let output = std::process::Command::new("node")
         .arg(workspace.join("crates/oracle/schema-dump.mjs"))
         .arg(workspace.join("vendor/typescript-6.0.3/lib/typescript.d.ts"))
@@ -10738,15 +10750,19 @@ struct DiagnosticEntryFields {
     elided_in_compatibility_pyramid: bool,
 }
 
-fn codegen_diags(check: bool) -> Result<(), Box<dyn Error>> {
-    let workspace = find_tsrs2_root()?;
+fn codegen_diagnostics(check: bool) -> Result<(), Box<dyn Error>> {
+    let workspace = find_workspace_root()?;
     let path = workspace.join("vendor/typescript-6.0.3/lib/diagnosticMessages.json");
     let raw = fs::read_to_string(path)?;
     let mut entries = parse_diagnostic_catalog(&raw)?;
 
     entries.sort_by_key(|entry| entry.code);
-    let gen_rs = rustfmt_text(&render_diags_gen(&entries)?)?;
-    write_generated(&workspace.join("crates/diags/src/gen.rs"), &gen_rs, check)?;
+    let gen_rs = rustfmt_text(&render_diagnostics_gen(&entries)?)?;
+    write_generated(
+        &workspace.join("crates/diagnostics/src/gen.rs"),
+        &gen_rs,
+        check,
+    )?;
 
     if check {
         println!("generated diagnostic messages are up to date");
@@ -10861,11 +10877,11 @@ fn parse_diagnostic_entry(
     })
 }
 
-fn render_diags_gen(entries: &[DiagnosticEntry]) -> Result<String, Box<dyn Error>> {
+fn render_diagnostics_gen(entries: &[DiagnosticEntry]) -> Result<String, Box<dyn Error>> {
     let mut out = String::new();
     writeln!(
         out,
-        "// @generated by `cargo xtask codegen diags`. Do not edit by hand."
+        "// @generated by `cargo xtask codegen diagnostics`. Do not edit by hand."
     )?;
     writeln!(out)?;
     writeln!(out, "use super::{{DiagnosticCategory, DiagnosticMessage}};")?;
@@ -11151,7 +11167,7 @@ fn lib_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
     let mut lib_files: Vec<PathBuf> = fs::read_dir(&vendor_lib_dir)?
         .filter_map(|entry| entry.ok().map(|entry| entry.path()))
@@ -11195,7 +11211,7 @@ fn lib_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     }
 
     // Phase 2: bind gate.
-    let temp_root = std::env::temp_dir().join(format!("tsrs2-lib-gate-{}", std::process::id()));
+    let temp_root = std::env::temp_dir().join(format!("tsc-rs-lib-gate-{}", std::process::id()));
     if temp_root.exists() {
         fs::remove_dir_all(&temp_root)?;
     }
@@ -11209,19 +11225,19 @@ fn lib_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
             .and_then(|name| name.to_str())
             .expect("lib file names are UTF-8")
             .to_owned();
-        let program = tsrs2_harness::ProgramJson {
+        let program = tsc_harness::ProgramJson {
             schema: 1,
             cwd: "/".to_owned(),
             options: BTreeMap::new(),
             libs: Vec::new(),
-            files: vec![tsrs2_harness::ProgramFile {
+            files: vec![tsc_harness::ProgramFile {
                 name: file_name.clone(),
                 text_b64: BASE64.encode(text.as_bytes()),
             }],
             matrix_key: String::new(),
         };
         let out_dir = temp_root.join(format!("bind-{index}"));
-        let paths = tsrs2_harness::write_program_jsons(std::slice::from_ref(&program), &out_dir)?;
+        let paths = tsc_harness::write_program_jsons(std::slice::from_ref(&program), &out_dir)?;
         let oracle_files = symbol_oracle.symbol_dump(&paths[0])?;
         let rust_files = rust_symbol_dump(&program)?;
         let (Some(oracle_file), Some(Some(rust_file))) = (oracle_files.first(), rust_files.first())
@@ -11257,7 +11273,7 @@ fn lib_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     if !skip_order {
         let fixtures = collect_fixture_paths(&workspace.join("ts-tests/tests/cases/conformance"))?;
         for fixture in &fixtures {
-            let programs = match tsrs2_harness::expand_fixture_file(fixture, &vendor_lib_dir) {
+            let programs = match tsc_harness::expand_fixture_file(fixture, &vendor_lib_dir) {
                 Ok(programs) => programs,
                 // Fixtures the harness cannot expand are outside every
                 // suite (conformance skips them the same way).
@@ -11270,20 +11286,19 @@ fn lib_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
         let mut probe_paths = Vec::new();
         let mut expected: Vec<Vec<String>> = Vec::new();
         for (index, libs) in lib_sets.iter().enumerate() {
-            let program = tsrs2_harness::ProgramJson {
+            let program = tsc_harness::ProgramJson {
                 schema: 1,
                 cwd: "/".to_owned(),
                 options: BTreeMap::new(),
                 libs: libs.clone(),
-                files: vec![tsrs2_harness::ProgramFile {
+                files: vec![tsc_harness::ProgramFile {
                     name: "a.ts".to_owned(),
                     text_b64: BASE64.encode(b""),
                 }],
                 matrix_key: String::new(),
             };
             let out_dir = temp_root.join(format!("order-{index}"));
-            let paths =
-                tsrs2_harness::write_program_jsons(std::slice::from_ref(&program), &out_dir)?;
+            let paths = tsc_harness::write_program_jsons(std::slice::from_ref(&program), &out_dir)?;
             probe_paths.push(paths[0].clone());
             let mut order = libs.clone();
             order.push("a.ts".to_owned());
@@ -11380,7 +11395,7 @@ mod prefix_determinism_tests {
         let text = format!("/*{}*/{}", "\u{2028}".repeat(6), "aa=1;".repeat(12));
         assert!(prefix_determinism_holds(
             &text,
-            tsrs2_syntax::LanguageVariant::Standard
+            tsc_syntax::LanguageVariant::Standard
         ));
     }
 
@@ -11389,7 +11404,7 @@ mod prefix_determinism_tests {
         let text = "const value = 1;\nconst other = value + 2;\n".to_string();
         assert!(prefix_determinism_holds(
             &text,
-            tsrs2_syntax::LanguageVariant::Standard
+            tsc_syntax::LanguageVariant::Standard
         ));
     }
 
@@ -11402,7 +11417,7 @@ mod prefix_determinism_tests {
         assert_eq!(midpoint_char_boundary(text), 49);
         assert!(prefix_determinism_holds(
             text,
-            tsrs2_syntax::LanguageVariant::Standard
+            tsc_syntax::LanguageVariant::Standard
         ));
     }
 
@@ -11414,7 +11429,7 @@ mod prefix_determinism_tests {
         assert_eq!(&text[cut - 1..cut + 1], "//");
         assert!(prefix_determinism_holds(
             text,
-            tsrs2_syntax::LanguageVariant::Standard
+            tsc_syntax::LanguageVariant::Standard
         ));
     }
 }
@@ -11717,7 +11732,7 @@ mod d2_inventory_tests {
 
     #[test]
     fn committed_schema_two_inventory_has_exact_graph_and_ledger_join() {
-        let workspace = find_tsrs2_root().expect("workspace");
+        let workspace = find_workspace_root().expect("workspace");
         let inventory: M8EmitterInventory =
             read_json(&workspace.join("m8-emitter-inventory.json")).expect("inventory");
         validate_d2_inventory(&inventory).expect("schema-2 graph");
@@ -11750,13 +11765,13 @@ mod m8_emitter_disposition_tests {
         fn new() -> Self {
             let sequence = TEMP_REPO_SEQUENCE.fetch_add(1, Ordering::Relaxed);
             let path = std::env::temp_dir().join(format!(
-                "tsrs2-emitter-history-{}-{sequence}",
+                "tsc-rs-emitter-history-{}-{sequence}",
                 std::process::id()
             ));
             fs::create_dir_all(&path).unwrap();
             git_test(&path, &["init", "-q"]);
             git_test(&path, &["config", "user.email", "tests@example.invalid"]);
-            git_test(&path, &["config", "user.name", "tsrs2 tests"]);
+            git_test(&path, &["config", "user.name", "tsc-rs tests"]);
             Self(path)
         }
     }
@@ -11986,7 +12001,7 @@ mod escapes_ceiling_tests {
 
     #[test]
     fn parses_the_escapes_section() {
-        let dir = std::env::temp_dir().join(format!("tsrs2-ceiling-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("tsc-rs-ceiling-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         fs::write(
             dir.join("ratchet.toml"),
@@ -12109,7 +12124,7 @@ mod completion_tier_activation_tests {
     #[test]
     fn exact_artifact_activation_is_reported_with_derived_counts() {
         let probe = tier_1_through_3_activation_probe(Ok(
-            tsrs2_conformance::ratchet::Tier1Through3Activation {
+            tsc_conformance::ratchet::Tier1Through3Activation {
                 t1_matched: 11,
                 t2_matched: 10,
                 t3_matched: 9,
@@ -12125,7 +12140,7 @@ mod completion_tier_activation_tests {
     #[test]
     fn active_but_empty_accepted_tiers_keep_the_completion_row_red() {
         let probe = tier_1_through_3_activation_probe(Ok(
-            tsrs2_conformance::ratchet::Tier1Through3Activation {
+            tsc_conformance::ratchet::Tier1Through3Activation {
                 t1_matched: 1,
                 t2_matched: 0,
                 t3_matched: 0,
@@ -12151,7 +12166,7 @@ mod completion_tier_activation_tests {
 
     #[test]
     fn t4_activation_requires_every_nonempty_case() {
-        let complete = t4_activation_probe(Ok(tsrs2_conformance::ratchet::T4Activation {
+        let complete = t4_activation_probe(Ok(tsc_conformance::ratchet::T4Activation {
             matched_cases: 12,
             total_cases: 12,
         }));
@@ -12159,11 +12174,11 @@ mod completion_tier_activation_tests {
         assert!(complete.detail.contains("accepted cases=12/12"));
 
         for activation in [
-            tsrs2_conformance::ratchet::T4Activation {
+            tsc_conformance::ratchet::T4Activation {
                 matched_cases: 11,
                 total_cases: 12,
             },
-            tsrs2_conformance::ratchet::T4Activation {
+            tsc_conformance::ratchet::T4Activation {
                 matched_cases: 0,
                 total_cases: 0,
             },
@@ -12191,7 +12206,7 @@ mod readme_status_tests {
         fn new() -> Self {
             let sequence = TEMP_REPO_SEQUENCE.fetch_add(1, Ordering::Relaxed);
             let path = std::env::temp_dir().join(format!(
-                "tsrs2-readme-status-{}-{sequence}",
+                "tsc-rs-readme-status-{}-{sequence}",
                 std::process::id()
             ));
             fs::create_dir_all(path.join("tsrs2")).unwrap();

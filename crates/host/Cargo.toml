@@ -1,11 +1,14 @@
 [package]
-name = "tsrs2-host"
+name = "tsc-rs-host"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[package.metadata.tsc-rs]
+role = "host"
+
 [lib]
-name = "tsrs2_host"
+name = "tsc_host"
 path = "src/lib.rs"
 
 [lints]

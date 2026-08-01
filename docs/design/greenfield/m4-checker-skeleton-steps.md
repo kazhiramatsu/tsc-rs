@@ -283,7 +283,7 @@ deferred-nodes pass (`checkNodeDeferred`/`checkDeferredNode` near
 contextual typing ordering correct), and the end-of-file bookkeeping.
 Program-level: options diagnostics gate semantics
 (core-interfaces §8), files check in program order, final
-`compareDiagnostics` sort + dedup (M0's diags crate).
+`compareDiagnostics` sort + dedup (M0's diagnostics crate).
 
 AS-LANDED NOTES (2026-07-12): checker/src/check.rs. The dispatch
 landed with the FULL kind list; besides the driver spine, the live

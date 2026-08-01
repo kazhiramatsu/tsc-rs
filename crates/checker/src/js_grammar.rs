@@ -6,13 +6,13 @@
 //! isExportEquals (8003) below — the old "fields the schema does not
 //! carry yet" note lapsed when nodes.rs gained them (m4-review CL-F7).
 
-use tsrs2_diags::{
+use tsc_diagnostics::{
     compute_line_map, gen, Diagnostic, DiagnosticMessage, LineMap, MessageChain, RelatedInfo,
 };
-use tsrs2_syntax::{
+use tsc_syntax::{
     for_each_child, LanguageVariant, NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind,
 };
-use tsrs2_types::NodeFlags;
+use tsc_types::NodeFlags;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Visit {
@@ -164,7 +164,7 @@ impl<'a> JsGrammarWalker<'a> {
                 let pos = if node.pos == node.end {
                     node.pos as usize
                 } else {
-                    tsrs2_syntax::skip_trivia(&self.source.text, node.pos as usize)
+                    tsc_syntax::skip_trivia(&self.source.text, node.pos as usize)
                 };
                 (pos, node.end as usize)
             }
@@ -196,7 +196,7 @@ impl<'a> JsGrammarWalker<'a> {
 
     /// tsc getSpanOfTokenAtPosition: one token scanned fresh at `pos`.
     fn token_span_at(&self, pos: usize) -> (usize, usize) {
-        let tokens = tsrs2_syntax::scan_tokens(&self.source.text[pos..], LanguageVariant::Standard);
+        let tokens = tsc_syntax::scan_tokens(&self.source.text[pos..], LanguageVariant::Standard);
         match tokens.first() {
             Some(token) => (pos + token.start as usize, pos + token.end as usize),
             None => (pos, pos),
@@ -204,7 +204,7 @@ impl<'a> JsGrammarWalker<'a> {
     }
 
     fn token_kind_at(&self, pos: usize) -> Option<SyntaxKind> {
-        tsrs2_syntax::scan_tokens(&self.source.text[pos..], LanguageVariant::Standard)
+        tsc_syntax::scan_tokens(&self.source.text[pos..], LanguageVariant::Standard)
             .first()
             .map(|token| token.kind)
     }
@@ -592,7 +592,7 @@ impl<'a> JsGrammarWalker<'a> {
                 Visit::Skip
             }
             SyntaxKind::HeritageClause => {
-                let pos = tsrs2_syntax::skip_trivia(
+                let pos = tsc_syntax::skip_trivia(
                     &self.source.text,
                     self.source.arena.node(id).pos as usize,
                 );
@@ -791,11 +791,11 @@ pub(crate) fn can_have_decorators(kind: SyntaxKind) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_syntax::{parse_source_file, ParseOptions};
+    use tsc_syntax::{parse_source_file, ParseOptions};
 
     use super::get_js_syntactic_diagnostics;
 
-    fn js_syntactic_diagnostics(text: &str) -> Vec<tsrs2_diags::Diagnostic> {
+    fn js_syntactic_diagnostics(text: &str) -> Vec<tsc_diagnostics::Diagnostic> {
         let source = parse_source_file(
             "a.js".to_owned(),
             text.to_owned(),

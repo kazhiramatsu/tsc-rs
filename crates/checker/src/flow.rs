@@ -31,11 +31,11 @@
 //! outer containment boundary. Successful walks always return their
 //! computed answer and participate in the same loop cache as tsc.
 
-use tsrs2_binder::flow::{FlowId, FlowPayload};
-use tsrs2_binder::{node_util, SymbolId};
-use tsrs2_diags::gen as diagnostics;
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{
+use tsc_binder::flow::{FlowId, FlowPayload};
+use tsc_binder::{node_util, SymbolId};
+use tsc_diagnostics::gen as diagnostics;
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{
     CheckMode, FlowFlags, NodeCheckFlags, NodeFlags, SymbolFlags, TypeData, TypeFlags, TypeId,
 };
 
@@ -382,7 +382,7 @@ impl<'a> CheckerState<'a> {
         let result_type = if self
             .tables
             .object_flags_of(evolved_type)
-            .intersects(tsrs2_types::ObjectFlags::EVOLVING_ARRAY)
+            .intersects(tsc_types::ObjectFlags::EVOLVING_ARRAY)
             && query.synthetic_props.is_none()
             && self.is_evolving_array_operation_target(query.reference)?
         {
@@ -406,8 +406,8 @@ impl<'a> CheckerState<'a> {
             // parent reverts to the declared type (live from 6.2 on —
             // the flipped initialType ladder sends real undefined
             // through straight-line queries).
-            let filtered = self
-                .get_type_with_facts(result_type, tsrs2_types::TypeFacts::NE_UNDEFINED_OR_NULL)?;
+            let filtered =
+                self.get_type_with_facts(result_type, tsc_types::TypeFacts::NE_UNDEFINED_OR_NULL)?;
             if self.tables.flags_of(filtered).intersects(TypeFlags::NEVER) {
                 return Ok(query.declared_type);
             }
@@ -466,11 +466,11 @@ impl<'a> CheckerState<'a> {
         };
         let start_utf16 = to_utf16(start);
         let length_utf16 = to_utf16(end).saturating_sub(start_utf16);
-        let diagnostic = tsrs2_diags::Diagnostic::new(
+        let diagnostic = tsc_diagnostics::Diagnostic::new(
             Some(source.file_name.clone()),
             Some(start_utf16),
             Some(length_utf16),
-            tsrs2_diags::MessageChain::new(
+            tsc_diagnostics::MessageChain::new(
                 &diagnostics::The_containing_function_or_module_body_is_too_large_for_control_flow_analysis,
                 &[],
             ),
@@ -959,7 +959,7 @@ impl<'a> CheckerState<'a> {
                                         && matches!(
                                             &state.tables.type_of(t).data,
                                             TypeData::Literal {
-                                                value: tsrs2_types::LiteralValue::String(value)
+                                                value: tsc_types::LiteralValue::String(value)
                                             } if value.eq_utf8("undefined")
                                         );
                                     !is_undefined_literal
@@ -1086,9 +1086,9 @@ impl<'a> CheckerState<'a> {
             query,
             &antecedent_types,
             if subtype_reduction {
-                tsrs2_types::UnionReduction::Subtype
+                tsc_types::UnionReduction::Subtype
             } else {
-                tsrs2_types::UnionReduction::Literal
+                tsc_types::UnionReduction::Literal
             },
         )?;
         Ok(self.create_flow_type(union, seen_incomplete))
@@ -1136,7 +1136,7 @@ impl<'a> CheckerState<'a> {
                 let union = self.get_union_or_evolving_array_type(
                     query,
                     &types,
-                    tsrs2_types::UnionReduction::Literal,
+                    tsc_types::UnionReduction::Literal,
                 )?;
                 return Ok(self.create_flow_type(union, true));
             }
@@ -1192,9 +1192,9 @@ impl<'a> CheckerState<'a> {
             query,
             &antecedent_types,
             if subtype_reduction {
-                tsrs2_types::UnionReduction::Subtype
+                tsc_types::UnionReduction::Subtype
             } else {
-                tsrs2_types::UnionReduction::Literal
+                tsc_types::UnionReduction::Literal
             },
         )?;
         if first_antecedent_type.is_some_and(FlowType::is_incomplete) {
@@ -1249,7 +1249,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 680d4522c23b10729b148621ff3f5b43e22e5a17351b666d2ef862ede1d455ed
     /// tsc-span: _tsc.js:69407-69447
     ///
-    /// The key strings mirror tsc's exactly, with tsrs2's stable ids
+    /// The key strings mirror tsc's exactly, with tsc-rs's stable ids
     /// standing in for tsc's lazily assigned node/type/symbol ids
     /// (the key only needs identity, not any particular numbering).
     fn get_flow_cache_key(
@@ -1393,7 +1393,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         query: &FlowQuery,
         types: &[TypeId],
-        subtype_reduction: tsrs2_types::UnionReduction,
+        subtype_reduction: tsc_types::UnionReduction,
     ) -> CheckResult<TypeId> {
         if self.is_evolving_array_type_list(types) {
             let element_types: Vec<TypeId> = types
@@ -1401,7 +1401,7 @@ impl<'a> CheckerState<'a> {
                 .map(|&ty| self.get_element_type_of_evolving_array_type(ty))
                 .collect();
             let union =
-                self.get_union_type_ex(&element_types, tsrs2_types::UnionReduction::Literal)?;
+                self.get_union_type_ex(&element_types, tsc_types::UnionReduction::Literal)?;
             return Ok(self.get_evolving_array_type(union));
         }
         let mut finalized = Vec::with_capacity(types.len());
@@ -1485,7 +1485,7 @@ impl<'a> CheckerState<'a> {
         if !self
             .tables
             .object_flags_of(ty)
-            .intersects(tsrs2_types::ObjectFlags::EVOLVING_ARRAY)
+            .intersects(tsc_types::ObjectFlags::EVOLVING_ARRAY)
         {
             return Ok(Some(flow_type));
         }
@@ -2065,7 +2065,7 @@ impl<'a> CheckerState<'a> {
         }
         let undefined = self.tables.intrinsics.undefined;
         let iterated = self.check_iterated_type_or_element_type(
-            tsrs2_types::IterationUse::DESTRUCTURING,
+            tsc_types::IterationUse::DESTRUCTURING,
             ty,
             undefined,
             /*error_node*/ None,
@@ -2128,7 +2128,7 @@ impl<'a> CheckerState<'a> {
     fn get_type_of_destructured_spread_expression(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         let undefined = self.tables.intrinsics.undefined;
         let iterated = self.check_iterated_type_or_element_type(
-            tsrs2_types::IterationUse::DESTRUCTURING,
+            tsc_types::IterationUse::DESTRUCTURING,
             ty,
             undefined,
             /*error_node*/ None,
@@ -2151,7 +2151,7 @@ impl<'a> CheckerState<'a> {
         let default_type = self.get_type_of_expression(default_expression)?;
         self.get_union_type_ex(
             &[non_undefined, default_type],
-            tsrs2_types::UnionReduction::Literal,
+            tsc_types::UnionReduction::Literal,
         )
     }
 
@@ -2395,7 +2395,7 @@ impl<'a> CheckerState<'a> {
         let id = self
             .tables
             .create_type(TypeFlags::OBJECT, TypeData::EvolvingArray { element_type });
-        self.tables.type_mut(id).object_flags = tsrs2_types::ObjectFlags::EVOLVING_ARRAY;
+        self.tables.type_mut(id).object_flags = tsc_types::ObjectFlags::EVOLVING_ARRAY;
         id
     }
 
@@ -2431,10 +2431,8 @@ impl<'a> CheckerState<'a> {
         if self.is_type_subset_of(element_type, current)? {
             return Ok(evolving);
         }
-        let union = self.get_union_type_ex(
-            &[current, element_type],
-            tsrs2_types::UnionReduction::Literal,
-        )?;
+        let union =
+            self.get_union_type_ex(&[current, element_type], tsc_types::UnionReduction::Literal)?;
         Ok(self.get_evolving_array_type(union))
     }
 
@@ -2458,7 +2456,7 @@ impl<'a> CheckerState<'a> {
                 TypeData::Union { types, .. } => types.to_vec(),
                 _ => unreachable!("union flag implies union data"),
             };
-            self.get_union_type_ex(&members, tsrs2_types::UnionReduction::Subtype)?
+            self.get_union_type_ex(&members, tsc_types::UnionReduction::Subtype)?
         } else {
             element_type
         };
@@ -2487,7 +2485,7 @@ impl<'a> CheckerState<'a> {
         if self
             .tables
             .object_flags_of(ty)
-            .intersects(tsrs2_types::ObjectFlags::EVOLVING_ARRAY)
+            .intersects(tsc_types::ObjectFlags::EVOLVING_ARRAY)
         {
             self.get_final_array_type(ty)
         } else {
@@ -2518,7 +2516,7 @@ impl<'a> CheckerState<'a> {
             if !self
                 .tables
                 .object_flags_of(ty)
-                .intersects(tsrs2_types::ObjectFlags::EVOLVING_ARRAY)
+                .intersects(tsc_types::ObjectFlags::EVOLVING_ARRAY)
             {
                 return false;
             }
@@ -2609,10 +2607,10 @@ impl<'a> CheckerState<'a> {
         let remove_undefined = strict_null_checks
             && self.kind_of(declaration) == SyntaxKind::Parameter
             && has_initializer
-            && self.has_type_facts(declared_type, tsrs2_types::TypeFacts::IS_UNDEFINED)?
+            && self.has_type_facts(declared_type, tsc_types::TypeFacts::IS_UNDEFINED)?
             && !self.parameter_initializer_contains_undefined(declaration)?;
         if remove_undefined {
-            self.get_type_with_facts(declared_type, tsrs2_types::TypeFacts::NE_UNDEFINED)
+            self.get_type_with_facts(declared_type, tsc_types::TypeFacts::NE_UNDEFINED)
         } else {
             Ok(declared_type)
         }
@@ -2638,7 +2636,7 @@ impl<'a> CheckerState<'a> {
         }
         if !self.push_type_resolution(
             crate::state::ResolutionTarget::Node(declaration),
-            tsrs2_types::TypeSystemPropertyName::PARAMETER_INITIALIZER_CONTAINS_UNDEFINED,
+            tsc_types::TypeSystemPropertyName::PARAMETER_INITIALIZER_CONTAINS_UNDEFINED,
         ) {
             let symbol = self.get_symbol_of_declaration(declaration)?;
             self.report_circularity_error(symbol);
@@ -2653,7 +2651,7 @@ impl<'a> CheckerState<'a> {
                 }
             };
         let contains =
-            match self.has_type_facts(initializer_type, tsrs2_types::TypeFacts::IS_UNDEFINED) {
+            match self.has_type_facts(initializer_type, tsc_types::TypeFacts::IS_UNDEFINED) {
                 Ok(contains) => contains,
                 Err(unwind) => {
                     self.pop_type_resolution();
@@ -2752,7 +2750,7 @@ impl<'a> CheckerState<'a> {
                     .expect("guarded above");
                 let source = self.binder.source_of_node(declaration);
                 let ambient = node_util::get_combined_modifier_flags(source, declaration)
-                    .intersects(tsrs2_types::ModifierFlags::AMBIENT);
+                    .intersects(tsc_types::ModifierFlags::AMBIENT);
                 if !self.is_auto_typed_property(prop) || ambient {
                     self.get_type_of_property_in_base_class(prop)?
                 } else {
@@ -2790,8 +2788,7 @@ impl<'a> CheckerState<'a> {
     fn member_implicit_any_display_name(&mut self, symbol: SymbolId) -> CheckResult<String> {
         if let Some(declaration) = self.binder.symbol(symbol).value_declaration {
             let source = self.binder.source_of_node(declaration);
-            if let Some(name) =
-                tsrs2_binder::node_util::get_name_of_declaration(source, declaration)
+            if let Some(name) = tsc_binder::node_util::get_name_of_declaration(source, declaration)
             {
                 return self.text_of_node(name);
             }
@@ -3053,7 +3050,7 @@ impl<'a> CheckerState<'a> {
         if prop_name.is_empty() {
             return Ok(None);
         }
-        props.push(tsrs2_syntax::escape_leading_underscores(&prop_name));
+        props.push(tsc_syntax::escape_leading_underscores(&prop_name));
         Ok(Some((base, props)))
     }
 
@@ -3735,7 +3732,7 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::BindingElement => {
                 let name = self.get_destructuring_property_name(access)?;
-                Ok(name.map(|name| tsrs2_syntax::escape_leading_underscores(&name)))
+                Ok(name.map(|name| tsc_syntax::escape_leading_underscores(&name)))
             }
             SyntaxKind::Parameter => {
                 let Some(parent) = self.parent_of(access) else {
@@ -3781,13 +3778,13 @@ impl<'a> CheckerState<'a> {
             // tsc: escapeLeadingUnderscores("" + type.value).
             if let TypeData::Literal { value } = &self.tables.type_of(ty).data {
                 let text = match value {
-                    tsrs2_types::LiteralValue::String(text) => text.to_utf8()?,
-                    tsrs2_types::LiteralValue::Number(number) => {
-                        tsrs2_types::tables::js_number_to_string(*number)
+                    tsc_types::LiteralValue::String(text) => text.to_utf8()?,
+                    tsc_types::LiteralValue::Number(number) => {
+                        tsc_types::tables::js_number_to_string(*number)
                     }
-                    tsrs2_types::LiteralValue::BigInt(_) => return None,
+                    tsc_types::LiteralValue::BigInt(_) => return None,
                 };
-                return Some(tsrs2_syntax::escape_leading_underscores(&text));
+                return Some(tsc_syntax::escape_leading_underscores(&text));
             }
             return None;
         }
@@ -3812,7 +3809,7 @@ impl<'a> CheckerState<'a> {
                 NodeData::NoSubstitutionTemplateLiteral(data) => data.text.clone(),
                 _ => return Ok(None),
             };
-            return Ok(Some(tsrs2_syntax::escape_leading_underscores(&text)));
+            return Ok(Some(tsc_syntax::escape_leading_underscores(&text)));
         }
         if node_util::is_entity_name_expression(source, argument) {
             return self.try_get_name_from_entity_name_expression(argument);
@@ -3998,11 +3995,11 @@ impl<'a> CheckerState<'a> {
         }
         if let TypeData::Literal { value } = &self.tables.type_of(ty).data {
             return Ok(match value {
-                tsrs2_types::LiteralValue::String(text) => text.to_utf8(),
-                tsrs2_types::LiteralValue::Number(number) => {
-                    Some(tsrs2_types::tables::js_number_to_string(*number))
+                tsc_types::LiteralValue::String(text) => text.to_utf8(),
+                tsc_types::LiteralValue::Number(number) => {
+                    Some(tsc_types::tables::js_number_to_string(*number))
                 }
-                tsrs2_types::LiteralValue::BigInt(_) => None,
+                tsc_types::LiteralValue::BigInt(_) => None,
             });
         }
         Ok(None)
@@ -4274,7 +4271,7 @@ impl<'a> CheckerState<'a> {
             }
             let source = self.binder.source_of_node(node);
             let mut children: Vec<NodeId> = Vec::new();
-            tsrs2_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+            tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
                 children.push(child);
                 false
             });
@@ -4448,7 +4445,7 @@ impl<'a> CheckerState<'a> {
                                 (signature.parameters.len() == 1).then(|| signature.parameters[0]),
                                 signature
                                     .flags
-                                    .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER),
+                                    .intersects(tsc_types::SignatureFlags::HAS_REST_PARAMETER),
                             )
                         };
                         if let (Some(rest_parameter), true) = (rest_parameter, has_rest) {
@@ -4503,7 +4500,7 @@ impl<'a> CheckerState<'a> {
                                 return self.get_indexed_access_type(
                                     narrowed_type,
                                     index_type,
-                                    tsrs2_types::AccessFlags::NONE,
+                                    tsc_types::AccessFlags::NONE,
                                     None,
                                     None,
                                     None,
@@ -4642,7 +4639,7 @@ mod tests {
 
     #[test]
     fn flow_type_accessors() {
-        let ty = tsrs2_types::TypeId(7);
+        let ty = tsc_types::TypeId(7);
         assert_eq!(FlowType::Type(ty).get_type(), ty);
         assert_eq!(FlowType::Incomplete(ty).get_type(), ty);
         assert!(!FlowType::Type(ty).is_incomplete());
@@ -4663,7 +4660,9 @@ mod tests {
             let message = &state
                 .diagnostics
                 .iter()
-                .find(|diagnostic| diagnostic.category() == tsrs2_diags::DiagnosticCategory::Error)
+                .find(|diagnostic| {
+                    diagnostic.category() == tsc_diagnostics::DiagnosticCategory::Error
+                })
                 .expect("7008 row")
                 .message;
             assert!(
@@ -4682,7 +4681,7 @@ mod tests {
                 .iter()
                 .filter(|diag| {
                     diag.file_name.is_some()
-                        && diag.category() == tsrs2_diags::DiagnosticCategory::Error
+                        && diag.category() == tsc_diagnostics::DiagnosticCategory::Error
                 })
                 .map(|diag| {
                     (

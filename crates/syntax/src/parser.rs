@@ -46,9 +46,11 @@ use crate::nodes::{
 };
 use crate::scanner::{is_js_whitespace, is_whitespace_like, LanguageVariant, Scanner};
 use crate::{SourceFile, SyntaxKind};
-use tsrs2_diags::{compute_line_map, gen, Diagnostic, DiagnosticList, DiagnosticMessage, LineMap};
-use tsrs2_diags::{MessageChain, RelatedInfo};
-use tsrs2_types::{NodeFlags, ScriptTarget};
+use tsc_diagnostics::{
+    compute_line_map, gen, Diagnostic, DiagnosticList, DiagnosticMessage, LineMap,
+};
+use tsc_diagnostics::{MessageChain, RelatedInfo};
+use tsc_types::{NodeFlags, ScriptTarget};
 
 /// tsc JSDocParsingMode @6.0.3.
 #[repr(u8)]

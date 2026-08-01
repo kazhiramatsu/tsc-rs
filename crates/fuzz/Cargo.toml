@@ -1,22 +1,26 @@
 [package]
-name = "tsrs2-fuzz"
+name = "tsc-rs-fuzz"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+default-run = "tsc-rs-fuzz-producer"
+
+[package.metadata.tsc-rs]
+role = "fuzz"
 
 [lib]
-name = "tsrs2_fuzz"
+name = "tsc_fuzz"
 path = "src/lib.rs"
 
 [[bin]]
-name = "tsrs2-fuzz-producer"
-path = "src/bin/tsrs2-fuzz-producer.rs"
+name = "tsc-rs-fuzz-producer"
+path = "src/bin/tsc-rs-fuzz-producer.rs"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
 toml_edit = "0.22"
-tsrs2-checker = { path = "../checker" }
-tsrs2-diags = { path = "../diags" }
-tsrs2-harness = { path = "../harness" }
+tsc-checker.workspace = true
+tsc-diagnostics.workspace = true
+tsc-harness.workspace = true

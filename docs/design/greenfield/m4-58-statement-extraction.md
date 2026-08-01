@@ -20,7 +20,7 @@ floor-verify), and the comment-directive gap scoped to the EXISTING
 interim filter (§15 5.8e).
 
 Diagnostic codes: message NAMES are authoritative here (they map 1:1
-onto `tsrs2_diags::gen` statics); numbers are cited where load-bearing
+onto `tsc_diagnostics::gen` statics); numbers are cited where load-bearing
 for code-identity risks. Resolve any uncited number from gen.rs at
 landing — never guess.
 
@@ -1924,7 +1924,7 @@ emit-only/elided in both modes.
 ### checkDecorators (L82744) — the forcing entry
 Gates: canHaveDecorators && hasDecorators && modifiers &&
 nodeCanBeDecorated(**legacy_decorators()**, node, parent,
-grandparent) (util — verify tsrs2_binder::node_util port carries the
+grandparent) (util — verify tsc_binder::node_util port carries the
 legacy flavor: legacy admits PARAMETER positions that the ES flavor
 rejects; passing constant false would gate legacy parameter
 decorators out at the entry). Emit-helper probes: no-op.

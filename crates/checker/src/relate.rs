@@ -14,8 +14,8 @@
 
 use std::collections::HashMap;
 
-use tsrs2_syntax::SyntaxKind;
-use tsrs2_types::{
+use tsc_syntax::SyntaxKind;
+use tsc_types::{
     IntersectionState, ObjectFlags, RelationComparisonResult, SymbolFlags, TypeFlags, TypeId,
 };
 
@@ -258,8 +258,8 @@ impl<'a> CheckerState<'a> {
     /// stay so here.
     pub fn is_enum_type_related_to(
         &mut self,
-        source: tsrs2_binder::SymbolId,
-        target: tsrs2_binder::SymbolId,
+        source: tsc_binder::SymbolId,
+        target: tsc_binder::SymbolId,
     ) -> CheckResult<bool> {
         let source_symbol = if self
             .binder
@@ -358,9 +358,9 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_binder::bind_source_file;
-    use tsrs2_syntax::{parse_source_file, LanguageVariant, ParseOptions};
-    use tsrs2_types::{
+    use tsc_binder::bind_source_file;
+    use tsc_syntax::{parse_source_file, LanguageVariant, ParseOptions};
+    use tsc_types::{
         CompilerOptions, ElementFlags, IntersectionState, RelationComparisonResult,
         TupleTargetFlags,
     };
@@ -493,7 +493,7 @@ mod tests {
         // 64676-64678: identical symbols relate before any flag or
         // name test — even a symbol that is not an enum at all.
         with_state(|state| {
-            let symbol = tsrs2_binder::SymbolId(0);
+            let symbol = tsc_binder::SymbolId(0);
             assert!(state
                 .is_enum_type_related_to(symbol, symbol)
                 .expect("identity path never escapes"));

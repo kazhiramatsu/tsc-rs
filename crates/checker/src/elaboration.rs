@@ -6,9 +6,9 @@
 //! declined walk, while applicability captures the emitted diagnostics
 //! as overload-selection data.
 
-use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{AccessFlags, CheckMode, TypeData, TypeFlags, TypeId, UnionReduction};
+use tsc_diagnostics::{gen as diagnostics, DiagnosticMessage};
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{AccessFlags, CheckMode, TypeData, TypeFlags, TypeId, UnionReduction};
 
 use crate::relate::RelationKind;
 use crate::state::{CheckResult, CheckerState, SignatureKind};
@@ -190,7 +190,7 @@ impl<'a> CheckerState<'a> {
                 self.binder
                     .symbol(property)
                     .flags
-                    .intersects(tsrs2_types::SymbolFlags::OPTIONAL)
+                    .intersects(tsc_types::SymbolFlags::OPTIONAL)
             });
         let source_is_optional = if target_is_optional {
             self.get_property_of_type_full(source_type, name_text)?
@@ -198,7 +198,7 @@ impl<'a> CheckerState<'a> {
                     self.binder
                         .symbol(property)
                         .flags
-                        .intersects(tsrs2_types::SymbolFlags::OPTIONAL)
+                        .intersects(tsc_types::SymbolFlags::OPTIONAL)
                 })
         } else {
             false
@@ -265,7 +265,7 @@ impl<'a> CheckerState<'a> {
                     .flags_of(name_type)
                     .intersects(TypeFlags::UNIQUE_ES_SYMBOL) =>
             {
-                tsrs2_binder::unescape_leading_underscores(property_name).to_owned()
+                tsc_binder::unescape_leading_underscores(property_name).to_owned()
             }
             _ => {
                 let Ok(display) = self.type_to_string_slice(name_type) else {
@@ -964,9 +964,9 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_diags::gen as diagnostics;
-    use tsrs2_syntax::SyntaxKind;
-    use tsrs2_types::{CheckMode, CompilerOptions};
+    use tsc_diagnostics::gen as diagnostics;
+    use tsc_syntax::SyntaxKind;
+    use tsc_types::{CheckMode, CompilerOptions};
 
     use crate::state::test_support::with_program_state;
 

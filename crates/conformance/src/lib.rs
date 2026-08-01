@@ -10,11 +10,13 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use serde::{Deserialize, Serialize};
 use toml_edit::{DocumentMut, Item, Table};
-use tsrs2_checker::{
+use tsc_checker::{
     check_program, check_program_with_libs_at, CompilerOptions, InputFile, PartialCheck,
 };
-use tsrs2_diags::{compute_line_map, get_line_and_character_of_position, Diagnostic, MessageChain};
-use tsrs2_oracle::{OracleDiag, OracleMessageChain, OraclePool};
+use tsc_diagnostics::{
+    compute_line_map, get_line_and_character_of_position, Diagnostic, MessageChain,
+};
+use tsc_oracle::{OracleDiag, OracleMessageChain, OraclePool};
 
 pub mod families;
 pub mod goldens_diff;
@@ -436,7 +438,7 @@ pub fn run_prefix_conformance(
         files: options.files.clone(),
     })?;
     let vendor_lib_dir = options.workspace.join("vendor/typescript-6.0.3/lib");
-    let temp_root = temp_root("tsrs2-prefix-conformance");
+    let temp_root = temp_root("tsc-rs-prefix-conformance");
     if temp_root.exists() {
         fs::remove_dir_all(&temp_root)?;
     }
@@ -455,7 +457,7 @@ pub fn run_prefix_conformance(
                 fixtures.len()
             );
         }
-        let programs = tsrs2_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
+        let programs = tsc_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
         for (program_index, program) in programs.iter().enumerate() {
             for file_index in 0..program.files.len() {
                 // package.json validation diags come from tsc's module
@@ -474,7 +476,7 @@ pub fn run_prefix_conformance(
                     .join(program_index.to_string())
                     .join(file_index.to_string());
                 let paths =
-                    tsrs2_harness::write_program_jsons(std::slice::from_ref(&truncated), &out_dir)?;
+                    tsc_harness::write_program_jsons(std::slice::from_ref(&truncated), &out_dir)?;
                 let oracle = pool.diagnostics(&paths[0]).map_err(|err| {
                     format!(
                         "oracle failed for {fixture_key} [{}] prefix of {}: {err}",
@@ -506,7 +508,7 @@ pub fn run_prefix_conformance(
                 let result = check_program_with_libs_at(
                     &libs,
                     &input_files,
-                    &tsrs2_harness::compiler_options_from_program(&truncated),
+                    &tsc_harness::compiler_options_from_program(&truncated),
                     &truncated.cwd,
                 );
                 let actual = t0_set(
@@ -582,7 +584,7 @@ pub fn refresh_oracle_goldens(options: &RefreshOptions) -> ConformanceResult<Ref
     let fixtures = select_fixtures(options)?;
     let vendor_lib_dir = options.workspace.join("vendor/typescript-6.0.3/lib");
     let goldens_root = options.workspace.join("goldens");
-    let temp_root = temp_root("tsrs2-oracle-refresh");
+    let temp_root = temp_root("tsc-rs-oracle-refresh");
     if temp_root.exists() {
         fs::remove_dir_all(&temp_root)?;
     }
@@ -619,9 +621,9 @@ pub fn refresh_oracle_goldens(options: &RefreshOptions) -> ConformanceResult<Ref
                 fixtures.len()
             );
         }
-        let programs = tsrs2_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
+        let programs = tsc_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
         let out_dir = temp_root.join(fixture_index.to_string());
-        let paths = tsrs2_harness::write_program_jsons(&programs, &out_dir)?;
+        let paths = tsc_harness::write_program_jsons(&programs, &out_dir)?;
         let mut cases = Vec::with_capacity(programs.len());
 
         for (program, path) in programs.iter().zip(paths.iter()) {
@@ -932,7 +934,7 @@ fn run_conformance_inner(
             .iter()
             .map(|case| (case.matrix_key.as_str(), case))
             .collect::<BTreeMap<_, _>>();
-        let programs = tsrs2_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
+        let programs = tsc_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
         let expanded_keys = programs
             .iter()
             .map(|program| program.matrix_key.as_str())
@@ -1767,7 +1769,7 @@ struct CaseTsrs {
 type CaseTsrsCache = BTreeMap<(String, String), Arc<CaseTsrs>>;
 
 fn current_case_tsrs(
-    program: &tsrs2_harness::ProgramJson,
+    program: &tsc_harness::ProgramJson,
     vendor_lib_dir: &Path,
 ) -> ConformanceResult<CaseTsrs> {
     let mut files = Vec::new();
@@ -1786,7 +1788,7 @@ fn current_case_tsrs(
     let result = check_program_with_libs_at(
         &libs,
         &files,
-        &tsrs2_harness::compiler_options_from_program(program),
+        &tsc_harness::compiler_options_from_program(program),
         &program.cwd,
     );
     let all_empty_related_information = result
@@ -1815,7 +1817,7 @@ fn current_case_tsrs(
 }
 
 fn file_texts_for_program(
-    program: &tsrs2_harness::ProgramJson,
+    program: &tsc_harness::ProgramJson,
     vendor_lib_dir: &Path,
 ) -> ConformanceResult<BTreeMap<String, String>> {
     let mut file_texts = BTreeMap::new();
@@ -2206,7 +2208,7 @@ pub(crate) mod test_git {
     pub(crate) fn temp_dir(name: &str) -> PathBuf {
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
         let dir = std::env::temp_dir().join(format!(
-            "tsrs2-test-{name}-{}-{}",
+            "tsc-rs-test-{name}-{}-{}",
             std::process::id(),
             COUNTER.fetch_add(1, Ordering::Relaxed)
         ));
@@ -2408,15 +2410,12 @@ mod tests {
     /// silently dropped the option, leaving CompilerOptions.lib None).
     #[test]
     fn lib_string_list_reaches_compiler_options() {
-        let program = tsrs2_harness::ProgramJson {
+        let program = tsc_harness::ProgramJson {
             schema: 1,
             cwd: ".".to_owned(),
             options: [(
                 "lib".to_owned(),
-                tsrs2_harness::OptionValue::StringList(vec![
-                    "ES2015".to_owned(),
-                    " Dom ".to_owned(),
-                ]),
+                tsc_harness::OptionValue::StringList(vec!["ES2015".to_owned(), " Dom ".to_owned()]),
             )]
             .into_iter()
             .collect(),
@@ -2424,7 +2423,7 @@ mod tests {
             files: Vec::new(),
             matrix_key: String::new(),
         };
-        let options = tsrs2_harness::compiler_options_from_program(&program);
+        let options = tsc_harness::compiler_options_from_program(&program);
         assert_eq!(
             options.lib,
             Some(vec!["es2015".to_owned(), "dom".to_owned()])
@@ -2433,12 +2432,12 @@ mod tests {
 
     #[test]
     fn lib_comma_string_still_supported() {
-        let program = tsrs2_harness::ProgramJson {
+        let program = tsc_harness::ProgramJson {
             schema: 1,
             cwd: ".".to_owned(),
             options: [(
                 "lib".to_owned(),
-                tsrs2_harness::OptionValue::String("ES2020, dom".to_owned()),
+                tsc_harness::OptionValue::String("ES2020, dom".to_owned()),
             )]
             .into_iter()
             .collect(),
@@ -2446,7 +2445,7 @@ mod tests {
             files: Vec::new(),
             matrix_key: String::new(),
         };
-        let options = tsrs2_harness::compiler_options_from_program(&program);
+        let options = tsc_harness::compiler_options_from_program(&program);
         assert_eq!(
             options.lib,
             Some(vec!["es2020".to_owned(), "dom".to_owned()])
@@ -2455,28 +2454,28 @@ mod tests {
 
     #[test]
     fn package_resolution_conditions_reach_compiler_options() {
-        let program = tsrs2_harness::ProgramJson {
+        let program = tsc_harness::ProgramJson {
             schema: 1,
             cwd: ".".to_owned(),
             options: [
                 (
                     "resolvePackageJsonExports".to_owned(),
-                    tsrs2_harness::OptionValue::Bool(false),
+                    tsc_harness::OptionValue::Bool(false),
                 ),
                 (
                     "resolvePackageJsonImports".to_owned(),
-                    tsrs2_harness::OptionValue::Bool(true),
+                    tsc_harness::OptionValue::Bool(true),
                 ),
                 (
                     "customConditions".to_owned(),
-                    tsrs2_harness::OptionValue::StringList(vec![
+                    tsc_harness::OptionValue::StringList(vec![
                         "webpack".to_owned(),
                         "browser".to_owned(),
                     ]),
                 ),
                 (
                     "noDtsResolution".to_owned(),
-                    tsrs2_harness::OptionValue::Bool(true),
+                    tsc_harness::OptionValue::Bool(true),
                 ),
             ]
             .into_iter()
@@ -2485,7 +2484,7 @@ mod tests {
             files: Vec::new(),
             matrix_key: String::new(),
         };
-        let options = tsrs2_harness::compiler_options_from_program(&program);
+        let options = tsc_harness::compiler_options_from_program(&program);
         assert_eq!(options.resolve_package_json_exports, Some(false));
         assert_eq!(options.resolve_package_json_imports, Some(true));
         assert_eq!(
@@ -2497,12 +2496,12 @@ mod tests {
 
     #[test]
     fn module_detection_reaches_compiler_options() {
-        let program = tsrs2_harness::ProgramJson {
+        let program = tsc_harness::ProgramJson {
             schema: 1,
             cwd: ".".to_owned(),
             options: [(
                 "moduleDetection".to_owned(),
-                tsrs2_harness::OptionValue::String("force".to_owned()),
+                tsc_harness::OptionValue::String("force".to_owned()),
             )]
             .into_iter()
             .collect(),
@@ -2510,19 +2509,19 @@ mod tests {
             files: Vec::new(),
             matrix_key: String::new(),
         };
-        let options = tsrs2_harness::compiler_options_from_program(&program);
+        let options = tsc_harness::compiler_options_from_program(&program);
         assert_eq!(options.module_detection, Some(3));
         assert_eq!(options.emit_module_detection_kind(), 3);
     }
 
     #[test]
     fn import_helpers_reaches_compiler_options() {
-        let program = tsrs2_harness::ProgramJson {
+        let program = tsc_harness::ProgramJson {
             schema: 1,
             cwd: ".".to_owned(),
             options: [(
                 "importHelpers".to_owned(),
-                tsrs2_harness::OptionValue::Bool(true),
+                tsc_harness::OptionValue::Bool(true),
             )]
             .into_iter()
             .collect(),
@@ -2531,19 +2530,19 @@ mod tests {
             matrix_key: String::new(),
         };
         assert_eq!(
-            tsrs2_harness::compiler_options_from_program(&program).import_helpers,
+            tsc_harness::compiler_options_from_program(&program).import_helpers,
             Some(true)
         );
     }
 
     #[test]
     fn allow_arbitrary_extensions_reaches_compiler_options() {
-        let program = tsrs2_harness::ProgramJson {
+        let program = tsc_harness::ProgramJson {
             schema: 1,
             cwd: ".".to_owned(),
             options: [(
                 "allowArbitraryExtensions".to_owned(),
-                tsrs2_harness::OptionValue::Bool(false),
+                tsc_harness::OptionValue::Bool(false),
             )]
             .into_iter()
             .collect(),
@@ -2552,19 +2551,19 @@ mod tests {
             matrix_key: String::new(),
         };
         assert_eq!(
-            tsrs2_harness::compiler_options_from_program(&program).allow_arbitrary_extensions,
+            tsc_harness::compiler_options_from_program(&program).allow_arbitrary_extensions,
             Some(false)
         );
     }
 
     #[test]
     fn no_error_truncation_reaches_compiler_options() {
-        let program = tsrs2_harness::ProgramJson {
+        let program = tsc_harness::ProgramJson {
             schema: 1,
             cwd: ".".to_owned(),
             options: [(
                 "noErrorTruncation".to_owned(),
-                tsrs2_harness::OptionValue::Bool(true),
+                tsc_harness::OptionValue::Bool(true),
             )]
             .into_iter()
             .collect(),
@@ -2573,7 +2572,7 @@ mod tests {
             matrix_key: String::new(),
         };
         assert_eq!(
-            tsrs2_harness::compiler_options_from_program(&program).no_error_truncation,
+            tsc_harness::compiler_options_from_program(&program).no_error_truncation,
             Some(true)
         );
     }
@@ -2582,7 +2581,7 @@ mod tests {
     /// even when the rounded rate would still pass.
     #[test]
     fn ratchet_integer_counts_parse() {
-        let dir = temp_root("tsrs2-ratchet-test");
+        let dir = temp_root("tsc-rs-ratchet-test");
         fs::create_dir_all(&dir).unwrap();
         let path = dir.join("ratchet.toml");
         fs::write(
@@ -2604,7 +2603,7 @@ mod tests {
 
     #[test]
     fn ratchet_parser_rejects_duplicate_sections_and_keys() {
-        let dir = temp_root("tsrs2-ratchet-duplicates-test");
+        let dir = temp_root("tsc-rs-ratchet-duplicates-test");
         fs::create_dir_all(&dir).unwrap();
         let path = dir.join("ratchet.toml");
 

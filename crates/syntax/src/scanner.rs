@@ -1,7 +1,7 @@
 use crate::parser::JSDocParsingMode;
 use crate::{chars, keywords, SyntaxKind};
-use tsrs2_diags::{gen, DiagnosticMessage};
-use tsrs2_types::ScriptTarget;
+use tsc_diagnostics::{gen, DiagnosticMessage};
+use tsc_types::ScriptTarget;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum LanguageVariant {
@@ -2334,9 +2334,9 @@ fn js_number_to_string(text: &str) -> String {
     // >= 1e21 exponent form (and expands small exponents), which
     // fabricated member names like "9671406556917009000000000" for
     // `9.671406556917009e+24:` keys — the canonical formatter in
-    // tsrs2-types is the ECMA algorithm.
+    // tsc-rs-types is the ECMA algorithm.
     match text.parse::<f64>() {
-        Ok(value) => tsrs2_types::js_number_to_string(value),
+        Ok(value) => tsc_types::js_number_to_string(value),
         Err(_) => "NaN".to_owned(),
     }
 }

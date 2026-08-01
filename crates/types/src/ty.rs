@@ -25,7 +25,7 @@ pub struct MapperId(pub u32);
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ConditionalRootId(pub u32);
 
-/// tsc Symbol id space. Lives in tsrs2-types so Type.symbol can point
+/// tsc Symbol id space. Lives in tsc-rs-types so Type.symbol can point
 /// at binder/checker symbols without a dependency cycle; the binder
 /// re-exports it and owns the arena.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

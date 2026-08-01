@@ -527,7 +527,7 @@ mod tests {
     fn temp_dir() -> PathBuf {
         static NEXT_TEMP_ID: AtomicU64 = AtomicU64::new(1);
         std::env::temp_dir().join(format!(
-            "tsrs2-oracle-test-{}-{}",
+            "tsc-rs-oracle-test-{}-{}",
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("system time")

@@ -7,14 +7,14 @@
 //! checkAndReportErrorFor* alternates are M8 rows, ledgered at
 //! on_failed_to_resolve_symbol.
 
-use tsrs2_binder::node_util::{
+use tsc_binder::node_util::{
     self, body_of, get_immediately_invoked_function_expression, has_syntactic_modifier,
     is_function_like_declaration_kind, is_function_like_kind, is_part_of_parameter_declaration,
 };
-use tsrs2_binder::{SymbolId, SymbolTable};
-use tsrs2_diags::{gen as diagnostics, DiagnosticCategory, DiagnosticMessage};
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags, TypeFlags};
+use tsc_binder::{SymbolId, SymbolTable};
+use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory, DiagnosticMessage};
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags, TypeFlags};
 
 use crate::state::{CheckResult, CheckerState};
 
@@ -131,7 +131,7 @@ impl<'a> CheckerState<'a> {
                 }
                 candidates.extend(values);
                 self.get_spelling_suggestion_for_name(
-                    tsrs2_binder::unescape_leading_underscores(name),
+                    tsc_binder::unescape_leading_underscores(name),
                     &candidates,
                     meaning,
                 )
@@ -329,7 +329,7 @@ impl<'a> CheckerState<'a> {
                             // Default exports are not looked up by
                             // local name...
                             if let Some(&default_export) =
-                                module_exports.get(tsrs2_types::InternalSymbolName::DEFAULT)
+                                module_exports.get(tsc_types::InternalSymbolName::DEFAULT)
                             {
                                 let local = self.local_symbol_for_export_default(default_export);
                                 if let Some(local) = local {
@@ -370,7 +370,7 @@ impl<'a> CheckerState<'a> {
                                 }
                             }
                         }
-                        if name != tsrs2_types::InternalSymbolName::DEFAULT {
+                        if name != tsc_types::InternalSymbolName::DEFAULT {
                             let masked = meaning & SymbolFlags::MODULE_MEMBER;
                             let probe = self.lookup_probe(
                                 &module_exports,
@@ -1066,7 +1066,7 @@ impl<'a> CheckerState<'a> {
             message,
             &[
                 &property_name,
-                tsrs2_binder::unescape_leading_underscores(name),
+                tsc_binder::unescape_leading_underscores(name),
             ],
         );
         true
@@ -1290,7 +1290,7 @@ impl<'a> CheckerState<'a> {
                     Some(location),
                 )
             })
-            .unwrap_or_else(|| tsrs2_binder::unescape_leading_underscores(name).to_owned());
+            .unwrap_or_else(|| tsc_binder::unescape_leading_underscores(name).to_owned());
         let suggested_lib = get_suggested_lib_for_non_existent_name(name);
         if let Some(lib) = suggested_lib {
             self.error_at(error_location, message, &[display.as_str(), lib]);
@@ -1343,9 +1343,9 @@ impl<'a> CheckerState<'a> {
                     );
                     // getCanonicalDiagnostic(nameNotFoundMessage, name):
                     // sort/dedupe compare through the PLAIN form.
-                    diagnostic.canonical_head = Some(tsrs2_diags::CanonicalHead {
+                    diagnostic.canonical_head = Some(tsc_diagnostics::CanonicalHead {
                         code: message.code,
-                        text: tsrs2_diags::MessageChain::new(
+                        text: tsc_diagnostics::MessageChain::new(
                             message,
                             std::slice::from_ref(&display),
                         )
@@ -1405,7 +1405,7 @@ impl<'a> CheckerState<'a> {
         let Some(symbol) = symbol else {
             return Ok(false);
         };
-        let display = tsrs2_binder::unescape_leading_underscores(name);
+        let display = tsc_binder::unescape_leading_underscores(name);
         let mut reported = false;
         if let Some(parent) = self.parent_of(error_location) {
             if let NodeData::QualifiedName(data) = self.data_of(parent) {
@@ -1481,7 +1481,7 @@ impl<'a> CheckerState<'a> {
         if self.resolve_symbol_ex(symbol, false)?.is_none() {
             return Ok(false);
         }
-        let display = tsrs2_binder::unescape_leading_underscores(name);
+        let display = tsc_binder::unescape_leading_underscores(name);
         self.error_at(Some(error_location), message, &[display]);
         Ok(true)
     }
@@ -1536,7 +1536,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(false);
         }
-        let display = tsrs2_binder::unescape_leading_underscores(name);
+        let display = tsc_binder::unescape_leading_underscores(name);
         if is_es2015_or_later_constructor_name(name) {
             self.error_at(
                 Some(error_location),
@@ -1596,7 +1596,7 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         let constituents = match &self.tables.type_of(ty).data {
-            tsrs2_types::TypeData::Union { types, .. } => types.to_vec(),
+            tsc_types::TypeData::Union { types, .. } => types.to_vec(),
             _ => unreachable!("union flag implies union data"),
         };
         for constituent in constituents {
@@ -1641,7 +1641,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(false);
         }
-        let display = tsrs2_binder::unescape_leading_underscores(name);
+        let display = tsc_binder::unescape_leading_underscores(name);
         self.error_at(
             Some(error_location),
             &diagnostics::_0_refers_to_a_value_but_is_being_used_as_a_type_here_Did_you_mean_typeof_0,
@@ -1683,16 +1683,16 @@ impl<'a> CheckerState<'a> {
         location: Option<NodeId>,
         message: &'static DiagnosticMessage,
         args: &[&str],
-    ) -> tsrs2_diags::Diagnostic {
+    ) -> tsc_diagnostics::Diagnostic {
         match location {
             Some(node) => self.diagnostic_for_node(node, message, args),
             None => {
                 let args: Vec<String> = args.iter().map(|a| (*a).to_owned()).collect();
-                tsrs2_diags::Diagnostic::new(
+                tsc_diagnostics::Diagnostic::new(
                     None,
                     None,
                     None,
-                    tsrs2_diags::MessageChain::new(message, &args),
+                    tsc_diagnostics::MessageChain::new(message, &args),
                 )
             }
         }
@@ -1720,7 +1720,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(false);
         }
-        let container = tsrs2_binder::node_util::get_this_container(
+        let container = tsc_binder::node_util::get_this_container(
             self.binder.source_of_node(error_location),
             error_location,
             /*include_arrow_functions*/ false,
@@ -1749,10 +1749,7 @@ impl<'a> CheckerState<'a> {
                         self.error_at(
                             Some(error_location),
                             &diagnostics::Cannot_find_name_0_Did_you_mean_the_static_member_1_0,
-                            &[
-                                tsrs2_binder::unescape_leading_underscores(name),
-                                &class_name,
-                            ],
+                            &[tsc_binder::unescape_leading_underscores(name), &class_name],
                         );
                         return Ok(true);
                     }
@@ -1760,9 +1757,7 @@ impl<'a> CheckerState<'a> {
                         let declared =
                             self.get_declared_type_of_class_or_interface(class_symbol)?;
                         let this_type = match &self.tables.type_of(declared).data {
-                            tsrs2_types::TypeData::GenericType { this_type, .. } => {
-                                Some(*this_type)
-                            }
+                            tsc_types::TypeData::GenericType { this_type, .. } => Some(*this_type),
                             _ => None,
                         };
                         if let Some(this_type) = this_type {
@@ -1770,7 +1765,7 @@ impl<'a> CheckerState<'a> {
                                 self.error_at(
                                     Some(error_location),
                                     &diagnostics::Cannot_find_name_0_Did_you_mean_the_instance_member_this_0,
-                                    &[tsrs2_binder::unescape_leading_underscores(name)],
+                                    &[tsc_binder::unescape_leading_underscores(name)],
                                 );
                                 return Ok(true);
                             }
@@ -1819,7 +1814,7 @@ impl<'a> CheckerState<'a> {
                     self.error_at(
                         Some(error_location),
                         &diagnostics::An_interface_cannot_extend_a_primitive_type_like_0_It_can_only_extend_other_named_object_types,
-                        &[tsrs2_binder::unescape_leading_underscores(name)],
+                        &[tsc_binder::unescape_leading_underscores(name)],
                     );
                     return;
                 }
@@ -1831,7 +1826,7 @@ impl<'a> CheckerState<'a> {
                     self.error_at(
                         Some(error_location),
                         &diagnostics::A_class_cannot_extend_a_primitive_type_like_0_Classes_can_only_extend_constructable_values,
-                        &[tsrs2_binder::unescape_leading_underscores(name)],
+                        &[tsc_binder::unescape_leading_underscores(name)],
                     );
                     return;
                 }
@@ -1841,7 +1836,7 @@ impl<'a> CheckerState<'a> {
                     self.error_at(
                         Some(error_location),
                         &diagnostics::A_class_cannot_implement_a_primitive_type_like_0_It_can_only_implement_other_named_object_types,
-                        &[tsrs2_binder::unescape_leading_underscores(name)],
+                        &[tsc_binder::unescape_leading_underscores(name)],
                     );
                     return;
                 }
@@ -1850,7 +1845,7 @@ impl<'a> CheckerState<'a> {
         self.error_at(
             Some(error_location),
             &diagnostics::_0_only_refers_to_a_type_but_is_being_used_as_a_value_here,
-            &[tsrs2_binder::unescape_leading_underscores(name)],
+            &[tsc_binder::unescape_leading_underscores(name)],
         );
     }
 
@@ -1996,7 +1991,7 @@ impl<'a> CheckerState<'a> {
                         })
                 });
             if is_umd_global {
-                let display = tsrs2_binder::unescape_leading_underscores(&name);
+                let display = tsc_binder::unescape_leading_underscores(&name);
                 let mut diagnostic = self.diagnostic_for_node(
                     error_location,
                     &diagnostics::_0_refers_to_a_UMD_global_but_the_current_file_is_a_module_Consider_adding_an_import_instead,
@@ -2090,7 +2085,7 @@ impl<'a> CheckerState<'a> {
                     &diagnostics::_0_was_imported_here
                 };
                 let name = self.binder.symbol(result).escaped_name.clone();
-                let display = tsrs2_binder::unescape_leading_underscores(&name);
+                let display = tsc_binder::unescape_leading_underscores(&name);
                 let related =
                     self.related_info_for_node(type_only_declaration, related_message, &[display]);
                 self.error_at_with_related(
@@ -2140,7 +2135,7 @@ impl<'a> CheckerState<'a> {
         });
         let declaration = declaration
             .expect("checkResolvedBlockScopedVariable could not find block-scoped declaration");
-        if self.node_flags(declaration) & tsrs2_types::NodeFlags::AMBIENT.bits() != 0 {
+        if self.node_flags(declaration) & tsc_types::NodeFlags::AMBIENT.bits() != 0 {
             return Ok(());
         }
         if self.is_block_scoped_name_declared_before_use(declaration, error_location)? {
@@ -2173,7 +2168,7 @@ impl<'a> CheckerState<'a> {
                 Some(error_location),
                 message,
                 &[&declaration_name],
-                vec![tsrs2_diags::RelatedInfo {
+                vec![tsc_diagnostics::RelatedInfo {
                     file_name: related.file_name,
                     start: related.start,
                     length: related.length,
@@ -2468,10 +2463,10 @@ impl<'a> CheckerState<'a> {
         if let Some(host) = host {
             if let NodeData::ExpressionStatement(data) = self.data_of(host) {
                 if let Some(expression) = data.expression {
-                    if tsrs2_binder::get_assignment_declaration_kind(
+                    if tsc_binder::get_assignment_declaration_kind(
                         self.binder.source_of_node(expression),
                         expression,
-                    ) == tsrs2_binder::AssignmentDeclarationKind::PrototypeProperty
+                    ) == tsc_binder::AssignmentDeclarationKind::PrototypeProperty
                     {
                         if let NodeData::BinaryExpression(data) = self.data_of(expression) {
                             if let Some(location) =
@@ -2487,10 +2482,10 @@ impl<'a> CheckerState<'a> {
             }
             if self.kind_of(host) == SyntaxKind::FunctionExpression {
                 if let Some(assignment) = self.parent_of(host) {
-                    if tsrs2_binder::get_assignment_declaration_kind(
+                    if tsc_binder::get_assignment_declaration_kind(
                         self.binder.source_of_node(assignment),
                         assignment,
-                    ) == tsrs2_binder::AssignmentDeclarationKind::PrototypeProperty
+                    ) == tsc_binder::AssignmentDeclarationKind::PrototypeProperty
                         && self.parent_of(assignment).is_some_and(|statement| {
                             self.kind_of(statement) == SyntaxKind::ExpressionStatement
                         })
@@ -2516,10 +2511,10 @@ impl<'a> CheckerState<'a> {
                     .and_then(|parent| self.parent_of(parent))
                 {
                     if self.kind_of(assignment) == SyntaxKind::BinaryExpression
-                        && tsrs2_binder::get_assignment_declaration_kind(
+                        && tsc_binder::get_assignment_declaration_kind(
                             self.binder.source_of_node(assignment),
                             assignment,
-                        ) == tsrs2_binder::AssignmentDeclarationKind::Prototype
+                        ) == tsc_binder::AssignmentDeclarationKind::Prototype
                     {
                         if let NodeData::BinaryExpression(data) = self.data_of(assignment) {
                             if let Some(location) =
@@ -2552,15 +2547,14 @@ impl<'a> CheckerState<'a> {
             .parent
             .and_then(|parent| self.binder.symbol(parent).value_declaration)?;
         let source = self.binder.source_of_node(declaration);
-        let initializer = if tsrs2_binder::declare::is_assignment_declaration(source, declaration) {
-            tsrs2_binder::assignment::get_assigned_expando_initializer(source, declaration)
+        let initializer = if tsc_binder::declare::is_assignment_declaration(source, declaration) {
+            tsc_binder::assignment::get_assigned_expando_initializer(source, declaration)
         } else {
             self.initializer_of(declaration).and_then(|initializer| {
                 let name = self.name_of_node(declaration);
-                let is_prototype = name.is_some_and(|name| {
-                    tsrs2_binder::assignment::is_prototype_access(source, name)
-                });
-                tsrs2_binder::assignment::get_expando_initializer(source, initializer, is_prototype)
+                let is_prototype = name
+                    .is_some_and(|name| tsc_binder::assignment::is_prototype_access(source, name));
+                tsc_binder::assignment::get_expando_initializer(source, initializer, is_prototype)
             })
         };
         initializer.or(Some(declaration))
@@ -2803,7 +2797,7 @@ impl<'a> CheckerState<'a> {
         self.nodes_of_array(parameters)
     }
 
-    fn nodes_of_array(&self, array: Option<tsrs2_syntax::NodeArrayId>) -> Vec<NodeId> {
+    fn nodes_of_array(&self, array: Option<tsc_syntax::NodeArrayId>) -> Vec<NodeId> {
         match array {
             Some(array) => self.binder.node_array(array).nodes.clone(),
             None => Vec::new(),
@@ -2813,7 +2807,7 @@ impl<'a> CheckerState<'a> {
     fn child_nodes_of(&self, node: NodeId) -> Vec<NodeId> {
         let source = self.binder.source_of_node(node);
         let mut children = Vec::new();
-        tsrs2_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+        tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
             children.push(child);
             false
         });
@@ -2971,9 +2965,9 @@ fn is_es2015_or_later_constructor_name(name: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_diags::DiagnosticCategory;
-    use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-    use tsrs2_types::{CompilerOptions, SymbolFlags, TypeFlags};
+    use tsc_diagnostics::DiagnosticCategory;
+    use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+    use tsc_types::{CompilerOptions, SymbolFlags, TypeFlags};
 
     use crate::state::test_support::with_program_state;
     use crate::state::CheckerState;

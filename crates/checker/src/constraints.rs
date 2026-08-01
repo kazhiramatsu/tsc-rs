@@ -5,9 +5,9 @@
 //! type-variable reductions live: getIntersectionType step 6 and
 //! removeConstrainedTypeVariables both read getBaseConstraintOfType.
 
-use tsrs2_diags::gen as diagnostics;
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{ElementFlags, ObjectFlags, TypeData, TypeFlags, TypeId, TypeSystemPropertyName};
+use tsc_diagnostics::gen as diagnostics;
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{ElementFlags, ObjectFlags, TypeData, TypeFlags, TypeId, TypeSystemPropertyName};
 
 use crate::instantiate::{DeferredMapperTargets, TypeMapper};
 use crate::links::LinkSlot;
@@ -23,10 +23,7 @@ impl<'a> CheckerState<'a> {
     /// their constraint is the lazy links slot (tsc's mutable
     /// `TypeParameter.constraint`); the inline field belongs to the
     /// tables-synthesized parameters (tuple targets).
-    pub fn get_declared_type_of_type_parameter(
-        &mut self,
-        symbol: tsrs2_binder::SymbolId,
-    ) -> TypeId {
+    pub fn get_declared_type_of_type_parameter(&mut self, symbol: tsc_binder::SymbolId) -> TypeId {
         if let Some(declared) = self.links.symbol(symbol).declared_type.resolved() {
             return declared;
         }
@@ -291,7 +288,7 @@ impl<'a> CheckerState<'a> {
         if inferences.is_empty() {
             Ok(None)
         } else {
-            self.get_intersection_type(&inferences, tsrs2_types::IntersectionFlags::NONE)
+            self.get_intersection_type(&inferences, tsc_types::IntersectionFlags::NONE)
                 .map(Some)
         }
     }
@@ -391,7 +388,7 @@ impl<'a> CheckerState<'a> {
         }
         let intersection = self.get_intersection_type(
             &constraints,
-            tsrs2_types::IntersectionFlags::NO_CONSTRAINT_REDUCTION,
+            tsc_types::IntersectionFlags::NO_CONSTRAINT_REDUCTION,
         )?;
         self.get_normalized_type(intersection, /*writing*/ false)
             .map(Some)
@@ -678,13 +675,13 @@ impl<'a> CheckerState<'a> {
             if flags.intersects(TypeFlags::UNION) && base_types.len() == types.len() {
                 return Ok(Some(self.get_union_type_ex(
                     &base_types,
-                    tsrs2_types::UnionReduction::Literal,
+                    tsc_types::UnionReduction::Literal,
                 )?));
             }
             if flags.intersects(TypeFlags::INTERSECTION) && !base_types.is_empty() {
                 return Ok(Some(self.get_intersection_type(
                     &base_types,
-                    tsrs2_types::IntersectionFlags::NONE,
+                    tsc_types::IntersectionFlags::NONE,
                 )?));
             }
             return Ok(None);
@@ -878,17 +875,17 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_types::{CompilerOptions, SymbolFlags, TypeFlags};
+    use tsc_types::{CompilerOptions, SymbolFlags, TypeFlags};
 
     use crate::state::test_support::with_program_state;
     use crate::state::CheckerState;
 
-    fn annotation_of_var(state: &CheckerState, name: &str) -> tsrs2_syntax::NodeId {
+    fn annotation_of_var(state: &CheckerState, name: &str) -> tsc_syntax::NodeId {
         crate::relpin::find_probe_annotation(state.binder.source(0), name)
             .expect("var with annotation")
     }
 
-    fn declared_type_parameter(state: &mut CheckerState, name: &str) -> tsrs2_types::TypeId {
+    fn declared_type_parameter(state: &mut CheckerState, name: &str) -> tsc_types::TypeId {
         let symbol = state
             .resolve_name(
                 Some(state.binder.source(0).root),
@@ -907,7 +904,7 @@ mod tests {
                     .arena
                     .node_ids()
                     .find(|&id| {
-                        source.arena.node(id).kind == tsrs2_syntax::SyntaxKind::VariableDeclaration
+                        source.arena.node(id).kind == tsc_syntax::SyntaxKind::VariableDeclaration
                     })
                     .expect("var declaration");
                 state
@@ -1045,7 +1042,7 @@ mod tests {
                 .find(|&node| {
                     matches!(
                         &source.arena.node(node).data,
-                        tsrs2_syntax::NodeData::Identifier(data) if data.text == "origin"
+                        tsc_syntax::NodeData::Identifier(data) if data.text == "origin"
                     )
                 })
                 .expect("origin identifier");

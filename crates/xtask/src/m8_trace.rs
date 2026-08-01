@@ -8,7 +8,7 @@ use std::process::{Command, Stdio};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
-use super::{display_relative, find_tsrs2_root, sha256_file};
+use super::{display_relative, find_workspace_root, sha256_file};
 
 const DEFAULT_MAX_LIB_CACHE_BUCKETS: usize = 8;
 
@@ -22,7 +22,7 @@ struct TraceArgs {
 
 pub(crate) fn run(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let args = parse_args(args)?;
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let inventory = workspace.join("m8-emitter-inventory.json");
     let bundle = workspace.join("vendor/typescript-6.0.3/lib/_tsc.js");
     let instrumenter = workspace.join("crates/oracle/trace-instrument.mjs");

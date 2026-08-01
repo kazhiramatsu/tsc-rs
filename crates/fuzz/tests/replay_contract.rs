@@ -1,13 +1,13 @@
-use tsrs2_fuzz::compare::Comparison;
-use tsrs2_fuzz::model::{
+use tsc_fuzz::compare::Comparison;
+use tsc_fuzz::model::{
     AssembledDiagnostic, CanonicalHead, CaseExecution, CompletedOutcome, DiagnosticCategory,
     DiagnosticFile, DiagnosticPass, DiagnosticRecord, EngineResult, MessageChain, OptionalBool,
     OptionalString, OptionalU32, RenderSegment, RendererObservation,
 };
-use tsrs2_fuzz::replay::{
+use tsc_fuzz::replay::{
     ReplayArtifact, REPLAY_ARTIFACT_SCHEMA, REPLAY_COMPARATOR_ID, REPLAY_COMPARATOR_SCHEMA,
 };
-use tsrs2_fuzz::schema::{
+use tsc_fuzz::schema::{
     CanonicalU64, CaseProvenance, CaseSpec, ChildProcessPolicy, DecisionValue, DomainMembership,
     EncodedFile, NodeProcessPolicy, OrderedArgument, ProcessPolicy, RustProcessPolicy,
     StableDecision, CASE_SPEC_SCHEMA,
@@ -197,7 +197,7 @@ fn replay_artifact_rederives_every_saved_projection() {
     );
     assert_eq!(
         artifact.canonical_sha256().unwrap(),
-        tsrs2_fuzz::schema::sha256_hex(&bytes)
+        tsc_fuzz::schema::sha256_hex(&bytes)
     );
 }
 

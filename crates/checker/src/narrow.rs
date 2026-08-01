@@ -13,9 +13,9 @@
 //! pulled forward from 6.6), effects signatures + type predicates +
 //! the call arm, optionality, and the const-variable guard inlining.
 
-use tsrs2_binder::{node_util, SymbolId};
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{CheckMode, SymbolFlags, TypeData, TypeFacts, TypeFlags, TypeId};
+use tsc_binder::{node_util, SymbolId};
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{CheckMode, SymbolFlags, TypeData, TypeFacts, TypeFlags, TypeId};
 
 use crate::flow::FlowQuery;
 use crate::state::{CheckResult, CheckerState, SignatureId};
@@ -696,7 +696,7 @@ impl<'a> CheckerState<'a> {
                     let right_narrowed = self.narrow_type(query, ty, expr_right, false)?;
                     self.get_union_type_ex(
                         &[left_narrowed, right_narrowed],
-                        tsrs2_types::UnionReduction::Literal,
+                        tsc_types::UnionReduction::Literal,
                     )
                 }
             }
@@ -706,7 +706,7 @@ impl<'a> CheckerState<'a> {
                     let right_narrowed = self.narrow_type(query, ty, expr_right, true)?;
                     self.get_union_type_ex(
                         &[left_narrowed, right_narrowed],
-                        tsrs2_types::UnionReduction::Literal,
+                        tsc_types::UnionReduction::Literal,
                     )
                 } else {
                     let narrowed = self.narrow_type(query, ty, expr_left, false)?;
@@ -834,7 +834,7 @@ impl<'a> CheckerState<'a> {
                 let null_side = self.narrow_type_by_type_facts(ty, null, TypeFacts::EQ_NULL)?;
                 return self.get_union_type_ex(
                     &[object_side, null_side],
-                    tsrs2_types::UnionReduction::Literal,
+                    tsc_types::UnionReduction::Literal,
                 );
             }
             "function" => {
@@ -896,7 +896,7 @@ impl<'a> CheckerState<'a> {
                         state
                             .get_intersection_type(
                                 &[t, implied_type],
-                                tsrs2_types::IntersectionFlags::NONE,
+                                tsc_types::IntersectionFlags::NONE,
                             )
                             .map(Some)
                     } else {
@@ -1103,10 +1103,10 @@ impl<'a> CheckerState<'a> {
                 .binder
                 .symbol(prop)
                 .flags
-                .intersects(tsrs2_types::SymbolFlags::OPTIONAL)
+                .intersects(tsc_types::SymbolFlags::OPTIONAL)
                 || self
                     .get_check_flags(prop)
-                    .intersects(tsrs2_types::CheckFlags::PARTIAL);
+                    .intersects(tsc_types::CheckFlags::PARTIAL);
             return Ok(optional || assume_true);
         }
         if self
@@ -1154,7 +1154,7 @@ impl<'a> CheckerState<'a> {
                     None,
                 )?;
                 return self
-                    .get_intersection_type(&[ty, record], tsrs2_types::IntersectionFlags::NONE);
+                    .get_intersection_type(&[ty, record], tsc_types::IntersectionFlags::NONE);
             }
         }
         Ok(ty)
@@ -1326,12 +1326,12 @@ impl<'a> CheckerState<'a> {
             && self
                 .tables
                 .object_flags_of(source)
-                .intersects(tsrs2_types::ObjectFlags::CLASS);
+                .intersects(tsc_types::ObjectFlags::CLASS);
         let target_is_class = self.tables.flags_of(target).intersects(TypeFlags::OBJECT)
             && self
                 .tables
                 .object_flags_of(target)
-                .intersects(tsrs2_types::ObjectFlags::CLASS);
+                .intersects(tsc_types::ObjectFlags::CLASS);
         if source_is_class || target_is_class {
             return Ok(self.tables.type_of(source).symbol == self.tables.type_of(target).symbol);
         }
@@ -1448,7 +1448,7 @@ impl<'a> CheckerState<'a> {
                 let erased = self.get_erased_signature(signature)?;
                 return_types.push(self.get_return_type_of_signature(erased)?);
             }
-            return self.get_union_type_ex(&return_types, tsrs2_types::UnionReduction::Literal);
+            return self.get_union_type_ex(&return_types, tsc_types::UnionReduction::Literal);
         }
         Ok(self.empty_object_type)
     }
@@ -1610,7 +1610,7 @@ impl<'a> CheckerState<'a> {
                                         state
                                             .get_intersection_type(
                                                 &[t, c],
-                                                tsrs2_types::IntersectionFlags::NONE,
+                                                tsc_types::IntersectionFlags::NONE,
                                             )
                                             .map(Some)
                                     } else {
@@ -1641,7 +1641,7 @@ impl<'a> CheckerState<'a> {
         if self.is_type_assignable_to(candidate, ty)? {
             return Ok(candidate);
         }
-        self.get_intersection_type(&[ty, candidate], tsrs2_types::IntersectionFlags::NONE)
+        self.get_intersection_type(&[ty, candidate], tsc_types::IntersectionFlags::NONE)
     }
 
     /// tsc-port: isTypeDerivedFrom @6.0.3
@@ -2063,10 +2063,10 @@ impl<'a> CheckerState<'a> {
                 }
             }
             let members = ground_clause_types.unwrap_or_else(|| clause_types.to_vec());
-            return self.get_union_type_ex(&members, tsrs2_types::UnionReduction::Literal);
+            return self.get_union_type_ex(&members, tsc_types::UnionReduction::Literal);
         }
         let discriminant_type =
-            self.get_union_type_ex(clause_types, tsrs2_types::UnionReduction::Literal)?;
+            self.get_union_type_ex(clause_types, tsc_types::UnionReduction::Literal)?;
         let case_type = if self
             .tables
             .flags_of(discriminant_type)
@@ -2107,7 +2107,7 @@ impl<'a> CheckerState<'a> {
         } else {
             self.get_union_type_ex(
                 &[case_type, default_type],
-                tsrs2_types::UnionReduction::Literal,
+                tsc_types::UnionReduction::Literal,
             )
         }
     }
@@ -2157,7 +2157,7 @@ impl<'a> CheckerState<'a> {
                     constituents.push(constituent);
                 }
                 let candidate =
-                    self.get_union_type_ex(&constituents, tsrs2_types::UnionReduction::Literal)?;
+                    self.get_union_type_ex(&constituents, tsc_types::UnionReduction::Literal)?;
                 if candidate != unknown {
                     return Ok(candidate);
                 }
@@ -2234,7 +2234,7 @@ impl<'a> CheckerState<'a> {
                 None => self.tables.intrinsics.never,
             });
         }
-        self.get_union_type_ex(&members, tsrs2_types::UnionReduction::Literal)
+        self.get_union_type_ex(&members, tsc_types::UnionReduction::Literal)
     }
 
     /// tsc-port: narrowTypeBySwitchOnTrue @6.0.3
@@ -2300,7 +2300,7 @@ impl<'a> CheckerState<'a> {
                 self.tables.intrinsics.never
             });
         }
-        self.get_union_type_ex(&members, tsrs2_types::UnionReduction::Literal)
+        self.get_union_type_ex(&members, tsc_types::UnionReduction::Literal)
     }
 
     /// tsc-port: isExhaustiveSwitchStatement @6.0.3
@@ -2517,7 +2517,7 @@ impl<'a> CheckerState<'a> {
                             if reference_name.is_some()
                                 && reference_name
                                     == argument_text
-                                        .map(|text| tsrs2_syntax::escape_leading_underscores(&text))
+                                        .map(|text| tsc_syntax::escape_leading_underscores(&text))
                             {
                                 return self.get_type_with_facts(
                                     ty,
@@ -2642,7 +2642,7 @@ impl<'a> CheckerState<'a> {
                         let right_narrowed = self.narrow_type_by_assertion(query, ty, right)?;
                         return self.get_union_type_ex(
                             &[left_narrowed, right_narrowed],
-                            tsrs2_types::UnionReduction::Literal,
+                            tsc_types::UnionReduction::Literal,
                         );
                     }
                     _ => {}
@@ -2865,9 +2865,9 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_type_of_dotted_name_with_diagnostic(
         &mut self,
         node: NodeId,
-        mut diagnostic: Option<&mut tsrs2_diags::Diagnostic>,
+        mut diagnostic: Option<&mut tsc_diagnostics::Diagnostic>,
     ) -> CheckResult<Option<TypeId>> {
-        if self.node_flags(node) & tsrs2_types::NodeFlags::IN_WITH_STATEMENT.bits() != 0 {
+        if self.node_flags(node) & tsc_types::NodeFlags::IN_WITH_STATEMENT.bits() != 0 {
             return Ok(None);
         }
         match self.kind_of(node) {
@@ -2998,7 +2998,7 @@ impl<'a> CheckerState<'a> {
     fn get_explicit_type_of_symbol_with_diagnostic(
         &mut self,
         symbol: SymbolId,
-        diagnostic: Option<&mut tsrs2_diags::Diagnostic>,
+        diagnostic: Option<&mut tsc_diagnostics::Diagnostic>,
     ) -> CheckResult<Option<TypeId>> {
         let symbol = self.resolve_symbol_shallow(symbol)?;
         let flags = self.binder.symbol(symbol).flags;
@@ -3013,7 +3013,7 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(SymbolFlags::VARIABLE | SymbolFlags::PROPERTY) {
             if self
                 .get_check_flags(symbol)
-                .intersects(tsrs2_types::CheckFlags::MAPPED)
+                .intersects(tsc_types::CheckFlags::MAPPED)
             {
                 let origin = self.links.symbol(symbol).synthetic_origin;
                 if let Some(origin) = origin {
@@ -3045,9 +3045,9 @@ impl<'a> CheckerState<'a> {
                                 self.get_type_of_dotted_name(expression)?
                             {
                                 let use_flags = if await_modifier.is_some() {
-                                    tsrs2_types::IterationUse::FOR_AWAIT_OF
+                                    tsc_types::IterationUse::FOR_AWAIT_OF
                                 } else {
-                                    tsrs2_types::IterationUse::FOR_OF
+                                    tsc_types::IterationUse::FOR_OF
                                 };
                                 let undefined = self.tables.intrinsics.undefined;
                                 return self
@@ -3067,7 +3067,7 @@ impl<'a> CheckerState<'a> {
                 let display = self.symbol_display_name(symbol);
                 diagnostic.related.push(self.related_info_for_node(
                     declaration,
-                    &tsrs2_diags::gen::_0_needs_an_explicit_type_annotation,
+                    &tsc_diagnostics::gen::_0_needs_an_explicit_type_annotation,
                     &[&display],
                 ));
             }
@@ -3301,7 +3301,7 @@ impl<'a> CheckerState<'a> {
         expr: NodeId,
     ) -> CheckResult<Option<TypePredicate>> {
         let expr = self.skip_parentheses_excluding_jsdoc_type_assertions(expr);
-        let return_type = self.check_expression_cached(expr, tsrs2_types::CheckMode::NORMAL)?;
+        let return_type = self.check_expression_cached(expr, tsc_types::CheckMode::NORMAL)?;
         if !self
             .tables
             .flags_of(return_type)
@@ -3511,9 +3511,9 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         };
         let composite_type = if is_intersection {
-            self.get_intersection_type(&types, tsrs2_types::IntersectionFlags::NONE)?
+            self.get_intersection_type(&types, tsc_types::IntersectionFlags::NONE)?
         } else {
-            self.get_union_type_ex(&types, tsrs2_types::UnionReduction::Literal)?
+            self.get_union_type_ex(&types, tsc_types::UnionReduction::Literal)?
         };
         Ok(Some(TypePredicate {
             ty: Some(composite_type),

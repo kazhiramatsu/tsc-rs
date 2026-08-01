@@ -75,6 +75,62 @@ defaults; run it as-is (do not override the oracle scripts'
 job-count environment variables) and expect the first run to be the
 slowest while caches warm.
 
+## Workspace package roles
+
+Contributor commands address internal packages by a stable logical role rather
+than their Cargo package name. For example, this keeps working if the checker
+package is renamed:
+
+```sh
+cargo xtask test checker --lib
+cargo xtask workspace audit
+```
+
+Each workspace member declares its role under `package.metadata.tsc-rs`.
+`workspace audit` resolves those roles through `cargo metadata`, rejects
+missing or duplicate roles, and checks the shared dependency aliases. It also
+rejects direct Cargo package/bin selection in workflow steps, referenced local
+composite actions, `scripts/`, and xtask command construction, then verifies
+the generated dev-profile block. It is run automatically by every
+`cargo xtask ci` lane.
+
+Internal crates follow one naming convention:
+
+| Layer | Pattern | Checker example |
+| --- | --- | --- |
+| Cargo package | `tsc-rs-<role>` | `tsc-rs-checker` |
+| Workspace dependency alias | `tsc-<role>` | `tsc-checker` |
+| Rust crate identifier | `tsc_<role>` | `tsc_checker` |
+| Contributor command role | `<role>` | `checker` |
+
+Use the full word `diagnostics` in every layer (`crates/diagnostics`,
+`tsc-rs-diagnostics`, `tsc-diagnostics`, and `tsc_diagnostics`).
+
+When changing only a Cargo package name, keep its root workspace-dependency
+key as the stable Rust dependency alias, update that entry's `package` value,
+then run:
+
+```sh
+cargo xtask workspace sync
+cargo xtask workspace audit
+```
+
+`workspace sync` rewrites only the marked profile block in the root
+`Cargo.toml`; it does not rename Rust library identifiers or source imports.
+Those identifiers are a separate code-level API if they ever need to change.
+The `cargo xtask` bootstrap command is the one role-resolution exception: Cargo
+must select the `tsc-rs-xtask` package before the role resolver can start, so
+that selector is centralized in `.cargo/config.toml` and works from any
+workspace subdirectory.
+
+Exact `tsrs2` spellings are retained only where changing them would change the
+meaning of existing data: compatibility readers for the former `tsrs2/`
+workspace path, versioned v1 hash-domain separators, and historical design
+records. Test names, temporary paths, process labels, and fixture-only
+environment variables use `tsc-rs` / `TSC_RS`. The shorter `tsrs` spellings in
+serialized schemas and protocol markers are separate v1 contracts and require
+an explicit schema migration before they can be renamed.
+
 ## The paused v1 codebase
 
 The original `src/` implementation was removed from the working tree

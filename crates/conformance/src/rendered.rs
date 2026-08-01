@@ -14,11 +14,11 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use tsrs2_diags::{
+use tsc_diagnostics::{
     format_sorted_diagnostics_with_context, Diagnostic, DiagnosticCategory, FormatDiagnosticsHost,
     MessageChain, RelatedInfo,
 };
-use tsrs2_oracle::OraclePool;
+use tsc_oracle::OraclePool;
 
 use super::scope::{supported_case_view, ScopeManifest};
 use super::{
@@ -141,9 +141,7 @@ impl Drop for TemporaryTree {
     }
 }
 
-fn collect_genuine_empty_related_information(
-    diagnostics: &[tsrs2_oracle::OracleDiag],
-) -> Vec<usize> {
+fn collect_genuine_empty_related_information(diagnostics: &[tsc_oracle::OracleDiag]) -> Vec<usize> {
     diagnostics
         .iter()
         .enumerate()
@@ -235,7 +233,7 @@ pub fn run_t4_report(options: &T4ReportOptions) -> ConformanceResult<T4Report> {
     let vendor_lib_dir = options.workspace.join("vendor/typescript-6.0.3/lib");
     let goldens_root = options.workspace.join("goldens");
     let mut scope = ScopeManifest::load(&options.workspace.join("m8-scope.json"))?;
-    let temp_tree = TemporaryTree::create(super::temp_root("tsrs2-rendered-output-report"))?;
+    let temp_tree = TemporaryTree::create(super::temp_root("tsc-rs-rendered-output-report"))?;
     let pool = OraclePool::new_render_only();
     super::ratchet::verify_launched_render_node(&options.workspace, &pool)?;
     let mut details = Vec::new();
@@ -248,8 +246,8 @@ pub fn run_t4_report(options: &T4ReportOptions) -> ConformanceResult<T4Report> {
             .iter()
             .map(|case| (case.matrix_key.as_str(), case))
             .collect::<BTreeMap<_, _>>();
-        let programs = tsrs2_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
-        let program_paths = tsrs2_harness::write_program_jsons(
+        let programs = tsc_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
+        let program_paths = tsc_harness::write_program_jsons(
             &programs,
             &temp_tree.path().join(fixture_index.to_string()),
         )?;
@@ -448,7 +446,7 @@ fn plan_rendered_hashes(
     let fixtures = select_fixtures(options)?;
     let vendor_lib_dir = options.workspace.join("vendor/typescript-6.0.3/lib");
     let goldens_root = options.workspace.join("goldens");
-    let temp_root = super::temp_root("tsrs2-render-hash-refresh");
+    let temp_root = super::temp_root("tsc-rs-render-hash-refresh");
     if temp_root.exists() {
         fs::remove_dir_all(&temp_root)?;
     }
@@ -486,9 +484,9 @@ fn plan_rendered_hashes(
             }
         }
 
-        let programs = tsrs2_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
+        let programs = tsc_harness::expand_fixture_file(fixture, &vendor_lib_dir)?;
         let program_dir = temp_root.join("programs").join(fixture_index.to_string());
-        let program_paths = tsrs2_harness::write_program_jsons(&programs, &program_dir)?;
+        let program_paths = tsc_harness::write_program_jsons(&programs, &program_dir)?;
         let input_schema = golden.schema;
         let mut fixture_empty_related_information = BTreeMap::new();
         let mut golden_by_matrix = golden
@@ -657,7 +655,7 @@ fn diagnostics_from_indexed_golden_refs<'a>(
 /// removes exact A2 occurrences; the tsrs side removes only buckets that
 /// are fully excluded, matching the supported-scope tier contract.
 pub(crate) fn supported_case_t4_matches(
-    program: &tsrs2_harness::ProgramJson,
+    program: &tsc_harness::ProgramJson,
     vendor_lib_dir: &std::path::Path,
     oracle: (&[GoldenDiag], &[usize]),
     tsrs: (&[GoldenDiag], &BTreeSet<usize>),
@@ -829,7 +827,7 @@ fn first_rendered_difference(oracle: &str, tsrs: &str) -> RenderedDifference {
 mod tests {
     use super::*;
     use std::path::Path;
-    use tsrs2_oracle::{OracleDiag, OracleMessageChain, OracleRelated};
+    use tsc_oracle::{OracleDiag, OracleMessageChain, OracleRelated};
 
     fn oracle_chain(code: u32, category: &str, text: &str) -> OracleMessageChain {
         OracleMessageChain {
@@ -1049,7 +1047,7 @@ mod tests {
 
     #[test]
     fn rust_and_vendored_node_pin_every_formatter_structure() {
-        let temp = super::super::temp_root("tsrs2-render-vector");
+        let temp = super::super::temp_root("tsc-rs-render-vector");
         fs::create_dir_all(&temp).unwrap();
         let program_json = temp.join("program.json");
         fs::write(
@@ -1115,7 +1113,7 @@ mod tests {
             .iter()
             .map(|record| GoldenDiag::from_oracle(record, &file_texts))
             .collect::<Vec<_>>();
-        let rust = tsrs2_diags::format_diagnostics_with_context(
+        let rust = tsc_diagnostics::format_diagnostics_with_context(
             &diagnostics_from_golden(&golden).unwrap(),
             &FormatDiagnosticsHost::new("/workspace/src", &file_texts),
         )
@@ -1146,7 +1144,7 @@ mod tests {
             .join("../..")
             .canonicalize()
             .unwrap();
-        let report_temp = super::super::temp_root("tsrs2-rendered-output-report");
+        let report_temp = super::super::temp_root("tsc-rs-rendered-output-report");
         let report = run_t4_report(&T4ReportOptions {
             workspace,
             limit: None,

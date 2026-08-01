@@ -5,11 +5,13 @@
 //! Error rendering follows tsc's diagnostic chains, including
 //! elaboration for object/array literals and function bodies.
 
-use tsrs2_binder::{node_util, SymbolId, SymbolTable};
-use tsrs2_diags::{gen as diagnostics, Diagnostic, DiagnosticMessage, MessageChain, RelatedInfo};
-use tsrs2_syntax::nodes::{JsxOpeningElementData, JsxSelfClosingElementData};
-use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{
+use tsc_binder::{node_util, SymbolId, SymbolTable};
+use tsc_diagnostics::{
+    gen as diagnostics, Diagnostic, DiagnosticMessage, MessageChain, RelatedInfo,
+};
+use tsc_syntax::nodes::{JsxOpeningElementData, JsxSelfClosingElementData};
+use tsc_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
+use tsc_types::{
     CheckMode, ContextFlags, ElementFlags, InferenceFlags, InferencePriority, IntersectionFlags,
     ModifierFlags, NodeFlags, ObjectFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags,
     TypeId, UnionReduction,
@@ -175,7 +177,7 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         }
         if self.options.experimental_decorators
-            || self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES_NEXT
+            || self.options.emit_script_target() < tsc_types::ScriptTarget::ES_NEXT
         {
             self.check_external_emit_helpers(
                 first_decorator,
@@ -183,7 +185,7 @@ impl<'a> CheckerState<'a> {
             )?;
         }
         if !self.options.experimental_decorators
-            && self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES_NEXT
+            && self.options.emit_script_target() < tsc_types::ScriptTarget::ES_NEXT
         {
             if self.kind_of(node) == SyntaxKind::ClassDeclaration {
                 let (name, members) = match self.data_of(node) {
@@ -1052,8 +1054,7 @@ impl<'a> CheckerState<'a> {
         );
         match self.data_of(name) {
             NodeData::Identifier(data) => {
-                let text =
-                    tsrs2_binder::unescape_leading_underscores(&data.escaped_text).to_owned();
+                let text = tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned();
                 Ok(self.tables.get_string_literal_type(&text))
             }
             NodeData::NumericLiteral(data) => {
@@ -1124,7 +1125,7 @@ impl<'a> CheckerState<'a> {
         let name_type = if is_private {
             let text = match self.data_of(name) {
                 NodeData::PrivateIdentifier(data) => {
-                    tsrs2_binder::unescape_leading_underscores(&data.escaped_text).to_owned()
+                    tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned()
                 }
                 _ => unreachable!("kind/data agree"),
             };
@@ -1156,7 +1157,7 @@ impl<'a> CheckerState<'a> {
             self.get_class_member_decorator_context_override_type(name_type, is_private, is_static);
         self.get_intersection_type(
             &[context_type, override_type],
-            tsrs2_types::IntersectionFlags::NONE,
+            tsc_types::IntersectionFlags::NONE,
         )
     }
 
@@ -1190,7 +1191,7 @@ impl<'a> CheckerState<'a> {
         let private_prop = self.create_synthetic_property("private", private_value);
         let static_value = boolean_literal(self, is_static);
         let static_prop = self.create_synthetic_property("static", static_value);
-        let mut members = tsrs2_binder::SymbolTable::default();
+        let mut members = tsc_binder::SymbolTable::default();
         members.insert("name".to_owned(), name_prop);
         members.insert("private".to_owned(), private_prop);
         members.insert("static".to_owned(), static_prop);
@@ -1387,7 +1388,7 @@ impl<'a> CheckerState<'a> {
     /// semantics: start = skipTrivia(text, pos), end taken verbatim.
     fn diag_span_of_byte_range(&self, node_in_file: NodeId, pos: u32, end: u32) -> DiagSpan {
         let source = self.binder.source_of_node(node_in_file);
-        let start_byte = tsrs2_syntax::skip_trivia(&source.text, pos as usize);
+        let start_byte = tsc_syntax::skip_trivia(&source.text, pos as usize);
         let to_utf16 = |byte: usize| -> u32 {
             source
                 .line_map
@@ -1883,7 +1884,7 @@ impl<'a> CheckerState<'a> {
                     self.get_indexed_access_type(
                         ty,
                         self.tables.intrinsics.number,
-                        tsrs2_types::AccessFlags::NONE,
+                        tsc_types::AccessFlags::NONE,
                         None,
                         None,
                         None,
@@ -1945,7 +1946,7 @@ impl<'a> CheckerState<'a> {
         if end < source.text.len() {
             return false;
         }
-        let start = tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize);
+        let start = tsc_syntax::skip_trivia(&source.text, raw.pos as usize);
         let text = &source.text[start..end.min(source.text.len())];
         let Some(rest) = text.strip_suffix('`') else {
             return true;
@@ -2175,7 +2176,7 @@ impl<'a> CheckerState<'a> {
         let undefined_type = self.tables.intrinsics.undefined;
         if error_node.is_some() {
             return self.check_iterated_type_or_element_type(
-                tsrs2_types::IterationUse::SPREAD,
+                tsc_types::IterationUse::SPREAD,
                 spread_type,
                 undefined_type,
                 error_node,
@@ -2183,7 +2184,7 @@ impl<'a> CheckerState<'a> {
         }
         let span = self.diag_span_of_effective_arg(node_in_file, arg);
         self.check_iterated_type_or_element_type_at_span(
-            tsrs2_types::IterationUse::SPREAD,
+            tsc_types::IterationUse::SPREAD,
             spread_type,
             undefined_type,
             &span,
@@ -2284,7 +2285,7 @@ impl<'a> CheckerState<'a> {
                     self.get_indexed_access_type(
                         rest_type,
                         literal,
-                        tsrs2_types::AccessFlags::CONTEXTUAL,
+                        tsc_types::AccessFlags::CONTEXTUAL,
                         None,
                         None,
                         None,
@@ -3280,7 +3281,7 @@ impl<'a> CheckerState<'a> {
     ) -> Vec<ApplicabilityError> {
         let source = self.binder.source_of_node(node);
         let syntax_node = source.arena.node(node);
-        let start_byte = tsrs2_syntax::skip_trivia(&source.text, syntax_node.pos as usize);
+        let start_byte = tsc_syntax::skip_trivia(&source.text, syntax_node.pos as usize);
         let to_utf16 = |byte: usize| -> u32 {
             source
                 .line_map
@@ -4615,7 +4616,7 @@ impl<'a> CheckerState<'a> {
             return_types.push(self.get_return_type_of_signature(candidate)?);
         }
         let return_type =
-            self.get_intersection_type(&return_types, tsrs2_types::IntersectionFlags::NONE)?;
+            self.get_intersection_type(&return_types, tsc_types::IntersectionFlags::NONE)?;
         let first = self.signature_of(candidates[0]).clone();
         Ok(self.alloc_signature(Signature {
             declaration: first.declaration,
@@ -5606,9 +5607,11 @@ impl<'a> CheckerState<'a> {
                 if mixin_flags[i] {
                     continue;
                 }
-                if self.tables.object_flags_of(member).intersects(
-                    tsrs2_types::ObjectFlags::CLASS | tsrs2_types::ObjectFlags::INTERFACE,
-                ) {
+                if self
+                    .tables
+                    .object_flags_of(member)
+                    .intersects(tsc_types::ObjectFlags::CLASS | tsc_types::ObjectFlags::INTERFACE)
+                {
                     if self.tables.type_of(member).symbol == Some(target) {
                         return Ok(true);
                     }
@@ -6670,8 +6673,8 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_syntax::{NodeData, SyntaxKind};
-    use tsrs2_types::{CheckMode, CompilerOptions, InferenceFlags, InferencePriority, SymbolFlags};
+    use tsc_syntax::{NodeData, SyntaxKind};
+    use tsc_types::{CheckMode, CompilerOptions, InferenceFlags, InferencePriority, SymbolFlags};
 
     use crate::state::test_support::{
         with_program_state, with_program_state_allow_parse_diagnostics,
@@ -6689,7 +6692,7 @@ mod tests {
     fn generic_call_setup(
         state: &mut CheckerState,
     ) -> (
-        tsrs2_syntax::NodeId,
+        tsc_syntax::NodeId,
         crate::state::SignatureId,
         Vec<super::EffectiveArg>,
         crate::inference::InferenceContextId,
@@ -7209,7 +7212,7 @@ mod tests {
                     .iter()
                     .find(|diagnostic| diagnostic.code() == 2345)
                     .expect("generic rest mismatch");
-                fn flatten(chain: &tsrs2_diags::MessageChain, codes: &mut Vec<u32>) {
+                fn flatten(chain: &tsc_diagnostics::MessageChain, codes: &mut Vec<u32>) {
                     codes.push(chain.code);
                     for child in &chain.next {
                         flatten(child, codes);
@@ -7338,7 +7341,7 @@ mod tests {
         code: u32,
     ) -> (Vec<u32>, Vec<String>) {
         fn flatten(
-            chain: &tsrs2_diags::MessageChain,
+            chain: &tsc_diagnostics::MessageChain,
             codes: &mut Vec<u32>,
             texts: &mut Vec<String>,
         ) {
@@ -7905,7 +7908,7 @@ mod tests {
     fn invocation_error_details_match_the_tsc_union_ladder() {
         fn chain_codes(text: &str, code: u32) -> (Vec<u32>, Vec<String>) {
             fn flatten(
-                chain: &tsrs2_diags::MessageChain,
+                chain: &tsc_diagnostics::MessageChain,
                 codes: &mut Vec<u32>,
                 texts: &mut Vec<String>,
             ) {
@@ -8745,13 +8748,13 @@ value();
                 diagnostics,
                 [
                     (
-                        tsrs2_diags::DiagnosticCategory::Suggestion,
+                        tsc_diagnostics::DiagnosticCategory::Suggestion,
                         "The signature '(target: Function): void' of 'dec' is deprecated."
                             .to_owned(),
                         vec![2798],
                     ),
                     (
-                        tsrs2_diags::DiagnosticCategory::Suggestion,
+                        tsc_diagnostics::DiagnosticCategory::Suggestion,
                         "The signature '(parts: any): void' of 'tag' is deprecated.".to_owned(),
                         vec![2798],
                     ),
@@ -8905,7 +8908,7 @@ value();
 #[cfg(test)]
 mod eopt_pins {
     use crate::state::test_support::with_program_state;
-    use tsrs2_types::CompilerOptions;
+    use tsc_types::CompilerOptions;
 
     #[test]
     fn exact_optional_overload_selection_matches_single_signature_face() {

@@ -19,10 +19,10 @@
 //! M7 8.1b. Private-name placement is live from 8.1f and the numeric
 //! literal suggestion from 8.4u.
 
-use tsrs2_binder::{node_util, SymbolId, SymbolTable};
-use tsrs2_diags::gen as diagnostics;
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{
+use tsc_binder::{node_util, SymbolId, SymbolTable};
+use tsc_diagnostics::gen as diagnostics;
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{
     AccessFlags, CheckFlags, CheckMode, ContextFlags, ElementFlags, ObjectFlags, SymbolFlags,
     TypeData, TypeFlags, TypeId, UnionReduction,
 };
@@ -215,7 +215,7 @@ impl<'a> CheckerState<'a> {
             let mut has_omitted_expression = false;
             for e in elements {
                 if state.kind_of(e) == SyntaxKind::SpreadElement {
-                    if state.options.emit_script_target() < tsrs2_types::ScriptTarget::ES2015 {
+                    if state.options.emit_script_target() < tsc_types::ScriptTarget::ES2015 {
                         let helpers = if state.options.downlevel_iteration == Some(true) {
                             crate::modules::EMIT_HELPER_READ
                                 | crate::modules::EMIT_HELPER_SPREAD_ARRAY
@@ -249,7 +249,7 @@ impl<'a> CheckerState<'a> {
                         let rest = match state.get_index_type_of_type(spread_type, number)? {
                             Some(rest) => Some(rest),
                             None => state.get_iterated_type_or_element_type(
-                                tsrs2_types::IterationUse::DESTRUCTURING,
+                                tsc_types::IterationUse::DESTRUCTURING,
                                 spread_type,
                                 undefined,
                                 /*error_node*/ None,
@@ -261,7 +261,7 @@ impl<'a> CheckerState<'a> {
                     } else {
                         let undefined = state.tables.intrinsics.undefined;
                         let element = state.check_iterated_type_or_element_type(
-                            tsrs2_types::IterationUse::SPREAD,
+                            tsc_types::IterationUse::SPREAD,
                             spread_type,
                             undefined,
                             Some(expression),
@@ -1582,9 +1582,9 @@ impl<'a> CheckerState<'a> {
         let mut properties: Vec<SymbolId> = Vec::new();
         for prop in self.get_properties_of_type(ty)? {
             let modifiers = self.get_declaration_modifier_flags_from_symbol(prop);
-            if modifiers.intersects(
-                tsrs2_types::ModifierFlags::PRIVATE | tsrs2_types::ModifierFlags::PROTECTED,
-            ) {
+            if modifiers
+                .intersects(tsc_types::ModifierFlags::PRIVATE | tsc_types::ModifierFlags::PROTECTED)
+            {
                 // Skipped entirely (62943).
             } else if self.is_spreadable_property(prop) {
                 let prop_flags = self.binder.symbol(prop).flags;
@@ -1665,7 +1665,7 @@ impl<'a> CheckerState<'a> {
     /// to the UTF-8 convenience entry above.
     pub(crate) fn get_template_literal_type_from_texts(
         &mut self,
-        texts: &[tsrs2_types::TemplateText],
+        texts: &[tsc_types::TemplateText],
         types: &[TypeId],
     ) -> TypeId {
         if !self.check_cross_product_union(types) {
@@ -1775,14 +1775,11 @@ impl<'a> CheckerState<'a> {
                         self.get_spread_type(last_left, right, symbol, object_flags, readonly)?;
                     let mut constituents = types[..types.len() - 1].to_vec();
                     constituents.push(folded);
-                    return self.get_intersection_type(
-                        &constituents,
-                        tsrs2_types::IntersectionFlags::NONE,
-                    );
+                    return self
+                        .get_intersection_type(&constituents, tsc_types::IntersectionFlags::NONE);
                 }
             }
-            return self
-                .get_intersection_type(&[left, right], tsrs2_types::IntersectionFlags::NONE);
+            return self.get_intersection_type(&[left, right], tsc_types::IntersectionFlags::NONE);
         }
         let mut members = SymbolTable::default();
         let mut skipped_private_members: std::collections::HashSet<String> =
@@ -1795,9 +1792,9 @@ impl<'a> CheckerState<'a> {
         for right_prop in self.get_properties_of_type(right)? {
             let name = self.binder.symbol(right_prop).escaped_name.clone();
             let modifiers = self.get_declaration_modifier_flags_from_symbol(right_prop);
-            if modifiers.intersects(
-                tsrs2_types::ModifierFlags::PRIVATE | tsrs2_types::ModifierFlags::PROTECTED,
-            ) {
+            if modifiers
+                .intersects(tsc_types::ModifierFlags::PRIVATE | tsc_types::ModifierFlags::PROTECTED)
+            {
                 skipped_private_members.insert(name);
             } else if self.is_spreadable_property(right_prop) {
                 let spread_symbol = self.get_spread_symbol(right_prop, readonly)?;
@@ -1987,9 +1984,9 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_diags::DiagnosticCategory;
-    use tsrs2_syntax::SyntaxKind;
-    use tsrs2_types::CompilerOptions;
+    use tsc_diagnostics::DiagnosticCategory;
+    use tsc_syntax::SyntaxKind;
+    use tsc_types::CompilerOptions;
 
     use crate::state::test_support::with_program_state;
     use crate::state::CheckerState;

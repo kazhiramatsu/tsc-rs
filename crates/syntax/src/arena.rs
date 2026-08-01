@@ -1,7 +1,7 @@
 use crate::for_each_child::{for_each_child, NodeLookup};
 use crate::nodes::{Node, NodeArray, NodeArrayId, NodeData, NodeId};
 use crate::SyntaxKind;
-use tsrs2_types::NodeFlags;
+use tsc_types::NodeFlags;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct NodeArena {

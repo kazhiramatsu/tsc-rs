@@ -8,8 +8,8 @@
 //! antecedent Referenced — each caller (addAntecedent,
 //! createFlowCondition/Mutation/Call/SwitchClause) does so explicitly.
 
-use tsrs2_syntax::NodeId;
-use tsrs2_types::FlowFlags;
+use tsc_syntax::NodeId;
+use tsc_types::FlowFlags;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct FlowId(pub u32);
@@ -161,7 +161,7 @@ use crate::node_util::{
     is_expression_of_optional_chain_root, is_narrowing_expression, is_nullish_coalesce, kind_of,
     parent_of,
 };
-use tsrs2_syntax::SyntaxKind;
+use tsc_syntax::SyntaxKind;
 
 impl<'a> Binder<'a> {
     /// tsc-port: createFlowCondition @6.0.3

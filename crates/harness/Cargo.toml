@@ -1,12 +1,16 @@
 [package]
-name = "tsrs2-harness"
+name = "tsc-rs-harness"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[package.metadata.tsc-rs]
+role = "harness"
+dev-profile-opt-level = 3
+
 [lib]
-name = "tsrs2_harness"
+name = "tsc_harness"
 path = "src/lib.rs"
 
 [dependencies]
-tsrs2-checker = { path = "../checker" }
+tsc-checker.workspace = true

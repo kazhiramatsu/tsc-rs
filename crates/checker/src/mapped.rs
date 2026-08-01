@@ -1,14 +1,14 @@
 //! Mapped-type member materialization (phase 9.5b).
 //!
-//! The immutable mapped payload lives in `tsrs2-types`; this module
+//! The immutable mapped payload lives in `tsc-rs-types`; this module
 //! owns the checker-side lazy modifier source, finite key expansion,
 //! synthesized mapped properties/index infos, and property-type
 //! instantiation.
 
-use tsrs2_binder::{SymbolId, SymbolTable};
-use tsrs2_diags::gen as diagnostics;
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{
+use tsc_binder::{SymbolId, SymbolTable};
+use tsc_diagnostics::gen as diagnostics;
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{
     CheckFlags, IndexFlags, MappedTypeModifiers, ObjectFlags, SymbolFlags, TypeData, TypeFlags,
     TypeId, TypeSystemPropertyName, UnionReduction,
 };
@@ -402,7 +402,7 @@ impl<'a> CheckerState<'a> {
             for member in types {
                 lowered.push(self.get_lower_bound_of_key_type(member)?);
             }
-            return self.get_intersection_type(&lowered, tsrs2_types::IntersectionFlags::NONE);
+            return self.get_intersection_type(&lowered, tsc_types::IntersectionFlags::NONE);
         }
         Ok(ty)
     }
@@ -538,7 +538,7 @@ impl<'a> CheckerState<'a> {
         modifiers_type: TypeId,
         template_modifiers: MappedTypeModifiers,
         should_link_prop_declarations: bool,
-        mapper: Option<tsrs2_types::MapperId>,
+        mapper: Option<tsc_types::MapperId>,
         members: &mut SymbolTable,
         index_infos: &mut Vec<IndexInfo>,
     ) -> CheckResult<()> {
@@ -900,8 +900,8 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_syntax::NodeData;
-    use tsrs2_types::{
+    use tsc_syntax::NodeData;
+    use tsc_types::{
         CompilerOptions, ElementFlags, IndexFlags, SymbolFlags, TypeData, TypeFlags, TypeId,
     };
 
@@ -917,7 +917,7 @@ mod tests {
             .expect("mapped annotation resolves")
     }
 
-    fn property(state: &mut CheckerState, ty: TypeId, name: &str) -> tsrs2_binder::SymbolId {
+    fn property(state: &mut CheckerState, ty: TypeId, name: &str) -> tsc_binder::SymbolId {
         state
             .get_property_of_type_full(ty, name)
             .expect("mapped members resolve")
@@ -930,7 +930,7 @@ mod tests {
             (0..source.arena.len())
                 .find_map(|index| {
                     let NodeData::Parameter(parameter) =
-                        &source.arena.node(tsrs2_syntax::NodeId(index as u32)).data
+                        &source.arena.node(tsc_syntax::NodeId(index as u32)).data
                     else {
                         return None;
                     };

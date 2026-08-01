@@ -3,6 +3,12 @@
 version = 4
 
 [[package]]
+name = "arraydeque"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d902e3d592a523def97af8f317b08ce16b7ab854c1985a0c671e6f15cebc236"
+
+[[package]]
 name = "base64"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -77,6 +83,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
 
 [[package]]
+name = "foldhash"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
+
+[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -99,9 +111,27 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
+version = "0.16.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
+dependencies = [
+ "foldhash",
+]
+
+[[package]]
+name = "hashbrown"
 version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
+
+[[package]]
+name = "hashlink"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "824e001ac4f3012dd16a264bec811403a67ca9deb6c102fc5049b32c4574b35f"
+dependencies = [
+ "hashbrown 0.16.1",
+]
 
 [[package]]
 name = "indexmap"
@@ -110,7 +140,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d466e9454f08e4a911e14806c24e16fba1b4c121d1ea474396f396069cf949d9"
 dependencies = [
  "equivalent",
- "hashbrown",
+ "hashbrown 0.17.1",
 ]
 
 [[package]]
@@ -268,72 +298,81 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
 
 [[package]]
-name = "tsrs2-binder"
+name = "tsc-rs-binder"
 version = "0.1.0"
 dependencies = [
  "indexmap",
- "tsrs2-diags",
- "tsrs2-syntax",
- "tsrs2-types",
+ "tsc-rs-diagnostics",
+ "tsc-rs-syntax",
+ "tsc-rs-types",
 ]
 
 [[package]]
-name = "tsrs2-checker"
+name = "tsc-rs-checker"
 version = "0.1.0"
 dependencies = [
  "indexmap",
  "serde_json",
- "tsrs2-binder",
- "tsrs2-diags",
- "tsrs2-syntax",
- "tsrs2-types",
+ "tsc-rs-binder",
+ "tsc-rs-diagnostics",
+ "tsc-rs-syntax",
+ "tsc-rs-types",
 ]
 
 [[package]]
-name = "tsrs2-conformance"
+name = "tsc-rs-compiler"
+version = "0.1.0"
+dependencies = [
+ "tsc-rs-checker",
+ "tsc-rs-diagnostics",
+ "tsc-rs-program",
+]
+
+[[package]]
+name = "tsc-rs-conformance"
 version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
  "sha2",
  "toml_edit",
- "tsrs2-checker",
- "tsrs2-diags",
- "tsrs2-harness",
- "tsrs2-oracle",
+ "tsc-rs-checker",
+ "tsc-rs-diagnostics",
+ "tsc-rs-harness",
+ "tsc-rs-oracle",
  "zstd",
 ]
 
 [[package]]
-name = "tsrs2-diags"
+name = "tsc-rs-diagnostics"
 version = "0.1.0"
 
 [[package]]
-name = "tsrs2-fuzz"
+name = "tsc-rs-fuzz"
 version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
  "sha2",
  "toml_edit",
- "tsrs2-checker",
- "tsrs2-diags",
- "tsrs2-harness",
+ "tsc-rs-checker",
+ "tsc-rs-diagnostics",
+ "tsc-rs-harness",
 ]
 
 [[package]]
-name = "tsrs2-harness"
+name = "tsc-rs-harness"
 version = "0.1.0"
 dependencies = [
- "tsrs2-checker",
+ "tsc-rs-checker",
 ]
 
 [[package]]
-name = "tsrs2-host"
+name = "tsc-rs-host"
 version = "0.1.0"
 
 [[package]]
-name = "tsrs2-oracle"
+name = "tsc-rs-oracle"
 version = "0.1.0"
 dependencies = [
  "serde",
@@ -341,27 +380,47 @@ dependencies = [
 ]
 
 [[package]]
-name = "tsrs2-program"
+name = "tsc-rs-program"
 version = "0.1.0"
 dependencies = [
- "tsrs2-diags",
- "tsrs2-host",
- "tsrs2-types",
+ "tsc-rs-diagnostics",
+ "tsc-rs-host",
+ "tsc-rs-types",
 ]
 
 [[package]]
-name = "tsrs2-syntax"
+name = "tsc-rs-syntax"
 version = "0.1.0"
 dependencies = [
- "tsrs2-diags",
- "tsrs2-types",
+ "tsc-rs-diagnostics",
+ "tsc-rs-types",
 ]
 
 [[package]]
-name = "tsrs2-types"
+name = "tsc-rs-types"
 version = "0.1.0"
 dependencies = [
- "tsrs2-diags",
+ "tsc-rs-diagnostics",
+]
+
+[[package]]
+name = "tsc-rs-xtask"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "serde",
+ "serde_json",
+ "sha2",
+ "toml_edit",
+ "tsc-rs-binder",
+ "tsc-rs-checker",
+ "tsc-rs-conformance",
+ "tsc-rs-diagnostics",
+ "tsc-rs-fuzz",
+ "tsc-rs-harness",
+ "tsc-rs-oracle",
+ "tsc-rs-syntax",
+ "yaml-rust2",
 ]
 
 [[package]]
@@ -392,21 +451,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "xtask"
-version = "0.1.0"
+name = "yaml-rust2"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "631a50d867fafb7093e709d75aaee9e0e0d5deb934021fcea25ac2fe09edc51e"
 dependencies = [
- "base64",
- "serde",
- "serde_json",
- "sha2",
- "tsrs2-binder",
- "tsrs2-checker",
- "tsrs2-conformance",
- "tsrs2-diags",
- "tsrs2-fuzz",
- "tsrs2-harness",
- "tsrs2-oracle",
- "tsrs2-syntax",
+ "arraydeque",
+ "hashlink",
 ]
 
 [[package]]

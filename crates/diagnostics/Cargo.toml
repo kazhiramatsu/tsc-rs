@@ -1,0 +1,13 @@
+[package]
+name = "tsc-rs-diagnostics"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[package.metadata.tsc-rs]
+role = "diagnostics"
+dev-profile-opt-level = 3
+
+[lib]
+name = "tsc_diagnostics"
+path = "src/lib.rs"

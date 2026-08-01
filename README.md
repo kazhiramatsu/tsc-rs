@@ -8,11 +8,12 @@ checked-in TypeScript compiler and conformance corpus.
 > **Current availability:** `tsc-rs` is not yet a drop-in replacement for
 > the `tsc` command. The parser, binder, checker, and contextual diagnostic
 > formatter are exercised through the repository's existing in-memory test
-> and conformance harness. The new `PreparedProgram` contract is an owned data
-> seam only and is not yet connected to checker execution. A production
-> filesystem-hosted `--noEmit` command, tsconfig loading, and general package
-> resolution are under active development. Emission, watch mode, and a stable
-> public checker API are not currently provided.
+> and conformance harness. An internal one-shot `ProgramSession` now connects
+> the owned `PreparedProgram` contract to a no-emit diagnostic pass, but it is
+> not an end-user command and does not yet consume the authoritative resolution
+> table. A production filesystem-hosted `--noEmit` command, tsconfig loading,
+> and general package resolution are under active development. Emission, watch
+> mode, and a stable public checker API are not currently provided.
 
 ## What Works Today
 
@@ -31,12 +32,14 @@ The repository's current test harness demonstrates that the checker can:
 These capabilities are conformance-gated only on the project's frozen
 supported scope, summarized under [Development Status and
 Roadmap](#development-status-and-roadmap). The `PreparedProgram` type in
-`crates/program` describes the future owned checker input, but it does not
-execute the checker yet. Existing checker tests still assemble files,
-libraries, options, and resolution facts through the harness and checker
-APIs. Normal filesystem discovery, `tsconfig.json` handling, `node_modules`
-traversal, package maps, and CLI exit behavior are not wired into a production
-executable yet.
+`crates/program` can be consumed by the internal `ProgramSession` in
+`crates/compiler`; the session owns the program, keeps parser/binder/checker
+borrows within one run, and separates the five no-emit diagnostic buckets.
+Existing conformance tests still assemble files, libraries, options, and
+resolution facts through the harness and checker APIs. Normal filesystem
+discovery, authoritative resolution-table consumption, `tsconfig.json`
+handling, `node_modules` traversal, package maps, and CLI exit behavior are
+not wired into a production executable yet.
 
 ## Build and Explore
 
@@ -65,15 +68,23 @@ To exercise the diagnostic engine through its current developer-facing test
 surface:
 
 ```sh
-CARGO_BUILD_JOBS=2 cargo test -p tsrs2-checker --lib -- --test-threads=2
+CARGO_BUILD_JOBS=2 cargo xtask test checker --lib -- --test-threads=2
 ```
 
 Focused checks for the host and prepared-program boundaries are:
 
 ```sh
-CARGO_BUILD_JOBS=2 cargo test -p tsrs2-host -- --test-threads=2
-CARGO_BUILD_JOBS=2 cargo test -p tsrs2-program -- --test-threads=2
+CARGO_BUILD_JOBS=2 cargo xtask test host -- --test-threads=2
+CARGO_BUILD_JOBS=2 cargo xtask test program -- --test-threads=2
+CARGO_BUILD_JOBS=2 cargo xtask test compiler -- --test-threads=2
 ```
+
+`checker`, `host`, `program`, and `compiler` are stable workspace roles rather
+than Cargo package names. Contributor commands and CI use
+`cargo xtask test <role>`, so an internal package rename does not require every
+workflow and document to be rewritten. `cargo xtask workspace audit` verifies
+the role metadata and rejects direct package or binary selectors in repository
+automation.
 
 These commands run internal libraries and tests; there is no end-user command
 that accepts a project or source file yet, and no production
@@ -98,7 +109,7 @@ does not imply compatibility with newer TypeScript releases.
 | Capability | Availability |
 | --- | --- |
 | Existing harness-assembled, in-memory batch diagnostics | Available and conformance-gated |
-| Owned `PreparedProgram` execution path | Data contract landed; checker connection in development |
+| Owned `PreparedProgram` execution path | Internal one-shot no-emit path available; authoritative resolution-table consumption remains in development |
 | Color-free contextual diagnostic formatting | Available in the conformance harness |
 | Filesystem-hosted `--noEmit` command | In development |
 | tsconfig discovery and JSONC configuration | In development |
@@ -149,8 +160,9 @@ repository root. There is intentionally no top-level `src/` directory.
 | `crates/types` | Shared compiler options, symbols, types, signatures, and relation data |
 | `crates/host` | Read-only compiler-host contract and deterministic in-memory host adapter |
 | `crates/program` | Owned prepared-program, path-identity, and authoritative resolution contracts |
+| `crates/compiler` | One-shot owned program execution and no-emit diagnostic buckets |
 | `crates/checker` | Parser/binder assembly and semantic diagnostic checking |
-| `crates/diags` | Diagnostic messages, structures, line maps, sorting, and deduplication |
+| `crates/diagnostics` | Diagnostic messages, structures, line maps, sorting, and deduplication |
 | `crates/harness` | TypeScript fixture expansion and program-input construction |
 | `crates/oracle` | Node-based access to the vendored TypeScript oracle |
 | `crates/conformance` | Differential comparison, exact identities, ratchets, scope, and family reports |
@@ -159,6 +171,15 @@ repository root. There is intentionally no top-level `src/` directory.
 | `ts-tests` | Checked-in TypeScript conformance corpus |
 | `vendor/typescript-6.0.3` | Pinned compiler bundle and standard library files |
 | `docs/design/greenfield` | Authoritative architecture, execution plans, and completion contracts |
+
+Internal Cargo packages currently follow `tsc-rs-<role>`, while shared
+dependency aliases use `tsc-<role>` and Rust crate identifiers use
+`tsc_<role>`. The full word `diagnostics` is used consistently. These names are
+implementation details; contributor commands should use the stable roles shown
+in the path table above. The `cargo xtask` alias selects the `tsc-rs-xtask`
+package through the checked-in Cargo configuration. See
+[setup and verification](docs/setup.md#workspace-package-roles) for the rename
+and audit workflow.
 
 The original v1 implementation is preserved at the `v1-final` tag and is no
 longer present in the working tree.
@@ -195,21 +216,23 @@ scope. M9 is paused after its typed-outcome and canonical true-replay
 foundations. H0, the filesystem-hosted `--noEmit` track, is the active
 frontier.
 
-H0.1 has landed three prerequisite slices without changing accepted
+H0.1 has landed four prerequisite slices without changing accepted
 diagnostics:
 
 - **H0.1a:** node and array ownership no longer depends on final program file
   order;
 - **H0.1b:** a fail-closed `CompilerHost` contract and deterministic
-  `MemoryCompilerHost` provide the read-only host boundary; and
+  `MemoryCompilerHost` provide the read-only host boundary;
 - **H0.1c:** `crates/program` owns trusted path identities, ordered sources,
   roots and libraries, package metadata, renderable diagnostic text, and
-  authoritative typed resolution outcomes.
+  authoritative typed resolution outcomes; and
+- **H0.1d:** `crates/compiler` consumes an owned `PreparedProgram` through a
+  one-shot session, uses a non-leaking checker path, preserves five diagnostic
+  buckets and their gates, and excludes suggestions from no-emit results.
 
-The remaining H0.1 work connects `PreparedProgram` to a one-shot
-`ProgramSession` and owned no-emit execution path, then makes the existing
-library cache collision-safe. H0.2 follows with general host-backed module
-and type-reference resolution.
+The remaining H0.1 work makes the existing library cache collision-safe. H0.2
+follows with general host-backed module and type-reference resolution and
+connects the checker to the authoritative resolution table.
 
 | Phase | State | Focus |
 | --- | --- | --- |
@@ -218,7 +241,7 @@ and type-reference resolution.
 | M7 | Complete | Non-2XXX diagnostic families closed on the supported scope |
 | M8 | Complete | Supported-scope T0–T4 closure, full-corpus FP=0, and recovery/escapes zero |
 | M9 | Paused after 1b | Typed outcomes and true replay landed; production generator, burn-in, freeze, and qualification deferred |
-| H0 | Active (H0.1a–c landed) | Filesystem-hosted `--noEmit`: session/execution, resolution, config/CLI, rendering, and exit behavior |
+| H0 | Active (H0.1a–d landed) | Filesystem-hosted `--noEmit`: cache hardening, resolution, config/CLI, rendering, and exit behavior |
 
 The exact accepted-state summary below is generated by
 `cargo xtask readme-status` and must not be edited by hand.

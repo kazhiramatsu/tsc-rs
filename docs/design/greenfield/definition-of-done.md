@@ -1,4 +1,4 @@
-# tsrs2 definition of done
+# tsc-rs definition of done
 
 One page, normative. If any other doc disagrees with this one about
 WHAT "done" means, this doc wins; file a doc fix. (Milestone HOW
@@ -6,12 +6,12 @@ lives in [greenfield.md](../greenfield.md) §§7-8 and the steps docs.)
 Adopted 2026-07-14 after the external full-project review; the
 review's checkpoint table is folded in below.
 
-## What tsrs2 is
+## What tsc-rs is
 
 A batch **diagnostics checker** for TypeScript, byte-compatible with
 **TypeScript 6.0.3 exactly** (the vendored
 `vendor/typescript-6.0.3/lib/_tsc.js` bundle and its lib set —
-the same artifact the oracle runs). "tsc compatibility" in any tsrs2
+the same artifact the oracle runs). "tsc compatibility" in any tsc-rs
 context means THIS bundle, not tsc-at-large.
 
 ## Done means

@@ -1,9 +1,9 @@
 //! Conditional/substitution resolution and lazy arm accessors.
 
-use tsrs2_binder::SymbolId;
-use tsrs2_diags::gen as diagnostics;
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{
+use tsc_binder::SymbolId;
+use tsc_diagnostics::gen as diagnostics;
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{
     ConditionalRootId, InferenceFlags, InferencePriority, IntersectionFlags, TypeData, TypeFlags,
     TypeId, UnionReduction,
 };
@@ -29,7 +29,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:60424-60426
     fn is_no_infer_target_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         let flags = self.tables.flags_of(ty);
-        if flags.intersects(tsrs2_types::TypeFlags::UNION_OR_INTERSECTION) {
+        if flags.intersects(tsc_types::TypeFlags::UNION_OR_INTERSECTION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
                 TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
                 _ => unreachable!("union/intersection flag implies member data"),
@@ -41,7 +41,7 @@ impl<'a> CheckerState<'a> {
             }
             return Ok(false);
         }
-        if flags.intersects(tsrs2_types::TypeFlags::SUBSTITUTION) {
+        if flags.intersects(tsc_types::TypeFlags::SUBSTITUTION) {
             if self.tables.is_no_infer_type(ty) {
                 return Ok(false);
             }
@@ -50,10 +50,10 @@ impl<'a> CheckerState<'a> {
             };
             return self.is_no_infer_target_type(data.base_type);
         }
-        if flags.intersects(tsrs2_types::TypeFlags::OBJECT) {
+        if flags.intersects(tsc_types::TypeFlags::OBJECT) {
             return Ok(!self.is_empty_anonymous_object_type(ty)?);
         }
-        Ok(flags.intersects(tsrs2_types::TypeFlags::INSTANTIABLE)
+        Ok(flags.intersects(tsc_types::TypeFlags::INSTANTIABLE)
             && !self.tables.is_pattern_literal_type(ty))
     }
 
@@ -117,7 +117,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_conditional_type(
         &mut self,
         mut root: ConditionalRootId,
-        mut mapper: Option<tsrs2_types::MapperId>,
+        mut mapper: Option<tsc_types::MapperId>,
         for_constraint: bool,
         mut alias_symbol: Option<SymbolId>,
         mut alias_type_arguments: Option<&[TypeId]>,
@@ -330,7 +330,7 @@ impl<'a> CheckerState<'a> {
             let result_check_type = self.instantiate_type(root_data.check_type, mapper)?;
             let result_extends_type = self.instantiate_type(root_data.extends_type, mapper)?;
             let result = self.tables.create_conditional_type(
-                tsrs2_types::ConditionalTypeData {
+                tsc_types::ConditionalTypeData {
                     root,
                     check_type: result_check_type,
                     extends_type: result_extends_type,
@@ -352,8 +352,8 @@ impl<'a> CheckerState<'a> {
     fn conditional_tail_recurse(
         &mut self,
         new_type: TypeId,
-        new_mapper: Option<tsrs2_types::MapperId>,
-    ) -> CheckResult<Option<(ConditionalRootId, tsrs2_types::MapperId)>> {
+        new_mapper: Option<tsc_types::MapperId>,
+    ) -> CheckResult<Option<(ConditionalRootId, tsc_types::MapperId)>> {
         let Some(new_mapper) = new_mapper else {
             return Ok(None);
         };
@@ -421,7 +421,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_conditional_type_instantiation(
         &mut self,
         ty: TypeId,
-        mapper: tsrs2_types::MapperId,
+        mapper: tsc_types::MapperId,
         for_constraint: bool,
         alias_symbol: Option<SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
@@ -779,7 +779,7 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_types::{CompilerOptions, SymbolFlags, TypeData, TypeFlags, TypeId};
+    use tsc_types::{CompilerOptions, SymbolFlags, TypeData, TypeFlags, TypeId};
 
     use crate::relpin::find_probe_annotation;
     use crate::state::test_support::with_program_state;

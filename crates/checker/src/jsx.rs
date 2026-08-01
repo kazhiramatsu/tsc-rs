@@ -12,9 +12,9 @@
 //! Namespace machinery includes jsxFactory-family options, leading
 //! @jsx pragmas, and react-jsx implicit runtime imports.
 
-use tsrs2_binder::{SymbolId, SymbolTable};
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{
+use tsc_binder::{SymbolId, SymbolTable};
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{
     CheckMode, ContextFlags, IntersectionFlags, JsxFlags, ObjectFlags, SymbolFlags, TypeData,
     TypeFlags, TypeId,
 };
@@ -23,8 +23,8 @@ use crate::structural::SignatureKind;
 
 use crate::links::LinkSlot;
 use crate::state::{CheckResult, CheckerState, SignatureId};
-use tsrs2_diags::gen as diagnostics;
-use tsrs2_diags::MessageChain;
+use tsc_diagnostics::gen as diagnostics;
+use tsc_diagnostics::MessageChain;
 
 /// JsxNames (90915): the JSX.* well-known member names this slice
 /// consults.
@@ -184,7 +184,7 @@ impl<'a> CheckerState<'a> {
             };
             self.error_at(Some(node), message, &[]);
         }
-        self.check_jsx_children(node, tsrs2_types::CheckMode::NORMAL)?;
+        self.check_jsx_children(node, tsc_types::CheckMode::NORMAL)?;
         let element_type = self.get_jsx_element_type_at(node)?;
         Ok(if self.tables.is_error_type(element_type) {
             self.tables.intrinsics.any
@@ -385,7 +385,7 @@ impl<'a> CheckerState<'a> {
                                     if !declarations.is_empty() {
                                         let deprecated_entity = self
                                             .identifier_text_of(attribute_name)
-                                            .map(tsrs2_binder::unescape_leading_underscores)
+                                            .map(tsc_binder::unescape_leading_underscores)
                                             .unwrap_or_default()
                                             .to_owned();
                                         self.add_deprecated_suggestion(
@@ -541,7 +541,7 @@ impl<'a> CheckerState<'a> {
                     .filter(|name| !has_spread_any_type && !name.is_empty())
                 {
                     if explicitly_specify_children_attribute {
-                        let display = tsrs2_binder::unescape_leading_underscores(children_name);
+                        let display = tsc_binder::unescape_leading_underscores(children_name);
                         self.error_at(
                             Some(attribute_parent),
                             &diagnostics::_0_are_specified_twice_The_attribute_named_0_will_be_overwritten,
@@ -577,7 +577,7 @@ impl<'a> CheckerState<'a> {
                     } else {
                         let union = self.get_union_type_ex(
                             &children_types,
-                            tsrs2_types::UnionReduction::Literal,
+                            tsc_types::UnionReduction::Literal,
                         )?;
                         self.create_array_type(union, /*readonly*/ false)?
                     };
@@ -836,7 +836,7 @@ impl<'a> CheckerState<'a> {
                     return Ok(());
                 };
                 let combined =
-                    self.get_union_type_ex(&[sfc, class], tsrs2_types::UnionReduction::Literal)?;
+                    self.get_union_type_ex(&[sfc, class], tsc_types::UnionReduction::Literal)?;
                 self.check_jsx_bound_relation(
                     elem_instance_type,
                     combined,
@@ -859,7 +859,7 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
         tag_name: NodeId,
-        head: &'static tsrs2_diags::DiagnosticMessage,
+        head: &'static tsc_diagnostics::DiagnosticMessage,
     ) -> CheckResult<()> {
         if self.is_type_assignable_to(source, target)? {
             return Ok(());
@@ -1109,7 +1109,7 @@ impl<'a> CheckerState<'a> {
     /// idText flavors: the DISPLAY form (unescaped).
     fn intrinsic_tag_name_to_string(&self, tag_name: NodeId) -> CheckResult<String> {
         let escaped = self.intrinsic_tag_property_name(tag_name)?;
-        Ok(tsrs2_binder::unescape_leading_underscores(&escaped).to_owned())
+        Ok(tsc_binder::unescape_leading_underscores(&escaped).to_owned())
     }
 
     /// tsc-port: getIntrinsicTagSymbol @6.0.3
@@ -1177,7 +1177,7 @@ impl<'a> CheckerState<'a> {
                 let index_symbol = self
                     .members_of(members)
                     .members
-                    .get(tsrs2_binder::InternalSymbolName::INDEX)
+                    .get(tsc_binder::InternalSymbolName::INDEX)
                     .copied();
                 // tsc stores `intrinsicElementsType.symbol` here, which
                 // an alias-declared IntrinsicElements leaves undefined:
@@ -1277,7 +1277,7 @@ impl<'a> CheckerState<'a> {
         }
         let value = self.string_literal_type_value(ty)?;
         if let Some(value) = value.to_utf8() {
-            let escaped = tsrs2_binder::escape_leading_underscores(&value);
+            let escaped = tsc_binder::escape_leading_underscores(&value);
             if let Some(prop) =
                 self.get_property_of_type_full(intrinsic_elements_type, escaped.as_ref())?
             {
@@ -1292,10 +1292,10 @@ impl<'a> CheckerState<'a> {
     }
 
     /// The StringLiteral payload read.
-    fn string_literal_type_value(&self, ty: TypeId) -> CheckResult<tsrs2_types::TemplateText> {
+    fn string_literal_type_value(&self, ty: TypeId) -> CheckResult<tsc_types::TemplateText> {
         match &self.tables.type_of(ty).data {
             TypeData::Literal {
-                value: tsrs2_types::LiteralValue::String(value),
+                value: tsc_types::LiteralValue::String(value),
             } => Ok(value.clone()),
             _ => unreachable!("STRING_LITERAL types always carry Literal string data"),
         }
@@ -1334,7 +1334,7 @@ impl<'a> CheckerState<'a> {
             .set_fresh_symbol_type(props, LinkSlot::Resolved(result));
         Ok(self.alloc_signature(crate::state::Signature {
             declaration: None,
-            flags: tsrs2_types::SignatureFlags::NONE,
+            flags: tsc_types::SignatureFlags::NONE,
             type_parameters: None,
             parameters: vec![props],
             this_parameter: None,
@@ -1755,7 +1755,7 @@ impl<'a> CheckerState<'a> {
                     _ => false,
                 });
                 if has_properties {
-                    let display = tsrs2_binder::unescape_leading_underscores(location);
+                    let display = tsc_binder::unescape_leading_underscores(location);
                     self.error_at(
                         Some(context),
                         &diagnostics::JSX_element_class_does_not_support_attributes_because_it_does_not_have_a_0_property,
@@ -1926,7 +1926,7 @@ impl<'a> CheckerState<'a> {
             .first()
             .copied();
         if let Some(declaration) = first_declaration {
-            let display = tsrs2_binder::unescape_leading_underscores(name_of_attrib_prop_container);
+            let display = tsc_binder::unescape_leading_underscores(name_of_attrib_prop_container);
             self.error_at(
                 Some(declaration),
                 &diagnostics::The_global_type_JSX_0_may_not_have_more_than_one_property,
@@ -1994,7 +1994,7 @@ impl<'a> CheckerState<'a> {
         let null = self.tables.intrinsics.null;
         Ok(Some(self.get_union_type_ex(
             &[jsx_element_type, null],
-            tsrs2_types::UnionReduction::Literal,
+            tsc_types::UnionReduction::Literal,
         )?))
     }
 
@@ -2361,7 +2361,7 @@ fn is_intrinsic_jsx_name(name: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_types::CompilerOptions;
+    use tsc_types::CompilerOptions;
 
     use super::leading_jsx_pragmas;
     use crate::state::test_support::with_program_state;
@@ -2388,7 +2388,7 @@ mod tests {
     }
 
     fn checked_chain_codes_with(text: &str, options: &CompilerOptions) -> Vec<Vec<u32>> {
-        fn flatten(chain: &tsrs2_diags::MessageChain, codes: &mut Vec<u32>) {
+        fn flatten(chain: &tsc_diagnostics::MessageChain, codes: &mut Vec<u32>) {
             codes.push(chain.code);
             for child in &chain.next {
                 flatten(child, codes);
@@ -2418,7 +2418,7 @@ mod tests {
         text: &str,
         options: &CompilerOptions,
     ) -> Vec<JsxComponentDetails> {
-        fn flatten(chain: &tsrs2_diags::MessageChain, rows: &mut DiagnosticChainRows) {
+        fn flatten(chain: &tsc_diagnostics::MessageChain, rows: &mut DiagnosticChainRows) {
             rows.push((chain.code, chain.text.clone()));
             for child in &chain.next {
                 flatten(child, rows);
@@ -3007,7 +3007,7 @@ mod tests {
                 .expect("deprecated JSX attribute suggestion");
             assert_eq!(
                 diagnostic.category(),
-                tsrs2_diags::DiagnosticCategory::Suggestion
+                tsc_diagnostics::DiagnosticCategory::Suggestion
             );
             assert_eq!(diagnostic.message_text(), "'old' is deprecated.");
             assert_eq!(
@@ -3024,13 +3024,13 @@ mod tests {
 
 #[cfg(test)]
 mod c6_recovery_tests {
-    use tsrs2_binder::bind_source_file;
-    use tsrs2_syntax::nodes::{
+    use tsc_binder::bind_source_file;
+    use tsc_syntax::nodes::{
         EmptyStatementData, JsxAttributeData, JsxAttributesData, JsxSelfClosingElementData,
         JsxSpreadAttributeData,
     };
-    use tsrs2_syntax::{parse_source_file, LanguageVariant, NodeData, ParseOptions, SyntaxKind};
-    use tsrs2_types::{CheckMode, CompilerOptions, NodeFlags};
+    use tsc_syntax::{parse_source_file, LanguageVariant, NodeData, ParseOptions, SyntaxKind};
+    use tsc_types::{CheckMode, CompilerOptions, NodeFlags};
 
     use super::JsxReferenceKind;
     use crate::state::test_support::with_program_state;

@@ -13,7 +13,7 @@
 //! abort the run.
 //!
 //! `cargo xtask relpin run [pins/relations.toml]` asks the engine
-//! (tsrs2_checker::relpin::probe_relation) the same question and
+//! (tsc_checker::relpin::probe_relation) the same question and
 //! prints disagreements. Unavailable answers count as failures so the
 //! M3 gate ("0 disagreements") cannot pass with a stubbed engine.
 //!
@@ -40,9 +40,9 @@ use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use tsrs2_checker::relpin::{probe_relation, RelpinQuery, RelpinRelation, RelpinVerdict};
+use tsc_checker::relpin::{probe_relation, RelpinQuery, RelpinRelation, RelpinVerdict};
 
-use crate::find_tsrs2_root;
+use crate::find_workspace_root;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Relation {
@@ -106,7 +106,7 @@ impl Pin {
 
 pub fn gen(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let pins_path = parse_pins_path_arg("relpin gen", args)?;
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let pins_path = resolve_pins_path(&workspace, pins_path);
     let text = fs::read_to_string(&pins_path)
         .map_err(|err| format!("failed to read {}: {err}", pins_path.display()))?;
@@ -122,11 +122,11 @@ pub fn gen(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     fs::create_dir_all(&fixtures_dir)?;
 
     let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
-    let scratch = std::env::temp_dir().join(format!("tsrs2-relpin-{}", std::process::id()));
+    let scratch = std::env::temp_dir().join(format!("tsc-rs-relpin-{}", std::process::id()));
     if scratch.exists() {
         fs::remove_dir_all(&scratch)?;
     }
-    let pool = tsrs2_oracle::OraclePool::new(1)?;
+    let pool = tsc_oracle::OraclePool::new(1)?;
 
     let mut expects = Vec::with_capacity(pins.len());
     let mut yes_count = 0usize;
@@ -139,7 +139,7 @@ pub fn gen(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
         let program_json = expand_pin_fixture(pin, &fixture_name, &fixture, &vendor_lib_dir)?;
         let out_dir = scratch.join(pin.id());
         let paths =
-            tsrs2_harness::write_program_jsons(std::slice::from_ref(&program_json), &out_dir)?;
+            tsc_harness::write_program_jsons(std::slice::from_ref(&program_json), &out_dir)?;
         let diagnostics = pool.diagnostics(&paths[0])?;
 
         let syntactic: Vec<u32> = diagnostics
@@ -202,7 +202,7 @@ pub fn gen(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
 
 pub fn run(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let pins_path = parse_pins_path_arg("relpin run", args)?;
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let pins_path = resolve_pins_path(&workspace, pins_path);
     let text = fs::read_to_string(&pins_path)
         .map_err(|err| format!("failed to read {}: {err}", pins_path.display()))?;
@@ -229,7 +229,7 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
         let fixture_name = format!("{}.ts", pin.id());
         let fixture = fixture_text(pin);
         let program_json = expand_pin_fixture(pin, &fixture_name, &fixture, &vendor_lib_dir)?;
-        let options = tsrs2_harness::compiler_options_from_program(&program_json);
+        let options = tsc_harness::compiler_options_from_program(&program_json);
 
         let query = RelpinQuery {
             setup: pin.setup.as_deref().unwrap_or(""),
@@ -343,8 +343,8 @@ fn expand_pin_fixture(
     fixture_name: &str,
     fixture: &str,
     vendor_lib_dir: &Path,
-) -> Result<tsrs2_harness::ProgramJson, Box<dyn Error>> {
-    let mut programs = tsrs2_harness::expand_fixture_text(fixture_name, fixture, vendor_lib_dir)
+) -> Result<tsc_harness::ProgramJson, Box<dyn Error>> {
+    let mut programs = tsc_harness::expand_fixture_text(fixture_name, fixture, vendor_lib_dir)
         .map_err(|err| format!("{}: fixture expansion failed: {err}", pin.id()))?;
     if programs.len() != 1 {
         return Err(format!(

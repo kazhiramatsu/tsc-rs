@@ -6,7 +6,7 @@
 //! intersectUnionsOfPrimitiveTypes, filterType, createIntersectionType,
 //! the intersectionTypes interning map) live in TypeTables.
 
-use tsrs2_types::{IntersectionFlags, ObjectFlags, TypeData, TypeFlags, TypeId, UnionReduction};
+use tsc_types::{IntersectionFlags, ObjectFlags, TypeData, TypeFlags, TypeId, UnionReduction};
 
 use crate::state::{CheckResult, CheckerState};
 
@@ -48,7 +48,7 @@ impl<'a> CheckerState<'a> {
             Some(symbol)
                 if self
                     .symbol_flags(symbol)
-                    .intersects(tsrs2_types::SymbolFlags::TYPE_LITERAL) =>
+                    .intersects(tsc_types::SymbolFlags::TYPE_LITERAL) =>
             {
                 Ok(self.get_members_of_symbol(symbol)?.is_empty())
             }
@@ -192,7 +192,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         types: &[TypeId],
         flags: IntersectionFlags,
-        alias_symbol: Option<tsrs2_binder::SymbolId>,
+        alias_symbol: Option<tsc_binder::SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
     ) -> CheckResult<TypeId> {
         let mut type_set: Vec<TypeId> = Vec::new();
@@ -399,7 +399,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         type_set: &mut Vec<TypeId>,
         flags: IntersectionFlags,
-        alias_symbol: Option<tsrs2_binder::SymbolId>,
+        alias_symbol: Option<tsc_binder::SymbolId>,
         alias_type_arguments: Option<&[TypeId]>,
         original_arity: usize,
     ) -> CheckResult<TypeId> {

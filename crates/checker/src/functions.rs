@@ -5,10 +5,10 @@
 //! the await family's error paths (the probe half landed errorNode-less
 //! at 5.5e in operators.rs), and the yield grammar slice.
 
-use tsrs2_binder::node_util;
-use tsrs2_binder::SymbolId;
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{
+use tsc_binder::node_util;
+use tsc_binder::SymbolId;
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{
     CheckMode, NodeCheckFlags, NodeFlags, ObjectFlags, SignatureFlags, SymbolFlags, TypeFlags,
     TypeId, UnionReduction,
 };
@@ -17,8 +17,8 @@ use crate::links::LinkSlot;
 use crate::narrow::TypePredicateKind;
 use crate::state::{CheckResult, CheckerState};
 use crate::structural::SignatureKind;
-use tsrs2_diags::gen as diagnostics;
-use tsrs2_diags::{DiagnosticMessage, MessageChain};
+use tsc_diagnostics::gen as diagnostics;
+use tsc_diagnostics::{DiagnosticMessage, MessageChain};
 
 pub(crate) const FUNCTION_FLAGS_GENERATOR: u32 = 1;
 pub(crate) const FUNCTION_FLAGS_ASYNC: u32 = 2;
@@ -382,7 +382,7 @@ impl<'a> CheckerState<'a> {
                 Some(declaration) => self.effective_type_annotation_node(declaration).is_none(),
                 None => self
                     .get_check_flags(parameter)
-                    .intersects(tsrs2_types::CheckFlags::DEFERRED_TYPE),
+                    .intersects(tsc_types::CheckFlags::DEFERRED_TYPE),
             };
             if needs_assignment {
                 let contextual_parameter_type =
@@ -433,7 +433,7 @@ impl<'a> CheckerState<'a> {
                     &inferences,
                     source,
                     target,
-                    tsrs2_types::InferencePriority::NONE,
+                    tsc_types::InferencePriority::NONE,
                     false,
                 )?;
             }
@@ -450,7 +450,7 @@ impl<'a> CheckerState<'a> {
                 &inferences,
                 source,
                 target,
-                tsrs2_types::InferencePriority::NONE,
+                tsc_types::InferencePriority::NONE,
                 false,
             )?;
         }
@@ -591,8 +591,8 @@ impl<'a> CheckerState<'a> {
         let source_flags = self.symbol_flags(source);
         let name = self.binder.symbol(source).escaped_name.clone();
         let symbol = self.binder.create_symbol(source_flags, name);
-        let readonly = tsrs2_types::CheckFlags::from_bits(
-            self.get_check_flags(source).bits() & tsrs2_types::CheckFlags::READONLY.bits(),
+        let readonly = tsc_types::CheckFlags::from_bits(
+            self.get_check_flags(source).bits() & tsc_types::CheckFlags::READONLY.bits(),
         );
         self.links
             .set_symbol_check_flags(self.speculation_depth, symbol, readonly);
@@ -658,14 +658,15 @@ impl<'a> CheckerState<'a> {
             } else {
                 Some(self.get_union_type_ex(&yield_types, UnionReduction::Subtype)?)
             };
-            next_type = if next_types.is_empty() {
-                None
-            } else {
-                Some(self.get_intersection_type(
-                    &next_types,
-                    tsrs2_types::IntersectionFlags::default(),
-                )?)
-            };
+            next_type =
+                if next_types.is_empty() {
+                    None
+                } else {
+                    Some(self.get_intersection_type(
+                        &next_types,
+                        tsc_types::IntersectionFlags::default(),
+                    )?)
+                };
         } else {
             let types = self.check_and_aggregate_return_expression_types(func, check_mode)?;
             let Some(types) = types else {
@@ -678,7 +679,7 @@ impl<'a> CheckerState<'a> {
             };
             if types.is_empty() {
                 let contextual_return_type =
-                    self.get_contextual_return_type(func, tsrs2_types::ContextFlags::NONE)?;
+                    self.get_contextual_return_type(func, tsc_types::ContextFlags::NONE)?;
                 let undefined_preferred = match contextual_return_type {
                     Some(contextual) => {
                         // 78799: `unwrapReturnType(...) || voidType`.
@@ -710,21 +711,21 @@ impl<'a> CheckerState<'a> {
                 self.report_errors_from_widening(
                     func,
                     current,
-                    Some(tsrs2_types::WideningKind::GENERATOR_YIELD),
+                    Some(tsc_types::WideningKind::GENERATOR_YIELD),
                 )?;
             }
             if let Some(current) = return_type {
                 self.report_errors_from_widening(
                     func,
                     current,
-                    Some(tsrs2_types::WideningKind::FUNCTION_RETURN),
+                    Some(tsc_types::WideningKind::FUNCTION_RETURN),
                 )?;
             }
             if let Some(current) = next_type {
                 self.report_errors_from_widening(
                     func,
                     current,
-                    Some(tsrs2_types::WideningKind::GENERATOR_NEXT),
+                    Some(tsc_types::WideningKind::GENERATOR_NEXT),
                 )?;
             }
             let any_unit = return_type.is_some_and(|t| self.is_unit_type(t))
@@ -756,21 +757,21 @@ impl<'a> CheckerState<'a> {
                         .get_widened_literal_like_type_for_contextual_iteration_type_if_needed(
                             yield_type,
                             contextual_type,
-                            tsrs2_types::IterationTypeKind::YIELD,
+                            tsc_types::IterationTypeKind::YIELD,
                             is_async,
                         )?;
                     return_type = self
                         .get_widened_literal_like_type_for_contextual_iteration_type_if_needed(
                             return_type,
                             contextual_type,
-                            tsrs2_types::IterationTypeKind::RETURN,
+                            tsc_types::IterationTypeKind::RETURN,
                             is_async,
                         )?;
                     next_type = self
                         .get_widened_literal_like_type_for_contextual_iteration_type_if_needed(
                             next_type,
                             contextual_type,
-                            tsrs2_types::IterationTypeKind::NEXT,
+                            tsc_types::IterationTypeKind::NEXT,
                             is_async,
                         )?;
                 } else {
@@ -800,7 +801,7 @@ impl<'a> CheckerState<'a> {
             let next_type = match next_type {
                 Some(next_type) => next_type,
                 None => self
-                    .get_contextual_iteration_type(tsrs2_types::IterationTypeKind::NEXT, func)?
+                    .get_contextual_iteration_type(tsc_types::IterationTypeKind::NEXT, func)?
                     .unwrap_or(self.tables.intrinsics.unknown),
             };
             return self.create_generator_type(yield_type, return_type, next_type, is_async);
@@ -860,15 +861,15 @@ impl<'a> CheckerState<'a> {
             }
             let next_type = if asterisk_token.is_some() {
                 let use_ = if is_async {
-                    tsrs2_types::IterationUse::ASYNC_YIELD_STAR
+                    tsc_types::IterationUse::ASYNC_YIELD_STAR
                 } else {
-                    tsrs2_types::IterationUse::YIELD_STAR
+                    tsc_types::IterationUse::YIELD_STAR
                 };
                 let iteration_types =
                     self.get_iteration_types_of_iterable(yield_expression_type, use_, expression)?;
                 iteration_types.map(|types| types.next_type)
             } else {
-                self.get_contextual_type(yield_expression, tsrs2_types::ContextFlags::NONE)?
+                self.get_contextual_type(yield_expression, tsc_types::ContextFlags::NONE)?
             };
             if let Some(next_type) = next_type {
                 if !next_types.contains(&next_type) {
@@ -898,9 +899,9 @@ impl<'a> CheckerState<'a> {
         let error_node = expression.unwrap_or(node);
         let yielded_type = if asterisk_token.is_some() {
             let use_ = if is_async {
-                tsrs2_types::IterationUse::ASYNC_YIELD_STAR
+                tsc_types::IterationUse::ASYNC_YIELD_STAR
             } else {
-                tsrs2_types::IterationUse::YIELD_STAR
+                tsc_types::IterationUse::YIELD_STAR
             };
             self.check_iterated_type_or_element_type(
                 use_,
@@ -963,7 +964,7 @@ impl<'a> CheckerState<'a> {
                         }
                     } else if !self.is_part_of_type_node(node) {
                         let mut children = Vec::new();
-                        tsrs2_syntax::for_each_child(
+                        tsc_syntax::for_each_child(
                             &source.arena,
                             source.arena.node(node),
                             |child| {
@@ -1122,7 +1123,7 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::CatchClause => {
                     let source = self.binder.source_of_node(node);
                     let mut children = Vec::new();
-                    tsrs2_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+                    tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
                         children.push(child);
                         false
                     });
@@ -1382,7 +1383,7 @@ impl<'a> CheckerState<'a> {
         let is_async = function_flags & FUNCTION_FLAGS_ASYNC != 0;
         if is_generator {
             let return_iteration_type = self.get_iteration_type_of_generator_function_return_type(
-                tsrs2_types::IterationTypeKind::RETURN,
+                tsc_types::IterationTypeKind::RETURN,
                 return_type,
                 is_async,
             )?;
@@ -1600,7 +1601,7 @@ impl<'a> CheckerState<'a> {
                     }
                     let module_kind = self.options.emit_module_kind();
                     let target_ok =
-                        self.options.emit_script_target() >= tsrs2_types::ScriptTarget::ES2017;
+                        self.options.emit_script_target() >= tsc_types::ScriptTarget::ES2017;
                     let is_node_module_kind = matches!(module_kind, 100 | 101 | 102 | 199);
                     let ladder_ok = matches!(module_kind, 100 | 101 | 102 | 199 | 7 | 99 | 200 | 4)
                         && target_ok;
@@ -1740,13 +1741,13 @@ impl<'a> CheckerState<'a> {
         }
         if asterisk_token.is_some() {
             let use_ = if is_async {
-                tsrs2_types::IterationUse::ASYNC_YIELD_STAR
+                tsc_types::IterationUse::ASYNC_YIELD_STAR
             } else {
-                tsrs2_types::IterationUse::YIELD_STAR
+                tsc_types::IterationUse::YIELD_STAR
             };
             let iterated = self.get_iteration_type_of_iterable(
                 use_,
-                tsrs2_types::IterationTypeKind::RETURN,
+                tsc_types::IterationTypeKind::RETURN,
                 yield_expression_type,
                 expression,
             )?;
@@ -1754,14 +1755,14 @@ impl<'a> CheckerState<'a> {
         }
         if let Some(return_type) = return_type {
             let next = self.get_iteration_type_of_generator_function_return_type(
-                tsrs2_types::IterationTypeKind::NEXT,
+                tsc_types::IterationTypeKind::NEXT,
                 return_type,
                 is_async,
             )?;
             return Ok(next.unwrap_or(any));
         }
         let contextual_next =
-            self.get_contextual_iteration_type(tsrs2_types::IterationTypeKind::NEXT, func)?;
+            self.get_contextual_iteration_type(tsc_types::IterationTypeKind::NEXT, func)?;
         if let Some(contextual_next) = contextual_next {
             return Ok(contextual_next);
         }
@@ -1771,8 +1772,7 @@ impl<'a> CheckerState<'a> {
             .strict_option_value(self.options.no_implicit_any)
             && !self.expression_result_is_unused(node)
         {
-            let contextual_type =
-                self.get_contextual_type(node, tsrs2_types::ContextFlags::NONE)?;
+            let contextual_type = self.get_contextual_type(node, tsc_types::ContextFlags::NONE)?;
             let contextual_is_any =
                 contextual_type.is_some_and(|t| self.tables.flags_of(t).intersects(TypeFlags::ANY));
             if contextual_type.is_none() || contextual_is_any {
@@ -1879,7 +1879,7 @@ impl<'a> CheckerState<'a> {
         if node_util::has_syntactic_modifier(
             source,
             node,
-            tsrs2_types::ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
+            tsc_types::ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
         ) {
             if !(func_kind == SyntaxKind::Constructor && func_body.is_some()) {
                 self.error_at(
@@ -2138,7 +2138,7 @@ impl<'a> CheckerState<'a> {
     /// Dead at target >= ES2015; LIVE for the ES5 fixture matrix. The
     /// row is errorSkippedOn("noEmit").
     fn check_collision_with_arguments_in_generated_code(&mut self, node: NodeId) {
-        if self.options.emit_script_target() >= tsrs2_types::ScriptTarget::ES2015 {
+        if self.options.emit_script_target() >= tsc_types::ScriptTarget::ES2015 {
             return;
         }
         let source = self.binder.source_of_node(node);
@@ -2202,7 +2202,7 @@ impl<'a> CheckerState<'a> {
         return_type_error_location: NodeId,
     ) -> CheckResult<()> {
         let return_type = self.get_type_from_type_node(return_type_node)?;
-        if self.options.emit_script_target() >= tsrs2_types::ScriptTarget::ES2015 {
+        if self.options.emit_script_target() >= tsc_types::ScriptTarget::ES2015 {
             if self.tables.is_error_type(return_type) {
                 return Ok(());
             }
@@ -2684,7 +2684,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:82010-82012
     pub(crate) fn is_private_within_ambient(&self, node: NodeId) -> bool {
         let source = self.binder.source_of_node(node);
-        (node_util::has_syntactic_modifier(source, node, tsrs2_types::ModifierFlags::PRIVATE)
+        (node_util::has_syntactic_modifier(source, node, tsc_types::ModifierFlags::PRIVATE)
             || self.is_private_identifier_class_element(node))
             && NodeFlags::from_bits(self.node_flags(node)).intersects(NodeFlags::AMBIENT)
     }
@@ -2733,7 +2733,7 @@ impl<'a> CheckerState<'a> {
         self.check_function_or_method_declaration(node)?;
         let source = self.binder.source_of_node(node);
         let body = node_util::body_of(source, node);
-        if node_util::has_syntactic_modifier(source, node, tsrs2_types::ModifierFlags::ABSTRACT)
+        if node_util::has_syntactic_modifier(source, node, tsc_types::ModifierFlags::ABSTRACT)
             && is_method_declaration
             && body.is_some()
         {
@@ -2786,7 +2786,7 @@ impl<'a> CheckerState<'a> {
             NodeData::PropertyDeclaration(data) => data.initializer,
             _ => None,
         };
-        if node_util::has_syntactic_modifier(source, node, tsrs2_types::ModifierFlags::ABSTRACT)
+        if node_util::has_syntactic_modifier(source, node, tsc_types::ModifierFlags::ABSTRACT)
             && self.kind_of(node) == SyntaxKind::PropertyDeclaration
             && initializer.is_some()
         {
@@ -2840,7 +2840,7 @@ impl<'a> CheckerState<'a> {
         }
         // LanguageFeatureMinimumTarget.PrivateNamesAndClassStaticBlocks
         // = ClassAndClassElementDecorators = ES2022.
-        if self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES2022
+        if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2022
             || !self.options.use_define_for_class_fields_effective()
         {
             let mut lexical_scope = self.get_enclosing_block_scope_container(node);
@@ -2848,7 +2848,7 @@ impl<'a> CheckerState<'a> {
                 self.links.or_node_check_flags(
                     self.speculation_depth,
                     scope,
-                    tsrs2_types::NodeCheckFlags::CONTAINS_CLASS_WITH_PRIVATE_IDENTIFIERS,
+                    tsc_types::NodeCheckFlags::CONTAINS_CLASS_WITH_PRIVATE_IDENTIFIERS,
                 );
                 lexical_scope = self.get_enclosing_block_scope_container(scope);
             }
@@ -2862,7 +2862,7 @@ impl<'a> CheckerState<'a> {
         self.check_grammar_modifiers(node);
         let source = self.binder.source_of_node(node);
         let mut children = Vec::new();
-        tsrs2_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+        tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
             children.push(child);
             false
         });
@@ -2998,7 +2998,7 @@ impl<'a> CheckerState<'a> {
                         && !node_util::has_syntactic_modifier(
                             source,
                             member,
-                            tsrs2_types::ModifierFlags::STATIC,
+                            tsc_types::ModifierFlags::STATIC,
                         )
             )
         })
@@ -3015,7 +3015,7 @@ impl<'a> CheckerState<'a> {
             node_util::has_syntactic_modifier(
                 source,
                 parameter,
-                tsrs2_types::ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
+                tsc_types::ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
             )
         })
     }
@@ -3031,7 +3031,7 @@ impl<'a> CheckerState<'a> {
         }
         let source = self.binder.source_of_node(node);
         let mut children = Vec::new();
-        tsrs2_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+        tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
             children.push(child);
             false
         });
@@ -3108,7 +3108,7 @@ impl<'a> CheckerState<'a> {
             return false;
         }
         let mut children = Vec::new();
-        tsrs2_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+        tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
             children.push(child);
             false
         });
@@ -3189,12 +3189,12 @@ impl<'a> CheckerState<'a> {
                     .links
                     .node(getter)
                     .check_flags
-                    .intersects(tsrs2_types::NodeCheckFlags::TYPE_CHECKED);
+                    .intersects(tsc_types::NodeCheckFlags::TYPE_CHECKED);
                 if !getter_checked {
                     self.links.or_node_check_flags(
                         self.speculation_depth,
                         getter,
-                        tsrs2_types::NodeCheckFlags::TYPE_CHECKED,
+                        tsc_types::NodeCheckFlags::TYPE_CHECKED,
                     );
                     let getter_source = self.binder.source_of_node(getter);
                     let setter_source = self.binder.source_of_node(setter);
@@ -3204,8 +3204,8 @@ impl<'a> CheckerState<'a> {
                         node_util::get_effective_modifier_flags(setter_source, setter);
                     let getter_name = self.name_of_node(getter);
                     let setter_name = self.name_of_node(setter);
-                    if getter_flags.intersects(tsrs2_types::ModifierFlags::ABSTRACT)
-                        != setter_flags.intersects(tsrs2_types::ModifierFlags::ABSTRACT)
+                    if getter_flags.intersects(tsc_types::ModifierFlags::ABSTRACT)
+                        != setter_flags.intersects(tsc_types::ModifierFlags::ABSTRACT)
                     {
                         self.error_at(
                             getter_name,
@@ -3219,13 +3219,13 @@ impl<'a> CheckerState<'a> {
                         );
                     }
                     let getter_less_accessible = (getter_flags
-                        .intersects(tsrs2_types::ModifierFlags::PROTECTED)
-                        && !setter_flags.intersects(tsrs2_types::ModifierFlags::from_bits(
-                            tsrs2_types::ModifierFlags::PROTECTED.bits()
-                                | tsrs2_types::ModifierFlags::PRIVATE.bits(),
+                        .intersects(tsc_types::ModifierFlags::PROTECTED)
+                        && !setter_flags.intersects(tsc_types::ModifierFlags::from_bits(
+                            tsc_types::ModifierFlags::PROTECTED.bits()
+                                | tsc_types::ModifierFlags::PRIVATE.bits(),
                         )))
-                        || (getter_flags.intersects(tsrs2_types::ModifierFlags::PRIVATE)
-                            && !setter_flags.intersects(tsrs2_types::ModifierFlags::PRIVATE));
+                        || (getter_flags.intersects(tsc_types::ModifierFlags::PRIVATE)
+                            && !setter_flags.intersects(tsc_types::ModifierFlags::PRIVATE));
                     if getter_less_accessible {
                         self.error_at(
                             getter_name,
@@ -3273,8 +3273,8 @@ impl<'a> CheckerState<'a> {
     fn get_effective_declaration_flags(
         &self,
         node: NodeId,
-        flags_to_check: tsrs2_types::ModifierFlags,
-    ) -> tsrs2_types::ModifierFlags {
+        flags_to_check: tsc_types::ModifierFlags,
+    ) -> tsc_types::ModifierFlags {
         let source = self.binder.source_of_node(node);
         let mut flags = node_util::get_combined_modifier_flags(source, node);
         let parent_kind = self.parent_of(node).map(|parent| self.kind_of(parent));
@@ -3290,16 +3290,16 @@ impl<'a> CheckerState<'a> {
                 NodeFlags::from_bits(self.node_flags(container))
                     .intersects(NodeFlags::EXPORT_CONTEXT)
             });
-            if in_export_context && !flags.intersects(tsrs2_types::ModifierFlags::AMBIENT) {
-                flags = tsrs2_types::ModifierFlags::from_bits(
-                    flags.bits() | tsrs2_types::ModifierFlags::EXPORT.bits(),
+            if in_export_context && !flags.intersects(tsc_types::ModifierFlags::AMBIENT) {
+                flags = tsc_types::ModifierFlags::from_bits(
+                    flags.bits() | tsc_types::ModifierFlags::EXPORT.bits(),
                 );
             }
-            flags = tsrs2_types::ModifierFlags::from_bits(
-                flags.bits() | tsrs2_types::ModifierFlags::AMBIENT.bits(),
+            flags = tsc_types::ModifierFlags::from_bits(
+                flags.bits() | tsc_types::ModifierFlags::AMBIENT.bits(),
             );
         }
-        tsrs2_types::ModifierFlags::from_bits(flags.bits() & flags_to_check.bits())
+        tsc_types::ModifierFlags::from_bits(flags.bits() & flags_to_check.bits())
     }
 
     /// getEnclosingContainer (13841-13843): the nearest ancestor with
@@ -3308,8 +3308,8 @@ impl<'a> CheckerState<'a> {
         let source = self.binder.source_of_node(node);
         let mut current = node_util::parent_of(source, node);
         while let Some(candidate) = current {
-            if tsrs2_binder::containers::get_container_flags(source, candidate)
-                .intersects(tsrs2_binder::containers::ContainerFlags::IS_CONTAINER)
+            if tsc_binder::containers::get_container_flags(source, candidate)
+                .intersects(tsc_binder::containers::ContainerFlags::IS_CONTAINER)
             {
                 return Some(candidate);
             }
@@ -3330,14 +3330,14 @@ impl<'a> CheckerState<'a> {
         &mut self,
         symbol: SymbolId,
     ) -> CheckResult<()> {
-        let flags_to_check = tsrs2_types::ModifierFlags::from_bits(
-            tsrs2_types::ModifierFlags::EXPORT.bits()
-                | tsrs2_types::ModifierFlags::AMBIENT.bits()
-                | tsrs2_types::ModifierFlags::PRIVATE.bits()
-                | tsrs2_types::ModifierFlags::PROTECTED.bits()
-                | tsrs2_types::ModifierFlags::ABSTRACT.bits(),
+        let flags_to_check = tsc_types::ModifierFlags::from_bits(
+            tsc_types::ModifierFlags::EXPORT.bits()
+                | tsc_types::ModifierFlags::AMBIENT.bits()
+                | tsc_types::ModifierFlags::PRIVATE.bits()
+                | tsc_types::ModifierFlags::PROTECTED.bits()
+                | tsc_types::ModifierFlags::ABSTRACT.bits(),
         );
-        let mut some_node_flags = tsrs2_types::ModifierFlags::NONE;
+        let mut some_node_flags = tsc_types::ModifierFlags::NONE;
         let mut all_node_flags = flags_to_check;
         let mut some_have_question_token = false;
         let mut all_have_question_token = true;
@@ -3383,10 +3383,10 @@ impl<'a> CheckerState<'a> {
             ) {
                 function_declarations.push(node);
                 let current_node_flags = self.get_effective_declaration_flags(node, flags_to_check);
-                some_node_flags = tsrs2_types::ModifierFlags::from_bits(
+                some_node_flags = tsc_types::ModifierFlags::from_bits(
                     some_node_flags.bits() | current_node_flags.bits(),
                 );
-                all_node_flags = tsrs2_types::ModifierFlags::from_bits(
+                all_node_flags = tsc_types::ModifierFlags::from_bits(
                     all_node_flags.bits() & current_node_flags.bits(),
                 );
                 let question = self.has_question_token(node);
@@ -3466,7 +3466,7 @@ impl<'a> CheckerState<'a> {
                 .flags
                 .intersects(SymbolFlags::FUNCTION)
         {
-            let related: Vec<tsrs2_diags::RelatedInfo> = declarations
+            let related: Vec<tsc_diagnostics::RelatedInfo> = declarations
                 .iter()
                 .filter(|&&d| self.kind_of(d) == SyntaxKind::ClassDeclaration)
                 .map(|&d| {
@@ -3508,7 +3508,7 @@ impl<'a> CheckerState<'a> {
                 && !node_util::has_syntactic_modifier(
                     source,
                     last,
-                    tsrs2_types::ModifierFlags::ABSTRACT,
+                    tsc_types::ModifierFlags::ABSTRACT,
                 )
                 && !self.has_question_token(last)
             {
@@ -3593,7 +3593,7 @@ impl<'a> CheckerState<'a> {
         let subsequent_node = parent.and_then(|parent| {
             let mut seen = false;
             let mut found = None;
-            tsrs2_syntax::for_each_child(&source.arena, source.arena.node(parent), |child| {
+            tsc_syntax::for_each_child(&source.arena, source.arena.node(parent), |child| {
                 if seen {
                     found = Some(child);
                     return true;
@@ -3638,12 +3638,12 @@ impl<'a> CheckerState<'a> {
                         let node_static = node_util::has_syntactic_modifier(
                             source,
                             node,
-                            tsrs2_types::ModifierFlags::STATIC,
+                            tsc_types::ModifierFlags::STATIC,
                         );
                         let subsequent_static = node_util::has_syntactic_modifier(
                             source,
                             subsequent,
-                            tsrs2_types::ModifierFlags::STATIC,
+                            tsc_types::ModifierFlags::STATIC,
                         );
                         if is_method && node_static != subsequent_static {
                             let diagnostic = if node_static {
@@ -3682,7 +3682,7 @@ impl<'a> CheckerState<'a> {
         } else if node_util::has_syntactic_modifier(
             source,
             node,
-            tsrs2_types::ModifierFlags::ABSTRACT,
+            tsc_types::ModifierFlags::ABSTRACT,
         ) {
             self.error_at(
                 Some(error_node),
@@ -3722,9 +3722,9 @@ impl<'a> CheckerState<'a> {
         &mut self,
         overloads: &[NodeId],
         implementation: Option<NodeId>,
-        flags_to_check: tsrs2_types::ModifierFlags,
-        some_overload_flags: tsrs2_types::ModifierFlags,
-        all_overload_flags: tsrs2_types::ModifierFlags,
+        flags_to_check: tsc_types::ModifierFlags,
+        some_overload_flags: tsc_types::ModifierFlags,
+        all_overload_flags: tsc_types::ModifierFlags,
     ) {
         let some_but_not_all = some_overload_flags.bits() ^ all_overload_flags.bits();
         if some_but_not_all == 0 {
@@ -3754,21 +3754,21 @@ impl<'a> CheckerState<'a> {
                 let deviation = flags.bits() ^ canonical_flags.bits();
                 let deviation_in_file = flags.bits() ^ canonical_flags_for_file.bits();
                 let error_node = self.name_of_node(o);
-                if deviation_in_file & tsrs2_types::ModifierFlags::EXPORT.bits() != 0 {
+                if deviation_in_file & tsc_types::ModifierFlags::EXPORT.bits() != 0 {
                     self.error_at(
                         error_node,
                         &diagnostics::Overload_signatures_must_all_be_exported_or_non_exported,
                         &[],
                     );
-                } else if deviation_in_file & tsrs2_types::ModifierFlags::AMBIENT.bits() != 0 {
+                } else if deviation_in_file & tsc_types::ModifierFlags::AMBIENT.bits() != 0 {
                     self.error_at(
                         error_node,
                         &diagnostics::Overload_signatures_must_all_be_ambient_or_non_ambient,
                         &[],
                     );
                 } else if deviation
-                    & (tsrs2_types::ModifierFlags::PRIVATE.bits()
-                        | tsrs2_types::ModifierFlags::PROTECTED.bits())
+                    & (tsc_types::ModifierFlags::PRIVATE.bits()
+                        | tsc_types::ModifierFlags::PROTECTED.bits())
                     != 0
                 {
                     self.error_at(
@@ -3776,7 +3776,7 @@ impl<'a> CheckerState<'a> {
                         &diagnostics::Overload_signatures_must_all_be_public_private_or_protected,
                         &[],
                     );
-                } else if deviation & tsrs2_types::ModifierFlags::ABSTRACT.bits() != 0 {
+                } else if deviation & tsc_types::ModifierFlags::ABSTRACT.bits() != 0 {
                     self.error_at(
                         error_node,
                         &diagnostics::Overload_signatures_must_all_be_abstract_or_non_abstract,
@@ -3843,14 +3843,14 @@ impl<'a> CheckerState<'a> {
         let mut non_exported_spaces = 0u32;
         let mut default_exported_spaces = 0u32;
         let declarations = self.binder.symbol(symbol).declarations.clone();
-        let export_default = tsrs2_types::ModifierFlags::from_bits(
-            tsrs2_types::ModifierFlags::EXPORT.bits() | tsrs2_types::ModifierFlags::DEFAULT.bits(),
+        let export_default = tsc_types::ModifierFlags::from_bits(
+            tsc_types::ModifierFlags::EXPORT.bits() | tsc_types::ModifierFlags::DEFAULT.bits(),
         );
         for &d in &declarations {
             let spaces = self.get_declaration_spaces(d)?;
             let flags = self.get_effective_declaration_flags(d, export_default);
-            if flags.intersects(tsrs2_types::ModifierFlags::EXPORT) {
-                if flags.intersects(tsrs2_types::ModifierFlags::DEFAULT) {
+            if flags.intersects(tsc_types::ModifierFlags::EXPORT) {
+                if flags.intersects(tsc_types::ModifierFlags::DEFAULT) {
                     default_exported_spaces |= spaces;
                 } else {
                     exported_spaces |= spaces;
@@ -3906,8 +3906,8 @@ impl<'a> CheckerState<'a> {
                 let source = self.binder.source_of_node(decl);
                 let instantiated = node_util::is_ambient_module(source, decl) || {
                     let mut visited = std::collections::HashMap::new();
-                    tsrs2_binder::containers::get_module_instance_state(source, decl, &mut visited)
-                        != tsrs2_binder::containers::ModuleInstanceState::NonInstantiated
+                    tsc_binder::containers::get_module_instance_state(source, decl, &mut visited)
+                        != tsc_binder::containers::ModuleInstanceState::NonInstantiated
                 };
                 Ok(if instantiated {
                     EXPORT_NAMESPACE | EXPORT_VALUE
@@ -4240,7 +4240,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_grammar_for_invalid_question_mark(
         &mut self,
         question_token: Option<NodeId>,
-        message: &'static tsrs2_diags::DiagnosticMessage,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
     ) -> bool {
         match question_token {
             Some(token) => self.grammar_error_on_node(token, message, &[]),
@@ -4254,7 +4254,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_grammar_for_invalid_exclamation_token(
         &mut self,
         exclamation_token: Option<NodeId>,
-        message: &'static tsrs2_diags::DiagnosticMessage,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
     ) -> bool {
         match exclamation_token {
             Some(token) => self.grammar_error_on_node(token, message, &[]),
@@ -4273,7 +4273,7 @@ impl<'a> CheckerState<'a> {
     fn check_grammar_for_invalid_dynamic_name(
         &mut self,
         name: NodeId,
-        message: &'static tsrs2_diags::DiagnosticMessage,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
     ) -> CheckResult<bool> {
         let source = self.binder.source_of_node(name);
         if !node_util::is_dynamic_name(source, name) {
@@ -4374,7 +4374,7 @@ impl<'a> CheckerState<'a> {
             parent_kind,
             Some(SyntaxKind::ClassDeclaration) | Some(SyntaxKind::ClassExpression)
         ) {
-            if self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES2015
+            if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015
                 && self.kind_of(name) == SyntaxKind::PrivateIdentifier
             {
                 return Ok(self.grammar_error_on_node(
@@ -4497,7 +4497,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(true);
             }
             let source = self.binder.source_of_node(node);
-            if self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES2015 {
+            if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015 {
                 if self.kind_of(name) == SyntaxKind::PrivateIdentifier {
                     return Ok(self.grammar_error_on_node(
                         name,
@@ -4565,12 +4565,12 @@ impl<'a> CheckerState<'a> {
                 let is_static = node_util::has_syntactic_modifier(
                     source,
                     node,
-                    tsrs2_types::ModifierFlags::STATIC,
+                    tsc_types::ModifierFlags::STATIC,
                 );
                 let has_abstract = node_util::has_syntactic_modifier(
                     source,
                     node,
-                    tsrs2_types::ModifierFlags::ABSTRACT,
+                    tsc_types::ModifierFlags::ABSTRACT,
                 );
                 let ambient =
                     NodeFlags::from_bits(self.node_flags(node)).intersects(NodeFlags::AMBIENT);
@@ -4631,20 +4631,17 @@ impl<'a> CheckerState<'a> {
             || node_util::has_syntactic_modifier(
                 self.binder.source_of_node(accessor),
                 accessor,
-                tsrs2_types::ModifierFlags::AMBIENT,
+                tsc_types::ModifierFlags::AMBIENT,
             );
         let in_type_container = matches!(
             parent_kind,
             Some(SyntaxKind::TypeLiteral) | Some(SyntaxKind::InterfaceDeclaration)
         );
         let source = self.binder.source_of_node(accessor);
-        let has_abstract = node_util::has_syntactic_modifier(
-            source,
-            accessor,
-            tsrs2_types::ModifierFlags::ABSTRACT,
-        );
+        let has_abstract =
+            node_util::has_syntactic_modifier(source, accessor, tsc_types::ModifierFlags::ABSTRACT);
         if !ambient && !in_type_container {
-            if self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES2015
+            if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015
                 && self.kind_of(name) == SyntaxKind::PrivateIdentifier
             {
                 let reported = self.grammar_error_on_node(
@@ -4831,7 +4828,7 @@ impl<'a> CheckerState<'a> {
         }
         let source = self.binder.source_of_node(parameter);
         if node_util::get_effective_modifier_flags(source, parameter)
-            != tsrs2_types::ModifierFlags::NONE
+            != tsc_types::ModifierFlags::NONE
         {
             return Ok(self.grammar_error_on_node(
                 error_name,
@@ -4926,7 +4923,7 @@ impl<'a> CheckerState<'a> {
         let pos = if range_pos == range_end {
             range_pos
         } else {
-            tsrs2_syntax::skip_trivia(&source.text, range_pos)
+            tsc_syntax::skip_trivia(&source.text, range_pos)
         };
         self.grammar_error_at_pos(
             node,
@@ -4957,7 +4954,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn check_grammar_type_parameter_list(
         &mut self,
         node: NodeId,
-        type_parameters: Option<tsrs2_syntax::NodeArrayId>,
+        type_parameters: Option<tsc_syntax::NodeArrayId>,
     ) -> bool {
         let Some(array_id) = type_parameters else {
             return false;
@@ -4971,7 +4968,7 @@ impl<'a> CheckerState<'a> {
             return false;
         }
         let start_byte = array.pos as usize - "<".len();
-        let end_byte = tsrs2_syntax::skip_trivia(&source.text, array.end as usize) + ">".len();
+        let end_byte = tsc_syntax::skip_trivia(&source.text, array.end as usize) + ">".len();
         let to_utf16 = |byte: usize| -> u32 {
             source
                 .line_map
@@ -5153,7 +5150,7 @@ impl<'a> CheckerState<'a> {
     /// languageVersion is ES2025 — the ES2016 gate is always open.
     fn check_grammar_for_use_strict_simple_parameter_list(&mut self, node: NodeId) -> bool {
         // 89447: languageVersion >= ES2016 only.
-        if self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES2016 {
+        if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2016 {
             return false;
         }
         let source = self.binder.source_of_node(node);
@@ -5349,7 +5346,7 @@ impl<'a> CheckerState<'a> {
                     return false;
                 }
                 let exported = node_util::get_combined_modifier_flags(source, root)
-                    .intersects(tsrs2_types::ModifierFlags::EXPORT);
+                    .intersects(tsc_types::ModifierFlags::EXPORT);
                 if exported {
                     return false;
                 }
@@ -5441,15 +5438,15 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         message: &'static DiagnosticMessage,
         args: &[&str],
-        related: Vec<tsrs2_diags::RelatedInfo>,
+        related: Vec<tsc_diagnostics::RelatedInfo>,
     ) {
         let source = self.binder.source_of_node(node);
         let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
-        let mut diagnostic = tsrs2_diags::Diagnostic::new(
+        let mut diagnostic = tsc_diagnostics::Diagnostic::new(
             Some(source.file_name.clone()),
             Some(span.0),
             Some(span.1),
-            tsrs2_diags::MessageChain::new(message, &args),
+            tsc_diagnostics::MessageChain::new(message, &args),
         );
         for info in related {
             diagnostic.related.push(info);
@@ -5577,9 +5574,9 @@ impl<'a> CheckerState<'a> {
                 grandparent.and_then(|grandparent| self.initializer_of(grandparent));
             if let Some(initializer) = grandparent_initializer {
                 let initializer_type = self.get_type_of_initializer(initializer)?;
-                if !self.has_type_facts(initializer_type, tsrs2_types::TypeFacts::EQ_UNDEFINED)? {
-                    parent_type = self
-                        .get_type_with_facts(parent_type, tsrs2_types::TypeFacts::NE_UNDEFINED)?;
+                if !self.has_type_facts(initializer_type, tsc_types::TypeFacts::EQ_UNDEFINED)? {
+                    parent_type =
+                        self.get_type_with_facts(parent_type, tsc_types::TypeFacts::NE_UNDEFINED)?;
                 }
             }
         }
@@ -5625,11 +5622,11 @@ impl<'a> CheckerState<'a> {
                     return Ok(self.tables.intrinsics.error);
                 };
                 let index_type = self.get_literal_type_from_property_name(name)?;
-                let access_flags = tsrs2_types::AccessFlags::EXPRESSION_POSITION
+                let access_flags = tsc_types::AccessFlags::EXPRESSION_POSITION
                     | if no_tuple_bounds_check || self.has_default_value(declaration) {
-                        tsrs2_types::AccessFlags::ALLOW_MISSING
+                        tsc_types::AccessFlags::ALLOW_MISSING
                     } else {
-                        tsrs2_types::AccessFlags::NONE
+                        tsc_types::AccessFlags::NONE
                     };
                 let declared = self
                     .get_indexed_access_type_or_undefined(
@@ -5650,11 +5647,11 @@ impl<'a> CheckerState<'a> {
                 return Ok(self.tables.intrinsics.error);
             };
             let use_ = if data.dot_dot_dot_token.is_some() {
-                tsrs2_types::IterationUse::DESTRUCTURING
+                tsc_types::IterationUse::DESTRUCTURING
             } else {
-                tsrs2_types::IterationUse::from_bits(
-                    tsrs2_types::IterationUse::DESTRUCTURING.bits()
-                        | tsrs2_types::IterationUse::POSSIBLY_OUT_OF_BOUNDS.bits(),
+                tsc_types::IterationUse::from_bits(
+                    tsc_types::IterationUse::DESTRUCTURING.bits()
+                        | tsc_types::IterationUse::POSSIBLY_OUT_OF_BOUNDS.bits(),
                 )
             };
             let undefined_type = self.tables.intrinsics.undefined;
@@ -5704,11 +5701,11 @@ impl<'a> CheckerState<'a> {
                 };
             } else if self.is_array_like_type(parent_type)? {
                 let index_type = self.tables.get_number_literal_type(index as f64);
-                let access_flags = tsrs2_types::AccessFlags::EXPRESSION_POSITION
+                let access_flags = tsc_types::AccessFlags::EXPRESSION_POSITION
                     | if no_tuple_bounds_check || self.has_default_value(declaration) {
-                        tsrs2_types::AccessFlags::ALLOW_MISSING
+                        tsc_types::AccessFlags::ALLOW_MISSING
                     } else {
-                        tsrs2_types::AccessFlags::NONE
+                        tsc_types::AccessFlags::NONE
                     };
                 let declared = self
                     .get_indexed_access_type_or_undefined(
@@ -5739,7 +5736,7 @@ impl<'a> CheckerState<'a> {
             }
             let initializer_type =
                 self.check_declaration_initializer(declaration, CheckMode::NORMAL, None)?;
-            if !self.has_type_facts(initializer_type, tsrs2_types::TypeFacts::IS_UNDEFINED)? {
+            if !self.has_type_facts(initializer_type, tsc_types::TypeFacts::IS_UNDEFINED)? {
                 return self.get_non_undefined_type(ty);
             }
             return Ok(ty);
@@ -5782,7 +5779,7 @@ impl<'a> CheckerState<'a> {
         } else {
             ty
         };
-        self.get_type_with_facts(type_or_constraint, tsrs2_types::TypeFacts::NE_UNDEFINED)
+        self.get_type_with_facts(type_or_constraint, tsc_types::TypeFacts::NE_UNDEFINED)
     }
 
     /// tsc-port: getTypeOfInitializer @6.0.3
@@ -5798,7 +5795,7 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_types::CompilerOptions;
+    use tsc_types::CompilerOptions;
 
     use crate::state::test_support::with_program_state;
     use crate::{check_program, InputFile};
@@ -6042,7 +6039,7 @@ mod tests {
             allow_js: true,
             check_js: Some(true),
             strict: Some(true),
-            target: Some(tsrs2_types::ScriptTarget::ES_NEXT.bits()),
+            target: Some(tsc_types::ScriptTarget::ES_NEXT.bits()),
             ..CompilerOptions::default()
         };
         let rows: Vec<_> = checked_program_rows_with_file("a.js", text, &options)
@@ -6147,7 +6144,7 @@ mod tests {
 
     #[test]
     fn type_predicate_assignability_keeps_relation_chain_and_related_info() {
-        fn flatten_codes(chain: &tsrs2_diags::MessageChain, codes: &mut Vec<u32>) {
+        fn flatten_codes(chain: &tsc_diagnostics::MessageChain, codes: &mut Vec<u32>) {
             codes.push(chain.code);
             for child in &chain.next {
                 flatten_codes(child, codes);
@@ -6290,7 +6287,7 @@ mod tests {
             check_js: Some(true),
             strict: Some(true),
             no_implicit_this: Some(false),
-            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            target: Some(tsc_types::ScriptTarget::ES2015.bits()),
             ..CompilerOptions::default()
         };
         let rows = checked_program_rows_with_file("a.js", text, &options)
@@ -6501,7 +6498,7 @@ mod tests {
             {
                 let options = CompilerOptions {
                     module: Some(module),
-                    target: Some(tsrs2_types::ScriptTarget::ES2022.bits()),
+                    target: Some(tsc_types::ScriptTarget::ES2022.bits()),
                     allow_js,
                     check_js,
                     ..CompilerOptions::default()
@@ -6523,7 +6520,7 @@ mod tests {
         for (extension, allow_js, check_js) in [("mts", false, None), ("mjs", true, Some(true))] {
             let options = CompilerOptions {
                 module: Some(100),
-                target: Some(tsrs2_types::ScriptTarget::ES2022.bits()),
+                target: Some(tsc_types::ScriptTarget::ES2022.bits()),
                 allow_js,
                 check_js,
                 ..CompilerOptions::default()
@@ -6575,7 +6572,7 @@ declare const u: unknown;
             rows,
             [(
                 80007,
-                tsrs2_diags::DiagnosticCategory::Suggestion,
+                tsc_diagnostics::DiagnosticCategory::Suggestion,
                 Some(text.find("await n").expect("positive await") as u32),
                 Some(7),
                 "'await' has no effect on the type of this expression.".to_owned(),
@@ -6610,7 +6607,7 @@ declare const u: unknown;
         assert_eq!(
             js_rows,
             [(
-                tsrs2_diags::DiagnosticCategory::Suggestion,
+                tsc_diagnostics::DiagnosticCategory::Suggestion,
                 Some(js.find("await 1").expect("checked-JS await") as u32),
                 Some(7),
                 "'await' has no effect on the type of this expression.".to_owned(),
@@ -6633,7 +6630,7 @@ declare const u: unknown;
             allow_js: true,
             check_js: Some(true),
             no_implicit_any: Some(true),
-            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            target: Some(tsc_types::ScriptTarget::ES2015.bits()),
             ..CompilerOptions::default()
         };
         let rows = checked_program_rows_with_file("a.js", text, &options)
@@ -6663,7 +6660,7 @@ declare const u: unknown;
             "function* f(): any { const value = yield 0; }\n",
             &CompilerOptions {
                 no_implicit_any: Some(true),
-                target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+                target: Some(tsc_types::ScriptTarget::ES2015.bits()),
                 ..CompilerOptions::default()
             },
         )
@@ -6776,7 +6773,7 @@ declare const u: unknown;
     #[test]
     fn async_unresolved_alias_return_stays_on_the_error_type_bailout() {
         let options = CompilerOptions {
-            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            target: Some(tsc_types::ScriptTarget::ES2015.bits()),
             ..CompilerOptions::default()
         };
         let rows = checked_rows_with(
@@ -6971,7 +6968,7 @@ declare const u: unknown;
                 },
             ],
             &CompilerOptions {
-                target: Some(tsrs2_types::ScriptTarget::ES5.bits()),
+                target: Some(tsc_types::ScriptTarget::ES5.bits()),
                 ..CompilerOptions::default()
             },
         );
@@ -7047,7 +7044,7 @@ declare const u: unknown;
             allow_js: true,
             check_js: Some(true),
             strict: Some(true),
-            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            target: Some(tsc_types::ScriptTarget::ES2015.bits()),
             ..CompilerOptions::default()
         };
         let result = check_program(

@@ -5,16 +5,16 @@
 //! constraints, and participate in type- and expression-position
 //! access checking.
 
-use tsrs2_binder::SymbolId;
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{
+use tsc_binder::SymbolId;
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{
     AccessFlags, IndexFlags, IntersectionFlags, ObjectFlags, SymbolFlags, TypeData, TypeFlags,
     TypeId, UnionReduction,
 };
 
 use crate::links::LinkSlot;
 use crate::state::{CheckResult, CheckerState};
-use tsrs2_diags::gen as diagnostics;
+use tsc_diagnostics::gen as diagnostics;
 
 impl<'a> CheckerState<'a> {
     /// tsc-port: getGlobalExtractSymbol @6.0.3
@@ -23,7 +23,7 @@ impl<'a> CheckerState<'a> {
     ///
     /// Miss AND wrong-arity (2317 reported inside the shared worker)
     /// both memoize unknownSymbol.
-    fn get_global_extract_symbol(&mut self) -> CheckResult<Option<tsrs2_binder::SymbolId>> {
+    fn get_global_extract_symbol(&mut self) -> CheckResult<Option<tsc_binder::SymbolId>> {
         if self.deferred_global_extract_symbol.is_none() {
             let resolved =
                 self.get_global_type_alias_symbol("Extract", 2, /*report_errors*/ true)?;
@@ -342,10 +342,10 @@ impl<'a> CheckerState<'a> {
                 .value_declaration
                 .is_some_and(|declaration| {
                     let source = self.binder.source_of_node(declaration);
-                    tsrs2_binder::node_util::has_syntactic_modifier(
+                    tsc_binder::node_util::has_syntactic_modifier(
                         source,
                         declaration,
-                        tsrs2_types::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER,
+                        tsc_types::ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER,
                     )
                 });
         if non_public {
@@ -403,7 +403,7 @@ impl<'a> CheckerState<'a> {
             NodeData::Identifier(data) => {
                 Ok(self
                     .tables
-                    .get_string_literal_type(tsrs2_binder::unescape_leading_underscores(
+                    .get_string_literal_type(tsc_binder::unescape_leading_underscores(
                         &data.escaped_text,
                     )))
             }
@@ -421,7 +421,7 @@ impl<'a> CheckerState<'a> {
             // escape rather than tsc's neverType tail (no such name
             // kind parses today).
             _ => {
-                let ty = self.check_expression(name, tsrs2_types::CheckMode::NORMAL)?;
+                let ty = self.check_expression(name, tsc_types::CheckMode::NORMAL)?;
                 Ok(self.tables.get_regular_type_of_literal_type(ty))
             }
         }
@@ -1169,7 +1169,7 @@ impl<'a> CheckerState<'a> {
                         _ => access_node,
                     };
                     let deprecated_entity =
-                        tsrs2_binder::unescape_leading_underscores(property_name).to_owned();
+                        tsc_binder::unescape_leading_underscores(property_name).to_owned();
                     self.add_deprecated_suggestion(
                         deprecated_node,
                         &declarations,
@@ -1263,7 +1263,7 @@ impl<'a> CheckerState<'a> {
                     match &state.tables.type_of(target).data {
                         TypeData::TupleTarget(data) => !data
                             .combined_flags
-                            .intersects(tsrs2_types::ElementFlags::VARIABLE),
+                            .intersects(tsc_types::ElementFlags::VARIABLE),
                         _ => false,
                     }
                 });
@@ -1601,7 +1601,7 @@ impl<'a> CheckerState<'a> {
             });
         if global_this_block_scoped {
             let display =
-                tsrs2_binder::unescape_leading_underscores(property_name.expect("checked above"));
+                tsc_binder::unescape_leading_underscores(property_name.expect("checked above"));
             let object_display = self.type_to_string_slice(object_type)?;
             self.error_at(
                 Some(access_expression),
@@ -1626,7 +1626,7 @@ impl<'a> CheckerState<'a> {
                     Some(argument) => {
                         let source = self.binder.source_of_node(argument);
                         let raw = source.arena.node(argument);
-                        let start = tsrs2_syntax::skip_trivia(&source.text, raw.pos as usize);
+                        let start = tsc_syntax::skip_trivia(&source.text, raw.pos as usize);
                         source.text[start..raw.end as usize].to_owned()
                     }
                     None => String::new(),
@@ -1687,11 +1687,11 @@ impl<'a> CheckerState<'a> {
                                 &[&object_display, &index_suggestion],
                             );
                         } else {
-                            let mut tail: Vec<tsrs2_diags::MessageChain> = Vec::new();
+                            let mut tail: Vec<tsc_diagnostics::MessageChain> = Vec::new();
                             if index_flags.intersects(TypeFlags::ENUM_LITERAL) {
                                 let index_display = self.type_to_string_slice(index_type)?;
                                 let object_display = self.type_to_string_slice(object_type)?;
-                                tail.push(tsrs2_diags::MessageChain::new(
+                                tail.push(tsc_diagnostics::MessageChain::new(
                                     &diagnostics::Property_0_does_not_exist_on_type_1,
                                     &[format!("[{index_display}]"), object_display],
                                 ));
@@ -1708,7 +1708,7 @@ impl<'a> CheckerState<'a> {
                                     .expect("unique symbol types carry their symbol");
                                 let symbol_name = self.get_fully_qualified_name(symbol);
                                 let object_display = self.type_to_string_slice(object_type)?;
-                                tail.push(tsrs2_diags::MessageChain::new(
+                                tail.push(tsc_diagnostics::MessageChain::new(
                                     &diagnostics::Property_0_does_not_exist_on_type_1,
                                     &[format!("[{symbol_name}]"), object_display],
                                 ));
@@ -1719,7 +1719,7 @@ impl<'a> CheckerState<'a> {
                                     .index_literal_value_display(index_type)
                                     .unwrap_or_default();
                                 let object_display = self.type_to_string_slice(object_type)?;
-                                tail.push(tsrs2_diags::MessageChain::new(
+                                tail.push(tsc_diagnostics::MessageChain::new(
                                     &diagnostics::Property_0_does_not_exist_on_type_1,
                                     &[value, object_display],
                                 ));
@@ -1727,14 +1727,14 @@ impl<'a> CheckerState<'a> {
                             {
                                 let index_display = self.type_to_string_slice(index_type)?;
                                 let object_display = self.type_to_string_slice(object_type)?;
-                                tail.push(tsrs2_diags::MessageChain::new(
+                                tail.push(tsc_diagnostics::MessageChain::new(
                                     &diagnostics::No_index_signature_with_a_parameter_of_type_0_was_found_on_type_1,
                                     &[index_display, object_display],
                                 ));
                             }
                             let full_display = self.type_to_string_slice(full_index_type)?;
                             let object_display = self.type_to_string_slice(object_type)?;
-                            let head = tsrs2_diags::MessageChain::new(
+                            let head = tsc_diagnostics::MessageChain::new(
                                 &diagnostics::Element_implicitly_has_an_any_type_because_expression_of_type_0_can_t_be_used_to_index_type_1,
                                 &[full_display, object_display],
                             );
@@ -1784,7 +1784,7 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         }
         let source = self.binder.source_of_node(access_expression);
-        if tsrs2_binder::node_util::is_assignment_target(source, access_expression)
+        if tsc_binder::node_util::is_assignment_target(source, access_expression)
             || self.is_delete_target(access_expression)
         {
             let object_display = self.type_to_string_slice(object_type)?;
@@ -1905,13 +1905,13 @@ impl<'a> CheckerState<'a> {
             // literal value (tsc passes `indexType.value` there) use
             // index_literal_value_display instead.
             TypeData::Literal {
-                value: tsrs2_types::LiteralValue::String(value),
+                value: tsc_types::LiteralValue::String(value),
             } => value
                 .to_utf8()
-                .map(|value| tsrs2_syntax::escape_leading_underscores(&value)),
+                .map(|value| tsc_syntax::escape_leading_underscores(&value)),
             TypeData::Literal {
-                value: tsrs2_types::LiteralValue::Number(value),
-            } => Some(tsrs2_types::tables::js_number_to_string(*value)),
+                value: tsc_types::LiteralValue::Number(value),
+            } => Some(tsc_types::tables::js_number_to_string(*value)),
             // getPropertyNameFromType's UniqueESSymbol arm: the
             // late-bound `__@<name>@<id>` member name.
             TypeData::UniqueESSymbol { escaped_name } => Some(escaped_name.clone()),
@@ -1931,15 +1931,15 @@ impl<'a> CheckerState<'a> {
     fn index_literal_value_display(&self, ty: TypeId) -> Option<String> {
         match &self.tables.type_of(ty).data {
             TypeData::Literal {
-                value: tsrs2_types::LiteralValue::String(value),
+                value: tsc_types::LiteralValue::String(value),
             } => Some(
                 value
                     .to_utf8()
                     .unwrap_or_else(|| crate::check::string_literal_type_display_text(value)),
             ),
             TypeData::Literal {
-                value: tsrs2_types::LiteralValue::Number(value),
-            } => Some(tsrs2_types::tables::js_number_to_string(*value)),
+                value: tsc_types::LiteralValue::Number(value),
+            } => Some(tsc_types::tables::js_number_to_string(*value)),
             _ => None,
         }
     }
@@ -1958,7 +1958,7 @@ impl<'a> CheckerState<'a> {
                     .element_flags
                     .iter()
                     .rev()
-                    .position(|f| !f.intersects(tsrs2_types::ElementFlags::FIXED))
+                    .position(|f| !f.intersects(tsc_types::ElementFlags::FIXED))
                     .unwrap_or(data.element_flags.len());
                 data.fixed_length + end.min(data.element_flags.len() - data.fixed_length)
             }
@@ -2016,8 +2016,7 @@ impl<'a> CheckerState<'a> {
         // their arguments lazily here.
         let type_arguments: Vec<TypeId> = self.get_type_arguments(ty)?;
         let target = self.tables.reference_target(ty);
-        let element_flags: Vec<tsrs2_types::ElementFlags> = match &self.tables.type_of(target).data
-        {
+        let element_flags: Vec<tsc_types::ElementFlags> = match &self.tables.type_of(target).data {
             TypeData::TupleTarget(data) => data.element_flags.to_vec(),
             _ => return Ok(None),
         };
@@ -2029,7 +2028,7 @@ impl<'a> CheckerState<'a> {
         for i in index..length {
             let t = type_arguments[i];
             element_types.push(
-                if element_flags[i].intersects(tsrs2_types::ElementFlags::VARIADIC) {
+                if element_flags[i].intersects(tsc_types::ElementFlags::VARIADIC) {
                     let number = self.tables.intrinsics.number;
                     self.get_indexed_access_type(t, number, AccessFlags::NONE, None, None, None)?
                 } else {
@@ -2089,21 +2088,21 @@ impl<'a> CheckerState<'a> {
 /// tsc-span: _tsc.js:19205-19207
 pub(crate) fn is_numeric_literal_name(name: &str) -> bool {
     match name.parse::<f64>() {
-        Ok(value) => tsrs2_types::tables::js_number_to_string(value) == name,
+        Ok(value) => tsc_types::tables::js_number_to_string(value) == name,
         Err(_) => false,
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_types::{AccessFlags, CompilerOptions, IndexFlags, SymbolFlags, TypeData, TypeFlags};
+    use tsc_types::{AccessFlags, CompilerOptions, IndexFlags, SymbolFlags, TypeData, TypeFlags};
 
     use crate::relpin::find_probe_annotation;
     use crate::state::test_support::with_program_state;
     use crate::state::CheckerState;
     use crate::{check_program, InputFile};
 
-    fn annotation_type(state: &mut CheckerState, name: &str) -> tsrs2_types::TypeId {
+    fn annotation_type(state: &mut CheckerState, name: &str) -> tsc_types::TypeId {
         let annotation =
             find_probe_annotation(state.binder.source(0), name).expect("var with annotation");
         state
@@ -2111,12 +2110,12 @@ mod tests {
             .expect("annotation resolves")
     }
 
-    fn type_parameter(state: &mut CheckerState, name: &str) -> tsrs2_types::TypeId {
+    fn type_parameter(state: &mut CheckerState, name: &str) -> tsc_types::TypeId {
         let source = state.binder.source(0);
         let inside = source
             .arena
             .node_ids()
-            .find(|&id| source.arena.node(id).kind == tsrs2_syntax::SyntaxKind::VariableDeclaration)
+            .find(|&id| source.arena.node(id).kind == tsc_syntax::SyntaxKind::VariableDeclaration)
             .expect("var declaration");
         let symbol = state
             .resolve_name(

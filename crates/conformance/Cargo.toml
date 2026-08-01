@@ -1,11 +1,15 @@
 [package]
-name = "tsrs2-conformance"
+name = "tsc-rs-conformance"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[package.metadata.tsc-rs]
+role = "conformance"
+dev-profile-opt-level = 3
+
 [lib]
-name = "tsrs2_conformance"
+name = "tsc_conformance"
 path = "src/lib.rs"
 
 [dependencies]
@@ -13,8 +17,8 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
 toml_edit = "0.22"
-tsrs2-checker = { path = "../checker" }
-tsrs2-diags = { path = "../diags" }
-tsrs2-harness = { path = "../harness" }
-tsrs2-oracle = { path = "../oracle" }
+tsc-checker.workspace = true
+tsc-diagnostics.workspace = true
+tsc-harness.workspace = true
+tsc-oracle.workspace = true
 zstd = "0.13"

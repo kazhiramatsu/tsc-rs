@@ -16,9 +16,9 @@ use crate::node_util::{
 };
 use crate::symbols::{SymbolId, SymbolTable};
 use std::collections::HashMap;
-use tsrs2_diags::gen as diagnostics;
-use tsrs2_syntax::{for_each_child, NodeData, NodeId, SourceFile, SyntaxKind};
-use tsrs2_types::{FlowFlags, ModifierFlags, NodeFlags, SymbolFlags};
+use tsc_diagnostics::gen as diagnostics;
+use tsc_syntax::{for_each_child, NodeData, NodeId, SourceFile, SyntaxKind};
+use tsc_types::{FlowFlags, ModifierFlags, NodeFlags, SymbolFlags};
 
 /// tsc ContainerFlags (binder-internal, not in the generated enums).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -692,7 +692,7 @@ impl<'a> Binder<'a> {
     pub fn error_on_first_token(
         &mut self,
         node: NodeId,
-        message: &'static tsrs2_diags::DiagnosticMessage,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
         args: &[&str],
     ) {
         let pos = self.source.arena.node(node).pos as usize;
@@ -702,11 +702,11 @@ impl<'a> Binder<'a> {
         let to_utf16 = |byte: usize| -> u32 { map.get(byte).copied().unwrap_or(byte as u32) };
         let start_utf16 = to_utf16(start);
         let end_utf16 = to_utf16(end);
-        self.bind_diagnostics.push(tsrs2_diags::Diagnostic::new(
+        self.bind_diagnostics.push(tsc_diagnostics::Diagnostic::new(
             Some(self.source.file_name.clone()),
             Some(start_utf16),
             Some(end_utf16.saturating_sub(start_utf16)),
-            tsrs2_diags::MessageChain::new(message, &args),
+            tsc_diagnostics::MessageChain::new(message, &args),
         ));
     }
 

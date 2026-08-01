@@ -1164,7 +1164,7 @@ fn producer_pins(workspace: &Path, include_render_driver: bool) -> ConformanceRe
 /// producer would silently redefine it.
 pub(crate) fn verify_launched_node(
     workspace: &Path,
-    pool: &tsrs2_oracle::OraclePool,
+    pool: &tsc_oracle::OraclePool,
 ) -> ConformanceResult<()> {
     let pinned = pinned_node_version(workspace)?;
     let launched = pool
@@ -1187,7 +1187,7 @@ pub(crate) fn verify_launched_node(
 /// paths and therefore never starts Node during ordinary conformance.
 pub fn verify_launched_render_node(
     workspace: &Path,
-    pool: &tsrs2_oracle::OraclePool,
+    pool: &tsc_oracle::OraclePool,
 ) -> ConformanceResult<()> {
     let pinned = pinned_node_version(workspace)?;
     let launched = pool
@@ -1312,7 +1312,7 @@ fn build_oracle_inputs_with_t4_pins(
         if planned_t4_pins.is_none() {
             has_t4_inputs = golden_has_t4;
         }
-        let programs = tsrs2_harness::expand_fixture_file(fixture, &lib_dir)?;
+        let programs = tsc_harness::expand_fixture_file(fixture, &lib_dir)?;
         if programs.len() != golden.cases.len() {
             return Err(format!(
                 "golden {key} has {} case(s) but the fixture expands to {} program(s)",

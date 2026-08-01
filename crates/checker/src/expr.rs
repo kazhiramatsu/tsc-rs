@@ -17,13 +17,13 @@
 //!   (hasContextualTypeWithNoGenericTypes, getContextualThisParameterType)
 //!   are live since 5.5b (contextual.rs owns the band).
 
-use tsrs2_binder::{node_util, SymbolId};
-use tsrs2_diags::{
+use tsc_binder::{node_util, SymbolId};
+use tsc_diagnostics::{
     gen as diagnostics, Diagnostic, DiagnosticCategory, DiagnosticMessage, MessageChain,
     RelatedInfo,
 };
-use tsrs2_syntax::{regex::validate_regular_expression_literal, NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{
+use tsc_syntax::{regex::validate_regular_expression_literal, NodeData, NodeId, SyntaxKind};
+use tsc_types::{
     CheckMode, ContextFlags, ModifierFlags, NodeCheckFlags, ObjectFlags, PseudoBigInt,
     ScriptTarget, SymbolFlags, TypeData, TypeFlags, TypeId,
 };
@@ -227,7 +227,7 @@ impl<'a> CheckerState<'a> {
                     &inferences,
                     instantiated_signature,
                     contextual_signature,
-                    tsrs2_types::InferencePriority::NONE,
+                    tsc_types::InferencePriority::NONE,
                     /*contravariant*/ true,
                 )?;
                 let some_have_candidates = inferences.iter().any(|&slot| {
@@ -238,7 +238,7 @@ impl<'a> CheckerState<'a> {
                         &inferences,
                         instantiated_signature,
                         contextual_signature,
-                        tsrs2_types::InferencePriority::NONE,
+                        tsc_types::InferencePriority::NONE,
                     )?;
                     if !self.has_overlapping_inferences(&live_slots, &inferences) {
                         self.merge_inferences(context, &inferences);
@@ -307,7 +307,7 @@ impl<'a> CheckerState<'a> {
                     .create_symbol(SymbolFlags::TYPE_PARAMETER, new_name);
                 let new_type_parameter = self.tables.create_type(
                     TypeFlags::TYPE_PARAMETER,
-                    tsrs2_types::TypeData::TypeParameter {
+                    tsc_types::TypeData::TypeParameter {
                         is_this_type: false,
                         constraint: None,
                     },
@@ -390,7 +390,7 @@ impl<'a> CheckerState<'a> {
                 .get_inference_context(node)
                 .expect("Inferential check mode implies an inference context (80817)");
             self.inference_context_mut(context).flags |=
-                tsrs2_types::InferenceFlags::SKIPPED_GENERIC_FUNCTION;
+                tsc_types::InferenceFlags::SKIPPED_GENERIC_FUNCTION;
         }
     }
 
@@ -460,7 +460,7 @@ impl<'a> CheckerState<'a> {
         let Some(declaration) = self.binder.symbol(symbol).value_declaration else {
             return;
         };
-        let ambient = self.node_flags(declaration) & tsrs2_types::NodeFlags::AMBIENT.bits() != 0;
+        let ambient = self.node_flags(declaration) & tsc_types::NodeFlags::AMBIENT.bits() != 0;
         let valid_type_only_use =
             self.is_in_type_query(node) || self.is_in_ambient_or_type_node(node);
         if ambient && !valid_type_only_use {
@@ -730,7 +730,7 @@ impl<'a> CheckerState<'a> {
                         .is_some_and(|grand| self.kind_of(grand) == SyntaxKind::LiteralType))
         });
         if !literal_type {
-            let ambient = self.node_flags(node) & tsrs2_types::NodeFlags::AMBIENT.bits() != 0;
+            let ambient = self.node_flags(node) & tsc_types::NodeFlags::AMBIENT.bits() != 0;
             if !ambient && self.options.emit_script_target() < ScriptTarget::ES2020 {
                 self.grammar_error_on_node(
                     node,
@@ -877,7 +877,7 @@ impl<'a> CheckerState<'a> {
         let start_utf16 = to_utf16(start);
         let end_utf16 = to_utf16(end);
         let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
-        let diagnostic = tsrs2_diags::Diagnostic::new(
+        let diagnostic = tsc_diagnostics::Diagnostic::new(
             Some(source.file_name.clone()),
             Some(start_utf16),
             Some(end_utf16.saturating_sub(start_utf16)),
@@ -1147,7 +1147,7 @@ impl<'a> CheckerState<'a> {
                     self.data_of(declaration),
                     NodeData::VariableDeclaration(data) if data.exclamation_token.is_some()
                 ))
-            || self.node_flags(declaration) & tsrs2_types::NodeFlags::AMBIENT.bits() != 0;
+            || self.node_flags(declaration) & tsc_types::NodeFlags::AMBIENT.bits() != 0;
         // The initialType ladder (72198): live from 6.2 — the real
         // assignment arm terminates walks before the initial type can
         // resurrect at assigned uses.
@@ -1287,7 +1287,7 @@ impl<'a> CheckerState<'a> {
             if !declarations.is_empty() {
                 let deprecated_entity = self
                     .identifier_text_of(node)
-                    .map(tsrs2_binder::unescape_leading_underscores)
+                    .map(tsc_binder::unescape_leading_underscores)
                     .unwrap_or_default()
                     .to_owned();
                 self.add_deprecated_suggestion(node, &declarations, &deprecated_entity);
@@ -1816,9 +1816,9 @@ impl<'a> CheckerState<'a> {
             }
         }
         let contextual_type = if check_mode.intersects(CheckMode::REST_BINDING_ELEMENT) {
-            self.get_contextual_type(node, tsrs2_types::ContextFlags::SKIP_BINDING_PATTERNS)?
+            self.get_contextual_type(node, tsc_types::ContextFlags::SKIP_BINDING_PATTERNS)?
         } else {
-            self.get_contextual_type(node, tsrs2_types::ContextFlags::NONE)?
+            self.get_contextual_type(node, tsc_types::ContextFlags::NONE)?
         };
         match contextual_type {
             Some(contextual_type) => Ok(!self.is_generic_type(contextual_type)?),
@@ -1883,7 +1883,7 @@ impl<'a> CheckerState<'a> {
         if !changed {
             return Ok(ty);
         }
-        self.get_union_type_ex(&mapped, tsrs2_types::UnionReduction::Literal)
+        self.get_union_type_ex(&mapped, tsc_types::UnionReduction::Literal)
     }
 
     /// tsc getControlFlowContainer (71477).
@@ -1917,7 +1917,7 @@ impl<'a> CheckerState<'a> {
         let Some(list) = self.parent_of(declaration) else {
             return false;
         };
-        if self.node_flags(list) & tsrs2_types::NodeFlags::LET.bits() == 0 {
+        if self.node_flags(list) & tsc_types::NodeFlags::LET.bits() == 0 {
             return false;
         }
         let source = self.binder.source_of_node(declaration);
@@ -2008,8 +2008,8 @@ impl<'a> CheckerState<'a> {
             }
             SyntaxKind::BinaryExpression => {
                 let source = self.binder.source_of_node(node);
-                if tsrs2_binder::get_assignment_declaration_kind(source, node)
-                    != tsrs2_binder::AssignmentDeclarationKind::ModuleExports
+                if tsc_binder::get_assignment_declaration_kind(source, node)
+                    != tsc_binder::AssignmentDeclarationKind::ModuleExports
                 {
                     return false;
                 }
@@ -2600,8 +2600,8 @@ impl<'a> CheckerState<'a> {
             _ => None,
         };
         let class_name_from_assignment = |assignment: NodeId| {
-            if tsrs2_binder::get_assignment_declaration_kind(source, assignment)
-                != tsrs2_binder::AssignmentDeclarationKind::Prototype
+            if tsc_binder::get_assignment_declaration_kind(source, assignment)
+                != tsc_binder::AssignmentDeclarationKind::Prototype
             {
                 return None;
             }
@@ -2614,8 +2614,8 @@ impl<'a> CheckerState<'a> {
             SyntaxKind::FunctionExpression => {
                 let parent = self.parent_of(container)?;
                 if self.kind_of(parent) == SyntaxKind::BinaryExpression
-                    && tsrs2_binder::get_assignment_declaration_kind(source, parent)
-                        == tsrs2_binder::AssignmentDeclarationKind::PrototypeProperty
+                    && tsc_binder::get_assignment_declaration_kind(source, parent)
+                        == tsc_binder::AssignmentDeclarationKind::PrototypeProperty
                 {
                     let NodeData::BinaryExpression(data) = self.data_of(parent) else {
                         return None;
@@ -3233,7 +3233,7 @@ impl<'a> CheckerState<'a> {
         let Some(expression) = data.expression else {
             return Ok(self.tables.intrinsics.error);
         };
-        if self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES2015 {
+        if self.options.emit_script_target() < tsc_types::ScriptTarget::ES2015 {
             let helpers = if self.options.downlevel_iteration == Some(true) {
                 crate::modules::EMIT_HELPER_READ | crate::modules::EMIT_HELPER_SPREAD_ARRAY
             } else {
@@ -3244,7 +3244,7 @@ impl<'a> CheckerState<'a> {
         let array_or_iterable_type = self.check_expression(expression, check_mode)?;
         let undefined_type = self.tables.intrinsics.undefined;
         self.check_iterated_type_or_element_type(
-            tsrs2_types::IterationUse::SPREAD,
+            tsc_types::IterationUse::SPREAD,
             array_or_iterable_type,
             undefined_type,
             Some(expression),
@@ -3334,7 +3334,7 @@ impl<'a> CheckerState<'a> {
                 .flags
                 .intersects(SymbolFlags::OPTIONAL)
         } else {
-            self.has_type_facts(ty, tsrs2_types::TypeFacts::IS_UNDEFINED)?
+            self.has_type_facts(ty, tsc_types::TypeFacts::IS_UNDEFINED)?
         };
         if !optional {
             self.error_at(
@@ -3561,7 +3561,7 @@ impl<'a> CheckerState<'a> {
         if missing_elements.is_empty() {
             return Ok(ty);
         }
-        let mut members = tsrs2_binder::SymbolTable::default();
+        let mut members = tsc_binder::SymbolTable::default();
         let mut properties: Vec<SymbolId> = Vec::new();
         for prop in self.get_properties_of_object_type_owned(ty)? {
             let name = self.binder.symbol(prop).escaped_name.clone();
@@ -3588,7 +3588,7 @@ impl<'a> CheckerState<'a> {
         let source_object_flags = self.tables.object_flags_of(ty);
         let id = self
             .tables
-            .create_type(TypeFlags::OBJECT, tsrs2_types::TypeData::Object);
+            .create_type(TypeFlags::OBJECT, tsc_types::TypeData::Object);
         self.tables.type_mut(id).object_flags = source_object_flags;
         self.tables.type_mut(id).symbol = symbol;
         let members_id = self.alloc_members(crate::state::ResolvedMembers {
@@ -3628,9 +3628,9 @@ impl<'a> CheckerState<'a> {
         let target = self.tables.reference_target(ty);
         let (combined_variable, arity, mut element_flags, readonly) =
             match &self.tables.type_of(target).data {
-                tsrs2_types::TypeData::TupleTarget(data) => (
+                tsc_types::TypeData::TupleTarget(data) => (
                     data.combined_flags
-                        .intersects(tsrs2_types::ElementFlags::VARIABLE),
+                        .intersects(tsc_types::ElementFlags::VARIABLE),
                     data.element_flags.len(),
                     data.element_flags.to_vec(),
                     data.readonly,
@@ -3662,7 +3662,7 @@ impl<'a> CheckerState<'a> {
                 } else {
                     self.tables.intrinsics.any
                 });
-                element_flags.push(tsrs2_types::ElementFlags::OPTIONAL);
+                element_flags.push(tsc_types::ElementFlags::OPTIONAL);
                 if !omitted && !has_default {
                     let any = self.tables.intrinsics.any;
                     self.report_implicit_any(e, any, /*widening_kind*/ None)?;
@@ -3701,7 +3701,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<TypeId> {
         let source = self.binder.source_of_node(declaration);
         let constant = node_util::get_combined_node_flags(source, declaration).bits()
-            & tsrs2_types::NodeFlags::CONSTANT.bits()
+            & tsc_types::NodeFlags::CONSTANT.bits()
             != 0;
         if constant || self.is_declaration_readonly(declaration) {
             Ok(ty)
@@ -3803,7 +3803,7 @@ impl<'a> CheckerState<'a> {
             return Ok(true);
         }
         if self.is_valid_const_assertion_argument(node)? {
-            let contextual = self.get_contextual_type(node, tsrs2_types::ContextFlags::NONE)?;
+            let contextual = self.get_contextual_type(node, tsc_types::ContextFlags::NONE)?;
             if self.is_const_type_variable(contextual, 0)? {
                 return Ok(true);
             }
@@ -3964,7 +3964,7 @@ impl<'a> CheckerState<'a> {
         }
         if self.tables.is_tuple_type(ty) {
             let target = self.tables.reference_target(ty);
-            let element_flags: Vec<tsrs2_types::ElementFlags> =
+            let element_flags: Vec<tsc_types::ElementFlags> =
                 match &self.tables.type_of(target).data {
                     TypeData::TupleTarget(data) => data.element_flags.to_vec(),
                     _ => return Ok(false),
@@ -3975,7 +3975,7 @@ impl<'a> CheckerState<'a> {
             for (i, &element) in type_arguments.iter().enumerate() {
                 if element_flags
                     .get(i)
-                    .is_some_and(|flags| flags.intersects(tsrs2_types::ElementFlags::VARIADIC))
+                    .is_some_and(|flags| flags.intersects(tsc_types::ElementFlags::VARIADIC))
                     && self.is_const_type_variable(Some(element), depth)?
                 {
                     return Ok(true);
@@ -4012,7 +4012,7 @@ impl<'a> CheckerState<'a> {
         if self.is_type_assertion_expr(node) {
             return Ok(ty);
         }
-        let contextual = self.get_contextual_type(node, tsrs2_types::ContextFlags::NONE)?;
+        let contextual = self.get_contextual_type(node, tsc_types::ContextFlags::NONE)?;
         let instantiated = self.instantiate_contextual_type_for_node(contextual, node)?;
         self.get_widened_literal_like_type_for_contextual_type(ty, instantiated)
     }
@@ -4031,17 +4031,17 @@ impl<'a> CheckerState<'a> {
             == SyntaxKind::ObjectLiteralExpression
             && self.parent_of(parent).is_some_and(|assignment| {
                 self.kind_of(assignment) == SyntaxKind::BinaryExpression
-                    && tsrs2_binder::get_assignment_declaration_kind(
+                    && tsc_binder::get_assignment_declaration_kind(
                         self.binder.source_of_node(assignment),
                         assignment,
-                    ) == tsrs2_binder::AssignmentDeclarationKind::ModuleExports
+                    ) == tsc_binder::AssignmentDeclarationKind::ModuleExports
             });
         object_literal_module_export
             || (self.kind_of(parent) == SyntaxKind::BinaryExpression
-                && tsrs2_binder::get_assignment_declaration_kind(
+                && tsc_binder::get_assignment_declaration_kind(
                     self.binder.source_of_node(parent),
                     parent,
-                ) == tsrs2_binder::AssignmentDeclarationKind::ExportsProperty)
+                ) == tsc_binder::AssignmentDeclarationKind::ExportsProperty)
     }
 
     /// tsc-port: checkPropertyAssignment @6.0.3
@@ -4510,13 +4510,13 @@ pub(crate) fn parse_pseudo_big_int(text: &str) -> CheckResult<PseudoBigInt> {
 
 #[cfg(test)]
 mod c0_expression_recovery_tests {
-    use tsrs2_binder::bind_source_file;
-    use tsrs2_syntax::nodes::{
+    use tsc_binder::bind_source_file;
+    use tsc_syntax::nodes::{
         DeleteExpressionData, EmptyStatementData, ParenthesizedExpressionData,
         PropertyAssignmentData, SpreadElementData, TypeOfExpressionData,
     };
-    use tsrs2_syntax::{parse_source_file, LanguageVariant, NodeData, ParseOptions, SyntaxKind};
-    use tsrs2_types::{CheckMode, CompilerOptions, NodeFlags};
+    use tsc_syntax::{parse_source_file, LanguageVariant, NodeData, ParseOptions, SyntaxKind};
+    use tsc_types::{CheckMode, CompilerOptions, NodeFlags};
 
     use crate::state::CheckerState;
 
@@ -4619,8 +4619,8 @@ mod c0_expression_recovery_tests {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-    use tsrs2_types::{CheckMode, CompilerOptions};
+    use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+    use tsc_types::{CheckMode, CompilerOptions};
 
     use crate::state::test_support::with_program_state;
     use crate::state::CheckerState;
@@ -4675,7 +4675,7 @@ mod tests {
                     .arena
                     .node_ids()
                     .filter(|&node| {
-                        tsrs2_binder::node_util::kind_of(source, node) == SyntaxKind::BindingElement
+                        tsc_binder::node_util::kind_of(source, node) == SyntaxKind::BindingElement
                     })
                     .collect::<Vec<_>>();
                 assert_eq!(elements.len(), 2);
@@ -4712,10 +4712,9 @@ mod tests {
                     .arena
                     .node_ids()
                     .filter(|&node| {
-                        tsrs2_binder::node_util::kind_of(source, node)
-                            == SyntaxKind::BinaryExpression
-                            && tsrs2_binder::get_assignment_declaration_kind(source, node)
-                                == tsrs2_binder::AssignmentDeclarationKind::ModuleExports
+                        tsc_binder::node_util::kind_of(source, node) == SyntaxKind::BinaryExpression
+                            && tsc_binder::get_assignment_declaration_kind(source, node)
+                                == tsc_binder::AssignmentDeclarationKind::ModuleExports
                     })
                     .collect::<Vec<_>>();
                 assert_eq!(module_exports.len(), 2);
@@ -4868,10 +4867,10 @@ mod tests {
             .arena
             .node_ids()
             .find(|&id| {
-                tsrs2_binder::node_util::kind_of(source, id) == kind
+                tsc_binder::node_util::kind_of(source, id) == kind
                     && parent_kind.is_none_or(|expected| {
-                        tsrs2_binder::node_util::parent_of(source, id).is_some_and(|parent| {
-                            tsrs2_binder::node_util::kind_of(source, parent) == expected
+                        tsc_binder::node_util::parent_of(source, id).is_some_and(|parent| {
+                            tsc_binder::node_util::kind_of(source, parent) == expected
                         })
                     })
             })
@@ -4978,7 +4977,7 @@ mod tests {
     #[test]
     fn bigint_below_es2020_reports_2737() {
         let options = CompilerOptions {
-            target: Some(tsrs2_types::ScriptTarget::ES5.bits()),
+            target: Some(tsc_types::ScriptTarget::ES5.bits()),
             ..CompilerOptions::default()
         };
         assert_eq!(checked_rows_with("1n;\n", &options), [(2737, 0, 2)]);
@@ -5072,7 +5071,7 @@ mod tests {
                     .arena
                     .node_ids()
                     .filter(|&id| {
-                        tsrs2_binder::node_util::kind_of(source, id)
+                        tsc_binder::node_util::kind_of(source, id)
                             == SyntaxKind::ExpressionStatement
                     })
                     .collect();
@@ -5138,8 +5137,8 @@ mod tests {
                 .arena
                 .node_ids()
                 .find(|&id| {
-                    tsrs2_binder::node_util::kind_of(source, id) == SyntaxKind::Identifier
-                        && tsrs2_binder::node_util::parent_of(source, id).is_some_and(|parent| {
+                    tsc_binder::node_util::kind_of(source, id) == SyntaxKind::Identifier
+                        && tsc_binder::node_util::parent_of(source, id).is_some_and(|parent| {
                             matches!(
                                 &source.arena.node(parent).data,
                                 NodeData::BinaryExpression(data) if data.left == Some(id)

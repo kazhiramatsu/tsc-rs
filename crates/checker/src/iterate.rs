@@ -23,9 +23,9 @@
 //! diagnostics.add dedupes the exact duplicate away), so one explicit
 //! add is byte-equivalent.
 
-use tsrs2_diags::{gen as diagnostics, Diagnostic, MessageChain, RelatedInfo};
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{
+use tsc_diagnostics::{gen as diagnostics, Diagnostic, MessageChain, RelatedInfo};
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{
     IterationTypeKind, IterationUse, ScriptTarget, SymbolFlags, TypeFacts, TypeFlags, TypeId,
     UnionReduction,
 };
@@ -139,14 +139,14 @@ impl IterResolver {
         }
     }
 
-    fn must_have_a_next_method_diagnostic(self) -> &'static tsrs2_diags::DiagnosticMessage {
+    fn must_have_a_next_method_diagnostic(self) -> &'static tsc_diagnostics::DiagnosticMessage {
         match self {
             IterResolver::Sync => &diagnostics::An_iterator_must_have_a_next_method,
             IterResolver::Async => &diagnostics::An_async_iterator_must_have_a_next_method,
         }
     }
 
-    fn must_be_a_method_diagnostic(self) -> &'static tsrs2_diags::DiagnosticMessage {
+    fn must_be_a_method_diagnostic(self) -> &'static tsc_diagnostics::DiagnosticMessage {
         match self {
             IterResolver::Sync => &diagnostics::The_0_property_of_an_iterator_must_be_a_method,
             IterResolver::Async => {
@@ -155,7 +155,7 @@ impl IterResolver {
         }
     }
 
-    fn must_have_a_value_diagnostic(self) -> &'static tsrs2_diags::DiagnosticMessage {
+    fn must_have_a_value_diagnostic(self) -> &'static tsc_diagnostics::DiagnosticMessage {
         match self {
             IterResolver::Sync => {
                 &diagnostics::The_type_returned_by_the_0_method_of_an_iterator_must_have_a_value_property
@@ -189,7 +189,7 @@ impl<'a> CheckerState<'a> {
     fn create_iteration_error(
         &self,
         target: IterationErrorTarget<'_>,
-        message: &'static tsrs2_diags::DiagnosticMessage,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
         args: &[&str],
     ) -> Diagnostic {
         match target {
@@ -208,7 +208,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         target: IterationErrorTarget<'_>,
         maybe_missing_await: bool,
-        message: &'static tsrs2_diags::DiagnosticMessage,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
         args: &[&str],
     ) -> usize {
         if let IterationErrorTarget::Node(node) = target {
@@ -230,7 +230,7 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target_type: TypeId,
         target: Option<IterationErrorTarget<'_>>,
-        head_message: &'static tsrs2_diags::DiagnosticMessage,
+        head_message: &'static tsc_diagnostics::DiagnosticMessage,
     ) -> CheckResult<bool> {
         match target {
             Some(IterationErrorTarget::Node(node)) => {
@@ -456,14 +456,15 @@ impl<'a> CheckerState<'a> {
             } else {
                 Some(self.get_union_type_ex(&return_types, UnionReduction::Literal)?)
             };
-            let next_type = if next_types.is_empty() {
-                None
-            } else {
-                Some(self.get_intersection_type(
-                    &next_types,
-                    tsrs2_types::IntersectionFlags::default(),
-                )?)
-            };
+            let next_type =
+                if next_types.is_empty() {
+                    None
+                } else {
+                    Some(self.get_intersection_type(
+                        &next_types,
+                        tsc_types::IntersectionFlags::default(),
+                    )?)
+                };
             return Ok(IterationTypesResult::Types(self.create_iteration_types(
                 yield_type,
                 return_type,
@@ -668,7 +669,7 @@ impl<'a> CheckerState<'a> {
                 .intersects(TypeFlags::UNION)
             {
                 let array_types: Vec<TypeId> = match &self.tables.type_of(input_type).data {
-                    tsrs2_types::TypeData::Union { types, .. } => types.to_vec(),
+                    tsc_types::TypeData::Union { types, .. } => types.to_vec(),
                     _ => unreachable!("union flag implies union data"),
                 };
                 let filtered_types: Vec<TypeId> = array_types
@@ -773,7 +774,7 @@ impl<'a> CheckerState<'a> {
         input_type: TypeId,
         allows_strings: bool,
         downlevel_iteration: bool,
-    ) -> CheckResult<(&'static tsrs2_diags::DiagnosticMessage, bool)> {
+    ) -> CheckResult<(&'static tsc_diagnostics::DiagnosticMessage, bool)> {
         if downlevel_iteration {
             return Ok(if allows_strings {
                 (
@@ -933,7 +934,7 @@ impl<'a> CheckerState<'a> {
             return Ok(cached.types());
         }
         let constituents: Vec<TypeId> = match &self.tables.type_of(ty).data {
-            tsrs2_types::TypeData::Union { types, .. } => types.to_vec(),
+            tsc_types::TypeData::Union { types, .. } => types.to_vec(),
             _ => unreachable!("union flag implies union data"),
         };
         let mut all_iteration_types: Vec<Option<IterationTypesResult>> = Vec::new();
@@ -1295,7 +1296,7 @@ impl<'a> CheckerState<'a> {
             return_types.push(self.get_return_type_of_signature(signature)?);
         }
         let iterator_type =
-            self.get_intersection_type(&return_types, tsrs2_types::IntersectionFlags::default())?;
+            self.get_intersection_type(&return_types, tsc_types::IntersectionFlags::default())?;
         let iteration_types = self
             .get_iteration_types_of_iterator_worker(
                 iterator_type,
@@ -1675,7 +1676,7 @@ impl<'a> CheckerState<'a> {
                     let global_generator = self.resolver_global_generator_type(resolver, false)?;
                     let global_iterator = self.resolver_global_iterator_type(resolver, false)?;
                     let member_of =
-                        |state: &Self, global: TypeId| -> Option<tsrs2_binder::SymbolId> {
+                        |state: &Self, global: TypeId| -> Option<tsc_binder::SymbolId> {
                             let symbol = state.tables.type_of(global).symbol?;
                             state.symbol_members(symbol).get(method_name).copied()
                         };
@@ -1698,7 +1699,7 @@ impl<'a> CheckerState<'a> {
                         if let Some(mapper) = mapper {
                             let type_parameters: Vec<TypeId> =
                                 match &self.tables.type_of(global_type).data {
-                                    tsrs2_types::TypeData::GenericType {
+                                    tsc_types::TypeData::GenericType {
                                         type_parameters, ..
                                     } => type_parameters.to_vec(),
                                     _ => Vec::new(),
@@ -1757,7 +1758,7 @@ impl<'a> CheckerState<'a> {
         } else {
             self.get_intersection_type(
                 &method_return_types,
-                tsrs2_types::IntersectionFlags::default(),
+                tsc_types::IntersectionFlags::default(),
             )?
         };
         let resolved_method_return_type = self

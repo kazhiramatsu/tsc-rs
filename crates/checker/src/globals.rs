@@ -11,10 +11,10 @@
 //! getTypeOfGlobalSymbol (60604): program-level 2318 +
 //! emptyGenericType (arity > 0) / emptyObjectType.
 
-use tsrs2_binder::SymbolId;
-use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
-use tsrs2_syntax::{NodeId, SyntaxKind};
-use tsrs2_types::{SymbolFlags, TypeId};
+use tsc_binder::SymbolId;
+use tsc_diagnostics::{gen as diagnostics, DiagnosticMessage};
+use tsc_syntax::{NodeId, SyntaxKind};
+use tsc_types::{SymbolFlags, TypeId};
 
 use crate::state::{CheckResult, CheckerState};
 
@@ -102,6 +102,24 @@ pub(crate) struct GlobalTypeMemos {
 }
 
 impl<'a> CheckerState<'a> {
+    fn init_global_type_probe_names(&self) -> [(&'static str, bool); 10] {
+        let strict_bind_call_apply = self
+            .options
+            .strict_option_value(self.options.strict_bind_call_apply);
+        [
+            ("IArguments", true),
+            ("Array", true),
+            ("Object", true),
+            ("Function", true),
+            ("CallableFunction", strict_bind_call_apply),
+            ("NewableFunction", strict_bind_call_apply),
+            ("String", true),
+            ("Number", true),
+            ("Boolean", true),
+            ("RegExp", true),
+        ]
+    }
+
     /// tsrs-native: publish file-less rows from one
     /// provenance-checked global getter through the aggregate program
     /// API.
@@ -152,7 +170,7 @@ impl<'a> CheckerState<'a> {
                 self.error_at(
                     None,
                     message,
-                    &[tsrs2_binder::unescape_leading_underscores(name)],
+                    &[tsc_binder::unescape_leading_underscores(name)],
                 );
                 self.suggestion_count += 1;
             }
@@ -173,22 +191,7 @@ impl<'a> CheckerState<'a> {
     /// getters consume this memo so each name keeps exactly one
     /// resolveName-with-message, like tsc.
     pub(crate) fn run_init_global_type_probes(&mut self) {
-        let strict_bind_call_apply = self
-            .options
-            .strict_option_value(self.options.strict_bind_call_apply);
-        let probes: [(&'static str, bool); 10] = [
-            ("IArguments", true),
-            ("Array", true),
-            ("Object", true),
-            ("Function", true),
-            ("CallableFunction", strict_bind_call_apply),
-            ("NewableFunction", strict_bind_call_apply),
-            ("String", true),
-            ("Number", true),
-            ("Boolean", true),
-            ("RegExp", true),
-        ];
-        for (name, live) in probes {
+        for (name, live) in self.init_global_type_probe_names() {
             if !live {
                 continue;
             }
@@ -207,6 +210,32 @@ impl<'a> CheckerState<'a> {
         }
     }
 
+    /// tsrs-native: bridge the lazy global getters into the owned program
+    /// session's eager global-diagnostics bucket.
+    ///
+    /// Materialize the file-less diagnostics that tsc publishes while
+    /// constructing the type checker. The conformance harness deliberately
+    /// observes per-file getters and leaves these rows deferred; the owned
+    /// no-emit entry calls this before checking any source so its separate
+    /// `getGlobalDiagnostics` bucket has the command-line timing.
+    pub(crate) fn materialize_init_global_diagnostics(&mut self) {
+        let diagnostics_before = self.diagnostics.len();
+        // initializeTypeChecker's exact getter order. Calling the full
+        // getters (rather than replaying only their symbol probes) also
+        // preserves wrong-kind and generic-arity diagnostics.
+        let _ = self.arguments_symbol_type();
+        let _ = self.global_array_type();
+        let _ = self.global_object_type();
+        let _ = self.global_function_type();
+        let _ = self.global_callable_function_type();
+        let _ = self.global_newable_function_type();
+        let _ = self.global_string_type();
+        let _ = self.global_number_type();
+        let _ = self.global_boolean_type();
+        let _ = self.global_regexp_type();
+        self.publish_visible_global_diagnostics_since(diagnostics_before);
+    }
+
     /// The init-probe memo consult: names on the initializeTypeChecker
     /// list already ran their (counted) probe at init; a memoized MISS
     /// emits its 2318 on first demand (error_at dedupes repeats)
@@ -218,7 +247,7 @@ impl<'a> CheckerState<'a> {
                 self.error_at(
                     None,
                     &diagnostics::Cannot_find_global_type_0,
-                    &[tsrs2_binder::unescape_leading_underscores(name)],
+                    &[tsc_binder::unescape_leading_underscores(name)],
                 );
                 None
             }
@@ -260,7 +289,7 @@ impl<'a> CheckerState<'a> {
         if !self
             .tables
             .flags_of(declared)
-            .intersects(tsrs2_types::TypeFlags::OBJECT)
+            .intersects(tsc_types::TypeFlags::OBJECT)
         {
             let name = self.symbol_display_name(symbol);
             let declaration = self.global_type_declaration(symbol);
@@ -275,7 +304,7 @@ impl<'a> CheckerState<'a> {
         // carry their parameters since 5.2b; plain Object declared
         // types are the non-generic (undefined -> 0) case.
         let type_parameter_count = match &self.tables.type_of(declared).data {
-            tsrs2_types::TypeData::GenericType {
+            tsc_types::TypeData::GenericType {
                 type_parameters, ..
             } => type_parameters.len(),
             _ => 0,
@@ -1282,7 +1311,7 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_types::{CompilerOptions, TypeFlags};
+    use tsc_types::{CompilerOptions, TypeFlags};
 
     use crate::state::test_support::with_program_state;
 

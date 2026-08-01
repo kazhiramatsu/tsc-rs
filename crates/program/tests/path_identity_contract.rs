@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use tsrs2_program::{PreparationErrorKind, PreparationOperation, ProgramPath};
+use tsc_program::{PreparationErrorKind, PreparationOperation, ProgramPath};
 
 #[test]
 fn display_and_canonical_paths_remain_distinct() {

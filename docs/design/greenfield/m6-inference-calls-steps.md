@@ -344,7 +344,7 @@ Commit(s): `m6 7.2a-d: inferFromTypes arms`.
   comparison; probe `rbase` (`a${number}` vs `a${T extends number}`)
   pins `number` (the shortcut wrapped it into `` `${number}` ``).
 - **isValidBigIntString split:** the scan half is
-  `tsrs2_syntax::scan_big_int_string` (the probe scanner skips trivia
+  `tsc_syntax::scan_big_int_string` (the probe scanner skips trivia
   inside `scan()`, so start-adjacency checks stand in for tsc's
   skipTrivia:false trivia tokens; the scanner radix-normalizes
   binary/octal at scan time where tsc defers to parsePseudoBigInt —

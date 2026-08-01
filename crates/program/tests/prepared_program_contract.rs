@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use tsrs2_diags::{Diagnostic, DiagnosticCategory, MessageChain, RelatedInfo};
-use tsrs2_host::{HostError, HostErrorKind, HostOperation};
-use tsrs2_program::{
+use tsc_diagnostics::{Diagnostic, DiagnosticCategory, MessageChain, RelatedInfo};
+use tsc_host::{HostError, HostErrorKind, HostOperation};
+use tsc_program::{
     CompilerOptions, ModuleExtension, ModuleResolution, PackageId, PackageJsonType,
     PackageMetadata, PathContext, PathMapping, PreparationDiagnostics, PreparationErrorKind,
     PreparationOperation, PreparedAuxiliaryFile, PreparedProgram, PreparedProgramBuilder,
@@ -111,7 +111,7 @@ fn preserves_final_program_order_independently_from_root_order() {
         program
             .roots()
             .iter()
-            .map(tsrs2_program::PreparedRoot::source)
+            .map(tsc_program::PreparedRoot::source)
             .collect::<Vec<_>>(),
         [Some(root)]
     );
@@ -473,8 +473,8 @@ fn resolution_keys_keep_mode_and_specifier_spelling_exact() {
         .is_ok());
 }
 
-fn builder_path(path: &str) -> tsrs2_program::CanonicalPath {
-    tsrs2_program::CanonicalPath::from_trusted_normalized(path).unwrap()
+fn builder_path(path: &str) -> tsc_program::CanonicalPath {
+    tsc_program::CanonicalPath::from_trusted_normalized(path).unwrap()
 }
 
 #[test]

@@ -36,7 +36,7 @@ each rejected because each one is observable through diagnostics.
 │   ├── binder/        # symbols, scopes, flow-graph construction
 │   ├── types/         # type objects, arenas, interning maps, flags
 │   ├── checker/       # the ported checker (largest crate, checker.ts-ordered)
-│   ├── diags/         # message tables (generated), chains, span utils
+│   ├── diagnostics/   # message tables (generated), chains, span utils
 │   ├── harness/       # fixture expansion, program.json, batch runner
 │   ├── oracle/        # node driver + rust client for diagnostics.json
 │   ├── conformance/   # classifier, tiers, ratchets, goldens
@@ -51,7 +51,7 @@ This is an Oxc-style virtual workspace: Rust sources live only in each
 member's `crates/*/src`, with no top-level `src/` directory.
 
 Dependency direction: `syntax ← binder ← checker`, `types ← checker`,
-everything ← `diags`. `harness`/`conformance`/`fuzz` depend on the
+everything ← `diagnostics`. `harness`/`conformance`/`fuzz` depend on the
 public `check_program` API only. No crate depends on `oracle` at
 runtime (test-only).
 
@@ -70,7 +70,7 @@ switch arms be ported verbatim.
 - `syntax::kind`: `SyntaxKind` as a `#[repr(u16)]` enum with tsc's
   numbering (extracted the same way). Parser ports then keep tsc's
   kind-based dispatch literally.
-- `diags::gen`: the full message table from `diagnosticMessages.json`
+- `diagnostics::gen`: the full message table from `diagnosticMessages.json`
   (code, category, text template, reportsUnnecessary/Deprecated,
   elidedInCompatabilityPyramid) — the current repo already proves this
   works; keep the mechanism.

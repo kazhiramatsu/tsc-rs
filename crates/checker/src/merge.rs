@@ -7,11 +7,11 @@
 //! jsGlobalAugmentations are 5.8 rows (ledger notes inline).
 
 use indexmap::IndexMap;
-use tsrs2_binder::node_util::get_name_of_declaration;
-use tsrs2_binder::{SymbolId, SymbolTable};
-use tsrs2_diags::{gen as diagnostics, RelatedInfo};
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{NodeFlags, SymbolFlags, TypeData, TypeFlags};
+use tsc_binder::node_util::get_name_of_declaration;
+use tsc_binder::{SymbolId, SymbolTable};
+use tsc_diagnostics::{gen as diagnostics, RelatedInfo};
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{NodeFlags, SymbolFlags, TypeData, TypeFlags};
 
 use crate::links::LinkSlot;
 use crate::state::{CheckResult, CheckerState};
@@ -242,15 +242,12 @@ impl<'a> CheckerState<'a> {
                 .intersects(NodeFlags::AMBIENT);
         let source_of = |state: &Self, id: NodeId| state.binder.source_of_node(id);
         let prefer_new = (!node_is_ambient_ts
-            && (tsrs2_binder::declare::is_assignment_declaration(
+            && (tsc_binder::declare::is_assignment_declaration(
                 source_of(self, value_declaration),
                 value_declaration,
-            ) && !tsrs2_binder::declare::is_assignment_declaration(
-                source_of(self, node),
-                node,
-            )))
+            ) && !tsc_binder::declare::is_assignment_declaration(source_of(self, node), node)))
             || (self.kind_of(value_declaration) != self.kind_of(node)
-                && tsrs2_binder::declare::is_effective_module_declaration(
+                && tsc_binder::declare::is_effective_module_declaration(
                     source_of(self, value_declaration),
                     value_declaration,
                 ));
@@ -385,7 +382,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 483aaf1e4cc4280b31d8e18dab23b7c3bb1ed6966d92ff0e59a80ab3bdb157f5
     /// tsc-span: _tsc.js:50649-50682
     pub fn symbol_display_name(&self, symbol: SymbolId) -> String {
-        tsrs2_binder::unescape_leading_underscores(&self.binder.symbol(symbol).escaped_name)
+        tsc_binder::unescape_leading_underscores(&self.binder.symbol(symbol).escaped_name)
             .to_owned()
     }
 
@@ -413,14 +410,14 @@ impl<'a> CheckerState<'a> {
                 .links
                 .symbol(symbol)
                 .check_flags
-                .intersects(tsrs2_types::CheckFlags::LATE);
+                .intersects(tsc_types::CheckFlags::LATE);
             if is_early_computed {
                 if let Some(name_type) = self.links.symbol(symbol).name_type {
                     let flags = self.tables.flags_of(name_type);
                     if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
                         let name = match &self.tables.type_of(name_type).data {
                             TypeData::Literal { value } => match value {
-                                tsrs2_types::LiteralValue::String(text) => {
+                                tsc_types::LiteralValue::String(text) => {
                                     let Some(text_utf8) = text.to_utf8() else {
                                         return format!(
                                             "\"{}\"",
@@ -429,10 +426,10 @@ impl<'a> CheckerState<'a> {
                                     };
                                     text_utf8
                                 }
-                                tsrs2_types::LiteralValue::Number(value) => {
-                                    tsrs2_types::js_number_to_string(*value)
+                                tsc_types::LiteralValue::Number(value) => {
+                                    tsc_types::js_number_to_string(*value)
                                 }
-                                tsrs2_types::LiteralValue::BigInt(_) => {
+                                tsc_types::LiteralValue::BigInt(_) => {
                                     unreachable!(
                                         "string/number literal flags imply string/number value"
                                     )
@@ -440,7 +437,7 @@ impl<'a> CheckerState<'a> {
                             },
                             _ => unreachable!("literal flags imply literal data"),
                         };
-                        if !tsrs2_syntax::is_identifier_text(&name)
+                        if !tsc_syntax::is_identifier_text(&name)
                             && !crate::evaluate::is_numeric_literal_name(&name)
                         {
                             return format!("\"{}\"", escape_double_quoted_symbol_name(&name));
@@ -453,7 +450,7 @@ impl<'a> CheckerState<'a> {
                     }
                 }
             }
-            return tsrs2_binder::node_util::declaration_name_to_string(source, Some(name_node));
+            return tsc_binder::node_util::declaration_name_to_string(source, Some(name_node));
         }
         self.symbol_display_name(symbol)
     }
@@ -597,7 +594,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn add_duplicate_declaration_errors_for_symbols(
         &mut self,
         target: SymbolId,
-        message: &'static tsrs2_diags::DiagnosticMessage,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
         symbol_name: &str,
         source: SymbolId,
     ) {
@@ -618,7 +615,7 @@ impl<'a> CheckerState<'a> {
     fn add_duplicate_declaration_error(
         &mut self,
         node: NodeId,
-        message: &'static tsrs2_diags::DiagnosticMessage,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
         symbol_name: &str,
         related_nodes: &[NodeId],
     ) {
@@ -661,7 +658,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn related_for_node(
         &self,
         node: NodeId,
-        message: &'static tsrs2_diags::DiagnosticMessage,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
         args: &[&str],
     ) -> RelatedInfo {
         let diagnostic = self.diagnostic_for_node(node, message, args);
@@ -721,7 +718,7 @@ impl<'a> CheckerState<'a> {
                         let diagnostic = self.diagnostic_for_node(
                             declaration,
                             &diagnostics::Declaration_name_conflicts_with_built_in_global_identifier_0,
-                            &[tsrs2_binder::unescape_leading_underscores(&name)],
+                            &[tsc_binder::unescape_leading_underscores(&name)],
                         );
                         self.diagnostics.push(diagnostic);
                     }
@@ -819,7 +816,7 @@ impl<'a> CheckerState<'a> {
             LinkSlot::Resolved(self.tables.intrinsics.error),
         );
         let global_this_type = self.tables.create_type(TypeFlags::OBJECT, TypeData::Object);
-        self.tables.type_mut(global_this_type).object_flags = tsrs2_types::ObjectFlags::ANONYMOUS;
+        self.tables.type_mut(global_this_type).object_flags = tsc_types::ObjectFlags::ANONYMOUS;
         self.tables.type_mut(global_this_type).symbol = Some(self.global_this_symbol);
         self.links.set_symbol_type(
             self.speculation_depth,
@@ -850,18 +847,17 @@ impl<'a> CheckerState<'a> {
         for index in 0..file_count {
             let source = self.binder.source(index);
             let root = source.root;
-            let tsrs2_syntax::NodeData::SourceFile(data) = &source.arena.node(root).data else {
+            let tsc_syntax::NodeData::SourceFile(data) = &source.arena.node(root).data else {
                 continue;
             };
             let Some(statements) = data.statements else {
                 continue;
             };
             for &statement in &source.arena.node_array(statements).nodes {
-                if source.arena.node(statement).kind != tsrs2_syntax::SyntaxKind::ModuleDeclaration
-                {
+                if source.arena.node(statement).kind != tsc_syntax::SyntaxKind::ModuleDeclaration {
                     continue;
                 }
-                if !tsrs2_binder::node_util::is_ambient_module(source, statement) {
+                if !tsc_binder::node_util::is_ambient_module(source, statement) {
                     continue;
                 }
                 // collectModuleReferences' augmentation gate: only
@@ -873,12 +869,12 @@ impl<'a> CheckerState<'a> {
                 if !self
                     .binder
                     .flags_of(statement)
-                    .intersects(tsrs2_types::NodeFlags::AMBIENT)
+                    .intersects(tsc_types::NodeFlags::AMBIENT)
                     && !source.is_declaration_file
                 {
                     continue;
                 }
-                if tsrs2_binder::node_util::is_global_scope_augmentation(source, statement) {
+                if tsc_binder::node_util::is_global_scope_augmentation(source, statement) {
                     // collectModuleReferences 124144: a top-level
                     // augmentation registers only from an EXTERNAL
                     // MODULE file — a script-file `declare global`
@@ -887,9 +883,8 @@ impl<'a> CheckerState<'a> {
                     if source.external_module_indicator.is_some() {
                         global_augmentations.push(statement);
                     }
-                } else if tsrs2_binder::node_util::is_module_augmentation_external(
-                    source, statement,
-                ) {
+                } else if tsc_binder::node_util::is_module_augmentation_external(source, statement)
+                {
                     module_augmentations.push(statement);
                 }
             }
@@ -940,14 +935,14 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         }
         let name = match self.data_of(augmentation) {
-            tsrs2_syntax::NodeData::ModuleDeclaration(data) => data.name,
+            tsc_syntax::NodeData::ModuleDeclaration(data) => data.name,
             _ => None,
         };
         let Some(name) = name else {
             return Ok(());
         };
         let name_text = match self.data_of(name) {
-            tsrs2_syntax::NodeData::StringLiteral(data) => data.text.clone(),
+            tsc_syntax::NodeData::StringLiteral(data) => data.text.clone(),
             _ => return Ok(()),
         };
         // moduleName.parent.parent = the augmentation's container:
@@ -955,11 +950,11 @@ impl<'a> CheckerState<'a> {
         let container_ambient = self
             .binder
             .flags_of(augmentation)
-            .intersects(tsrs2_types::NodeFlags::AMBIENT)
+            .intersects(tsc_types::NodeFlags::AMBIENT)
             && self.parent_of(augmentation).is_some_and(|parent| {
                 self.binder
                     .flags_of(parent)
-                    .intersects(tsrs2_types::NodeFlags::AMBIENT)
+                    .intersects(tsc_types::NodeFlags::AMBIENT)
             });
         let module_not_found_error = if !container_ambient {
             Some(&diagnostics::Invalid_module_name_in_augmentation_module_0_cannot_be_found)
@@ -1011,7 +1006,7 @@ impl<'a> CheckerState<'a> {
                     .binder
                     .symbol(main_module)
                     .exports
-                    .contains_key(tsrs2_types::InternalSymbolName::EXPORT_STAR);
+                    .contains_key(tsc_types::InternalSymbolName::EXPORT_STAR);
                 let augmentation_exports = self.binder.symbol(augmentation_symbol).exports.clone();
                 if has_export_star && !augmentation_exports.is_empty() {
                     let resolved_exports = self.get_exports_of_module(main_module)?;
@@ -1138,25 +1133,25 @@ fn is_type_declaration(state: &CheckerState, node: NodeId) -> bool {
         | SyntaxKind::JSDocEnumTag => true,
         SyntaxKind::ImportClause => matches!(
             &arena.node(node).data,
-            tsrs2_syntax::NodeData::ImportClause(data) if data.is_type_only
+            tsc_syntax::NodeData::ImportClause(data) if data.is_type_only
         ),
         SyntaxKind::ImportSpecifier => grandparent(arena, node).is_some_and(|clause| {
             matches!(
                 &arena.node(clause).data,
-                tsrs2_syntax::NodeData::ImportClause(data) if data.is_type_only
+                tsc_syntax::NodeData::ImportClause(data) if data.is_type_only
             )
         }),
         SyntaxKind::ExportSpecifier => grandparent(arena, node).is_some_and(|declaration| {
             matches!(
                 &arena.node(declaration).data,
-                tsrs2_syntax::NodeData::ExportDeclaration(data) if data.is_type_only
+                tsc_syntax::NodeData::ExportDeclaration(data) if data.is_type_only
             )
         }),
         _ => false,
     }
 }
 
-fn grandparent(arena: &tsrs2_syntax::NodeArena, node: NodeId) -> Option<NodeId> {
+fn grandparent(arena: &tsc_syntax::NodeArena, node: NodeId) -> Option<NodeId> {
     arena.node(arena.node(node).parent?).parent
 }
 
@@ -1172,7 +1167,7 @@ fn related_equal(left: &RelatedInfo, right: &RelatedInfo) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_types::{CompilerOptions, SymbolFlags};
+    use tsc_types::{CompilerOptions, SymbolFlags};
 
     use crate::state::test_support::with_program_state;
 

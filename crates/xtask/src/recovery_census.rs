@@ -15,7 +15,7 @@ use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use tsrs2_syntax::{NodeId, SourceFile, SyntaxKind};
+use tsc_syntax::{NodeId, SourceFile, SyntaxKind};
 
 const F2_REASON: &str = "overload band over a parse-recovery tree (declaration boundaries diverge)";
 
@@ -259,7 +259,7 @@ struct ShapeDeclaration {
 }
 
 pub fn run(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
-    let workspace = super::find_tsrs2_root()?;
+    let workspace = super::find_workspace_root()?;
     let mut manifest_path = workspace.join("pins/recovery.json");
     let mut out_path = workspace.join("target/recovery-census.json");
     let mut check = false;
@@ -295,19 +295,19 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     }
 
     let conformance_out = workspace.join("target/recovery-census-conformance.json");
-    let summary = tsrs2_conformance::run_conformance(&tsrs2_conformance::ConformanceOptions {
+    let summary = tsc_conformance::run_conformance(&tsc_conformance::ConformanceOptions {
         workspace: workspace.clone(),
         limit: None,
         files: Vec::new(),
         out_json: conformance_out,
-        band: tsrs2_conformance::DiagnosticBand::TwoXxx,
+        band: tsc_conformance::DiagnosticBand::TwoXxx,
     })?;
     run_census(&workspace, &manifest, &out_path, check, &summary)
 }
 
 pub fn check_with_summary(
     workspace: &Path,
-    summary: &tsrs2_conformance::ConformanceSummary,
+    summary: &tsc_conformance::ConformanceSummary,
 ) -> Result<(), Box<dyn Error>> {
     if summary.band != "2xxx" {
         return Err(format!(
@@ -335,7 +335,7 @@ fn run_census(
     manifest: &Manifest,
     out_path: &Path,
     check: bool,
-    summary: &tsrs2_conformance::ConformanceSummary,
+    summary: &tsc_conformance::ConformanceSummary,
 ) -> Result<(), Box<dyn Error>> {
     let observed_cases = selected_cases(summary);
     let expected_cases = manifest
@@ -367,7 +367,7 @@ fn run_census(
 
     let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
     let temp_root =
-        std::env::temp_dir().join(format!("tsrs2-recovery-census-{}", std::process::id()));
+        std::env::temp_dir().join(format!("tsc-rs-recovery-census-{}", std::process::id()));
     if temp_root.exists() {
         fs::remove_dir_all(&temp_root)?;
     }
@@ -377,7 +377,7 @@ fn run_census(
     let mut shape_fingerprints = BTreeSet::new();
     for (case_index, case) in manifest.cases.iter().enumerate() {
         let fixture = workspace.join("ts-tests/tests/cases").join(&case.fixture);
-        let programs = tsrs2_harness::expand_fixture_file(&fixture, &vendor_lib_dir)?;
+        let programs = tsc_harness::expand_fixture_file(&fixture, &vendor_lib_dir)?;
         let program = programs
             .iter()
             .find(|program| program.matrix_key == case.matrix_key)
@@ -388,7 +388,7 @@ fn run_census(
                 )
             })?;
         let out_dir = temp_root.join(case_index.to_string());
-        let paths = tsrs2_harness::write_program_jsons(std::slice::from_ref(program), &out_dir)?;
+        let paths = tsc_harness::write_program_jsons(std::slice::from_ref(program), &out_dir)?;
         let oracle_dump = oracle.dump(&paths[0])?;
         let rust_dump = rust_dump(program)?;
         let mut regions = Vec::new();
@@ -489,7 +489,7 @@ fn run_census(
                 )
                 .into());
             }
-            let programs = tsrs2_harness::expand_fixture_file(&fixture, &vendor_lib_dir)?;
+            let programs = tsc_harness::expand_fixture_file(&fixture, &vendor_lib_dir)?;
             let program = programs
                 .iter()
                 .find(|program| program.matrix_key == shape.matrix_key)
@@ -500,8 +500,7 @@ fn run_census(
                     )
                 })?;
             let out_dir = temp_root.join(format!("shape-{}", shape.id));
-            let paths =
-                tsrs2_harness::write_program_jsons(std::slice::from_ref(program), &out_dir)?;
+            let paths = tsc_harness::write_program_jsons(std::slice::from_ref(program), &out_dir)?;
             let oracle_dump = oracle.dump(&paths[0])?;
             let rust_dump = rust_dump(program)?;
             let mut reproduced = false;
@@ -554,9 +553,9 @@ fn probe_fixture(workspace: &Path, fixture: &Path) -> Result<(), Box<dyn Error>>
         workspace.join(fixture)
     };
     let vendor_lib_dir = workspace.join("vendor/typescript-6.0.3/lib");
-    let programs = tsrs2_harness::expand_fixture_file(&fixture, &vendor_lib_dir)?;
+    let programs = tsc_harness::expand_fixture_file(&fixture, &vendor_lib_dir)?;
     let temp_root =
-        std::env::temp_dir().join(format!("tsrs2-recovery-probe-{}", std::process::id()));
+        std::env::temp_dir().join(format!("tsc-rs-recovery-probe-{}", std::process::id()));
     if temp_root.exists() {
         fs::remove_dir_all(&temp_root)?;
     }
@@ -564,7 +563,7 @@ fn probe_fixture(workspace: &Path, fixture: &Path) -> Result<(), Box<dyn Error>>
     let mut oracle = RecoveryOracle::spawn(workspace)?;
     for (index, program) in programs.iter().enumerate() {
         let out_dir = temp_root.join(index.to_string());
-        let paths = tsrs2_harness::write_program_jsons(std::slice::from_ref(program), &out_dir)?;
+        let paths = tsc_harness::write_program_jsons(std::slice::from_ref(program), &out_dir)?;
         let oracle_dump = oracle.dump(&paths[0])?;
         let rust_dump = rust_dump(program)?;
         for rust_file in &rust_dump.files {
@@ -597,7 +596,7 @@ fn probe_fixture(workspace: &Path, fixture: &Path) -> Result<(), Box<dyn Error>>
     Ok(())
 }
 
-fn selected_cases(summary: &tsrs2_conformance::ConformanceSummary) -> BTreeSet<CaseKey> {
+fn selected_cases(summary: &tsc_conformance::ConformanceSummary) -> BTreeSet<CaseKey> {
     summary
         .mismatches
         .iter()
@@ -632,8 +631,8 @@ fn exact_region_ranges(rust_file: &FileDump, oracle_file: &FileDump) -> BTreeSet
         .collect()
 }
 
-fn rust_dump(program: &tsrs2_harness::ProgramJson) -> Result<RecoveryDump, Box<dyn Error>> {
-    let options = tsrs2_harness::compiler_options_from_program(program);
+fn rust_dump(program: &tsc_harness::ProgramJson) -> Result<RecoveryDump, Box<dyn Error>> {
+    let options = tsc_harness::compiler_options_from_program(program);
     let mut files = Vec::new();
     for file in &program.files {
         let is_js = [".js", ".jsx", ".mjs", ".cjs"]
@@ -643,29 +642,29 @@ fn rust_dump(program: &tsrs2_harness::ProgramJson) -> Result<RecoveryDump, Box<d
             continue;
         }
         let text = String::from_utf8(BASE64.decode(&file.text_b64)?)?;
-        let source = tsrs2_syntax::parse_source_file(
+        let source = tsc_syntax::parse_source_file(
             file.name.clone(),
             text,
-            tsrs2_syntax::ParseOptions {
+            tsc_syntax::ParseOptions {
                 script_target: options.emit_script_target(),
                 language_variant: if file.name.ends_with(".tsx") || is_js {
-                    tsrs2_syntax::LanguageVariant::Jsx
+                    tsc_syntax::LanguageVariant::Jsx
                 } else {
-                    tsrs2_syntax::LanguageVariant::Standard
+                    tsc_syntax::LanguageVariant::Standard
                 },
                 javascript_file: is_js,
-                ..tsrs2_syntax::ParseOptions::default()
+                ..tsc_syntax::ParseOptions::default()
             },
             None,
         );
-        let binder = tsrs2_binder::bind_source_file(&source, &options);
+        let binder = tsc_binder::bind_source_file(&source, &options);
         files.push(rust_file_dump(&source, &binder));
     }
     Ok(RecoveryDump { files })
 }
 
-fn rust_file_dump(source: &SourceFile, binder: &tsrs2_binder::Binder<'_>) -> FileDump {
-    let map = tsrs2_diags::compute_line_map(&source.text);
+fn rust_file_dump(source: &SourceFile, binder: &tsc_binder::Binder<'_>) -> FileDump {
+    let map = tsc_diagnostics::compute_line_map(&source.text);
     let to_utf16 =
         |pos: u32| -> u32 { map.byte_to_utf16.get(pos as usize).copied().unwrap_or(pos) };
     let mut entries = Vec::new();
@@ -677,7 +676,7 @@ fn rust_file_dump(source: &SourceFile, binder: &tsrs2_binder::Binder<'_>) -> Fil
             kind: node.kind as u16,
             pos: to_utf16(node.pos),
             end: to_utf16(node.end),
-            missing: tsrs2_binder::node_util::node_is_missing(source, Some(id)),
+            missing: tsc_binder::node_util::node_is_missing(source, Some(id)),
             depth,
         });
         if is_census_kind(node.kind) {
@@ -698,7 +697,7 @@ fn rust_file_dump(source: &SourceFile, binder: &tsrs2_binder::Binder<'_>) -> Fil
             });
         }
         let mut children = Vec::new();
-        tsrs2_syntax::for_each_child(&source.arena, node, |child| {
+        tsc_syntax::for_each_child(&source.arena, node, |child| {
             children.push(child);
             false
         });
@@ -738,30 +737,30 @@ fn declaration_ref(
     to_utf16: &impl Fn(u32) -> u32,
 ) -> DeclarationRef {
     let node = source.arena.node(id);
-    let name = tsrs2_binder::node_util::get_name_of_declaration(source, id).map(|name| {
+    let name = tsc_binder::node_util::get_name_of_declaration(source, id).map(|name| {
         let node = source.arena.node(name);
         NameRef {
             kind: node.kind as u16,
             pos: to_utf16(node.pos),
             end: to_utf16(node.end),
-            missing: tsrs2_binder::node_util::node_is_missing(source, Some(name)),
-            text: tsrs2_binder::node_util::get_text_of_identifier_or_literal(source, name),
+            missing: tsc_binder::node_util::node_is_missing(source, Some(name)),
+            text: tsc_binder::node_util::get_text_of_identifier_or_literal(source, name),
         }
     });
-    let body = tsrs2_binder::node_util::body_of(source, id).map(|body| {
+    let body = tsc_binder::node_util::body_of(source, id).map(|body| {
         let node = source.arena.node(body);
         NodeRef {
             kind: node.kind as u16,
             pos: to_utf16(node.pos),
             end: to_utf16(node.end),
-            missing: tsrs2_binder::node_util::node_is_missing(source, Some(body)),
+            missing: tsc_binder::node_util::node_is_missing(source, Some(body)),
         }
     });
     DeclarationRef {
         kind: node.kind as u16,
         pos: to_utf16(node.pos),
         end: to_utf16(node.end),
-        missing: tsrs2_binder::node_util::node_is_missing(source, Some(id)),
+        missing: tsc_binder::node_util::node_is_missing(source, Some(id)),
         parent_kind: node
             .parent
             .map(|parent| source.arena.node(parent).kind as u16),

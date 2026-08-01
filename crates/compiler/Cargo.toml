@@ -1,0 +1,20 @@
+[package]
+name = "tsc-rs-compiler"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[package.metadata.tsc-rs]
+role = "compiler"
+
+[lib]
+name = "tsc_compiler"
+path = "src/lib.rs"
+
+[dependencies]
+tsc-checker.workspace = true
+tsc-diagnostics.workspace = true
+tsc-program.workspace = true
+
+[lints]
+workspace = true

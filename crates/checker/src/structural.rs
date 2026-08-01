@@ -7,9 +7,9 @@
 //! indexed access, mapped/string-mapping/reference variance, and 9.6d
 //! activated both conditional relation directions.
 
-use tsrs2_binder::SymbolId;
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{
+use tsc_binder::SymbolId;
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{
     AccessFlags, CheckFlags, ElementFlags, IndexFlags, InferenceFlags, InferencePriority,
     IntersectionFlags, IntersectionState, MappedTypeModifiers, ModifierFlags, ObjectFlags,
     PseudoBigInt, RecursionFlags, SignatureFlags, SymbolFlags, TemplateText, Ternary,
@@ -63,7 +63,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         &mut self,
         source_type_arguments: &[TypeId],
         target_type_arguments: &[TypeId],
-        variances: &[tsrs2_types::VarianceFlags],
+        variances: &[tsc_types::VarianceFlags],
         report_errors: bool,
         intersection_state: IntersectionState,
         saved_error_info: &crate::engine::RelationErrorState,
@@ -82,7 +82,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         if variances
             .iter()
-            .any(|v| v.intersects(tsrs2_types::VarianceFlags::ALLOWS_STRUCTURAL_FALLBACK))
+            .any(|v| v.intersects(tsc_types::VarianceFlags::ALLOWS_STRUCTURAL_FALLBACK))
         {
             *original_error_info = None;
             self.reset_error_info(saved_error_info);
@@ -94,8 +94,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         *variance_check_failed = !allow_structural_fallback;
         if !allow_structural_fallback {
             let has_invariant = variances.iter().any(|variance| {
-                *variance & tsrs2_types::VarianceFlags::VARIANCE_MASK
-                    == tsrs2_types::VarianceFlags::INVARIANT
+                *variance & tsc_types::VarianceFlags::VARIANCE_MASK
+                    == tsc_types::VarianceFlags::INVARIANT
             });
             if !report_errors || !has_invariant {
                 return Ok(Some(Ternary::FALSE));
@@ -2134,7 +2134,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         && target_prop_flags.intersects(ModifierFlags::PRIVATE)
                     {
                         self.report_error(
-                            &tsrs2_diags::gen::Types_have_separate_declarations_of_a_private_property_0,
+                            &tsc_diagnostics::gen::Types_have_separate_declarations_of_a_private_property_0,
                             vec![name],
                         )?;
                     } else {
@@ -2157,7 +2157,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             .st
                             .type_to_string_slice_with_error_enclosing(public_source)?;
                         self.report_error(
-                            &tsrs2_diags::gen::Property_0_is_private_in_type_1_but_not_in_type_2,
+                            &tsc_diagnostics::gen::Property_0_is_private_in_type_1_but_not_in_type_2,
                             vec![name, private_text, public_text],
                         )?;
                     }
@@ -2177,7 +2177,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         .st
                         .type_to_string_slice_with_error_enclosing(target_class)?;
                     self.report_error(
-                        &tsrs2_diags::gen::Property_0_is_protected_but_type_1_is_not_a_class_derived_from_2,
+                        &tsc_diagnostics::gen::Property_0_is_protected_but_type_1_is_not_a_class_derived_from_2,
                         vec![name, source_text, target_text],
                     )?;
                 }
@@ -2190,7 +2190,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 let source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
                 let target_text = self.st.type_to_string_slice_with_error_enclosing(target)?;
                 self.report_error(
-                    &tsrs2_diags::gen::Property_0_is_protected_in_type_1_but_public_in_type_2,
+                    &tsc_diagnostics::gen::Property_0_is_protected_in_type_1_but_public_in_type_2,
                     vec![name, source_text, target_text],
                 )?;
             }
@@ -2213,7 +2213,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if report_errors {
                 let name = self.st.symbol_name_as_written_slice(target_prop);
                 self.report_incompatible_error(
-                    &tsrs2_diags::gen::Types_of_property_0_are_incompatible,
+                    &tsc_diagnostics::gen::Types_of_property_0_are_incompatible,
                     vec![name],
                 );
             }
@@ -2237,7 +2237,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 let source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
                 let target_text = self.st.type_to_string_slice_with_error_enclosing(target)?;
                 self.report_error(
-                    &tsrs2_diags::gen::Property_0_is_optional_in_type_1_but_required_in_type_2,
+                    &tsc_diagnostics::gen::Property_0_is_optional_in_type_1_but_required_in_type_2,
                     vec![name, source_text, target_text],
                 )?;
             }
@@ -2331,7 +2331,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 if !source_rest_flag && source_arity < target_min_length {
                     if report_errors {
                         self.report_error(
-                            &tsrs2_diags::gen::Source_has_0_element_s_but_target_requires_1,
+                            &tsc_diagnostics::gen::Source_has_0_element_s_but_target_requires_1,
                             vec![source_arity.to_string(), target_min_length.to_string()],
                         )?;
                     }
@@ -2340,7 +2340,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 if !target_has_rest_element && target_arity < source_min_length {
                     if report_errors {
                         self.report_error(
-                            &tsrs2_diags::gen::Source_has_0_element_s_but_target_allows_only_1,
+                            &tsc_diagnostics::gen::Source_has_0_element_s_but_target_allows_only_1,
                             vec![source_min_length.to_string(), target_arity.to_string()],
                         )?;
                     }
@@ -2350,12 +2350,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     if report_errors {
                         if source_min_length < target_min_length {
                             self.report_error(
-                                &tsrs2_diags::gen::Target_requires_0_element_s_but_source_may_have_fewer,
+                                &tsc_diagnostics::gen::Target_requires_0_element_s_but_source_may_have_fewer,
                                 vec![target_min_length.to_string()],
                             )?;
                         } else {
                             self.report_error(
-                                &tsrs2_diags::gen::Target_allows_only_0_element_s_but_source_may_have_more,
+                                &tsc_diagnostics::gen::Target_allows_only_0_element_s_but_source_may_have_more,
                                 vec![target_arity.to_string()],
                             )?;
                         }
@@ -2391,7 +2391,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     {
                         if report_errors {
                             self.report_error(
-                                &tsrs2_diags::gen::Source_provides_no_match_for_variadic_element_at_position_0_in_target,
+                                &tsc_diagnostics::gen::Source_provides_no_match_for_variadic_element_at_position_0_in_target,
                                 vec![target_position.to_string()],
                             )?;
                         }
@@ -2402,7 +2402,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     {
                         if report_errors {
                             self.report_error(
-                                &tsrs2_diags::gen::Variadic_element_at_position_0_in_source_does_not_match_element_at_position_1_in_target,
+                                &tsc_diagnostics::gen::Variadic_element_at_position_0_in_source_does_not_match_element_at_position_1_in_target,
                                 vec![
                                     source_position.to_string(),
                                     target_position.to_string(),
@@ -2416,7 +2416,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     {
                         if report_errors {
                             self.report_error(
-                                &tsrs2_diags::gen::Source_provides_no_match_for_required_element_at_position_0_in_target,
+                                &tsc_diagnostics::gen::Source_provides_no_match_for_required_element_at_position_0_in_target,
                                 vec![target_position.to_string()],
                             )?;
                         }
@@ -2468,7 +2468,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                                 && target_start_count != source_arity - target_end_count - 1
                             {
                                 self.report_incompatible_error(
-                                    &tsrs2_diags::gen::Type_at_positions_0_through_1_in_source_is_not_compatible_with_type_at_position_2_in_target,
+                                    &tsc_diagnostics::gen::Type_at_positions_0_through_1_in_source_is_not_compatible_with_type_at_position_2_in_target,
                                     vec![
                                         target_start_count.to_string(),
                                         (source_arity - target_end_count - 1).to_string(),
@@ -2477,7 +2477,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                                 );
                             } else {
                                 self.report_incompatible_error(
-                                    &tsrs2_diags::gen::Type_at_position_0_in_source_is_not_compatible_with_type_at_position_1_in_target,
+                                    &tsc_diagnostics::gen::Type_at_position_0_in_source_is_not_compatible_with_type_at_position_1_in_target,
                                     vec![
                                         source_position.to_string(),
                                         target_position.to_string(),
@@ -2540,7 +2540,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         let prop_name = self.st.symbol_name_as_written_slice(source_prop);
                         let target_text = self.st.type_to_string_slice(target)?;
                         self.report_error(
-                            &tsrs2_diags::gen::Property_0_does_not_exist_on_type_1,
+                            &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
                             vec![prop_name, target_text],
                         )?;
                     }
@@ -2636,7 +2636,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if let Some(declaration) = self.st.binder.symbol(unmatched_property).value_declaration {
             let declaration_source = self.st.binder.source_of_node(declaration);
             if let Some(name) =
-                tsrs2_binder::node_util::get_name_of_declaration(declaration_source, declaration)
+                tsc_binder::node_util::get_name_of_declaration(declaration_source, declaration)
             {
                 if self.st.kind_of(name) == SyntaxKind::PrivateIdentifier {
                     if let Some(private_description) =
@@ -2679,7 +2679,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                                     .transpose()?
                                     .unwrap_or_else(|| "(anonymous)".to_owned());
                                 self.report_error(
-                                    &tsrs2_diags::gen::Property_0_in_type_1_refers_to_a_different_member_that_cannot_be_accessed_from_within_type_2,
+                                    &tsc_diagnostics::gen::Property_0_in_type_1_refers_to_a_different_member_that_cannot_be_accessed_from_within_type_2,
                                     vec![private_description, source_name, target_name],
                                 )?;
                                 return Ok(());
@@ -2731,7 +2731,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 target_text = self.st.get_type_name_for_error_display(target)?;
             }
             self.report_error(
-                &tsrs2_diags::gen::Property_0_is_missing_in_type_1_but_required_in_type_2,
+                &tsc_diagnostics::gen::Property_0_is_missing_in_type_1_but_required_in_type_2,
                 vec![name.clone(), source_text, target_text],
             )?;
             if let Some(&declaration) = self
@@ -2743,7 +2743,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             {
                 let info = self.st.related_info_for_node(
                     declaration,
-                    &tsrs2_diags::gen::_0_is_declared_here,
+                    &tsc_diagnostics::gen::_0_is_declared_here,
                     &[&name],
                 );
                 self.associate_related_info(info);
@@ -2771,7 +2771,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let names = displayed_names.join(", ");
         if properties.len() > 5 {
             self.report_error(
-                &tsrs2_diags::gen::Type_0_is_missing_the_following_properties_from_type_1_2_and_3_more,
+                &tsc_diagnostics::gen::Type_0_is_missing_the_following_properties_from_type_1_2_and_3_more,
                 vec![
                     source_text,
                     target_text,
@@ -2786,7 +2786,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .collect::<Vec<_>>()
                 .join(", ");
             self.report_error(
-                &tsrs2_diags::gen::Type_0_is_missing_the_following_properties_from_type_1_2,
+                &tsc_diagnostics::gen::Type_0_is_missing_the_following_properties_from_type_1_2,
                 vec![source_text, target_text, names],
             )?;
         }
@@ -2813,7 +2813,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     let source_text = self.st.type_to_string_slice(source)?;
                     let target_text = self.st.type_to_string_slice(target)?;
                     self.report_error(
-                        &tsrs2_diags::gen::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1,
+                        &tsc_diagnostics::gen::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1,
                         vec![source_text, target_text],
                     )?;
                 }
@@ -2826,7 +2826,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 let source_text = self.st.type_to_string_slice(source)?;
                 let target_text = self.st.type_to_string_slice(target)?;
                 self.report_error(
-                    &tsrs2_diags::gen::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1,
+                    &tsc_diagnostics::gen::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1,
                     vec![source_text, target_text],
                 )?;
             }
@@ -3020,16 +3020,16 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .st
                 .signature_of(source_signatures[0])
                 .flags
-                .intersects(tsrs2_types::SignatureFlags::ABSTRACT);
+                .intersects(tsc_types::SignatureFlags::ABSTRACT);
             let target_is_abstract = self
                 .st
                 .signature_of(target_signatures[0])
                 .flags
-                .intersects(tsrs2_types::SignatureFlags::ABSTRACT);
+                .intersects(tsc_types::SignatureFlags::ABSTRACT);
             if source_is_abstract && !target_is_abstract {
                 if report_errors {
                     self.report_error(
-                        &tsrs2_diags::gen::Cannot_assign_an_abstract_constructor_type_to_a_non_abstract_constructor_type,
+                        &tsc_diagnostics::gen::Cannot_assign_an_abstract_constructor_type_to_a_non_abstract_constructor_type,
                         vec![],
                     )?;
                 }
@@ -3123,7 +3123,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         .st
                         .signature_to_string_slice_for_relation_error(t, kind)?;
                     self.report_error(
-                        &tsrs2_diags::gen::Type_0_provides_no_match_for_the_signature_1,
+                        &tsc_diagnostics::gen::Type_0_provides_no_match_for_the_signature_1,
                         vec![source_text, signature_text],
                     )?;
                 }
@@ -3156,12 +3156,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         let target_file = self.st.binder.source_of_node(target_declaration);
         let non_public = ModifierFlags::NON_PUBLIC_ACCESSIBILITY_MODIFIER;
         let source_accessibility = ModifierFlags::from_bits(
-            tsrs2_binder::node_util::get_combined_modifier_flags(source_file, source_declaration)
+            tsc_binder::node_util::get_combined_modifier_flags(source_file, source_declaration)
                 .bits()
                 & non_public.bits(),
         );
         let target_accessibility = ModifierFlags::from_bits(
-            tsrs2_binder::node_util::get_combined_modifier_flags(target_file, target_declaration)
+            tsc_binder::node_util::get_combined_modifier_flags(target_file, target_declaration)
                 .bits()
                 & non_public.bits(),
         );
@@ -3189,7 +3189,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 }
             };
             self.report_error(
-                &tsrs2_diags::gen::Cannot_assign_a_0_constructor_type_to_a_1_constructor_type,
+                &tsc_diagnostics::gen::Cannot_assign_a_0_constructor_type_to_a_1_constructor_type,
                 vec![
                     visibility(source_accessibility).to_owned(),
                     visibility(target_accessibility).to_owned(),
@@ -3581,7 +3581,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if report_errors && check_mode & check_mode::STRICT_ARITY == 0 {
                 let source_min_count = self.st.get_min_argument_count(source)?.to_string();
                 self.report_error(
-                    &tsrs2_diags::gen::Target_signature_provides_too_few_arguments_Expected_0_or_more_but_got_1,
+                    &tsc_diagnostics::gen::Target_signature_provides_too_few_arguments_Expected_0_or_more_but_got_1,
                     vec![source_min_count, target_count.to_string()],
                 )?;
             }
@@ -3681,7 +3681,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     if !is_true(related) {
                         if report_errors {
                             self.report_error(
-                                &tsrs2_diags::gen::The_this_types_of_each_signature_are_incompatible,
+                                &tsc_diagnostics::gen::The_this_types_of_each_signature_are_incompatible,
                                 vec![],
                             )?;
                         }
@@ -3827,7 +3827,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             .get_parameter_name_at_position(target, i)?
                             .unwrap_or_default();
                         self.report_error(
-                            &tsrs2_diags::gen::Types_of_parameters_0_and_1_are_incompatible,
+                            &tsc_diagnostics::gen::Types_of_parameters_0_and_1_are_incompatible,
                             vec![source_name, target_name],
                         )?;
                     }
@@ -3922,7 +3922,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                             SignatureKind::Call,
                         )?;
                         self.report_error(
-                            &tsrs2_diags::gen::Signature_0_must_be_a_type_predicate,
+                            &tsc_diagnostics::gen::Signature_0_must_be_a_type_predicate,
                             vec![source_text],
                         )?;
                     }
@@ -3965,16 +3965,16 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         && self.st.get_parameter_count(target)? == 0;
                     let message = match (kind, no_arguments) {
                         (SignatureKind::Call, false) => {
-                            &tsrs2_diags::gen::Call_signature_return_types_0_and_1_are_incompatible
+                            &tsc_diagnostics::gen::Call_signature_return_types_0_and_1_are_incompatible
                         }
                         (SignatureKind::Call, true) => {
-                            &tsrs2_diags::gen::Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
+                            &tsc_diagnostics::gen::Call_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
                         }
                         (SignatureKind::Construct, false) => {
-                            &tsrs2_diags::gen::Construct_signature_return_types_0_and_1_are_incompatible
+                            &tsc_diagnostics::gen::Construct_signature_return_types_0_and_1_are_incompatible
                         }
                         (SignatureKind::Construct, true) => {
-                            &tsrs2_diags::gen::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
+                            &tsc_diagnostics::gen::Construct_signatures_with_no_arguments_have_incompatible_return_types_0_and_1
                         }
                     };
                     self.report_incompatible_error(message, vec![source_text, target_text]);
@@ -4010,13 +4010,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         if source.kind != target.kind {
             if report_errors {
                 self.report_error(
-                    &tsrs2_diags::gen::A_this_based_type_guard_is_not_compatible_with_a_parameter_based_type_guard,
+                    &tsc_diagnostics::gen::A_this_based_type_guard_is_not_compatible_with_a_parameter_based_type_guard,
                     vec![],
                 )?;
                 let source_text = self.type_predicate_to_string_for_relation_error(source)?;
                 let target_text = self.type_predicate_to_string_for_relation_error(target)?;
                 self.report_error(
-                    &tsrs2_diags::gen::Type_predicate_0_is_not_assignable_to_1,
+                    &tsc_diagnostics::gen::Type_predicate_0_is_not_assignable_to_1,
                     vec![source_text, target_text],
                 )?;
             }
@@ -4030,7 +4030,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         {
             if report_errors {
                 self.report_error(
-                    &tsrs2_diags::gen::Parameter_0_is_not_in_the_same_position_as_parameter_1,
+                    &tsc_diagnostics::gen::Parameter_0_is_not_in_the_same_position_as_parameter_1,
                     vec![
                         source.parameter_name.clone().unwrap_or_default(),
                         target.parameter_name.clone().unwrap_or_default(),
@@ -4039,7 +4039,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 let source_text = self.type_predicate_to_string_for_relation_error(source)?;
                 let target_text = self.type_predicate_to_string_for_relation_error(target)?;
                 self.report_error(
-                    &tsrs2_diags::gen::Type_predicate_0_is_not_assignable_to_1,
+                    &tsc_diagnostics::gen::Type_predicate_0_is_not_assignable_to_1,
                     vec![source_text, target_text],
                 )?;
             }
@@ -4060,7 +4060,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 let source_text = self.type_predicate_to_string_for_relation_error(source)?;
                 let target_text = self.type_predicate_to_string_for_relation_error(target)?;
                 self.report_error(
-                    &tsrs2_diags::gen::Type_predicate_0_is_not_assignable_to_1,
+                    &tsc_diagnostics::gen::Type_predicate_0_is_not_assignable_to_1,
                     vec![source_text, target_text],
                 )?;
             }
@@ -4070,7 +4070,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             let source_text = self.type_predicate_to_string_for_relation_error(source)?;
             let target_text = self.type_predicate_to_string_for_relation_error(target)?;
             self.report_error(
-                &tsrs2_diags::gen::Type_predicate_0_is_not_assignable_to_1,
+                &tsc_diagnostics::gen::Type_predicate_0_is_not_assignable_to_1,
                 vec![source_text, target_text],
             )?;
         }
@@ -4177,7 +4177,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 if report_errors {
                     let name = self.st.symbol_name_as_written_slice(prop);
                     self.report_error(
-                        &tsrs2_diags::gen::Property_0_is_incompatible_with_index_signature,
+                        &tsc_diagnostics::gen::Property_0_is_incompatible_with_index_signature,
                         vec![name],
                     )?;
                 }
@@ -4225,7 +4225,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .type_to_string_slice_with_error_enclosing(source_info.key_type)?;
             if source_info.key_type == target_info.key_type {
                 self.report_error(
-                    &tsrs2_diags::gen::_0_index_signatures_are_incompatible,
+                    &tsc_diagnostics::gen::_0_index_signatures_are_incompatible,
                     vec![source_key],
                 )?;
             } else {
@@ -4233,7 +4233,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     .st
                     .type_to_string_slice_with_error_enclosing(target_info.key_type)?;
                 self.report_error(
-                    &tsrs2_diags::gen::_0_and_1_index_signatures_are_incompatible,
+                    &tsc_diagnostics::gen::_0_and_1_index_signatures_are_incompatible,
                     vec![source_key, target_key],
                 )?;
             }
@@ -4328,7 +4328,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 .type_to_string_slice_with_error_enclosing(target_info.key_type)?;
             let source_text = self.st.type_to_string_slice_with_error_enclosing(source)?;
             self.report_error(
-                &tsrs2_diags::gen::Index_signature_for_type_0_is_missing_in_type_1,
+                &tsc_diagnostics::gen::Index_signature_for_type_0_is_missing_in_type_1,
                 vec![key, source_text],
             )?;
         }
@@ -4851,7 +4851,7 @@ impl<'a> CheckerState<'a> {
             maybe_count: 0,
             source_depth: 0,
             target_depth: 0,
-            expanding_flags: tsrs2_types::ExpandingFlags::NONE,
+            expanding_flags: tsc_types::ExpandingFlags::NONE,
             overflow: false,
             relation_count,
             error_state: Default::default(),
@@ -5030,7 +5030,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn elaborate_never_intersection_row(
         &mut self,
         ty: TypeId,
-    ) -> CheckResult<Option<tsrs2_diags::MessageChain>> {
+    ) -> CheckResult<Option<tsc_diagnostics::MessageChain>> {
         if !self.tables.flags_of(ty).intersects(TypeFlags::INTERSECTION)
             || !self
                 .tables
@@ -5044,8 +5044,8 @@ impl<'a> CheckerState<'a> {
             if self.is_discriminant_with_never_type(prop)? {
                 let type_name = self.type_to_string_slice_no_type_reduction(ty)?;
                 let prop_name = self.symbol_name_as_written_slice(prop);
-                return Ok(Some(tsrs2_diags::MessageChain::new(
-                    &tsrs2_diags::gen::The_intersection_0_was_reduced_to_never_because_property_1_has_conflicting_types_in_some_constituents,
+                return Ok(Some(tsc_diagnostics::MessageChain::new(
+                    &tsc_diagnostics::gen::The_intersection_0_was_reduced_to_never_because_property_1_has_conflicting_types_in_some_constituents,
                     &[type_name, prop_name],
                 )));
             }
@@ -5054,8 +5054,8 @@ impl<'a> CheckerState<'a> {
             if self.is_conflicting_private_property(prop) {
                 let type_name = self.type_to_string_slice_no_type_reduction(ty)?;
                 let prop_name = self.symbol_name_as_written_slice(prop);
-                return Ok(Some(tsrs2_diags::MessageChain::new(
-                    &tsrs2_diags::gen::The_intersection_0_was_reduced_to_never_because_property_1_exists_in_multiple_constituents_and_is_private_in_some,
+                return Ok(Some(tsc_diagnostics::MessageChain::new(
+                    &tsc_diagnostics::gen::The_intersection_0_was_reduced_to_never_because_property_1_exists_in_multiple_constituents_and_is_private_in_some,
                     &[type_name, prop_name],
                 )));
             }
@@ -5337,12 +5337,12 @@ impl<'a> CheckerState<'a> {
         } else {
             prop_set
         };
-        let mut declarations: Vec<tsrs2_syntax::NodeId> = Vec::new();
+        let mut declarations: Vec<tsc_syntax::NodeId> = Vec::new();
         let mut first_type: Option<TypeId> = None;
         let mut name_type: Option<TypeId> = None;
         let mut prop_types: Vec<TypeId> = Vec::new();
         let mut write_types: Option<Vec<TypeId>> = None;
-        let mut first_value_declaration: Option<tsrs2_syntax::NodeId> = None;
+        let mut first_value_declaration: Option<tsc_syntax::NodeId> = None;
         let mut has_non_uniform_value_declaration = false;
         for &prop in &props {
             let value_declaration = self.binder.symbol(prop).value_declaration;
@@ -5411,13 +5411,13 @@ impl<'a> CheckerState<'a> {
         let combined = if is_union {
             self.get_union_type_ex(&prop_types, UnionReduction::Literal)?
         } else {
-            self.get_intersection_type(&prop_types, tsrs2_types::IntersectionFlags::NONE)?
+            self.get_intersection_type(&prop_types, tsc_types::IntersectionFlags::NONE)?
         };
         let combined_write = match &write_types {
             Some(write_types) => Some(if is_union {
                 self.get_union_type_ex(write_types, UnionReduction::Literal)?
             } else {
-                self.get_intersection_type(write_types, tsrs2_types::IntersectionFlags::NONE)?
+                self.get_intersection_type(write_types, tsc_types::IntersectionFlags::NONE)?
             }),
             None => None,
         };
@@ -5493,7 +5493,7 @@ impl<'a> CheckerState<'a> {
     /// undefined `symbol.declarations`; the port models both that and
     /// the empty array as an empty Vec).
     fn common_declarations_of_symbols(&self, symbols: &[SymbolId]) -> bool {
-        let mut common: Option<Vec<tsrs2_syntax::NodeId>> = None;
+        let mut common: Option<Vec<tsc_syntax::NodeId>> = None;
         for &symbol in symbols {
             let declarations = &self.binder.symbol(symbol).declarations;
             if declarations.is_empty() {
@@ -5533,10 +5533,10 @@ impl<'a> CheckerState<'a> {
             return false;
         };
         self.kind_of(parent) == SyntaxKind::BinaryExpression
-            && tsrs2_binder::assignment::get_assignment_declaration_kind(
+            && tsc_binder::assignment::get_assignment_declaration_kind(
                 self.binder.source_of_node(parent),
                 parent,
-            ) == tsrs2_binder::AssignmentDeclarationKind::PrototypeProperty
+            ) == tsc_binder::AssignmentDeclarationKind::PrototypeProperty
     }
 
     fn is_literal_type_public(&self, ty: TypeId) -> bool {
@@ -5591,7 +5591,7 @@ impl<'a> CheckerState<'a> {
         }
         if flags.intersects(SymbolFlags::VARIABLE)
             && self.get_declaration_node_flags_from_symbol(symbol)
-                & (tsrs2_types::NodeFlags::CONST.bits() | tsrs2_types::NodeFlags::USING.bits())
+                & (tsc_types::NodeFlags::CONST.bits() | tsc_types::NodeFlags::USING.bits())
                 != 0
         {
             return true;
@@ -5623,10 +5623,10 @@ impl<'a> CheckerState<'a> {
         }
         let source = self.binder.source_of_node(declaration);
         if !matches!(
-            tsrs2_binder::get_assignment_declaration_kind(source, declaration),
-            tsrs2_binder::AssignmentDeclarationKind::ObjectDefinePropertyValue
-                | tsrs2_binder::AssignmentDeclarationKind::ObjectDefinePropertyExports
-                | tsrs2_binder::AssignmentDeclarationKind::ObjectDefinePrototypeProperty
+            tsc_binder::get_assignment_declaration_kind(source, declaration),
+            tsc_binder::AssignmentDeclarationKind::ObjectDefinePropertyValue
+                | tsc_binder::AssignmentDeclarationKind::ObjectDefinePropertyExports
+                | tsc_binder::AssignmentDeclarationKind::ObjectDefinePrototypeProperty
         ) {
             return false;
         }
@@ -5646,11 +5646,11 @@ impl<'a> CheckerState<'a> {
         let mut has_set = false;
         let mut writable = None;
         for property in self.nodes_of(descriptor.properties) {
-            let Some(name) = tsrs2_binder::node_util::get_name_of_declaration(source, property)
+            let Some(name) = tsc_binder::node_util::get_name_of_declaration(source, property)
             else {
                 continue;
             };
-            let name = tsrs2_binder::node_util::declaration_name_to_string(source, Some(name));
+            let name = tsc_binder::node_util::declaration_name_to_string(source, Some(name));
             match name.as_str() {
                 "value" => has_value = true,
                 "set" => has_set = true,
@@ -5678,7 +5678,7 @@ impl<'a> CheckerState<'a> {
     /// flags of the value declaration.
     fn get_declaration_node_flags_from_symbol(&self, symbol: SymbolId) -> i32 {
         match self.binder.symbol(symbol).value_declaration {
-            Some(declaration) => tsrs2_binder::node_util::get_combined_node_flags(
+            Some(declaration) => tsc_binder::node_util::get_combined_node_flags(
                 self.binder.source_of_node(declaration),
                 declaration,
             )
@@ -5729,7 +5729,7 @@ impl<'a> CheckerState<'a> {
         if let Some(value_declaration) = self.binder.symbol(symbol).value_declaration {
             // 17438-17441: `isWrite && find(setter) || GetAccessor &&
             // find(getter) || valueDeclaration`.
-            let find_accessor = |kind: tsrs2_syntax::SyntaxKind| {
+            let find_accessor = |kind: tsc_syntax::SyntaxKind| {
                 self.binder
                     .symbol(symbol)
                     .declarations
@@ -5738,16 +5738,16 @@ impl<'a> CheckerState<'a> {
                     .find(|&declaration| self.kind_of(declaration) == kind)
             };
             let declaration = is_write
-                .then(|| find_accessor(tsrs2_syntax::SyntaxKind::SetAccessor))
+                .then(|| find_accessor(tsc_syntax::SyntaxKind::SetAccessor))
                 .flatten()
                 .or_else(|| {
                     self.symbol_flags(symbol)
                         .intersects(SymbolFlags::GET_ACCESSOR)
-                        .then(|| find_accessor(tsrs2_syntax::SyntaxKind::GetAccessor))
+                        .then(|| find_accessor(tsc_syntax::SyntaxKind::GetAccessor))
                         .flatten()
                 })
                 .unwrap_or(value_declaration);
-            let flags = tsrs2_binder::node_util::get_combined_modifier_flags(
+            let flags = tsc_binder::node_util::get_combined_modifier_flags(
                 self.binder.source_of_node(declaration),
                 declaration,
             );
@@ -6174,8 +6174,8 @@ impl<'a> CheckerState<'a> {
         let source = self.signature_of(signature).clone();
         let result = crate::state::Signature {
             declaration: source.declaration,
-            flags: tsrs2_types::SignatureFlags::from_bits(
-                source.flags.bits() & tsrs2_types::SignatureFlags::PROPAGATING_FLAGS.bits(),
+            flags: tsc_types::SignatureFlags::from_bits(
+                source.flags.bits() & tsc_types::SignatureFlags::PROPAGATING_FLAGS.bits(),
             ),
             type_parameters: source.type_parameters.clone(),
             parameters: source.parameters.clone(),
@@ -6231,8 +6231,8 @@ impl<'a> CheckerState<'a> {
         let source_flags = self.symbol_flags(source);
         let name = self.binder.symbol(source).escaped_name.clone();
         let symbol = self.binder.create_symbol(source_flags, name);
-        let readonly = tsrs2_types::CheckFlags::from_bits(
-            self.get_check_flags(source).bits() & tsrs2_types::CheckFlags::READONLY.bits(),
+        let readonly = tsc_types::CheckFlags::from_bits(
+            self.get_check_flags(source).bits() & tsc_types::CheckFlags::READONLY.bits(),
         );
         self.links
             .set_symbol_check_flags(self.speculation_depth, symbol, readonly);
@@ -6289,7 +6289,7 @@ impl<'a> CheckerState<'a> {
             maybe_count: 0,
             source_depth: 0,
             target_depth: 0,
-            expanding_flags: tsrs2_types::ExpandingFlags::NONE,
+            expanding_flags: tsc_types::ExpandingFlags::NONE,
             overflow: false,
             relation_count,
             error_state: Default::default(),
@@ -6420,7 +6420,7 @@ impl<'a> CheckerState<'a> {
                         }
                         let this_type = self.get_intersection_type(
                             &this_types,
-                            tsrs2_types::IntersectionFlags::NONE,
+                            tsc_types::IntersectionFlags::NONE,
                         )?;
                         this_parameter =
                             Some(self.create_symbol_with_type(first_this, Some(this_type)));
@@ -6623,7 +6623,7 @@ impl<'a> CheckerState<'a> {
             for constituent in constituents {
                 mapped.push(self.get_type_without_signatures(constituent)?);
             }
-            return self.get_intersection_type(&mapped, tsrs2_types::IntersectionFlags::NONE);
+            return self.get_intersection_type(&mapped, tsc_types::IntersectionFlags::NONE);
         }
         Ok(ty)
     }
@@ -6644,10 +6644,8 @@ impl<'a> CheckerState<'a> {
         let left_type = self.get_type_of_symbol(left)?;
         let right_type = self.get_type_of_symbol(right)?;
         let right_type = self.instantiate_type(right_type, mapper)?;
-        let this_type = self.get_intersection_type(
-            &[left_type, right_type],
-            tsrs2_types::IntersectionFlags::NONE,
-        )?;
+        let this_type = self
+            .get_intersection_type(&[left_type, right_type], tsc_types::IntersectionFlags::NONE)?;
         Ok(Some(self.create_symbol_with_type(left, Some(this_type))))
     }
 
@@ -6699,7 +6697,7 @@ impl<'a> CheckerState<'a> {
             }
             let union_param_type = self.get_intersection_type(
                 &[longest_param_type, shorter_param_type],
-                tsrs2_types::IntersectionFlags::NONE,
+                tsc_types::IntersectionFlags::NONE,
             )?;
             let is_rest_param =
                 either_has_effective_rest && !needs_extra_rest_element && i == longest_count - 1;
@@ -6787,7 +6785,7 @@ impl<'a> CheckerState<'a> {
         let signature_data = self.signature_of(signature);
         let has_rest = signature_data
             .flags
-            .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER);
+            .intersects(tsc_types::SignatureFlags::HAS_REST_PARAMETER);
         let param_count = signature_data.parameters.len() - usize::from(has_rest);
         if pos < param_count {
             return Ok(Some(
@@ -6853,10 +6851,10 @@ impl<'a> CheckerState<'a> {
             }
             _ => None,
         };
-        let mut flags = tsrs2_types::SignatureFlags::from_bits(
+        let mut flags = tsc_types::SignatureFlags::from_bits(
             (left_data.flags.bits() | right_data.flags.bits())
-                & (tsrs2_types::SignatureFlags::PROPAGATING_FLAGS.bits()
-                    & !tsrs2_types::SignatureFlags::HAS_REST_PARAMETER.bits()),
+                & (tsc_types::SignatureFlags::PROPAGATING_FLAGS.bits()
+                    & !tsc_types::SignatureFlags::HAS_REST_PARAMETER.bits()),
         );
         let params = self.combine_union_parameters(left, right, param_mapper)?;
         if let Some(&last_param) = params.last() {
@@ -6864,8 +6862,8 @@ impl<'a> CheckerState<'a> {
                 .get_check_flags(last_param)
                 .intersects(CheckFlags::REST_PARAMETER)
             {
-                flags = tsrs2_types::SignatureFlags::from_bits(
-                    flags.bits() | tsrs2_types::SignatureFlags::HAS_REST_PARAMETER.bits(),
+                flags = tsc_types::SignatureFlags::from_bits(
+                    flags.bits() | tsc_types::SignatureFlags::HAS_REST_PARAMETER.bits(),
                 );
             }
         }
@@ -7139,7 +7137,7 @@ impl<'a> CheckerState<'a> {
         if s.type_parameters.is_none()
             && s.parameters.len() == 1
             && s.flags
-                .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER)
+                .intersects(tsc_types::SignatureFlags::HAS_REST_PARAMETER)
         {
             let param_type = self.get_type_of_parameter(s.parameters[0])?;
             if self.tables.flags_of(param_type).intersects(TypeFlags::ANY) {
@@ -7184,7 +7182,7 @@ impl<'a> CheckerState<'a> {
                 mixed_types.push(self.get_return_type_of_signature(construct)?);
             }
         }
-        self.get_intersection_type(&mixed_types, tsrs2_types::IntersectionFlags::NONE)
+        self.get_intersection_type(&mixed_types, tsc_types::IntersectionFlags::NONE)
     }
 
     /// tsc-port: appendSignatures @6.0.3
@@ -7227,7 +7225,7 @@ impl<'a> CheckerState<'a> {
                 } else {
                     self.get_intersection_type(
                         &[info.value_type, new_info.value_type],
-                        tsrs2_types::IntersectionFlags::NONE,
+                        tsc_types::IntersectionFlags::NONE,
                     )?
                 };
                 let is_readonly = if union {
@@ -7312,7 +7310,7 @@ impl<'a> CheckerState<'a> {
             && signature_data.parameters.len() == 1
             && signature_data
                 .flags
-                .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER)
+                .intersects(tsc_types::SignatureFlags::HAS_REST_PARAMETER)
         {
             let parameter_type = self.get_type_of_parameter(signature_data.parameters[0])?;
             let rest_type = if self.is_array_type(parameter_type)? {
@@ -7433,11 +7431,11 @@ impl<'a> CheckerState<'a> {
     fn rest_tuple_target_data(
         &mut self,
         signature: SignatureId,
-    ) -> CheckResult<Option<(TypeId, tsrs2_types::TupleTargetData)>> {
+    ) -> CheckResult<Option<(TypeId, tsc_types::TupleTargetData)>> {
         let signature_data = self.signature_of(signature);
         if !signature_data
             .flags
-            .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER)
+            .intersects(tsc_types::SignatureFlags::HAS_REST_PARAMETER)
         {
             return Ok(None);
         }
@@ -7551,7 +7549,7 @@ impl<'a> CheckerState<'a> {
         if !self
             .signature_of(signature)
             .flags
-            .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER)
+            .intersects(tsc_types::SignatureFlags::HAS_REST_PARAMETER)
         {
             return Ok(false);
         }
@@ -7602,7 +7600,7 @@ impl<'a> CheckerState<'a> {
                     let indexed = self.get_indexed_access_type(
                         rest_type,
                         self.tables.intrinsics.number,
-                        tsrs2_types::AccessFlags::NONE,
+                        tsc_types::AccessFlags::NONE,
                         /*access_node*/ None,
                         /*alias_symbol*/ None,
                         /*alias_type_arguments*/ None,
@@ -7663,7 +7661,7 @@ impl<'a> CheckerState<'a> {
         let data = self.signature_of(signature);
         let has_rest = data
             .flags
-            .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER);
+            .intersects(tsc_types::SignatureFlags::HAS_REST_PARAMETER);
         let parameters = data.parameters.clone();
         let param_count = parameters.len() - usize::from(has_rest);
         if pos < param_count {
@@ -7719,7 +7717,7 @@ impl<'a> CheckerState<'a> {
         let signature_data = self.signature_of(signature);
         if !signature_data
             .flags
-            .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER)
+            .intersects(tsc_types::SignatureFlags::HAS_REST_PARAMETER)
         {
             return Ok(None);
         }
@@ -7882,7 +7880,7 @@ impl<'a> CheckerState<'a> {
         let parameters = signature_data.parameters.clone();
         let has_rest = signature_data
             .flags
-            .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER);
+            .intersects(tsc_types::SignatureFlags::HAS_REST_PARAMETER);
         let parameter_count = parameters.len() - usize::from(has_rest);
         if pos < parameter_count {
             return Ok(Some(self.get_type_of_parameter(parameters[pos])?));
@@ -7907,7 +7905,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(Some(self.get_indexed_access_type(
                     rest_type,
                     literal,
-                    tsrs2_types::AccessFlags::NONE,
+                    tsc_types::AccessFlags::NONE,
                     None,
                     None,
                     None,
@@ -7968,7 +7966,7 @@ impl<'a> CheckerState<'a> {
         }
         if applicable.len() > 1 {
             let types: Vec<TypeId> = applicable.iter().map(|info| info.value_type).collect();
-            let value = self.get_intersection_type(&types, tsrs2_types::IntersectionFlags::NONE)?;
+            let value = self.get_intersection_type(&types, tsc_types::IntersectionFlags::NONE)?;
             let is_readonly = applicable.iter().all(|info| info.is_readonly);
             let declaration = applicable[0].declaration;
             return Ok(Some(IndexInfo {
@@ -8015,7 +8013,7 @@ impl<'a> CheckerState<'a> {
                 return Ok(true);
             }
             if let TypeData::Literal {
-                value: tsrs2_types::LiteralValue::String(value),
+                value: tsc_types::LiteralValue::String(value),
             } = &self.tables.type_of(source).data
             {
                 return Ok(value
@@ -8235,7 +8233,7 @@ impl<'a> CheckerState<'a> {
         if s.is_empty() {
             return false;
         }
-        let Some(scan) = tsrs2_syntax::scan_big_int_string(s) else {
+        let Some(scan) = tsc_syntax::scan_big_int_string(s) else {
             return false;
         };
         if scan.contains_separator {
@@ -8306,7 +8304,7 @@ impl<'a> CheckerState<'a> {
         let source_flags = self.tables.flags_of(source);
         if source_flags.intersects(TypeFlags::STRING_LITERAL) {
             let TypeData::Literal {
-                value: tsrs2_types::LiteralValue::String(value),
+                value: tsc_types::LiteralValue::String(value),
             } = self.tables.type_of(source).data.clone()
             else {
                 unreachable!("string literal data");
@@ -8397,7 +8395,7 @@ impl<'a> CheckerState<'a> {
             .intersects(TypeFlags::STRING_LITERAL)
         {
             let TypeData::Literal {
-                value: tsrs2_types::LiteralValue::String(value),
+                value: tsc_types::LiteralValue::String(value),
             } = self.tables.type_of(source).data.clone()
             else {
                 unreachable!("string literal data");
@@ -8596,17 +8594,17 @@ pub(crate) fn js_string_to_number(s: &str) -> Option<f64> {
 }
 
 /// JS number formatting for the round-trip checks — the canonical
-/// ECMAScript Number::toString lives in tsrs2_types (template folding
+/// ECMAScript Number::toString lives in tsc_types (template folding
 /// shares it).
 fn js_number_to_string(value: f64) -> String {
-    tsrs2_types::js_number_to_string(value)
+    tsc_types::js_number_to_string(value)
 }
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_binder::bind_source_file;
-    use tsrs2_syntax::{parse_source_file, LanguageVariant, ParseOptions};
-    use tsrs2_types::{CompilerOptions, LiteralValue, TemplateText, TypeData};
+    use tsc_binder::bind_source_file;
+    use tsc_syntax::{parse_source_file, LanguageVariant, ParseOptions};
+    use tsc_types::{CompilerOptions, LiteralValue, TemplateText, TypeData};
 
     use crate::relpin::find_probe_annotation;
     use crate::relpin::{probe_relation, RelpinQuery, RelpinRelation, RelpinVerdict};
@@ -8686,7 +8684,7 @@ mod tests {
                     .arena
                     .node_ids()
                     .filter(|&node| {
-                        state.kind_of(node) == tsrs2_syntax::SyntaxKind::FunctionDeclaration
+                        state.kind_of(node) == tsc_syntax::SyntaxKind::FunctionDeclaration
                     })
                     .collect();
                 assert_eq!(declarations.len(), 2);
@@ -8934,7 +8932,7 @@ mod tests {
                 assert!(state
                     .is_type_assignable_to(wide, false_type)
                     .expect("false branch relation"));
-                let tsrs2_types::TypeData::Conditional(target_data) =
+                let tsc_types::TypeData::Conditional(target_data) =
                     state.tables.type_of(target).data.clone()
                 else {
                     panic!("target remains conditional");
@@ -8992,7 +8990,7 @@ mod tests {
                     .iter()
                     .filter(|diagnostic| {
                         diagnostic.file_name.is_some()
-                            && diagnostic.category() == tsrs2_diags::DiagnosticCategory::Error
+                            && diagnostic.category() == tsc_diagnostics::DiagnosticCategory::Error
                     })
                     .map(|diagnostic| {
                         (
@@ -9054,7 +9052,7 @@ mod tests {
                     .iter()
                     .filter(|diag| {
                         diag.file_name.is_some()
-                            && diag.category() == tsrs2_diags::DiagnosticCategory::Error
+                            && diag.category() == tsc_diagnostics::DiagnosticCategory::Error
                     })
                     .map(|diag| {
                         (
@@ -9071,7 +9069,7 @@ mod tests {
 
     #[test]
     fn relation_property_reports_use_target_symbol_to_string_faces() {
-        fn flatten(chain: &tsrs2_diags::MessageChain, texts: &mut Vec<String>) {
+        fn flatten(chain: &tsc_diagnostics::MessageChain, texts: &mut Vec<String>) {
             texts.push(chain.text.clone());
             for child in &chain.next {
                 flatten(child, texts);
@@ -9109,7 +9107,7 @@ mod tests {
                 state.check_source_file(0);
                 let mut texts = Vec::new();
                 for diagnostic in &state.diagnostics {
-                    if diagnostic.category() == tsrs2_diags::DiagnosticCategory::Error {
+                    if diagnostic.category() == tsc_diagnostics::DiagnosticCategory::Error {
                         flatten(&diagnostic.message, &mut texts);
                     }
                 }
@@ -9244,7 +9242,7 @@ mod tests {
 
     #[test]
     fn tuple_relation_reports_tsc_arity_and_element_mismatch_chains() {
-        fn flatten_codes(chain: &tsrs2_diags::MessageChain, codes: &mut Vec<u32>) {
+        fn flatten_codes(chain: &tsc_diagnostics::MessageChain, codes: &mut Vec<u32>) {
             codes.push(chain.code);
             for child in &chain.next {
                 flatten_codes(child, codes);
@@ -9372,7 +9370,7 @@ function sourceVariadic<T extends unknown[]>(source: [...T], target: [number]) {
 
     #[test]
     fn unmatched_property_reporting_preserves_tsc_control_flow() {
-        fn flatten_codes(chain: &tsrs2_diags::MessageChain, codes: &mut Vec<u32>) {
+        fn flatten_codes(chain: &tsc_diagnostics::MessageChain, codes: &mut Vec<u32>) {
             codes.push(chain.code);
             for child in &chain.next {
                 flatten_codes(child, codes);
@@ -9380,7 +9378,7 @@ function sourceVariadic<T extends unknown[]>(source: [...T], target: [number]) {
         }
 
         let options = CompilerOptions {
-            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            target: Some(tsc_types::ScriptTarget::ES2015.bits()),
             ..CompilerOptions::default()
         };
         let chains = crate::state::test_support::with_program_state(
@@ -9447,7 +9445,7 @@ class ImplementsViaBase extends Base implements Required {}
 
     #[test]
     fn no_matching_signature_reporting_preserves_tsc_control_flow() {
-        fn flatten_codes(chain: &tsrs2_diags::MessageChain, codes: &mut Vec<u32>) {
+        fn flatten_codes(chain: &tsc_diagnostics::MessageChain, codes: &mut Vec<u32>) {
             codes.push(chain.code);
             for child in &chain.next {
                 flatten_codes(child, codes);
@@ -9514,7 +9512,7 @@ let laterMatch: (x: number) => number = overloaded;
 
     #[test]
     fn wrapper_object_to_primitive_reports_the_tsc_hint() {
-        fn flatten_codes(chain: &tsrs2_diags::MessageChain, codes: &mut Vec<u32>) {
+        fn flatten_codes(chain: &tsc_diagnostics::MessageChain, codes: &mut Vec<u32>) {
             codes.push(chain.code);
             for child in &chain.next {
                 flatten_codes(child, codes);
@@ -9738,7 +9736,7 @@ let primitiveSymbol: symbol = boxedSymbol;
 
     #[test]
     fn predicate_relation_reporting_keeps_tsc_chains_and_related_info() {
-        fn flatten_codes(chain: &tsrs2_diags::MessageChain, codes: &mut Vec<u32>) {
+        fn flatten_codes(chain: &tsc_diagnostics::MessageChain, codes: &mut Vec<u32>) {
             codes.push(chain.code);
             for child in &chain.next {
                 flatten_codes(child, codes);
@@ -10394,7 +10392,7 @@ let primitiveSymbol: symbol = boxedSymbol;
 
     #[test]
     fn relation_error_state_generic_mapped_cleanup_preserves_the_tsc_boundary() {
-        fn flatten(chain: &tsrs2_diags::MessageChain, out: &mut Vec<(u32, String)>) {
+        fn flatten(chain: &tsc_diagnostics::MessageChain, out: &mut Vec<(u32, String)>) {
             out.push((chain.code, chain.text.clone()));
             for child in &chain.next {
                 flatten(child, out);
@@ -10409,7 +10407,7 @@ let primitiveSymbol: symbol = boxedSymbol;
                     .iter()
                     .filter(|diagnostic| {
                         diagnostic.file_name.is_some()
-                            && diagnostic.category() == tsrs2_diags::DiagnosticCategory::Error
+                            && diagnostic.category() == tsc_diagnostics::DiagnosticCategory::Error
                     })
                     .map(|diagnostic| {
                         let mut chain = Vec::new();
@@ -10422,7 +10420,7 @@ let primitiveSymbol: symbol = boxedSymbol;
 
         let options = CompilerOptions {
             strict_null_checks: Some(true),
-            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            target: Some(tsc_types::ScriptTarget::ES2015.bits()),
             ..CompilerOptions::default()
         };
 
@@ -10477,7 +10475,7 @@ let primitiveSymbol: symbol = boxedSymbol;
 
     #[test]
     fn relation_reporting_keeps_union_keyof_and_class_member_failure_levels() {
-        fn flatten(chain: &tsrs2_diags::MessageChain, out: &mut Vec<(u32, String)>) {
+        fn flatten(chain: &tsc_diagnostics::MessageChain, out: &mut Vec<(u32, String)>) {
             out.push((chain.code, chain.text.clone()));
             for child in &chain.next {
                 flatten(child, out);
@@ -10497,7 +10495,7 @@ let primitiveSymbol: symbol = boxedSymbol;
                     .iter()
                     .filter(|diagnostic| {
                         diagnostic.file_name.is_some()
-                            && diagnostic.category() == tsrs2_diags::DiagnosticCategory::Error
+                            && diagnostic.category() == tsc_diagnostics::DiagnosticCategory::Error
                     })
                     .map(|diagnostic| {
                         let mut chain = Vec::new();
@@ -10511,7 +10509,7 @@ let primitiveSymbol: symbol = boxedSymbol;
         let strict = CompilerOptions {
             strict: Some(true),
             strict_null_checks: Some(true),
-            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            target: Some(tsc_types::ScriptTarget::ES2015.bits()),
             ..CompilerOptions::default()
         };
         assert_eq!(
