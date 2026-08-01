@@ -1,19 +1,13 @@
 [package]
-name = "tsc-rs-types"
+name = "tsc-rs-diagnostics"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [package.metadata.tsc-rs]
-role = "types"
+role = "diagnostics"
 dev-profile-opt-level = 3
 
 [lib]
-name = "tsc_types"
+name = "tsc_diagnostics"
 path = "src/lib.rs"
-
-[dependencies]
-tsc-diagnostics.workspace = true
-
-[lints]
-workspace = true

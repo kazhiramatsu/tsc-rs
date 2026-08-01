@@ -1,17 +1,17 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Deserialize;
-use tsrs2_fuzz::classify::{CanonicalClass, ClassFailure};
-use tsrs2_fuzz::compare::ComparisonTier;
-use tsrs2_fuzz::evaluate::evaluate_case;
-use tsrs2_fuzz::model::{
+use tsc_fuzz::classify::{CanonicalClass, ClassFailure};
+use tsc_fuzz::compare::ComparisonTier;
+use tsc_fuzz::evaluate::evaluate_case;
+use tsc_fuzz::model::{
     AssembledDiagnostic, CanonicalHead, CaseExecution, CompletedOutcome, DiagnosticCategory,
     DiagnosticFile, DiagnosticPass, DiagnosticRecord, EngineResult, MessageChain, OptionalBool,
     OptionalString, OptionalU32, RelatedDiagnostic, RenderSegment, RendererObservation,
     TerminalBoundaryId, TerminalKind, TerminalOutcome, TerminalPhase,
 };
-use tsrs2_fuzz::normalize::NormalizationSpec;
-use tsrs2_fuzz::schema::{
+use tsc_fuzz::normalize::NormalizationSpec;
+use tsc_fuzz::schema::{
     CanonicalU64, CaseProvenance, CaseSpec, ChildProcessPolicy, DecisionValue, DomainMembership,
     EncodedFile, NodeProcessPolicy, OrderedArgument, ProcessPolicy, RustProcessPolicy,
     StableDecision, CASE_SPEC_SCHEMA,

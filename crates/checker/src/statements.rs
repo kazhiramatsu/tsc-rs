@@ -18,10 +18,10 @@
 //! - checkCollisionWithArgumentsInGeneratedCode (83229) — its only
 //!   caller is checkSignatureDeclarationDiagnostics (81315), a §5
 //!   worker; the fn ports with its caller in 5.8b.
-use tsrs2_binder::node_util;
-use tsrs2_diags::{gen as diagnostics, DiagnosticCategory, DiagnosticMessage, MessageChain};
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{
+use tsc_binder::node_util;
+use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory, DiagnosticMessage, MessageChain};
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{
     CheckMode, IterationUse, ModifierFlags, NodeFlags, SymbolFlags, TypeFlags, TypeId,
 };
 
@@ -69,7 +69,7 @@ impl<'a> CheckerState<'a> {
             block_scope_kind,
             value if value == NodeFlags::USING.bits()
                 || value == NodeFlags::AWAIT_USING.bits()
-        ) && self.options.emit_script_target() < tsrs2_types::ScriptTarget::ES_NEXT
+        ) && self.options.emit_script_target() < tsc_types::ScriptTarget::ES_NEXT
         {
             self.check_external_emit_helpers(
                 node,
@@ -342,7 +342,7 @@ impl<'a> CheckerState<'a> {
                         self.data_of(initializer),
                         NodeData::ObjectLiteralExpression(data)
                             if self.nodes_of(data.properties).is_empty()
-                                || tsrs2_binder::assignment::is_prototype_access(source, name)
+                                || tsc_binder::assignment::is_prototype_access(source, name)
                     )
                     && !self.binder.symbol(symbol).exports.is_empty();
                 if !is_js_object_literal_initializer
@@ -387,10 +387,8 @@ impl<'a> CheckerState<'a> {
                                 self.tables.intrinsics.null,
                                 self.tables.intrinsics.undefined,
                             ];
-                            let optional_disposable = self.get_union_type_ex(
-                                &members,
-                                tsrs2_types::UnionReduction::Literal,
-                            )?;
+                            let optional_disposable = self
+                                .get_union_type_ex(&members, tsc_types::UnionReduction::Literal)?;
                             let widened = self.widen_type_for_variable_like_declaration(
                                 Some(initializer_type),
                                 node,
@@ -412,10 +410,8 @@ impl<'a> CheckerState<'a> {
                                 self.tables.intrinsics.null,
                                 self.tables.intrinsics.undefined,
                             ];
-                            let optional_disposable = self.get_union_type_ex(
-                                &members,
-                                tsrs2_types::UnionReduction::Literal,
-                            )?;
+                            let optional_disposable = self
+                                .get_union_type_ex(&members, tsc_types::UnionReduction::Literal)?;
                             let widened = self.widen_type_for_variable_like_declaration(
                                 Some(initializer_type),
                                 node,
@@ -1087,9 +1083,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:90100-90114
     fn check_es_module_marker(&mut self, name: NodeId) -> bool {
         if self.kind_of(name) == SyntaxKind::Identifier {
-            let is_marker = self.identifier_text_of(name).is_some_and(|text| {
-                tsrs2_binder::unescape_leading_underscores(text) == "__esModule"
-            });
+            let is_marker = self
+                .identifier_text_of(name)
+                .is_some_and(|text| tsc_binder::unescape_leading_underscores(text) == "__esModule");
             if is_marker {
                 return self.grammar_error_on_node_skipped_on(
                     name,
@@ -1365,7 +1361,7 @@ impl<'a> CheckerState<'a> {
         let name = name.expect("collision check implies a name");
         if self.kind_of(node) == SyntaxKind::ModuleDeclaration
             && self.module_instance_state_of(node)
-                != tsrs2_binder::containers::ModuleInstanceState::Instantiated
+                != tsc_binder::containers::ModuleInstanceState::Instantiated
         {
             return;
         }
@@ -1395,7 +1391,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         name: Option<NodeId>,
     ) {
-        if self.options.emit_script_target() >= tsrs2_types::ScriptTarget::ES2017 {
+        if self.options.emit_script_target() >= tsc_types::ScriptTarget::ES2017 {
             return;
         }
         if !self.need_collision_check_for_identifier(node, name, "Promise") {
@@ -1404,7 +1400,7 @@ impl<'a> CheckerState<'a> {
         let name = name.expect("collision check implies a name");
         if self.kind_of(node) == SyntaxKind::ModuleDeclaration
             && self.module_instance_state_of(node)
-                != tsrs2_binder::containers::ModuleInstanceState::Instantiated
+                != tsc_binder::containers::ModuleInstanceState::Instantiated
         {
             return;
         }
@@ -1432,7 +1428,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         name: Option<NodeId>,
     ) {
-        if self.options.emit_script_target() <= tsrs2_types::ScriptTarget::ES2021
+        if self.options.emit_script_target() <= tsc_types::ScriptTarget::ES2021
             && (self.need_collision_check_for_identifier(node, name, "WeakMap")
                 || self.need_collision_check_for_identifier(node, name, "WeakSet"))
         {
@@ -1454,7 +1450,7 @@ impl<'a> CheckerState<'a> {
             .links
             .node(enclosing)
             .check_flags
-            .intersects(tsrs2_types::NodeCheckFlags::CONTAINS_CLASS_WITH_PRIVATE_IDENTIFIERS)
+            .intersects(tsc_types::NodeCheckFlags::CONTAINS_CLASS_WITH_PRIVATE_IDENTIFIERS)
         {
             let Some(name) = self.name_of_node(node) else {
                 return;
@@ -1480,8 +1476,8 @@ impl<'a> CheckerState<'a> {
     ) {
         let target = self.options.emit_script_target();
         if name.is_some()
-            && target >= tsrs2_types::ScriptTarget::ES2015
-            && target <= tsrs2_types::ScriptTarget::ES2021
+            && target >= tsc_types::ScriptTarget::ES2015
+            && target <= tsc_types::ScriptTarget::ES2021
             && self.need_collision_check_for_identifier(node, name, "Reflect")
         {
             self.potential_reflect_collisions.push(node);
@@ -1498,7 +1494,7 @@ impl<'a> CheckerState<'a> {
         let mut has_collision = false;
         let contains_super = |state: &Self, candidate: NodeId| {
             state.links.node(candidate).check_flags.intersects(
-                tsrs2_types::NodeCheckFlags::CONTAINS_SUPER_PROPERTY_IN_STATIC_INITIALIZER,
+                tsc_types::NodeCheckFlags::CONTAINS_SUPER_PROPERTY_IN_STATIC_INITIALIZER,
             )
         };
         match self.kind_of(node) {
@@ -1624,7 +1620,7 @@ impl<'a> CheckerState<'a> {
                 .links
                 .node(candidate)
                 .check_flags
-                .intersects(tsrs2_types::NodeCheckFlags::CAPTURE_THIS)
+                .intersects(tsc_types::NodeCheckFlags::CAPTURE_THIS)
             {
                 let is_declaration = self.kind_of(node) != SyntaxKind::Identifier;
                 if is_declaration {
@@ -1660,7 +1656,7 @@ impl<'a> CheckerState<'a> {
                 .links
                 .node(candidate)
                 .check_flags
-                .intersects(tsrs2_types::NodeCheckFlags::CAPTURE_NEW_TARGET)
+                .intersects(tsc_types::NodeCheckFlags::CAPTURE_NEW_TARGET)
             {
                 let is_declaration = self.kind_of(node) != SyntaxKind::Identifier;
                 if is_declaration {
@@ -1724,7 +1720,7 @@ impl<'a> CheckerState<'a> {
                 let source = self.binder.source_of_node(wrapping);
                 let end_utf16 =
                     self.utf16_position(wrapping, source.arena.node(wrapping).end as usize);
-                diagnostic.related.push(tsrs2_diags::RelatedInfo {
+                diagnostic.related.push(tsc_diagnostics::RelatedInfo {
                     file_name: Some(source.file_name.clone()),
                     start: Some(end_utf16),
                     length: Some(0),
@@ -1779,7 +1775,7 @@ impl<'a> CheckerState<'a> {
         };
         let source = self.binder.source_of_node(node);
         if node_util::is_entity_name_expression(source, name)
-            && tsrs2_binder::assignment::is_same_entity_name(source, name, left)
+            && tsc_binder::assignment::is_same_entity_name(source, name, left)
         {
             Some(right)
         } else {
@@ -1908,10 +1904,10 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn module_instance_state_of(
         &self,
         node: NodeId,
-    ) -> tsrs2_binder::containers::ModuleInstanceState {
+    ) -> tsc_binder::containers::ModuleInstanceState {
         let source = self.binder.source_of_node(node);
         let mut visited = std::collections::HashMap::new();
-        tsrs2_binder::containers::get_module_instance_state(source, node, &mut visited)
+        tsc_binder::containers::get_module_instance_state(source, node, &mut visited)
     }
 }
 
@@ -2246,7 +2242,7 @@ impl<'a> CheckerState<'a> {
                             }
                             let module_kind = self.options.emit_module_kind();
                             let target_ok = self.options.emit_script_target()
-                                >= tsrs2_types::ScriptTarget::ES2017;
+                                >= tsc_types::ScriptTarget::ES2017;
                             let is_node_module_kind = matches!(module_kind, 100 | 101 | 102 | 199);
                             let ladder_ok =
                                 matches!(module_kind, 100 | 101 | 102 | 199 | 7 | 99 | 200 | 4)
@@ -2902,7 +2898,7 @@ impl<'a> CheckerState<'a> {
                                         .intersects(SymbolFlags::BLOCK_SCOPED_VARIABLE)
                                     {
                                         let display =
-                                            tsrs2_binder::unescape_leading_underscores(caught_name)
+                                            tsc_binder::unescape_leading_underscores(caught_name)
                                                 .to_owned();
                                         self.grammar_error_on_node(
                                             value_declaration,
@@ -2942,7 +2938,7 @@ mod tests {
                 .iter()
                 .filter(|diag| {
                     diag.file_name.is_some()
-                        && diag.category() == tsrs2_diags::DiagnosticCategory::Error
+                        && diag.category() == tsc_diagnostics::DiagnosticCategory::Error
                 })
                 .map(|diag| {
                     (
@@ -2963,7 +2959,7 @@ mod tests {
                 .iter()
                 .filter(|diag| {
                     diag.file_name.is_some()
-                        && diag.category() == tsrs2_diags::DiagnosticCategory::Error
+                        && diag.category() == tsc_diagnostics::DiagnosticCategory::Error
                 })
                 .map(|diag| {
                     (
@@ -2992,7 +2988,7 @@ mod tests {
                     .iter()
                     .filter(|diag| {
                         diag.file_name.is_some()
-                            && diag.category() == tsrs2_diags::DiagnosticCategory::Error
+                            && diag.category() == tsc_diagnostics::DiagnosticCategory::Error
                     })
                     .map(|diag| {
                         (
@@ -3009,7 +3005,7 @@ mod tests {
     fn unused_label_rows(
         text: &str,
         options: &CompilerOptions,
-    ) -> Vec<(tsrs2_diags::DiagnosticCategory, u32, u32)> {
+    ) -> Vec<(tsc_diagnostics::DiagnosticCategory, u32, u32)> {
         with_program_state(&[("a.ts", text)], options, |state| {
             state.check_source_file(0);
             state
@@ -3030,7 +3026,7 @@ mod tests {
     fn unreachable_rows(
         text: &str,
         options: &CompilerOptions,
-    ) -> Vec<(tsrs2_diags::DiagnosticCategory, u32, u32)> {
+    ) -> Vec<(tsc_diagnostics::DiagnosticCategory, u32, u32)> {
         with_program_state(&[("a.ts", text)], options, |state| {
             state.check_source_file(0);
             state
@@ -3048,7 +3044,9 @@ mod tests {
         })
     }
 
-    fn checked_js_unreachable_rows(text: &str) -> Vec<(tsrs2_diags::DiagnosticCategory, u32, u32)> {
+    fn checked_js_unreachable_rows(
+        text: &str,
+    ) -> Vec<(tsc_diagnostics::DiagnosticCategory, u32, u32)> {
         check_program(
             &[InputFile {
                 name: "a.js".to_owned(),
@@ -3399,7 +3397,7 @@ x.accessor = 1;\n"
         let text = "function f() { return; let x = 1; }\n";
         assert_eq!(
             unreachable_rows(text, &CompilerOptions::default()),
-            [(tsrs2_diags::DiagnosticCategory::Suggestion, 23, 10)]
+            [(tsc_diagnostics::DiagnosticCategory::Suggestion, 23, 10)]
         );
         assert_eq!(
             unreachable_rows(
@@ -3409,7 +3407,7 @@ x.accessor = 1;\n"
                     ..CompilerOptions::default()
                 }
             ),
-            [(tsrs2_diags::DiagnosticCategory::Error, 23, 10)]
+            [(tsc_diagnostics::DiagnosticCategory::Error, 23, 10)]
         );
         assert_eq!(
             unreachable_rows(
@@ -3449,7 +3447,7 @@ x.accessor = 1;\n"
                     diag.length.unwrap_or(u32::MAX),
                 ))
                 .collect::<Vec<_>>(),
-            [(tsrs2_diags::DiagnosticCategory::Suggestion, 23, 10)]
+            [(tsc_diagnostics::DiagnosticCategory::Suggestion, 23, 10)]
         );
     }
 
@@ -3461,7 +3459,7 @@ function f() { fail(); x; }\n";
         assert_eq!(
             checked_js_unreachable_rows(never_text),
             [(
-                tsrs2_diags::DiagnosticCategory::Error,
+                tsc_diagnostics::DiagnosticCategory::Error,
                 never_text.rfind("x;").unwrap() as u32,
                 2,
             )]
@@ -3478,7 +3476,7 @@ function f(b) {\n\
         assert_eq!(
             checked_js_unreachable_rows(boolean_text),
             [(
-                tsrs2_diags::DiagnosticCategory::Error,
+                tsc_diagnostics::DiagnosticCategory::Error,
                 boolean_text.rfind("b;").unwrap() as u32,
                 2,
             )]
@@ -3495,7 +3493,7 @@ function f(b) {\n\
         let text = "unused: { let x = 1; }\n";
         assert_eq!(
             unused_label_rows(text, &CompilerOptions::default()),
-            [(tsrs2_diags::DiagnosticCategory::Suggestion, 0, 6)]
+            [(tsc_diagnostics::DiagnosticCategory::Suggestion, 0, 6)]
         );
         assert_eq!(
             unused_label_rows(
@@ -3505,7 +3503,7 @@ function f(b) {\n\
                     ..CompilerOptions::default()
                 }
             ),
-            [(tsrs2_diags::DiagnosticCategory::Error, 0, 6)]
+            [(tsc_diagnostics::DiagnosticCategory::Error, 0, 6)]
         );
         assert_eq!(
             unused_label_rows(
@@ -3546,7 +3544,7 @@ function f(b) {\n\
                     diag.length.unwrap_or(u32::MAX),
                 ))
                 .collect::<Vec<_>>(),
-            [(tsrs2_diags::DiagnosticCategory::Suggestion, 0, 6)]
+            [(tsc_diagnostics::DiagnosticCategory::Suggestion, 0, 6)]
         );
     }
 
@@ -4006,7 +4004,7 @@ function f(b) {\n\
         result
             .diagnostics
             .iter()
-            .filter(|diag| diag.category() == tsrs2_diags::DiagnosticCategory::Error)
+            .filter(|diag| diag.category() == tsc_diagnostics::DiagnosticCategory::Error)
             .map(|diag| {
                 (
                     diag.code(),
@@ -4242,7 +4240,7 @@ function f(b) {\n\
             .iter()
             .filter(|diag| {
                 diag.file_name.is_some()
-                    && diag.category() == tsrs2_diags::DiagnosticCategory::Error
+                    && diag.category() == tsc_diagnostics::DiagnosticCategory::Error
             })
             .map(|diag| {
                 (
@@ -4261,7 +4259,7 @@ function f(b) {\n\
             {
                 let options = CompilerOptions {
                     module: Some(module),
-                    target: Some(tsrs2_types::ScriptTarget::ES2022.bits()),
+                    target: Some(tsc_types::ScriptTarget::ES2022.bits()),
                     allow_js,
                     check_js,
                     ..CompilerOptions::default()
@@ -4285,7 +4283,7 @@ function f(b) {\n\
             {
                 let options = CompilerOptions {
                     module: Some(module),
-                    target: Some(tsrs2_types::ScriptTarget::ES2022.bits()),
+                    target: Some(tsc_types::ScriptTarget::ES2022.bits()),
                     allow_js,
                     check_js,
                     ..CompilerOptions::default()
@@ -4306,7 +4304,7 @@ function f(b) {\n\
     fn top_level_for_await_node_commonjs_stops_before_target_gate() {
         let options = CompilerOptions {
             module: Some(100),
-            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            target: Some(tsc_types::ScriptTarget::ES2015.bits()),
             ..CompilerOptions::default()
         };
         assert_eq!(

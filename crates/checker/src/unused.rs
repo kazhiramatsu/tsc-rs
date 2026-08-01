@@ -4,10 +4,10 @@
 //! activated first under `noUnusedLocals` / `noUnusedParameters`; the
 //! same registrations feed the suggestion surface in 8.4.
 
-use tsrs2_binder::node_util;
-use tsrs2_diags::{gen as diagnostics, DiagnosticCategory};
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{ModifierFlags, NodeFlags, SymbolFlags};
+use tsc_binder::node_util;
+use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory};
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{ModifierFlags, NodeFlags, SymbolFlags};
 
 use crate::state::{CheckResult, CheckerState};
 
@@ -142,7 +142,7 @@ impl<'a> CheckerState<'a> {
         containing_node: NodeId,
         kind: UnusedIdentifierKind,
         location: Option<NodeId>,
-        message: &'static tsrs2_diags::DiagnosticMessage,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
         args: &[&str],
     ) {
         if self.is_recovery_only_unused_declaration(containing_node) {
@@ -161,7 +161,7 @@ impl<'a> CheckerState<'a> {
         kind: UnusedIdentifierKind,
         start_byte: usize,
         end_byte: usize,
-        message: &'static tsrs2_diags::DiagnosticMessage,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
         args: &[&str],
     ) {
         if self.is_recovery_only_unused_declaration(containing_node) {
@@ -356,7 +356,7 @@ impl<'a> CheckerState<'a> {
                     let source = self.binder.source_of_node(parent);
                     let parent_node = source.arena.node(parent);
                     (
-                        tsrs2_syntax::skip_trivia(&source.text, parent_node.pos as usize),
+                        tsc_syntax::skip_trivia(&source.text, parent_node.pos as usize),
                         parent_node.end.max(parent_node.pos) as usize,
                     )
                 } else {
@@ -409,12 +409,12 @@ impl<'a> CheckerState<'a> {
     fn range_of_type_parameters(
         &self,
         node: NodeId,
-        list: tsrs2_syntax::NodeArrayId,
+        list: tsc_syntax::NodeArrayId,
     ) -> (usize, usize) {
         let source = self.binder.source_of_node(node);
         let array = source.arena.node_array(list);
         let start = (array.pos as usize).saturating_sub(1);
-        let end = tsrs2_syntax::skip_trivia(&source.text, array.end as usize)
+        let end = tsc_syntax::skip_trivia(&source.text, array.end as usize)
             .saturating_add(1)
             .min(source.text.len());
         (start, end)
@@ -554,7 +554,7 @@ impl<'a> CheckerState<'a> {
                                         declaration,
                                     );
                                 } else {
-                                    let display = tsrs2_binder::unescape_leading_underscores(
+                                    let display = tsc_binder::unescape_leading_underscores(
                                         &self.binder.symbol(local).escaped_name,
                                     )
                                     .to_owned();
@@ -732,14 +732,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: a0859bf31f12b34a4d97492b714654753bd5d7f9b198bfa8529d878e28eb06d3
     /// tsc-span: _tsc.js:83000-83004
     /// d2: d2:435cd87c2bcdcc3eb69b3135503cdb119fce2de337927782eb67ee038afe8576
-    fn error_unused_local(&mut self, declaration: NodeId, symbol: tsrs2_types::SymbolId) {
+    fn error_unused_local(&mut self, declaration: NodeId, symbol: tsc_types::SymbolId) {
         let node = node_util::get_name_of_declaration(
             self.binder.source_of_node(declaration),
             declaration,
         )
         .unwrap_or(declaration);
         let display =
-            tsrs2_binder::unescape_leading_underscores(&self.binder.symbol(symbol).escaped_name)
+            tsc_binder::unescape_leading_underscores(&self.binder.symbol(symbol).escaped_name)
                 .to_owned();
         let message = if self.is_type_declaration_for_unused(declaration) {
             &diagnostics::_0_is_declared_but_never_used
@@ -965,7 +965,7 @@ fn add_to_unused_group(groups: &mut Vec<(NodeId, Vec<NodeId>)>, key: NodeId, val
 mod tests {
     use crate::state::test_support::with_program_state;
     use crate::{check_program, CompilerOptions, InputFile};
-    use tsrs2_diags::DiagnosticCategory;
+    use tsc_diagnostics::DiagnosticCategory;
 
     fn unused_rows(
         text: &str,
@@ -2794,7 +2794,7 @@ pos.line;
             &CompilerOptions {
                 allow_js: true,
                 check_js: Some(true),
-                target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+                target: Some(tsc_types::ScriptTarget::ES2015.bits()),
                 ..CompilerOptions::default()
             },
         );
@@ -2828,7 +2828,7 @@ pos.line;
             &CompilerOptions {
                 allow_js: true,
                 check_js: Some(true),
-                target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+                target: Some(tsc_types::ScriptTarget::ES2015.bits()),
                 ..CompilerOptions::default()
             },
         );
@@ -2873,7 +2873,7 @@ pos.line;
             &CompilerOptions {
                 allow_js: true,
                 check_js: Some(true),
-                target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+                target: Some(tsc_types::ScriptTarget::ES2015.bits()),
                 ..CompilerOptions::default()
             },
         );
@@ -3050,7 +3050,7 @@ var two = C.f(1)
         let options = CompilerOptions {
             allow_js: true,
             check_js: Some(true),
-            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            target: Some(tsc_types::ScriptTarget::ES2015.bits()),
             module_resolution: Some(100),
             ..CompilerOptions::default()
         };
@@ -3115,7 +3115,7 @@ module.exports = function MC() {
         let options = CompilerOptions {
             allow_js: true,
             check_js: Some(true),
-            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            target: Some(tsc_types::ScriptTarget::ES2015.bits()),
             module_resolution: Some(100),
             ..CompilerOptions::default()
         };
@@ -3174,8 +3174,8 @@ module.exports = function MC() {
 
 #[cfg(test)]
 mod c0_unused_owner_recovery_tests {
-    use tsrs2_syntax::SyntaxKind;
-    use tsrs2_types::CompilerOptions;
+    use tsc_syntax::SyntaxKind;
+    use tsc_types::CompilerOptions;
 
     use crate::state::test_support::with_program_state;
 

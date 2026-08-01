@@ -9,8 +9,8 @@
 //! prefixed to the next token. A `None` result asks the enclosing reuse
 //! boundary to serialize the owning type semantically.
 
-use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
-use tsrs2_types::NodeFlags;
+use tsc_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
+use tsc_types::NodeFlags;
 
 use crate::state::{CheckResult, CheckerState};
 
@@ -75,7 +75,7 @@ impl<'program> CheckerState<'program> {
         if record.pos == u32::MAX || record.pos as usize > source.text.len() {
             return None;
         }
-        let byte = tsrs2_syntax::skip_trivia(&source.text, record.pos as usize);
+        let byte = tsc_syntax::skip_trivia(&source.text, record.pos as usize);
         display_clone_line_of_byte(source, byte)
     }
 
@@ -179,7 +179,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 
     fn token_expression(&self, node: NodeId) -> CheckResult<Option<String>> {
-        Ok(tsrs2_syntax::tokens::token_to_string(self.state.kind_of(node)).map(str::to_owned))
+        Ok(tsc_syntax::tokens::token_to_string(self.state.kind_of(node)).map(str::to_owned))
     }
 
     fn identifier(&self, node: NodeId) -> CheckResult<Option<String>> {
@@ -187,7 +187,7 @@ impl DisplayClonePrinter<'_, '_> {
             return Ok(None);
         };
         Ok(Some(
-            tsrs2_binder::unescape_leading_underscores(&data.escaped_text).to_owned(),
+            tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned(),
         ))
     }
 
@@ -460,9 +460,9 @@ impl DisplayClonePrinter<'_, '_> {
 
     fn object_member_is_removed(&mut self, node: NodeId) -> CheckResult<bool> {
         let source = self.state.binder.source_of_node(node);
-        let computed_name = tsrs2_binder::node_util::get_name_of_declaration(source, node)
+        let computed_name = tsc_binder::node_util::get_name_of_declaration(source, node)
             .is_some_and(|name| self.state.kind_of(name) == SyntaxKind::ComputedPropertyName);
-        if !computed_name || !tsrs2_binder::node_util::has_dynamic_name(source, node) {
+        if !computed_name || !tsc_binder::node_util::has_dynamic_name(source, node) {
             return Ok(false);
         }
         Ok(!self.state.has_bindable_name(node)?)
@@ -743,7 +743,7 @@ impl DisplayClonePrinter<'_, '_> {
         let NodeData::PrefixUnaryExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
-        let Some(operator) = tsrs2_syntax::tokens::token_to_string(data.operator) else {
+        let Some(operator) = tsc_syntax::tokens::token_to_string(data.operator) else {
             return Ok(None);
         };
         let Some(operand) = data.operand else {
@@ -779,7 +779,7 @@ impl DisplayClonePrinter<'_, '_> {
         let NodeData::PostfixUnaryExpression(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
-        let Some(operator) = tsrs2_syntax::tokens::token_to_string(data.operator) else {
+        let Some(operator) = tsc_syntax::tokens::token_to_string(data.operator) else {
             return Ok(None);
         };
         let Some(operand) = data.operand else {
@@ -801,7 +801,7 @@ impl DisplayClonePrinter<'_, '_> {
             return Ok(None);
         };
         let operator_kind = self.state.kind_of(operator_token);
-        let Some(operator) = tsrs2_syntax::tokens::token_to_string(operator_kind) else {
+        let Some(operator) = tsc_syntax::tokens::token_to_string(operator_kind) else {
             return Ok(None);
         };
         let line_before_operator = self.nodes_have_line_between(left, operator_token);
@@ -1003,7 +1003,7 @@ impl DisplayClonePrinter<'_, '_> {
         let NodeData::MetaProperty(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
-        let Some(keyword) = tsrs2_syntax::tokens::token_to_string(data.keyword_token) else {
+        let Some(keyword) = tsc_syntax::tokens::token_to_string(data.keyword_token) else {
             return Ok(None);
         };
         let Some(name) = data.name.and_then(|name| self.identifier_name(name)) else {
@@ -1248,7 +1248,7 @@ impl DisplayClonePrinter<'_, '_> {
     fn jsx_attribute_name(&self, node: NodeId) -> Option<String> {
         match self.state.data_of(node) {
             NodeData::Identifier(data) => {
-                Some(tsrs2_binder::unescape_leading_underscores(&data.escaped_text).to_owned())
+                Some(tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned())
             }
             NodeData::JsxNamespacedName(data) => {
                 let namespace = data.namespace.and_then(|node| self.identifier_name(node))?;
@@ -1727,7 +1727,7 @@ impl DisplayClonePrinter<'_, '_> {
     fn identifier_name(&self, node: NodeId) -> Option<String> {
         match self.state.data_of(node) {
             NodeData::Identifier(data) => {
-                Some(tsrs2_binder::unescape_leading_underscores(&data.escaped_text).to_owned())
+                Some(tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned())
             }
             NodeData::PrivateIdentifier(data) => Some(data.text.clone()),
             _ => None,
@@ -1897,7 +1897,7 @@ impl DisplayClonePrinter<'_, '_> {
             return (false, false);
         }
         let dot_start =
-            tsrs2_syntax::skip_trivia(&expression_source.text, expression_record.end as usize);
+            tsc_syntax::skip_trivia(&expression_source.text, expression_record.end as usize);
         let line_before_dot = match (
             self.state.display_clone_end_line(expression),
             display_clone_line_of_byte(expression_source, dot_start),
@@ -1942,7 +1942,7 @@ impl DisplayClonePrinter<'_, '_> {
     }
 }
 
-fn display_clone_line_of_byte(source: &tsrs2_syntax::SourceFile, byte: usize) -> Option<usize> {
+fn display_clone_line_of_byte(source: &tsc_syntax::SourceFile, byte: usize) -> Option<usize> {
     let utf16 = *source.line_map.byte_to_utf16.get(byte)?;
     Some(match source.line_map.line_starts.binary_search(&utf16) {
         Ok(line) => line,
@@ -1953,7 +1953,7 @@ fn display_clone_line_of_byte(source: &tsrs2_syntax::SourceFile, byte: usize) ->
 fn text_ends_at_line_start(text: &str) -> bool {
     text.chars()
         .next_back()
-        .is_some_and(tsrs2_syntax::is_line_break)
+        .is_some_and(tsc_syntax::is_line_break)
 }
 
 fn binary_operator_precedence(operator: SyntaxKind) -> i8 {

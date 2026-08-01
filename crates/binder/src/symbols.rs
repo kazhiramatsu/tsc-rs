@@ -2,14 +2,14 @@
 //! and the leading-underscore name escape.
 
 use indexmap::IndexMap;
-use tsrs2_syntax::NodeId;
-use tsrs2_types::SymbolFlags;
+use tsc_syntax::NodeId;
+use tsc_types::SymbolFlags;
 
-pub use tsrs2_types::InternalSymbolName;
-/// Symbol allocation identity. Defined in tsrs2-types (ty.rs) so
+pub use tsc_types::InternalSymbolName;
+/// Symbol allocation identity. Defined in tsc-rs-types (ty.rs) so
 /// Type.symbol can reference symbols without a dependency cycle; the
 /// binder owns the arena and the id space.
-pub use tsrs2_types::SymbolId;
+pub use tsc_types::SymbolId;
 
 /// tsc SymbolTable: ORDERED name → symbol map. Iteration order is
 /// observable (member synthesis and display order downstream), so this
@@ -132,9 +132,9 @@ impl SymbolArena {
     }
 }
 
-// The escape lives in tsrs2-syntax (the parser factory applies it to
+// The escape lives in tsc-rs-syntax (the parser factory applies it to
 // every Identifier escapedText); re-exported here for binder callers.
-pub use tsrs2_syntax::{escape_leading_underscores, unescape_leading_underscores};
+pub use tsc_syntax::{escape_leading_underscores, unescape_leading_underscores};
 
 #[cfg(test)]
 mod tests {

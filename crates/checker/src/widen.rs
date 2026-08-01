@@ -6,10 +6,10 @@
 //! reportImplicitAny 68089, reportErrorsFromWidening 68187).
 //! getRegularTypeOfObjectLiteral (67923) lives in engine.rs.
 
-use tsrs2_binder::{node_util, SymbolId};
-use tsrs2_diags::gen as diagnostics;
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{ObjectFlags, SymbolFlags, TypeFlags, TypeId};
+use tsc_binder::{node_util, SymbolId};
+use tsc_diagnostics::gen as diagnostics;
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{ObjectFlags, SymbolFlags, TypeFlags, TypeId};
 
 use crate::state::{CheckResult, CheckerState, WideningContext, WideningContextId};
 
@@ -156,7 +156,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         ty: Option<TypeId>,
         contextual_signature_return_type: Option<TypeId>,
-        kind: tsrs2_types::IterationTypeKind,
+        kind: tsc_types::IterationTypeKind,
         is_async_generator: bool,
     ) -> CheckResult<Option<TypeId>> {
         let Some(current) = ty else {
@@ -233,7 +233,7 @@ impl<'a> CheckerState<'a> {
     fn for_each_type_members(&self, ty: TypeId, out: &mut Vec<TypeId>) {
         if self.tables.flags_of(ty).intersects(TypeFlags::UNION) {
             match &self.tables.type_of(ty).data {
-                tsrs2_types::TypeData::Union { types, .. } => out.extend(types.iter().copied()),
+                tsc_types::TypeData::Union { types, .. } => out.extend(types.iter().copied()),
                 _ => unreachable!("union flag implies union data"),
             }
         } else {
@@ -291,7 +291,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<SymbolId> {
         if !self.symbol_flags(prop).intersects(SymbolFlags::PROPERTY) {
             // Since get_type_of_symbol is a lazily attached full-face
-            // accessor in tsrs2 too, methods and accessors pass
+            // accessor in tsc-rs too, methods and accessors pass
             // through unwidened exactly like tsc's early return.
             return Ok(prop);
         }
@@ -338,7 +338,7 @@ impl<'a> CheckerState<'a> {
         ty: TypeId,
         context: Option<WideningContextId>,
     ) -> CheckResult<TypeId> {
-        let mut members = tsrs2_binder::SymbolTable::default();
+        let mut members = tsc_binder::SymbolTable::default();
         let mut properties: Vec<SymbolId> = Vec::new();
         for prop in self.get_properties_of_object_type_owned(ty)? {
             let widened = self.get_widened_property(prop, context)?;
@@ -363,7 +363,7 @@ impl<'a> CheckerState<'a> {
         let symbol = self.tables.type_of(ty).symbol;
         let result = self
             .tables
-            .create_type(TypeFlags::OBJECT, tsrs2_types::TypeData::Object);
+            .create_type(TypeFlags::OBJECT, tsc_types::TypeData::Object);
         let carried = self.tables.object_flags_of(ty).bits()
             & (ObjectFlags::JS_LITERAL.bits() | ObjectFlags::NON_INFERRABLE_TYPE.bits());
         self.tables.type_mut(result).object_flags =
@@ -414,7 +414,7 @@ impl<'a> CheckerState<'a> {
             result = Some(self.get_widened_type_of_object_literal(ty, context)?);
         } else if flags.intersects(TypeFlags::UNION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                tsrs2_types::TypeData::Union { types, .. } => types.to_vec(),
+                tsc_types::TypeData::Union { types, .. } => types.to_vec(),
                 _ => unreachable!("union flag implies union data"),
             };
             let union_context = match context {
@@ -446,14 +446,14 @@ impl<'a> CheckerState<'a> {
                 }
             }
             let reduction = if any_empty_object {
-                tsrs2_types::UnionReduction::Subtype
+                tsc_types::UnionReduction::Subtype
             } else {
-                tsrs2_types::UnionReduction::Literal
+                tsc_types::UnionReduction::Literal
             };
             result = Some(self.get_union_type_ex(&widened, reduction)?);
         } else if flags.intersects(TypeFlags::INTERSECTION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                tsrs2_types::TypeData::Intersection { types } => types.to_vec(),
+                tsc_types::TypeData::Intersection { types } => types.to_vec(),
                 _ => unreachable!("intersection flag implies intersection data"),
             };
             let mut widened = Vec::with_capacity(members.len());
@@ -461,7 +461,7 @@ impl<'a> CheckerState<'a> {
                 widened.push(self.get_widened_type(member)?);
             }
             result =
-                Some(self.get_intersection_type(&widened, tsrs2_types::IntersectionFlags::NONE)?);
+                Some(self.get_intersection_type(&widened, tsc_types::IntersectionFlags::NONE)?);
         } else if self.is_array_type(ty)? || self.tables.is_tuple_type(ty) {
             let arguments = self.get_type_arguments(ty)?;
             let mut widened = Vec::with_capacity(arguments.len());
@@ -501,7 +501,7 @@ impl<'a> CheckerState<'a> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::UNION) {
             let members: Vec<TypeId> = match &self.tables.type_of(ty).data {
-                tsrs2_types::TypeData::Union { types, .. } => types.to_vec(),
+                tsc_types::TypeData::Union { types, .. } => types.to_vec(),
                 _ => unreachable!("union flag implies union data"),
             };
             let mut any_empty_object = false;
@@ -581,9 +581,9 @@ impl<'a> CheckerState<'a> {
         &mut self,
         declaration: NodeId,
         ty: TypeId,
-        widening_kind: Option<tsrs2_types::WideningKind>,
+        widening_kind: Option<tsc_types::WideningKind>,
     ) -> CheckResult<()> {
-        use tsrs2_types::WideningKind;
+        use tsc_types::WideningKind;
         let widened = self.get_widened_type(ty)?;
         let type_as_string = self.type_to_string_slice(widened)?;
         if self.is_in_js_file(declaration) && !self.is_check_js_enabled_for_node(declaration) {
@@ -593,7 +593,9 @@ impl<'a> CheckerState<'a> {
             .options
             .strict_option_value(self.options.no_implicit_any);
         let source = self.binder.source_of_node(declaration);
-        let diagnostic: &'static tsrs2_diags::DiagnosticMessage = match self.kind_of(declaration) {
+        let diagnostic: &'static tsc_diagnostics::DiagnosticMessage = match self
+            .kind_of(declaration)
+        {
             SyntaxKind::BinaryExpression
             | SyntaxKind::PropertyDeclaration
             | SyntaxKind::PropertySignature => {
@@ -628,14 +630,14 @@ impl<'a> CheckerState<'a> {
                             let resolves_as_type = self
                                 .resolve_name(
                                     Some(declaration),
-                                    &tsrs2_binder::escape_leading_underscores(&name_text),
+                                    &tsc_binder::escape_leading_underscores(&name_text),
                                     SymbolFlags::TYPE,
                                     /*name_not_found_message*/ None,
                                     /*is_use*/ true,
                                     /*exclude_globals*/ false,
                                 )?
                                 .is_some();
-                            let keyword_is_type_node = tsrs2_syntax::keyword_kind(&name_text)
+                            let keyword_is_type_node = tsc_syntax::keyword_kind(&name_text)
                                 .is_some_and(|kind| self.is_type_node_kind(kind));
                             if let Some(index) = index {
                                 if resolves_as_type || keyword_is_type_node {
@@ -652,7 +654,7 @@ impl<'a> CheckerState<'a> {
                                     );
                                     if !no_implicit_any {
                                         self.diagnostics[diagnostic_index].message.category =
-                                            tsrs2_diags::DiagnosticCategory::Suggestion;
+                                            tsc_diagnostics::DiagnosticCategory::Suggestion;
                                     }
                                     return Ok(());
                                 }
@@ -809,9 +811,9 @@ impl<'a> CheckerState<'a> {
     fn should_report_errors_from_widening_with_contextual_signature(
         &mut self,
         declaration: NodeId,
-        widening_kind: tsrs2_types::WideningKind,
+        widening_kind: tsc_types::WideningKind,
     ) -> CheckResult<bool> {
-        use tsrs2_types::WideningKind;
+        use tsc_types::WideningKind;
         let Some(signature) =
             self.get_contextual_signature_for_function_like_declaration(declaration)?
         else {
@@ -825,7 +827,7 @@ impl<'a> CheckerState<'a> {
                 if flags & crate::functions::FUNCTION_FLAGS_GENERATOR != 0 {
                     if let Some(iteration) = self
                         .get_iteration_type_of_generator_function_return_type(
-                            tsrs2_types::IterationTypeKind::RETURN,
+                            tsc_types::IterationTypeKind::RETURN,
                             return_type,
                             is_async,
                         )?
@@ -843,7 +845,7 @@ impl<'a> CheckerState<'a> {
             }
             WideningKind::GENERATOR_YIELD => {
                 let yield_type = self.get_iteration_type_of_generator_function_return_type(
-                    tsrs2_types::IterationTypeKind::YIELD,
+                    tsc_types::IterationTypeKind::YIELD,
                     return_type,
                     is_async,
                 )?;
@@ -854,7 +856,7 @@ impl<'a> CheckerState<'a> {
             }
             WideningKind::GENERATOR_NEXT => {
                 let next_type = self.get_iteration_type_of_generator_function_return_type(
-                    tsrs2_types::IterationTypeKind::NEXT,
+                    tsc_types::IterationTypeKind::NEXT,
                     return_type,
                     is_async,
                 )?;
@@ -877,7 +879,7 @@ impl<'a> CheckerState<'a> {
         &mut self,
         declaration: NodeId,
         ty: TypeId,
-        widening_kind: Option<tsrs2_types::WideningKind>,
+        widening_kind: Option<tsc_types::WideningKind>,
     ) -> CheckResult<()> {
         let no_implicit_any = self
             .options
@@ -909,7 +911,7 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_types::CompilerOptions;
+    use tsc_types::CompilerOptions;
 
     use crate::state::test_support::{
         with_program_state, with_program_state_allow_parse_diagnostics,
@@ -1066,14 +1068,14 @@ function g(value) { return value; }
                     strict: Some(false),
                     ..CompilerOptions::default()
                 },
-                tsrs2_diags::DiagnosticCategory::Suggestion,
+                tsc_diagnostics::DiagnosticCategory::Suggestion,
             ),
             (
                 CompilerOptions {
                     no_implicit_any: Some(true),
                     ..CompilerOptions::default()
                 },
-                tsrs2_diags::DiagnosticCategory::Error,
+                tsc_diagnostics::DiagnosticCategory::Error,
             ),
         ] {
             let result = check_program(
@@ -1276,7 +1278,7 @@ function g(value) { return value; }
                 .source(0)
                 .arena
                 .node_ids()
-                .find(|&node| state.kind_of(node) == tsrs2_syntax::SyntaxKind::MethodDeclaration)
+                .find(|&node| state.kind_of(node) == tsc_syntax::SyntaxKind::MethodDeclaration)
                 .expect("object-literal method");
             assert!(
                 state.get_jsdoc_type(method).is_some(),

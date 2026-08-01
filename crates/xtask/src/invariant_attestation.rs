@@ -253,7 +253,7 @@ pub(crate) fn controlled_input_fingerprints(
         ("syntax", &["crates/syntax"]),
         ("binder", &["crates/binder"]),
         ("types", &["crates/types"]),
-        ("diagnostics", &["crates/diags"]),
+        ("diagnostics", &["crates/diagnostics"]),
         ("harness", &["crates/harness"]),
         ("conformance-options", &["crates/conformance"]),
         ("xtask", &["crates/xtask"]),
@@ -396,7 +396,7 @@ mod tests {
 
     fn temp_dir(label: &str) -> PathBuf {
         let path = std::env::temp_dir().join(format!(
-            "tsrs2-invariant-attestation-{label}-{}-{}",
+            "tsc-rs-invariant-attestation-{label}-{}-{}",
             std::process::id(),
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
@@ -439,7 +439,7 @@ mod tests {
             "crates/syntax",
             "crates/binder",
             "crates/types",
-            "crates/diags",
+            "crates/diagnostics",
             "crates/harness",
             "crates/conformance",
             "crates/xtask",
@@ -576,7 +576,7 @@ mod tests {
 
     #[test]
     fn repository_controlled_input_groups_are_complete_and_hashable() {
-        let workspace = crate::find_tsrs2_root().unwrap();
+        let workspace = crate::find_workspace_root().unwrap();
         let fingerprints = controlled_input_fingerprints(&workspace).unwrap();
         assert_eq!(
             fingerprints

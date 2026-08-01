@@ -10,8 +10,8 @@ use crate::node_util::{
     parent_of, skip_parentheses_pub,
 };
 use crate::symbols::escape_leading_underscores;
-use tsrs2_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
-use tsrs2_types::NodeFlags;
+use tsc_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
+use tsc_types::NodeFlags;
 
 /// tsc AssignmentDeclarationKind.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -596,7 +596,7 @@ fn identifier_or_literal_text(source: &SourceFile, node: NodeId) -> Option<Strin
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tsrs2_syntax::{parse_source_file, ParseOptions};
+    use tsc_syntax::{parse_source_file, ParseOptions};
 
     fn kinds(text: &str, javascript_file: bool) -> Vec<AssignmentDeclarationKind> {
         let source = parse_source_file(

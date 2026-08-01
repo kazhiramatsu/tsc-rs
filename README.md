@@ -65,14 +65,14 @@ To exercise the diagnostic engine through its current developer-facing test
 surface:
 
 ```sh
-CARGO_BUILD_JOBS=2 cargo test -p tsrs2-checker --lib -- --test-threads=2
+CARGO_BUILD_JOBS=2 cargo xtask test checker --lib -- --test-threads=2
 ```
 
 Focused checks for the host and prepared-program boundaries are:
 
 ```sh
-CARGO_BUILD_JOBS=2 cargo test -p tsrs2-host -- --test-threads=2
-CARGO_BUILD_JOBS=2 cargo test -p tsrs2-program -- --test-threads=2
+CARGO_BUILD_JOBS=2 cargo xtask test host -- --test-threads=2
+CARGO_BUILD_JOBS=2 cargo xtask test program -- --test-threads=2
 ```
 
 These commands run internal libraries and tests; there is no end-user command
@@ -150,7 +150,7 @@ repository root. There is intentionally no top-level `src/` directory.
 | `crates/host` | Read-only compiler-host contract and deterministic in-memory host adapter |
 | `crates/program` | Owned prepared-program, path-identity, and authoritative resolution contracts |
 | `crates/checker` | Parser/binder assembly and semantic diagnostic checking |
-| `crates/diags` | Diagnostic messages, structures, line maps, sorting, and deduplication |
+| `crates/diagnostics` | Diagnostic messages, structures, line maps, sorting, and deduplication |
 | `crates/harness` | TypeScript fixture expansion and program-input construction |
 | `crates/oracle` | Node-based access to the vendored TypeScript oracle |
 | `crates/conformance` | Differential comparison, exact identities, ratchets, scope, and family reports |

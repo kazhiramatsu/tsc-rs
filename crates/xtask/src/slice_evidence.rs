@@ -15,7 +15,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use super::{find_tsrs2_root, sha256_file};
+use super::{find_workspace_root, sha256_file};
 
 const SCHEMA: u32 = 1;
 const MANIFEST_NAME: &str = "manifest.json";
@@ -342,7 +342,7 @@ impl ScopeTierCounts {
 }
 
 fn snapshot(args: SnapshotArgs) -> Result<(), Box<dyn Error>> {
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     validate_target_files(&workspace, &args.targets)?;
     let out_dir = create_immutable_dir(&args.out_dir, &workspace)?;
 
@@ -398,7 +398,7 @@ fn snapshot(args: SnapshotArgs) -> Result<(), Box<dyn Error>> {
 }
 
 fn verify(args: VerifyArgs) -> Result<(), Box<dyn Error>> {
-    let workspace = find_tsrs2_root()?;
+    let workspace = find_workspace_root()?;
     let before_dir = fs::canonicalize(&args.before_dir).map_err(|error| {
         format!(
             "cannot resolve before directory {}: {error}",
@@ -500,7 +500,7 @@ fn verify(args: VerifyArgs) -> Result<(), Box<dyn Error>> {
                 format!("{label} conformance diff failed"),
             );
         }
-        let report = tsrs2_conformance::conformance_diff(&before_report, &after_report)?;
+        let report = tsc_conformance::conformance_diff(&before_report, &after_report)?;
         let diff = diff_record(label, &diff_report, &report)?;
         if !diff.supported_oracle_universe_unchanged {
             return fail_manifest(
@@ -1104,7 +1104,7 @@ fn report_for(dir: &Path, label: &str, suffix: &str) -> PathBuf {
 fn diff_record(
     label: &str,
     path: &Path,
-    report: &tsrs2_conformance::ConformanceDiffReport,
+    report: &tsc_conformance::ConformanceDiffReport,
 ) -> Result<DiffRecord, Box<dyn Error>> {
     Ok(DiffRecord {
         label: label.to_owned(),
@@ -1116,7 +1116,7 @@ fn diff_record(
     })
 }
 
-fn tier_counts(diff: &tsrs2_conformance::ShadowTierSetDiff) -> TierCounts {
+fn tier_counts(diff: &tsc_conformance::ShadowTierSetDiff) -> TierCounts {
     TierCounts {
         t1_lost: diff.t1.lost.len(),
         t1_gained: diff.t1.gained.len(),
@@ -1173,10 +1173,10 @@ struct TierIdentityInput {
 
 #[derive(Deserialize)]
 struct TierGainInput {
-    gained: Vec<tsrs2_conformance::ShadowTierIdentity>,
+    gained: Vec<tsc_conformance::ShadowTierIdentity>,
 }
 
-type TierGainSets = [BTreeSet<tsrs2_conformance::ShadowTierIdentity>; 3];
+type TierGainSets = [BTreeSet<tsc_conformance::ShadowTierIdentity>; 3];
 
 struct GainSets {
     all_corpus: TierGainSets,
@@ -1279,11 +1279,11 @@ mod tests {
 
     #[test]
     fn wider_gains_are_compared_in_both_scope_views() {
-        fn identity(code: u32) -> tsrs2_conformance::ShadowTierIdentity {
-            tsrs2_conformance::ShadowTierIdentity {
+        fn identity(code: u32) -> tsc_conformance::ShadowTierIdentity {
+            tsc_conformance::ShadowTierIdentity {
                 fixture: "a.ts".to_owned(),
                 matrix_key: "default".to_owned(),
-                diagnostic: tsrs2_conformance::T0Key {
+                diagnostic: tsc_conformance::T0Key {
                     file: Some("/a.ts".to_owned()),
                     code,
                     line: Some(1),

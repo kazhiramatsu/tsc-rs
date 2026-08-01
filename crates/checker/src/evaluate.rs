@@ -14,10 +14,10 @@
 //! review swap, strict-null-checks regime only; see the leg's
 //! header for the tsc crash in the other regime).
 
-use tsrs2_binder::{node_util, SymbolId};
-use tsrs2_diags::gen as diagnostics;
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{ModifierFlags, NodeFlags, SymbolFlags};
+use tsc_binder::{node_util, SymbolId};
+use tsc_diagnostics::gen as diagnostics;
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{ModifierFlags, NodeFlags, SymbolFlags};
 
 use crate::state::{CheckResult, CheckerState};
 
@@ -251,7 +251,7 @@ impl<'a> CheckerState<'a> {
                     // 85654: checkTypeAssignableTo(checkExpression(
                     // initializer), numberType, initializer, 2553-head).
                     let source =
-                        self.check_expression(initializer, tsrs2_types::CheckMode::NORMAL)?;
+                        self.check_expression(initializer, tsc_types::CheckMode::NORMAL)?;
                     let number = self.tables.intrinsics.number;
                     self.check_type_assignable_to(
                         source,
@@ -359,7 +359,7 @@ impl<'a> CheckerState<'a> {
                     let concat = |value: &EvalValue| -> String {
                         match value {
                             EvalValue::Str(text) => text.clone(),
-                            EvalValue::Num(number) => tsrs2_types::js_number_to_string(*number),
+                            EvalValue::Num(number) => tsc_types::js_number_to_string(*number),
                         }
                     };
                     if let (Some(l), Some(r)) = (&left.value, &right.value) {
@@ -446,9 +446,7 @@ impl<'a> CheckerState<'a> {
             };
             match value {
                 EvalValue::Str(text) => result.push_str(&text),
-                EvalValue::Num(number) => {
-                    result.push_str(&tsrs2_types::js_number_to_string(number))
-                }
+                EvalValue::Num(number) => result.push_str(&tsc_types::js_number_to_string(number)),
             }
             let literal = literal.expect("parser invariant: template span literal always parsed");
             match self.data_of(literal) {
@@ -602,7 +600,7 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(undefined_result());
         }
-        let name = tsrs2_binder::escape_leading_underscores(&argument_text);
+        let name = tsc_binder::escape_leading_underscores(&argument_text);
         let member = self
             .binder
             .symbol(root_symbol)
@@ -689,7 +687,7 @@ impl<'a> CheckerState<'a> {
         if self.binder.file_index_of_node(declaration) != self.binder.file_index_of_node(usage) {
             return Ok(true);
         }
-        if self.node_flags(usage) & tsrs2_types::NodeFlags::JS_DOC.bits() != 0
+        if self.node_flags(usage) & tsc_types::NodeFlags::JS_DOC.bits() != 0
             || self.is_in_type_query(usage)
             || self.is_in_ambient_or_type_node(usage)
         {
@@ -801,7 +799,7 @@ impl<'a> CheckerState<'a> {
             && node_util::has_syntactic_modifier(
                 self.binder.source_of_node(node),
                 node,
-                tsrs2_types::ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
+                tsc_types::ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
             )
             && self
                 .parent_of(node)
@@ -1439,28 +1437,28 @@ impl<'a> CheckerState<'a> {
             NodeData::Identifier(data) => Some(data.escaped_text.clone()),
             NodeData::PrivateIdentifier(data) => Some(data.escaped_text.clone()),
             NodeData::StringLiteral(data) => {
-                Some(tsrs2_binder::escape_leading_underscores(&data.text))
+                Some(tsc_binder::escape_leading_underscores(&data.text))
             }
             NodeData::NumericLiteral(data) => {
-                Some(tsrs2_binder::escape_leading_underscores(&data.text))
+                Some(tsc_binder::escape_leading_underscores(&data.text))
             }
             NodeData::BigIntLiteral(data) => {
-                Some(tsrs2_binder::escape_leading_underscores(&data.text))
+                Some(tsc_binder::escape_leading_underscores(&data.text))
             }
             NodeData::NoSubstitutionTemplateLiteral(data) => {
-                Some(tsrs2_binder::escape_leading_underscores(&data.text))
+                Some(tsc_binder::escape_leading_underscores(&data.text))
             }
             NodeData::ComputedPropertyName(data) => {
                 let expression = data.expression?;
                 match self.data_of(expression) {
                     NodeData::StringLiteral(data) => {
-                        Some(tsrs2_binder::escape_leading_underscores(&data.text))
+                        Some(tsc_binder::escape_leading_underscores(&data.text))
                     }
                     NodeData::NumericLiteral(data) => {
-                        Some(tsrs2_binder::escape_leading_underscores(&data.text))
+                        Some(tsc_binder::escape_leading_underscores(&data.text))
                     }
                     NodeData::NoSubstitutionTemplateLiteral(data) => {
-                        Some(tsrs2_binder::escape_leading_underscores(&data.text))
+                        Some(tsc_binder::escape_leading_underscores(&data.text))
                     }
                     _ => None,
                 }
@@ -1630,7 +1628,7 @@ impl<'a> CheckerState<'a> {
             );
         }
         if let Some(initializer) = initializer {
-            self.check_expression(initializer, tsrs2_types::CheckMode::NORMAL)?;
+            self.check_expression(initializer, tsc_types::CheckMode::NORMAL)?;
         }
         Ok(())
     }
@@ -1643,7 +1641,7 @@ impl<'a> CheckerState<'a> {
 /// `(+name).toString() === name` — JS ToNumber over the name string,
 /// round-tripped through Number#toString.
 pub(crate) fn is_numeric_literal_name(name: &str) -> bool {
-    tsrs2_types::js_number_to_string(js_string_to_number(name)) == name
+    tsc_types::js_number_to_string(js_string_to_number(name)) == name
 }
 
 /// tsc-port: isInfinityOrNaNString @6.0.3

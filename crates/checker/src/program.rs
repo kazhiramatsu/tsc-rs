@@ -11,9 +11,9 @@
 //! base-sorted while symbols retain bind/program order. Checker transient
 //! symbols (tsc createSymbol 47652) allocate above all files.
 
-use tsrs2_binder::{Binder, Symbol, SymbolArena, SymbolId, SymbolTable};
-use tsrs2_syntax::{NodeArray, NodeArrayId, NodeId, SourceFile};
-use tsrs2_types::SymbolFlags;
+use tsc_binder::{Binder, Symbol, SymbolArena, SymbolId, SymbolTable};
+use tsc_syntax::{NodeArray, NodeArrayId, NodeId, SourceFile};
+use tsc_types::SymbolFlags;
 
 #[derive(Clone, Copy, Debug)]
 struct ArenaOwner {
@@ -241,7 +241,7 @@ impl<'a> ProgramBinder<'a> {
     /// The binder's mutable node-flags view (ContainsThis etc.).
     /// tsrs-native: binder-table projection for tsc's direct
     /// `node.flags` property access.
-    pub fn flags_of(&self, node: NodeId) -> tsrs2_types::NodeFlags {
+    pub fn flags_of(&self, node: NodeId) -> tsc_types::NodeFlags {
         self.binder_of_node(node).flags_of(node)
     }
 
@@ -274,8 +274,8 @@ impl<'a> ProgramBinder<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tsrs2_syntax::{parse_source_file, ParseOptions};
-    use tsrs2_types::CompilerOptions;
+    use tsc_syntax::{parse_source_file, ParseOptions};
+    use tsc_types::CompilerOptions;
 
     #[test]
     fn routes_parse_order_arenas_without_changing_program_order() {

@@ -9,8 +9,8 @@ use crate::regex_unicode::{
     BINARY_UNICODE_PROPERTIES, BINARY_UNICODE_PROPERTIES_OF_STRINGS, GENERAL_CATEGORY_VALUES,
     NON_BINARY_UNICODE_PROPERTIES, SCRIPT_VALUES,
 };
-use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
-use tsrs2_types::ScriptTarget;
+use tsc_diagnostics::{gen as diagnostics, DiagnosticMessage};
+use tsc_types::ScriptTarget;
 
 const EOF: i32 = -1;
 
@@ -1896,7 +1896,7 @@ fn get_spelling_suggestion_iter<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tsrs2_diags::DiagnosticCategory;
+    use tsc_diagnostics::DiagnosticCategory;
 
     fn diagnostics_for(text: &str, target: ScriptTarget) -> Vec<RegexDiagnostic> {
         validate_regular_expression_literal(text, target)

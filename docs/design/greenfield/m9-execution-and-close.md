@@ -211,7 +211,7 @@ ceiling cannot be loosened after seeing a qualifying result.
 ### 5.1 Producer boundary and fingerprints
 
 Generator, comparator, reducer, classifier, replay, and raw window writing
-live in the `tsrs2-fuzz` crate and a dedicated producer binary. Xtask may
+live in the `tsc-rs-fuzz` crate and a dedicated producer binary. Xtask may
 dispatch it, but unrelated xtask/completion/documentation bytes are not
 producer inputs.
 

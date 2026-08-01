@@ -7,10 +7,10 @@
 //! (initializeTypeChecker slice, M4 5.0). M3 built the single-file
 //! seed; M4 5.0 extends it program-wide.
 
-use tsrs2_binder::{Binder, InternalSymbolName, SymbolId, SymbolTable};
-use tsrs2_diags::{Diagnostic, DiagnosticList, DiagnosticMessage, MessageChain};
-use tsrs2_syntax::{NodeId, SourceFile};
-use tsrs2_types::{
+use tsc_binder::{Binder, InternalSymbolName, SymbolId, SymbolTable};
+use tsc_diagnostics::{Diagnostic, DiagnosticList, DiagnosticMessage, MessageChain};
+use tsc_syntax::{NodeId, SourceFile};
+use tsc_types::{
     CheckFlags, CompilerOptions, ExpandingFlags, ObjectFlags, PseudoBigInt, SignatureFlags,
     SymbolFlags, TypeData, TypeFlags, TypeId, TypeSystemPropertyName, TypeTables,
 };
@@ -106,7 +106,7 @@ pub enum VarianceHandlerFrame {
     /// recursiveTypeRelatedTo 65805-65809: accumulates
     /// ReportsUnreliable/ReportsUnmeasurable bits AND calls the
     /// original handler.
-    Propagating(tsrs2_types::RelationComparisonResult),
+    Propagating(tsc_types::RelationComparisonResult),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -255,7 +255,7 @@ pub struct CheckerState<'a> {
     /// checker-key §1.5: five per-relation caches + enumRelation.
     pub relations: RelationCaches,
     /// tsc subtypeReductionCache (47000), list-id keyed.
-    pub subtype_reduction_cache: std::collections::HashMap<String, Vec<tsrs2_types::TypeId>>,
+    pub subtype_reduction_cache: std::collections::HashMap<String, Vec<tsc_types::TypeId>>,
     /// greenfield §4.3: all links writes assert this is zero.
     pub speculation_depth: u32,
     #[cfg(test)]
@@ -458,17 +458,15 @@ pub struct CheckerState<'a> {
     /// pairs; each getFlowTypeOfReference query scans only its own
     /// window (sharedFlowStart..) and truncates back on exit — also on
     /// CheckAbort unwind (the unwind invariant).
-    pub(crate) shared_flow: Vec<(tsrs2_binder::flow::FlowId, crate::flow::FlowType)>,
+    pub(crate) shared_flow: Vec<(tsc_binder::flow::FlowId, crate::flow::FlowType)>,
     /// The ReduceLabel antecedent swap (getTypeAtFlowNode 70473): tsc
     /// mutates `target.antecedent` in place during try/finally walks;
     /// the binder graph is immutable to the checker, so the swapped
     /// lists live here keyed by (file, label) and every label read
     /// consults them. Entries are strictly scoped to an in-progress
     /// ReduceLabel arm (restored on exit AND on unwind).
-    pub(crate) reduce_label_overrides: std::collections::HashMap<
-        (usize, tsrs2_binder::flow::FlowId),
-        Vec<tsrs2_binder::flow::FlowId>,
-    >,
+    pub(crate) reduce_label_overrides:
+        std::collections::HashMap<(usize, tsc_binder::flow::FlowId), Vec<tsc_binder::flow::FlowId>>,
     /// tsc evolvingArrayTypes (70079): elementType→evolving-array memo
     /// (tsc indexes a sparse array by elementType.id).
     pub(crate) evolving_array_types: std::collections::HashMap<TypeId, TypeId>,
@@ -482,7 +480,7 @@ pub struct CheckerState<'a> {
     /// stable identity tsc's lazily assigned flow.id provides. Lives
     /// across queries (never trimmed), like tsc's.
     pub(crate) flow_loop_caches: std::collections::HashMap<
-        (usize, tsrs2_binder::flow::FlowId),
+        (usize, tsc_binder::flow::FlowId),
         std::collections::HashMap<String, TypeId>,
     >,
     /// tsc lastFlowNode/lastFlowNodeReachable (47401-47402): the
@@ -492,19 +490,19 @@ pub struct CheckerState<'a> {
     /// the stable identity for tsc's object equality. Invalidated by
     /// the worker's ReduceLabel arm (70312) exactly like tsc; never
     /// trimmed otherwise.
-    pub(crate) last_flow_node: Option<(usize, tsrs2_binder::flow::FlowId)>,
+    pub(crate) last_flow_node: Option<(usize, tsc_binder::flow::FlowId)>,
     pub(crate) last_flow_node_reachable: bool,
     /// tsc flowNodeReachable (47434): the per-SHARED-node reachability
     /// memo (a getFlowNodeId-indexed sparse array there; (file, FlowId)
     /// here like flowLoopCaches). Lives across queries. Err unwinds
     /// leave it unwritten — no undecided verdict outlives its walk.
     pub(crate) flow_node_reachable:
-        std::collections::HashMap<(usize, tsrs2_binder::flow::FlowId), bool>,
+        std::collections::HashMap<(usize, tsc_binder::flow::FlowId), bool>,
     /// tsc flowNodePostSuper (47435): the per-SHARED-node memo for
     /// constructor `super()` ordering. Like flowNodeReachable, the
     /// stable key is the owning file plus its arena-local FlowId.
     pub(crate) flow_node_post_super:
-        std::collections::HashMap<(usize, tsrs2_binder::flow::FlowId), bool>,
+        std::collections::HashMap<(usize, tsc_binder::flow::FlowId), bool>,
     /// tsc withinUnreachableCode (46457): once one 7027 range is
     /// reported, elements checked INSIDE it stay silent; saved and
     /// restored by check_source_element like currentNode.
@@ -1183,7 +1181,7 @@ impl<'a> CheckerState<'a> {
                 state.unknown_empty_object_type,
             ];
             state
-                .get_union_type_ex(&members, tsrs2_types::UnionReduction::Literal)
+                .get_union_type_ex(&members, tsc_types::UnionReduction::Literal)
                 .expect("intrinsic unions cannot fail")
         } else {
             state.tables.intrinsics.unknown
@@ -1250,7 +1248,7 @@ impl<'a> CheckerState<'a> {
             .map(|name| state.tables.get_string_literal_type(name))
             .collect();
             state
-                .get_union_type_ex(&members, tsrs2_types::UnionReduction::Literal)
+                .get_union_type_ex(&members, tsc_types::UnionReduction::Literal)
                 .expect("literal unions cannot fail")
         };
 
@@ -1659,7 +1657,7 @@ impl<'a> CheckerState<'a> {
         args: &[&str],
     ) -> Diagnostic {
         let source = self.binder.source_of_node(node);
-        let (start, end) = tsrs2_binder::node_util::get_error_span_for_node(source, node);
+        let (start, end) = tsc_binder::node_util::get_error_span_for_node(source, node);
         let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
         let to_utf16 = |byte: usize| -> u32 {
             source
@@ -1760,12 +1758,12 @@ impl<'a> CheckerState<'a> {
             match frame {
                 VarianceHandlerFrame::Propagating(flags) => {
                     let bit = if only_unreliable {
-                        tsrs2_types::RelationComparisonResult::REPORTS_UNRELIABLE
+                        tsc_types::RelationComparisonResult::REPORTS_UNRELIABLE
                     } else {
-                        tsrs2_types::RelationComparisonResult::REPORTS_UNMEASURABLE
+                        tsc_types::RelationComparisonResult::REPORTS_UNMEASURABLE
                     };
                     *flags =
-                        tsrs2_types::RelationComparisonResult::from_bits(flags.bits() | bit.bits());
+                        tsc_types::RelationComparisonResult::from_bits(flags.bits() | bit.bits());
                 }
                 VarianceHandlerFrame::Base {
                     unmeasurable,
@@ -1925,7 +1923,7 @@ impl<'a> CheckerState<'a> {
         location: Option<NodeId>,
         message: &'static DiagnosticMessage,
         args: &[&str],
-        related: Vec<tsrs2_diags::RelatedInfo>,
+        related: Vec<tsc_diagnostics::RelatedInfo>,
     ) -> usize {
         let mut diagnostic = self.create_error(location, message, args);
         diagnostic.related = related;
@@ -1972,9 +1970,9 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 pub(crate) mod test_support {
-    use tsrs2_binder::Binder;
-    use tsrs2_syntax::{parse_source_file, LanguageVariant, ParseOptions, SourceFile};
-    use tsrs2_types::CompilerOptions;
+    use tsc_binder::Binder;
+    use tsc_syntax::{parse_source_file, LanguageVariant, ParseOptions, SourceFile};
+    use tsc_types::CompilerOptions;
 
     use super::CheckerState;
 
@@ -1982,7 +1980,7 @@ pub(crate) mod test_support {
     /// bind base chaining (M4 5.0).
     fn parse_program_with_target(
         files: &[(&str, &str)],
-        script_target: tsrs2_types::ScriptTarget,
+        script_target: tsc_types::ScriptTarget,
         require_clean_parse: bool,
     ) -> Vec<SourceFile> {
         let mut sources: Vec<SourceFile> = Vec::new();
@@ -2006,7 +2004,7 @@ pub(crate) mod test_support {
                     javascript_file,
                     node_id_base,
                     node_array_id_base,
-                    js_doc_parsing_mode: tsrs2_syntax::JSDocParsingMode::ParseAll,
+                    js_doc_parsing_mode: tsc_syntax::JSDocParsingMode::ParseAll,
                     ..ParseOptions::default()
                 },
                 None,
@@ -2073,7 +2071,7 @@ pub(crate) mod test_support {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_types::{CompilerOptions, SymbolFlags, TypeSystemPropertyName};
+    use tsc_types::{CompilerOptions, SymbolFlags, TypeSystemPropertyName};
 
     use super::test_support::with_program_state;
     use super::ResolutionTarget;
@@ -2146,7 +2144,7 @@ mod tests {
 
 #[cfg(test)]
 mod resolution_unwind_tests {
-    use tsrs2_types::{CompilerOptions, SymbolFlags};
+    use tsc_types::{CompilerOptions, SymbolFlags};
 
     use super::test_support::with_program_state;
 

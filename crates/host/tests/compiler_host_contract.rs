@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use tsrs2_host::{CompilerHost, HostError, HostErrorKind, HostOperation, MemoryCompilerHost};
+use tsc_host::{CompilerHost, HostError, HostErrorKind, HostOperation, MemoryCompilerHost};
 
 fn host_with_tree(case_sensitive: bool) -> MemoryCompilerHost {
     MemoryCompilerHost::builder("/Work")

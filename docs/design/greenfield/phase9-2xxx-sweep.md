@@ -3849,7 +3849,7 @@ calls; the selected boundary adds or widens no escape.
 This closes all three supported 2322 rows in
 `checkJsxChildrenProperty15` at T0/T1. The two `key` rows also match T2.
 The explicit `children` row is blocked at T2 by the shared
-`typeToTypeNodeHelper` error-type display prerequisite: tsrs2 currently
+`typeToTypeNodeHelper` error-type display prerequisite: tsc-rs currently
 prints `{ children: error; }`, while the oracle prints
 `{ children: any; }`. All three rows remain blocked at T3 by the shared
 relation `errorInfo` chain prerequisite for the nested 2339 detail.

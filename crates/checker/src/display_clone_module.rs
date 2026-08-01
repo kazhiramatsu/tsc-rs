@@ -6,8 +6,8 @@
 //! its standard-printer face remains part of the clone-display closure.
 //! Comments, source maps, and source text are deliberately not emitted.
 
-use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
-use tsrs2_types::NodeFlags;
+use tsc_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
+use tsc_types::NodeFlags;
 
 use crate::state::{CheckResult, CheckerState};
 
@@ -232,7 +232,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         };
         let mut text = String::new();
         if let Some(phase) = data.phase_modifier {
-            let Some(phase) = tsrs2_syntax::tokens::token_to_string(phase) else {
+            let Some(phase) = tsc_syntax::tokens::token_to_string(phase) else {
                 return Ok(None);
             };
             text.push_str(phase);
@@ -437,7 +437,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
         let NodeData::ImportAttributes(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
-        let Some(keyword) = tsrs2_syntax::tokens::token_to_string(data.token) else {
+        let Some(keyword) = tsc_syntax::tokens::token_to_string(data.token) else {
             return Ok(None);
         };
         let elements = self.nodes(data.elements);
@@ -564,7 +564,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
             if matches!(self.state.data_of(modifier), NodeData::Decorator(_)) {
                 continue;
             }
-            let Some(token) = tsrs2_syntax::tokens::token_to_string(self.state.kind_of(modifier))
+            let Some(token) = tsc_syntax::tokens::token_to_string(self.state.kind_of(modifier))
             else {
                 return Ok(None);
             };
@@ -641,7 +641,7 @@ impl DisplayCloneModulePrinter<'_, '_> {
     fn identifier(&self, node: NodeId) -> Option<String> {
         match self.state.data_of(node) {
             NodeData::Identifier(data) => {
-                Some(tsrs2_binder::unescape_leading_underscores(&data.escaped_text).to_owned())
+                Some(tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned())
             }
             _ => None,
         }

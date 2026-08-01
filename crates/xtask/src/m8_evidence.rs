@@ -10,8 +10,8 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use tsrs2_checker::{check_program_with_libs_at, InputFile};
-use tsrs2_diags::{
+use tsc_checker::{check_program_with_libs_at, InputFile};
+use tsc_diagnostics::{
     format_diagnostics_with_context, Diagnostic, FormatDiagnosticsHost, MessageChain, RelatedInfo,
 };
 
@@ -262,7 +262,7 @@ pub(crate) fn evidence(mut args: impl Iterator<Item = String>) -> Result<(), Box
             {
                 return Err("m8 evidence fingerprint requires --kind runtime".into());
             }
-            let workspace = super::find_tsrs2_root()?;
+            let workspace = super::find_workspace_root()?;
             println!("{}", runtime_fingerprint(&workspace)?.sha256);
             Ok(())
         }
@@ -272,7 +272,7 @@ pub(crate) fn evidence(mut args: impl Iterator<Item = String>) -> Result<(), Box
 }
 
 pub(crate) fn produce_all() -> Result<(), Box<dyn Error>> {
-    let workspace = super::find_tsrs2_root()?;
+    let workspace = super::find_workspace_root()?;
     ensure_relevant_tree_clean(&workspace)?;
     let config = read_config(&workspace)?;
     let runtime_path =
@@ -346,7 +346,7 @@ pub(crate) fn produce_all() -> Result<(), Box<dyn Error>> {
 }
 
 pub(crate) fn coverage_emitters(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
-    let workspace = super::find_tsrs2_root()?;
+    let workspace = super::find_workspace_root()?;
     let config = read_config(&workspace)?;
     let mut corpus = false;
     let mut artifact = None;
@@ -810,7 +810,7 @@ fn run_coverage_process(
 }
 
 pub(crate) fn fuzz_run(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
-    let workspace = super::find_tsrs2_root()?;
+    let workspace = super::find_workspace_root()?;
     let config = read_config(&workspace)?;
     let mut seed = None;
     let mut cases = None;
@@ -839,15 +839,16 @@ pub(crate) fn fuzz_replay(args: impl Iterator<Item = String>) -> Result<(), Box<
     if args.len() != 1 {
         return Err("fuzz replay requires one artifact path".into());
     }
-    let workspace = super::find_tsrs2_root()?;
+    let workspace = super::find_workspace_root()?;
+    let catalog = super::workspace_catalog::WorkspaceCatalog::discover(&workspace)?;
+    let fuzz_package = catalog.require_package("fuzz")?;
+    fuzz_package.require_default_run_target()?;
     let status = Command::new("cargo")
-        .current_dir(workspace)
+        .current_dir(&workspace)
         .arg("run")
         .arg("--quiet")
-        .arg("-p")
-        .arg("tsrs2-fuzz")
-        .arg("--bin")
-        .arg("tsrs2-fuzz-producer")
+        .arg("--manifest-path")
+        .arg(fuzz_package.manifest_path())
         .arg("--")
         .arg("replay")
         .args(args)
@@ -889,12 +890,12 @@ fn produce_fuzz(
     let mut first_divergence = None;
     for case in 0..cases {
         let source = generated_source(seed, case);
-        let program = tsrs2_harness::expand_fixture_text("main.ts", &source, &vendor_lib_dir)?
+        let program = tsc_harness::expand_fixture_text("main.ts", &source, &vendor_lib_dir)?
             .into_iter()
             .next()
             .ok_or("generated fixture expanded to no programs")?;
         let case_dir = out_dir.join(format!("case-{case:05}"));
-        let paths = tsrs2_harness::write_program_jsons(std::slice::from_ref(&program), &case_dir)?;
+        let paths = tsc_harness::write_program_jsons(std::slice::from_ref(&program), &case_dir)?;
         let comparison = compare_program(&program, &paths[0], &vendor_lib_dir, &pool)?;
         if first_divergence.is_none() && comparison.signature.is_some() {
             first_divergence = Some((source.clone(), comparison.signature.clone().unwrap()));
@@ -928,11 +929,11 @@ fn produce_fuzz(
         // canary comparison; generated case observations above remain
         // unmodified oracle/tsrs comparisons.
         let source = "const fuzzReducerCanaryA = 0;\nconst fuzzReducerCanaryB = 0;\n".to_owned();
-        let program = tsrs2_harness::expand_fixture_text("main.ts", &source, &vendor_lib_dir)?
+        let program = tsc_harness::expand_fixture_text("main.ts", &source, &vendor_lib_dir)?
             .into_iter()
             .next()
             .ok_or("fuzzer mutation canary expanded to no programs")?;
-        let paths = tsrs2_harness::write_program_jsons(
+        let paths = tsc_harness::write_program_jsons(
             std::slice::from_ref(&program),
             &out_dir.join("mutation-canary"),
         )?;
@@ -957,11 +958,11 @@ fn produce_fuzz(
         mutation_canary,
     )?;
     let reduced_program =
-        tsrs2_harness::expand_fixture_text("main.ts", &reduced_source, &vendor_lib_dir)?
+        tsc_harness::expand_fixture_text("main.ts", &reduced_source, &vendor_lib_dir)?
             .into_iter()
             .next()
             .ok_or("reduced fixture expanded to no programs")?;
-    let reduced_paths = tsrs2_harness::write_program_jsons(
+    let reduced_paths = tsc_harness::write_program_jsons(
         std::slice::from_ref(&reduced_program),
         &out_dir.join("reduced"),
     )?;
@@ -1034,15 +1035,13 @@ fn produce_fuzz(
     Ok(())
 }
 
-fn verified_fuzzer_oracle_pool(
-    workspace: &Path,
-) -> Result<tsrs2_oracle::OraclePool, Box<dyn Error>> {
+fn verified_fuzzer_oracle_pool(workspace: &Path) -> Result<tsc_oracle::OraclePool, Box<dyn Error>> {
     // The fuzzer needs only the explicit A3 renderer response. A
     // renderer-only pool avoids eagerly launching an unused normal
     // oracle worker, and the launch probe verifies the actual single
     // lazy worker against the workspace Node pin.
-    let pool = tsrs2_oracle::OraclePool::new_render_only();
-    tsrs2_conformance::ratchet::verify_launched_render_node(workspace, &pool)?;
+    let pool = tsc_oracle::OraclePool::new_render_only();
+    tsc_conformance::ratchet::verify_launched_render_node(workspace, &pool)?;
     Ok(pool)
 }
 
@@ -1055,19 +1054,19 @@ struct ProgramComparison {
 }
 
 fn compare_program(
-    program: &tsrs2_harness::ProgramJson,
+    program: &tsc_harness::ProgramJson,
     path: &Path,
     vendor_lib_dir: &Path,
-    pool: &tsrs2_oracle::OraclePool,
+    pool: &tsc_oracle::OraclePool,
 ) -> Result<ProgramComparison, Box<dyn Error>> {
     compare_program_with_mutation_canary(program, path, vendor_lib_dir, pool, false)
 }
 
 fn compare_program_with_mutation_canary(
-    program: &tsrs2_harness::ProgramJson,
+    program: &tsc_harness::ProgramJson,
     path: &Path,
     vendor_lib_dir: &Path,
-    pool: &tsrs2_oracle::OraclePool,
+    pool: &tsc_oracle::OraclePool,
     inject_mutation_canary: bool,
 ) -> Result<ProgramComparison, Box<dyn Error>> {
     let mut file_texts = BTreeMap::new();
@@ -1098,7 +1097,7 @@ fn compare_program_with_mutation_canary(
     let result = check_program_with_libs_at(
         &libs,
         &files,
-        &tsrs2_harness::compiler_options_from_program(program),
+        &tsc_harness::compiler_options_from_program(program),
         &program.cwd,
     );
     let oracle = pool.diagnostics_with_rendering(path)?;
@@ -1179,7 +1178,7 @@ fn compare_program_with_mutation_canary(
     })
 }
 
-fn oracle_value(diagnostic: &tsrs2_oracle::OracleDiag) -> Value {
+fn oracle_value(diagnostic: &tsc_oracle::OracleDiag) -> Value {
     json!({
         "file": diagnostic.file,
         "start": diagnostic.start,
@@ -1532,7 +1531,7 @@ fn reduce_source_preserving_signature(
     signature: &str,
     vendor_lib_dir: &Path,
     out_dir: &Path,
-    pool: &tsrs2_oracle::OraclePool,
+    pool: &tsc_oracle::OraclePool,
     mutation_canary: bool,
 ) -> Result<String, Box<dyn Error>> {
     let mut current = source.to_owned();
@@ -1548,7 +1547,7 @@ fn reduce_source_preserving_signature(
         if candidate.trim().is_empty() {
             continue;
         }
-        let program = match tsrs2_harness::expand_fixture_text(
+        let program = match tsc_harness::expand_fixture_text(
             "main.ts",
             &(candidate.clone() + "\n"),
             vendor_lib_dir,
@@ -1559,7 +1558,7 @@ fn reduce_source_preserving_signature(
             },
             Err(_) => continue,
         };
-        let paths = tsrs2_harness::write_program_jsons(std::slice::from_ref(&program), out_dir)?;
+        let paths = tsc_harness::write_program_jsons(std::slice::from_ref(&program), out_dir)?;
         let comparison = compare_program_with_mutation_canary(
             &program,
             &paths[0],
@@ -1617,7 +1616,7 @@ fn verify_fuzzer_raw(artifact: &FuzzerArtifact) -> Result<(), Box<dyn Error>> {
 }
 
 pub(crate) fn perf_conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
-    let workspace = super::find_tsrs2_root()?;
+    let workspace = super::find_workspace_root()?;
     let config = read_config(&workspace)?;
     let mut artifact = None;
     let mut runner = None;
@@ -2215,8 +2214,8 @@ fn expand_corpus_programs(
     fixtures.sort();
     let mut paths = Vec::new();
     for (index, fixture) in fixtures.iter().enumerate() {
-        let programs = tsrs2_harness::expand_fixture_file(fixture, &vendor)?;
-        paths.extend(tsrs2_harness::write_program_jsons(
+        let programs = tsc_harness::expand_fixture_file(fixture, &vendor)?;
+        paths.extend(tsc_harness::write_program_jsons(
             &programs,
             &out_root.join(index.to_string()),
         )?);
@@ -2357,8 +2356,8 @@ mod tests {
     fn workspace_cleanliness_pathspec_supports_nested_and_root_layouts() {
         let root = Path::new("/workspace");
         assert_eq!(
-            workspace_git_pathspec(root, &root.join("tsrs2")).unwrap(),
-            PathBuf::from("tsrs2")
+            workspace_git_pathspec(root, &root.join("tsc-rs")).unwrap(),
+            PathBuf::from("tsc-rs")
         );
         assert_eq!(
             workspace_git_pathspec(root, root).unwrap(),
@@ -2368,12 +2367,12 @@ mod tests {
 
     #[test]
     fn evidence_paths_cannot_escape_the_workspace() {
-        let workspace = Path::new("/workspace/tsrs2");
+        let workspace = Path::new("/workspace/tsc-rs");
         assert_eq!(
             secure_workspace_path(workspace, "target/m8/evidence")
                 .unwrap()
                 .to_string_lossy(),
-            "/workspace/tsrs2/target/m8/evidence"
+            "/workspace/tsc-rs/target/m8/evidence"
         );
         assert!(secure_workspace_path(workspace, "../outside").is_err());
         assert!(secure_workspace_path(workspace, "/tmp/outside").is_err());

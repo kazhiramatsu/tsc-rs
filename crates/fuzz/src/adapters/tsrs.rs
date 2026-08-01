@@ -6,14 +6,14 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use tsrs2_checker::{check_program_with_libs_at_observed, CheckPhase, CompilerOptions, InputFile};
-use tsrs2_diags::{
+use tsc_checker::{check_program_with_libs_at_observed, CheckPhase, CompilerOptions, InputFile};
+use tsc_diagnostics::{
     compute_line_starts, format_sorted_diagnostics_with_context_raw,
     get_line_and_character_of_position, sort_and_dedupe_diagnostic_indices_with_context,
     Diagnostic, DiagnosticCategory as TsrsDiagnosticCategory, FormatDiagnosticsHost,
     MessageChain as TsrsMessageChain, RelatedInfo,
 };
-use tsrs2_harness::{try_compiler_options_from_options, OptionValue as HarnessOptionValue};
+use tsc_harness::{try_compiler_options_from_options, OptionValue as HarnessOptionValue};
 
 use crate::model::{
     AssembledDiagnostic, CanonicalHead, CompletedOutcome, DiagnosticCategory, DiagnosticFile,

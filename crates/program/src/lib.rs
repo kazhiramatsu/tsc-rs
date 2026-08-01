@@ -31,4 +31,4 @@ pub use resolution::{
     ResolvedModule, ResolvedModuleTarget, ResolvedTypeReferenceDirective, TypeReferenceResolution,
     TypeReferenceResolutionKey, TypeReferenceResolutionOrigin,
 };
-pub use tsrs2_types::CompilerOptions;
+pub use tsc_types::CompilerOptions;

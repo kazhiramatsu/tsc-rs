@@ -1,17 +1,20 @@
 [package]
-name = "tsrs2-program"
+name = "tsc-rs-program"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[package.metadata.tsc-rs]
+role = "program"
+
 [lib]
-name = "tsrs2_program"
+name = "tsc_program"
 path = "src/lib.rs"
 
 [dependencies]
-tsrs2-diags = { path = "../diags" }
-tsrs2-host = { path = "../host" }
-tsrs2-types = { path = "../types" }
+tsc-diagnostics.workspace = true
+tsc-host.workspace = true
+tsc-types.workspace = true
 
 [lints]
 workspace = true

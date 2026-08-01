@@ -58,9 +58,9 @@
 
 use std::collections::{HashMap, HashSet};
 
-use tsrs2_binder::flow::FlowId;
-use tsrs2_syntax::NodeId;
-use tsrs2_types::TypeId;
+use tsc_binder::flow::FlowId;
+use tsc_syntax::NodeId;
+use tsc_types::TypeId;
 
 use crate::links::SpeculativeLinksMarks;
 use crate::state::{CheckResult, CheckerState};
@@ -646,9 +646,9 @@ impl CheckerState<'_> {
 // deferred_nodes) and the boundary ordering rule.
 #[cfg(test)]
 mod tests {
-    use tsrs2_binder::flow::FlowId;
-    use tsrs2_diags::{gen as diagnostics, RelatedInfo};
-    use tsrs2_types::{CompilerOptions, SymbolFlags, TypeData, TypeFlags, TypeSystemPropertyName};
+    use tsc_binder::flow::FlowId;
+    use tsc_diagnostics::{gen as diagnostics, RelatedInfo};
+    use tsc_types::{CompilerOptions, SymbolFlags, TypeData, TypeFlags, TypeSystemPropertyName};
 
     use super::SpeculationOutcome;
     use crate::flow::FlowType;
@@ -740,7 +740,7 @@ mod tests {
         instantiation_depth: u32,
         inline_level: u32,
         in_variance_computation: bool,
-        variance_type_parameter: Option<tsrs2_types::TypeId>,
+        variance_type_parameter: Option<tsc_types::TypeId>,
         suggestion_count: u32,
         is_inference_partially_blocked: bool,
         diagnostics: usize,

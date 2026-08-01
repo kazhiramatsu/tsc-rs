@@ -21,8 +21,8 @@
 
 use std::collections::HashMap;
 
-use tsrs2_syntax::{escape_leading_underscores, NodeId, SyntaxKind};
-use tsrs2_types::{
+use tsc_syntax::{escape_leading_underscores, NodeId, SyntaxKind};
+use tsc_types::{
     ContextFlags, ElementFlags, ExpandingFlags, InferenceFlags, InferencePriority,
     IntersectionFlags, LiteralValue, ObjectFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags,
     TypeId, UnionReduction, VarianceFlags,
@@ -922,7 +922,7 @@ impl<'a> CheckerState<'a> {
             };
             let element_flags = if self
                 .get_mapped_type_modifiers(target)
-                .intersects(tsrs2_types::MappedTypeModifiers::INCLUDE_OPTIONAL)
+                .intersects(tsc_types::MappedTypeModifiers::INCLUDE_OPTIONAL)
             {
                 data.element_flags
                     .iter()
@@ -973,7 +973,7 @@ impl<'a> CheckerState<'a> {
         let type_parameter = self.get_indexed_access_type(
             constraint_type,
             mapped_parameter,
-            tsrs2_types::AccessFlags::NONE,
+            tsc_types::AccessFlags::NONE,
             None,
             None,
             None,
@@ -1246,7 +1246,7 @@ impl<'a> CheckerState<'a> {
                         let related = checker.is_related_to(
                             source,
                             target,
-                            tsrs2_types::RecursionFlags::BOTH,
+                            tsc_types::RecursionFlags::BOTH,
                             /*report_errors*/ false,
                             intersection_state,
                         );
@@ -1277,7 +1277,7 @@ impl<'a> CheckerState<'a> {
                             relation_count,
                             intersection_state,
                         });
-                        Ok(related? != tsrs2_types::Ternary::FALSE)
+                        Ok(related? != tsc_types::Ternary::FALSE)
                     }
                     RelationFrameLoan::InFlight {
                         relation,
@@ -1304,7 +1304,7 @@ impl<'a> CheckerState<'a> {
                             maybe_count: 0,
                             source_depth: 0,
                             target_depth: 0,
-                            expanding_flags: tsrs2_types::ExpandingFlags::NONE,
+                            expanding_flags: tsc_types::ExpandingFlags::NONE,
                             overflow: false,
                             relation_count,
                             error_state: Default::default(),
@@ -1312,11 +1312,11 @@ impl<'a> CheckerState<'a> {
                         let related = checker.is_related_to(
                             source,
                             target,
-                            tsrs2_types::RecursionFlags::BOTH,
+                            tsc_types::RecursionFlags::BOTH,
                             /*report_errors*/ false,
                             intersection_state,
                         )?;
-                        Ok(related != tsrs2_types::Ternary::FALSE)
+                        Ok(related != tsc_types::Ternary::FALSE)
                     }
                     RelationFrameLoan::None => panic!(
                         "RelationFrame compare_types consumed without a parked frame loan — \
@@ -2859,7 +2859,7 @@ impl InferTypesWalker<'_, '_> {
         left: TypeId,
         right: TypeId,
         source: TypeId,
-        str_value: &tsrs2_types::TemplateText,
+        str_value: &tsc_types::TemplateText,
         all_type_flags: TypeFlags,
     ) -> CheckResult<TypeId> {
         if !self.st.tables.flags_of(right).intersects(all_type_flags) {
@@ -3081,9 +3081,9 @@ impl InferTypesWalker<'_, '_> {
         }
         if constraint_flags.intersects(TypeFlags::TYPE_PARAMETER) {
             let index_flags = if self.st.links.ty(source).pattern.is_some() {
-                tsrs2_types::IndexFlags::NO_INDEX_SIGNATURES
+                tsc_types::IndexFlags::NO_INDEX_SIGNATURES
             } else {
-                tsrs2_types::IndexFlags::NONE
+                tsc_types::IndexFlags::NONE
             };
             let source_index = self.st.get_index_type(source, index_flags)?;
             self.infer_with_priority(
@@ -3764,7 +3764,7 @@ fn js_slice_bounds(len: usize, start: i64, end: i64) -> (usize, usize) {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_types::{
+    use tsc_types::{
         CompilerOptions, ContextFlags, ElementFlags, IndexFlags, InferenceFlags, InferencePriority,
         ObjectFlags, PseudoBigInt, SymbolFlags, TypeData, TypeFlags, TypeId, UnionReduction,
     };
@@ -3779,7 +3779,7 @@ mod tests {
         let inside = source
             .arena
             .node_ids()
-            .find(|&id| source.arena.node(id).kind == tsrs2_syntax::SyntaxKind::VariableDeclaration)
+            .find(|&id| source.arena.node(id).kind == tsc_syntax::SyntaxKind::VariableDeclaration)
             .expect("var declaration");
         let symbol = state
             .resolve_name(
@@ -3795,7 +3795,7 @@ mod tests {
         state.get_declared_type_of_type_parameter(symbol)
     }
 
-    fn node_of_kind(state: &CheckerState, kind: tsrs2_syntax::SyntaxKind) -> tsrs2_syntax::NodeId {
+    fn node_of_kind(state: &CheckerState, kind: tsc_syntax::SyntaxKind) -> tsc_syntax::NodeId {
         let source = state.binder.source(0);
         source
             .arena
@@ -3843,7 +3843,7 @@ mod tests {
         );
     }
 
-    fn annotation_of_var(state: &CheckerState, name: &str) -> tsrs2_syntax::NodeId {
+    fn annotation_of_var(state: &CheckerState, name: &str) -> tsc_syntax::NodeId {
         crate::relpin::find_probe_annotation(state.binder.source(0), name)
             .expect("var with annotation")
     }
@@ -3935,7 +3935,7 @@ mod tests {
                 let number = state.tables.intrinsics.number;
                 let ctx =
                     state.create_inference_context(&[t, u], None, InferenceFlags::NO_DEFAULT, None);
-                let var_decl = node_of_kind(state, tsrs2_syntax::SyntaxKind::VariableDeclaration);
+                let var_decl = node_of_kind(state, tsc_syntax::SyntaxKind::VariableDeclaration);
                 slot_mut(state, ctx, 0).candidates = Some(vec![string]);
                 state.inference_context_mut(ctx).return_mapper =
                     Some(state.make_unary_type_mapper(t, string));
@@ -4140,7 +4140,7 @@ mod tests {
             |state| {
                 let t = declared_type_parameter(state, "T");
                 let string = state.tables.intrinsics.string;
-                let literal = node_of_kind(state, tsrs2_syntax::SyntaxKind::NumericLiteral);
+                let literal = node_of_kind(state, tsc_syntax::SyntaxKind::NumericLiteral);
                 let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
                 // Lazy array creation (68287 `??=`).
                 state.add_intra_expression_inference_site(ctx, literal, string);
@@ -4182,7 +4182,7 @@ mod tests {
             |state| {
                 let t = declared_type_parameter(state, "T");
                 let string = state.tables.intrinsics.string;
-                let literal = node_of_kind(state, tsrs2_syntax::SyntaxKind::NumericLiteral);
+                let literal = node_of_kind(state, tsc_syntax::SyntaxKind::NumericLiteral);
                 let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
                 state.add_intra_expression_inference_site(ctx, literal, string);
                 let fixing = state.inference_context(ctx).mapper;
@@ -4210,7 +4210,7 @@ mod tests {
                 let t = declared_type_parameter(state, "T");
                 let string = state.tables.intrinsics.string;
                 let number = state.tables.intrinsics.number;
-                let literal = node_of_kind(state, tsrs2_syntax::SyntaxKind::NumericLiteral);
+                let literal = node_of_kind(state, tsc_syntax::SyntaxKind::NumericLiteral);
                 let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
                 state.add_intra_expression_inference_site(ctx, literal, string);
                 // 80566-80569: the sites are DISCARDED (not drained)
@@ -4220,7 +4220,7 @@ mod tests {
                         literal,
                         number,
                         Some(ctx),
-                        tsrs2_types::CheckMode::NORMAL,
+                        tsc_types::CheckMode::NORMAL,
                     )
                     .expect("literal checks");
                 assert!(state
@@ -4247,7 +4247,7 @@ mod tests {
                 let t = declared_type_parameter(state, "T");
                 let annotation = annotation_of_var(state, "target");
                 let contextual = state.get_type_from_type_node(annotation).expect("fn type");
-                let arrow = node_of_kind(state, tsrs2_syntax::SyntaxKind::ArrowFunction);
+                let arrow = node_of_kind(state, tsc_syntax::SyntaxKind::ArrowFunction);
                 let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
                 // 79184-79187, LIVE since 7.4b (the 7.1-era pin
                 // asserted the named escape): non-context-sensitive,
@@ -4269,7 +4269,7 @@ mod tests {
                         arrow,
                         contextual,
                         Some(ctx),
-                        tsrs2_types::CheckMode::NORMAL,
+                        tsc_types::CheckMode::NORMAL,
                     )
                     .expect("live inference completes");
                 let number = state.tables.intrinsics.number;
@@ -4356,7 +4356,7 @@ mod tests {
                 let any = state.tables.intrinsics.any;
                 let false_regular = state.tables.intrinsics.false_regular;
                 let true_regular = state.tables.intrinsics.true_regular;
-                let var_decl = node_of_kind(state, tsrs2_syntax::SyntaxKind::VariableDeclaration);
+                let var_decl = node_of_kind(state, tsc_syntax::SyntaxKind::VariableDeclaration);
                 // returnMapper maps T to a union carrying BOTH regular
                 // boolean literals — 73453-73454 filters them out.
                 let union = state
@@ -4395,7 +4395,7 @@ mod tests {
             |state| {
                 let t = declared_type_parameter(state, "T");
                 let string = state.tables.intrinsics.string;
-                let var_decl = node_of_kind(state, tsrs2_syntax::SyntaxKind::VariableDeclaration);
+                let var_decl = node_of_kind(state, tsc_syntax::SyntaxKind::VariableDeclaration);
                 let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
                 slot_mut(state, ctx, 0).candidates = Some(vec![string]);
                 state.push_inference_context(var_decl, Some(ctx));
@@ -4423,7 +4423,7 @@ mod tests {
             &CompilerOptions::default(),
             |state| {
                 let t = declared_type_parameter(state, "T");
-                let var_decl = node_of_kind(state, tsrs2_syntax::SyntaxKind::VariableDeclaration);
+                let var_decl = node_of_kind(state, tsc_syntax::SyntaxKind::VariableDeclaration);
                 let checkpoint = state.begin_speculation();
                 let ctx = state.create_inference_context(&[t], None, InferenceFlags::NONE, None);
                 state.push_inference_context(var_decl, Some(ctx));
@@ -4445,7 +4445,7 @@ mod tests {
     /// `context.signature` for resolution tests (return-type position
     /// and constraints come from the declaration).
     fn call_signature_of(state: &mut CheckerState, name: &str) -> crate::state::SignatureId {
-        let inside = node_of_kind(state, tsrs2_syntax::SyntaxKind::VariableDeclaration);
+        let inside = node_of_kind(state, tsc_syntax::SyntaxKind::VariableDeclaration);
         let symbol = state
             .resolve_name(Some(inside), name, SymbolFlags::VALUE, None, false, false)
             .expect("resolve_name")

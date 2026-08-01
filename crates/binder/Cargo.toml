@@ -1,18 +1,22 @@
 [package]
-name = "tsrs2-binder"
+name = "tsc-rs-binder"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[package.metadata.tsc-rs]
+role = "binder"
+dev-profile-opt-level = 3
+
 [lib]
-name = "tsrs2_binder"
+name = "tsc_binder"
 path = "src/lib.rs"
 
 [dependencies]
 indexmap = "2"
-tsrs2-diags = { path = "../diags" }
-tsrs2-syntax = { path = "../syntax" }
-tsrs2-types = { path = "../types" }
+tsc-diagnostics.workspace = true
+tsc-syntax.workspace = true
+tsc-types.workspace = true
 
 [lints]
 workspace = true

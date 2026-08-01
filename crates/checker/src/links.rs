@@ -10,9 +10,9 @@
 
 use std::collections::HashMap;
 
-use tsrs2_binder::SymbolId;
-use tsrs2_syntax::NodeId;
-use tsrs2_types::{ConditionalRootId, TypeId};
+use tsc_binder::SymbolId;
+use tsc_syntax::NodeId;
+use tsc_types::{ConditionalRootId, TypeId};
 
 use crate::instantiate::MapperId;
 use crate::state::SignatureId;
@@ -121,7 +121,7 @@ pub struct NodeLinks {
     /// tsc NodeLinks.flags (getNodeCheckFlags) — the driver's
     /// TypeChecked bit lands with M4 5.4; later stages OR in their own
     /// bits (a flags word accumulates, unlike the write-once slots).
-    pub check_flags: tsrs2_types::NodeCheckFlags,
+    pub check_flags: tsc_types::NodeCheckFlags,
     /// tsc links.containsArgumentsReference
     /// (containsArgumentsReference 59689): syntax-and-binding-stable
     /// result of the function-body traversal.
@@ -154,7 +154,7 @@ pub struct NodeLinks {
     pub non_existent_prop_check_cache: std::collections::HashSet<String>,
     /// tsc links.jsxFlags (getIntrinsicTagSymbol 74540/74545) on JSX
     /// opening-like/closing elements — an accumulating flags word.
-    pub jsx_flags: tsrs2_types::JsxFlags,
+    pub jsx_flags: tsc_types::JsxFlags,
     /// tsc links.resolvedJsxElementAttributesType
     /// (getIntrinsicAttributesTypeFromJsxOpeningLikeElement 74731) —
     /// compute-once; written only on success so a CheckAbort unwind
@@ -185,7 +185,7 @@ pub struct SymbolLinks {
     pub inferred_class_symbols: HashMap<SymbolId, SymbolId>,
     /// tsc TransientSymbol links.checkFlags (synthetic union/
     /// intersection properties, createUnionOrIntersectionProperty).
-    pub check_flags: tsrs2_types::CheckFlags,
+    pub check_flags: tsc_types::CheckFlags,
     /// tsc links.containingType for synthetic properties.
     pub containing_type: Option<TypeId>,
     /// tsc links.isDiscriminantProperty cache (isDiscriminantProperty
@@ -200,7 +200,7 @@ pub struct SymbolLinks {
     /// the JSX/private-property direct markers write SymbolFlags::All.
     /// Unused type parameters and value declarations consume different
     /// bits of the same merged symbol.
-    pub is_referenced: tsrs2_types::SymbolFlags,
+    pub is_referenced: tsc_types::SymbolFlags,
     /// tsc SymbolLinks.referenced (markAliasSymbolAsReferenced 71930)
     /// — alias accessibility/emit bookkeeping. This is deliberately
     /// distinct from Symbol.isReferenced above: unused locals consume
@@ -232,7 +232,7 @@ pub struct SymbolLinks {
     /// 57712) — the early⊕late member table of a late-binding
     /// container; equal to `symbol.members` while no late-bindable
     /// member exists (the pre-5.5 slice).
-    pub resolved_members: LinkSlot<tsrs2_binder::SymbolTable>,
+    pub resolved_members: LinkSlot<tsc_binder::SymbolTable>,
     /// tsc links.tupleLabelDeclaration (createTupleTargetType 61170):
     /// the NamedTupleMember/Parameter node behind a synthesized tuple
     /// index property.
@@ -249,14 +249,14 @@ pub struct SymbolLinks {
     /// tsc links.resolvedExports (getResolvedMembersOrExportsOfSymbol
     /// 57712, the static resolutionKind) — equal to `symbol.exports`
     /// while no late-bindable static member exists.
-    pub resolved_exports: LinkSlot<tsrs2_binder::SymbolTable>,
+    pub resolved_exports: LinkSlot<tsc_binder::SymbolTable>,
     /// tsc links.variances (getVariancesWorker 67315): Vacant =
     /// undefined, Resolving = the in-progress emptyArray sentinel
     /// (getVariances call sites answer Ternary.Unknown), Resolved =
     /// the measured list — possibly genuinely empty for zero-parameter
     /// alias symbols, which is DISTINCT from the sentinel exactly as
     /// tsc's fresh `[]` differs from the shared emptyArray.
-    pub variances: LinkSlot<Box<[tsrs2_types::VarianceFlags]>>,
+    pub variances: LinkSlot<Box<[tsc_types::VarianceFlags]>>,
     /// tsc links.originatingImport (cloneTypeAsModuleType 49769) — the
     /// import-site provenance an interop module clone carries; read by
     /// the invocation-error related-info band (64900/77252): dormant
@@ -498,7 +498,7 @@ struct SpeculativeConditionalCacheSnapshot {
     constraint_of_distributive: LinkSlot<Option<TypeId>>,
 }
 
-type SpeculativeSymbolVarianceWrite = (u32, SymbolId, LinkSlot<Box<[tsrs2_types::VarianceFlags]>>);
+type SpeculativeSymbolVarianceWrite = (u32, SymbolId, LinkSlot<Box<[tsc_types::VarianceFlags]>>);
 type SpeculativeTypeOnlyAliasWrite = (u32, SymbolId, Option<Option<NodeId>>, Option<String>);
 
 #[derive(Clone, Copy, Debug)]
@@ -553,7 +553,7 @@ pub struct LinksTables {
     /// Trial-local ContextChecked once-flags. Contextual parameter
     /// types use the symbol-type journal; restoring both lets a later
     /// candidate perform its own first contextual check.
-    speculative_context_checked_writes: Vec<(u32, NodeId, tsrs2_types::NodeCheckFlags)>,
+    speculative_context_checked_writes: Vec<(u32, NodeId, tsc_types::NodeCheckFlags)>,
     /// Trial-local declared-type publications for symbols first forced
     /// by candidate checking.
     speculative_symbol_declared_type_writes: Vec<(u32, SymbolId, LinkSlot<TypeId>)>,
@@ -1111,7 +1111,7 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: NodeId,
-        value: tsrs2_types::JsxFlags,
+        value: tsc_types::JsxFlags,
     ) {
         Self::assert_writable(speculation_depth);
         self.node.entry(id).or_default().jsx_flags |= value;
@@ -1861,7 +1861,7 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: SymbolId,
-        value: LinkSlot<Box<[tsrs2_types::VarianceFlags]>>,
+        value: LinkSlot<Box<[tsc_types::VarianceFlags]>>,
     ) {
         if speculation_depth != 0
             && !self
@@ -1906,10 +1906,10 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: NodeId,
-        bits: tsrs2_types::NodeCheckFlags,
+        bits: tsc_types::NodeCheckFlags,
     ) {
         if speculation_depth != 0
-            && bits.intersects(tsrs2_types::NodeCheckFlags::CONTEXT_CHECKED)
+            && bits.intersects(tsc_types::NodeCheckFlags::CONTEXT_CHECKED)
             && !self
                 .speculative_context_checked_writes
                 .iter()
@@ -1925,9 +1925,9 @@ impl LinksTables {
         }
         if speculation_depth != 0
             && !bits.intersects(
-                tsrs2_types::NodeCheckFlags::IN_CHECK_IDENTIFIER
-                    | tsrs2_types::NodeCheckFlags::ASSIGNMENTS_MARKED
-                    | tsrs2_types::NodeCheckFlags::CONTEXT_CHECKED,
+                tsc_types::NodeCheckFlags::IN_CHECK_IDENTIFIER
+                    | tsc_types::NodeCheckFlags::ASSIGNMENTS_MARKED
+                    | tsc_types::NodeCheckFlags::CONTEXT_CHECKED,
             )
         {
             return;
@@ -1937,7 +1937,7 @@ impl LinksTables {
         }
         let links = self.node.entry(id).or_default();
         links.check_flags =
-            tsrs2_types::NodeCheckFlags::from_bits(links.check_flags.bits() | bits.bits());
+            tsc_types::NodeCheckFlags::from_bits(links.check_flags.bits() | bits.bits());
     }
 
     /// tsrs-native: links-table setter (tsc plain flags mutation).
@@ -1951,7 +1951,7 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: NodeId,
-        bits: tsrs2_types::NodeCheckFlags,
+        bits: tsc_types::NodeCheckFlags,
     ) {
         // The only callers clear scoped latches that may also be set
         // during a candidate. This is the balancing half of that
@@ -1959,7 +1959,7 @@ impl LinksTables {
         let _ = speculation_depth;
         let links = self.node.entry(id).or_default();
         links.check_flags =
-            tsrs2_types::NodeCheckFlags::from_bits(links.check_flags.bits() & !bits.bits());
+            tsc_types::NodeCheckFlags::from_bits(links.check_flags.bits() & !bits.bits());
     }
 
     /// tsrs-native: links-table setter (tsc plain property write).
@@ -2192,7 +2192,7 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: SymbolId,
-        check_flags: tsrs2_types::CheckFlags,
+        check_flags: tsc_types::CheckFlags,
         containing_type: TypeId,
         type_of_symbol: TypeId,
     ) {
@@ -2307,7 +2307,7 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: SymbolId,
-        check_flags: tsrs2_types::CheckFlags,
+        check_flags: tsc_types::CheckFlags,
     ) {
         let _ = speculation_depth;
         self.symbol.entry(id).or_default().check_flags = check_flags;
@@ -2540,7 +2540,7 @@ impl LinksTables {
     /// links-field access; no standalone tsc function.
     pub fn set_symbol_is_referenced(&mut self, speculation_depth: u32, id: SymbolId) {
         let _ = speculation_depth;
-        self.symbol.entry(id).or_default().is_referenced = tsrs2_types::SymbolFlags::ALL;
+        self.symbol.entry(id).or_default().is_referenced = tsc_types::SymbolFlags::ALL;
     }
 
     /// tsrs-native: Links-table adapter for tsc resolveNameHelper
@@ -2550,7 +2550,7 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: SymbolId,
-        meaning: tsrs2_types::SymbolFlags,
+        meaning: tsc_types::SymbolFlags,
     ) {
         let _ = speculation_depth;
         self.symbol.entry(id).or_default().is_referenced |= meaning;
@@ -3293,7 +3293,7 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: SymbolId,
-        value: tsrs2_binder::SymbolTable,
+        value: tsc_binder::SymbolTable,
     ) {
         Self::assert_writable(speculation_depth);
         Self::write_slot(
@@ -3314,7 +3314,7 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: SymbolId,
-        value: tsrs2_binder::SymbolTable,
+        value: tsc_binder::SymbolTable,
     ) {
         let _ = speculation_depth;
         let slot = &mut self.symbol.entry(id).or_default().resolved_members;
@@ -3338,7 +3338,7 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: SymbolId,
-        value: tsrs2_binder::SymbolTable,
+        value: tsc_binder::SymbolTable,
     ) {
         let _ = speculation_depth;
         let slot = &mut self.symbol.entry(id).or_default().resolved_exports;
@@ -3434,7 +3434,7 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: SymbolId,
-        exports: tsrs2_binder::SymbolTable,
+        exports: tsc_binder::SymbolTable,
         type_only_export_star_map: Option<std::collections::HashMap<String, NodeId>>,
     ) {
         // The worker owns its cycle guard and returns the completed
@@ -3632,7 +3632,7 @@ impl LinksTables {
         &mut self,
         speculation_depth: u32,
         id: SymbolId,
-        value: tsrs2_binder::SymbolTable,
+        value: tsc_binder::SymbolTable,
     ) {
         Self::assert_writable(speculation_depth);
         Self::write_slot(

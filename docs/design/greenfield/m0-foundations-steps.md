@@ -25,7 +25,7 @@ Historical M0 action: create the `tsrs2/` Cargo workspace with the greenfield
 # Cargo.toml
 [workspace]
 members = ["crates/syntax", "crates/binder", "crates/types",
-           "crates/checker", "crates/diags", "crates/harness",
+           "crates/checker", "crates/diagnostics", "crates/harness",
            "crates/oracle", "crates/conformance", "crates/fuzz",
            "crates/xtask"]
 resolver = "2"
@@ -33,7 +33,7 @@ resolver = "2"
 
 Dependency direction (enforce in each Cargo.toml; a violation is a
 stop condition): `syntax ← binder ← checker`, `types ← checker`,
-everything ← `diags`. `harness`/`conformance`/`fuzz` depend only on
+everything ← `diagnostics`. `harness`/`conformance`/`fuzz` depend only on
 the checker's public `check_program` API; nothing depends on `oracle`
 outside `#[cfg(test)]` / xtask.
 
@@ -129,14 +129,14 @@ visit order) cross-checked against the `typescript.d.ts` interfaces
 (parsed via the vendored `typescript.js` itself), and generate the
 tsc-field-compatible node structs + `for_each_child`. Full design and
 contract: [impl-nodes.md](impl-nodes.md) §1-2. Also port the line-map
-utilities there (§3) into `crates/diags` — every tier's line/col
+utilities there (§3) into `crates/diagnostics` — every tier's line/col
 comparison uses them.
 
 Commit: `m0 0.3n: node schema codegen + line map`.
 
 ## Stage 0.4: xtask codegen — diagnostic messages [M]
 
-Generate `crates/diags/src/gen.rs` from the vendored
+Generate `crates/diagnostics/src/gen.rs` from the vendored
 `diagnosticMessages.json`: one `pub static <Name>: DiagnosticMessage`
 per entry carrying code, category, text template, and the
 `reportsUnnecessary`/`reportsDeprecated`/`elidedInCompatabilityPyramid`

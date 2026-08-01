@@ -6,7 +6,7 @@ members = [
     "crates/host",
     "crates/program",
     "crates/checker",
-    "crates/diags",
+    "crates/diagnostics",
     "crates/harness",
     "crates/oracle",
     "crates/conformance",
@@ -23,20 +23,38 @@ license = "MIT"
 [workspace.lints.clippy]
 iter_over_hash_type = "deny"
 
+# Stable dependency aliases live here so a package rename only changes the
+# renamed package manifest and this one mapping. Member manifests inherit the
+# aliases and Rust `use` paths can remain unchanged.
+[workspace.dependencies]
+tsc-binder = { package = "tsc-rs-binder", path = "crates/binder" }
+tsc-checker = { package = "tsc-rs-checker", path = "crates/checker" }
+tsc-conformance = { package = "tsc-rs-conformance", path = "crates/conformance" }
+tsc-diagnostics = { package = "tsc-rs-diagnostics", path = "crates/diagnostics" }
+tsc-fuzz = { package = "tsc-rs-fuzz", path = "crates/fuzz" }
+tsc-harness = { package = "tsc-rs-harness", path = "crates/harness" }
+tsc-host = { package = "tsc-rs-host", path = "crates/host" }
+tsc-oracle = { package = "tsc-rs-oracle", path = "crates/oracle" }
+tsc-program = { package = "tsc-rs-program", path = "crates/program" }
+tsc-syntax = { package = "tsc-rs-syntax", path = "crates/syntax" }
+tsc-types = { package = "tsc-rs-types", path = "crates/types" }
+
 # `cargo xtask` runs the dev profile; unoptimized parse/bind/check made
 # corpus-wide commands ~9x slower than release. Optimize the compute
 # crates while keeping dev's debug-assertions (invariant checks stay on).
-[profile.dev.package.tsrs2-syntax]
+# BEGIN GENERATED: cargo xtask workspace sync
+[profile.dev.package.tsc-rs-binder]
 opt-level = 3
-[profile.dev.package.tsrs2-binder]
+[profile.dev.package.tsc-rs-checker]
 opt-level = 3
-[profile.dev.package.tsrs2-types]
+[profile.dev.package.tsc-rs-conformance]
 opt-level = 3
-[profile.dev.package.tsrs2-checker]
+[profile.dev.package.tsc-rs-diagnostics]
 opt-level = 3
-[profile.dev.package.tsrs2-diags]
+[profile.dev.package.tsc-rs-harness]
 opt-level = 3
-[profile.dev.package.tsrs2-harness]
+[profile.dev.package.tsc-rs-syntax]
 opt-level = 3
-[profile.dev.package.tsrs2-conformance]
+[profile.dev.package.tsc-rs-types]
 opt-level = 3
+# END GENERATED: cargo xtask workspace sync

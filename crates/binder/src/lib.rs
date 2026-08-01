@@ -8,8 +8,8 @@ pub mod flow;
 pub mod node_util;
 pub mod symbols;
 
-use tsrs2_syntax::SourceFile;
-use tsrs2_types::CompilerOptions;
+use tsc_syntax::SourceFile;
+use tsc_types::CompilerOptions;
 
 pub use assignment::{
     get_assignment_declaration_kind, get_assignment_declaration_property_access_kind,

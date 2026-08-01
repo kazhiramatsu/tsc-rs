@@ -5,19 +5,19 @@ use std::process::{Command, Output};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use tsrs2_fuzz::adapters::oracle::{TRUSTED_NODE_ARGUMENT, TRUSTED_NODE_EXECUTABLE_ID};
-use tsrs2_fuzz::executor::{
+use tsc_fuzz::adapters::oracle::{TRUSTED_NODE_ARGUMENT, TRUSTED_NODE_EXECUTABLE_ID};
+use tsc_fuzz::executor::{
     TRUSTED_CHILD_CASES, TRUSTED_CHILD_POLICY_ID, TRUSTED_NODE_DEADLINE_MS,
     TRUSTED_NODE_ROLLOVER_CASES, TRUSTED_TSRS_DEADLINE_MS, TRUSTED_TSRS_ROLLOVER_CASES,
     TRUSTED_TSRS_WORKER_CAP,
 };
-use tsrs2_fuzz::model::{
+use tsc_fuzz::model::{
     AssembledDiagnostic, CanonicalHead, CaseExecution, CompletedOutcome, DiagnosticCategory,
     DiagnosticFile, DiagnosticPass, DiagnosticRecord, EngineResult, MessageChain, OptionalBool,
     OptionalString, OptionalU32, RenderSegment, RendererObservation,
 };
-use tsrs2_fuzz::replay::ReplayArtifact;
-use tsrs2_fuzz::schema::{
+use tsc_fuzz::replay::ReplayArtifact;
+use tsc_fuzz::schema::{
     CanonicalU64, CaseProvenance, CaseSpec, ChildProcessPolicy, CompilerOptionValue, DecisionValue,
     DomainMembership, EncodedFile, NodeProcessPolicy, OrderedArgument, OrderedSetting,
     ProcessPolicy, RustProcessPolicy, StableDecision, CASE_SPEC_SCHEMA,
@@ -41,7 +41,7 @@ impl Cleanup {
             .as_nanos();
         let sequence = NEXT_TEMP_ID.fetch_add(1, Ordering::Relaxed);
         let path = PathBuf::from(format!(
-            "/tmp/tsrs2-fuzz-executor-e2e-{}-{timestamp}-{sequence}-{label}",
+            "/tmp/tsc-rs-fuzz-executor-e2e-{}-{timestamp}-{sequence}-{label}",
             std::process::id()
         ));
         self.paths.push(path.clone());
@@ -214,7 +214,7 @@ fn write_artifact(cleanup: &mut Cleanup, artifact: &ReplayArtifact, label: &str)
 }
 
 fn replay(path: &Path) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_tsrs2-fuzz-producer"))
+    Command::new(env!("CARGO_BIN_EXE_tsc-rs-fuzz-producer"))
         .arg("replay")
         .arg(path)
         .output()

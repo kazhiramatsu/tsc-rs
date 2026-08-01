@@ -12,10 +12,10 @@
 //! getTypeAliasInstantiation (5.2 follow-up); relation arms flipped in
 //! structural.rs/unions.rs pin at 5.3b.
 
-use tsrs2_binder::SymbolId;
-use tsrs2_diags::gen as diagnostics;
-use tsrs2_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{
+use tsc_binder::SymbolId;
+use tsc_diagnostics::gen as diagnostics;
+use tsc_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
+use tsc_types::{
     CheckFlags, ElementFlags, InferenceFlags, InferencePriority, IntersectionFlags,
     MappedTypeModifiers, ObjectFlags, SignatureFlags, SymbolFlags, TypeData, TypeFacts, TypeFlags,
     TypeId, TypeSystemPropertyName, UnionReduction,
@@ -24,7 +24,7 @@ use tsrs2_types::{
 use crate::links::LinkSlot;
 use crate::state::{CheckResult, CheckerState, ResolutionTarget, Signature, SignatureId};
 
-pub use tsrs2_types::MapperId;
+pub use tsc_types::MapperId;
 
 /// tsc-port: makeDeferredTypeMapper @6.0.3
 /// tsc-hash: 11cf19c83b088bf7ae4ff74f09b4c0c2aae1d17efdd20ebee18049a409183c7c
@@ -147,10 +147,7 @@ fn js_to_lower_case(s: &str) -> String {
     s.to_lowercase()
 }
 
-fn js_template_text_case(
-    text: &tsrs2_types::TemplateText,
-    upper: bool,
-) -> tsrs2_types::TemplateText {
+fn js_template_text_case(text: &tsc_types::TemplateText, upper: bool) -> tsc_types::TemplateText {
     let mut mapped_units = Vec::with_capacity(text.len());
     let mut scalar_run = String::new();
     let flush_run = |run: &mut String, out: &mut Vec<u16>| {
@@ -175,13 +172,13 @@ fn js_template_text_case(
         }
     }
     flush_run(&mut scalar_run, &mut mapped_units);
-    tsrs2_types::TemplateText::from_utf16(&mapped_units)
+    tsc_types::TemplateText::from_utf16(&mapped_units)
 }
 
 fn js_template_text_capitalize(
-    text: &tsrs2_types::TemplateText,
+    text: &tsc_types::TemplateText,
     upper: bool,
-) -> tsrs2_types::TemplateText {
+) -> tsc_types::TemplateText {
     let Some((&first, rest)) = text.units().split_first() else {
         return text.clone();
     };
@@ -196,7 +193,7 @@ fn js_template_text_capitalize(
     };
     let mut units = mapped.encode_utf16().collect::<Vec<_>>();
     units.extend_from_slice(rest);
-    tsrs2_types::TemplateText::from_utf16(&units)
+    tsc_types::TemplateText::from_utf16(&units)
 }
 
 impl<'a> CheckerState<'a> {
@@ -1674,7 +1671,7 @@ impl<'a> CheckerState<'a> {
                 unreachable!("index flag implies index data");
             };
             let new_inner = self.instantiate_type(inner, Some(mapper))?;
-            return self.get_index_type(new_inner, tsrs2_types::IndexFlags::NONE);
+            return self.get_index_type(new_inner, tsc_types::IndexFlags::NONE);
         }
         if flags.intersects(TypeFlags::TEMPLATE_LITERAL) {
             let (texts, types) = match &self.tables.type_of(ty).data {
@@ -2095,7 +2092,7 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn type_parameter_declaration_list_of(
         &self,
         node: NodeId,
-    ) -> Option<tsrs2_syntax::NodeArrayId> {
+    ) -> Option<tsc_syntax::NodeArrayId> {
         match self.data_of(node) {
             NodeData::ClassDeclaration(data) => data.type_parameters,
             NodeData::ClassExpression(data) => data.type_parameters,
@@ -2197,14 +2194,14 @@ impl<'a> CheckerState<'a> {
             };
             node = next;
             if self.kind_of(node) == SyntaxKind::BinaryExpression {
-                let assignment_kind = tsrs2_binder::get_assignment_declaration_kind(
+                let assignment_kind = tsc_binder::get_assignment_declaration_kind(
                     self.binder.source_of_node(node),
                     node,
                 );
                 if matches!(
                     assignment_kind,
-                    tsrs2_binder::AssignmentDeclarationKind::Prototype
-                        | tsrs2_binder::AssignmentDeclarationKind::PrototypeProperty
+                    tsc_binder::AssignmentDeclarationKind::Prototype
+                        | tsc_binder::AssignmentDeclarationKind::PrototypeProperty
                 ) {
                     let left = match self.data_of(node) {
                         NodeData::BinaryExpression(data) => data.left,
@@ -2963,7 +2960,7 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::STRING_LITERAL) {
             let value = match &self.tables.type_of(ty).data {
                 TypeData::Literal {
-                    value: tsrs2_types::LiteralValue::String(value),
+                    value: tsc_types::LiteralValue::String(value),
                 } => value.clone(),
                 _ => unreachable!("string-literal flag implies string payload"),
             };
@@ -3009,9 +3006,9 @@ impl<'a> CheckerState<'a> {
     fn apply_template_string_mapping(
         &mut self,
         symbol: SymbolId,
-        texts: Vec<tsrs2_types::TemplateText>,
+        texts: Vec<tsc_types::TemplateText>,
         types: Vec<TypeId>,
-    ) -> CheckResult<(Vec<tsrs2_types::TemplateText>, Vec<TypeId>)> {
+    ) -> CheckResult<(Vec<tsc_types::TemplateText>, Vec<TypeId>)> {
         let name = self.binder.symbol(symbol).escaped_name.clone();
         match intrinsic_type_kind(&name) {
             Some(IntrinsicTypeKind::Uppercase) | Some(IntrinsicTypeKind::Lowercase) => {
@@ -3309,8 +3306,8 @@ impl<'a> CheckerState<'a> {
 /// tsc-span: _tsc.js:62129-62141
 pub(crate) fn apply_string_mapping(
     kind: Option<IntrinsicTypeKind>,
-    value: &tsrs2_types::TemplateText,
-) -> tsrs2_types::TemplateText {
+    value: &tsc_types::TemplateText,
+) -> tsc_types::TemplateText {
     match kind {
         Some(IntrinsicTypeKind::Uppercase) => js_template_text_case(value, true),
         Some(IntrinsicTypeKind::Lowercase) => js_template_text_case(value, false),
@@ -3322,21 +3319,21 @@ pub(crate) fn apply_string_mapping(
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_types::{CompilerOptions, ObjectFlags, SymbolFlags, TypeFlags, UnionReduction};
+    use tsc_types::{CompilerOptions, ObjectFlags, SymbolFlags, TypeFlags, UnionReduction};
 
     use crate::state::test_support::with_program_state;
     use crate::state::CheckerState;
 
-    fn annotation_of_var(state: &CheckerState, name: &str) -> tsrs2_syntax::NodeId {
+    fn annotation_of_var(state: &CheckerState, name: &str) -> tsc_syntax::NodeId {
         crate::relpin::find_probe_annotation(state.binder.source(0), name)
             .expect("var with annotation")
     }
 
     fn declared_type_parameter_at(
         state: &mut CheckerState,
-        inside: tsrs2_syntax::NodeId,
+        inside: tsc_syntax::NodeId,
         name: &str,
-    ) -> tsrs2_types::TypeId {
+    ) -> tsc_types::TypeId {
         let symbol = state
             .resolve_name(
                 Some(inside),
@@ -3351,12 +3348,12 @@ mod tests {
         state.get_declared_type_of_type_parameter(symbol)
     }
 
-    fn declared_type_parameter(state: &mut CheckerState, name: &str) -> tsrs2_types::TypeId {
+    fn declared_type_parameter(state: &mut CheckerState, name: &str) -> tsc_types::TypeId {
         let source = state.binder.source(0);
         let inside = source
             .arena
             .node_ids()
-            .find(|&id| source.arena.node(id).kind == tsrs2_syntax::SyntaxKind::VariableDeclaration)
+            .find(|&id| source.arena.node(id).kind == tsc_syntax::SyntaxKind::VariableDeclaration)
             .expect("var declaration");
         declared_type_parameter_at(state, inside, name)
     }
@@ -3520,7 +3517,7 @@ mod tests {
                 let literal_node = source
                     .arena
                     .node_ids()
-                    .find(|&id| source.arena.node(id).kind == tsrs2_syntax::SyntaxKind::TypeLiteral)
+                    .find(|&id| source.arena.node(id).kind == tsc_syntax::SyntaxKind::TypeLiteral)
                     .expect("type literal");
                 let anonymous = state
                     .get_type_from_type_node(literal_node)
@@ -3798,7 +3795,7 @@ mod tests {
 
 #[cfg(test)]
 mod class_container_tests {
-    use tsrs2_types::{CompilerOptions, ObjectFlags, SymbolFlags, TypeData};
+    use tsc_types::{CompilerOptions, ObjectFlags, SymbolFlags, TypeData};
 
     use crate::state::test_support::with_program_state;
 
@@ -3812,7 +3809,7 @@ mod class_container_tests {
                 let literal_node = source
                     .arena
                     .node_ids()
-                    .find(|&id| source.arena.node(id).kind == tsrs2_syntax::SyntaxKind::TypeLiteral)
+                    .find(|&id| source.arena.node(id).kind == tsc_syntax::SyntaxKind::TypeLiteral)
                     .expect("type literal");
                 let anonymous = state
                     .get_type_from_type_node(literal_node)

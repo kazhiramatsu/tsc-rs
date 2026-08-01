@@ -1,8 +1,11 @@
 [package]
-name = "xtask"
+name = "tsc-rs-xtask"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+
+[package.metadata.tsc-rs]
+role = "xtask"
 
 [[bin]]
 name = "xtask"
@@ -13,11 +16,13 @@ base64 = "0.22"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
-tsrs2-binder = { path = "../binder" }
-tsrs2-checker = { path = "../checker" }
-tsrs2-conformance = { path = "../conformance" }
-tsrs2-diags = { path = "../diags" }
-tsrs2-fuzz = { path = "../fuzz" }
-tsrs2-harness = { path = "../harness" }
-tsrs2-oracle = { path = "../oracle" }
-tsrs2-syntax = { path = "../syntax" }
+toml_edit = "0.22"
+tsc-binder.workspace = true
+tsc-checker.workspace = true
+tsc-conformance.workspace = true
+tsc-diagnostics.workspace = true
+tsc-fuzz.workspace = true
+tsc-harness.workspace = true
+tsc-oracle.workspace = true
+tsc-syntax.workspace = true
+yaml-rust2 = { version = "0.11", default-features = false }

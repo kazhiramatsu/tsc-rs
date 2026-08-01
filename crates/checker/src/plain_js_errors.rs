@@ -3,7 +3,7 @@
 //! bands through it before the comment-directive merge (which plain
 //! JS files skip: includeBindAndCheckDiagnostics = !isPlainJs).
 
-use tsrs2_diags::gen as diagnostics;
+use tsc_diagnostics::gen as diagnostics;
 
 /// tsc-port: plainJSErrors @6.0.3
 /// tsc-hash: 9068c49f4ac525d7b7cac90bd636a3c8f833127e0b5b721ba936caccd9ed5c62
@@ -12,7 +12,7 @@ pub(crate) fn is_plain_js_error(code: u32) -> bool {
     PLAIN_JS_ERRORS.iter().any(|message| message.code == code)
 }
 
-static PLAIN_JS_ERRORS: &[&tsrs2_diags::DiagnosticMessage] = &[
+static PLAIN_JS_ERRORS: &[&tsc_diagnostics::DiagnosticMessage] = &[
     &diagnostics::Cannot_redeclare_block_scoped_variable_0,
     &diagnostics::A_module_cannot_have_multiple_default_exports,
     &diagnostics::Another_export_default_is_here,

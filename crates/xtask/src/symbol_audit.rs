@@ -18,7 +18,7 @@
 //!   pos \t end \t escapedName \t flags \t decls \t members \t exports
 //! Unresolved names emit "pos \t end \t <no-symbol>".
 
-use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind};
+use tsc_syntax::{NodeArrayId, NodeData, NodeId, SourceFile, SyntaxKind};
 
 /// One audited file of a program, aligned with program.json files order.
 pub struct FileAudit {
@@ -27,7 +27,7 @@ pub struct FileAudit {
     pub lines: Vec<String>,
 }
 
-pub fn audit_source_file(source: &SourceFile, binder: &tsrs2_binder::Binder<'_>) -> Vec<String> {
+pub fn audit_source_file(source: &SourceFile, binder: &tsc_binder::Binder<'_>) -> Vec<String> {
     let mut names = Vec::new();
     if let Some(data) = source.arena.node(source.root).data.as_source_file() {
         if let Some(statements) = data.statements {
@@ -36,7 +36,7 @@ pub fn audit_source_file(source: &SourceFile, binder: &tsrs2_binder::Binder<'_>)
             }
         }
     }
-    let map = tsrs2_diags::compute_line_map(&source.text);
+    let map = tsc_diagnostics::compute_line_map(&source.text);
     let to_utf16 = |pos: u32| map.byte_to_utf16.get(pos as usize).copied().unwrap_or(pos);
     names
         .iter()
@@ -53,7 +53,7 @@ pub fn audit_source_file(source: &SourceFile, binder: &tsrs2_binder::Binder<'_>)
                 None => format!("{pos}\t{end}\t<no-symbol>"),
                 Some(symbol) => {
                     let sym = binder.symbols.symbol(symbol);
-                    let sorted_keys = |table: &tsrs2_binder::SymbolTable| {
+                    let sorted_keys = |table: &tsc_binder::SymbolTable| {
                         let mut keys: Vec<&str> = table.keys().map(String::as_str).collect();
                         keys.sort_unstable();
                         keys.join(",")

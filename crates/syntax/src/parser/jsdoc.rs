@@ -12,8 +12,8 @@ use crate::nodes::{
     NodeId, PropertyAccessExpressionData, QualifiedNameData, TypeParameterData,
 };
 use crate::SyntaxKind;
-use tsrs2_diags::{gen, DiagnosticMessage, RelatedInfo};
-use tsrs2_types::NodeFlags;
+use tsc_diagnostics::{gen, DiagnosticMessage, RelatedInfo};
+use tsc_types::NodeFlags;
 
 const TARGET_PROPERTY: u8 = 1;
 const TARGET_PARAMETER: u8 = 2;
@@ -1631,7 +1631,7 @@ impl<'parser, 'text> JSDocParser<'parser, 'text> {
                                     file_name: Some(self.parser.file_name.clone()),
                                     start: Some(0),
                                     length: Some(0),
-                                    message: tsrs2_diags::MessageChain::new(
+                                    message: tsc_diagnostics::MessageChain::new(
                                         &gen::The_tag_was_first_specified_here,
                                         &[],
                                     ),

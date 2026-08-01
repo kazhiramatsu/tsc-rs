@@ -13,13 +13,13 @@
 
 use std::collections::HashSet;
 
-use tsrs2_diags::{gen as diagnostics, DiagnosticMessage, MessageChain, RelatedInfo};
-use tsrs2_types::{
+use tsc_diagnostics::{gen as diagnostics, DiagnosticMessage, MessageChain, RelatedInfo};
+use tsc_types::{
     ConditionalRootId, ExpandingFlags, IntersectionState, ObjectFlags, RecursionFlags,
     RelationComparisonResult, SymbolFlags, Ternary, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
-use tsrs2_syntax::NodeId;
+use tsc_syntax::NodeId;
 
 use crate::relate::RelationKind;
 use crate::state::{CheckResult, CheckerState};
@@ -495,14 +495,14 @@ impl<'a> CheckerState<'a> {
                     .node(base_type_node)
                     .data
                 {
-                    tsrs2_syntax::NodeData::ExpressionWithTypeArguments(data) => data.expression,
+                    tsc_syntax::NodeData::ExpressionWithTypeArguments(data) => data.expression,
                     _ => None,
                 };
                 let is_simple = expression.is_some_and(|expression| {
                     matches!(
                         self.kind_of(expression),
-                        tsrs2_syntax::SyntaxKind::Identifier
-                            | tsrs2_syntax::SyntaxKind::PropertyAccessExpression
+                        tsc_syntax::SyntaxKind::Identifier
+                            | tsc_syntax::SyntaxKind::PropertyAccessExpression
                     )
                 });
                 if !is_simple {
@@ -588,8 +588,7 @@ impl<'a> CheckerState<'a> {
                 normalized.push(n);
             }
             if changed {
-                return self
-                    .get_intersection_type(&normalized, tsrs2_types::IntersectionFlags::NONE);
+                return self.get_intersection_type(&normalized, tsc_types::IntersectionFlags::NONE);
             }
         }
         Ok(ty)
@@ -756,10 +755,10 @@ impl<'a> CheckerState<'a> {
         let should_skip_elaboration = !head_message.is_some_and(|message| {
             std::ptr::eq(
                 message,
-                &tsrs2_diags::gen::Class_0_incorrectly_implements_interface_1,
+                &tsc_diagnostics::gen::Class_0_incorrectly_implements_interface_1,
             ) || std::ptr::eq(
                 message,
-                &tsrs2_diags::gen::Class_0_incorrectly_implements_class_1_Did_you_mean_to_extend_1_and_inherit_its_members_as_a_subclass,
+                &tsc_diagnostics::gen::Class_0_incorrectly_implements_class_1_Did_you_mean_to_extend_1_and_inherit_its_members_as_a_subclass,
             )
         });
         let mut checker = RelationChecker {
@@ -1855,7 +1854,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         source: TypeId,
         target: TypeId,
         report_errors: bool,
-        report_node: Option<tsrs2_syntax::NodeId>,
+        report_node: Option<tsc_syntax::NodeId>,
     ) -> CheckResult<ExcessPropertyOutcome> {
         if !self.st.is_excess_property_check_target(target)
             || !self
@@ -1954,19 +1953,19 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     fn report_excess_property(
         &mut self,
         source: TypeId,
-        prop: tsrs2_binder::SymbolId,
+        prop: tsc_binder::SymbolId,
         reduced_target: TypeId,
-        error_node: tsrs2_syntax::NodeId,
+        error_node: tsc_syntax::NodeId,
     ) -> CheckResult<()> {
         let error_target = self.st.filter_type_with(reduced_target, |state, member| {
             Ok(state.is_excess_property_check_target(member))
         })?;
-        let is_jsx = |state: &CheckerState, node: tsrs2_syntax::NodeId| {
+        let is_jsx = |state: &CheckerState, node: tsc_syntax::NodeId| {
             matches!(
                 state.kind_of(node),
-                tsrs2_syntax::SyntaxKind::JsxAttributes
-                    | tsrs2_syntax::SyntaxKind::JsxOpeningElement
-                    | tsrs2_syntax::SyntaxKind::JsxSelfClosingElement
+                tsc_syntax::SyntaxKind::JsxAttributes
+                    | tsc_syntax::SyntaxKind::JsxOpeningElement
+                    | tsc_syntax::SyntaxKind::JsxSelfClosingElement
             )
         };
         let comparing_jsx = is_jsx(self.st, error_node)
@@ -1982,9 +1981,9 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if let Some(prop_declaration) = prop_declaration {
                 if matches!(
                     self.st.data_of(prop_declaration),
-                    tsrs2_syntax::NodeData::JsxAttribute(_)
+                    tsc_syntax::NodeData::JsxAttribute(_)
                 ) {
-                    if let Some(name) = tsrs2_binder::node_util::get_name_of_declaration(
+                    if let Some(name) = tsc_binder::node_util::get_name_of_declaration(
                         self.st.binder.source_of_node(prop_declaration),
                         prop_declaration,
                     ) {
@@ -2022,23 +2021,23 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             let detail = if let Some(suggestion_symbol) = suggestion_symbol {
                 let suggestion = self.st.symbol_display_name(suggestion_symbol);
                 MessageChain::new(
-                    &tsrs2_diags::gen::Property_0_does_not_exist_on_type_1_Did_you_mean_2,
+                    &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1_Did_you_mean_2,
                     &[prop_text, target_text.clone(), suggestion],
                 )
             } else {
                 MessageChain::new(
-                    &tsrs2_diags::gen::Property_0_does_not_exist_on_type_1,
+                    &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
                     &[prop_text, target_text.clone()],
                 )
             };
             let message = MessageChain::new(
-                &tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1,
+                &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
                 &[source_text, target_text],
             )
             .with_next(vec![detail]);
             let mut diagnostic = self.st.create_error(
                 Some(report_node),
-                &tsrs2_diags::gen::Type_0_is_not_assignable_to_type_1,
+                &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
                 &[],
             );
             diagnostic.message = message;
@@ -2070,13 +2069,13 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 self.st.binder.source_of_node(error_node) as *const _,
             );
             if inside && same_file {
-                let name = tsrs2_binder::node_util::get_name_of_declaration(
+                let name = tsc_binder::node_util::get_name_of_declaration(
                     self.st.binder.source_of_node(prop_declaration),
                     prop_declaration,
                 );
                 if let Some(name) = name {
                     report_node = name;
-                    if matches!(self.st.data_of(name), tsrs2_syntax::NodeData::Identifier(_)) {
+                    if matches!(self.st.data_of(name), tsc_syntax::NodeData::Identifier(_)) {
                         suggestion = self.st.get_suggestion_for_nonexistent_property(
                             Some(name),
                             &prop_text,
@@ -2090,12 +2089,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         match suggestion {
             Some(suggestion) => self.st.error_at(
                 Some(report_node),
-                &tsrs2_diags::gen::Object_literal_may_only_specify_known_properties_but_0_does_not_exist_in_type_1_Did_you_mean_to_write_2,
+                &tsc_diagnostics::gen::Object_literal_may_only_specify_known_properties_but_0_does_not_exist_in_type_1_Did_you_mean_to_write_2,
                 &[&prop_text, &target_text, &suggestion],
             ),
             None => self.st.error_at(
                 Some(report_node),
-                &tsrs2_diags::gen::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
+                &tsc_diagnostics::gen::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
                 &[&prop_text, &target_text],
             ),
         };
@@ -2104,8 +2103,8 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
 
     fn should_check_as_excess_property(
         &self,
-        prop: tsrs2_binder::SymbolId,
-        container: Option<tsrs2_binder::SymbolId>,
+        prop: tsc_binder::SymbolId,
+        container: Option<tsc_binder::SymbolId>,
     ) -> bool {
         let Some(container) = container else {
             return false;
@@ -2286,7 +2285,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if changed {
                 source = self
                     .st
-                    .get_intersection_type(&constraints, tsrs2_types::IntersectionFlags::NONE)?;
+                    .get_intersection_type(&constraints, tsc_types::IntersectionFlags::NONE)?;
                 if self.flags(source).intersects(TypeFlags::NEVER) {
                     return Ok(Ternary::FALSE);
                 }
@@ -2597,11 +2596,11 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         &mut self,
         sources: &[TypeId],
         targets: &[TypeId],
-        variances: &[tsrs2_types::VarianceFlags],
+        variances: &[tsc_types::VarianceFlags],
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> CheckResult<Ternary> {
-        use tsrs2_types::VarianceFlags;
+        use tsc_types::VarianceFlags;
         if sources.len() != targets.len() && self.relation == RelationKind::Identity {
             return Ok(Ternary::FALSE);
         }
@@ -2995,7 +2994,7 @@ impl<'a> CheckerState<'a> {
                     self.binder
                         .symbol(p)
                         .flags
-                        .intersects(tsrs2_types::SymbolFlags::OPTIONAL)
+                        .intersects(tsc_types::SymbolFlags::OPTIONAL)
                 }));
         }
         if flags.intersects(TypeFlags::SUBSTITUTION) {
@@ -3047,10 +3046,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getPropertiesOfType @6.0.3
     /// tsc-hash: 24909f78d7ea360522b5188e5af3c7b09613e4dc2e455ea321c4ec054b4d7576
     /// tsc-span: _tsc.js:58745-58748
-    pub fn get_properties_of_type(
-        &mut self,
-        ty: TypeId,
-    ) -> CheckResult<Vec<tsrs2_binder::SymbolId>> {
+    pub fn get_properties_of_type(&mut self, ty: TypeId) -> CheckResult<Vec<tsc_binder::SymbolId>> {
         self.get_properties_of_type_full(ty)
     }
 
@@ -3374,8 +3370,8 @@ impl<'a> CheckerState<'a> {
             }
         }
         let resolved = self.resolve_structured_type_members(ty)?;
-        let mut members = tsrs2_binder::SymbolTable::default();
-        let mut properties: Vec<tsrs2_binder::SymbolId> = Vec::new();
+        let mut members = tsc_binder::SymbolTable::default();
+        let mut properties: Vec<tsc_binder::SymbolId> = Vec::new();
         for property in self.members_of(resolved).properties.clone() {
             let original = self.get_type_of_symbol(property)?;
             let updated = self.get_regular_type_of_object_literal(original)?;
@@ -3758,11 +3754,11 @@ impl<'a> CheckerState<'a> {
             if self.tables.flags_of(member).intersects(primitive_mask) {
                 continue;
             }
-            let source_index = self.get_index_type(source, tsrs2_types::IndexFlags::NONE)?;
-            let member_index = self.get_index_type(member, tsrs2_types::IndexFlags::NONE)?;
+            let source_index = self.get_index_type(source, tsc_types::IndexFlags::NONE)?;
+            let member_index = self.get_index_type(member, tsc_types::IndexFlags::NONE)?;
             let overlap = self.get_intersection_type(
                 &[source_index, member_index],
-                tsrs2_types::IntersectionFlags::NONE,
+                tsc_types::IntersectionFlags::NONE,
             )?;
             let overlap_flags = self.tables.flags_of(overlap);
             if overlap_flags.intersects(TypeFlags::INDEX) {
@@ -4004,7 +4000,7 @@ impl<'a> CheckerState<'a> {
                     .binder
                     .symbol(symbol)
                     .flags
-                    .intersects(tsrs2_types::SymbolFlags::ENUM_MEMBER)
+                    .intersects(tsc_types::SymbolFlags::ENUM_MEMBER)
                 {
                     let parent = self
                         .get_parent_of_symbol(symbol)
@@ -4049,7 +4045,7 @@ impl<'a> CheckerState<'a> {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum RecursionIdentity {
-    Symbol(tsrs2_binder::SymbolId),
+    Symbol(tsc_binder::SymbolId),
     Type(TypeId),
     /// Every mapper-carrying instance of one conditional root shares
     /// the recursion identity used by inferTypes' expansion guard.
@@ -4074,7 +4070,7 @@ mod relation_error_state_tests {
     use super::{
         indexed_access_error_info_selection, variance_error_info_selection, RelationErrorState,
     };
-    use tsrs2_diags::{DiagnosticCategory, MessageChain};
+    use tsc_diagnostics::{DiagnosticCategory, MessageChain};
 
     fn chain(depth: usize, label: &str) -> MessageChain {
         MessageChain {

@@ -1,13 +1,17 @@
 [package]
-name = "tsrs2-syntax"
+name = "tsc-rs-syntax"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[package.metadata.tsc-rs]
+role = "syntax"
+dev-profile-opt-level = 3
+
 [lib]
-name = "tsrs2_syntax"
+name = "tsc_syntax"
 path = "src/lib.rs"
 
 [dependencies]
-tsrs2-diags = { path = "../diags" }
-tsrs2-types = { path = "../types" }
+tsc-diagnostics.workspace = true
+tsc-types.workspace = true

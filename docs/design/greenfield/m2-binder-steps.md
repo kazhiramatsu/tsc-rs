@@ -251,7 +251,7 @@ partialCheck path).
 
 Landed shape 3.4a (2026-07-10): full bindWorker switch (TS arms) +
 bind* family + strict-mode/contextual check family + bindSourceFile
-entry; CompilerOptions moved to tsrs2-types (checker re-exports) and
+entry; CompilerOptions moved to tsc-rs-types (checker re-exports) and
 grew target/alwaysStrict/strict (target default is ES2025
 LatestStandard in TS 6.0.3, NOT ES5 — ES3 counts as unset);
 conformance parses the target string map. getAssignmentDeclarationKind

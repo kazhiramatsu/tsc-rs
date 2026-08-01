@@ -9,13 +9,13 @@
 //! Returning `None` asks the owning reused-TypeNode boundary to rebuild the
 //! enclosing type semantically.
 
-use tsrs2_syntax::nodes::{
+use tsc_syntax::nodes::{
     DoStatementData, ForInStatementData, ForOfStatementData, ForStatementData, IfStatementData,
     MethodDeclarationData, SwitchStatementData, TryStatementData, WhileStatementData,
     WithStatementData,
 };
-use tsrs2_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
-use tsrs2_types::NodeFlags;
+use tsc_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
+use tsc_types::NodeFlags;
 
 use crate::state::{CheckResult, CheckerState};
 
@@ -1297,7 +1297,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
         let NodeData::HeritageClause(data) = self.state.data_of(node).clone() else {
             return Ok(None);
         };
-        let Some(keyword) = tsrs2_syntax::tokens::token_to_string(data.token) else {
+        let Some(keyword) = tsc_syntax::tokens::token_to_string(data.token) else {
             return Ok(None);
         };
         let types = self.nodes(data.types);
@@ -1581,7 +1581,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                     text.push(' ');
                 }
                 let Some(token) =
-                    tsrs2_syntax::tokens::token_to_string(self.state.kind_of(modifiers[index]))
+                    tsc_syntax::tokens::token_to_string(self.state.kind_of(modifiers[index]))
                 else {
                     return Ok(None);
                 };
@@ -1599,9 +1599,9 @@ impl DisplayCloneBodyPrinter<'_, '_> {
 
     fn named_declaration_is_removed(&mut self, node: NodeId) -> CheckResult<bool> {
         let source = self.state.binder.source_of_node(node);
-        let computed_name = tsrs2_binder::node_util::get_name_of_declaration(source, node)
+        let computed_name = tsc_binder::node_util::get_name_of_declaration(source, node)
             .is_some_and(|name| self.state.kind_of(name) == SyntaxKind::ComputedPropertyName);
-        if !computed_name || !tsrs2_binder::node_util::has_dynamic_name(source, node) {
+        if !computed_name || !tsc_binder::node_util::has_dynamic_name(source, node) {
             return Ok(false);
         }
         Ok(!self.state.has_bindable_name(node)?)
@@ -1651,8 +1651,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
                 if matches!(self.state.data_of(modifier), NodeData::Decorator(_)) {
                     continue;
                 }
-                let Some(token) =
-                    tsrs2_syntax::tokens::token_to_string(self.state.kind_of(modifier))
+                let Some(token) = tsc_syntax::tokens::token_to_string(self.state.kind_of(modifier))
                 else {
                     return Ok(None);
                 };
@@ -1980,7 +1979,7 @@ impl DisplayCloneBodyPrinter<'_, '_> {
     fn identifier_name(&self, node: NodeId) -> Option<String> {
         match self.state.data_of(node) {
             NodeData::Identifier(data) => {
-                Some(tsrs2_binder::unescape_leading_underscores(&data.escaped_text).to_owned())
+                Some(tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned())
             }
             NodeData::PrivateIdentifier(data) => Some(data.text.clone()),
             _ => None,

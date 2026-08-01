@@ -120,7 +120,7 @@ mod tests {
     fn replay_artifact_reader_stops_at_its_hard_limit() {
         let serial = NEXT_TEMP.fetch_add(1, Ordering::Relaxed);
         let path = PathBuf::from(format!(
-            "/tmp/tsrs2-fuzz-cli-{}-{serial}.json",
+            "/tmp/tsc-rs-fuzz-cli-{}-{serial}.json",
             std::process::id()
         ));
         let mut file = OpenOptions::new()

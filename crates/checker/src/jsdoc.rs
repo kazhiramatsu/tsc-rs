@@ -3,9 +3,9 @@
 //! These are AST-only ports of the TypeScript 6.0.3 utilities.  Checker
 //! consumers must use this module instead of rescanning source comments.
 
-use tsrs2_binder::{node_util, AssignmentDeclarationKind};
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::SymbolId;
+use tsc_binder::{node_util, AssignmentDeclarationKind};
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::SymbolId;
 
 use crate::state::CheckerState;
 
@@ -132,12 +132,10 @@ impl<'a> CheckerState<'a> {
         ) {
             return None;
         }
-        Some(
-            tsrs2_binder::assignment::get_right_most_assigned_expression(
-                self.binder.source_of_node(expression),
-                expression,
-            ),
-        )
+        Some(tsc_binder::assignment::get_right_most_assigned_expression(
+            self.binder.source_of_node(expression),
+            expression,
+        ))
     }
 
     fn source_of_defaulted_assignment(&self, node: NodeId) -> Option<NodeId> {
@@ -146,7 +144,7 @@ impl<'a> CheckerState<'a> {
         };
         let expression = statement.expression?;
         let source = self.binder.source_of_node(expression);
-        if tsrs2_binder::get_assignment_declaration_kind(source, expression)
+        if tsc_binder::get_assignment_declaration_kind(source, expression)
             == AssignmentDeclarationKind::None
         {
             return None;

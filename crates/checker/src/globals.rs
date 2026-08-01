@@ -11,10 +11,10 @@
 //! getTypeOfGlobalSymbol (60604): program-level 2318 +
 //! emptyGenericType (arity > 0) / emptyObjectType.
 
-use tsrs2_binder::SymbolId;
-use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
-use tsrs2_syntax::{NodeId, SyntaxKind};
-use tsrs2_types::{SymbolFlags, TypeId};
+use tsc_binder::SymbolId;
+use tsc_diagnostics::{gen as diagnostics, DiagnosticMessage};
+use tsc_syntax::{NodeId, SyntaxKind};
+use tsc_types::{SymbolFlags, TypeId};
 
 use crate::state::{CheckResult, CheckerState};
 
@@ -152,7 +152,7 @@ impl<'a> CheckerState<'a> {
                 self.error_at(
                     None,
                     message,
-                    &[tsrs2_binder::unescape_leading_underscores(name)],
+                    &[tsc_binder::unescape_leading_underscores(name)],
                 );
                 self.suggestion_count += 1;
             }
@@ -218,7 +218,7 @@ impl<'a> CheckerState<'a> {
                 self.error_at(
                     None,
                     &diagnostics::Cannot_find_global_type_0,
-                    &[tsrs2_binder::unescape_leading_underscores(name)],
+                    &[tsc_binder::unescape_leading_underscores(name)],
                 );
                 None
             }
@@ -260,7 +260,7 @@ impl<'a> CheckerState<'a> {
         if !self
             .tables
             .flags_of(declared)
-            .intersects(tsrs2_types::TypeFlags::OBJECT)
+            .intersects(tsc_types::TypeFlags::OBJECT)
         {
             let name = self.symbol_display_name(symbol);
             let declaration = self.global_type_declaration(symbol);
@@ -275,7 +275,7 @@ impl<'a> CheckerState<'a> {
         // carry their parameters since 5.2b; plain Object declared
         // types are the non-generic (undefined -> 0) case.
         let type_parameter_count = match &self.tables.type_of(declared).data {
-            tsrs2_types::TypeData::GenericType {
+            tsc_types::TypeData::GenericType {
                 type_parameters, ..
             } => type_parameters.len(),
             _ => 0,
@@ -1282,7 +1282,7 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_types::{CompilerOptions, TypeFlags};
+    use tsc_types::{CompilerOptions, TypeFlags};
 
     use crate::state::test_support::with_program_state;
 

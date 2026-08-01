@@ -7,9 +7,9 @@
 //! (tsc indexes JS strings; `s1[i-1].toLowerCase()` lowercases one
 //! code unit — surrogate halves pass through unchanged).
 
-use tsrs2_binder::unescape_leading_underscores;
-use tsrs2_syntax::NodeId;
-use tsrs2_types::{SymbolFlags, SymbolId, TypeId};
+use tsc_binder::unescape_leading_underscores;
+use tsc_syntax::NodeId;
+use tsc_types::{SymbolFlags, SymbolId, TypeId};
 
 use crate::state::{CheckResult, CheckerState};
 
@@ -203,14 +203,14 @@ impl<'a> CheckerState<'a> {
     /// completion validity (accessibility probe without reporting).
     pub(crate) fn get_suggested_symbol_for_nonexistent_property(
         &mut self,
-        name_node: Option<tsrs2_syntax::NodeId>,
+        name_node: Option<tsc_syntax::NodeId>,
         name: &str,
         containing_type: TypeId,
     ) -> CheckResult<Option<SymbolId>> {
         let mut props = self.get_properties_of_type(containing_type)?;
         if let Some(node) = name_node {
             if let Some(parent) = self.parent_of(node) {
-                if self.kind_of(parent) == tsrs2_syntax::SyntaxKind::PropertyAccessExpression {
+                if self.kind_of(parent) == tsc_syntax::SyntaxKind::PropertyAccessExpression {
                     let mut filtered = Vec::with_capacity(props.len());
                     for prop in props {
                         if self.is_valid_property_access_for_completions(
@@ -233,7 +233,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:75518-75521
     pub(crate) fn get_suggestion_for_nonexistent_property(
         &mut self,
-        name_node: Option<tsrs2_syntax::NodeId>,
+        name_node: Option<tsc_syntax::NodeId>,
         name: &str,
         containing_type: TypeId,
     ) -> CheckResult<Option<String>> {
@@ -256,11 +256,11 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn get_suggestion_for_nonexistent_index_signature(
         &mut self,
         object_type: TypeId,
-        expr: tsrs2_syntax::NodeId,
+        expr: tsc_syntax::NodeId,
         keyed_type: TypeId,
     ) -> CheckResult<Option<String>> {
         let source = self.binder.source_of_node(expr);
-        let suggested_method = if tsrs2_binder::node_util::is_assignment_target(source, expr) {
+        let suggested_method = if tsc_binder::node_util::is_assignment_target(source, expr) {
             "set"
         } else {
             "get"
@@ -287,7 +287,7 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         }
         let receiver = match self.data_of(expr) {
-            tsrs2_syntax::NodeData::ElementAccessExpression(data) => data.expression,
+            tsc_syntax::NodeData::ElementAccessExpression(data) => data.expression,
             _ => None,
         };
         // tryGetPropertyAccessOrIdentifierToString: dotted entity text.

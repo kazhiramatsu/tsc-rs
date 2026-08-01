@@ -49,9 +49,9 @@ mod unused;
 pub mod variance;
 pub mod widen;
 
-use tsrs2_diags::{Diagnostic, DiagnosticCategory, DiagnosticList};
+use tsc_diagnostics::{Diagnostic, DiagnosticCategory, DiagnosticList};
 
-pub use tsrs2_types::CompilerOptions;
+pub use tsc_types::CompilerOptions;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InputFile {
@@ -256,7 +256,7 @@ fn preceding_comment_directive_line(
             .get(line + 1)
             .copied()
             .unwrap_or(text.len());
-        let trimmed = text[start..end].trim_matches(tsrs2_syntax::is_js_whitespace);
+        let trimmed = text[start..end].trim_matches(tsc_syntax::is_js_whitespace);
         if !trimmed.is_empty() && !trimmed.starts_with("//") {
             break;
         }
@@ -265,10 +265,10 @@ fn preceding_comment_directive_line(
 }
 
 fn filter_by_comment_directives_and_mark_used(
-    source: &tsrs2_syntax::SourceFile,
-    diagnostics: impl Iterator<Item = tsrs2_diags::Diagnostic>,
+    source: &tsc_syntax::SourceFile,
+    diagnostics: impl Iterator<Item = tsc_diagnostics::Diagnostic>,
     mut used_directive_lines: Option<&mut std::collections::HashSet<usize>>,
-) -> Vec<tsrs2_diags::Diagnostic> {
+) -> Vec<tsc_diagnostics::Diagnostic> {
     // getMergedBindAndCheckDiagnostics (123744): no directives, no
     // filtering.
     if source.comment_directives.is_empty() {
@@ -331,7 +331,7 @@ fn filter_by_comment_directives_and_mark_used(
 /// directive_inside_a_checked_mapped_type_is_not_blanket_exempted pin
 /// forces this split).
 fn mark_comment_directives_for_partial_ranges(
-    source: &tsrs2_syntax::SourceFile,
+    source: &tsc_syntax::SourceFile,
     partial_ranges: &[(u32, u32)],
     used_directive_lines: &mut std::collections::HashSet<usize>,
 ) {
@@ -353,7 +353,7 @@ fn mark_comment_directives_for_partial_ranges(
         .collect();
 
     for &(start, _) in partial_ranges {
-        let start = tsrs2_syntax::skip_trivia(text, start as usize);
+        let start = tsc_syntax::skip_trivia(text, start as usize);
         let start_utf16 = source
             .line_map
             .byte_to_utf16
@@ -373,10 +373,10 @@ fn mark_comment_directives_for_partial_ranges(
 }
 
 fn unused_expect_error_diagnostics(
-    source: &tsrs2_syntax::SourceFile,
+    source: &tsc_syntax::SourceFile,
     used_directive_lines: &std::collections::HashSet<usize>,
-) -> Vec<tsrs2_diags::Diagnostic> {
-    use tsrs2_syntax::CommentDirectiveKind;
+) -> Vec<tsc_diagnostics::Diagnostic> {
+    use tsc_syntax::CommentDirectiveKind;
 
     if source.comment_directives.is_empty() {
         return Vec::new();
@@ -414,12 +414,12 @@ fn unused_expect_error_diagnostics(
                 .get(directive.end as usize)
                 .copied()
                 .unwrap_or(directive.end);
-            Some(tsrs2_diags::Diagnostic::new(
+            Some(tsc_diagnostics::Diagnostic::new(
                 Some(source.file_name.clone()),
                 Some(start),
                 Some(end.saturating_sub(start)),
-                tsrs2_diags::MessageChain::new(
-                    &tsrs2_diags::gen::Unused_ts_expect_error_directive,
+                tsc_diagnostics::MessageChain::new(
+                    &tsc_diagnostics::gen::Unused_ts_expect_error_directive,
                     &[],
                 ),
             ))
@@ -440,7 +440,7 @@ fn unused_expect_error_diagnostics(
 /// per-file filter. Runs beside filter_by_comment_directives at the
 /// program-layer diagnostics-finalize seam (m4-58 §0 skippedOn).
 fn filter_semantic_diagnostics(
-    diagnostics: &mut tsrs2_diags::DiagnosticList,
+    diagnostics: &mut tsc_diagnostics::DiagnosticList,
     options: &CompilerOptions,
 ) {
     if options.no_emit == Some(true) {
@@ -702,7 +702,7 @@ fn is_supported_path_reference(file_name: &str, options: &CompilerOptions) -> bo
 /// redirect, config, and project-reference faces remain outside this
 /// slice.
 fn missing_path_reference_diagnostics(
-    sources: &[tsrs2_syntax::SourceFile],
+    sources: &[tsc_syntax::SourceFile],
     host_files: impl Iterator<Item = String>,
     options: &CompilerOptions,
     current_directory: &str,
@@ -740,7 +740,10 @@ fn missing_path_reference_diagnostics(
                 Some(source.file_name.clone()),
                 Some(start),
                 Some(end.saturating_sub(start)),
-                tsrs2_diags::MessageChain::new(&tsrs2_diags::gen::File_0_not_found, &[resolved]),
+                tsc_diagnostics::MessageChain::new(
+                    &tsc_diagnostics::gen::File_0_not_found,
+                    &[resolved],
+                ),
             ));
         }
     }
@@ -836,7 +839,7 @@ pub fn check_program_with_libs_at_observed(
         })
         .collect();
     let bundle = (!effective_libs.is_empty()).then(|| lib_bundle(&effective_libs, options));
-    let (lib_sources, lib_binders): (&[tsrs2_syntax::SourceFile], &[tsrs2_binder::Binder<'_>]) =
+    let (lib_sources, lib_binders): (&[tsc_syntax::SourceFile], &[tsc_binder::Binder<'_>]) =
         match bundle {
             Some(bundle) => (bundle.sources, bundle.binders),
             None => (&[], &[]),
@@ -854,7 +857,7 @@ pub fn check_program_with_libs_at_observed(
     // PREFIX so the checker sees tsc's one-heap identity space. JSON
     // files remain in that same program: the binder publishes their
     // root value as the module's default/export= property.
-    let mut program_sources: Vec<tsrs2_syntax::SourceFile> = Vec::new();
+    let mut program_sources: Vec<tsc_syntax::SourceFile> = Vec::new();
     for (index, file) in files.iter().enumerate() {
         if last_index_by_name.get(file.name.as_str()) != Some(&index) {
             continue;
@@ -874,14 +877,14 @@ pub fn check_program_with_libs_at_observed(
                     .map(|previous| (previous.arena.node_end(), previous.arena.array_end()))
                     .unwrap_or((0, 0)),
             };
-            let source_file = tsrs2_syntax::parse_json_text_with_bases(
+            let source_file = tsc_syntax::parse_json_text_with_bases(
                 file.name.clone(),
                 file.text.clone(),
                 node_id_base,
                 node_array_id_base,
             );
             let mut syntactic = source_file.parse_diagnostics.clone();
-            tsrs2_diags::sort_and_dedupe_diagnostics(&mut syntactic);
+            tsc_diagnostics::sort_and_dedupe_diagnostics(&mut syntactic);
             file_diagnostics.push(FileDiagnosticPasses {
                 file_name: source_file.file_name.clone(),
                 syntactic,
@@ -894,9 +897,9 @@ pub fn check_program_with_libs_at_observed(
         // tsc getLanguageVariant: JSX scanning for TSX/JSX/JS script kinds.
         let javascript_file = is_js_file_name(&file.name);
         let language_variant = if file.name.ends_with(".tsx") || javascript_file {
-            tsrs2_syntax::LanguageVariant::Jsx
+            tsc_syntax::LanguageVariant::Jsx
         } else {
-            tsrs2_syntax::LanguageVariant::Standard
+            tsc_syntax::LanguageVariant::Standard
         };
         // getSetExternalModuleIndicator (17973-17993): syntax-based
         // indicators stay in the parser; this seam supplies the
@@ -970,10 +973,10 @@ pub fn check_program_with_libs_at_observed(
                 .map(|previous| (previous.arena.node_end(), previous.arena.array_end()))
                 .unwrap_or((0, 0)),
         };
-        let source_file = tsrs2_syntax::parse_source_file(
+        let source_file = tsc_syntax::parse_source_file(
             file.name.clone(),
             file.text.clone(),
-            tsrs2_syntax::ParseOptions {
+            tsc_syntax::ParseOptions {
                 script_target: options.emit_script_target(),
                 language_variant,
                 javascript_file,
@@ -981,7 +984,7 @@ pub fn check_program_with_libs_at_observed(
                 detect_external_module_from_jsx,
                 node_id_base,
                 node_array_id_base,
-                js_doc_parsing_mode: tsrs2_syntax::JSDocParsingMode::ParseAll,
+                js_doc_parsing_mode: tsc_syntax::JSDocParsingMode::ParseAll,
             },
             None,
         );
@@ -995,7 +998,7 @@ pub fn check_program_with_libs_at_observed(
         syntactic.extend(source_file.parse_diagnostics.iter().cloned());
         // program.getSyntacticDiagnostics(sourceFile) passes the raw
         // JS-grammar + parser stream through getDiagnosticsHelper.
-        tsrs2_diags::sort_and_dedupe_diagnostics(&mut syntactic);
+        tsc_diagnostics::sort_and_dedupe_diagnostics(&mut syntactic);
         file_diagnostics.push(FileDiagnosticPasses {
             file_name: source_file.file_name.clone(),
             syntactic,
@@ -1028,7 +1031,7 @@ pub fn check_program_with_libs_at_observed(
         .map(|source| (source.file_name.as_str(), check_directive(&source.text)))
         .collect();
     let mut bind_diagnostics_by_file = Vec::with_capacity(program_sources.len());
-    let mut binders: Vec<tsrs2_binder::Binder<'_>> = Vec::new();
+    let mut binders: Vec<tsc_binder::Binder<'_>> = Vec::new();
     for source_file in &program_sources {
         let (symbol_id_seed, symbol_base) = match binders.last() {
             Some(previous) => (previous.next_symbol_id(), previous.symbols.next_id().0),
@@ -1038,7 +1041,7 @@ pub fn check_program_with_libs_at_observed(
                 .unwrap_or((1, 0)),
         };
         let mut binder =
-            tsrs2_binder::Binder::with_bases(source_file, options, symbol_id_seed, symbol_base);
+            tsc_binder::Binder::with_bases(source_file, options, symbol_id_seed, symbol_base);
         binder.bind_source_file();
         bind_diagnostics_by_file.push(binder.bind_diagnostics.clone());
         binders.push(binder);
@@ -1054,7 +1057,7 @@ pub fn check_program_with_libs_at_observed(
     // block — none are modeled yet, so the gate is vacuously open.
     observe_phase(CheckPhase::Check);
 
-    let binder_refs: Vec<&tsrs2_binder::Binder<'_>> =
+    let binder_refs: Vec<&tsc_binder::Binder<'_>> =
         lib_binders.iter().chain(binders.iter()).collect();
     if !binder_refs.is_empty() {
         let lib_count = lib_binders.len();
@@ -1231,7 +1234,7 @@ pub fn check_program_with_libs_at_observed(
 
             // program.getSemanticDiagnostics(sourceFile) uses
             // getDiagnosticsHelper; suggestion intentionally does not.
-            tsrs2_diags::sort_and_dedupe_diagnostics(&mut bind_and_check);
+            tsc_diagnostics::sort_and_dedupe_diagnostics(&mut bind_and_check);
             file_diagnostics[source_index].semantic = bind_and_check;
         }
         partial_checks = state.partial_check_records.clone();
@@ -1262,10 +1265,10 @@ pub fn check_program_with_libs_at_observed(
                 .cloned()
         })
         .collect();
-    tsrs2_diags::sort_and_dedupe_diagnostics(&mut diagnostics);
+    tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
 
-    debug_assert!(tsrs2_binder::is_scaffolded());
-    debug_assert!(tsrs2_types::is_scaffolded());
+    debug_assert!(tsc_binder::is_scaffolded());
+    debug_assert!(tsc_types::is_scaffolded());
 
     CheckResult {
         diagnostics,
@@ -1289,8 +1292,8 @@ pub fn check_program_with_libs_at_observed(
 /// Read-only-after-bind is structural: ProgramBinder holds shared
 /// references and its symbol_mut refuses file-owned ids.
 struct LibBundle {
-    sources: &'static [tsrs2_syntax::SourceFile],
-    binders: &'static [tsrs2_binder::Binder<'static>],
+    sources: &'static [tsc_syntax::SourceFile],
+    binders: &'static [tsc_binder::Binder<'static>],
 }
 
 /// The per-lib-set bundle cache. Keyed by the ordered (name, text)
@@ -1371,41 +1374,41 @@ fn lib_text_fingerprint(text: &str) -> u64 {
 fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static LibBundle {
     // Binder borrows its CompilerOptions for the bundle's lifetime.
     let options: &'static CompilerOptions = Box::leak(Box::new(options.clone()));
-    let mut sources: Vec<tsrs2_syntax::SourceFile> = Vec::new();
+    let mut sources: Vec<tsc_syntax::SourceFile> = Vec::new();
     for lib in libs {
         let (node_id_base, node_array_id_base) = match sources.last() {
             Some(previous) => (previous.arena.node_end(), previous.arena.array_end()),
             None => (0, 0),
         };
-        sources.push(tsrs2_syntax::parse_source_file(
+        sources.push(tsc_syntax::parse_source_file(
             lib.name.clone(),
             lib.text.clone(),
-            tsrs2_syntax::ParseOptions {
+            tsc_syntax::ParseOptions {
                 script_target: options.emit_script_target(),
-                language_variant: tsrs2_syntax::LanguageVariant::Standard,
+                language_variant: tsc_syntax::LanguageVariant::Standard,
                 javascript_file: false,
                 force_external_module: false,
                 detect_external_module_from_jsx: false,
                 node_id_base,
                 node_array_id_base,
-                js_doc_parsing_mode: tsrs2_syntax::JSDocParsingMode::ParseAll,
+                js_doc_parsing_mode: tsc_syntax::JSDocParsingMode::ParseAll,
             },
             None,
         ));
     }
-    let sources: &'static [tsrs2_syntax::SourceFile] = Box::leak(sources.into_boxed_slice());
-    let mut binders: Vec<tsrs2_binder::Binder<'static>> = Vec::new();
+    let sources: &'static [tsc_syntax::SourceFile] = Box::leak(sources.into_boxed_slice());
+    let mut binders: Vec<tsc_binder::Binder<'static>> = Vec::new();
     for source in sources {
         let (symbol_id_seed, symbol_base) = match binders.last() {
             Some(previous) => (previous.next_symbol_id(), previous.symbols.next_id().0),
             None => (1, 0),
         };
         let mut binder =
-            tsrs2_binder::Binder::with_bases(source, options, symbol_id_seed, symbol_base);
+            tsc_binder::Binder::with_bases(source, options, symbol_id_seed, symbol_base);
         binder.bind_source_file();
         binders.push(binder);
     }
-    let binders: &'static [tsrs2_binder::Binder<'static>] = Box::leak(binders.into_boxed_slice());
+    let binders: &'static [tsc_binder::Binder<'static>] = Box::leak(binders.into_boxed_slice());
     Box::leak(Box::new(LibBundle { sources, binders }))
 }
 
@@ -1488,7 +1491,7 @@ mod tests {
                     .cloned()
             })
             .collect::<Vec<_>>();
-        tsrs2_diags::sort_and_dedupe_diagnostics(&mut assembled);
+        tsc_diagnostics::sort_and_dedupe_diagnostics(&mut assembled);
         assert_eq!(result.diagnostics, assembled);
     }
 
@@ -1734,7 +1737,7 @@ mod tests {
 
     #[test]
     fn lib_bundle_key_projects_to_bind_observables() {
-        use tsrs2_types::flags::ScriptTarget;
+        use tsc_types::flags::ScriptTarget;
         // A lib name unique to this test: the cache is process-global.
         let lib = InputFile {
             name: "lib.bundle-key-probe.d.ts".to_owned(),
@@ -1793,14 +1796,14 @@ mod tests {
         let es5 = check_program(
             &files,
             &CompilerOptions {
-                target: Some(tsrs2_types::ScriptTarget::ES5.bits()),
+                target: Some(tsc_types::ScriptTarget::ES5.bits()),
                 ..CompilerOptions::default()
             },
         );
         let es2015 = check_program(
             &files,
             &CompilerOptions {
-                target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+                target: Some(tsc_types::ScriptTarget::ES2015.bits()),
                 ..CompilerOptions::default()
             },
         );
@@ -2478,7 +2481,7 @@ mod tests {
                 },
             ],
             &CompilerOptions {
-                target: Some(tsrs2_types::ScriptTarget::ES5.bits()),
+                target: Some(tsc_types::ScriptTarget::ES5.bits()),
                 import_helpers: Some(true),
                 ..CompilerOptions::default()
             },
@@ -2505,7 +2508,7 @@ mod tests {
                 },
             ],
             &CompilerOptions {
-                target: Some(tsrs2_types::ScriptTarget::ES2022.bits()),
+                target: Some(tsc_types::ScriptTarget::ES2022.bits()),
                 module: Some(1),
                 import_helpers: Some(true),
                 ..CompilerOptions::default()
@@ -2550,7 +2553,7 @@ mod tests {
                     .to_owned(),
             }],
             &CompilerOptions {
-                target: Some(tsrs2_types::ScriptTarget::ES_NEXT.bits()),
+                target: Some(tsc_types::ScriptTarget::ES_NEXT.bits()),
                 use_define_for_class_fields: Some(false),
                 ..CompilerOptions::default()
             },
@@ -2718,7 +2721,7 @@ mod tests {
                     check_js: Some(true),
                     module: Some(100),
                     module_resolution: Some(3),
-                    target: Some(tsrs2_types::ScriptTarget::ES2022.bits()),
+                    target: Some(tsc_types::ScriptTarget::ES2022.bits()),
                     ..CompilerOptions::default()
                 },
             )
@@ -2784,7 +2787,7 @@ mod tests {
             &CompilerOptions {
                 module: Some(100),
                 module_resolution: Some(3),
-                target: Some(tsrs2_types::ScriptTarget::ES2022.bits()),
+                target: Some(tsc_types::ScriptTarget::ES2022.bits()),
                 ..CompilerOptions::default()
             },
         );
@@ -2829,7 +2832,7 @@ mod tests {
             &CompilerOptions {
                 module: Some(100),
                 module_resolution: Some(3),
-                target: Some(tsrs2_types::ScriptTarget::ES2022.bits()),
+                target: Some(tsc_types::ScriptTarget::ES2022.bits()),
                 ..CompilerOptions::default()
             },
         );
@@ -2875,7 +2878,7 @@ mod tests {
             &CompilerOptions {
                 module: Some(99),
                 module_resolution: Some(100),
-                target: Some(tsrs2_types::ScriptTarget::ES2022.bits()),
+                target: Some(tsc_types::ScriptTarget::ES2022.bits()),
                 allow_synthetic_default_imports: Some(true),
                 ..CompilerOptions::default()
             },
@@ -2920,7 +2923,7 @@ mod tests {
             &CompilerOptions {
                 module: Some(99),
                 module_resolution: Some(100),
-                target: Some(tsrs2_types::ScriptTarget::ES2022.bits()),
+                target: Some(tsc_types::ScriptTarget::ES2022.bits()),
                 verbatim_module_syntax: Some(true),
                 ..CompilerOptions::default()
             },
@@ -3194,7 +3197,7 @@ mod tests {
                 ..CompilerOptions::default()
             },
         );
-        let errors: Vec<&tsrs2_diags::Diagnostic> = result
+        let errors: Vec<&tsc_diagnostics::Diagnostic> = result
             .diagnostics
             .iter()
             .filter(|diagnostic| diagnostic.code() == 2345)
@@ -3232,7 +3235,7 @@ mod tests {
                     ..CompilerOptions::default()
                 },
             );
-            let errors: Vec<&tsrs2_diags::Diagnostic> = result
+            let errors: Vec<&tsc_diagnostics::Diagnostic> = result
                 .diagnostics
                 .iter()
                 .filter(|diagnostic| diagnostic.code() == 2351)
@@ -3273,7 +3276,7 @@ mod tests {
                 ..CompilerOptions::default()
             },
         );
-        let errors: Vec<&tsrs2_diags::Diagnostic> = result
+        let errors: Vec<&tsc_diagnostics::Diagnostic> = result
             .diagnostics
             .iter()
             .filter(|diagnostic| diagnostic.code() == 2345)
@@ -3410,7 +3413,7 @@ mod tests {
         ]);
         let options = CompilerOptions {
             strict: Some(true),
-            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            target: Some(tsc_types::ScriptTarget::ES2015.bits()),
             ..CompilerOptions::default()
         };
         let result = check_program_with_libs(
@@ -3479,7 +3482,7 @@ mod tests {
         ]);
         let options = CompilerOptions {
             strict: Some(true),
-            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            target: Some(tsc_types::ScriptTarget::ES2015.bits()),
             ..CompilerOptions::default()
         };
         let result = check_program_with_libs(
@@ -3520,7 +3523,7 @@ mod tests {
         ]);
         let options = CompilerOptions {
             strict: Some(true),
-            target: Some(tsrs2_types::ScriptTarget::ES2015.bits()),
+            target: Some(tsc_types::ScriptTarget::ES2015.bits()),
             ..CompilerOptions::default()
         };
         let text = std::fs::read_to_string(concat!(

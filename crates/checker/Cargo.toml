@@ -1,20 +1,24 @@
 [package]
-name = "tsrs2-checker"
+name = "tsc-rs-checker"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[package.metadata.tsc-rs]
+role = "checker"
+dev-profile-opt-level = 3
+
 [lib]
-name = "tsrs2_checker"
+name = "tsc_checker"
 path = "src/lib.rs"
 
 [dependencies]
 indexmap = "2"
 serde_json = { version = "1.0", features = ["preserve_order"] }
-tsrs2-binder = { path = "../binder" }
-tsrs2-diags = { path = "../diags" }
-tsrs2-syntax = { path = "../syntax" }
-tsrs2-types = { path = "../types" }
+tsc-binder.workspace = true
+tsc-diagnostics.workspace = true
+tsc-syntax.workspace = true
+tsc-types.workspace = true
 
 [lints]
 workspace = true

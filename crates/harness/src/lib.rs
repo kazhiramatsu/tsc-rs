@@ -7,7 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
-pub use tsrs2_checker::{check_program, CheckResult, CompilerOptions, InputFile};
+pub use tsc_checker::{check_program, CheckResult, CompilerOptions, InputFile};
 
 pub fn check_empty_program() -> CheckResult {
     check_program(&[], &CompilerOptions::default())
@@ -1898,7 +1898,7 @@ mod tests {
         )
         .expect("fixture expands");
         let temp = std::env::temp_dir().join(format!(
-            "tsrs2-harness-test-{}",
+            "tsc-rs-harness-test-{}",
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("system time")

@@ -255,7 +255,7 @@ pub fn run_one_case(
     let (event_sender, event_receiver) = mpsc::sync_channel(EVENT_QUEUE_CAPACITY);
     let stdout_sender = event_sender.clone();
     let stdout_handle = match thread::Builder::new()
-        .name("tsrs2-worker-stdout".to_owned())
+        .name("tsc-rs-worker-stdout".to_owned())
         .spawn(move || read_stdout(stdout, limits.max_response_line_bytes, stdout_sender))
     {
         Ok(handle) => handle,
@@ -275,7 +275,7 @@ pub fn run_one_case(
     };
 
     let stderr_handle = match thread::Builder::new()
-        .name("tsrs2-worker-stderr".to_owned())
+        .name("tsc-rs-worker-stderr".to_owned())
         .spawn(move || drain_stderr(stderr, limits.max_stderr_bytes))
     {
         Ok(handle) => handle,
@@ -296,7 +296,7 @@ pub fn run_one_case(
 
     let writer_sender = event_sender.clone();
     let writer_handle = match thread::Builder::new()
-        .name("tsrs2-worker-stdin".to_owned())
+        .name("tsc-rs-worker-stdin".to_owned())
         .spawn(move || write_request(stdin, request_line, writer_sender))
     {
         Ok(handle) => handle,
@@ -663,13 +663,13 @@ const emit = (value) => process.stdout.write(JSON.stringify(value) + "\n");
 emit({
   schema: 1,
   frame: "hello",
-  implementation: process.env.TSRS2_SESSION_MODE === "wrong-hello"
+  implementation: process.env.TSC_RS_SESSION_MODE === "wrong-hello"
     ? "wrong-worker"
     : "test-worker",
   version: "1.0.0",
 });
 const request = JSON.parse(fs.readFileSync(0, "utf8"));
-const mode = process.env.TSRS2_SESSION_MODE;
+const mode = process.env.TSC_RS_SESSION_MODE;
 const bound = (frame, payload) => ({
   schema: 1,
   id: request.id,
@@ -687,8 +687,8 @@ const completed = () => emit(bound("result", {
     aggregate_text: "",
   },
 }));
-if (process.env.TSRS2_SESSION_MARKER) {
-  fs.appendFileSync(process.env.TSRS2_SESSION_MARKER, "x");
+if (process.env.TSC_RS_SESSION_MARKER) {
+  fs.appendFileSync(process.env.TSC_RS_SESSION_MARKER, "x");
 }
 if (mode === "oversized") {
   process.stdout.write("x".repeat(1024) + "\n");
@@ -737,7 +737,7 @@ if (mode === "oversized") {
         command
             .arg("-e")
             .arg(WORKER_FIXTURE)
-            .env("TSRS2_SESSION_MODE", mode);
+            .env("TSC_RS_SESSION_MODE", mode);
         command
     }
 
@@ -795,11 +795,11 @@ if (mode === "oversized") {
     fn malformed_response_is_not_retried() {
         let serial = NEXT_MARKER.fetch_add(1, Ordering::Relaxed);
         let marker = PathBuf::from(format!(
-            "/tmp/tsrs2-process-session-{}-{serial}.marker",
+            "/tmp/tsc-rs-process-session-{}-{serial}.marker",
             std::process::id()
         ));
         let mut command = worker("malformed");
-        command.env("TSRS2_SESSION_MARKER", &marker);
+        command.env("TSC_RS_SESSION_MARKER", &marker);
         let failure =
             run_one_case(&mut command, &request(), limits(), expected_hello_line()).unwrap_err();
         assert_eq!(failure.kind, SessionFailureKind::MalformedFrame);

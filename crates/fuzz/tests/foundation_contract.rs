@@ -1,18 +1,18 @@
-use tsrs2_fuzz::classify::{classify_case, CanonicalClass, ClassFailure, ClassPass, OutcomeSide};
-use tsrs2_fuzz::compare::{
+use tsc_fuzz::classify::{classify_case, CanonicalClass, ClassFailure, ClassPass, OutcomeSide};
+use tsc_fuzz::compare::{
     compare_case, Comparison, ComparisonTier, DiagnosticDivergence, DifferenceSide, Divergence,
     OneSidedDiagnostic, RendererDifference,
 };
-use tsrs2_fuzz::evaluate::evaluate_case;
-use tsrs2_fuzz::model::{
+use tsc_fuzz::evaluate::evaluate_case;
+use tsc_fuzz::model::{
     AssembledDiagnostic, CanonicalHead, CaseExecution, CompletedOutcome, DiagnosticCategory,
     DiagnosticFile, DiagnosticPass, DiagnosticRecord, EngineResult, MessageChain, OptionalBool,
     OptionalString, OptionalU32, ProducerFailure, ProducerFailureKind, ProducerFailureSource,
     RelatedDiagnostic, RenderSegment, RendererObservation, TerminalBoundaryId, TerminalKind,
     TerminalOutcome, TerminalPhase, MAX_MESSAGE_CHAIN_DEPTH, MAX_MESSAGE_CHAIN_NODES,
 };
-use tsrs2_fuzz::normalize::NormalizationSpec;
-use tsrs2_fuzz::schema::{
+use tsc_fuzz::normalize::NormalizationSpec;
+use tsc_fuzz::schema::{
     sha256_hex, CanonicalU64, CaseProvenance, CaseSpec, ChildProcessPolicy, CompilerOptionValue,
     DecisionValue, DomainMembership, EncodedFile, NodeProcessPolicy, OrderedArgument,
     OrderedSetting, ProcessPolicy, RustProcessPolicy, StableDecision, CASE_SPEC_SCHEMA,

@@ -14,7 +14,7 @@
 //! 16728000), a latent wrong-facts bomb for every non-strict Object
 //! classification.
 
-use tsrs2_types::{
+use tsc_types::{
     IntersectionFlags, ObjectFlags, SymbolFlags, TypeData, TypeFacts, TypeFlags, TypeId,
     UnionReduction,
 };
@@ -89,7 +89,7 @@ impl<'a> CheckerState<'a> {
             let is_empty = flags.intersects(TypeFlags::STRING_LITERAL)
                 && matches!(
                     &self.tables.type_of(ty).data,
-                    TypeData::Literal { value: tsrs2_types::LiteralValue::String(value) } if value.is_empty()
+                    TypeData::Literal { value: tsc_types::LiteralValue::String(value) } if value.is_empty()
                 );
             return Ok(match (strict_null_checks, is_empty) {
                 (true, true) => TypeFacts::EMPTY_STRING_STRICT_FACTS,
@@ -108,7 +108,7 @@ impl<'a> CheckerState<'a> {
         if flags.intersects(TypeFlags::NUMBER_LITERAL) {
             let is_zero = matches!(
                 &self.tables.type_of(ty).data,
-                TypeData::Literal { value: tsrs2_types::LiteralValue::Number(value) } if *value == 0.0
+                TypeData::Literal { value: tsc_types::LiteralValue::Number(value) } if *value == 0.0
             );
             return Ok(match (strict_null_checks, is_zero) {
                 (true, true) => TypeFacts::ZERO_NUMBER_STRICT_FACTS,
@@ -287,7 +287,7 @@ impl<'a> CheckerState<'a> {
     fn is_zero_big_int(&self, ty: TypeId) -> bool {
         matches!(
             &self.tables.type_of(ty).data,
-            TypeData::Literal { value: tsrs2_types::LiteralValue::BigInt(value) } if value.base10_value == "0"
+            TypeData::Literal { value: tsc_types::LiteralValue::BigInt(value) } if value.base10_value == "0"
         )
     }
 

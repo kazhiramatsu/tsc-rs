@@ -41,7 +41,7 @@ pub struct Scanner<'t> {
 }
 
 pub struct ScanError {
-    pub message: &'static crate::diags::DiagnosticMessage,
+    pub message: &'static tsc_diagnostics::DiagnosticMessage,
     pub start: usize,     // byte offset
     pub length: usize,
     pub args: Vec<String>,

@@ -24,9 +24,9 @@
 //! - [JSDOC] JS-only arms use the parser-owned JSDoc AST for effective
 //!   annotations, satisfies tags, and expando/contextual typing.
 
-use tsrs2_binder::{node_util, SymbolId};
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{
+use tsc_binder::{node_util, SymbolId};
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{
     CheckFlags, ContextFlags, ModifierFlags, NodeFlags, ObjectFlags, SymbolFlags, TypeData,
     TypeFlags, TypeId, UnionReduction,
 };
@@ -290,7 +290,7 @@ impl<'a> CheckerState<'a> {
                     Some(contextual_type) => self.get_non_nullable_type(contextual_type)?,
                     None => self.check_expression_cached(
                         containing_literal,
-                        tsrs2_types::CheckMode::NORMAL,
+                        tsc_types::CheckMode::NORMAL,
                     )?,
                 };
                 return Ok(Some(self.get_widened_type(base)?));
@@ -311,7 +311,7 @@ impl<'a> CheckerState<'a> {
                     // -method face (thisPrototypeMethodCompound-
                     // Assignment) was the 6.6f 2683 FP.
                     let is_assignment = operator.is_some_and(|op| {
-                        tsrs2_binder::node_util::is_assignment_operator(self.kind_of(op))
+                        tsc_binder::node_util::is_assignment_operator(self.kind_of(op))
                     });
                     if is_assignment {
                         if let Some(target) = left {
@@ -345,7 +345,7 @@ impl<'a> CheckerState<'a> {
                                 }
                                 let checked = self.check_expression_cached(
                                     expression,
-                                    tsrs2_types::CheckMode::NORMAL,
+                                    tsc_types::CheckMode::NORMAL,
                                 )?;
                                 return Ok(Some(self.get_widened_type(checked)?));
                             }
@@ -398,7 +398,7 @@ impl<'a> CheckerState<'a> {
                         args.len(),
                         any,
                         /*inference_context*/ None,
-                        tsrs2_types::CheckMode::NORMAL,
+                        tsc_types::CheckMode::NORMAL,
                     )?));
                 }
                 let has_initializer = matches!(
@@ -414,7 +414,7 @@ impl<'a> CheckerState<'a> {
                     if index_of_parameter < args.len() {
                         let checked = state.check_effective_arg(
                             &args[index_of_parameter],
-                            tsrs2_types::CheckMode::NORMAL,
+                            tsc_types::CheckMode::NORMAL,
                         )?;
                         Ok(Some(state.get_widened_literal_type(checked)?))
                     } else if has_initializer {
@@ -522,9 +522,9 @@ impl<'a> CheckerState<'a> {
             && self.initializer_of(parent).is_some()
         {
             let check_mode = if dot_dot_dot {
-                tsrs2_types::CheckMode::REST_BINDING_ELEMENT
+                tsc_types::CheckMode::REST_BINDING_ELEMENT
             } else {
-                tsrs2_types::CheckMode::NORMAL
+                tsc_types::CheckMode::NORMAL
             };
             parent_type = Some(self.check_declaration_initializer(parent, check_mode, None)?);
         }
@@ -662,7 +662,7 @@ impl<'a> CheckerState<'a> {
                     self.filter_type_with(contextual_return_type, |state, t| {
                         Ok(state
                             .get_iteration_type_of_generator_function_return_type(
-                                tsrs2_types::IterationTypeKind::RETURN,
+                                tsc_types::IterationTypeKind::RETURN,
                                 t,
                                 is_async_generator,
                             )?
@@ -670,7 +670,7 @@ impl<'a> CheckerState<'a> {
                     })?;
             }
             let iteration_return_type = self.get_iteration_type_of_generator_function_return_type(
-                tsrs2_types::IterationTypeKind::RETURN,
+                tsc_types::IterationTypeKind::RETURN,
                 contextual_return_type,
                 is_async_generator,
             )?;
@@ -700,7 +700,7 @@ impl<'a> CheckerState<'a> {
         let promise_like = self.create_promise_like_type(awaited)?;
         Ok(Some(self.get_union_type_ex(
             &[awaited, promise_like],
-            tsrs2_types::UnionReduction::Literal,
+            tsc_types::UnionReduction::Literal,
         )?))
     }
 
@@ -736,7 +736,7 @@ impl<'a> CheckerState<'a> {
                 self.filter_type_with(contextual_return_type, |state, t| {
                     Ok(state
                         .get_iteration_type_of_generator_function_return_type(
-                            tsrs2_types::IterationTypeKind::RETURN,
+                            tsc_types::IterationTypeKind::RETURN,
                             t,
                             is_async_generator,
                         )?
@@ -773,13 +773,13 @@ impl<'a> CheckerState<'a> {
                 )?;
                 return Ok(Some(self.get_union_type_ex(
                     &[generator_type, async_generator_type],
-                    tsrs2_types::UnionReduction::Literal,
+                    tsc_types::UnionReduction::Literal,
                 )?));
             }
             return Ok(Some(generator_type));
         }
         self.get_iteration_type_of_generator_function_return_type(
-            tsrs2_types::IterationTypeKind::YIELD,
+            tsc_types::IterationTypeKind::YIELD,
             contextual_return_type,
             is_async_generator,
         )
@@ -790,7 +790,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:72862-72873
     pub(crate) fn get_contextual_iteration_type(
         &mut self,
-        kind: tsrs2_types::IterationTypeKind,
+        kind: tsc_types::IterationTypeKind,
         function_decl: NodeId,
     ) -> CheckResult<Option<TypeId>> {
         let is_async = self.get_function_flags(function_decl) & FUNCTION_FLAGS_ASYNC != 0;
@@ -956,7 +956,7 @@ impl<'a> CheckerState<'a> {
         {
             self.resolving_signature
         } else {
-            self.get_resolved_signature(call_target, tsrs2_types::CheckMode::NORMAL)?
+            self.get_resolved_signature(call_target, tsc_types::CheckMode::NORMAL)?
         };
         // 72919-72921: JSX opening-likes answer the effective first
         // argument (the sentinel valve above still applies — a
@@ -975,7 +975,7 @@ impl<'a> CheckerState<'a> {
         let data = self.signature_of(signature);
         let has_rest = data
             .flags
-            .intersects(tsrs2_types::SignatureFlags::HAS_REST_PARAMETER);
+            .intersects(tsc_types::SignatureFlags::HAS_REST_PARAMETER);
         let parameters = data.parameters.clone();
         if has_rest && !parameters.is_empty() && arg_index >= parameters.len() - 1 {
             let rest_index = parameters.len() - 1;
@@ -986,7 +986,7 @@ impl<'a> CheckerState<'a> {
             return Ok(Some(self.get_indexed_access_type(
                 rest_type,
                 literal,
-                tsrs2_types::AccessFlags::CONTEXTUAL,
+                tsc_types::AccessFlags::CONTEXTUAL,
                 None,
                 None,
                 None,
@@ -1095,14 +1095,14 @@ impl<'a> CheckerState<'a> {
         };
         let Some(name) = name else { return false };
         let source = self.binder.source_of_node(node);
-        tsrs2_binder::assignment::get_expando_initializer(
+        tsc_binder::assignment::get_expando_initializer(
             source,
             right,
-            tsrs2_binder::assignment::is_prototype_access(source, name),
+            tsc_binder::assignment::is_prototype_access(source, name),
         )
         .is_some()
-            && tsrs2_binder::assignment::is_bindable_static_name_expression(source, name, false)
-            && tsrs2_binder::assignment::is_same_entity_name(source, name, left)
+            && tsc_binder::assignment::is_bindable_static_name_expression(source, name, false)
+            && tsc_binder::assignment::is_same_entity_name(source, name, left)
     }
 
     /// tsc-port: getSymbolForExpression @6.0.3
@@ -1144,7 +1144,7 @@ impl<'a> CheckerState<'a> {
                     return Ok(None);
                 };
                 let prop_type =
-                    self.check_expression_cached(argument, tsrs2_types::CheckMode::NORMAL)?;
+                    self.check_expression_cached(argument, tsc_types::CheckMode::NORMAL)?;
                 let Some(name_text) = self.property_name_from_type_usable(prop_type) else {
                     return Ok(None);
                 };
@@ -1171,10 +1171,10 @@ impl<'a> CheckerState<'a> {
         };
         let left = data.left.expect("assignment has a left side");
         let source = self.binder.source_of_node(binary_expression);
-        let kind = tsrs2_binder::get_assignment_declaration_kind(source, binary_expression);
+        let kind = tsc_binder::get_assignment_declaration_kind(source, binary_expression);
         match kind {
-            tsrs2_binder::AssignmentDeclarationKind::None
-            | tsrs2_binder::AssignmentDeclarationKind::ThisProperty => {
+            tsc_binder::AssignmentDeclarationKind::None
+            | tsc_binder::AssignmentDeclarationKind::ThisProperty => {
                 let lhs_symbol = self.get_symbol_for_expression(left)?;
                 let decl =
                     lhs_symbol.and_then(|symbol| self.binder.symbol(symbol).value_declaration);
@@ -1203,13 +1203,13 @@ impl<'a> CheckerState<'a> {
                         return Ok(None);
                     }
                 }
-                if kind == tsrs2_binder::AssignmentDeclarationKind::None {
+                if kind == tsc_binder::AssignmentDeclarationKind::None {
                     Ok(Some(self.get_type_of_expression(left)?))
                 } else {
                     self.get_contextual_type_for_this_property_assignment(binary_expression)
                 }
             }
-            tsrs2_binder::AssignmentDeclarationKind::Property => {
+            tsc_binder::AssignmentDeclarationKind::Property => {
                 if self.node_symbol(left).is_none() {
                     return Ok(Some(self.get_type_of_expression(left)?));
                 }
@@ -1261,10 +1261,10 @@ impl<'a> CheckerState<'a> {
                     Some(self.get_type_of_expression(left)?)
                 })
             }
-            tsrs2_binder::AssignmentDeclarationKind::ExportsProperty
-            | tsrs2_binder::AssignmentDeclarationKind::PrototypeProperty
-            | tsrs2_binder::AssignmentDeclarationKind::ModuleExports
-            | tsrs2_binder::AssignmentDeclarationKind::Prototype => {
+            tsc_binder::AssignmentDeclarationKind::ExportsProperty
+            | tsc_binder::AssignmentDeclarationKind::PrototypeProperty
+            | tsc_binder::AssignmentDeclarationKind::ModuleExports
+            | tsc_binder::AssignmentDeclarationKind::Prototype => {
                 let value_declaration = self
                     .node_symbol(left)
                     .and_then(|symbol| self.binder.symbol(symbol).value_declaration)
@@ -1279,9 +1279,9 @@ impl<'a> CheckerState<'a> {
                     None => Ok(None),
                 }
             }
-            tsrs2_binder::AssignmentDeclarationKind::ObjectDefinePropertyValue
-            | tsrs2_binder::AssignmentDeclarationKind::ObjectDefinePropertyExports
-            | tsrs2_binder::AssignmentDeclarationKind::ObjectDefinePrototypeProperty => Ok(None),
+            tsc_binder::AssignmentDeclarationKind::ObjectDefinePropertyValue
+            | tsc_binder::AssignmentDeclarationKind::ObjectDefinePropertyExports
+            | tsc_binder::AssignmentDeclarationKind::ObjectDefinePrototypeProperty => Ok(None),
         }
     }
 
@@ -1504,7 +1504,7 @@ impl<'a> CheckerState<'a> {
                         return Ok(Some(types[0]));
                     }
                     return state
-                        .get_intersection_type(&types, tsrs2_types::IntersectionFlags::NONE)
+                        .get_intersection_type(&types, tsc_types::IntersectionFlags::NONE)
                         .map(Some);
                 }
                 if !state.tables.flags_of(t).intersects(TypeFlags::OBJECT) {
@@ -1578,7 +1578,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<TypeId>> {
         let property_name_type = name_type.unwrap_or_else(|| {
             self.tables
-                .get_string_literal_type(tsrs2_binder::unescape_leading_underscores(name))
+                .get_string_literal_type(tsc_binder::unescape_leading_underscores(name))
         });
         let constraint = self.get_constraint_type_from_mapped_type(ty)?;
         if let Some(mapped_name) = self.get_name_type_from_mapped_type(ty)? {
@@ -1653,7 +1653,7 @@ impl<'a> CheckerState<'a> {
             && self
                 .find_resolution_cycle_start_index(
                     crate::state::ResolutionTarget::Symbol(symbol),
-                    tsrs2_types::TypeSystemPropertyName::TYPE,
+                    tsc_types::TypeSystemPropertyName::TYPE,
                 )
                 .is_some()
     }
@@ -1750,7 +1750,7 @@ impl<'a> CheckerState<'a> {
                 };
                 if let Some(expression) = data.expression {
                     let expr_type =
-                        self.check_expression(expression, tsrs2_types::CheckMode::NORMAL)?;
+                        self.check_expression(expression, tsc_types::CheckMode::NORMAL)?;
                     if let Some(text) = self.property_name_from_type_usable(expr_type) {
                         if let Some(prop_type) =
                             self.get_type_of_property_of_contextual_type(ty, &text, None)?
@@ -1845,7 +1845,7 @@ impl<'a> CheckerState<'a> {
                                 data.fixed_length,
                                 data.element_flags.to_vec(),
                                 data.combined_flags
-                                    .intersects(tsrs2_types::ElementFlags::VARIABLE),
+                                    .intersects(tsc_types::ElementFlags::VARIABLE),
                             ),
                             _ => unreachable!("tuple type has a tuple target"),
                         };
@@ -1867,7 +1867,7 @@ impl<'a> CheckerState<'a> {
                     let fixed_end_length = if offset > 0 && combined_variable {
                         crate::structural::end_element_count(
                             &element_flags,
-                            tsrs2_types::ElementFlags::FIXED,
+                            tsc_types::ElementFlags::FIXED,
                         )
                     } else {
                         0
@@ -1911,7 +1911,7 @@ impl<'a> CheckerState<'a> {
                 // 73282-73289: the silent Element probe.
                 let undefined_type = state.tables.intrinsics.undefined;
                 state.get_iterated_type_or_element_type(
-                    tsrs2_types::IterationUse::ELEMENT,
+                    tsc_types::IterationUse::ELEMENT,
                     t,
                     undefined_type,
                     /*error_node*/ None,
@@ -2078,7 +2078,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
-        let node_members: Option<&tsrs2_binder::SymbolTable> = self
+        let node_members: Option<&tsc_binder::SymbolTable> = self
             .node_symbol(node)
             .map(|s| &self.binder.symbol(s).members);
         let has_members = node_members.is_some_and(|m| !m.is_empty());
@@ -2475,7 +2475,7 @@ impl<'a> CheckerState<'a> {
             for member in members {
                 mapped.push(self.instantiate_instantiable_types(member, mapper)?);
             }
-            return self.get_intersection_type(&mapped, tsrs2_types::IntersectionFlags::NONE);
+            return self.get_intersection_type(&mapped, tsc_types::IntersectionFlags::NONE);
         }
         Ok(ty)
     }
@@ -2744,7 +2744,7 @@ impl<'a> CheckerState<'a> {
                     Ok(Some(state.get_indexed_access_type(
                         t,
                         index_type,
-                        tsrs2_types::AccessFlags::NONE,
+                        tsc_types::AccessFlags::NONE,
                         None,
                         None,
                         None,
@@ -3039,9 +3039,9 @@ impl<'a> CheckerState<'a> {
             }
             _ => None,
         };
-        let propagating = tsrs2_types::SignatureFlags::PROPAGATING_FLAGS.bits()
-            & !tsrs2_types::SignatureFlags::HAS_REST_PARAMETER.bits();
-        let mut flags = tsrs2_types::SignatureFlags::from_bits(
+        let propagating = tsc_types::SignatureFlags::PROPAGATING_FLAGS.bits()
+            & !tsc_types::SignatureFlags::HAS_REST_PARAMETER.bits();
+        let mut flags = tsc_types::SignatureFlags::from_bits(
             (self.signature_of(left).flags.bits() | self.signature_of(right).flags.bits())
                 & propagating,
         );
@@ -3052,8 +3052,8 @@ impl<'a> CheckerState<'a> {
                 .intersects(CheckFlags::REST_PARAMETER)
         });
         if last_param_is_rest {
-            flags = tsrs2_types::SignatureFlags::from_bits(
-                flags.bits() | tsrs2_types::SignatureFlags::HAS_REST_PARAMETER.bits(),
+            flags = tsc_types::SignatureFlags::from_bits(
+                flags.bits() | tsc_types::SignatureFlags::HAS_REST_PARAMETER.bits(),
             );
         }
         let left_this = self.signature_of(left).this_parameter;
@@ -3476,7 +3476,7 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::TryStatement
                 | SyntaxKind::CatchClause => {
                     let source = self.binder.source_of_node(node);
-                    tsrs2_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
+                    tsc_syntax::for_each_child(&source.arena, source.arena.node(node), |child| {
                         worklist.push(child);
                         false
                     });
@@ -3530,7 +3530,7 @@ impl<'a> CheckerState<'a> {
                             }
                         }
                     } else if !self.is_part_of_type_node(node) {
-                        tsrs2_syntax::for_each_child(
+                        tsc_syntax::for_each_child(
                             &source.arena,
                             source.arena.node(node),
                             |child| {
@@ -3608,7 +3608,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// The declaration's syntactic `typeParameters` property.
-    fn function_type_parameters_of(&self, node: NodeId) -> Option<tsrs2_syntax::NodeArrayId> {
+    fn function_type_parameters_of(&self, node: NodeId) -> Option<tsc_syntax::NodeArrayId> {
         match self.data_of(node) {
             NodeData::FunctionDeclaration(data) => data.type_parameters,
             NodeData::FunctionExpression(data) => data.type_parameters,
@@ -3841,7 +3841,7 @@ impl<'a> CheckerState<'a> {
             && self
                 .find_resolution_cycle_start_index(
                     crate::state::ResolutionTarget::Signature(signature),
-                    tsrs2_types::TypeSystemPropertyName::RESOLVED_RETURN_TYPE,
+                    tsc_types::TypeSystemPropertyName::RESOLVED_RETURN_TYPE,
                 )
                 .is_some()
     }
@@ -3849,8 +3849,8 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_syntax::{NodeId, SyntaxKind};
-    use tsrs2_types::{CompilerOptions, ContextFlags};
+    use tsc_syntax::{NodeId, SyntaxKind};
+    use tsc_types::{CompilerOptions, ContextFlags};
 
     use crate::state::test_support::with_program_state;
     use crate::state::CheckerState;
@@ -3868,10 +3868,10 @@ mod tests {
             .arena
             .node_ids()
             .find(|&id| {
-                tsrs2_binder::node_util::kind_of(source, id) == kind
+                tsc_binder::node_util::kind_of(source, id) == kind
                     && parent_kind.is_none_or(|expected| {
-                        tsrs2_binder::node_util::parent_of(source, id).is_some_and(|parent| {
-                            tsrs2_binder::node_util::kind_of(source, parent) == expected
+                        tsc_binder::node_util::parent_of(source, id).is_some_and(|parent| {
+                            tsc_binder::node_util::kind_of(source, parent) == expected
                         })
                     })
             })
@@ -4027,7 +4027,7 @@ mod tests {
                     .expect("in slice")
                     .expect("discriminated type");
                 let a_symbol = state
-                    .resolve_file_scope_name("A", tsrs2_types::SymbolFlags::INTERFACE)
+                    .resolve_file_scope_name("A", tsc_types::SymbolFlags::INTERFACE)
                     .expect("A resolves");
                 let a_declared = state
                     .get_declared_type_of_class_or_interface(a_symbol)
@@ -4115,7 +4115,7 @@ mod tests {
                     .expect("a exists");
                 assert!(state.push_type_resolution(
                     crate::state::ResolutionTarget::Symbol(property),
-                    tsrs2_types::TypeSystemPropertyName::TYPE,
+                    tsc_types::TypeSystemPropertyName::TYPE,
                 ));
                 let contextual = state
                     .get_type_of_concrete_property_of_contextual_type(mapped, "a")

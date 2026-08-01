@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use tsrs2_diags::{Diagnostic, DiagnosticList};
-use tsrs2_host::to_file_name_lower_case;
-use tsrs2_types::CompilerOptions;
+use tsc_diagnostics::{Diagnostic, DiagnosticList};
+use tsc_host::to_file_name_lower_case;
+use tsc_types::CompilerOptions;
 
 use crate::error::{PreparationError, PreparationErrorKind, PreparationOperation};
 use crate::path::{CanonicalPath, ProgramPath};

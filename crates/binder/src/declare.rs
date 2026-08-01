@@ -18,11 +18,11 @@ use crate::symbols::{
     SymbolId, SymbolTable,
 };
 use indexmap::IndexSet;
-use tsrs2_diags::{
+use tsc_diagnostics::{
     gen as diagnostics, Diagnostic, DiagnosticList, DiagnosticMessage, MessageChain, RelatedInfo,
 };
-use tsrs2_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
-use tsrs2_types::{ModifierFlags, SymbolFlags};
+use tsc_syntax::{NodeData, NodeId, SourceFile, SyntaxKind};
+use tsc_types::{ModifierFlags, SymbolFlags};
 
 /// Which symbol table a declaration lands in. tsc passes the table
 /// object; the arena design passes its owner.
@@ -40,7 +40,7 @@ pub enum TableRef {
 /// stages 3.3–3.5; stage 3.2 carries the symbol side only.
 pub struct Binder<'a> {
     pub source: &'a SourceFile,
-    pub options: &'a tsrs2_types::CompilerOptions,
+    pub options: &'a tsc_types::CompilerOptions,
     /// tsc languageVersion = getEmitScriptTarget(options).
     pub language_version: i32,
     /// tsc file.commonJsModuleIndicator.
@@ -123,13 +123,13 @@ pub struct Binder<'a> {
 }
 
 impl<'a> Binder<'a> {
-    pub fn new(source: &'a SourceFile, options: &'a tsrs2_types::CompilerOptions) -> Self {
+    pub fn new(source: &'a SourceFile, options: &'a tsc_types::CompilerOptions) -> Self {
         Self::with_symbol_id_seed(source, options, 1)
     }
 
     pub fn with_symbol_id_seed(
         source: &'a SourceFile,
-        options: &'a tsrs2_types::CompilerOptions,
+        options: &'a tsc_types::CompilerOptions,
         next_symbol_id: u32,
     ) -> Self {
         Self::with_bases(source, options, next_symbol_id, 0)
@@ -140,14 +140,14 @@ impl<'a> Binder<'a> {
     /// parse-side NodeId bases (ParseOptions::node_id_base).
     pub fn with_bases(
         source: &'a SourceFile,
-        options: &'a tsrs2_types::CompilerOptions,
+        options: &'a tsc_types::CompilerOptions,
         next_symbol_id: u32,
         symbol_base: u32,
     ) -> Self {
         let mut flow = crate::flow::FlowArena::default();
         // tsc createBinder: unreachableFlow is allocated once up front.
         let unreachable_flow = flow.create_flow_node(
-            tsrs2_types::FlowFlags::UNREACHABLE,
+            tsc_types::FlowFlags::UNREACHABLE,
             crate::flow::FlowPayload::None,
             None,
         );
@@ -205,12 +205,12 @@ impl<'a> Binder<'a> {
     /// The binder's mutable view of tsc node.flags. `node_flags_mut` is
     /// indexed by the file-local node index (program binds parse each
     /// file with a NodeId base — see ParseOptions::node_id_base).
-    pub fn flags_of(&self, node: NodeId) -> tsrs2_types::NodeFlags {
+    pub fn flags_of(&self, node: NodeId) -> tsc_types::NodeFlags {
         let index = (node.0 - self.source.arena.node_base()) as usize;
-        tsrs2_types::NodeFlags::from_bits(self.node_flags_mut[index])
+        tsc_types::NodeFlags::from_bits(self.node_flags_mut[index])
     }
 
-    pub fn set_flags_of(&mut self, node: NodeId, flags: tsrs2_types::NodeFlags) {
+    pub fn set_flags_of(&mut self, node: NodeId, flags: tsc_types::NodeFlags) {
         let index = (node.0 - self.source.arena.node_base()) as usize;
         self.node_flags_mut[index] = flags.bits();
     }
@@ -398,9 +398,9 @@ impl<'a> Binder<'a> {
             None => true,
             Some(value_declaration) => {
                 let node_ambient = crate::node_util::node_flags(self.source, node)
-                    .intersects(tsrs2_types::NodeFlags::AMBIENT);
+                    .intersects(tsc_types::NodeFlags::AMBIENT);
                 let value_ambient = crate::node_util::node_flags(self.source, value_declaration)
-                    .intersects(tsrs2_types::NodeFlags::AMBIENT);
+                    .intersects(tsc_types::NodeFlags::AMBIENT);
                 let in_js = self.is_in_js_file();
                 (!(node_ambient && !in_js && !value_ambient)
                     && (is_assignment_declaration(self.source, value_declaration)
@@ -728,7 +728,7 @@ pub fn is_effective_module_declaration(source: &SourceFile, id: NodeId) -> bool 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tsrs2_syntax::{parse_source_file, ParseOptions};
+    use tsc_syntax::{parse_source_file, ParseOptions};
 
     fn parse(text: &str) -> SourceFile {
         parse_source_file("main.ts", text, ParseOptions::default(), None)
@@ -788,7 +788,7 @@ mod tests {
                 };
                 let declaration = source.arena.node_array(declarations).nodes[0];
                 let list_flags = crate::node_util::node_flags(source, list);
-                if list_flags.intersects(tsrs2_types::NodeFlags::BLOCK_SCOPED) {
+                if list_flags.intersects(tsc_types::NodeFlags::BLOCK_SCOPED) {
                     (
                         declaration,
                         SymbolFlags::BLOCK_SCOPED_VARIABLE,
@@ -834,8 +834,8 @@ mod tests {
     #[test]
     fn function_overloads_merge() {
         let source = parse("function f(a: string): void;\nfunction f(a: number): void {}\n");
-        let options: &'static tsrs2_types::CompilerOptions =
-            Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
+        let options: &'static tsc_types::CompilerOptions =
+            Box::leak(Box::new(tsc_types::CompilerOptions::default()));
         let mut binder = Binder::new(&source, options);
         let symbols = declare_all(&mut binder, TableRef::Locals(source.root), None);
         assert_eq!(symbols[0], symbols[1]);
@@ -852,8 +852,8 @@ mod tests {
     #[test]
     fn namespace_merges_into_function() {
         let source = parse("function f() {}\nnamespace f { export const x = 1; }\n");
-        let options: &'static tsrs2_types::CompilerOptions =
-            Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
+        let options: &'static tsc_types::CompilerOptions =
+            Box::leak(Box::new(tsc_types::CompilerOptions::default()));
         let mut binder = Binder::new(&source, options);
         let symbols = declare_all(&mut binder, TableRef::Locals(source.root), None);
         assert_eq!(symbols[0], symbols[1]);
@@ -863,8 +863,8 @@ mod tests {
     #[test]
     fn interface_merges_into_class() {
         let source = parse("class D {}\ninterface D {}\n");
-        let options: &'static tsrs2_types::CompilerOptions =
-            Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
+        let options: &'static tsc_types::CompilerOptions =
+            Box::leak(Box::new(tsc_types::CompilerOptions::default()));
         let mut binder = Binder::new(&source, options);
         let symbols = declare_all(&mut binder, TableRef::Locals(source.root), None);
         assert_eq!(symbols[0], symbols[1]);
@@ -879,8 +879,8 @@ mod tests {
     fn block_scoped_redeclaration_reports_2451_and_detaches_fresh_symbol() {
         // Pins from tsc sf.bindDiagnostics on "let x = 1;\nlet x = 2;".
         let source = parse("let x = 1;\nlet x = 2;");
-        let options: &'static tsrs2_types::CompilerOptions =
-            Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
+        let options: &'static tsc_types::CompilerOptions =
+            Box::leak(Box::new(tsc_types::CompilerOptions::default()));
         let mut binder = Binder::new(&source, options);
         let symbols = declare_all(&mut binder, TableRef::Locals(source.root), None);
         assert_eq!(diag_pins(&binder), [(2451, 4, 1), (2451, 15, 1)]);
@@ -896,8 +896,8 @@ mod tests {
     fn triple_let_conflicts_against_the_original_symbol() {
         // Pins from tsc: "let y = 1;\nlet y = 2;\nlet y = 3;".
         let source = parse("let y = 1;\nlet y = 2;\nlet y = 3;");
-        let options: &'static tsrs2_types::CompilerOptions =
-            Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
+        let options: &'static tsc_types::CompilerOptions =
+            Box::leak(Box::new(tsc_types::CompilerOptions::default()));
         let mut binder = Binder::new(&source, options);
         declare_all(&mut binder, TableRef::Locals(source.root), None);
         assert_eq!(
@@ -912,8 +912,8 @@ mod tests {
         // because bindEachFunctionsFirst binds the function BEFORE the
         // var (stage 3.4); source-order declaration flips it.
         let source = parse("var f: any;\nfunction f() {}");
-        let options: &'static tsrs2_types::CompilerOptions =
-            Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
+        let options: &'static tsc_types::CompilerOptions =
+            Box::leak(Box::new(tsc_types::CompilerOptions::default()));
         let mut binder = Binder::new(&source, options);
         declare_all(&mut binder, TableRef::Locals(source.root), None);
         assert_eq!(diag_pins(&binder), [(2300, 4, 1), (2300, 21, 1)]);
@@ -923,8 +923,8 @@ mod tests {
     fn enum_cannot_merge_with_class_reports_2567() {
         // Pins from tsc: "class C {}\nenum C {}".
         let source = parse("class C {}\nenum C {}");
-        let options: &'static tsrs2_types::CompilerOptions =
-            Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
+        let options: &'static tsc_types::CompilerOptions =
+            Box::leak(Box::new(tsc_types::CompilerOptions::default()));
         let mut binder = Binder::new(&source, options);
         declare_all(&mut binder, TableRef::Locals(source.root), None);
         assert_eq!(diag_pins(&binder), [(2567, 6, 1), (2567, 16, 1)]);
@@ -937,8 +937,8 @@ mod tests {
         // Pins from tsc: "export default class C {}\nexport default class D {}"
         //   2528@(21,1) related 2753@(47,1); 2528@(47,1) related 2752@(21,1).
         let source = parse("export default class C {}\nexport default class D {}");
-        let options: &'static tsrs2_types::CompilerOptions =
-            Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
+        let options: &'static tsc_types::CompilerOptions =
+            Box::leak(Box::new(tsc_types::CompilerOptions::default()));
         let mut binder = Binder::new(&source, options);
         let container = binder
             .symbols
@@ -968,8 +968,8 @@ mod tests {
         // Pins from tsc: "export default 1;\nexport default 2;"
         //   2528@(0,17) related 2753@(18,17); 2528@(18,17) related 2752@(0,17).
         let source = parse("export default 1;\nexport default 2;");
-        let options: &'static tsrs2_types::CompilerOptions =
-            Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
+        let options: &'static tsc_types::CompilerOptions =
+            Box::leak(Box::new(tsc_types::CompilerOptions::default()));
         let mut binder = Binder::new(&source, options);
         let container = binder
             .symbols
@@ -990,8 +990,8 @@ mod tests {
     #[test]
     fn escaped_names_key_the_table() {
         let source = parse("let __proto__ = 1;");
-        let options: &'static tsrs2_types::CompilerOptions =
-            Box::leak(Box::new(tsrs2_types::CompilerOptions::default()));
+        let options: &'static tsc_types::CompilerOptions =
+            Box::leak(Box::new(tsc_types::CompilerOptions::default()));
         let mut binder = Binder::new(&source, options);
         declare_all(&mut binder, TableRef::Locals(source.root), None);
         let table = binder.locals.get(&source.root).expect("locals");

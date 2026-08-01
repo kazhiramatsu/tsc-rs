@@ -31,9 +31,9 @@ use crate::node_util::{
     name_field_of, parent_of, statements_of,
 };
 use crate::symbols::{InternalSymbolName, SymbolId};
-use tsrs2_diags::{gen as diagnostics, DiagnosticMessage};
-use tsrs2_syntax::{for_each_child, NodeArrayId, NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{FlowFlags, ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags};
+use tsc_diagnostics::{gen as diagnostics, DiagnosticMessage};
+use tsc_syntax::{for_each_child, NodeArrayId, NodeData, NodeId, SyntaxKind};
+use tsc_types::{FlowFlags, ModifierFlags, NodeFlags, ScriptTarget, SymbolFlags};
 
 impl<'a> Binder<'a> {
     /// tsc-port: bindSourceFile2 @6.0.3
@@ -2314,7 +2314,7 @@ impl<'a> Binder<'a> {
         if expr.pos >= expr.end {
             return false;
         }
-        let start = tsrs2_syntax::skip_trivia(&self.source.text, expr.pos as usize);
+        let start = tsc_syntax::skip_trivia(&self.source.text, expr.pos as usize);
         let text = &self.source.text[start..expr.end as usize];
         text == "\"use strict\"" || text == "'use strict'"
     }
@@ -2341,7 +2341,7 @@ impl<'a> Binder<'a> {
             NodeData::Identifier(data) => data.escaped_text.clone(),
             _ => return,
         };
-        let Some(original_keyword_kind) = tsrs2_syntax::keyword_kind(&escaped_text) else {
+        let Some(original_keyword_kind) = tsc_syntax::keyword_kind(&escaped_text) else {
             return;
         };
         let keyword = original_keyword_kind as u16;
@@ -2649,11 +2649,11 @@ impl<'a> Binder<'a> {
         let to_utf16 = |byte: usize| -> u32 { map.get(byte).copied().unwrap_or(byte as u32) };
         let start_utf16 = to_utf16(start);
         let end_utf16 = to_utf16(end);
-        self.bind_diagnostics.push(tsrs2_diags::Diagnostic::new(
+        self.bind_diagnostics.push(tsc_diagnostics::Diagnostic::new(
             Some(self.source.file_name.clone()),
             Some(start_utf16),
             Some(end_utf16.saturating_sub(start_utf16)),
-            tsrs2_diags::MessageChain::new(message, &args),
+            tsc_diagnostics::MessageChain::new(message, &args),
         ));
     }
 
@@ -4501,7 +4501,7 @@ impl<'a> Binder<'a> {
 }
 
 /// tsc isStatementCondition (43151).
-fn is_statement_condition(source: &tsrs2_syntax::SourceFile, node: NodeId) -> bool {
+fn is_statement_condition(source: &tsc_syntax::SourceFile, node: NodeId) -> bool {
     let Some(parent) = parent_of(source, node) else {
         return false;
     };
@@ -4516,7 +4516,7 @@ fn is_statement_condition(source: &tsrs2_syntax::SourceFile, node: NodeId) -> bo
 }
 
 /// tsc isLogicalExpression (43164): unwraps parens and `!`.
-fn is_logical_expression(source: &tsrs2_syntax::SourceFile, mut node: NodeId) -> bool {
+fn is_logical_expression(source: &tsc_syntax::SourceFile, mut node: NodeId) -> bool {
     loop {
         match &source.arena.node(node).data {
             NodeData::ParenthesizedExpression(data) => match data.expression {
@@ -4538,7 +4538,7 @@ fn is_logical_expression(source: &tsrs2_syntax::SourceFile, mut node: NodeId) ->
 
 /// tsc isTopLevelLogicalExpression (43178).
 #[allow(clippy::nonminimal_bool)] // the return expression mirrors the tsc source shape
-fn is_top_level_logical_expression(source: &tsrs2_syntax::SourceFile, mut node: NodeId) -> bool {
+fn is_top_level_logical_expression(source: &tsc_syntax::SourceFile, mut node: NodeId) -> bool {
     while let Some(parent) = parent_of(source, node) {
         let is_wrapper = kind_of(source, parent) == SyntaxKind::ParenthesizedExpression
             || matches!(
@@ -4562,7 +4562,7 @@ fn is_top_level_logical_expression(source: &tsrs2_syntax::SourceFile, mut node: 
 
 /// tsc: a case/default clause with no statements (bindCaseBlock's
 /// fallthrough grouping).
-fn clause_statements_empty(source: &tsrs2_syntax::SourceFile, clause: NodeId) -> bool {
+fn clause_statements_empty(source: &tsc_syntax::SourceFile, clause: NodeId) -> bool {
     match &source.arena.node(clause).data {
         NodeData::CaseClause(data) => data
             .statements
@@ -4613,8 +4613,8 @@ fn remove_file_extension(path: &str) -> &str {
 mod tests {
     use super::*;
     use crate::containers::{get_module_instance_state, ModuleInstanceState};
-    use tsrs2_syntax::{parse_source_file, ParseOptions, SourceFile};
-    use tsrs2_types::CompilerOptions;
+    use tsc_syntax::{parse_source_file, ParseOptions, SourceFile};
+    use tsc_types::CompilerOptions;
 
     fn parse(text: &str) -> SourceFile {
         parse_source_file("main.ts", text, ParseOptions::default(), None)
@@ -4915,7 +4915,7 @@ mod tests {
 
     // ---- stage 3.5 flow-shape pins (each names its tsc anchor) ----
 
-    fn flow_flags(binder: &Binder<'_>, id: crate::flow::FlowId) -> tsrs2_types::FlowFlags {
+    fn flow_flags(binder: &Binder<'_>, id: crate::flow::FlowId) -> tsc_types::FlowFlags {
         binder.flow.flow(id).flags
     }
 
@@ -4929,11 +4929,11 @@ mod tests {
         let f = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
         let end = binder.node_end_flow[&f];
         let end_flags = flow_flags(&binder, end);
-        assert!(end_flags.intersects(tsrs2_types::FlowFlags::BRANCH_LABEL));
+        assert!(end_flags.intersects(tsc_types::FlowFlags::BRANCH_LABEL));
         assert_eq!(binder.flow.flow(end).antecedent.len(), 2);
         for &antecedent in &binder.flow.flow(end).antecedent {
             assert!(flow_flags(&binder, antecedent).intersects(
-                tsrs2_types::FlowFlags::TRUE_CONDITION | tsrs2_types::FlowFlags::FALSE_CONDITION
+                tsc_types::FlowFlags::TRUE_CONDITION | tsc_types::FlowFlags::FALSE_CONDITION
             ));
         }
     }
@@ -4947,7 +4947,7 @@ mod tests {
         let binder = bind(&source);
         let f = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
         let end = binder.node_end_flow[&f];
-        assert!(flow_flags(&binder, end).intersects(tsrs2_types::FlowFlags::START));
+        assert!(flow_flags(&binder, end).intersects(tsc_types::FlowFlags::START));
     }
 
     #[test]
@@ -4958,7 +4958,7 @@ mod tests {
         let binder = bind(&source);
         let loop_labels: Vec<_> = (0..binder.flow.len() as u32)
             .map(crate::flow::FlowId)
-            .filter(|&id| flow_flags(&binder, id).intersects(tsrs2_types::FlowFlags::LOOP_LABEL))
+            .filter(|&id| flow_flags(&binder, id).intersects(tsc_types::FlowFlags::LOOP_LABEL))
             .collect();
         assert_eq!(loop_labels.len(), 1);
         assert_eq!(binder.flow.flow(loop_labels[0]).antecedent.len(), 2);
@@ -4973,13 +4973,13 @@ mod tests {
         let statements = find_nodes(&source, SyntaxKind::ExpressionStatement);
         assert!(binder
             .flags_of(statements[0])
-            .intersects(tsrs2_types::NodeFlags::UNREACHABLE));
+            .intersects(tsc_types::NodeFlags::UNREACHABLE));
         assert!(!binder.node_flow.contains_key(&statements[0]));
         // The function has an explicit return and NO implicit return.
         let f = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
         assert!(!binder
             .flags_of(f)
-            .intersects(tsrs2_types::NodeFlags::HAS_IMPLICIT_RETURN));
+            .intersects(tsc_types::NodeFlags::HAS_IMPLICIT_RETURN));
     }
 
     #[test]
@@ -4991,7 +4991,7 @@ mod tests {
         let binder = bind(&source);
         let reduce_count = (0..binder.flow.len() as u32)
             .map(crate::flow::FlowId)
-            .filter(|&id| flow_flags(&binder, id).intersects(tsrs2_types::FlowFlags::REDUCE_LABEL))
+            .filter(|&id| flow_flags(&binder, id).intersects(tsc_types::FlowFlags::REDUCE_LABEL))
             .count();
         assert!(reduce_count >= 1, "expected ReduceLabel nodes, got none");
     }
@@ -5008,7 +5008,7 @@ mod tests {
         let switch_statement = find_nodes(&source, SyntaxKind::SwitchStatement)[0];
         let clauses: Vec<_> = (0..binder.flow.len() as u32)
             .map(crate::flow::FlowId)
-            .filter(|&id| flow_flags(&binder, id).intersects(tsrs2_types::FlowFlags::SWITCH_CLAUSE))
+            .filter(|&id| flow_flags(&binder, id).intersects(tsc_types::FlowFlags::SWITCH_CLAUSE))
             .collect();
         // 2 case clauses + the implicit default (clauseStart==clauseEnd==0).
         assert_eq!(clauses.len(), 3);
@@ -5037,14 +5037,14 @@ mod tests {
         let binder = bind(&source);
         let assignments = (0..binder.flow.len() as u32)
             .map(crate::flow::FlowId)
-            .filter(|&id| flow_flags(&binder, id).intersects(tsrs2_types::FlowFlags::ASSIGNMENT))
+            .filter(|&id| flow_flags(&binder, id).intersects(tsc_types::FlowFlags::ASSIGNMENT))
             .count();
         assert_eq!(assignments, 1);
         // The trailing reference's flowNode is the Assignment node.
         let identifiers = find_nodes(&source, SyntaxKind::Identifier);
         let last_x = *identifiers.last().unwrap();
         let flow = binder.node_flow[&last_x];
-        assert!(flow_flags(&binder, flow).intersects(tsrs2_types::FlowFlags::ASSIGNMENT));
+        assert!(flow_flags(&binder, flow).intersects(tsc_types::FlowFlags::ASSIGNMENT));
     }
 
     #[test]
@@ -5060,7 +5060,7 @@ mod tests {
         let f = find_nodes(&source, SyntaxKind::FunctionDeclaration)[0];
         let end = binder.node_end_flow[&f];
         // post-if joins then-branch and else-label.
-        assert!(flow_flags(&binder, end).intersects(tsrs2_types::FlowFlags::BRANCH_LABEL));
+        assert!(flow_flags(&binder, end).intersects(tsc_types::FlowFlags::BRANCH_LABEL));
     }
 
     #[test]
@@ -5073,8 +5073,7 @@ mod tests {
             .map(crate::flow::FlowId)
             .filter(|&id| {
                 flow_flags(&binder, id).intersects(
-                    tsrs2_types::FlowFlags::TRUE_CONDITION
-                        | tsrs2_types::FlowFlags::FALSE_CONDITION,
+                    tsc_types::FlowFlags::TRUE_CONDITION | tsc_types::FlowFlags::FALSE_CONDITION,
                 )
             })
             .count();
@@ -5114,10 +5113,10 @@ mod tests {
             .collect();
         assert!(!binder
             .flags_of(labels[0])
-            .intersects(tsrs2_types::NodeFlags::UNREACHABLE));
+            .intersects(tsc_types::NodeFlags::UNREACHABLE));
         assert!(binder
             .flags_of(labels[1])
-            .intersects(tsrs2_types::NodeFlags::UNREACHABLE));
+            .intersects(tsc_types::NodeFlags::UNREACHABLE));
     }
 
     fn statement_labels(source: &SourceFile) -> Vec<NodeId> {
@@ -5142,12 +5141,12 @@ mod tests {
         let labels = statement_labels(&source);
         assert!(binder
             .flags_of(labels[0])
-            .intersects(tsrs2_types::NodeFlags::UNREACHABLE));
+            .intersects(tsc_types::NodeFlags::UNREACHABLE));
         // The only BranchLabel is outer's post-statement label; the
         // nested break must not have added a second antecedent.
         let branch_labels: Vec<_> = (0..binder.flow.len() as u32)
             .map(crate::flow::FlowId)
-            .filter(|&id| flow_flags(&binder, id).intersects(tsrs2_types::FlowFlags::BRANCH_LABEL))
+            .filter(|&id| flow_flags(&binder, id).intersects(tsc_types::FlowFlags::BRANCH_LABEL))
             .collect();
         assert_eq!(branch_labels.len(), 1);
         assert_eq!(binder.flow.flow(branch_labels[0]).antecedent.len(), 1);
@@ -5163,7 +5162,7 @@ mod tests {
         let labels = statement_labels(&source);
         assert!(binder
             .flags_of(labels[0])
-            .intersects(tsrs2_types::NodeFlags::UNREACHABLE));
+            .intersects(tsc_types::NodeFlags::UNREACHABLE));
     }
 
     #[test]
@@ -5175,7 +5174,7 @@ mod tests {
         let labels = statement_labels(&source);
         assert!(!binder
             .flags_of(labels[0])
-            .intersects(tsrs2_types::NodeFlags::UNREACHABLE));
+            .intersects(tsc_types::NodeFlags::UNREACHABLE));
     }
 
     fn parse_named(name: &str, text: &str, javascript_file: bool) -> SourceFile {
@@ -5206,15 +5205,15 @@ mod tests {
         let binder = bind(&source);
         assert!(binder
             .flags_of(source.root)
-            .intersects(tsrs2_types::NodeFlags::EXPORT_CONTEXT));
+            .intersects(tsc_types::NodeFlags::EXPORT_CONTEXT));
         let file_symbol = binder.node_symbol[&source.root];
         let named = binder.symbols.symbol(file_symbol).exports["Named"];
         let named = binder.symbols.symbol(named);
         assert_eq!(named.declarations.len(), 2);
-        assert!(named.flags.intersects(tsrs2_types::SymbolFlags::TYPE_ALIAS));
+        assert!(named.flags.intersects(tsc_types::SymbolFlags::TYPE_ALIAS));
         assert!(named
             .flags
-            .intersects(tsrs2_types::SymbolFlags::BLOCK_SCOPED_VARIABLE));
+            .intersects(tsc_types::SymbolFlags::BLOCK_SCOPED_VARIABLE));
     }
 
     #[test]

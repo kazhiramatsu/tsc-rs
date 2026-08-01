@@ -3,10 +3,10 @@
 //! forward (m4-58 §11); checkClassLikeDeclaration and the member
 //! override bands land at 5.8c.
 
-use tsrs2_binder::SymbolId;
-use tsrs2_diags::gen as diagnostics;
-use tsrs2_syntax::{NodeData, NodeId, SyntaxKind};
-use tsrs2_types::{
+use tsc_binder::SymbolId;
+use tsc_diagnostics::gen as diagnostics;
+use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_types::{
     InternalSymbolName, ModifierFlags, NodeFlags, ObjectFlags, SymbolFlags, TypeFlags, TypeId,
 };
 
@@ -59,7 +59,7 @@ impl<'a> CheckerState<'a> {
                     _ => None,
                 };
                 for member in self.nodes_of(members) {
-                    let member_is_static = tsrs2_binder::node_util::has_syntactic_modifier(
+                    let member_is_static = tsc_binder::node_util::has_syntactic_modifier(
                         self.binder.source_of_node(member),
                         member,
                         ModifierFlags::STATIC,
@@ -68,7 +68,7 @@ impl<'a> CheckerState<'a> {
                     // hasLateBindableName — the late-bindable refinement
                     // rides the 5.8c class callers (this arm is dead for
                     // 5.8a's TypeLiteral callers).
-                    let has_bindable_name = !tsrs2_binder::node_util::has_dynamic_name(
+                    let has_bindable_name = !tsc_binder::node_util::has_dynamic_name(
                         self.binder.source_of_node(member),
                         member,
                     );
@@ -408,7 +408,7 @@ impl<'a> CheckerState<'a> {
                 NodeData::StringLiteral(data) => data.text.clone(),
                 NodeData::NumericLiteral(data) => data.text.clone(),
                 NodeData::Identifier(data) => {
-                    tsrs2_binder::unescape_leading_underscores(&data.escaped_text).to_owned()
+                    tsc_binder::unescape_leading_underscores(&data.escaped_text).to_owned()
                 }
                 _ => continue,
             };
@@ -473,7 +473,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         if name.is_none()
-            && !tsrs2_binder::node_util::has_syntactic_modifier(
+            && !tsc_binder::node_util::has_syntactic_modifier(
                 self.binder.source_of_node(node),
                 node,
                 ModifierFlags::DEFAULT,
@@ -517,7 +517,7 @@ impl<'a> CheckerState<'a> {
         };
         if name.is_some()
             || self.options.experimental_decorators
-            || self.options.emit_script_target() >= tsrs2_types::ScriptTarget::ES_NEXT
+            || self.options.emit_script_target() >= tsc_types::ScriptTarget::ES_NEXT
         {
             return Ok(());
         }
@@ -651,7 +651,7 @@ impl<'a> CheckerState<'a> {
         // The parser does not stamp NodeFlags::AMBIENT from a `declare`
         // modifier — read the modifier alongside (5.8b precedent).
         let node_in_ambient_context = self.node_flags(node) & NodeFlags::AMBIENT.bits() != 0
-            || tsrs2_binder::node_util::has_syntactic_modifier(
+            || tsc_binder::node_util::has_syntactic_modifier(
                 self.binder.source_of_node(node),
                 node,
                 ModifierFlags::AMBIENT,
@@ -674,7 +674,7 @@ impl<'a> CheckerState<'a> {
                     if let NodeData::ExpressionWithTypeArguments(data) = self.data_of(extends_node)
                     {
                         if let Some(expression) = data.expression {
-                            self.check_expression(expression, tsrs2_types::CheckMode::NORMAL)?;
+                            self.check_expression(expression, tsc_types::CheckMode::NORMAL)?;
                         }
                     }
                 }
@@ -748,10 +748,10 @@ impl<'a> CheckerState<'a> {
                         let has_abstract_signature = construct_signatures.iter().any(|&sig| {
                             self.signature_of(sig)
                                 .flags
-                                .intersects(tsrs2_types::SignatureFlags::ABSTRACT)
+                                .intersects(tsc_types::SignatureFlags::ABSTRACT)
                         });
                         if has_abstract_signature
-                            && !tsrs2_binder::node_util::has_syntactic_modifier(
+                            && !tsc_binder::node_util::has_syntactic_modifier(
                                 self.binder.source_of_node(node),
                                 node,
                                 ModifierFlags::ABSTRACT,
@@ -826,8 +826,8 @@ impl<'a> CheckerState<'a> {
             };
             let expression_is_entity = {
                 let source = self.binder.source_of_node(ref_expression);
-                tsrs2_binder::node_util::is_entity_name_expression(source, ref_expression)
-                    && !tsrs2_binder::node_util::is_optional_chain(source, ref_expression)
+                tsc_binder::node_util::is_entity_name_expression(source, ref_expression)
+                    && !tsc_binder::node_util::is_optional_chain(source, ref_expression)
             };
             if !expression_is_entity {
                 self.error_at(
@@ -867,7 +867,7 @@ impl<'a> CheckerState<'a> {
                     .flags
                     .intersects(SymbolFlags::CLASS)
             });
-            let generic_diag: &'static tsrs2_diags::DiagnosticMessage = if t_is_class {
+            let generic_diag: &'static tsc_diagnostics::DiagnosticMessage = if t_is_class {
                 &diagnostics::Class_0_incorrectly_implements_class_1_Did_you_mean_to_extend_1_and_inherit_its_members_as_a_subclass
             } else {
                 &diagnostics::Class_0_incorrectly_implements_interface_1
@@ -932,7 +932,7 @@ impl<'a> CheckerState<'a> {
     /// twin (None for this-less interface Object data).
     pub(crate) fn this_type_of_class_or_interface(&self, ty: TypeId) -> Option<TypeId> {
         match &self.tables.type_of(ty).data {
-            tsrs2_types::TypeData::GenericType { this_type, .. } => Some(*this_type),
+            tsc_types::TypeData::GenericType { this_type, .. } => Some(*this_type),
             _ => None,
         }
     }
@@ -1115,7 +1115,7 @@ impl<'a> CheckerState<'a> {
         }
         let ty = self.get_declared_type_of_symbol_slice(symbol)?;
         let local_type_parameters: Vec<TypeId> = match &self.tables.type_of(ty).data {
-            tsrs2_types::TypeData::GenericType {
+            tsc_types::TypeData::GenericType {
                 type_parameters,
                 outer_type_parameter_count,
                 ..
@@ -1401,7 +1401,7 @@ impl<'a> CheckerState<'a> {
                 let symbol = self.get_symbol_of_declaration(node)?;
                 let class_name = self.symbol_name_as_written_slice(symbol);
                 let display_name =
-                    tsrs2_binder::unescape_leading_underscores(&member_name).to_owned();
+                    tsc_binder::unescape_leading_underscores(&member_name).to_owned();
                 self.error_at(
                     Some(member_name_node),
                     &diagnostics::Static_property_0_conflicts_with_built_in_property_Function_0_of_constructor_function_1,
@@ -1426,19 +1426,19 @@ impl<'a> CheckerState<'a> {
             | SyntaxKind::NoSubstitutionTemplateLiteral
             | SyntaxKind::NumericLiteral
             | SyntaxKind::BigIntLiteral => {
-                tsrs2_binder::node_util::get_escaped_text_of_identifier_or_literal(source, name)
+                tsc_binder::node_util::get_escaped_text_of_identifier_or_literal(source, name)
             }
             SyntaxKind::ComputedPropertyName => {
                 let NodeData::ComputedPropertyName(data) = self.data_of(name) else {
                     return None;
                 };
                 let expression = data.expression?;
-                if tsrs2_binder::node_util::is_string_or_numeric_literal_like(source, expression) {
-                    return tsrs2_binder::node_util::get_escaped_text_of_identifier_or_literal(
+                if tsc_binder::node_util::is_string_or_numeric_literal_like(source, expression) {
+                    return tsc_binder::node_util::get_escaped_text_of_identifier_or_literal(
                         source, expression,
                     );
                 }
-                if tsrs2_binder::node_util::is_signed_numeric_literal(source, expression) {
+                if tsc_binder::node_util::is_signed_numeric_literal(source, expression) {
                     if let NodeData::PrefixUnaryExpression(unary) = self.data_of(expression) {
                         let operand_text =
                             unary
@@ -1516,7 +1516,7 @@ impl<'a> CheckerState<'a> {
             _ => None,
         };
         for member in self.nodes_of(members) {
-            if tsrs2_binder::node_util::has_syntactic_modifier(
+            if tsc_binder::node_util::has_syntactic_modifier(
                 self.binder.source_of_node(member),
                 member,
                 ModifierFlags::AMBIENT,
@@ -1582,11 +1582,8 @@ impl<'a> CheckerState<'a> {
         let declared_prop = self.get_late_bound_symbol(declared_prop)?;
         let source = self.binder.source_of_node(member);
         let member_has_override_modifier = self.has_override_modifier(member);
-        let member_has_abstract_modifier = tsrs2_binder::node_util::has_syntactic_modifier(
-            source,
-            member,
-            ModifierFlags::ABSTRACT,
-        );
+        let member_has_abstract_modifier =
+            tsc_binder::node_util::has_syntactic_modifier(source, member, ModifierFlags::ABSTRACT);
         let member_is_static = self.is_static_element(member);
         self.check_member_for_override_modifier(
             node,
@@ -1609,14 +1606,14 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:16940-16942
     fn has_override_modifier(&self, member: NodeId) -> bool {
         let source = self.binder.source_of_node(member);
-        tsrs2_binder::node_util::get_effective_modifier_flags(source, member)
+        tsc_binder::node_util::get_effective_modifier_flags(source, member)
             .intersects(ModifierFlags::OVERRIDE)
     }
 
     fn report_override_error(
         &mut self,
         error_node: Option<NodeId>,
-        message: &'static tsrs2_diags::DiagnosticMessage,
+        message: &'static tsc_diagnostics::DiagnosticMessage,
         args: &[&str],
     ) {
         self.error_at(error_node, message, args);
@@ -1647,17 +1644,13 @@ impl<'a> CheckerState<'a> {
         let is_js = self.is_in_js_file(node);
         let source = self.binder.source_of_node(node);
         let node_in_ambient_context = self.node_flags(node) & NodeFlags::AMBIENT.bits() != 0
-            || tsrs2_binder::node_util::has_syntactic_modifier(
-                source,
-                node,
-                ModifierFlags::AMBIENT,
-            );
+            || tsc_binder::node_util::has_syntactic_modifier(source, node, ModifierFlags::AMBIENT);
         if member_has_override_modifier {
             let value_declaration = self.binder.symbol(member).value_declaration;
             if let Some(value_declaration) = value_declaration {
                 let source = self.binder.source_of_node(value_declaration);
                 let non_bindable_dynamic =
-                    tsrs2_binder::node_util::has_dynamic_name(source, value_declaration)
+                    tsc_binder::node_util::has_dynamic_name(source, value_declaration)
                         && !self.has_bindable_name(value_declaration)?;
                 if non_bindable_dynamic {
                     let message = if is_js {
@@ -1729,7 +1722,7 @@ impl<'a> CheckerState<'a> {
                         && !node_in_ambient_context
                     {
                         let base_has_abstract = base_declarations.iter().any(|&declaration| {
-                            tsrs2_binder::node_util::has_syntactic_modifier(
+                            tsc_binder::node_util::has_syntactic_modifier(
                                 self.binder.source_of_node(declaration),
                                 declaration,
                                 ModifierFlags::ABSTRACT,
@@ -1789,7 +1782,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         type_with_this: TypeId,
         base_with_this: TypeId,
-        broad_diag: &'static tsrs2_diags::DiagnosticMessage,
+        broad_diag: &'static tsc_diagnostics::DiagnosticMessage,
     ) -> CheckResult<()> {
         let mut issued_member_error = false;
         let (name, members) = match self.data_of(node) {
@@ -1821,7 +1814,7 @@ impl<'a> CheckerState<'a> {
                     let prop_name = self.symbol_name_as_written_slice(declared_prop);
                     let type_text = self.type_to_string_slice(type_with_this)?;
                     let base_text = self.type_to_string_slice(base_with_this)?;
-                    let root = tsrs2_diags::MessageChain::new(
+                    let root = tsc_diagnostics::MessageChain::new(
                         &diagnostics::Property_0_in_type_1_is_not_assignable_to_the_same_property_in_base_type_2,
                         &[prop_name, type_text, base_text],
                     );
@@ -1879,7 +1872,7 @@ impl<'a> CheckerState<'a> {
         let Some(declaration) = self.signature_of(first).declaration else {
             return Ok(());
         };
-        if !tsrs2_binder::node_util::has_syntactic_modifier(
+        if !tsc_binder::node_util::has_syntactic_modifier(
             self.binder.source_of_node(declaration),
             declaration,
             ModifierFlags::PRIVATE,
@@ -1958,7 +1951,7 @@ impl<'a> CheckerState<'a> {
                         self.get_class_like_declaration_of_symbol(type_symbol)
                     });
                 let derived_is_abstract = derived_class_decl.is_some_and(|declaration| {
-                    tsrs2_binder::node_util::has_syntactic_modifier(
+                    tsc_binder::node_util::has_syntactic_modifier(
                         self.binder.source_of_node(declaration),
                         declaration,
                         ModifierFlags::ABSTRACT,
@@ -2018,7 +2011,7 @@ impl<'a> CheckerState<'a> {
                     let base_check_flags = self.links.symbol(base).check_flags;
                     let base_declarations = self.binder.symbol(base).declarations.clone();
                     let abstract_or_interface_everywhere =
-                        if base_check_flags.intersects(tsrs2_types::CheckFlags::SYNTHETIC) {
+                        if base_check_flags.intersects(tsc_types::CheckFlags::SYNTHETIC) {
                             base_declarations.iter().any(|&declaration| {
                                 self.is_property_abstract_or_interface(
                                     declaration,
@@ -2042,7 +2035,7 @@ impl<'a> CheckerState<'a> {
                             self.kind_of(declaration) == SyntaxKind::BinaryExpression
                         });
                     if abstract_or_interface_everywhere
-                        || base_check_flags.intersects(tsrs2_types::CheckFlags::MAPPED)
+                        || base_check_flags.intersects(tsc_types::CheckFlags::MAPPED)
                         || derived_value_is_binary
                     {
                         continue;
@@ -2052,7 +2045,7 @@ impl<'a> CheckerState<'a> {
                     let overridden_instance_accessor = base_property_flags == SymbolFlags::PROPERTY
                         && derived_property_flags != SymbolFlags::PROPERTY;
                     if overridden_instance_property || overridden_instance_accessor {
-                        let message: &'static tsrs2_diags::DiagnosticMessage =
+                        let message: &'static tsc_diagnostics::DiagnosticMessage =
                             if overridden_instance_property {
                                 &diagnostics::_0_is_defined_as_an_accessor_in_class_1_but_is_overridden_here_in_2_as_an_instance_property
                             } else {
@@ -2077,7 +2070,7 @@ impl<'a> CheckerState<'a> {
                         let any_ambient_declaration =
                             derived_declarations.iter().any(|&declaration| {
                                 self.node_flags(declaration) & NodeFlags::AMBIENT.bits() != 0
-                                    || tsrs2_binder::node_util::has_syntactic_modifier(
+                                    || tsc_binder::node_util::has_syntactic_modifier(
                                         self.binder.source_of_node(declaration),
                                         declaration,
                                         ModifierFlags::AMBIENT,
@@ -2142,7 +2135,7 @@ impl<'a> CheckerState<'a> {
                     }
                     continue;
                 }
-                let message: &'static tsrs2_diags::DiagnosticMessage = if self
+                let message: &'static tsc_diagnostics::DiagnosticMessage = if self
                     .is_prototype_property(base)
                 {
                     if self.is_prototype_property(derived)
@@ -2333,7 +2326,7 @@ impl<'a> CheckerState<'a> {
                                 );
                                 diagnostic.message.next_present = true;
                                 diagnostic.message.next = vec![
-                                    tsrs2_diags::MessageChain::new(
+                                    tsc_diagnostics::MessageChain::new(
                                         &diagnostics::Named_property_0_of_types_1_and_2_are_not_identical,
                                         &[prop_name, type_name1, type_name2],
                                     ),
@@ -2359,7 +2352,7 @@ impl<'a> CheckerState<'a> {
             .options
             .strict_option_value(self.options.strict_property_initialization);
         let ambient = self.node_flags(node) & NodeFlags::AMBIENT.bits() != 0
-            || tsrs2_binder::node_util::has_syntactic_modifier(
+            || tsc_binder::node_util::has_syntactic_modifier(
                 self.binder.source_of_node(node),
                 node,
                 ModifierFlags::AMBIENT,
@@ -2374,7 +2367,7 @@ impl<'a> CheckerState<'a> {
             _ => None,
         };
         for member in self.nodes_of(members) {
-            if tsrs2_binder::node_util::has_syntactic_modifier(
+            if tsc_binder::node_util::has_syntactic_modifier(
                 self.binder.source_of_node(member),
                 member,
                 ModifierFlags::AMBIENT,
@@ -2429,7 +2422,7 @@ impl<'a> CheckerState<'a> {
     fn is_property_without_initializer(&self, node: NodeId) -> bool {
         match self.data_of(node) {
             NodeData::PropertyDeclaration(data) => {
-                !tsrs2_binder::node_util::has_syntactic_modifier(
+                !tsc_binder::node_util::has_syntactic_modifier(
                     self.binder.source_of_node(node),
                     node,
                     ModifierFlags::ABSTRACT,
@@ -2443,8 +2436,8 @@ impl<'a> CheckerState<'a> {
 
 #[cfg(test)]
 mod tests {
-    use tsrs2_diags::DiagnosticCategory;
-    use tsrs2_types::CompilerOptions;
+    use tsc_diagnostics::DiagnosticCategory;
+    use tsc_types::CompilerOptions;
 
     use crate::state::test_support::with_program_state;
     use crate::state::CheckerState;

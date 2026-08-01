@@ -1,5 +1,5 @@
 //! CompilerOptions — the subset the engine consumes so far. Lives in
-//! tsrs2-types so both the binder and the checker can read it (the
+//! tsc-rs-types so both the binder and the checker can read it (the
 //! checker re-exports it for downstream callers).
 
 use crate::flags::ScriptTarget;

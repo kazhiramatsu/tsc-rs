@@ -78,7 +78,7 @@ function renderDiagnosticSequence(diagnostics, cwd) {
 
   // `getCategoryFormat` deliberately rejects Suggestion because tsc's
   // normal batch CLI never asks the color formatter to print that pass.
-  // tsrs2's emit-free conformance contract does include suggestions.
+  // tsc-rs's emit-free conformance contract does include suggestions.
   // Send each suggestion through the same vendored formatter as Message
   // (the only affected bytes are the ANSI style and category word), strip
   // ANSI, then restore the real category word.
