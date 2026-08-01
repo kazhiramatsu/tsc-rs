@@ -4,6 +4,7 @@ members = [
     "crates/binder",
     "crates/types",
     "crates/host",
+    "crates/program",
     "crates/checker",
     "crates/diags",
     "crates/harness",
