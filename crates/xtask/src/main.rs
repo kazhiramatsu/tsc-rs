@@ -15,6 +15,7 @@ use sha2::{Digest, Sha256};
 use tsc_checker::{CompilerOptions, InputFile};
 use tsc_diagnostics::DiagnosticList;
 
+mod bounded_pipeline;
 mod completion;
 mod invariant_attestation;
 mod m8_evidence;
@@ -4670,15 +4671,19 @@ fn invariants(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> 
         .map(|program| program.fixture.as_str())
         .collect::<std::collections::BTreeSet<_>>()
         .len();
+    let suite_started = std::time::Instant::now();
 
     if args.suite.includes(InvariantSuite::PrefixDeterminism) {
+        let started = std::time::Instant::now();
         run_prefix_determinism(&programs)?;
         println!(
-            "invariant prefix-determinism ok: programs={}",
-            programs.len()
+            "invariant prefix-determinism ok: programs={} elapsed={:.3}s",
+            programs.len(),
+            started.elapsed().as_secs_f64()
         );
     }
     if args.suite.includes(InvariantSuite::PrefixConformance) {
+        let started = std::time::Instant::now();
         let summary =
             tsc_conformance::run_prefix_conformance(&tsc_conformance::PrefixConformanceOptions {
                 workspace: workspace.clone(),
@@ -4704,45 +4709,64 @@ fn invariants(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> 
             .into());
         }
         println!(
-            "invariant prefix-conformance ok: fixtures={} cases={}",
-            summary.fixtures, summary.cases
+            "invariant prefix-conformance ok: fixtures={} cases={} elapsed={:.3}s",
+            summary.fixtures,
+            summary.cases,
+            started.elapsed().as_secs_f64()
         );
     }
     if args.suite.includes(InvariantSuite::Idempotence) {
+        let started = std::time::Instant::now();
         run_idempotence(&programs)?;
-        println!("invariant idempotence ok: programs={}", programs.len());
+        println!(
+            "invariant idempotence ok: programs={} elapsed={:.3}s",
+            programs.len(),
+            started.elapsed().as_secs_f64()
+        );
     }
     if args.suite.includes(InvariantSuite::JobsIndependence) {
+        let started = std::time::Instant::now();
         run_jobs_independence(&programs)?;
         println!(
-            "invariant jobs-independence ok: programs={}",
-            programs.len()
+            "invariant jobs-independence ok: programs={} elapsed={:.3}s",
+            programs.len(),
+            started.elapsed().as_secs_f64()
         );
     }
     if args.suite.includes(InvariantSuite::Encodings) {
+        let started = std::time::Instant::now();
         run_encodings(&programs)?;
-        println!("invariant encodings ok: programs={}", programs.len());
+        println!(
+            "invariant encodings ok: programs={} elapsed={:.3}s",
+            programs.len(),
+            started.elapsed().as_secs_f64()
+        );
     }
     if args.suite.includes(InvariantSuite::MatrixIndependence) {
+        let started = std::time::Instant::now();
         run_matrix_independence(&programs)?;
         println!(
-            "invariant matrix-independence ok: programs={}",
-            programs.len()
+            "invariant matrix-independence ok: programs={} elapsed={:.3}s",
+            programs.len(),
+            started.elapsed().as_secs_f64()
         );
     }
     if args.suite.includes(InvariantSuite::UnsupportedUnwind) {
+        let started = std::time::Instant::now();
         run_unsupported_unwind(&programs)?;
         println!(
-            "invariant unsupported-unwind ok: programs={}",
-            programs.len()
+            "invariant unsupported-unwind ok: programs={} elapsed={:.3}s",
+            programs.len(),
+            started.elapsed().as_secs_f64()
         );
     }
 
     println!(
-        "invariants suite={} fixtures={} programs={} ok",
+        "invariants suite={} fixtures={} programs={} ok elapsed={:.3}s",
         args.suite.name(),
         fixture_count,
-        programs.len()
+        programs.len(),
+        suite_started.elapsed().as_secs_f64()
     );
     if args.full_corpus && args.suite == InvariantSuite::All {
         let path = invariant_attestation::write_success(&workspace, fixture_count, programs.len())?;
@@ -5000,14 +5024,126 @@ fn run_unsupported_unwind(programs: &[SampleProgram]) -> Result<(), Box<dyn Erro
 }
 
 fn run_jobs_independence(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
+    // Keep jobs=1 serial and first: besides being the comparison baseline, it
+    // fully initializes the immutable lib-bundle cache before any checker
+    // calls overlap. Each candidate retains its exact modulo-shard traversal;
+    // only whole candidate schedules overlap, at the hard two-worker ceiling.
+    // ordered_map restores jobs-number order before the fail-closed comparison.
+    // This overlap relies on the checker contract that process-global semantic
+    // state is forbidden: the sole shared checker state is the mutex-protected,
+    // immutable lib-bundle cache. Adding any other mutable semantic global must
+    // first return this gate to one worker or provide equivalent isolation.
     let baseline = run_programs_in_job_order(programs, 1)?;
-    for jobs in 2..=16 {
-        let candidate = run_programs_in_job_order(programs, jobs)?;
-        if baseline != candidate {
+    let schedules = (2..=16).collect::<Vec<_>>();
+    let worker_count = invariant_pipeline_worker_count()?;
+    println!(
+        "invariant jobs-independence pipeline: schedules={} workers={worker_count}",
+        schedules.len()
+    );
+    let comparisons = bounded_pipeline::ordered_map(&schedules, worker_count, |_, &jobs| {
+        run_programs_in_job_order(programs, jobs)
+            .map(|candidate| candidate == baseline)
+            .map_err(|error| error.to_string())
+    })?;
+    for (&jobs, comparison) in schedules.iter().zip(comparisons) {
+        let matches =
+            comparison.map_err(|error| format!("jobs-independence jobs={jobs} failed: {error}"))?;
+        if !matches {
             return Err(format!("jobs-independence failed for jobs={jobs}").into());
         }
     }
     Ok(())
+}
+
+const MAX_INVARIANT_PIPELINE_WORKERS: usize = 2;
+const INVARIANT_PIPELINE_WORKERS_ENV: &str = "TSRS_INVARIANT_WORKERS";
+
+fn invariant_pipeline_worker_count() -> Result<usize, Box<dyn Error>> {
+    let available = std::thread::available_parallelism()
+        .map(std::num::NonZeroUsize::get)
+        .unwrap_or(1);
+    let configured =
+        match std::env::var_os(INVARIANT_PIPELINE_WORKERS_ENV) {
+            Some(value) => Some(value.into_string().map_err(|_| {
+                format!("{INVARIANT_PIPELINE_WORKERS_ENV} must contain UTF-8 digits")
+            })?),
+            None => None,
+        };
+    let lib_bundle_cache_enabled =
+        std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_none_or(|value| value != "0");
+    select_invariant_pipeline_workers(configured.as_deref(), available, lib_bundle_cache_enabled)
+        .map_err(|error| error.into())
+}
+
+fn select_invariant_pipeline_workers(
+    configured: Option<&str>,
+    available: usize,
+    lib_bundle_cache_enabled: bool,
+) -> Result<usize, String> {
+    if available == 0 {
+        return Err("available invariant pipeline parallelism must be positive".to_owned());
+    }
+    let requested = match configured {
+        Some(value) => value.parse::<usize>().map_err(|_| {
+            format!(
+                "{INVARIANT_PIPELINE_WORKERS_ENV} must be an integer from 1 to \
+                 {MAX_INVARIANT_PIPELINE_WORKERS}, got {value:?}"
+            )
+        })?,
+        None => MAX_INVARIANT_PIPELINE_WORKERS,
+    };
+    if !(1..=MAX_INVARIANT_PIPELINE_WORKERS).contains(&requested) {
+        return Err(format!(
+            "{INVARIANT_PIPELINE_WORKERS_ENV} must be from 1 to \
+             {MAX_INVARIANT_PIPELINE_WORKERS}, got {requested}"
+        ));
+    }
+    if lib_bundle_cache_enabled {
+        Ok(requested.min(available))
+    } else {
+        // Cache-off is a deliberate fresh-build/leak A/B mode. Overlapping
+        // those builds would multiply its already exceptional memory cost.
+        Ok(1)
+    }
+}
+
+#[cfg(test)]
+mod invariant_pipeline_config_tests {
+    use super::select_invariant_pipeline_workers;
+
+    #[test]
+    fn defaults_to_two_workers_without_oversubscribing_one_core() {
+        assert_eq!(select_invariant_pipeline_workers(None, 8, true).unwrap(), 2);
+        assert_eq!(select_invariant_pipeline_workers(None, 1, true).unwrap(), 1);
+        assert_eq!(
+            select_invariant_pipeline_workers(Some("2"), 1, true).unwrap(),
+            1
+        );
+    }
+
+    #[test]
+    fn accepts_only_the_bounded_worker_policy() {
+        assert_eq!(
+            select_invariant_pipeline_workers(Some("1"), 8, true).unwrap(),
+            1
+        );
+        assert_eq!(
+            select_invariant_pipeline_workers(Some("2"), 8, true).unwrap(),
+            2
+        );
+        for invalid in ["0", "3", "many"] {
+            assert!(select_invariant_pipeline_workers(Some(invalid), 8, true).is_err());
+        }
+        assert!(select_invariant_pipeline_workers(None, 0, true).is_err());
+    }
+
+    #[test]
+    fn cache_off_forces_the_serial_caller_thread_policy() {
+        assert_eq!(
+            select_invariant_pipeline_workers(Some("2"), 8, false).unwrap(),
+            1
+        );
+    }
 }
 
 fn run_encodings(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
@@ -5190,14 +5326,47 @@ fn run_programs_in_job_order(
     jobs: usize,
 ) -> Result<BTreeMap<String, String>, Box<dyn Error>> {
     let mut output = BTreeMap::new();
-    for job in 0..jobs {
-        for (index, program) in programs.iter().enumerate() {
-            if index % jobs == job {
-                output.insert(program_key(program), check_bytes(program)?);
+    for index in program_indices_in_job_order(programs.len(), jobs) {
+        let program = &programs[index];
+        output.insert(program_key(program), check_bytes(program)?);
+    }
+    Ok(output)
+}
+
+fn program_indices_in_job_order(program_count: usize, jobs: usize) -> impl Iterator<Item = usize> {
+    assert!(jobs > 0, "jobs-independence requires at least one job");
+    (0..jobs).flat_map(move |job| (job..program_count).step_by(jobs))
+}
+
+#[cfg(test)]
+mod jobs_independence_schedule_tests {
+    use super::program_indices_in_job_order;
+
+    #[test]
+    fn every_schedule_preserves_the_original_modulo_traversal() {
+        assert_eq!(
+            program_indices_in_job_order(8, 3).collect::<Vec<_>>(),
+            [0, 3, 6, 1, 4, 7, 2, 5]
+        );
+        for program_count in [0, 1, 2, 7, 19, 32] {
+            for jobs in 1..=16 {
+                let expected = (0..jobs)
+                    .flat_map(|job| (0..program_count).filter(move |index| index % jobs == job))
+                    .collect::<Vec<_>>();
+                assert_eq!(
+                    program_indices_in_job_order(program_count, jobs).collect::<Vec<_>>(),
+                    expected,
+                    "program_count={program_count} jobs={jobs}"
+                );
             }
         }
     }
-    Ok(output)
+
+    #[test]
+    #[should_panic(expected = "jobs-independence requires at least one job")]
+    fn zero_jobs_is_rejected() {
+        let _ = program_indices_in_job_order(1, 0).count();
+    }
 }
 
 fn program_key(program: &SampleProgram) -> String {
@@ -7085,6 +7254,7 @@ fn ci_rust_gates() -> Result<(), Box<dyn Error>> {
 
 fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
     let workspace = find_workspace_root()?;
+    let semantic_started = std::time::Instant::now();
     // Keep the reusable checker/conformance phases in-process. The
     // history-heavy trusted audits below use this already-built binary
     // as short-lived children so their allocator pages cannot overlap
@@ -7198,6 +7368,10 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
     // A semantic ratchet or readiness-row change may not leave the
     // public status pointing at an older milestone.
     readme_status(["--check"].into_iter().map(str::to_owned))?;
+    println!(
+        "semantic CI lane ok: elapsed={:.3}s",
+        semantic_started.elapsed().as_secs_f64()
+    );
     Ok(())
 }
 
