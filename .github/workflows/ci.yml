@@ -235,6 +235,10 @@ jobs:
       - name: Run semantic gates against trusted baseline
         env:
           BASELINE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          # The full-corpus jobs-independence schedules use a bounded ordered
+          # pipeline. Two workers fit the standard runner without turning the
+          # memory-heavy checker sweep into an all-core burst.
+          TSRS_INVARIANT_WORKERS: "2"
           TSRS_M8_RUNNER_PROFILE: github-ubuntu-x64-standard
         run: cargo xtask ci --lane semantic --baseline "$BASELINE_SHA"
 
