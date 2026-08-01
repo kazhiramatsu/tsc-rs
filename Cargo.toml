@@ -3,6 +3,7 @@ members = [
     "crates/syntax",
     "crates/binder",
     "crates/types",
+    "crates/host",
     "crates/checker",
     "crates/diags",
     "crates/harness",
