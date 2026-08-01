@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use crate::{CompilerHost, HostError, HostErrorKind, HostOperation};
+use crate::{to_file_name_lower_case, CompilerHost, HostError, HostErrorKind, HostOperation};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct FileEntry {
@@ -423,42 +423,6 @@ fn path_key(path: &Path, case_sensitive: bool) -> Result<String, &'static str> {
     })
 }
 
-/// tsc-port: toFileNameLowerCase @6.0.3
-/// tsc-hash: 65dcaf0c3334d707bf26b65cb7670523b964dc52d8f70cde69526e8af1d66186
-/// tsc-span: _tsc.js:874-876
-///
-/// TypeScript protects U+0130, U+0131, and U+00DF from the Unicode
-/// lowercase expansion used for other non-canonical runs. Folding a run at
-/// once preserves context-sensitive Unicode lowercasing.
-fn to_file_name_lower_case(path: &str) -> String {
-    fn protected(character: char) -> bool {
-        character.is_ascii_lowercase()
-            || character.is_ascii_digit()
-            || matches!(
-                character,
-                '\u{0130}' | '\u{0131}' | '\u{00df}' | '/' | '\\' | ':' | '-' | '_' | '.' | ' '
-            )
-    }
-
-    let mut folded = String::with_capacity(path.len());
-    let mut run = String::new();
-    for character in path.chars() {
-        if protected(character) {
-            if !run.is_empty() {
-                folded.push_str(&run.to_lowercase());
-                run.clear();
-            }
-            folded.push(character);
-        } else {
-            run.push(character);
-        }
-    }
-    if !run.is_empty() {
-        folded.push_str(&run.to_lowercase());
-    }
-    folded
-}
-
 fn add_parent_directories(path: &Path, directories: &mut Vec<PathBuf>) {
     let mut parent = path.parent();
     while let Some(directory) = parent {
@@ -481,7 +445,7 @@ fn identity_conflict(path: &Path, detail: impl Into<String>) -> HostError {
 
 #[cfg(test)]
 mod tests {
-    use super::to_file_name_lower_case;
+    use crate::to_file_name_lower_case;
 
     #[test]
     fn vendored_file_name_fold_preserves_special_code_points() {

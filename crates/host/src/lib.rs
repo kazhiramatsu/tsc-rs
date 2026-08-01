@@ -16,6 +16,46 @@ use std::path::{Path, PathBuf};
 pub use error::{HostError, HostErrorKind, HostOperation};
 pub use memory::{MemoryCompilerHost, MemoryCompilerHostBuilder};
 
+/// TypeScript's locale-independent file-name case fold.
+///
+/// TypeScript protects U+0130, U+0131, and U+00DF from the Unicode lowercase
+/// expansion used for other non-canonical runs. Folding a run at once
+/// preserves context-sensitive Unicode lowercasing. This performs case
+/// folding only; lexical path normalization remains a program-layer
+/// responsibility.
+///
+/// tsc-port: toFileNameLowerCase @6.0.3
+/// tsc-hash: 65dcaf0c3334d707bf26b65cb7670523b964dc52d8f70cde69526e8af1d66186
+/// tsc-span: _tsc.js:874-876
+pub fn to_file_name_lower_case(path: &str) -> String {
+    fn protected(character: char) -> bool {
+        character.is_ascii_lowercase()
+            || character.is_ascii_digit()
+            || matches!(
+                character,
+                '\u{0130}' | '\u{0131}' | '\u{00df}' | '/' | '\\' | ':' | '-' | '_' | '.' | ' '
+            )
+    }
+
+    let mut folded = String::with_capacity(path.len());
+    let mut run = String::new();
+    for character in path.chars() {
+        if protected(character) {
+            if !run.is_empty() {
+                folded.push_str(&run.to_lowercase());
+                run.clear();
+            }
+            folded.push(character);
+        } else {
+            run.push(character);
+        }
+    }
+    if !run.is_empty() {
+        folded.push_str(&run.to_lowercase());
+    }
+    folded
+}
+
 /// The read-only host surface used by program construction and resolution.
 ///
 /// `Ok(None)` and `Ok(false)` mean that an entry is absent. An inability to

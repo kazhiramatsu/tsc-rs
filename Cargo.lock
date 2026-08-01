@@ -341,6 +341,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tsrs2-program"
+version = "0.1.0"
+dependencies = [
+ "tsrs2-diags",
+ "tsrs2-host",
+ "tsrs2-types",
+]
+
+[[package]]
 name = "tsrs2-syntax"
 version = "0.1.0"
 dependencies = [
