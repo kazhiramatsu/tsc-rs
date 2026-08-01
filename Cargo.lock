@@ -320,6 +320,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tsc-rs-compiler"
+version = "0.1.0"
+dependencies = [
+ "tsc-rs-checker",
+ "tsc-rs-diagnostics",
+ "tsc-rs-program",
+]
+
+[[package]]
 name = "tsc-rs-conformance"
 version = "0.1.0"
 dependencies = [

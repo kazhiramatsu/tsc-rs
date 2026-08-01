@@ -68,6 +68,11 @@ pub struct CheckResult {
     /// `program.getSemanticDiagnostics(sourceFile)`, flattened in
     /// fixture-file ordinal order.
     pub semantic_diagnostics: DiagnosticList,
+    /// `program.getGlobalDiagnostics()` for the owned no-emit entry.
+    ///
+    /// The legacy conformance entry observes only per-file getters and keeps
+    /// this empty so its established lazy-global timing remains unchanged.
+    pub global_diagnostics: DiagnosticList,
     /// `program.getSuggestionDiagnostics(sourceFile)`, flattened in
     /// fixture-file ordinal order. Unlike the syntactic and semantic
     /// getters, tsc does not sort/deduplicate this pass.
@@ -788,23 +793,81 @@ pub fn check_program_with_libs_at_observed(
     current_directory: &str,
     mut observe_phase: impl FnMut(CheckPhase),
 ) -> CheckResult {
-    let mut file_diagnostics = Vec::new();
-    let mut partial_checks = Vec::new();
-
     observe_phase(CheckPhase::Parse);
 
-    // tsc host semantics: files are a name-keyed map, so a fixture
-    // file sharing a lib's name provides the TEXT everywhere. The
-    // cached prefix cannot honor per-program shadowing, so a shadowed
-    // lib simply drops from the prefix (the fixture supplies the
-    // content at its own position; position drifts from tsc's only in
-    // this case, which no corpus fixture produces).
     let fixture_names: std::collections::HashSet<&str> =
         files.iter().map(|file| file.name.as_str()).collect();
     let effective_libs: Vec<&InputFile> = libs
         .iter()
         .filter(|lib| !fixture_names.contains(lib.name.as_str()))
         .collect();
+    let bundle = (!effective_libs.is_empty()).then(|| lib_bundle(&effective_libs, options));
+    let (lib_sources, lib_binders): (&[tsc_syntax::SourceFile], &[tsc_binder::Binder<'_>]) =
+        match bundle {
+            Some(bundle) => (bundle.sources, bundle.binders),
+            None => (&[], &[]),
+        };
+
+    check_program_with_prebound_libs_at_observed(
+        libs,
+        files,
+        options,
+        current_directory,
+        lib_sources,
+        lib_binders,
+        false,
+        &mut observe_phase,
+    )
+}
+
+/// tsrs-native: run one owned-lib batch for the no-emit program session.
+///
+/// Execute one owned batch program without entering the process-lifetime lib
+/// bundle cache. Library sources, binders, and all checker borrows are local
+/// to this call and are dropped before it returns.
+pub fn check_program_with_owned_libs_at(
+    libs: &[InputFile],
+    files: &[InputFile],
+    options: &CompilerOptions,
+    current_directory: &str,
+) -> CheckResult {
+    let fixture_names: std::collections::HashSet<&str> =
+        files.iter().map(|file| file.name.as_str()).collect();
+    let effective_libs: Vec<&InputFile> = libs
+        .iter()
+        .filter(|lib| !fixture_names.contains(lib.name.as_str()))
+        .collect();
+    let bundle_options = lib_bundle_options(options);
+    let lib_sources = parse_lib_sources(&effective_libs, &bundle_options);
+    let lib_binders = bind_lib_sources(&lib_sources, &bundle_options);
+    let mut observe_phase = |_| {};
+
+    check_program_with_prebound_libs_at_observed(
+        libs,
+        files,
+        options,
+        current_directory,
+        &lib_sources,
+        &lib_binders,
+        true,
+        &mut observe_phase,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn check_program_with_prebound_libs_at_observed(
+    libs: &[InputFile],
+    files: &[InputFile],
+    options: &CompilerOptions,
+    current_directory: &str,
+    lib_sources: &[tsc_syntax::SourceFile],
+    lib_binders: &[tsc_binder::Binder<'_>],
+    collect_global_diagnostics: bool,
+    observe_phase: &mut impl FnMut(CheckPhase),
+) -> CheckResult {
+    let mut file_diagnostics = Vec::new();
+    let mut partial_checks = Vec::new();
+    let mut global_diagnostics = Vec::new();
     // getImpliedNodeFormatForFileWorker's package-scope input. Build it
     // before parsing because getSetExternalModuleIndicator's Auto mode
     // consults the implied format while SourceFiles are created.
@@ -838,13 +901,6 @@ pub fn check_program_with_libs_at_observed(
             )
         })
         .collect();
-    let bundle = (!effective_libs.is_empty()).then(|| lib_bundle(&effective_libs, options));
-    let (lib_sources, lib_binders): (&[tsc_syntax::SourceFile], &[tsc_binder::Binder<'_>]) =
-        match bundle {
-            Some(bundle) => (bundle.sources, bundle.binders),
-            None => (&[], &[]),
-        };
-
     // Fixture-file shadowing (unchanged from the libless world): a
     // later file with the same name shadows an earlier one entirely.
     let mut last_index_by_name = std::collections::BTreeMap::new();
@@ -1109,6 +1165,11 @@ pub fn check_program_with_libs_at_observed(
         // run here — AFTER the resolver's host view exists (pass 2
         // resolves module names), BEFORE any file checks.
         state.merge_module_augmentations();
+        if collect_global_diagnostics {
+            state.materialize_init_global_diagnostics();
+            global_diagnostics = state.visible_global_diagnostics.clone();
+            tsc_diagnostics::sort_and_dedupe_diagnostics(&mut global_diagnostics);
+        }
         // getDiagnosticsWorker snapshots global diagnostics around each
         // requested source. Only newly-published file-less rows are
         // prepended to that source's checker diagnostics.
@@ -1274,6 +1335,7 @@ pub fn check_program_with_libs_at_observed(
         diagnostics,
         syntactic_diagnostics,
         semantic_diagnostics,
+        global_diagnostics,
         suggestion_diagnostics,
         file_diagnostics,
         partial_checks,
@@ -1312,6 +1374,21 @@ struct LibBundle {
 /// read in the binder MUST extend this projection.
 /// `TSRS_LIB_BUNDLE_CACHE=0` bypasses the map (fresh build+leak per
 /// call) — the L3 A/B lever proving reuse changes nothing.
+fn lib_bundle_options(options: &CompilerOptions) -> CompilerOptions {
+    // Each field holds the observable's canonical preimage, so the
+    // projected struct evaluates every binder read identically to the
+    // program's own options (ES3/absent targets share the computed
+    // ES2025, options.rs:139) while bind-inert fields collapse to one
+    // key. A new `options.` read in the binder must extend this
+    // projection.
+    CompilerOptions {
+        target: Some(options.emit_script_target().bits()),
+        always_strict: Some(options.always_strict_effective()),
+        no_fallthrough_cases_in_switch: Some(options.no_fallthrough_cases_in_switch == Some(true)),
+        ..CompilerOptions::default()
+    }
+}
+
 fn lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static LibBundle {
     use std::collections::HashMap;
     use std::sync::{Mutex, OnceLock};
@@ -1319,18 +1396,9 @@ fn lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static LibBun
     type Key = (Vec<(String, u64)>, CompilerOptions);
     static CACHE: OnceLock<Mutex<HashMap<Key, &'static LibBundle>>> = OnceLock::new();
 
-    // Each field holds the observable's canonical preimage, so the
-    // projected struct evaluates every binder read identically to the
-    // program's own options (ES3/absent targets share the computed
-    // ES2025, options.rs:139) while bind-inert fields collapse to one
-    // key. The bundle is BUILT from the projection too: whichever
-    // program builds first, the leaked options are the same struct.
-    let bundle_options = CompilerOptions {
-        target: Some(options.emit_script_target().bits()),
-        always_strict: Some(options.always_strict_effective()),
-        no_fallthrough_cases_in_switch: Some(options.no_fallthrough_cases_in_switch == Some(true)),
-        ..CompilerOptions::default()
-    };
+    // The bundle is built from the projection too: whichever program
+    // builds first, the leaked options are the same struct.
+    let bundle_options = lib_bundle_options(options);
 
     let cache_enabled = std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_none_or(|value| value != "0");
     let key: Key = (
@@ -1374,6 +1442,17 @@ fn lib_text_fingerprint(text: &str) -> u64 {
 fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static LibBundle {
     // Binder borrows its CompilerOptions for the bundle's lifetime.
     let options: &'static CompilerOptions = Box::leak(Box::new(options.clone()));
+    let sources: &'static [tsc_syntax::SourceFile] =
+        Box::leak(parse_lib_sources(libs, options).into_boxed_slice());
+    let binders: &'static [tsc_binder::Binder<'static>] =
+        Box::leak(bind_lib_sources(sources, options).into_boxed_slice());
+    Box::leak(Box::new(LibBundle { sources, binders }))
+}
+
+fn parse_lib_sources(
+    libs: &[&InputFile],
+    options: &CompilerOptions,
+) -> Vec<tsc_syntax::SourceFile> {
     let mut sources: Vec<tsc_syntax::SourceFile> = Vec::new();
     for lib in libs {
         let (node_id_base, node_array_id_base) = match sources.last() {
@@ -1396,8 +1475,14 @@ fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static 
             None,
         ));
     }
-    let sources: &'static [tsc_syntax::SourceFile] = Box::leak(sources.into_boxed_slice());
-    let mut binders: Vec<tsc_binder::Binder<'static>> = Vec::new();
+    sources
+}
+
+fn bind_lib_sources<'a>(
+    sources: &'a [tsc_syntax::SourceFile],
+    options: &'a CompilerOptions,
+) -> Vec<tsc_binder::Binder<'a>> {
+    let mut binders: Vec<tsc_binder::Binder<'a>> = Vec::new();
     for source in sources {
         let (symbol_id_seed, symbol_base) = match binders.last() {
             Some(previous) => (previous.next_symbol_id(), previous.symbols.next_id().0),
@@ -1408,8 +1493,7 @@ fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static 
         binder.bind_source_file();
         binders.push(binder);
     }
-    let binders: &'static [tsc_binder::Binder<'static>] = Box::leak(binders.into_boxed_slice());
-    Box::leak(Box::new(LibBundle { sources, binders }))
+    binders
 }
 
 #[cfg(test)]
@@ -1422,8 +1506,105 @@ mod tests {
         assert!(result.diagnostics.is_empty());
         assert!(result.syntactic_diagnostics.is_empty());
         assert!(result.semantic_diagnostics.is_empty());
+        assert!(result.global_diagnostics.is_empty());
         assert!(result.suggestion_diagnostics.is_empty());
         assert!(result.file_diagnostics.is_empty());
+    }
+
+    #[test]
+    fn owned_no_emit_entry_keeps_library_borrows_local_and_matches_file_getters() {
+        let libs = [InputFile {
+            name: "/lib.d.ts".to_owned(),
+            text: "interface IArguments {}\ninterface Array<T> {}\ninterface Object {}\ninterface Function {}\ninterface CallableFunction extends Function {}\ninterface NewableFunction extends Function {}\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\n"
+                .to_owned(),
+        }];
+        let files = [InputFile {
+            name: "/main.ts".to_owned(),
+            text: "const value: string = 1;\n".to_owned(),
+        }];
+        let options = CompilerOptions {
+            no_emit: Some(true),
+            ..CompilerOptions::default()
+        };
+
+        let cached = check_program_with_libs_at(&libs, &files, &options, "/");
+        let owned = check_program_with_owned_libs_at(&libs, &files, &options, "/");
+
+        assert_eq!(owned.syntactic_diagnostics, cached.syntactic_diagnostics);
+        assert_eq!(owned.semantic_diagnostics, cached.semantic_diagnostics);
+        assert!(owned.global_diagnostics.is_empty());
+        assert_eq!(
+            owned
+                .semantic_diagnostics
+                .iter()
+                .map(Diagnostic::code)
+                .collect::<Vec<_>>(),
+            [2322]
+        );
+    }
+
+    #[test]
+    fn owned_no_emit_entry_materializes_global_diagnostics_before_semantics() {
+        let result = check_program_with_owned_libs_at(
+            &[],
+            &[InputFile {
+                name: "/main.ts".to_owned(),
+                text: "export {};\n".to_owned(),
+            }],
+            &CompilerOptions {
+                no_emit: Some(true),
+                ..CompilerOptions::default()
+            },
+            "/",
+        );
+
+        assert_eq!(
+            result
+                .global_diagnostics
+                .iter()
+                .map(Diagnostic::message_text)
+                .collect::<Vec<_>>(),
+            [
+                "Cannot find global type 'Array'.",
+                "Cannot find global type 'Boolean'.",
+                "Cannot find global type 'CallableFunction'.",
+                "Cannot find global type 'Function'.",
+                "Cannot find global type 'IArguments'.",
+                "Cannot find global type 'NewableFunction'.",
+                "Cannot find global type 'Number'.",
+                "Cannot find global type 'Object'.",
+                "Cannot find global type 'RegExp'.",
+                "Cannot find global type 'String'.",
+            ]
+        );
+        assert!(result.semantic_diagnostics.is_empty());
+    }
+
+    #[test]
+    fn owned_no_emit_entry_keeps_located_global_shape_errors_semantic() {
+        let result = check_program_with_owned_libs_at(
+            &[],
+            &[InputFile {
+                name: "/main.ts".to_owned(),
+                text: "interface IArguments {}\ninterface Array {}\ninterface Object {}\ninterface Function {}\ninterface CallableFunction extends Function {}\ninterface NewableFunction extends Function {}\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\n"
+                    .to_owned(),
+            }],
+            &CompilerOptions {
+                no_emit: Some(true),
+                ..CompilerOptions::default()
+            },
+            "/",
+        );
+
+        assert!(result.global_diagnostics.is_empty());
+        assert_eq!(
+            result
+                .semantic_diagnostics
+                .iter()
+                .map(Diagnostic::code)
+                .collect::<Vec<_>>(),
+            [2317]
+        );
     }
 
     #[test]

@@ -416,7 +416,7 @@ impl ProgramOptions {
 }
 
 /// Preparation diagnostics remain separated in the same buckets consumed by
-/// the future no-emit driver. No sorting or deduplication occurs here.
+/// the no-emit driver. No sorting or deduplication occurs here.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct PreparationDiagnostics {
     config: DiagnosticList,
@@ -486,7 +486,7 @@ impl ResolutionTable {
     }
 }
 
-/// Fully owned input to the future one-shot H0 checker session.
+/// Fully owned input to the one-shot H0 checker session.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PreparedProgram {
     path_context: PathContext,
