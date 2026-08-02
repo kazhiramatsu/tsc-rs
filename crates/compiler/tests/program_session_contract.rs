@@ -414,6 +414,71 @@ fn repeated_owned_sessions_are_deterministic() {
 }
 
 #[test]
+fn conformance_harness_lib_cache_preserves_authoritative_diagnostics() {
+    fn make_program() -> PreparedProgram {
+        authoritative_program(
+            &[
+                ("/dep.ts", "export const value: 'actual' = 'actual';\n"),
+                (
+                    "/main.ts",
+                    "import { value } from './dep';\nconst expected: 'other' = value;\n",
+                ),
+            ],
+            &[1],
+            CompilerOptions {
+                module: Some(1),
+                module_resolution: Some(2),
+                ..CompilerOptions::default()
+            },
+            |builder, ids| {
+                builder
+                    .add_module_resolution(
+                        module_key("/main.ts", "./dep", ResolutionMode::Unspecified),
+                        Ok(source_resolution(ids[0], "/dep.ts", ModuleExtension::Ts)),
+                    )
+                    .expect("add authoritative source resolution");
+            },
+        )
+    }
+
+    let owned = ProgramSession::new(make_program())
+        .run()
+        .expect("owned authoritative session");
+    let cached = ProgramSession::new(make_program())
+        .run_for_conformance_with_harness_lib_cache()
+        .expect("cached conformance authoritative session");
+
+    assert_eq!(owned, cached);
+    assert_eq!(codes(cached.semantic_diagnostics()), [2322]);
+}
+
+#[test]
+fn conformance_harness_lib_cache_preserves_authoritative_failure() {
+    fn make_program() -> PreparedProgram {
+        authoritative_program(
+            &[("/main.cts", "import 'pkg';\n")],
+            &[0],
+            CompilerOptions {
+                module: Some(100),
+                module_resolution: Some(3),
+                ..CompilerOptions::default()
+            },
+            |_, _| {},
+        )
+    }
+
+    let owned = ProgramSession::new(make_program())
+        .run()
+        .expect_err("owned session must reject the missing exact row");
+    let cached = ProgramSession::new(make_program())
+        .run_for_conformance_with_harness_lib_cache()
+        .expect_err("cached session must reject the missing exact row");
+
+    assert_eq!(owned, cached);
+    assert!(matches!(cached, DriverError::MissingResolution(_)));
+}
+
+#[test]
 fn session_fails_closed_when_exact_module_resolution_key_is_absent() {
     let prepared = authoritative_program(
         &[("/main.cts", "import \"pkg\";\n")],

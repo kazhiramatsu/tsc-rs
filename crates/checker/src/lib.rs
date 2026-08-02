@@ -1109,6 +1109,61 @@ pub fn check_program_with_authoritative_modules_at(
     current_directory: &str,
     provider: &dyn AuthoritativeModuleProvider,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    check_program_with_authoritative_modules_at_cache_mode(
+        libs,
+        files,
+        lib_metadata,
+        file_metadata,
+        options,
+        current_directory,
+        provider,
+        false,
+    )
+}
+
+/// tsrs-native: conformance-harness adapter for authoritative module facts.
+///
+/// Unlike [`check_program_with_authoritative_modules_at`], this entry may
+/// reuse the harness's exact-match, process-lifetime lib bundle. Production
+/// H0 sessions must keep using the owned entry above; this exists only to
+/// avoid reparsing and rebinding the same vendored lib prefix for every
+/// conformance case. `TSRS_LIB_BUNDLE_CACHE=0` retains the owned path for the
+/// cache-off evidence run.
+#[doc(hidden)]
+#[allow(clippy::too_many_arguments)]
+pub fn check_program_with_authoritative_modules_at_harness_cached(
+    libs: &[InputFile],
+    files: &[InputFile],
+    lib_metadata: &[AuthoritativeSourceMetadata],
+    file_metadata: &[AuthoritativeSourceMetadata],
+    options: &CompilerOptions,
+    current_directory: &str,
+    provider: &dyn AuthoritativeModuleProvider,
+) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    let cache_enabled = std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_none_or(|value| value != "0");
+    check_program_with_authoritative_modules_at_cache_mode(
+        libs,
+        files,
+        lib_metadata,
+        file_metadata,
+        options,
+        current_directory,
+        provider,
+        cache_enabled,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn check_program_with_authoritative_modules_at_cache_mode(
+    libs: &[InputFile],
+    files: &[InputFile],
+    lib_metadata: &[AuthoritativeSourceMetadata],
+    file_metadata: &[AuthoritativeSourceMetadata],
+    options: &CompilerOptions,
+    current_directory: &str,
+    provider: &dyn AuthoritativeModuleProvider,
+    cache_enabled: bool,
+) -> Result<CheckResult, AuthoritativeModuleFailure> {
     validate_authoritative_metadata(libs, lib_metadata, "library")?;
     validate_authoritative_metadata(files, file_metadata, "program")?;
     let mut seen_tokens = std::collections::HashSet::new();
@@ -1133,26 +1188,46 @@ pub fn check_program_with_authoritative_modules_at(
             effective_lib_metadata.push(metadata.clone());
         }
     }
-    let bundle_options = lib_bundle_options(options);
-    let lib_sources = parse_lib_sources(&effective_libs, &bundle_options);
-    let lib_binders = bind_lib_sources(&lib_sources, &bundle_options);
     let run = AuthoritativeRun {
         provider,
         lib_metadata: effective_lib_metadata,
         file_metadata: file_metadata.to_vec(),
     };
     let mut observe_phase = |_| {};
-    let execution = check_program_with_prebound_libs_at_observed(
-        libs,
-        files,
-        options,
-        current_directory,
-        &lib_sources,
-        &lib_binders,
-        true,
-        &mut observe_phase,
-        Some(&run),
-    );
+    let execution = if cache_enabled {
+        let bundle = (!effective_libs.is_empty()).then(|| lib_bundle(&effective_libs, options));
+        let (lib_sources, lib_binders): (&[tsc_syntax::SourceFile], &[tsc_binder::Binder<'_>]) =
+            match bundle {
+                Some(bundle) => (bundle.sources, bundle.binders),
+                None => (&[], &[]),
+            };
+        check_program_with_prebound_libs_at_observed(
+            libs,
+            files,
+            options,
+            current_directory,
+            lib_sources,
+            lib_binders,
+            true,
+            &mut observe_phase,
+            Some(&run),
+        )
+    } else {
+        let bundle_options = lib_bundle_options(options);
+        let lib_sources = parse_lib_sources(&effective_libs, &bundle_options);
+        let lib_binders = bind_lib_sources(&lib_sources, &bundle_options);
+        check_program_with_prebound_libs_at_observed(
+            libs,
+            files,
+            options,
+            current_directory,
+            &lib_sources,
+            &lib_binders,
+            true,
+            &mut observe_phase,
+            Some(&run),
+        )
+    };
     match execution.authoritative_failure {
         Some(failure) => Err(failure),
         None => Ok(execution.result),
@@ -2460,6 +2535,86 @@ mod tests {
             owned_phases,
             [CheckPhase::Parse, CheckPhase::Bind, CheckPhase::Check]
         );
+    }
+
+    #[test]
+    fn authoritative_owned_and_harness_cached_modes_are_exactly_equivalent() {
+        struct Provider {
+            fail: bool,
+        }
+
+        impl AuthoritativeModuleProvider for Provider {
+            fn resolve_module(
+                &self,
+                request: AuthoritativeModuleRequest<'_>,
+            ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure>
+            {
+                assert_eq!(request.source_token, AuthoritativeSourceToken(1));
+                assert_eq!(request.containing_file, "/main.ts");
+                assert_eq!(request.specifier, "pkg");
+                if self.fail {
+                    Err(AuthoritativeModuleLookupFailure::Missing)
+                } else {
+                    Ok(AuthoritativeModuleResolution::NotFound)
+                }
+            }
+        }
+
+        let libs = [InputFile {
+            name: "/lib.authoritative-cache-mode-probe.d.ts".to_owned(),
+            text: "interface IArguments {}\ninterface Array<T> {}\ninterface Object {}\ninterface Function {}\ninterface CallableFunction extends Function {}\ninterface NewableFunction extends Function {}\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\n"
+                .to_owned(),
+        }];
+        let files = [InputFile {
+            name: "/main.ts".to_owned(),
+            text: "import 'pkg';\nconst value: string = 1;\n".to_owned(),
+        }];
+        let lib_metadata = [AuthoritativeSourceMetadata {
+            token: AuthoritativeSourceToken(0),
+            file_name: libs[0].name.clone(),
+            implied_node_format: None,
+        }];
+        let file_metadata = [AuthoritativeSourceMetadata {
+            token: AuthoritativeSourceToken(1),
+            file_name: files[0].name.clone(),
+            implied_node_format: None,
+        }];
+        let options = CompilerOptions {
+            no_emit: Some(true),
+            module: Some(1),
+            module_resolution: Some(2),
+            ..CompilerOptions::default()
+        };
+        let run = |cache_enabled, provider: &Provider| {
+            check_program_with_authoritative_modules_at_cache_mode(
+                &libs,
+                &files,
+                &lib_metadata,
+                &file_metadata,
+                &options,
+                "/",
+                provider,
+                cache_enabled,
+            )
+        };
+
+        let owned = run(false, &Provider { fail: false }).expect("owned authoritative result");
+        let cached = run(true, &Provider { fail: false }).expect("cached authoritative result");
+        assert_eq!(owned, cached);
+        assert_eq!(
+            cached
+                .semantic_diagnostics
+                .iter()
+                .map(Diagnostic::code)
+                .collect::<Vec<_>>(),
+            [2882, 2322]
+        );
+
+        let owned_failure =
+            run(false, &Provider { fail: true }).expect_err("owned authoritative failure");
+        let cached_failure =
+            run(true, &Provider { fail: true }).expect_err("cached authoritative failure");
+        assert_eq!(owned_failure, cached_failure);
     }
 
     #[test]
