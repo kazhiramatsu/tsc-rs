@@ -131,8 +131,8 @@
   ],
   "summary": {
     "rows": 241,
-    "open": 62,
-    "closed": 179,
+    "open": 26,
+    "closed": 215,
     "lapsed": 0,
     "fixtures": 30,
     "by_code": {
@@ -927,7 +927,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -940,6 +940,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -976,8 +1002,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:03d53702022bb0c1277fd82d75e032336964ede557d729b13dd1a5d1486ebab5",
@@ -1214,7 +1253,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -1227,6 +1266,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -1263,8 +1328,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:052b3363b1c7777b0e7fddeb78c707bae625831031619b1db73e48d035d1de5e",
@@ -2299,7 +2377,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -2312,6 +2390,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -2348,8 +2452,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:0a5959c12e2ff412080d82aab14ccf1ea8f6ed37ad1eac99778937199ea9ded2",
@@ -2772,7 +2889,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromImports -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -2785,6 +2902,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -2821,8 +2964,21 @@
           "evidence": "Closest Node16 package-imports success control; the corpus's exact root-wildcard success sibling is NodeNext only."
         }
       },
-      "status": "open",
-      "source_evidence": "'#/foo.js' resolved through package.json imports root wildcard (host: package.json imports)"
+      "status": "closed",
+      "source_evidence": "'#/foo.js' resolved through package.json imports root wildcard (host: package.json imports)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:0af4cb6b6e0ffbcb564aa66d9b93da6d6a446dd740aea3900cc8d801a30da829",
@@ -11136,7 +11292,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -11149,6 +11305,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -11185,8 +11367,21 @@
           "evidence": "Same explicit resolver mode with a non-null successful conditional fallback."
         }
       },
-      "status": "open",
-      "source_evidence": "'dep' resolution hits exports conditional fallback null (host: node_modules+exports)"
+      "status": "closed",
+      "source_evidence": "'dep' resolution hits exports conditional fallback null (host: node_modules+exports)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:2aa49676d61684149787f2303067fc21c0e67028bcd336214e78e0a43afca843",
@@ -12141,7 +12336,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -12154,6 +12349,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -12190,8 +12411,21 @@
           "evidence": "Same explicit resolver mode with a non-null successful conditional fallback."
         }
       },
-      "status": "open",
-      "source_evidence": "'dep' resolution hits exports conditional fallback null (host: node_modules+exports)"
+      "status": "closed",
+      "source_evidence": "'dep' resolution hits exports conditional fallback null (host: node_modules+exports)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:36b553cffa9c5b92bc242833f9e328e5f62d30f3e0829319835f80916dd520c7",
@@ -13206,7 +13440,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -13219,6 +13453,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -13255,8 +13515,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:3f98c105678245a613821f1179b83a3c15bec4a26b49a877ef14148182de8c5d",
@@ -14664,7 +14937,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -14677,6 +14950,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -14713,8 +15012,21 @@
           "evidence": "Same explicit resolver mode with a non-null successful conditional fallback."
         }
       },
-      "status": "open",
-      "source_evidence": "'dep' resolution hits exports conditional fallback null (host: node_modules+exports)"
+      "status": "closed",
+      "source_evidence": "'dep' resolution hits exports conditional fallback null (host: node_modules+exports)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:4386388b8dacaf7b6d2095bd7434d3e6dca57e5436eaef8cdee0ef82c457b7d5",
@@ -16813,7 +17125,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -16826,6 +17138,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -16862,8 +17200,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:4a09eaeda5cfb5ca9d37e0509f7285781759e15d445e72b8795b6c285fa6702f",
@@ -20340,7 +20691,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -20353,6 +20704,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -20389,8 +20766,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:5395ee5027296198c9473953e50a3a721087b38ce5284d241d9c6f483f0d3f72",
@@ -20547,7 +20937,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromExportsOrImports -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -20560,6 +20950,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -20596,8 +21012,21 @@
           "evidence": "Same conditional package-exports selection with a successful matching branch."
         }
       },
-      "status": "open",
-      "source_evidence": "'inner/other.js' rejected by node_modules/inner/package.json conditional exports (host: node_modules+exports)"
+      "status": "closed",
+      "source_evidence": "'inner/other.js' rejected by node_modules/inner/package.json conditional exports (host: node_modules+exports)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:53bceeca6431239a47dbc9c082528120c0b17b43fccc029bb39632fa0ff6c4ad",
@@ -23355,7 +23784,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromExportsOrImports -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -23368,6 +23797,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -23404,8 +23859,21 @@
           "evidence": "Same conditional package-exports selection with a successful matching branch."
         }
       },
-      "status": "open",
-      "source_evidence": "'inner/other.js' rejected by node_modules/inner/package.json conditional exports (host: node_modules+exports)"
+      "status": "closed",
+      "source_evidence": "'inner/other.js' rejected by node_modules/inner/package.json conditional exports (host: node_modules+exports)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:5c2a323284be03ac41a6704de455f8d6c2783c3f7b33932057a91f7435e2588c",
@@ -25404,7 +25872,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromExportsOrImports -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -25417,6 +25885,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -25453,8 +25947,21 @@
           "evidence": "Same conditional package-exports selection with a successful matching branch."
         }
       },
-      "status": "open",
-      "source_evidence": "'inner/other.js' rejected by node_modules/inner/package.json conditional exports (host: node_modules+exports)"
+      "status": "closed",
+      "source_evidence": "'inner/other.js' rejected by node_modules/inner/package.json conditional exports (host: node_modules+exports)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:62301fd20b6070bd8db55acb43b6413ef14c6cc335e6d4ade728908356cb92c8",
@@ -27945,7 +28452,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -27958,6 +28465,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -27994,8 +28527,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:6b7d281653b7bb0a233fbc3f10e3c7f21a7a3f5790dcbfac8178104833108dc0",
@@ -28399,7 +28945,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromImports -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromExportsOrImports -> Dependency:loadModuleFromTargetExportOrImport -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -28412,6 +28958,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -28448,8 +29020,21 @@
           "evidence": "Same rewriteRelativeImportExtensions surface and resolver kind with safe rewrites and no TS2877."
         }
       },
-      "status": "open",
-      "source_evidence": "2877 rides '#internal/foo.ts' package.json imports wildcard mapping (host: package.json imports)"
+      "status": "closed",
+      "source_evidence": "2877 rides '#internal/foo.ts' package.json imports wildcard mapping (host: package.json imports)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:6e16bcabe95dad4e89b4620d63174e0bb57a7f74e9e94fdf001e1a0fbf3152fe",
@@ -28686,7 +29271,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -28699,6 +29284,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -28735,8 +29346,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:6fb5bc29f60e0f4500791577de6b829be15d55085ff19d91025ea49230eb281b",
@@ -29426,7 +30050,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -29439,6 +30063,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -29475,8 +30125,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:72d11a44cb39a1c43ff5d20ace2b748b5d4fa159c3b24731282c546923494a06",
@@ -29673,7 +30336,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromImports -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromExportsOrImports -> Dependency:loadModuleFromTargetExportOrImport -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -29686,6 +30349,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -29722,8 +30411,21 @@
           "evidence": "Same rewriteRelativeImportExtensions surface and resolver kind with safe rewrites and no TS2877."
         }
       },
-      "status": "open",
-      "source_evidence": "2877 rides '#internal/foo.ts' package.json imports wildcard mapping (host: package.json imports)"
+      "status": "closed",
+      "source_evidence": "2877 rides '#internal/foo.ts' package.json imports wildcard mapping (host: package.json imports)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:73eab7f5e2f7aa65d283d2e667fcda8115188cb411cd9c0587d66bd2834895fa",
@@ -30472,7 +31174,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -30485,6 +31187,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -30521,8 +31249,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:772176c45b30132b8a7ebecf9b0ef4511254687e499afc1e1012cc083fab326f",
@@ -31271,7 +32012,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -31284,6 +32025,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -31320,8 +32087,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:7aa6a5b7e52229a0024e7dc5404f7337ca9f4abcff50efcb9f0fd81be2f01070",
@@ -35478,7 +36258,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromImports -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromExportsOrImports -> Dependency:loadModuleFromTargetExportOrImport -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -35491,6 +36271,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -35527,8 +36333,21 @@
           "evidence": "Same rewriteRelativeImportExtensions surface and resolver kind with safe rewrites and no TS2877."
         }
       },
-      "status": "open",
-      "source_evidence": "2877 rides '#internal/foo.ts' package.json imports wildcard mapping (host: package.json imports)"
+      "status": "closed",
+      "source_evidence": "2877 rides '#internal/foo.ts' package.json imports wildcard mapping (host: package.json imports)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:8e96f6dd5cf4b0671502a38b35c993fa0ad5ac3d015df55c01a884483fb05285",
@@ -36563,7 +37382,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -36576,6 +37395,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -36612,8 +37457,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:8f992abdbb73322ff4de884d3a73d712a50d54a5dca2a5c67f8075b5d412f55a",
@@ -37382,7 +38240,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -37395,6 +38253,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -37431,8 +38315,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:928d350d22a3fb9b6af7cef08b824c8d73870bf186c3261aaa8d033c5417325a",
@@ -38733,7 +39630,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -38746,6 +39643,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -38782,8 +39705,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:966108b8bf867ab82eafdd2df5f1280e2128c3e57b2bb1b25c09199f8fadc8f7",
@@ -43096,7 +44032,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -43109,6 +44045,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -43145,8 +44107,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:a9c2df498864d18eb89b7e3cf6aa20b05b8d33545776593061bb91de71a29d5f",
@@ -45697,7 +46672,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -45710,6 +46685,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -45746,8 +46747,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:b6caac41091a5e118a5279f88c51a557b45bf77fbae96c234f5a6f6bf5f3dc32",
@@ -48494,7 +49508,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -48507,6 +49521,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -48543,8 +49583,21 @@
           "evidence": "Same Bundler conditional-exports selection with a successful non-node branch."
         }
       },
-      "status": "open",
-      "source_evidence": "'pkg' rejected: exports has only 'require' condition, importer is ESM under bundler resolution (host: node_modules+exports conditions)"
+      "status": "closed",
+      "source_evidence": "'pkg' rejected: exports has only 'require' condition, importer is ESM under bundler resolution (host: node_modules+exports conditions)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:c58998df1d418dee9ace6c8a3769ea566fd10de938d0fe4abb037a7024ce51cb",
@@ -49047,7 +50100,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -49060,6 +50113,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -49096,8 +50175,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:c6e3dbd23b827c09a99cbbbc3b05676a0122e8dbe76069f8f2f8cbf68850ee45",
@@ -49974,7 +51066,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -49987,6 +51079,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -50023,8 +51141,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:cd7ed2c273d29270f8d65424d3e6a9da7c514d57364aff7fd813734d9b4e4029",
@@ -50773,7 +51904,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -50786,6 +51917,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -50822,8 +51979,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:cf66a16ece84b194a574eedc776f1f5b2245bf1c33650dd13a192d76624039a2",
@@ -51799,7 +52969,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -51812,6 +52982,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -51848,8 +53044,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:d096ea4aa3538a9084eaf537b91dfb8f55358988864626a1ad34da02ddc624d5",
@@ -52006,7 +53215,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromExportsOrImports -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -52019,6 +53228,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -52055,8 +53290,21 @@
           "evidence": "Same conditional package-exports selection with a successful matching branch."
         }
       },
-      "status": "open",
-      "source_evidence": "'inner/other.js' rejected by node_modules/inner/package.json conditional exports (host: node_modules+exports)"
+      "status": "closed",
+      "source_evidence": "'inner/other.js' rejected by node_modules/inner/package.json conditional exports (host: node_modules+exports)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:d0a4c1fa727b22eb77a3e2ff613b30937fa06457a4c1c91267208ba4bc7457a4",
@@ -54135,7 +55383,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -54148,6 +55396,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -54184,8 +55458,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:d6a8c720830756ac4149147924893bb161700ae28c3ade0a9c66a6a40fe73f91",
@@ -57149,7 +58436,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -57162,6 +58449,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -57198,8 +58511,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:ee50d18ae43750282b1f5e1255b0d260af00a84ea21a75bab651998df2985929",
@@ -58234,7 +59560,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -58247,6 +59573,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -58283,8 +59635,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports 'package' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:f2fc40c36e7578037dcefc56f62d494da71947351af3bd658328c1b1422b0bdb",
@@ -60511,7 +61876,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromTargetExportOrImport -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Dependency:loadModuleFromImports -> Dependency:loadModuleFromSelfNameReference -> Dependency:loadModuleFromExports -> Dependency:nodeModuleNameResolverWorker -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -60524,6 +61889,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -60560,8 +61951,21 @@
           "evidence": "Same self-name package resolution surface without an imports/exports cycle failure."
         }
       },
-      "status": "open",
-      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)"
+      "status": "closed",
+      "source_evidence": "'#type' resolved through package.json imports map into self-name exports './index.cjs' (host: package.json imports+exports self-reference)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "e516a313c3185f327404416878ff0a07c0fd168deb2ba68ad759a34286577ef2",
+        "note": "H0.2d MemoryCompilerHost package-imports, self-reference, condition/mode, and rewrite-relative extension-fact route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "a9660b92d6858e2e9f1dc1a60dd5474611ff6640"
     },
     {
       "id": "h0:fb056b3b37756828595c21c73317eec863190ff98b8eab92ca58e96bf7b1494f",
