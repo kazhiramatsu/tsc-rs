@@ -971,6 +971,59 @@ pub fn check_program_with_libs_at(
     check_program_with_libs_at_observed(libs, files, options, current_directory, |_| {})
 }
 
+/// Prepare an opaque, process-lifetime standard-library bundle for the
+/// differential conformance harness.
+///
+/// The returned handle is only a lookup hint. Every use revalidates the
+/// projected parser/binder options and the exact ordered library names and
+/// texts before reusing it; a mismatch falls back to the ordinary cache.
+/// Production program sessions do not use this API.
+#[doc(hidden)]
+pub fn prepare_harness_lib_bundle(
+    libs: &[InputFile],
+    options: &CompilerOptions,
+) -> Option<PreparedHarnessLibBundle> {
+    if std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_some_and(|value| value == "0") {
+        return None;
+    }
+    let libs = libs.iter().collect::<Vec<_>>();
+    (!libs.is_empty()).then(|| PreparedHarnessLibBundle {
+        bundle: lib_bundle(&libs, options),
+    })
+}
+
+/// Return the opaque parser/binder option projection used by prepared harness
+/// bundles. Harnesses may use this as a small cache key without learning or
+/// duplicating the projection's fields.
+#[doc(hidden)]
+pub fn harness_lib_bundle_options_key(options: &CompilerOptions) -> HarnessLibBundleOptionsKey {
+    HarnessLibBundleOptionsKey(lib_bundle_options(options))
+}
+
+/// Run one harness case with a previously prepared standard-library lookup
+/// hint. Exact validation and cache-off behavior are identical to
+/// [`check_program_with_libs_at`].
+#[doc(hidden)]
+pub fn check_program_with_prepared_harness_libs_at(
+    libs: &[InputFile],
+    files: &[InputFile],
+    options: &CompilerOptions,
+    current_directory: &str,
+    prepared: PreparedHarnessLibBundle,
+) -> CheckResult {
+    let cache_enabled = std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_none_or(|value| value != "0");
+    let mut observe_phase = |_| {};
+    check_program_with_libs_at_observed_cache_mode_prepared(
+        libs,
+        files,
+        options,
+        current_directory,
+        cache_enabled,
+        Some(prepared),
+        &mut observe_phase,
+    )
+}
+
 /// tsrs-native: phase-observed adapter around the batch checker driver.
 /// The production-worker entry point. The observer is invoked exactly
 /// once before each coarse checker phase and never from a node visit,
@@ -1002,6 +1055,26 @@ fn check_program_with_libs_at_observed_cache_mode(
     cache_enabled: bool,
     observe_phase: &mut impl FnMut(CheckPhase),
 ) -> CheckResult {
+    check_program_with_libs_at_observed_cache_mode_prepared(
+        libs,
+        files,
+        options,
+        current_directory,
+        cache_enabled,
+        None,
+        observe_phase,
+    )
+}
+
+fn check_program_with_libs_at_observed_cache_mode_prepared(
+    libs: &[InputFile],
+    files: &[InputFile],
+    options: &CompilerOptions,
+    current_directory: &str,
+    cache_enabled: bool,
+    prepared: Option<PreparedHarnessLibBundle>,
+    observe_phase: &mut impl FnMut(CheckPhase),
+) -> CheckResult {
     observe_phase(CheckPhase::Parse);
 
     let fixture_names: std::collections::HashSet<&str> =
@@ -1031,7 +1104,12 @@ fn check_program_with_libs_at_observed_cache_mode(
         .result;
     }
 
-    let bundle = (!effective_libs.is_empty()).then(|| lib_bundle(&effective_libs, options));
+    let bundle = (!effective_libs.is_empty()).then(|| {
+        let bundle_options = lib_bundle_options(options);
+        prepared
+            .and_then(|prepared| prepared.validated(&effective_libs, &bundle_options))
+            .unwrap_or_else(|| lib_bundle(&effective_libs, options))
+    });
     let (lib_sources, lib_binders): (&[tsc_syntax::SourceFile], &[tsc_binder::Binder<'_>]) =
         match bundle {
             Some(bundle) => (bundle.sources, bundle.binders),
@@ -1795,6 +1873,34 @@ struct LibBundle {
     binders: &'static [tsc_binder::Binder<'static>],
 }
 
+/// Opaque exact-match hint returned by [`prepare_harness_lib_bundle`].
+///
+/// Keeping the bundle private prevents callers from bypassing the validation
+/// in [`check_program_with_prepared_harness_libs_at`].
+#[doc(hidden)]
+#[derive(Clone, Copy)]
+pub struct PreparedHarnessLibBundle {
+    bundle: &'static LibBundle,
+}
+
+impl PreparedHarnessLibBundle {
+    fn validated(
+        self,
+        libs: &[&InputFile],
+        options: &CompilerOptions,
+    ) -> Option<&'static LibBundle> {
+        self.bundle
+            .exactly_matches(libs, options)
+            .then_some(self.bundle)
+    }
+}
+
+/// Opaque cache key for the exact parser/binder option projection used by a
+/// [`PreparedHarnessLibBundle`].
+#[doc(hidden)]
+#[derive(Clone, Eq, Hash, PartialEq)]
+pub struct HarnessLibBundleOptionsKey(CompilerOptions);
+
 impl LibBundle {
     fn exactly_matches(&self, libs: &[&InputFile], options: &CompilerOptions) -> bool {
         self.options == options
@@ -2468,6 +2574,142 @@ mod tests {
         assert!(std::ptr::eq(first_bundle, first_again));
         assert_eq!(first_bundle.sources[0].text, first.text);
         assert_eq!(second_bundle.sources[0].text, second.text);
+    }
+
+    #[test]
+    fn prepared_harness_bundle_validates_exact_text_and_projected_options() {
+        fn assert_handle_traits<T: Copy + Send + Sync + 'static>() {}
+
+        assert_handle_traits::<PreparedHarnessLibBundle>();
+        let original = InputFile {
+            name: "lib.prepared-validation-probe.d.ts".to_owned(),
+            text: "declare const preparedProbe: string;\n".to_owned(),
+        };
+        let changed = InputFile {
+            name: original.name.clone(),
+            text: "declare const preparedProbe: number;\n".to_owned(),
+        };
+        let base = CompilerOptions::default();
+        let prepared = prepare_harness_lib_bundle(std::slice::from_ref(&original), &base).unwrap();
+        let base_projection = lib_bundle_options(&base);
+
+        assert!(prepared.validated(&[&original], &base_projection).is_some());
+        assert!(prepared.validated(&[&changed], &base_projection).is_none());
+
+        let bind_inert = CompilerOptions {
+            strict_null_checks: Some(true),
+            no_emit: Some(true),
+            ..base.clone()
+        };
+        assert!(
+            harness_lib_bundle_options_key(&base) == harness_lib_bundle_options_key(&bind_inert)
+        );
+        assert!(prepared
+            .validated(&[&original], &lib_bundle_options(&bind_inert))
+            .is_some());
+
+        let bind_observable = CompilerOptions {
+            always_strict: Some(false),
+            ..base.clone()
+        };
+        assert!(
+            harness_lib_bundle_options_key(&base)
+                != harness_lib_bundle_options_key(&bind_observable)
+        );
+        assert!(prepared
+            .validated(&[&original], &lib_bundle_options(&bind_observable))
+            .is_none());
+
+        let second = InputFile {
+            name: "lib.prepared-validation-second.d.ts".to_owned(),
+            text: "declare const preparedSecond: boolean;\n".to_owned(),
+        };
+        let ordered = [original.clone(), second.clone()];
+        let ordered_prepared = prepare_harness_lib_bundle(&ordered, &base).unwrap();
+        assert!(ordered_prepared
+            .validated(&[&ordered[0], &ordered[1]], &base_projection)
+            .is_some());
+        assert!(ordered_prepared
+            .validated(&[&ordered[1], &ordered[0]], &base_projection)
+            .is_none());
+        let renamed = InputFile {
+            name: "lib.prepared-validation-renamed.d.ts".to_owned(),
+            text: second.text.clone(),
+        };
+        assert!(ordered_prepared
+            .validated(&[&ordered[0], &renamed], &base_projection)
+            .is_none());
+    }
+
+    #[test]
+    fn stale_prepared_harness_bundle_falls_back_to_ordinary_exact_bundle() {
+        fn rows(result: &CheckResult) -> Vec<(u32, String)> {
+            result
+                .diagnostics
+                .iter()
+                .map(|diagnostic| (diagnostic.code(), diagnostic.message_text().to_owned()))
+                .collect()
+        }
+
+        let original = InputFile {
+            name: "lib.prepared-fallback-probe.d.ts".to_owned(),
+            text: "declare const preparedFallbackProbe: string;\n".to_owned(),
+        };
+        let changed = InputFile {
+            name: original.name.clone(),
+            text: "declare const preparedFallbackProbe: number;\n".to_owned(),
+        };
+        let files = [InputFile {
+            name: "/prepared-fallback.ts".to_owned(),
+            text: "const value: string = preparedFallbackProbe;\n".to_owned(),
+        }];
+        let options = CompilerOptions::default();
+        let prepared =
+            prepare_harness_lib_bundle(std::slice::from_ref(&original), &options).unwrap();
+
+        let ordinary =
+            check_program_with_libs_at(std::slice::from_ref(&changed), &files, &options, "/");
+        let hinted = check_program_with_prepared_harness_libs_at(
+            std::slice::from_ref(&changed),
+            &files,
+            &options,
+            "/",
+            prepared,
+        );
+
+        assert_eq!(rows(&hinted), rows(&ordinary));
+        assert!(rows(&hinted).iter().any(|(code, _)| *code == 2322));
+
+        let mut observe_phase = |_| {};
+        let cache_off = check_program_with_libs_at_observed_cache_mode_prepared(
+            std::slice::from_ref(&changed),
+            &files,
+            &options,
+            "/",
+            false,
+            Some(prepared),
+            &mut observe_phase,
+        );
+        assert_eq!(rows(&cache_off), rows(&ordinary));
+
+        let shadowing_file = [InputFile {
+            name: original.name.clone(),
+            text: "const localOnly = 1;\n".to_owned(),
+        }];
+        let ordinary_shadowed = check_program_with_libs_at(
+            std::slice::from_ref(&original),
+            &shadowing_file,
+            &options,
+            "/",
+        );
+        let hinted_shadowed = check_program_with_prepared_harness_libs_at(
+            std::slice::from_ref(&original),
+            &shadowing_file,
+            &options,
+            "/",
+            prepared,
+        );
+        assert_eq!(rows(&hinted_shadowed), rows(&ordinary_shadowed));
     }
 
     #[test]

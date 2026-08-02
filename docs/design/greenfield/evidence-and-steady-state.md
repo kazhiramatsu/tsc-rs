@@ -386,11 +386,13 @@ conformance producer as a child and records raw wall time and maximum RSS.
 The producer expands each fixture and executes each checker case exactly
 once. That case's aggregate and syntactic diagnostic streams feed the
 `all`, `2xxx`, and `syntactic` accumulators in fixed order, while the `all`
-stream also feeds A5. View grading and callbacks remain sequential; this
-fusion adds no checker worker, creates no corpus-sized case cache, and drops
-each view's ratchet sets immediately after its gate. Configuration enumerates
-approved runner profiles including OS/architecture, CPU/core policy, memory,
-and measurement backend. A machine name alone is not an approved profile.
+stream also feeds A5. A scoped checker producer and the caller-thread grading
+consumer overlap through a FIFO channel with capacity one. View grading and
+callbacks remain sequential, so at most those two stages run concurrently;
+there is no corpus-sized case cache. The consumer drops each view's ratchet
+sets immediately after its gate. Configuration enumerates approved runner
+profiles including OS/architecture, CPU/core policy, memory, and measurement
+backend. A machine name alone is not an approved profile.
 
 The fingerprint pins executable, full-corpus command/options, immutable
 oracle inputs, toolchains, and runner profile. The wall ceiling is at
@@ -399,7 +401,13 @@ a reviewed margin. Readiness and completion require the observations,
 not only configured ceilings, to pass on an approved profile.
 
 The ceiling-bearing full-corpus observation uses the normal corpus-bounded
-legacy lib-bundle cache. Also run a separately recorded
+legacy lib-bundle cache. The harness retains an opaque prepared lookup hint
+per immutable lib set and parser/binder option projection, avoiding a second
+full-content fingerprint for every matrix case. This is only a hint: every
+use still verifies the projected options plus the exact ordered lib names and
+full texts, and any mismatch uses the ordinary exact cache path. Diagnostic
+line starts are likewise built lazily once per case/file rather than once per
+diagnostic. Also run a separately recorded
 `TSRS_LIB_BUNDLE_CACHE=0` smoke in a short-lived child with an explicit
 fixture limit; its purpose is to exercise the locally owned no-reuse path
 while bounding repeated parse/bind cost and peak allocator retention. The
