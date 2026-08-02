@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use serde_json::{Map, Value};
 use tsc_host::{to_file_name_lower_case, CompilerHost};
-use tsc_types::CompilerOptions;
+use tsc_types::{compiler_version_satisfies, CompilerOptions};
 
 use crate::path::ProgramPath;
 use crate::prepared::{PackageJsonType, PackageMetadata, PathContext};
@@ -29,6 +29,7 @@ pub struct HostResolvedModule {
     is_external_library_import: bool,
     resolved_using_ts_extension: bool,
     package_id: Option<PackageId>,
+    alternate_result: Option<ProgramPath>,
     package_metadata: Rc<PackageMetadata>,
 }
 
@@ -55,6 +56,10 @@ impl HostResolvedModule {
 
     pub fn package_id(&self) -> Option<&PackageId> {
         self.package_id.as_ref()
+    }
+
+    pub fn alternate_result(&self) -> Option<&ProgramPath> {
+        self.alternate_result.as_ref()
     }
 
     pub fn package_metadata(&self) -> &PackageMetadata {
@@ -94,6 +99,7 @@ impl HostResolvedModule {
 struct CachedPackage {
     root: String,
     exports: Option<Value>,
+    types_versions: Option<Value>,
     metadata: Rc<PackageMetadata>,
 }
 
@@ -109,12 +115,11 @@ struct PackageRequest<'a> {
     exports_subpath: String,
 }
 
-/// A selected export is terminal within its package map even when its target
-/// is `null` or its file probes miss. `Continue` is reserved for an
-/// inapplicable self-reference or an export table with no selected key. An
-/// external node_modules pass may still continue to `@types` or an outer
-/// ancestor, but it never tries a broader key or a legacy entry in the same
-/// package.
+/// `Terminal` distinguishes an explicit `null` target (or a successful
+/// target) from an inapplicable/missing branch. A string probe miss remains
+/// `Continue` while a conditional object or fallback array is being walked.
+/// Self-reference lookup preserves that distinction for node_modules fallback;
+/// an external package boundary collapses the final miss to `NotFound`.
 enum Search<T> {
     Continue,
     Terminal(ResolutionOutcome<T>),
@@ -127,14 +132,48 @@ enum ExtensionProbePass {
     Fallback,
 }
 
+type ExtensionProbe = (ModuleExtension, &'static str);
+type ExtensionProbePlan<'a> = (&'a str, &'static [ExtensionProbe], usize);
+
+const CJS_PROBES: &[ExtensionProbe] = &[
+    (ModuleExtension::Cts, ".cts"),
+    (ModuleExtension::Dcts, ".d.cts"),
+    (ModuleExtension::Cjs, ".cjs"),
+];
+const MJS_PROBES: &[ExtensionProbe] = &[
+    (ModuleExtension::Mts, ".mts"),
+    (ModuleExtension::Dmts, ".d.mts"),
+    (ModuleExtension::Mjs, ".mjs"),
+];
+const JS_PROBES: &[ExtensionProbe] = &[
+    (ModuleExtension::Ts, ".ts"),
+    (ModuleExtension::Tsx, ".tsx"),
+    (ModuleExtension::Dts, ".d.ts"),
+    (ModuleExtension::Js, ".js"),
+    (ModuleExtension::Jsx, ".jsx"),
+];
+const JSX_PROBES: &[ExtensionProbe] = &[
+    (ModuleExtension::Tsx, ".tsx"),
+    (ModuleExtension::Dts, ".d.ts"),
+    (ModuleExtension::Jsx, ".jsx"),
+];
+const TS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Ts, ".ts")];
+const TSX_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Tsx, ".tsx")];
+const DTS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Dts, ".d.ts")];
+const MTS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Mts, ".mts")];
+const DMTS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Dmts, ".d.mts")];
+const CTS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Cts, ".cts")];
+const DCTS_PROBES: &[ExtensionProbe] = &[(ModuleExtension::Dcts, ".d.cts")];
+
 #[derive(Clone, Copy)]
 struct ExportProbeContext {
     is_external_library_import: bool,
     pass: ExtensionProbePass,
+    mode: ResolutionMode,
 }
 
-/// Sequential Node16/NodeNext/Bundler resolver for the H0.2b package-exports
-/// slice.
+/// Sequential Node16/NodeNext/Bundler resolver for the H0.2 package-map
+/// slices.
 ///
 /// One resolver owns a per-run `package.json` cache. Host methods remain
 /// fallible and are never translated into ordinary lookup misses.
@@ -224,15 +263,18 @@ impl<'a> ModuleResolver<'a> {
         let current_directory = self.current_directory_text()?;
         let containing_file = normalize_absolute_path(containing_file, Some(current_directory))?;
         let containing_directory = directory_name(&containing_file);
+        if is_relative_specifier(specifier) {
+            return self.resolve_relative(&containing_file, specifier);
+        }
         let request = parse_package_request(specifier)?;
 
         if let Search::Terminal(outcome) =
-            self.try_self_reference(&containing_directory, &request)?
+            self.try_self_reference(&containing_directory, &request, mode)?
         {
             return Ok(outcome);
         }
 
-        self.resolve_from_node_modules(&containing_directory, &request)
+        self.resolve_from_node_modules(&containing_directory, &request, mode)
     }
 
     fn validate_supported_configuration(
@@ -291,6 +333,7 @@ impl<'a> ModuleResolver<'a> {
         &mut self,
         containing_directory: &str,
         request: &PackageRequest<'_>,
+        mode: ResolutionMode,
     ) -> Result<Search<HostResolvedModule>, ResolutionError> {
         let Some(package) = self.find_nearest_package_scope(containing_directory)? else {
             return Ok(Search::Continue);
@@ -299,19 +342,20 @@ impl<'a> ModuleResolver<'a> {
             return Ok(Search::Continue);
         }
 
-        let outcome = self.resolve_package_exports(
+        self.search_package_exports(
             &package,
             &request.exports_subpath,
             /* is_external_library_import */ false,
             ExtensionProbePass::All,
-        )?;
-        Ok(Search::Terminal(outcome))
+            mode,
+        )
     }
 
     fn resolve_from_node_modules(
         &mut self,
         containing_directory: &str,
         request: &PackageRequest<'_>,
+        mode: ResolutionMode,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         for probe_pass in [ExtensionProbePass::Preferred, ExtensionProbePass::Fallback] {
             for ancestor in ancestor_directories(containing_directory) {
@@ -334,22 +378,40 @@ impl<'a> ModuleResolver<'a> {
                             ),
                         ));
                     };
-                    if package.exports.is_none() {
-                        return Err(ResolutionError::unsupported(
-                            "legacy-node-package-entry",
-                            format!(
-                                "{} has no exports field",
-                                package.metadata.package_json().display().display()
-                            ),
-                        ));
-                    }
-                    let outcome = self.resolve_package_exports(
-                        &package,
-                        &request.exports_subpath,
-                        /* is_external_library_import */ true,
-                        probe_pass,
-                    )?;
-                    if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                    let uses_exports = package.exports.is_some();
+                    let mut outcome = if uses_exports {
+                        self.resolve_package_exports(
+                            &package,
+                            &request.exports_subpath,
+                            /* is_external_library_import */ true,
+                            probe_pass,
+                            mode,
+                        )?
+                    } else {
+                        self.resolve_package_types_versions(
+                            &package,
+                            &request.exports_subpath,
+                            probe_pass,
+                            mode,
+                        )?
+                    };
+                    if let ResolutionOutcome::Resolved(module) = &mut outcome {
+                        if uses_exports
+                            && mode == ResolutionMode::EsNext
+                            && module.extension().is_javascript()
+                            && package.types_versions.is_some()
+                        {
+                            if let ResolutionOutcome::Resolved(alternate) = self
+                                .resolve_package_types_versions(
+                                    &package,
+                                    &request.exports_subpath,
+                                    ExtensionProbePass::Preferred,
+                                    mode,
+                                )?
+                            {
+                                module.alternate_result = Some(alternate.resolved_file().clone());
+                            }
+                        }
                         return Ok(outcome);
                     }
                 }
@@ -373,6 +435,164 @@ impl<'a> ModuleResolver<'a> {
                         }
                     }
                 }
+            }
+        }
+        Ok(ResolutionOutcome::NotFound)
+    }
+
+    /// Resolve a relative request using the same written-extension
+    /// substitution order as package-map targets.
+    ///
+    /// This H0 path deliberately requires a containing package scope. That
+    /// gives the returned host fact an owned package observation without
+    /// inventing metadata for a filesystem-only source.
+    fn resolve_relative(
+        &mut self,
+        containing_file: &str,
+        specifier: &str,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        if specifier.contains(['\\', '\0']) {
+            return Err(ResolutionError::invalid_data(format!(
+                "invalid relative module specifier {specifier:?}"
+            )));
+        }
+        let containing_directory = directory_name(containing_file);
+        let target = normalize_absolute_path(
+            Path::new(&join_normalized(&containing_directory, specifier)),
+            None,
+        )?;
+        let package = self
+            .find_nearest_package_scope(&containing_directory)?
+            .ok_or_else(|| {
+                ResolutionError::unsupported(
+                    "relative-module-without-package-scope",
+                    format!("{containing_file} has no package.json scope"),
+                )
+            })?;
+        let (base, probes, _) = extension_probe_plan(&target)?;
+        let target_directory = directory_name(&target);
+        if !self.host.directory_exists(Path::new(&target_directory))? {
+            return Ok(ResolutionOutcome::NotFound);
+        }
+        for (extension, suffix) in probes {
+            let candidate = format!("{base}{suffix}");
+            if self.host.file_exists(Path::new(&candidate))? {
+                return self.finish_relative_resolution(
+                    &package,
+                    &candidate,
+                    extension.clone(),
+                    is_typescript_family_specifier(specifier),
+                    path_contains_node_modules(&candidate),
+                );
+            }
+        }
+        Ok(ResolutionOutcome::NotFound)
+    }
+
+    /// Resolve the declaration-oriented `typesVersions` branch needed when a
+    /// package has no exports map. Ambiguous range selection and unmodeled
+    /// legacy package fallbacks remain typed Unsupported outcomes.
+    fn resolve_package_types_versions(
+        &self,
+        package: &CachedPackage,
+        exports_subpath: &str,
+        probe_pass: ExtensionProbePass,
+        mode: ResolutionMode,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let Some(types_versions) = package.types_versions.as_ref() else {
+            return Err(ResolutionError::unsupported(
+                "legacy-node-package-entry",
+                format!(
+                    "{} has neither exports nor typesVersions",
+                    package.metadata.package_json().display().display()
+                ),
+            ));
+        };
+        let table = types_versions.as_object().ok_or_else(|| {
+            ResolutionError::invalid_data(format!(
+                "{} typesVersions must be an object",
+                package.metadata.package_json().display().display()
+            ))
+        })?;
+        let matching = table
+            .iter()
+            .filter(|(range, _)| compiler_version_satisfies(range) == Some(true))
+            .collect::<Vec<_>>();
+        let [(range, mappings)] = matching.as_slice() else {
+            return Err(ResolutionError::unsupported(
+                "types-versions-range-selection",
+                format!(
+                    "{} has {} matching typesVersions ranges",
+                    package.metadata.package_json().display().display(),
+                    matching.len()
+                ),
+            ));
+        };
+        let mappings = mappings.as_object().ok_or_else(|| {
+            ResolutionError::invalid_data(format!(
+                "typesVersions[{range:?}] in {} must be an object",
+                package.metadata.package_json().display().display()
+            ))
+        })?;
+        let request = exports_subpath.strip_prefix("./").ok_or_else(|| {
+            ResolutionError::unsupported(
+                "types-versions-package-root",
+                "package-root legacy resolution is not part of the H0.2c slice",
+            )
+        })?;
+        let (pattern, capture, targets) = select_types_versions_mapping(mappings, request)
+            .ok_or_else(|| {
+                ResolutionError::unsupported(
+                    "types-versions-unmapped-subpath",
+                    format!("typesVersions has no mapping for {request:?}"),
+                )
+            })?;
+        let targets = targets.as_array().ok_or_else(|| {
+            ResolutionError::invalid_data(format!(
+                "typesVersions mapping {pattern:?} must be an array"
+            ))
+        })?;
+        for target in targets {
+            let target = target.as_str().ok_or_else(|| {
+                ResolutionError::invalid_data(format!(
+                    "typesVersions mapping {pattern:?} contains a non-string target"
+                ))
+            })?;
+            let target = target.replace('*', capture);
+            let Some(target) = target.strip_prefix("./") else {
+                return Err(ResolutionError::invalid_data(format!(
+                    "typesVersions target {target:?} is not package-relative"
+                )));
+            };
+            let candidate =
+                normalize_absolute_path(Path::new(&join_normalized(&package.root, target)), None)?;
+            if !path_is_within(&candidate, &package.root) {
+                return Err(ResolutionError::invalid_data(format!(
+                    "typesVersions target {candidate} escapes package {}",
+                    package.root
+                )));
+            }
+            // tsc's paths loader first probes a substitution that already has
+            // a recognized extension exactly, irrespective of the preferred
+            // TypeScript/declaration pass. Only an exact hit is noPackageId;
+            // an exact miss falls through to the ordinary package loader.
+            if !matches!(probe_pass, ExtensionProbePass::Fallback) {
+                if let Some(extension) = recognized_module_extension(&candidate) {
+                    if self.host.file_exists(Path::new(&candidate))? {
+                        return self.finish_resolution(
+                            package, &candidate, extension,
+                            /* is_external_library_import */ true,
+                            /* attach_package_id */ false,
+                        );
+                    }
+                }
+            }
+            let outcome = self.probe_export_target(
+                package, &candidate, /* is_external_library_import */ true, probe_pass, mode,
+                /* attach_package_id */ true,
+            )?;
+            if matches!(outcome, ResolutionOutcome::Resolved(_)) {
+                return Ok(outcome);
             }
         }
         Ok(ResolutionOutcome::NotFound)
@@ -466,6 +686,7 @@ impl<'a> ModuleResolver<'a> {
         let package = Rc::new(CachedPackage {
             root: directory_name(package_json),
             exports: object.get("exports").cloned(),
+            types_versions: object.get("typesVersions").cloned(),
             metadata,
         });
         self.package_cache
@@ -482,7 +703,33 @@ impl<'a> ModuleResolver<'a> {
         subpath: &str,
         is_external_library_import: bool,
         probe_pass: ExtensionProbePass,
+        mode: ResolutionMode,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        let search = self.search_package_exports(
+            package,
+            subpath,
+            is_external_library_import,
+            probe_pass,
+            mode,
+        )?;
+        Ok(match search {
+            // A present exports map suppresses every legacy package fallback.
+            Search::Continue => ResolutionOutcome::NotFound,
+            Search::Terminal(outcome) => outcome,
+        })
+    }
+
+    /// Preserve the upstream SearchResult distinction for self references:
+    /// an ordinary target miss continues to node_modules, while an explicit
+    /// null target is terminal.
+    fn search_package_exports(
+        &mut self,
+        package: &CachedPackage,
+        subpath: &str,
+        is_external_library_import: bool,
+        probe_pass: ExtensionProbePass,
+        mode: ResolutionMode,
+    ) -> Result<Search<HostResolvedModule>, ResolutionError> {
         let exports = package.exports.as_ref().ok_or_else(|| {
             ResolutionError::unsupported(
                 "legacy-node-package-entry",
@@ -508,10 +755,10 @@ impl<'a> ModuleResolver<'a> {
                 exports,
                 "",
                 false,
-                ".",
                 ExportProbeContext {
                     is_external_library_import,
                     pass: probe_pass,
+                    mode,
                 },
             )?,
             Value::String(_) => Search::Continue,
@@ -525,31 +772,44 @@ impl<'a> ModuleResolver<'a> {
                     )));
                 }
                 if has_condition_key {
-                    return Err(ResolutionError::unsupported(
-                        "conditional-package-exports",
-                        format!(
-                            "{} exports selects through a condition object",
-                            package.metadata.package_json().display().display()
-                        ),
-                    ));
+                    if subpath == "." {
+                        self.resolve_selected_export(
+                            package,
+                            exports,
+                            "",
+                            false,
+                            ExportProbeContext {
+                                is_external_library_import,
+                                pass: probe_pass,
+                                mode,
+                            },
+                        )?
+                    } else {
+                        Search::Continue
+                    }
+                } else {
+                    self.search_exports_table(
+                        package,
+                        table,
+                        subpath,
+                        is_external_library_import,
+                        probe_pass,
+                        mode,
+                    )?
                 }
-                self.search_exports_table(
-                    package,
-                    table,
-                    subpath,
+            }
+            Value::Array(_) if subpath == "." => self.resolve_selected_export(
+                package,
+                exports,
+                "",
+                false,
+                ExportProbeContext {
                     is_external_library_import,
-                    probe_pass,
-                )?
-            }
-            Value::Array(_) => {
-                return Err(ResolutionError::unsupported(
-                    "package-exports-array",
-                    format!(
-                        "{} uses an exports fallback array",
-                        package.metadata.package_json().display().display()
-                    ),
-                ));
-            }
+                    pass: probe_pass,
+                    mode,
+                },
+            )?,
+            Value::Array(_) => Search::Continue,
             Value::Null | Value::Bool(false) => {
                 return Err(ResolutionError::unsupported(
                     "legacy-node-package-entry-from-falsy-exports",
@@ -576,11 +836,7 @@ impl<'a> ModuleResolver<'a> {
             }
         };
 
-        Ok(match search {
-            // A present exports map suppresses every legacy package fallback.
-            Search::Continue => ResolutionOutcome::NotFound,
-            Search::Terminal(outcome) => outcome,
-        })
+        Ok(search)
     }
 
     /// tsc-port: loadModuleFromExportsOrImports @6.0.3
@@ -593,6 +849,7 @@ impl<'a> ModuleResolver<'a> {
         subpath: &str,
         is_external_library_import: bool,
         probe_pass: ExtensionProbePass,
+        mode: ResolutionMode,
     ) -> Result<Search<HostResolvedModule>, ResolutionError> {
         if !subpath.ends_with('/') && !subpath.contains('*') {
             if let Some(target) = table.get(subpath) {
@@ -601,25 +858,12 @@ impl<'a> ModuleResolver<'a> {
                     target,
                     "",
                     false,
-                    subpath,
                     ExportProbeContext {
                         is_external_library_import,
                         pass: probe_pass,
+                        mode,
                     },
                 );
-            }
-        }
-
-        for key in table.keys().filter(|key| key.matches('*').count() > 1) {
-            let first = key.find('*').expect("filtered to keys containing a star");
-            let last = key.rfind('*').expect("filtered to keys containing a star");
-            let prefix = &key[..first];
-            let suffix = &key[last + 1..];
-            if subpath.starts_with(prefix) && subpath.ends_with(suffix) {
-                return Err(ResolutionError::unsupported(
-                    "multi-star-package-exports-key",
-                    format!("specifier {subpath} may select exports key {key}"),
-                ));
             }
         }
 
@@ -632,10 +876,20 @@ impl<'a> ModuleResolver<'a> {
 
         for key in expanding_keys {
             if key.ends_with('/') && !key.contains('*') && subpath.starts_with(key) {
-                return Err(ResolutionError::unsupported(
-                    "deprecated-package-exports-directory-key",
-                    format!("matched exports key {key}"),
-                ));
+                let target = table
+                    .get(key)
+                    .expect("expanding key was collected from this table");
+                return self.resolve_selected_export(
+                    package,
+                    target,
+                    &subpath[key.len()..],
+                    false,
+                    ExportProbeContext {
+                        is_external_library_import,
+                        pass: probe_pass,
+                        mode,
+                    },
+                );
             }
             let Some(star) = key.find('*') else {
                 continue;
@@ -662,10 +916,10 @@ impl<'a> ModuleResolver<'a> {
                 target,
                 capture,
                 true,
-                key,
                 ExportProbeContext {
                     is_external_library_import,
                     pass: probe_pass,
+                    mode,
                 },
             );
         }
@@ -681,40 +935,102 @@ impl<'a> ModuleResolver<'a> {
         target: &Value,
         subpath: &str,
         pattern: bool,
-        key: &str,
         context: ExportProbeContext,
     ) -> Result<Search<HostResolvedModule>, ResolutionError> {
         match target {
             Value::Null => Ok(Search::Terminal(ResolutionOutcome::NotFound)),
             Value::String(target) => {
+                if !pattern && !subpath.is_empty() && !target.ends_with('/') {
+                    return Ok(Search::Continue);
+                }
                 let Some(target) = expand_export_target(target, subpath, pattern) else {
-                    return Ok(Search::Terminal(ResolutionOutcome::NotFound));
+                    return Ok(Search::Continue);
                 };
                 let candidate = normalize_absolute_path(
                     Path::new(&join_normalized(&package.root, &target)),
                     None,
                 )?;
                 if !path_is_within(&candidate, &package.root) {
-                    return Ok(Search::Terminal(ResolutionOutcome::NotFound));
+                    return Ok(Search::Continue);
                 }
                 let resolved = self.probe_export_target(
                     package,
                     &candidate,
                     context.is_external_library_import,
                     context.pass,
+                    context.mode,
+                    /* attach_package_id */ true,
                 )?;
-                Ok(Search::Terminal(resolved))
+                Ok(if matches!(resolved, ResolutionOutcome::Resolved(_)) {
+                    Search::Terminal(resolved)
+                } else {
+                    Search::Continue
+                })
             }
-            Value::Object(_) => Err(ResolutionError::unsupported(
-                "conditional-package-exports",
-                format!("exports key {key} selects through a condition object"),
-            )),
-            Value::Array(_) => Err(ResolutionError::unsupported(
-                "package-exports-array",
-                format!("exports key {key} selects through a fallback array"),
-            )),
-            Value::Bool(_) | Value::Number(_) => Ok(Search::Terminal(ResolutionOutcome::NotFound)),
+            Value::Object(conditions) => {
+                for (condition, target) in conditions {
+                    if !self.package_condition_matches(condition, context.mode) {
+                        continue;
+                    }
+                    let result =
+                        self.resolve_selected_export(package, target, subpath, pattern, context)?;
+                    if !matches!(result, Search::Continue) {
+                        return Ok(result);
+                    }
+                }
+                Ok(Search::Continue)
+            }
+            Value::Array(targets) => {
+                if targets.is_empty() {
+                    return Ok(Search::Terminal(ResolutionOutcome::NotFound));
+                }
+                for target in targets {
+                    let result =
+                        self.resolve_selected_export(package, target, subpath, pattern, context)?;
+                    if !matches!(result, Search::Continue) {
+                        return Ok(result);
+                    }
+                }
+                Ok(Search::Continue)
+            }
+            Value::Bool(_) | Value::Number(_) => Ok(Search::Continue),
         }
+    }
+
+    /// tsc-port: getConditions / isApplicableVersionedTypesKey @6.0.3
+    /// tsc-hash: 91d1ed5895417f7bdcea21d875a24ebbf5b54004698e26c46a9b89e7a0808140
+    /// tsc-span: _tsc.js:40276-40291,41884-41890
+    fn package_condition_matches(&self, condition: &str, mode: ResolutionMode) -> bool {
+        if condition == "default" {
+            return true;
+        }
+        let resolution_kind = self.options.emit_module_resolution_kind();
+        let mode = if mode == ResolutionMode::Unspecified && resolution_kind == 100 {
+            ResolutionMode::EsNext
+        } else {
+            mode
+        };
+        if (condition == "import" && mode == ResolutionMode::EsNext)
+            || (condition == "require" && mode != ResolutionMode::EsNext)
+        {
+            return true;
+        }
+        if condition == "types" {
+            return true;
+        }
+        if condition == "node" {
+            return resolution_kind != 100;
+        }
+        if condition
+            .strip_prefix("types@")
+            .is_some_and(|range| compiler_version_satisfies(range) == Some(true))
+        {
+            return true;
+        }
+        self.options
+            .custom_conditions
+            .as_ref()
+            .is_some_and(|conditions| conditions.iter().any(|candidate| candidate == condition))
     }
 
     /// tsc-port: tryAddingExtensions @6.0.3
@@ -726,46 +1042,20 @@ impl<'a> ModuleResolver<'a> {
         target: &str,
         is_external_library_import: bool,
         probe_pass: ExtensionProbePass,
+        mode: ResolutionMode,
+        attach_package_id: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
-        let (base, probes, preferred_len): (&str, &[(ModuleExtension, &str)], usize) =
-            if let Some(base) = target.strip_suffix(".cjs") {
-                (
-                    base,
-                    &[
-                        (ModuleExtension::Cts, ".cts"),
-                        (ModuleExtension::Dcts, ".d.cts"),
-                        (ModuleExtension::Cjs, ".cjs"),
-                    ],
-                    2,
-                )
-            } else if let Some(base) = target.strip_suffix(".mjs") {
-                (
-                    base,
-                    &[
-                        (ModuleExtension::Mts, ".mts"),
-                        (ModuleExtension::Dmts, ".d.mts"),
-                        (ModuleExtension::Mjs, ".mjs"),
-                    ],
-                    2,
-                )
-            } else if let Some(base) = target.strip_suffix(".js") {
-                (
-                    base,
-                    &[
-                        (ModuleExtension::Ts, ".ts"),
-                        (ModuleExtension::Tsx, ".tsx"),
-                        (ModuleExtension::Dts, ".d.ts"),
-                        (ModuleExtension::Js, ".js"),
-                        (ModuleExtension::Jsx, ".jsx"),
-                    ],
-                    3,
-                )
-            } else {
-                return Err(ResolutionError::unsupported(
-                    "package-exports-target-extension",
-                    format!("only .cjs, .mjs, and .js targets are implemented: {target}"),
-                ));
-            };
+        let (base, probes, preferred_len) = match extension_probe_plan(target) {
+            Ok(plan) => plan,
+            Err(ResolutionError::Unsupported { feature, .. })
+                if feature == "module-target-extension"
+                    && mode == ResolutionMode::EsNext
+                    && !base_name(target).contains('.') =>
+            {
+                return Ok(ResolutionOutcome::NotFound);
+            }
+            Err(error) => return Err(error),
+        };
 
         let probes = match probe_pass {
             ExtensionProbePass::All => probes,
@@ -784,6 +1074,7 @@ impl<'a> ModuleResolver<'a> {
                     &candidate,
                     extension.clone(),
                     is_external_library_import,
+                    attach_package_id,
                 );
             }
         }
@@ -799,6 +1090,7 @@ impl<'a> ModuleResolver<'a> {
         lexical_path: &str,
         extension: ModuleExtension,
         is_external_library_import: bool,
+        attach_package_id: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let lexical = self.program_path(lexical_path)?;
         let (resolved_file, original_path) = if is_external_library_import {
@@ -823,8 +1115,12 @@ impl<'a> ModuleResolver<'a> {
             (lexical, None)
         };
 
-        let package_id = match (package.metadata.name(), package.metadata.version()) {
-            (Some(name), Some(version)) => {
+        let package_id = match (
+            attach_package_id,
+            package.metadata.name(),
+            package.metadata.version(),
+        ) {
+            (true, Some(name), Some(version)) => {
                 let submodule_name = lexical_path
                     .strip_prefix(&package.root)
                     .and_then(|path| path.strip_prefix('/'))
@@ -846,6 +1142,27 @@ impl<'a> ModuleResolver<'a> {
             is_external_library_import,
             resolved_using_ts_extension: false,
             package_id,
+            alternate_result: None,
+            package_metadata: Rc::clone(&package.metadata),
+        }))
+    }
+
+    fn finish_relative_resolution(
+        &self,
+        package: &CachedPackage,
+        lexical_path: &str,
+        extension: ModuleExtension,
+        resolved_using_ts_extension: bool,
+        is_external_library_import: bool,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        Ok(ResolutionOutcome::Resolved(HostResolvedModule {
+            resolved_file: self.program_path(lexical_path)?,
+            extension,
+            original_path: None,
+            is_external_library_import,
+            resolved_using_ts_extension,
+            package_id: None,
+            alternate_result: None,
             package_metadata: Rc::clone(&package.metadata),
         }))
     }
@@ -960,6 +1277,120 @@ fn parse_package_request(specifier: &str) -> Result<PackageRequest<'_>, Resoluti
             format!("./{rest}")
         },
     })
+}
+
+fn is_relative_specifier(specifier: &str) -> bool {
+    specifier.starts_with("./") || specifier.starts_with("../")
+}
+
+fn is_typescript_family_specifier(specifier: &str) -> bool {
+    [".ts", ".tsx", ".mts", ".cts"]
+        .iter()
+        .any(|extension| specifier.ends_with(extension))
+}
+
+fn path_contains_node_modules(path: &str) -> bool {
+    path.split('/').any(|component| component == "node_modules")
+}
+
+fn extension_probe_plan(target: &str) -> Result<ExtensionProbePlan<'_>, ResolutionError> {
+    let plan = if let Some(base) = target.strip_suffix(".d.cts") {
+        (base, DCTS_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".d.mts") {
+        (base, DMTS_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".d.ts") {
+        (base, DTS_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".cjs") {
+        (base, CJS_PROBES, 2)
+    } else if let Some(base) = target.strip_suffix(".mjs") {
+        (base, MJS_PROBES, 2)
+    } else if let Some(base) = target.strip_suffix(".jsx") {
+        (base, JSX_PROBES, 2)
+    } else if let Some(base) = target.strip_suffix(".js") {
+        (base, JS_PROBES, 3)
+    } else if let Some(base) = target.strip_suffix(".tsx") {
+        (base, TSX_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".ts") {
+        (base, TS_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".mts") {
+        (base, MTS_PROBES, 1)
+    } else if let Some(base) = target.strip_suffix(".cts") {
+        (base, CTS_PROBES, 1)
+    } else {
+        return Err(ResolutionError::unsupported(
+            "module-target-extension",
+            format!("target has no supported written extension: {target}"),
+        ));
+    };
+    Ok(plan)
+}
+
+/// tsrs-native: the recognized-extension projection consumed by the
+/// typesVersions exact-substitution probe.
+fn recognized_module_extension(path: &str) -> Option<ModuleExtension> {
+    if path.ends_with(".d.ts") {
+        Some(ModuleExtension::Dts)
+    } else if path.ends_with(".d.mts") {
+        Some(ModuleExtension::Dmts)
+    } else if path.ends_with(".d.cts") {
+        Some(ModuleExtension::Dcts)
+    } else if path.ends_with(".mjs") {
+        Some(ModuleExtension::Mjs)
+    } else if path.ends_with(".mts") {
+        Some(ModuleExtension::Mts)
+    } else if path.ends_with(".cjs") {
+        Some(ModuleExtension::Cjs)
+    } else if path.ends_with(".cts") {
+        Some(ModuleExtension::Cts)
+    } else if path.ends_with(".ts") {
+        Some(ModuleExtension::Ts)
+    } else if path.ends_with(".js") {
+        Some(ModuleExtension::Js)
+    } else if path.ends_with(".tsx") {
+        Some(ModuleExtension::Tsx)
+    } else if path.ends_with(".jsx") {
+        Some(ModuleExtension::Jsx)
+    } else if path.ends_with(".json") {
+        Some(ModuleExtension::Json)
+    } else {
+        None
+    }
+}
+
+fn select_types_versions_mapping<'a, 'b>(
+    table: &'a Map<String, Value>,
+    request: &'b str,
+) -> Option<(&'a str, &'b str, &'a Value)> {
+    if let Some((key, targets)) = table.get_key_value(request) {
+        return Some((key.as_str(), "", targets));
+    }
+    let mut patterns = table
+        .keys()
+        .filter(|key| has_one_asterisk(key))
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+    patterns.sort_by(|left, right| compare_pattern_keys(left, right));
+    for pattern in patterns {
+        let star = pattern
+            .find('*')
+            .expect("typesVersions pattern was filtered to one asterisk");
+        let prefix = &pattern[..star];
+        let suffix = &pattern[star + 1..];
+        if request.starts_with(prefix)
+            && request.ends_with(suffix)
+            && request.len() >= prefix.len() + suffix.len()
+        {
+            let capture = &request[prefix.len()..request.len() - suffix.len()];
+            return Some((
+                pattern,
+                capture,
+                table
+                    .get(pattern)
+                    .expect("typesVersions pattern belongs to this table"),
+            ));
+        }
+    }
+    None
 }
 
 fn mangle_scoped_package_name(package_name: &str) -> String {

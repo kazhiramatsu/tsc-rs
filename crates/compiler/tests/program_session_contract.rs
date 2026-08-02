@@ -366,6 +366,10 @@ fn suggestion_getter_rows_never_enter_noemit_outcome() {
     assert!(outcome
         .diagnostics()
         .all(|diagnostic| diagnostic.code() != 6133));
+    assert!(outcome
+        .conformance_diagnostics()
+        .iter()
+        .any(|diagnostic| diagnostic.code() == 6133));
 }
 
 #[test]
@@ -603,6 +607,46 @@ fn ambient_modules_keep_their_priority_around_authoritative_not_found() {
     );
     let pattern = consume(ProgramSession::new(pattern));
     assert!(!codes(pattern.semantic_diagnostics()).contains(&2307));
+
+    let pattern_over_untyped = authoritative_program(
+        &[
+            (
+                "/patterns.d.ts",
+                "declare module \"pkg-*\" { export const value: number; }\n",
+            ),
+            (
+                "/main.ts",
+                "import { value } from \"pkg-js\";\nconst checked: number = value;\n",
+            ),
+        ],
+        &[1],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            no_implicit_any: Some(true),
+            ..CompilerOptions::default()
+        },
+        |builder, _| {
+            let module = ResolvedModule::new(
+                ResolvedModuleTarget::Unloaded(path("/node_modules/pkg-js/index.js")),
+                ModuleExtension::Js,
+            )
+            .with_external_library_import(true)
+            .with_package_id(PackageId::new("pkg-js", "index.js", "1.0.0"));
+            builder
+                .add_module_resolution(
+                    module_key("/main.ts", "pkg-js", ResolutionMode::Unspecified),
+                    Ok(ModuleResolution::resolved(module)),
+                )
+                .expect("add pattern-over-untyped row");
+        },
+    );
+    let pattern_over_untyped = consume(ProgramSession::new(pattern_over_untyped));
+    assert!(pattern_over_untyped.semantic_diagnostics().is_empty());
+    assert!(pattern_over_untyped
+        .conformance_diagnostics()
+        .iter()
+        .all(|diagnostic| diagnostic.code() != 7016));
 }
 
 #[test]
@@ -774,16 +818,6 @@ fn require_call_in_an_esm_file_uses_the_commonjs_row() {
 fn unsupported_authoritative_records_fail_closed_without_becoming_not_found() {
     let cases = [
         (
-            UnsupportedAuthoritativeResolution::UnloadedTarget,
-            ModuleResolution::resolved(
-                ResolvedModule::new(
-                    ResolvedModuleTarget::Unloaded(path("/external/pkg/index.js")),
-                    ModuleExtension::Js,
-                )
-                .with_external_library_import(true),
-            ),
-        ),
-        (
             UnsupportedAuthoritativeResolution::AlternateResult,
             ModuleResolution::not_found().with_alternate_result(path("/types/alternate.d.ts")),
         ),
@@ -837,55 +871,333 @@ fn unsupported_authoritative_records_fail_closed_without_becoming_not_found() {
 }
 
 #[test]
-fn lossy_resolved_source_metadata_is_rejected_until_it_is_consumed() {
-    #[derive(Clone, Copy)]
-    enum Case {
-        OriginalPath,
-        PackageId,
-    }
-    let cases = [
-        (
-            Case::OriginalPath,
-            UnsupportedAuthoritativeResolution::OriginalPath,
-        ),
-        (
-            Case::PackageId,
-            UnsupportedAuthoritativeResolution::PackageId,
-        ),
-    ];
-
-    for (case, expected) in cases {
+fn authoritative_unloaded_javascript_preserves_implicit_any_detail_chains() {
+    for (alternate, expected_tail) in [
+        (None, 7058),
+        (Some("/node_modules/pkg/types/foo.d.ts"), 6278),
+    ] {
         let prepared = authoritative_program(
-            &[("/main.ts", "import { value } from \"pkg\";\nvalue;\n")],
+            &[("/main.mts", "import {} from \"pkg/foo\";\n")],
+            &[0],
+            CompilerOptions {
+                module: Some(199),
+                module_resolution: Some(99),
+                no_implicit_any: Some(true),
+                ..CompilerOptions::default()
+            },
+            |builder, _| {
+                let module = ResolvedModule::new(
+                    ResolvedModuleTarget::Unloaded(path("/node_modules/pkg/dist/foo.js")),
+                    ModuleExtension::Js,
+                )
+                .with_external_library_import(true)
+                .with_package_id(PackageId::new("pkg", "dist/foo.js", "1.0.0"));
+                let mut resolution =
+                    ModuleResolution::resolved(module).with_package_bundles_types(true);
+                if let Some(alternate) = alternate {
+                    resolution = resolution.with_alternate_result(path(alternate));
+                }
+                builder
+                    .add_module_resolution(
+                        module_key("/main.mts", "pkg/foo", ResolutionMode::EsNext),
+                        Ok(resolution),
+                    )
+                    .expect("add unloaded authoritative row");
+            },
+        );
+
+        let outcome = consume(ProgramSession::new(prepared));
+        let diagnostics = outcome.semantic_diagnostics();
+        assert_eq!(codes(diagnostics), [7016]);
+        let mut chain_codes = vec![diagnostics[0].message.code];
+        chain_codes.extend(
+            diagnostics[0]
+                .message
+                .next
+                .iter()
+                .map(|message| message.code),
+        );
+        assert_eq!(chain_codes, [7016, expected_tail]);
+    }
+}
+
+#[test]
+fn authoritative_unloaded_javascript_keeps_suggestions_out_of_cli_output() {
+    for (source_text, expect_suggestion) in [
+        ("import {} from \"pkg\";\n", true),
+        ("import \"pkg\";\n", false),
+    ] {
+        let prepared = authoritative_program(
+            &[("/main.ts", source_text)],
             &[0],
             CompilerOptions {
                 module: Some(1),
                 module_resolution: Some(2),
+                no_implicit_any: Some(false),
+                ..CompilerOptions::default()
+            },
+            |builder, _| {
+                let module = ResolvedModule::new(
+                    ResolvedModuleTarget::Unloaded(path("/node_modules/pkg/index.js")),
+                    ModuleExtension::Js,
+                )
+                .with_external_library_import(true)
+                .with_package_id(PackageId::new("pkg", "index.js", "1.0.0"));
+                builder
+                    .add_module_resolution(
+                        module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+                        Ok(ModuleResolution::resolved(module)),
+                    )
+                    .expect("add unloaded authoritative row");
+            },
+        );
+
+        let outcome = consume(ProgramSession::new(prepared));
+        assert!(outcome.semantic_diagnostics().is_empty());
+        assert!(outcome
+            .diagnostics()
+            .all(|diagnostic| diagnostic.code() != 7016));
+        let suggestions = outcome
+            .conformance_diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 7016)
+            .collect::<Vec<_>>();
+        assert_eq!(suggestions.len(), usize::from(expect_suggestion));
+        assert!(suggestions
+            .iter()
+            .all(|diagnostic| diagnostic.category() == DiagnosticCategory::Suggestion));
+    }
+}
+
+#[test]
+fn loaded_external_javascript_preserves_authoritative_package_detail_precedence() {
+    for (alternate, types_package_exists, package_bundles_types, expected_tail) in [
+        (Some("/types/pkg.d.ts"), true, true, 6280),
+        (None, true, true, 7040),
+        (None, false, true, 7058),
+        (None, false, false, 7035),
+    ] {
+        let prepared = authoritative_program(
+            &[
+                ("/node_modules/pkg/index.js", "export const value = 1;\n"),
+                (
+                    "/main.ts",
+                    "import { value } from \"pkg/subpath\";\nvalue;\n",
+                ),
+            ],
+            &[1],
+            CompilerOptions {
+                module: Some(1),
+                module_resolution: Some(2),
+                allow_js: true,
+                no_implicit_any: Some(true),
                 ..CompilerOptions::default()
             },
             |builder, ids| {
                 let module = ResolvedModule::new(
                     ResolvedModuleTarget::Source {
                         source: ids[0],
-                        resolved_file: path("/main.ts"),
+                        resolved_file: path("/node_modules/pkg/index.js"),
                     },
-                    ModuleExtension::Ts,
-                );
-                let module = match case {
-                    Case::OriginalPath => module.with_original_path(path("/alias/main.ts")),
-                    Case::PackageId => module.with_package_id(PackageId::new("pkg", "", "1.0.0")),
-                };
+                    ModuleExtension::Js,
+                )
+                .with_external_library_import(true)
+                .with_package_id(PackageId::new("pkg", "index.js", "1.0.0"));
+                let mut resolution = ModuleResolution::resolved(module)
+                    .with_types_package_exists(types_package_exists)
+                    .with_package_bundles_types(package_bundles_types);
+                if let Some(alternate) = alternate {
+                    resolution = resolution.with_alternate_result(path(alternate));
+                }
+                builder
+                    .add_module_resolution(
+                        module_key("/main.ts", "pkg/subpath", ResolutionMode::Unspecified),
+                        Ok(resolution),
+                    )
+                    .expect("add loaded external JavaScript row");
+            },
+        );
+
+        let outcome = consume(ProgramSession::new(prepared));
+        assert!(outcome.semantic_diagnostics().is_empty());
+        assert!(outcome
+            .diagnostics()
+            .all(|diagnostic| diagnostic.code() != 7016));
+        let diagnostic = outcome
+            .conformance_diagnostics()
+            .iter()
+            .find(|diagnostic| diagnostic.code() == 7016)
+            .expect("loaded external JavaScript suggestion");
+        assert_eq!(diagnostic.category(), DiagnosticCategory::Suggestion);
+        assert_eq!(
+            diagnostic
+                .message
+                .next
+                .iter()
+                .map(|message| message.code)
+                .collect::<Vec<_>>(),
+            [expected_tail]
+        );
+    }
+}
+
+#[test]
+fn authoritative_untyped_module_augmentation_reports_2665() {
+    let prepared = authoritative_program(
+        &[(
+            "/main.ts",
+            "export {};\ndeclare module \"pkg\" { export const extra: number; }\n",
+        )],
+        &[0],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            ..CompilerOptions::default()
+        },
+        |builder, _| {
+            let module = ResolvedModule::new(
+                ResolvedModuleTarget::Unloaded(path("/node_modules/pkg/index.js")),
+                ModuleExtension::Js,
+            )
+            .with_external_library_import(true)
+            .with_package_id(PackageId::new("pkg", "index.js", "1.0.0"));
+            builder
+                .add_module_resolution(
+                    module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+                    Ok(ModuleResolution::resolved(module)),
+                )
+                .expect("add untyped augmentation row");
+        },
+    );
+
+    let outcome = consume(ProgramSession::new(prepared));
+    assert_eq!(codes(outcome.semantic_diagnostics()), [2665]);
+    assert!(outcome.semantic_diagnostics()[0]
+        .message_text()
+        .contains("/node_modules/pkg/index.js"));
+}
+
+#[test]
+fn authoritative_relative_untyped_module_ignores_inapplicable_package_details() {
+    let prepared = authoritative_program(
+        &[("/main.ts", "import {} from \"./impl.js\";\n")],
+        &[0],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            no_implicit_any: Some(true),
+            ..CompilerOptions::default()
+        },
+        |builder, _| {
+            let module = ResolvedModule::new(
+                ResolvedModuleTarget::Unloaded(path("/impl.js")),
+                ModuleExtension::Js,
+            )
+            .with_package_id(PackageId::new("inapplicable", "impl.js", "1.0.0"));
+            builder
+                .add_module_resolution(
+                    module_key("/main.ts", "./impl.js", ResolutionMode::Unspecified),
+                    Ok(ModuleResolution::resolved(module).with_package_bundles_types(true)),
+                )
+                .expect("add relative untyped row");
+        },
+    );
+
+    let outcome = consume(ProgramSession::new(prepared));
+    let diagnostics = outcome.semantic_diagnostics();
+    assert_eq!(codes(diagnostics), [7016]);
+    let mut chain_codes = vec![diagnostics[0].message.code];
+    chain_codes.extend(
+        diagnostics[0]
+            .message
+            .next
+            .iter()
+            .map(|message| message.code),
+    );
+    assert_eq!(chain_codes, [7016]);
+}
+
+#[test]
+fn unloaded_jsx_with_an_active_jsx_mode_reports_7016() {
+    let prepared = authoritative_program(
+        &[("/main.ts", "import {} from \"pkg\";\n")],
+        &[0],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            no_implicit_any: Some(true),
+            jsx: Some(1),
+            ..CompilerOptions::default()
+        },
+        |builder, _| {
+            let module = ResolvedModule::new(
+                ResolvedModuleTarget::Unloaded(path("/node_modules/pkg/index.jsx")),
+                ModuleExtension::Jsx,
+            )
+            .with_external_library_import(true);
+            builder
+                .add_module_resolution(
+                    module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+                    Ok(ModuleResolution::resolved(module)),
+                )
+                .expect("add unloaded JSX row");
+        },
+    );
+
+    let outcome = consume(ProgramSession::new(prepared));
+    assert_eq!(codes(outcome.semantic_diagnostics()), [7016]);
+}
+
+#[test]
+fn unloaded_targets_fail_closed_outside_the_unadmitted_javascript_case() {
+    for (target, extension, allow_js, jsx, expected) in [
+        (
+            "/node_modules/pkg/index.ts",
+            ModuleExtension::Ts,
+            false,
+            None,
+            UnsupportedAuthoritativeResolution::UnloadedTargetExtension,
+        ),
+        (
+            "/node_modules/pkg/index.js",
+            ModuleExtension::Js,
+            true,
+            None,
+            UnsupportedAuthoritativeResolution::UnloadedTargetAdmission,
+        ),
+        (
+            "/node_modules/pkg/index.jsx",
+            ModuleExtension::Jsx,
+            false,
+            None,
+            UnsupportedAuthoritativeResolution::UnloadedJsxWithoutJsxOption,
+        ),
+    ] {
+        let prepared = authoritative_program(
+            &[("/main.ts", "import {} from \"pkg\";\n")],
+            &[0],
+            CompilerOptions {
+                module: Some(1),
+                module_resolution: Some(2),
+                allow_js,
+                jsx,
+                ..CompilerOptions::default()
+            },
+            |builder, _| {
+                let module =
+                    ResolvedModule::new(ResolvedModuleTarget::Unloaded(path(target)), extension);
                 builder
                     .add_module_resolution(
                         module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
                         Ok(ModuleResolution::resolved(module)),
                     )
-                    .expect("add metadata-bearing source row");
+                    .expect("add unloaded authoritative row");
             },
         );
+
         let error = ProgramSession::new(prepared)
             .run()
-            .expect_err("unconsumed resolution facts must fail closed");
+            .expect_err("unsupported unloaded target must fail the session");
         let DriverError::AuthoritativeResolution(AuthoritativeModuleFailure::Lookup {
             failure: AuthoritativeModuleLookupFailure::Unsupported(actual),
             ..
@@ -895,6 +1207,88 @@ fn lossy_resolved_source_metadata_is_rejected_until_it_is_consumed() {
         };
         assert_eq!(actual, expected);
     }
+}
+
+#[test]
+fn lossy_resolved_source_metadata_is_rejected_until_it_is_consumed() {
+    let prepared = authoritative_program(
+        &[("/main.ts", "import { value } from \"pkg\";\nvalue;\n")],
+        &[0],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            ..CompilerOptions::default()
+        },
+        |builder, ids| {
+            let module = ResolvedModule::new(
+                ResolvedModuleTarget::Source {
+                    source: ids[0],
+                    resolved_file: path("/main.ts"),
+                },
+                ModuleExtension::Ts,
+            )
+            .with_original_path(path("/alias/main.ts"));
+            builder
+                .add_module_resolution(
+                    module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+                    Ok(ModuleResolution::resolved(module)),
+                )
+                .expect("add metadata-bearing source row");
+        },
+    );
+    let error = ProgramSession::new(prepared)
+        .run()
+        .expect_err("unconsumed resolution facts must fail closed");
+    let DriverError::AuthoritativeResolution(AuthoritativeModuleFailure::Lookup {
+        failure: AuthoritativeModuleLookupFailure::Unsupported(actual),
+        ..
+    }) = error
+    else {
+        panic!("unexpected driver error: {error:?}");
+    };
+    assert_eq!(actual, UnsupportedAuthoritativeResolution::OriginalPath);
+}
+
+#[test]
+fn loaded_package_identity_is_consumed_at_the_authoritative_boundary() {
+    let prepared = authoritative_program(
+        &[
+            (
+                "/node_modules/pkg/index.d.ts",
+                "export const value: number;\n",
+            ),
+            (
+                "/main.ts",
+                "import { value } from \"pkg\";\nconst checked: number = value;\n",
+            ),
+        ],
+        &[1],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            ..CompilerOptions::default()
+        },
+        |builder, ids| {
+            let module = ResolvedModule::new(
+                ResolvedModuleTarget::Source {
+                    source: ids[0],
+                    resolved_file: path("/node_modules/pkg/index.d.ts"),
+                },
+                ModuleExtension::Dts,
+            )
+            .with_external_library_import(true)
+            .with_package_id(PackageId::new("pkg", "index.d.ts", "1.0.0"));
+            builder
+                .add_module_resolution(
+                    module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+                    Ok(ModuleResolution::resolved(module)),
+                )
+                .expect("add package-identified source row");
+        },
+    );
+
+    let outcome = consume(ProgramSession::new(prepared));
+    assert!(outcome.semantic_diagnostics().is_empty());
 }
 
 #[test]

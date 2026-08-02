@@ -4,6 +4,7 @@ pub mod flags;
 pub mod options;
 pub mod tables;
 pub mod ty;
+mod version;
 
 pub use flags::*;
 pub use options::CompilerOptions;
@@ -16,6 +17,7 @@ pub use ty::{
     MappedTypeModifiers, MapperId, PseudoBigInt, ReverseMappedTypeData, SubstitutionTypeData,
     SymbolId, TemplateText, TupleTargetData, Type, TypeData, TypeId,
 };
+pub use version::compiler_version_satisfies;
 
 pub fn is_scaffolded() -> bool {
     true

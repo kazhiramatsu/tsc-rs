@@ -14,9 +14,9 @@ use std::path::PathBuf;
 use tsc_checker::{
     check_program_with_authoritative_modules_at, AuthoritativeModuleFailure,
     AuthoritativeModuleLookupFailure, AuthoritativeModuleProvider, AuthoritativeModuleRequest,
-    AuthoritativeModuleResolution, AuthoritativeResolutionMode, AuthoritativeResolvedModule,
-    AuthoritativeSourceMetadata, AuthoritativeSourceToken, InputFile,
-    UnsupportedAuthoritativeResolution,
+    AuthoritativeModuleResolution, AuthoritativePackageId, AuthoritativeResolutionMode,
+    AuthoritativeResolvedModule, AuthoritativeSourceMetadata, AuthoritativeSourceToken,
+    AuthoritativeUntypedModule, InputFile, UnsupportedAuthoritativeResolution,
 };
 use tsc_diagnostics::{sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList};
 use tsc_program::{
@@ -62,22 +62,72 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 UnsupportedAuthoritativeResolution::ResolutionDiagnostics,
             ));
         }
-        if resolution.alternate_result().is_some() {
-            return Err(AuthoritativeModuleLookupFailure::Unsupported(
-                UnsupportedAuthoritativeResolution::AlternateResult,
-            ));
-        }
         let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
+            if resolution.alternate_result().is_some() {
+                return Err(AuthoritativeModuleLookupFailure::Unsupported(
+                    UnsupportedAuthoritativeResolution::AlternateResult,
+                ));
+            }
             return Ok(AuthoritativeModuleResolution::NotFound);
         };
+        if let ResolvedModuleTarget::Unloaded(resolved_file) = module.target() {
+            if !module.extension().is_javascript() {
+                return Err(AuthoritativeModuleLookupFailure::Unsupported(
+                    UnsupportedAuthoritativeResolution::UnloadedTargetExtension,
+                ));
+            }
+            if self.prepared.compiler_options().allow_js {
+                return Err(AuthoritativeModuleLookupFailure::Unsupported(
+                    UnsupportedAuthoritativeResolution::UnloadedTargetAdmission,
+                ));
+            }
+            if matches!(module.extension(), ModuleExtension::Jsx)
+                && self.prepared.compiler_options().jsx.unwrap_or(0) == 0
+            {
+                return Err(AuthoritativeModuleLookupFailure::Unsupported(
+                    UnsupportedAuthoritativeResolution::UnloadedJsxWithoutJsxOption,
+                ));
+            }
+            if module.original_path().is_some() {
+                return Err(AuthoritativeModuleLookupFailure::Unsupported(
+                    UnsupportedAuthoritativeResolution::OriginalPath,
+                ));
+            }
+            let resolved_file_name = resolved_file
+                .display()
+                .to_str()
+                .ok_or(AuthoritativeModuleLookupFailure::Unsupported(
+                    UnsupportedAuthoritativeResolution::ResolvedFileIdentity,
+                ))?
+                .to_owned();
+            let alternate_result = resolution
+                .alternate_result()
+                .map(|path| {
+                    path.display().to_str().map(str::to_owned).ok_or(
+                        AuthoritativeModuleLookupFailure::Unsupported(
+                            UnsupportedAuthoritativeResolution::ResolvedFileIdentity,
+                        ),
+                    )
+                })
+                .transpose()?;
+            return Ok(AuthoritativeModuleResolution::Untyped(
+                AuthoritativeUntypedModule {
+                    resolved_file_name,
+                    package_name: module
+                        .package_id()
+                        .map(|package_id| package_id.name().to_owned()),
+                    alternate_result,
+                    types_package_exists: resolution.types_package_exists(),
+                    package_bundles_types: resolution.package_bundles_types(),
+                },
+            ));
+        }
         let ResolvedModuleTarget::Source {
             source,
             resolved_file,
         } = module.target()
         else {
-            return Err(AuthoritativeModuleLookupFailure::Unsupported(
-                UnsupportedAuthoritativeResolution::UnloadedTarget,
-            ));
+            unreachable!("unloaded target returned above")
         };
         let Some(target_source) = self.prepared.source_file(*source) else {
             return Err(AuthoritativeModuleLookupFailure::InvalidSourceToken);
@@ -92,11 +142,6 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 UnsupportedAuthoritativeResolution::OriginalPath,
             ));
         }
-        if module.package_id().is_some() {
-            return Err(AuthoritativeModuleLookupFailure::Unsupported(
-                UnsupportedAuthoritativeResolution::PackageId,
-            ));
-        }
         Ok(AuthoritativeModuleResolution::Resolved(
             AuthoritativeResolvedModule {
                 target_token: AuthoritativeSourceToken(source.raw()),
@@ -107,6 +152,26 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 ),
                 is_arbitrary_extension: matches!(module.extension(), ModuleExtension::Arbitrary(_)),
                 is_external_library_import: module.is_external_library_import(),
+                package_id: module
+                    .package_id()
+                    .map(|package_id| AuthoritativePackageId {
+                        name: package_id.name().to_owned(),
+                        submodule_name: package_id.submodule_name().to_owned(),
+                        version: package_id.version().to_owned(),
+                        peer_dependencies: package_id.peer_dependencies().map(str::to_owned),
+                    }),
+                alternate_result: resolution
+                    .alternate_result()
+                    .map(|path| {
+                        path.display().to_str().map(str::to_owned).ok_or(
+                            AuthoritativeModuleLookupFailure::Unsupported(
+                                UnsupportedAuthoritativeResolution::ResolvedFileIdentity,
+                            ),
+                        )
+                    })
+                    .transpose()?,
+                types_package_exists: resolution.types_package_exists(),
+                package_bundles_types: resolution.package_bundles_types(),
             },
         ))
     }
@@ -174,6 +239,7 @@ impl ProgramSession {
         .map_err(|failure| map_authoritative_failure(&self.prepared, failure))?;
 
         let preparation = self.prepared.diagnostics();
+        let conformance_diagnostics = checked.diagnostics;
         let config_diagnostics = preparation.config().to_vec();
         let mut syntactic_diagnostics = checked.syntactic_diagnostics;
         sort_and_dedupe_diagnostics(&mut syntactic_diagnostics);
@@ -245,6 +311,7 @@ impl ProgramSession {
             options_diagnostics,
             global_diagnostics,
             semantic_diagnostics,
+            conformance_diagnostics,
         })
     }
 }
@@ -261,6 +328,10 @@ pub struct NoEmitOutcome {
     options_diagnostics: DiagnosticList,
     global_diagnostics: DiagnosticList,
     semantic_diagnostics: DiagnosticList,
+    // The legacy differential harness compares the aggregate of public
+    // per-file getters, including suggestions. This stream is retained only
+    // as evidence; diagnostics()/into_diagnostics intentionally exclude it.
+    conformance_diagnostics: DiagnosticList,
 }
 
 impl NoEmitOutcome {
@@ -282,6 +353,12 @@ impl NoEmitOutcome {
 
     pub fn semantic_diagnostics(&self) -> &[Diagnostic] {
         &self.semantic_diagnostics
+    }
+
+    /// Aggregate public-getter stream used only by differential conformance.
+    /// It includes suggestions and is therefore not CLI output.
+    pub fn conformance_diagnostics(&self) -> &[Diagnostic] {
+        &self.conformance_diagnostics
     }
 
     /// Iterate in the no-emit command's bucket order.

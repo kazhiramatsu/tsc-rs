@@ -38,6 +38,10 @@ impl AuthoritativeModuleProvider for Provider {
                 is_tsx: false,
                 is_arbitrary_extension: false,
                 is_external_library_import: self.is_external_library_import,
+                package_id: None,
+                alternate_result: None,
+                types_package_exists: false,
+                package_bundles_types: false,
             },
         ))
     }
