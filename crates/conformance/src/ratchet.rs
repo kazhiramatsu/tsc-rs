@@ -2198,6 +2198,20 @@ struct ResolvedBlobRef {
     location: WorkspaceLocation,
 }
 
+/// Opaque evidence that the accepted artifact pair's full append-only
+/// history was verified for one exact repository state. The proof carries
+/// only blob identities and hashes; decoded historical artifacts stay inside
+/// the ratchet command and are released with it.
+pub struct AcceptedPairHistoryProof {
+    workspace: PathBuf,
+    git_root: PathBuf,
+    head_commit: String,
+    head_matches_blob: Option<String>,
+    head_inputs_blob: Option<String>,
+    working_matches_sha256: String,
+    working_inputs_sha256: String,
+}
+
 /// The small, validated subset of an accepted-match artifact needed by the
 /// historical pair audit. Keeping facts instead of the decoded artifact is
 /// important: one current accepted artifact expands to tens of megabytes.
@@ -2375,11 +2389,11 @@ impl GitMemo {
         git(&self.git_root, args)
     }
 
-    fn blob_optional_with_location(
+    fn blob_ref_optional(
         &mut self,
         commit: &str,
         rel: &str,
-    ) -> ConformanceResult<Option<(Vec<u8>, ResolvedBlobRef)>> {
+    ) -> ConformanceResult<Option<ResolvedBlobRef>> {
         let commit = if commit == "HEAD" {
             self.head_commit.clone()
         } else {
@@ -2388,17 +2402,7 @@ impl GitMemo {
         let paths = WorkspaceHistoryPaths::new(rel)?;
         let key = (commit.clone(), paths.current.clone());
         if let Some(blob) = self.blob_ids.get(&key) {
-            return match blob {
-                None => Ok(None),
-                Some(blob) => self
-                    .blob_objects
-                    .get(&blob.object_id)
-                    .cloned()
-                    .map(|bytes| Some((bytes, blob.clone())))
-                    .ok_or_else(|| {
-                        format!("internal Git memo lost blob object {}", blob.object_id).into()
-                    }),
-            };
+            return Ok(blob.clone());
         }
         let tree = self.run_git(&[
             "ls-tree",
@@ -2412,6 +2416,24 @@ impl GitMemo {
             self.blob_ids.insert(key, None);
             return Ok(None);
         };
+        self.blob_ids.insert(key, Some(blob.clone()));
+        Ok(Some(blob))
+    }
+
+    fn blob_optional_with_location(
+        &mut self,
+        commit: &str,
+        rel: &str,
+    ) -> ConformanceResult<Option<(Vec<u8>, ResolvedBlobRef)>> {
+        let commit = if commit == "HEAD" {
+            self.head_commit.clone()
+        } else {
+            commit.to_owned()
+        };
+        let paths = WorkspaceHistoryPaths::new(rel)?;
+        let Some(blob) = self.blob_ref_optional(&commit, rel)? else {
+            return Ok(None);
+        };
         let bytes = if let Some(bytes) = self.blob_objects.get(&blob.object_id) {
             bytes.clone()
         } else {
@@ -2421,7 +2443,6 @@ impl GitMemo {
                 .insert(blob.object_id.clone(), bytes.clone());
             bytes
         };
-        self.blob_ids.insert(key, Some(blob.clone()));
         Ok(Some((bytes, blob)))
     }
 
@@ -2630,6 +2651,109 @@ impl GitMemo {
             .into());
         }
         Ok(())
+    }
+}
+
+impl AcceptedPairHistoryProof {
+    fn from_verified_history(
+        workspace: &Path,
+        git_memo: &mut GitMemo,
+        matches_rel: &str,
+        inputs_rel: &str,
+        matches_bytes: &[u8],
+        inputs_bytes: &[u8],
+    ) -> ConformanceResult<Self> {
+        let head_matches_blob = git_memo
+            .blob_ref_optional("HEAD", matches_rel)?
+            .map(|blob| blob.object_id);
+        let head_inputs_blob = git_memo
+            .blob_ref_optional("HEAD", inputs_rel)?
+            .map(|blob| blob.object_id);
+        git_memo.verify_head_unchanged()?;
+
+        Ok(Self {
+            workspace: fs::canonicalize(workspace)?,
+            git_root: fs::canonicalize(&git_memo.git_root)?,
+            head_commit: git_memo.head_commit.clone(),
+            head_matches_blob,
+            head_inputs_blob,
+            working_matches_sha256: sha256_hex(matches_bytes),
+            working_inputs_sha256: sha256_hex(inputs_bytes),
+        })
+    }
+
+    /// Rebind the opaque proof to the repository immediately before a
+    /// dependent audit consumes it. Only lightweight Git metadata and current
+    /// compressed bytes are re-read; no historical artifact is decoded.
+    pub(crate) fn verify_current(&self, workspace: &Path) -> ConformanceResult<()> {
+        let workspace = fs::canonicalize(workspace)?;
+        if workspace != self.workspace {
+            return Err(format!(
+                "accepted-pair history proof belongs to workspace {}, not {}",
+                self.workspace.display(),
+                workspace.display()
+            )
+            .into());
+        }
+
+        let git_root = fs::canonicalize(git_root_for(&workspace)?)?;
+        if git_root != self.git_root {
+            return Err(format!(
+                "accepted-pair history proof belongs to Git root {}, not {}",
+                self.git_root.display(),
+                git_root.display()
+            )
+            .into());
+        }
+
+        let matches_rel = git_rel_path(&git_root, &workspace, MATCHES_REL_PATH)?;
+        let inputs_rel = git_rel_path(&git_root, &workspace, ORACLE_INPUTS_REL_PATH)?;
+        let mut git_memo = GitMemo::new(&git_root)?;
+        if git_memo.head_commit != self.head_commit {
+            return Err(format!(
+                "accepted-pair history proof is stale: HEAD moved from {} to {}",
+                self.head_commit, git_memo.head_commit
+            )
+            .into());
+        }
+        let current_matches_blob = git_memo
+            .blob_ref_optional("HEAD", &matches_rel)?
+            .map(|blob| blob.object_id);
+        let current_inputs_blob = git_memo
+            .blob_ref_optional("HEAD", &inputs_rel)?
+            .map(|blob| blob.object_id);
+        if current_matches_blob.as_deref() != self.head_matches_blob.as_deref()
+            || current_inputs_blob.as_deref() != self.head_inputs_blob.as_deref()
+        {
+            return Err("accepted-pair history proof blob identities no longer match HEAD".into());
+        }
+
+        let working_matches = fs::read(workspace.join(MATCHES_REL_PATH))?;
+        let working_inputs = fs::read(workspace.join(ORACLE_INPUTS_REL_PATH))?;
+        if sha256_hex(&working_matches) != self.working_matches_sha256
+            || sha256_hex(&working_inputs) != self.working_inputs_sha256
+        {
+            return Err("accepted-pair history proof does not match the working artifacts".into());
+        }
+        git_memo.verify_head_unchanged()
+    }
+
+    /// Bind a dependent audit's independently pinned HEAD token to this
+    /// proof before consulting mutable repository state. Direct token equality
+    /// closes ABA windows that sequential `HEAD` lookups alone cannot detect.
+    pub(crate) fn verify_current_at_head(
+        &self,
+        workspace: &Path,
+        expected_head: &str,
+    ) -> ConformanceResult<()> {
+        if self.head_commit != expected_head {
+            return Err(format!(
+                "accepted-pair history proof HEAD {} does not match dependent audit HEAD {expected_head}",
+                self.head_commit
+            )
+            .into());
+        }
+        self.verify_current(workspace)
     }
 }
 
@@ -3724,7 +3848,14 @@ pub(crate) fn verify_current_pair(
 /// proof before trusting an artifact inherited at a historical closing
 /// commit. The ordinary ratchet gate still performs the stronger current-tree
 /// input diff through [`verify_current_pair`].
+#[cfg(test)]
 pub(crate) fn verify_accepted_pair_history(workspace: &Path) -> ConformanceResult<()> {
+    verify_accepted_pair_history_with_proof(workspace).map(drop)
+}
+
+pub(crate) fn verify_accepted_pair_history_with_proof(
+    workspace: &Path,
+) -> ConformanceResult<AcceptedPairHistoryProof> {
     let (matches, matches_bytes): (MatchesArtifact, _) =
         read_artifact(&workspace.join(MATCHES_REL_PATH), "accepted-match artifact")?;
     matches.validate()?;
@@ -3751,8 +3882,14 @@ pub(crate) fn verify_accepted_pair_history(workspace: &Path) -> ConformanceResul
     verify_lineage_with_memo::<MatchesArtifact>(&mut git_memo, &matches_rel, &matches_bytes)?;
     verify_lineage_with_memo::<OracleInputsArtifact>(&mut git_memo, &inputs_rel, &inputs_bytes)?;
     verify_committed_artifact_pairs_with_memo(&mut git_memo, &matches_rel, &inputs_rel)?;
-    git_memo.verify_head_unchanged()?;
-    Ok(())
+    AcceptedPairHistoryProof::from_verified_history(
+        workspace,
+        &mut git_memo,
+        &matches_rel,
+        &inputs_rel,
+        &matches_bytes,
+        &inputs_bytes,
+    )
 }
 
 /// `cargo xtask ratchet check [--baseline <ref>]`: verify both
@@ -3761,6 +3898,16 @@ pub(crate) fn verify_accepted_pair_history(workspace: &Path) -> ConformanceResul
 /// and their full append-only lineage; with `--baseline`, also the
 /// trusted PR-base direct compare.
 pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> {
+    check_with_history_proof(workspace, baseline).map(drop)
+}
+
+/// Perform [`check`] and retain an opaque, repository-bound proof for another
+/// audit in the same process. This lets dependent validators reuse the
+/// successful blob-ID history decode without retaining the decoded artifacts.
+pub fn check_with_history_proof(
+    workspace: &Path,
+    baseline: Option<&str>,
+) -> ConformanceResult<AcceptedPairHistoryProof> {
     let (matches, matches_bytes, inputs, inputs_bytes) = verify_current_pair(workspace)?;
 
     // ratchet.toml counts are derived summaries of the artifact, never
@@ -3823,7 +3970,14 @@ pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
         };
         verify_bootstrap_measurement(&matches.views, &run.sets)?;
     }
-    git_memo.verify_head_unchanged()?;
+    let history_proof = AcceptedPairHistoryProof::from_verified_history(
+        workspace,
+        &mut git_memo,
+        &matches_rel,
+        &inputs_rel,
+        &matches_bytes,
+        &inputs_bytes,
+    )?;
 
     let describe = |view: DiagnosticBand| {
         let (matched, complete) = counts.get(view.name()).copied().unwrap_or((0, 0));
@@ -3854,7 +4008,7 @@ pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
         inputs.fixtures.len(),
         baseline.unwrap_or("none"),
     );
-    Ok(())
+    Ok(history_proof)
 }
 
 /// `cargo xtask ratchet update [--transition universe-transition]`:
@@ -6303,6 +6457,120 @@ mod tests {
             memo.git_invocations, invocations_after_walk,
             "cached blob, parent, and path-version queries must not spawn Git"
         );
+    }
+
+    #[test]
+    fn blob_identity_lookup_does_not_read_or_decode_blob_bytes() {
+        let repo = init_repo("history-blob-identity");
+        commit_bytes(&repo, MATCHES_REL_PATH, b"artifact bytes", "artifact");
+        let mut memo = GitMemo::new(&repo).unwrap();
+
+        let blob = memo
+            .blob_ref_optional("HEAD", MATCHES_REL_PATH)
+            .unwrap()
+            .expect("HEAD blob");
+        assert!(!blob.object_id.is_empty());
+        assert_eq!(
+            memo.git_invocations, 1,
+            "identity lookup needs only ls-tree"
+        );
+        assert!(
+            memo.blob_objects.is_empty(),
+            "identity lookup must not retain blob bytes"
+        );
+
+        memo.blob_ref_optional("HEAD", MATCHES_REL_PATH).unwrap();
+        assert_eq!(memo.git_invocations, 1, "blob identity must be memoized");
+        assert_eq!(
+            memo.blob_optional("HEAD", MATCHES_REL_PATH).unwrap(),
+            Some(b"artifact bytes".to_vec())
+        );
+        assert_eq!(memo.git_invocations, 2, "first byte read adds one git show");
+        memo.blob_optional("HEAD", MATCHES_REL_PATH).unwrap();
+        assert_eq!(memo.git_invocations, 2, "blob bytes must then be memoized");
+    }
+
+    fn proof_for_committed_pair(
+        repo: &Path,
+        matches_bytes: &[u8],
+        inputs_bytes: &[u8],
+    ) -> AcceptedPairHistoryProof {
+        let root = git_root_for(repo).unwrap();
+        let matches_rel = git_rel_path(&root, repo, MATCHES_REL_PATH).unwrap();
+        let inputs_rel = git_rel_path(&root, repo, ORACLE_INPUTS_REL_PATH).unwrap();
+        let mut memo = GitMemo::new(&root).unwrap();
+        AcceptedPairHistoryProof::from_verified_history(
+            repo,
+            &mut memo,
+            &matches_rel,
+            &inputs_rel,
+            matches_bytes,
+            inputs_bytes,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn accepted_pair_history_proof_is_bound_to_head_blobs_and_working_bytes() {
+        let repo = init_repo("history-proof-binding");
+        let matches_bytes = b"matches";
+        let inputs_bytes = b"inputs";
+        commit_artifact_pair(&repo, matches_bytes, inputs_bytes, "pair");
+        let proof = proof_for_committed_pair(&repo, matches_bytes, inputs_bytes);
+        proof.verify_current(&repo).unwrap();
+        let error = proof
+            .verify_current_at_head(&repo, &"0".repeat(40))
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("dependent audit HEAD"), "{error}");
+
+        fs::write(repo.join(MATCHES_REL_PATH), b"changed matches").unwrap();
+        let error = proof.verify_current(&repo).unwrap_err().to_string();
+        assert!(error.contains("working artifacts"), "{error}");
+        fs::write(repo.join(MATCHES_REL_PATH), matches_bytes).unwrap();
+
+        fs::write(repo.join(ORACLE_INPUTS_REL_PATH), b"changed inputs").unwrap();
+        let error = proof.verify_current(&repo).unwrap_err().to_string();
+        assert!(error.contains("working artifacts"), "{error}");
+    }
+
+    #[test]
+    fn accepted_pair_history_proof_rejects_head_moves_and_other_workspaces() {
+        let repo = init_repo("history-proof-head");
+        let matches_bytes = b"matches";
+        let inputs_bytes = b"inputs";
+        commit_artifact_pair(&repo, matches_bytes, inputs_bytes, "pair");
+        let proof = proof_for_committed_pair(&repo, matches_bytes, inputs_bytes);
+
+        commit_bytes(&repo, "unrelated", b"move HEAD", "unrelated commit");
+        let error = proof.verify_current(&repo).unwrap_err().to_string();
+        assert!(error.contains("HEAD moved"), "{error}");
+
+        let other = init_repo("history-proof-other-workspace");
+        commit_artifact_pair(&other, matches_bytes, inputs_bytes, "same pair");
+        let error = proof.verify_current(&other).unwrap_err().to_string();
+        assert!(error.contains("belongs to workspace"), "{error}");
+    }
+
+    #[test]
+    fn accepted_pair_history_proof_preserves_uncommitted_bootstrap_artifacts() {
+        let repo = init_repo("history-proof-bootstrap");
+        commit_bytes(&repo, "seed", b"seed", "seed");
+        let matches_bytes = b"working matches";
+        let inputs_bytes = b"working inputs";
+        for (rel, bytes) in [
+            (MATCHES_REL_PATH, matches_bytes.as_slice()),
+            (ORACLE_INPUTS_REL_PATH, inputs_bytes.as_slice()),
+        ] {
+            let path = repo.join(rel);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, bytes).unwrap();
+        }
+
+        let proof = proof_for_committed_pair(&repo, matches_bytes, inputs_bytes);
+        assert_eq!(proof.head_matches_blob, None);
+        assert_eq!(proof.head_inputs_blob, None);
+        proof.verify_current(&repo).unwrap();
     }
 
     #[test]

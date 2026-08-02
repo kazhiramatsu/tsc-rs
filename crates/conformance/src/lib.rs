@@ -33,7 +33,8 @@ pub use families::{
     verify_report_freshness as families_verify_report,
 };
 pub use host_resolution::{
-    check_host_resolution_registry, draft_host_resolution_registry, HOST_RESOLUTION_REL_PATH,
+    check_host_resolution_registry, check_host_resolution_registry_with_history_proof,
+    draft_host_resolution_registry, HOST_RESOLUTION_REL_PATH,
 };
 pub use identity::ExactIdentity;
 pub use rendered::{
