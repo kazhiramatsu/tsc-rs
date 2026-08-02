@@ -54,6 +54,7 @@ pub(crate) enum ProgramModuleResolution {
     Resolved(ResolvedProgramModule),
     Suppressed,
     Missed,
+    AuthorityFailed,
 }
 
 /// Diagnostic-only projection of a host module target. Ordinary
@@ -3343,6 +3344,9 @@ impl<'a> CheckerState<'a> {
             }
             return Ok(None);
         }
+        if matches!(resolution, ProgramModuleResolution::AuthorityFailed) {
+            return Ok(None);
+        }
         if !self.pattern_ambient_modules.is_empty() {
             if let Some(symbol) = self.find_best_pattern_match(module_reference) {
                 if let Some(&augmentation) = self
@@ -3959,6 +3963,80 @@ impl<'a> CheckerState<'a> {
             .is_some_and(|unprefixed| UNPREFIXED.contains(&unprefixed))
     }
 
+    fn resolve_authoritative_program_module(
+        &self,
+        location: NodeId,
+        module_reference: &str,
+    ) -> ProgramModuleResolution {
+        if self.authoritative_module_failure.get().is_some() {
+            return ProgramModuleResolution::AuthorityFailed;
+        }
+
+        let file_index = self.binder.file_index_of_node(location);
+        let containing_file = &self.binder.source(file_index).file_name;
+        let Some(&source_token) = self.authoritative_source_tokens.get(file_index) else {
+            self.record_authoritative_module_failure(
+                crate::AuthoritativeModuleFailure::UnknownSourceToken {
+                    file_index,
+                    containing_file: containing_file.clone(),
+                },
+            );
+            return ProgramModuleResolution::AuthorityFailed;
+        };
+        let mode = match self.resolution_mode_for_usage(location) {
+            ModuleResolutionMode::CommonJs => crate::AuthoritativeResolutionMode::CommonJs,
+            ModuleResolutionMode::EsNext => crate::AuthoritativeResolutionMode::EsNext,
+            ModuleResolutionMode::Unknown => crate::AuthoritativeResolutionMode::Unspecified,
+        };
+        let request = crate::AuthoritativeModuleRequest {
+            source_token,
+            containing_file,
+            specifier: module_reference,
+            mode,
+        };
+        let provider = self
+            .authoritative_module_provider
+            .expect("authoritative resolver branch requires a provider");
+        match provider.resolve_module(request) {
+            Ok(crate::AuthoritativeModuleResolution::NotFound) => ProgramModuleResolution::Missed,
+            Ok(crate::AuthoritativeModuleResolution::Resolved(resolved)) => {
+                let Some(&target_index) = self
+                    .authoritative_source_index_by_token
+                    .get(&resolved.target_token)
+                else {
+                    self.record_authoritative_module_failure(
+                        crate::AuthoritativeModuleFailure::UnknownTargetToken {
+                            source_token,
+                            containing_file: containing_file.clone(),
+                            specifier: module_reference.to_owned(),
+                            mode,
+                            target_token: resolved.target_token,
+                        },
+                    );
+                    return ProgramModuleResolution::AuthorityFailed;
+                };
+                ProgramModuleResolution::Resolved(ResolvedProgramModule {
+                    file_index: target_index,
+                    resolved_using_ts_extension: resolved.resolved_using_ts_extension,
+                    is_tsx: resolved.is_tsx,
+                    is_arbitrary_extension: resolved.is_arbitrary_extension,
+                })
+            }
+            Err(failure) => {
+                self.record_authoritative_module_failure(
+                    crate::AuthoritativeModuleFailure::Lookup {
+                        source_token,
+                        containing_file: containing_file.clone(),
+                        specifier: module_reference.to_owned(),
+                        mode,
+                        failure,
+                    },
+                );
+                ProgramModuleResolution::AuthorityFailed
+            }
+        }
+    }
+
     /// tsrs-native: the host.getResolvedModule seam over the in-memory
     /// program file set (program-and-modules.md §2): relative/absolute
     /// specifiers resolve against the importing file's directory with
@@ -3980,6 +4058,9 @@ impl<'a> CheckerState<'a> {
         location: NodeId,
         module_reference: &str,
     ) -> ProgramModuleResolution {
+        if self.authoritative_module_provider.is_some() {
+            return self.resolve_authoritative_program_module(location, module_reference);
+        }
         if module_reference.is_empty() {
             return ProgramModuleResolution::Missed;
         }
@@ -5101,6 +5182,7 @@ impl<'a> CheckerState<'a> {
                         );
                         None
                     }
+                    ProgramModuleResolution::AuthorityFailed => None,
                 }
             };
             self.external_helpers_modules.insert(source_root, resolved);
@@ -5540,6 +5622,11 @@ impl<'a> CheckerState<'a> {
         if !self.import_syntax_affects_module_resolution() {
             return ModuleResolutionMode::Unknown;
         }
+        if self.authoritative_module_provider.is_some()
+            && self.require_call_for_resolution_usage(location)
+        {
+            return ModuleResolutionMode::CommonJs;
+        }
         if self.has_ancestor_kind(location, SyntaxKind::ImportEqualsDeclaration) {
             return ModuleResolutionMode::CommonJs;
         }
@@ -5558,6 +5645,22 @@ impl<'a> CheckerState<'a> {
             };
         }
         self.static_resolution_mode_for_file(location)
+    }
+
+    fn require_call_for_resolution_usage(&self, location: NodeId) -> bool {
+        if self.kind_of(location) == SyntaxKind::VariableDeclaration
+            && self.external_module_require_argument(location).is_some()
+        {
+            return true;
+        }
+        let mut current = Some(location);
+        while let Some(node) = current {
+            if self.is_require_call(node, /*require_string_literal_like_argument*/ true) {
+                return true;
+            }
+            current = self.parent_of(node);
+        }
+        false
     }
 
     fn resolution_mode_override_for_usage(&self, location: NodeId) -> Option<ModuleResolutionMode> {
@@ -5627,6 +5730,26 @@ impl<'a> CheckerState<'a> {
             return Some(ModuleResolutionMode::CommonJs);
         }
         let normalized = Self::normalize_program_path(file_name, "");
+        if self.authoritative_module_provider.is_some() {
+            return self
+                .program_path_index
+                .get(&normalized)
+                .and_then(|&file_index| {
+                    self.authoritative_implied_node_formats
+                        .get(file_index)
+                        .copied()
+                        .flatten()
+                })
+                .and_then(|mode| match mode {
+                    crate::AuthoritativeResolutionMode::CommonJs => {
+                        Some(ModuleResolutionMode::CommonJs)
+                    }
+                    crate::AuthoritativeResolutionMode::EsNext => {
+                        Some(ModuleResolutionMode::EsNext)
+                    }
+                    crate::AuthoritativeResolutionMode::Unspecified => None,
+                });
+        }
         let should_lookup_from_package_json = (3..=99)
             .contains(&self.options.emit_module_resolution_kind())
             || normalized

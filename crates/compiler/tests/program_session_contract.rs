@@ -1,9 +1,14 @@
-use tsc_checker::{check_program_with_owned_libs_at, InputFile};
-use tsc_compiler::{NoEmitOutcome, ProgramSession};
+use tsc_checker::{
+    check_program_with_owned_libs_at, AuthoritativeModuleFailure, AuthoritativeModuleLookupFailure,
+    InputFile, UnsupportedAuthoritativeResolution,
+};
+use tsc_compiler::{DriverError, NoEmitOutcome, ProgramSession};
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory, MessageChain};
 use tsc_program::{
-    CompilerOptions, PathContext, PreparationDiagnostics, PreparedAuxiliaryFile, PreparedProgram,
-    PreparedSourceFile, ProgramPath,
+    CompilerOptions, ModuleExtension, ModuleResolution, PackageId, PathContext,
+    PreparationDiagnostics, PreparedAuxiliaryFile, PreparedProgram, PreparedProgramBuilder,
+    PreparedSourceFile, ProgramPath, ResolutionKey, ResolutionMode, ResolutionRequestKind,
+    ResolvedModule, ResolvedModuleTarget, SourceFileId,
 };
 
 const MINIMAL_GLOBALS: &str = r#"
@@ -108,6 +113,52 @@ fn with_minimal_lib(
     let mut all_files = vec![("lib.d.ts", MINIMAL_GLOBALS)];
     all_files.extend_from_slice(files);
     prepared_program(&all_files, 1, diagnostics, configure)
+}
+
+fn authoritative_program(
+    files: &[(&str, &str)],
+    roots: &[usize],
+    mut options: CompilerOptions,
+    add_resolutions: impl FnOnce(&mut PreparedProgramBuilder, &[SourceFileId]),
+) -> PreparedProgram {
+    options.no_emit = Some(true);
+    let mut builder =
+        PreparedProgram::builder(PathContext::new(current_directory(), true), options);
+    let lib = builder
+        .add_source_file(PreparedSourceFile::new(path("/lib.d.ts"), MINIMAL_GLOBALS))
+        .expect("add lib");
+    builder.add_library_file(lib).expect("add library");
+    let ids = files
+        .iter()
+        .map(|(name, text)| {
+            builder
+                .add_source_file(PreparedSourceFile::new(path(name), *text))
+                .expect("add source")
+        })
+        .collect::<Vec<_>>();
+    for &root in roots {
+        builder.add_root_file(ids[root]).expect("add root");
+    }
+    add_resolutions(&mut builder, &ids);
+    builder.build().expect("build authoritative program")
+}
+
+fn module_key(source: &str, specifier: &str, mode: ResolutionMode) -> ResolutionKey {
+    ResolutionKey::new(path(source).canonical().clone(), specifier, mode)
+}
+
+fn source_resolution(
+    source: SourceFileId,
+    resolved_file: &str,
+    extension: ModuleExtension,
+) -> ModuleResolution {
+    ModuleResolution::resolved(ResolvedModule::new(
+        ResolvedModuleTarget::Source {
+            source,
+            resolved_file: path(resolved_file),
+        },
+        extension,
+    ))
 }
 
 fn codes(diagnostics: &[Diagnostic]) -> Vec<u32> {
@@ -355,4 +406,556 @@ fn repeated_owned_sessions_are_deterministic() {
     let second = consume(ProgramSession::new(make_program()));
     assert_eq!(first, second);
     assert_eq!(first.clone().into_diagnostics(), second.into_diagnostics());
+}
+
+#[test]
+fn session_fails_closed_when_exact_module_resolution_key_is_absent() {
+    let prepared = authoritative_program(
+        &[("/main.cts", "import \"pkg\";\n")],
+        &[0],
+        CompilerOptions {
+            module: Some(100),
+            module_resolution: Some(3),
+            ..CompilerOptions::default()
+        },
+        |_, _| {},
+    );
+
+    let error = ProgramSession::new(prepared)
+        .run()
+        .expect_err("missing exact row must fail the session");
+    let DriverError::MissingResolution(missing) = error else {
+        panic!("unexpected driver error: {error:?}");
+    };
+    assert_eq!(missing.request_kind(), ResolutionRequestKind::Module);
+    assert_eq!(missing.origin(), path("/main.cts").canonical());
+    assert_eq!(missing.specifier(), "pkg");
+    assert_eq!(missing.mode(), ResolutionMode::CommonJs);
+}
+
+#[test]
+fn authoritative_not_found_does_not_enter_legacy_node_modules_suppression() {
+    let prepared = authoritative_program(
+        &[
+            (
+                "/node_modules/pkg/index.d.ts",
+                "export const value: number;\n",
+            ),
+            ("/main.cts", "import { value } from \"pkg\";\nvalue;\n"),
+        ],
+        &[1],
+        CompilerOptions {
+            module: Some(100),
+            module_resolution: Some(3),
+            ..CompilerOptions::default()
+        },
+        |builder, _| {
+            builder
+                .add_module_resolution(
+                    module_key("/main.cts", "pkg", ResolutionMode::CommonJs),
+                    Ok(ModuleResolution::not_found()),
+                )
+                .expect("add authoritative miss");
+        },
+    );
+
+    let outcome = consume(ProgramSession::new(prepared));
+    assert_eq!(
+        outcome
+            .semantic_diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 2307)
+            .count(),
+        1
+    );
+    assert!(!codes(outcome.semantic_diagnostics()).contains(&2305));
+}
+
+#[test]
+fn authoritative_not_found_does_not_fall_through_to_a_relative_probe_hit() {
+    let prepared = authoritative_program(
+        &[
+            ("/dep.ts", "export const value = 1;\n"),
+            ("/main.ts", "import { value } from \"./dep\";\nvalue;\n"),
+        ],
+        &[1],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            ..CompilerOptions::default()
+        },
+        |builder, _| {
+            builder
+                .add_module_resolution(
+                    module_key("/main.ts", "./dep", ResolutionMode::Unspecified),
+                    Ok(ModuleResolution::not_found()),
+                )
+                .expect("add authoritative relative miss");
+        },
+    );
+
+    let outcome = consume(ProgramSession::new(prepared));
+    assert_eq!(
+        outcome
+            .semantic_diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 2307)
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn authoritative_resolution_selects_the_recorded_source_not_the_probe_candidate() {
+    let prepared = authoritative_program(
+        &[
+            ("/ignored.txt", "not a checker source"),
+            ("/decoy.ts", "export const picked: \"heuristic\";\n"),
+            (
+                "/types/hidden.d.ts",
+                "export const picked: \"authoritative\";\n",
+            ),
+            (
+                "/main.ts",
+                "import { picked } from \"./decoy\";\nconst mustFail: \"heuristic\" = picked;\n",
+            ),
+        ],
+        &[3],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            ..CompilerOptions::default()
+        },
+        |builder, ids| {
+            builder
+                .add_module_resolution(
+                    module_key("/main.ts", "./decoy", ResolutionMode::Unspecified),
+                    Ok(source_resolution(
+                        ids[2],
+                        "/types/hidden.d.ts",
+                        ModuleExtension::Dts,
+                    )),
+                )
+                .expect("add authoritative source resolution");
+        },
+    );
+
+    let outcome = consume(ProgramSession::new(prepared));
+    assert_eq!(
+        outcome
+            .semantic_diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 2322)
+            .count(),
+        1
+    );
+    assert!(!codes(outcome.semantic_diagnostics()).contains(&2307));
+    assert!(!codes(outcome.semantic_diagnostics()).contains(&2305));
+}
+
+#[test]
+fn ambient_modules_keep_their_priority_around_authoritative_not_found() {
+    let exact = authoritative_program(
+        &[
+            (
+                "/types.d.ts",
+                "declare module \"pkg\" { export const value: number; }\n",
+            ),
+            ("/main.ts", "import { value } from \"pkg\";\nvalue;\n"),
+        ],
+        &[1],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            ..CompilerOptions::default()
+        },
+        |_, _| {},
+    );
+    let exact = consume(ProgramSession::new(exact));
+    assert!(!codes(exact.semantic_diagnostics()).contains(&2307));
+
+    let pattern = authoritative_program(
+        &[
+            (
+                "/patterns.d.ts",
+                "declare module \"*.css\" { const value: string; export = value; }\n",
+            ),
+            (
+                "/main.ts",
+                "import value = require(\"./theme.css\");\nvalue;\n",
+            ),
+        ],
+        &[1],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            ..CompilerOptions::default()
+        },
+        |builder, _| {
+            builder
+                .add_module_resolution(
+                    module_key("/main.ts", "./theme.css", ResolutionMode::Unspecified),
+                    Ok(ModuleResolution::not_found()),
+                )
+                .expect("add pattern ambient miss");
+        },
+    );
+    let pattern = consume(ProgramSession::new(pattern));
+    assert!(!codes(pattern.semantic_diagnostics()).contains(&2307));
+}
+
+#[test]
+fn synthetic_tslib_uses_the_same_fail_closed_authoritative_table() {
+    let make_program = |include_tslib_miss: bool| {
+        authoritative_program(
+            &[
+                ("/a.ts", "export {};\n"),
+                ("/main.ts", "export * as ns from \"./a\";\n"),
+            ],
+            &[1],
+            CompilerOptions {
+                module: Some(1),
+                module_resolution: Some(2),
+                import_helpers: Some(true),
+                ..CompilerOptions::default()
+            },
+            |builder, ids| {
+                builder
+                    .add_module_resolution(
+                        module_key("/main.ts", "./a", ResolutionMode::Unspecified),
+                        Ok(source_resolution(ids[0], "/a.ts", ModuleExtension::Ts)),
+                    )
+                    .expect("add source row");
+                if include_tslib_miss {
+                    builder
+                        .add_module_resolution(
+                            module_key("/main.ts", "tslib", ResolutionMode::Unspecified),
+                            Ok(ModuleResolution::not_found()),
+                        )
+                        .expect("add tslib miss");
+                }
+            },
+        )
+    };
+
+    let error = ProgramSession::new(make_program(false))
+        .run()
+        .expect_err("missing synthetic tslib row must fail the session");
+    let DriverError::MissingResolution(missing) = error else {
+        panic!("unexpected driver error: {error:?}");
+    };
+    assert_eq!(missing.origin(), path("/main.ts").canonical());
+    assert_eq!(missing.specifier(), "tslib");
+    assert_eq!(missing.mode(), ResolutionMode::Unspecified);
+
+    let outcome = consume(ProgramSession::new(make_program(true)));
+    assert!(codes(outcome.semantic_diagnostics()).contains(&2354));
+}
+
+#[test]
+fn prepared_implied_node_format_selects_the_exact_esnext_key() {
+    let mut builder = PreparedProgram::builder(
+        PathContext::new(current_directory(), true),
+        CompilerOptions {
+            no_emit: Some(true),
+            module: Some(100),
+            module_resolution: Some(3),
+            ..CompilerOptions::default()
+        },
+    );
+    let lib = builder
+        .add_source_file(PreparedSourceFile::new(path("/lib.d.ts"), MINIMAL_GLOBALS))
+        .expect("add lib");
+    let main = builder
+        .add_source_file(
+            PreparedSourceFile::new(path("/main.ts"), "import { value } from \"pkg\";\nvalue;\n")
+                .with_implied_node_format(ResolutionMode::EsNext),
+        )
+        .expect("add main");
+    builder.add_library_file(lib).expect("add library");
+    builder.add_root_file(main).expect("add root");
+    builder
+        .add_module_resolution(
+            module_key("/main.ts", "pkg", ResolutionMode::EsNext),
+            Ok(ModuleResolution::not_found()),
+        )
+        .expect("add ESNext miss");
+
+    let outcome = consume(ProgramSession::new(
+        builder.build().expect("build prepared program"),
+    ));
+    assert_eq!(
+        outcome
+            .semantic_diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 2307)
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn resolution_mode_overrides_select_distinct_rows_for_the_same_request() {
+    let prepared = authoritative_program(
+        &[
+            ("/types/cjs.d.ts", "export type Mode = \"cjs\";\n"),
+            ("/types/esm.d.ts", "export type Mode = \"esm\";\n"),
+            (
+                "/main.mts",
+                "import type { Mode as CjsMode } from \"pkg\" with { \"resolution-mode\": \"require\" };\n\
+                 import type { Mode as EsmMode } from \"pkg\" with { \"resolution-mode\": \"import\" };\n\
+                 declare let c: CjsMode;\n\
+                 declare let e: EsmMode;\n\
+                 const cOk: \"cjs\" = c;\n\
+                 const eOk: \"esm\" = e;\n",
+            ),
+        ],
+        &[2],
+        CompilerOptions {
+            module: Some(100),
+            module_resolution: Some(3),
+            ..CompilerOptions::default()
+        },
+        |builder, ids| {
+            for (mode, target, target_path) in [
+                (ResolutionMode::CommonJs, ids[0], "/types/cjs.d.ts"),
+                (ResolutionMode::EsNext, ids[1], "/types/esm.d.ts"),
+            ] {
+                builder
+                    .add_module_resolution(
+                        module_key("/main.mts", "pkg", mode),
+                        Ok(source_resolution(target, target_path, ModuleExtension::Dts)),
+                    )
+                    .expect("add mode-specific row");
+            }
+        },
+    );
+
+    let outcome = consume(ProgramSession::new(prepared));
+    assert!(outcome.semantic_diagnostics().is_empty());
+}
+
+#[test]
+fn require_call_in_an_esm_file_uses_the_commonjs_row() {
+    let prepared = authoritative_program(
+        &[
+            ("/types/pkg.d.ts", "export const value: number;\n"),
+            (
+                "/main.mts",
+                "const loaded = require(\"pkg\");\nconst mustFail: string = loaded.value;\n",
+            ),
+        ],
+        &[1],
+        CompilerOptions {
+            module: Some(100),
+            module_resolution: Some(3),
+            ..CompilerOptions::default()
+        },
+        |builder, ids| {
+            builder
+                .add_module_resolution(
+                    module_key("/main.mts", "pkg", ResolutionMode::CommonJs),
+                    Ok(source_resolution(
+                        ids[0],
+                        "/types/pkg.d.ts",
+                        ModuleExtension::Dts,
+                    )),
+                )
+                .expect("add CommonJS require row");
+        },
+    );
+
+    let outcome = consume(ProgramSession::new(prepared));
+    assert_eq!(codes(outcome.semantic_diagnostics()), [2591]);
+}
+
+#[test]
+fn unsupported_authoritative_records_fail_closed_without_becoming_not_found() {
+    let cases = [
+        (
+            UnsupportedAuthoritativeResolution::UnloadedTarget,
+            ModuleResolution::resolved(
+                ResolvedModule::new(
+                    ResolvedModuleTarget::Unloaded(path("/external/pkg/index.js")),
+                    ModuleExtension::Js,
+                )
+                .with_external_library_import(true),
+            ),
+        ),
+        (
+            UnsupportedAuthoritativeResolution::AlternateResult,
+            ModuleResolution::not_found().with_alternate_result(path("/types/alternate.d.ts")),
+        ),
+        (
+            UnsupportedAuthoritativeResolution::ResolutionDiagnostics,
+            ModuleResolution::not_found().with_diagnostics(vec![located_diagnostic(
+                9701,
+                "/main.ts",
+                "resolution diagnostic",
+            )]),
+        ),
+    ];
+
+    for (expected, resolution) in cases {
+        let prepared = authoritative_program(
+            &[("/main.ts", "import { value } from \"pkg\";\nvalue;\n")],
+            &[0],
+            CompilerOptions {
+                module: Some(1),
+                module_resolution: Some(2),
+                ..CompilerOptions::default()
+            },
+            |builder, _| {
+                builder
+                    .add_module_resolution(
+                        module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+                        Ok(resolution),
+                    )
+                    .expect("add unsupported record");
+            },
+        );
+        let error = ProgramSession::new(prepared)
+            .run()
+            .expect_err("unsupported row must fail the session");
+        let DriverError::AuthoritativeResolution(AuthoritativeModuleFailure::Lookup {
+            source_token,
+            containing_file,
+            specifier,
+            mode,
+            failure: AuthoritativeModuleLookupFailure::Unsupported(actual),
+        }) = error
+        else {
+            panic!("unexpected driver error: {error:?}");
+        };
+        assert_eq!(source_token.0, 1);
+        assert_eq!(containing_file, "/main.ts");
+        assert_eq!(specifier, "pkg");
+        assert_eq!(mode, tsc_checker::AuthoritativeResolutionMode::Unspecified);
+        assert_eq!(actual, expected);
+    }
+}
+
+#[test]
+fn lossy_resolved_source_metadata_is_rejected_until_it_is_consumed() {
+    #[derive(Clone, Copy)]
+    enum Case {
+        OriginalPath,
+        ExternalLibraryImport,
+        PackageId,
+    }
+    let cases = [
+        (
+            Case::OriginalPath,
+            UnsupportedAuthoritativeResolution::OriginalPath,
+        ),
+        (
+            Case::ExternalLibraryImport,
+            UnsupportedAuthoritativeResolution::ExternalLibraryImport,
+        ),
+        (
+            Case::PackageId,
+            UnsupportedAuthoritativeResolution::PackageId,
+        ),
+    ];
+
+    for (case, expected) in cases {
+        let prepared = authoritative_program(
+            &[("/main.ts", "import { value } from \"pkg\";\nvalue;\n")],
+            &[0],
+            CompilerOptions {
+                module: Some(1),
+                module_resolution: Some(2),
+                ..CompilerOptions::default()
+            },
+            |builder, ids| {
+                let module = ResolvedModule::new(
+                    ResolvedModuleTarget::Source {
+                        source: ids[0],
+                        resolved_file: path("/main.ts"),
+                    },
+                    ModuleExtension::Ts,
+                );
+                let module = match case {
+                    Case::OriginalPath => module.with_original_path(path("/alias/main.ts")),
+                    Case::ExternalLibraryImport => module.with_external_library_import(true),
+                    Case::PackageId => module.with_package_id(PackageId::new("pkg", "", "1.0.0")),
+                };
+                builder
+                    .add_module_resolution(
+                        module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+                        Ok(ModuleResolution::resolved(module)),
+                    )
+                    .expect("add metadata-bearing source row");
+            },
+        );
+        let error = ProgramSession::new(prepared)
+            .run()
+            .expect_err("unconsumed resolution facts must fail closed");
+        let DriverError::AuthoritativeResolution(AuthoritativeModuleFailure::Lookup {
+            failure: AuthoritativeModuleLookupFailure::Unsupported(actual),
+            ..
+        }) = error
+        else {
+            panic!("unexpected driver error: {error:?}");
+        };
+        assert_eq!(actual, expected);
+    }
+}
+
+#[test]
+fn physical_resolved_file_identity_is_not_silently_replaced_by_source_name() {
+    let mut builder = PreparedProgram::builder(
+        PathContext::new(current_directory(), true),
+        CompilerOptions {
+            no_emit: Some(true),
+            module: Some(1),
+            module_resolution: Some(2),
+            ..CompilerOptions::default()
+        },
+    );
+    let lib = builder
+        .add_source_file(PreparedSourceFile::new(path("/lib.d.ts"), MINIMAL_GLOBALS))
+        .expect("add lib");
+    let target = builder
+        .add_source_file(
+            PreparedSourceFile::new(path("/lexical/pkg.ts"), "export const value = 1;\n")
+                .with_real_path(path("/physical/pkg.ts")),
+        )
+        .expect("add target");
+    let main = builder
+        .add_source_file(PreparedSourceFile::new(
+            path("/main.ts"),
+            "import { value } from \"pkg\";\nvalue;\n",
+        ))
+        .expect("add main");
+    builder.add_library_file(lib).expect("add library");
+    builder.add_root_file(main).expect("add root");
+    builder
+        .add_module_resolution(
+            module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+            Ok(ModuleResolution::resolved(
+                ResolvedModule::new(
+                    ResolvedModuleTarget::Source {
+                        source: target,
+                        resolved_file: path("/physical/pkg.ts"),
+                    },
+                    ModuleExtension::Ts,
+                )
+                .with_original_path(path("/lexical/pkg.ts")),
+            )),
+        )
+        .expect("add physical source row");
+
+    let error = ProgramSession::new(builder.build().expect("build prepared program"))
+        .run()
+        .expect_err("physical resolution identity must not be discarded");
+    assert!(matches!(
+        error,
+        DriverError::AuthoritativeResolution(AuthoritativeModuleFailure::Lookup {
+            failure: AuthoritativeModuleLookupFailure::Unsupported(
+                UnsupportedAuthoritativeResolution::ResolvedFileIdentity
+            ),
+            ..
+        })
+    ));
 }

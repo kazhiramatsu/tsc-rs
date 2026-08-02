@@ -11,9 +11,18 @@ use std::error::Error;
 use std::fmt;
 use std::path::PathBuf;
 
-use tsc_checker::{check_program_with_owned_libs_at, InputFile};
+use tsc_checker::{
+    check_program_with_authoritative_modules_at, AuthoritativeModuleFailure,
+    AuthoritativeModuleLookupFailure, AuthoritativeModuleProvider, AuthoritativeModuleRequest,
+    AuthoritativeModuleResolution, AuthoritativeResolutionMode, AuthoritativeResolvedModule,
+    AuthoritativeSourceMetadata, AuthoritativeSourceToken, InputFile,
+    UnsupportedAuthoritativeResolution,
+};
 use tsc_diagnostics::{sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList};
-use tsc_program::{MissingResolutionError, PreparedProgram, PreparedSourceFile, SourceFileId};
+use tsc_program::{
+    MissingResolutionError, ModuleExtension, PreparedProgram, PreparedSourceFile, ResolutionKey,
+    ResolutionMode, ResolutionOutcome, ResolvedModuleTarget, SourceFileId,
+};
 
 /// A one-shot owner for one prepared no-emit program.
 ///
@@ -25,6 +34,131 @@ pub struct ProgramSession {
     prepared: PreparedProgram,
 }
 
+struct PreparedModuleProvider<'a> {
+    prepared: &'a PreparedProgram,
+}
+
+impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
+    fn resolve_module(
+        &self,
+        request: AuthoritativeModuleRequest<'_>,
+    ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure> {
+        let source_file = SourceFileId::from_raw(request.source_token.0);
+        let Some(source) = self.prepared.source_file(source_file) else {
+            return Err(AuthoritativeModuleLookupFailure::InvalidSourceToken);
+        };
+        let key = ResolutionKey::new(
+            source.path().canonical().clone(),
+            request.specifier,
+            program_resolution_mode(request.mode),
+        );
+        let resolution = self
+            .prepared
+            .resolutions()
+            .require_module(&key)
+            .map_err(|_| AuthoritativeModuleLookupFailure::Missing)?;
+        if !resolution.diagnostics().is_empty() {
+            return Err(AuthoritativeModuleLookupFailure::Unsupported(
+                UnsupportedAuthoritativeResolution::ResolutionDiagnostics,
+            ));
+        }
+        if resolution.alternate_result().is_some() {
+            return Err(AuthoritativeModuleLookupFailure::Unsupported(
+                UnsupportedAuthoritativeResolution::AlternateResult,
+            ));
+        }
+        let ResolutionOutcome::Resolved(module) = resolution.outcome() else {
+            return Ok(AuthoritativeModuleResolution::NotFound);
+        };
+        let ResolvedModuleTarget::Source {
+            source,
+            resolved_file,
+        } = module.target()
+        else {
+            return Err(AuthoritativeModuleLookupFailure::Unsupported(
+                UnsupportedAuthoritativeResolution::UnloadedTarget,
+            ));
+        };
+        let Some(target_source) = self.prepared.source_file(*source) else {
+            return Err(AuthoritativeModuleLookupFailure::InvalidSourceToken);
+        };
+        if resolved_file != target_source.path() {
+            return Err(AuthoritativeModuleLookupFailure::Unsupported(
+                UnsupportedAuthoritativeResolution::ResolvedFileIdentity,
+            ));
+        }
+        if module.original_path().is_some() {
+            return Err(AuthoritativeModuleLookupFailure::Unsupported(
+                UnsupportedAuthoritativeResolution::OriginalPath,
+            ));
+        }
+        let target_is_in_node_modules =
+            resolved_file
+                .canonical()
+                .as_path()
+                .to_str()
+                .is_some_and(|path| {
+                    path.split(['/', '\\'])
+                        .any(|component| component == "node_modules")
+                });
+        if module.is_external_library_import() || target_is_in_node_modules {
+            return Err(AuthoritativeModuleLookupFailure::Unsupported(
+                UnsupportedAuthoritativeResolution::ExternalLibraryImport,
+            ));
+        }
+        if module.package_id().is_some() {
+            return Err(AuthoritativeModuleLookupFailure::Unsupported(
+                UnsupportedAuthoritativeResolution::PackageId,
+            ));
+        }
+        Ok(AuthoritativeModuleResolution::Resolved(
+            AuthoritativeResolvedModule {
+                target_token: AuthoritativeSourceToken(source.raw()),
+                resolved_using_ts_extension: module.resolved_using_ts_extension(),
+                is_tsx: matches!(
+                    module.extension(),
+                    ModuleExtension::Tsx | ModuleExtension::Jsx
+                ),
+                is_arbitrary_extension: matches!(module.extension(), ModuleExtension::Arbitrary(_)),
+            },
+        ))
+    }
+}
+
+const fn program_resolution_mode(mode: AuthoritativeResolutionMode) -> ResolutionMode {
+    match mode {
+        AuthoritativeResolutionMode::CommonJs => ResolutionMode::CommonJs,
+        AuthoritativeResolutionMode::EsNext => ResolutionMode::EsNext,
+        AuthoritativeResolutionMode::Unspecified => ResolutionMode::Unspecified,
+    }
+}
+
+fn map_authoritative_failure(
+    prepared: &PreparedProgram,
+    failure: AuthoritativeModuleFailure,
+) -> DriverError {
+    if let AuthoritativeModuleFailure::Lookup {
+        source_token,
+        specifier,
+        mode,
+        failure: AuthoritativeModuleLookupFailure::Missing,
+        ..
+    } = &failure
+    {
+        if let Some(source) = prepared.source_file(SourceFileId::from_raw(source_token.0)) {
+            let key = ResolutionKey::new(
+                source.path().canonical().clone(),
+                specifier.clone(),
+                program_resolution_mode(*mode),
+            );
+            if let Err(missing) = prepared.resolutions().require_module(&key) {
+                return DriverError::MissingResolution(missing);
+            }
+        }
+    }
+    DriverError::AuthoritativeResolution(failure)
+}
+
 impl ProgramSession {
     pub fn new(prepared: PreparedProgram) -> Self {
         Self { prepared }
@@ -32,20 +166,25 @@ impl ProgramSession {
 
     /// Consume the prepared program and execute the no-emit diagnostic pass.
     ///
-    /// H0.1d connects owned source, option, path, and diagnostic data. It does
-    /// not yet route [`PreparedProgram::resolutions`] into checker lookups;
-    /// authoritative resolution-table consumption remains H0.2 work. The
-    /// [`DriverError::MissingResolution`] variant is reserved for that fail-
-    /// closed connection and is never fabricated by this slice.
+    /// Module lookups use only [`PreparedProgram::resolutions`]. A missing
+    /// exact `(source, specifier, mode)` row is an infrastructure error; the
+    /// checker never falls back to its legacy heuristic resolver.
     pub fn run(self) -> Result<NoEmitOutcome, DriverError> {
-        let (libs, files, current_directory) = project_checker_inputs(&self.prepared)?;
+        let inputs = project_checker_inputs(&self.prepared)?;
         let has_roots = !self.prepared.roots().is_empty();
-        let checked = check_program_with_owned_libs_at(
-            &libs,
-            &files,
+        let provider = PreparedModuleProvider {
+            prepared: &self.prepared,
+        };
+        let checked = check_program_with_authoritative_modules_at(
+            &inputs.libs,
+            &inputs.files,
+            &inputs.lib_metadata,
+            &inputs.file_metadata,
             self.prepared.compiler_options(),
-            &current_directory,
-        );
+            &inputs.current_directory,
+            &provider,
+        )
+        .map_err(|failure| map_authoritative_failure(&self.prepared, failure))?;
 
         let preparation = self.prepared.diagnostics();
         let config_diagnostics = preparation.config().to_vec();
@@ -201,6 +340,9 @@ pub enum DriverError {
     MissingPreparedSource {
         source_file: SourceFileId,
     },
+    MissingPreparedSourceIdentity {
+        path: PathBuf,
+    },
     NonUnicodeDisplayPath {
         source_file: Option<SourceFileId>,
         path: PathBuf,
@@ -213,6 +355,7 @@ pub enum DriverError {
         additional_partial_checks: usize,
     },
     MissingResolution(MissingResolutionError),
+    AuthoritativeResolution(AuthoritativeModuleFailure),
 }
 
 impl fmt::Display for DriverError {
@@ -231,6 +374,11 @@ impl fmt::Display for DriverError {
                 "project prepared program for no-emit execution: library prefix names missing SourceFileId {}",
                 source_file.raw()
             ),
+            Self::MissingPreparedSourceIdentity { path } => write!(
+                formatter,
+                "project prepared program for no-emit execution: source {} has no stable SourceFileId",
+                path.display()
+            ),
             Self::NonUnicodeDisplayPath { path, .. } => write!(
                 formatter,
                 "project prepared program for no-emit execution for {}: prepared display path is not valid Unicode",
@@ -247,6 +395,7 @@ impl fmt::Display for DriverError {
                 "no-emit check was incomplete at {file_name}:{start}+{length}: {reason} ({additional_partial_checks} additional partial checks)",
             ),
             Self::MissingResolution(error) => error.fmt(formatter),
+            Self::AuthoritativeResolution(error) => error.fmt(formatter),
         }
     }
 }
@@ -255,6 +404,7 @@ impl Error for DriverError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::MissingResolution(error) => Some(error),
+            Self::AuthoritativeResolution(error) => Some(error),
             _ => None,
         }
     }
@@ -266,12 +416,21 @@ impl From<MissingResolutionError> for DriverError {
     }
 }
 
+struct ProjectedCheckerInputs {
+    libs: Vec<InputFile>,
+    files: Vec<InputFile>,
+    lib_metadata: Vec<AuthoritativeSourceMetadata>,
+    file_metadata: Vec<AuthoritativeSourceMetadata>,
+    current_directory: String,
+}
+
 fn project_checker_inputs(
     prepared: &PreparedProgram,
-) -> Result<(Vec<InputFile>, Vec<InputFile>, String), DriverError> {
+) -> Result<ProjectedCheckerInputs, DriverError> {
     let sources = prepared.source_files();
     let library_ids = prepared.library_files();
     let mut libs = Vec::with_capacity(library_ids.len());
+    let mut lib_metadata = Vec::with_capacity(library_ids.len());
 
     for (position, source_file) in library_ids.iter().copied().enumerate() {
         if source_file.index() != position {
@@ -283,13 +442,22 @@ fn project_checker_inputs(
         let source = prepared
             .source_file(source_file)
             .ok_or(DriverError::MissingPreparedSource { source_file })?;
-        libs.push(project_source(source, Some(source_file))?);
+        let (input, metadata) = project_source(source, source_file)?;
+        libs.push(input);
+        lib_metadata.push(metadata);
     }
 
     let mut files = Vec::with_capacity(sources.len().saturating_sub(library_ids.len()));
-    for (index, source) in sources.iter().enumerate().skip(library_ids.len()) {
-        let source_file = u32::try_from(index).ok().map(SourceFileId::from_raw);
-        files.push(project_source(source, source_file)?);
+    let mut file_metadata = Vec::with_capacity(files.capacity());
+    for source in sources.iter().skip(library_ids.len()) {
+        let source_file = prepared
+            .source_id(source.path().canonical())
+            .ok_or_else(|| DriverError::MissingPreparedSourceIdentity {
+                path: source.path().display().to_path_buf(),
+            })?;
+        let (input, metadata) = project_source(source, source_file)?;
+        files.push(input);
+        file_metadata.push(metadata);
     }
 
     let current_directory_path = prepared.current_directory().display();
@@ -300,25 +468,47 @@ fn project_checker_inputs(
             path: current_directory_path.to_path_buf(),
         })?
         .to_owned();
-    Ok((libs, files, current_directory))
+    Ok(ProjectedCheckerInputs {
+        libs,
+        files,
+        lib_metadata,
+        file_metadata,
+        current_directory,
+    })
 }
 
 fn project_source(
     source: &PreparedSourceFile,
-    source_file: Option<SourceFileId>,
-) -> Result<InputFile, DriverError> {
+    source_file: SourceFileId,
+) -> Result<(InputFile, AuthoritativeSourceMetadata), DriverError> {
     let display_path = source.path().display();
     let name = display_path
         .to_str()
         .ok_or_else(|| DriverError::NonUnicodeDisplayPath {
-            source_file,
+            source_file: Some(source_file),
             path: display_path.to_path_buf(),
         })?
         .to_owned();
-    Ok(InputFile {
-        name,
-        text: source.text().to_owned(),
-    })
+    let metadata = AuthoritativeSourceMetadata {
+        token: AuthoritativeSourceToken(source_file.raw()),
+        file_name: name.clone(),
+        implied_node_format: source.implied_node_format().map(checker_resolution_mode),
+    };
+    Ok((
+        InputFile {
+            name,
+            text: source.text().to_owned(),
+        },
+        metadata,
+    ))
+}
+
+const fn checker_resolution_mode(mode: ResolutionMode) -> AuthoritativeResolutionMode {
+    match mode {
+        ResolutionMode::CommonJs => AuthoritativeResolutionMode::CommonJs,
+        ResolutionMode::EsNext => AuthoritativeResolutionMode::EsNext,
+        ResolutionMode::Unspecified => AuthoritativeResolutionMode::Unspecified,
+    }
 }
 
 fn prepared_source_owns_diagnostic(prepared: &PreparedProgram, file_name: &str) -> bool {
