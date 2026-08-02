@@ -96,8 +96,17 @@ pub struct AuthoritativeModuleRequest<'a> {
     pub mode: AuthoritativeResolutionMode,
 }
 
+/// Package identity attached by the authoritative resolver.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuthoritativePackageId {
+    pub name: String,
+    pub submodule_name: String,
+    pub version: String,
+    pub peer_dependencies: Option<String>,
+}
+
 /// A loaded source selected by the authoritative host table.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AuthoritativeResolvedModule {
     pub target_token: AuthoritativeSourceToken,
     pub resolved_using_ts_extension: bool,
@@ -107,11 +116,30 @@ pub struct AuthoritativeResolvedModule {
     /// This is an authoritative resolution fact, not a reason to reject an
     /// otherwise loaded source.
     pub is_external_library_import: bool,
+    pub package_id: Option<AuthoritativePackageId>,
+    /// Per-resolution facts observed by `createModuleNotFoundChain` when an
+    /// admitted external JavaScript source has no declarations.
+    pub alternate_result: Option<String>,
+    pub types_package_exists: bool,
+    pub package_bundles_types: bool,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// A successfully resolved implementation file that was deliberately not
+/// loaded into the source program, together with the exact facts needed by
+/// the TS7016 diagnostic branch.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuthoritativeUntypedModule {
+    pub resolved_file_name: String,
+    pub package_name: Option<String>,
+    pub alternate_result: Option<String>,
+    pub types_package_exists: bool,
+    pub package_bundles_types: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AuthoritativeModuleResolution {
     Resolved(AuthoritativeResolvedModule),
+    Untyped(AuthoritativeUntypedModule),
     NotFound,
 }
 
@@ -119,12 +147,13 @@ pub enum AuthoritativeModuleResolution {
 /// losslessly. These are infrastructure failures, never `NotFound`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum UnsupportedAuthoritativeResolution {
-    UnloadedTarget,
     AlternateResult,
     ResolutionDiagnostics,
     ResolvedFileIdentity,
     OriginalPath,
-    PackageId,
+    UnloadedTargetExtension,
+    UnloadedTargetAdmission,
+    UnloadedJsxWithoutJsxOption,
 }
 
 /// Provider-local failure. The checker attaches the exact owned request and

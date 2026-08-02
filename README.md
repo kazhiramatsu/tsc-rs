@@ -9,11 +9,12 @@ checked-in TypeScript compiler and conformance corpus.
 > the `tsc` command. The parser, binder, checker, and contextual diagnostic
 > formatter are exercised through the repository's existing in-memory test
 > and conformance harness. An internal one-shot `ProgramSession` now connects
-> the owned `PreparedProgram` contract to a no-emit diagnostic pass, but it is
-> not an end-user command and does not yet consume the authoritative resolution
-> table. A production filesystem-hosted `--noEmit` command, tsconfig loading,
-> and general package resolution are under active development. Emission, watch
-> mode, and a stable public checker API are not currently provided.
+> the owned `PreparedProgram` contract and its exact authoritative resolution
+> table to a no-emit diagnostic pass for reviewed `MemoryCompilerHost` package
+> exports slices. It is not an end-user command. A production filesystem-hosted
+> `--noEmit` command, tsconfig loading, and general package resolution are under
+> active development. Emission, watch mode, and a stable public checker API are
+> not currently provided.
 
 ## What Works Today
 
@@ -25,6 +26,8 @@ The repository's current test harness demonstrates that the checker can:
   diagnostics;
 - handle imports whose targets are already part of the program, together
   with ambient and pattern-ambient module declarations;
+- consume reviewed package `exports`, conditional-target, `typesVersions`,
+  and untyped-JavaScript results from an exact authoritative resolution table;
 - preserve diagnostic codes, locations, spans, message chains, related
   information, ordering, and deduplication; and
 - reproduce the currently gated, color-free contextual diagnostic format.
@@ -36,10 +39,10 @@ Roadmap](#development-status-and-roadmap). The `PreparedProgram` type in
 `crates/compiler`; the session owns the program, keeps parser/binder/checker
 borrows within one run, and separates the five no-emit diagnostic buckets.
 Existing conformance tests still assemble files, libraries, options, and
-resolution facts through the harness and checker APIs. Normal filesystem
-discovery, authoritative resolution-table consumption, `tsconfig.json`
-handling, `node_modules` traversal, package maps, and CLI exit behavior are
-not wired into a production executable yet.
+resolution facts through the harness and checker APIs. General filesystem
+discovery, `tsconfig.json` handling, broad `node_modules` traversal and package
+maps, type-reference resolution, and CLI exit behavior are not wired into a
+production executable yet.
 
 ## Build and Explore
 
@@ -109,11 +112,11 @@ does not imply compatibility with newer TypeScript releases.
 | Capability | Availability |
 | --- | --- |
 | Existing harness-assembled, in-memory batch diagnostics | Available and conformance-gated |
-| Owned `PreparedProgram` execution path | Internal one-shot no-emit path available; authoritative resolution-table consumption remains in development |
+| Owned `PreparedProgram` execution path | Internal one-shot no-emit path available; exact table consumption is active for reviewed H0.2 package-exports slices |
 | Color-free contextual diagnostic formatting | Available in the conformance harness |
 | Filesystem-hosted `--noEmit` command | In development |
 | tsconfig discovery and JSONC configuration | In development |
-| `node_modules`, package `exports`/`imports`, `paths`, and `typeRoots` resolution | In development |
+| `node_modules`, package `exports`/`imports`, `paths`, and `typeRoots` resolution | Bounded in-memory package-exports slices available internally; general resolution remains in development |
 | Output emission (`.js`, `.d.ts`, source maps, or build info) | Not implemented |
 | Watch, incremental, project-reference, or solution builds | Outside the current scope |
 | Language server and stable public `TypeChecker` API | Outside the current scope |
@@ -246,9 +249,12 @@ diagnostics:
   bucket indexes, verifies exact ordered names, texts, and binder options, and
   uses locally owned parse/bind state when cache reuse is disabled.
 
-H0.0 and H0.1 are complete. H0.2 follows with general host-backed module and
-type-reference resolution and connects the checker to the authoritative
-resolution table.
+H0.0 and H0.1 are complete. H0.2 is active and partial: its reviewed
+`MemoryCompilerHost` route now connects the checker to the authoritative table
+and closes all 179 rows in the package-exports-patterns-and-blocked-subpaths
+family. The remaining 62 of 241 host-resolution rows still require later H0.2
+and H0.3 resolver and consumer slices; general filesystem and type-reference
+resolution are not complete.
 
 | Phase | State | Focus |
 | --- | --- | --- |
@@ -257,7 +263,7 @@ resolution table.
 | M7 | Complete | Non-2XXX diagnostic families closed on the supported scope |
 | M8 | Complete | Supported-scope T0–T4 closure, full-corpus FP=0, and recovery/escapes zero |
 | M9 | Paused after 1b | Typed outcomes and true replay landed; production generator, burn-in, freeze, and qualification deferred |
-| H0 | Active (H0.0–H0.1 complete) | Filesystem-hosted `--noEmit`: resolution, config/CLI, rendering, and exit behavior |
+| H0 | Active (H0.0–H0.1 complete; H0.2 partial, 179/241 host rows closed) | Filesystem-hosted `--noEmit`: resolution, config/CLI, rendering, and exit behavior |
 
 The exact accepted-state summary below is generated by
 `cargo xtask readme-status` and must not be edited by hand.
@@ -269,8 +275,8 @@ artifacts by every `cargo xtask ci` run:
 
 | View | Exact diagnostic match (T0) |
 | --- | --- |
-| All bands | **99.8021%** (48,927 / 49,024) |
-| 2xxx all-corpus visibility | **99.5392%** (20,954 / 21,051) |
+| All bands | **99.8735%** (48,962 / 49,024) |
+| 2xxx all-corpus visibility | **99.7055%** (20,989 / 21,051) |
 | Syntactic | **100.0000%** (2,246 / 2,246) |
 
 The 2XXX supported scope is **100% complete** with zero T0 false

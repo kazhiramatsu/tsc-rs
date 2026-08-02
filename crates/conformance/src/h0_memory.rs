@@ -8,18 +8,28 @@ use tsc_compiler::ProgramSession;
 use tsc_diagnostics::Diagnostic;
 use tsc_host::MemoryCompilerHost;
 use tsc_program::{
-    plan_static_module_requests, HostResolvedModule, ModuleResolution, ModuleResolver,
-    PackageJsonType, PackageMetadata, PreparedProgram, PreparedSourceFile, ProgramPath,
+    plan_module_requests, HostResolvedModule, ModuleExtension, ModuleResolution, ModuleResolver,
+    PackageId, PackageJsonType, PackageMetadata, PreparedProgram, PreparedSourceFile, ProgramPath,
     ResolutionError, ResolutionMode, ResolutionOutcome, ResolvedModuleTarget, SourceFileId,
 };
 
 use crate::ConformanceResult;
 
-const SUPPORTED_FIXTURES: [&str; 4] = [
+const SUPPORTED_FIXTURES: [&str; 14] = [
     "conformance/node/nodeModulesPackagePatternExportsExclude.ts",
     "conformance/node/nodeModulesPackagePatternExports.ts",
     "conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsExclude.ts",
     "conformance/node/allowJs/nodeModulesAllowJsPackagePatternExports.ts",
+    "conformance/node/nodeModulesExportsBlocksSpecifierResolution.ts",
+    "conformance/node/nodeModulesExportsBlocksTypesVersions.ts",
+    "conformance/node/nodeModulesExportsDoubleAsterisk.ts",
+    "conformance/node/nodeModulesExportsSourceTs.ts",
+    "conformance/node/nodeModulesExportsSpecifierGenerationDirectory.ts",
+    "conformance/node/nodeModulesExportsSpecifierGenerationPattern.ts",
+    "conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts",
+    "conformance/node/nodeModulesPackageExports.ts",
+    "conformance/node/nodeModulesPackagePatternExportsTrailers.ts",
+    "conformance/node/nodeModulesTypesVersionPackageExports.ts",
 ];
 
 pub(crate) fn supports_fixture(fixture: &str) -> bool {
@@ -33,15 +43,7 @@ pub(crate) struct H0MemoryCase {
 
 #[derive(Debug)]
 enum H0MemoryError {
-    InvalidPath {
-        path: String,
-        detail: &'static str,
-    },
-    MissingResolvedSource {
-        file: String,
-        specifier: String,
-        target: PathBuf,
-    },
+    InvalidPath { path: String, detail: &'static str },
 }
 
 impl fmt::Display for H0MemoryError {
@@ -50,15 +52,6 @@ impl fmt::Display for H0MemoryError {
             Self::InvalidPath { path, detail } => {
                 write!(formatter, "invalid H0 memory path {path:?}: {detail}")
             }
-            Self::MissingResolvedSource {
-                file,
-                specifier,
-                target,
-            } => write!(
-                formatter,
-                "module request {specifier:?} in {file} resolved to unloaded source {}",
-                target.display()
-            ),
         }
     }
 }
@@ -126,7 +119,10 @@ pub(crate) fn run(
     }
 
     let mut owned_program_sources = Vec::with_capacity(decoded_files.len());
-    for source in &decoded_files {
+    for source in decoded_files
+        .iter()
+        .filter(|source| is_program_source(&source.display, &options))
+    {
         // package_scope_for_file is the single JSON validation and package
         // scope boundary shared with resolution. In particular, a nearest
         // package with no `type` field stops the search.
@@ -146,6 +142,7 @@ pub(crate) fn run(
         owned_program_sources.push(OwnedProgramSource { prepared });
     }
 
+    let mut host_resolutions = Vec::new();
     for source in &owned_program_sources {
         if source
             .prepared
@@ -156,17 +153,30 @@ pub(crate) fn run(
         {
             continue;
         }
-        for key in plan_static_module_requests(&source.prepared, &options)? {
+        for key in plan_module_requests(&source.prepared, &options)? {
             let specifier = key.specifier().to_owned();
             let host_outcome = resolver.resolve(
                 source.prepared.path().canonical().as_path(),
                 &specifier,
                 key.mode(),
             )?;
-            let resolution =
-                bind_host_outcome(host_outcome, source, &specifier, &source_by_canonical)?;
-            prepared_builder.add_module_resolution(key, Ok(resolution))?;
+            host_resolutions.push((key, host_outcome));
         }
+    }
+
+    // tsc's host package map is a fold over the complete resolved-module
+    // table, so diagnostic facts cannot be finalized while rows are still
+    // being discovered.
+    let package_map = package_map_from_facts(host_resolutions.iter().filter_map(|(_, outcome)| {
+        let ResolutionOutcome::Resolved(module) = outcome else {
+            return None;
+        };
+        Some((module.package_id()?, module.extension()))
+    }));
+    for (key, host_outcome) in host_resolutions {
+        let resolution =
+            bind_host_outcome(host_outcome, &source_by_canonical, &options, &package_map)?;
+        prepared_builder.add_module_resolution(key, Ok(resolution))?;
     }
 
     let packages = resolver
@@ -181,7 +191,7 @@ pub(crate) fn run(
     let prepared = prepared_builder.build()?;
     let outcome = ProgramSession::new(prepared).run()?;
     let syntactic = outcome.syntactic_diagnostics().to_vec();
-    let all = outcome.into_diagnostics();
+    let all = outcome.conformance_diagnostics().to_vec();
     Ok(H0MemoryCase { all, syntactic })
 }
 
@@ -196,35 +206,73 @@ fn public_program_path(source: &DecodedSource) -> Result<ProgramPath, H0MemoryEr
 
 fn bind_host_outcome(
     outcome: ResolutionOutcome<HostResolvedModule>,
-    containing_source: &OwnedProgramSource,
-    specifier: &str,
     source_by_canonical: &BTreeMap<PathBuf, (SourceFileId, ProgramPath)>,
+    options: &tsc_program::CompilerOptions,
+    package_map: &BTreeMap<String, bool>,
 ) -> Result<ModuleResolution, ResolutionError> {
     let ResolutionOutcome::Resolved(host_module) = outcome else {
         return Ok(ModuleResolution::not_found());
     };
+    let alternate_result = host_module.alternate_result().cloned();
+    let (types_package_exists, package_bundles_types) =
+        host_module
+            .package_id()
+            .map_or((false, false), |package_id| {
+                (
+                    package_map.contains_key(&types_package_name(package_id.name())),
+                    package_map.get(package_id.name()).copied().unwrap_or(false),
+                )
+            });
     let target_canonical = host_module.resolved_file().canonical().as_path();
-    let Some((target_source, target_path)) = source_by_canonical.get(target_canonical) else {
-        let error = H0MemoryError::MissingResolvedSource {
-            file: containing_source
-                .prepared
-                .path()
-                .display()
-                .display()
-                .to_string(),
-            specifier: specifier.to_owned(),
-            target: target_canonical.to_path_buf(),
-        };
-        return Err(ResolutionError::invalid_data(error.to_string()));
+    let target = if host_module.extension().is_javascript() && !options.allow_js {
+        ResolvedModuleTarget::Unloaded(host_module.resolved_file().clone())
+    } else if let Some((target_source, target_path)) = source_by_canonical.get(target_canonical) {
+        ResolvedModuleTarget::Source {
+            source: *target_source,
+            // ProgramSession requires the resolved-file spelling to be exactly
+            // the owned SourceFile spelling, while HostResolvedModule validates
+            // that its canonical identity still matches the probed host path.
+            resolved_file: target_path.clone(),
+        }
+    } else {
+        return Err(ResolutionError::invalid_data(format!(
+            "resolved source {} is not owned by the prepared program",
+            host_module.resolved_file().display().display()
+        )));
     };
-    let resolved = host_module.into_resolved_module(ResolvedModuleTarget::Source {
-        source: *target_source,
-        // ProgramSession requires the resolved-file spelling to be exactly
-        // the owned SourceFile spelling, while HostResolvedModule validates
-        // that its canonical identity still matches the probed host path.
-        resolved_file: target_path.clone(),
-    })?;
-    Ok(ModuleResolution::resolved(resolved))
+    let resolved = host_module.into_resolved_module(target)?;
+    let mut resolution = ModuleResolution::resolved(resolved)
+        .with_types_package_exists(types_package_exists)
+        .with_package_bundles_types(package_bundles_types);
+    if let Some(alternate_result) = alternate_result {
+        resolution = resolution.with_alternate_result(alternate_result);
+    }
+    Ok(resolution)
+}
+
+/// tsc-port: getPackagesMap/packageBundlesTypes/typesPackageExists @6.0.3
+/// tsc-hash: 74ad8cc4b534899ed13e5017004887e4e20e3faa0a5d0cdfa50d6a1983d292db
+/// tsc-span: _tsc.js:123041-123054
+fn package_map_from_facts<'a>(
+    facts: impl IntoIterator<Item = (&'a PackageId, &'a ModuleExtension)>,
+) -> BTreeMap<String, bool> {
+    let mut packages = BTreeMap::new();
+    for (package_id, extension) in facts {
+        let bundles_declaration = matches!(extension, ModuleExtension::Dts);
+        packages
+            .entry(package_id.name().to_owned())
+            .and_modify(|existing| *existing |= bundles_declaration)
+            .or_insert(bundles_declaration);
+    }
+    packages
+}
+
+fn types_package_name(package_name: &str) -> String {
+    let mangled = match package_name.strip_prefix('@') {
+        Some(scoped) => scoped.replace('/', "__"),
+        None => package_name.to_owned(),
+    };
+    format!("@types/{mangled}")
 }
 
 fn implied_node_format(
@@ -256,6 +304,19 @@ fn implied_node_format(
 
 fn is_json_file(file_name: &str) -> bool {
     file_name.ends_with(".json")
+}
+
+fn is_program_source(file_name: &str, options: &tsc_program::CompilerOptions) -> bool {
+    if is_json_file(file_name) {
+        return false;
+    }
+    if [".js", ".jsx", ".mjs", ".cjs"]
+        .iter()
+        .any(|extension| file_name.ends_with(extension))
+    {
+        return options.allow_js;
+    }
+    true
 }
 
 fn normalize_current_directory(cwd: &str) -> Result<PathBuf, H0MemoryError> {
@@ -322,20 +383,39 @@ fn normalize_absolute_posix(path: &str) -> Result<PathBuf, H0MemoryError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{supports_fixture, SUPPORTED_FIXTURES};
+    use super::{package_map_from_facts, supports_fixture, types_package_name, SUPPORTED_FIXTURES};
+    use tsc_program::{ModuleExtension, PackageId};
 
     #[test]
-    fn dedicated_route_is_exactly_the_four_reviewed_pattern_fixtures() {
+    fn dedicated_route_is_exactly_the_reviewed_package_exports_fixtures() {
         assert!(SUPPORTED_FIXTURES
             .iter()
             .all(|fixture| supports_fixture(fixture)));
         for fixture in [
-            "conformance/node/nodeModulesPackagePatternExportsTrailers.ts",
             "conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsTrailers.ts",
             "conformance/node/nodeModulesPackagePatternExportsExclude.ts.backup",
             "node/nodeModulesPackagePatternExportsExclude.ts",
         ] {
             assert!(!supports_fixture(fixture), "unexpected H0 route: {fixture}");
         }
+    }
+
+    #[test]
+    fn package_diagnostic_map_is_a_program_wide_exact_dts_fold() {
+        let plain = PackageId::new("pkg", "index.js", "1.0.0");
+        let bundled = PackageId::new("bundled", "index.d.ts", "1.0.0");
+        let types = PackageId::new("@types/pkg", "index.d.mts", "1.0.0");
+        let map = package_map_from_facts([
+            (&plain, &ModuleExtension::Js),
+            (&plain, &ModuleExtension::Dmts),
+            (&bundled, &ModuleExtension::Dts),
+            (&types, &ModuleExtension::Dmts),
+        ]);
+
+        assert_eq!(map.get("pkg"), Some(&false));
+        assert_eq!(map.get("bundled"), Some(&true));
+        assert_eq!(map.get("@types/pkg"), Some(&false));
+        assert!(map.contains_key(&types_package_name("pkg")));
+        assert_eq!(types_package_name("@scope/pkg"), "@types/scope__pkg");
     }
 }

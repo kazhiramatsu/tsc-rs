@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use tsc_program::{
-    plan_static_module_requests, CompilerOptions, PreparedSourceFile, ProgramPath, ResolutionError,
-    ResolutionMode,
+    plan_module_requests, plan_static_module_requests, CompilerOptions, PreparedSourceFile,
+    ProgramPath, ResolutionError, ResolutionMode,
 };
 
 fn path(display: &str) -> ProgramPath {
@@ -48,6 +48,41 @@ fn authoritative_source_format_is_the_request_mode() {
         plan_static_module_requests(&source, &node_options()).expect("plan CommonJS import");
     assert_eq!(requests.len(), 1);
     assert_eq!(requests[0].mode(), ResolutionMode::CommonJs);
+}
+
+#[test]
+fn expanded_plan_includes_export_from_and_literal_dynamic_imports() {
+    let source = source(
+        concat!(
+            "export { x } from \"./other.js\";\n",
+            "const loaded = import(\"inner\");\n",
+            "import \"inner/static\";\n",
+        ),
+        ResolutionMode::CommonJs,
+    );
+    let requests = plan_module_requests(&source, &node_options()).expect("plan H0.2c requests");
+    assert_eq!(requests.len(), 3);
+    assert_eq!(requests[0].specifier(), "./other.js");
+    assert_eq!(requests[0].mode(), ResolutionMode::CommonJs);
+    assert_eq!(requests[1].specifier(), "inner");
+    assert_eq!(requests[1].mode(), ResolutionMode::EsNext);
+    assert_eq!(requests[2].specifier(), "inner/static");
+    assert_eq!(requests[2].mode(), ResolutionMode::CommonJs);
+}
+
+#[test]
+fn expanded_plan_still_fails_closed_for_unowned_request_syntax() {
+    for text in [
+        "import alias = require(\"inner/required\");\n",
+        "type Imported = import(\"inner/typed\").Value;\n",
+        "const required = require(\"inner/call\");\n",
+        "import(getName());\n",
+    ] {
+        assert!(matches!(
+            plan_module_requests(&source(text, ResolutionMode::EsNext), &node_options()),
+            Err(ResolutionError::Unsupported { .. })
+        ));
+    }
 }
 
 #[test]

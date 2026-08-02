@@ -358,6 +358,8 @@ impl ResolvedModule {
 pub struct ModuleResolution {
     outcome: ResolutionOutcome<ResolvedModule>,
     alternate_result: Option<ProgramPath>,
+    types_package_exists: bool,
+    package_bundles_types: bool,
     diagnostics: DiagnosticList,
 }
 
@@ -366,6 +368,8 @@ impl ModuleResolution {
         Self {
             outcome: ResolutionOutcome::Resolved(module),
             alternate_result: None,
+            types_package_exists: false,
+            package_bundles_types: false,
             diagnostics: Vec::new(),
         }
     }
@@ -374,12 +378,24 @@ impl ModuleResolution {
         Self {
             outcome: ResolutionOutcome::NotFound,
             alternate_result: None,
+            types_package_exists: false,
+            package_bundles_types: false,
             diagnostics: Vec::new(),
         }
     }
 
     pub fn with_alternate_result(mut self, path: ProgramPath) -> Self {
         self.alternate_result = Some(path);
+        self
+    }
+
+    pub fn with_types_package_exists(mut self, value: bool) -> Self {
+        self.types_package_exists = value;
+        self
+    }
+
+    pub fn with_package_bundles_types(mut self, value: bool) -> Self {
+        self.package_bundles_types = value;
         self
     }
 
@@ -394,6 +410,14 @@ impl ModuleResolution {
 
     pub fn alternate_result(&self) -> Option<&ProgramPath> {
         self.alternate_result.as_ref()
+    }
+
+    pub const fn types_package_exists(&self) -> bool {
+        self.types_package_exists
+    }
+
+    pub const fn package_bundles_types(&self) -> bool {
+        self.package_bundles_types
     }
 
     pub fn diagnostics(&self) -> &[Diagnostic] {

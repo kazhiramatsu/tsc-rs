@@ -2,9 +2,9 @@ use std::path::{Path, PathBuf};
 
 use tsc_host::{HostError, HostErrorKind, HostOperation, MemoryCompilerHost};
 use tsc_program::{
-    CompilerOptions, HostResolvedModule, ModuleExtension, ModuleResolver, PackageJsonType,
-    ProgramPath, ResolutionError, ResolutionMode, ResolutionOutcome, ResolvedModuleTarget,
-    SourceFileId,
+    CompilerOptions, HostResolvedModule, ModuleExtension, ModuleResolver, PackageId,
+    PackageJsonType, ProgramPath, ResolutionError, ResolutionMode, ResolutionOutcome,
+    ResolvedModuleTarget, SourceFileId,
 };
 
 const INNER_PACKAGE_JSON: &str = r#"{
@@ -220,19 +220,21 @@ fn declaration_twins_and_external_provenance_hold_for_all_node_module_kinds() {
 }
 
 #[test]
-fn host_failures_and_selected_unsupported_targets_do_not_become_not_found() {
+fn conditional_and_array_targets_resolve_while_host_failures_propagate() {
     let (host, denied) = fixture_host();
     let options = options_for_module(199);
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
 
-    for (specifier, feature) in [
-        ("inner/conditional", "conditional-package-exports"),
-        ("inner/array", "package-exports-array"),
-    ] {
-        let error = resolver
-            .resolve(Path::new("/index.ts"), specifier, ResolutionMode::EsNext)
-            .expect_err("a selected unsupported target must fail closed");
-        assert_unsupported(error, feature);
+    for specifier in ["inner/conditional", "inner/array"] {
+        let resolution = resolved(
+            resolver
+                .resolve(Path::new("/index.ts"), specifier, ResolutionMode::EsNext)
+                .expect("resolve selected package-map target"),
+        );
+        assert_eq!(
+            resolution.resolved_file().canonical().as_path(),
+            Path::new("/node_modules/inner/index.d.ts")
+        );
     }
 
     let error = resolver
@@ -242,6 +244,241 @@ fn host_failures_and_selected_unsupported_targets_do_not_become_not_found() {
         panic!("expected host resolution error, got {error:?}");
     };
     assert_eq!(actual, denied);
+}
+
+#[test]
+fn h02c_exports_targets_and_relative_requests_follow_the_authoritative_map() {
+    let host = MemoryCompilerHost::builder("/")
+        .file(
+            "/package.json",
+            br#"{"name":"root","type":"module"}"#.to_vec(),
+        )
+        .file("/src/index.ts", b"export {};".to_vec())
+        .file("/src/other.ts", b"export const other = true;".to_vec())
+        .file(
+            "/node_modules/source/package.json",
+            br#"{"name":"source","version":"1.0.0","exports":"./index.ts"}"#.to_vec(),
+        )
+        .file(
+            "/node_modules/source/index.ts",
+            b"export const source = true;".to_vec(),
+        )
+        .file(
+            "/node_modules/conditions/package.json",
+            br#"{
+                "name":"conditions",
+                "version":"1.0.0",
+                "exports": {
+                    "./yes": {
+                        "types@<4":"./wrong.d.ts",
+                        "types@>=4":"./right.d.ts"
+                    },
+                    "./fallback": {
+                        "types":"./missing.d.ts",
+                        "default":"./right.d.ts"
+                    },
+                    "./null": {
+                        "types":null,
+                        "default":"./right.d.ts"
+                    },
+                    "./no": { "types@<4":"./wrong.d.ts" }
+                }
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/node_modules/conditions/right.d.ts",
+            b"export const right: true;".to_vec(),
+        )
+        .file(
+            "/node_modules/directory/package.json",
+            br#"{"name":"directory","exports":{"./":"./"}}"#.to_vec(),
+        )
+        .file(
+            "/node_modules/directory/index.d.ts",
+            b"export const directory: true;".to_vec(),
+        )
+        .file(
+            "/node_modules/directory/other.d.ts",
+            b"export const mustNotResolveImplicitly: true;".to_vec(),
+        )
+        .file(
+            "/node_modules/double/package.json",
+            br#"{"name":"double","exports":{"./a/*/b/*":"./index.js"}}"#.to_vec(),
+        )
+        .file(
+            "/node_modules/double/index.d.ts",
+            b"export const wrong: true;".to_vec(),
+        )
+        .file(
+            "/node_modules/versioned/package.json",
+            br#"{
+                "name":"versioned",
+                "version":"1.0.0",
+                "typesVersions":{"*":{"foo":["./types/foo.d.ts"]}}
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/node_modules/versioned/types/foo.d.ts",
+            b"export const versioned: true;".to_vec(),
+        )
+        .build()
+        .expect("build H0.2c package-map host");
+    let options = options_for_module(199);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+
+    let relative = resolved(
+        resolver
+            .resolve(
+                Path::new("/src/index.ts"),
+                "./other.js",
+                ResolutionMode::EsNext,
+            )
+            .expect("resolve relative written-JS request"),
+    );
+    assert_eq!(
+        relative.resolved_file().canonical().as_path(),
+        Path::new("/src/other.ts")
+    );
+    assert!(!relative.is_external_library_import());
+
+    for (specifier, expected) in [
+        ("source", "/node_modules/source/index.ts"),
+        ("conditions/yes", "/node_modules/conditions/right.d.ts"),
+        ("conditions/fallback", "/node_modules/conditions/right.d.ts"),
+        ("directory/index.js", "/node_modules/directory/index.d.ts"),
+        ("versioned/foo", "/node_modules/versioned/types/foo.d.ts"),
+    ] {
+        let module = resolved(
+            resolver
+                .resolve(
+                    Path::new("/src/index.ts"),
+                    specifier,
+                    ResolutionMode::EsNext,
+                )
+                .expect("resolve H0.2c package request"),
+        );
+        assert_eq!(
+            module.resolved_file().canonical().as_path(),
+            Path::new(expected)
+        );
+        assert!(module.is_external_library_import());
+        if specifier == "source" {
+            assert_eq!(module.extension(), &ModuleExtension::Ts);
+            assert!(!module.resolved_using_ts_extension());
+        }
+        if specifier == "versioned/foo" {
+            assert_eq!(module.package_id(), None);
+        }
+    }
+
+    for specifier in [
+        "conditions/no",
+        "conditions/null",
+        "directory/other",
+        "double/a/*/b/*",
+    ] {
+        assert_eq!(
+            resolver
+                .resolve(
+                    Path::new("/src/index.ts"),
+                    specifier,
+                    ResolutionMode::EsNext
+                )
+                .expect("unsupported package key is an authoritative miss"),
+            ResolutionOutcome::NotFound
+        );
+    }
+}
+
+#[test]
+fn relative_node_modules_targets_are_external_without_realpath_rewriting() {
+    let forbidden_realpath = HostError::new(
+        HostErrorKind::Other,
+        HostOperation::Realpath,
+        Some(PathBuf::from("/node_modules/pkg/other.ts")),
+        "relative resolution must not rewrite through realpath",
+    );
+    let host = MemoryCompilerHost::builder("/")
+        .file(
+            "/node_modules/pkg/package.json",
+            br#"{"name":"pkg","type":"module"}"#.to_vec(),
+        )
+        .file("/node_modules/pkg/index.ts", b"export {};".to_vec())
+        .file(
+            "/node_modules/pkg/other.ts",
+            b"export const other = true;".to_vec(),
+        )
+        .failure(forbidden_realpath)
+        .build()
+        .expect("build relative node_modules host");
+    let options = options_for_module(199);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+    let module = resolved(
+        resolver
+            .resolve(
+                Path::new("/node_modules/pkg/index.ts"),
+                "./other.js",
+                ResolutionMode::EsNext,
+            )
+            .expect("relative package source resolves without realpath"),
+    );
+    assert_eq!(
+        module.resolved_file().canonical().as_path(),
+        Path::new("/node_modules/pkg/other.ts")
+    );
+    assert!(module.is_external_library_import());
+    assert_eq!(module.original_path(), None);
+}
+
+#[test]
+fn untyped_exports_retain_the_esm_legacy_alternate_and_package_facts() {
+    let host = MemoryCompilerHost::builder("/")
+        .file("/main.mts", b"export {};".to_vec())
+        .file("/main.cts", b"export {};".to_vec())
+        .file(
+            "/node_modules/pkg/package.json",
+            br#"{
+                "name":"pkg",
+                "version":"1.0.0",
+                "exports":{"./foo":"./dist/foo.js"},
+                "typesVersions":{"*":{"foo":["./types/foo.d.ts"]}}
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/node_modules/pkg/dist/foo.js",
+            b"module.exports = {};".to_vec(),
+        )
+        .file("/node_modules/pkg/types/foo.d.ts", b"export {};".to_vec())
+        .build()
+        .expect("build untyped package host");
+    let options = options_for_module(199);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+
+    let esm = resolved(
+        resolver
+            .resolve(Path::new("/main.mts"), "pkg/foo", ResolutionMode::EsNext)
+            .expect("resolve ESM implementation"),
+    );
+    assert_eq!(esm.extension(), &ModuleExtension::Js);
+    assert_eq!(
+        esm.alternate_result()
+            .expect("ESM implementation has a legacy alternate")
+            .canonical()
+            .as_path(),
+        Path::new("/node_modules/pkg/types/foo.d.ts")
+    );
+    assert_eq!(esm.package_id().map(PackageId::name), Some("pkg"));
+
+    let commonjs = resolved(
+        resolver
+            .resolve(Path::new("/main.cts"), "pkg/foo", ResolutionMode::CommonJs)
+            .expect("resolve CommonJS implementation"),
+    );
+    assert_eq!(commonjs.extension(), &ModuleExtension::Js);
+    assert_eq!(commonjs.alternate_result(), None);
 }
 
 #[test]
@@ -533,5 +770,219 @@ fn self_references_skip_external_realpath_and_case_only_realpaths_stay_lexical()
     assert_eq!(
         external.resolved_file().display(),
         Path::new("/node_modules/inner/index.d.ts")
+    );
+}
+
+#[test]
+fn self_reference_misses_continue_to_node_modules_but_null_stays_terminal() {
+    let host = MemoryCompilerHost::builder("/work/package")
+        .file(
+            "/work/package/package.json",
+            br#"{
+                "name":"same-name",
+                "exports": {
+                    "./missing-file":"./missing.js",
+                    "./blocked":null
+                }
+            }"#
+            .to_vec(),
+        )
+        .file("/work/package/src/index.mts", b"export {};".to_vec())
+        .file(
+            "/work/package/node_modules/same-name/package.json",
+            br#"{
+                "name":"same-name",
+                "exports": {
+                    "./unmapped":"./index.js",
+                    "./missing-file":"./index.js",
+                    "./blocked":"./index.js"
+                }
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/work/package/node_modules/same-name/index.d.ts",
+            b"export const external: true;".to_vec(),
+        )
+        .build()
+        .expect("build self-reference fallback host");
+    let options = options_for_module(199);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+
+    for specifier in ["same-name/unmapped", "same-name/missing-file"] {
+        let module = resolved(
+            resolver
+                .resolve(
+                    Path::new("/work/package/src/index.mts"),
+                    specifier,
+                    ResolutionMode::EsNext,
+                )
+                .expect("ordinary self-reference miss falls through"),
+        );
+        assert!(module.is_external_library_import());
+        assert_eq!(
+            module.resolved_file().canonical().as_path(),
+            Path::new("/work/package/node_modules/same-name/index.d.ts")
+        );
+    }
+
+    assert_eq!(
+        resolver
+            .resolve(
+                Path::new("/work/package/src/index.mts"),
+                "same-name/blocked",
+                ResolutionMode::EsNext,
+            )
+            .expect("explicit null self-reference is an authoritative miss"),
+        ResolutionOutcome::NotFound
+    );
+}
+
+#[test]
+fn directory_export_targets_require_a_trailing_slash_before_appending_subpaths() {
+    let host = MemoryCompilerHost::builder("/")
+        .file("/index.mts", b"export {};".to_vec())
+        .file(
+            "/node_modules/pkg/package.json",
+            br#"{"name":"pkg","exports":{"./foo/":"./bar.js"}}"#.to_vec(),
+        )
+        // Concatenating the invalid target and subpath would produce this
+        // false hit (`./bar.js` + `x` => `./bar.jsx`).
+        .file("/node_modules/pkg/bar.jsx", b"export {};".to_vec())
+        .build()
+        .expect("build invalid directory-target host");
+    let options = options_for_module(199);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+
+    assert_eq!(
+        resolver
+            .resolve(Path::new("/index.mts"), "pkg/foo/x", ResolutionMode::EsNext,)
+            .expect("invalid directory target is an ordinary miss"),
+        ResolutionOutcome::NotFound
+    );
+}
+
+#[test]
+fn empty_export_array_blocks_later_matching_conditions() {
+    let host = MemoryCompilerHost::builder("/")
+        .file("/index.mts", b"export {};".to_vec())
+        .file(
+            "/node_modules/pkg/package.json",
+            br#"{
+                "name":"pkg",
+                "exports": {
+                    ".": {
+                        "types":[],
+                        "default":"./index.js"
+                    }
+                }
+            }"#
+            .to_vec(),
+        )
+        .file("/node_modules/pkg/index.d.ts", b"export {};".to_vec())
+        .build()
+        .expect("build empty-array condition host");
+    let options = options_for_module(199);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+
+    assert_eq!(
+        resolver
+            .resolve(Path::new("/index.mts"), "pkg", ResolutionMode::EsNext)
+            .expect("empty active-condition array is terminal"),
+        ResolutionOutcome::NotFound
+    );
+}
+
+#[test]
+fn types_versions_explicit_extensions_probe_exactly_before_loader_substitution() {
+    let host = MemoryCompilerHost::builder("/")
+        .file("/index.mts", b"export {};".to_vec())
+        .file(
+            "/node_modules/pkg/package.json",
+            br#"{
+                "name":"pkg",
+                "version":"1.0.0",
+                "typesVersions": {
+                    "*": {
+                        "prefer-exact":["./types/prefer.js"],
+                        "exact-declaration":["./types/exact.d.ts"],
+                        "fallback-after-miss":["./types/fallback.js"],
+                        "missing":["./types/missing.js"]
+                    }
+                }
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/node_modules/pkg/types/prefer.js",
+            b"module.exports = {};".to_vec(),
+        )
+        // This declaration used to win the preferred pass before the exact
+        // JavaScript substitution was checked.
+        .file(
+            "/node_modules/pkg/types/prefer.d.ts",
+            b"export {};".to_vec(),
+        )
+        .file("/node_modules/pkg/types/exact.d.ts", b"export {};".to_vec())
+        // An exact miss still enters the ordinary package loader, where the
+        // written .js extension may substitute its declaration twin.
+        .file(
+            "/node_modules/pkg/types/fallback.d.ts",
+            b"export {};".to_vec(),
+        )
+        .build()
+        .expect("build explicit typesVersions target host");
+    let options = options_for_module(199);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+
+    let exact_js = resolved(
+        resolver
+            .resolve(
+                Path::new("/index.mts"),
+                "pkg/prefer-exact",
+                ResolutionMode::EsNext,
+            )
+            .expect("resolve exact JavaScript substitution first"),
+    );
+    assert_eq!(exact_js.extension(), &ModuleExtension::Js);
+    assert_eq!(
+        exact_js.resolved_file().canonical().as_path(),
+        Path::new("/node_modules/pkg/types/prefer.js")
+    );
+    assert_eq!(exact_js.package_id(), None);
+
+    let exact_declaration = resolved(
+        resolver
+            .resolve(
+                Path::new("/index.mts"),
+                "pkg/exact-declaration",
+                ResolutionMode::EsNext,
+            )
+            .expect("resolve exact declaration substitution"),
+    );
+    assert_eq!(exact_declaration.extension(), &ModuleExtension::Dts);
+    assert_eq!(exact_declaration.package_id(), None);
+
+    let fallback = resolved(
+        resolver
+            .resolve(
+                Path::new("/index.mts"),
+                "pkg/fallback-after-miss",
+                ResolutionMode::EsNext,
+            )
+            .expect("fall through after an exact substitution miss"),
+    );
+    assert_eq!(fallback.extension(), &ModuleExtension::Dts);
+    assert_eq!(fallback.package_id().map(PackageId::name), Some("pkg"));
+
+    assert_eq!(
+        resolver
+            .resolve(
+                Path::new("/index.mts"),
+                "pkg/missing",
+                ResolutionMode::EsNext,
+            )
+            .expect("missing exact and loader candidates are authoritative miss"),
+        ResolutionOutcome::NotFound
     );
 }
