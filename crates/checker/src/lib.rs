@@ -59,6 +59,158 @@ pub struct InputFile {
     pub text: String,
 }
 
+/// Stable caller-owned identity for one source admitted to an authoritative
+/// checker run. The token is deliberately independent of the checker's
+/// parsed/bound file index: library filtering, unsupported extensions, and
+/// same-name shadowing can all change that index.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct AuthoritativeSourceToken(pub u32);
+
+/// The exact `ResolutionMode` key used at the host module-resolution seam.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum AuthoritativeResolutionMode {
+    CommonJs,
+    EsNext,
+    Unspecified,
+}
+
+/// Caller-owned facts for one [`InputFile`]. Metadata slices passed to the
+/// authoritative entry are positional peers of their input slices; the file
+/// name is repeated so the boundary can validate that relationship rather
+/// than assuming it.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuthoritativeSourceMetadata {
+    pub token: AuthoritativeSourceToken,
+    pub file_name: String,
+    pub implied_node_format: Option<AuthoritativeResolutionMode>,
+}
+
+/// One exact checker-to-host module lookup. `containing_file` is diagnostic
+/// context only; providers must key by the stable source token, specifier,
+/// and mode.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AuthoritativeModuleRequest<'a> {
+    pub source_token: AuthoritativeSourceToken,
+    pub containing_file: &'a str,
+    pub specifier: &'a str,
+    pub mode: AuthoritativeResolutionMode,
+}
+
+/// A loaded source selected by the authoritative host table.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AuthoritativeResolvedModule {
+    pub target_token: AuthoritativeSourceToken,
+    pub resolved_using_ts_extension: bool,
+    pub is_tsx: bool,
+    pub is_arbitrary_extension: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AuthoritativeModuleResolution {
+    Resolved(AuthoritativeResolvedModule),
+    NotFound,
+}
+
+/// A present table row that this checker slice cannot yet consume
+/// losslessly. These are infrastructure failures, never `NotFound`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum UnsupportedAuthoritativeResolution {
+    UnloadedTarget,
+    AlternateResult,
+    ResolutionDiagnostics,
+    ResolvedFileIdentity,
+    OriginalPath,
+    ExternalLibraryImport,
+    PackageId,
+}
+
+/// Provider-local failure. The checker attaches the exact owned request and
+/// publishes it as [`AuthoritativeModuleFailure`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AuthoritativeModuleLookupFailure {
+    Missing,
+    InvalidSourceToken,
+    Unsupported(UnsupportedAuthoritativeResolution),
+}
+
+/// Object-safe host boundary used only by the authoritative production
+/// entry. Legacy checker entries install no provider and retain their
+/// existing in-memory heuristic resolver.
+pub trait AuthoritativeModuleProvider {
+    fn resolve_module(
+        &self,
+        request: AuthoritativeModuleRequest<'_>,
+    ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure>;
+}
+
+/// Fail-closed authoritative execution error. The checker records only the
+/// first failure and completes internal unwinding without exposing partial
+/// diagnostics.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AuthoritativeModuleFailure {
+    InvalidMetadata {
+        detail: String,
+    },
+    Lookup {
+        source_token: AuthoritativeSourceToken,
+        containing_file: String,
+        specifier: String,
+        mode: AuthoritativeResolutionMode,
+        failure: AuthoritativeModuleLookupFailure,
+    },
+    UnknownSourceToken {
+        file_index: usize,
+        containing_file: String,
+    },
+    UnknownTargetToken {
+        source_token: AuthoritativeSourceToken,
+        containing_file: String,
+        specifier: String,
+        mode: AuthoritativeResolutionMode,
+        target_token: AuthoritativeSourceToken,
+    },
+}
+
+impl std::fmt::Display for AuthoritativeModuleFailure {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidMetadata { detail } => {
+                write!(formatter, "invalid authoritative checker metadata: {detail}")
+            }
+            Self::Lookup {
+                containing_file,
+                specifier,
+                mode,
+                failure,
+                ..
+            } => write!(
+                formatter,
+                "authoritative module lookup failed for ({containing_file}, {specifier:?}, {mode:?}): {failure:?}"
+            ),
+            Self::UnknownSourceToken {
+                file_index,
+                containing_file,
+            } => write!(
+                formatter,
+                "authoritative checker file {file_index} ({containing_file}) has no source token"
+            ),
+            Self::UnknownTargetToken {
+                containing_file,
+                specifier,
+                mode,
+                target_token,
+                ..
+            } => write!(
+                formatter,
+                "authoritative module lookup for ({containing_file}, {specifier:?}, {mode:?}) selected unavailable source token {}",
+                target_token.0
+            ),
+        }
+    }
+}
+
+impl std::error::Error for AuthoritativeModuleFailure {}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CheckResult {
     pub diagnostics: DiagnosticList,
@@ -836,7 +988,9 @@ fn check_program_with_libs_at_observed_cache_mode(
             &lib_binders,
             false,
             observe_phase,
-        );
+            None,
+        )
+        .result;
     }
 
     let bundle = (!effective_libs.is_empty()).then(|| lib_bundle(&effective_libs, options));
@@ -855,7 +1009,9 @@ fn check_program_with_libs_at_observed_cache_mode(
         lib_binders,
         false,
         observe_phase,
+        None,
     )
+    .result
 }
 
 /// tsrs-native: run one owned-lib batch for the no-emit program session.
@@ -889,7 +1045,110 @@ pub fn check_program_with_owned_libs_at(
         &lib_binders,
         true,
         &mut observe_phase,
+        None,
     )
+    .result
+}
+
+struct AuthoritativeRun<'a> {
+    provider: &'a dyn AuthoritativeModuleProvider,
+    lib_metadata: Vec<AuthoritativeSourceMetadata>,
+    file_metadata: Vec<AuthoritativeSourceMetadata>,
+}
+
+struct CheckExecution {
+    result: CheckResult,
+    authoritative_failure: Option<AuthoritativeModuleFailure>,
+}
+
+/// tsrs-native: run one owned checker batch whose module lookups are supplied exclusively
+/// by an exact caller-owned table. The legacy in-memory resolver is never a
+/// fallback while `provider` is installed.
+#[allow(clippy::too_many_arguments)]
+pub fn check_program_with_authoritative_modules_at(
+    libs: &[InputFile],
+    files: &[InputFile],
+    lib_metadata: &[AuthoritativeSourceMetadata],
+    file_metadata: &[AuthoritativeSourceMetadata],
+    options: &CompilerOptions,
+    current_directory: &str,
+    provider: &dyn AuthoritativeModuleProvider,
+) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    validate_authoritative_metadata(libs, lib_metadata, "library")?;
+    validate_authoritative_metadata(files, file_metadata, "program")?;
+    let mut seen_tokens = std::collections::HashSet::new();
+    for source in lib_metadata.iter().chain(file_metadata) {
+        if !seen_tokens.insert(source.token) {
+            return Err(AuthoritativeModuleFailure::InvalidMetadata {
+                detail: format!(
+                    "authoritative source token {} occurs more than once",
+                    source.token.0
+                ),
+            });
+        }
+    }
+
+    let fixture_names: std::collections::HashSet<&str> =
+        files.iter().map(|file| file.name.as_str()).collect();
+    let mut effective_libs = Vec::new();
+    let mut effective_lib_metadata = Vec::new();
+    for (lib, metadata) in libs.iter().zip(lib_metadata) {
+        if !fixture_names.contains(lib.name.as_str()) {
+            effective_libs.push(lib);
+            effective_lib_metadata.push(metadata.clone());
+        }
+    }
+    let bundle_options = lib_bundle_options(options);
+    let lib_sources = parse_lib_sources(&effective_libs, &bundle_options);
+    let lib_binders = bind_lib_sources(&lib_sources, &bundle_options);
+    let run = AuthoritativeRun {
+        provider,
+        lib_metadata: effective_lib_metadata,
+        file_metadata: file_metadata.to_vec(),
+    };
+    let mut observe_phase = |_| {};
+    let execution = check_program_with_prebound_libs_at_observed(
+        libs,
+        files,
+        options,
+        current_directory,
+        &lib_sources,
+        &lib_binders,
+        true,
+        &mut observe_phase,
+        Some(&run),
+    );
+    match execution.authoritative_failure {
+        Some(failure) => Err(failure),
+        None => Ok(execution.result),
+    }
+}
+
+fn validate_authoritative_metadata(
+    inputs: &[InputFile],
+    metadata: &[AuthoritativeSourceMetadata],
+    kind: &str,
+) -> Result<(), AuthoritativeModuleFailure> {
+    if inputs.len() != metadata.len() {
+        return Err(AuthoritativeModuleFailure::InvalidMetadata {
+            detail: format!(
+                "authoritative {kind} metadata has {} rows for {} inputs",
+                metadata.len(),
+                inputs.len()
+            ),
+        });
+    }
+    for (index, (input, source)) in inputs.iter().zip(metadata).enumerate() {
+        if input.name != source.file_name {
+            return Err(AuthoritativeModuleFailure::InvalidMetadata {
+                detail: format!(
+                    "authoritative {kind} metadata row {index} names {:?}, input is {:?}",
+                    source.file_name, input.name
+                ),
+            });
+        }
+    }
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -902,10 +1161,12 @@ fn check_program_with_prebound_libs_at_observed(
     lib_binders: &[tsc_binder::Binder<'_>],
     collect_global_diagnostics: bool,
     observe_phase: &mut impl FnMut(CheckPhase),
-) -> CheckResult {
+    authoritative_run: Option<&AuthoritativeRun<'_>>,
+) -> CheckExecution {
     let mut file_diagnostics = Vec::new();
     let mut partial_checks = Vec::new();
     let mut global_diagnostics = Vec::new();
+    let mut authoritative_failure = None;
     // getImpliedNodeFormatForFileWorker's package-scope input. Build it
     // before parsing because getSetExternalModuleIndicator's Auto mode
     // consults the implied format while SourceFiles are created.
@@ -952,6 +1213,7 @@ fn check_program_with_prebound_libs_at_observed(
     // files remain in that same program: the binder publishes their
     // root value as the module's default/export= property.
     let mut program_sources: Vec<tsc_syntax::SourceFile> = Vec::new();
+    let mut authoritative_program_metadata = Vec::new();
     for (index, file) in files.iter().enumerate() {
         if last_index_by_name.get(file.name.as_str()) != Some(&index) {
             continue;
@@ -961,6 +1223,12 @@ fn check_program_with_prebound_libs_at_observed(
         // yields syntactic diagnostics.
         if !is_supported_source_file_name(&file.name, options.allow_js) {
             continue;
+        }
+        let authoritative_implied_node_format = authoritative_run
+            .and_then(|run| run.file_metadata.get(index))
+            .and_then(|source| source.implied_node_format);
+        if let Some(run) = authoritative_run {
+            authoritative_program_metadata.push(run.file_metadata[index].clone());
         }
         // tsc ensureScriptKind: .json programs parse as JSON values.
         if file.name.ends_with(".json") {
@@ -1026,8 +1294,10 @@ fn check_program_with_prebound_libs_at_observed(
                         let package_eligible = [".ts", ".tsx", ".js", ".jsx"]
                             .iter()
                             .any(|extension| file.name.ends_with(extension));
-                        let package_scope_is_module = if package_lookup_enabled && package_eligible
-                        {
+                        let package_scope_is_module = if authoritative_run.is_some() {
+                            authoritative_implied_node_format
+                                == Some(AuthoritativeResolutionMode::EsNext)
+                        } else if package_lookup_enabled && package_eligible {
                             let mut directory = normalized
                                 .rsplit_once('/')
                                 .map(|(directory, _)| directory)
@@ -1156,6 +1426,15 @@ fn check_program_with_prebound_libs_at_observed(
     if !binder_refs.is_empty() {
         let lib_count = lib_binders.len();
         let mut state = state::CheckerState::from_program(binder_refs, options);
+        if let Some(run) = authoritative_run {
+            let mut metadata = run.lib_metadata.clone();
+            metadata.extend(authoritative_program_metadata.iter().cloned());
+            if let Err(failure) =
+                state.install_authoritative_module_provider(run.provider, &metadata)
+            {
+                state.record_authoritative_module_failure(failure);
+            }
+        }
         // path.posix.resolve absoluteness test (charAt(0) === '/') on
         // the RAW value — a "\\"-led cwd is RELATIVE there, so the
         // process-cwd join and POSIX dot-segment resolution both happen
@@ -1337,6 +1616,7 @@ fn check_program_with_prebound_libs_at_observed(
             file_diagnostics[source_index].semantic = bind_and_check;
         }
         partial_checks = state.partial_check_records.clone();
+        authoritative_failure = state.take_authoritative_module_failure();
     }
 
     let syntactic_diagnostics = file_diagnostics
@@ -1369,14 +1649,17 @@ fn check_program_with_prebound_libs_at_observed(
     debug_assert!(tsc_binder::is_scaffolded());
     debug_assert!(tsc_types::is_scaffolded());
 
-    CheckResult {
-        diagnostics,
-        syntactic_diagnostics,
-        semantic_diagnostics,
-        global_diagnostics,
-        suggestion_diagnostics,
-        file_diagnostics,
-        partial_checks,
+    CheckExecution {
+        result: CheckResult {
+            diagnostics,
+            syntactic_diagnostics,
+            semantic_diagnostics,
+            global_diagnostics,
+            suggestion_diagnostics,
+            file_diagnostics,
+            partial_checks,
+        },
+        authoritative_failure,
     }
 }
 

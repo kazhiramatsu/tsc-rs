@@ -792,6 +792,19 @@ pub struct CheckerState<'a> {
     /// (program-and-modules.md §2; later files shadow earlier
     /// same-name entries like the program layer's last-index-by-name).
     pub program_path_index: std::collections::HashMap<String, usize>,
+    /// H0 production-only exact module provider. Its source identities are
+    /// caller tokens rather than binder indexes; the two explicit maps below
+    /// make filtering and shadowing observable instead of assuming ordinal
+    /// equality.
+    pub(crate) authoritative_module_provider: Option<&'a dyn crate::AuthoritativeModuleProvider>,
+    pub(crate) authoritative_source_tokens: Vec<crate::AuthoritativeSourceToken>,
+    pub(crate) authoritative_source_index_by_token:
+        std::collections::HashMap<crate::AuthoritativeSourceToken, usize>,
+    pub(crate) authoritative_implied_node_formats: Vec<Option<crate::AuthoritativeResolutionMode>>,
+    /// First fail-closed host-table failure. This is intentionally separate
+    /// from CheckAbort: augmentation recovery may contain an oracle crash,
+    /// but it must never turn an incomplete authoritative table into success.
+    pub(crate) authoritative_module_failure: std::cell::OnceCell<crate::AuthoritativeModuleFailure>,
     /// tsrs-native (M4 5.8d): EVERY host input path (normalized),
     /// including files the program layer drops (.json bodies, .js
     /// without allowJs) — the resolver's suppression probes read this
@@ -901,6 +914,69 @@ impl<'a> CheckerState<'a> {
     ) -> Self {
         assert!(std::ptr::eq(binder.source, source));
         Self::from_program(vec![binder], options)
+    }
+
+    /// tsrs-native: install the exact H0 host seam and stable source-index projection.
+    pub(crate) fn install_authoritative_module_provider(
+        &mut self,
+        provider: &'a dyn crate::AuthoritativeModuleProvider,
+        metadata: &[crate::AuthoritativeSourceMetadata],
+    ) -> Result<(), crate::AuthoritativeModuleFailure> {
+        if metadata.len() != self.binder.file_count() {
+            return Err(crate::AuthoritativeModuleFailure::InvalidMetadata {
+                detail: format!(
+                    "authoritative source metadata has {} rows for {} checker files",
+                    metadata.len(),
+                    self.binder.file_count()
+                ),
+            });
+        }
+
+        let mut tokens = Vec::with_capacity(metadata.len());
+        let mut source_index_by_token = std::collections::HashMap::new();
+        let mut implied_node_formats = Vec::with_capacity(metadata.len());
+        for (file_index, source) in metadata.iter().enumerate() {
+            let checker_file_name = &self.binder.source(file_index).file_name;
+            if source.file_name != *checker_file_name {
+                return Err(crate::AuthoritativeModuleFailure::InvalidMetadata {
+                    detail: format!(
+                        "authoritative source metadata row {file_index} names {:?}, checker file is {:?}",
+                        source.file_name, checker_file_name
+                    ),
+                });
+            }
+            if let Some(previous) = source_index_by_token.insert(source.token, file_index) {
+                return Err(crate::AuthoritativeModuleFailure::InvalidMetadata {
+                    detail: format!(
+                        "authoritative source token {} is shared by checker files {previous} and {file_index}",
+                        source.token.0
+                    ),
+                });
+            }
+            tokens.push(source.token);
+            implied_node_formats.push(source.implied_node_format);
+        }
+
+        self.authoritative_module_provider = Some(provider);
+        self.authoritative_source_tokens = tokens;
+        self.authoritative_source_index_by_token = source_index_by_token;
+        self.authoritative_implied_node_formats = implied_node_formats;
+        Ok(())
+    }
+
+    /// tsrs-native: retain the first exact-host failure outside checker recovery control flow.
+    pub(crate) fn record_authoritative_module_failure(
+        &self,
+        failure: crate::AuthoritativeModuleFailure,
+    ) {
+        let _ = self.authoritative_module_failure.set(failure);
+    }
+
+    /// tsrs-native: transfer the first exact-host failure to the production driver boundary.
+    pub(crate) fn take_authoritative_module_failure(
+        &mut self,
+    ) -> Option<crate::AuthoritativeModuleFailure> {
+        self.authoritative_module_failure.take()
     }
 
     /// Program construction (M4 5.0): binders in program order, each
@@ -1072,6 +1148,11 @@ impl<'a> CheckerState<'a> {
             unresolved_module_augmentations: std::collections::HashMap::new(),
             unresolved_package_root_cache: Default::default(),
             program_path_index: std::collections::HashMap::new(),
+            authoritative_module_provider: None,
+            authoritative_source_tokens: Vec::new(),
+            authoritative_source_index_by_token: std::collections::HashMap::new(),
+            authoritative_implied_node_formats: Vec::new(),
+            authoritative_module_failure: std::cell::OnceCell::new(),
             host_file_paths: std::collections::HashSet::new(),
             host_current_directory: "/".to_owned(),
             host_package_json_module_types: std::collections::HashMap::new(),
