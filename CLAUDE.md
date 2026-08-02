@@ -127,6 +127,12 @@ there.
   duplicate-bucket canaries (68/65), the Node/Rust canonical-encoder
   cross-check (`crates/oracle/identity.mjs`), band-pin/global-freeze
   anchors, and tombstone standing proofs
+- H0 host owner registry: `cargo xtask host-resolution check [--baseline
+  origin/main]` verifies all 241 frozen identities, exact vendored owner
+  spans/hashes and resolution-request chains, positive canaries plus reviewed
+  typed controls, bounded pre-H0 reference profiles, and trusted-base
+  open/closed/lapsed transitions, including historical T0--T4 evidence for
+  every row carrying closure provenance
 - Family map (A5): `cargo xtask families check [--baseline
   origin/main]` verifies `diag-families.json` — every corpus-exercised
   non-2XXX (code, pass) row mapped exactly once, canary existence,

@@ -389,7 +389,7 @@ fn case_sets_have_t4_membership(views: &RunSets) -> bool {
 }
 
 impl MatchesArtifact {
-    fn validate(&self) -> ConformanceResult<()> {
+    pub(crate) fn validate(&self) -> ConformanceResult<()> {
         if self.schema != MATCHES_SCHEMA {
             return Err(format!(
                 "accepted-match artifact schema {} unsupported (expected {MATCHES_SCHEMA})",
@@ -543,7 +543,7 @@ impl MatchesArtifact {
 }
 
 impl OracleInputsArtifact {
-    fn validate(&self) -> ConformanceResult<()> {
+    pub(crate) fn validate(&self) -> ConformanceResult<()> {
         if self.schema != ORACLE_INPUTS_SCHEMA {
             return Err(format!(
                 "oracle-inputs artifact schema {} unsupported (expected {ORACLE_INPUTS_SCHEMA})",
@@ -3144,7 +3144,7 @@ fn verify_lineage_with_memo<T: LineageArtifact>(
     }
 }
 
-fn verify_pair_values(
+pub(crate) fn verify_pair_values(
     label: &str,
     matches: &MatchesArtifact,
     inputs: &OracleInputsArtifact,
@@ -3719,6 +3719,39 @@ pub(crate) fn verify_current_pair(
     Ok((matches, matches_bytes, inputs, inputs_bytes))
 }
 
+/// Verify the accepted pair's append-only Git history without rebuilding the
+/// current oracle-input manifest. H0 closure evidence uses this narrower
+/// proof before trusting an artifact inherited at a historical closing
+/// commit. The ordinary ratchet gate still performs the stronger current-tree
+/// input diff through [`verify_current_pair`].
+pub(crate) fn verify_accepted_pair_history(workspace: &Path) -> ConformanceResult<()> {
+    let (matches, matches_bytes): (MatchesArtifact, _) =
+        read_artifact(&workspace.join(MATCHES_REL_PATH), "accepted-match artifact")?;
+    matches.validate()?;
+    let (inputs, inputs_bytes): (OracleInputsArtifact, _) = read_artifact(
+        &workspace.join(ORACLE_INPUTS_REL_PATH),
+        "oracle-inputs artifact",
+    )?;
+    inputs.validate()?;
+    verify_pair_values("<working tree>", &matches, &inputs, &inputs_bytes)?;
+
+    let git_root = git_root_for(workspace)?;
+    let matches_rel = git_rel_path(&git_root, workspace, MATCHES_REL_PATH)?;
+    let inputs_rel = git_rel_path(&git_root, workspace, ORACLE_INPUTS_REL_PATH)?;
+    let mut git_memo = GitMemo::new(&git_root)?;
+    let working_pair_differs = git_memo.blob_optional("HEAD", &matches_rel)?.as_deref()
+        != Some(&matches_bytes)
+        || git_memo.blob_optional("HEAD", &inputs_rel)?.as_deref() != Some(&inputs_bytes);
+    if working_pair_differs {
+        verify_pair_transition("<working tree>", &matches, &inputs)?;
+    }
+    verify_lineage_with_memo::<MatchesArtifact>(&mut git_memo, &matches_rel, &matches_bytes)?;
+    verify_lineage_with_memo::<OracleInputsArtifact>(&mut git_memo, &inputs_rel, &inputs_bytes)?;
+    verify_committed_artifact_pairs_with_memo(&mut git_memo, &matches_rel, &inputs_rel)?;
+    git_memo.verify_head_unchanged()?;
+    Ok(())
+}
+
 /// `cargo xtask ratchet check [--baseline <ref>]`: verify both
 /// artifacts against the current tree (vendor pins, fixture bytes,
 /// expansion, golden oracle records, ratchet.toml derived summaries)
@@ -3746,7 +3779,10 @@ pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
     let matches_rel = git_rel_path(&git_root, workspace, MATCHES_REL_PATH)?;
     let inputs_rel = git_rel_path(&git_root, workspace, ORACLE_INPUTS_REL_PATH)?;
     let mut git_memo = GitMemo::new(&git_root)?;
-    if git_memo.blob_optional("HEAD", &inputs_rel)?.as_deref() != Some(&inputs_bytes) {
+    let working_pair_differs = git_memo.blob_optional("HEAD", &matches_rel)?.as_deref()
+        != Some(&matches_bytes)
+        || git_memo.blob_optional("HEAD", &inputs_rel)?.as_deref() != Some(&inputs_bytes);
+    if working_pair_differs {
         verify_pair_transition("<working tree>", &matches, &inputs)?;
     }
     let matches_versions =
@@ -5542,6 +5578,25 @@ mod tests {
         let active_bytes = encode_artifact(&active).unwrap();
         matches.inputs.oracle_inputs_sha256 = sha256_hex(&active_bytes);
         verify_pair_values("test", &matches, &active, &active_bytes).unwrap();
+
+        matches
+            .views
+            .get_mut("all")
+            .unwrap()
+            .get_mut("conformance/a.ts")
+            .unwrap()
+            .get_mut("")
+            .unwrap()
+            .t4 = true;
+        let err = verify_pair_values("test", &matches, &active, &active_bytes)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("T4 case identities"), "{err}");
+
+        let active_t4 = active_t4_inputs();
+        let active_t4_bytes = encode_artifact(&active_t4).unwrap();
+        matches.inputs.oracle_inputs_sha256 = sha256_hex(&active_t4_bytes);
+        verify_pair_values("test", &matches, &active_t4, &active_t4_bytes).unwrap();
     }
 
     #[test]

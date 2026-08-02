@@ -20,13 +20,18 @@ use super::{find_workspace_root, sha256_file};
 const SCHEMA: u32 = 1;
 const MANIFEST_NAME: &str = "manifest.json";
 const INPUT_PATHS: &[&str] = &[
+    ".node-version",
     "Cargo.lock",
     "STAGE",
     "diag-families.json",
     "m8-scope.json",
+    "crates/oracle/host-resolution-requests.mjs",
+    "crates/oracle/program-host.mjs",
     "ratchet.toml",
     "ratchets/conformance-matches.v1.json.zst",
+    "ratchets/host-resolution.v1.json",
     "ratchets/oracle-inputs.v1.json.zst",
+    "vendor/typescript-6.0.3/lib/typescript.js",
 ];
 
 pub(crate) fn run(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -539,6 +544,15 @@ fn verify(args: VerifyArgs) -> Result<(), Box<dyn Error>> {
             vec![
                 "scope".to_owned(),
                 "audit".to_owned(),
+                "--baseline".to_owned(),
+                args.baseline.clone(),
+            ],
+        ),
+        (
+            "host-resolution-check",
+            vec![
+                "host-resolution".to_owned(),
+                "check".to_owned(),
                 "--baseline".to_owned(),
                 args.baseline.clone(),
             ],

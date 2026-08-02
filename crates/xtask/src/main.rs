@@ -17,6 +17,7 @@ use tsc_diagnostics::DiagnosticList;
 
 mod bounded_pipeline;
 mod completion;
+mod host_resolution;
 mod invariant_attestation;
 mod m8_evidence;
 mod m8_plan;
@@ -128,6 +129,14 @@ fn main() {
                 std::process::exit(2);
             }
         },
+        Some("host-resolution") => match parse_host_resolution_command(args.next().as_deref()) {
+            Ok(HostResolutionCommand::Draft) => run_or_exit(host_resolution::draft(args)),
+            Ok(HostResolutionCommand::Check) => run_or_exit(host_resolution::check(args)),
+            Err(error) => {
+                eprintln!("{error}");
+                std::process::exit(2);
+            }
+        },
         Some("ratchet") => match args.next().as_deref() {
             Some("check") => run_or_exit(ratchet_check(args)),
             Some("update") => run_or_exit(ratchet_update(args)),
@@ -214,6 +223,50 @@ fn main() {
             eprintln!("unknown xtask command: {other}");
             std::process::exit(2);
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum HostResolutionCommand {
+    Draft,
+    Check,
+}
+
+fn parse_host_resolution_command(command: Option<&str>) -> Result<HostResolutionCommand, String> {
+    match command {
+        Some("draft") => Ok(HostResolutionCommand::Draft),
+        Some("check") => Ok(HostResolutionCommand::Check),
+        Some(other) => Err(format!("unknown host-resolution command: {other}")),
+        None => Err("missing host-resolution command (draft|check)".to_owned()),
+    }
+}
+
+#[cfg(test)]
+mod host_resolution_command_tests {
+    use super::*;
+
+    #[test]
+    fn parses_supported_host_resolution_commands() {
+        assert_eq!(
+            parse_host_resolution_command(Some("draft")),
+            Ok(HostResolutionCommand::Draft)
+        );
+        assert_eq!(
+            parse_host_resolution_command(Some("check")),
+            Ok(HostResolutionCommand::Check)
+        );
+    }
+
+    #[test]
+    fn rejects_unknown_or_missing_host_resolution_commands() {
+        assert_eq!(
+            parse_host_resolution_command(Some("update")),
+            Err("unknown host-resolution command: update".to_owned())
+        );
+        assert_eq!(
+            parse_host_resolution_command(None),
+            Err("missing host-resolution command (draft|check)".to_owned())
+        );
     }
 }
 
@@ -7290,6 +7343,15 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
     run_command(
         Command::new(&executable)
             .args(["scope", "audit", "--baseline"])
+            .arg(baseline),
+    )?;
+    // H0 frozen host-owner coherence: validate the dedicated registry
+    // against the already-audited A2 host-resolution universe and the same
+    // immutable PR baseline before any owner-family or behavior gate consumes
+    // it.
+    run_command(
+        Command::new(&executable)
+            .args(["host-resolution", "check", "--baseline"])
             .arg(baseline),
     )?;
     // A5 family-map coherence: the exactly-once (code, pass) domain,

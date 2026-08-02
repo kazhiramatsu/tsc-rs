@@ -470,6 +470,81 @@ pub(crate) struct ScopeManifest {
     seen: BTreeSet<ExactIdentity>,
 }
 
+/// The H0 owner registry is seeded from the exact live A2
+/// `host-resolution` projection, and later reconciles closed rows with A2
+/// tombstones.  Keep that projection inside this module so consumers cannot
+/// accidentally reproduce only part of the scope schema (most notably the
+/// occurrence discriminator or lapsed-tombstone state).
+#[derive(Clone, Debug)]
+pub(crate) struct HostResolutionScopeRow {
+    pub(crate) identity: ExactIdentity,
+    pub(crate) line: Option<u32>,
+    pub(crate) col: Option<u32>,
+    pub(crate) evidence: String,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct HostResolutionScopeTombstone {
+    pub(crate) identity: ExactIdentity,
+    pub(crate) resolving_commit: Option<String>,
+    pub(crate) lapsed: bool,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct HostResolutionScopeState {
+    /// Whether the authoritative A2 manifest has completed its reviewed
+    /// global freeze. Consumers must not infer this from counts or from the
+    /// presence of tombstones: a structurally valid draft is still mutable.
+    pub(crate) frozen: bool,
+    pub(crate) live: Vec<HostResolutionScopeRow>,
+    pub(crate) tombstones: Vec<HostResolutionScopeTombstone>,
+}
+
+pub(crate) fn host_resolution_state(path: &Path) -> ConformanceResult<HostResolutionScopeState> {
+    let bytes = fs::read(path)
+        .map_err(|err| format!("failed to read M8 scope manifest {}: {err}", path.display()))?;
+    host_resolution_state_from_bytes(&bytes, &path.display().to_string())
+}
+
+pub(crate) fn host_resolution_state_from_bytes(
+    bytes: &[u8],
+    origin: &str,
+) -> ConformanceResult<HostResolutionScopeState> {
+    let file = parse_scope_bytes(bytes, origin)?;
+    let frozen = file.status == ScopeStatus::Frozen;
+    let mut live = file
+        .exclusions
+        .into_iter()
+        .filter_map(|exclusion| match exclusion.reason {
+            ScopeReason::HostResolution => Some(HostResolutionScopeRow {
+                identity: exclusion.identity,
+                line: exclusion.line,
+                col: exclusion.col,
+                evidence: exclusion.evidence,
+            }),
+            ScopeReason::JsdocSemantics | ScopeReason::EmitDependent => None,
+        })
+        .collect::<Vec<_>>();
+    live.sort_by(|left, right| left.identity.cmp(&right.identity));
+
+    let mut tombstones = file
+        .tombstones
+        .into_iter()
+        .map(|tombstone| HostResolutionScopeTombstone {
+            identity: tombstone.identity,
+            resolving_commit: tombstone.resolving_commit,
+            lapsed: tombstone.lapsed,
+        })
+        .collect::<Vec<_>>();
+    tombstones.sort_by(|left, right| left.identity.cmp(&right.identity));
+
+    Ok(HostResolutionScopeState {
+        frozen,
+        live,
+        tombstones,
+    })
+}
+
 impl ScopeManifest {
     pub(crate) fn load(path: &Path) -> ConformanceResult<Self> {
         let bytes = fs::read(path)
@@ -1860,6 +1935,38 @@ mod tests {
         let manifest = load_file("empty", &scope_file(ScopeStatus::Draft, Vec::new())).unwrap();
         assert_eq!(manifest.entry_count(), 0);
         assert_eq!(manifest.status().name(), "draft");
+    }
+
+    #[test]
+    fn host_resolution_projection_preserves_draft_status_from_bytes() {
+        let bytes = br#"{
+            "schema": 2,
+            "encoder": 1,
+            "status": "draft",
+            "exclusions": []
+        }"#;
+        let state = host_resolution_state_from_bytes(bytes, "draft-byte-fixture").unwrap();
+        assert!(!state.frozen);
+        assert!(state.live.is_empty());
+        assert!(state.tombstones.is_empty());
+    }
+
+    #[test]
+    fn host_resolution_projection_preserves_frozen_status_from_bytes() {
+        let bytes = br#"{
+            "schema": 2,
+            "encoder": 1,
+            "status": "frozen",
+            "exclusions": [],
+            "global": {
+                "adjudication_commit": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+                "identities": []
+            }
+        }"#;
+        let state = host_resolution_state_from_bytes(bytes, "frozen-byte-fixture").unwrap();
+        assert!(state.frozen);
+        assert!(state.live.is_empty());
+        assert!(state.tombstones.is_empty());
     }
 
     #[test]
