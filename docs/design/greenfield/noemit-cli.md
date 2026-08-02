@@ -63,9 +63,7 @@ The current implementation also has these driver-level gaps:
 - no `getOptionsDiagnostics` batch boundary;
 - no exact command-line diagnostic gate or exit-status API;
 - only the conformance per-file getter aggregate, which includes suggestion
-  diagnostics that `tsc --noEmit` does not print; and
-- a harness-oriented leaked lib-bundle cache whose 64-bit content
-  fingerprint currently accepts collisions.
+  diagnostics that `tsc --noEmit` does not print.
 
 ## 3. Scope
 
@@ -255,7 +253,13 @@ H0.0 changes no checker behavior.
 - make the existing lib cache collision-safe.
 
 This is a prerequisite-only slice: every existing accepted diagnostic and
-rendered result remains byte-identical.
+rendered result remains byte-identical. H0.1 is complete: the legacy harness
+cache now verifies exact ordered names, texts, and binder options within each
+fingerprint bucket, while its cache-off path owns and drops fresh parse/bind
+state locally. The process-lifetime cache remains legacy harness
+infrastructure; `ProgramSession` does not use it, and any future reusable H0
+production cache remains subject to the injected, bounded, and evictable rule
+in section 6.
 
 ### H0.2 — authoritative `MemoryCompilerHost` module resolution
 
