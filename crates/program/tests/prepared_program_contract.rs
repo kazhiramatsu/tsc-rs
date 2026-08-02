@@ -61,6 +61,34 @@ fn located_diagnostic(code: u32, file_name: &str) -> Diagnostic {
 }
 
 #[test]
+fn prepared_source_emit_eligibility_defaults_are_source_side_facts() {
+    for file_name in [
+        "/Work/types.d.ts",
+        "/Work/types.d.mts",
+        "/Work/types.d.cts",
+        "/Work/types.d.css.ts",
+    ] {
+        assert!(
+            !PreparedSourceFile::new(path(file_name, &file_name.to_ascii_lowercase()), "")
+                .may_be_emitted(),
+            "{file_name}"
+        );
+    }
+
+    let node_modules_input = PreparedSourceFile::new(
+        path(
+            "/Work/node_modules/pkg/input.ts",
+            "/work/node_modules/pkg/input.ts",
+        ),
+        "export {};",
+    );
+    assert!(node_modules_input.may_be_emitted());
+    assert!(!node_modules_input
+        .with_may_be_emitted(false)
+        .may_be_emitted());
+}
+
+#[test]
 fn preserves_final_program_order_independently_from_root_order() {
     let mut builder = builder();
     let lib = builder

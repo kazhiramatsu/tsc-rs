@@ -585,6 +585,7 @@ fn project_source(
     let metadata = AuthoritativeSourceMetadata {
         token: AuthoritativeSourceToken(source_file.raw()),
         file_name: name.clone(),
+        may_be_emitted: source.may_be_emitted(),
         implied_node_format: source.implied_node_format().map(checker_resolution_mode),
     };
     Ok((

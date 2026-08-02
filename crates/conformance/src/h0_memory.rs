@@ -15,7 +15,7 @@ use tsc_program::{
 
 use crate::ConformanceResult;
 
-const SUPPORTED_FIXTURES: [&str; 28] = [
+const SUPPORTED_FIXTURES: [&str; 34] = [
     "conformance/node/nodeModulesPackagePatternExportsExclude.ts",
     "conformance/node/nodeModulesPackagePatternExports.ts",
     "conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsExclude.ts",
@@ -44,6 +44,12 @@ const SUPPORTED_FIXTURES: [&str; 28] = [
     "conformance/node/nodeModulesPackageImports.ts",
     "conformance/node/nodeModulesPackageImportsRootWildcard.ts",
     "conformance/node/allowJs/nodeModulesAllowJsPackageImports.ts",
+    "conformance/declarationEmit/typesVersionsDeclarationEmit.multiFileBackReferenceToSelf.ts",
+    "conformance/declarationEmit/typesVersionsDeclarationEmit.multiFileBackReferenceToUnmapped.ts",
+    "conformance/externalModules/rewriteRelativeImportExtensions/nodeModulesTsFiles.ts",
+    "conformance/moduleResolution/packageJsonMain_isNonRecursive.ts",
+    "conformance/moduleResolution/packageJsonMain.ts",
+    "conformance/node/nodeModulesNoDirectoryModule.ts",
 ];
 
 pub(crate) fn supports_fixture(fixture: &str) -> bool {
@@ -435,13 +441,26 @@ mod tests {
     };
 
     #[test]
-    fn dedicated_route_is_exactly_the_reviewed_package_map_fixtures() {
+    fn dedicated_route_is_exactly_the_reviewed_package_resolution_fixtures() {
         assert!(SUPPORTED_FIXTURES
             .iter()
             .all(|fixture| supports_fixture(fixture)));
         for fixture in [
+            "conformance/declarationEmit/typesVersionsDeclarationEmit.multiFileBackReferenceToSelf.ts",
+            "conformance/declarationEmit/typesVersionsDeclarationEmit.multiFileBackReferenceToUnmapped.ts",
+            "conformance/externalModules/rewriteRelativeImportExtensions/nodeModulesTsFiles.ts",
+            "conformance/moduleResolution/packageJsonMain_isNonRecursive.ts",
+            "conformance/moduleResolution/packageJsonMain.ts",
+            "conformance/node/nodeModulesNoDirectoryModule.ts",
+            "conformance/node/nodeModulesPackageExports.ts",
+        ] {
+            assert!(supports_fixture(fixture), "missing H0 route: {fixture}");
+        }
+        for fixture in [
             "conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsTrailers.ts",
             "conformance/externalModules/rewriteRelativeImportExtensions/nonTSExtensions.ts",
+            "conformance/declarationEmit/typesVersionsDeclarationEmit.multiFileBackReferenceToSelf.ts.backup",
+            "conformance/moduleResolution/packageJsonMain_isNonRecursive.ts.backup",
             "conformance/node/nodeModulesPackagePatternExportsExclude.ts.backup",
             "node/nodeModulesPackagePatternExportsExclude.ts",
         ] {

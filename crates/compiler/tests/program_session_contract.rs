@@ -144,6 +144,38 @@ fn authoritative_program(
     builder.build().expect("build authoritative program")
 }
 
+fn authoritative_program_with_emit_eligibility(
+    files: &[(&str, &str, bool)],
+    roots: &[usize],
+    mut options: CompilerOptions,
+    add_resolutions: impl FnOnce(&mut PreparedProgramBuilder, &[SourceFileId]),
+) -> PreparedProgram {
+    options.no_emit = Some(true);
+    let mut builder =
+        PreparedProgram::builder(PathContext::new(current_directory(), true), options);
+    let lib = builder
+        .add_source_file(
+            PreparedSourceFile::new(path("/lib.d.ts"), MINIMAL_GLOBALS).with_may_be_emitted(false),
+        )
+        .expect("add lib");
+    builder.add_library_file(lib).expect("add library");
+    let ids = files
+        .iter()
+        .map(|(name, text, may_be_emitted)| {
+            builder
+                .add_source_file(
+                    PreparedSourceFile::new(path(name), *text).with_may_be_emitted(*may_be_emitted),
+                )
+                .expect("add source")
+        })
+        .collect::<Vec<_>>();
+    for &root in roots {
+        builder.add_root_file(ids[root]).expect("add root");
+    }
+    add_resolutions(&mut builder, &ids);
+    builder.build().expect("build authoritative program")
+}
+
 fn module_key(source: &str, specifier: &str, mode: ResolutionMode) -> ResolutionKey {
     ResolutionKey::new(path(source).canonical().clone(), specifier, mode)
 }
@@ -633,6 +665,8 @@ fn authoritative_ts_extension_fact_controls_non_relative_rewrite_diagnostic() {
         target_text: &'static str,
         resolved_using_ts_extension: bool,
         is_external_library_import: bool,
+        target_may_be_emitted: bool,
+        target_is_root: bool,
         expect_2877: bool,
     }
 
@@ -645,6 +679,8 @@ fn authoritative_ts_extension_fact_controls_non_relative_rewrite_diagnostic() {
             target_text: "export {};\n",
             resolved_using_ts_extension: true,
             is_external_library_import: false,
+            target_may_be_emitted: true,
+            target_is_root: false,
             expect_2877: true,
         },
         Case {
@@ -655,6 +691,8 @@ fn authoritative_ts_extension_fact_controls_non_relative_rewrite_diagnostic() {
             target_text: "export {};\n",
             resolved_using_ts_extension: false,
             is_external_library_import: false,
+            target_may_be_emitted: true,
+            target_is_root: false,
             expect_2877: false,
         },
         Case {
@@ -665,6 +703,8 @@ fn authoritative_ts_extension_fact_controls_non_relative_rewrite_diagnostic() {
             target_text: "export {};\n",
             resolved_using_ts_extension: true,
             is_external_library_import: false,
+            target_may_be_emitted: true,
+            target_is_root: false,
             expect_2877: true,
         },
         Case {
@@ -675,6 +715,8 @@ fn authoritative_ts_extension_fact_controls_non_relative_rewrite_diagnostic() {
             target_text: "export {};\n",
             resolved_using_ts_extension: true,
             is_external_library_import: false,
+            target_may_be_emitted: true,
+            target_is_root: false,
             expect_2877: false,
         },
         Case {
@@ -685,6 +727,8 @@ fn authoritative_ts_extension_fact_controls_non_relative_rewrite_diagnostic() {
             target_text: "export {};\n",
             resolved_using_ts_extension: true,
             is_external_library_import: false,
+            target_may_be_emitted: true,
+            target_is_root: false,
             expect_2877: false,
         },
         Case {
@@ -695,16 +739,32 @@ fn authoritative_ts_extension_fact_controls_non_relative_rewrite_diagnostic() {
             target_text: "export {};\n",
             resolved_using_ts_extension: true,
             is_external_library_import: false,
+            target_may_be_emitted: false,
+            target_is_root: false,
             expect_2877: false,
         },
         Case {
-            name: "external library target",
+            name: "external package lookup can select an emit-eligible root input",
             importer: "import {} from \"#internal/foo.ts\";\n",
             specifier: "#internal/foo.ts",
             target_name: "/node_modules/pkg/foo.ts",
             target_text: "export {};\n",
             resolved_using_ts_extension: true,
             is_external_library_import: true,
+            target_may_be_emitted: true,
+            target_is_root: true,
+            expect_2877: true,
+        },
+        Case {
+            name: "non-emitted external dependency suppresses the diagnostic",
+            importer: "import {} from \"#internal/foo.ts\";\n",
+            specifier: "#internal/foo.ts",
+            target_name: "/node_modules/pkg/foo.ts",
+            target_text: "export {};\n",
+            resolved_using_ts_extension: true,
+            is_external_library_import: true,
+            target_may_be_emitted: false,
+            target_is_root: false,
             expect_2877: false,
         },
         Case {
@@ -715,17 +775,24 @@ fn authoritative_ts_extension_fact_controls_non_relative_rewrite_diagnostic() {
             target_text: "export {};\n",
             resolved_using_ts_extension: true,
             is_external_library_import: false,
+            target_may_be_emitted: true,
+            target_is_root: false,
             expect_2877: false,
         },
     ];
 
     for case in cases {
-        let prepared = authoritative_program(
+        let roots: &[usize] = if case.target_is_root { &[0, 1] } else { &[1] };
+        let prepared = authoritative_program_with_emit_eligibility(
             &[
-                (case.target_name, case.target_text),
-                ("/main.ts", case.importer),
+                (
+                    case.target_name,
+                    case.target_text,
+                    case.target_may_be_emitted,
+                ),
+                ("/main.ts", case.importer, true),
             ],
-            &[1],
+            roots,
             CompilerOptions {
                 module: Some(1),
                 module_resolution: Some(2),
@@ -755,7 +822,12 @@ fn authoritative_ts_extension_fact_controls_non_relative_rewrite_diagnostic() {
             },
         );
 
-        let outcome = consume(ProgramSession::new(prepared));
+        let owned = consume(ProgramSession::new(prepared.clone()));
+        let cached = ProgramSession::new(prepared)
+            .run_for_conformance_with_harness_lib_cache()
+            .expect("cached authoritative rewrite session");
+        assert_eq!(owned, cached, "{} cache mode", case.name);
+        let outcome = owned;
         let diagnostics = outcome
             .semantic_diagnostics()
             .iter()
