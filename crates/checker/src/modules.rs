@@ -2912,7 +2912,14 @@ impl<'a> CheckerState<'a> {
                 } else if resolved.resolved_using_ts_extension
                     && !should_rewrite
                     && !source.is_declaration_file
-                    && !resolved.is_external_library_import
+                    && if self.authoritative_module_provider.is_some() {
+                        self.authoritative_source_may_be_emitted
+                            .get(resolved.file_index)
+                            .copied()
+                            .unwrap_or(false)
+                    } else {
+                        !resolved.is_external_library_import
+                    }
                     && Self::try_extract_ts_extension(&resolved_file_name).is_some()
                 {
                     if let Some(error_node) = error_node {

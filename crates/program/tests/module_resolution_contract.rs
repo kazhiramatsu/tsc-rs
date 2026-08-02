@@ -163,11 +163,11 @@ fn declaration_twins_and_external_provenance_hold_for_all_node_module_kinds() {
             assert!(!external.resolved_using_ts_extension());
             assert_eq!(external.original_path(), None);
             assert_eq!(external.package_id(), None);
-            assert_eq!(external.package_metadata().name(), Some("inner"));
-            assert_eq!(
-                external.package_metadata().module_type(),
-                PackageJsonType::Unspecified
-            );
+            let package_metadata = external
+                .package_metadata()
+                .expect("manifest-backed export retains package metadata");
+            assert_eq!(package_metadata.name(), Some("inner"));
+            assert_eq!(package_metadata.module_type(), PackageJsonType::Unspecified);
             let caller_spelling = ProgramPath::from_trusted_parts(
                 expected_path.trim_start_matches('/'),
                 *expected_path,
@@ -676,15 +676,15 @@ fn package_imports_preserve_non_root_self_and_option_boundaries() {
         exact.resolved_file().canonical().as_path(),
         Path::new("/workspace/src/exact.ts")
     );
-    assert_unsupported(
+    assert_eq!(
         resolver
             .resolve(
                 Path::new("/workspace/main.ts"),
                 "workspace",
                 ResolutionMode::EsNext,
             )
-            .expect_err("bare package fallback remains fail closed"),
-        "resolve-package-json-exports-disabled",
+            .expect("disabled exports use ordinary legacy lookup"),
+        ResolutionOutcome::NotFound,
     );
 
     let imports_disabled = CompilerOptions {
@@ -824,6 +824,22 @@ fn untyped_exports_retain_the_esm_legacy_alternate_and_package_facts() {
             b"module.exports = {};".to_vec(),
         )
         .file("/node_modules/pkg/types/foo.d.ts", b"export {};".to_vec())
+        .file(
+            "/node_modules/no-alternate/package.json",
+            br#"{
+                "name":"no-alternate",
+                "exports":"./dist/index.js"
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/node_modules/no-alternate/dist/index.js",
+            b"module.exports = {};".to_vec(),
+        )
+        .file(
+            "/node_modules/no-alternate/index.d.ts",
+            b"export {};".to_vec(),
+        )
         .build()
         .expect("build untyped package host");
     let options = options_for_module(199);
@@ -851,16 +867,23 @@ fn untyped_exports_retain_the_esm_legacy_alternate_and_package_facts() {
     );
     assert_eq!(commonjs.extension(), &ModuleExtension::Js);
     assert_eq!(commonjs.alternate_result(), None);
+
+    let no_alternate = resolved(
+        resolver
+            .resolve(
+                Path::new("/main.mts"),
+                "no-alternate",
+                ResolutionMode::EsNext,
+            )
+            .expect("resolve an exports implementation without a legacy type target"),
+    );
+    assert_eq!(no_alternate.extension(), &ModuleExtension::Js);
+    assert_eq!(no_alternate.alternate_result(), None);
 }
 
 #[test]
-fn unported_legacy_fallback_and_overlapping_patterns_fail_closed() {
-    for (package, exports) in [
-        ("nullish", "null"),
-        ("empty", "\"\""),
-        ("falsey", "false"),
-        ("zero", "0"),
-    ] {
+fn null_exports_use_legacy_index_while_other_falsy_values_and_overlaps_fail_closed() {
+    for (package, exports) in [("empty", "\"\""), ("falsey", "false"), ("zero", "0")] {
         let package_json = format!(r#"{{"name":"{package}","exports":{exports}}}"#);
         let package_path = format!("/work/node_modules/{package}/package.json");
         let host = MemoryCompilerHost::builder("/work")
@@ -879,6 +902,34 @@ fn unported_legacy_fallback_and_overlapping_patterns_fail_closed() {
             .expect_err("falsy exports requires the unported legacy fallback");
         assert_unsupported(error, "legacy-node-package-entry-from-falsy-exports");
     }
+
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/index.mts", b"export {};".to_vec())
+        .file(
+            "/work/node_modules/nullish/package.json",
+            br#"{"name":"nullish","exports":null}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/nullish/index.d.ts",
+            b"export {};".to_vec(),
+        )
+        .build()
+        .expect("build null-exports legacy-index host");
+    let options = options_for_module(199);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+    let nullish = resolved(
+        resolver
+            .resolve(
+                Path::new("/work/index.mts"),
+                "nullish",
+                ResolutionMode::EsNext,
+            )
+            .expect("null exports permits the Node ESM package-root index exception"),
+    );
+    assert_eq!(
+        nullish.resolved_file().canonical().as_path(),
+        Path::new("/work/node_modules/nullish/index.d.ts")
+    );
 
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/index.mts", b"export {};".to_vec())
@@ -958,7 +1009,7 @@ fn external_walk_prefers_types_across_ancestors_and_continues_after_null() {
 }
 
 #[test]
-fn an_existing_near_package_without_exports_metadata_fails_closed() {
+fn a_manifestless_near_package_miss_continues_to_an_outer_node_modules() {
     let host = MemoryCompilerHost::builder("/work/project")
         .file("/work/project/src/index.mts", b"export {};".to_vec())
         .file(
@@ -978,14 +1029,19 @@ fn an_existing_near_package_without_exports_metadata_fails_closed() {
     let options = options_for_module(100);
     let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
 
-    let error = resolver
-        .resolve(
-            Path::new("/work/project/src/index.mts"),
-            "inner/x",
-            ResolutionMode::EsNext,
-        )
-        .expect_err("unported nearer legacy package must stop the walk");
-    assert_unsupported(error, "legacy-node-package-entry");
+    let module = resolved(
+        resolver
+            .resolve(
+                Path::new("/work/project/src/index.mts"),
+                "inner/x",
+                ResolutionMode::EsNext,
+            )
+            .expect("a manifestless miss continues the ancestor walk"),
+    );
+    assert_eq!(
+        module.resolved_file().canonical().as_path(),
+        Path::new("/work/project/node_modules/inner/x.d.ts")
+    );
 }
 
 #[test]
@@ -1357,4 +1413,483 @@ fn types_versions_explicit_extensions_probe_exactly_before_loader_substitution()
             .expect("missing exact and loader candidates are authoritative miss"),
         ResolutionOutcome::NotFound
     );
+}
+
+#[test]
+fn manifestless_node_modules_probe_direct_files_and_commonjs_indexes_without_fake_facts() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/index.cts", b"export {};".to_vec())
+        .file(
+            "/work/node_modules/plain/direct.ts",
+            b"export const direct = true;".to_vec(),
+        )
+        .file(
+            "/work/node_modules/plain/folder/index.d.ts",
+            b"export const folder: true;".to_vec(),
+        )
+        .file(
+            "/work/node_modules/root-index/index.d.ts",
+            b"export const root: true;".to_vec(),
+        )
+        .build()
+        .expect("build manifestless node_modules host");
+    let options = options_for_module(199);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+
+    let direct = resolved(
+        resolver
+            .resolve(
+                Path::new("/work/index.cts"),
+                "plain/direct.ts",
+                ResolutionMode::CommonJs,
+            )
+            .expect("resolve an explicit manifestless TypeScript subpath"),
+    );
+    assert_eq!(
+        direct.resolved_file().canonical().as_path(),
+        Path::new("/work/node_modules/plain/direct.ts")
+    );
+    assert!(direct.resolved_using_ts_extension());
+    assert!(direct.is_external_library_import());
+    assert_eq!(direct.package_id(), None);
+    assert_eq!(direct.package_metadata(), None);
+
+    for (specifier, expected) in [
+        ("plain/folder", "/work/node_modules/plain/folder/index.d.ts"),
+        ("root-index", "/work/node_modules/root-index/index.d.ts"),
+    ] {
+        let module = resolved(
+            resolver
+                .resolve(
+                    Path::new("/work/index.cts"),
+                    specifier,
+                    ResolutionMode::CommonJs,
+                )
+                .expect("resolve a CommonJS manifestless index"),
+        );
+        assert_eq!(
+            module.resolved_file().canonical().as_path(),
+            Path::new(expected)
+        );
+        assert_eq!(module.package_id(), None);
+        assert_eq!(module.package_metadata(), None);
+    }
+
+    assert_eq!(
+        resolver
+            .resolve(
+                Path::new("/work/index.cts"),
+                "plain/folder",
+                ResolutionMode::EsNext,
+            )
+            .expect("Node ESM does not perform a manifestless directory lookup"),
+        ResolutionOutcome::NotFound
+    );
+}
+
+#[test]
+fn legacy_package_fields_preserve_priority_nonrecursive_main_and_node_esm_directory_rules() {
+    let host = MemoryCompilerHost::builder("/")
+        .file("/index.mts", b"export {};".to_vec())
+        .file(
+            "/node_modules/priority/package.json",
+            br#"{
+                "name":"priority",
+                "version":"1.0.0",
+                "typings":"typings.d.ts",
+                "types":"types.d.ts",
+                "main":"main.js"
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/node_modules/priority/typings.d.ts",
+            b"export {};".to_vec(),
+        )
+        .file("/node_modules/priority/types.d.ts", b"export {};".to_vec())
+        .file(
+            "/node_modules/priority/main.js",
+            b"module.exports = {};".to_vec(),
+        )
+        .file(
+            "/node_modules/first-field-miss/package.json",
+            br#"{
+                "name":"first-field-miss",
+                "typings":"missing.d.ts",
+                "types":"must-not-win.d.ts",
+                "main":"must-not-win.js"
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/node_modules/first-field-miss/must-not-win.d.ts",
+            b"export {};".to_vec(),
+        )
+        .file(
+            "/node_modules/first-field-miss/must-not-win.js",
+            b"module.exports = {};".to_vec(),
+        )
+        .file(
+            "/node_modules/first-field-miss/index.d.ts",
+            b"export {};".to_vec(),
+        )
+        .file(
+            "/node_modules/direct-root/package.json",
+            br#"{
+                "name":"direct-root",
+                "version":"1.0.0",
+                "type":"module",
+                "types":"index.d.ts"
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/node_modules/direct-root/index.d.ts",
+            b"export {};".to_vec(),
+        )
+        .file("/node_modules/direct-root.ts", b"export {};".to_vec())
+        .file(
+            "/node_modules/nonrecursive/package.json",
+            br#"{"name":"nonrecursive","main":"nested"}"#.to_vec(),
+        )
+        .file(
+            "/node_modules/nonrecursive/nested/package.json",
+            br#"{"main":"actual"}"#.to_vec(),
+        )
+        .file(
+            "/node_modules/nonrecursive/nested/actual.js",
+            b"module.exports = {};".to_vec(),
+        )
+        .file(
+            "/node_modules/mode/package.json",
+            br#"{
+                "name":"mode",
+                "version":"1.0.0",
+                "type":"module",
+                "main":"dist/index.js"
+            }"#
+            .to_vec(),
+        )
+        .file("/node_modules/mode/dist/index.d.ts", b"export {};".to_vec())
+        .file(
+            "/node_modules/mode/dist/dir/index.d.ts",
+            b"export {};".to_vec(),
+        )
+        .build()
+        .expect("build legacy package-field host");
+
+    let bundler_options = CompilerOptions {
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+    let mut bundler =
+        ModuleResolver::new(&host, &bundler_options).expect("create Bundler resolver");
+    let priority = resolved(
+        bundler
+            .resolve(Path::new("/index.mts"), "priority", ResolutionMode::EsNext)
+            .expect("typings wins over types and main"),
+    );
+    assert_eq!(
+        priority.resolved_file().canonical().as_path(),
+        Path::new("/node_modules/priority/typings.d.ts")
+    );
+    assert_eq!(priority.package_id().map(PackageId::name), Some("priority"));
+    let first_field_miss = resolved(
+        bundler
+            .resolve(
+                Path::new("/index.mts"),
+                "first-field-miss",
+                ResolutionMode::EsNext,
+            )
+            .expect("a selected typings miss falls through to index, not types or main"),
+    );
+    assert_eq!(
+        first_field_miss.resolved_file().canonical().as_path(),
+        Path::new("/node_modules/first-field-miss/index.d.ts")
+    );
+    let direct_root = resolved(
+        bundler
+            .resolve(
+                Path::new("/index.mts"),
+                "direct-root",
+                ResolutionMode::CommonJs,
+            )
+            .expect("CommonJS probes the direct package-root file before package fields"),
+    );
+    assert_eq!(
+        direct_root.resolved_file().canonical().as_path(),
+        Path::new("/node_modules/direct-root.ts")
+    );
+    let direct_root_id = direct_root
+        .package_id()
+        .expect("the package-root loader attaches the manifest package id");
+    assert_eq!(direct_root_id.name(), "direct-root");
+    assert_eq!(direct_root_id.submodule_name(), "ts");
+    assert_eq!(
+        bundler
+            .resolve(
+                Path::new("/index.mts"),
+                "nonrecursive",
+                ResolutionMode::CommonJs,
+            )
+            .expect("a main target does not recursively consume nested package.json"),
+        ResolutionOutcome::NotFound
+    );
+
+    let node_options = options_for_module(100);
+    let mut node = ModuleResolver::new(&host, &node_options).expect("create Node16 resolver");
+    let root = resolved(
+        node.resolve(Path::new("/index.mts"), "mode", ResolutionMode::EsNext)
+            .expect("an explicit main target resolves in Node ESM mode"),
+    );
+    assert_eq!(
+        root.resolved_file().canonical().as_path(),
+        Path::new("/node_modules/mode/dist/index.d.ts")
+    );
+    assert_eq!(
+        node.resolve(
+            Path::new("/index.mts"),
+            "mode/dist/dir",
+            ResolutionMode::EsNext,
+        )
+        .expect("Node ESM forbids package-subpath directory lookup"),
+        ResolutionOutcome::NotFound
+    );
+    let commonjs_directory = resolved(
+        node.resolve(
+            Path::new("/index.mts"),
+            "mode/dist/dir",
+            ResolutionMode::CommonJs,
+        )
+        .expect("Node CommonJS permits package-subpath directory lookup"),
+    );
+    assert_eq!(
+        commonjs_directory.resolved_file().canonical().as_path(),
+        Path::new("/node_modules/mode/dist/dir/index.d.ts")
+    );
+}
+
+#[test]
+fn types_versions_root_back_references_unmapped_fallback_and_mapped_misses_are_distinct() {
+    let host = MemoryCompilerHost::builder("/")
+        .file("/main.ts", b"export {};".to_vec())
+        .file(
+            "/node_modules/ext/package.json",
+            br#"{
+                "name":"ext",
+                "version":"1.0.0",
+                "types":"index",
+                "typesVersions":{">=3.1.0-0":{"*":["ts3.1/*"]}}
+            }"#
+            .to_vec(),
+        )
+        .file("/node_modules/ext/index.d.ts", b"export {};".to_vec())
+        .file("/node_modules/ext/other.d.ts", b"export {};".to_vec())
+        .file("/node_modules/ext/ts3.1/index.d.ts", b"export {};".to_vec())
+        .file("/node_modules/ext/ts3.1/other.d.ts", b"export {};".to_vec())
+        .file(
+            "/node_modules/unmapped/package.json",
+            br#"{
+                "name":"unmapped",
+                "version":"1.0.0",
+                "types":"index",
+                "typesVersions":{">=3.1.0-0":{"index":["ts3.1/index"]}}
+            }"#
+            .to_vec(),
+        )
+        .file("/node_modules/unmapped/index.d.ts", b"export {};".to_vec())
+        .file("/node_modules/unmapped/other.d.ts", b"export {};".to_vec())
+        .file(
+            "/node_modules/unmapped/ts3.1/index.d.ts",
+            b"export {};".to_vec(),
+        )
+        .file(
+            "/node_modules/mapped-miss/package.json",
+            br#"{
+                "name":"mapped-miss",
+                "types":"index",
+                "typesVersions":{"*":{"*":["missing/*","also-missing/*"]}}
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/node_modules/mapped-miss/index.d.ts",
+            b"export {};".to_vec(),
+        )
+        .file("/node_modules/mapped-miss/foo.d.ts", b"export {};".to_vec())
+        .file(
+            "/node_modules/first-range/package.json",
+            br#"{
+                "name":"first-range",
+                "version":"1.0.0",
+                "types":"index",
+                "typesVersions":{
+                    "*":{"index":["first/index"]},
+                    ">=3.1":{"index":["second/index"]}
+                }
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/node_modules/first-range/first/index.d.ts",
+            b"export {};".to_vec(),
+        )
+        .file(
+            "/node_modules/first-range/second/index.d.ts",
+            b"export {};".to_vec(),
+        )
+        .file(
+            "/node_modules/root-exact/package.json",
+            br#"{
+                "name":"root-exact",
+                "version":"1.0.0",
+                "types":"index.d.ts",
+                "typesVersions":{"*":{"index.d.ts":["types/root.d.ts"]}}
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/node_modules/root-exact/types/root.d.ts",
+            b"export {};".to_vec(),
+        )
+        .build()
+        .expect("build typesVersions host");
+    let options = options_for_module(1);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+
+    for (specifier, expected) in [
+        ("ext", "/node_modules/ext/ts3.1/index.d.ts"),
+        ("ext/other", "/node_modules/ext/ts3.1/other.d.ts"),
+        ("unmapped", "/node_modules/unmapped/ts3.1/index.d.ts"),
+        ("unmapped/other", "/node_modules/unmapped/other.d.ts"),
+        ("first-range", "/node_modules/first-range/first/index.d.ts"),
+        ("root-exact", "/node_modules/root-exact/types/root.d.ts"),
+    ] {
+        let module = resolved(
+            resolver
+                .resolve(Path::new("/main.ts"), specifier, ResolutionMode::CommonJs)
+                .expect("resolve versioned or legacy package target"),
+        );
+        assert_eq!(
+            module.resolved_file().canonical().as_path(),
+            Path::new(expected)
+        );
+        let expected_package = specifier.split('/').next().expect("package name");
+        assert_eq!(
+            module.package_id().map(PackageId::name),
+            Some(expected_package)
+        );
+    }
+
+    let self_back_reference = resolved(
+        resolver
+            .resolve(
+                Path::new("/node_modules/ext/ts3.1/index.d.ts"),
+                "../",
+                ResolutionMode::CommonJs,
+            )
+            .expect("a package-root back-reference re-enters typesVersions"),
+    );
+    assert_eq!(
+        self_back_reference.resolved_file().canonical().as_path(),
+        Path::new("/node_modules/ext/ts3.1/index.d.ts")
+    );
+    assert_eq!(
+        self_back_reference.package_id().map(PackageId::name),
+        Some("ext")
+    );
+    let root_other = resolved(
+        resolver
+            .resolve(
+                Path::new("/node_modules/ext/ts3.1/other.d.ts"),
+                "../other",
+                ResolutionMode::CommonJs,
+            )
+            .expect("an extensionless relative file resolves before directory metadata"),
+    );
+    assert_eq!(
+        root_other.resolved_file().canonical().as_path(),
+        Path::new("/node_modules/ext/other.d.ts")
+    );
+    assert_eq!(root_other.package_id().map(PackageId::name), Some("ext"));
+
+    for specifier in ["mapped-miss", "mapped-miss/foo"] {
+        assert_eq!(
+            resolver
+                .resolve(Path::new("/main.ts"), specifier, ResolutionMode::CommonJs)
+                .expect("a selected mapping owns an all-target miss"),
+            ResolutionOutcome::NotFound,
+            "{specifier} must not fall through to its legacy file"
+        );
+    }
+}
+
+#[test]
+fn relative_package_ids_follow_file_and_directory_manifest_boundaries() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file(
+            "/work/package.json",
+            br#"{"name":"workspace","version":"1.0.0"}"#.to_vec(),
+        )
+        .file("/work/index.ts", b"export {};".to_vec())
+        .file("/work/other.ts", b"export {};".to_vec())
+        .file(
+            "/work/directory/package.json",
+            br#"{"name":"directory","version":"1.0.0"}"#.to_vec(),
+        )
+        .file("/work/directory/index.d.ts", b"export {};".to_vec())
+        .file(
+            "/work/node_modules/outer/package.json",
+            br#"{"name":"outer","version":"1.0.0"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/outer/index.d.ts",
+            b"export {};".to_vec(),
+        )
+        .file(
+            "/work/node_modules/outer/nested/index.d.ts",
+            b"export {};".to_vec(),
+        )
+        .build()
+        .expect("build relative workspace host");
+    let options = options_for_module(1);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+    let module = resolved(
+        resolver
+            .resolve(
+                Path::new("/work/index.ts"),
+                "./other",
+                ResolutionMode::CommonJs,
+            )
+            .expect("resolve an ordinary relative source"),
+    );
+    assert_eq!(module.package_id(), None);
+    assert!(!module.is_external_library_import());
+
+    let directory_package = resolved(
+        resolver
+            .resolve(
+                Path::new("/work/index.ts"),
+                "./directory/",
+                ResolutionMode::CommonJs,
+            )
+            .expect("resolve a relative directory with its own package manifest"),
+    );
+    assert_eq!(
+        directory_package.package_id().map(PackageId::name),
+        Some("directory")
+    );
+    assert!(!directory_package.is_external_library_import());
+
+    let manifestless_directory = resolved(
+        resolver
+            .resolve(
+                Path::new("/work/node_modules/outer/index.d.ts"),
+                "./nested/",
+                ResolutionMode::CommonJs,
+            )
+            .expect("resolve a manifestless directory index inside a package"),
+    );
+    assert_eq!(manifestless_directory.package_id(), None);
+    assert!(manifestless_directory.is_external_library_import());
 }

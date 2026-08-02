@@ -800,6 +800,7 @@ pub struct CheckerState<'a> {
     pub(crate) authoritative_source_tokens: Vec<crate::AuthoritativeSourceToken>,
     pub(crate) authoritative_source_index_by_token:
         std::collections::HashMap<crate::AuthoritativeSourceToken, usize>,
+    pub(crate) authoritative_source_may_be_emitted: Vec<bool>,
     pub(crate) authoritative_implied_node_formats: Vec<Option<crate::AuthoritativeResolutionMode>>,
     /// First fail-closed host-table failure. This is intentionally separate
     /// from CheckAbort: augmentation recovery may contain an oracle crash,
@@ -934,6 +935,7 @@ impl<'a> CheckerState<'a> {
 
         let mut tokens = Vec::with_capacity(metadata.len());
         let mut source_index_by_token = std::collections::HashMap::new();
+        let mut source_may_be_emitted = Vec::with_capacity(metadata.len());
         let mut implied_node_formats = Vec::with_capacity(metadata.len());
         for (file_index, source) in metadata.iter().enumerate() {
             let checker_file_name = &self.binder.source(file_index).file_name;
@@ -954,12 +956,14 @@ impl<'a> CheckerState<'a> {
                 });
             }
             tokens.push(source.token);
+            source_may_be_emitted.push(source.may_be_emitted);
             implied_node_formats.push(source.implied_node_format);
         }
 
         self.authoritative_module_provider = Some(provider);
         self.authoritative_source_tokens = tokens;
         self.authoritative_source_index_by_token = source_index_by_token;
+        self.authoritative_source_may_be_emitted = source_may_be_emitted;
         self.authoritative_implied_node_formats = implied_node_formats;
         Ok(())
     }
@@ -1151,6 +1155,7 @@ impl<'a> CheckerState<'a> {
             authoritative_module_provider: None,
             authoritative_source_tokens: Vec::new(),
             authoritative_source_index_by_token: std::collections::HashMap::new(),
+            authoritative_source_may_be_emitted: Vec::new(),
             authoritative_implied_node_formats: Vec::new(),
             authoritative_module_failure: std::cell::OnceCell::new(),
             host_file_paths: std::collections::HashSet::new(),

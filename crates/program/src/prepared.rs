@@ -69,6 +69,7 @@ pub struct PreparedSourceFile {
     alternate_display_paths: Vec<PathBuf>,
     real_path: Option<ProgramPath>,
     text: String,
+    may_be_emitted: bool,
     implied_node_format: Option<ResolutionMode>,
     implied_node_format_for_emit: Option<ResolutionMode>,
     package_scope: Option<CanonicalPath>,
@@ -76,11 +77,27 @@ pub struct PreparedSourceFile {
 
 impl PreparedSourceFile {
     pub fn new(path: ProgramPath, text: impl Into<String>) -> Self {
+        let may_be_emitted = !path.display().to_str().is_some_and(|file_name| {
+            file_name.ends_with(".d.ts")
+                || file_name.ends_with(".d.cts")
+                || file_name.ends_with(".d.mts")
+                || (file_name.ends_with(".ts")
+                    && file_name
+                        .rsplit(['/', '\\'])
+                        .next()
+                        .unwrap_or(file_name)
+                        .contains(".d."))
+        });
         Self {
             path,
             alternate_display_paths: Vec::new(),
             real_path: None,
             text: text.into(),
+            // A prepared source is normally a direct program input. Loaders
+            // that admit an external-library dependency retain that distinct
+            // source-side fact with `with_may_be_emitted(false)`; resolution
+            // provenance is deliberately not used as a substitute.
+            may_be_emitted,
             implied_node_format: None,
             implied_node_format_for_emit: None,
             package_scope: None,
@@ -91,6 +108,18 @@ impl PreparedSourceFile {
     /// identity. The real path never replaces `path.canonical()` here.
     pub fn with_real_path(mut self, real_path: ProgramPath) -> Self {
         self.real_path = Some(real_path);
+        self
+    }
+
+    /// tsrs-native: retain the program's `sourceFileMayBeEmitted` verdict for
+    /// this source at the prepared-program boundary.
+    ///
+    /// This belongs to the selected source, not to any one resolution that
+    /// reaches it. In particular, a root below `node_modules` can still be
+    /// emit-eligible even when a package lookup records external-library
+    /// resolution provenance.
+    pub fn with_may_be_emitted(mut self, may_be_emitted: bool) -> Self {
+        self.may_be_emitted = may_be_emitted;
         self
     }
 
@@ -136,6 +165,11 @@ impl PreparedSourceFile {
         &self.text
     }
 
+    /// tsrs-native: expose the retained source-side emit-eligibility fact.
+    pub const fn may_be_emitted(&self) -> bool {
+        self.may_be_emitted
+    }
+
     pub const fn implied_node_format(&self) -> Option<ResolutionMode> {
         self.implied_node_format
     }
@@ -150,6 +184,7 @@ impl PreparedSourceFile {
 
     fn compatible_with(&self, other: &Self) -> bool {
         self.text == other.text
+            && self.may_be_emitted == other.may_be_emitted
             && self.implied_node_format == other.implied_node_format
             && self.implied_node_format_for_emit == other.implied_node_format_for_emit
             && self.package_scope == other.package_scope

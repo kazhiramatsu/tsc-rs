@@ -50,11 +50,13 @@ impl AuthoritativeModuleProvider for Provider {
 fn metadata(
     token: u32,
     file_name: &str,
+    may_be_emitted: bool,
     implied_node_format: Option<AuthoritativeResolutionMode>,
 ) -> AuthoritativeSourceMetadata {
     AuthoritativeSourceMetadata {
         token: AuthoritativeSourceToken(token),
         file_name: file_name.to_owned(),
+        may_be_emitted,
         implied_node_format,
     }
 }
@@ -65,7 +67,7 @@ fn authoritative_external_fact_alone_controls_checked_js_implicit_any_suggestion
         name: "/lib.d.ts".to_owned(),
         text: MINIMAL_GLOBALS.to_owned(),
     }];
-    let lib_metadata = [metadata(0, "/lib.d.ts", None)];
+    let lib_metadata = [metadata(0, "/lib.d.ts", false, None)];
     let files = [
         InputFile {
             name: "/node_modules/pkg/index.js".to_owned(),
@@ -80,9 +82,15 @@ fn authoritative_external_fact_alone_controls_checked_js_implicit_any_suggestion
         metadata(
             1,
             "/node_modules/pkg/index.js",
+            true,
             Some(AuthoritativeResolutionMode::CommonJs),
         ),
-        metadata(2, "/main.js", Some(AuthoritativeResolutionMode::CommonJs)),
+        metadata(
+            2,
+            "/main.js",
+            true,
+            Some(AuthoritativeResolutionMode::CommonJs),
+        ),
     ];
     let options = CompilerOptions {
         allow_js: true,

@@ -82,6 +82,9 @@ pub enum AuthoritativeResolutionMode {
 pub struct AuthoritativeSourceMetadata {
     pub token: AuthoritativeSourceToken,
     pub file_name: String,
+    /// Exact source-side `sourceFileMayBeEmitted` verdict. This must remain
+    /// separate from per-resolution external-library provenance.
+    pub may_be_emitted: bool,
     pub implied_node_format: Option<AuthoritativeResolutionMode>,
 }
 
@@ -2572,11 +2575,13 @@ mod tests {
         let lib_metadata = [AuthoritativeSourceMetadata {
             token: AuthoritativeSourceToken(0),
             file_name: libs[0].name.clone(),
+            may_be_emitted: false,
             implied_node_format: None,
         }];
         let file_metadata = [AuthoritativeSourceMetadata {
             token: AuthoritativeSourceToken(1),
             file_name: files[0].name.clone(),
+            may_be_emitted: true,
             implied_node_format: None,
         }];
         let options = CompilerOptions {
