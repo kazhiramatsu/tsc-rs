@@ -2198,6 +2198,55 @@ struct ResolvedBlobRef {
     location: WorkspaceLocation,
 }
 
+/// The small, validated subset of an accepted-match artifact needed by the
+/// historical pair audit. Keeping facts instead of the decoded artifact is
+/// important: one current accepted artifact expands to tens of megabytes.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct MatchesPairFacts {
+    oracle_inputs_sha256: String,
+    tsc_js_sha256: String,
+    transition: Option<String>,
+    has_t1_t3_membership: bool,
+    has_t4_membership: bool,
+}
+
+impl MatchesPairFacts {
+    fn from_validated(artifact: &MatchesArtifact) -> Self {
+        Self {
+            oracle_inputs_sha256: artifact.inputs.oracle_inputs_sha256.clone(),
+            tsc_js_sha256: artifact.inputs.tsc_js_sha256.clone(),
+            transition: artifact.transition.clone(),
+            has_t1_t3_membership: case_sets_have_t1_t3_membership(&artifact.views),
+            has_t4_membership: case_sets_have_t4_membership(&artifact.views),
+        }
+    }
+}
+
+/// The small, validated subset of an oracle-input artifact needed by the
+/// historical pair audit. `blob_sha256` is computed from the exact compressed
+/// Git blob bytes rather than trusting a field inside either artifact.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct InputsPairFacts {
+    blob_sha256: String,
+    tsc_js_sha256: String,
+    transition: Option<String>,
+    comparator_state: TierComparatorState,
+}
+
+impl InputsPairFacts {
+    fn from_validated(
+        artifact: &OracleInputsArtifact,
+        blob_bytes: &[u8],
+    ) -> ConformanceResult<Self> {
+        Ok(Self {
+            blob_sha256: sha256_hex(blob_bytes),
+            tsc_js_sha256: artifact.vendor.tsc_js_sha256.clone(),
+            transition: artifact.transition.clone(),
+            comparator_state: comparator_state(&artifact.comparators)?,
+        })
+    }
+}
+
 /// Parse the exact two-path `ls-tree -z` result without treating a malformed
 /// or ambiguous tree as absence. The selected object's bytes are read only
 /// after this succeeds, so a real Git failure can never trigger fallback.
@@ -2285,10 +2334,16 @@ struct GitMemo {
     head_commit: String,
     blob_ids: BTreeMap<(String, String), Option<ResolvedBlobRef>>,
     blob_objects: BTreeMap<String, Vec<u8>>,
+    matches_pair_facts: BTreeMap<String, MatchesPairFacts>,
+    inputs_pair_facts: BTreeMap<String, InputsPairFacts>,
     parents: BTreeMap<String, Vec<String>>,
     version_commits: BTreeMap<String, Vec<String>>,
     #[cfg(test)]
     git_invocations: usize,
+    #[cfg(test)]
+    pair_matches_decode_misses: usize,
+    #[cfg(test)]
+    pair_inputs_decode_misses: usize,
 }
 
 impl GitMemo {
@@ -2299,10 +2354,16 @@ impl GitMemo {
             head_commit,
             blob_ids: BTreeMap::new(),
             blob_objects: BTreeMap::new(),
+            matches_pair_facts: BTreeMap::new(),
+            inputs_pair_facts: BTreeMap::new(),
             parents: BTreeMap::new(),
             version_commits: BTreeMap::new(),
             #[cfg(test)]
             git_invocations: 0,
+            #[cfg(test)]
+            pair_matches_decode_misses: 0,
+            #[cfg(test)]
+            pair_inputs_decode_misses: 0,
         })
     }
 
@@ -2318,7 +2379,7 @@ impl GitMemo {
         &mut self,
         commit: &str,
         rel: &str,
-    ) -> ConformanceResult<Option<(Vec<u8>, WorkspaceLocation)>> {
+    ) -> ConformanceResult<Option<(Vec<u8>, ResolvedBlobRef)>> {
         let commit = if commit == "HEAD" {
             self.head_commit.clone()
         } else {
@@ -2333,7 +2394,7 @@ impl GitMemo {
                     .blob_objects
                     .get(&blob.object_id)
                     .cloned()
-                    .map(|bytes| Some((bytes, blob.location)))
+                    .map(|bytes| Some((bytes, blob.clone())))
                     .ok_or_else(|| {
                         format!("internal Git memo lost blob object {}", blob.object_id).into()
                     }),
@@ -2360,15 +2421,122 @@ impl GitMemo {
                 .insert(blob.object_id.clone(), bytes.clone());
             bytes
         };
-        let location = blob.location;
-        self.blob_ids.insert(key, Some(blob));
-        Ok(Some((bytes, location)))
+        self.blob_ids.insert(key, Some(blob.clone()));
+        Ok(Some((bytes, blob)))
     }
 
     fn blob_optional(&mut self, commit: &str, rel: &str) -> ConformanceResult<Option<Vec<u8>>> {
         Ok(self
             .blob_optional_with_location(commit, rel)?
             .map(|(bytes, _)| bytes))
+    }
+
+    fn cached_blob_ref(&self, commit: &str, rel: &str) -> ConformanceResult<ResolvedBlobRef> {
+        let commit = if commit == "HEAD" {
+            &self.head_commit
+        } else {
+            commit
+        };
+        let paths = WorkspaceHistoryPaths::new(rel)?;
+        self.blob_ids
+            .get(&(commit.to_owned(), paths.current.clone()))
+            .and_then(|blob| blob.clone())
+            .ok_or_else(|| {
+                format!(
+                    "internal Git memo lost artifact {} blob reference at commit {commit}",
+                    paths.current
+                )
+                .into()
+            })
+    }
+
+    fn remember_matches_pair_facts(
+        &mut self,
+        object_id: &str,
+        bytes: &[u8],
+        facts: MatchesPairFacts,
+    ) -> ConformanceResult<()> {
+        self.verify_blob_object_bytes(object_id, bytes, "accepted-match")?;
+        remember_blob_facts(
+            &mut self.matches_pair_facts,
+            object_id,
+            facts,
+            "accepted-match",
+        )
+    }
+
+    fn remember_inputs_pair_facts(
+        &mut self,
+        object_id: &str,
+        bytes: &[u8],
+        facts: InputsPairFacts,
+    ) -> ConformanceResult<()> {
+        self.verify_blob_object_bytes(object_id, bytes, "oracle-inputs")?;
+        remember_blob_facts(
+            &mut self.inputs_pair_facts,
+            object_id,
+            facts,
+            "oracle-inputs",
+        )
+    }
+
+    fn matches_pair_facts(
+        &mut self,
+        object_id: &str,
+        bytes: &[u8],
+        label: &str,
+    ) -> ConformanceResult<MatchesPairFacts> {
+        if let Some(facts) = self.matches_pair_facts.get(object_id) {
+            return Ok(facts.clone());
+        }
+        #[cfg(test)]
+        {
+            self.pair_matches_decode_misses += 1;
+        }
+        let artifact = MatchesArtifact::decode_validated(bytes)
+            .map_err(|err| format!("accepted-match artifact at {label}: {err}"))?;
+        let facts = MatchesPairFacts::from_validated(&artifact);
+        self.remember_matches_pair_facts(object_id, bytes, facts.clone())?;
+        Ok(facts)
+    }
+
+    fn inputs_pair_facts(
+        &mut self,
+        object_id: &str,
+        bytes: &[u8],
+        label: &str,
+    ) -> ConformanceResult<InputsPairFacts> {
+        if let Some(facts) = self.inputs_pair_facts.get(object_id) {
+            return Ok(facts.clone());
+        }
+        #[cfg(test)]
+        {
+            self.pair_inputs_decode_misses += 1;
+        }
+        let artifact = OracleInputsArtifact::decode_validated(bytes)
+            .map_err(|err| format!("oracle-inputs artifact at {label}: {err}"))?;
+        let facts = InputsPairFacts::from_validated(&artifact, bytes)?;
+        self.remember_inputs_pair_facts(object_id, bytes, facts.clone())?;
+        Ok(facts)
+    }
+
+    fn verify_blob_object_bytes(
+        &self,
+        object_id: &str,
+        bytes: &[u8],
+        what: &str,
+    ) -> ConformanceResult<()> {
+        match self.blob_objects.get(object_id) {
+            Some(cached) if cached == bytes => Ok(()),
+            Some(_) => Err(format!(
+                "internal Git memo associated {what} blob {object_id} with conflicting bytes"
+            )
+            .into()),
+            None => Err(format!(
+                "internal Git memo lacks {what} blob object {object_id} before fact caching"
+            )
+            .into()),
+        }
     }
 
     fn commit_parents(&mut self, commit: &str) -> ConformanceResult<Vec<String>> {
@@ -2465,6 +2633,25 @@ impl GitMemo {
     }
 }
 
+fn remember_blob_facts<T: Eq>(
+    cache: &mut BTreeMap<String, T>,
+    object_id: &str,
+    facts: T,
+    what: &str,
+) -> ConformanceResult<()> {
+    if let Some(existing) = cache.get(object_id) {
+        if existing != &facts {
+            return Err(format!(
+                "internal Git memo derived conflicting {what} facts for blob {object_id}"
+            )
+            .into());
+        }
+        return Ok(());
+    }
+    cache.insert(object_id.to_owned(), facts);
+    Ok(())
+}
+
 /// Every committed version of the path reachable from HEAD, newest
 /// first, as (commit, bytes). `--full-history` is essential: default
 /// path history simplification can discard a side branch that shrank
@@ -2530,6 +2717,14 @@ fn maximal_versions(ancestry: &[Vec<bool>]) -> Vec<usize> {
 trait LineageArtifact: Sized {
     const WHAT: &'static str;
     fn decode_validated(bytes: &[u8]) -> ConformanceResult<Self>;
+    /// Publish only the validated facts needed by the later historical pair
+    /// walk. The full decoded artifact stays local to lineage verification.
+    fn remember_pair_facts(
+        &self,
+        memo: &mut GitMemo,
+        object_id: &str,
+        bytes: &[u8],
+    ) -> ConformanceResult<()>;
     fn bootstrap(&self) -> bool;
     fn previous(&self) -> Option<&Lineage>;
     /// Edge rule from `older` to `newer`: protected content is
@@ -2545,6 +2740,15 @@ impl LineageArtifact for MatchesArtifact {
         let artifact: Self = decode_artifact(bytes, Self::WHAT)?;
         artifact.validate()?;
         Ok(artifact)
+    }
+
+    fn remember_pair_facts(
+        &self,
+        memo: &mut GitMemo,
+        object_id: &str,
+        bytes: &[u8],
+    ) -> ConformanceResult<()> {
+        memo.remember_matches_pair_facts(object_id, bytes, MatchesPairFacts::from_validated(self))
     }
 
     fn bootstrap(&self) -> bool {
@@ -2691,6 +2895,19 @@ impl LineageArtifact for OracleInputsArtifact {
         Ok(artifact)
     }
 
+    fn remember_pair_facts(
+        &self,
+        memo: &mut GitMemo,
+        object_id: &str,
+        bytes: &[u8],
+    ) -> ConformanceResult<()> {
+        memo.remember_inputs_pair_facts(
+            object_id,
+            bytes,
+            InputsPairFacts::from_validated(self, bytes)?,
+        )
+    }
+
     fn bootstrap(&self) -> bool {
         self.bootstrap
     }
@@ -2802,13 +3019,14 @@ fn verify_lineage_with_memo<T: LineageArtifact>(
     working_bytes: &[u8],
 ) -> ConformanceResult<usize> {
     let committed = memo.committed_versions(rel)?;
-    let versions = committed
-        .iter()
-        .map(|(label, bytes)| {
-            T::decode_validated(bytes)
-                .map_err(|err| format!("{} version at {label}: {err}", T::WHAT).into())
-        })
-        .collect::<ConformanceResult<Vec<_>>>()?;
+    let mut versions = Vec::with_capacity(committed.len());
+    for (label, bytes) in &committed {
+        let version = T::decode_validated(bytes)
+            .map_err(|err| format!("{} version at {label}: {err}", T::WHAT))?;
+        let blob = memo.cached_blob_ref(label, rel)?;
+        version.remember_pair_facts(memo, &blob.object_id, bytes)?;
+        versions.push(version);
+    }
     let ancestry = version_ancestry(&memo.git_root, &committed)?;
     let roots = (0..committed.len())
         .filter(|index| immediate_predecessors(*index, &ancestry).is_empty())
@@ -2932,29 +3150,38 @@ fn verify_pair_values(
     inputs: &OracleInputsArtifact,
     inputs_bytes: &[u8],
 ) -> ConformanceResult<()> {
-    if matches.inputs.oracle_inputs_sha256 != sha256_hex(inputs_bytes) {
+    let matches = MatchesPairFacts::from_validated(matches);
+    let inputs = InputsPairFacts::from_validated(inputs, inputs_bytes)?;
+    verify_pair_facts(label, &matches, &inputs)
+}
+
+fn verify_pair_facts(
+    label: &str,
+    matches: &MatchesPairFacts,
+    inputs: &InputsPairFacts,
+) -> ConformanceResult<()> {
+    if matches.oracle_inputs_sha256 != inputs.blob_sha256 {
         return Err(format!(
             "artifact pair at {label} is incoherent: accepted matches pin a different \
              oracle-inputs blob"
         )
         .into());
     }
-    if matches.inputs.tsc_js_sha256 != inputs.vendor.tsc_js_sha256 {
+    if matches.tsc_js_sha256 != inputs.tsc_js_sha256 {
         return Err(format!(
             "artifact pair at {label} is incoherent: accepted matches and oracle inputs \
              pin different vendored _tsc.js bytes"
         )
         .into());
     }
-    let state = comparator_state(&inputs.comparators)?;
-    if !t1_t3_active(state) && case_sets_have_t1_t3_membership(&matches.views) {
+    if !t1_t3_active(inputs.comparator_state) && matches.has_t1_t3_membership {
         return Err(format!(
             "artifact pair at {label} is incoherent: accepted T1-T3 identities exist while \
              their oracle-input comparators are explicitly absent"
         )
         .into());
     }
-    if !t4_active(state) && case_sets_have_t4_membership(&matches.views) {
+    if !t4_active(inputs.comparator_state) && matches.has_t4_membership {
         return Err(format!(
             "artifact pair at {label} is incoherent: accepted T4 case identities exist while \
              their oracle-input comparator is explicitly absent"
@@ -2969,11 +3196,27 @@ fn verify_pair_transition(
     matches: &MatchesArtifact,
     inputs: &OracleInputsArtifact,
 ) -> ConformanceResult<()> {
-    if matches.transition != inputs.transition {
+    verify_pair_transition_names(label, &matches.transition, &inputs.transition)
+}
+
+fn verify_pair_transition_facts(
+    label: &str,
+    matches: &MatchesPairFacts,
+    inputs: &InputsPairFacts,
+) -> ConformanceResult<()> {
+    verify_pair_transition_names(label, &matches.transition, &inputs.transition)
+}
+
+fn verify_pair_transition_names(
+    label: &str,
+    matches_transition: &Option<String>,
+    inputs_transition: &Option<String>,
+) -> ConformanceResult<()> {
+    if matches_transition != inputs_transition {
         return Err(format!(
             "artifact pair at {label} is incoherent: the oracle-input version records \
              transition {:?} but its same-commit accepted-match version records {:?}",
-            inputs.transition, matches.transition
+            inputs_transition, matches_transition
         )
         .into());
     }
@@ -3025,7 +3268,7 @@ fn verify_committed_artifact_pairs_with_memo(
         let commit = commit.trim();
         let matches_blob = memo.blob_optional_with_location(commit, &matches_paths.current)?;
         let inputs_blob = memo.blob_optional_with_location(commit, &inputs_paths.current)?;
-        let (Some((matches_bytes, matches_location)), Some((inputs_bytes, inputs_location))) =
+        let (Some((matches_bytes, matches_blob)), Some((inputs_bytes, inputs_blob))) =
             (matches_blob, inputs_blob)
         else {
             return Err(format!(
@@ -3033,20 +3276,21 @@ fn verify_committed_artifact_pairs_with_memo(
             )
             .into());
         };
-        if matches_location != inputs_location {
+        if matches_blob.location != inputs_blob.location {
             return Err(format!(
                 "ratchet artifact pair straddles the root and legacy workspaces at historical \
                  version commit {commit}"
             )
             .into());
         }
-        let matches = MatchesArtifact::decode_validated(&matches_bytes)
-            .map_err(|err| format!("accepted-match artifact at {commit}: {err}"))?;
-        let inputs = OracleInputsArtifact::decode_validated(&inputs_bytes)
-            .map_err(|err| format!("oracle-inputs artifact at {commit}: {err}"))?;
-        verify_pair_values(commit, &matches, &inputs, &inputs_bytes)?;
+        let matches = memo.matches_pair_facts(&matches_blob.object_id, &matches_bytes, commit)?;
+        let inputs = memo.inputs_pair_facts(&inputs_blob.object_id, &inputs_bytes, commit)?;
+        // Cache only the independently validated blob facts. The pair verdict
+        // remains commit-local so a merge that combines blobs from different
+        // parents cannot inherit a cached success from either parent.
+        verify_pair_facts(commit, &matches, &inputs)?;
         if input_version_commits.contains(commit) {
-            verify_pair_transition(commit, &matches, &inputs)?;
+            verify_pair_transition_facts(commit, &matches, &inputs)?;
         }
     }
     Ok(())
@@ -6005,6 +6249,85 @@ mod tests {
     }
 
     #[test]
+    fn git_history_memo_reuses_validated_blob_facts_across_lineage_and_pairs() {
+        let repo = init_repo("history-decoded-facts");
+        let inputs = inputs_stub();
+        let inputs_bytes = encode_artifact(&inputs).unwrap();
+        let mut first_matches = matches_artifact(views_with(&[2322], &[2322]), true, None, None);
+        first_matches.inputs = MatchesInputs {
+            oracle_inputs_sha256: sha256_hex(&inputs_bytes),
+            tsc_js_sha256: inputs.vendor.tsc_js_sha256.clone(),
+        };
+        let first_matches_bytes = encode_artifact(&first_matches).unwrap();
+        let first_commit =
+            commit_artifact_pair(&repo, &first_matches_bytes, &inputs_bytes, "bootstrap pair");
+
+        let mut second_matches = matches_artifact(
+            views_with(&[2322, 2345], &[2322]),
+            false,
+            Some(lineage_to(&first_commit, &first_matches_bytes)),
+            None,
+        );
+        second_matches.inputs = first_matches.inputs.clone();
+        let second_matches_bytes = encode_artifact(&second_matches).unwrap();
+        commit_bytes(
+            &repo,
+            MATCHES_REL_PATH,
+            &second_matches_bytes,
+            "matches growth",
+        );
+
+        let mut memo = GitMemo::new(&repo).unwrap();
+        assert_eq!(
+            verify_lineage_with_memo::<MatchesArtifact>(
+                &mut memo,
+                MATCHES_REL_PATH,
+                &second_matches_bytes,
+            )
+            .unwrap(),
+            2,
+        );
+        assert_eq!(
+            verify_lineage_with_memo::<OracleInputsArtifact>(
+                &mut memo,
+                ORACLE_INPUTS_REL_PATH,
+                &inputs_bytes,
+            )
+            .unwrap(),
+            1,
+        );
+        assert_eq!(memo.matches_pair_facts.len(), 2);
+        assert_eq!(memo.inputs_pair_facts.len(), 1);
+        assert_eq!(memo.pair_matches_decode_misses, 0);
+        assert_eq!(memo.pair_inputs_decode_misses, 0);
+
+        verify_committed_artifact_pairs_with_memo(
+            &mut memo,
+            MATCHES_REL_PATH,
+            ORACLE_INPUTS_REL_PATH,
+        )
+        .unwrap();
+        assert_eq!(
+            memo.pair_matches_decode_misses, 0,
+            "lineage-validated matches blobs must not be decoded again"
+        );
+        assert_eq!(
+            memo.pair_inputs_decode_misses, 0,
+            "the carried input blob must reuse its lineage-validated facts"
+        );
+
+        let mut pair_only_memo = GitMemo::new(&repo).unwrap();
+        verify_committed_artifact_pairs_with_memo(
+            &mut pair_only_memo,
+            MATCHES_REL_PATH,
+            ORACLE_INPUTS_REL_PATH,
+        )
+        .unwrap();
+        assert_eq!(pair_only_memo.pair_matches_decode_misses, 2);
+        assert_eq!(pair_only_memo.pair_inputs_decode_misses, 1);
+    }
+
+    #[test]
     fn git_history_memo_pins_head_and_rejects_a_mid_run_move() {
         let repo = init_repo("history-head-pin");
         let pinned = commit_bytes(&repo, MATCHES_REL_PATH, b"pinned", "pinned");
@@ -6435,6 +6758,67 @@ mod tests {
             .to_string();
         assert!(err.contains("artifact pair"), "{err}");
         assert!(err.contains("different oracle-inputs blob"), "{err}");
+    }
+
+    #[test]
+    fn blob_fact_cache_does_not_hide_a_repaired_historical_pair() {
+        let repo = init_repo("historical-pair-cache-integrity");
+        let inputs = inputs_stub();
+        let inputs_bytes = encode_artifact(&inputs).unwrap();
+        let mut first_matches = matches_artifact(views_with(&[2322], &[2322]), true, None, None);
+        first_matches.inputs = MatchesInputs {
+            oracle_inputs_sha256: sha256_hex(&inputs_bytes),
+            tsc_js_sha256: inputs.vendor.tsc_js_sha256.clone(),
+        };
+        let first_matches_bytes = encode_artifact(&first_matches).unwrap();
+        let first_commit =
+            commit_artifact_pair(&repo, &first_matches_bytes, &inputs_bytes, "bootstrap pair");
+
+        let mut broken_matches = matches_artifact(
+            views_with(&[2322, 2345], &[2322]),
+            false,
+            Some(lineage_to(&first_commit, &first_matches_bytes)),
+            None,
+        );
+        broken_matches.inputs = MatchesInputs {
+            oracle_inputs_sha256: "0".repeat(64),
+            tsc_js_sha256: inputs.vendor.tsc_js_sha256.clone(),
+        };
+        let broken_matches_bytes = encode_artifact(&broken_matches).unwrap();
+        let broken_commit = commit_bytes(
+            &repo,
+            MATCHES_REL_PATH,
+            &broken_matches_bytes,
+            "broken historical pair",
+        );
+
+        let mut repaired_matches = matches_artifact(
+            views_with(&[2322, 2345, 2454], &[2322]),
+            false,
+            Some(lineage_to(&broken_commit, &broken_matches_bytes)),
+            None,
+        );
+        repaired_matches.inputs = first_matches.inputs.clone();
+        let repaired_matches_bytes = encode_artifact(&repaired_matches).unwrap();
+        commit_bytes(
+            &repo,
+            MATCHES_REL_PATH,
+            &repaired_matches_bytes,
+            "repair current pair",
+        );
+
+        let mut memo = GitMemo::new(&repo).unwrap();
+        let err = verify_committed_artifact_pairs_with_memo(
+            &mut memo,
+            MATCHES_REL_PATH,
+            ORACLE_INPUTS_REL_PATH,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(err.contains(&broken_commit), "{err}");
+        assert!(err.contains("different oracle-inputs blob"), "{err}");
+        assert_eq!(memo.pair_matches_decode_misses, 2);
+        assert_eq!(memo.pair_inputs_decode_misses, 1);
     }
 
     #[test]
