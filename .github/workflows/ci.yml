@@ -231,16 +231,16 @@ jobs:
           free -h
           df -h /
 
-      # A1/A2/A5 checks, conformance's three views, recovery census,
+      # A1/A2/H0/A5 checks, conformance's three views, recovery census,
       # readiness production/consumption, ledger, and escapes remain
       # in one workspace. Only the independent Rust compiler/test
       # gates run on the parallel runner.
       - name: Run semantic gates against trusted baseline
         env:
           BASELINE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          # The full-corpus jobs-independence schedules use a bounded ordered
-          # pipeline. Two workers fit the standard runner without turning the
-          # memory-heavy checker sweep into an all-core burst.
+          # The full-corpus invariant schedules use bounded ordered pipelines.
+          # Two workers fit the standard runner without turning the
+          # memory-heavy checker sweeps into an all-core burst.
           TSRS_INVARIANT_WORKERS: "2"
           TSRS_M8_RUNNER_PROFILE: github-ubuntu-x64-standard
         run: cargo xtask ci --lane semantic --baseline "$BASELINE_SHA"

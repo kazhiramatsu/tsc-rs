@@ -56,7 +56,7 @@
     },
     {
       "path": "crates/conformance/src/lib.rs",
-      "sha256": "3dfc6519e08e2498a46a7e957fb984b6ad064e42a27d7342531e116c3df8dd0d"
+      "sha256": "1fffdae849cf35dea360478343b6931556057e51185af3e3a6d96944b341c09b"
     },
     {
       "path": "crates/conformance/src/rendered.rs",

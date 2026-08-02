@@ -7,19 +7,22 @@
 //! T0--T4 closure evidence.  This preserves the original owner universe after
 //! the live exclusion set reaches zero.
 
+use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
 use crate::identity::{assign_case_identities, ENCODER_VERSION};
 use crate::ratchet::{
     decode_artifact, git_blob_optional, git_root_for, normalize_node_version, pinned_node_version,
-    sha256_hex, verify_accepted_pair_history, verify_pair_values, MatchesArtifact,
-    OracleInputsArtifact, MATCHES_REL_PATH, ORACLE_INPUTS_REL_PATH,
+    sha256_hex, verify_accepted_pair_history_with_proof, verify_pair_values,
+    AcceptedPairHistoryProof, MatchesArtifact, OracleInputsArtifact, MATCHES_REL_PATH,
+    ORACLE_INPUTS_REL_PATH,
 };
 use crate::scope::{
     host_resolution_state, host_resolution_state_from_bytes, HostResolutionScopeRow,
@@ -410,6 +413,7 @@ struct D2Function {
 
 struct RegistryValidationContext<'a> {
     workspace: &'a Path,
+    git_memo: Option<&'a RegistryGitMemo>,
     inventory: &'a D2Inventory,
     program_facts: &'a ProgramFactIndex,
     resolution_requests: &'a ResolutionRequestIndex,
@@ -418,6 +422,126 @@ struct RegistryValidationContext<'a> {
     emitting_cases: &'a BTreeSet<(String, String)>,
     closure_authorities: &'a BTreeMap<String, ClosureAuthority>,
     verify_history: bool,
+}
+
+impl RegistryValidationContext<'_> {
+    fn closure_git_memo(&self) -> ConformanceResult<&RegistryGitMemo> {
+        self.git_memo
+            .ok_or_else(|| "internal H0 closure validation lacks its pinned Git memo".into())
+    }
+}
+
+#[derive(Clone, Debug)]
+enum HistoricalText {
+    Missing,
+    NonUtf8,
+    Utf8(Arc<str>),
+}
+
+/// One immutable repository snapshot shared by every H0 ancestry query.
+#[derive(Clone)]
+struct PinnedGitHead {
+    workspace: PathBuf,
+    root: PathBuf,
+    commit: String,
+}
+
+impl PinnedGitHead {
+    fn new(workspace: &Path) -> ConformanceResult<Self> {
+        let workspace = fs::canonicalize(workspace)?;
+        let root = git_root_for(&workspace)?;
+        let commit = git_resolve_commit(&root, "HEAD")?;
+        Ok(Self {
+            workspace,
+            root,
+            commit,
+        })
+    }
+
+    fn is_ancestor(&self, commit: &str) -> ConformanceResult<bool> {
+        git_is_ancestor(&self.root, commit, &self.commit)
+    }
+
+    fn verify_unchanged(&self) -> ConformanceResult<()> {
+        let current = git_resolve_commit(&self.root, "HEAD")?;
+        if current != self.commit {
+            return Err(format!(
+                "host-resolution history changed while it was being verified: HEAD moved from {} to {}",
+                self.commit, current
+            )
+            .into());
+        }
+        Ok(())
+    }
+
+    fn verify_history_proof(
+        &self,
+        history_proof: &AcceptedPairHistoryProof,
+    ) -> ConformanceResult<()> {
+        history_proof.verify_current_at_head(&self.workspace, &self.commit)
+    }
+}
+
+/// Small operation-local Git cache for H0 closure checks. The 144 closed rows
+/// currently share one commit and three authoritative files, so caching facts
+/// by commit/path removes repeated Git processes while keeping row-specific
+/// validation and error ordering intact.
+struct RegistryGitMemo {
+    head: PinnedGitHead,
+    ancestors_of_head: RefCell<BTreeMap<String, bool>>,
+    historical_texts: RefCell<BTreeMap<(String, String), HistoricalText>>,
+}
+
+impl RegistryGitMemo {
+    #[cfg(test)]
+    fn new(workspace: &Path) -> ConformanceResult<Self> {
+        let head = PinnedGitHead::new(workspace)?;
+        Ok(Self::from_pinned_head(&head))
+    }
+
+    fn from_pinned_head(head: &PinnedGitHead) -> Self {
+        Self {
+            head: head.clone(),
+            ancestors_of_head: RefCell::new(BTreeMap::new()),
+            historical_texts: RefCell::new(BTreeMap::new()),
+        }
+    }
+
+    fn is_ancestor_of_head(&self, commit: &str) -> ConformanceResult<bool> {
+        if let Some(reachable) = self.ancestors_of_head.borrow().get(commit) {
+            return Ok(*reachable);
+        }
+        let reachable = self.head.is_ancestor(commit)?;
+        self.ancestors_of_head
+            .borrow_mut()
+            .insert(commit.to_owned(), reachable);
+        Ok(reachable)
+    }
+
+    fn historical_text(
+        &self,
+        commit: &str,
+        logical_path: &str,
+    ) -> ConformanceResult<HistoricalText> {
+        let key = (commit.to_owned(), logical_path.to_owned());
+        if let Some(text) = self.historical_texts.borrow().get(&key) {
+            return Ok(text.clone());
+        }
+        let relative = workspace_history_rel(&self.head.root, &self.head.workspace, logical_path)?;
+        let text = match git_blob_optional(&self.head.root, commit, &relative)? {
+            None => HistoricalText::Missing,
+            Some(bytes) => match String::from_utf8(bytes) {
+                Ok(text) => HistoricalText::Utf8(Arc::from(text)),
+                Err(_) => HistoricalText::NonUtf8,
+            },
+        };
+        self.historical_texts.borrow_mut().insert(key, text.clone());
+        Ok(text)
+    }
+
+    fn verify_head_unchanged(&self) -> ConformanceResult<()> {
+        self.head.verify_unchanged()
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -431,6 +555,12 @@ struct ProgramFact {
 struct ClosureAuthority {
     artifact_sha256: String,
     matches: MatchesArtifact,
+}
+
+struct ClosureHistoryLoad {
+    authorities: BTreeMap<String, ClosureAuthority>,
+    git_memo: Option<RegistryGitMemo>,
+    owned_history_proof: Option<AcceptedPairHistoryProof>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -546,6 +676,25 @@ pub fn check_host_resolution_registry(
     workspace: &Path,
     baseline: Option<&str>,
 ) -> ConformanceResult<()> {
+    check_host_resolution_registry_inner(workspace, baseline, None)
+}
+
+/// Validate H0 while reusing a successful A1 history audit from the same
+/// process. The opaque proof is re-bound to HEAD, blob identities, and working
+/// artifact hashes before the duplicate append-only history walk is skipped.
+pub fn check_host_resolution_registry_with_history_proof(
+    workspace: &Path,
+    baseline: Option<&str>,
+    history_proof: &AcceptedPairHistoryProof,
+) -> ConformanceResult<()> {
+    check_host_resolution_registry_inner(workspace, baseline, Some(history_proof))
+}
+
+fn check_host_resolution_registry_inner(
+    workspace: &Path,
+    baseline: Option<&str>,
+    history_proof: Option<&AcceptedPairHistoryProof>,
+) -> ConformanceResult<()> {
     let path = workspace.join(HOST_RESOLUTION_REL_PATH);
     let bytes = fs::read(&path).map_err(|err| {
         format!(
@@ -557,22 +706,32 @@ pub fn check_host_resolution_registry(
     let scope = host_resolution_state(&workspace.join(SCOPE_REL_PATH))?;
     let inventory = read_inventory(workspace)?;
     let inputs = read_oracle_inputs(workspace)?;
+    let history_head = PinnedGitHead::new(workspace)?;
     let verify_request_producer = match baseline {
         Some(revision) => !baseline_has_host_registry(workspace, revision)?,
         None => true,
     };
-    validate_registry(
+    let owned_history_proof = validate_registry_with_options(
         workspace,
         &registry,
         &scope,
         &inventory,
         &inputs,
-        true,
-        verify_request_producer,
+        RegistryValidationOptions {
+            verify_history: true,
+            verify_request_producer,
+            history_proof,
+            history_head: Some(&history_head),
+        },
     )?;
+    let effective_history_proof = history_proof.or(owned_history_proof.as_ref());
 
     if let Some(baseline) = baseline {
-        validate_trusted_baseline(workspace, baseline, &registry)?;
+        validate_trusted_baseline_at_head(workspace, baseline, &registry, &history_head)?;
+    }
+    history_head.verify_unchanged()?;
+    if let Some(history_proof) = effective_history_proof {
+        history_head.verify_history_proof(history_proof)?;
     }
     println!(
         "host-resolution registry ok: rows={} open={} closed={} lapsed={} baseline={}",
@@ -632,6 +791,47 @@ fn validate_registry(
     verify_history: bool,
     verify_request_producer: bool,
 ) -> ConformanceResult<()> {
+    let history_head = verify_history
+        .then(|| PinnedGitHead::new(workspace))
+        .transpose()?;
+    validate_registry_with_options(
+        workspace,
+        registry,
+        scope,
+        inventory,
+        inputs,
+        RegistryValidationOptions {
+            verify_history,
+            verify_request_producer,
+            history_proof: None,
+            history_head: history_head.as_ref(),
+        },
+    )
+    .map(drop)
+}
+
+#[derive(Clone, Copy)]
+struct RegistryValidationOptions<'a> {
+    verify_history: bool,
+    verify_request_producer: bool,
+    history_proof: Option<&'a AcceptedPairHistoryProof>,
+    history_head: Option<&'a PinnedGitHead>,
+}
+
+fn validate_registry_with_options(
+    workspace: &Path,
+    registry: &RegistryFile,
+    scope: &HostResolutionScopeState,
+    inventory: &D2Inventory,
+    inputs: &OracleInputsArtifact,
+    options: RegistryValidationOptions<'_>,
+) -> ConformanceResult<Option<AcceptedPairHistoryProof>> {
+    let RegistryValidationOptions {
+        verify_history,
+        verify_request_producer,
+        history_proof,
+        history_head,
+    } = options;
     if !scope.frozen {
         return Err("H0 registry requires the current M8 scope manifest to remain frozen".into());
     }
@@ -645,9 +845,15 @@ fn validate_registry(
         .into());
     }
     validate_source_pin(workspace, &registry.source, &registry.rows)?;
-    if verify_history && !git_is_ancestor(workspace, &registry.source.initial_scope_commit, "HEAD")?
-    {
-        return Err("host-resolution initial scope commit is not reachable from HEAD".into());
+    let pinned_history_head = if verify_history {
+        Some(history_head.ok_or("internal H0 history validation lacks its pinned HEAD")?)
+    } else {
+        None
+    };
+    if let Some(history_head) = pinned_history_head {
+        if !history_head.is_ancestor(&registry.source.initial_scope_commit)? {
+            return Err("host-resolution initial scope commit is not reachable from HEAD".into());
+        }
     }
     if verify_history {
         validate_initial_scope_history(workspace, &registry.source)?;
@@ -655,7 +861,7 @@ fn validate_registry(
     if registry.families != expected_families() {
         return Err("host-resolution registry owner-family declaration drifted".into());
     }
-    validate_profiles(workspace, &registry.initial_profiles, verify_history)?;
+    validate_profiles(&registry.initial_profiles, pinned_history_head)?;
 
     let expected_summary = summarize(&registry.rows);
     if registry.summary != expected_summary {
@@ -743,9 +949,20 @@ fn validate_registry(
     } else {
         recorded_resolution_requests(&registry.rows)?
     };
-    let closure_authorities = load_closure_authorities(workspace, &registry.rows)?;
+    let ClosureHistoryLoad {
+        authorities: closure_authorities,
+        git_memo,
+        owned_history_proof,
+    } = load_closure_authorities(
+        workspace,
+        &registry.rows,
+        history_proof,
+        pinned_history_head,
+    )?;
+    let effective_history_proof = history_proof.or(owned_history_proof.as_ref());
     let context = RegistryValidationContext {
         workspace,
+        git_memo: git_memo.as_ref(),
         inventory,
         program_facts: &program_facts,
         resolution_requests: &resolution_requests,
@@ -853,7 +1070,16 @@ fn validate_registry(
             "live A2 host-resolution exclusions are not exactly the registry open rows".into(),
         );
     }
-    Ok(())
+    if let Some(git_memo) = &git_memo {
+        git_memo.verify_head_unchanged()?;
+        if let Some(history_proof) = effective_history_proof {
+            git_memo.head.verify_history_proof(history_proof)?;
+        }
+    }
+    if let Some(history_head) = pinned_history_head {
+        history_head.verify_unchanged()?;
+    }
+    Ok(owned_history_proof)
 }
 
 fn validate_source_pin(
@@ -1252,35 +1478,60 @@ fn validate_canaries(
 fn load_closure_authorities(
     workspace: &Path,
     rows: &[RegistryRow],
-) -> ConformanceResult<BTreeMap<String, ClosureAuthority>> {
+    history_proof: Option<&AcceptedPairHistoryProof>,
+    pinned_history_head: Option<&PinnedGitHead>,
+) -> ConformanceResult<ClosureHistoryLoad> {
     let commits = rows
         .iter()
         .filter_map(|row| row.closing_commit.as_deref())
         .filter(|commit| valid_commit(commit))
         .collect::<BTreeSet<_>>();
     if commits.is_empty() {
-        return Ok(BTreeMap::new());
+        return Ok(ClosureHistoryLoad {
+            authorities: BTreeMap::new(),
+            git_memo: None,
+            owned_history_proof: None,
+        });
     }
 
     // A structurally coherent pair at `closing_commit` is not sufficient: it
     // must also be an inherited member of the one append-only accepted A1
     // history. Keep this conditional so the all-open H0.0 bootstrap adds no
     // second history walk to ordinary CI.
-    verify_accepted_pair_history(workspace)?;
+    let owned_history_proof = if history_proof.is_none() {
+        Some(verify_accepted_pair_history_with_proof(workspace)?)
+    } else {
+        None
+    };
+    let effective_history_proof = history_proof
+        .or(owned_history_proof.as_ref())
+        .expect("closure rows always acquire an accepted-history proof");
 
-    let root = git_root_for(workspace)?;
-    let matches_rel = workspace_history_rel(&root, workspace, MATCHES_REL_PATH)?;
-    let inputs_rel = workspace_history_rel(&root, workspace, ORACLE_INPUTS_REL_PATH)?;
-    let tsc_rel = workspace_history_rel(&root, workspace, D2_SOURCE_REL_PATH)?;
+    let owned_history_head = if pinned_history_head.is_none() {
+        Some(PinnedGitHead::new(workspace)?)
+    } else {
+        None
+    };
+    let closure_head = pinned_history_head
+        .or(owned_history_head.as_ref())
+        .expect("closure rows always pin HEAD");
+    closure_head.verify_unchanged()?;
+    closure_head.verify_history_proof(effective_history_proof)?;
+
+    let git_memo = RegistryGitMemo::from_pinned_head(closure_head);
+    let root = &git_memo.head.root;
+    let matches_rel = workspace_history_rel(root, &git_memo.head.workspace, MATCHES_REL_PATH)?;
+    let inputs_rel = workspace_history_rel(root, &git_memo.head.workspace, ORACLE_INPUTS_REL_PATH)?;
+    let tsc_rel = workspace_history_rel(root, &git_memo.head.workspace, D2_SOURCE_REL_PATH)?;
     let mut authorities = BTreeMap::new();
     for commit in commits {
-        let matches_bytes = git_blob_optional(&root, commit, &matches_rel)?.ok_or_else(|| {
+        let matches_bytes = git_blob_optional(root, commit, &matches_rel)?.ok_or_else(|| {
             format!("H0 closing commit {commit} has no accepted-match artifact {MATCHES_REL_PATH}")
         })?;
         let matches: MatchesArtifact =
             decode_artifact(&matches_bytes, "H0 historical accepted-match artifact")?;
         matches.validate()?;
-        let inputs_bytes = git_blob_optional(&root, commit, &inputs_rel)?.ok_or_else(|| {
+        let inputs_bytes = git_blob_optional(root, commit, &inputs_rel)?.ok_or_else(|| {
             format!(
                 "H0 closing commit {commit} has no oracle-input artifact {ORACLE_INPUTS_REL_PATH}"
             )
@@ -1289,7 +1540,7 @@ fn load_closure_authorities(
             decode_artifact(&inputs_bytes, "H0 historical oracle-input artifact")?;
         inputs.validate()?;
         verify_pair_values(commit, &matches, &inputs, &inputs_bytes)?;
-        let tsc_bytes = git_blob_optional(&root, commit, &tsc_rel)?.ok_or_else(|| {
+        let tsc_bytes = git_blob_optional(root, commit, &tsc_rel)?.ok_or_else(|| {
             format!("H0 closing commit {commit} has no vendored {D2_SOURCE_REL_PATH}")
         })?;
         if matches.inputs.tsc_js_sha256 != sha256_hex(&tsc_bytes) {
@@ -1306,7 +1557,11 @@ fn load_closure_authorities(
             },
         );
     }
-    Ok(authorities)
+    Ok(ClosureHistoryLoad {
+        authorities,
+        git_memo: Some(git_memo),
+        owned_history_proof,
+    })
 }
 
 fn validate_closure(
@@ -1338,7 +1593,8 @@ fn validate_closure(
                 )
             })?;
             if !valid_commit(commit)
-                || (context.verify_history && !git_is_ancestor(context.workspace, commit, "HEAD")?)
+                || (context.verify_history
+                    && !context.closure_git_memo()?.is_ancestor_of_head(commit)?)
             {
                 return Err(format!(
                     "closed host-resolution row {} closing commit is not a reachable full SHA",
@@ -1360,7 +1616,7 @@ fn validate_closure(
                 if row.rust_boundary.readiness != BoundaryReadiness::Authoritative
                     || !valid_commit(commit)
                     || (context.verify_history
-                        && !git_is_ancestor(context.workspace, commit, "HEAD")?)
+                        && !context.closure_git_memo()?.is_ancestor_of_head(commit)?)
                 {
                     return Err(format!(
                         "lapsed host-resolution row {} has malformed historical closure provenance",
@@ -1412,7 +1668,7 @@ fn validate_exact_closure_evidence(
         )
         .into());
     }
-    validate_authoritative_anchors_at_commit(context.workspace, row, commit)?;
+    validate_authoritative_anchors_at_commit_with_memo(context.closure_git_memo()?, row, commit)?;
     let sets = authority
         .matches
         .views
@@ -1447,26 +1703,39 @@ fn validate_exact_closure_evidence(
     Ok(())
 }
 
+#[cfg(test)]
 fn validate_authoritative_anchors_at_commit(
     workspace: &Path,
     row: &RegistryRow,
     commit: &str,
 ) -> ConformanceResult<()> {
-    let root = git_root_for(workspace)?;
+    let git_memo = RegistryGitMemo::new(workspace)?;
+    validate_authoritative_anchors_at_commit_with_memo(&git_memo, row, commit)
+}
+
+fn validate_authoritative_anchors_at_commit_with_memo(
+    git_memo: &RegistryGitMemo,
+    row: &RegistryRow,
+    commit: &str,
+) -> ConformanceResult<()> {
     for anchor in &row.rust_boundary.authoritative_anchors {
-        let relative = workspace_history_rel(&root, workspace, &anchor.path)?;
-        let bytes = git_blob_optional(&root, commit, &relative)?.ok_or_else(|| {
-            format!(
-                "closed host-resolution row {} authoritative path {} is absent at closing commit {commit}",
-                row.id, anchor.path
-            )
-        })?;
-        let text = String::from_utf8(bytes).map_err(|_| {
-            format!(
-                "closed host-resolution row {} authoritative path {} is not UTF-8 at closing commit",
-                row.id, anchor.path
-            )
-        })?;
+        let text = match git_memo.historical_text(commit, &anchor.path)? {
+            HistoricalText::Missing => {
+                return Err(format!(
+                    "closed host-resolution row {} authoritative path {} is absent at closing commit {commit}",
+                    row.id, anchor.path
+                )
+                .into())
+            }
+            HistoricalText::NonUtf8 => {
+                return Err(format!(
+                    "closed host-resolution row {} authoritative path {} is not UTF-8 at closing commit",
+                    row.id, anchor.path
+                )
+                .into())
+            }
+            HistoricalText::Utf8(text) => text,
+        };
         if !text.contains(&anchor.symbol) {
             return Err(format!(
                 "closed host-resolution row {} authoritative symbol {:?} is absent at closing commit {commit}",
@@ -1478,23 +1747,35 @@ fn validate_authoritative_anchors_at_commit(
     Ok(())
 }
 
+#[cfg(test)]
 fn validate_trusted_baseline(
     workspace: &Path,
     baseline: &str,
     current: &RegistryFile,
 ) -> ConformanceResult<()> {
-    let root = git_root_for(workspace)?;
-    let baseline_commit = git_resolve_commit(&root, baseline)?;
-    if !git_is_ancestor(&root, &baseline_commit, "HEAD")? {
+    let history_head = PinnedGitHead::new(workspace)?;
+    validate_trusted_baseline_at_head(workspace, baseline, current, &history_head)?;
+    history_head.verify_unchanged()
+}
+
+fn validate_trusted_baseline_at_head(
+    workspace: &Path,
+    baseline: &str,
+    current: &RegistryFile,
+    history_head: &PinnedGitHead,
+) -> ConformanceResult<()> {
+    let root = &history_head.root;
+    let baseline_commit = git_resolve_commit(root, baseline)?;
+    if !history_head.is_ancestor(&baseline_commit)? {
         return Err("host-resolution trusted baseline is not an ancestor of HEAD".into());
     }
-    let registry_rel = workspace_history_rel(&root, workspace, HOST_RESOLUTION_REL_PATH)?;
-    let Some(bytes) = git_blob_optional(&root, &baseline_commit, &registry_rel)? else {
+    let registry_rel = workspace_history_rel(root, workspace, HOST_RESOLUTION_REL_PATH)?;
+    let Some(bytes) = git_blob_optional(root, &baseline_commit, &registry_rel)? else {
         if current.rows.iter().any(|row| row.status != RowStatus::Open) {
             return Err("host-resolution registry bootstrap must introduce all rows open".into());
         }
-        let scope_rel = workspace_history_rel(&root, workspace, SCOPE_REL_PATH)?;
-        let baseline_scope_bytes = git_blob_optional(&root, &baseline_commit, &scope_rel)?
+        let scope_rel = workspace_history_rel(root, workspace, SCOPE_REL_PATH)?;
+        let baseline_scope_bytes = git_blob_optional(root, &baseline_commit, &scope_rel)?
             .ok_or_else(|| format!("trusted baseline {baseline} has no {SCOPE_REL_PATH}"))?;
         let baseline_scope = host_resolution_state_from_bytes(
             &baseline_scope_bytes,
@@ -1514,24 +1795,21 @@ fn validate_trusted_baseline(
                     .into(),
             );
         }
-        if !git_is_ancestor(
-            &root,
-            &current.source.initial_scope_commit,
-            &baseline_commit,
-        )? {
+        if !git_is_ancestor(root, &current.source.initial_scope_commit, &baseline_commit)? {
             return Err(
                 "host-resolution initial scope commit is not an ancestor of the trusted baseline"
                     .into(),
             );
         }
         let initial_scope_bytes =
-            git_blob_optional(&root, &current.source.initial_scope_commit, &scope_rel)?
-                .ok_or_else(|| {
+            git_blob_optional(root, &current.source.initial_scope_commit, &scope_rel)?.ok_or_else(
+                || {
                     format!(
                         "initial scope commit {} has no {SCOPE_REL_PATH}",
                         current.source.initial_scope_commit
                     )
-                })?;
+                },
+            )?;
         let initial_scope = host_resolution_state_from_bytes(
             &initial_scope_bytes,
             &format!("{}:{scope_rel}", current.source.initial_scope_commit),
@@ -2989,9 +3267,8 @@ fn initial_profiles() -> Vec<InitialProfile> {
 }
 
 fn validate_profiles(
-    workspace: &Path,
     profiles: &[InitialProfile],
-    verify_history: bool,
+    history_head: Option<&PinnedGitHead>,
 ) -> ConformanceResult<()> {
     if profiles != initial_profiles() {
         return Err("H0 initial CPU/wall/RSS profiles drifted from the reviewed bootstrap".into());
@@ -3013,14 +3290,14 @@ fn validate_profiles(
         {
             return Err(format!("malformed H0 initial resource profile {}", profile.id).into());
         }
-        if verify_history
-            && !git_is_ancestor(workspace, &profile.provenance.producer_commit, "HEAD")?
-        {
-            return Err(format!(
-                "H0 resource profile {} producer commit is not reachable from HEAD",
-                profile.id
-            )
-            .into());
+        if let Some(history_head) = history_head {
+            if !history_head.is_ancestor(&profile.provenance.producer_commit)? {
+                return Err(format!(
+                    "H0 resource profile {} producer commit is not reachable from HEAD",
+                    profile.id
+                )
+                .into());
+            }
         }
     }
     Ok(())
@@ -3238,8 +3515,9 @@ fn workspace_history_rel(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_git::{git_test, init_repo};
+    use crate::test_git::{git_test, init_repo, temp_dir};
     use std::path::PathBuf;
+    use std::sync::OnceLock;
 
     fn workspace() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -3248,6 +3526,36 @@ mod tests {
     fn committed_registry(workspace: &Path) -> RegistryFile {
         let path = workspace.join(HOST_RESOLUTION_REL_PATH);
         parse_registry(&fs::read(&path).unwrap(), &path.display().to_string()).unwrap()
+    }
+
+    fn accepted_history_proof(workspace: &Path) -> &'static AcceptedPairHistoryProof {
+        static PROOF: OnceLock<AcceptedPairHistoryProof> = OnceLock::new();
+        PROOF.get_or_init(|| {
+            crate::ratchet::verify_accepted_pair_history_with_proof(workspace).unwrap()
+        })
+    }
+
+    fn validate_registry_with_cached_history(
+        workspace: &Path,
+        registry: &RegistryFile,
+        scope: &HostResolutionScopeState,
+        inventory: &D2Inventory,
+        inputs: &OracleInputsArtifact,
+    ) -> ConformanceResult<()> {
+        validate_registry_with_options(
+            workspace,
+            registry,
+            scope,
+            inventory,
+            inputs,
+            RegistryValidationOptions {
+                verify_history: false,
+                verify_request_producer: false,
+                history_proof: Some(accepted_history_proof(workspace)),
+                history_head: None,
+            },
+        )
+        .map(drop)
     }
 
     fn commit_bytes(root: &Path, rel: &str, bytes: &[u8], message: &str) -> String {
@@ -3316,19 +3624,36 @@ mod tests {
     }
 
     #[test]
+    fn all_open_closure_authorities_do_not_require_a_git_repository() {
+        let workspace = workspace();
+        let mut row = committed_registry(&workspace).rows[0].clone();
+        row.status = RowStatus::Open;
+        row.closing_commit = None;
+        row.closure_evidence = None;
+        let non_git_workspace = temp_dir("h0-all-open-no-git");
+
+        let ClosureHistoryLoad {
+            authorities,
+            git_memo,
+            owned_history_proof,
+        } = load_closure_authorities(&non_git_workspace, &[row], None, None).unwrap();
+        assert!(authorities.is_empty());
+        assert!(git_memo.is_none());
+        assert!(owned_history_proof.is_none());
+    }
+
+    #[test]
     fn committed_registry_passes_full_owner_and_canary_validation() {
         let workspace = workspace();
         let scope = host_resolution_state(&workspace.join(SCOPE_REL_PATH)).unwrap();
         let inventory = read_inventory(&workspace).unwrap();
         let inputs = read_oracle_inputs(&workspace).unwrap();
-        validate_registry(
+        validate_registry_with_cached_history(
             &workspace,
             &committed_registry(&workspace),
             &scope,
             &inventory,
             &inputs,
-            false,
-            false,
         )
         .unwrap();
     }
@@ -3457,6 +3782,52 @@ mod tests {
     }
 
     #[test]
+    fn closure_git_memo_reuses_commit_reachability_and_anchor_text() {
+        let workspace = workspace();
+        let registry = committed_registry(&workspace);
+        let repo = init_repo("h0-closure-git-memo");
+        let commit = commit_bytes(
+            &repo,
+            "src/authority.rs",
+            b"fn producer_symbol() {}\nfn consumer_symbol() {}\n",
+            "authority",
+        );
+        let mut row = registry.rows[0].clone();
+        row.rust_boundary.authoritative_anchors = vec![
+            RustBoundaryAnchor {
+                role: RustBoundaryRole::Producer,
+                crate_name: "test".to_owned(),
+                path: "src/authority.rs".to_owned(),
+                symbol: "producer_symbol".to_owned(),
+            },
+            RustBoundaryAnchor {
+                role: RustBoundaryRole::TableConsumer,
+                crate_name: "test".to_owned(),
+                path: "src/authority.rs".to_owned(),
+                symbol: "consumer_symbol".to_owned(),
+            },
+        ];
+
+        let memo = RegistryGitMemo::new(&repo).unwrap();
+        assert!(memo.is_ancestor_of_head(&commit).unwrap());
+        assert!(memo.is_ancestor_of_head(&commit).unwrap());
+        assert_eq!(memo.ancestors_of_head.borrow().len(), 1);
+
+        validate_authoritative_anchors_at_commit_with_memo(&memo, &row, &commit).unwrap();
+        validate_authoritative_anchors_at_commit_with_memo(&memo, &row, &commit).unwrap();
+        assert_eq!(
+            memo.historical_texts.borrow().len(),
+            1,
+            "two symbols and repeated row validation must share one commit/path blob"
+        );
+
+        let moved = commit_bytes(&repo, "unrelated", b"move HEAD", "move HEAD");
+        let error = memo.verify_head_unchanged().unwrap_err().to_string();
+        assert!(error.contains("HEAD moved"), "{error}");
+        assert!(error.contains(&moved), "{error}");
+    }
+
+    #[test]
     fn lapsed_transition_state_machine_is_fail_closed_and_reactivatable() {
         let workspace = workspace();
         let open = committed_registry(&workspace)
@@ -3523,14 +3894,12 @@ mod tests {
 
         let mut stale_owner = registry.clone();
         stale_owner.rows[0].tsc_owners[0].source_slice_sha256 = "0".repeat(64);
-        let error = validate_registry(
+        let error = validate_registry_with_cached_history(
             &workspace,
             &stale_owner,
             &scope,
             &inventory,
             &inputs,
-            false,
-            false,
         )
         .unwrap_err()
         .to_string();
@@ -3541,14 +3910,12 @@ mod tests {
             .canaries
             .non_emitting_control
             .forbidden_codes = vec![9999];
-        let error = validate_registry(
+        let error = validate_registry_with_cached_history(
             &workspace,
             &stale_canary,
             &scope,
             &inventory,
             &inputs,
-            false,
-            false,
         )
         .unwrap_err()
         .to_string();
@@ -3576,14 +3943,12 @@ mod tests {
             .authoritative_anchors[0]
             .symbol = "try_add_module_resolution".to_owned();
         false_closure.summary = summarize(&false_closure.rows);
-        let error = validate_registry(
+        let error = validate_registry_with_cached_history(
             &workspace,
             &false_closure,
             &scope,
             &inventory,
             &inputs,
-            false,
-            false,
         )
         .unwrap_err()
         .to_string();
@@ -3592,8 +3957,8 @@ mod tests {
         let mut missing = registry.clone();
         missing.rows.pop();
         missing.summary = summarize(&missing.rows);
-        let error = validate_registry(
-            &workspace, &missing, &scope, &inventory, &inputs, false, false,
+        let error = validate_registry_with_cached_history(
+            &workspace, &missing, &scope, &inventory, &inputs,
         )
         .unwrap_err()
         .to_string();
