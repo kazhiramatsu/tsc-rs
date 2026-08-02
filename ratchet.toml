@@ -621,8 +621,12 @@
 # ported to the 6.0.3 behavior. The same 280 buckets are
 # multiplicity-complete; no accepted identity is lost and all-corpus
 # FP remains zero.
-rate = 0.995084
-matched = 48783
+# H0.2b package-exports pattern slice: +144 exact TS2307 buckets from
+# the two reviewed exclude fixtures. MemoryCompilerHost now produces
+# exact/pattern/null package-map results for the authoritative table;
+# the same 144 buckets gain at T1-T3 with no accepted loss or FP.
+rate = 0.998021
+matched = 48927
 total = 49024
 allowed_regression = 0.0
 
@@ -642,8 +646,8 @@ allowed_regression = 0.0
 # T1 at 48,783/48,783 with no accepted loss and all-corpus FP=0. The
 # one-time tier1-3-input-schema-extension records that complete bucket
 # set; this exact artifact-derived count closes the active T1 gate.
-rate = 0.995084
-matched = 48783
+rate = 0.998021
+matched = 48927
 total = 49024
 allowed_regression = 0.0
 
@@ -651,8 +655,8 @@ allowed_regression = 0.0
 # Written from A1's complete-multiset T2 bucket set by the reviewed
 # tier1-3-input-schema-extension. The activated set is the exact
 # artifact-derived supported 48,783/48,783 measurement.
-rate = 0.995084
-matched = 48783
+rate = 0.998021
+matched = 48927
 total = 49024
 allowed_regression = 0.0
 
@@ -661,8 +665,8 @@ allowed_regression = 0.0
 # one-time activation. The activated set is supported
 # 48,783/48,783; as with T1/T2, the accepted identity set is the
 # authority and this section is a verified derived summary.
-rate = 0.995084
-matched = 48783
+rate = 0.998021
+matched = 48927
 total = 49024
 allowed_regression = 0.0
 
@@ -788,8 +792,10 @@ allowed_regression = 0.0
 # frozen jsdoc-semantics scope. The remaining +37 all-band gains are
 # non-2XXX JSDoc, unused, and suggestion identities; all are
 # multiplicity-complete and all-corpus FP remains zero.
-rate = 0.988552
-matched = 20810
+# H0.2b adds the same 144 exact TS2307 package-exports pattern buckets;
+# no accepted 2XXX identity is lost and all-corpus FP remains zero.
+rate = 0.995392
+matched = 20954
 total = 21051
 allowed_regression = 0.0
 

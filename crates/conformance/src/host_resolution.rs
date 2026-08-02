@@ -3421,7 +3421,15 @@ mod tests {
         let workspace = workspace();
         let registry = committed_registry(&workspace);
         let repo = init_repo("h0-commit-local-provenance");
-        let scope_bytes = fs::read(workspace.join(SCOPE_REL_PATH)).unwrap();
+        let workspace_root = git_root_for(&workspace).unwrap();
+        let scope_rel = workspace_history_rel(&workspace_root, &workspace, SCOPE_REL_PATH).unwrap();
+        let scope_bytes = git_blob_optional(
+            &workspace_root,
+            &registry.source.initial_scope_commit,
+            &scope_rel,
+        )
+        .unwrap()
+        .expect("initial frozen scope blob");
         let commit = commit_bytes(&repo, SCOPE_REL_PATH, &scope_bytes, "scope");
 
         let mut source = registry.source.clone();
@@ -3451,7 +3459,11 @@ mod tests {
     #[test]
     fn lapsed_transition_state_machine_is_fail_closed_and_reactivatable() {
         let workspace = workspace();
-        let open = committed_registry(&workspace).rows.remove(0);
+        let open = committed_registry(&workspace)
+            .rows
+            .into_iter()
+            .find(|row| row.status == RowStatus::Open)
+            .expect("committed registry retains an open row");
 
         let mut lapsed = open.clone();
         lapsed.status = RowStatus::Lapsed;
@@ -3546,12 +3558,23 @@ mod tests {
         );
 
         let mut false_closure = registry.clone();
-        false_closure.rows[0].status = RowStatus::Closed;
-        false_closure.rows[0].rust_boundary.readiness = BoundaryReadiness::Authoritative;
-        false_closure.rows[0].rust_boundary.authoritative_anchors =
-            false_closure.rows[0].rust_boundary.seam_anchors.clone();
-        false_closure.rows[0].rust_boundary.authoritative_anchors[0].symbol =
-            "try_add_module_resolution".to_owned();
+        let open_index = false_closure
+            .rows
+            .iter()
+            .position(|row| row.status == RowStatus::Open)
+            .expect("committed registry retains an open row");
+        false_closure.rows[open_index].status = RowStatus::Closed;
+        false_closure.rows[open_index].rust_boundary.readiness = BoundaryReadiness::Authoritative;
+        false_closure.rows[open_index]
+            .rust_boundary
+            .authoritative_anchors = false_closure.rows[open_index]
+            .rust_boundary
+            .seam_anchors
+            .clone();
+        false_closure.rows[open_index]
+            .rust_boundary
+            .authoritative_anchors[0]
+            .symbol = "try_add_module_resolution".to_owned();
         false_closure.summary = summarize(&false_closure.rows);
         let error = validate_registry(
             &workspace,

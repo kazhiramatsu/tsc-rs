@@ -20,6 +20,7 @@ use tsc_oracle::{OracleDiag, OracleMessageChain, OraclePool};
 
 pub mod families;
 pub mod goldens_diff;
+mod h0_memory;
 mod host_resolution;
 mod identity;
 pub mod ratchet;
@@ -675,7 +676,8 @@ pub fn refresh_oracle_goldens(options: &RefreshOptions) -> ConformanceResult<Ref
 /// A gating conformance run: enforces the accepted-set ratchet
 /// (measurement-integrity.md §2) on top of the integer/FP gates.
 pub fn run_conformance(options: &ConformanceOptions) -> ConformanceResult<ConformanceSummary> {
-    run_conformance_inner(options, SetGate::Enforce, false, None, None, None).map(|run| run.summary)
+    run_conformance_inner(options, SetGate::Enforce, false, None, None, false, None)
+        .map(|run| run.summary)
 }
 
 /// The A5 rollup path: the identical gating run, additionally
@@ -691,7 +693,7 @@ pub fn run_conformance_with_families_report(
     report_out: &Path,
 ) -> ConformanceResult<ConformanceSummary> {
     let preparation = families::prepare_report(&options.workspace)?;
-    let run = run_conformance_inner(options, SetGate::Enforce, true, None, None, None)?;
+    let run = run_conformance_inner(options, SetGate::Enforce, true, None, None, false, None)?;
     let observation = run
         .observation
         .expect("observing run collects an observation");
@@ -711,7 +713,7 @@ pub fn run_conformance_with_families_report(
 pub(crate) fn run_conformance_collect(
     options: &ConformanceOptions,
 ) -> ConformanceResult<ConformanceRun> {
-    run_conformance_inner(options, SetGate::Collect, false, None, None, None)
+    run_conformance_inner(options, SetGate::Collect, false, None, None, false, None)
 }
 
 pub(crate) fn run_conformance_collect_with_t4(
@@ -719,12 +721,17 @@ pub(crate) fn run_conformance_collect_with_t4(
     planned_t4_pins: Option<&ratchet::T4OraclePins>,
     planned_t4_empty_related_information: Option<&rendered::T4OracleEmptyRelatedInformation>,
 ) -> ConformanceResult<ConformanceRun> {
+    // After the one-time activation, T4 pins live in schema-3 goldens and
+    // both planned arguments are intentionally None. Keep the explicit
+    // force bit separate from those transition-only arguments so an ordinary
+    // ratchet update cannot reinterpret every accepted T4 case as removed.
     run_conformance_inner(
         options,
         SetGate::Collect,
         false,
         planned_t4_pins,
         planned_t4_empty_related_information,
+        true,
         None,
     )
 }
@@ -762,6 +769,7 @@ pub fn run_ci_conformance(
         true,
         None,
         None,
+        false,
         Some(&mut case_cache),
     )?;
     let all_observation = all_run
@@ -782,6 +790,7 @@ pub fn run_ci_conformance(
         false,
         None,
         None,
+        false,
         Some(&mut case_cache),
     )?
     .summary;
@@ -792,6 +801,7 @@ pub fn run_ci_conformance(
         false,
         None,
         None,
+        false,
         Some(&mut case_cache),
     )?
     .summary;
@@ -831,6 +841,7 @@ fn run_conformance_inner(
     families_observe: bool,
     planned_t4_pins: Option<&ratchet::T4OraclePins>,
     planned_t4_empty_related_information: Option<&rendered::T4OracleEmptyRelatedInformation>,
+    force_t4_measurement: bool,
     mut case_cache: Option<&mut CaseTsrsCache>,
 ) -> ConformanceResult<ConformanceRun> {
     let fixtures = select_fixtures(&RefreshOptions {
@@ -860,7 +871,8 @@ fn run_conformance_inner(
         );
     }
     let measure_t4 = options.band == DiagnosticBand::All
-        && (planned_t4_pins.is_some()
+        && (force_t4_measurement
+            || planned_t4_pins.is_some()
             || accepted.as_ref().is_some_and(|accepted| accepted.t4_active));
     let t1_ratchet = if options.band == DiagnosticBand::All {
         Some(read_ratchet_section(&ratchet_path, "t1")?)
@@ -963,12 +975,13 @@ fn run_conformance_inner(
                 if let Some(cached) = cache.get(&cache_key) {
                     cached.clone()
                 } else {
-                    let current = Arc::new(current_case_tsrs(&program, &vendor_lib_dir)?);
+                    let current =
+                        Arc::new(current_case_tsrs(&fixture_key, &program, &vendor_lib_dir)?);
                     cache.insert(cache_key, current.clone());
                     current
                 }
             } else {
-                Arc::new(current_case_tsrs(&program, &vendor_lib_dir)?)
+                Arc::new(current_case_tsrs(&fixture_key, &program, &vendor_lib_dir)?)
             };
             // Collection records every fixed view from one pass; a
             // gating run records only its selected view.
@@ -1773,6 +1786,7 @@ struct CaseTsrs {
 type CaseTsrsCache = BTreeMap<(String, String), Arc<CaseTsrs>>;
 
 fn current_case_tsrs(
+    fixture: &str,
     program: &tsc_harness::ProgramJson,
     vendor_lib_dir: &Path,
 ) -> ConformanceResult<CaseTsrs> {
@@ -1789,6 +1803,32 @@ fn current_case_tsrs(
     }
 
     let libs = read_lib_inputs(&program.libs, vendor_lib_dir)?;
+    if h0_memory::supports_fixture(fixture) {
+        let result = h0_memory::run(program, libs.as_slice(), &files)?;
+        let all_empty_related_information = result
+            .all
+            .iter()
+            .enumerate()
+            .filter_map(|(index, diagnostic)| {
+                (diagnostic.related_information_present && diagnostic.related.is_empty())
+                    .then_some(index)
+            })
+            .collect();
+        return Ok(CaseTsrs {
+            all: result
+                .all
+                .iter()
+                .map(|diag| GoldenDiag::from_tsrs(diag, &file_texts))
+                .collect(),
+            all_empty_related_information,
+            syntactic: result
+                .syntactic
+                .iter()
+                .map(|diag| GoldenDiag::from_tsrs(diag, &file_texts))
+                .collect(),
+            partial_checks: Vec::new(),
+        });
+    }
     let result = check_program_with_libs_at(
         &libs,
         &files,

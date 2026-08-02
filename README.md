@@ -269,8 +269,8 @@ artifacts by every `cargo xtask ci` run:
 
 | View | Exact diagnostic match (T0) |
 | --- | --- |
-| All bands | **99.5084%** (48,783 / 49,024) |
-| 2xxx all-corpus visibility | **98.8552%** (20,810 / 21,051) |
+| All bands | **99.8021%** (48,927 / 49,024) |
+| 2xxx all-corpus visibility | **99.5392%** (20,954 / 21,051) |
 | Syntactic | **100.0000%** (2,246 / 2,246) |
 
 The 2XXX supported scope is **100% complete** with zero T0 false

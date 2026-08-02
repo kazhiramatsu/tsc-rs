@@ -325,6 +325,7 @@ version = "0.1.0"
 dependencies = [
  "tsc-rs-checker",
  "tsc-rs-diagnostics",
+ "tsc-rs-host",
  "tsc-rs-program",
 ]
 
@@ -337,9 +338,12 @@ dependencies = [
  "sha2",
  "toml_edit",
  "tsc-rs-checker",
+ "tsc-rs-compiler",
  "tsc-rs-diagnostics",
  "tsc-rs-harness",
+ "tsc-rs-host",
  "tsc-rs-oracle",
+ "tsc-rs-program",
  "zstd",
 ]
 
@@ -383,8 +387,10 @@ dependencies = [
 name = "tsc-rs-program"
 version = "0.1.0"
 dependencies = [
+ "serde_json",
  "tsc-rs-diagnostics",
  "tsc-rs-host",
+ "tsc-rs-syntax",
  "tsc-rs-types",
 ]
 

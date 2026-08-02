@@ -116,9 +116,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Checkout
+      # The Rust workspace tests validate committed scope/registry lineage.
+      # A depth-1 merge checkout cannot reach their frozen bootstrap commits.
+      - name: Checkout full lineage for history-backed tests
         uses: actions/checkout@v7
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       # Oracle driver tests must use the producer's pinned Node

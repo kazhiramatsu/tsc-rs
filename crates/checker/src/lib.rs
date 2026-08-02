@@ -103,6 +103,10 @@ pub struct AuthoritativeResolvedModule {
     pub resolved_using_ts_extension: bool,
     pub is_tsx: bool,
     pub is_arbitrary_extension: bool,
+    /// The host found this target through an external-library package lookup.
+    /// This is an authoritative resolution fact, not a reason to reject an
+    /// otherwise loaded source.
+    pub is_external_library_import: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -120,7 +124,6 @@ pub enum UnsupportedAuthoritativeResolution {
     ResolutionDiagnostics,
     ResolvedFileIdentity,
     OriginalPath,
-    ExternalLibraryImport,
     PackageId,
 }
 
