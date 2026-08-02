@@ -109,6 +109,9 @@ pub struct AuthoritativePackageId {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AuthoritativeResolvedModule {
     pub target_token: AuthoritativeSourceToken,
+    /// Exact `resolvedUsingTsExtension` host fact. Package-map providers must
+    /// derive this from the selected raw target before pattern substitution;
+    /// the final resolved file extension alone is insufficient for TS2877.
     pub resolved_using_ts_extension: bool,
     pub is_tsx: bool,
     pub is_arbitrary_extension: bool,

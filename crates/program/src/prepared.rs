@@ -70,6 +70,7 @@ pub struct PreparedSourceFile {
     real_path: Option<ProgramPath>,
     text: String,
     implied_node_format: Option<ResolutionMode>,
+    implied_node_format_for_emit: Option<ResolutionMode>,
     package_scope: Option<CanonicalPath>,
 }
 
@@ -81,6 +82,7 @@ impl PreparedSourceFile {
             real_path: None,
             text: text.into(),
             implied_node_format: None,
+            implied_node_format_for_emit: None,
             package_scope: None,
         }
     }
@@ -94,6 +96,20 @@ impl PreparedSourceFile {
 
     pub fn with_implied_node_format(mut self, mode: ResolutionMode) -> Self {
         self.implied_node_format = Some(mode);
+        self.implied_node_format_for_emit = Some(mode);
+        self
+    }
+
+    /// Retain both tsc's raw `SourceFile.impliedNodeFormat` and the effective
+    /// value from `getImpliedNodeFormatForEmitWorker`. They differ when a
+    /// default CommonJS implication falls back to a non-Node emit module kind.
+    pub fn with_implied_node_formats(
+        mut self,
+        implied: Option<ResolutionMode>,
+        for_emit: Option<ResolutionMode>,
+    ) -> Self {
+        self.implied_node_format = implied;
+        self.implied_node_format_for_emit = for_emit;
         self
     }
 
@@ -124,6 +140,10 @@ impl PreparedSourceFile {
         self.implied_node_format
     }
 
+    pub const fn implied_node_format_for_emit(&self) -> Option<ResolutionMode> {
+        self.implied_node_format_for_emit
+    }
+
     pub fn package_scope(&self) -> Option<&CanonicalPath> {
         self.package_scope.as_ref()
     }
@@ -131,6 +151,7 @@ impl PreparedSourceFile {
     fn compatible_with(&self, other: &Self) -> bool {
         self.text == other.text
             && self.implied_node_format == other.implied_node_format
+            && self.implied_node_format_for_emit == other.implied_node_format_for_emit
             && self.package_scope == other.package_scope
             && canonical_of(self.real_path.as_ref()) == canonical_of(other.real_path.as_ref())
     }

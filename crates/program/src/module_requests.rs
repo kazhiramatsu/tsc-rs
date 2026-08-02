@@ -24,8 +24,8 @@ pub fn plan_static_module_requests(
 }
 
 /// Plan the exact authoritative module keys for the H0 package-map program
-/// slice, including static imports, export-from declarations, and literal
-/// dynamic imports.
+/// slice, including static imports, export-from declarations, external
+/// import-equals declarations, and literal dynamic imports.
 ///
 /// Other request-bearing syntax remains a typed failure; this function never
 /// publishes a partially discovered source plan.
@@ -42,32 +42,35 @@ fn plan_module_requests_worker(
     expanded: bool,
 ) -> Result<Vec<ResolutionKey>, ResolutionError> {
     let module_kind = options.emit_module_kind();
-    if !(100..=199).contains(&module_kind) {
+    if (!expanded && !(100..=199).contains(&module_kind))
+        || (expanded && !matches!(module_kind, 1 | 99 | 100..=200))
+    {
         return Err(unsupported(
             source,
-            format!("module kind {module_kind} is outside the Node module-format range"),
+            format!(
+                "module kind {module_kind} is outside the owned CommonJS/ESNext/Node/Preserve range"
+            ),
         ));
     }
 
     let resolution_kind = options.emit_module_resolution_kind();
-    if !matches!(resolution_kind, 3 | 99) {
+    if (!expanded && !matches!(resolution_kind, 3 | 99))
+        || (expanded && !matches!(resolution_kind, 3 | 99 | 100))
+    {
         return Err(unsupported(
             source,
-            format!("module resolution kind {resolution_kind} is not Node16 or NodeNext"),
+            format!("module resolution kind {resolution_kind} is not Node16, NodeNext, or Bundler"),
         ));
     }
 
-    let mode = source.implied_node_format().ok_or_else(|| {
-        unsupported(
-            source,
-            "the source has no authoritative implied Node format",
-        )
-    })?;
     let file_name = source
         .path()
         .display()
         .to_str()
         .ok_or_else(|| unsupported(source, "the source display path is not valid Unicode"))?;
+    let file_emit_kind = file_emit_module_kind(source, file_name, module_kind)?;
+    let static_mode = static_request_mode(source, file_emit_kind)?;
+    let dynamic_mode = dynamic_import_mode(source, module_kind, file_emit_kind)?;
     let javascript_file = is_javascript_file_name(file_name);
     let language_variant = if file_name.ends_with(".tsx") || javascript_file {
         LanguageVariant::Jsx
@@ -127,7 +130,7 @@ fn plan_module_requests_worker(
                 let key = ResolutionKey::new(
                     source.path().canonical().clone(),
                     literal.text.clone(),
-                    mode,
+                    static_mode,
                 );
                 if seen.insert(key.clone()) {
                     requests.push(key);
@@ -162,25 +165,60 @@ fn plan_module_requests_worker(
                 let key = ResolutionKey::new(
                     source.path().canonical().clone(),
                     literal.text.clone(),
-                    mode,
+                    static_mode,
                 );
                 if seen.insert(key.clone()) {
                     requests.push(key);
                 }
             }
-            NodeData::ImportEqualsDeclaration(_) => {
-                return Err(unsupported_at(
-                    source,
-                    node.pos,
-                    "an import-equals declaration can issue a non-static request",
-                ));
+            NodeData::ImportEqualsDeclaration(import_equals) => {
+                if !expanded {
+                    return Err(unsupported_at(
+                        source,
+                        node.pos,
+                        "an import-equals declaration is outside the static-import slice",
+                    ));
+                }
+                let module_reference = import_equals.module_reference.ok_or_else(|| {
+                    unsupported_at(
+                        source,
+                        node.pos,
+                        "an import-equals declaration has no module reference",
+                    )
+                })?;
+                if let NodeData::ExternalModuleReference(reference) =
+                    &parsed.arena.node(module_reference).data
+                {
+                    let expression = reference.expression.ok_or_else(|| {
+                        unsupported_at(
+                            source,
+                            node.pos,
+                            "an external import-equals declaration has no expression",
+                        )
+                    })?;
+                    let NodeData::StringLiteral(literal) = &parsed.arena.node(expression).data
+                    else {
+                        return Err(unsupported_at(
+                            source,
+                            node.pos,
+                            "an external import-equals declaration has a non-string specifier",
+                        ));
+                    };
+                    let key = ResolutionKey::new(
+                        source.path().canonical().clone(),
+                        literal.text.clone(),
+                        ResolutionMode::CommonJs,
+                    );
+                    if seen.insert(key.clone()) {
+                        requests.push(key);
+                    }
+                }
+                // An internal `import alias = namespace.member` declaration does
+                // not issue a module-resolution request.
             }
             NodeData::ExternalModuleReference(_) => {
-                return Err(unsupported_at(
-                    source,
-                    node.pos,
-                    "an external module reference is outside the static-import slice",
-                ));
+                // The parser only produces these as the module-reference child of
+                // an import-equals declaration, which the parent arm owns above.
             }
             NodeData::ImportType(_) => {
                 return Err(unsupported_at(
@@ -239,7 +277,7 @@ fn plan_module_requests_worker(
                     let key = ResolutionKey::new(
                         source.path().canonical().clone(),
                         literal.text.clone(),
-                        ResolutionMode::EsNext,
+                        dynamic_mode,
                     );
                     if seen.insert(key.clone()) {
                         requests.push(key);
@@ -294,6 +332,76 @@ fn is_javascript_file_name(file_name: &str) -> bool {
     [".js", ".jsx", ".mjs", ".cjs"]
         .iter()
         .any(|extension| file_name.ends_with(extension))
+}
+
+/// tsc `getEmitModuleFormatOfFileWorker` for the representation exposed by
+/// `PreparedSourceFile`: an authoritative effective implied format wins, then
+/// the computed `module` kind is used.
+fn file_emit_module_kind(
+    source: &PreparedSourceFile,
+    file_name: &str,
+    module_kind: i32,
+) -> Result<i32, ResolutionError> {
+    if let Some(mode) = source.implied_node_format_for_emit() {
+        return Ok(match mode {
+            ResolutionMode::CommonJs => 1,
+            ResolutionMode::EsNext => 99,
+            ResolutionMode::Unspecified => {
+                return Err(unsupported(
+                    source,
+                    "the source publishes an unspecified implied Node format",
+                ));
+            }
+        });
+    }
+
+    if (100..=199).contains(&module_kind) {
+        return Err(unsupported(
+            source,
+            format!(
+                "{file_name} has no authoritative implied Node format for module kind {module_kind}"
+            ),
+        ));
+    }
+
+    Ok(module_kind)
+}
+
+/// tsc `getEmitSyntaxForUsageLocationWorker` for an ordinary static
+/// import/export usage after `getEmitModuleFormatOfFileWorker`.
+fn static_request_mode(
+    source: &PreparedSourceFile,
+    file_emit_kind: i32,
+) -> Result<ResolutionMode, ResolutionError> {
+    match file_emit_kind {
+        1 => Ok(ResolutionMode::CommonJs),
+        5..=99 | 200 => Ok(ResolutionMode::EsNext),
+        other => Err(unsupported(
+            source,
+            format!("file emit module kind {other} has no owned static resolution mode"),
+        )),
+    }
+}
+
+/// tsc `shouldTransformImportCallWorker`: Node and Preserve retain dynamic
+/// import syntax, while other module kinds use the effective per-file emit
+/// format to decide whether the call becomes CommonJS `require`.
+fn dynamic_import_mode(
+    source: &PreparedSourceFile,
+    module_kind: i32,
+    file_emit_kind: i32,
+) -> Result<ResolutionMode, ResolutionError> {
+    if (100..=199).contains(&module_kind) || module_kind == 200 {
+        return Ok(ResolutionMode::EsNext);
+    }
+    match file_emit_kind {
+        0..=4 => Ok(ResolutionMode::CommonJs),
+        5..=200 => Ok(ResolutionMode::EsNext),
+        other => Err(unsupported(
+            source,
+            format!("file emit module kind {other} has no owned dynamic-import resolution mode"),
+        )),
+    }
 }
 
 fn unsupported(source: &PreparedSourceFile, detail: impl Into<String>) -> ResolutionError {

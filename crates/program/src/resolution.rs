@@ -317,6 +317,13 @@ impl ResolvedModule {
         self
     }
 
+    /// Preserve tsc's `resolvedUsingTsExtension` host fact.
+    ///
+    /// For package-map targets this is derived from the raw target string,
+    /// not merely from the extension of the final resolved path. For example,
+    /// an exact `"./foo.ts"` target reports false while a pattern target such
+    /// as `"./internal/*"` that expands to `"./internal/foo.ts"` reports true.
+    /// The checker needs that distinction for TS2877.
     pub fn with_resolved_using_ts_extension(mut self, value: bool) -> Self {
         self.resolved_using_ts_extension = value;
         self

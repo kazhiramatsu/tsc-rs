@@ -559,6 +559,159 @@ fn authoritative_resolution_selects_the_recorded_source_not_the_probe_candidate(
 }
 
 #[test]
+fn authoritative_ts_extension_fact_controls_non_relative_rewrite_diagnostic() {
+    struct Case {
+        name: &'static str,
+        importer: &'static str,
+        specifier: &'static str,
+        target_name: &'static str,
+        target_text: &'static str,
+        resolved_using_ts_extension: bool,
+        is_external_library_import: bool,
+        expect_2877: bool,
+    }
+
+    let cases = [
+        Case {
+            name: "package imports pattern target",
+            importer: "import {} from \"#internal/foo.ts\";\n",
+            specifier: "#internal/foo.ts",
+            target_name: "/internal/foo.ts",
+            target_text: "export {};\n",
+            resolved_using_ts_extension: true,
+            is_external_library_import: false,
+            expect_2877: true,
+        },
+        Case {
+            name: "package imports exact target",
+            importer: "import {} from \"#foo.ts\";\n",
+            specifier: "#foo.ts",
+            target_name: "/foo.ts",
+            target_text: "export {};\n",
+            resolved_using_ts_extension: false,
+            is_external_library_import: false,
+            expect_2877: false,
+        },
+        Case {
+            name: "type-only import keeps the upstream module-specifier location boundary",
+            importer: "import type {} from \"#internal/foo.ts\";\n",
+            specifier: "#internal/foo.ts",
+            target_name: "/internal/foo.ts",
+            target_text: "export {};\n",
+            resolved_using_ts_extension: true,
+            is_external_library_import: false,
+            expect_2877: true,
+        },
+        Case {
+            name: "literal import type",
+            importer: "export type T = import(\"#internal/foo.ts\");\n",
+            specifier: "#internal/foo.ts",
+            target_name: "/internal/foo.ts",
+            target_text: "export {};\n",
+            resolved_using_ts_extension: true,
+            is_external_library_import: false,
+            expect_2877: false,
+        },
+        Case {
+            name: "ambient import",
+            importer: "declare module \"ambient\" {\n  import internal = require(\"#internal/foo.ts\");\n}\n",
+            specifier: "#internal/foo.ts",
+            target_name: "/internal/foo.ts",
+            target_text: "export {};\n",
+            resolved_using_ts_extension: true,
+            is_external_library_import: false,
+            expect_2877: false,
+        },
+        Case {
+            name: "declaration target",
+            importer: "import {} from \"#internal/foo.ts\";\n",
+            specifier: "#internal/foo.ts",
+            target_name: "/internal/foo.d.ts",
+            target_text: "export {};\n",
+            resolved_using_ts_extension: true,
+            is_external_library_import: false,
+            expect_2877: false,
+        },
+        Case {
+            name: "external library target",
+            importer: "import {} from \"#internal/foo.ts\";\n",
+            specifier: "#internal/foo.ts",
+            target_name: "/node_modules/pkg/foo.ts",
+            target_text: "export {};\n",
+            resolved_using_ts_extension: true,
+            is_external_library_import: true,
+            expect_2877: false,
+        },
+        Case {
+            name: "relative rewrite",
+            importer: "import {} from \"./internal/foo.ts\";\n",
+            specifier: "./internal/foo.ts",
+            target_name: "/internal/foo.ts",
+            target_text: "export {};\n",
+            resolved_using_ts_extension: true,
+            is_external_library_import: false,
+            expect_2877: false,
+        },
+    ];
+
+    for case in cases {
+        let prepared = authoritative_program(
+            &[
+                (case.target_name, case.target_text),
+                ("/main.ts", case.importer),
+            ],
+            &[1],
+            CompilerOptions {
+                module: Some(1),
+                module_resolution: Some(2),
+                rewrite_relative_import_extensions: Some(true),
+                ..CompilerOptions::default()
+            },
+            |builder, ids| {
+                let module = ResolvedModule::new(
+                    ResolvedModuleTarget::Source {
+                        source: ids[0],
+                        resolved_file: path(case.target_name),
+                    },
+                    if case.target_name.ends_with(".d.ts") {
+                        ModuleExtension::Dts
+                    } else {
+                        ModuleExtension::Ts
+                    },
+                )
+                .with_resolved_using_ts_extension(case.resolved_using_ts_extension)
+                .with_external_library_import(case.is_external_library_import);
+                builder
+                    .add_module_resolution(
+                        module_key("/main.ts", case.specifier, ResolutionMode::Unspecified),
+                        Ok(ModuleResolution::resolved(module)),
+                    )
+                    .expect("add authoritative rewrite resolution");
+            },
+        );
+
+        let outcome = consume(ProgramSession::new(prepared));
+        let diagnostics = outcome
+            .semantic_diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 2877)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            diagnostics.len(),
+            usize::from(case.expect_2877),
+            "{}",
+            case.name
+        );
+        if case.expect_2877 {
+            assert_eq!(
+                diagnostics[0].message_text(),
+                "This import uses a '.ts' extension to resolve to an input TypeScript file, but will not be rewritten during emit because it is not a relative path."
+            );
+        }
+    }
+}
+
+#[test]
 fn ambient_modules_keep_their_priority_around_authoritative_not_found() {
     let exact = authoritative_program(
         &[

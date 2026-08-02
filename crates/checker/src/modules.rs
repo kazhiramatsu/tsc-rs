@@ -36,8 +36,10 @@ type ExportLookupTable = indexmap::IndexMap<String, (String, Vec<NodeId>)>;
 #[derive(Clone, Debug)]
 pub(crate) struct ResolvedProgramModule {
     pub file_index: usize,
-    /// tsc resolvedUsingTsExtension: the specifier itself carried the
-    /// TS-family extension and resolved as written.
+    /// tsc resolvedUsingTsExtension. For ordinary path resolution this says
+    /// the specifier carried a TS-family extension and resolved as written;
+    /// package-map resolution instead derives it from the selected raw target
+    /// before pattern substitution. That distinction drives TS2877.
     pub resolved_using_ts_extension: bool,
     /// The resolved file ends `.tsx` (getResolutionDiagnostic's jsx
     /// row).
@@ -2892,20 +2894,35 @@ impl<'a> CheckerState<'a> {
                 && !Self::is_declaration_file_name(module_reference)
                 && !self.is_literal_import_type_node(location)
                 && !self.is_part_of_type_only_import_or_export_declaration(location)
-                && Self::is_external_module_name_relative(module_reference)
-                && Self::try_extract_ts_extension(module_reference).is_some()
-                && !resolved.resolved_using_ts_extension
             {
-                if let Some(error_node) = error_node {
-                    let resolved_path = Self::relative_path_from_importer(
-                        &self.binder.source_of_node(location).file_name,
-                        &resolved_file_name,
-                    );
-                    self.error_at(
-                        Some(error_node),
-                        &diagnostics::This_relative_import_path_is_unsafe_to_rewrite_because_it_looks_like_a_file_name_but_actually_resolves_to_0,
-                        &[&resolved_path],
-                    );
+                let should_rewrite = Self::is_external_module_name_relative(module_reference)
+                    && Self::try_extract_ts_extension(module_reference).is_some();
+                if !resolved.resolved_using_ts_extension && should_rewrite {
+                    if let Some(error_node) = error_node {
+                        let resolved_path = Self::relative_path_from_importer(
+                            &self.binder.source_of_node(location).file_name,
+                            &resolved_file_name,
+                        );
+                        self.error_at(
+                            Some(error_node),
+                            &diagnostics::This_relative_import_path_is_unsafe_to_rewrite_because_it_looks_like_a_file_name_but_actually_resolves_to_0,
+                            &[&resolved_path],
+                        );
+                    }
+                } else if resolved.resolved_using_ts_extension
+                    && !should_rewrite
+                    && !source.is_declaration_file
+                    && !resolved.is_external_library_import
+                    && Self::try_extract_ts_extension(&resolved_file_name).is_some()
+                {
+                    if let Some(error_node) = error_node {
+                        let extension = Self::any_extension_from_path(module_reference);
+                        self.error_at(
+                            Some(error_node),
+                            &diagnostics::This_import_uses_a_0_extension_to_resolve_to_an_input_TypeScript_file_but_will_not_be_rewritten_during_emit_because_it_is_not_a_relative_path,
+                            &[extension],
+                        );
+                    }
                 }
             }
             let root = source.root;
@@ -5667,6 +5684,15 @@ impl<'a> CheckerState<'a> {
         [".d.ts", ".d.cts", ".d.mts", ".cts", ".mts", ".ts", ".tsx"]
             .into_iter()
             .find(|extension| name.ends_with(extension))
+    }
+
+    /// tsc getAnyExtensionFromPath without a supplied extension table: the
+    /// suffix beginning at the last dot of the final path component.
+    fn any_extension_from_path(name: &str) -> &str {
+        let base_name = name.rsplit(['/', '\\']).next().unwrap_or(name);
+        base_name
+            .rfind('.')
+            .map_or("", |position| &base_name[position..])
     }
 
     /// getSuggestedImportSource reduced: non-Node ESM emit at the

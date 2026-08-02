@@ -393,6 +393,378 @@ fn h02c_exports_targets_and_relative_requests_follow_the_authoritative_map() {
 }
 
 #[test]
+fn package_imports_cover_relative_bare_conditional_array_null_and_cycles() {
+    let host = MemoryCompilerHost::builder("/")
+        .file(
+            "/package.json",
+            br##"{
+                "name":"root",
+                "version":"1.0.0",
+                "type":"module",
+                "exports":"./index.cjs",
+                "imports": {
+                    "#exact":"./src/exact.js",
+                    "#pattern/*":"./src/*.js",
+                    "#condition": {
+                        "import":"./src/import.js",
+                        "require":"./src/require.cjs"
+                    },
+                    "#array":["./src/missing.js", "./src/fallback.js"],
+                    "#blocked":null,
+                    "#external":"dep/subpath",
+                    "#cycle-a":"#cycle-b",
+                    "#cycle-b":"#cycle-a",
+                    "#self":"root",
+                    "#direct.ts":"./src/direct.ts",
+                    "#mapped/*":"./src/*"
+                }
+            }"##
+            .to_vec(),
+        )
+        .file("/index.ts", b"export {};".to_vec())
+        // If an imports-to-self rewrite incorrectly re-enters this package's
+        // exports map, the written .cjs target substitutes this source.
+        .file("/index.cts", b"export const wrongSelf = true;".to_vec())
+        .file("/src/exact.ts", b"export const exact = true;".to_vec())
+        .file("/src/pattern.ts", b"export const pattern = true;".to_vec())
+        .file("/src/import.ts", b"export const esm = true;".to_vec())
+        .file("/src/require.cts", b"export const cjs = true;".to_vec())
+        .file(
+            "/src/fallback.ts",
+            b"export const fallback = true;".to_vec(),
+        )
+        .file("/src/direct.ts", b"export const direct = true;".to_vec())
+        .file(
+            "/src/from-pattern.ts",
+            b"export const mapped = true;".to_vec(),
+        )
+        .file(
+            "/node_modules/dep/package.json",
+            br#"{
+                "name":"dep",
+                "version":"2.0.0",
+                "exports":{"./subpath":"./types.d.ts"}
+            }"#
+            .to_vec(),
+        )
+        .file(
+            "/node_modules/dep/types.d.ts",
+            b"export const dep: true;".to_vec(),
+        )
+        .build()
+        .expect("build package-imports host");
+    let options = options_for_module(199);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+
+    for (specifier, mode, expected) in [
+        ("#exact", ResolutionMode::EsNext, "/src/exact.ts"),
+        (
+            "#pattern/pattern",
+            ResolutionMode::EsNext,
+            "/src/pattern.ts",
+        ),
+        ("#condition", ResolutionMode::EsNext, "/src/import.ts"),
+        ("#condition", ResolutionMode::CommonJs, "/src/require.cts"),
+        ("#array", ResolutionMode::EsNext, "/src/fallback.ts"),
+    ] {
+        let module = resolved(
+            resolver
+                .resolve(Path::new("/index.ts"), specifier, mode)
+                .expect("resolve package-imports target"),
+        );
+        assert_eq!(
+            module.resolved_file().canonical().as_path(),
+            Path::new(expected)
+        );
+        assert!(!module.is_external_library_import());
+        assert_eq!(module.package_id().map(PackageId::name), Some("root"));
+    }
+
+    let external = resolved(
+        resolver
+            .resolve(Path::new("/index.ts"), "#external", ResolutionMode::EsNext)
+            .expect("reinsert bare imports target into node_modules lookup"),
+    );
+    assert_eq!(
+        external.resolved_file().canonical().as_path(),
+        Path::new("/node_modules/dep/types.d.ts")
+    );
+    assert_eq!(external.package_id().map(PackageId::name), Some("dep"));
+    assert!(
+        !external.is_external_library_import(),
+        "the outer imports boundary owns an external bare target"
+    );
+
+    for specifier in ["#blocked", "#cycle-a", "#cycle-b", "#self"] {
+        assert_eq!(
+            resolver
+                .resolve(Path::new("/index.ts"), specifier, ResolutionMode::EsNext)
+                .expect("terminal or bounded imports miss"),
+            ResolutionOutcome::NotFound,
+            "{specifier} must not escape the package-map boundary"
+        );
+    }
+
+    let direct = resolved(
+        resolver
+            .resolve(Path::new("/index.ts"), "#direct.ts", ResolutionMode::EsNext)
+            .expect("resolve explicit TypeScript imports target"),
+    );
+    assert!(!direct.resolved_using_ts_extension());
+    let substituted = resolved(
+        resolver
+            .resolve(
+                Path::new("/index.ts"),
+                "#mapped/from-pattern.ts",
+                ResolutionMode::EsNext,
+            )
+            .expect("resolve TypeScript extension introduced by pattern capture"),
+    );
+    assert!(substituted.resolved_using_ts_extension());
+}
+
+#[test]
+fn package_imports_preserve_non_root_self_and_option_boundaries() {
+    let host = MemoryCompilerHost::builder("/")
+        .file(
+            "/workspace/package.json",
+            br##"{
+                "name":"workspace",
+                "exports":"./index.js",
+                "imports": {
+                    "#self":"workspace",
+                    "#exact":"./src/exact.js",
+                    "#x:y":"./src/exact.js",
+                    "#x\\y":"./src/exact.js",
+                    "#x\u0000y":"./src/exact.js",
+                    "#x/../y":"./src/exact.js",
+                    "#dot":".dependency",
+                    "#blocked":null
+                }
+            }"##
+            .to_vec(),
+        )
+        .file("/workspace/main.ts", b"export {};".to_vec())
+        .file("/workspace/index.ts", b"export const self = true;".to_vec())
+        .file(
+            "/workspace/src/exact.ts",
+            b"export const exact = true;".to_vec(),
+        )
+        .file(
+            "/workspace/node_modules/.dependency/package.json",
+            br#"{"name":".dependency","exports":"./index.js"}"#.to_vec(),
+        )
+        .file(
+            "/workspace/node_modules/.dependency/index.ts",
+            b"export const dot = true;".to_vec(),
+        )
+        .file(
+            "/workspace/node_modules/#missing/package.json",
+            br##"{"name":"#missing","exports":"./index.js"}"##.to_vec(),
+        )
+        .file(
+            "/workspace/node_modules/#missing/index.ts",
+            b"export const fallback = true;".to_vec(),
+        )
+        .file(
+            "/workspace/node_modules/#blocked/package.json",
+            br##"{"name":"#blocked","exports":"./index.js"}"##.to_vec(),
+        )
+        .file(
+            "/workspace/node_modules/#blocked/index.ts",
+            b"export const blocked = true;".to_vec(),
+        )
+        .file(
+            "/workspace/node_modules/#exact/package.json",
+            br##"{"name":"#exact","exports":"./index.js"}"##.to_vec(),
+        )
+        .file(
+            "/workspace/node_modules/#exact/index.ts",
+            b"export const fallback = true;".to_vec(),
+        )
+        .build()
+        .expect("build non-root package-imports host");
+
+    let options = options_for_module(199);
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create resolver");
+    let self_target = resolved(
+        resolver
+            .resolve(
+                Path::new("/workspace/main.ts"),
+                "#self",
+                ResolutionMode::EsNext,
+            )
+            .expect("resolve non-root imports-to-self target"),
+    );
+    assert_eq!(
+        self_target.resolved_file().canonical().as_path(),
+        Path::new("/workspace/index.ts")
+    );
+
+    for specifier in ["#x:y", "#x\\y", "#x\0y", "#x/../y"] {
+        let exact = resolved(
+            resolver
+                .resolve(
+                    Path::new("/workspace/main.ts"),
+                    specifier,
+                    ResolutionMode::EsNext,
+                )
+                .expect("exact imports keys are looked up before target validation"),
+        );
+        assert_eq!(
+            exact.resolved_file().canonical().as_path(),
+            Path::new("/workspace/src/exact.ts"),
+            "{specifier:?}"
+        );
+    }
+
+    let dot_package = resolved(
+        resolver
+            .resolve(
+                Path::new("/workspace/main.ts"),
+                "#dot",
+                ResolutionMode::EsNext,
+            )
+            .expect("bare imports target beginning with a dot is not a relative target"),
+    );
+    assert_eq!(
+        dot_package.resolved_file().canonical().as_path(),
+        Path::new("/workspace/node_modules/.dependency/index.ts")
+    );
+
+    let missing_import = resolved(
+        resolver
+            .resolve(
+                Path::new("/workspace/main.ts"),
+                "#missing",
+                ResolutionMode::EsNext,
+            )
+            .expect("a missing imports entry continues through node_modules"),
+    );
+    assert_eq!(
+        missing_import.resolved_file().canonical().as_path(),
+        Path::new("/workspace/node_modules/#missing/index.ts")
+    );
+    assert_eq!(
+        resolver
+            .resolve(
+                Path::new("/workspace/main.ts"),
+                "#blocked",
+                ResolutionMode::EsNext,
+            )
+            .expect("an explicit null imports target remains terminal"),
+        ResolutionOutcome::NotFound
+    );
+
+    let exports_disabled = CompilerOptions {
+        module: Some(199),
+        resolve_package_json_exports: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut resolver =
+        ModuleResolver::new(&host, &exports_disabled).expect("create imports-only resolver");
+    let exact = resolved(
+        resolver
+            .resolve(
+                Path::new("/workspace/main.ts"),
+                "#exact",
+                ResolutionMode::EsNext,
+            )
+            .expect("imports remain enabled independently from exports"),
+    );
+    assert_eq!(
+        exact.resolved_file().canonical().as_path(),
+        Path::new("/workspace/src/exact.ts")
+    );
+    assert_unsupported(
+        resolver
+            .resolve(
+                Path::new("/workspace/main.ts"),
+                "workspace",
+                ResolutionMode::EsNext,
+            )
+            .expect_err("bare package fallback remains fail closed"),
+        "resolve-package-json-exports-disabled",
+    );
+
+    let imports_disabled = CompilerOptions {
+        module: Some(199),
+        resolve_package_json_imports: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut resolver =
+        ModuleResolver::new(&host, &imports_disabled).expect("create exports-only resolver");
+    let fallback = resolved(
+        resolver
+            .resolve(
+                Path::new("/workspace/main.ts"),
+                "#exact",
+                ResolutionMode::EsNext,
+            )
+            .expect("disabled imports continue through ordinary package lookup"),
+    );
+    assert_eq!(
+        fallback.resolved_file().canonical().as_path(),
+        Path::new("/workspace/node_modules/#exact/index.ts")
+    );
+}
+
+#[test]
+fn root_imports_patterns_are_gated_for_node16_but_enabled_elsewhere() {
+    let host = MemoryCompilerHost::builder("/")
+        .file(
+            "/package.json",
+            br##"{"name":"root","imports":{"#/*":"./src/*"}}"##.to_vec(),
+        )
+        .file("/index.ts", b"export {};".to_vec())
+        .file("/src/foo.ts", b"export const foo = true;".to_vec())
+        .build()
+        .expect("build root-wildcard imports host");
+
+    let node16_options = options_for_module(100);
+    let mut node16 = ModuleResolver::new(&host, &node16_options).expect("create Node16 resolver");
+    assert_eq!(
+        node16
+            .resolve(Path::new("/index.ts"), "#/foo.ts", ResolutionMode::EsNext,)
+            .expect("Node16 rejects root imports patterns as an authoritative miss"),
+        ResolutionOutcome::NotFound
+    );
+
+    let node_next_options = options_for_module(199);
+    let mut node_next =
+        ModuleResolver::new(&host, &node_next_options).expect("create NodeNext resolver");
+    assert_eq!(
+        resolved(
+            node_next
+                .resolve(Path::new("/index.ts"), "#/foo.ts", ResolutionMode::EsNext,)
+                .expect("NodeNext enables root imports patterns"),
+        )
+        .resolved_file()
+        .canonical()
+        .as_path(),
+        Path::new("/src/foo.ts")
+    );
+
+    let bundler_options = CompilerOptions {
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+    let mut bundler =
+        ModuleResolver::new(&host, &bundler_options).expect("create Bundler resolver");
+    assert_eq!(
+        resolved(
+            bundler
+                .resolve(Path::new("/index.ts"), "#/foo.ts", ResolutionMode::EsNext,)
+                .expect("Bundler enables root imports patterns"),
+        )
+        .resolved_file()
+        .canonical()
+        .as_path(),
+        Path::new("/src/foo.ts")
+    );
+}
+
+#[test]
 fn relative_node_modules_targets_are_external_without_realpath_rewriting() {
     let forbidden_realpath = HostError::new(
         HostErrorKind::Other,

@@ -99,6 +99,7 @@ impl HostResolvedModule {
 struct CachedPackage {
     root: String,
     exports: Option<Value>,
+    imports: Option<Value>,
     types_versions: Option<Value>,
     metadata: Rc<PackageMetadata>,
 }
@@ -113,6 +114,13 @@ enum PackageCacheEntry {
 struct PackageRequest<'a> {
     package_name: &'a str,
     exports_subpath: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ActiveResolution {
+    containing_directory: String,
+    specifier: String,
+    mode: ResolutionMode,
 }
 
 /// `Terminal` distinguishes an explicit `null` target (or a successful
@@ -170,6 +178,13 @@ struct ExportProbeContext {
     is_external_library_import: bool,
     pass: ExtensionProbePass,
     mode: ResolutionMode,
+    kind: PackageMapKind,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum PackageMapKind {
+    Exports,
+    Imports,
 }
 
 /// Sequential Node16/NodeNext/Bundler resolver for the H0.2 package-map
@@ -182,6 +197,8 @@ pub struct ModuleResolver<'a> {
     options: &'a CompilerOptions,
     path_context: PathContext,
     package_cache: BTreeMap<String, PackageCacheEntry>,
+    active_resolutions: Vec<ActiveResolution>,
+    active_package_maps: Vec<String>,
 }
 
 impl<'a> ModuleResolver<'a> {
@@ -201,6 +218,8 @@ impl<'a> ModuleResolver<'a> {
             options,
             path_context: PathContext::new(current_directory, case_sensitive),
             package_cache: BTreeMap::new(),
+            active_resolutions: Vec::new(),
+            active_package_maps: Vec::new(),
         })
     }
 
@@ -218,6 +237,8 @@ impl<'a> ModuleResolver<'a> {
             options,
             path_context,
             package_cache: BTreeMap::new(),
+            active_resolutions: Vec::new(),
+            active_package_maps: Vec::new(),
         })
     }
 
@@ -266,15 +287,69 @@ impl<'a> ModuleResolver<'a> {
         if is_relative_specifier(specifier) {
             return self.resolve_relative(&containing_file, specifier);
         }
+
+        self.resolve_non_relative(&containing_directory, specifier, mode)
+    }
+
+    fn resolve_non_relative(
+        &mut self,
+        containing_directory: &str,
+        specifier: &str,
+        mode: ResolutionMode,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        const MAX_PACKAGE_MAP_REWRITES: usize = 64;
+        let containing_directory = normalize_absolute_path(
+            Path::new(containing_directory),
+            Some(self.current_directory_text()?),
+        )?;
+        let active = ActiveResolution {
+            containing_directory: canonical_text(
+                &containing_directory,
+                self.path_context.use_case_sensitive_file_names(),
+            ),
+            specifier: specifier.to_owned(),
+            mode,
+        };
+        if self.active_resolutions.len() >= MAX_PACKAGE_MAP_REWRITES
+            || self.active_resolutions.contains(&active)
+        {
+            return Ok(ResolutionOutcome::NotFound);
+        }
+        self.active_resolutions.push(active);
+        let result = self.resolve_non_relative_inner(&containing_directory, specifier, mode);
+        self.active_resolutions.pop();
+        result
+    }
+
+    fn resolve_non_relative_inner(
+        &mut self,
+        containing_directory: &str,
+        specifier: &str,
+        mode: ResolutionMode,
+    ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
+        if specifier.starts_with('#') {
+            if let Search::Terminal(outcome) =
+                self.resolve_package_imports(containing_directory, specifier, mode)?
+            {
+                return Ok(outcome);
+            }
+        }
+        if self.options.resolve_package_json_exports == Some(false) {
+            return Err(ResolutionError::unsupported(
+                "resolve-package-json-exports-disabled",
+                "bare package lookup without package exports is outside the H0.2 resolver",
+            ));
+        }
+
         let request = parse_package_request(specifier)?;
 
         if let Search::Terminal(outcome) =
-            self.try_self_reference(&containing_directory, &request, mode)?
+            self.try_self_reference(containing_directory, &request, mode)?
         {
             return Ok(outcome);
         }
 
-        self.resolve_from_node_modules(&containing_directory, &request, mode)
+        self.resolve_from_node_modules(containing_directory, &request, mode)
     }
 
     fn validate_supported_configuration(
@@ -288,12 +363,6 @@ impl<'a> ModuleResolver<'a> {
                 format!(
                     "package exports are implemented only for Node16, NodeNext, and Bundler; got {resolution_kind}"
                 ),
-            ));
-        }
-        if self.options.resolve_package_json_exports == Some(false) {
-            return Err(ResolutionError::unsupported(
-                "resolve-package-json-exports-disabled",
-                "the H0.2b resolver owns only the package-exports branch",
             ));
         }
         if self.options.no_dts_resolution == Some(true) {
@@ -338,6 +407,20 @@ impl<'a> ModuleResolver<'a> {
         let Some(package) = self.find_nearest_package_scope(containing_directory)? else {
             return Ok(Search::Continue);
         };
+        let package_key = canonical_text(
+            &package.root,
+            self.path_context.use_case_sensitive_file_names(),
+        );
+        // loadModuleFromImports re-enters the Node resolver from
+        // `scope.packageDirectory + "/"`. At a filesystem root that spelling
+        // gains a trailing separator (`//` at the POSIX root), so the upstream
+        // package-scope walk does not rediscover the same package; preserve
+        // that boundary without blocking valid non-root self references.
+        if directory_name(&package.root) == package.root
+            && self.active_package_maps.contains(&package_key)
+        {
+            return Ok(Search::Continue);
+        }
         if package.metadata.name() != Some(request.package_name) || package.exports.is_none() {
             return Ok(Search::Continue);
         }
@@ -349,6 +432,52 @@ impl<'a> ModuleResolver<'a> {
             ExtensionProbePass::All,
             mode,
         )
+    }
+
+    /// tsc-port: loadModuleFromImports @6.0.3
+    /// tsc-hash: 4f4510daf578be52814574369949af61fa39b610fef58eadc272282bfd77f6d5
+    /// tsc-span: _tsc.js:41534-41586
+    fn resolve_package_imports(
+        &mut self,
+        containing_directory: &str,
+        specifier: &str,
+        mode: ResolutionMode,
+    ) -> Result<Search<HostResolvedModule>, ResolutionError> {
+        if self.options.resolve_package_json_imports == Some(false) {
+            return Ok(Search::Continue);
+        }
+        let resolution_kind = self.options.emit_module_resolution_kind();
+        if specifier == "#" || (specifier.starts_with("#/") && resolution_kind == 3) {
+            return Ok(Search::Terminal(ResolutionOutcome::NotFound));
+        }
+        let Some(package) = self.find_nearest_package_scope(containing_directory)? else {
+            return Ok(Search::Continue);
+        };
+        let Some(imports) = package.imports.as_ref() else {
+            return Ok(Search::Continue);
+        };
+        let Some(table) = imports.as_object() else {
+            return Ok(Search::Continue);
+        };
+
+        let package_key = canonical_text(
+            &package.root,
+            self.path_context.use_case_sensitive_file_names(),
+        );
+        self.active_package_maps.push(package_key);
+        let search = self.search_exports_table(
+            &package,
+            table,
+            specifier,
+            ExportProbeContext {
+                is_external_library_import: false,
+                pass: ExtensionProbePass::All,
+                mode,
+                kind: PackageMapKind::Imports,
+            },
+        );
+        self.active_package_maps.pop();
+        search
     }
 
     fn resolve_from_node_modules(
@@ -583,13 +712,22 @@ impl<'a> ModuleResolver<'a> {
                             package, &candidate, extension,
                             /* is_external_library_import */ true,
                             /* attach_package_id */ false,
+                            /* resolved_using_ts_extension */ false,
                         );
                     }
                 }
             }
             let outcome = self.probe_export_target(
-                package, &candidate, /* is_external_library_import */ true, probe_pass, mode,
+                package,
+                &candidate,
+                ExportProbeContext {
+                    is_external_library_import: true,
+                    pass: probe_pass,
+                    mode,
+                    kind: PackageMapKind::Exports,
+                },
                 /* attach_package_id */ true,
+                /* raw_package_target */ None,
             )?;
             if matches!(outcome, ResolutionOutcome::Resolved(_)) {
                 return Ok(outcome);
@@ -686,6 +824,7 @@ impl<'a> ModuleResolver<'a> {
         let package = Rc::new(CachedPackage {
             root: directory_name(package_json),
             exports: object.get("exports").cloned(),
+            imports: object.get("imports").cloned(),
             types_versions: object.get("typesVersions").cloned(),
             metadata,
         });
@@ -759,6 +898,7 @@ impl<'a> ModuleResolver<'a> {
                     is_external_library_import,
                     pass: probe_pass,
                     mode,
+                    kind: PackageMapKind::Exports,
                 },
             )?,
             Value::String(_) => Search::Continue,
@@ -782,6 +922,7 @@ impl<'a> ModuleResolver<'a> {
                                 is_external_library_import,
                                 pass: probe_pass,
                                 mode,
+                                kind: PackageMapKind::Exports,
                             },
                         )?
                     } else {
@@ -792,9 +933,12 @@ impl<'a> ModuleResolver<'a> {
                         package,
                         table,
                         subpath,
-                        is_external_library_import,
-                        probe_pass,
-                        mode,
+                        ExportProbeContext {
+                            is_external_library_import,
+                            pass: probe_pass,
+                            mode,
+                            kind: PackageMapKind::Exports,
+                        },
                     )?
                 }
             }
@@ -807,6 +951,7 @@ impl<'a> ModuleResolver<'a> {
                     is_external_library_import,
                     pass: probe_pass,
                     mode,
+                    kind: PackageMapKind::Exports,
                 },
             )?,
             Value::Array(_) => Search::Continue,
@@ -847,23 +992,11 @@ impl<'a> ModuleResolver<'a> {
         package: &CachedPackage,
         table: &Map<String, Value>,
         subpath: &str,
-        is_external_library_import: bool,
-        probe_pass: ExtensionProbePass,
-        mode: ResolutionMode,
+        context: ExportProbeContext,
     ) -> Result<Search<HostResolvedModule>, ResolutionError> {
         if !subpath.ends_with('/') && !subpath.contains('*') {
             if let Some(target) = table.get(subpath) {
-                return self.resolve_selected_export(
-                    package,
-                    target,
-                    "",
-                    false,
-                    ExportProbeContext {
-                        is_external_library_import,
-                        pass: probe_pass,
-                        mode,
-                    },
-                );
+                return self.resolve_selected_export(package, target, "", false, context);
             }
         }
 
@@ -884,11 +1017,7 @@ impl<'a> ModuleResolver<'a> {
                     target,
                     &subpath[key.len()..],
                     false,
-                    ExportProbeContext {
-                        is_external_library_import,
-                        pass: probe_pass,
-                        mode,
-                    },
+                    context,
                 );
             }
             let Some(star) = key.find('*') else {
@@ -911,17 +1040,7 @@ impl<'a> ModuleResolver<'a> {
             let target = table
                 .get(key)
                 .expect("expanding key was collected from this table");
-            return self.resolve_selected_export(
-                package,
-                target,
-                capture,
-                true,
-                ExportProbeContext {
-                    is_external_library_import,
-                    pass: probe_pass,
-                    mode,
-                },
-            );
+            return self.resolve_selected_export(package, target, capture, true, context);
         }
         Ok(Search::Continue)
     }
@@ -939,11 +1058,31 @@ impl<'a> ModuleResolver<'a> {
     ) -> Result<Search<HostResolvedModule>, ResolutionError> {
         match target {
             Value::Null => Ok(Search::Terminal(ResolutionOutcome::NotFound)),
-            Value::String(target) => {
-                if !pattern && !subpath.is_empty() && !target.ends_with('/') {
+            Value::String(raw_target) => {
+                if !pattern && !subpath.is_empty() && !raw_target.ends_with('/') {
                     return Ok(Search::Continue);
                 }
-                let Some(target) = expand_export_target(target, subpath, pattern) else {
+                if context.kind == PackageMapKind::Imports && !raw_target.starts_with("./") {
+                    let Some(target) = expand_imports_bare_target(raw_target, subpath, pattern)
+                    else {
+                        return Ok(Search::Continue);
+                    };
+                    let outcome =
+                        self.resolve_non_relative(&package.root, &target, context.mode)?;
+                    return Ok(match outcome {
+                        ResolutionOutcome::Resolved(mut module) => {
+                            // A package-imports rewrite is owned by the source
+                            // package even when its target traverses
+                            // node_modules. Upstream retains the nested path,
+                            // package id, and original path but clears external
+                            // provenance at the outer imports boundary.
+                            module.is_external_library_import = false;
+                            Search::Terminal(ResolutionOutcome::Resolved(module))
+                        }
+                        ResolutionOutcome::NotFound => Search::Continue,
+                    });
+                }
+                let Some(target) = expand_export_target(raw_target, subpath, pattern) else {
                     return Ok(Search::Continue);
                 };
                 let candidate = normalize_absolute_path(
@@ -956,10 +1095,9 @@ impl<'a> ModuleResolver<'a> {
                 let resolved = self.probe_export_target(
                     package,
                     &candidate,
-                    context.is_external_library_import,
-                    context.pass,
-                    context.mode,
+                    context,
                     /* attach_package_id */ true,
+                    /* raw_package_target */ Some(raw_target),
                 )?;
                 Ok(if matches!(resolved, ResolutionOutcome::Resolved(_)) {
                     Search::Terminal(resolved)
@@ -1044,16 +1182,15 @@ impl<'a> ModuleResolver<'a> {
         &self,
         package: &CachedPackage,
         target: &str,
-        is_external_library_import: bool,
-        probe_pass: ExtensionProbePass,
-        mode: ResolutionMode,
+        context: ExportProbeContext,
         attach_package_id: bool,
+        raw_package_target: Option<&str>,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let (base, probes, preferred_len) = match extension_probe_plan(target) {
             Ok(plan) => plan,
             Err(ResolutionError::Unsupported { feature, .. })
                 if feature == "module-target-extension"
-                    && mode == ResolutionMode::EsNext
+                    && context.mode == ResolutionMode::EsNext
                     && !base_name(target).contains('.') =>
             {
                 return Ok(ResolutionOutcome::NotFound);
@@ -1061,7 +1198,7 @@ impl<'a> ModuleResolver<'a> {
             Err(error) => return Err(error),
         };
 
-        let probes = match probe_pass {
+        let probes = match context.pass {
             ExtensionProbePass::All => probes,
             ExtensionProbePass::Preferred => &probes[..preferred_len],
             ExtensionProbePass::Fallback => &probes[preferred_len..],
@@ -1073,12 +1210,16 @@ impl<'a> ModuleResolver<'a> {
         for (extension, suffix) in probes {
             let candidate = format!("{base}{suffix}");
             if self.host.file_exists(Path::new(&candidate))? {
+                let resolved_using_ts_extension = target.ends_with(suffix)
+                    && is_typescript_module_extension(extension)
+                    && raw_package_target.is_some_and(|raw| !raw.ends_with(suffix));
                 return self.finish_resolution(
                     package,
                     &candidate,
                     extension.clone(),
-                    is_external_library_import,
+                    context.is_external_library_import,
                     attach_package_id,
+                    resolved_using_ts_extension,
                 );
             }
         }
@@ -1095,6 +1236,7 @@ impl<'a> ModuleResolver<'a> {
         extension: ModuleExtension,
         is_external_library_import: bool,
         attach_package_id: bool,
+        resolved_using_ts_extension: bool,
     ) -> Result<ResolutionOutcome<HostResolvedModule>, ResolutionError> {
         let lexical = self.program_path(lexical_path)?;
         let (resolved_file, original_path) = if is_external_library_import {
@@ -1127,7 +1269,7 @@ impl<'a> ModuleResolver<'a> {
             (true, Some(name), Some(version)) => {
                 let submodule_name = lexical_path
                     .strip_prefix(&package.root)
-                    .and_then(|path| path.strip_prefix('/'))
+                    .map(|path| path.trim_start_matches('/'))
                     .ok_or_else(|| {
                         ResolutionError::invalid_data(format!(
                             "resolved path {lexical_path} is outside package {}",
@@ -1144,7 +1286,7 @@ impl<'a> ModuleResolver<'a> {
             extension,
             original_path,
             is_external_library_import,
-            resolved_using_ts_extension: false,
+            resolved_using_ts_extension,
             package_id,
             alternate_result: None,
             package_metadata: Rc::clone(&package.metadata),
@@ -1225,7 +1367,8 @@ fn validate_path_context(
 
 fn parse_package_request(specifier: &str) -> Result<PackageRequest<'_>, ResolutionError> {
     if specifier.is_empty()
-        || specifier.starts_with(['.', '/', '\\', '#'])
+        || is_relative_specifier(specifier)
+        || specifier.starts_with(['/', '\\'])
         || specifier.contains(['\\', '\0', ':'])
     {
         return Err(ResolutionError::unsupported(
@@ -1291,6 +1434,19 @@ fn is_typescript_family_specifier(specifier: &str) -> bool {
     [".ts", ".tsx", ".mts", ".cts"]
         .iter()
         .any(|extension| specifier.ends_with(extension))
+}
+
+fn is_typescript_module_extension(extension: &ModuleExtension) -> bool {
+    matches!(
+        extension,
+        ModuleExtension::Ts
+            | ModuleExtension::Tsx
+            | ModuleExtension::Dts
+            | ModuleExtension::Mts
+            | ModuleExtension::Dmts
+            | ModuleExtension::Cts
+            | ModuleExtension::Dcts
+    )
 }
 
 fn path_contains_node_modules(path: &str) -> bool {
@@ -1435,6 +1591,23 @@ fn expand_export_target(target: &str, subpath: &str, pattern: bool) -> Option<St
         || subpath.contains(['\\', '\0'])
         || contains_forbidden_package_segment(target)
         || contains_forbidden_package_segment(subpath)
+        || (!pattern && target.contains('*'))
+    {
+        return None;
+    }
+    Some(if pattern {
+        target.replace('*', subpath)
+    } else {
+        format!("{target}{subpath}")
+    })
+}
+
+fn expand_imports_bare_target(target: &str, subpath: &str, pattern: bool) -> Option<String> {
+    if target.is_empty()
+        || target.starts_with("../")
+        || target.starts_with(['/', '\\'])
+        || target.contains(['\\', '\0', ':'])
+        || subpath.contains(['\\', '\0'])
         || (!pattern && target.contains('*'))
     {
         return None;
