@@ -793,6 +793,25 @@ pub fn check_program_with_libs_at_observed(
     current_directory: &str,
     mut observe_phase: impl FnMut(CheckPhase),
 ) -> CheckResult {
+    let cache_enabled = std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_none_or(|value| value != "0");
+    check_program_with_libs_at_observed_cache_mode(
+        libs,
+        files,
+        options,
+        current_directory,
+        cache_enabled,
+        &mut observe_phase,
+    )
+}
+
+fn check_program_with_libs_at_observed_cache_mode(
+    libs: &[InputFile],
+    files: &[InputFile],
+    options: &CompilerOptions,
+    current_directory: &str,
+    cache_enabled: bool,
+    observe_phase: &mut impl FnMut(CheckPhase),
+) -> CheckResult {
     observe_phase(CheckPhase::Parse);
 
     let fixture_names: std::collections::HashSet<&str> =
@@ -801,6 +820,25 @@ pub fn check_program_with_libs_at_observed(
         .iter()
         .filter(|lib| !fixture_names.contains(lib.name.as_str()))
         .collect();
+
+    if !effective_libs.is_empty() && !cache_enabled {
+        // Cache-off is the L3 A/B path. Keep the parsed and bound prefix local
+        // so repeated disabled-cache calls do not leak one bundle each.
+        let bundle_options = lib_bundle_options(options);
+        let lib_sources = parse_lib_sources(&effective_libs, &bundle_options);
+        let lib_binders = bind_lib_sources(&lib_sources, &bundle_options);
+        return check_program_with_prebound_libs_at_observed(
+            libs,
+            files,
+            options,
+            current_directory,
+            &lib_sources,
+            &lib_binders,
+            false,
+            observe_phase,
+        );
+    }
+
     let bundle = (!effective_libs.is_empty()).then(|| lib_bundle(&effective_libs, options));
     let (lib_sources, lib_binders): (&[tsc_syntax::SourceFile], &[tsc_binder::Binder<'_>]) =
         match bundle {
@@ -816,7 +854,7 @@ pub fn check_program_with_libs_at_observed(
         lib_sources,
         lib_binders,
         false,
-        &mut observe_phase,
+        observe_phase,
     )
 }
 
@@ -1351,16 +1389,31 @@ fn check_program_with_prebound_libs_at_observed(
 /// bundle is deliberately leaked (process-lifetime; bounded by the
 /// distinct lib-set count, 39 across the conformance corpus), which
 /// resolves the sources↔binders self-reference without unsafe.
+/// This cache is legacy harness infrastructure only; the H0 production
+/// ProgramSession uses the locally owned entry above and never reaches it.
 /// Read-only-after-bind is structural: ProgramBinder holds shared
 /// references and its symbol_mut refuses file-owned ids.
 struct LibBundle {
+    options: &'static CompilerOptions,
     sources: &'static [tsc_syntax::SourceFile],
     binders: &'static [tsc_binder::Binder<'static>],
 }
 
-/// The per-lib-set bundle cache. Keyed by the ordered (name, text)
-/// list plus the projection of CompilerOptions onto the parser target
-/// and binder's three option observables — the only option fields a
+impl LibBundle {
+    fn exactly_matches(&self, libs: &[&InputFile], options: &CompilerOptions) -> bool {
+        self.options == options
+            && self.sources.len() == libs.len()
+            && self
+                .sources
+                .iter()
+                .zip(libs)
+                .all(|(source, lib)| source.file_name == lib.name && source.text == lib.text)
+    }
+}
+
+/// The per-lib-set bundle cache. Indexed by the ordered (name, text
+/// fingerprint) list plus the projection of CompilerOptions onto the parser
+/// target and binder's three option observables — the only option fields a
 /// cached bundle can expose. Parsing reads `emit_script_target()` for
 /// scanner classification and SourceFile.language_version. The binder
 /// reads that same computed target (declare.rs language_version,
@@ -1372,8 +1425,11 @@ struct LibBundle {
 /// option combination (~11.5 GB peak over the conformance corpus);
 /// the projection restores the per-lib-set bound. A new `options.`
 /// read in the binder MUST extend this projection.
-/// `TSRS_LIB_BUNDLE_CACHE=0` bypasses the map (fresh build+leak per
-/// call) — the L3 A/B lever proving reuse changes nothing.
+/// The fingerprint key only selects a bucket. Reuse additionally requires
+/// exact ordered file-name, full-text, and projected-option equality.
+/// `TSRS_LIB_BUNDLE_CACHE=0` bypasses this process-lifetime harness cache and
+/// builds a locally owned prefix — the L3 A/B lever proving reuse changes
+/// nothing without leaking one fresh bundle per call.
 fn lib_bundle_options(options: &CompilerOptions) -> CompilerOptions {
     // Each field holds the observable's canonical preimage, so the
     // projected struct evaluates every binder read identically to the
@@ -1390,41 +1446,61 @@ fn lib_bundle_options(options: &CompilerOptions) -> CompilerOptions {
 }
 
 fn lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static LibBundle {
+    lib_bundle_with_fingerprint(libs, options, lib_text_fingerprint)
+}
+
+fn lib_bundle_with_fingerprint(
+    libs: &[&InputFile],
+    options: &CompilerOptions,
+    fingerprint: impl Fn(&str) -> u64,
+) -> &'static LibBundle {
     use std::collections::HashMap;
-    use std::sync::{Mutex, OnceLock};
+    use std::sync::{Arc, Mutex, OnceLock};
 
     type Key = (Vec<(String, u64)>, CompilerOptions);
-    static CACHE: OnceLock<Mutex<HashMap<Key, &'static LibBundle>>> = OnceLock::new();
+    type Bucket = Arc<Mutex<Vec<&'static LibBundle>>>;
+    type Buckets = HashMap<Key, Bucket>;
+    static CACHE: OnceLock<Mutex<Buckets>> = OnceLock::new();
 
     // The bundle is built from the projection too: whichever program
     // builds first, the leaked options are the same struct.
     let bundle_options = lib_bundle_options(options);
 
-    let cache_enabled = std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_none_or(|value| value != "0");
     let key: Key = (
         libs.iter()
-            .map(|lib| (lib.name.clone(), lib_text_fingerprint(&lib.text)))
+            .map(|lib| (lib.name.clone(), fingerprint(&lib.text)))
             .collect(),
         bundle_options.clone(),
     );
-    if cache_enabled {
-        let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-        if let Some(bundle) = cache.lock().expect("lib bundle cache").get(&key) {
-            return bundle;
-        }
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    let bucket = {
+        let mut cache = cache.lock().expect("lib bundle cache");
+        Arc::clone(
+            cache
+                .entry(key)
+                .or_insert_with(|| Arc::new(Mutex::new(Vec::new()))),
+        )
+    };
+    let mut bucket = bucket.lock().expect("lib bundle cache bucket");
+    if let Some(&bundle) = bucket
+        .iter()
+        .find(|bundle| bundle.exactly_matches(libs, &bundle_options))
+    {
+        return bundle;
     }
+
+    // Build under the per-index-key lock so equal cold callers cannot leak
+    // duplicate process-lifetime bundles. Distinct lib sets still build in
+    // parallel without holding the short-lived map lock.
     let bundle = build_lib_bundle(libs, &bundle_options);
-    if cache_enabled {
-        let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-        cache.lock().expect("lib bundle cache").insert(key, bundle);
-    }
+    bucket.push(bundle);
     bundle
 }
 
-/// Content fingerprint for the bundle cache key. The key's u64 has
-/// always stood in for text identity (64-bit collision accepted); a
-/// word-folding FNV variant keeps full-text coverage at a fraction of
-/// the SipHash cost, which dominated per-case conformance time.
+/// Content fingerprint for selecting a bundle-cache bucket. Exact text
+/// equality is checked inside the bucket before reuse. A word-folding FNV
+/// variant keeps full-text coverage at a fraction of the SipHash cost, which
+/// dominated per-case conformance time.
 fn lib_text_fingerprint(text: &str) -> u64 {
     let bytes = text.as_bytes();
     let mut hash = 0xcbf29ce484222325u64;
@@ -1446,7 +1522,11 @@ fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static 
         Box::leak(parse_lib_sources(libs, options).into_boxed_slice());
     let binders: &'static [tsc_binder::Binder<'static>] =
         Box::leak(bind_lib_sources(sources, options).into_boxed_slice());
-    Box::leak(Box::new(LibBundle { sources, binders }))
+    Box::leak(Box::new(LibBundle {
+        options,
+        sources,
+        binders,
+    }))
 }
 
 fn parse_lib_sources(
@@ -1966,6 +2046,102 @@ mod tests {
             ..base.clone()
         };
         assert!(!std::ptr::eq(shared, lib_bundle(&libs, &fallthrough)));
+    }
+
+    #[test]
+    fn lib_bundle_forced_fingerprint_collision_requires_exact_text() {
+        fn collide_all_text(_: &str) -> u64 {
+            0
+        }
+
+        let first = InputFile {
+            name: "lib.bundle-collision-probe.d.ts".to_owned(),
+            text: "declare const collisionProbe: string;\n".to_owned(),
+        };
+        let second = InputFile {
+            name: first.name.clone(),
+            text: "declare const collisionProbe: number;\n".to_owned(),
+        };
+        let options = CompilerOptions::default();
+
+        let first_bundle = lib_bundle_with_fingerprint(&[&first], &options, collide_all_text);
+        let second_bundle = lib_bundle_with_fingerprint(&[&second], &options, collide_all_text);
+        let first_again = lib_bundle_with_fingerprint(&[&first], &options, collide_all_text);
+
+        assert!(!std::ptr::eq(first_bundle, second_bundle));
+        assert!(std::ptr::eq(first_bundle, first_again));
+        assert_eq!(first_bundle.sources[0].text, first.text);
+        assert_eq!(second_bundle.sources[0].text, second.text);
+    }
+
+    #[test]
+    fn parallel_cold_lib_bundle_callers_share_one_exact_entry() {
+        let lib = InputFile {
+            name: "lib.bundle-parallel-cold-probe.d.ts".to_owned(),
+            text: (0..512)
+                .map(|index| format!("interface ColdProbe{index} {{ value: number }}\n"))
+                .collect(),
+        };
+        let options = CompilerOptions::default();
+        let start = std::sync::Barrier::new(3);
+
+        let (first, second) = std::thread::scope(|scope| {
+            let first = scope.spawn(|| {
+                start.wait();
+                lib_bundle(&[&lib], &options)
+            });
+            let second = scope.spawn(|| {
+                start.wait();
+                lib_bundle(&[&lib], &options)
+            });
+            start.wait();
+            (
+                first.join().expect("first cold cache caller"),
+                second.join().expect("second cold cache caller"),
+            )
+        });
+
+        assert!(std::ptr::eq(first, second));
+    }
+
+    #[test]
+    fn cache_off_owned_prefix_matches_cached_harness_result() {
+        let libs = [InputFile {
+            name: "lib.cache-mode-probe.d.ts".to_owned(),
+            text: "interface IArguments {}\ninterface Array<T> {}\ninterface Object {}\ninterface Function {}\ninterface CallableFunction extends Function {}\ninterface NewableFunction extends Function {}\ninterface String {}\ninterface Number {}\ninterface Boolean {}\ninterface RegExp {}\n"
+                .to_owned(),
+        }];
+        let files = [InputFile {
+            name: "cache-mode-probe.ts".to_owned(),
+            text: "const value: string = 1;\n".to_owned(),
+        }];
+        let options = CompilerOptions::default();
+        let mut cached_phases = Vec::new();
+        let mut owned_phases = Vec::new();
+
+        let cached = check_program_with_libs_at_observed_cache_mode(
+            &libs,
+            &files,
+            &options,
+            "/",
+            true,
+            &mut |phase| cached_phases.push(phase),
+        );
+        let owned = check_program_with_libs_at_observed_cache_mode(
+            &libs,
+            &files,
+            &options,
+            "/",
+            false,
+            &mut |phase| owned_phases.push(phase),
+        );
+
+        assert_eq!(owned, cached);
+        assert_eq!(owned_phases, cached_phases);
+        assert_eq!(
+            owned_phases,
+            [CheckPhase::Parse, CheckPhase::Bind, CheckPhase::Check]
+        );
     }
 
     #[test]

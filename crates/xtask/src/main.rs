@@ -5101,8 +5101,8 @@ fn select_invariant_pipeline_workers(
     if lib_bundle_cache_enabled {
         Ok(requested.min(available))
     } else {
-        // Cache-off is a deliberate fresh-build/leak A/B mode. Overlapping
-        // those builds would multiply its already exceptional memory cost.
+        // Cache-off is a deliberate locally owned fresh-build A/B mode.
+        // Overlapping those builds would multiply peak memory and CPU cost.
         Ok(1)
     }
 }
