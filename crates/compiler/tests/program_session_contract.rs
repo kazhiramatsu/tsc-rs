@@ -4,11 +4,12 @@ use tsc_checker::{
 };
 use tsc_compiler::{DriverError, NoEmitOutcome, ProgramSession};
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory, MessageChain};
+use tsc_host::MemoryCompilerHost;
 use tsc_program::{
-    CompilerOptions, ModuleExtension, ModuleResolution, PackageId, PathContext,
+    CompilerOptions, ModuleExtension, ModuleResolution, ModuleResolver, PackageId, PathContext,
     PreparationDiagnostics, PreparedAuxiliaryFile, PreparedProgram, PreparedProgramBuilder,
-    PreparedSourceFile, ProgramPath, ResolutionKey, ResolutionMode, ResolutionRequestKind,
-    ResolvedModule, ResolvedModuleTarget, SourceFileId,
+    PreparedSourceFile, ProgramPath, ResolutionKey, ResolutionMode, ResolutionOutcome,
+    ResolutionRequestKind, ResolvedModule, ResolvedModuleTarget, SourceFileId,
 };
 
 const MINIMAL_GLOBALS: &str = r#"
@@ -840,17 +841,12 @@ fn lossy_resolved_source_metadata_is_rejected_until_it_is_consumed() {
     #[derive(Clone, Copy)]
     enum Case {
         OriginalPath,
-        ExternalLibraryImport,
         PackageId,
     }
     let cases = [
         (
             Case::OriginalPath,
             UnsupportedAuthoritativeResolution::OriginalPath,
-        ),
-        (
-            Case::ExternalLibraryImport,
-            UnsupportedAuthoritativeResolution::ExternalLibraryImport,
         ),
         (
             Case::PackageId,
@@ -877,7 +873,6 @@ fn lossy_resolved_source_metadata_is_rejected_until_it_is_consumed() {
                 );
                 let module = match case {
                     Case::OriginalPath => module.with_original_path(path("/alias/main.ts")),
-                    Case::ExternalLibraryImport => module.with_external_library_import(true),
                     Case::PackageId => module.with_package_id(PackageId::new("pkg", "", "1.0.0")),
                 };
                 builder
@@ -900,6 +895,157 @@ fn lossy_resolved_source_metadata_is_rejected_until_it_is_consumed() {
         };
         assert_eq!(actual, expected);
     }
+}
+
+#[test]
+fn external_library_source_metadata_is_consumed_authoritatively() {
+    for is_external_library_import in [false, true] {
+        let prepared = authoritative_program(
+            &[
+                (
+                    "/node_modules/pkg/index.d.ts",
+                    "export const value: number;\n",
+                ),
+                (
+                    "/main.ts",
+                    "import { value } from \"pkg\";\nconst checked: number = value;\n",
+                ),
+            ],
+            &[1],
+            CompilerOptions {
+                module: Some(1),
+                module_resolution: Some(2),
+                ..CompilerOptions::default()
+            },
+            |builder, ids| {
+                builder
+                    .add_module_resolution(
+                        module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+                        Ok(ModuleResolution::resolved(
+                            ResolvedModule::new(
+                                ResolvedModuleTarget::Source {
+                                    source: ids[0],
+                                    resolved_file: path("/node_modules/pkg/index.d.ts"),
+                                },
+                                ModuleExtension::Dts,
+                            )
+                            .with_external_library_import(is_external_library_import),
+                        )),
+                    )
+                    .expect("add external library source row");
+            },
+        );
+
+        let outcome = consume(ProgramSession::new(prepared));
+        assert!(outcome.semantic_diagnostics().is_empty());
+    }
+}
+
+#[test]
+fn memory_host_exports_resolution_feeds_the_authoritative_session_table() {
+    const PACKAGE_JSON: &str = r#"{
+        "name": "inner",
+        "exports": {
+            "./mjs/*": "./*.mjs",
+            "./mjs/exclude/*": null
+        }
+    }"#;
+    let options = CompilerOptions {
+        no_emit: Some(true),
+        module: Some(102),
+        ..CompilerOptions::default()
+    };
+    let host = MemoryCompilerHost::builder("/")
+        .file("/index.mts", "")
+        .file("/node_modules/inner/package.json", PACKAGE_JSON)
+        .file(
+            "/node_modules/inner/index.d.mts",
+            "export const mjsSource: number;\n",
+        )
+        .file(
+            "/node_modules/inner/exclude/index.d.mts",
+            "export const mustStayBlocked: number;\n",
+        )
+        .build()
+        .expect("build memory host");
+    let mut resolver = ModuleResolver::new(&host, &options).expect("create module resolver");
+
+    let mut builder = PreparedProgram::builder(PathContext::new(path("/"), true), options.clone());
+    let lib = builder
+        .add_source_file(PreparedSourceFile::new(path("/lib.d.ts"), MINIMAL_GLOBALS))
+        .expect("add lib");
+    let target = builder
+        .add_source_file(
+            PreparedSourceFile::new(
+                path("/node_modules/inner/index.d.mts"),
+                "export const mjsSource: number;\n",
+            )
+            .with_implied_node_format(ResolutionMode::EsNext),
+        )
+        .expect("add exports target");
+    let main = builder
+        .add_source_file(
+            PreparedSourceFile::new(
+                path("/index.mts"),
+                concat!(
+                    "import { mjsSource } from \"inner/mjs/index\";\n",
+                    "import * as blocked from \"inner/mjs/exclude/index\";\n",
+                    "const checked: number = mjsSource;\n",
+                    "blocked;\n",
+                ),
+            )
+            .with_implied_node_format(ResolutionMode::EsNext),
+        )
+        .expect("add root");
+    builder.add_library_file(lib).expect("add library");
+    builder.add_root_file(main).expect("add root file");
+
+    let allowed = resolver
+        .resolve(
+            std::path::Path::new("/index.mts"),
+            "inner/mjs/index",
+            ResolutionMode::EsNext,
+        )
+        .expect("resolve allowed export");
+    let ResolutionOutcome::Resolved(allowed) = allowed else {
+        panic!("allowed export must resolve");
+    };
+    let allowed = allowed
+        .into_resolved_module(ResolvedModuleTarget::Source {
+            source: target,
+            resolved_file: path("/node_modules/inner/index.d.mts"),
+        })
+        .expect("bind allowed target");
+    builder
+        .add_module_resolution(
+            module_key("/index.mts", "inner/mjs/index", ResolutionMode::EsNext),
+            Ok(ModuleResolution::resolved(allowed)),
+        )
+        .expect("add allowed row");
+
+    let blocked = resolver
+        .resolve(
+            std::path::Path::new("/index.mts"),
+            "inner/mjs/exclude/index",
+            ResolutionMode::EsNext,
+        )
+        .expect("resolve blocked export");
+    assert_eq!(blocked, ResolutionOutcome::NotFound);
+    builder
+        .add_module_resolution(
+            module_key(
+                "/index.mts",
+                "inner/mjs/exclude/index",
+                ResolutionMode::EsNext,
+            ),
+            Ok(ModuleResolution::not_found()),
+        )
+        .expect("add blocked row");
+
+    let outcome = consume(ProgramSession::new(
+        builder.build().expect("build prepared program"),
+    ));
+    assert_eq!(codes(outcome.semantic_diagnostics()), [2307]);
 }
 
 #[test]

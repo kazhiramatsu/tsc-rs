@@ -92,20 +92,6 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                 UnsupportedAuthoritativeResolution::OriginalPath,
             ));
         }
-        let target_is_in_node_modules =
-            resolved_file
-                .canonical()
-                .as_path()
-                .to_str()
-                .is_some_and(|path| {
-                    path.split(['/', '\\'])
-                        .any(|component| component == "node_modules")
-                });
-        if module.is_external_library_import() || target_is_in_node_modules {
-            return Err(AuthoritativeModuleLookupFailure::Unsupported(
-                UnsupportedAuthoritativeResolution::ExternalLibraryImport,
-            ));
-        }
         if module.package_id().is_some() {
             return Err(AuthoritativeModuleLookupFailure::Unsupported(
                 UnsupportedAuthoritativeResolution::PackageId,
@@ -120,6 +106,7 @@ impl AuthoritativeModuleProvider for PreparedModuleProvider<'_> {
                     ModuleExtension::Tsx | ModuleExtension::Jsx
                 ),
                 is_arbitrary_extension: matches!(module.extension(), ModuleExtension::Arbitrary(_)),
+                is_external_library_import: module.is_external_library_import(),
             },
         ))
     }

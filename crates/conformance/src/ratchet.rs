@@ -3739,10 +3739,13 @@ pub(crate) fn verify_accepted_pair_history(workspace: &Path) -> ConformanceResul
     let matches_rel = git_rel_path(&git_root, workspace, MATCHES_REL_PATH)?;
     let inputs_rel = git_rel_path(&git_root, workspace, ORACLE_INPUTS_REL_PATH)?;
     let mut git_memo = GitMemo::new(&git_root)?;
-    let working_pair_differs = git_memo.blob_optional("HEAD", &matches_rel)?.as_deref()
-        != Some(&matches_bytes)
-        || git_memo.blob_optional("HEAD", &inputs_rel)?.as_deref() != Some(&inputs_bytes);
-    if working_pair_differs {
+    // Transition-name equality is required only on an oracle-input version
+    // edge. A later accepted-match-only growth pins the same manifest bytes
+    // but correctly records no new input transition, matching the committed
+    // history rule in verify_committed_artifact_pairs_with_memo.
+    let working_inputs_differs =
+        git_memo.blob_optional("HEAD", &inputs_rel)?.as_deref() != Some(&inputs_bytes);
+    if working_inputs_differs {
         verify_pair_transition("<working tree>", &matches, &inputs)?;
     }
     verify_lineage_with_memo::<MatchesArtifact>(&mut git_memo, &matches_rel, &matches_bytes)?;
@@ -3779,10 +3782,9 @@ pub fn check(workspace: &Path, baseline: Option<&str>) -> ConformanceResult<()> 
     let matches_rel = git_rel_path(&git_root, workspace, MATCHES_REL_PATH)?;
     let inputs_rel = git_rel_path(&git_root, workspace, ORACLE_INPUTS_REL_PATH)?;
     let mut git_memo = GitMemo::new(&git_root)?;
-    let working_pair_differs = git_memo.blob_optional("HEAD", &matches_rel)?.as_deref()
-        != Some(&matches_bytes)
-        || git_memo.blob_optional("HEAD", &inputs_rel)?.as_deref() != Some(&inputs_bytes);
-    if working_pair_differs {
+    let working_inputs_differs =
+        git_memo.blob_optional("HEAD", &inputs_rel)?.as_deref() != Some(&inputs_bytes);
+    if working_inputs_differs {
         verify_pair_transition("<working tree>", &matches, &inputs)?;
     }
     let matches_versions =
@@ -6813,6 +6815,60 @@ mod tests {
             .to_string();
         assert!(err.contains("artifact pair"), "{err}");
         assert!(err.contains("different oracle-inputs blob"), "{err}");
+    }
+
+    #[test]
+    fn working_matches_only_growth_after_an_input_transition_needs_no_new_transition() {
+        let repo = init_repo("working-matches-only-after-input-transition");
+        let v1_inputs = inputs_stub();
+        let v1_inputs_bytes = encode_artifact(&v1_inputs).unwrap();
+        let mut v1_matches = matches_artifact(views_with(&[2322], &[2322]), true, None, None);
+        v1_matches.inputs = MatchesInputs {
+            oracle_inputs_sha256: sha256_hex(&v1_inputs_bytes),
+            tsc_js_sha256: v1_inputs.vendor.tsc_js_sha256.clone(),
+        };
+        let v1_matches_bytes = encode_artifact(&v1_matches).unwrap();
+        let c1 = commit_artifact_pair(&repo, &v1_matches_bytes, &v1_inputs_bytes, "bootstrap");
+
+        let mut v2_inputs = v1_inputs.clone();
+        v2_inputs.bootstrap = false;
+        v2_inputs.previous = Some(lineage_to(&c1, &v1_inputs_bytes));
+        v2_inputs.transition = Some(PRODUCER_PIN_EXTENSION.to_owned());
+        v2_inputs.producer = Some(producer_stub());
+        let v2_inputs_bytes = encode_artifact(&v2_inputs).unwrap();
+        let mut v2_matches = matches_artifact(
+            views_with(&[2322], &[2322]),
+            false,
+            Some(lineage_to(&c1, &v1_matches_bytes)),
+            Some(PRODUCER_PIN_EXTENSION.to_owned()),
+        );
+        v2_matches.inputs = MatchesInputs {
+            oracle_inputs_sha256: sha256_hex(&v2_inputs_bytes),
+            tsc_js_sha256: v2_inputs.vendor.tsc_js_sha256.clone(),
+        };
+        let v2_matches_bytes = encode_artifact(&v2_matches).unwrap();
+        let c2 = commit_artifact_pair(
+            &repo,
+            &v2_matches_bytes,
+            &v2_inputs_bytes,
+            "producer transition pair",
+        );
+
+        let mut working_matches = matches_artifact(
+            views_with(&[2322, 2345], &[2322]),
+            false,
+            Some(lineage_to(&c2, &v2_matches_bytes)),
+            None,
+        );
+        working_matches.inputs = v2_matches.inputs.clone();
+        fs::write(
+            repo.join(MATCHES_REL_PATH),
+            encode_artifact(&working_matches).unwrap(),
+        )
+        .unwrap();
+
+        verify_accepted_pair_history(&repo)
+            .expect("matches-only growth reuses the activated input manifest without a transition");
     }
 
     #[test]

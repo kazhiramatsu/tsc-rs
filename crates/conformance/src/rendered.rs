@@ -326,7 +326,7 @@ pub fn run_t4_report(options: &T4ReportOptions) -> ConformanceResult<T4Report> {
                 .collect::<Vec<_>>();
             let oracle_rendered = pool.render_sorted_records(program_path, &oracle_supported)?;
 
-            let current = current_case_tsrs(program, &vendor_lib_dir)?;
+            let current = current_case_tsrs(&fixture_name, program, &vendor_lib_dir)?;
             let tsrs_supported = current
                 .all
                 .iter()

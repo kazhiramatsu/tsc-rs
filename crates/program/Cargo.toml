@@ -12,8 +12,10 @@ name = "tsc_program"
 path = "src/lib.rs"
 
 [dependencies]
+serde_json = { version = "1.0", features = ["preserve_order"] }
 tsc-diagnostics.workspace = true
 tsc-host.workspace = true
+tsc-syntax.workspace = true
 tsc-types.workspace = true
 
 [lints]

@@ -43,6 +43,9 @@ pub(crate) struct ResolvedProgramModule {
     /// The host resolved an unknown written extension through its
     /// `.d.<extension>.ts` declaration twin.
     pub is_arbitrary_extension: bool,
+    /// The authoritative host selected this source through an external
+    /// library package lookup.
+    pub is_external_library_import: bool,
 }
 
 /// The resolver's three-way verdict: `Suppressed` marks a miss that
@@ -3312,7 +3315,11 @@ impl<'a> CheckerState<'a> {
                 if let Some(error_node) = error_node {
                     let resolved_file_path = Self::normalize_program_path(&resolved_file_name, "");
                     if Self::is_untyped_javascript_path(&resolved_file_path)
-                        && Self::node_modules_package_root_for_path(&resolved_file_path).is_some()
+                        && if self.authoritative_module_provider.is_some() {
+                            resolved.is_external_library_import
+                        } else {
+                            Self::node_modules_package_root_for_path(&resolved_file_path).is_some()
+                        }
                     {
                         let untyped = self.untyped_resolution_from_path(
                             location,
@@ -4020,6 +4027,7 @@ impl<'a> CheckerState<'a> {
                     resolved_using_ts_extension: resolved.resolved_using_ts_extension,
                     is_tsx: resolved.is_tsx,
                     is_arbitrary_extension: resolved.is_arbitrary_extension,
+                    is_external_library_import: resolved.is_external_library_import,
                 })
             }
             Err(failure) => {
@@ -4123,6 +4131,7 @@ impl<'a> CheckerState<'a> {
                                 resolved_using_ts_extension: false,
                                 is_tsx: probed.ends_with(".tsx"),
                                 is_arbitrary_extension: false,
+                                is_external_library_import: false,
                             });
                         }
                     }
@@ -4136,6 +4145,7 @@ impl<'a> CheckerState<'a> {
                                     resolved_using_ts_extension: false,
                                     is_tsx: probed.ends_with(".jsx"),
                                     is_arbitrary_extension: false,
+                                    is_external_library_import: false,
                                 });
                             }
                         }
@@ -5402,6 +5412,7 @@ impl<'a> CheckerState<'a> {
                 is_tsx: (path.ends_with(".tsx") && !path.ends_with(".d.tsx"))
                     || path.ends_with(".jsx"),
                 is_arbitrary_extension: false,
+                is_external_library_import: false,
             }
         };
         // tsc-port: tryAddingExtensions' arbitrary-extension declaration
@@ -5424,6 +5435,7 @@ impl<'a> CheckerState<'a> {
                             resolved_using_ts_extension: false,
                             is_tsx: false,
                             is_arbitrary_extension: true,
+                            is_external_library_import: false,
                         });
                     }
                 }

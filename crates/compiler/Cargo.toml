@@ -16,5 +16,8 @@ tsc-checker.workspace = true
 tsc-diagnostics.workspace = true
 tsc-program.workspace = true
 
+[dev-dependencies]
+tsc-host.workspace = true
+
 [lints]
 workspace = true
