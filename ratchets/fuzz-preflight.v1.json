@@ -4,7 +4,7 @@
   "source_references": [
     {
       "path": "ratchets/fuzz-domain.v1.toml",
-      "sha256": "f88346871facee5951245a70b475aa9707bb518efdbf4da65f8871f2a462625c"
+      "sha256": "ec7d436839d4c9247153ed632b8e3d332b3d500297302c8afc765ab1f40b74e7"
     },
     {
       "path": "ratchets/fuzz-oracle-deviations.v1.json",
@@ -36,7 +36,7 @@
     },
     {
       "path": "crates/xtask/src/m8_evidence.rs",
-      "sha256": "b287755df524c44361c147cd4496d85f09bf9f24ac7318acdd15a09f1cee4f86"
+      "sha256": "a6e96b0d54d00fbebe3e50cac632c591a2622da536f9e74df08b58ddc1b3dbe9"
     },
     {
       "path": "crates/checker/src/lib.rs",
@@ -56,7 +56,7 @@
     },
     {
       "path": "crates/conformance/src/lib.rs",
-      "sha256": "1fffdae849cf35dea360478343b6931556057e51185af3e3a6d96944b341c09b"
+      "sha256": "41722c62c1874ab199a995c0befc449350bd01d38f6ec03e9b4341bca33533a8"
     },
     {
       "path": "crates/conformance/src/rendered.rs",
@@ -198,7 +198,7 @@
       "detail": "The current generator is exactly eight case%8 templates under one 32-case entry smoke. It is inventoried as legacy-smoke-only, not as the production domain.",
       "blocks": [],
       "evidence": [
-        "crates/xtask/src/m8_evidence.rs:1496-1528",
+        "crates/xtask/src/m8_evidence.rs:1678-1710",
         "m8-evidence.json:497-500"
       ]
     },
@@ -212,7 +212,7 @@
       ],
       "evidence": [
         "ratchets/fuzz-domain.v1.toml",
-        "crates/xtask/src/m8_evidence.rs:1496-1528"
+        "crates/xtask/src/m8_evidence.rs:1678-1710"
       ]
     },
     {
@@ -226,7 +226,7 @@
       "evidence": [
         "crates/harness/src/lib.rs:39-47",
         "crates/harness/src/lib.rs:228-264",
-        "crates/xtask/src/m8_evidence.rs:891-898",
+        "crates/xtask/src/m8_evidence.rs:1074-1082",
         "crates/fuzz/src/schema.rs",
         "crates/fuzz/tests/foundation_contract.rs"
       ]
@@ -238,8 +238,8 @@
       "blocks": [],
       "evidence": [
         "crates/oracle/render-driver.mjs:12-35",
-        "crates/xtask/src/m8_evidence.rs:1104-1171",
-        "crates/xtask/src/m8_evidence.rs:1182-1192",
+        "crates/xtask/src/m8_evidence.rs:1287-1354",
+        "crates/xtask/src/m8_evidence.rs:1365-1375",
         "crates/oracle/m9-observation.mjs",
         "crates/fuzz/src/adapters/oracle.rs",
         "crates/fuzz/src/adapters/tsrs.rs",
@@ -263,7 +263,7 @@
         "qualifying-window"
       ],
       "evidence": [
-        "crates/xtask/src/m8_evidence.rs:1049-1055",
+        "crates/xtask/src/m8_evidence.rs:1232-1238",
         "crates/oracle/src/lib.rs:350-358",
         "crates/oracle/m9-driver.mjs",
         "crates/fuzz/src/process_session.rs",
@@ -347,7 +347,7 @@
         "qualifying-window"
       ],
       "evidence": [
-        "crates/xtask/src/m8_evidence.rs:837-858",
+        "crates/xtask/src/m8_evidence.rs:1020-1041",
         "crates/fuzz/src/replay.rs",
         "crates/fuzz/src/executor.rs",
         "crates/fuzz/src/process_session.rs",
@@ -370,8 +370,8 @@
         "qualifying-window"
       ],
       "evidence": [
-        "crates/xtask/src/m8_evidence.rs:861-866",
-        "crates/xtask/src/m8_evidence.rs:1530-1575",
+        "crates/xtask/src/m8_evidence.rs:1045-1050",
+        "crates/xtask/src/m8_evidence.rs:1712-1757",
         "crates/fuzz/src/cli.rs"
       ]
     },
@@ -384,7 +384,7 @@
         "qualifying-window"
       ],
       "evidence": [
-        "crates/xtask/src/m8_evidence.rs:984-995",
+        "crates/xtask/src/m8_evidence.rs:1168-1179",
         "crates/fuzz/src/classify.rs",
         "crates/fuzz/src/evaluate.rs",
         "crates/fuzz/tests/vector_production_contract.rs",
@@ -443,7 +443,7 @@
         "qualifying-window"
       ],
       "evidence": [
-        "crates/xtask/src/m8_evidence.rs:882-919"
+        "crates/xtask/src/m8_evidence.rs:1065-1102"
       ]
     },
     {
