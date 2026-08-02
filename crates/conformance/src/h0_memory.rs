@@ -251,6 +251,7 @@ fn bind_host_outcome(
 }
 
 /// tsc-port: getPackagesMap/packageBundlesTypes/typesPackageExists @6.0.3
+/// tsc-hash: 74ad8cc4b534899ed13e5017004887e4e20e3faa0a5d0cdfa50d6a1983d292db
 /// tsc-span: _tsc.js:123041-123054
 fn package_map_from_facts<'a>(
     facts: impl IntoIterator<Item = (&'a PackageId, &'a ModuleExtension)>,

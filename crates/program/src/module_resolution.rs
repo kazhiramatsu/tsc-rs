@@ -997,9 +997,13 @@ impl<'a> ModuleResolver<'a> {
         }
     }
 
-    /// tsc-port: getConditions / isApplicableVersionedTypesKey @6.0.3
+    /// tsc-port: getConditions @6.0.3
     /// tsc-hash: 91d1ed5895417f7bdcea21d875a24ebbf5b54004698e26c46a9b89e7a0808140
-    /// tsc-span: _tsc.js:40276-40291,41884-41890
+    /// tsc-span: _tsc.js:40276-40291
+    ///
+    /// tsc-port: isApplicableVersionedTypesKey @6.0.3
+    /// tsc-hash: 9af5528adbf587055e813a06f658baa9b9b865f96672f1f2c05c85669b4e7222
+    /// tsc-span: _tsc.js:41884-41890
     fn package_condition_matches(&self, condition: &str, mode: ResolutionMode) -> bool {
         if condition == "default" {
             return true;
