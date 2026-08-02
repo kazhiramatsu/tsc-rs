@@ -16,6 +16,7 @@ use tsc_checker::{CompilerOptions, InputFile};
 use tsc_diagnostics::DiagnosticList;
 
 mod bounded_pipeline;
+mod ci_conformance_receipt;
 mod completion;
 mod host_resolution;
 mod invariant_attestation;
@@ -108,12 +109,15 @@ fn main() {
         },
         Some("perf") => match args.next().as_deref() {
             Some("conformance") => run_or_exit(m8_evidence::perf_conformance(args)),
+            Some("ci-conformance-child") => {
+                run_or_exit(m8_evidence::perf_ci_conformance_child(args))
+            }
             Some(other) => {
                 eprintln!("unknown perf command: {other}");
                 std::process::exit(2);
             }
             None => {
-                eprintln!("missing perf command (conformance)");
+                eprintln!("missing perf command (conformance|ci-conformance-child)");
                 std::process::exit(2);
             }
         },
@@ -7562,22 +7566,16 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
     // coverage worker otherwise overlaps that RSS and forces the
     // standard hosted runner into avoidable swap thrash. All repo
     // inputs remain byte-identical through the later consumer.
-    m8_evidence::produce_all()?;
+    let produced_evidence = m8_evidence::produce_all()?;
     // Parse+bind smoke over the full corpus (~1s): the cheap panic
     // net for the parser/binder invariants the 5.9a dead-guard
     // conversions lean on (m4-end-sweep-steps.md dead-guard policy).
     bind_corpus(std::iter::empty())?;
-    // One checker execution per expanded case feeds all three fixed
-    // views. Grading remains sequential, preserving the independent
-    // ratchet/FP/scope gates without increasing CPU concurrency.
-    let conformance_out = workspace.join("target/conformance/mismatches.json");
-    let families_out = workspace.join("target/families/report.json");
-    let summaries = tsc_conformance::run_ci_conformance(
-        &workspace,
-        &conformance_out,
-        &families_out,
-        |summary| print_conformance_summary(summary, &conformance_out),
-    )?;
+    // B4 already executed each expanded case once and fed all three fixed
+    // views plus A5 in order. Consume only the move-only receipt returned by
+    // this `produce_all` call; stale or tampered disk evidence fails closed
+    // instead of triggering another checker run.
+    let summaries = produced_evidence.consume_ci_conformance()?;
     // Phase 9.7: reuse the 2XXX summary to prove the former F2 bail remains
     // retired. The census itself reads its fixed ranges from the manifest, so
     // full recovery trees, exact syntactic diagnostics, and minimal fixtures

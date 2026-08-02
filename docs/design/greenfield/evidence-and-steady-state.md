@@ -381,11 +381,16 @@ and does restart it.
 
 ## 4. B4 — performance and RSS
 
-`cargo xtask perf conformance --artifact <path>` launches conformance as
-a child and records raw wall time and maximum RSS. Configuration
-enumerates approved runner profiles including OS/architecture, CPU/core
-policy, memory, and measurement backend. A machine name alone is not an
-approved profile.
+`cargo xtask perf conformance --artifact <path>` launches the fixed CI
+conformance producer as a child and records raw wall time and maximum RSS.
+The producer expands each fixture and executes each checker case exactly
+once. That case's aggregate and syntactic diagnostic streams feed the
+`all`, `2xxx`, and `syntactic` accumulators in fixed order, while the `all`
+stream also feeds A5. View grading and callbacks remain sequential; this
+fusion adds no checker worker, creates no corpus-sized case cache, and drops
+each view's ratchet sets immediately after its gate. Configuration enumerates
+approved runner profiles including OS/architecture, CPU/core policy, memory,
+and measurement backend. A machine name alone is not an approved profile.
 
 The fingerprint pins executable, full-corpus command/options, immutable
 oracle inputs, toolchains, and runner profile. The wall ceiling is at
@@ -398,9 +403,28 @@ legacy lib-bundle cache. Also run a separately recorded
 `TSRS_LIB_BUNDLE_CACHE=0` smoke in a short-lived child with an explicit
 fixture limit; its purpose is to exercise the locally owned no-reuse path
 while bounding repeated parse/bind cost and peak allocator retention. The
-smoke cannot replace the full-corpus wall/RSS observation. Give fuzz and
-coverage workers explicit process lifetimes, and keep coverage concurrency at
-the configured bounded worker cap.
+smoke cannot replace the full-corpus wall/RSS observation and cannot publish
+CI conformance evidence. Give fuzz and coverage workers explicit process
+lifetimes, and keep coverage concurrency at the configured bounded worker
+cap.
+
+Before the measured child starts, the parent invalidates the previous
+performance manifest, receipt, and fixed outputs. After the full child, the
+cache-off smoke, resource ceilings, input fingerprint, producer executable,
+and repository HEAD all verify, the parent binds the exact `all`, `2xxx`,
+`syntactic`, and standard `target/families/report.json` bytes and atomically
+publishes the receipt last. The receipt fixes schema/producer, fresh nonce,
+command, full-corpus/cache policy, fixed view order, HEAD, executable and
+input fingerprints, and every output path/length/digest. Workspace-relative
+paths and every existing parent component are checked without accepting
+symlinks.
+
+Publication returns a non-serializable, move-only token to the same xtask
+process. The later semantic merge gate can consume only that token and
+deserializes the already rehashed output bytes; it does not reopen summaries
+or run conformance again. A missing, stale, reordered, replaced, or tampered
+receipt/output is a hard failure with no duplicate-run fallback. The token
+and receipt never cross a job, Actions cache, or uploaded artifact boundary.
 
 ## 5. Required CI topology
 
@@ -414,7 +438,8 @@ CI below:
 
 - fetches enough history for every A1/A2/A5/M9 anchor;
 - runs recursive and trusted-base integrity checks;
-- runs the permanent syntactic and ordinary conformance gates;
+- runs the permanent syntactic and ordinary conformance gates from B4's one
+  fixed-order producer traversal and same-process receipt;
 - builds once, verifies/reuses or produces B2, produces B4 and exactly one
   M9 PR-smoke artifact whose compatibility projection supplies B3, and
   invokes M8 readiness in that workspace;
@@ -434,7 +459,8 @@ standard runners. The boundary is fixed:
 - `cargo xtask ci --lane semantic --baseline <trusted-sha>` owns every
   recursive/trusted-base audit, all fixed conformance views, recovery
   census, invariant/ledger/escape gates, and readiness production and
-  consumption;
+  consumption. Its B4 producer and conformance consumer remain in the same
+  process so the move-only receipt authority cannot cross this boundary;
 - a final job named `gates` succeeds only when both lanes succeed.
 
 Thus no evidence producer/consumer or A1/A2/A5 ordering crosses a job

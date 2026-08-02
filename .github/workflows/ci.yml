@@ -233,8 +233,9 @@ jobs:
 
       # A1/A2/H0/A5 checks, conformance's three views, recovery census,
       # readiness production/consumption, ledger, and escapes remain
-      # in one workspace. Only the independent Rust compiler/test
-      # gates run on the parallel runner.
+      # in one workspace. B4 feeds all three views and A5 from one checker
+      # traversal, then the same process consumes its bound receipt. Only the
+      # independent Rust compiler/test gates run on the parallel runner.
       - name: Run semantic gates against trusted baseline
         env:
           BASELINE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}

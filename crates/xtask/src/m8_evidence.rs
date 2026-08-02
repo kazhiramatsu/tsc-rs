@@ -2,8 +2,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fs;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
@@ -17,8 +18,19 @@ use tsc_diagnostics::{
 
 const CONFIG_REL: &str = "m8-evidence.json";
 const INVENTORY_REL: &str = "m8-emitter-inventory.json";
-const ARTIFACT_SCHEMA: u32 = 1;
-const PRODUCER_VERSION: &str = "m8-evidence-v1";
+const ARTIFACT_SCHEMA: u32 = 2;
+const PRODUCER_VERSION: &str = "m8-evidence-v2";
+const CI_RECEIPT_FILE: &str = "ci-conformance-receipt.json";
+const CI_ALL_FILE: &str = "ci-conformance-all.json";
+const CI_TWO_XXX_FILE: &str = "ci-conformance-2xxx.json";
+const CI_SYNTACTIC_FILE: &str = "ci-conformance-syntactic.json";
+const CI_OUTPUT_KINDS: [&str; 4] = [
+    "summary-all",
+    "summary-2xxx",
+    "summary-syntactic",
+    "families-report",
+];
+const CACHE_OFF_SMOKE_LIMIT: usize = 8;
 
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct EvidenceConfig {
@@ -60,7 +72,7 @@ struct PerformanceConfig {
     runners: Vec<RunnerProfile>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 struct RunnerProfile {
     id: String,
     os: String,
@@ -184,6 +196,7 @@ struct DedupeObservation {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 struct PerformanceArtifact {
     header: ArtifactHeader,
     runner: RunnerProfile,
@@ -196,9 +209,11 @@ struct PerformanceArtifact {
     child_stdout_sha256: String,
     child_stderr_sha256: String,
     cache_off_smoke: CacheOffObservation,
+    ci_conformance: CiConformanceBinding,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 struct CacheOffObservation {
     fixture_limit: usize,
     wall_seconds: f64,
@@ -206,6 +221,23 @@ struct CacheOffObservation {
     exit_status: i32,
     child_stdout_sha256: String,
     child_stderr_sha256: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct BoundOutput {
+    kind: String,
+    path: String,
+    bytes: u64,
+    sha256: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct CiConformanceBinding {
+    receipt: BoundOutput,
+    /// Fixed order: all, 2xxx, syntactic, families.
+    outputs: Vec<BoundOutput>,
 }
 
 struct TimedObservation {
@@ -216,7 +248,100 @@ struct TimedObservation {
     stderr: Vec<u8>,
 }
 
+struct CiConformancePaths {
+    receipt: PathBuf,
+    all: PathBuf,
+    two_xxx: PathBuf,
+    syntactic: PathBuf,
+    families: PathBuf,
+}
+
+struct ProducedPerformance {
+    evidence: ProducedEvidence,
+    binding: CiConformanceBinding,
+}
+
+pub(crate) struct ProducedEvidence {
+    receipt_token: crate::ci_conformance_receipt::ReceiptToken,
+    invocation: crate::ci_conformance_receipt::Invocation,
+    paths: CiConformancePaths,
+    binding: CiConformanceBinding,
+}
+
+impl ProducedEvidence {
+    pub(crate) fn consume_ci_conformance(
+        self,
+    ) -> Result<tsc_conformance::CiConformanceSummaries, Box<dyn Error>> {
+        if git_head(&self.invocation.workspace)? != self.invocation.head
+            || sha256_file(&std::env::current_exe()?)? != self.invocation.producer_executable_sha256
+            || performance_fingerprint(&self.invocation.workspace)?.sha256
+                != self.invocation.fingerprint_sha256
+        {
+            return Err(
+                "CI conformance inputs changed between B4 production and receipt consumption"
+                    .into(),
+            );
+        }
+        let consumed =
+            crate::ci_conformance_receipt::consume(self.receipt_token, &self.invocation)?;
+        if consumed.outputs.len() != crate::ci_conformance_receipt::OUTPUT_ROLES.len()
+            || consumed.receipt.bindings.len() != consumed.outputs.len()
+            || consumed.outputs.len() != self.binding.outputs.len()
+        {
+            return Err("CI conformance receipt has an incomplete output binding set".into());
+        }
+        for ((observed, role), expected) in consumed
+            .outputs
+            .iter()
+            .zip(crate::ci_conformance_receipt::OUTPUT_ROLES)
+            .zip(&self.binding.outputs)
+        {
+            if observed.binding.role != role
+                || observed.binding.path != expected.path
+                || observed.binding.bytes != expected.bytes
+                || observed.binding.sha256 != expected.sha256
+            {
+                return Err(format!(
+                    "CI conformance receipt binding {role:?} differs from the published evidence binding"
+                )
+                .into());
+            }
+        }
+
+        let all: tsc_conformance::ConformanceSummary =
+            serde_json::from_slice(&consumed.outputs[0].bytes)?;
+        let two_xxx: tsc_conformance::ConformanceSummary =
+            serde_json::from_slice(&consumed.outputs[1].bytes)?;
+        let syntactic: tsc_conformance::ConformanceSummary =
+            serde_json::from_slice(&consumed.outputs[2].bytes)?;
+        if all.band != "all"
+            || two_xxx.band != "2xxx"
+            || syntactic.band != "syntactic"
+            || all.fixtures_total == 0
+            || all.cases_total == 0
+            || all.fixtures_total != two_xxx.fixtures_total
+            || all.fixtures_total != syntactic.fixtures_total
+            || all.cases_total != two_xxx.cases_total
+            || all.cases_total != syntactic.cases_total
+        {
+            return Err(
+                "CI conformance receipt summaries violate the fixed full-corpus view contract"
+                    .into(),
+            );
+        }
+        super::print_conformance_summary(&all, &self.paths.all);
+        super::print_conformance_summary(&two_xxx, &self.paths.two_xxx);
+        super::print_conformance_summary(&syntactic, &self.paths.syntactic);
+        Ok(tsc_conformance::CiConformanceSummaries {
+            all,
+            two_xxx,
+            syntactic,
+        })
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 struct ManifestArtifact {
     kind: String,
     path: String,
@@ -225,11 +350,13 @@ struct ManifestArtifact {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 struct EvidenceManifest {
     schema: u32,
     producer_version: String,
     producer_commit: String,
     artifacts: Vec<ManifestArtifact>,
+    ci_conformance: CiConformanceBinding,
 }
 
 struct RuntimeValidation {
@@ -253,7 +380,7 @@ pub(crate) fn evidence(mut args: impl Iterator<Item = String>) -> Result<(), Box
             if !all {
                 return Err("m8 evidence produce requires --all".into());
             }
-            produce_all()
+            produce_all().map(drop)
         }
         Some("fingerprint") => {
             if args.next().as_deref() != Some("--kind")
@@ -271,7 +398,7 @@ pub(crate) fn evidence(mut args: impl Iterator<Item = String>) -> Result<(), Box
     }
 }
 
-pub(crate) fn produce_all() -> Result<(), Box<dyn Error>> {
+pub(crate) fn produce_all() -> Result<ProducedEvidence, Box<dyn Error>> {
     let workspace = super::find_workspace_root()?;
     ensure_relevant_tree_clean(&workspace)?;
     let config = read_config(&workspace)?;
@@ -279,6 +406,26 @@ pub(crate) fn produce_all() -> Result<(), Box<dyn Error>> {
         resolve_artifact_path(&workspace, &config, &config.runtime_coverage.artifact)?;
     let fuzz_path = resolve_artifact_path(&workspace, &config, &config.fuzzer.artifact)?;
     let perf_path = resolve_artifact_path(&workspace, &config, &config.performance.artifact)?;
+    let manifest_path = artifact_dir(&workspace, &config)?.join("manifest.json");
+    let ci_paths = ci_conformance_paths(&workspace, &config)?;
+
+    // A failed B3/B4 attempt must not leave a previously-published success
+    // discoverable by a later readiness invocation. The content-addressed B2
+    // runtime artifact is deliberately retained: it has its own strict reuse
+    // validator and is the only evidence file restored by Actions cache.
+    invalidate_published_files(
+        &workspace,
+        [
+            &manifest_path,
+            &fuzz_path,
+            &perf_path,
+            &ci_paths.receipt,
+            &ci_paths.all,
+            &ci_paths.two_xxx,
+            &ci_paths.syntactic,
+            &ci_paths.families,
+        ],
+    )?;
 
     if runtime_artifact_is_current(&workspace, &runtime_path)? {
         println!(
@@ -295,7 +442,7 @@ pub(crate) fn produce_all() -> Result<(), Box<dyn Error>> {
         config.fuzzer.cases,
         &fuzz_path,
     )?;
-    produce_performance(&workspace, &config, None, &perf_path)?;
+    let performance = produce_performance(&workspace, &config, None, &perf_path)?;
 
     let artifacts = [
         ("runtime-coverage", runtime_path),
@@ -338,11 +485,11 @@ pub(crate) fn produce_all() -> Result<(), Box<dyn Error>> {
         producer_version: PRODUCER_VERSION.to_owned(),
         producer_commit: git_head(&workspace)?,
         artifacts,
+        ci_conformance: performance.binding.clone(),
     };
-    let manifest_path = artifact_dir(&workspace, &config)?.join("manifest.json");
-    write_json(&manifest_path, &manifest)?;
+    write_json(&workspace, &manifest_path, &manifest)?;
     println!("M8 evidence manifest written: {}", manifest_path.display());
-    Ok(())
+    Ok(performance.evidence)
 }
 
 pub(crate) fn coverage_emitters(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -523,7 +670,7 @@ fn produce_runtime(
         raw_counts,
         zero_hit_reviews,
     };
-    write_json(artifact_path, &artifact)?;
+    write_json(workspace, artifact_path, &artifact)?;
     println!(
         "runtime emitter coverage: programs={} workers={} process-batches={} executed={}/{} zero-hit={} elapsed={:.2}s artifact={}",
         programs.len(),
@@ -610,6 +757,10 @@ fn validate_runtime_artifact(
         && artifact.header.producer_version == PRODUCER_VERSION
         && artifact.header.kind == "runtime-coverage"
         && artifact.header.command == "cargo xtask coverage emitters --corpus"
+        // Runtime coverage is intentionally content-addressed and may be
+        // restored from a different commit. Its exact fingerprint, rather
+        // than HEAD equality, owns reuse; still reject malformed provenance.
+        && is_full_lower_hex_commit(&artifact.header.producer_commit)
         && artifact.header.exit_status == 0
         && artifact.header.finished_unix_ms >= artifact.header.started_unix_ms
         && fresh
@@ -633,6 +784,38 @@ fn validate_runtime_artifact(
         zero_hit: zero_hit_ids.len(),
         reviewed: reviewed_ids.len(),
     }
+}
+
+fn artifact_header_matches(
+    header: &ArtifactHeader,
+    kind: &str,
+    command: &str,
+    current_fingerprint: &Fingerprint,
+    current_commit: Option<&str>,
+) -> bool {
+    header.schema == ARTIFACT_SCHEMA
+        && header.producer_version == PRODUCER_VERSION
+        && header.kind == kind
+        && header.command == command
+        && is_full_lower_hex_commit(&header.producer_commit)
+        && current_commit.is_none_or(|commit| header.producer_commit == commit)
+        && header.exit_status == 0
+        && header.finished_unix_ms >= header.started_unix_ms
+        && header.fingerprint == *current_fingerprint
+}
+
+fn is_full_lower_hex_commit(value: &str) -> bool {
+    value.len() == 40
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+fn is_sha256(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 fn run_coverage_worker(
@@ -1013,7 +1196,7 @@ fn produce_fuzz(
         dedupe,
     };
     verify_fuzzer_raw(&artifact)?;
-    write_json(artifact_path, &artifact)?;
+    write_json(workspace, artifact_path, &artifact)?;
     println!(
         "fuzz smoke: generated={} compared={} divergences={} reducer={} reducer-mode={} dedupe={} artifact={}",
         artifact.cases.len(),
@@ -1615,6 +1798,70 @@ fn verify_fuzzer_raw(artifact: &FuzzerArtifact) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+fn produce_ci_conformance_outputs(
+    workspace: &Path,
+    paths: &CiConformancePaths,
+) -> Result<tsc_conformance::CiConformanceSummaries, Box<dyn Error>> {
+    let summaries = tsc_conformance::run_ci_conformance(
+        workspace,
+        &paths.syntactic,
+        &paths.families,
+        |summary| {
+            let path = match summary.band.as_str() {
+                "all" => &paths.all,
+                "2xxx" => &paths.two_xxx,
+                "syntactic" => &paths.syntactic,
+                _ => &paths.syntactic,
+            };
+            super::print_conformance_summary(summary, path);
+        },
+    )?;
+    // The conformance runner historically leaves the last (syntactic) view
+    // at one output path. The receipt contract instead binds every complete
+    // summary independently, including the 2xxx partial-boundary details
+    // consumed later by recovery census.
+    write_json(workspace, &paths.all, &summaries.all)?;
+    write_json(workspace, &paths.two_xxx, &summaries.two_xxx)?;
+    write_json(workspace, &paths.syntactic, &summaries.syntactic)?;
+    Ok(summaries)
+}
+
+/// Hidden B4 child entrypoint. It performs only the fixed full-corpus CI
+/// conformance producer; the parent owns timing, cache-off smoke, receipt
+/// publication, and the move-only reuse token.
+pub(crate) fn perf_ci_conformance_child(
+    args: impl Iterator<Item = String>,
+) -> Result<(), Box<dyn Error>> {
+    let workspace = super::find_workspace_root()?;
+    let config = read_config(&workspace)?;
+    let paths = ci_conformance_paths(&workspace, &config)?;
+
+    // Invalidate discoverable success and generated data before even
+    // validating child arguments/cache mode. The child has no publication
+    // guard, so only the timing parent can mint the replacement receipt.
+    invalidate_published_files(
+        &workspace,
+        [
+            &paths.receipt,
+            &paths.all,
+            &paths.two_xxx,
+            &paths.syntactic,
+            &paths.families,
+        ],
+    )?;
+    if let Some(argument) = args.into_iter().next() {
+        return Err(format!("unexpected perf ci-conformance-child argument: {argument}").into());
+    }
+    if std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_some_and(|value| value == "0") {
+        return Err(
+            "cache-off execution is forbidden from producing CI conformance outputs".into(),
+        );
+    }
+
+    produce_ci_conformance_outputs(&workspace, &paths)?;
+    Ok(())
+}
+
 pub(crate) fn perf_conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let workspace = super::find_workspace_root()?;
     let config = read_config(&workspace)?;
@@ -1635,7 +1882,7 @@ pub(crate) fn perf_conformance(args: impl Iterator<Item = String>) -> Result<(),
         }
     }
     let artifact = artifact.ok_or("perf conformance requires --artifact")?;
-    produce_performance(&workspace, &config, runner.as_deref(), &artifact)
+    produce_performance(&workspace, &config, runner.as_deref(), &artifact).map(drop)
 }
 
 fn produce_performance(
@@ -1643,7 +1890,7 @@ fn produce_performance(
     config: &EvidenceConfig,
     selected_runner: Option<&str>,
     artifact_path: &Path,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<ProducedPerformance, Box<dyn Error>> {
     let started_unix_ms = now_unix_ms()?;
     let fingerprint = performance_fingerprint(workspace)?;
     let profile_id = selected_runner
@@ -1675,16 +1922,38 @@ fn produce_performance(
             "runner profile {} resource policy failed: cores={logical_cores}/{} memory={memory_bytes}/{}",
             runner.id, runner.minimum_logical_cores, runner.minimum_memory_bytes
         )
-        .into());
+            .into());
     }
-    let conformance_out = artifact_dir(workspace, config)?.join("performance-conformance.json");
-    let full = timed_conformance(
-        &runner,
-        &[
-            "conformance".to_owned(),
-            "--out-json".to_owned(),
-            conformance_out.display().to_string(),
+    let ci_paths = ci_conformance_paths(workspace, config)?;
+    // The A5 report keeps its long-standing readiness path. Create both
+    // receipt/output parents before `begin`: publication validates every
+    // parent component and therefore intentionally refuses an implicit,
+    // unchecked directory creation after the producer has started.
+    ensure_workspace_directory(workspace, &artifact_dir(workspace, config)?)?;
+    let families_parent = ci_paths
+        .families
+        .parent()
+        .ok_or("CI families report path has no parent")?;
+    ensure_workspace_directory(workspace, families_parent)?;
+    let cache_off_out = artifact_dir(workspace, config)?.join("performance-cache-off-smoke.json");
+    let artifact_path = artifact_path.to_owned();
+    invalidate_published_files(
+        workspace,
+        [
+            &artifact_path,
+            &ci_paths.all,
+            &ci_paths.two_xxx,
+            &ci_paths.syntactic,
+            &ci_paths.families,
+            &cache_off_out,
         ],
+    )?;
+    let invocation = ci_conformance_invocation(workspace, &ci_paths, &fingerprint)?;
+    let publication_guard = crate::ci_conformance_receipt::begin(&invocation)?;
+    let full = timed_conformance(
+        workspace,
+        &runner,
+        &["perf".to_owned(), "ci-conformance-child".to_owned()],
         false,
     )?;
     if full.exit_status != 0 {
@@ -1694,14 +1963,13 @@ fn produce_performance(
         )
         .into());
     }
-    let smoke_limit = 8usize;
-    let cache_off_out = artifact_dir(workspace, config)?.join("performance-cache-off-smoke.json");
     let cache_off = timed_conformance(
+        workspace,
         &runner,
         &[
             "conformance".to_owned(),
             "--limit".to_owned(),
-            smoke_limit.to_string(),
+            CACHE_OFF_SMOKE_LIMIT.to_string(),
             "--out-json".to_owned(),
             cache_off_out.display().to_string(),
         ],
@@ -1714,6 +1982,28 @@ fn produce_performance(
         )
         .into());
     }
+    if full.wall_seconds > runner.ceiling_wall_seconds
+        || full.max_rss_bytes > runner.ceiling_rss_bytes
+    {
+        return Err("performance observation exceeds its reviewed ceiling".into());
+    }
+    let finished_fingerprint = performance_fingerprint(workspace)?;
+    if finished_fingerprint != fingerprint {
+        return Err(
+            "performance inputs changed while the CI conformance observation was running".into(),
+        );
+    }
+    if git_head(workspace)? != invocation.head {
+        return Err("repository HEAD changed while producing CI conformance evidence".into());
+    }
+
+    // Publish the receipt only after the full child, cache-off smoke, resource
+    // ceiling, and before/after input fingerprint have all passed. The token
+    // never crosses the process boundary and is returned to the eventual
+    // merge-gate consumer as a move-only capability.
+    let receipt_token = crate::ci_conformance_receipt::publish(publication_guard, &invocation)?;
+    let binding = bind_ci_conformance(workspace, &ci_paths)?;
+    verify_ci_conformance_binding(workspace, config, &binding)?;
     let artifact = PerformanceArtifact {
         header: artifact_header(
             workspace,
@@ -1737,15 +2027,16 @@ fn produce_performance(
         child_stdout_sha256: sha256_bytes(&full.stdout),
         child_stderr_sha256: sha256_bytes(&full.stderr),
         cache_off_smoke: CacheOffObservation {
-            fixture_limit: smoke_limit,
+            fixture_limit: CACHE_OFF_SMOKE_LIMIT,
             wall_seconds: cache_off.wall_seconds,
             max_rss_bytes: cache_off.max_rss_bytes,
             exit_status: cache_off.exit_status,
             child_stdout_sha256: sha256_bytes(&cache_off.stdout),
             child_stderr_sha256: sha256_bytes(&cache_off.stderr),
         },
+        ci_conformance: binding.clone(),
     };
-    write_json(artifact_path, &artifact)?;
+    write_json(workspace, &artifact_path, &artifact)?;
     println!(
         "performance conformance: wall={:.3}/{:.3}s rss={}/{} cache-off-smoke={:.3}s/{}B profile={} artifact={}",
         full.wall_seconds,
@@ -1757,15 +2048,19 @@ fn produce_performance(
         runner.id,
         artifact_path.display()
     );
-    if full.wall_seconds > runner.ceiling_wall_seconds
-        || full.max_rss_bytes > runner.ceiling_rss_bytes
-    {
-        return Err("performance observation exceeds its reviewed ceiling".into());
-    }
-    Ok(())
+    Ok(ProducedPerformance {
+        evidence: ProducedEvidence {
+            receipt_token,
+            invocation,
+            paths: ci_paths,
+            binding: binding.clone(),
+        },
+        binding,
+    })
 }
 
 fn timed_conformance(
+    workspace: &Path,
     runner: &RunnerProfile,
     arguments: &[String],
     cache_off: bool,
@@ -1783,7 +2078,10 @@ fn timed_conformance(
             return Err(format!("unsupported performance backend {other:?}").into());
         }
     }
-    command.arg(executable).args(arguments);
+    command
+        .current_dir(workspace)
+        .arg(executable)
+        .args(arguments);
     if cache_off {
         command.env("TSRS_LIB_BUNDLE_CACHE", "0");
     } else {
@@ -1842,6 +2140,7 @@ pub(crate) fn verify_for_readiness(
     direct_emitter_ids: &BTreeSet<&str>,
 ) -> Result<VerifiedEvidence, Box<dyn Error>> {
     let config = read_config(workspace)?;
+    let current_head = git_head(workspace)?;
     let manifest_path = artifact_dir(workspace, &config)?.join("manifest.json");
     let manifest: EvidenceManifest = match read_json(&manifest_path) {
         Ok(manifest) => manifest,
@@ -1860,15 +2159,71 @@ pub(crate) fn verify_for_readiness(
     if manifest.schema != ARTIFACT_SCHEMA || manifest.producer_version != PRODUCER_VERSION {
         return Err("M8 evidence manifest has an unsupported schema/producer".into());
     }
-    let entry = |kind: &str| {
-        manifest
-            .artifacts
-            .iter()
-            .find(|artifact| artifact.kind == kind)
-    };
+    if manifest.producer_commit != current_head {
+        return Err(format!(
+            "stale M8 evidence manifest: producer HEAD {} != current HEAD {current_head}",
+            manifest.producer_commit
+        )
+        .into());
+    }
+
+    let expected_paths = BTreeMap::from([
+        (
+            "runtime-coverage",
+            resolve_artifact_path(workspace, &config, &config.runtime_coverage.artifact)?,
+        ),
+        (
+            "differential-fuzzer",
+            resolve_artifact_path(workspace, &config, &config.fuzzer.artifact)?,
+        ),
+        (
+            "performance",
+            resolve_artifact_path(workspace, &config, &config.performance.artifact)?,
+        ),
+    ]);
+    if manifest.artifacts.len() != expected_paths.len() {
+        return Err(format!(
+            "M8 evidence manifest must contain exactly {} artifacts, found {}",
+            expected_paths.len(),
+            manifest.artifacts.len()
+        )
+        .into());
+    }
+    let mut entries = BTreeMap::<&str, &ManifestArtifact>::new();
+    for artifact in &manifest.artifacts {
+        let expected_path = expected_paths
+            .get(artifact.kind.as_str())
+            .ok_or_else(|| format!("M8 evidence manifest has unknown kind {:?}", artifact.kind))?;
+        if entries.insert(artifact.kind.as_str(), artifact).is_some() {
+            return Err(format!(
+                "M8 evidence manifest repeats artifact kind {:?}",
+                artifact.kind
+            )
+            .into());
+        }
+        let secured = secure_workspace_path(workspace, &artifact.path)?;
+        if secured != *expected_path
+            || artifact.path != workspace_relative(workspace, expected_path)?
+        {
+            return Err(format!(
+                "M8 evidence manifest kind {:?} uses unexpected path {}",
+                artifact.kind, artifact.path
+            )
+            .into());
+        }
+        if !is_sha256(&artifact.sha256) || !is_sha256(&artifact.fingerprint_sha256) {
+            return Err(format!(
+                "M8 evidence manifest kind {:?} has a malformed digest",
+                artifact.kind
+            )
+            .into());
+        }
+    }
+    verify_ci_conformance_binding(workspace, &config, &manifest.ci_conformance)?;
+    let entry = |kind: &str| entries.get(kind).copied();
 
     let (runtime_ready, runtime_detail) = if let Some(entry) = entry("runtime-coverage") {
-        let path = workspace.join(&entry.path);
+        let path = secure_workspace_path(workspace, &entry.path)?;
         let artifact: RuntimeArtifact = read_json(&path)?;
         let current = runtime_fingerprint(workspace)?;
         let validation =
@@ -1894,14 +2249,24 @@ pub(crate) fn verify_for_readiness(
     };
 
     let (fuzzer_ready, fuzzer_detail) = if let Some(entry) = entry("differential-fuzzer") {
-        let path = workspace.join(&entry.path);
+        let path = secure_workspace_path(workspace, &entry.path)?;
         let artifact: FuzzerArtifact = read_json(&path)?;
         let current = fuzz_fingerprint(workspace, artifact.seed, artifact.requested_cases)?;
         let raw_valid = verify_fuzzer_raw(&artifact).is_ok();
-        let ready = artifact.header.fingerprint == current
-            && entry.sha256 == sha256_file(&path)?
+        let expected_command = format!(
+            "cargo xtask fuzz run --seed {} --cases {} --artifact {}",
+            artifact.seed,
+            artifact.requested_cases,
+            path.display()
+        );
+        let ready = artifact_header_matches(
+            &artifact.header,
+            "differential-fuzzer",
+            &expected_command,
+            &current,
+            Some(&current_head),
+        ) && entry.sha256 == sha256_file(&path)?
             && entry.fingerprint_sha256 == artifact.header.fingerprint.sha256
-            && artifact.header.exit_status == 0
             && raw_valid;
         (
             ready,
@@ -1919,20 +2284,47 @@ pub(crate) fn verify_for_readiness(
     };
 
     let (performance_ready, performance_detail) = if let Some(entry) = entry("performance") {
-        let path = workspace.join(&entry.path);
+        let path = secure_workspace_path(workspace, &entry.path)?;
         let artifact: PerformanceArtifact = read_json(&path)?;
         let current = performance_fingerprint(workspace)?;
-        let ready = artifact.header.fingerprint == current
-            && entry.sha256 == sha256_file(&path)?
+        let configured_runner = config
+            .performance
+            .runners
+            .iter()
+            .find(|runner| runner.id == artifact.runner.id);
+        let expected_command = format!(
+            "cargo xtask perf conformance --artifact {} --runner-profile {}",
+            path.display(),
+            artifact.runner.id
+        );
+        let ready = artifact_header_matches(
+            &artifact.header,
+            "performance",
+            &expected_command,
+            &current,
+            Some(&current_head),
+        ) && entry.sha256 == sha256_file(&path)?
             && entry.fingerprint_sha256 == artifact.header.fingerprint.sha256
-            && artifact.header.exit_status == 0
+            && artifact.ci_conformance == manifest.ci_conformance
+            && verify_ci_conformance_binding(workspace, &config, &artifact.ci_conformance).is_ok()
+            && configured_runner == Some(&artifact.runner)
+            && artifact.observed_os == std::env::consts::OS
+            && artifact.observed_arch == std::env::consts::ARCH
+            && artifact.logical_cores >= artifact.runner.minimum_logical_cores
+            && artifact.memory_bytes >= artifact.runner.minimum_memory_bytes
+            && artifact.wall_seconds >= 0.0
             && artifact.wall_seconds <= artifact.runner.ceiling_wall_seconds
             && artifact.runner.ceiling_wall_seconds <= 60.0
             && artifact.max_rss_bytes <= artifact.runner.ceiling_rss_bytes
             && artifact.max_rss_bytes > 0
+            && is_sha256(&artifact.child_stdout_sha256)
+            && is_sha256(&artifact.child_stderr_sha256)
             && artifact.cache_off_smoke.exit_status == 0
-            && artifact.cache_off_smoke.fixture_limit > 0
-            && artifact.cache_off_smoke.max_rss_bytes > 0;
+            && artifact.cache_off_smoke.fixture_limit == CACHE_OFF_SMOKE_LIMIT
+            && artifact.cache_off_smoke.wall_seconds >= 0.0
+            && artifact.cache_off_smoke.max_rss_bytes > 0
+            && is_sha256(&artifact.cache_off_smoke.child_stdout_sha256)
+            && is_sha256(&artifact.cache_off_smoke.child_stderr_sha256);
         (
             ready,
             format!(
@@ -1991,6 +2383,147 @@ fn artifact_dir(workspace: &Path, config: &EvidenceConfig) -> Result<PathBuf, Bo
     secure_workspace_path(workspace, &config.artifact_dir)
 }
 
+fn ci_conformance_paths(
+    workspace: &Path,
+    config: &EvidenceConfig,
+) -> Result<CiConformancePaths, Box<dyn Error>> {
+    let directory = artifact_dir(workspace, config)?;
+    Ok(CiConformancePaths {
+        receipt: directory.join(CI_RECEIPT_FILE),
+        all: directory.join(CI_ALL_FILE),
+        two_xxx: directory.join(CI_TWO_XXX_FILE),
+        syntactic: directory.join(CI_SYNTACTIC_FILE),
+        // M8 readiness and the standalone families command share this
+        // normative path. Binding that exact file avoids copying or reopening
+        // an unbound report between receipt consumption and readiness.
+        families: workspace.join("target/families/report.json"),
+    })
+}
+
+fn ci_conformance_invocation(
+    workspace: &Path,
+    paths: &CiConformancePaths,
+    fingerprint: &Fingerprint,
+) -> Result<crate::ci_conformance_receipt::Invocation, Box<dyn Error>> {
+    let canonical_workspace = fs::canonicalize(workspace)?;
+    let head = git_head(&canonical_workspace)?;
+    let executable = std::env::current_exe()?;
+    let producer_executable_sha256 = sha256_file(&executable)?;
+    let nonce = crate::ci_conformance_receipt::fresh_nonce()?;
+    let output_paths = [
+        &paths.all,
+        &paths.two_xxx,
+        &paths.syntactic,
+        &paths.families,
+    ];
+    let outputs = crate::ci_conformance_receipt::OUTPUT_ROLES
+        .into_iter()
+        .zip(output_paths)
+        .map(|(role, path)| {
+            Ok(crate::ci_conformance_receipt::OutputSpec {
+                role: role.to_owned(),
+                path: PathBuf::from(workspace_relative(workspace, path)?),
+            })
+        })
+        .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
+    Ok(crate::ci_conformance_receipt::Invocation {
+        workspace: canonical_workspace,
+        receipt_path: PathBuf::from(workspace_relative(workspace, &paths.receipt)?),
+        nonce,
+        head,
+        producer_executable_sha256,
+        fingerprint_sha256: fingerprint.sha256.clone(),
+        started_unix_ms: now_unix_ms()?,
+        outputs,
+    })
+}
+
+fn bind_output(workspace: &Path, kind: &str, path: &Path) -> Result<BoundOutput, Box<dyn Error>> {
+    let path = secure_workspace_output_path(workspace, path, true)?;
+    let bytes = fs::read(&path)?;
+    Ok(BoundOutput {
+        kind: kind.to_owned(),
+        path: workspace_relative(workspace, &path)?,
+        bytes: bytes.len() as u64,
+        sha256: sha256_bytes(&bytes),
+    })
+}
+
+fn bind_ci_conformance(
+    workspace: &Path,
+    paths: &CiConformancePaths,
+) -> Result<CiConformanceBinding, Box<dyn Error>> {
+    Ok(CiConformanceBinding {
+        receipt: bind_output(workspace, "receipt", &paths.receipt)?,
+        outputs: vec![
+            bind_output(workspace, CI_OUTPUT_KINDS[0], &paths.all)?,
+            bind_output(workspace, CI_OUTPUT_KINDS[1], &paths.two_xxx)?,
+            bind_output(workspace, CI_OUTPUT_KINDS[2], &paths.syntactic)?,
+            bind_output(workspace, CI_OUTPUT_KINDS[3], &paths.families)?,
+        ],
+    })
+}
+
+fn verify_bound_output(
+    workspace: &Path,
+    observed: &BoundOutput,
+    expected_kind: &str,
+    expected_path: &Path,
+) -> Result<(), Box<dyn Error>> {
+    if observed.kind != expected_kind
+        || observed.path != workspace_relative(workspace, expected_path)?
+        || !is_sha256(&observed.sha256)
+    {
+        return Err(format!(
+            "invalid CI conformance binding for {expected_kind}: kind={:?} path={:?}",
+            observed.kind, observed.path
+        )
+        .into());
+    }
+    let secured = secure_workspace_output_path(workspace, &workspace.join(&observed.path), true)?;
+    let expected = secure_workspace_output_path(workspace, expected_path, true)?;
+    if secured != expected {
+        return Err(format!(
+            "CI conformance binding for {expected_kind} resolved to an unexpected path"
+        )
+        .into());
+    }
+    let bytes = fs::read(&secured)?;
+    if observed.bytes != bytes.len() as u64 || observed.sha256 != sha256_bytes(&bytes) {
+        return Err(format!(
+            "CI conformance binding for {expected_kind} failed byte/digest verification"
+        )
+        .into());
+    }
+    Ok(())
+}
+
+fn verify_ci_conformance_binding(
+    workspace: &Path,
+    config: &EvidenceConfig,
+    binding: &CiConformanceBinding,
+) -> Result<(), Box<dyn Error>> {
+    let paths = ci_conformance_paths(workspace, config)?;
+    verify_bound_output(workspace, &binding.receipt, "receipt", &paths.receipt)?;
+    if binding.outputs.len() != CI_OUTPUT_KINDS.len() {
+        return Err(format!(
+            "CI conformance binding requires {} ordered outputs, found {}",
+            CI_OUTPUT_KINDS.len(),
+            binding.outputs.len()
+        )
+        .into());
+    }
+    for ((observed, expected_kind), expected_path) in binding
+        .outputs
+        .iter()
+        .zip(CI_OUTPUT_KINDS)
+        .zip([paths.all, paths.two_xxx, paths.syntactic, paths.families])
+    {
+        verify_bound_output(workspace, observed, expected_kind, &expected_path)?;
+    }
+    Ok(())
+}
+
 fn resolve_artifact_path(
     workspace: &Path,
     config: &EvidenceConfig,
@@ -2007,6 +2540,135 @@ fn resolve_artifact_path(
         return Err(format!("M8 evidence artifact escapes workspace: {}", path.display()).into());
     }
     Ok(path)
+}
+
+fn canonical_workspace_candidate(
+    workspace: &Path,
+    path: &Path,
+) -> Result<(PathBuf, PathBuf), Box<dyn Error>> {
+    let canonical_workspace = workspace.canonicalize()?;
+    let relative = path
+        .strip_prefix(workspace)
+        .or_else(|_| path.strip_prefix(&canonical_workspace))
+        .map_err(|_| format!("M8 evidence path escapes workspace: {}", path.display()))?
+        .to_owned();
+    if relative
+        .components()
+        .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return Err(format!(
+            "M8 evidence path must be a lexical workspace path: {}",
+            path.display()
+        )
+        .into());
+    }
+    Ok((canonical_workspace, relative))
+}
+
+/// Resolves a configured workspace output without following a symlink in
+/// any existing component. A missing suffix is permitted only for a future
+/// output; a consumed output must already be a regular file.
+fn secure_workspace_output_path(
+    workspace: &Path,
+    path: &Path,
+    require_file: bool,
+) -> Result<PathBuf, Box<dyn Error>> {
+    let (canonical_workspace, relative) = canonical_workspace_candidate(workspace, path)?;
+    if relative.as_os_str().is_empty() {
+        return Err("M8 evidence output cannot be the workspace root".into());
+    }
+    let components = relative
+        .components()
+        .map(|component| match component {
+            Component::Normal(name) => name.to_owned(),
+            _ => unreachable!("components were validated above"),
+        })
+        .collect::<Vec<_>>();
+    let mut current = canonical_workspace;
+    let mut missing = false;
+    for (index, component) in components.iter().enumerate() {
+        current.push(component);
+        if missing {
+            continue;
+        }
+        let last = index + 1 == components.len();
+        match fs::symlink_metadata(&current) {
+            Ok(metadata) => {
+                if metadata.file_type().is_symlink() {
+                    return Err(format!(
+                        "M8 evidence path contains a symlink: {}",
+                        current.display()
+                    )
+                    .into());
+                }
+                if !last && !metadata.is_dir() {
+                    return Err(format!(
+                        "M8 evidence parent is not a directory: {}",
+                        current.display()
+                    )
+                    .into());
+                }
+                if last && !metadata.is_file() {
+                    return Err(format!(
+                        "M8 evidence output is not a regular file: {}",
+                        current.display()
+                    )
+                    .into());
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                if require_file {
+                    return Err(
+                        format!("M8 evidence output is missing: {}", current.display()).into(),
+                    );
+                }
+                missing = true;
+            }
+            Err(error) => return Err(error.into()),
+        }
+    }
+    Ok(current)
+}
+
+/// Creates a workspace-internal directory one component at a time, checking
+/// each existing or newly-created component before descending into it.
+fn ensure_workspace_directory(workspace: &Path, path: &Path) -> Result<PathBuf, Box<dyn Error>> {
+    let (canonical_workspace, relative) = canonical_workspace_candidate(workspace, path)?;
+    let mut current = canonical_workspace;
+    for component in relative.components() {
+        let Component::Normal(name) = component else {
+            unreachable!("components were validated above")
+        };
+        current.push(name);
+        match fs::symlink_metadata(&current) {
+            Ok(metadata) => {
+                if metadata.file_type().is_symlink() || !metadata.is_dir() {
+                    return Err(format!(
+                        "M8 evidence directory is not a real directory: {}",
+                        current.display()
+                    )
+                    .into());
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                match fs::create_dir(&current) {
+                    Ok(()) => {}
+                    Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+                    Err(error) => return Err(error.into()),
+                }
+                let metadata = fs::symlink_metadata(&current)?;
+                if metadata.file_type().is_symlink() || !metadata.is_dir() {
+                    return Err(format!(
+                        "M8 evidence directory changed during creation: {}",
+                        current.display()
+                    )
+                    .into());
+                }
+            }
+            Err(error) => return Err(error.into()),
+        }
+    }
+    Ok(current)
 }
 
 fn secure_workspace_path(workspace: &Path, path: &str) -> Result<PathBuf, Box<dyn Error>> {
@@ -2080,18 +2742,37 @@ fn performance_fingerprint(workspace: &Path) -> Result<Fingerprint, Box<dyn Erro
         &[
             CONFIG_REL,
             ".node-version",
+            ".cargo/config.toml",
+            "Cargo.toml",
             "Cargo.lock",
+            "rust-toolchain.toml",
             "ratchet.toml",
             "m8-scope.json",
+            "diag-families.json",
+            "ratchets/oracle-inputs.v1.json.zst",
+            "ratchets/conformance-matches.v1.json.zst",
+            "pins/recovery.json",
+            "crates/binder/src",
             "crates/checker/src",
+            "crates/compiler/src",
             "crates/conformance/src",
+            "crates/diagnostics/src",
             "crates/harness/src",
+            "crates/program/src",
+            "crates/syntax/src",
+            "crates/types/src",
             "crates/xtask/src",
             "goldens",
             "ts-tests/tests/cases/conformance",
             "vendor/typescript-6.0.3/lib",
         ],
-        &["command=conformance".to_owned()],
+        &[
+            "command=perf ci-conformance-child".to_owned(),
+            "full-corpus=true".to_owned(),
+            "views=all,2xxx,syntactic".to_owned(),
+            "families-report=true".to_owned(),
+            "lib-bundle-cache=enabled".to_owned(),
+        ],
         true,
     )
 }
@@ -2140,13 +2821,29 @@ fn collect_files(
     path: &Path,
     out: &mut Vec<PathBuf>,
 ) -> Result<(), Box<dyn Error>> {
-    if path.is_file() {
+    let metadata = fs::symlink_metadata(path).map_err(|error| {
+        format!(
+            "fingerprint input is missing or unreadable: {}: {error}",
+            path.strip_prefix(workspace).unwrap_or(path).display()
+        )
+    })?;
+    if metadata.file_type().is_symlink() {
+        return Err(format!(
+            "fingerprint input symlink is forbidden: {}",
+            path.strip_prefix(workspace).unwrap_or(path).display()
+        )
+        .into());
+    }
+    if metadata.is_file() {
+        if !path.starts_with(workspace) {
+            return Err(format!("fingerprint input escaped workspace: {}", path.display()).into());
+        }
         out.push(path.to_owned());
         return Ok(());
     }
-    if !path.is_dir() {
+    if !metadata.is_dir() {
         return Err(format!(
-            "fingerprint input is missing: {}",
+            "unsupported fingerprint input: {}",
             path.strip_prefix(workspace).unwrap_or(path).display()
         )
         .into());
@@ -2155,11 +2852,7 @@ fn collect_files(
     entries.sort_by_key(|entry| entry.file_name());
     for entry in entries {
         let child = entry.path();
-        if child.is_dir() {
-            collect_files(workspace, &child, out)?;
-        } else if child.is_file() {
-            out.push(child);
-        }
+        collect_files(workspace, &child, out)?;
     }
     Ok(())
 }
@@ -2316,23 +3009,120 @@ fn system_memory_bytes() -> Result<u64, Box<dyn Error>> {
 }
 
 fn workspace_relative(workspace: &Path, path: &Path) -> Result<String, Box<dyn Error>> {
-    Ok(path
-        .strip_prefix(workspace)?
-        .to_string_lossy()
-        .replace('\\', "/"))
+    let canonical_workspace = workspace.canonicalize()?;
+    let relative = path
+        .strip_prefix(workspace)
+        .or_else(|_| path.strip_prefix(&canonical_workspace))?;
+    Ok(relative.to_string_lossy().replace('\\', "/"))
 }
 
 fn read_json<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<T, Box<dyn Error>> {
     Ok(serde_json::from_slice(&fs::read(path)?)?)
 }
 
-fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), Box<dyn Error>> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
+fn write_json<T: Serialize>(
+    workspace: &Path,
+    path: &Path,
+    value: &T,
+) -> Result<(), Box<dyn Error>> {
     let mut bytes = serde_json::to_vec_pretty(value)?;
     bytes.push(b'\n');
-    fs::write(path, bytes)?;
+    atomic_write(workspace, path, &bytes)
+}
+
+fn atomic_write(workspace: &Path, path: &Path, bytes: &[u8]) -> Result<(), Box<dyn Error>> {
+    static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    let canonical_workspace = workspace.canonicalize()?;
+    let internal = path.starts_with(workspace) || path.starts_with(&canonical_workspace);
+    let path = if internal {
+        secure_workspace_output_path(workspace, path, false)?
+    } else {
+        // Explicit standalone CLI artifact paths retain their historical
+        // behavior. All configured/manifest/receipt-bound evidence is
+        // workspace-internal and takes the symlink-safe branch above.
+        path.to_owned()
+    };
+    let parent = path
+        .parent()
+        .ok_or_else(|| format!("artifact path has no parent: {}", path.display()))?;
+    if internal {
+        ensure_workspace_directory(workspace, parent)?;
+    } else {
+        fs::create_dir_all(parent)?;
+    }
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| format!("artifact path has no UTF-8 file name: {}", path.display()))?;
+    let counter = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let temp = parent.join(format!(
+        ".{file_name}.{}.{}.tmp",
+        std::process::id(),
+        counter
+    ));
+    let result = (|| -> Result<(), Box<dyn Error>> {
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temp)?;
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        drop(file);
+        fs::rename(&temp, &path)?;
+        if internal {
+            let published = secure_workspace_output_path(workspace, &path, true)?;
+            if fs::read(&published)? != bytes {
+                return Err("workspace evidence changed during atomic publication".into());
+            }
+            fs::File::open(parent)?.sync_all()?;
+        }
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temp);
+    }
+    result
+}
+
+fn invalidate_published_files<'a>(
+    workspace: &Path,
+    paths: impl IntoIterator<Item = &'a PathBuf>,
+) -> Result<(), Box<dyn Error>> {
+    let canonical_workspace = workspace.canonicalize()?;
+    for path in paths {
+        let internal = path.starts_with(workspace) || path.starts_with(&canonical_workspace);
+        let secured = if internal {
+            secure_workspace_output_path(workspace, path, false)?
+        } else {
+            // This can only be an explicit standalone `--artifact` path; the
+            // fixed CI outputs and manifest are always workspace-internal.
+            path.to_owned()
+        };
+        match fs::symlink_metadata(&secured) {
+            Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
+                return Err(format!(
+                    "refusing to invalidate non-regular evidence {}",
+                    secured.display()
+                )
+                .into())
+            }
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(error.into()),
+        }
+        match fs::remove_file(&secured) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(format!(
+                    "failed to invalidate published evidence {}: {error}",
+                    secured.display()
+                )
+                .into());
+            }
+        }
+    }
     Ok(())
 }
 
@@ -2376,6 +3166,35 @@ mod tests {
         );
         assert!(secure_workspace_path(workspace, "../outside").is_err());
         assert!(secure_workspace_path(workspace, "/tmp/outside").is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn invalidation_rejects_parent_symlinks_before_removing_the_target() {
+        use std::os::unix::fs::symlink;
+
+        let nonce = now_unix_ms().unwrap();
+        let workspace = std::env::temp_dir().join(format!(
+            "tsc-rs-m8-invalidation-workspace-{}-{nonce}",
+            std::process::id()
+        ));
+        let outside = std::env::temp_dir().join(format!(
+            "tsc-rs-m8-invalidation-outside-{}-{nonce}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&workspace).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+        let outside_artifact = outside.join("performance.json");
+        fs::write(&outside_artifact, b"must survive\n").unwrap();
+        symlink(&outside, workspace.join("target")).unwrap();
+        let apparent_artifact = workspace.join("target/performance.json");
+
+        assert!(invalidate_published_files(&workspace, [&apparent_artifact]).is_err());
+        assert_eq!(fs::read(&outside_artifact).unwrap(), b"must survive\n");
+
+        fs::remove_file(workspace.join("target")).unwrap();
+        fs::remove_dir_all(workspace).unwrap();
+        fs::remove_dir_all(outside).unwrap();
     }
 
     #[test]
@@ -2565,5 +3384,150 @@ mod tests {
         artifact.zero_hit_reviews[0].declaration = "zero".to_owned();
         artifact.header.fingerprint.sha256 = "b".repeat(64);
         assert!(!validate_runtime_artifact(&artifact, &fingerprint, "inventory", &direct).ready);
+
+        artifact.header.fingerprint = fingerprint.clone();
+        artifact.header.schema = 1;
+        assert!(
+            !validate_runtime_artifact(&artifact, &fingerprint, "inventory", &direct).ready,
+            "schema-1 evidence must not survive the schema-2 receipt transition"
+        );
+        artifact.header.schema = ARTIFACT_SCHEMA;
+        artifact.header.producer_version = "m8-evidence-v1".to_owned();
+        assert!(
+            !validate_runtime_artifact(&artifact, &fingerprint, "inventory", &direct).ready,
+            "the retired producer version must fail closed"
+        );
+    }
+
+    #[test]
+    fn artifact_header_requires_exact_identity_head_and_time_order() {
+        let fingerprint = Fingerprint {
+            sha256: "a".repeat(64),
+            inputs: Vec::new(),
+        };
+        let head = "b".repeat(40);
+        let mut header = ArtifactHeader {
+            schema: ARTIFACT_SCHEMA,
+            producer_version: PRODUCER_VERSION.to_owned(),
+            kind: "performance".to_owned(),
+            producer_commit: head.clone(),
+            command: "fixed-command".to_owned(),
+            started_unix_ms: 1,
+            finished_unix_ms: 2,
+            exit_status: 0,
+            fingerprint: fingerprint.clone(),
+        };
+        assert!(artifact_header_matches(
+            &header,
+            "performance",
+            "fixed-command",
+            &fingerprint,
+            Some(&head)
+        ));
+
+        header.producer_commit = "c".repeat(40);
+        assert!(!artifact_header_matches(
+            &header,
+            "performance",
+            "fixed-command",
+            &fingerprint,
+            Some(&head)
+        ));
+        header.producer_commit = head.clone();
+        header.finished_unix_ms = 0;
+        assert!(!artifact_header_matches(
+            &header,
+            "performance",
+            "fixed-command",
+            &fingerprint,
+            Some(&head)
+        ));
+        header.finished_unix_ms = 2;
+        header.kind = "runtime-coverage".to_owned();
+        assert!(!artifact_header_matches(
+            &header,
+            "performance",
+            "fixed-command",
+            &fingerprint,
+            Some(&head)
+        ));
+    }
+
+    #[test]
+    fn receipt_bound_manifest_schema_rejects_unknown_fields() {
+        let manifest = json!({
+            "schema": ARTIFACT_SCHEMA,
+            "producer_version": PRODUCER_VERSION,
+            "producer_commit": "0".repeat(40),
+            "artifacts": [],
+            "ci_conformance": {
+                "receipt": {
+                    "kind": "receipt",
+                    "path": "target/m8/evidence/ci-conformance-receipt.json",
+                    "bytes": 1,
+                    "sha256": "a".repeat(64)
+                },
+                "outputs": []
+            },
+            "unreviewed_extension": true
+        });
+        assert!(serde_json::from_value::<EvidenceManifest>(manifest).is_err());
+    }
+
+    #[test]
+    fn ci_output_binding_rejects_order_and_content_tampering() {
+        let workspace = std::env::temp_dir().join(format!(
+            "tsc-rs-m8-binding-{}-{}",
+            std::process::id(),
+            now_unix_ms().unwrap()
+        ));
+        let config = EvidenceConfig {
+            schema: 2,
+            artifact_dir: "target/m8/evidence".to_owned(),
+            runtime_coverage: RuntimeConfig {
+                artifact: "runtime.json".to_owned(),
+                max_workers: 1,
+                programs_per_process: 1,
+                max_lib_cache_buckets: 1,
+                diagnostic_canary_programs: 1,
+                zero_hit_reviews: Vec::new(),
+            },
+            fuzzer: FuzzerConfig {
+                artifact: "fuzz.json".to_owned(),
+                seed: 1,
+                cases: 1,
+            },
+            performance: PerformanceConfig {
+                artifact: "performance.json".to_owned(),
+                default_runner_profile: "test".to_owned(),
+                runners: Vec::new(),
+            },
+        };
+        let paths = ci_conformance_paths(&workspace, &config).unwrap();
+        assert_eq!(
+            paths.families,
+            workspace.join("target/families/report.json")
+        );
+        for (path, bytes) in [
+            (&paths.receipt, b"receipt".as_slice()),
+            (&paths.all, b"all".as_slice()),
+            (&paths.two_xxx, b"2xxx".as_slice()),
+            (&paths.syntactic, b"syntactic".as_slice()),
+            (&paths.families, b"families".as_slice()),
+        ] {
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, bytes).unwrap();
+        }
+
+        let binding = bind_ci_conformance(&workspace, &paths).unwrap();
+        verify_ci_conformance_binding(&workspace, &config, &binding).unwrap();
+
+        let mut reordered = binding.clone();
+        reordered.outputs.swap(0, 1);
+        assert!(verify_ci_conformance_binding(&workspace, &config, &reordered).is_err());
+
+        fs::write(&paths.two_xxx, b"tampered").unwrap();
+        assert!(verify_ci_conformance_binding(&workspace, &config, &binding).is_err());
+        fs::remove_dir_all(workspace).unwrap();
     }
 }
