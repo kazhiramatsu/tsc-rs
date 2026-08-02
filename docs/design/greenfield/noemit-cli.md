@@ -311,6 +311,17 @@ verdict.
 Close the TS2307 owner families first, starting with the 144-row
 `exports`-pattern cluster.
 
+Implementation status: H0.2 is partial. The reviewed in-memory route now
+plans static imports, export-from declarations, and literal dynamic imports;
+resolves the bounded package-exports pattern, blocked-subpath, conditional,
+direct TypeScript/JavaScript target, relative-substitution, and `typesVersions`
+surfaces; and feeds loaded or deliberately unloaded results through the exact
+`PreparedProgram` table. The package-exports-patterns-and-blocked-subpaths
+family is closed at 179/179 rows with exact T0--T4 artifact evidence and
+all-corpus FP=0. The other 62 registry rows remain open; this does not claim
+general H0.2 resolution, type-reference resolution, filesystem hosting, or H0
+completion.
+
 ### H0.3 — residual host consumers
 
 Close the remaining non-2307 host rows by exact owner:
