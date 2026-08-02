@@ -321,9 +321,13 @@ targets, bare/self re-entry, and raw-target extension facts; and feeds loaded
 or deliberately unloaded results through the exact `PreparedProgram` table.
 The package-exports-patterns-and-blocked-subpaths family is closed at 179/179
 rows and package-imports-self-references-and-conditions is closed at 36/36,
-both with exact T0--T4 artifact evidence and all-corpus FP=0. The other 26
-registry rows remain open; this does not claim general H0.2 resolution,
-type-reference resolution, filesystem hosting, or H0 completion.
+both with exact T0--T4 artifact evidence and all-corpus FP=0. The reviewed
+legacy package-fields slice additionally covers manifestless `node_modules`,
+`typings`/`types`/`main`, `typesVersions` package-root and back-reference
+handling, Node ESM directory rejection, and source emit eligibility for
+TS2877. It closes 6/6 rows, bringing the registry to 221/241 closed with 20
+rows open. This does not claim general H0.2 resolution, type-reference
+resolution, filesystem hosting, or H0 completion.
 
 ### H0.3 — residual host consumers
 

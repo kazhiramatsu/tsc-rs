@@ -131,8 +131,8 @@
   ],
   "summary": {
     "rows": 241,
-    "open": 26,
-    "closed": 215,
+    "open": 20,
+    "closed": 221,
     "lapsed": 0,
     "fixtures": 30,
     "by_code": {
@@ -9628,7 +9628,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromSpecificNodeModulesDirectory -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -9641,6 +9641,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -9677,8 +9703,21 @@
           "evidence": "Closest same-kind node_modules package traversal control without TS2877; no rewrite-plus-node_modules success sibling exists in the corpus."
         }
       },
-      "status": "open",
-      "source_evidence": "2877 is about a bare specifier resolving INTO node_modules input .ts ('lodash-ts/add.ts'); row existence rides node_modules resolution (host: node_modules)"
+      "status": "closed",
+      "source_evidence": "2877 is about a bare specifier resolving INTO node_modules input .ts ('lodash-ts/add.ts'); row existence rides node_modules resolution (host: node_modules)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "9a53a163fa0999059e4f5c50713b29c50b1a676701418cd61039860ea57fb301",
+        "note": "H0.2e MemoryCompilerHost legacy package-field, typesVersions, manifestless node_modules, ESM directory-rejection, and source-side emit-eligibility route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "c9f78f1729fcfd80e55615d0e7aeb064611519b4"
     },
     {
       "id": "h0:23c84cd29d4caedc34870be0099f0971dc9ea33c69632e770aea90ac9f4eb6a6",
@@ -33854,7 +33893,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromSpecificNodeModulesDirectory -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Diagnostic:checkImportDeclaration.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -33867,6 +33906,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn check_import_declaration"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -33903,8 +33968,21 @@
           "evidence": "Closest Node16 package-subpath success control; this is the corpus's only noUncheckedSideEffectImports fixture, so an exact TS2882-negative sibling does not exist."
         }
       },
-      "status": "open",
-      "source_evidence": "'i-have-a-dir-and-main/dist/dir' fails under node16 ESM no-directory-resolution against node_modules package with main (host: node_modules+package.json main)"
+      "status": "closed",
+      "source_evidence": "'i-have-a-dir-and-main/dist/dir' fails under node16 ESM no-directory-resolution against node_modules package with main (host: node_modules+package.json main)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "9a53a163fa0999059e4f5c50713b29c50b1a676701418cd61039860ea57fb301",
+        "note": "H0.2e MemoryCompilerHost legacy package-field, typesVersions, manifestless node_modules, ESM directory-rejection, and source-side emit-eligibility route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "c9f78f1729fcfd80e55615d0e7aeb064611519b4"
     },
     {
       "id": "h0:841cd0dab0bf9c6ba69d167f9fe3b5834e10fc52d1cbad33d6fdfe6df9a9b686",
@@ -49035,7 +49113,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadNodeModuleFromDirectoryWorker -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Diagnostic:reportNonExportedMember.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -49048,6 +49126,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn report_non_exported_member"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -49084,8 +49188,21 @@
           "evidence": "Same typesVersions declaration back-reference surface with an unmapped, non-self target and no TS2305."
         }
       },
-      "status": "open",
-      "source_evidence": "2305 member verdict on 'ext' resolved via node_modules+package.json typesVersions back-reference (host: node_modules+typesVersions)"
+      "status": "closed",
+      "source_evidence": "2305 member verdict on 'ext' resolved via node_modules+package.json typesVersions back-reference (host: node_modules+typesVersions)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "9a53a163fa0999059e4f5c50713b29c50b1a676701418cd61039860ea57fb301",
+        "note": "H0.2e MemoryCompilerHost legacy package-field, typesVersions, manifestless node_modules, ESM directory-rejection, and source-side emit-eligibility route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "c9f78f1729fcfd80e55615d0e7aeb064611519b4"
     },
     {
       "id": "h0:c309e4656903fc1aec2bc9cc0bcc24544d5d28b63f938e2b67965d111338c5d9",
@@ -50533,7 +50650,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadNodeModuleFromDirectoryWorker -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -50546,6 +50663,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -50582,8 +50725,21 @@
           "evidence": "Same package.json main lookup with a successful non-recursive target."
         }
       },
-      "status": "open",
-      "source_evidence": "'foo' failure decided by package.json main non-recursive lookup rule (host: node_modules+package.json main)"
+      "status": "closed",
+      "source_evidence": "'foo' failure decided by package.json main non-recursive lookup rule (host: node_modules+package.json main)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "9a53a163fa0999059e4f5c50713b29c50b1a676701418cd61039860ea57fb301",
+        "note": "H0.2e MemoryCompilerHost legacy package-field, typesVersions, manifestless node_modules, ESM directory-rejection, and source-side emit-eligibility route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "c9f78f1729fcfd80e55615d0e7aeb064611519b4"
     },
     {
       "id": "h0:cc3d56f4124f11b24fa9fa8d314256de943fe2961a0e36dcdfa776e5deb69f04",
@@ -52150,7 +52306,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromSpecificNodeModulesDirectory -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -52163,6 +52319,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -52199,8 +52381,21 @@
           "evidence": "Closest same-kind node_modules package traversal control without TS2877; no rewrite-plus-node_modules success sibling exists in the corpus."
         }
       },
-      "status": "open",
-      "source_evidence": "2877 is about a bare specifier resolving INTO node_modules input .ts ('lodash-ts/add.ts'); row existence rides node_modules resolution (host: node_modules)"
+      "status": "closed",
+      "source_evidence": "2877 is about a bare specifier resolving INTO node_modules input .ts ('lodash-ts/add.ts'); row existence rides node_modules resolution (host: node_modules)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "9a53a163fa0999059e4f5c50713b29c50b1a676701418cd61039860ea57fb301",
+        "note": "H0.2e MemoryCompilerHost legacy package-field, typesVersions, manifestless node_modules, ESM directory-rejection, and source-side emit-eligibility route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "c9f78f1729fcfd80e55615d0e7aeb064611519b4"
     },
     {
       "id": "h0:cf8986ec3cd36bbd2559c961f057e7a1b725741ad66e01d4026eb738583d96cf",
@@ -60259,7 +60454,7 @@
       ],
       "owner_evidence": "Reviewed TypeScript 6.0.3 declaration owner chain: Primary:loadModuleFromSpecificNodeModulesDirectory -> Dependency:resolveModuleName -> Dependency:getModeForUsageLocationWorker -> Dependency:createModeAwareCacheKey -> Dependency:createModeAwareCache -> Diagnostic:resolveExternalModule.",
       "rust_boundary": {
-        "readiness": "seam-only",
+        "readiness": "authoritative",
         "seam_anchors": [
           {
             "role": "producer",
@@ -60272,6 +60467,32 @@
             "crate_name": "tsc-program",
             "path": "crates/program/src/prepared.rs",
             "symbol": "require_module"
+          },
+          {
+            "role": "driver",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "pub fn run(self)"
+          },
+          {
+            "role": "diagnostic-consumer",
+            "crate_name": "tsc-checker",
+            "path": "crates/checker/src/modules.rs",
+            "symbol": "fn resolve_external_module"
+          }
+        ],
+        "authoritative_anchors": [
+          {
+            "role": "producer",
+            "crate_name": "tsc-program",
+            "path": "crates/program/src/module_resolution.rs",
+            "symbol": "pub fn resolve("
+          },
+          {
+            "role": "table-consumer",
+            "crate_name": "tsc-compiler",
+            "path": "crates/compiler/src/lib.rs",
+            "symbol": "impl AuthoritativeModuleProvider for PreparedModuleProvider"
           },
           {
             "role": "driver",
@@ -60308,8 +60529,21 @@
           "evidence": "Closest same-kind node_modules package traversal control without TS2877; no rewrite-plus-node_modules success sibling exists in the corpus."
         }
       },
-      "status": "open",
-      "source_evidence": "2877 is about a bare specifier resolving INTO node_modules input .ts ('lodash-ts/add.ts'); row existence rides node_modules resolution (host: node_modules)"
+      "status": "closed",
+      "source_evidence": "2877 is about a bare specifier resolving INTO node_modules input .ts ('lodash-ts/add.ts'); row existence rides node_modules resolution (host: node_modules)",
+      "closure_evidence": {
+        "tiers": [
+          "t0",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "artifact": "ratchets/conformance-matches.v1.json.zst",
+        "artifact_sha256": "9a53a163fa0999059e4f5c50713b29c50b1a676701418cd61039860ea57fb301",
+        "note": "H0.2e MemoryCompilerHost legacy package-field, typesVersions, manifestless node_modules, ESM directory-rejection, and source-side emit-eligibility route; the implementation commit retains each exact accepted identity and its rendered T4 case."
+      },
+      "closing_commit": "c9f78f1729fcfd80e55615d0e7aeb064611519b4"
     },
     {
       "id": "h0:f655ac2636ed99a9e155df36f7671d49540ee8f9dc8043381d96423a246831f2",
