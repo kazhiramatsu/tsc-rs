@@ -55,7 +55,7 @@ impl ShadowTierObservation {
         }
     }
 
-    fn validate(&self, label: &str, counts: [usize; 3]) -> ConformanceResult<()> {
+    pub(crate) fn validate(&self, label: &str, counts: [usize; 3]) -> ConformanceResult<()> {
         if self.schema != OBSERVATION_SCHEMA {
             return Err(format!(
                 "{label}: unsupported shadow-tier observation schema {}, expected {}",

@@ -7580,7 +7580,7 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
     // retired. The census itself reads its fixed ranges from the manifest, so
     // full recovery trees, exact syntactic diagnostics, and minimal fixtures
     // remain gated without a duplicate corpus run or a live checker escape.
-    recovery_census::check_with_summary(&workspace, &summaries.two_xxx)?;
+    recovery_census::check_with_summary(&workspace, summaries.two_xxx.as_summary())?;
     // The permanent syntactic gate (convergence invariant 3) is one
     // of the independently graded fixed views above.
     // Completion row 10 runs exactly once in the semantic lane, after
@@ -7600,7 +7600,12 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
     // Consume the B2-B4 artifacts in this same workspace/job. Reuse
     // the all-band summary and the already-run inventory/ledger checks
     // instead of launching another full-corpus checker pass.
-    m8_readiness_inner(false, Some(&summaries.all), true, Some(baseline))?;
+    m8_readiness_inner(
+        false,
+        Some(summaries.all.as_summary()),
+        true,
+        Some(baseline),
+    )?;
     // E2 current-documentation gate: readiness above produces the
     // same-workspace report consumed by the generated README block.
     // A semantic ratchet or readiness-row change may not leave the

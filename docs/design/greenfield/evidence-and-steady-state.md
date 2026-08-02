@@ -419,6 +419,18 @@ input fingerprints, and every output path/length/digest. Workspace-relative
 paths and every existing parent component are checked without accepting
 symlinks.
 
+The bound summary files use a versioned CI-only projection. `all` retains the
+complete exact T1-T3 identity observations used by the standing M8
+conformance artifact. After each secondary view's authoritative accepted
+`RunSets` have passed, `2xxx` and `syntactic` retain their aggregate fields and
+mismatch detail but omit the redundant report-only identity vectors. Their
+oracle-universe digests remain complete, and the projection decoder rejects
+unknown bands, invalid nested observation schemas, and non-empty omitted
+vectors. Tests require the remaining fields, universe digests, and gated
+`RunSets` to equal independent full-view grading. Each view is
+compact-streamed directly to its one bound path; the producer never
+pretty-serializes or rewrites the same summary.
+
 Publication returns a non-serializable, move-only token to the same xtask
 process. The later semantic merge gate can consume only that token and
 deserializes the already rehashed output bytes; it does not reopen summaries

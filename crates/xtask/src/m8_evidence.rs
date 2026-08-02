@@ -308,30 +308,30 @@ impl ProducedEvidence {
             }
         }
 
-        let all: tsc_conformance::ConformanceSummary =
-            serde_json::from_slice(&consumed.outputs[0].bytes)?;
-        let two_xxx: tsc_conformance::ConformanceSummary =
-            serde_json::from_slice(&consumed.outputs[1].bytes)?;
-        let syntactic: tsc_conformance::ConformanceSummary =
-            serde_json::from_slice(&consumed.outputs[2].bytes)?;
-        if all.band != "all"
-            || two_xxx.band != "2xxx"
-            || syntactic.band != "syntactic"
-            || all.fixtures_total == 0
-            || all.cases_total == 0
-            || all.fixtures_total != two_xxx.fixtures_total
-            || all.fixtures_total != syntactic.fixtures_total
-            || all.cases_total != two_xxx.cases_total
-            || all.cases_total != syntactic.cases_total
+        let all = tsc_conformance::decode_ci_conformance_summary(&consumed.outputs[0].bytes)?;
+        let two_xxx = tsc_conformance::decode_ci_conformance_summary(&consumed.outputs[1].bytes)?;
+        let syntactic = tsc_conformance::decode_ci_conformance_summary(&consumed.outputs[2].bytes)?;
+        let all_summary = all.as_summary();
+        let two_xxx_summary = two_xxx.as_summary();
+        let syntactic_summary = syntactic.as_summary();
+        if all_summary.band != "all"
+            || two_xxx_summary.band != "2xxx"
+            || syntactic_summary.band != "syntactic"
+            || all_summary.fixtures_total == 0
+            || all_summary.cases_total == 0
+            || all_summary.fixtures_total != two_xxx_summary.fixtures_total
+            || all_summary.fixtures_total != syntactic_summary.fixtures_total
+            || all_summary.cases_total != two_xxx_summary.cases_total
+            || all_summary.cases_total != syntactic_summary.cases_total
         {
             return Err(
                 "CI conformance receipt summaries violate the fixed full-corpus view contract"
                     .into(),
             );
         }
-        super::print_conformance_summary(&all, &self.paths.all);
-        super::print_conformance_summary(&two_xxx, &self.paths.two_xxx);
-        super::print_conformance_summary(&syntactic, &self.paths.syntactic);
+        super::print_conformance_summary(all_summary, &self.paths.all);
+        super::print_conformance_summary(two_xxx_summary, &self.paths.two_xxx);
+        super::print_conformance_summary(syntactic_summary, &self.paths.syntactic);
         Ok(tsc_conformance::CiConformanceSummaries {
             all,
             two_xxx,
@@ -1804,7 +1804,7 @@ fn produce_ci_conformance_outputs(
 ) -> Result<tsc_conformance::CiConformanceSummaries, Box<dyn Error>> {
     let summaries = tsc_conformance::run_ci_conformance(
         workspace,
-        &paths.syntactic,
+        [&paths.all, &paths.two_xxx, &paths.syntactic],
         &paths.families,
         |summary| {
             let path = match summary.band.as_str() {
@@ -1816,13 +1816,10 @@ fn produce_ci_conformance_outputs(
             super::print_conformance_summary(summary, path);
         },
     )?;
-    // The conformance runner historically leaves the last (syntactic) view
-    // at one output path. The receipt contract instead binds every complete
-    // summary independently, including the 2xxx partial-boundary details
-    // consumed later by recovery census.
-    write_json(workspace, &paths.all, &summaries.all)?;
-    write_json(workspace, &paths.two_xxx, &summaries.two_xxx)?;
-    write_json(workspace, &paths.syntactic, &summaries.syntactic)?;
+    // `run_ci_conformance` streams every summary directly to its receipt-bound
+    // path. Do not serialize them again here: on hosted x64 runners these
+    // machine-consumed summaries are large enough for the duplicate pretty
+    // encoding to dominate the fused producer's wall time.
     Ok(summaries)
 }
 
@@ -1985,7 +1982,14 @@ fn produce_performance(
     if full.wall_seconds > runner.ceiling_wall_seconds
         || full.max_rss_bytes > runner.ceiling_rss_bytes
     {
-        return Err("performance observation exceeds its reviewed ceiling".into());
+        return Err(format!(
+            "performance observation exceeds its reviewed ceiling: wall={:.3}/{:.3}s rss={}/{}",
+            full.wall_seconds,
+            runner.ceiling_wall_seconds,
+            full.max_rss_bytes,
+            runner.ceiling_rss_bytes
+        )
+        .into());
     }
     let finished_fingerprint = performance_fingerprint(workspace)?;
     if finished_fingerprint != fingerprint {

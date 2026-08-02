@@ -4,8 +4,9 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fs;
-use std::io::Read;
+use std::io::{BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use serde::{Deserialize, Serialize};
@@ -742,14 +743,16 @@ pub(crate) fn run_conformance_collect_with_t4(
 /// sequential, so this does not increase CPU concurrency or retain a
 /// corpus-sized cache of checker results.
 ///
-/// No program JSON or per-case cache files are written. `out_json`
-/// retains the historical CI behavior: each view writes it in order,
-/// leaving the syntactic report there when all gates pass.
+/// No program JSON or per-case cache files are written. Each fixed view is
+/// streamed once to its corresponding `out_jsons` path. CI summaries are
+/// intentionally compact: these files are machine-consumed evidence and the
+/// compact encoding avoids allocating and then rewriting hundreds of
+/// megabytes of pretty-printed JSON on standard hosted runners.
 /// `completed_view` runs immediately after each view's gates pass, so
 /// a later-view failure does not hide earlier summaries in CI logs.
 pub fn run_ci_conformance(
     workspace: &Path,
-    out_json: &Path,
+    out_jsons: [&Path; 3],
     families_report_out: &Path,
     mut completed_view: impl FnMut(&ConformanceSummary),
 ) -> ConformanceResult<CiConformanceSummaries> {
@@ -757,7 +760,7 @@ pub fn run_ci_conformance(
         workspace: workspace.to_owned(),
         limit: None,
         files: Vec::new(),
-        out_json: out_json.to_owned(),
+        out_json: out_jsons[0].to_owned(),
         band: DiagnosticBand::All,
     };
 
@@ -770,6 +773,7 @@ pub fn run_ci_conformance(
         None,
         None,
         false,
+        ReportIdentityMode::AllViewOnly,
     )?;
     let MeasuredConformance {
         views,
@@ -781,7 +785,7 @@ pub fn run_ci_conformance(
     let mut preparation = Some(preparation);
     let completed = complete_ci_views(
         views,
-        out_json,
+        out_jsons,
         accepted.as_ref(),
         &executed_fixtures,
         full_run,
@@ -807,16 +811,16 @@ pub fn run_ci_conformance(
         .map_err(|_| "CI conformance did not complete exactly three fixed views")?;
 
     Ok(CiConformanceSummaries {
-        all,
-        two_xxx,
-        syntactic,
+        all: CiConformanceSummary::new(all)?,
+        two_xxx: CiConformanceSummary::new(two_xxx)?,
+        syntactic: CiConformanceSummary::new(syntactic)?,
     })
 }
 
 #[allow(clippy::too_many_arguments)]
 fn complete_ci_views(
     views: Vec<MeasuredView>,
-    out_json: &Path,
+    out_jsons: [&Path; 3],
     accepted: Option<&ratchet::AcceptedState>,
     executed_fixtures: &BTreeSet<String>,
     full_run: bool,
@@ -827,7 +831,12 @@ fn complete_ci_views(
         views.into_iter().map(|view| (view.band, view.result)),
         |band, measurement| {
             let view = measurement.into_full()?;
-            write_and_enforce_view(&view, out_json, accepted, executed_fixtures, full_run)?;
+            let output_index = ratchet::FIXED_VIEWS
+                .iter()
+                .position(|candidate| *candidate == band)
+                .ok_or_else(|| format!("no CI output path for fixed {} view", band.name()))?;
+            let out_json = out_jsons[output_index];
+            write_ci_and_enforce_view(&view, out_json, accepted, executed_fixtures, full_run)?;
             if band == DiagnosticBand::All {
                 finish_all(&view.summary)?;
             }
@@ -873,11 +882,129 @@ fn process_fixed_views<T, U>(
     Ok(completed)
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug)]
 pub struct CiConformanceSummaries {
-    pub all: ConformanceSummary,
-    pub two_xxx: ConformanceSummary,
-    pub syntactic: ConformanceSummary,
+    pub all: CiConformanceSummary,
+    pub two_xxx: CiConformanceSummary,
+    pub syntactic: CiConformanceSummary,
+}
+
+/// A versioned merge-gate projection. This wrapper prevents secondary CI
+/// summaries, whose report-only identity vectors are intentionally omitted,
+/// from being mistaken for a standalone full conformance report.
+#[derive(Debug)]
+pub struct CiConformanceSummary {
+    summary: ConformanceSummary,
+}
+
+impl CiConformanceSummary {
+    pub fn as_summary(&self) -> &ConformanceSummary {
+        &self.summary
+    }
+
+    fn new(summary: ConformanceSummary) -> ConformanceResult<Self> {
+        validate_ci_summary_identity_shape(&summary)?;
+        Ok(Self { summary })
+    }
+}
+
+const CI_SUMMARY_ARTIFACT_SCHEMA: u32 = 1;
+const CI_SUMMARY_PROJECTION: &str = "all-full-secondary-slim-v1";
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CiSummaryArtifact {
+    schema: u32,
+    projection: String,
+    summary: ConformanceSummary,
+}
+
+#[derive(Serialize)]
+struct CiSummaryArtifactRef<'a> {
+    schema: u32,
+    projection: &'static str,
+    summary: &'a ConformanceSummary,
+}
+
+/// Decode the compact receipt-only summary produced by
+/// [`run_ci_conformance`]. Secondary exact tier identity vectors are
+/// deliberately absent: the producer already enforced their authoritative
+/// `RunSets` before it published the one-shot receipt, while later merge-gate
+/// consumers need only aggregate fields and mismatch details. Their oracle
+/// universe digests remain genuine. The All view keeps its full exact-identity
+/// observation because M8 publishes it as the standing conformance artifact.
+pub fn decode_ci_conformance_summary(bytes: &[u8]) -> ConformanceResult<CiConformanceSummary> {
+    let artifact: CiSummaryArtifact = serde_json::from_slice(bytes)?;
+    if artifact.schema != CI_SUMMARY_ARTIFACT_SCHEMA || artifact.projection != CI_SUMMARY_PROJECTION
+    {
+        return Err("invalid CI conformance summary projection".into());
+    }
+    CiConformanceSummary::new(artifact.summary)
+}
+
+fn validate_ci_summary_identity_shape(summary: &ConformanceSummary) -> ConformanceResult<()> {
+    let all = &summary.shadow_tier_identities;
+    let supported = &summary.supported_shadow_tier_identities;
+    match summary.band.as_str() {
+        "all" => {
+            all.validate(
+                "CI All observation",
+                [
+                    summary.shadow_t1_matched,
+                    summary.shadow_t2_matched,
+                    summary.shadow_t3_matched,
+                ],
+            )?;
+            supported.validate(
+                "CI supported All observation",
+                [
+                    summary.supported_t1_matched,
+                    summary.supported_t2_matched,
+                    summary.supported_t3_matched,
+                ],
+            )?;
+        }
+        "2xxx" | "syntactic" => {
+            // The compact projection omits only the six report-only vectors.
+            // Validation against zero also checks each nested observation's
+            // schema, ordering, uniqueness, and tier-subset invariants.
+            all.validate("CI projected observation", [0, 0, 0])?;
+            supported.validate("CI projected supported observation", [0, 0, 0])?;
+
+            // Every measured case contributes a universe record even if the
+            // selected band has no diagnostics, so a non-empty run may never
+            // carry the empty-universe sentinel. This detects a producer that
+            // accidentally suppresses digest collection along with vectors.
+            if summary.cases_total > 0 {
+                let empty_universe = ShadowTierObservation::new(
+                    Vec::new(),
+                    BTreeSet::new(),
+                    BTreeSet::new(),
+                    BTreeSet::new(),
+                )
+                .oracle_universe_sha256;
+                if all.oracle_universe_sha256 == empty_universe
+                    || supported.oracle_universe_sha256 == empty_universe
+                {
+                    return Err("CI projected observation has an empty universe digest".into());
+                }
+            }
+        }
+        band => return Err(format!("invalid CI conformance summary band {band:?}").into()),
+    }
+    Ok(())
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum ReportIdentityMode {
+    AllViews,
+    AllViewOnly,
+}
+
+impl ReportIdentityMode {
+    fn retains(self, band: DiagnosticBand) -> bool {
+        self == Self::AllViews || band == DiagnosticBand::All
+    }
 }
 
 pub struct ConformanceRun {
@@ -897,6 +1024,7 @@ pub(crate) enum SetGate {
 
 struct ViewAccumulator {
     band: DiagnosticBand,
+    retain_report_identities: bool,
     ratchet: Ratchet,
     t1_ratchet: Option<Ratchet>,
     run_sets: ratchet::RunSets,
@@ -958,9 +1086,14 @@ struct PendingViewAccumulator {
 }
 
 impl ViewAccumulator {
-    fn new(band: DiagnosticBand, ratchet_path: &Path) -> ConformanceResult<Self> {
+    fn new(
+        band: DiagnosticBand,
+        ratchet_path: &Path,
+        retain_report_identities: bool,
+    ) -> ConformanceResult<Self> {
         Ok(Self {
             band,
+            retain_report_identities,
             ratchet: read_ratchet(ratchet_path, band)?,
             t1_ratchet: (band == DiagnosticBand::All)
                 .then(|| read_ratchet_section(ratchet_path, "t1"))
@@ -1161,6 +1294,11 @@ impl ViewAccumulator {
             .filter(|index| self.band.matches_oracle(&golden_case.oracle[*index]))
             .collect::<Vec<_>>();
 
+        // Keep the oracle-universe digest genuine even when CI omits the large
+        // secondary identity vectors. Downstream code may not use a projected
+        // summary for identity diffs, but the fields that remain serialized must
+        // still retain their ordinary meaning.
+        //
         // Include the selected case even when this band has zero oracle
         // diagnostics. Otherwise two disjoint empty projections would share a
         // universe hash and appear comparable to `conformance-diff`.
@@ -1347,42 +1485,50 @@ impl ViewAccumulator {
         self.shadow_t1_matched += tier_matches.t1.len();
         self.shadow_t2_matched += tier_matches.t2.len();
         self.shadow_t3_matched += tier_matches.t3.len();
-        extend_shadow_identities(
-            &mut self.shadow_t1_identities,
-            fixture_key,
-            &program.matrix_key,
-            tier_matches.t1,
-        );
-        extend_shadow_identities(
-            &mut self.shadow_t2_identities,
-            fixture_key,
-            &program.matrix_key,
-            tier_matches.t2,
-        );
-        extend_shadow_identities(
-            &mut self.shadow_t3_identities,
-            fixture_key,
-            &program.matrix_key,
-            tier_matches.t3,
-        );
+        if self.retain_report_identities {
+            extend_shadow_identities(
+                &mut self.shadow_t1_identities,
+                fixture_key,
+                &program.matrix_key,
+                &tier_matches.t1,
+            );
+            extend_shadow_identities(
+                &mut self.shadow_t2_identities,
+                fixture_key,
+                &program.matrix_key,
+                &tier_matches.t2,
+            );
+            extend_shadow_identities(
+                &mut self.shadow_t3_identities,
+                fixture_key,
+                &program.matrix_key,
+                &tier_matches.t3,
+            );
+        }
         self.supported_matched_t0_diagnostics +=
             supported_expected.intersection(&supported_actual).count();
 
         // Supported tiers remove exact oracle records; the tsrs side drops
         // only fully-excluded buckets because it has no occurrence identity.
-        let supported_tier_matches = shadow_tier_matches(
-            current.iter().filter(|diagnostic| {
-                self.band.contains(diagnostic.code) && !fully_excluded.contains(&t0_key(diagnostic))
-            }),
-            golden_case
-                .oracle
-                .iter()
-                .enumerate()
-                .filter(|(index, diagnostic)| {
-                    self.band.matches_oracle(diagnostic) && !excluded_indices.contains(index)
-                })
-                .map(|(_, diagnostic)| diagnostic),
-        );
+        let recomputed_supported_tier_matches = (!excluded_indices.is_empty()).then(|| {
+            shadow_tier_matches(
+                current.iter().filter(|diagnostic| {
+                    self.band.contains(diagnostic.code)
+                        && !fully_excluded.contains(&t0_key(diagnostic))
+                }),
+                golden_case
+                    .oracle
+                    .iter()
+                    .enumerate()
+                    .filter(|(index, diagnostic)| {
+                        self.band.matches_oracle(diagnostic) && !excluded_indices.contains(index)
+                    })
+                    .map(|(_, diagnostic)| diagnostic),
+            )
+        });
+        let supported_tier_matches = recomputed_supported_tier_matches
+            .as_ref()
+            .unwrap_or(&tier_matches);
         self.supported_tier_mismatches
             .extend(collect_supported_tier_mismatches(
                 fixture_key,
@@ -1393,29 +1539,31 @@ impl ViewAccumulator {
                 excluded_indices,
                 &fully_excluded,
                 &supported_expected,
-                &supported_tier_matches,
+                supported_tier_matches,
             ));
         self.supported_t1_matched += supported_tier_matches.t1.len();
         self.supported_t2_matched += supported_tier_matches.t2.len();
         self.supported_t3_matched += supported_tier_matches.t3.len();
-        extend_shadow_identities(
-            &mut self.supported_t1_identities,
-            fixture_key,
-            &program.matrix_key,
-            supported_tier_matches.t1,
-        );
-        extend_shadow_identities(
-            &mut self.supported_t2_identities,
-            fixture_key,
-            &program.matrix_key,
-            supported_tier_matches.t2,
-        );
-        extend_shadow_identities(
-            &mut self.supported_t3_identities,
-            fixture_key,
-            &program.matrix_key,
-            supported_tier_matches.t3,
-        );
+        if self.retain_report_identities {
+            extend_shadow_identities(
+                &mut self.supported_t1_identities,
+                fixture_key,
+                &program.matrix_key,
+                &supported_tier_matches.t1,
+            );
+            extend_shadow_identities(
+                &mut self.supported_t2_identities,
+                fixture_key,
+                &program.matrix_key,
+                &supported_tier_matches.t2,
+            );
+            extend_shadow_identities(
+                &mut self.supported_t3_identities,
+                fixture_key,
+                &program.matrix_key,
+                &supported_tier_matches.t3,
+            );
+        }
         self.scope_excluded_diagnostics += excluded_records.len();
         self.scope_unresolved_diagnostics += unresolved_excluded;
         self.scope_resolved_t0_diagnostics += resolved_excluded;
@@ -1598,6 +1746,7 @@ fn measure_conformance(
     planned_t4_pins: Option<&ratchet::T4OraclePins>,
     planned_t4_empty_related_information: Option<&rendered::T4OracleEmptyRelatedInformation>,
     force_t4_measurement: bool,
+    report_identity_mode: ReportIdentityMode,
 ) -> ConformanceResult<MeasuredConformance> {
     measure_conformance_with(
         options,
@@ -1607,6 +1756,7 @@ fn measure_conformance(
         planned_t4_pins,
         planned_t4_empty_related_information,
         force_t4_measurement,
+        report_identity_mode,
         current_case_tsrs,
     )
 }
@@ -1616,6 +1766,7 @@ fn initialize_view_accumulators(
     set_gate: SetGate,
     selected_band: DiagnosticBand,
     ratchet_path: &Path,
+    report_identity_mode: ReportIdentityMode,
 ) -> Vec<PendingViewAccumulator> {
     views
         .iter()
@@ -1626,7 +1777,7 @@ fn initialize_view_accumulators(
                     view,
                 )))
             } else {
-                ViewAccumulator::new(view, ratchet_path)
+                ViewAccumulator::new(view, ratchet_path, report_identity_mode.retains(view))
                     .map(Box::new)
                     .map(ViewAccumulatorKind::Full)
             };
@@ -1644,6 +1795,7 @@ fn measure_conformance_with(
     planned_t4_pins: Option<&ratchet::T4OraclePins>,
     planned_t4_empty_related_information: Option<&rendered::T4OracleEmptyRelatedInformation>,
     force_t4_measurement: bool,
+    report_identity_mode: ReportIdentityMode,
     mut execute_case: impl FnMut(&str, &tsc_harness::ProgramJson, &Path) -> ConformanceResult<CaseTsrs>,
 ) -> ConformanceResult<MeasuredConformance> {
     if views.is_empty() {
@@ -1691,8 +1843,13 @@ fn measure_conformance_with(
     // preserve the historical All -> 2xxx -> syntactic gate/callback order.
     // Ratchet collection retains full summary vectors only for its selected
     // view; the other projections need identity sets alone.
-    let mut accumulators =
-        initialize_view_accumulators(views, set_gate, options.band, &ratchet_path);
+    let mut accumulators = initialize_view_accumulators(
+        views,
+        set_gate,
+        options.band,
+        &ratchet_path,
+        report_identity_mode,
+    );
     let mut observation = families_observe.then(families::Observation::default);
     let mut scope = ScopeManifest::load(&options.workspace.join("m8-scope.json"))?;
     let mut executed_fixtures = BTreeSet::new();
@@ -1811,6 +1968,71 @@ fn measure_conformance_with(
     })
 }
 
+fn write_ci_and_enforce_view(
+    view: &FinishedConformanceView,
+    out_json: &Path,
+    accepted: Option<&ratchet::AcceptedState>,
+    executed_fixtures: &BTreeSet<String>,
+    full_run: bool,
+) -> ConformanceResult<()> {
+    write_ci_summary_artifact(out_json, &view.summary)?;
+    enforce_view(view, accepted, executed_fixtures, full_run)
+}
+
+fn write_ci_summary_artifact(
+    out_json: &Path,
+    summary: &ConformanceSummary,
+) -> ConformanceResult<()> {
+    static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    if let Some(parent) = out_json.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let parent = out_json
+        .parent()
+        .ok_or_else(|| format!("CI summary path has no parent: {}", out_json.display()))?;
+    let file_name = out_json
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| {
+            format!(
+                "CI summary path has no UTF-8 file name: {}",
+                out_json.display()
+            )
+        })?;
+    let counter = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let temp = parent.join(format!(
+        ".{file_name}.{}.{}.tmp",
+        std::process::id(),
+        counter
+    ));
+    let result = (|| -> ConformanceResult<()> {
+        let file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temp)?;
+        let mut writer = BufWriter::new(file);
+        serde_json::to_writer(
+            &mut writer,
+            &CiSummaryArtifactRef {
+                schema: CI_SUMMARY_ARTIFACT_SCHEMA,
+                projection: CI_SUMMARY_PROJECTION,
+                summary,
+            },
+        )?;
+        writer.flush()?;
+        writer.get_ref().sync_all()?;
+        drop(writer);
+        fs::rename(&temp, out_json)?;
+        fs::File::open(parent)?.sync_all()?;
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temp);
+    }
+    result
+}
+
 fn write_and_enforce_view(
     view: &FinishedConformanceView,
     out_json: &Path,
@@ -1822,7 +2044,15 @@ fn write_and_enforce_view(
         fs::create_dir_all(parent)?;
     }
     fs::write(out_json, serde_json::to_string_pretty(&view.summary)?)?;
+    enforce_view(view, accepted, executed_fixtures, full_run)
+}
 
+fn enforce_view(
+    view: &FinishedConformanceView,
+    accepted: Option<&ratchet::AcceptedState>,
+    executed_fixtures: &BTreeSet<String>,
+    full_run: bool,
+) -> ConformanceResult<()> {
     if let Some(accepted) = accepted {
         ratchet::enforce_accepted(
             &accepted.artifact,
@@ -1913,6 +2143,7 @@ fn run_conformance_inner(
         planned_t4_pins,
         planned_t4_empty_related_information,
         force_t4_measurement,
+        ReportIdentityMode::AllViews,
     )?;
 
     if set_gate == SetGate::Collect {
@@ -2136,11 +2367,12 @@ fn extend_shadow_identities(
     identities: &mut BTreeSet<ShadowTierIdentity>,
     fixture: &str,
     matrix_key: &str,
-    diagnostics: BTreeSet<T0Key>,
+    diagnostics: &BTreeSet<T0Key>,
 ) {
     identities.extend(
         diagnostics
-            .into_iter()
+            .iter()
+            .cloned()
             .map(|diagnostic| ShadowTierIdentity {
                 fixture: fixture.to_owned(),
                 matrix_key: matrix_key.to_owned(),
@@ -2800,6 +3032,7 @@ mod tests {
             SetGate::Enforce,
             DiagnosticBand::All,
             ratchet_path,
+            ReportIdentityMode::AllViews,
         )
         .into_iter()
         .map(|pending| {
@@ -2815,9 +3048,11 @@ mod tests {
     }
 
     fn read_summary_band(path: &Path) -> String {
-        serde_json::from_slice::<ConformanceSummary>(&fs::read(path).unwrap())
+        decode_ci_conformance_summary(&fs::read(path).unwrap())
             .unwrap()
+            .as_summary()
             .band
+            .clone()
     }
 
     #[test]
@@ -2839,7 +3074,7 @@ mod tests {
         let mut all_finishes = 0usize;
         let result = complete_ci_views(
             measured,
-            &out_json,
+            [&out_json; 3],
             None,
             &BTreeSet::new(),
             false,
@@ -2888,7 +3123,7 @@ mod tests {
         let mut callbacks = Vec::new();
         let result = complete_ci_views(
             finish_empty_fixed_views(&ratchet_path),
-            &out_json,
+            [&out_json; 3],
             None,
             &BTreeSet::new(),
             true,
@@ -2945,6 +3180,7 @@ mod tests {
             SetGate::Collect,
             DiagnosticBand::All,
             &workspace.join("ratchet.toml"),
+            ReportIdentityMode::AllViews,
         );
 
         assert!(matches!(
@@ -2989,6 +3225,7 @@ mod tests {
             None,
             None,
             false,
+            ReportIdentityMode::AllViews,
             |fixture, program, vendor_lib_dir| {
                 executions.set(executions.get() + 1);
                 current_case_tsrs(fixture, program, vendor_lib_dir)
@@ -3004,6 +3241,81 @@ mod tests {
             .views
             .iter()
             .all(|view| full_view(view).summary.cases_total == executions.get()));
+
+        let projected = measure_conformance(
+            &options,
+            &ratchet::FIXED_VIEWS,
+            SetGate::Enforce,
+            false,
+            None,
+            None,
+            false,
+            ReportIdentityMode::AllViewOnly,
+        )
+        .unwrap();
+        for (band, (full, projected)) in ratchet::FIXED_VIEWS
+            .iter()
+            .copied()
+            .zip(fused.views.iter().zip(&projected.views))
+        {
+            let full = full_view(full);
+            let projected = full_view(projected);
+            assert_eq!(full.sets, projected.sets);
+
+            let mut expected = full.summary.clone();
+            if band != DiagnosticBand::All {
+                expected.shadow_tier_identities.t1_matched.clear();
+                expected.shadow_tier_identities.t2_matched.clear();
+                expected.shadow_tier_identities.t3_matched.clear();
+                expected.supported_shadow_tier_identities.t1_matched.clear();
+                expected.supported_shadow_tier_identities.t2_matched.clear();
+                expected.supported_shadow_tier_identities.t3_matched.clear();
+            }
+            assert_eq!(
+                serde_json::to_vec(&expected).unwrap(),
+                serde_json::to_vec(&projected.summary).unwrap(),
+                "CI {} projection changed non-report summary fields",
+                band.name()
+            );
+
+            let artifact = serde_json::to_vec(&CiSummaryArtifactRef {
+                schema: CI_SUMMARY_ARTIFACT_SCHEMA,
+                projection: CI_SUMMARY_PROJECTION,
+                summary: &projected.summary,
+            })
+            .unwrap();
+            let decoded = decode_ci_conformance_summary(&artifact).unwrap();
+            assert_eq!(
+                serde_json::to_vec(decoded.as_summary()).unwrap(),
+                serde_json::to_vec(&projected.summary).unwrap()
+            );
+            assert!(decode_ci_conformance_summary(
+                &serde_json::to_vec(&projected.summary).unwrap()
+            )
+            .is_err());
+
+            if band != DiagnosticBand::All {
+                let mut invalid = projected.summary.clone();
+                invalid.shadow_tier_identities.schema += 1;
+                let artifact = serde_json::to_vec(&CiSummaryArtifactRef {
+                    schema: CI_SUMMARY_ARTIFACT_SCHEMA,
+                    projection: CI_SUMMARY_PROJECTION,
+                    summary: &invalid,
+                })
+                .unwrap();
+                assert!(decode_ci_conformance_summary(&artifact).is_err());
+
+                let mut invalid = projected.summary.clone();
+                invalid.band = "bogus".to_owned();
+                let artifact = serde_json::to_vec(&CiSummaryArtifactRef {
+                    schema: CI_SUMMARY_ARTIFACT_SCHEMA,
+                    projection: CI_SUMMARY_PROJECTION,
+                    summary: &invalid,
+                })
+                .unwrap();
+                assert!(decode_ci_conformance_summary(&artifact).is_err());
+            }
+        }
 
         let force_t4_measurement = fused
             .accepted
@@ -3023,6 +3335,14 @@ mod tests {
             serde_json::to_vec(&full_view(&fused.views[0]).summary).unwrap(),
             "Collect selected-view summary differs from Full measurement"
         );
+        let ordinary: ConformanceSummary =
+            serde_json::from_slice(&fs::read(&options.out_json).unwrap()).unwrap();
+        assert_eq!(
+            serde_json::to_vec(&ordinary).unwrap(),
+            serde_json::to_vec(&collected.summary).unwrap(),
+            "ordinary output must remain a naked ConformanceSummary"
+        );
+        assert!(decode_ci_conformance_summary(&fs::read(&options.out_json).unwrap()).is_err());
         let mut full_sets = ratchet::RunSets::new();
         for measured in &fused.views {
             full_sets.extend(full_view(measured).sets.clone());
@@ -3043,6 +3363,7 @@ mod tests {
                 None,
                 None,
                 false,
+                ReportIdentityMode::AllViews,
             )
             .unwrap();
             assert_eq!(single.views.len(), 1);
