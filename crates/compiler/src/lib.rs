@@ -12,7 +12,8 @@ use std::fmt;
 use std::path::PathBuf;
 
 use tsc_checker::{
-    check_program_with_authoritative_modules_at, AuthoritativeModuleFailure,
+    check_program_with_authoritative_modules_at,
+    check_program_with_authoritative_modules_at_harness_cached, AuthoritativeModuleFailure,
     AuthoritativeModuleLookupFailure, AuthoritativeModuleProvider, AuthoritativeModuleRequest,
     AuthoritativeModuleResolution, AuthoritativePackageId, AuthoritativeResolutionMode,
     AuthoritativeResolvedModule, AuthoritativeSourceMetadata, AuthoritativeSourceToken,
@@ -222,20 +223,48 @@ impl ProgramSession {
     /// exact `(source, specifier, mode)` row is an infrastructure error; the
     /// checker never falls back to its legacy heuristic resolver.
     pub fn run(self) -> Result<NoEmitOutcome, DriverError> {
+        self.run_inner(false)
+    }
+
+    /// Conformance-harness execution with exact-match vendored-lib reuse.
+    ///
+    /// This is deliberately not the production H0 entry: [`run`](Self::run)
+    /// keeps every parsed and bound source owned by its one-shot session.
+    /// Only the differential conformance harness may opt into the checker's
+    /// process-lifetime lib bundle to avoid rebuilding an identical standard
+    /// library prefix for every fixture case.
+    #[doc(hidden)]
+    pub fn run_for_conformance_with_harness_lib_cache(self) -> Result<NoEmitOutcome, DriverError> {
+        self.run_inner(true)
+    }
+
+    fn run_inner(self, harness_lib_cache: bool) -> Result<NoEmitOutcome, DriverError> {
         let inputs = project_checker_inputs(&self.prepared)?;
         let has_roots = !self.prepared.roots().is_empty();
         let provider = PreparedModuleProvider {
             prepared: &self.prepared,
         };
-        let checked = check_program_with_authoritative_modules_at(
-            &inputs.libs,
-            &inputs.files,
-            &inputs.lib_metadata,
-            &inputs.file_metadata,
-            self.prepared.compiler_options(),
-            &inputs.current_directory,
-            &provider,
-        )
+        let checked = if harness_lib_cache {
+            check_program_with_authoritative_modules_at_harness_cached(
+                &inputs.libs,
+                &inputs.files,
+                &inputs.lib_metadata,
+                &inputs.file_metadata,
+                self.prepared.compiler_options(),
+                &inputs.current_directory,
+                &provider,
+            )
+        } else {
+            check_program_with_authoritative_modules_at(
+                &inputs.libs,
+                &inputs.files,
+                &inputs.lib_metadata,
+                &inputs.file_metadata,
+                self.prepared.compiler_options(),
+                &inputs.current_directory,
+                &provider,
+            )
+        }
         .map_err(|failure| map_authoritative_failure(&self.prepared, failure))?;
 
         let preparation = self.prepared.diagnostics();

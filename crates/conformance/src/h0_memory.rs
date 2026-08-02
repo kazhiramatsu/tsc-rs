@@ -15,7 +15,7 @@ use tsc_program::{
 
 use crate::ConformanceResult;
 
-const SUPPORTED_FIXTURES: [&str; 14] = [
+const SUPPORTED_FIXTURES: [&str; 28] = [
     "conformance/node/nodeModulesPackagePatternExportsExclude.ts",
     "conformance/node/nodeModulesPackagePatternExports.ts",
     "conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsExclude.ts",
@@ -30,6 +30,20 @@ const SUPPORTED_FIXTURES: [&str; 14] = [
     "conformance/node/nodeModulesPackageExports.ts",
     "conformance/node/nodeModulesPackagePatternExportsTrailers.ts",
     "conformance/node/nodeModulesTypesVersionPackageExports.ts",
+    "conformance/externalModules/rewriteRelativeImportExtensions/packageJsonImportsErrors.ts",
+    "conformance/moduleResolution/bundler/bundlerCommonJS.ts",
+    "conformance/moduleResolution/conditionalExportsResolutionFallbackNull.ts",
+    "conformance/node/nodeModulesExportsSpecifierGenerationConditions.ts",
+    "conformance/node/nodeModulesImportResolutionIntoExport.ts",
+    "conformance/node/nodeModulesImportResolutionNoCycle.ts",
+    "conformance/node/nodeModulesPackageImportsRootWildcardNode16.ts",
+    "conformance/moduleResolution/bundler/bundlerConditionsExcludesNode.ts",
+    "conformance/moduleResolution/conditionalExportsResolutionFallback.ts",
+    "conformance/node/nodeModulesConditionalPackageExports.ts",
+    "conformance/node/nodePackageSelfName.ts",
+    "conformance/node/nodeModulesPackageImports.ts",
+    "conformance/node/nodeModulesPackageImportsRootWildcard.ts",
+    "conformance/node/allowJs/nodeModulesAllowJsPackageImports.ts",
 ];
 
 pub(crate) fn supports_fixture(fixture: &str) -> bool {
@@ -127,14 +141,15 @@ pub(crate) fn run(
         // scope boundary shared with resolution. In particular, a nearest
         // package with no `type` field stops the search.
         let package_scope = resolver.package_scope_for_file(&source.canonical)?;
-        let implied_node_format = implied_node_format(&source.display, package_scope.as_ref());
+        let implied_node_format =
+            implied_node_format(&source.display, package_scope.as_ref(), &options);
+        let implied_node_format_for_emit =
+            implied_node_format_for_emit(&source.display, package_scope.as_ref(), &options);
         let path = public_program_path(source)?;
-        let mut prepared = PreparedSourceFile::new(path.clone(), source.text.clone());
+        let mut prepared = PreparedSourceFile::new(path.clone(), source.text.clone())
+            .with_implied_node_formats(implied_node_format, implied_node_format_for_emit);
         if let Some(scope) = package_scope.as_ref() {
             prepared = prepared.with_package_scope(scope.package_json().canonical().clone());
-        }
-        if let Some(mode) = implied_node_format {
-            prepared = prepared.with_implied_node_format(mode);
         }
         let source_id = prepared_builder.add_source_file(prepared.clone())?;
         prepared_builder.add_root_file(source_id)?;
@@ -189,7 +204,7 @@ pub(crate) fn run(
     }
 
     let prepared = prepared_builder.build()?;
-    let outcome = ProgramSession::new(prepared).run()?;
+    let outcome = ProgramSession::new(prepared).run_for_conformance_with_harness_lib_cache()?;
     let syntactic = outcome.syntactic_diagnostics().to_vec();
     let all = outcome.conformance_diagnostics().to_vec();
     Ok(H0MemoryCase { all, syntactic })
@@ -278,6 +293,7 @@ fn types_package_name(package_name: &str) -> String {
 fn implied_node_format(
     file_name: &str,
     package_scope: Option<&PackageMetadata>,
+    options: &tsc_program::CompilerOptions,
 ) -> Option<ResolutionMode> {
     if file_name.ends_with(".d.mts") || file_name.ends_with(".mts") || file_name.ends_with(".mjs") {
         return Some(ResolutionMode::EsNext);
@@ -291,6 +307,13 @@ fn implied_node_format(
         || file_name.ends_with(".js")
         || file_name.ends_with(".jsx")
     {
+        let package_lookup = matches!(options.emit_module_resolution_kind(), 3..=99)
+            || file_name
+                .split('/')
+                .any(|segment| segment == "node_modules");
+        if !package_lookup {
+            return None;
+        }
         return Some(
             if package_scope.is_some_and(|scope| scope.module_type() == PackageJsonType::Module) {
                 ResolutionMode::EsNext
@@ -300,6 +323,25 @@ fn implied_node_format(
         );
     }
     None
+}
+
+fn implied_node_format_for_emit(
+    file_name: &str,
+    package_scope: Option<&PackageMetadata>,
+    options: &tsc_program::CompilerOptions,
+) -> Option<ResolutionMode> {
+    let implied = implied_node_format(file_name, package_scope, options)?;
+    if (100..=199).contains(&options.emit_module_kind())
+        || [".mts", ".mjs", ".cts", ".cjs"]
+            .iter()
+            .any(|extension| file_name.ends_with(extension))
+    {
+        return Some(implied);
+    }
+    match package_scope.map(PackageMetadata::module_type) {
+        Some(PackageJsonType::Module | PackageJsonType::CommonJs) => Some(implied),
+        Some(PackageJsonType::Other | PackageJsonType::Unspecified) | None => None,
+    }
 }
 
 fn is_json_file(file_name: &str) -> bool {
@@ -383,16 +425,23 @@ fn normalize_absolute_posix(path: &str) -> Result<PathBuf, H0MemoryError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{package_map_from_facts, supports_fixture, types_package_name, SUPPORTED_FIXTURES};
-    use tsc_program::{ModuleExtension, PackageId};
+    use super::{
+        implied_node_format, implied_node_format_for_emit, package_map_from_facts,
+        supports_fixture, types_package_name, SUPPORTED_FIXTURES,
+    };
+    use tsc_program::{
+        CompilerOptions, ModuleExtension, PackageId, PackageJsonType, PackageMetadata, ProgramPath,
+        ResolutionMode,
+    };
 
     #[test]
-    fn dedicated_route_is_exactly_the_reviewed_package_exports_fixtures() {
+    fn dedicated_route_is_exactly_the_reviewed_package_map_fixtures() {
         assert!(SUPPORTED_FIXTURES
             .iter()
             .all(|fixture| supports_fixture(fixture)));
         for fixture in [
             "conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsTrailers.ts",
+            "conformance/externalModules/rewriteRelativeImportExtensions/nonTSExtensions.ts",
             "conformance/node/nodeModulesPackagePatternExportsExclude.ts.backup",
             "node/nodeModulesPackagePatternExportsExclude.ts",
         ] {
@@ -417,5 +466,101 @@ mod tests {
         assert_eq!(map.get("@types/pkg"), Some(&false));
         assert!(map.contains_key(&types_package_name("pkg")));
         assert_eq!(types_package_name("@scope/pkg"), "@types/scope__pkg");
+    }
+
+    #[test]
+    fn implied_format_uses_explicit_extensions_or_node_package_lookup() {
+        fn package_scope(module_type: PackageJsonType) -> PackageMetadata {
+            let package_json = ProgramPath::from_trusted_parts("/package.json", "/package.json")
+                .expect("trusted package path");
+            PackageMetadata::from_trusted_parsed(package_json, "{}", None, None, module_type)
+        }
+
+        let module_scope = package_scope(PackageJsonType::Module);
+        let common_js_scope = package_scope(PackageJsonType::CommonJs);
+        let other_scope = package_scope(PackageJsonType::Other);
+        let unspecified_scope = package_scope(PackageJsonType::Unspecified);
+
+        let common_js = CompilerOptions {
+            module: Some(1),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            implied_node_format("/index.ts", Some(&module_scope), &common_js),
+            None
+        );
+        assert_eq!(
+            implied_node_format("/index.mts", Some(&module_scope), &common_js),
+            Some(ResolutionMode::EsNext)
+        );
+
+        let node = CompilerOptions {
+            module: Some(102),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            implied_node_format("/index.ts", Some(&module_scope), &node),
+            Some(ResolutionMode::EsNext)
+        );
+        assert_eq!(
+            implied_node_format("/node_modules/pkg/index.ts", None, &common_js),
+            Some(ResolutionMode::CommonJs)
+        );
+        assert_eq!(
+            implied_node_format_for_emit("/node_modules/pkg/index.ts", None, &common_js),
+            None
+        );
+
+        let es_next = CompilerOptions {
+            module: Some(99),
+            module_resolution: Some(99),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            implied_node_format("/index.ts", Some(&common_js_scope), &es_next),
+            Some(ResolutionMode::CommonJs)
+        );
+        assert_eq!(
+            implied_node_format_for_emit("/index.ts", Some(&common_js_scope), &es_next),
+            Some(ResolutionMode::CommonJs)
+        );
+        assert_eq!(
+            implied_node_format("/index.ts", Some(&unspecified_scope), &es_next),
+            Some(ResolutionMode::CommonJs)
+        );
+        assert_eq!(
+            implied_node_format("/index.ts", Some(&other_scope), &es_next),
+            Some(ResolutionMode::CommonJs)
+        );
+        assert_eq!(
+            implied_node_format_for_emit("/index.ts", Some(&unspecified_scope), &es_next),
+            None
+        );
+        assert_eq!(
+            implied_node_format_for_emit("/index.ts", Some(&other_scope), &es_next),
+            None
+        );
+        assert_eq!(
+            implied_node_format("/index.ts", None, &es_next),
+            Some(ResolutionMode::CommonJs)
+        );
+        assert_eq!(
+            implied_node_format_for_emit("/index.ts", None, &es_next),
+            None
+        );
+
+        let preserve = CompilerOptions {
+            module: Some(200),
+            module_resolution: Some(99),
+            ..CompilerOptions::default()
+        };
+        assert_eq!(
+            implied_node_format_for_emit("/index.ts", Some(&unspecified_scope), &preserve),
+            None
+        );
+        assert_eq!(
+            implied_node_format_for_emit("/index.ts", Some(&unspecified_scope), &node),
+            Some(ResolutionMode::CommonJs)
+        );
     }
 }

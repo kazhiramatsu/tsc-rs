@@ -414,6 +414,71 @@ fn repeated_owned_sessions_are_deterministic() {
 }
 
 #[test]
+fn conformance_harness_lib_cache_preserves_authoritative_diagnostics() {
+    fn make_program() -> PreparedProgram {
+        authoritative_program(
+            &[
+                ("/dep.ts", "export const value: 'actual' = 'actual';\n"),
+                (
+                    "/main.ts",
+                    "import { value } from './dep';\nconst expected: 'other' = value;\n",
+                ),
+            ],
+            &[1],
+            CompilerOptions {
+                module: Some(1),
+                module_resolution: Some(2),
+                ..CompilerOptions::default()
+            },
+            |builder, ids| {
+                builder
+                    .add_module_resolution(
+                        module_key("/main.ts", "./dep", ResolutionMode::Unspecified),
+                        Ok(source_resolution(ids[0], "/dep.ts", ModuleExtension::Ts)),
+                    )
+                    .expect("add authoritative source resolution");
+            },
+        )
+    }
+
+    let owned = ProgramSession::new(make_program())
+        .run()
+        .expect("owned authoritative session");
+    let cached = ProgramSession::new(make_program())
+        .run_for_conformance_with_harness_lib_cache()
+        .expect("cached conformance authoritative session");
+
+    assert_eq!(owned, cached);
+    assert_eq!(codes(cached.semantic_diagnostics()), [2322]);
+}
+
+#[test]
+fn conformance_harness_lib_cache_preserves_authoritative_failure() {
+    fn make_program() -> PreparedProgram {
+        authoritative_program(
+            &[("/main.cts", "import 'pkg';\n")],
+            &[0],
+            CompilerOptions {
+                module: Some(100),
+                module_resolution: Some(3),
+                ..CompilerOptions::default()
+            },
+            |_, _| {},
+        )
+    }
+
+    let owned = ProgramSession::new(make_program())
+        .run()
+        .expect_err("owned session must reject the missing exact row");
+    let cached = ProgramSession::new(make_program())
+        .run_for_conformance_with_harness_lib_cache()
+        .expect_err("cached session must reject the missing exact row");
+
+    assert_eq!(owned, cached);
+    assert!(matches!(cached, DriverError::MissingResolution(_)));
+}
+
+#[test]
 fn session_fails_closed_when_exact_module_resolution_key_is_absent() {
     let prepared = authoritative_program(
         &[("/main.cts", "import \"pkg\";\n")],
@@ -556,6 +621,159 @@ fn authoritative_resolution_selects_the_recorded_source_not_the_probe_candidate(
     );
     assert!(!codes(outcome.semantic_diagnostics()).contains(&2307));
     assert!(!codes(outcome.semantic_diagnostics()).contains(&2305));
+}
+
+#[test]
+fn authoritative_ts_extension_fact_controls_non_relative_rewrite_diagnostic() {
+    struct Case {
+        name: &'static str,
+        importer: &'static str,
+        specifier: &'static str,
+        target_name: &'static str,
+        target_text: &'static str,
+        resolved_using_ts_extension: bool,
+        is_external_library_import: bool,
+        expect_2877: bool,
+    }
+
+    let cases = [
+        Case {
+            name: "package imports pattern target",
+            importer: "import {} from \"#internal/foo.ts\";\n",
+            specifier: "#internal/foo.ts",
+            target_name: "/internal/foo.ts",
+            target_text: "export {};\n",
+            resolved_using_ts_extension: true,
+            is_external_library_import: false,
+            expect_2877: true,
+        },
+        Case {
+            name: "package imports exact target",
+            importer: "import {} from \"#foo.ts\";\n",
+            specifier: "#foo.ts",
+            target_name: "/foo.ts",
+            target_text: "export {};\n",
+            resolved_using_ts_extension: false,
+            is_external_library_import: false,
+            expect_2877: false,
+        },
+        Case {
+            name: "type-only import keeps the upstream module-specifier location boundary",
+            importer: "import type {} from \"#internal/foo.ts\";\n",
+            specifier: "#internal/foo.ts",
+            target_name: "/internal/foo.ts",
+            target_text: "export {};\n",
+            resolved_using_ts_extension: true,
+            is_external_library_import: false,
+            expect_2877: true,
+        },
+        Case {
+            name: "literal import type",
+            importer: "export type T = import(\"#internal/foo.ts\");\n",
+            specifier: "#internal/foo.ts",
+            target_name: "/internal/foo.ts",
+            target_text: "export {};\n",
+            resolved_using_ts_extension: true,
+            is_external_library_import: false,
+            expect_2877: false,
+        },
+        Case {
+            name: "ambient import",
+            importer: "declare module \"ambient\" {\n  import internal = require(\"#internal/foo.ts\");\n}\n",
+            specifier: "#internal/foo.ts",
+            target_name: "/internal/foo.ts",
+            target_text: "export {};\n",
+            resolved_using_ts_extension: true,
+            is_external_library_import: false,
+            expect_2877: false,
+        },
+        Case {
+            name: "declaration target",
+            importer: "import {} from \"#internal/foo.ts\";\n",
+            specifier: "#internal/foo.ts",
+            target_name: "/internal/foo.d.ts",
+            target_text: "export {};\n",
+            resolved_using_ts_extension: true,
+            is_external_library_import: false,
+            expect_2877: false,
+        },
+        Case {
+            name: "external library target",
+            importer: "import {} from \"#internal/foo.ts\";\n",
+            specifier: "#internal/foo.ts",
+            target_name: "/node_modules/pkg/foo.ts",
+            target_text: "export {};\n",
+            resolved_using_ts_extension: true,
+            is_external_library_import: true,
+            expect_2877: false,
+        },
+        Case {
+            name: "relative rewrite",
+            importer: "import {} from \"./internal/foo.ts\";\n",
+            specifier: "./internal/foo.ts",
+            target_name: "/internal/foo.ts",
+            target_text: "export {};\n",
+            resolved_using_ts_extension: true,
+            is_external_library_import: false,
+            expect_2877: false,
+        },
+    ];
+
+    for case in cases {
+        let prepared = authoritative_program(
+            &[
+                (case.target_name, case.target_text),
+                ("/main.ts", case.importer),
+            ],
+            &[1],
+            CompilerOptions {
+                module: Some(1),
+                module_resolution: Some(2),
+                rewrite_relative_import_extensions: Some(true),
+                ..CompilerOptions::default()
+            },
+            |builder, ids| {
+                let module = ResolvedModule::new(
+                    ResolvedModuleTarget::Source {
+                        source: ids[0],
+                        resolved_file: path(case.target_name),
+                    },
+                    if case.target_name.ends_with(".d.ts") {
+                        ModuleExtension::Dts
+                    } else {
+                        ModuleExtension::Ts
+                    },
+                )
+                .with_resolved_using_ts_extension(case.resolved_using_ts_extension)
+                .with_external_library_import(case.is_external_library_import);
+                builder
+                    .add_module_resolution(
+                        module_key("/main.ts", case.specifier, ResolutionMode::Unspecified),
+                        Ok(ModuleResolution::resolved(module)),
+                    )
+                    .expect("add authoritative rewrite resolution");
+            },
+        );
+
+        let outcome = consume(ProgramSession::new(prepared));
+        let diagnostics = outcome
+            .semantic_diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 2877)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            diagnostics.len(),
+            usize::from(case.expect_2877),
+            "{}",
+            case.name
+        );
+        if case.expect_2877 {
+            assert_eq!(
+                diagnostics[0].message_text(),
+                "This import uses a '.ts' extension to resolve to an input TypeScript file, but will not be rewritten during emit because it is not a relative path."
+            );
+        }
+    }
 }
 
 #[test]
