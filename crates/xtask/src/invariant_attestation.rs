@@ -248,7 +248,7 @@ pub(crate) fn controlled_input_fingerprints(
     // the immutable grading/scope anchors which define "the full corpus".
     // Directory entries are recursively path-and-content hashed, so adding,
     // deleting, renaming, or changing a file invalidates the attestation.
-    let groups: [(&str, &[&str]); 13] = [
+    let groups: [(&str, &[&str]); 14] = [
         ("checker", &["crates/checker"]),
         ("syntax", &["crates/syntax"]),
         ("binder", &["crates/binder"]),
@@ -269,6 +269,14 @@ pub(crate) fn controlled_input_fingerprints(
         ("corpus", &["ts-tests/tests/cases/conformance"]),
         ("vendor-libs", &["vendor/typescript-6.0.3/lib"]),
         (
+            "host-resolution-producer",
+            &[
+                ".node-version",
+                "crates/oracle/host-resolution-requests.mjs",
+                "crates/oracle/program-host.mjs",
+            ],
+        ),
+        (
             "immutable-oracle-state",
             &[
                 "ratchets/oracle-inputs.v1.json.zst",
@@ -278,7 +286,12 @@ pub(crate) fn controlled_input_fingerprints(
         ),
         (
             "scope-and-family-state",
-            &["m8-scope.json", "diag-families.json", "STAGE"],
+            &[
+                "m8-scope.json",
+                "diag-families.json",
+                "ratchets/host-resolution.v1.json",
+                "STAGE",
+            ],
         ),
     ];
     groups
@@ -461,6 +474,10 @@ mod tests {
             ".cargo/config.toml",
             "ratchets/oracle-inputs.v1.json.zst",
             "ratchets/conformance-matches.v1.json.zst",
+            "ratchets/host-resolution.v1.json",
+            ".node-version",
+            "crates/oracle/host-resolution-requests.mjs",
+            "crates/oracle/program-host.mjs",
             "ratchet.toml",
             "m8-scope.json",
             "diag-families.json",
@@ -595,6 +612,7 @@ mod tests {
                 "rust-build",
                 "corpus",
                 "vendor-libs",
+                "host-resolution-producer",
                 "immutable-oracle-state",
                 "scope-and-family-state",
             ]

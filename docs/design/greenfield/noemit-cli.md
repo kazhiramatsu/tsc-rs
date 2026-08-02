@@ -209,11 +209,17 @@ closure. It is seeded from the 241 frozen M8 host exclusions and records for
 each exact row:
 
 - fixture, matrix, pass, diagnostic identity, and occurrence;
-- host feature and resolution mode;
-- exact vendored tsc owner declaration, span, and hash;
+- host feature and effective `ModuleResolutionKind`;
+- the exact vendored resolution-request chain, including canonical source,
+  specifier, request mode, anchor kind and offset, and synthetic-request
+  status;
+- exact vendored tsc primary/dependency/diagnostic owner declarations, spans,
+  and hashes;
 - Rust resolver, loader, or consumer boundary;
-- emitting and nearest non-emitting canaries; and
-- status, evidence, and closing commit.
+- an emitting canary and a reviewed typed control, classified as
+  exact-feature/same-mode, closest-available/same-mode, or the explicitly
+  allowed Classic-to-Bundler alternate-mode contrast; and
+- open, closed, or lapsed status, evidence, and closing commit.
 
 The initial owner families are:
 
@@ -230,6 +236,19 @@ The initial owner families are:
 Rows close only through their exact owner family. A same-code or same-file
 improvement cannot close an adjacent family.
 
+An open row is exactly a live A2 host exclusion. A closed row must have left
+the live set, match a non-lapsed A2 tombstone at the same full closing commit,
+name an authoritative Rust producer-to-consumer route, and retain historical
+All-view accepted-set evidence at T0--T4 from that commit. The historical
+artifact is revalidated with its oracle-input and vendored-TypeScript pins,
+and the authoritative symbols must exist both in the current tree and at the
+closing commit. A `seam-only` row cannot close.
+
+`lapsed` is distinct from closure: it records an A2 oracle-correction
+tombstone. A row that had already closed retains its immutable historical
+T0--T4 evidence and authoritative route when it lapses; a row corrected while
+still open lapses without fabricated closure evidence.
+
 ## 8. Execution order
 
 ### H0.0 — contract and frozen inventory
@@ -237,11 +256,25 @@ improvement cannot close an adjacent family.
 - land this design;
 - materialize and validate `host-resolution.v1.json`;
 - pin all 241 entry identities and owner families;
-- add vendored owner hashes and positive plus adjacent-negative canaries;
-  and
-- record initial CPU, wall-time, and RSS profiles.
+- add exact vendored request chains and owner hashes plus positive canaries
+  and reviewed typed controls; and
+- record bounded pre-H0 CPU, wall-time, and RSS reference profiles.
 
 H0.0 changes no checker behavior.
+
+H0.0 is complete. `ratchets/host-resolution.v1.json` freezes all 241 exact
+identities imported from the schema-2 A2 scope under the eight-family
+inventory. It pins the effective module-resolution kind, exact vendored
+request chain, D2 primary/dependency/diagnostic declaration spans and hashes,
+an emitting canary, a reviewed typed control, and bounded pre-H0 local and
+GitHub-hosted CPU/wall/RSS observations. These observations are reference
+baselines, not the final resolver/CLI profiles or budgets frozen by H0.6.
+`cargo xtask host-resolution check` reconciles open, closed, and lapsed rows
+with live A2 exclusions and tombstones, and rejects owner/control drift or a
+closed row without an authoritative Rust route and historical exact T0--T4
+evidence against the trusted baseline. Every initial Rust target is
+`seam-only`; those anchors identify the intended route but do not claim H0
+resolution authority until the authoritative table route lands.
 
 ### H0.1 — ownership, path, and resolution seam
 

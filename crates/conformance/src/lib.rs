@@ -20,6 +20,7 @@ use tsc_oracle::{OracleDiag, OracleMessageChain, OraclePool};
 
 pub mod families;
 pub mod goldens_diff;
+mod host_resolution;
 mod identity;
 pub mod ratchet;
 mod rendered;
@@ -29,6 +30,9 @@ mod shadow_diff;
 pub use families::{
     check as families_check, report as families_report,
     verify_report_freshness as families_verify_report,
+};
+pub use host_resolution::{
+    check_host_resolution_registry, draft_host_resolution_registry, HOST_RESOLUTION_REL_PATH,
 };
 pub use identity::ExactIdentity;
 pub use rendered::{

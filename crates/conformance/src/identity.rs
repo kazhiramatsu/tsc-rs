@@ -27,6 +27,7 @@ pub const ENCODER_VERSION: u32 = 1;
 /// review fields on the manifest entry, verified against `start`,
 /// never identity.
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExactIdentity {
     pub fixture: String,
     pub matrix_key: String,

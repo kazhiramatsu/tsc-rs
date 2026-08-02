@@ -247,9 +247,13 @@ fingerprint and start the 14 qualifying UTC windows. The M8
 H0 follows its separate
 [filesystem-hosted no-emit contract](noemit-cli.md). Its entry inventory is
 the 241 remaining exact host-resolution identities, not a new diagnostic
-band. It begins with the shared host/session and resolution-table seam, then
-closes package/module owners under `MemoryCompilerHost` before connecting
-the same implementation to the filesystem, tsconfig, and CLI.
+band. It first freezes those identities in
+`ratchets/host-resolution.v1.json` with exact vendored request chains, owner
+declarations, positive canaries, and reviewed typed controls. The shared
+host/session and resolution-table seam follows, then package/module owners
+close under `MemoryCompilerHost` before the same implementation connects to
+the filesystem, tsconfig, and CLI. The recorded resource observations are
+pre-H0 references; H0.6 owns the final resolver/CLI profiles and budgets.
 
 ## Conventions
 
