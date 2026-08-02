@@ -172,6 +172,7 @@ fn main() {
                 std::process::exit(2);
             }
         },
+        Some("semantic-history") => run_or_exit(semantic_history(args)),
         Some("port-plan") => run_or_exit(port_plan(args)),
         Some("ledger") => match args.next().as_deref() {
             Some("check") => run_or_exit(ledger_check()),
@@ -4518,6 +4519,102 @@ fn families_check(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
     tsc_conformance::families_check(&find_workspace_root()?, baseline.as_deref())
 }
 
+/// Run the history-backed semantic prerequisites in one short-lived process.
+/// A1's opaque proof lets H0 reuse the successful blob-ID history decode while
+/// A2 remains ordered between them; A5 consumes the verified A1/A2 state last.
+fn semantic_history(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let baseline = parse_semantic_history_args(args)?;
+    let workspace = find_workspace_root()?;
+    let total_started = std::time::Instant::now();
+    let step_started = std::time::Instant::now();
+    let history_proof =
+        tsc_conformance::ratchet::check_with_history_proof(&workspace, Some(&baseline))?;
+    println!(
+        "semantic history step ratchet ok: elapsed={:.3}s",
+        step_started.elapsed().as_secs_f64()
+    );
+    let step_started = std::time::Instant::now();
+    tsc_conformance::scope_audit(&workspace, Some(&baseline))?;
+    println!(
+        "semantic history step scope ok: elapsed={:.3}s",
+        step_started.elapsed().as_secs_f64()
+    );
+    let step_started = std::time::Instant::now();
+    tsc_conformance::check_host_resolution_registry_with_history_proof(
+        &workspace,
+        Some(&baseline),
+        &history_proof,
+    )?;
+    println!(
+        "semantic history step host-resolution ok: elapsed={:.3}s",
+        step_started.elapsed().as_secs_f64()
+    );
+    let step_started = std::time::Instant::now();
+    tsc_conformance::families_check(&workspace, Some(&baseline))?;
+    println!(
+        "semantic history step families ok: elapsed={:.3}s",
+        step_started.elapsed().as_secs_f64()
+    );
+    println!(
+        "semantic history audits ok: elapsed={:.3}s",
+        total_started.elapsed().as_secs_f64()
+    );
+    Ok(())
+}
+
+fn parse_semantic_history_args(
+    args: impl Iterator<Item = String>,
+) -> Result<String, Box<dyn Error>> {
+    let mut baseline = None;
+    let mut args = args;
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--baseline" => {
+                if baseline.is_some() {
+                    return Err("duplicate semantic-history --baseline".into());
+                }
+                let value = args
+                    .next()
+                    .ok_or("missing value after semantic-history --baseline")?;
+                if value.trim().is_empty() || value.starts_with('-') {
+                    return Err("missing value after semantic-history --baseline".into());
+                }
+                baseline = Some(value);
+            }
+            _ => return Err(format!("unexpected semantic-history argument: {arg}").into()),
+        }
+    }
+    baseline.ok_or_else(|| "semantic-history requires --baseline <trusted-ref>".into())
+}
+
+#[cfg(test)]
+mod semantic_history_args_tests {
+    use super::parse_semantic_history_args;
+
+    fn parse(values: &[&str]) -> Result<String, String> {
+        parse_semantic_history_args(values.iter().map(|value| (*value).to_owned()))
+            .map_err(|error| error.to_string())
+    }
+
+    #[test]
+    fn requires_one_explicit_baseline() {
+        assert_eq!(parse(&["--baseline", "base-sha"]).unwrap(), "base-sha");
+        assert!(parse(&[]).unwrap_err().contains("requires --baseline"));
+        assert!(parse(&["--baseline"])
+            .unwrap_err()
+            .contains("missing value"));
+        assert!(parse(&["--baseline", "--unknown"])
+            .unwrap_err()
+            .contains("missing value"));
+        assert!(parse(&["--baseline", "a", "--baseline", "b"])
+            .unwrap_err()
+            .contains("duplicate"));
+        assert!(parse(&["base-sha"])
+            .unwrap_err()
+            .contains("unexpected semantic-history argument"));
+    }
+}
+
 /// `cargo xtask families report [--out-json <path>] [--verify]`: the
 /// A5 supported rollup from one current full band=all gating run
 /// (never from A1 summaries). `--verify` re-checks an existing
@@ -4714,6 +4811,46 @@ struct SampleProgram {
     lib_files: Arc<Vec<InputFile>>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PostJobsInvariant {
+    Encodings,
+    Idempotence,
+    MatrixIndependence,
+    UnsupportedUnwind,
+}
+
+impl PostJobsInvariant {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Encodings => "encodings",
+            Self::Idempotence => "idempotence",
+            Self::MatrixIndependence => "matrix-independence",
+            Self::UnsupportedUnwind => "unsupported-unwind",
+        }
+    }
+
+    fn run(self, programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
+        match self {
+            Self::Encodings => run_encodings(programs),
+            Self::Idempotence => run_idempotence(programs),
+            Self::MatrixIndependence => run_matrix_independence(programs),
+            Self::UnsupportedUnwind => run_unsupported_unwind(programs),
+        }
+    }
+}
+
+// Keep the hosted timings balanced under ordered_map's fixed modulo lanes:
+// worker 0 runs encodings then matrix-independence, while worker 1 runs
+// idempotence then unsupported-unwind. jobs-independence retains its own
+// exclusive two-worker stage, so aggregate checker concurrency never exceeds
+// the existing hard ceiling.
+const POST_JOBS_INVARIANTS: [PostJobsInvariant; 4] = [
+    PostJobsInvariant::Encodings,
+    PostJobsInvariant::Idempotence,
+    PostJobsInvariant::MatrixIndependence,
+    PostJobsInvariant::UnsupportedUnwind,
+];
+
 fn invariants(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let workspace = find_workspace_root()?;
     invariant_attestation::invalidate(&workspace)?;
@@ -4768,7 +4905,7 @@ fn invariants(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> 
             started.elapsed().as_secs_f64()
         );
     }
-    if args.suite.includes(InvariantSuite::Idempotence) {
+    if args.suite != InvariantSuite::All && args.suite.includes(InvariantSuite::Idempotence) {
         let started = std::time::Instant::now();
         run_idempotence(&programs)?;
         println!(
@@ -4777,16 +4914,24 @@ fn invariants(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> 
             started.elapsed().as_secs_f64()
         );
     }
+    let mut pipeline_worker_count = None;
     if args.suite.includes(InvariantSuite::JobsIndependence) {
+        let worker_count = invariant_pipeline_worker_count()?;
+        pipeline_worker_count = Some(worker_count);
         let started = std::time::Instant::now();
-        run_jobs_independence(&programs)?;
+        run_jobs_independence(&programs, worker_count)?;
         println!(
             "invariant jobs-independence ok: programs={} elapsed={:.3}s",
             programs.len(),
             started.elapsed().as_secs_f64()
         );
     }
-    if args.suite.includes(InvariantSuite::Encodings) {
+    if args.suite == InvariantSuite::All {
+        run_post_jobs_invariant_pipeline(
+            &programs,
+            pipeline_worker_count.expect("all includes jobs-independence"),
+        )?;
+    } else if args.suite.includes(InvariantSuite::Encodings) {
         let started = std::time::Instant::now();
         run_encodings(&programs)?;
         println!(
@@ -4795,7 +4940,8 @@ fn invariants(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> 
             started.elapsed().as_secs_f64()
         );
     }
-    if args.suite.includes(InvariantSuite::MatrixIndependence) {
+    if args.suite != InvariantSuite::All && args.suite.includes(InvariantSuite::MatrixIndependence)
+    {
         let started = std::time::Instant::now();
         run_matrix_independence(&programs)?;
         println!(
@@ -4804,7 +4950,7 @@ fn invariants(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> 
             started.elapsed().as_secs_f64()
         );
     }
-    if args.suite.includes(InvariantSuite::UnsupportedUnwind) {
+    if args.suite != InvariantSuite::All && args.suite.includes(InvariantSuite::UnsupportedUnwind) {
         let started = std::time::Instant::now();
         run_unsupported_unwind(&programs)?;
         println!(
@@ -4826,6 +4972,34 @@ fn invariants(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> 
         println!(
             "full-corpus invariant attestation written atomically: {}",
             path.display()
+        );
+    }
+    Ok(())
+}
+
+fn run_post_jobs_invariant_pipeline(
+    programs: &[SampleProgram],
+    worker_count: usize,
+) -> Result<(), Box<dyn Error>> {
+    println!(
+        "invariant independent-suite pipeline: suites={} workers={worker_count}",
+        POST_JOBS_INVARIANTS.len()
+    );
+    let results =
+        bounded_pipeline::ordered_map(&POST_JOBS_INVARIANTS, worker_count, |_, &suite| {
+            let started = std::time::Instant::now();
+            suite
+                .run(programs)
+                .map(|()| started.elapsed().as_secs_f64())
+                .map_err(|error| error.to_string())
+        })?;
+    for (&suite, result) in POST_JOBS_INVARIANTS.iter().zip(results) {
+        let elapsed =
+            result.map_err(|error| format!("invariant {} failed: {error}", suite.name()))?;
+        println!(
+            "invariant {} ok: programs={} elapsed={elapsed:.3}s",
+            suite.name(),
+            programs.len()
         );
     }
     Ok(())
@@ -5076,7 +5250,10 @@ fn run_unsupported_unwind(programs: &[SampleProgram]) -> Result<(), Box<dyn Erro
     Ok(())
 }
 
-fn run_jobs_independence(programs: &[SampleProgram]) -> Result<(), Box<dyn Error>> {
+fn run_jobs_independence(
+    programs: &[SampleProgram],
+    worker_count: usize,
+) -> Result<(), Box<dyn Error>> {
     // Keep jobs=1 serial and first: besides being the comparison baseline, it
     // fully initializes the immutable lib-bundle cache before any checker
     // calls overlap. Each candidate retains its exact modulo-shard traversal;
@@ -5088,7 +5265,6 @@ fn run_jobs_independence(programs: &[SampleProgram]) -> Result<(), Box<dyn Error
     // first return this gate to one worker or provide equivalent isolation.
     let baseline = run_programs_in_job_order(programs, 1)?;
     let schedules = (2..=16).collect::<Vec<_>>();
-    let worker_count = invariant_pipeline_worker_count()?;
     println!(
         "invariant jobs-independence pipeline: schedules={} workers={worker_count}",
         schedules.len()
@@ -5162,7 +5338,7 @@ fn select_invariant_pipeline_workers(
 
 #[cfg(test)]
 mod invariant_pipeline_config_tests {
-    use super::select_invariant_pipeline_workers;
+    use super::{select_invariant_pipeline_workers, PostJobsInvariant, POST_JOBS_INVARIANTS};
 
     #[test]
     fn defaults_to_two_workers_without_oversubscribing_one_core() {
@@ -5195,6 +5371,35 @@ mod invariant_pipeline_config_tests {
         assert_eq!(
             select_invariant_pipeline_workers(Some("2"), 8, false).unwrap(),
             1
+        );
+    }
+
+    #[test]
+    fn independent_suites_are_paired_into_the_reviewed_two_lanes() {
+        let lane_zero = POST_JOBS_INVARIANTS
+            .iter()
+            .copied()
+            .step_by(2)
+            .collect::<Vec<_>>();
+        let lane_one = POST_JOBS_INVARIANTS
+            .iter()
+            .copied()
+            .skip(1)
+            .step_by(2)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            lane_zero,
+            [
+                PostJobsInvariant::Encodings,
+                PostJobsInvariant::MatrixIndependence,
+            ]
+        );
+        assert_eq!(
+            lane_one,
+            [
+                PostJobsInvariant::Idempotence,
+                PostJobsInvariant::UnsupportedUnwind,
+            ]
         );
     }
 }
@@ -7310,7 +7515,7 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
     let semantic_started = std::time::Instant::now();
     // Keep the reusable checker/conformance phases in-process. The
     // history-heavy trusted audits below use this already-built binary
-    // as short-lived children so their allocator pages cannot overlap
+    // as one short-lived child so its allocator pages cannot overlap
     // B2 coverage workers on the standard hosted runner.
     codegen_band_inventory(
         ["--by-function", "--band", "all", "--check"]
@@ -7324,42 +7529,15 @@ fn ci_semantic_gates(baseline: &str) -> Result<(), Box<dyn Error>> {
     codegen_nodes(true)?;
     schema_audit(std::iter::empty())?;
     relpin::run(std::iter::empty())?;
-    // A1 accepted-state coherence: artifact/inputs/lineage verify
-    // before the behavior runs that gate against them. Hosted PR CI
-    // supplies GitHub's immutable base SHA; local runs default to the
-    // origin/main convenience ref. The direct compare prevents a
-    // rewritten branch from replacing the accepted set with a smaller
-    // self-consistent chain.
+    // Run A1 -> A2 -> H0 -> A5 sequentially and fail-fast in one short-lived
+    // child. H0 reuses A1's exact HEAD/blob proof instead of decoding the same
+    // accepted-pair history again. The child joins and exits before B2, so its
+    // history allocator pages never overlap the checker-heavy coverage stage.
     let executable = std::env::current_exe()?;
     run_command(
         Command::new(&executable)
-            .args(["ratchet", "check", "--baseline"])
-            .arg(baseline),
-    )?;
-    // A2 exact scope coherence: manifest identities, encoder
-    // cross-check, snapshot anchors, and tombstone proofs verify
-    // against the same trusted base before the supported view that
-    // depends on them gates anything.
-    run_command(
-        Command::new(&executable)
-            .args(["scope", "audit", "--baseline"])
-            .arg(baseline),
-    )?;
-    // H0 frozen host-owner coherence: validate the dedicated registry
-    // against the already-audited A2 host-resolution universe and the same
-    // immutable PR baseline before any owner-family or behavior gate consumes
-    // it.
-    run_command(
-        Command::new(&executable)
-            .args(["host-resolution", "check", "--baseline"])
-            .arg(baseline),
-    )?;
-    // A5 family-map coherence: the exactly-once (code, pass) domain,
-    // freeze/extension anchors, and the trusted-base compare — before
-    // the rollup below reads the map as a verified input.
-    run_command(
-        Command::new(&executable)
-            .args(["families", "check", "--baseline"])
+            .current_dir(&workspace)
+            .args(["semantic-history", "--baseline"])
             .arg(baseline),
     )?;
     // M8 entry-plan coherence: the frozen plan must be structurally
