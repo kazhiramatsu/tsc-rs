@@ -125,6 +125,39 @@ fn assert_limit_error(
 }
 
 #[test]
+fn allow_js_root_is_published_after_the_selected_library_prefix() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file(
+            "/work/root.js",
+            b"// @ts-check\nexport const value = 1;\n".to_vec(),
+        )
+        .file(
+            "/typescript/lib/lib.es5.d.ts",
+            b"declare const es5: true;\n".to_vec(),
+        )
+        .build()
+        .expect("build JavaScript library program host");
+    let options = CompilerOptions {
+        allow_js: true,
+        lib: Some(vec!["es5".to_owned()]),
+        ..compiler_options()
+    };
+
+    let program = load(&host, &["/work/root.js"], options, generous_limits())
+        .expect("load JavaScript root with an explicit library");
+
+    assert_library_prefix(&program, &["/typescript/lib/lib.es5.d.ts"]);
+    assert_eq!(
+        source_paths(&program),
+        ["/typescript/lib/lib.es5.d.ts", "/work/root.js"]
+    );
+    assert_eq!(
+        program.roots()[0].source().map(|source| source.index()),
+        Some(1)
+    );
+}
+
+#[test]
 fn default_target_library_graph_is_a_sorted_prefix_before_dependency_postorder() {
     let host = MemoryCompilerHost::builder("/work")
         .file("/work/root.ts", b"import './dependency';\n".to_vec())

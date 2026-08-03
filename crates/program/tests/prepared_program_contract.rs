@@ -9,7 +9,7 @@ use tsc_program::{
     PreparedRoot, PreparedSourceFile, ProgramOptions, ProgramPath, ResolutionError,
     ResolutionErrorKind, ResolutionKey, ResolutionMode, ResolutionOutcome, ResolutionRequestKind,
     ResolvedModule, ResolvedModuleTarget, ResolvedTypeReferenceDirective, SourceFileId,
-    TypeReferenceResolution, TypeReferenceResolutionKey,
+    TypeReferenceResolution, TypeReferenceResolutionKey, UnloadedModuleReason,
 };
 
 fn path(display: &str, canonical: &str) -> ProgramPath {
@@ -534,10 +534,13 @@ fn unloaded_targets_do_not_require_an_owned_source() {
     builder.add_root_file(source).unwrap();
     let key = ResolutionKey::new(builder_path("/work/main.ts"), "pkg", ResolutionMode::EsNext);
     let external = ResolvedModule::new(
-        ResolvedModuleTarget::Unloaded(path(
-            "/Work/node_modules/pkg/index.js",
-            "/work/node_modules/pkg/index.js",
-        )),
+        ResolvedModuleTarget::unloaded(
+            path(
+                "/Work/node_modules/pkg/index.js",
+                "/work/node_modules/pkg/index.js",
+            ),
+            UnloadedModuleReason::NodeModulesDepth,
+        ),
         ModuleExtension::Js,
     )
     .with_external_library_import(true)
@@ -560,8 +563,12 @@ fn unloaded_targets_do_not_require_an_owned_source() {
     };
     assert!(matches!(
         resolved.target(),
-        ResolvedModuleTarget::Unloaded(_)
+        ResolvedModuleTarget::Unloaded { .. }
     ));
+    assert_eq!(
+        resolved.target().unloaded_reason(),
+        Some(UnloadedModuleReason::NodeModulesDepth)
+    );
     assert_eq!(
         resolved.original_path().unwrap().canonical().as_path(),
         Path::new("/work/node_modules/pkg/link.js")
@@ -642,7 +649,10 @@ fn resolved_module_target_and_extension_metadata_are_validated_exactly() {
         .add_module_resolution(
             json_key.clone(),
             Ok(ModuleResolution::resolved(ResolvedModule::new(
-                ResolvedModuleTarget::Unloaded(path("/Work/data.json", "/work/data.json")),
+                ResolvedModuleTarget::unloaded(
+                    path("/Work/data.json", "/work/data.json"),
+                    UnloadedModuleReason::JsonWithoutResolveJsonModule,
+                ),
                 ModuleExtension::Json,
             ))),
         )
@@ -656,10 +666,10 @@ fn resolved_module_target_and_extension_metadata_are_validated_exactly() {
         .add_module_resolution(
             css_key.clone(),
             Ok(ModuleResolution::resolved(ResolvedModule::new(
-                ResolvedModuleTarget::Unloaded(path(
-                    "/Work/theme.d.css.ts",
-                    "/work/theme.d.css.ts",
-                )),
+                ResolvedModuleTarget::unloaded(
+                    path("/Work/theme.d.css.ts", "/work/theme.d.css.ts"),
+                    UnloadedModuleReason::ArbitraryExtensionWithoutOption,
+                ),
                 ModuleExtension::Arbitrary(".d.css.ts".to_owned()),
             ))),
         )
@@ -675,7 +685,10 @@ fn resolved_module_target_and_extension_metadata_are_validated_exactly() {
         .add_module_resolution(
             key(),
             Ok(ModuleResolution::resolved(ResolvedModule::new(
-                ResolvedModuleTarget::Unloaded(path("/Work/dep.d.ts", "/work/dep.d.ts")),
+                ResolvedModuleTarget::unloaded(
+                    path("/Work/dep.d.ts", "/work/dep.d.ts"),
+                    UnloadedModuleReason::ResolutionOnly,
+                ),
                 ModuleExtension::Dts,
             ))),
         )

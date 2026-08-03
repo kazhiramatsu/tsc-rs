@@ -139,7 +139,7 @@ pub struct AuthoritativeResolvedModule {
 
 /// A successfully resolved implementation file that was deliberately not
 /// loaded into the source program, together with the exact facts needed by
-/// the TS7016 diagnostic branch.
+/// the TS7016 and unloaded-JSX TS6142 diagnostic branches.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AuthoritativeUntypedModule {
     pub resolved_file_name: String,
@@ -147,6 +147,12 @@ pub struct AuthoritativeUntypedModule {
     pub alternate_result: Option<String>,
     pub types_package_exists: bool,
     pub package_bundles_types: bool,
+    pub resolution_diagnostic: Option<AuthoritativeModuleResolutionDiagnostic>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AuthoritativeModuleResolutionDiagnostic {
+    JsxWithoutJsxOption,
 }
 
 /// An unsuccessful authoritative lookup together with host facts that remain

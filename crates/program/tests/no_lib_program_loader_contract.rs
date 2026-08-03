@@ -13,10 +13,14 @@ use tsc_program::{
     load_no_lib_program, plan_source_requests, CompilerOptions, PathMapping, PreparedProgram,
     ProgramLoadError, ProgramLoadErrorKind, ProgramLoadLimit, ProgramLoadLimits,
     ProgramLoadOperation, ProgramOptions, ProgramPath, ResolutionError, ResolutionKey,
-    ResolutionOutcome, ResolvedModuleTarget, TypeReferenceResolutionKey,
+    ResolutionOutcome, ResolvedModuleTarget, TypeReferenceResolutionKey, UnloadedModuleReason,
 };
 
 const GENEROUS_LIMIT: usize = 1_024;
+const TYPESCRIPT_ROOT_EXTENSION_LIST: &str =
+    "'.ts', '.tsx', '.d.ts', '.cts', '.d.cts', '.mts', '.d.mts'";
+const ALL_ROOT_EXTENSION_LIST: &str =
+    "'.ts', '.tsx', '.d.ts', '.js', '.jsx', '.cts', '.d.cts', '.cjs', '.mts', '.d.mts', '.mjs'";
 #[cfg(unix)]
 static NEXT_TEMP_TREE: AtomicU64 = AtomicU64::new(0);
 
@@ -796,6 +800,204 @@ fn missing_root_entries_preserve_multiplicity_but_share_one_ts6053_diagnostic() 
 }
 
 #[test]
+fn javascript_family_roots_follow_allow_js_and_gate_host_reads() {
+    let roots = [
+        "/work/root.js",
+        "/work/root.jsx",
+        "/work/root.mjs",
+        "/work/root.cjs",
+    ];
+    let mut enabled_host = MemoryCompilerHost::builder("/work");
+    for root in roots {
+        enabled_host = enabled_host.file(root, Vec::new());
+    }
+    let enabled_host = enabled_host
+        .build()
+        .expect("build admitted JavaScript-root host");
+    let enabled = load_with_options(
+        &enabled_host,
+        &roots,
+        CompilerOptions {
+            allow_js: true,
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("allowJs admits every JavaScript-family root");
+
+    assert_eq!(source_paths(&enabled), roots.map(Path::new));
+    assert_eq!(root_paths(&enabled), roots.map(Path::new));
+    assert!(enabled.roots().iter().all(|root| root.source().is_some()));
+    assert!(enabled.diagnostics().program().is_empty());
+
+    let mut disabled_host = MemoryCompilerHost::builder("/work");
+    for root in roots {
+        disabled_host = disabled_host.file(root, Vec::new()).failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::ReadFile,
+            Some(PathBuf::from(root)),
+            "unsupported JavaScript roots must be gated before readFile",
+        ));
+    }
+    let disabled_host = disabled_host
+        .build()
+        .expect("build preflight-guarded JavaScript-root host");
+    let disabled = load(&disabled_host, &roots, generous_limits())
+        .expect("allowJs=false retains rejected JavaScript roots as program facts");
+
+    assert!(disabled.source_files().is_empty());
+    assert_eq!(root_paths(&disabled), roots.map(Path::new));
+    assert!(disabled.roots().iter().all(|root| {
+        root.source().is_none()
+            && root
+                .missing_diagnostic()
+                .is_some_and(|diagnostic| diagnostic.code() == 6504)
+    }));
+    assert_eq!(
+        disabled
+            .diagnostics()
+            .program()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [6504, 6504, 6504, 6504]
+    );
+    let diagnostic = &disabled.diagnostics().program()[0];
+    assert!(diagnostic.message.next_present);
+    assert_eq!(diagnostic.message.next.len(), 1);
+    assert_eq!(diagnostic.message.next[0].code, 1430);
+    assert!(diagnostic.message.next[0].next_present);
+    assert_eq!(diagnostic.message.next[0].next.len(), 1);
+    assert_eq!(diagnostic.message.next[0].next[0].code, 1427);
+}
+
+#[test]
+fn root_extension_preflight_handles_json_unknown_and_extensionless_boundaries() {
+    let disabled_host = MemoryCompilerHost::builder("/work")
+        .file("/work/data.json", br#"{"value":1}"#.to_vec())
+        .file("/work/notes.txt", b"text".to_vec())
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::ReadFile,
+            Some(PathBuf::from("/work/data.json")),
+            "disabled JSON roots must be gated before readFile",
+        ))
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::ReadFile,
+            Some(PathBuf::from("/work/notes.txt")),
+            "unknown roots must be gated before readFile",
+        ))
+        .build()
+        .expect("build unsupported-root host");
+    let disabled = load_with_options(
+        &disabled_host,
+        &["/work/data.json", "/work/notes.txt"],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("unsupported extensions remain program diagnostics");
+    assert!(disabled.source_files().is_empty());
+    assert_eq!(
+        disabled
+            .diagnostics()
+            .program()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [6054, 6054]
+    );
+    assert!(disabled.diagnostics().program().iter().all(|diagnostic| {
+        let message = diagnostic.message_text();
+        message.contains(TYPESCRIPT_ROOT_EXTENSION_LIST) && !message.contains("'.js'")
+    }));
+
+    let allow_js_unknown = load_with_options(
+        &disabled_host,
+        &["/work/notes.txt"],
+        CompilerOptions {
+            allow_js: true,
+            module: Some(1),
+            module_resolution: Some(2),
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("allowJs still rejects unknown root extensions before readFile");
+    assert_eq!(allow_js_unknown.diagnostics().program()[0].code(), 6054);
+    assert!(allow_js_unknown.diagnostics().program()[0]
+        .message_text()
+        .contains(ALL_ROOT_EXTENSION_LIST));
+
+    let enabled_host = MemoryCompilerHost::builder("/work")
+        .file("/work/data.json", br#"{"value":1}"#.to_vec())
+        .build()
+        .expect("build admitted JSON-root host");
+    let enabled = load_with_options(
+        &enabled_host,
+        &["/work/data.json"],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            resolve_json_module: Some(true),
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("effective resolveJsonModule admits an explicit JSON root");
+    assert_eq!(source_paths(&enabled), [Path::new("/work/data.json")]);
+    assert!(!enabled.source_files()[0].may_be_emitted());
+    assert_eq!(enabled.resolutions().module_len(), 0);
+
+    let extensionless_host = MemoryCompilerHost::builder("/work")
+        .file("/work/root.ts", b"export {};".to_vec())
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::ReadFile,
+            Some(PathBuf::from("/work/root.ts")),
+            "the explicit extensionless-root boundary must precede host reads",
+        ))
+        .build()
+        .expect("build extensionless-root host");
+    let error = load(&extensionless_host, &["/work/root"], generous_limits())
+        .expect_err("extensionless root probing remains an explicit typed boundary");
+    assert_eq!(error.kind(), ProgramLoadErrorKind::Unsupported);
+    assert_eq!(error.operation(), ProgramLoadOperation::NormalizeRoot);
+    let ProgramLoadError::Unsupported { feature, .. } = error else {
+        unreachable!("kind identifies the unsupported variant");
+    };
+    assert_eq!(feature, "root-extensionless");
+}
+
+#[test]
+fn case_insensitive_javascript_root_uses_canonical_extension_for_ts6504() {
+    let host = MemoryCompilerHost::builder("/Work")
+        .case_sensitive(false)
+        .file("/Work/ROOT.JS", Vec::new())
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::ReadFile,
+            Some(PathBuf::from("/Work/ROOT.JS")),
+            "unsupported uppercase JavaScript roots must not be read",
+        ))
+        .build()
+        .expect("build case-insensitive JavaScript-root host");
+
+    let program = load(&host, &["/Work/ROOT.JS"], generous_limits())
+        .expect("case-insensitive JavaScript roots retain a TS6504 fact");
+    assert!(program.source_files().is_empty());
+    assert_eq!(program.diagnostics().program()[0].code(), 6504);
+}
+
+#[test]
 fn case_insensitive_missing_spellings_keep_distinct_ts6053_messages() {
     let host = MemoryCompilerHost::builder("/Work")
         .case_sensitive(false)
@@ -975,6 +1177,21 @@ fn explicit_path_references_gate_json_and_report_javascript_or_unknown_extension
         );
         assert_eq!(diagnostics[0].length, Some(specifier.len() as u32));
     }
+
+    let allow_js_unknown = load_with_options(
+        &host,
+        &["/work/text-root.ts"],
+        CompilerOptions {
+            allow_js: true,
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("allowJs keeps unknown explicit path references diagnostic-only");
+    let diagnostic = &allow_js_unknown.diagnostics().program()[0];
+    assert_eq!(diagnostic.code(), 6054);
+    assert!(diagnostic.message_text().contains(ALL_ROOT_EXTENSION_LIST));
 }
 
 #[test]
@@ -1038,6 +1255,85 @@ fn extensionless_path_references_probe_ts_then_tsx_then_dts_and_report_ts6231() 
         Some(root_missing.find("./pick-missing").unwrap() as u32)
     );
     assert_eq!(diagnostic.length, Some("./pick-missing".len() as u32));
+}
+
+#[test]
+fn allow_js_path_references_admit_explicit_and_extensionless_js_after_ts() {
+    let explicit_root = "/// <reference path=\"./explicit.cjs\" />\n";
+    let javascript_root = "/// <reference path=\"./javascript\" />\n";
+    let typescript_root = "/// <reference path=\"./priority\" />\n";
+    let jsx_root = "/// <reference path=\"./jsx-only\" />\n";
+    let missing_root = "/// <reference path=\"./missing\" />\n";
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/explicit-root.ts", explicit_root.as_bytes().to_vec())
+        .file(
+            "/work/javascript-root.ts",
+            javascript_root.as_bytes().to_vec(),
+        )
+        .file(
+            "/work/typescript-root.ts",
+            typescript_root.as_bytes().to_vec(),
+        )
+        .file("/work/jsx-root.ts", jsx_root.as_bytes().to_vec())
+        .file("/work/missing-root.ts", missing_root.as_bytes().to_vec())
+        .file("/work/explicit.cjs", b"module.exports = 1;".to_vec())
+        .file("/work/javascript.js", b"exports.value = 1;".to_vec())
+        .file(
+            "/work/javascript.jsx",
+            b"export const mustNotWin = 1;".to_vec(),
+        )
+        .file("/work/priority.ts", b"export const winner = 1;".to_vec())
+        .file("/work/priority.js", b"exports.mustNotWin = 1;".to_vec())
+        .file("/work/jsx-only.jsx", b"export const jsx = 1;".to_vec())
+        .file(
+            "/work/missing.cjs",
+            b"module.exports = 'must not be probed';".to_vec(),
+        )
+        .file(
+            "/work/missing.mjs",
+            b"export const mustNotBeProbed = true;".to_vec(),
+        )
+        .build()
+        .expect("build allowJs path-reference host");
+
+    let program = load_with_options(
+        &host,
+        &[
+            "/work/explicit-root.ts",
+            "/work/javascript-root.ts",
+            "/work/typescript-root.ts",
+            "/work/jsx-root.ts",
+            "/work/missing-root.ts",
+        ],
+        CompilerOptions {
+            allow_js: true,
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("allowJs path references join source membership");
+
+    assert_eq!(
+        source_paths(&program),
+        [
+            Path::new("/work/explicit.cjs"),
+            Path::new("/work/explicit-root.ts"),
+            Path::new("/work/javascript.js"),
+            Path::new("/work/javascript-root.ts"),
+            Path::new("/work/priority.ts"),
+            Path::new("/work/typescript-root.ts"),
+            Path::new("/work/jsx-only.jsx"),
+            Path::new("/work/jsx-root.ts"),
+            Path::new("/work/missing-root.ts"),
+        ]
+    );
+    let diagnostics = program.diagnostics().program();
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0].code(), 6231);
+    assert!(diagnostics[0]
+        .message_text()
+        .contains(ALL_ROOT_EXTENSION_LIST));
 }
 
 #[test]
@@ -1116,10 +1412,263 @@ fn module_not_found_and_unloaded_javascript_are_both_authoritative_rows() {
     let ResolutionOutcome::Resolved(javascript) = javascript.outcome() else {
         panic!("JavaScript request must resolve");
     };
-    let ResolvedModuleTarget::Unloaded(path) = javascript.target() else {
+    let ResolvedModuleTarget::Unloaded {
+        resolved_file: path,
+        reason,
+    } = javascript.target()
+    else {
         panic!("allowJs=false must keep the JavaScript target out of source membership");
     };
+    assert_eq!(*reason, UnloadedModuleReason::JavaScriptNotAdmitted);
     assert_eq!(path.display(), Path::new("/work/dependency.js"));
+}
+
+#[test]
+fn allow_js_loads_local_javascript_dependencies_in_postorder_and_binds_source_rows() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file(
+            "/work/root.ts",
+            b"import './dependency.js';\nexport {};\n".to_vec(),
+        )
+        .file(
+            "/work/dependency.js",
+            b"import './leaf.cjs';\nexport const dependency = 1;\n".to_vec(),
+        )
+        .file("/work/leaf.cjs", b"module.exports = 1;\n".to_vec())
+        .build()
+        .expect("build local JavaScript dependency host");
+    let program = load_with_options(
+        &host,
+        &["/work/root.ts"],
+        CompilerOptions {
+            allow_js: true,
+            module: Some(1),
+            module_resolution: Some(2),
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("allowJs loads the local JavaScript dependency closure");
+
+    assert_eq!(
+        source_paths(&program),
+        [
+            Path::new("/work/leaf.cjs"),
+            Path::new("/work/dependency.js"),
+            Path::new("/work/root.ts"),
+        ]
+    );
+    assert_eq!(program.resolutions().module_len(), 2);
+    for (source_path, specifier, expected_path) in [
+        ("/work/root.ts", "./dependency.js", "/work/dependency.js"),
+        ("/work/dependency.js", "./leaf.cjs", "/work/leaf.cjs"),
+    ] {
+        let key = module_key(&program, source_path, specifier);
+        let resolution = program
+            .resolutions()
+            .require_module(&key)
+            .expect("local JavaScript request has an authoritative row");
+        let ResolutionOutcome::Resolved(resolved) = resolution.outcome() else {
+            panic!("local JavaScript request must resolve: {specifier}");
+        };
+        let ResolvedModuleTarget::Source {
+            source,
+            resolved_file,
+        } = resolved.target()
+        else {
+            panic!("allowJs local target must join source membership: {specifier}");
+        };
+        assert_eq!(resolved_file.display(), Path::new(expected_path));
+        assert_eq!(
+            program.source_file(*source).unwrap().path().display(),
+            Path::new(expected_path)
+        );
+    }
+}
+
+#[test]
+fn jsx_without_mode_stays_unloaded_and_gates_local_and_package_reads() {
+    let local_path = "/work/dependency.jsx";
+    let package_path = "/work/node_modules/pkg/index.jsx";
+    let host = MemoryCompilerHost::builder("/work")
+        .file(
+            "/work/root.ts",
+            b"import './dependency.jsx';\nimport 'pkg';\nexport {};\n".to_vec(),
+        )
+        .file(local_path, b"export const local = 1;\n".to_vec())
+        .file(
+            "/work/node_modules/pkg/package.json",
+            br#"{"name":"pkg","version":"1.0.0","main":"index.jsx"}"#.to_vec(),
+        )
+        .file(package_path, b"exports.package = 1;\n".to_vec())
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::ReadFile,
+            Some(PathBuf::from(local_path)),
+            "TS6142 must gate the local JSX read",
+        ))
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::ReadFile,
+            Some(PathBuf::from(package_path)),
+            "TS6142 must gate the package JSX read",
+        ))
+        .build()
+        .expect("build JSX resolution-diagnostic host");
+    let program = load_with_options(
+        &host,
+        &["/work/root.ts"],
+        CompilerOptions {
+            allow_js: true,
+            module: Some(1),
+            module_resolution: Some(2),
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("JSX resolution diagnostics retain rows without reading targets");
+
+    assert_eq!(source_paths(&program), [Path::new("/work/root.ts")]);
+    assert!(program.diagnostics().program().is_empty());
+    for (specifier, expected_path, external) in [
+        ("./dependency.jsx", local_path, false),
+        ("pkg", package_path, true),
+    ] {
+        let resolution = program
+            .resolutions()
+            .require_module(&module_key(&program, "/work/root.ts", specifier))
+            .expect("JSX request has an authoritative row");
+        let ResolutionOutcome::Resolved(resolved) = resolution.outcome() else {
+            panic!("JSX request must resolve: {specifier}");
+        };
+        let ResolvedModuleTarget::Unloaded {
+            resolved_file,
+            reason,
+        } = resolved.target()
+        else {
+            panic!("JSX without a mode must remain unloaded: {specifier}");
+        };
+        assert_eq!(resolved_file.display(), Path::new(expected_path));
+        assert_eq!(*reason, UnloadedModuleReason::JsxWithoutJsxOption);
+        assert_eq!(resolved.is_external_library_import(), external);
+    }
+}
+
+#[test]
+fn allow_js_keeps_default_depth_external_package_javascript_unloaded() {
+    let package_read = HostError::new(
+        HostErrorKind::Other,
+        HostOperation::ReadFile,
+        Some(PathBuf::from("/work/node_modules/pkg/index.js")),
+        "maxNodeModuleJsDepth=0 must gate package JavaScript before readFile",
+    );
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/root.ts", b"import 'pkg';\nexport {};\n".to_vec())
+        .file(
+            "/work/node_modules/pkg/package.json",
+            br#"{"name":"pkg","version":"1.0.0","main":"index.js"}"#.to_vec(),
+        )
+        .file(
+            "/work/node_modules/pkg/index.js",
+            b"require('./leaf.js');\nmodule.exports = 1;\n".to_vec(),
+        )
+        .file(
+            "/work/node_modules/pkg/leaf.js",
+            b"module.exports = 2;\n".to_vec(),
+        )
+        .failure(package_read)
+        .build()
+        .expect("build external JavaScript package host");
+    let program = load_with_options(
+        &host,
+        &["/work/root.ts"],
+        CompilerOptions {
+            allow_js: true,
+            module: Some(1),
+            module_resolution: Some(2),
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("default JavaScript package depth retains only its resolution fact");
+
+    assert_eq!(source_paths(&program), [Path::new("/work/root.ts")]);
+    assert_eq!(program.resolutions().module_len(), 1);
+    let key = module_key(&program, "/work/root.ts", "pkg");
+    let resolution = program
+        .resolutions()
+        .require_module(&key)
+        .expect("external JavaScript import has an authoritative row");
+    let ResolutionOutcome::Resolved(resolved) = resolution.outcome() else {
+        panic!("external JavaScript package must resolve");
+    };
+    let ResolvedModuleTarget::Unloaded {
+        resolved_file: path,
+        reason,
+    } = resolved.target()
+    else {
+        panic!("maxNodeModuleJsDepth=0 keeps external package JavaScript unloaded");
+    };
+    assert_eq!(*reason, UnloadedModuleReason::NodeModulesDepth);
+    assert!(resolved.is_external_library_import());
+    assert_eq!(path.display(), Path::new("/work/node_modules/pkg/index.js"));
+}
+
+#[test]
+fn allow_js_marks_augmentation_only_javascript_as_resolution_only() {
+    let target_path = "/work/node_modules/pkg/index.js";
+    let host = MemoryCompilerHost::builder("/work")
+        .file(
+            "/work/root.ts",
+            b"export {};\ndeclare module 'pkg' { export const extra: number; }\n".to_vec(),
+        )
+        .file(
+            "/work/node_modules/pkg/package.json",
+            br#"{"name":"pkg","version":"1.0.0","main":"index.js"}"#.to_vec(),
+        )
+        .file(target_path, b"module.exports = {};\n".to_vec())
+        .failure(HostError::new(
+            HostErrorKind::Other,
+            HostOperation::ReadFile,
+            Some(PathBuf::from(target_path)),
+            "an augmentation-only resolution must not load its target",
+        ))
+        .build()
+        .expect("build augmentation-only JavaScript host");
+    let program = load_with_options(
+        &host,
+        &["/work/root.ts"],
+        CompilerOptions {
+            allow_js: true,
+            module: Some(1),
+            module_resolution: Some(2),
+            ..compiler_options()
+        },
+        program_options(),
+        generous_limits(),
+    )
+    .expect("retain the augmentation-only resolution without source membership");
+
+    assert_eq!(source_paths(&program), [Path::new("/work/root.ts")]);
+    let resolution = program
+        .resolutions()
+        .require_module(&module_key(&program, "/work/root.ts", "pkg"))
+        .expect("augmentation has an authoritative module row");
+    let ResolutionOutcome::Resolved(resolved) = resolution.outcome() else {
+        panic!("augmentation target must resolve");
+    };
+    let ResolvedModuleTarget::Unloaded {
+        resolved_file,
+        reason,
+    } = resolved.target()
+    else {
+        panic!("augmentation-only JavaScript remains unloaded");
+    };
+    assert_eq!(resolved_file.display(), Path::new(target_path));
+    assert_eq!(*reason, UnloadedModuleReason::ResolutionOnly);
 }
 
 #[test]
@@ -1392,9 +1941,16 @@ fn invalid_loader_options_fail_before_host_discovery_with_typed_context() {
         program_options(),
         generous_limits(),
     )
-    .expect_err("allowJs broadens the admitted source family");
-    assert_eq!(allow_js.kind(), ProgramLoadErrorKind::Unsupported);
-    assert_eq!(allow_js.operation(), ProgramLoadOperation::ValidateOptions);
+    .expect("allowJs is an admitted loader option");
+    assert_eq!(
+        allow_js
+            .diagnostics()
+            .program()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [6053]
+    );
 
     let no_lib_with_explicit_empty_lib = load_no_lib_program(
         &host,
@@ -1640,7 +2196,7 @@ fn earlier_root_read_failure_precedes_later_root_normalization_failure() {
 
     let error = load(
         &host,
-        &["/work/first.ts", "/work/later.js"],
+        &["/work/first.ts", "//server/share/later.ts"],
         generous_limits(),
     )
     .expect_err("the first root is loaded before the second root is normalized");

@@ -25,6 +25,7 @@ use crate::prepared::{
 use crate::resolution::{
     ModuleExtension, ModuleResolution, PackageId, ResolutionError, ResolutionKey, ResolutionMode,
     ResolutionOutcome, ResolvedModuleTarget, TypeReferenceResolution, TypeReferenceResolutionKey,
+    UnloadedModuleReason,
 };
 use crate::text::{decode_host_text, HostTextDecodeError};
 use crate::PreparationError;
@@ -37,9 +38,13 @@ const MAX_RECURSIVE_SOURCE_DEPTH: usize = 256;
 
 const TYPESCRIPT_SOURCE_EXTENSIONS: [&str; 7] =
     [".ts", ".tsx", ".d.ts", ".cts", ".d.cts", ".mts", ".d.mts"];
-const PATH_REFERENCE_PROBE_EXTENSIONS: [&str; 3] = [".ts", ".tsx", ".d.ts"];
+const JAVASCRIPT_SOURCE_EXTENSIONS: [&str; 4] = [".js", ".jsx", ".mjs", ".cjs"];
+const TYPESCRIPT_PATH_REFERENCE_PROBE_EXTENSIONS: [&str; 3] = [".ts", ".tsx", ".d.ts"];
+const JAVASCRIPT_PATH_REFERENCE_PROBE_EXTENSIONS: [&str; 2] = [".js", ".jsx"];
 const TYPESCRIPT_SOURCE_EXTENSION_LIST: &str =
     "'.ts', '.tsx', '.d.ts', '.cts', '.d.cts', '.mts', '.d.mts'";
+const ALL_SOURCE_EXTENSION_LIST: &str =
+    "'.ts', '.tsx', '.d.ts', '.js', '.jsx', '.cts', '.d.cts', '.cjs', '.mts', '.d.mts', '.mjs'";
 const INFERRED_TYPES_CONTAINING_FILE: &str = "__inferred type names__.ts";
 
 /// Explicit resource limits for one [`load_no_lib_program`] or [`load_program`]
@@ -566,12 +571,6 @@ fn validate_admitted_options(
     if require_no_lib && program_options.no_lib() != Some(true) {
         return Err(reject_input("programOptions.noLib must be explicitly true"));
     }
-    if compiler_options.allow_js {
-        return Err(reject_feature(
-            "allowJs",
-            "the first recursive loader admits TypeScript-family sources only",
-        ));
-    }
     if program_options.no_lib() == Some(true) && compiler_options.lib.is_some() {
         return Err(reject_feature(
             "explicit-libraries",
@@ -651,6 +650,18 @@ fn normalize_root(
             error,
         )
     })?;
+    if !normalized
+        .rsplit('/')
+        .next()
+        .is_some_and(|base_name| base_name.contains('.'))
+    {
+        return Err(ProgramLoadError::unsupported(
+            ProgramLoadOperation::NormalizeRoot,
+            Some(PathBuf::from(&normalized)),
+            "root-extensionless",
+            "extensionless roots require the upstream .ts/.tsx/.d.ts/.js/.jsx probe and TS6231 diagnostic boundary",
+        ));
+    }
     let path = make_program_path(&normalized, path_context.use_case_sensitive_file_names())
         .map_err(|error| {
             ProgramLoadError::resolution(
@@ -660,14 +671,6 @@ fn normalize_root(
                 error,
             )
         })?;
-    if !is_typescript_source(path.canonical()) {
-        return Err(ProgramLoadError::unsupported(
-            ProgramLoadOperation::NormalizeRoot,
-            Some(path.display().to_path_buf()),
-            "root-extension",
-            format!("explicit roots must end in one of {TYPESCRIPT_SOURCE_EXTENSION_LIST}"),
-        ));
-    }
     Ok(path)
 }
 
@@ -888,6 +891,22 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
     }
 
     fn load_root(&mut self, path: ProgramPath) -> Result<(), ProgramLoadError> {
+        if !is_admitted_source(path.canonical(), self.compiler_options) {
+            let diagnostic =
+                unsupported_root_extension_diagnostic(&path, self.compiler_options.allow_js)?;
+            if self
+                .diagnosed_missing_roots
+                .insert(path.display().to_path_buf())
+            {
+                self.program_diagnostics.push(diagnostic.clone());
+            }
+            self.roots.push(StagedRoot {
+                path,
+                source: None,
+                missing_diagnostic: Some(diagnostic),
+            });
+            return Ok(());
+        }
         let source = self.visit_source(
             path.clone(),
             0,
@@ -1675,6 +1694,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             })?;
             let is_json = is_json_source(target.canonical());
             if !(is_typescript_source(target.canonical())
+                || is_javascript_source(target.canonical()) && self.compiler_options.allow_js
                 || is_json && self.compiler_options.resolve_json_module_effective())
             {
                 let (message, arguments) = if is_javascript_source(target.canonical()) {
@@ -1687,7 +1707,8 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                         &gen::File_0_has_an_unsupported_extension_The_only_supported_extensions_are_1,
                         vec![
                             path_text(target.display())?,
-                            TYPESCRIPT_SOURCE_EXTENSION_LIST.to_owned(),
+                            supported_source_extension_list(self.compiler_options.allow_js)
+                                .to_owned(),
                         ],
                     )
                 };
@@ -1729,7 +1750,15 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             return Ok(());
         }
 
-        for extension in PATH_REFERENCE_PROBE_EXTENSIONS {
+        let javascript_extensions: &[&str] = if self.compiler_options.allow_js {
+            &JAVASCRIPT_PATH_REFERENCE_PROBE_EXTENSIONS
+        } else {
+            &[]
+        };
+        for &extension in TYPESCRIPT_PATH_REFERENCE_PROBE_EXTENSIONS
+            .iter()
+            .chain(javascript_extensions)
+        {
             let target_text = format!("{normalized}{extension}");
             let target = make_program_path(
                 &target_text,
@@ -1767,7 +1796,10 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             reference.pos(),
             reference.length(),
             &gen::Could_not_resolve_the_path_0_with_the_extensions_1,
-            &[normalized, TYPESCRIPT_SOURCE_EXTENSION_LIST.to_owned()],
+            &[
+                normalized,
+                supported_source_extension_list(self.compiler_options.allow_js).to_owned(),
+            ],
         )?);
         Ok(())
     }
@@ -1873,6 +1905,9 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         Ok(())
     }
 
+    /// tsc-port: processImportedModules @6.0.3
+    /// tsc-hash: 5fb6c5d9e11130467d843f258aeb726b1cbca21cd00923b0f1c7da3097f9cc98
+    /// tsc-span: _tsc.js:124595-124635
     fn process_module_requests(
         &mut self,
         source: usize,
@@ -1913,7 +1948,8 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         // As with type directives, all requests in this source are resolved
         // before the first successful target starts its DFS.
         for index in phase_indices {
-            if !self.module_resolutions[index].loads_source {
+            let loads_source = self.module_resolutions[index].loads_source;
+            if !loads_source {
                 continue;
             }
             let target = match self.module_resolutions[index].host.outcome() {
@@ -1929,27 +1965,30 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 continue;
             };
             if extension.is_javascript() {
-                // allowJs=false: retain the successful row, but do not admit
-                // the JavaScript file to program membership.
-                if matches!(extension, ModuleExtension::Jsx)
-                    && self.compiler_options.jsx.unwrap_or(0) == 0
-                {
-                    return Err(ProgramLoadError::unsupported(
-                        ProgramLoadOperation::ResolveModule,
-                        Some(target.display().to_path_buf()),
-                        "unloaded-jsx-without-jsx-option",
-                        "an unloaded JSX target requires an explicit JSX option",
-                    ));
+                // tsc's default maxNodeModuleJsDepth is zero. Local JS joins
+                // the program under allowJs, while a JS target found through
+                // node_modules retains its resolution row without becoming a
+                // source. Non-zero depth ownership is a later H0.4 slice.
+                if let Some(reason) = unloaded_javascript_reason(
+                    &extension,
+                    self.compiler_options,
+                    external,
+                    has_original_path,
+                    target.canonical(),
+                    loads_source,
+                ) {
+                    if has_original_path
+                        && !matches!(reason, UnloadedModuleReason::JsxWithoutJsxOption)
+                    {
+                        return Err(ProgramLoadError::unsupported(
+                            ProgramLoadOperation::ResolveModule,
+                            Some(target.display().to_path_buf()),
+                            "unloaded-original-path",
+                            "an unloaded JavaScript target cannot retain a lexical-to-physical transition",
+                        ));
+                    }
+                    continue;
                 }
-                if has_original_path {
-                    return Err(ProgramLoadError::unsupported(
-                        ProgramLoadOperation::ResolveModule,
-                        Some(target.display().to_path_buf()),
-                        "unloaded-original-path",
-                        "an unloaded JavaScript target cannot retain a lexical-to-physical transition",
-                    ));
-                }
-                continue;
             }
             if has_original_path {
                 return Err(ProgramLoadError::unsupported(
@@ -1984,13 +2023,13 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 self.record_source_edge(source, target_source, external);
                 continue;
             }
-            if !is_loadable_typescript_extension(&extension) {
+            if !is_loadable_typescript_extension(&extension) && !extension.is_javascript() {
                 return Err(ProgramLoadError::unsupported(
                     ProgramLoadOperation::ResolveModule,
                     Some(target.display().to_path_buf()),
                     "resolved-module-extension",
                     format!(
-                        "loadable target extension {} is outside the TypeScript-only loader",
+                        "loadable target extension {} is outside the admitted source loader",
                         extension.as_str()
                     ),
                 ));
@@ -2185,6 +2224,7 @@ fn publish_program(
             &source_by_canonical,
             &compiler_options,
             &package_map,
+            resolution.loads_source,
         )
         .map_err(|error| {
             ProgramLoadError::resolution(
@@ -2241,6 +2281,7 @@ fn bind_module_resolution(
     source_by_canonical: &BTreeMap<CanonicalPath, (SourceFileId, ProgramPath)>,
     options: &CompilerOptions,
     package_map: &BTreeMap<String, bool>,
+    loads_source: bool,
 ) -> Result<ModuleResolution, ResolutionError> {
     let alternate_result = host.alternate_result().cloned();
     let ResolutionOutcome::Resolved(module) = host.into_outcome() else {
@@ -2257,17 +2298,28 @@ fn bind_module_resolution(
                 package_map.get(package_id.name()).copied().unwrap_or(false),
             )
         });
-    let target = if module.extension().is_javascript() && !options.allow_js {
-        if matches!(module.extension(), ModuleExtension::Jsx) && options.jsx.unwrap_or(0) == 0 {
-            return Err(ResolutionError::unsupported(
-                "unloaded-jsx-without-jsx-option",
+    let owned_source = source_by_canonical.get(module.resolved_file().canonical());
+    let target = if module.extension().is_javascript() && owned_source.is_none() {
+        let reason = unloaded_javascript_reason(
+            module.extension(),
+            options,
+            module.is_external_library_import(),
+            module.original_path().is_some(),
+            module.resolved_file().canonical(),
+            loads_source,
+        )
+        .ok_or_else(|| {
+            ResolutionError::unsupported(
+                "unexplained-unloaded-javascript",
                 format!(
-                    "resolved JSX target {} cannot be represented without a JSX option",
+                    "resolved JavaScript target {} has no source-membership exclusion",
                     module.resolved_file().display().display()
                 ),
-            ));
-        }
-        if module.original_path().is_some() {
+            )
+        })?;
+        if module.original_path().is_some()
+            && !matches!(reason, UnloadedModuleReason::JsxWithoutJsxOption)
+        {
             return Err(ResolutionError::unsupported(
                 "unloaded-original-path",
                 format!(
@@ -2276,7 +2328,10 @@ fn bind_module_resolution(
                 ),
             ));
         }
-        ResolvedModuleTarget::Unloaded(module.resolved_file().clone())
+        ResolvedModuleTarget::Unloaded {
+            resolved_file: module.resolved_file().clone(),
+            reason,
+        }
     } else if module.original_path().is_some() {
         return Err(ResolutionError::unsupported(
             "loaded-original-path",
@@ -2285,8 +2340,7 @@ fn bind_module_resolution(
                 module.resolved_file().display().display()
             ),
         ));
-    } else if let Some((source, path)) = source_by_canonical.get(module.resolved_file().canonical())
-    {
+    } else if let Some((source, path)) = owned_source {
         ResolvedModuleTarget::Source {
             source: *source,
             resolved_file: path.clone(),
@@ -2418,6 +2472,23 @@ fn is_typescript_source(path: &CanonicalPath) -> bool {
     })
 }
 
+/// tsc-port: getSupportedExtensions/getSupportedExtensionsWithJsonIfResolveJsonModule @6.0.3
+/// tsc-hash: 39020b78f2c3adb008f8559648a94f9773ed470050dea9d483a562bb66fe72cc
+/// tsc-span: _tsc.js:18632-18651
+fn is_admitted_source(path: &CanonicalPath, options: &CompilerOptions) -> bool {
+    is_typescript_source(path)
+        || options.allow_js && is_javascript_source(path)
+        || options.resolve_json_module_effective() && is_json_source(path)
+}
+
+const fn supported_source_extension_list(allow_js: bool) -> &'static str {
+    if allow_js {
+        ALL_SOURCE_EXTENSION_LIST
+    } else {
+        TYPESCRIPT_SOURCE_EXTENSION_LIST
+    }
+}
+
 fn is_json_source(path: &CanonicalPath) -> bool {
     path.as_path()
         .to_str()
@@ -2426,10 +2497,38 @@ fn is_json_source(path: &CanonicalPath) -> bool {
 
 fn is_javascript_source(path: &CanonicalPath) -> bool {
     path.as_path().to_str().is_some_and(|path| {
-        [".js", ".jsx", ".mjs", ".cjs"]
+        JAVASCRIPT_SOURCE_EXTENSIONS
             .iter()
             .any(|extension| path.ends_with(extension))
     })
+}
+
+fn path_contains_node_modules(path: &Path) -> bool {
+    path.to_str()
+        .is_some_and(|path| path.split('/').any(|component| component == "node_modules"))
+}
+
+fn unloaded_javascript_reason(
+    extension: &ModuleExtension,
+    options: &CompilerOptions,
+    external: bool,
+    has_original_path: bool,
+    resolved_file: &CanonicalPath,
+    loads_source: bool,
+) -> Option<UnloadedModuleReason> {
+    if !extension.is_javascript() {
+        return None;
+    }
+    if matches!(extension, ModuleExtension::Jsx) && options.jsx.unwrap_or(0) == 0 {
+        return Some(UnloadedModuleReason::JsxWithoutJsxOption);
+    }
+    if !loads_source {
+        return Some(UnloadedModuleReason::ResolutionOnly);
+    }
+    if external && (!has_original_path || path_contains_node_modules(resolved_file.as_path())) {
+        return Some(UnloadedModuleReason::NodeModulesDepth);
+    }
+    (!options.allow_js).then_some(UnloadedModuleReason::JavaScriptNotAdmitted)
 }
 
 fn is_loadable_typescript_extension(extension: &ModuleExtension) -> bool {
@@ -2443,6 +2542,37 @@ fn is_loadable_typescript_extension(extension: &ModuleExtension) -> bool {
             | ModuleExtension::Cts
             | ModuleExtension::Dcts
     )
+}
+
+/// tsc-port: getSourceFileFromReferenceWorker @6.0.3
+/// tsc-hash: 7812d8155c2ffdd584bf03bd3210c43fd1e2e5bdf13cfecfb66728cbdbcf8330
+/// tsc-span: _tsc.js:124173-124209
+fn unsupported_root_extension_diagnostic(
+    path: &ProgramPath,
+    allow_js: bool,
+) -> Result<Diagnostic, ProgramLoadError> {
+    let javascript = is_javascript_source(path.canonical());
+    let path = path_text(path.display())?;
+    let (message, arguments) = if javascript {
+        (
+            &gen::File_0_is_a_JavaScript_file_Did_you_mean_to_enable_the_allowJs_option,
+            vec![path],
+        )
+    } else {
+        (
+            &gen::File_0_has_an_unsupported_extension_The_only_supported_extensions_are_1,
+            vec![path, supported_source_extension_list(allow_js).to_owned()],
+        )
+    };
+    let root_reason = MessageChain::new(&gen::Root_file_specified_for_compilation, &[]);
+    let inclusion = MessageChain::new(&gen::The_file_is_in_the_program_because, &[])
+        .with_next(vec![root_reason]);
+    Ok(Diagnostic::new(
+        None,
+        None,
+        None,
+        MessageChain::new(message, &arguments).with_next(vec![inclusion]),
+    ))
 }
 
 fn missing_root_diagnostic(path: &ProgramPath) -> Diagnostic {

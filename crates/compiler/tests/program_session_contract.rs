@@ -10,7 +10,7 @@ use tsc_program::{
     PreparationDiagnostics, PreparedAuxiliaryFile, PreparedProgram, PreparedProgramBuilder,
     PreparedSourceFile, ProgramOptions, ProgramPath, ResolutionKey, ResolutionMode,
     ResolutionOutcome, ResolutionRequestKind, ResolvedModule, ResolvedModuleTarget, SourceFileId,
-    TypeReferenceResolution, TypeReferenceResolutionKey,
+    TypeReferenceResolution, TypeReferenceResolutionKey, UnloadedModuleReason,
 };
 
 const MINIMAL_GLOBALS: &str = r#"
@@ -133,9 +133,15 @@ fn authoritative_program(
     let ids = files
         .iter()
         .map(|(name, text)| {
-            builder
-                .add_source_file(PreparedSourceFile::new(path(name), *text))
-                .expect("add source")
+            let source = PreparedSourceFile::new(path(name), *text);
+            let source = if name.ends_with(".mts") {
+                source.with_implied_node_format(ResolutionMode::EsNext)
+            } else if name.ends_with(".cts") {
+                source.with_implied_node_format(ResolutionMode::CommonJs)
+            } else {
+                source
+            };
+            builder.add_source_file(source).expect("add source")
         })
         .collect::<Vec<_>>();
     for &root in roots {
@@ -1021,7 +1027,10 @@ fn ambient_modules_keep_their_priority_around_authoritative_not_found() {
         },
         |builder, _| {
             let module = ResolvedModule::new(
-                ResolvedModuleTarget::Unloaded(path("/node_modules/pkg-js/index.js")),
+                ResolvedModuleTarget::unloaded(
+                    path("/node_modules/pkg-js/index.js"),
+                    UnloadedModuleReason::NodeModulesDepth,
+                ),
                 ModuleExtension::Js,
             )
             .with_external_library_import(true)
@@ -1709,7 +1718,10 @@ fn authoritative_unloaded_javascript_preserves_implicit_any_detail_chains() {
             },
             |builder, _| {
                 let module = ResolvedModule::new(
-                    ResolvedModuleTarget::Unloaded(path("/node_modules/pkg/dist/foo.js")),
+                    ResolvedModuleTarget::unloaded(
+                        path("/node_modules/pkg/dist/foo.js"),
+                        UnloadedModuleReason::NodeModulesDepth,
+                    ),
                     ModuleExtension::Js,
                 )
                 .with_external_library_import(true)
@@ -1760,7 +1772,10 @@ fn authoritative_unloaded_javascript_keeps_suggestions_out_of_cli_output() {
             },
             |builder, _| {
                 let module = ResolvedModule::new(
-                    ResolvedModuleTarget::Unloaded(path("/node_modules/pkg/index.js")),
+                    ResolvedModuleTarget::unloaded(
+                        path("/node_modules/pkg/index.js"),
+                        UnloadedModuleReason::NodeModulesDepth,
+                    ),
                     ModuleExtension::Js,
                 )
                 .with_external_library_import(true)
@@ -1874,11 +1889,15 @@ fn authoritative_untyped_module_augmentation_reports_2665() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
+            allow_js: true,
             ..CompilerOptions::default()
         },
         |builder, _| {
             let module = ResolvedModule::new(
-                ResolvedModuleTarget::Unloaded(path("/node_modules/pkg/index.js")),
+                ResolvedModuleTarget::unloaded(
+                    path("/node_modules/pkg/index.js"),
+                    UnloadedModuleReason::ResolutionOnly,
+                ),
                 ModuleExtension::Js,
             )
             .with_external_library_import(true)
@@ -1912,7 +1931,10 @@ fn authoritative_relative_untyped_module_ignores_inapplicable_package_details() 
         },
         |builder, _| {
             let module = ResolvedModule::new(
-                ResolvedModuleTarget::Unloaded(path("/impl.js")),
+                ResolvedModuleTarget::unloaded(
+                    path("/impl.js"),
+                    UnloadedModuleReason::JavaScriptNotAdmitted,
+                ),
                 ModuleExtension::Js,
             )
             .with_package_id(PackageId::new("inapplicable", "impl.js", "1.0.0"));
@@ -1947,13 +1969,17 @@ fn unloaded_jsx_with_an_active_jsx_mode_reports_7016() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
+            allow_js: true,
             no_implicit_any: Some(true),
             jsx: Some(1),
             ..CompilerOptions::default()
         },
         |builder, _| {
             let module = ResolvedModule::new(
-                ResolvedModuleTarget::Unloaded(path("/node_modules/pkg/index.jsx")),
+                ResolvedModuleTarget::unloaded(
+                    path("/node_modules/pkg/index.jsx"),
+                    UnloadedModuleReason::NodeModulesDepth,
+                ),
                 ModuleExtension::Jsx,
             )
             .with_external_library_import(true);
@@ -1971,28 +1997,170 @@ fn unloaded_jsx_with_an_active_jsx_mode_reports_7016() {
 }
 
 #[test]
-fn unloaded_targets_fail_closed_outside_the_unadmitted_javascript_case() {
-    for (target, extension, allow_js, jsx, expected) in [
+fn allow_js_unloaded_javascript_after_default_node_modules_depth_is_authoritative_untyped() {
+    let prepared = authoritative_program(
+        &[("/main.ts", "import {} from \"pkg\";\n")],
+        &[0],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            allow_js: true,
+            no_implicit_any: Some(true),
+            ..CompilerOptions::default()
+        },
+        |builder, _| {
+            let module = ResolvedModule::new(
+                ResolvedModuleTarget::unloaded(
+                    path("/node_modules/pkg/index.js"),
+                    UnloadedModuleReason::NodeModulesDepth,
+                ),
+                ModuleExtension::Js,
+            )
+            .with_external_library_import(true)
+            .with_package_id(PackageId::new("pkg", "index.js", "1.0.0"));
+            builder
+                .add_module_resolution(
+                    module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+                    Ok(ModuleResolution::resolved(module)),
+                )
+                .expect("add depth-elided JavaScript row");
+        },
+    );
+
+    let outcome = consume(ProgramSession::new(prepared));
+    assert_eq!(codes(outcome.semantic_diagnostics()), [7016]);
+    assert!(outcome.semantic_diagnostics()[0]
+        .message_text()
+        .contains("/node_modules/pkg/index.js"));
+}
+
+#[test]
+fn unloaded_jsx_without_mode_reports_6142() {
+    let prepared = authoritative_program(
+        &[("/main.ts", "import {} from \"pkg\";\n")],
+        &[0],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            allow_js: true,
+            ..CompilerOptions::default()
+        },
+        |builder, _| {
+            let module = ResolvedModule::new(
+                ResolvedModuleTarget::unloaded(
+                    path("/node_modules/pkg/index.jsx"),
+                    UnloadedModuleReason::JsxWithoutJsxOption,
+                ),
+                ModuleExtension::Jsx,
+            )
+            .with_external_library_import(true);
+            builder
+                .add_module_resolution(
+                    module_key("/main.ts", "pkg", ResolutionMode::Unspecified),
+                    Ok(ModuleResolution::resolved(module)),
+                )
+                .expect("add JSX resolution-diagnostic row");
+        },
+    );
+
+    let outcome = consume(ProgramSession::new(prepared));
+    assert_eq!(codes(outcome.semantic_diagnostics()), [6142]);
+    assert!(outcome.semantic_diagnostics()[0]
+        .message_text()
+        .contains("/node_modules/pkg/index.jsx"));
+}
+
+#[test]
+fn owned_jsx_without_mode_reports_6142_and_keeps_the_resolved_symbol() {
+    let prepared = authoritative_program(
+        &[
+            ("/dependency.jsx", "export const value = 'text';\n"),
+            (
+                "/main.ts",
+                "import { value } from './dependency.jsx';\nconst numeric: number = value;\n",
+            ),
+        ],
+        &[0, 1],
+        CompilerOptions {
+            module: Some(1),
+            module_resolution: Some(2),
+            allow_js: true,
+            ..CompilerOptions::default()
+        },
+        |builder, ids| {
+            let module = ResolvedModule::new(
+                ResolvedModuleTarget::Source {
+                    source: ids[0],
+                    resolved_file: path("/dependency.jsx"),
+                },
+                ModuleExtension::Jsx,
+            );
+            builder
+                .add_module_resolution(
+                    module_key("/main.ts", "./dependency.jsx", ResolutionMode::Unspecified),
+                    Ok(ModuleResolution::resolved(module)),
+                )
+                .expect("add owned JSX row");
+        },
+    );
+
+    let outcome = consume(ProgramSession::new(prepared));
+    assert_eq!(codes(outcome.semantic_diagnostics()), [6142, 2322]);
+    assert!(outcome.semantic_diagnostics()[0]
+        .message_text()
+        .contains("/dependency.jsx"));
+}
+
+#[test]
+fn malformed_unloaded_reasons_fail_closed() {
+    for (target, extension, reason, allow_js, external, expected) in [
         (
             "/node_modules/pkg/index.ts",
             ModuleExtension::Ts,
-            false,
-            None,
-            UnsupportedAuthoritativeResolution::UnloadedTargetExtension,
-        ),
-        (
-            "/node_modules/pkg/index.js",
-            ModuleExtension::Js,
+            UnloadedModuleReason::ResolutionOnly,
             true,
-            None,
-            UnsupportedAuthoritativeResolution::UnloadedTargetAdmission,
+            false,
+            UnsupportedAuthoritativeResolution::UnloadedTargetExtension,
         ),
         (
             "/node_modules/pkg/index.jsx",
             ModuleExtension::Jsx,
+            UnloadedModuleReason::NodeModulesDepth,
+            true,
             false,
-            None,
             UnsupportedAuthoritativeResolution::UnloadedJsxWithoutJsxOption,
+        ),
+        (
+            "/impl.js",
+            ModuleExtension::Js,
+            UnloadedModuleReason::JavaScriptNotAdmitted,
+            true,
+            false,
+            UnsupportedAuthoritativeResolution::UnloadedTargetAdmission,
+        ),
+        (
+            "/impl.js",
+            ModuleExtension::Js,
+            UnloadedModuleReason::ResolutionOnly,
+            true,
+            false,
+            UnsupportedAuthoritativeResolution::UnloadedTargetAdmission,
+        ),
+        (
+            "/node_modules/pkg/index.js",
+            ModuleExtension::Js,
+            UnloadedModuleReason::NodeModulesDepth,
+            true,
+            false,
+            UnsupportedAuthoritativeResolution::UnloadedTargetAdmission,
+        ),
+        (
+            "/node_modules/pkg/index.js",
+            ModuleExtension::Js,
+            UnloadedModuleReason::JavaScriptNotAdmitted,
+            false,
+            true,
+            UnsupportedAuthoritativeResolution::UnloadedTargetAdmission,
         ),
     ] {
         let prepared = authoritative_program(
@@ -2002,12 +2170,14 @@ fn unloaded_targets_fail_closed_outside_the_unadmitted_javascript_case() {
                 module: Some(1),
                 module_resolution: Some(2),
                 allow_js,
-                jsx,
                 ..CompilerOptions::default()
             },
             |builder, _| {
-                let module =
-                    ResolvedModule::new(ResolvedModuleTarget::Unloaded(path(target)), extension);
+                let module = ResolvedModule::new(
+                    ResolvedModuleTarget::unloaded(path(target), reason),
+                    extension,
+                )
+                .with_external_library_import(external);
                 builder
                     .add_module_resolution(
                         module_key("/main.ts", "pkg", ResolutionMode::Unspecified),

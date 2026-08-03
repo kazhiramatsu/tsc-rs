@@ -290,16 +290,26 @@ manifest text. Leading path, type, and lib
 references are observed once by the parser and retained by the source request
 plan. The bounded loaders now recursively discover TypeScript-family sources
 through relative requests, ordered `rootDirs`, `paths`, and `baseUrl`, while
-preserving vendored discovery and failure order. `rootDirs` uses the longest
-display-path prefix, probes the original location first, and then visits
-alternate roots in declaration order. Default/explicit libraries and
+preserving vendored discovery and failure order. With `allowJs`, explicit
+JavaScript roots, local JavaScript module dependencies, and supported
+JavaScript path references join that same owned source graph. JavaScript
+targets found through `node_modules` remain authoritative unloaded rows,
+matching the default `maxNodeModuleJsDepth=0`; unloaded rows retain their
+admission reason. A `.jsx` module target without an active JSX mode is not
+read and produces TS6142, while an explicit `.jsx` root or path reference can
+still join membership. Effective `resolveJsonModule` also admits explicit JSON
+roots. `rootDirs` uses the longest display-path prefix, probes the original
+location first, and then visits alternate roots in declaration order.
+Default/explicit libraries and
 post-root explicit or wildcard automatic `types` participate in the same
 owned program graph.
 Same-tree Unix canaries prove both `PreparedProgram` and five-bucket
 `ProgramSession` diagnostic equivalence between MemoryHost and FsHost; the
 program-level canaries exercise Classic, Node10, Bundler, ordered optional
-settings including `rootDirs`, and wildcard `@types` discovery. JavaScript
-membership, config-derived roots, and the remaining platform matrix remain.
+settings including `rootDirs`, and wildcard `@types` discovery. Nonzero
+`maxNodeModuleJsDepth`, config-derived roots, extensionless and arbitrary
+declaration root admission, the remaining path and physical-alias policies,
+and the platform matrix remain.
 
 | Phase | State | Focus |
 | --- | --- | --- |

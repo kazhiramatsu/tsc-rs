@@ -34,10 +34,20 @@
 //! libraries. Wildcard discovery uses effective `typeRoots` and the host's
 //! directory-only projection; a normalized config-file identity, when
 //! supplied, anchors both that lookup and the synthetic inferred-types origin.
+//! With `allowJs`, explicit JavaScript roots, local JavaScript module
+//! dependencies, and supported JavaScript path references join ordinary source
+//! membership. JavaScript targets found through `node_modules` remain
+//! authoritative unloaded rows, matching the default
+//! `maxNodeModuleJsDepth=0`; each unloaded row retains its source-membership
+//! exclusion. A `.jsx` module target without an active JSX mode remains
+//! unloaded for TS6142, while explicit `.jsx` roots and path references are
+//! admitted. Effective `resolveJsonModule` also admits explicit JSON roots.
+//! Nonzero depths remain outside this slice.
 //! The library catalog is injected, version-pinned metadata; bytes remain owned
 //! by the same host and no production path parses `_tsc.js`. This slice does
-//! not admit JavaScript sources, discover config-derived root files, or claim
-//! the remaining platform and CLI surfaces of H0.4 and H0.5.
+//! not discover config-derived root files or own extensionless/arbitrary
+//! declaration root admission and the remaining path, physical-alias,
+//! platform, and CLI surfaces of H0.4 and H0.5.
 
 mod error;
 mod json;
@@ -74,7 +84,7 @@ pub use resolution::{
     MissingResolutionError, ModuleExtension, ModuleResolution, PackageId, ResolutionError,
     ResolutionErrorKind, ResolutionKey, ResolutionMode, ResolutionOutcome, ResolutionRequestKind,
     ResolvedModule, ResolvedModuleTarget, ResolvedTypeReferenceDirective, TypeReferenceResolution,
-    TypeReferenceResolutionKey, TypeReferenceResolutionOrigin,
+    TypeReferenceResolutionKey, TypeReferenceResolutionOrigin, UnloadedModuleReason,
 };
 pub use text::{decode_host_text, HostTextDecodeError, HostTextEncoding};
 pub use tsc_types::CompilerOptions;
