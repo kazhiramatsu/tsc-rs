@@ -381,18 +381,57 @@ No diagnostic-specific shortcut may replace the underlying resolution fact.
 Filesystem discovery must use the same resolver closed in H0.2 and H0.3.
 
 Implementation status: H0.4 is active and partial. The production
-`FsCompilerHost` primitive now preserves raw bytes, distinguishes absence
-from typed I/O failure, follows filesystem realpaths, and exposes
-deterministically ordered immediate entries under an explicit or detected
-case profile. The shared program-layer decoder now consumes those bytes with
-the vendored Node host's BOM, endian, odd-byte, and invalid-UTF-8 rules, and
-package metadata uses that same decoded text. The syntax parser now owns the
-single leading-pragma observation for path, type, and lib references, and the
-source request plan projects those references together with the module keys
-and the exact resolution-only versus source-loading distinction. Recursive
-program discovery, library and reference loading, `PreparedProgram`
-equivalence, and filesystem-backed diagnostic execution remain in the
-following H0.4 slices.
+`FsCompilerHost` primitive preserves raw bytes, distinguishes absence from
+typed I/O failure, follows filesystem realpaths, and exposes deterministically
+ordered immediate entries under an explicit or detected case profile. The
+shared program-layer decoder consumes those bytes with the vendored Node
+host's BOM, endian, odd-byte, and invalid-UTF-8 rules, and package metadata
+uses that same decoded text. The syntax parser owns the single leading-pragma
+observation for path, type, and lib references, and the source request plan
+projects those references together with module keys and the exact
+resolution-only versus source-loading distinction.
+
+The first bounded recursive loader slice is complete through
+`load_no_lib_program`. It accepts explicit TypeScript-family roots only with
+`noEmit=true`, `noLib=true`, and `allowJs=false`; `types` must be absent or
+empty, and explicit libraries, `rootDirs`, `paths`/`baseUrl`, and
+`noDtsResolution` are outside this slice. Roots are normalized and visited
+one at a time, preserving input order, multiplicity, and observable failure
+precedence. Canonical source identities are loaded once, cycles and diamonds
+are staged without duplicate files, and `SourceFileId`s are assigned only
+after dependency-postorder discovery.
+
+For each source the loader follows the vendored construction phases: each
+path reference performs its DFS before the next path reference; every unique
+type-reference key is resolved before any resolved type target is visited;
+lib-reference occurrences are counted but perform no host work under
+`noLib`; and every module key is resolved before any source-loading module
+target is visited. The resulting `PreparedProgram` owns source text, roots,
+package-scope and implied-format facts, program-construction diagnostics, and
+authoritative type/module rows. Supported misses remain normal tsc
+diagnostics or `NotFound` rows, JavaScript resolutions remain unloaded under
+`allowJs=false`, and an explicit `.json` request loads JSON only when
+`resolveJsonModule` is effective. External-library reachability remains part
+of source emit eligibility. A same-tree Unix canary proves that
+`MemoryCompilerHost` and `FsCompilerHost` produce the same prepared program.
+
+Each invocation supplies independent ceilings for unique source files,
+request occurrences before resolution-key deduplication, zero-based source
+depth, raw bytes per source, and total raw source bytes. A separate structural
+depth cap of 256 protects the recursive worker. Host, decode, resolution,
+preparation, unsupported-scope, and ceiling failures retain typed operation
+and path context. Source-byte ceilings begin after a host returns its owned
+payload and do not include resolver-owned `package.json` bytes, so they do not
+claim to bound a host's single-read allocation or all resolver I/O.
+
+This is deliberately not general H0.4 program construction. Default and
+explicit library loading, post-root automatic `types`, JavaScript source
+membership, `paths`/`baseUrl` and `rootDirs` discovery, config-derived roots,
+the remaining path and physical-alias policies, the complete cross-platform
+case/separator/symlink/encoding matrix, and filesystem-backed diagnostic
+execution remain in later slices. Discovery stays sequential where vendored
+host calls and failure precedence are observable; future pipeline parallelism
+must preserve that contract.
 
 ### H0.5 — tsconfig and command-line driver
 

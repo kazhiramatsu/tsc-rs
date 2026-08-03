@@ -1613,6 +1613,19 @@ fn type_reference_primary_custom_roots_use_direct_then_directory_precedence() {
         versioned.package_id().map(PackageId::name),
         Some("versioned-types")
     );
+    let bound_versioned = versioned
+        .clone()
+        .into_resolved_type_reference_directive(
+            versioned.resolved_file().clone(),
+            SourceFileId::from_raw(7),
+        )
+        .expect("bind the primary package-backed type reference");
+    assert!(bound_versioned.primary());
+    assert_eq!(bound_versioned.source(), SourceFileId::from_raw(7));
+    assert_eq!(
+        bound_versioned.package_id().map(PackageId::name),
+        Some("versioned-types")
+    );
 
     let ResolutionOutcome::Resolved(twinned) = resolver
         .resolve_type_reference(
@@ -1688,6 +1701,34 @@ fn non_external_custom_type_roots_retain_realpath_transitions() {
     );
     assert!(reference.primary());
     assert!(!reference.is_external_library_import());
+    let caller_spelling = ProgramPath::from_trusted_parts(
+        "actual/linked.d.ts",
+        reference.resolved_file().canonical().as_path(),
+    )
+    .expect("create caller-owned target spelling");
+    let bound = reference
+        .clone()
+        .into_resolved_type_reference_directive(caller_spelling, SourceFileId::from_raw(11))
+        .expect("bind canonical target identity across display spellings");
+    assert_eq!(bound.target().display(), Path::new("actual/linked.d.ts"));
+    assert_eq!(bound.source(), SourceFileId::from_raw(11));
+    assert_eq!(
+        bound
+            .original_path()
+            .expect("bound directive retains lexical path")
+            .canonical()
+            .as_path(),
+        Path::new("/work/types/linked.d.ts")
+    );
+    assert!(bound.primary());
+    assert!(!bound.is_external_library_import());
+
+    let mismatched = ProgramPath::from_trusted_parts("/other.d.ts", "/other.d.ts")
+        .expect("create mismatched target");
+    assert!(matches!(
+        reference.into_resolved_type_reference_directive(mismatched, SourceFileId::from_raw(12)),
+        Err(ResolutionError::InvalidData(_))
+    ));
 }
 
 #[test]
@@ -1728,10 +1769,20 @@ fn type_reference_default_roots_and_secondary_lookup_preserve_spelling_and_origi
         panic!("expected default-root type reference");
     };
     assert!(defaulted.primary());
+    assert!(defaulted.is_external_library_import());
     assert_eq!(
         defaulted.resolved_file().canonical().as_path(),
         Path::new("/work/project/node_modules/@types/defaulted/index.d.ts")
     );
+    let bound_defaulted = defaulted
+        .clone()
+        .into_resolved_type_reference_directive(
+            defaulted.resolved_file().clone(),
+            SourceFileId::from_raw(13),
+        )
+        .expect("bind an external default-root type reference");
+    assert!(bound_defaulted.primary());
+    assert!(bound_defaulted.is_external_library_import());
 
     let no_primary_roots: Vec<ProgramPath> = Vec::new();
     let ResolutionOutcome::Resolved(secondary) = resolver
@@ -2663,4 +2714,59 @@ fn relative_package_ids_follow_file_and_directory_manifest_boundaries() {
     );
     assert_eq!(manifestless_directory.package_id(), None);
     assert!(manifestless_directory.is_external_library_import());
+}
+
+#[test]
+fn relative_json_requires_an_explicit_suffix_and_effective_json_resolution() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/root.ts", b"export {};".to_vec())
+        .file("/work/data.json", br#"{"value":1}"#.to_vec())
+        .build()
+        .expect("build relative JSON host");
+    let enabled = CompilerOptions {
+        module: Some(99),
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+    let mut resolver = ModuleResolver::new(&host, &enabled).expect("create Bundler resolver");
+
+    let module = resolved(
+        resolver
+            .resolve(
+                Path::new("/work/root.ts"),
+                "./data.json",
+                ResolutionMode::EsNext,
+            )
+            .expect("resolve an explicitly named JSON module"),
+    );
+    assert_eq!(module.extension(), &ModuleExtension::Json);
+    assert_eq!(
+        module.resolved_file().display(),
+        Path::new("/work/data.json")
+    );
+    assert!(!module.is_external_library_import());
+    assert!(!module.resolved_using_ts_extension());
+    assert_eq!(module.original_path(), None);
+    assert_eq!(
+        resolver
+            .resolve(Path::new("/work/root.ts"), "./data", ResolutionMode::EsNext,)
+            .expect("extensionless relative requests exclude JSON"),
+        ResolutionOutcome::NotFound
+    );
+
+    let disabled = CompilerOptions {
+        resolve_json_module: Some(false),
+        ..enabled
+    };
+    let mut resolver = ModuleResolver::new(&host, &disabled).expect("create disabled resolver");
+    assert_eq!(
+        resolver
+            .resolve(
+                Path::new("/work/root.ts"),
+                "./data.json",
+                ResolutionMode::EsNext,
+            )
+            .expect("disabled JSON resolution is an authoritative miss"),
+        ResolutionOutcome::NotFound
+    );
 }

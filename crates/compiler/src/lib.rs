@@ -624,6 +624,9 @@ fn project_source(
         file_name: name.clone(),
         may_be_emitted: source.may_be_emitted(),
         implied_node_format: source.implied_node_format().map(checker_resolution_mode),
+        implied_node_format_for_emit: source
+            .implied_node_format_for_emit()
+            .map(checker_resolution_mode),
     };
     Ok((
         InputFile {
